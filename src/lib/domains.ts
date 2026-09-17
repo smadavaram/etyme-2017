@@ -300,6 +300,11 @@ export const DOMAINS: Domain[] = [
       'app/api/contacts', 'app/api/counterparties', 'app/dashboard/contacts',
       'lib/feedback', 'lib/remember',
       'lib/demo-placement',
+      // Which way a company's cycle dates move off a weekend or a holiday.
+      // A company setting, read by money in lib/cycle-generator: the
+      // policy and the arithmetic of one date are here, generating the
+      // series is theirs.
+      'lib/cycle-shift',
       'lib/company-defaults', 'lib/company-roles', 'lib/company-domains', 'lib/domains-owned',
       'lib/registrable-domain', 'lib/account-lifecycle',
       'lib/service-accounts', 'lib/import-mapper', 'lib/importable',

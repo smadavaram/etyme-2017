@@ -73,6 +73,16 @@ interface Wall {
   explanation: string
   canSeeOutside: { role: string; heldBy: number }[]
 }
+interface ShiftPolicy {
+  hours: string
+  pay: string
+  bill: string
+}
+interface CycleShift {
+  policy: ShiftPolicy
+  categories: { key: keyof ShiftPolicy; label: string; covers: string }[]
+  directions: { value: string; label: string; means: string }[]
+}
 interface Settings {
   wall?: Wall
   company: Company
@@ -81,6 +91,7 @@ interface Settings {
   holidays: Holiday[]
   costCenters: CostCenter[]
   templatePack: Pack | null
+  cycleShift: CycleShift
   canEdit: boolean
 }
 
@@ -229,7 +240,7 @@ export default function SettingsPage() {
       {tab === 'Locations' && <LocationsTab data={data} send={send} busy={busy} />}
       {tab === 'Holidays' && <HolidaysTab data={data} send={send} busy={busy} />}
       {tab === 'Cost centers' && <CostCentersTab data={data} send={send} busy={busy} />}
-      {tab === 'Cycles' && <CyclesTab data={data} />}
+      {tab === 'Cycles' && <CyclesTab data={data} send={send} busy={busy} />}
     </>
   )
 }
@@ -689,9 +700,10 @@ function CostCentersTab({ data, send, busy }: { data: Settings; send: SendFn; bu
 
 // ── Cycles ───────────────────────────────────────────
 
-function CyclesTab({ data }: { data: Settings }) {
+function CyclesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {
   const pack = data.templatePack
   return (
+    <>
     <Panel
       title="Your cycle calendar"
       subtitle="Chosen at sign-up from where you are and what you do. It decides when timesheets are due, when invoices generate, and when payroll runs — every date a contract produces comes from here."
@@ -719,6 +731,68 @@ function CyclesTab({ data }: { data: Settings }) {
           </div>
         </>
       )}
+    </Panel>
+    <WeekendShiftPanel data={data} send={send} busy={busy} />
+    </>
+  )
+}
+
+// ── Weekends and holidays ────────────────────────────
+//
+// Founder, 2026-09-17: "If Sat or Sun — company can have settings to do
+// before weekend or after weekend."
+//
+// Three questions, not six and not one. A firm that pays on the Friday
+// before still bills on the Monday after, so one answer for the whole
+// company cannot state even what we ship by default; a knob per cycle
+// kind is how the 2017 engine reached four thousand commits.
+
+function WeekendShiftPanel({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {
+  const shift = data.cycleShift
+  const field = (key: string) => `cycleShift${key.charAt(0).toUpperCase()}${key.slice(1)}`
+
+  return (
+    <Panel
+      title="When a date lands on a weekend or a holiday"
+      subtitle="Every date below is either moved to a working day or left where it falls. Payroll usually moves back — a Saturday pay day paid on the Monday pays after the work — and billing usually moves forward, because pulling a client's payment terms shorter is the surprise on that side. Those are the defaults; this is where you say otherwise."
+    >
+      <div className="divide-y divide-etyme-rule">
+        {shift.categories.map((cat) => {
+          const current = shift.policy[cat.key]
+          return (
+            <div key={cat.key} className="py-4 first:pt-0">
+              <Lbl>{cat.label}</Lbl>
+              <p className="text-[13px] text-etyme-muted mt-1">{cat.covers}</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {shift.directions.map((d) => {
+                  const chosen = d.value === current
+                  return (
+                    <button
+                      key={d.value}
+                      title={d.means}
+                      disabled={busy || !data.canEdit || chosen}
+                      onClick={() => send('/api/settings', 'PATCH', { [field(cat.key)]: d.value })}
+                      className={`px-3 py-1.5 rounded text-[13px] border transition-colors ${
+                        chosen
+                          ? 'bg-etyme-ink text-white border-etyme-ink'
+                          : 'bg-etyme-raised border-etyme-rule text-etyme-muted hover:text-etyme-ink disabled:opacity-50'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-[12px] text-etyme-faint mt-2">
+                {shift.directions.find((d) => d.value === current)?.means}
+              </p>
+            </div>
+          )
+        })}
+      </div>
+      <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mt-1">
+        Cycle dates already generated keep their dates. A change here applies from the next contract.
+      </p>
     </Panel>
   )
 }

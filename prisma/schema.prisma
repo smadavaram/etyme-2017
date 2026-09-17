@@ -320,15 +320,46 @@ model Company {
   /// Expressed by attaching people to org units rather than by another
   /// permission: on a unit means that unit and everything under it, on no
   /// unit means the firm.
-  accountWalls    Boolean @default(false)
-  templatePack    String? // US_IT · US_SAP · IN_DELIVERY · UK
+  accountWalls Boolean @default(false)
+  templatePack String? // US_IT · US_SAP · IN_DELIVERY · UK
+
+  // ── When a cycle date lands on a day nobody works ───────────────────
+  //
+  // Decided 2026-09-17, from the founder: "If Sat or Sun — company can
+  // have settings to do before weekend or after weekend. It's each
+  // company that can set up how their cycles should work during holidays
+  // including company calendar."
+  //
+  // Three answers, per the three words a person reads a cycle in — hours,
+  // pay, bill — and not one per cycle kind. A firm that pays on the Friday
+  // before still bills on the Monday after, so one company-wide direction
+  // cannot state even the behavior we shipped; and a knob per kind per
+  // client is how the 2017 engine reached four thousand commits.
+  //
+  // The defaults are exactly what the engine did before anybody could
+  // change it, because a default that moves a pay day is a migration that
+  // quietly changes when somebody is paid. US payroll pays a Saturday pay
+  // day on the Friday before — moving it to the Monday pays after the work.
+  // Billing moves the other way, because pulling a client's payment terms
+  // shorter is the surprise on that side.
+  //
+  // Read by the cycle generator through src/lib/cycle-shift.ts. Changing a
+  // direction does not move dates that were already generated; it applies
+  // to the next contract, and the screen says so.
+  /// Hours due and hours to approve. Default: the working day after.
+  cycleShiftHours ShiftDirection @default(AFTER)
+  /// Pay day, pay to calculate, the supplier invoice to record. Default:
+  /// the working day before.
+  cycleShiftPay   ShiftDirection @default(BEFORE)
+  /// The day an invoice is raised. Default: the working day after.
+  cycleShiftBill  ShiftDirection @default(AFTER)
   // Where a supplier sits in the chain when they sign up: PRIME holds the
   // client agreement, BENCH sells through other suppliers. The same company
   // is often both — Infosys is prime to one client and buys bench from
   // three firms in the same week — so this shapes the first screens and can
   // be changed without migrating anything. Null for clients and MSPs.
   supplierPosture String?
-  currency        String  @default("USD")
+  currency        String         @default("USD")
   // Where this company's people are already looking. When it is set,
   // business notifications post there; when it is not, they fall back to
   // email, and when there is no email either the notification says so
@@ -2990,6 +3021,23 @@ model Engagement {
   sowSignedAt     DateTime?
 
   @@index([msaId])
+}
+
+/// Which way a date moves when it falls on a weekend or on a holiday the
+/// company keeps.
+///
+/// Three, not two. A contract whose payment terms are counted in calendar
+/// days wants the date left where it falls, and until this existed there
+/// was no way for a company to say so — `Invoice.dueAt` is already not
+/// shifted at all, so NONE is the de-facto behavior of one date on the
+/// system and was the one thing a company could not ask for.
+enum ShiftDirection {
+  /// The last working day before it. A Saturday becomes the Friday.
+  BEFORE
+  /// The next working day after it. A Saturday becomes the Monday.
+  AFTER
+  /// Left where it falls, weekend or not.
+  NONE
 }
 
 // The 2017 nineteen cycle types, one table. Generated on contract start, extended on extension.

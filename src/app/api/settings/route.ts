@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { getTemplatePack, TEMPLATE_PACKS } from '@/lib/template-packs'
+import { SHIFT_CATEGORIES, SHIFT_WORDS, isShiftDirection, policyFrom } from '@/lib/cycle-shift'
 
 /**
  * GET  /api/settings — everything about how this company is set up
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
         kind: true, supplierPosture: true, currency: true, templatePack: true,
         teamsWebhookUrl: true, networkVerifiedAt: true, siteLiveAt: true,
         outsideAccess: true, accountWalls: true,
+        cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true,
       },
     }),
     prisma.role.findMany({
@@ -126,6 +128,15 @@ export async function GET(request: NextRequest) {
         contractTypes: pack.contractTypes?.map((t) => ({ code: t.code, label: t.label })) ?? [],
       },
       availablePacks: Object.values(TEMPLATE_PACKS).map((p) => ({ id: p.id, label: p.label })),
+      // Which way this company's dates move off a weekend or a holiday.
+      // Sent with the words beside it so the screen does not have to know
+      // what BEFORE means — the code is for the machine, the sentence is
+      // the product.
+      cycleShift: {
+        policy: policyFrom(company),
+        categories: SHIFT_CATEGORIES,
+        directions: Object.entries(SHIFT_WORDS).map(([value, w]) => ({ value, ...w })),
+      },
       // What this caller may change here, so the screen can show fields as
       // read-only rather than failing on save.
       canEdit: hasPermission(caller.permissions, 'settings.manage'),
@@ -190,6 +201,32 @@ export async function PATCH(request: NextRequest) {
     changed.push('outsideAccess')
   }
 
+  // ── Which way a date moves off a weekend or a holiday ──────────────
+  //
+  // Three questions, on the three words a person reads a cycle in. A
+  // direction nobody recognizes is refused rather than written: this is
+  // the day somebody is paid, and a column holding a word the generator
+  // cannot read would quietly fall back to a default nobody chose.
+  for (const { key, label } of SHIFT_CATEGORIES) {
+    const field = `cycleShift${key.charAt(0).toUpperCase()}${key.slice(1)}`
+    if (!(field in body)) continue
+    const value = typeof body[field] === 'string' ? body[field].trim().toUpperCase() : body[field]
+    if (!isShiftDirection(value)) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION',
+            message: `${label} dates move to the working day BEFORE, the working day AFTER, or NONE to leave them where they fall`,
+            field,
+          },
+        },
+        { status: 422 }
+      )
+    }
+    data[field] = value
+    changed.push(field)
+  }
+
   if (typeof body.accountWalls === 'boolean') {
     data.accountWalls = body.accountWalls
     changed.push('accountWalls')
@@ -240,6 +277,7 @@ export async function PATCH(request: NextRequest) {
     select: {
       id: true, name: true, currency: true, teamsWebhookUrl: true,
       outsideAccess: true, accountWalls: true,
+      cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true,
     },
   })
 
@@ -261,7 +299,9 @@ export async function PATCH(request: NextRequest) {
       message:
         changed.includes('teamsWebhookUrl') && updated.teamsWebhookUrl
           ? 'Saved. Notifications for this company will now post to Teams.'
-          : 'Saved.',
+          : changed.some((c) => c.startsWith('cycleShift'))
+            ? 'Saved. Cycle dates already generated keep their dates; this applies from the next contract.'
+            : 'Saved.',
     },
   })
 }
