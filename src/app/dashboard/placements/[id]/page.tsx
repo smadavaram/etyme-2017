@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
+import { CoverChip, SubVendorCover } from '@/components/cover-standing'
 
 /**
  * One placement, top to bottom.
@@ -69,7 +70,16 @@ interface Placement {
   chain: { hopsBelow: number; weEmployThem: boolean }
   compliance: {
     person: Array<{ type: string; status: string; provider: string | null; expiresAt: string | null }>
-    supplierCover: Array<{ type: string; status: string; expiresAt: string | null }>
+    // The firm below us, where there is one. `standing` is computed for
+    // today and `says` is the sentence that goes with it; the stored
+    // `status` is kept because it is a fact about the record, and is not
+    // what the screen reads.
+    supplierCover: Array<{
+      type: string; status: string
+      validFrom: string | null; expiresAt: string | null
+      standing: string | null; says: string | null
+    }>
+    subVendorCover: { vendor: string; outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null } | null
   }
   timesheets: Array<{
     id: string; periodStart: string; periodEnd: string; hours: number; status: string
@@ -398,12 +408,19 @@ export default function PlacementPage() {
               {it.label.toLowerCase()} · {it.state === 'ALREADY_HELD' ? 'on file' : words(it.state)}
             </span>
           ))}
-          {p.compliance.supplierCover.map((v, i) => (
-            <span key={`${v.type}-${i}`} className={`chip ${tone(v.status)}`}>
-              {words(v.type)} · {words(v.status)}
-            </span>
-          ))}
+          {/* The sub-vendor's certificates, in the words the compliance
+              page uses for the same rows. Shown to the supplier only:
+              the firm below us is the buy side, which Station 4 already
+              keeps off a client's screen, and a client reading a verdict
+              about a firm it has no contract with is worse than a gap. */}
+          {p.viewer.isSupplier &&
+            p.compliance.supplierCover.map((v, i) => <CoverChip key={`${v.type}-${i}`} cover={v} />)}
         </div>
+        {/* Whether the firm below us could put anybody forward today.
+            Computed by the same gate the submission door calls, so this
+            screen cannot read green on cover that refuses a submission an
+            hour later. */}
+        {p.viewer.isSupplier && <SubVendorCover cover={p.compliance.subVendorCover} />}
       </Station>
 
       <Station

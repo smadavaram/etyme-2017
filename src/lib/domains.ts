@@ -102,8 +102,18 @@ export const DOMAINS: Domain[] = [
     l2: ['L2.4.1', 'L2.4.2', 'L2.4.3', 'L2.5.1', 'L2.5.2', 'L2.5.3', 'L2.6.1', 'L2.6.2'],
     owns: [
       'app/dashboard/rate-history', 'app/dashboard/reports',
-      'app/api/rate-history', 'app/api/holidays', 'app/api/contracts',
-      'app/dashboard/contracts',
+      'app/api/rate-history', 'app/api/holidays',
+      // The whole contracts API, activation included. Settled 2026-09-17
+      // after a test comment called `contracts/[id]/activate` etyme-demand's
+      // and a demand agent edited it on that basis. The comment was wrong:
+      // the map has never carved a file out of this directory, and
+      // activation's own effect is to write the billing and pay cycles,
+      // which are money's. A per-file exception inside a directory is
+      // exactly how two agents end up in one folder. What activation
+      // refuses on is regulatory's arithmetic and who may press it is
+      // demand's question, so both read it and neither owns it — say what
+      // you need and ask the desk named here.
+      'app/api/contracts', 'app/dashboard/contracts',
       'lib/order', 'lib/order-postings', 'lib/gl', 'lib/contract-links', 'lib/work-chain', 'lib/work-chain-read',
       'lib/profitability',
       'lib/pay-model', 'lib/bench-policy', 'lib/money', 'lib/money-display',

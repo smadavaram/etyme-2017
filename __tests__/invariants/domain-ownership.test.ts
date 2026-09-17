@@ -108,6 +108,23 @@ describe('An agent is told before it edits, not after it breaks something', () =
     expect(v.says).toContain('two agents will edit')
   })
 
+  it('activating a contract is the money desk’s file, because the whole contracts API is', () => {
+    // Settled 2026-09-17. A comment in document-floor.test.ts called this
+    // route etyme-demand's and a demand agent edited it on that basis. The
+    // edit was right and the comment was wrong: nothing has ever carved a
+    // file out of app/api/contracts, and activation writes the billing and
+    // pay cycles, which are money's arithmetic. Written as a test because a
+    // comment saying who owns a file is wrong within a month.
+    expect(domainOf('src/app/api/contracts/[id]/activate/route.ts')?.key).toBe('MONEY')
+    expect(mayWrite('etyme-money', 'src/app/api/contracts/[id]/activate/route.ts').mayWrite).toBe(true)
+  })
+
+  it('and a demand agent is told to ask the money desk before editing it, not to guess from a comment', () => {
+    const v = mayWrite('etyme-demand', 'src/app/api/contracts/[id]/activate/route.ts')
+    expect(v.mayWrite).toBe(false)
+    expect(v.says).toContain('etyme-money')
+  })
+
   it('the longest claim wins, so a specific route beats a general prefix', () => {
     expect(domainOf('src/app/api/loose-ends/route.ts')?.key).toBe('MONEY')
     expect(domainOf('src/app/api/cron/daily/route.ts')?.key).toBe('PLATFORM')
