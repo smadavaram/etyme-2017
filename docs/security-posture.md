@@ -243,18 +243,27 @@ rather than deleted so a reviewer can see what moved and when.
   it returns the rung the client is the buyer of, and that firm's name is
   the client's own supplier's.
 
-  **What it names today**, none of them fixed here because each file
-  belongs to another agent and a file belongs to exactly one: the
-  client's "needs you" queue (`api/decisions`) falls back to the
-  employer's own name where the rung the client pays is not on file;
-  cross-vendor identity resolution (`api/identity`), the client's Network
+  **What it named on its first run, and what became of each.** None were
+  fixed in that commit, because each file belongs to another agent and a
+  file belongs to exactly one; all were closed by their owner,
+  `etyme-demand`, in `936c97c6`. The client's "needs you" queue
+  (`api/decisions`) fell back to the employer's own name where the rung
+  the client pays was not on file, and read no disclosure term at all.
+  Cross-vendor identity resolution (`api/identity`), the client's Network
   register (`api/people`), one person's page (`api/people/[id]`) and the
-  org view (`api/program/org`) all carry `vendorName` off every rung; and
-  the client dashboard's approval queue (`api/program`) names the firm a
-  timesheet or expense was filed against, which below a prime is the
-  sub. All six are `etyme-demand`'s, are listed in the test with what
-  each gives away, and a seventh appearing anywhere fails the build on
-  the commit that adds it.
+  reasoning panel (`api/why/[type]/[id]`) carried `vendorName` off every
+  rung. The client dashboard's approval queue (`api/program`) named the
+  firm a timesheet or expense was filed against, which below a prime is
+  the sub. Each now hands its rows to `nameForClient` / `namesForClient`;
+  standing, hours, cover and counts travel exactly as before and only a
+  name is withheld. The org view (`api/program/org`) was the one the
+  sweep got wrong: every name on that page comes off a rung the client is
+  itself billed on, and the scanner could not see `asPayer` — `chainTop`
+  with a price test on top — doing the reducing. `asPayer` was added to
+  the reductions the scanner recognizes rather than the file added to an
+  exemption list, on the rule that recognizing a fix is not the same as
+  excusing a file. The allowlist is empty and kept, and a new offender
+  fails the build on the commit that adds it.
 
   **What the scanner cannot see, and is written down rather than
   implied.** A name fetched in a second query — select `companyId` off
@@ -627,22 +636,43 @@ Stated in one place so a reviewer does not have to assemble it.
   `__tests__/invariants/client-facing-names.test.ts`, in the pure suite
   on every commit — which fails on any new read scoped to every rung at a
   client that asks the selling firm for its name without going through
-  `nameForClient` / `namesForClient` or `chainTop` / `payerRung`. It
-  currently lists six files that still do, all `etyme-demand`'s, each
-  with what it gives away: the client's "needs you" queue
-  (`src/app/api/decisions/route.ts`), cross-vendor identity resolution
-  (`src/app/api/identity/route.ts`), the client's Network register
-  (`src/app/api/people/route.ts`), one person's page
-  (`src/app/api/people/[id]/route.ts`), the org view
-  (`src/app/api/program/org/route.ts`) and the client dashboard's
-  approval queue (`src/app/api/program/route.ts`). A seventh appearing
-  anywhere fails the build on the commit that adds it; what the scanner
-  cannot see is listed in section 3. `KNOWN_TO_NAME_BELOW_THE_RUNG` in
-  that test is the register and this paragraph follows it — read the test
-  rather than this list if the two ever disagree, because the test is
-  wrong for exactly one commit and a document is wrong for a month. The
-  employing firm's **id** still travels on a timesheet row,
-  deliberately.
+  `nameForClient` / `namesForClient` or `chainTop` / `payerRung` /
+  `asPayer`. **Its list is now empty, as of `936c97c6`.** The six it
+  named on its first run, all `etyme-demand`'s, are closed: the client's
+  "needs you" queue (`src/app/api/decisions/route.ts`), cross-vendor
+  identity resolution (`src/app/api/identity/route.ts`), the client's
+  Network register (`src/app/api/people/route.ts`), one person's page
+  (`src/app/api/people/[id]/route.ts`), the client dashboard's approval
+  queue (`src/app/api/program/route.ts`) and the reasoning panel
+  (`src/app/api/why/[type]/[id]/route.ts`) each ask `lib/chain-names`
+  whose name they may print. The seventh, the org view
+  (`src/app/api/program/org/route.ts`), was read as a leak and was not
+  one — every name on that page comes off a rung the client is itself
+  billed on, and the scanner could not see `asPayer` doing the reducing —
+  so the heuristic was narrowed to recognize it rather than the file
+  exempted. A new offender fails the build on the commit that adds it.
+  **An empty list is not a closed surface**: what the scanner cannot see
+  is three shapes, named in section 3 and repeated here because a
+  reviewer reads this list first — a name fetched in a **second query**
+  off ids collected from every rung, which carries no client scope on the
+  read that resolves it; a route that **reduces its rows for one panel
+  and keeps the raw ones for another**, since where `chainTop` appears
+  the reduction is trusted; and a record fetched **by id** and gated by a
+  party check in code rather than by a filter, because a party check is
+  not a filter and one instance is not a population.
+  `KNOWN_TO_NAME_BELOW_THE_RUNG` in that test is the register and this
+  paragraph follows it — read the test rather than this list if the two
+  ever disagree, because the test is wrong for exactly one commit and a
+  document is wrong for a month. The employing firm's **id** still
+  travels on a timesheet row, deliberately.
+- **One route round the prime, in flight rather than fixed.**
+  `POST /api/people/[id]/ask` — a client asking for somebody by name —
+  routes the request to the firm holding that person's bench consent,
+  which where that firm is a sub-vendor both names it to the client and
+  reaches it round its own prime, and the name travels on to the program
+  feed in the message metadata. It is a write path rather than a read, so
+  the scanner above does not look at it. `etyme-demand` owns it and is
+  closing it; it is recorded here as **open** until that commit lands.
 - Access logging covers 19 route files of 231 (section 4).
 - Access logging is fire-and-forget, so a log write failure does not fail
   the request.
