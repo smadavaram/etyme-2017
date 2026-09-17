@@ -15,7 +15,17 @@ export async function GET(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'requirements.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Reading open roles needs requirements.read' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          // The code is for the machine; the sentence is the product.
+          // "needs requirements.read" tells somebody the name of a thing
+          // they cannot grant themselves and nothing about what to do.
+          message:
+            `Open roles are not part of your seat at ${caller.company?.name ?? 'this company'}. ` +
+            'Whoever set up your access can add them.',
+        },
+      },
       { status: 403 }
     )
   }
@@ -185,6 +195,32 @@ export async function POST(request: NextRequest) {
           code: 'FORBIDDEN',
           message: 'You can only raise a requirement for your own company.',
           field: 'companyId',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // Which company was asked above. Which desk was not.
+  //
+  // GET on this file asks for `requirements.read` and POST asked for
+  // nothing, which reads as an oversight rather than a decision — so any
+  // seat at the firm could open a role. Raising one is the hiring
+  // manager's job at a client and the account or delivery manager's at a
+  // firm that sells; the viewer, the AP clerk and the compliance officer
+  // hold `requirements.read` and stop there (`lib/company-defaults`).
+  //
+  // Same permission as the client's own path, `POST /api/requisitions`.
+  // Two routes that open a role must refuse the same people, or the
+  // narrower one simply becomes the way round the wider one.
+  if (!hasPermission(caller.permissions, 'requirements.write')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_HIRING',
+          message:
+            `Opening a role is for whoever is hiring at ${caller.company?.name ?? 'your company'} — ` +
+            'a hiring manager, or the desk that owns the account. Ask them to raise it.',
         },
       },
       { status: 403 }

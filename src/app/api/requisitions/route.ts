@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { ownPriceMedian } from '@/lib/chain-top'
@@ -128,6 +129,36 @@ export async function POST(request: NextRequest) {
 
   const { client, error: clientError } = await resolveClientCompany(caller, null)
   if (clientError) return clientError
+
+  // Raising a requisition is the hiring manager's act, and only theirs.
+  //
+  // The line above establishes which client's program this is. It says
+  // nothing about the seat, so every desk in the program office could
+  // open a requisition: the approver who is meant to decide it, the AP
+  // clerk who pays for it, the viewer who reads the program and changes
+  // nothing. The role table has always split on this — the hiring
+  // manager and the program manager hold `requirements.write`; the
+  // approver, the HR partner, the procurement lead, the AP clerk, the
+  // compliance officer and the viewer hold only `requirements.read`
+  // (`lib/company-defaults`). GET on this same file asked the question
+  // and POST did not.
+  //
+  // It is deliberately not `requirements.distribute`: raising the role
+  // and choosing which suppliers see it are two desks on purpose, and
+  // the procurement lead who holds the second does not get the first.
+  if (!hasPermission(caller.permissions, 'requirements.write')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_HIRING',
+          message:
+            `Raising a requisition is for whoever is hiring at ${client.name} — ` +
+            'a hiring manager or the program office. Ask them to open the role.',
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const body = await request.json()
   const {

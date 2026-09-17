@@ -13,6 +13,7 @@ import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
 import { submissionScope } from '@/lib/resolve-client-company'
 import { isConsultantSeat } from '@/lib/seat'
+import { hasPermission } from '@/lib/permissions'
 import { submissionKind, tellEmployee, blockedSays } from './kind'
 
 /**
@@ -110,6 +111,36 @@ export async function POST(request: NextRequest) {
           message:
             'A consultant is put forward by a firm that holds their consent, not by ' +
             'themselves. Ask the firm you are on the bench of to submit you.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // The firm's own people, and within the firm the desk whose job this is.
+  //
+  // Everything above asks *which company* is submitting. Nothing asked
+  // *which desk*, so every seat at a supplier could put a name in front
+  // of a client: the HR partner who keeps the firm's own paperwork, the
+  // compliance officer who reads it, the accounts receivable clerk who
+  // bills for it. Selling somebody is the recruiting desk's job and the
+  // role table has said so since it was written — SEND_SUPPLY goes to
+  // the recruiter, the resource manager and the account manager, and to
+  // nobody else (`lib/company-defaults`). The route did not ask.
+  //
+  // Same permission, same question, as sending a candidate onward from
+  // one rung to the next (`mayForward` in `lib/forwarding`). Submitting
+  // and forwarding are one act seen from two rungs of a chain, and a
+  // firm that may do one may do the other.
+  if (!hasPermission(caller.permissions, 'submissions.create')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NO_PERMISSION',
+          message:
+            `Putting somebody in front of a client is a recruiting desk's job at ` +
+            `${caller.company?.name ?? 'your firm'} — a recruiter, a resource manager or the ` +
+            `account manager. Ask one of them to submit this candidate.`,
         },
       },
       { status: 403 }

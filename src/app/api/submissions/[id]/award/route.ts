@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { clientOf, releaseAllAt } from '@/lib/holds'
 import { emit } from '@/lib/events'
@@ -92,6 +93,42 @@ export async function POST(
   if (caller.company?.id !== req.companyId && caller.company?.id !== submission.toCompanyId) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Only the company that raised this requisition can award it' } },
+      { status: 403 }
+    )
+  }
+
+  // And within the buying company, the desk that owns the requisition.
+  //
+  // The line above asks which company. It does not ask which seat, so a
+  // client's Viewer — a role whose entire blurb is "Reads the program.
+  // Changes nothing." — could award a placement worth six figures, and so
+  // could the AP clerk and the compliance officer. The governance chain
+  // that runs a few lines below is about the money on the requisition,
+  // never about who is clicking.
+  //
+  // `requirements.write` is the permission because awarding is an act on
+  // the requisition rather than on the person: it consumes one of the
+  // seats, closes the role when the last one goes and stands the other
+  // suppliers down. The same permission already gates the two decisions
+  // before it on the same candidate — proposing a round
+  // (`submissions/[id]/interviews`) and deciding one (`interviews/[id]`) —
+  // and this is the last and heaviest decision in that sequence, so a
+  // desk that may not book the interview may not hand out the job.
+  //
+  // At a client that is the hiring manager and the program manager, and
+  // deliberately not the approver, the HR partner, the procurement lead,
+  // the AP clerk, the compliance officer or the viewer
+  // (`lib/company-defaults`).
+  if (!hasPermission(caller.permissions, 'requirements.write')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_HIRING',
+          message:
+            `Awarding a position is for whoever is hiring at ${caller.company?.name ?? 'your company'} — ` +
+            `a hiring or program manager. Ask them to award ${submission.person.name}.`,
+        },
+      },
       { status: 403 }
     )
   }
