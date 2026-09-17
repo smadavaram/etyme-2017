@@ -580,18 +580,30 @@ attention. What changes is density and voice.
 
 | Company type | Sections |
 |---|---|
-| Vendor | Today → Sell → Procure → Operate → Grow |
-| Consultant | You → Grow |
-| GSI (Teleworld) | Deliver → Supply → Operate |
-| Client (Enterprise) | Workforce → Governance |
+| Vendor | Today → Sell → Procure → Operate → Grow → Governance |
+| GSI (integrator) | Today → Deliver → Supply → Operate → Grow → Governance |
+| MSP (program office) | Today → Demand → Supply → Operate → Grow → Governance |
+| Client (enterprise) | Workforce → Governance |
+| Consultant | You |
 
-**Eyebrow labels are company-type-specific.** The current build is vendor-only
-(Phase 1). Pages show eyebrows like "Sell" and "Operate" that make sense for
-a staffing vendor. A client company (Northbend Athletic, Talvern Medical) would see the same data
-under different section labels (e.g. "Workforce" instead of "Sell"). When the
-client portal is built (Phase 4), the eyebrow, nav section, and page subtitle
-must adapt to the viewer's company type — the underlying data and pages are
-shared, the framing is not.
+Every section is either short enough to read as a list — seven links at the
+outside — or every link in it sits under a named sub-heading. **Both sides of
+a contract and the hours under them are Operate's, for every party**, because
+administering a placement is one job whoever does it; and every firm with
+counterparties has a **Network** group naming the firms it trades with and the
+people at them. `__tests__/invariants/sidebar-nav.test.ts` reads this table
+and fails when the code and it disagree, so a section renamed in one and not
+the other breaks the build rather than the founder's walk.
+
+**Eyebrow labels are company-type-specific.** Pages show eyebrows like "Sell"
+and "Operate" that make sense for a staffing vendor. A client company
+(Northbend Athletic, Talvern Medical) sees the same data under different
+section labels — "Workforce" instead of "Sell". The eyebrow, nav section and
+page subtitle adapt to the viewer's company type; the underlying data and
+pages are shared, the framing is not. `lib/page-framing` still frames a
+supplier's contracts page under "Sell" and "Procure" and its consultants page
+under "Talent", which are no longer sections of anybody's menu — the client's
+eyebrows are pinned to its nav by a test and the supplier's are not yet.
 
 ### Eight things to build before features (from UX Stress Test)
 

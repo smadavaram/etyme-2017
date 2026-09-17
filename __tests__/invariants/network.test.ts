@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { applyFilter, isRecent, locationsOf, FILTER_WORD, NETWORK_FILTERS } from '@/lib/network-filters'
+import { getNavForKind } from '@/components/shell/sidebar'
 
 /**
  * "People & Suppliers can be changed to Network. Contractors and
@@ -66,8 +67,14 @@ describe('the two Network pages', () => {
   const favorites = read('src/app/api/favorites/route.ts')
 
   it('the nav group is Network, holding Contractors, Suppliers and Contacts', () => {
+    // Counted in the source until the same group reached the supplier
+    // side too and three became six. The claim was always about what a
+    // client's Network group holds, so it asks the menu itself now.
     expect(sidebar).not.toContain("group: 'People & suppliers'")
-    expect(sidebar.match(/group: 'Network'/g)?.length).toBe(3)
+    const network = getNavForKind('CLIENT', false)
+      .flatMap((s) => s.items)
+      .filter((i) => i.group === 'Network')
+    expect(network.map((i) => i.label)).toEqual(['Contractors', 'Suppliers', 'Contacts'])
   })
   it('both pages have a feed and a table of the same rows, and the same filter bar', () => {
     for (const src of [people, suppliers]) {

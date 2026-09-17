@@ -540,7 +540,7 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
     expect(billable.length, 'nothing on the sell side of the desk').toBeGreaterThan(0)
   })
 
-  it('lands the MSP on a page its own navigation offers, which is the vendor’s', async () => {
+  it('lands the MSP on a page its own navigation offers, which is now its own and not the vendor’s', async () => {
     const { body } = await sit('world-aptiva')
     expect(body.kind).toBe('MSP')
     const hrefs = getNavForKind('MSP', false).flatMap((s) => s.items.map((i) => i.href))

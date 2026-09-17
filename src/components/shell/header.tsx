@@ -34,6 +34,7 @@ import { NotificationBell } from '@/components/notification-bell'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
+import { getNavForKind } from '@/components/shell/sidebar'
 
 type HeaderProps = {
   title?: string
@@ -53,6 +54,21 @@ type PlusMenuSection = {
   items: PlusMenuItem[]
 }
 
+/**
+ * The two words each supplier-side party uses for the same two sections.
+ *
+ * The + menu named its sections Sell and Talent for everybody, so an
+ * integrator opened a menu whose headings named no section of its own
+ * navigation. Same actions, same order — the heading says what that
+ * firm's menu says, because a heading that names nothing is how
+ * "Program" outlived the section it belonged to.
+ */
+const PLUS_SECTIONS: Record<'VENDOR' | 'GSI' | 'MSP', [string, string]> = {
+  VENDOR: ['Sell', 'Procure'],
+  GSI: ['Deliver', 'Supply'],
+  MSP: ['Demand', 'Supply'],
+}
+
 const PLUS_MENU: PlusMenuSection[] = [
   {
     label: 'Sell',
@@ -69,16 +85,13 @@ const PLUS_MENU: PlusMenuSection[] = [
         href: '/dashboard/submissions?new=1',
         icon: '◇',
       },
-      {
-        label: 'New contract',
-        description: 'Create a sell or buy contract',
-        href: '/dashboard/contracts?new=1',
-        icon: '▣',
-      },
     ],
   },
   {
-    label: 'Talent',
+    // "Talent" named a department, not a job. The nav section where a
+    // firm signs somebody to its bench is Procure, and this menu says
+    // the same word the menu beside it says.
+    label: 'Procure',
     items: [
       {
         label: 'Add consultant',
@@ -97,6 +110,14 @@ const PLUS_MENU: PlusMenuSection[] = [
   {
     label: 'Operate',
     items: [
+      // With the nav: both sides of a contract, and the hours under
+      // them, are the administration of a placement.
+      {
+        label: 'New contract',
+        description: 'Create a sell or buy contract',
+        href: '/dashboard/contracts?new=1',
+        icon: '▣',
+      },
       {
         label: 'New timesheet',
         description: 'Log hours against a sell contract',
@@ -134,7 +155,9 @@ const PLUS_MENU: PlusMenuSection[] = [
  */
 const CLIENT_PLUS_MENU: PlusMenuSection[] = [
   {
-    label: 'Program',
+    // "Program" was this section's name after the nav had stopped using
+    // it — the same orphan the eyebrow on the requisitions page was.
+    label: 'Workforce',
     items: [
       {
         label: 'New role',
@@ -165,6 +188,27 @@ const CLIENT_PLUS_MENU: PlusMenuSection[] = [
   },
 ]
 
+/**
+ * What this seat can create.
+ *
+ * A consultant gets nothing: every item in the supplier menu — submit a
+ * consultant, add one to a bench, generate an invoice — is somebody
+ * else's action taken about them, and the + button hides itself rather
+ * than opening on a list of refusals.
+ */
+function plusMenuFor(
+  kind: string | null,
+  isConsultant: boolean
+): PlusMenuSection[] {
+  if (isConsultant || !kind) return []
+  if (kind === 'CLIENT') return CLIENT_PLUS_MENU
+  const names = PLUS_SECTIONS[kind as keyof typeof PLUS_SECTIONS] ?? PLUS_SECTIONS.VENDOR
+  return PLUS_MENU.map((section, i) => ({
+    ...section,
+    label: i < names.length ? names[i] : section.label,
+  }))
+}
+
 // ── Global search results ──
 
 type SearchResult = {
@@ -173,39 +217,32 @@ type SearchResult = {
   href: string
 }
 
-/** Pages a client company can actually reach — mirrors CLIENT_NAV. */
-const CLIENT_SEARCH_LABELS = new Set([
-  'Program', 'Org view', 'Requirements', 'Submissions', 'Contracts', 'Rolloff', 'Alumni',
-  'Timesheets', 'Invoices', 'Expenses', 'Compliance', 'Tenure',
-  'Notifications', 'Conversations', 'Decisions',
-])
-
-const SEARCH_SECTIONS: { type: string; label: string; href: string }[] = [
-  { type: 'page', label: 'Dashboard', href: '/dashboard' },
-  { type: 'page', label: 'Requirements', href: '/dashboard/requirements' },
-  { type: 'page', label: 'Submissions', href: '/dashboard/submissions' },
-  { type: 'page', label: 'Sell contracts', href: '/dashboard/contracts?side=sell' },
-  { type: 'page', label: 'Buy contracts', href: '/dashboard/contracts?side=buy' },
-  { type: 'page', label: 'Rolloff', href: '/dashboard/rolloff' },
-  { type: 'page', label: 'Bench', href: '/dashboard/bench' },
-  { type: 'page', label: 'Consultants', href: '/dashboard/consultants' },
-  { type: 'page', label: 'Training', href: '/dashboard/training' },
-  { type: 'page', label: 'Timesheets', href: '/dashboard/timesheets' },
-  { type: 'page', label: 'Invoices', href: '/dashboard/invoices' },
-  { type: 'page', label: 'Expenses', href: '/dashboard/expenses' },
-  { type: 'page', label: 'Payroll', href: '/dashboard/payroll' },
-  { type: 'page', label: 'Automation', href: '/dashboard/automation' },
-  { type: 'page', label: 'Compliance', href: '/dashboard/compliance' },
-  { type: 'page', label: 'Notifications', href: '/dashboard/notifications' },
-  { type: 'page', label: 'Conversations', href: '/dashboard/conversations' },
-  { type: 'page', label: 'Needs attention', href: '/dashboard/decisions' },
-  { type: 'page', label: 'Reports', href: '/dashboard/reports' },
-  { type: 'page', label: 'Import', href: '/dashboard/import' },
-  { type: 'page', label: 'Program', href: '/dashboard/program' },
-  { type: 'page', label: 'Org view', href: '/dashboard/program/org' },
-  { type: 'page', label: 'Past contractors', href: '/dashboard/alumni' },
-  { type: 'page', label: 'Tenure', href: '/dashboard/tenure' },
-]
+/**
+ * What ⌘K can reach: exactly the pages this party's own menu offers.
+ *
+ * This used to be a hand-kept list of destinations plus a second list of
+ * the ones a client was allowed to see, and both had drifted — a client
+ * searching "contract" found nothing, because the only contract entries
+ * on the list were the vendor's two and the client's allow-list named a
+ * label that did not exist. An integrator and a program office got the
+ * vendor's list whole.
+ *
+ * So it is read off the navigation instead. A page reachable from the
+ * menu is searchable; one that is not, is not; and neither list can
+ * drift from the other again because there is only one.
+ */
+function reachablePagesFor(
+  kind: Parameters<typeof getNavForKind>[0],
+  isConsultant: boolean
+): SearchResult[] {
+  return getNavForKind(kind, isConsultant).flatMap((section) =>
+    section.items.map((item) => ({
+      label: item.label,
+      type: 'page',
+      href: item.href,
+    }))
+  )
+}
 
 /** First letters of the first two words of a name, e.g. "Anita Desai" → "AD". */
 function initials(name: string | undefined): string {
@@ -230,7 +267,7 @@ export function Header({ title }: HeaderProps) {
   const router = useRouter()
   const { company, person, roleName, contextType } = useSession()
   const isClient = company?.kind === 'CLIENT'
-  const plusMenu = isClient ? CLIENT_PLUS_MENU : PLUS_MENU
+  const plusMenu = plusMenuFor(company?.kind ?? null, contextType === 'CONSULTANT')
   const [plusOpen, setPlusOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
@@ -303,10 +340,12 @@ export function Header({ title }: HeaderProps) {
     return () => document.removeEventListener('keydown', handleKey)
   }, [])
 
-  // Search results — filter pages by query, scoped to what this company can reach
-  const reachablePages = isClient
-    ? SEARCH_SECTIONS.filter(s => CLIENT_SEARCH_LABELS.has(s.label))
-    : SEARCH_SECTIONS
+  // Search results — filter pages by query, scoped to what this company
+  // can reach, which is what its own navigation offers and nothing else.
+  const reachablePages = reachablePagesFor(
+    company?.kind ?? null,
+    contextType === 'CONSULTANT'
+  )
 
   const searchResults: SearchResult[] = searchQuery.length >= 1
     ? reachablePages
@@ -463,7 +502,10 @@ export function Header({ title }: HeaderProps) {
         {/* Notification bell — real-time via SSE */}
         <NotificationBell />
 
-        {/* Plus button — the four-section add menu (UX Stress Test #2) */}
+        {/* Plus button — the add menu (UX Stress Test #2). Absent for a
+            seat with nothing of its own to create, which is a consultant:
+            every item on it is somebody else's action about them. */}
+        {plusMenu.length > 0 && (
         <div className="md:relative" ref={plusRef}>
           <button
             onClick={() => setPlusOpen(!plusOpen)}
@@ -518,6 +560,7 @@ export function Header({ title }: HeaderProps) {
             </div>
           )}
         </div>
+        )}
 
         {/* Account menu.
             The avatar used to be a button that did nothing at all, which

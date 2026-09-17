@@ -355,10 +355,11 @@ export async function POST(request: NextRequest) {
         // its own payroll in front of a client, was three guesses away.
         // Submissions is where that starts and it is in their nav.
         // An MSP is not a client either. /dashboard/program is the
-        // client's own overview and an MSP takes the vendor navigation —
-        // CLAUDE.md specifies a nav per company type and names no MSP —
-        // so landing one there was the same dead end the integrator had:
-        // a page with no way back into its own work.
+        // client's own overview and an MSP now has a menu of its own —
+        // Today → Demand → Supply → Operate → Grow → Governance — which
+        // does not contain it, so landing one there was the same dead
+        // end the integrator had: a page with no way back into its own
+        // work.
         landing:
           desk ? DESK_LANDING[desk]
           : company.kind === 'GSI' ? '/dashboard/submissions'

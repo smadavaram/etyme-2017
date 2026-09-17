@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { mayAct, askNotice, statusWord, type DocFacts } from '@/lib/document-request'
+import { getNavForKind } from '@/components/shell/sidebar'
 
 /**
  * A document asked for, sent, uploaded or signed.
@@ -84,8 +85,13 @@ describe('the screens', () => {
     expect(page).toContain('Ask somebody for a document')
     expect(page).toContain("post(`/api/documents/${id}/send`, {})")
     expect(page).toContain('Record the signed copy')
-    for (const nav of ['src/components/shell/sidebar.tsx']) {
-      expect((read(nav).match(/href: '\/dashboard\/documents'/g) ?? []).length).toBe(2)
+    // Counted twice in the source because the vendor and the integrator
+    // each held their own copy of the link. They share one list now, so
+    // the question is the one that mattered: can every firm that chases
+    // a document reach the page it chases from.
+    for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
+      const hrefs = getNavForKind(kind, false).flatMap((s) => s.items.map((i) => i.href))
+      expect(hrefs, kind).toContain('/dashboard/documents')
     }
   })
   it('the person answers from their own page: a link to upload, their word to sign', () => {
