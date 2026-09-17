@@ -68,9 +68,14 @@ function until(iso: string | null): string {
 /**
  * Can they see it?
  *
+ * etyme-market, 2026-09-17. A cross-domain line in etyme-regulatory's file,
+ * on the precedent of c126c1c4 and f901e914: the sentence below named a real
+ * company, which held this file out of the demo-names guard; renamed from the
+ * sheet in docs/demo-names.md, nothing else touched.
+ *
  * The question an administrator actually has, and the one no system
- * answers: somebody says "I cannot see the Nike contract", and the only
- * way to find out why is to read four sets of rules and guess.
+ * answers: somebody says "I cannot see the Talvern Medical contract", and
+ * the only way to find out why is to read four sets of rules and guess.
  *
  * Paste the link they were on. It says why, in their terms, and what to
  * change — or that there is nothing to change, which is just as often the

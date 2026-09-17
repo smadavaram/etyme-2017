@@ -758,12 +758,16 @@ export default function SuppliersPage() {
                file, on the precedent of c126c1c4 and f901e914: the second
                example named Vertex, which is a real firm and also collided
                with Vertex Global in the seeded world. The sheet in
-               docs/demo-names.md moves it to Veritan Talent. Nothing else in
-               this file was touched — the paste parser, the desks and the
-               import are etyme-demand's and are unchanged. */
-            'Cloudepa Systems, Ravi Menon, ravi@cloudepa.com\n' +
-            'Veritan Talent Ltd, priya@veritantalent.io\n' +
-            'Brightmoor Staffing <hello@brightmoor.co.uk>'
+               docs/demo-names.md moves it to Veritan Talent. The three
+               addresses were at buyable domains, which is the seeds' own
+               hazard — joining beats creating, so whoever registers one could
+               be seated at a firm we invented — and now sit at reserved names
+               under RFC 2606. Nothing else in this file was touched — the
+               paste parser, the desks and the import are etyme-demand's and
+               are unchanged. */
+            'Cloudepa Systems, Ravi Menon, ravi@cloudepa.example\n' +
+            'Veritan Talent Ltd, priya@veritantalent.example\n' +
+            'Brightmoor Staffing <hello@brightmoor.example>'
           }
           className="w-full rounded-lg border border-etyme-rule bg-white p-3 font-mono
                      text-[12px] leading-relaxed text-etyme-ink placeholder:text-etyme-faint"

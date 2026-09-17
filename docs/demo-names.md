@@ -70,7 +70,7 @@ of `c126c1c4` and `f901e914`:
 | `src/lib/onboarding.ts` (etyme-supply) | `example: 'Terumo BCT, Nike'` on the live sign-up picker | `example: 'Talvern Medical, Northbend Athletic'` |
 | `src/lib/onboarding.ts` (etyme-supply) | `example: 'Infosys, Accenture'` | `example: 'Teleworld Solutions, Sundara Systems'` |
 | `src/app/dashboard/access/page.tsx` (etyme-regulatory) | placeholder `Joining the Terumo delivery team` | `Joining the Talvern Medical delivery team` |
-| `src/app/dashboard/suppliers/page.tsx` (etyme-demand) | paste example `Vertex Talent Ltd, priya@vertextalent.io` | `Veritan Talent Ltd, priya@veritantalent.io` |
+| `src/app/dashboard/suppliers/page.tsx` (etyme-demand) | paste example `Vertex Talent Ltd, priya@vertextalent.io` | `Veritan Talent Ltd, priya@veritantalent.example` |
 
 The integrators were the closer call: Infosys and Accenture were used as
 examples of *a kind of firm*, not as customers. They went anyway,
@@ -78,6 +78,24 @@ because the example sat one line under two real client names and reads
 as the same claim. The replacements are the two integrators the seeded
 world already invented — Teleworld Solutions and Sundara Systems — so
 the picker, the demo and the world say one thing.
+
+**And the comments behind them, 2026-09-17.** The three files above were
+then held out of the guard, because each still named a real company in a
+code comment — `"Nike Inc"` and `terumobct.com` in `onboarding.ts`'s
+header, `Infosys` in its posture note, `"I cannot see the Nike contract"`
+in `access/page.tsx`. Nobody reads a comment, but the guard reads the
+whole file, and the guard reading these files is the only thing that
+stops a fourth recurrence on the screens. All four are reworded from this
+sheet and teach what they taught; the one historical line — the dated note
+recording that the picker "named four real firms" — keeps the history and
+names none of them.
+
+**Buyable domains in the paste example, same day.** `veritantalent.io`,
+`cloudepa.com` and `brightmoor.co.uk` were invented firms at addresses
+anybody can register — the seeded `nike.com` hazard exactly: joining beats
+creating, so a real owner of one would be seated at a firm we made up.
+They are `.example` now, the pattern the seeds use. `onboarding.ts`'s
+`user@mail.corp.com` comment went the same way, to `acme.example`.
 
 **Still carrying the old names: roughly 120 unit fixtures.** Found by
 the architect. `Nike`, `Corning` and `Terumo` as `const` strings inside
@@ -100,17 +118,21 @@ guard. It fails on any retired name in these, and only these:
   `src/lib/demo-seed-client.ts`, `src/lib/demo-seed-consultant.ts`,
   `prisma/seed.ts`
 - the evals' fixtures — `src/lib/evals/surfaces.ts`
+- **the signed-in screens the residue was actually found on, added
+  2026-09-17** — `src/lib/onboarding.ts` (the sign-up picker),
+  `src/app/dashboard/access/page.tsx`, `src/app/dashboard/suppliers/page.tsx`
 
 and it runs `namedCompanies` from `lib/positioning` over the two a
 visitor actually reads. `lib/positioning` itself reads `app/page.tsx`.
+Every file in the list is also held to reserved addresses and reserved
+domains, which is why the paste example moved.
 
-**So the wall does not cover the signed-in app.** Nothing reads
-`src/app/dashboard/**` or `src/lib/onboarding.ts`, which is exactly why
-these three lines lived through the rename — and why the first of them
-was on the picker every new company sees. A name on a screen behind
-sign-in is still a name on a screen. The next real-company residue will
-be found the way these were: by somebody looking, not by the suite.
-Extending the guard to the dashboard is a whole-repo grep with a long
-allow-list for skills and systems (`Workday Studio`, `Oracle Retail`),
-which is the reason it has not been done, not an argument that it
-should not be.
+**The wall now covers the three screens the names came back on, and not
+the rest of the signed-in app.** A name on a screen behind sign-in is
+still a name on a screen, and the honest position is that the next
+residue elsewhere under `src/app/dashboard/**` will be found the way
+these were: by somebody looking, not by the suite. Adding the whole
+dashboard is a different piece of work — a whole-repo grep with a long
+allow-list for skills and systems (`Workday Studio`, `Oracle Retail`) —
+and it has not been done, which is not an argument that it should not
+be. What has changed is that these three cannot regress silently.

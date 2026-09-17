@@ -66,6 +66,16 @@ const SURFACES: Record<string, string> = {
   'src/lib/demo-seed-client.ts': read('src/lib/demo-seed-client.ts'),
   'src/lib/demo-seed-consultant.ts': read('src/lib/demo-seed-consultant.ts'),
   'prisma/seed.ts': read('prisma/seed.ts'),
+  // etyme-market, 2026-09-17. A cross-domain edit in etyme-architect's file,
+  // on the precedent of c126c1c4: the three below are the signed-in screens
+  // the sheet's last real names lived on — the sign-up picker every new
+  // company reads, the access explainer, the supplier paste box — and they
+  // were held out of this list only because each still named a company in a
+  // code comment. The comments are reworded now, so the wall covers them,
+  // which is the whole point of having walked them once by hand.
+  'src/lib/onboarding.ts': read('src/lib/onboarding.ts'),
+  'src/app/dashboard/access/page.tsx': read('src/app/dashboard/access/page.tsx'),
+  'src/app/dashboard/suppliers/page.tsx': read('src/app/dashboard/suppliers/page.tsx'),
 }
 
 /**

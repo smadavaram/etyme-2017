@@ -1,17 +1,26 @@
 /**
  * Getting a company into Etyme.
  *
+ * etyme-market, 2026-09-17. A cross-domain edit in etyme-supply's file, on
+ * the precedent of c126c1c4 and f901e914: the comments in this file named
+ * real companies, so __tests__/invariants/demo-names.test.ts could not be
+ * pointed at it, and that guard is the only thing that stops the names
+ * coming back to the picker a fourth time. Renamed from the sheet in
+ * docs/demo-names.md; the sentences teach what they taught. Only comments
+ * changed — every rule, domain list and export is etyme-supply's and is
+ * exactly as it was.
+ *
  * The thing that goes wrong is not sign-in. It is that the second person
  * from a company creates a second company. Six weeks later there are three
- * "Nike Inc" records, the requisitions are split across them, and nobody
- * can be told which is real without a support conversation.
+ * "Northbend Athletic Inc" records, the requisitions are split across them,
+ * and nobody can be told which is real without a support conversation.
  *
- * A verified OAuth domain solves it outright, and that is the single
- * design decision this file exists to enforce: the domain is the company's
- * identity, so the first person from terumobct.com creates Terumo BCT and
- * everybody after them JOINS it. Nobody is asked to search for their
- * employer or to paste an invite code, because both are ways of getting
- * the answer wrong.
+ * A verified OAuth domain solves it outright, and that is the single design
+ * decision this file exists to enforce: the domain is the company's
+ * identity, so the first person from talvern-medical.example creates
+ * Talvern Medical and everybody after them JOINS it. Nobody is asked to
+ * search for their employer or to paste an invite code, because both are
+ * ways of getting the answer wrong.
  *
  * The rest follows from that:
  *
@@ -36,8 +45,8 @@ export type CompanyKind = 'CLIENT' | 'VENDOR' | 'MSP' | 'GSI'
  * How a supplier sits in the chain, at the moment they sign up.
  *
  * A prime holds the agreement with the client. A bench supplier sells
- * through other suppliers. The same company is often both — Infosys is
- * prime to one client and buys bench from three firms in the same week —
+ * through other suppliers. The same company is often both — Teleworld Solutions
+ * is prime to one client and buys bench from three firms in the same week —
  * so this is a starting posture that shapes the first screens, not a
  * permanent identity, and it can be changed without migrating anything.
  */
@@ -59,8 +68,8 @@ export interface CompanyTypeOption {
  */
 // etyme-market, 2026-09-17. A cross-domain edit in etyme-supply's file,
 // on the precedent of c126c1c4 and f901e914: the two `example` strings
-// below named four real firms — Terumo BCT and Nike on the client door,
-// Infosys and Accenture on the integrator door — on the live picker a
+// below named four real firms — two clients on the client door, two
+// integrators on the integrator door — on the live picker a
 // company reads while signing up. An example beside "We hire
 // contractors" reads as who already does, and nobody at those four has
 // agreed to appear here; the pricing decision is that no agent invents a
@@ -137,9 +146,9 @@ export function domainOf(email: string): string | null {
   if (!raw.includes('.')) return null
 
   // Reduced to the domain somebody actually registered, so that
-  // user@mail.corp.com and user@corp.com are the same company.
+  // user@mail.acme.example and user@acme.example are the same company.
   //
-  // Without this they were not: the first stored mail.corp.com, the second
+  // Without this they were not: the first stored mail.acme.example, the second
   // matched nothing and created a second tenant for the same organization.
   // Neither could see the other's requisitions, invoices or people, and
   // the join-beats-create promise was broken by a mail subdomain.
