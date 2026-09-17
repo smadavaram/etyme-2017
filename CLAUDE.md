@@ -788,6 +788,95 @@ update. It belongs in `etyme-money`'s next piece of work.
 
 ---
 
+## Bill, invoice receipt, payroll — say it the way SAP says it
+
+**Decided 2026-09-17, by the founder**, over three statements. The
+first:
+
+> Use bill for customer and invoice for vendor/supplier payment and
+> payroll for employee across the system.
+
+Read alone that sounds like an inversion of what accounting software
+says, and it was briefly written down here as one. It is not. The second
+statement corrected the reading, and the third named the authority:
+
+> Companies bill (also called invoice) a customer. Companies do
+> invoice-receipt for supplier and payroll for employees.
+
+> Do what SAP would do.
+
+**"Invoice receipt" is not a coinage — it is SAP's own term**, the IR in
+GR/IR, and using it settles the whole vocabulary by pointing at a system
+every enterprise buyer already has. So the words are SAP's:
+
+| Direction | SAP calls it | Etyme says |
+|---|---|---|
+| **Out to the customer** | Billing — the process is *billing*, the document a *billing document*, the output a *customer invoice* (FI-AR) | **bill**, and "invoice" is a correct synonym, not a mistake |
+| **In from a supplier** | **Invoice receipt** — MIRO, the IR half of GR/IR (FI-AP) | **invoice receipt**; the supplier issues its invoice, we receive it |
+| **To our own employee** | Payroll | **payroll** — never billed, never invoiced |
+
+**The rule underneath, which is the real answer to "what would SAP
+do":** the party who *issues* a document names it. We issue the bill, so
+we bill. The supplier issues its invoice, so we do not raise one — we
+receive it. An employee issues nothing, so payroll is neither.
+
+**The half that is wrong in the code today is the supply side.** The
+client document is a `Bill` and the code calls it an `Invoice`, which
+the founder's own parenthesis permits. But `VendorBill` is wrong twice
+over: what a sub-vendor sends is **its invoice**, not a bill, and "bill"
+now belongs to the customer direction. A screen reading "Vendor bill to
+raise" has the wrong party doing the wrong thing.
+
+### The receipt is the timesheet — and the match is already SAP's
+
+Worth stating because it falls straight out and the app half-built it
+already. SAP matches a purchase order against a **goods receipt** and an
+**invoice receipt**. Nothing is delivered in a staffing firm, so the
+founder named the equivalent, 2026-09-17:
+
+> Our goods receipt equivalent is timesheet receipt or expense receipt.
+
+That is the right word and it is the trade's, not the system's. SAP
+would call it a service entry sheet; nobody at a staffing firm says
+that, and CLAUDE.md is explicit that a screen uses the reader's word.
+So the match is:
+
+**work order ↔ timesheet receipt (or expense receipt) ↔ supplier invoice**
+
+exactly SAP's PO ↔ GR ↔ IR, with the approved timesheet standing where
+the goods receipt stands: the proof that what was ordered actually
+happened, signed by the party who received it.
+
+Three things can be the receipt, and the app already treats all three
+the same way, which is the sign the shape is right:
+
+| Receipt | What proves it | Bills as |
+|---|---|---|
+| **Timesheet receipt** | the client signed the week | an hours line |
+| **Expense receipt** | the expense was approved | an expense line |
+| **Milestone receipt** | the client accepted the milestone | a milestone line |
+
+`WorkOrder` is the ceiling, the receipt is the proof, the supplier's
+invoice is what gets matched against both — and a client pays what came
+through the match, never an invoice with no receipt behind it. The
+three-way match exceptions that route to the AP desk are the SAP GR/IR
+exception queue, in the trade's words.
+
+**Accounting integrations.** QuickBooks and Xero say *Invoice* for the
+customer document and *Bill* for the received supplier one. That maps
+cleanly and needs no inversion — their Invoice is our bill, their Bill
+is our invoice receipt. State the mapping once at the boundary rather
+than adopting their words on a screen.
+
+**What changes and what does not.** The words a person reads change. The
+machine names do not: `Invoice` and `VendorBill` keep their model names,
+`/api/invoices` and `/api/ap/bills` keep their paths, and
+`invoice.issued` stays an event name — by the same precedent that kept
+the demo slug `world-nike` and `/api/purchase-orders` under a screen
+that says "sales order". An address is not a word anybody reads.
+
+---
+
 ## Paperwork — the shapes a document actually comes in
 
 From the founder, 2026-09-16, and written down because it is trade
