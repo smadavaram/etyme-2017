@@ -331,10 +331,6 @@ function verificationQueries(src: string): string[] {
  * new one fails this test on the commit that adds it.
  */
 const KNOWN_TO_DROP_THE_FLOOR: Record<string, string> = {
-  'src/app/api/contracts/[id]/activate/route.ts':
-    'etyme-demand\u2019s. Activation falls back to the day the certificate was issued, so a policy printed today for cover starting in October is not caught there.',
-  'src/app/api/program/route.ts':
-    'etyme-demand\u2019s. The client\u2019s \u201cstarting soon\u201d preview reads the same checklist a week early, and would show a pass where activation shows a block.',
   'src/app/api/cron/watch/route.ts':
     'etyme-architect\u2019s. The nightly chase treats a certificate beginning next month as on file, so nobody is asked to cover the weeks in between.',
   'src/app/api/placements/[id]/route.ts':

@@ -126,7 +126,13 @@ export async function GET(request: NextRequest) {
   // them. The same checklist activation runs, read early, so the desk
   // sees "no I-9 on file" a week before the start date instead of on it.
   const CERTS = ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] as const
-  const verificationShape = { type: true, status: true, issuedAt: true, expiresAt: true, verifiedAt: true } as const
+  // `validFrom` as well as `expiresAt`, and it is read here because a
+  // preview that disagrees with the decision it previews is worse than no
+  // preview: without the floor this page called a policy beginning in
+  // October held in September, while activation refused the same
+  // certificate on the start date. The shape is shared by both queries
+  // below, which is why adding the column to one query would have missed.
+  const verificationShape = { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true } as const
   const startingSoon = await Promise.all(
     contracts.filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5).map(async (c) => {
       const [personVerifications, supplierCertificates] = await Promise.all([

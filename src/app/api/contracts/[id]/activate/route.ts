@@ -151,10 +151,20 @@ export async function POST(
   // tenure rules say. Same contract as governance below: BLOCK where
   // legally grounded, WARN with a reason recorded everywhere else.
   if (action === 'activate') {
+    // Both selects ask when a document starts, not only when it runs out.
+    // Without `validFrom` the floor added on 2026-09-16 reads undefined
+    // and the clearance falls back to the day the certificate was issued
+    // — so a policy printed today for cover beginning in October passed
+    // here as held, at the one moment that matters: somebody starting
+    // work. Addendum E names lapsed supplier insurance as a block, and
+    // cover that has not begun is the same exposure a month early.
+    const FLOOR_AND_CEILING = {
+      type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true,
+    } as const
     const [personVerifications, supplier, supplierCertificates] = await Promise.all([
       prisma.verification.findMany({
         where: { personId: contract.personId },
-        select: { type: true, status: true, issuedAt: true, expiresAt: true, verifiedAt: true },
+        select: FLOOR_AND_CEILING,
       }),
       prisma.company.findUnique({ where: { id: contract.companyId }, select: { name: true } }),
       prisma.verification.findMany({
@@ -162,7 +172,7 @@ export async function POST(
           companyId: contract.companyId,
           type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
         },
-        select: { type: true, status: true, issuedAt: true, expiresAt: true, verifiedAt: true },
+        select: FLOOR_AND_CEILING,
       }),
     ])
     const papers = contractClearance({
