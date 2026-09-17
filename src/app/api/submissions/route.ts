@@ -289,7 +289,13 @@ export async function POST(request: NextRequest) {
   // place anybody at all.
   const certRows = await prisma.verification.findMany({
     where: { companyId: fromCompanyId, personId: null },
-    select: { type: true, status: true, issuedAt: true, expiresAt: true, verifiedAt: true },
+    // `validFrom` is here, in etyme-demand's file, by etyme-regulatory on
+    // 2026-09-17, and it is the only line changed: what the gate reads is
+    // a compliance question, and without the column selected the floor
+    // added on 2026-09-16 reads undefined and silently passes. A policy
+    // that begins next month would have blocked this supplier at
+    // activation and waved it through here.
+    select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
   })
 
   const cover = supplierCoverGate({

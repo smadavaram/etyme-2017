@@ -293,8 +293,16 @@ export function contractClearance(input: {
   // matter. It appears on the checklist, with its sentence and its fix,
   // from the first day — and the day a company records backing routinely,
   // flipping UNSUPPORTED_FORM_STOPS_A_START is the whole change.
+  //
+  // The same line is drawn through the edition check, and for the same
+  // reason: a form completed on an edition the issuer had already replaced
+  // is a known defect and warns. A form nobody recorded an edition for is
+  // an unanswered question — and on the day a company first records its
+  // editions, every form filed before then is unanswered. Report it, give
+  // the fix, and do not make a hundred percent of rows a warning.
   const paperworkWarns =
-    unsupported.some((u) => u.standing === 'BACKING_NOT_IN_FORCE') || editions.length > 0
+    unsupported.some((u) => u.standing === 'BACKING_NOT_IN_FORCE') ||
+    editions.some((e) => e.standing === 'SUPERSEDED')
 
   const outcome: Outcome =
     blocking.length > 0 || cover.outcome === 'BLOCK' ? 'BLOCK'
@@ -385,7 +393,20 @@ function sayIt(
   unsupported: BackingFinding[] = [],
   editions: EditionFinding[] = []
 ): string {
-  if (outcome === 'PASS') return `${person} is cleared to start. Everything required is on file.`
+  // What is reported and does not move the verdict still gets said. A
+  // clearance that returns PASS and keeps a finding in an array nobody
+  // renders is a column with nothing reading it, which is the thing this
+  // codebase is least allowed to ship.
+  const said = (f: { says: string; fix: string | null }) =>
+    f.fix ? `${f.says} ${f.fix}` : f.says
+  const reported = [
+    ...unsupported.filter((u) => u.standing === 'UNSUPPORTED').map(said),
+    ...editions.filter((e) => e.standing === 'UNRECORDED').map(said),
+  ]
+  if (outcome === 'PASS') {
+    const cleared = `${person} is cleared to start. Everything required is on file.`
+    return reported.length === 0 ? cleared : `${cleared} ${reported.join(' ')}`
+  }
   const parts: string[] = []
   if (blocking.length > 0) parts.push(`${person} cannot start without ${names(blocking)}`)
   if (cover.outcome === 'BLOCK') parts.push(cover.says)
@@ -395,8 +416,11 @@ function sayIt(
   for (const u of unsupported) {
     if (u.standing === 'BACKING_NOT_IN_FORCE') parts.push(u.says)
   }
-  for (const e of editions) parts.push(e.says)
-  return `${parts.join('; ')}. The contract can start with a reason recorded.`
+  for (const e of editions) {
+    if (e.standing === 'SUPERSEDED') parts.push(e.says)
+  }
+  const warned = `${parts.join('; ')}. The contract can start with a reason recorded.`
+  return reported.length === 0 ? warned : `${warned} ${reported.join(' ')}`
 }
 
 function fixFor(
@@ -412,7 +436,16 @@ function fixFor(
   if (cover.outcome === 'WARN') return cover.fix
   const stale = unsupported.find((u) => u.standing === 'BACKING_NOT_IN_FORCE')
   if (stale) return stale.fix
-  if (editions.length > 0) return editions[0].fix
+  const superseded = editions.find((e) => e.standing === 'SUPERSEDED')
+  if (superseded) return superseded.fix
+  // Nothing here is wrong, so there is nothing to fix before activating.
+  //
+  // What is merely reported — an I-9 with nothing recorded behind it, a
+  // form nobody wrote an edition on — carries its own sentence and its own
+  // remedy inside `says`. Promoting one of them to `fix` would put
+  // "record the document it was completed from" beside a green verdict on
+  // every placement in the book, where it reads as a condition of
+  // starting. It is not one.
   return null
 }
 

@@ -134,6 +134,8 @@ interface VerificationCheck {
   status: string
   provider: string | null
   issuedAt: string | null
+  /** The day it starts covering, where the paper says so. */
+  validFrom?: string | null
   expiresAt: string | null
   /** What is true today, as against what the stored status claims. */
   standing?: string | null
@@ -191,6 +193,7 @@ function verifLabel(status: string): string {
 function effectiveLabel(check: VerificationCheck): string {
   switch (check.standing) {
     case 'EXPIRED':            return 'Lapsed'
+    case 'NOT_YET_VALID':      return 'Not started yet'
     case 'EXPIRING':           return 'Expiring'
     case 'NO_EXPIRY_RECORDED': return 'No expiry recorded'
     default:                   return verifLabel(check.status)
@@ -198,7 +201,12 @@ function effectiveLabel(check: VerificationCheck): string {
 }
 
 function effectiveDotClass(check: VerificationCheck): string {
-  if (check.standing === 'EXPIRED') return 'evidence-dot evidence-dot--blocked'
+  // Cover that has not begun reads the same as cover that has run out,
+  // because it stops the same thing. Left to the stored status it would
+  // have read "Clear" — the 2017 display bug in a newer shape.
+  if (check.standing === 'EXPIRED' || check.standing === 'NOT_YET_VALID') {
+    return 'evidence-dot evidence-dot--blocked'
+  }
   if (check.standing === 'EXPIRING' || check.standing === 'NO_EXPIRY_RECORDED') {
     return 'evidence-dot evidence-dot--pending'
   }
@@ -819,7 +827,7 @@ function VerificationsTab({
                           <>
                             <span className={`chip ${coverChipClass(company.cover.outcome)}`}>
                               {company.cover.outcome === 'BLOCK'
-                                ? 'No — cover lapsed'
+                                ? 'No — cover does not hold today'
                                 : company.cover.outcome === 'WARN'
                                   ? 'Yes, with something to chase'
                                   : 'Yes'}
@@ -844,14 +852,21 @@ function VerificationsTab({
                               <span className="text-etyme-muted">{formatRuleType(check.type)}</span>
                               <span className="text-etyme-faint">·</span>
                               <span className="font-medium text-etyme-ink">{effectiveLabel(check)}</span>
-                              {check.expiresAt && (
+                              {check.standing === 'NOT_YET_VALID' && check.validFrom ? (
+                                <>
+                                  <span className="text-etyme-faint">·</span>
+                                  <span className="text-etyme-faint tabular-nums">
+                                    starts {new Date(check.validFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                </>
+                              ) : check.expiresAt ? (
                                 <>
                                   <span className="text-etyme-faint">·</span>
                                   <span className="text-etyme-faint tabular-nums">
                                     exp {new Date(check.expiresAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                                   </span>
                                 </>
-                              )}
+                              ) : null}
                             </span>
                           ))}
                         </div>

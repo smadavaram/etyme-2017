@@ -236,11 +236,17 @@ export async function POST(request: NextRequest) {
       ...(subjectCompanyId ? { companyId: subjectCompanyId } : {}),
       ...(subjectPersonId ? { personId: subjectPersonId } : {}),
     },
-    select: { type: true, status: true, expiresAt: true },
+    // `validFrom` as well as `expiresAt`: a packet that treats a policy
+    // beginning in October as already held in September asks the supplier
+    // for nothing and leaves the gap open.
+    select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true },
   })
 
   const heldFromVerifications: HeldDocument[] = verifications.map((v) => ({
     key: v.type,
+    // Where the paper does not say when cover begins, the day it was
+    // issued is the best floor there is — the same fallback clearance uses.
+    validFrom: v.validFrom ?? v.issuedAt,
     expiresAt: v.expiresAt,
     // Conditional counts as held — the client decided to accept it, and
     // asking again would relitigate a decision already taken.
@@ -262,7 +268,10 @@ export async function POST(request: NextRequest) {
 
   const held: HeldDocument[] = [
     ...heldFromVerifications,
-    ...priorItems.map((i) => ({ key: i.key, expiresAt: i.validUntil, accepted: true })),
+    // A packet item records the life of the document, not its start —
+    // there is no floor to read here, and claiming one would be inventing
+    // a date nobody typed.
+    ...priorItems.map((i) => ({ key: i.key, validFrom: null, expiresAt: i.validUntil, accepted: true })),
   ]
 
   const now = new Date()

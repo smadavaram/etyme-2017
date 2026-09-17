@@ -58,7 +58,10 @@ export async function loadOwnDocuments(companyId: string): Promise<OwnDocument[]
     prisma.verification.findMany({
       where: { companyId, status: { in: [...HELD_STATUSES] } },
       select: {
-        type: true, issuedAt: true, expiresAt: true,
+        // `validFrom` as well: what we send out about ourselves is a live
+        // claim to whoever relies on it, and a policy that begins next
+        // month covers nobody on the day the pack arrives.
+        type: true, issuedAt: true, validFrom: true, expiresAt: true,
         verifiedById: true, verifiedAt: true,
       },
     }),
@@ -81,6 +84,7 @@ export async function loadOwnDocuments(companyId: string): Promise<OwnDocument[]
       key: v.type,
       label: kindByKey(v.type)?.label ?? v.type,
       issuedAt: v.issuedAt,
+      validFrom: v.validFrom,
       expiresAt: v.expiresAt,
       verifiedById: v.verifiedById,
       verifiedAt: v.verifiedAt,
@@ -92,6 +96,10 @@ export async function loadOwnDocuments(companyId: string): Promise<OwnDocument[]
       key: i.key,
       label: i.label,
       issuedAt: i.receivedAt,
+      // A packet item records the day a file arrived and the day it runs
+      // out, and nothing about when cover begins. Inventing a floor from
+      // the arrival date would be reading a fact that was never typed.
+      validFrom: null,
       expiresAt: i.validUntil,
       // RECEIVED means a file arrived. Only ACCEPTED means somebody here
       // said they had looked at it, and the difference is the whole point

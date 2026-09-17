@@ -129,6 +129,9 @@ export async function GET(request: NextRequest) {
       status: v.status,
       provider: v.provider,
       issuedAt: v.issuedAt?.toISOString() ?? null,
+      // When it starts counting, not only when it stops. A document filed
+      // ahead of the day its cover begins is on file and holds nothing.
+      validFrom: (v.validFrom ?? v.issuedAt)?.toISOString() ?? null,
       expiresAt: v.expiresAt?.toISOString() ?? null,
     }
     if (existing) {
@@ -165,7 +168,7 @@ export async function GET(request: NextRequest) {
     const isCover = v.type.startsWith('INSURANCE_')
     const computed = isCover
       ? standingOf(
-          { key: v.type, label: coverLabel(v.type), issuedAt: v.issuedAt, expiresAt: v.expiresAt, verifiedAt: v.verifiedAt },
+          { key: v.type, label: coverLabel(v.type), issuedAt: v.issuedAt, validFrom: v.validFrom, expiresAt: v.expiresAt, verifiedAt: v.verifiedAt },
           { key: v.type, label: coverLabel(v.type), validMonths: 12 },
           now
         )
@@ -175,6 +178,7 @@ export async function GET(request: NextRequest) {
       status: v.status,
       provider: v.provider,
       issuedAt: v.issuedAt?.toISOString() ?? null,
+      validFrom: (v.validFrom ?? v.issuedAt)?.toISOString() ?? null,
       expiresAt: v.expiresAt?.toISOString() ?? null,
       standing: computed?.standing ?? null,
       says: computed?.says ?? null,
@@ -207,6 +211,10 @@ export async function GET(request: NextRequest) {
         type: v.type,
         status: v.status,
         issuedAt: v.issuedAt,
+        // The floor. Without it this page called a policy beginning in
+        // October current in September, while activation refused the same
+        // certificate — one screen contradicting another about the law.
+        validFrom: v.validFrom,
         expiresAt: v.expiresAt,
         verifiedAt: v.verifiedAt,
       })),

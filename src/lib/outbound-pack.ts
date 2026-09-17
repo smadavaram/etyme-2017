@@ -432,12 +432,26 @@ export function assemble(
   held: OwnDocument[],
   on: Date
 ): AssembledPack {
-  // Where several copies are held, the one that lasts longest counts.
+  // Where several copies are held, the one that covers today counts, and
+  // failing that the one that lasts longest. A firm that files next
+  // year's certificate early holds two, and the longest-dated one is the
+  // one that has not started — sending it would be sending a document
+  // that covers nobody on the day it arrives.
+  const coversToday = (d: OwnDocument): boolean => {
+    const floor = d.validFrom ?? d.issuedAt ?? null
+    if (floor && floor.getTime() > on.getTime()) return false
+    if (d.expiresAt && d.expiresAt.getTime() < on.getTime()) return false
+    return true
+  }
   const byKey = new Map<string, OwnDocument>()
   for (const h of held) {
     const prior = byKey.get(h.key)
     if (!prior) {
       byKey.set(h.key, h)
+      continue
+    }
+    if (coversToday(prior) !== coversToday(h)) {
+      if (coversToday(h)) byKey.set(h.key, h)
       continue
     }
     const a = prior.expiresAt
@@ -477,6 +491,32 @@ export function assemble(
         required: item.required,
         standing: st.standing,
         daysLeft: st.daysLeft,
+        expiresAt,
+        disposition: 'REFUSED',
+        unconfirmed: st.unverified,
+        says: because,
+        refusedBecause: because,
+      }
+    }
+
+    // On file, and its cover has not begun. Refused for the same reason as
+    // an expired one and with a different sentence: sending it is a
+    // written claim to a relying party that the holder is covered today,
+    // and the certificate itself says otherwise. This module has no force
+    // flag, so there is nothing to override — the pack goes when the
+    // cover does.
+    if (st.standing === 'NOT_YET_VALID') {
+      const starts = (doc?.validFrom ?? doc?.issuedAt) ?? null
+      const because =
+        `${item.label} does not start until ${starts ? starts.toISOString().slice(0, 10) : 'a later date'}. ` +
+        `Sending it would be a written claim that it covers today, to the party who ` +
+        `would rely on it. Send it once the cover begins, or send the one that covers now.`
+      return {
+        key: item.key,
+        label: item.label,
+        required: item.required,
+        standing: st.standing,
+        daysLeft: null,
         expiresAt,
         disposition: 'REFUSED',
         unconfirmed: st.unverified,

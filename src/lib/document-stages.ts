@@ -815,19 +815,35 @@ export function supplierCoverGate(input: {
     blocking.length > 0 ? 'BLOCK' : chasing.length > 0 ? 'WARN' : 'PASS'
 
   const holder = input.clientName ?? 'the client'
+  // A supplier whose only trouble is that its cover starts later cannot
+  // act on "ask your broker for a replacement" — it has the certificate.
+  // Either the policy is brought forward or the start date moves, and
+  // those are the two things to say.
+  const onlyEarly =
+    blocking.length > 0 && blocking.every((b) => b.standing === 'NOT_YET_VALID')
   const fix =
     outcome === 'PASS'
       ? null
-      : `${input.supplierName}'s broker can issue a replacement certificate, usually the same day, ` +
-        `naming ${holder} as certificate holder. Upload it and the submission goes through.`
+      : onlyEarly
+        ? `Either ${input.supplierName}'s broker moves the policy start forward and issues the certificate ` +
+          `naming ${holder} as certificate holder, or nobody starts before the cover does.`
+        : `${input.supplierName}'s broker can issue a replacement certificate, usually the same day, ` +
+          `naming ${holder} as certificate holder. Upload it and the submission goes through.`
 
   let says: string
   if (outcome === 'BLOCK') {
+    // Cover that has not begun is refused for the same reason as cover
+    // that ran out, and it is not the same sentence. "Back in date" and
+    // "renew it" are instructions somebody cannot follow about a policy
+    // that starts in three weeks — the certificate is already the newest
+    // one there is. Say what is actually true: nobody starts before the
+    // cover does.
+    const early = blocking.every((b) => b.standing === 'NOT_YET_VALID')
     says =
       blocking.length === 1
-        ? `${input.supplierName}: ${lowerFirst(blocking[0].says)} Nobody can be submitted through ${input.supplierName} until it is back in date.`
-        : `${input.supplierName} has ${blocking.length} certificates out of date — the ${blocking[0].label} among them. ` +
-          `Nobody can be submitted through ${input.supplierName} until they are renewed.`
+        ? `${input.supplierName}: ${lowerFirst(blocking[0].says)} Nobody can be submitted through ${input.supplierName} ${early ? 'until that cover begins' : 'until it is back in date'}.`
+        : `${input.supplierName} has ${blocking.length} certificates that do not cover today — the ${blocking[0].label} among them. ` +
+          `Nobody can be submitted through ${input.supplierName} until ${early ? 'they begin' : 'they are renewed'}.`
   } else if (outcome === 'WARN') {
     says =
       chasing.length === 1
