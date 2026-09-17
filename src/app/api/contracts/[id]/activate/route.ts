@@ -323,7 +323,38 @@ export async function POST(
     prisma.automationLog.create({
       data: {
         companyId: contract.companyId,
-        action: `CONTRACT_${action.toUpperCase()}`,
+        // ── The name this is recorded under ──────────────────────────
+        //
+        // Six names, one per action, each stated whole and all on one
+        // line. This was `CONTRACT_${action.toUpperCase()}`, and an
+        // action built at runtime is invisible to the scanner behind
+        // `__tests__/invariants/autonomy.test.ts`, which reads literals
+        // and takes no literal to mean no log at all — so a placement
+        // starting and a placement ending, which are what tenure and
+        // break-in-service are counted from, were recorded under names
+        // `src/lib/autonomy.ts` had never heard of.
+        //
+        // Past tense, which is a change from what the interpolation
+        // produced. The ladder next to these already holds
+        // CONTRACT_CREATED and CONTRACT_EXTENDED, and every other name
+        // in it records something that happened; CONTRACT_ACTIVATE and
+        // CONTRACT_CANCEL read as instructions, which is the one thing
+        // an audit row is not. The rows already written under the
+        // imperative are re-keyed once by
+        // `scripts/rename-automation-actions.mjs`.
+        //
+        // A name per line. This was one 250-character line, because the
+        // reader used to stop at the first comma or the end of the line
+        // and a name on a second line was a name nobody had declared.
+        // The reader takes the whole value now, so the shape of this
+        // expression is a choice again rather than a workaround.
+        action:
+          action === 'verify' ? 'CONTRACT_VERIFICATION_REQUESTED'
+          : action === 'activate' ? 'CONTRACT_ACTIVATED'
+          : action === 'pause' ? 'CONTRACT_PAUSED'
+          : action === 'resume' ? 'CONTRACT_RESUMED'
+          : action === 'complete' ? 'CONTRACT_COMPLETED'
+          : 'CONTRACT_CANCELLED',
         summary: `${contract.person.name}'s contract at ${contract.endClientCompany?.name ?? contract.clientCompany.name} ${ACTION_SUMMARIES[action as Action]}`,
         reason: `State transition ${previousState} → ${newState} by ${caller.person.name}`,
         payload: {

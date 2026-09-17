@@ -101,8 +101,25 @@ export async function POST(request: NextRequest) {
     typeof body.companyId === 'string' ? body.companyId : null
   )
   if (!verdict.ok) {
-    // A refusal leaves no row here, and that is a gap rather than a
-    // decision — see the note at the foot of this file.
+    // Written out here rather than passed to a helper, and the two
+    // refusals below do not share one. A name handed to a function is a
+    // name that is not at the `automationLog.create` that writes it, and
+    // the whole reason this route had no refusal row until now is that a
+    // name the ladder's reader cannot see is a name nobody gave a rung.
+    // A dozen duplicated lines against that is a good trade.
+    if (caller.company?.id) {
+      await prisma.automationLog.create({
+        data: {
+          companyId: caller.company.id,
+          action: 'HOLIDAY_ADD_REFUSED',
+          summary: `${caller.person.name} tried to add a day off to a calendar that is not theirs to change`,
+          reason: verdict.says,
+          payload: { by: caller.person.id, aimedAt: typeof body.companyId === 'string' ? body.companyId : null },
+          // Nothing happened, so there is nothing to put back.
+          reversible: false,
+        },
+      })
+    }
     return NextResponse.json(
       { error: { code: verdict.code, message: verdict.says } },
       { status: verdict.status }
@@ -239,6 +256,18 @@ export async function DELETE(request: NextRequest) {
     typeof body.companyId === 'string' ? body.companyId : null
   )
   if (!verdict.ok) {
+    if (caller.company?.id) {
+      await prisma.automationLog.create({
+        data: {
+          companyId: caller.company.id,
+          action: 'HOLIDAY_REMOVE_REFUSED',
+          summary: `${caller.person.name} tried to take a day off a calendar that is not theirs to change`,
+          reason: verdict.says,
+          payload: { by: caller.person.id, aimedAt: typeof body.companyId === 'string' ? body.companyId : null },
+          reversible: false,
+        },
+      })
+    }
     return NextResponse.json(
       { error: { code: verdict.code, message: verdict.says } },
       { status: verdict.status }
@@ -266,6 +295,25 @@ export async function DELETE(request: NextRequest) {
 
   await prisma.holiday.delete({ where: { id: holiday.id } })
 
+  // Removing a day moves a pay day back onto the day it was shifted off,
+  // for everybody this company pays. Adding one was recorded from the
+  // first; taking one away was not, so a calendar could be quietly walked
+  // back to where it started with nothing on the record.
+  await prisma.automationLog.create({
+    data: {
+      companyId: verdict.companyId,
+      action: 'HOLIDAY_REMOVED',
+      summary: `${caller.person.name} removed "${holiday.name}" from the calendar`,
+      reason:
+        'A day off was taken off this company’s calendar. Cycle dates already ' +
+        'generated keep the dates they were given; dates generated from here on ' +
+        'no longer shift off this day.',
+      payload: { holidayId: holiday.id, name: holiday.name, by: caller.person.id },
+      // Putting the day back is one POST away, and it is the same day.
+      reversible: true,
+    },
+  })
+
   return NextResponse.json({
     data: {
       deleted: true,
@@ -276,26 +324,46 @@ export async function DELETE(request: NextRequest) {
 }
 
 /**
- * ── Why a refusal here leaves no trail, and what it would take ───────
+ * ── Where a refusal here is filed, and where it is not ───────────────
  *
- * CLAUDE.md asks that a refusal be recorded, and neither ledger this
- * codebase has will take this one.
+ * CLAUDE.md asks that a refusal be recorded, and only one of the two
+ * ledgers this codebase has will take this one.
  *
- * `AccessLog` is the trail for reading a *person's* data: `subjectId` is
- * a required Person. A holiday calendar has no person in it, so filing a
- * refusal there would mean naming somebody as the subject of a read that
- * never happened — a fabricated row is worse than a missing one, because
- * a fabricated row is what somebody audits.
+ * Not `AccessLog`: that is the trail for reading a *person's* data, and
+ * `subjectId` is a required Person. A holiday calendar has no person in
+ * it, so filing a refusal there would mean naming somebody as the subject
+ * of a read that never happened, and a fabricated row is worse than a missing one,
+ * because a fabricated row is what somebody audits.
  *
- * `AutomationLog` would fit — this route already writes `HOLIDAYS_ADDED`
- * to it — but every action name it carries needs a rung in
- * `lib/autonomy.ts`, which belongs to the architect, and
- * `__tests__/invariants/autonomy.test.ts` fails on a name with no rung.
- * Three names want a home there and are asked for rather than invented:
- * `HOLIDAY_ADD_REFUSED` and `HOLIDAY_REMOVE_REFUSED` as ENFORCEMENT
- * (BLOCK — somebody asked and was refused), and `HOLIDAY_REMOVED` as
- * attributed, beside `HOLIDAYS_ADDED`, which is a person's own act.
+ * `AutomationLog` fits, and this route now writes three names to it that
+ * `src/lib/autonomy.ts` holds rungs for: `HOLIDAY_ADD_REFUSED` and
+ * `HOLIDAY_REMOVE_REFUSED` as ENFORCEMENT (BLOCK — somebody asked and was
+ * refused), and `HOLIDAY_REMOVED` beside `HOLIDAYS_ADDED`, which is a
+ * person's own act. They were asked for rather than invented, because a
+ * name with no rung fails `__tests__/invariants/autonomy.test.ts`, and
+ * the route and the ladder had to change in one commit or neither.
  *
- * Until then the refusal is a sentence to the caller and nothing on the
- * record. Written down here rather than left as a silence.
+ * ── Whose log a refusal goes in ──────────────────────────────────────
+ *
+ * The caller's own company, never the one they aimed at. Filing it
+ * against the target would be the same cross-tenant write the refusal
+ * exists to stop: anybody could put rows in any firm's log by being
+ * refused at it on purpose. The company they aimed at is on the payload,
+ * which is where a fact about somebody else belongs.
+ *
+ * A sign-in at no company is the one refusal that still leaves nothing.
+ * `AutomationLog.companyId` is required and there is no honest value for
+ * it, and inventing one is the fabricated row above.
+ *
+ * ── Why the three writes are not one helper ──────────────────────────
+ *
+ * Because a name handed to a function is a name that is not at the
+ * `automationLog.create` that writes it, and the reader in
+ * `src/lib/autonomy.ts` — which is what gives a name a rung, and what
+ * fails the build when a name has none — reads call sites. A helper
+ * taking the name as a parameter was written here first and hid all
+ * three again, which is the same defect that let a seat be suspended
+ * under ACCESS_SUSPENDD for as long as that route existed. The
+ * duplication is the price of a name a reader and a check can both
+ * find.
  */

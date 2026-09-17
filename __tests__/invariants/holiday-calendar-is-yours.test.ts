@@ -158,16 +158,43 @@ describe('the route refuses the same way the rule does', () => {
     expect((await res.json()).data.note).toContain('already generated keep their dates')
   })
 
-  it('a refusal leaves no row anywhere, and the route says why rather than passing over it', async () => {
-    // CLAUDE.md asks that refusals be recorded and neither ledger will
-    // take this one: AccessLog's subject is a required Person and a
-    // calendar has none, and a new AutomationLog action needs a rung in
-    // lib/autonomy.ts, which is the architect's file. Three names are
-    // asked for in the route rather than invented here.
+  it('somebody refused another firm’s calendar leaves a row saying they tried', async () => {
+    // This used to leave nothing at all, on the grounds that neither
+    // ledger would take it. AccessLog still will not — its subject is a
+    // required Person and a calendar has none — but AutomationLog does,
+    // now that the three names it needs hold rungs in lib/autonomy.ts.
     await POST(body({ companyId: ANOTHER_FIRM, holidays: [{ date: '2026-12-24', name: 'Shutdown' }] }))
-    expect(logged).toHaveLength(0)
+    expect(logged).toHaveLength(1)
+    expect(logged[0].action).toBe('HOLIDAY_ADD_REFUSED')
+    expect(logged[0].reversible).toBe(false)
+    expect(logged[0].reason).toContain('another company')
+  })
+
+  it('a refusal is filed in the log of whoever tried it, never the log of the firm they aimed at', async () => {
+    // Filing it against the target would be the same cross-tenant write
+    // the refusal exists to stop: anybody could put rows in any firm's
+    // log by being refused at it on purpose.
+    await DELETE(body({ companyId: ANOTHER_FIRM, id: 'hol-theirs' }))
+    expect(logged).toHaveLength(1)
+    expect(logged[0].action).toBe('HOLIDAY_REMOVE_REFUSED')
+    expect(logged[0].companyId).toBe('company-veritan')
+    expect(logged[0].payload.aimedAt).toBe(ANOTHER_FIRM)
+    expect(holidaysDeleted).toHaveLength(0)
+  })
+
+  it('taking a day off your own calendar is recorded the same way putting one on is', async () => {
+    // Adding was on the record from the first and removing was not, so a
+    // calendar could be walked back to where it started with nothing to
+    // show for it — and a pay day moves either way.
+    await DELETE(body({ id: 'hol-ours' }))
+    expect(logged).toHaveLength(1)
+    expect(logged[0].action).toBe('HOLIDAY_REMOVED')
+    expect(logged[0].summary).toContain('Founders Day')
+    expect(logged[0].reversible).toBe(true)
+  })
+
+  it('the route says which ledger will not take this and why, rather than passing over it', async () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/holidays/route.ts'), 'utf8')
-    expect(route).toContain('HOLIDAY_ADD_REFUSED')
     expect(route).toContain('a fabricated row is worse than a missing one')
   })
 })

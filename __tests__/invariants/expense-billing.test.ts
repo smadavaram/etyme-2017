@@ -74,7 +74,7 @@ describe('the routes carry it through', () => {
   })
 
   it('no button sets INVOICED any more', () => {
-    expect(ACTIONS).toContain("const validActions = ['submit', 'approve', 'reject']")
+    expect(ACTIONS).toContain("const DECISIONS: Decision[] = ['submit', 'approve', 'reject']")
     expect(ACTIONS).not.toContain("updateData.status = 'INVOICED'")
   })
 })

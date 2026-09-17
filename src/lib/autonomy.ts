@@ -21,17 +21,23 @@
  * produce a table that looks rigorous and means nothing:
  *
  *   UNPROMPTED   The system did this and nobody asked. Only these have a
- *                rung on the ladder. Thirteen of them.
+ *                rung on the ladder.
  *   ENFORCEMENT  The system decided what a person was allowed to do —
  *                refused, warned, or let through. Governance, not
  *                autonomy: a BLOCK on a tenure limit is aimed at
- *                somebody who asked for something. Three of them.
+ *                somebody who asked for something.
  *   ATTRIBUTED   A person did this and the row is the record that they
- *                did. Eighty-two of them.
+ *                did. Far more of these than of either other kind, and
+ *                that is the finding: most of what is in the automation
+ *                log is an audit trail of human acts, not automation.
+ *                Giving those a rung would inflate every claim we make.
  *
- * That last number is the finding. Most of what is in the automation log
- * is an audit trail of human acts, not automation. Giving those a rung
- * would inflate every claim we make.
+ * How many of each there are is counted below in `TALLY`, never written
+ * into this prose. The prose said thirteen, three and eighty-two, and
+ * also eighty-four in one heading and fourteen jobs where there were
+ * fifteen — three numbers disagreeing with each other and all of them
+ * wrong, because a count in a sentence is stale the first time somebody
+ * adds a row and does not reread the paragraph above it.
  *
  * ── Derived, not stored ──────────────────────────────────────────────
  *
@@ -133,7 +139,7 @@ export type Act =
   | { kind: 'ENFORCEMENT'; outcome: Outcome; basis: Basis; says: string }
   | { kind: 'ATTRIBUTED'; basis: Basis }
 
-// ── The thirteen things we do that nobody asked for ────
+// ── The things we do that nobody asked for ─────────────
 
 const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   DUE_CYCLES_SCAN: {
@@ -210,7 +216,7 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   },
 }
 
-// ── The three things that are governance, not autonomy ───
+// ── The things that are governance, not autonomy ─────────
 
 const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string }> = {
   AWARD_BLOCKED: {
@@ -223,6 +229,16 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
     basis: 'RULE',
     says: 'Somebody submitted outside the rate band, was warned, gave a reason and went ahead. Warned and recorded, never silently permitted.',
   },
+  HOLIDAY_ADD_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'Somebody tried to put a day off on a calendar that is not theirs to change, and was refused. A day on a calendar moves the pay days behind it, so this is a refusal with money on the other side of it — and it is aimed at a person who asked, which is why it has no level.',
+  },
+  HOLIDAY_REMOVE_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'Somebody tried to take a day off a calendar that is not theirs to change, and was refused. Removing a day moves a pay day back onto a weekend as surely as adding one moves it off, so the refusal is recorded rather than only said.',
+  },
   COLLEAGUE_JOINED: {
     outcome: 'PERMIT',
     basis: 'RULE',
@@ -230,25 +246,45 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
   },
 }
 
-// ── The eighty-four things a person did ─────────────
+// ── The things a person did ─────────────────────────
 //
 // The row already carries a plain-English summary and reason written by
 // the code that made it, so there is nothing to add here but the fact
 // that a person is behind it — and, where it matters, what did the work.
+//
+// ── Weight is not autonomy, and neither is money ─────
+//
+// Writing a client's debt off and advising a client to stop work are two
+// of the heaviest things this product does to a counterparty, and both
+// are here with no rung, because a person on a credit desk pressed the
+// button. The argument for promoting them is that they feel too
+// consequential to sit beside a change of address. The argument against
+// is that a rung answers "who started this", and answering a different
+// question with it would make the ladder mean two things at once. How
+// heavy an act is is already carried by `reversible` and by the row's
+// own summary. If we ever need to rank acts by consequence that is a
+// fourth axis with a name of its own, not a rung.
 
 const ATTRIBUTED: Record<string, { basis: Basis }> = {}
 const RULE_ATTRIBUTED = [
-  'ACCESS_GRANTED', 'ADDRESS_CHANGED', 'AGREEMENT_AMENDED', 'AGREEMENT_ENDED',
-  'AGREEMENT_SIGNED', 'ALUMNI_ASK_BACK', 'API_KEY_ISSUED',
+  'ACCESS_GRANTED', 'ACCESS_REINSTATED', 'ACCESS_REVOKED',
+  'ACCESS_SUSPENDED', 'ADDRESS_CHANGED', 'AGREEMENT_AMENDED',
+  'AGREEMENT_ENDED', 'AGREEMENT_SIGNED', 'ALUMNI_ASK_BACK', 'API_KEY_ISSUED',
   'API_KEY_REVOKED', 'APPROVAL_RULE_CREATED', 'APPROVAL_RULE_DEACTIVATED',
   'BENCH_CONSENT_DECLINED', 'BENCH_CONSENT_GIVEN', 'BENCH_LISTING_GRANTED',
   'BENCH_LISTING_REQUESTED', 'BENCH_LISTING_REVOKED', 'BLACKLIST_ADD',
-  'BLACKLIST_LIFT', 'CANDIDATE_AWARDED', 'CLIENT_LISTED', 'COMMISSION_RUN',
-  'COMPANY_CREATED',
-  'COMPANY_SETTINGS_CHANGED', 'CONSULTANT_CREATED', 'CONTRACT_CREATED',
-  'CONTRACT_EXTENDED', 'CREDIT_LIMIT_CHANGED', 'CREDIT_LIMIT_SET',
-  'CUSTOM_DOMAIN_ADDED', 'CUSTOM_DOMAIN_REMOVED', 'DOCUMENTS_SHARED',
-  'DOCUMENT_SHARE_REVOKED', 'DOMAIN_CLAIMED', 'DUNNING_SENT', 'HOLIDAYS_ADDED',
+  'BLACKLIST_LIFT', 'CANDIDATE_AWARDED', 'CLIENT_LISTED',
+  'COLLECTIONS_FACTORED', 'COLLECTIONS_OWNER_ASSIGNED',
+  'COLLECTIONS_PROMISE_MADE', 'COLLECTIONS_STOP_WORK_ADVISED',
+  'COLLECTIONS_WRITTEN_OFF', 'COMMISSION_RUN', 'COMPANY_CREATED',
+  'COMPANY_SETTINGS_CHANGED', 'CONSULTANT_CREATED', 'CONTRACT_ACTIVATED',
+  'CONTRACT_CANCELLED', 'CONTRACT_COMPLETED', 'CONTRACT_CREATED',
+  'CONTRACT_EXTENDED', 'CONTRACT_PAUSED', 'CONTRACT_RESUMED',
+  'CONTRACT_VERIFICATION_REQUESTED', 'CREDIT_LIMIT_CHANGED',
+  'CREDIT_LIMIT_SET', 'CUSTOM_DOMAIN_ADDED', 'CUSTOM_DOMAIN_REMOVED',
+  'DOCUMENTS_SHARED', 'DOCUMENT_SHARE_REVOKED', 'DOMAIN_CLAIMED',
+  'DUNNING_SENT', 'EXPENSE_APPROVED', 'EXPENSE_REJECTED',
+  'EXPENSE_SUBMITTED', 'HOLIDAYS_ADDED', 'HOLIDAY_REMOVED',
   'IMPORT_COMMITTED', 'INTERVIEW_ACCEPTED', 'INTERVIEW_DECLINED',
   'INVITATION_ACCEPTED', 'INVITATION_DECLINED', 'INVITATION_WITHDRAWN',
   'INVOICE_GENERATED', 'INVOICE_MATCH_OVERRIDDEN',
@@ -256,15 +292,17 @@ const RULE_ATTRIBUTED = [
   'LEAD_KEPT_APART_BY_PERSON', 'LEAD_MERGED_BY_PERSON', 'OPENING_WRITTEN_UP',
   'ORDER_LOCKED', 'ORDER_SETTLED', 'ORDER_UNLOCKED', 'OUTBOUND_PACK_SENT',
   'OWN_DOCUMENT_RECORDED', 'PACKET_REQUESTED', 'PAYMENT_RECORDED',
-  'PAYROLL_OFF_CYCLE', 'PAYROLL_RUN', 'PERSON_INVITED', 'PLACEMENT_CONVERTED',
-  'PLACEMENT_REPLACED', 'PURCHASE_ORDER_CHANGED', 'PURCHASE_ORDER_RAISED',
-  'RATE_AMENDMENT_APPROVED', 'RATE_AMENDMENT_REJECTED', 'REMIT_TO_ADDED',
-  'REMIT_TO_CHANGED', 'REQUIREMENT_STATUS_CHANGED',
-  'REQUISITION_APPROVED', 'REQUISITION_CANCELLED', 'REQUISITION_CHANGED',
-  'REQUISITION_DISTRIBUTED', 'REVERSAL', 'ROLE_PERMISSIONS_CHANGED',
-  'ROLLOFF_CLAIMED', 'ROLLOFF_INITIATED', 'ROLLOFF_RESOLVED',
-  'SUBMISSION_STATUS_CHANGED', 'SUPPLIER_APPROVED', 'SUPPLIER_DECLINED',
-  'SUPPLIER_ITEM_MARKED', 'TEMPLATE_PACK_APPLIED',
+  'PAYROLL_OFF_CYCLE', 'PAYROLL_RUN', 'PERSON_INVITED',
+  'PLACEMENT_CONVERTED', 'PLACEMENT_REPLACED', 'PURCHASE_ORDER_CHANGED',
+  'PURCHASE_ORDER_RAISED', 'RATE_AMENDMENT_APPROVED',
+  'RATE_AMENDMENT_REJECTED', 'REMIT_TO_ADDED', 'REMIT_TO_CHANGED',
+  'REQUIREMENT_STATUS_CHANGED', 'REQUISITION_APPROVED',
+  'REQUISITION_CANCELLED', 'REQUISITION_CHANGED',
+  'REQUISITION_CHANGES_REQUESTED', 'REQUISITION_DISTRIBUTED',
+  'REQUISITION_REJECTED', 'RESERVE_FORFEIT', 'RESERVE_PAY_OUT', 'REVERSAL',
+  'ROLE_PERMISSIONS_CHANGED', 'ROLLOFF_CLAIMED', 'ROLLOFF_INITIATED',
+  'ROLLOFF_RESOLVED', 'SUBMISSION_STATUS_CHANGED', 'SUPPLIER_APPROVED',
+  'SUPPLIER_DECLINED', 'SUPPLIER_ITEM_MARKED', 'TEMPLATE_PACK_APPLIED',
   'TIMESHEET_APPROVED', 'TIMESHEET_REJECTED', 'WEBHOOK_ADDED',
   'WORK_ORDER_RECORDED',
 ]
@@ -291,7 +329,25 @@ for (const [action, a] of Object.entries(ATTRIBUTED)) {
 
 export const ALL_ACTIONS: string[] = Object.keys(ACTIONS).sort()
 
-// ── The fourteen jobs that run whether or not anybody is looking ───
+/**
+ * How many of each kind there are, counted rather than claimed.
+ *
+ * This exists because the paragraph at the top of this file used to say
+ * thirteen, three and eighty-two, a heading below it said eighty-four,
+ * and the jobs heading said fourteen where there were fifteen. Every one
+ * of those was written truthfully on the day it was written and none of
+ * them was reread when the next row was added. A number in prose is
+ * wrong within a month; a number computed from the thing it describes is
+ * never wrong.
+ */
+export const TALLY: Record<ActKind, number> = {
+  UNPROMPTED: 0,
+  ENFORCEMENT: 0,
+  ATTRIBUTED: 0,
+}
+for (const action of ALL_ACTIONS) TALLY[ACTIONS[action].kind]++
+
+// ── The jobs that run whether or not anybody is looking ───
 
 export interface Job {
   job: string
@@ -534,4 +590,273 @@ export const KIND_SAYS: Record<ActKind, string> = {
   ENFORCEMENT:
     'Somebody asked to do something and the system decided whether they could. This is governance, not autonomy — it has no level.',
   ATTRIBUTED: 'A person did this. The row is the record that they did, not something the system decided.',
+}
+
+// ── Reading the code for the names it can write ──────
+//
+// The ladder is only true if it knows what the code actually writes, and
+// the only way to know that without running every route is to read the
+// source for the names in it. That reader lives here, beside the ladder,
+// rather than inside the test that uses it, for two reasons: two copies
+// of it had already drifted apart by the time this was written, and a
+// domain agent who cannot edit this file still has to be able to reason
+// about what the check will see.
+//
+// ── The two traps it used to have, and why they mattered ─────────────
+//
+// It read the `action:` value to the first comma or the end of the line,
+// so a ternary broken over four lines showed one name and hid the rest.
+// `api/requisitions/[id]/approve` writes three names across four lines
+// and the inventory knew about one of them; the other two — a
+// requisition rejected and a requisition sent back — were written to
+// production for as long as that route existed and no reader could find
+// them. It also took every SCREAMING_SNAKE literal after the first `?`,
+// conditions included, so `step === 'FACTORED' ? …` put FACTORED into
+// the inventory as an act nobody ever performs. Between them the two
+// traps pushed every author toward a single unreadable line and a
+// hoisted boolean per branch, which is a scanner deciding how code is
+// written.
+//
+// So this one takes the balanced `action:` value however many lines it
+// spans, and reads names from BRANCH positions only — the outcomes a
+// ternary can evaluate to, never the tests it makes on the way.
+//
+// ── What it deliberately cannot see ──────────────────────────────────
+//
+// A name assembled at runtime, and a name looked up in a table. Both are
+// invisible here and both should be: `unnamed` reports them rather than
+// passing over them, because the old behavior — no literal read as no
+// log at all — is how four money routes and one access route logged
+// under names the ladder had never heard of. A lookup table would be
+// legible to a person and invisible to this, which is the one shape that
+// is worse than an ugly ternary.
+//
+// There is no regular-expression literal inside any `automationLog.create`
+// call and this reader does not try to recognize one; a `/` here is
+// division. If that ever stops being true the depth count goes wrong
+// loudly rather than quietly, because the call will not close.
+
+/** Advance past a comment, string or template starting at `i`. */
+function skipInert(src: string, i: number): number {
+  const c = src[i]
+  const d = src[i + 1]
+
+  if (c === '/' && d === '/') {
+    const nl = src.indexOf('\n', i)
+    return nl === -1 ? src.length : nl
+  }
+  if (c === '/' && d === '*') {
+    const end = src.indexOf('*/', i + 2)
+    return end === -1 ? src.length : end + 2
+  }
+  if (c === '"' || c === "'") {
+    let j = i + 1
+    while (j < src.length) {
+      if (src[j] === '\\') { j += 2; continue }
+      if (src[j] === c) return j + 1
+      j++
+    }
+    return src.length
+  }
+  if (c === '`') {
+    let j = i + 1
+    while (j < src.length) {
+      if (src[j] === '\\') { j += 2; continue }
+      if (src[j] === '`') return j + 1
+      // An interpolation can hold anything, including another template.
+      if (src[j] === '$' && src[j + 1] === '{') {
+        let depth = 1
+        j += 2
+        while (j < src.length && depth > 0) {
+          const k = skipInert(src, j)
+          if (k !== j) { j = k; continue }
+          if (src[j] === '{') depth++
+          else if (src[j] === '}') depth--
+          j++
+        }
+        continue
+      }
+      j++
+    }
+    return src.length
+  }
+  return i
+}
+
+const OPENS = '([{'
+const CLOSES = ')]}'
+
+/** Every `automationLog.create(...)` call in a file, as balanced source text. */
+export function automationCalls(source: string): string[] {
+  const out: string[] = []
+  const re = /\bautomationLog\.create\s*\(/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(source))) {
+    let i = m.index + m[0].length
+    let depth = 1
+    while (i < source.length && depth > 0) {
+      const k = skipInert(source, i)
+      if (k !== i) { i = k; continue }
+      const c = source[i]
+      if (OPENS.includes(c)) depth++
+      else if (CLOSES.includes(c)) depth--
+      i++
+    }
+    out.push(source.slice(m.index, i))
+  }
+  return out
+}
+
+/**
+ * The `action:` values in one call, each as balanced source text.
+ *
+ * Balanced to the comma that ends the property, so a value spanning four
+ * lines is one value and not its first line.
+ */
+export function actionExpressions(call: string): string[] {
+  const out: string[] = []
+  const word = /[A-Za-z0-9_$]/
+  let i = 0
+  while (i < call.length) {
+    const k = skipInert(call, i)
+    if (k !== i) { i = k; continue }
+    if (word.test(call[i])) {
+      let j = i
+      while (j < call.length && word.test(call[j])) j++
+      if (call.slice(i, j) === 'action') {
+        let c = j
+        while (c < call.length && /\s/.test(call[c])) c++
+        // `action:` is the key. A bare `action` in a payload is shorthand
+        // for a value and names nothing.
+        if (call[c] === ':') {
+          let v = c + 1
+          const start = v
+          let depth = 0
+          while (v < call.length) {
+            const kk = skipInert(call, v)
+            if (kk !== v) { v = kk; continue }
+            const ch = call[v]
+            if (OPENS.includes(ch)) depth++
+            else if (CLOSES.includes(ch)) { if (depth === 0) break; depth-- }
+            else if (ch === ',' && depth === 0) break
+            v++
+          }
+          out.push(call.slice(start, v).trim())
+          i = v
+          continue
+        }
+      }
+      i = j
+      continue
+    }
+    i++
+  }
+  return out
+}
+
+/** Whether the whole of `t` is one pair of brackets. */
+function wrapped(t: string): boolean {
+  if (!t.startsWith('(') || !t.endsWith(')')) return false
+  let depth = 0
+  let i = 0
+  while (i < t.length) {
+    const k = skipInert(t, i)
+    if (k !== i) { i = k; continue }
+    if (OPENS.includes(t[i])) depth++
+    else if (CLOSES.includes(t[i])) {
+      depth--
+      if (depth === 0) return i === t.length - 1
+    }
+    i++
+  }
+  return false
+}
+
+/**
+ * The outcomes an expression can evaluate to.
+ *
+ * A ternary chain `a ? X : b ? Y : Z` has three outcomes and two tests,
+ * and only the outcomes are names. The rule is one line: a segment
+ * followed by `?` is a test; every other segment is an outcome. `??` and
+ * `?.` are operators, not ternaries, and are stepped over.
+ */
+export function branchesOf(expr: string): string[] {
+  const t = expr.trim()
+  if (t === '') return []
+  if (wrapped(t)) return branchesOf(t.slice(1, -1))
+
+  const marks: { at: number; ch: '?' | ':' }[] = []
+  let depth = 0
+  let i = 0
+  while (i < t.length) {
+    const k = skipInert(t, i)
+    if (k !== i) { i = k; continue }
+    const c = t[i]
+    if (OPENS.includes(c)) depth++
+    else if (CLOSES.includes(c)) depth--
+    else if (depth === 0 && c === '?') {
+      if (t[i + 1] === '?' || t[i + 1] === '.') { i += 2; continue }
+      marks.push({ at: i, ch: '?' })
+    } else if (depth === 0 && c === ':') {
+      marks.push({ at: i, ch: ':' })
+    }
+    i++
+  }
+  if (marks.length === 0) return [t]
+
+  const segs: string[] = []
+  let from = 0
+  for (const mk of marks) {
+    segs.push(t.slice(from, mk.at))
+    from = mk.at + 1
+  }
+  segs.push(t.slice(from))
+
+  const out: string[] = []
+  for (let s = 0; s < segs.length; s++) {
+    if (marks[s]?.ch === '?') continue // a test, not an outcome
+    out.push(...branchesOf(segs[s]))
+  }
+  return out
+}
+
+/** A name stated whole: a quoted SCREAMING_SNAKE string and nothing else. */
+const WHOLE_NAME = /^(['"`])([A-Z][A-Z0-9_]{2,})\1$/
+
+export interface NamesRead {
+  /** Every outcome, as source text. */
+  branches: string[]
+  /** The names those outcomes state, sorted and deduplicated. */
+  names: string[]
+  /** Outcomes that are not a name stated whole — assembled, or looked up. */
+  unnamed: string[]
+}
+
+/** Read one `action:` expression. */
+export function namesIn(expr: string): NamesRead {
+  const branches = branchesOf(expr)
+  const names: string[] = []
+  const unnamed: string[] = []
+  for (const b of branches) {
+    const m = b.match(WHOLE_NAME)
+    if (m) names.push(m[2])
+    else unnamed.push(b)
+  }
+  return { branches, names: [...new Set(names)].sort(), unnamed }
+}
+
+/** Read a whole file: every name every `automationLog.create` in it can write. */
+export function actionsNamedIn(source: string): NamesRead {
+  const branches: string[] = []
+  const names: string[] = []
+  const unnamed: string[] = []
+  for (const call of automationCalls(source)) {
+    for (const expr of actionExpressions(call)) {
+      const read = namesIn(expr)
+      branches.push(...read.branches)
+      names.push(...read.names)
+      unnamed.push(...read.unnamed)
+    }
+  }
+  return { branches, names: [...new Set(names)].sort(), unnamed }
 }

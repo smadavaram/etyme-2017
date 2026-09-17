@@ -104,7 +104,7 @@ describe('activating a contract on paperwork', () => {
     // This contract's own log line, found by its payload rather than "the
     // latest", so a parallel activation elsewhere cannot make this pass.
     const log = await prisma.automationLog.findFirst({
-      where: { action: 'CONTRACT_ACTIVATE', payload: { path: ['contractId'], equals: contractId } },
+      where: { action: 'CONTRACT_ACTIVATED', payload: { path: ['contractId'], equals: contractId } },
     })
     expect(log).not.toBeNull()
     expect((log!.payload as { documentsOverride?: string }).documentsOverride).toMatch(/waived/)

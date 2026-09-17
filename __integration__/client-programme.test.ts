@@ -271,7 +271,7 @@ describe('4 · nobody starts without paperwork', () => {
     const live = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract } })
     expect(live.state).toBe('IN_PROGRESS')
     const log = await prisma.automationLog.findFirstOrThrow({
-      where: { action: 'CONTRACT_ACTIVATE', payload: { path: ['contractId'], equals: it_.contract } },
+      where: { action: 'CONTRACT_ACTIVATED', payload: { path: ['contractId'], equals: it_.contract } },
     })
     const payload = log.payload as { documentsOverride?: string; by?: { side?: string } }
     expect(payload.documentsOverride).toMatch(/Sterling/)

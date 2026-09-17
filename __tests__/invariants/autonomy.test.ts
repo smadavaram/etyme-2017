@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import {
-  ACTIONS, ALL_ACTIONS, JOBS, ALL_JOBS, LADDER, RUNGS,
+  ACTIONS, ALL_ACTIONS, JOBS, ALL_JOBS, LADDER, RUNGS, TALLY,
   rungOf, kindOf, decidedBy, undoSays, readRow, KIND_SAYS,
+  actionsNamedIn, branchesOf, namesIn,
 } from '../../src/lib/autonomy'
 
 /**
@@ -31,43 +32,28 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-/** Every `automationLog.create(...)` call, as balanced source text. */
-function automationCalls(src: string): string[] {
-  const out: string[] = []
-  const re = /automationLog\.create\s*\(/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(src))) {
-    let i = m.index + m[0].length
-    let depth = 1
-    while (i < src.length && depth > 0) {
-      const c = src[i]
-      if (c === '(') depth++
-      else if (c === ')') depth--
-      i++
-    }
-    out.push(src.slice(m.index, i))
-  }
-  return out
-}
-
 /**
- * The action names the code can actually write.
+ * The names a file can write, read by the ladder's own reader.
  *
- * Only literals after a `?` are taken, because `said === 'ACCEPT' ? 'X' :
- * 'Y'` writes X or Y and never ACCEPT — reading the condition as an
- * action is how an inventory acquires three rows nothing writes.
+ * This used to be a copy of the scanner living in this file, and the copy
+ * had two faults that decided how five routes were written. It read the
+ * `action:` value to the first comma or the end of the line, so a ternary
+ * broken over four lines showed one name and hid the rest — which is how
+ * `REQUISITION_REJECTED` and `REQUISITION_CHANGES_REQUESTED` were written
+ * to production for as long as that route existed with no rung and no
+ * complaint. And it took every SCREAMING_SNAKE literal after the first
+ * `?`, tests included, so an author had to hoist a boolean out of the
+ * expression per branch to keep `step === 'FACTORED'` from entering the
+ * inventory as an act nobody performs.
+ *
+ * The reader now lives in `src/lib/autonomy.ts` beside the ladder it
+ * serves, takes the balanced value however many lines it spans, and reads
+ * names from branch positions only. Two copies of a scanner is one copy
+ * too many: the money routes were written against a second copy of the
+ * old one, and the two could disagree about what the code writes.
  */
 function actionsWrittenBy(src: string): string[] {
-  const found: string[] = []
-  for (const call of automationCalls(src)) {
-    for (const am of call.matchAll(/\baction\s*:\s*([^,\n]+)/g)) {
-      let expr = am[1]
-      const q = expr.indexOf('?')
-      if (q !== -1) expr = expr.slice(q + 1)
-      for (const lit of expr.matchAll(/['"`]([A-Z][A-Z0-9_]{2,})['"`]/g)) found.push(lit[1])
-    }
-  }
-  return found
+  return actionsNamedIn(src).names
 }
 
 const FILES = walk(ROOT)
@@ -232,5 +218,83 @@ describe('how much we do unprompted, as a level and a log', () => {
     const attributed = ALL_ACTIONS.filter((a) => ACTIONS[a].kind === 'ATTRIBUTED')
     expect(attributed.length).toBeGreaterThan(unprompted.length)
     expect(unprompted.length).toBeGreaterThan(0)
+  })
+
+  it('how many there are of each kind is counted from the ladder, never written into the sentence beside it', () => {
+    // The paragraph at the top of the file said thirteen, three and
+    // eighty-two; a heading below it said eighty-four; the jobs heading
+    // said fourteen where there were fifteen. Each was true when it was
+    // typed and none was reread when the next row went in. A count that
+    // is computed cannot go stale.
+    expect(TALLY.UNPROMPTED + TALLY.ENFORCEMENT + TALLY.ATTRIBUTED).toBe(ALL_ACTIONS.length)
+    expect(TALLY.ATTRIBUTED).toBeGreaterThan(TALLY.UNPROMPTED + TALLY.ENFORCEMENT)
+    expect(TALLY.UNPROMPTED).toBe(ALL_ACTIONS.filter((a) => ACTIONS[a].kind === 'UNPROMPTED').length)
+    expect(ALL_JOBS.length).toBe(CRON_JOBS.length)
+  })
+
+  it('every action name is written out in full, because a name assembled at runtime is one no reader and no check can find', () => {
+    // This is the rule the whole file rests on. Until it existed, a route
+    // that built its action name out of pieces wrote no literal, and no
+    // literal was indistinguishable from writing no log at all — so the
+    // check above simply skipped it. Five routes sat in that gap: money
+    // leaving a consultant's pot, a debt written off, a client advised to
+    // stop work, a placement started and ended, and a seat suspended,
+    // every one of them under a name nothing in the ladder had heard of.
+    // One of those names, ACCESS_SUSPENDD, was a typo nobody could see.
+    const assembled: string[] = []
+    for (const f of FILES) {
+      const read = actionsNamedIn(readFileSync(f, 'utf8'))
+      const rel = f.replace(process.cwd() + '/', '')
+      for (const u of read.unnamed) assembled.push(`${rel}\n    ${u.replace(/\s+/g, ' ')}`)
+    }
+    expect(
+      assembled,
+      'These write an automation log action that is not a name stated whole — built ' +
+        'by interpolation, or looked up in a table. Either way the ladder cannot see ' +
+        'it, and what the ladder cannot see it cannot hold a rung for. Write the name ' +
+        `out, once per branch:\n  ${assembled.join('\n  ')}`
+    ).toEqual([])
+  })
+
+  it('a name written across four lines is a name the check can see', () => {
+    // It could not be, and that cost two rungs. `requisitions/[id]/approve`
+    // writes three names over four lines; the old reader stopped at the
+    // first line and the other two were unknown to the ladder for as long
+    // as the route existed.
+    const names = namesIn(`
+      action === 'approve' ? 'REQUISITION_APPROVED'
+      : action === 'changes' ? 'REQUISITION_CHANGES_REQUESTED'
+      : 'REQUISITION_REJECTED'
+    `).names
+    expect(names).toEqual([
+      'REQUISITION_APPROVED', 'REQUISITION_CHANGES_REQUESTED', 'REQUISITION_REJECTED',
+    ])
+  })
+
+  it('what a branch tests for is not what it writes', () => {
+    // `step === 'FACTORED' ? …` names a step, not an act. Reading the
+    // test as an action is how an inventory acquires rows nothing writes,
+    // and an inventory that overstates is the one thing this file exists
+    // to prevent.
+    const read = namesIn(`step === 'FACTORED' ? 'COLLECTIONS_FACTORED' : 'COLLECTIONS_WRITTEN_OFF'`)
+    expect(read.names).toEqual(['COLLECTIONS_FACTORED', 'COLLECTIONS_WRITTEN_OFF'])
+    expect(read.branches).toHaveLength(2)
+  })
+
+  it('a name assembled out of pieces, and a name looked up in a table, are both reported rather than passed over', () => {
+    expect(namesIn('`ACCESS_${verb.toUpperCase()}D`').names).toEqual([])
+    expect(namesIn('`ACCESS_${verb.toUpperCase()}D`').unnamed).toHaveLength(1)
+    // A lookup table reads well and is invisible here, which is the one
+    // shape that is worse than a long ternary.
+    expect(namesIn('NAMES[step]').names).toEqual([])
+    expect(namesIn('NAMES[step]').unnamed).toEqual(['NAMES[step]'])
+  })
+
+  it('a question mark that is not a branch is not read as one', () => {
+    // `??` and `?.` are operators. Reading either as a ternary would
+    // split an expression in the middle and lose the name after it.
+    expect(branchesOf(`chosen ?? 'PAYMENT_RECORDED'`)).toEqual([`chosen ?? 'PAYMENT_RECORDED'`])
+    expect(namesIn(`a?.b ? 'INVOICE_SUBMITTED' : 'INVOICE_GENERATED'`).names)
+      .toEqual(['INVOICE_GENERATED', 'INVOICE_SUBMITTED'])
   })
 })

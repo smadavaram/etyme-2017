@@ -9,6 +9,7 @@ import {
   type Policy, type ReserveMovement, type ReserveMovementKind, type LeaveReason,
 } from '@/lib/bench-policy'
 import { postReserve, reserveMovementsFor, orderFor } from '@/lib/order-postings'
+import { amount } from '@/lib/money-display'
 
 /**
  * The bench reserve — what is in somebody's pot, and what moves it.
@@ -407,13 +408,35 @@ export async function POST(request: NextRequest) {
     createdById: realPersonId(caller),
   })
 
+  // ── The name this is recorded under ──────────────────────────────────
+  //
+  // Two names, one per way a pot can be settled, each stated whole.
+  //
+  // This was `RESERVE_${settlement.posting.kind}`, and an action built at
+  // runtime is invisible to the governance ladder: the scanner behind
+  // `__tests__/invariants/autonomy.test.ts` reads literals only, and no
+  // literal is indistinguishable from no log at all. So money left a
+  // consultant's pot under a name `src/lib/autonomy.ts` had never heard
+  // of, at a rung nobody had chosen.
+  //
+  // `exitPosting` settles a pot one of exactly two ways — paid out
+  // because it was theirs, or kept by the firm under terms that say so —
+  // and there is no third. The two names are the ones the interpolation
+  // already produced, kept rather than improved on, so the rows already
+  // written mean the same thing as the rows written from here on. They
+  // are also the posting's own `kind` and the tail of its `sourceId`, so
+  // an auditor joining the log to the ledger reads one word, not two.
+  const settled = settlement.posting
   await prisma.automationLog.create({
     data: {
       companyId,
-      action: `RESERVE_${settlement.posting.kind}`,
+      action: settled.kind === 'PAY_OUT' ? 'RESERVE_PAY_OUT' : 'RESERVE_FORFEIT',
+      // With the currency on it. A bare `2400.00` in an audit row is a
+      // figure somebody later adds to a rupee figure.
       summary:
-        `${settlement.posting.kind === 'PAY_OUT' ? 'Paid out' : 'Kept'} ` +
-        `${(Math.abs(settlement.posting.amountCents) / 100).toFixed(2)} of a bench reserve`,
+        settled.kind === 'PAY_OUT'
+          ? `Paid out ${amount(Math.abs(settled.amountCents), buy.payCurrency)} of a bench reserve`
+          : `Kept ${amount(Math.abs(settled.amountCents), buy.payCurrency)} of a bench reserve`,
       reason: settlement.says,
       payload: {
         personId, buyContractId, reason,

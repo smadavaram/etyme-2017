@@ -137,10 +137,22 @@ export async function POST(
       : action === 'reinstate' ? `put ${person.person.name} back`
         : `ended ${person.person.name}'s access`
 
+  // The action below is spelled out, never assembled. It used to be built by
+  // interpolation from the verb, which spells suspend as ACCESS_SUSPENDD, and
+  // wrote that to production for as long as this route has existed. Nothing
+  // caught it: the check that keeps every logged action named reads literal
+  // names out of the `action` field, a template yields none, and "no literal"
+  // was indistinguishable from "writes nothing" — so the whole route was
+  // skipped. A name built at runtime is a name neither a reader nor a scanner
+  // can search for. The rows already carrying the misspelling are corrected by
+  // scripts/rename-suspend-action.mjs, which explains why.
   await prisma.automationLog.create({
     data: {
       companyId: caller.company.id,
-      action: `ACCESS_${action.toUpperCase()}D`,
+      action:
+        action === 'suspend' ? 'ACCESS_SUSPENDED'
+        : action === 'reinstate' ? 'ACCESS_REINSTATED'
+        : 'ACCESS_REVOKED',
       summary: `${caller.person.name} ${said}${person.role ? ` (${person.role.name})` : ''}`,
       reason: reason || 'Suspension lifted',
       payload: { contextId, personId: person.person.id, action },
@@ -149,6 +161,12 @@ export async function POST(
     },
   })
 
+  // A pause is not an ending, and this tells a subscriber that it is: there
+  // is no `access.suspended` in the event registry (src/lib/events.ts, which
+  // is etyme-conversation's), so a suspension goes out as a revocation and a
+  // webhook receiver acting on it would close somebody's account rather than
+  // hold it. Reported rather than fixed here, because the registry is not
+  // this domain's to add to.
   void emit({
     type: action === 'reinstate' ? 'access.granted' : 'access.revoked',
     companyId: caller.company.id,

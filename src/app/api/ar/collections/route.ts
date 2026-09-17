@@ -58,6 +58,22 @@ const COLLECTION_STEPS = [
 ] as const
 type CollectionStep = (typeof COLLECTION_STEPS)[number]
 
+/**
+ * What each step says in the log.
+ *
+ * Written out rather than lowercasing the enum and swapping its
+ * underscores for spaces, which produced “stop work advised on 3
+ * invoices” by accident and “owner assigned on 3 invoices”, which is
+ * not how anybody on a credit desk says it.
+ */
+const SUMMARY: Record<CollectionStep, (many: string) => string> = {
+  OWNER_ASSIGNED: (many) => `A person took ownership of ${many}`,
+  PROMISE_MADE: (many) => `A promise to pay recorded against ${many}`,
+  STOP_WORK_ADVISED: (many) => `Stop work advised over ${many}`,
+  FACTORED: (many) => `Factored ${many}`,
+  WRITTEN_OFF: (many) => `Wrote off ${many}`,
+}
+
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
@@ -417,13 +433,37 @@ export async function POST(request: NextRequest) {
     select: { id: true, step: true, sentAt: true, invoiceIds: true },
   })
 
+  // One name per step, stated whole.
+  //
+  // This was `COLLECTIONS_${step}`, and an action built at runtime is
+  // invisible to the scanner behind `__tests__/invariants/autonomy.test.ts`,
+  // which reads literals and takes no literal to mean no log at all. So
+  // advising a client to stop work and writing a debt off — two of the
+  // heaviest things this product does to a counterparty — were recorded
+  // under names `src/lib/autonomy.ts` had never heard of. The names are
+  // the ones the interpolation already produced, kept rather than
+  // improved on, because they were already in the app's own voice and
+  // rows written under them mean exactly what the new rows mean.
+  //
+  // The tests used to be hoisted into four booleans above this call and
+  // the whole expression squeezed onto one line, because the reader
+  // stopped at the first comma and took every capitalised literal after
+  // the first `?` — so `step === 'FACTORED'` written inline entered the
+  // inventory as an act nobody performs. The reader takes the balanced
+  // value now and reads branch positions only, so the test and the name
+  // it writes can sit beside each other where a person can check one
+  // against the other.
+  const many = `${mine.length} invoice${mine.length === 1 ? '' : 's'}`
   await prisma.automationLog.create({
     data: {
       companyId,
-      action: `COLLECTIONS_${step}`,
-      summary:
-        `${step.toLowerCase().replace(/_/g, ' ')} on ${mine.length} invoice` +
-        `${mine.length === 1 ? '' : 's'}`,
+      action:
+        step === 'OWNER_ASSIGNED' ? 'COLLECTIONS_OWNER_ASSIGNED'
+        : step === 'PROMISE_MADE' ? 'COLLECTIONS_PROMISE_MADE'
+        : step === 'STOP_WORK_ADVISED' ? 'COLLECTIONS_STOP_WORK_ADVISED'
+        : step === 'FACTORED' ? 'COLLECTIONS_FACTORED'
+        : 'COLLECTIONS_WRITTEN_OFF',
+      summary: SUMMARY[step](many),
       reason: body.reason ? String(body.reason) : `Recorded by ${caller.person.name}`,
       payload: {
         clientCompanyId,
