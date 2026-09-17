@@ -268,7 +268,16 @@ describe('the four people the demo can be walked as', () => {
   async function ownPapers(email: string) {
     as(email)
     const r = await json(await myPapers(req('GET', '/api/me/papers')))
-    return r.body.data.papers as { name: string; askedBy: string; todo: string | null }[]
+    return r.body.data.papers as {
+      name: string
+      partOf: string | null
+      askedBy: string
+      why: string | null
+      dueOn: string | null
+      word: string
+      todo: string | null
+      link: string | null
+    }[]
   }
 
   it('offers four people, in four industries, and not one of them a company', () => {
@@ -431,6 +440,40 @@ describe('the four people the demo can be walked as', () => {
     })
     expect(told, 'she is asked and nobody told her').toBeTruthy()
     expect(told!.body).toContain(`/packet/${packet!.token}`)
+  }, 30_000)
+
+  // The sentence this file carried until 2026-09-17, restored. It was
+  // rewritten to describe a packet the page could not show, because
+  // `/api/me/papers` read `DocInstance` and the chase raises a packet —
+  // so the one thing she was emailed about was missing from the one page
+  // she would go to. The page reads both now.
+  it('a nurse asked for her license renewal sees the ask on her own paperwork page, with who asked and the day it runs out', async () => {
+    const packet = await prisma.documentPacket.findFirstOrThrow({
+      where: {
+        packetKey: 'CREDENTIAL_RENEWAL',
+        subjectPerson: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' },
+      },
+      include: { company: { select: { name: true } } },
+    })
+
+    const papers = await ownPapers('colleen.byrne@seed.etyme.invalid')
+    const renewal = papers.find((p) => /license/i.test(p.name))
+    expect(renewal, JSON.stringify(papers)).toBeTruthy()
+
+    // Who asked: the firm that places her, by name.
+    expect(renewal!.askedBy).toBe(packet.company.name)
+    expect(renewal!.partOf).toMatch(/renew/i)
+
+    // The day it runs out — the ask's own last day, and the sentence she
+    // was sent, which counts the days left on the license itself.
+    expect(new Date(renewal!.dueOn!).getTime()).toBeGreaterThan(Date.now())
+    expect(renewal!.why).toContain('Wisconsin Board of Nursing')
+    expect(renewal!.why).toMatch(/runs out in \d+ days/)
+
+    // And it is hers to answer: her own link, not a code.
+    expect(renewal!.word).toBe('Asked for')
+    expect(renewal!.todo).toBe('open')
+    expect(renewal!.link).toBe(`/packet/${packet.token}`)
   }, 30_000)
 })
 

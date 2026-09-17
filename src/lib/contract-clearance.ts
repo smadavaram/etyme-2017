@@ -47,7 +47,14 @@
  * A warning captures a reason and proceeds. Never silently.
  */
 
-import { packetByKey, resolveItems, startPacketFor, type HeldDocument, type ResolvedItem } from '@/lib/packets'
+import {
+  packetByKey,
+  resolveItems,
+  startPacketFor,
+  licenseNaming,
+  type HeldDocument,
+  type ResolvedItem,
+} from '@/lib/packets'
 import {
   supplierCoverGate,
   licenseGate,
@@ -86,6 +93,16 @@ export const AUTHORISATION_KEYS = ['I9_EVERIFY', 'RIGHT_TO_WORK'] as const
 const SATISFIED_BY: Record<string, readonly string[]> = {
   RIGHT_TO_WORK: ['I9_EVERIFY'],
 }
+
+/**
+ * The shipped license item, which is the one a start packet asks for.
+ *
+ * A company that defines its own blocking credential is enforced by the
+ * same gate (see `credentialKeys`); this names only the item the licensed
+ * start packet lists, because that is the one the occupation table can
+ * put a board's name to.
+ */
+const LICENSE_KEY = 'PROFESSIONAL_LICENSE'
 
 /**
  * The types this company treats as a license to practice.
@@ -127,6 +144,17 @@ export interface ChecklistItem {
   note: string
   /** True where the state alone would stop the contract starting. */
   blocks: boolean
+  /**
+   * How this item is named inside a refusal, where that differs from the
+   * label on the checklist.
+   *
+   * Only the license uses it today: "a state nursing license (Wisconsin
+   * Board of Nursing)" rather than "state license", because the label is
+   * the same words for a nurse and a crane operator and the sentence is
+   * not. Absent means the label, lowercased, which is what every other
+   * item wants.
+   */
+  said?: string
 }
 
 export interface Clearance {
@@ -336,13 +364,32 @@ export function contractClearance(input: {
   const resolved = spec ? resolveItems(spec, held, input.on) : []
 
   const blockingKeys = blockingKeysFor(input.documentTypes ?? [])
+
+  // ── Which license, issued by whom ──
+  //
+  // The packet says "State license" because one packet starts a nurse, a
+  // pharmacist and a crane operator. The refusal knows more than that: the
+  // role named the occupation, and the state is on the license already on
+  // file where there is one. So the sentence can say "a state nursing
+  // license (Wisconsin Board of Nursing)" — which names the register a
+  // compliance officer checks — and it says "the state's board of nursing"
+  // where nobody recorded a state, because a refusal that names the wrong
+  // regulator is worse than one that names none.
+  const heldState =
+    input.personVerifications
+      .filter((v) => credentials.includes(v.type))
+      .map((v) => credentialDetail(v).state)
+      .find((st) => !!st) ?? null
+  const naming = licenseNaming(input.role, heldState)
+
   const items: ChecklistItem[] = resolved.map((r) => ({
     key: r.key,
-    label: r.label,
+    label: naming && r.key === LICENSE_KEY ? naming.label : r.label,
     required: r.required,
     state: r.state,
     note: r.note,
     blocks: blocksStart(r, blockingKeys),
+    ...(naming && r.key === LICENSE_KEY ? { said: naming.said } : {}),
   }))
 
   const blocking = items.filter((i) => i.blocks)
@@ -532,8 +579,11 @@ function forActivation(cover: CoverGate): CoverGate {
   }
 }
 
-function names(items: { label: string }[]): string {
-  const l = items.map((i) => i.label.toLowerCase())
+function names(items: { label: string; said?: string }[]): string {
+  // `said` where an item names itself more precisely inside a sentence —
+  // the license does, because a proper noun cannot be lowercased and a
+  // board that is not named is a board nobody can call.
+  const l = items.map((i) => i.said ?? i.label.toLowerCase())
   if (l.length <= 1) return l.join('')
   return `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}`
 }

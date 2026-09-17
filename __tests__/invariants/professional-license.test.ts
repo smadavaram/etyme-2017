@@ -33,7 +33,7 @@ import {
   type HeldCredential,
 } from '@/lib/document-stages'
 import { contractClearance, credentialKeys } from '@/lib/contract-clearance'
-import { licensedOccupation, startPacketFor, packetByKey } from '@/lib/packets'
+import { licensedOccupation, startPacketFor, packetByKey, licenseNaming, stateName } from '@/lib/packets'
 import type { DefinedType } from '@/lib/document-type'
 
 const on = new Date('2026-09-17T00:00:00Z')
@@ -320,5 +320,65 @@ describe('the renewal is asked for before the license runs out', () => {
     const [chase] = credentialsToChase([rnLicense({ expiresAt: inDays(-3) })], ['PROFESSIONAL_LICENSE'], on)
     expect(chase.says).toContain('lapsed 3 days ago')
     expect(chase.says).toContain('the work stops')
+  })
+})
+
+/**
+ * "Cannot start without state license" was the refusal a nurse, a
+ * pharmacist and a crane operator all read, and none of them could act on
+ * it: which license, and issued by whom. The occupation is already known —
+ * it is what picked the licensed packet — and the board is on the row
+ * beside it, so the sentence can say both.
+ */
+describe('the refusal names which license, and the board that issues it', () => {
+  it('tells a nurse with no license on file that it is a state nursing license she needs', () => {
+    const v = startFor('ICU travel nurse — 13 weeks', cleanPapers)
+    expect(v.says).toContain('cannot start without a state nursing license')
+  })
+
+  it('names the board in full where her own license says which state issued it', () => {
+    const v = startFor('ICU travel nurse — 13 weeks', [
+      ...cleanPapers,
+      { type: 'PROFESSIONAL_LICENSE', status: 'CLEAR', issuedAt: inDays(-730), expiresAt: inDays(-3), result: { license: 'RN 154-882', state: 'WI' } },
+    ])
+    expect(v.says).toContain('a state nursing license (Wisconsin Board of Nursing)')
+  })
+
+  it('names the board generically where nobody recorded a state, rather than inventing one', () => {
+    const v = startFor('ICU travel nurse — 13 weeks', cleanPapers)
+    expect(v.says).toContain("issued by the state's board of nursing")
+    expect(v.says).not.toMatch(/Wisconsin|Texas|California/)
+  })
+
+  it('tells her what to record, in the same words the refusal used', () => {
+    const v = startFor('Journeyman electrician', cleanPapers)
+    expect(v.fix).toContain('Get a trade license')
+    expect(v.says).toContain('a trade license')
+  })
+
+  it('names the pharmacy board for a pharmacist and the motor vehicle authority for a driver', () => {
+    expect(licenseNaming('Hospital pharmacist', 'TX')!.said).toBe('a state pharmacy license (Texas Board of Pharmacy)')
+    expect(licenseNaming('CDL driver, regional', 'OH')!.said).toBe(
+      'a commercial driver’s license (Ohio Motor Vehicle Authority)'
+    )
+  })
+
+  it('reads a state written either way — the code on the license or the name spelled out', () => {
+    expect(stateName('wi')).toBe('Wisconsin')
+    expect(stateName('Wisconsin')).toBe('Wisconsin')
+    expect(stateName('Wisconsinshire')).toBeNull()
+    expect(stateName(null)).toBeNull()
+  })
+
+  it('says nothing about a license or a board for a role no regulator licenses', () => {
+    const v = startFor('SAP S/4HANA finance consultant', [])
+    expect(v.says).not.toMatch(/license|board/i)
+    expect(licenseNaming('SAP S/4HANA finance consultant', 'WI')).toBeNull()
+  })
+
+  it('still calls the checklist row by its own name, so a screen reads "State nursing license"', () => {
+    const v = startFor('ICU travel nurse — 13 weeks', cleanPapers)
+    const row = v.items.find((i) => i.key === 'PROFESSIONAL_LICENSE')!
+    expect(row.label).toBe('State nursing license')
   })
 })

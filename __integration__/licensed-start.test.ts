@@ -119,15 +119,19 @@ describe('starting somebody in a role the law says needs a license', () => {
     developerContractId = developer.contractId
   }, 600_000)
 
-  it('a licensed role with no license on file cannot be started, and the refusal says which license it needs', async () => {
+  it('a licensed role with no license on file cannot be started, and the refusal names the license and the board that issues it', async () => {
     as(halcyonSeat)
     const r = await post(nurseContractId, { action: 'activate' })
     expect(r.status, JSON.stringify(r.body)).toBe(403)
     expect(r.body.error.code).toBe('DOCUMENTS_BLOCK')
     expect(r.body.error.message).toMatch(/cannot start without/)
-    expect(r.body.error.message.toLowerCase()).toContain('state license')
+    // Which license, and issued by whom. "State license" was true of a
+    // nurse, a pharmacist and a crane operator alike, and told none of
+    // them what to go and get.
+    expect(r.body.error.message).toContain('a state nursing license')
+    expect(r.body.error.message).toContain("board of nursing")
     expect(r.body.error.blocking.map((b: { key: string }) => b.key)).toContain('PROFESSIONAL_LICENSE')
-    expect(r.body.error.fix.toLowerCase()).toContain('state license')
+    expect(r.body.error.fix).toContain('a state nursing license')
 
     const still = await prisma.sellContract.findUniqueOrThrow({ where: { id: nurseContractId } })
     expect(still.state).toBe('DRAFT')
@@ -144,7 +148,7 @@ describe('starting somebody in a role the law says needs a license', () => {
     const row = (r.body.data?.startingSoon ?? []).find((s: any) => s.person.name === 'Maren Ostrowski')
     expect(row, JSON.stringify((r.body.data?.startingSoon ?? []).map((s: any) => s.person.name))).toBeTruthy()
     expect(row.paperwork.outcome).toBe('BLOCK')
-    expect(row.paperwork.says.toLowerCase()).toContain('state license')
+    expect(row.paperwork.says).toContain('a state nursing license')
   }, 30_000)
 
   it('a role no regulator licenses is not asked for one, so nobody is handed a requirement that does not exist', async () => {

@@ -482,3 +482,115 @@ export function needsReopening(resolved: ResolvedItem[]): { reopen: boolean; bec
     because: bad.map((b) => `${b.label}: ${b.note.toLowerCase()}`),
   }
 }
+
+// ── Naming the license, and the board that issues it ──────────────────
+//
+// "cannot start without state license" is the refusal a nurse, a
+// pharmacist and a crane operator all used to read, and none of them
+// could act on it: which license, issued by whom. The occupation is
+// already known — it is what picked the licensed packet in the first
+// place — and the board is on the row beside it, so the refusal can name
+// both.
+//
+// The state comes from the license the person actually holds, where one
+// is on file. Where none is, the board is named the way the table names
+// it and no state is invented: "the state's board of nursing" is true of
+// every nurse, and "Wisconsin Board of Nursing" is true only where
+// somebody recorded Wisconsin.
+
+/**
+ * The states and territories whose codes appear on a license.
+ *
+ * Data rather than a lookup service: a license number and a two-letter
+ * state is what a compliance officer types into a board's register, and
+ * the register is per state.
+ */
+export const US_STATES: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', DC: 'District of Columbia',
+  FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois',
+  IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana',
+  ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan',
+  MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana',
+  NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota',
+  OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', PR: 'Puerto Rico',
+  RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee',
+  TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', VI: 'Virgin Islands',
+  WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+}
+
+/**
+ * The state, spelled out, from whatever was recorded on the license.
+ *
+ * "WI" and "wisconsin" are the same state. Anything this does not
+ * recognize returns null, which is the honest answer: a refusal that
+ * names the wrong regulator is worse than one that names none.
+ */
+export function stateName(state: string | null | undefined): string | null {
+  if (!state || !state.trim()) return null
+  const raw = state.trim()
+  const code = raw.toUpperCase()
+  if (US_STATES[code]) return US_STATES[code]
+  const spelled = Object.values(US_STATES).find((n) => n.toLowerCase() === raw.toLowerCase())
+  return spelled ?? null
+}
+
+/** "board of nursing" → "Board of Nursing". Small words stay small. */
+const SMALL = new Set(['of', 'and', 'the'])
+function titleCase(s: string): string {
+  return s
+    .split(' ')
+    .map((w, i) => (i > 0 && SMALL.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ')
+}
+
+/**
+ * Who issues this occupation's license, named as fully as the facts allow.
+ *
+ * With a state: "Wisconsin Board of Nursing". Without one: the table's own
+ * words, "the state's board of nursing" — generic because the fact is
+ * generic, never because nobody looked.
+ */
+export function licenseBoard(occupation: LicensedOccupation, state?: string | null): string {
+  const where = stateName(state)
+  if (!where) return occupation.issuer
+  const bare = occupation.issuer.replace(/^the state's /i, '').replace(/^the /i, '')
+  return `${where} ${titleCase(bare)}`
+}
+
+export interface LicenseNaming {
+  occupation: LicensedOccupation
+  /** "state nursing license" — what the person would call it. */
+  credential: string
+  /** "Wisconsin Board of Nursing", or the generic board. */
+  board: string
+  /** For a checklist row: "State nursing license". */
+  label: string
+  /** Inside a refusal: "a state nursing license (Wisconsin Board of Nursing)". */
+  said: string
+}
+
+/**
+ * What to call the license a role needs, inside a sentence somebody acts on.
+ *
+ * Null where no regulator licenses the role, which is the ordinary answer
+ * and is a real one — see `licensedOccupation`.
+ */
+export function licenseNaming(
+  role: string | null | undefined,
+  state?: string | null
+): LicenseNaming | null {
+  const occupation = licensedOccupation(role)
+  if (!occupation) return null
+  const board = licenseBoard(occupation, state)
+  const credential = occupation.credential
+  const named = stateName(state) ? `(${board})` : `(issued by ${board})`
+  return {
+    occupation,
+    credential,
+    board,
+    label: credential.charAt(0).toUpperCase() + credential.slice(1),
+    said: `a ${credential} ${named}`,
+  }
+}

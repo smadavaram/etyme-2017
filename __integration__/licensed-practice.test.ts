@@ -6,6 +6,7 @@ import { contractClearance, credentialKeys, credentialDetail } from '@/lib/contr
 import { startPacketFor } from '@/lib/packets'
 
 import { GET as compliance } from '@/app/api/compliance/route'
+import { GET as myPapers } from '@/app/api/me/papers/route'
 
 /**
  * Colleen Byrne's license, walked on the world the demo actually seeds.
@@ -116,12 +117,18 @@ describe('the travel nurse whose license runs out inside her assignment', () => 
     expect(startPacketFor(contract.requirement?.title)).toBe('CONTRACT_START_LICENSED')
   })
 
-  it('has a renewal ask raised by the nightly chase, which is the same ask the arithmetic wants', async () => {
+  it('has a renewal ask on her own paperwork page, raised by the nightly chase rather than typed into the seed', async () => {
     // etyme-architect, 2026-09-17. This used to read the request the seed
     // typed in by hand and say the chase "would" raise the same one. It
     // does raise it now (`lib/credential-chase`, called by
     // `api/cron/watch` and once by the seed over the world it makes), so
     // the ask being read here is the product's own.
+    //
+    // etyme-regulatory, same day: "on her own page" came off this
+    // sentence when the ask became a packet, because the page read
+    // `DocInstance` and nothing else. It reads both now, so the sentence
+    // is back — and it is the half that matters, since the page is where
+    // the email sends her.
     const colleen = await prisma.person.findUniqueOrThrow({
       where: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' },
       select: { id: true },
@@ -133,6 +140,14 @@ describe('the travel nurse whose license runs out inside her assignment', () => 
     expect(asked, 'her seat promises a renewal has been asked for').toBeTruthy()
     expect(asked!.items.map((i) => i.key)).toEqual(['PROFESSIONAL_LICENSE'])
     expect(asked!.reopenedReason).toContain('Wisconsin Board of Nursing')
+
+    // Her own page, which is where the email sends her.
+    as('colleen.byrne@seed.etyme.invalid')
+    const page = await json(await myPapers(req('GET', '/api/me/papers')))
+    const renewal = (page.body.data?.papers ?? []).find((p: any) => /license/i.test(p.name))
+    expect(renewal, JSON.stringify(page.body.data?.papers)).toBeTruthy()
+    expect(renewal.partOf).toMatch(/renew/i)
+    expect(renewal.link).toBe(`/packet/${asked!.token}`)
 
     const [chase] = credentialsToChase(await herCredentials(), credentialKeys(), now())
     expect(chase, 'a license inside sixty days of lapsing is chased').toBeTruthy()
