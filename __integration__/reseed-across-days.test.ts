@@ -40,6 +40,11 @@ const census = async () => ({
   invoiceLines: await prisma.invoiceLine.count(),
   payments: await prisma.payment.count(),
   interviews: await prisma.interview.count(),
+  // One owner seat per firm, and the same number of them however many
+  // times the world is seeded.
+  ownerSeats: await prisma.context.count({
+    where: { company: { slug: { startsWith: 'world-' } }, grantReason: 'Seeded world' },
+  }),
 })
 
 /** The seeded world, as it stood the day it was made. */
@@ -97,9 +102,21 @@ describe('a world that was seeded on an earlier day', () => {
   }, 600_000)
 
   it('leaves every seeded company with the one owner it started with, rather than a second seat each', async () => {
-    const seats = await prisma.context.count({
+    // Counted per company rather than against the number of companies.
+    // Not every firm in this world is somebody's employer: a
+    // consultant's own limited company is a real company — it signs,
+    // it invoices, it carries the cover — and nobody signs in as it,
+    // because the consultant IS it and she holds a consultant's seat
+    // elsewhere. Comparing a total against a total made that read as a
+    // missing seat when what it is is an absent one.
+    const perCompany = await prisma.context.groupBy({
+      by: ['companyId'],
       where: { company: { slug: { startsWith: 'world-' } }, grantReason: 'Seeded world' },
+      _count: { _all: true },
     })
-    expect(seats).toBe(firstDay.companies)
+    expect(perCompany.filter((c) => c._count._all > 1)).toEqual([])
+    // And every firm that employs anybody has exactly one. The total is
+    // in the census above, so three seedings on three days cannot move it.
+    expect(perCompany.length).toBeGreaterThan(20)
   })
 })

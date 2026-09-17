@@ -269,6 +269,25 @@ export const BUILT_IN: DocumentTypeSpec[] = [
     validMonths: 12,
     suppliedBy: 'SUPPLIER',
   }),
+  // The one document a licensed worker cannot work without, and the
+  // first thing in this dictionary that is not IT staffing. A state RN
+  // license, a professional engineer's registration, a CDL: issued to
+  // the person by a regulator, renewed on a date, and chased before it
+  // runs out like cover is.
+  //
+  // `blocks` is true because a lapsed license is the clearest case the
+  // rule was written for — the law, not a client, says the work stops.
+  // No shipped packet asks for one yet, so it changes no verdict today;
+  // which packet requires it is etyme-regulatory's call.
+  spec({
+    key: 'PROFESSIONAL_LICENSE',
+    label: 'Professional license',
+    hint: 'The license the state issues you to do this work — the number and the date it runs out.',
+    purpose: 'COMPLIANCE',
+    validityShape: 'END_ONLY',
+    suppliedBy: 'CANDIDATE',
+    blocks: true,
+  }),
   spec({
     key: 'W9',
     label: 'W-9',

@@ -58,10 +58,20 @@ export function read(value: string | undefined | null): string | null {
   // mismatch rather than returning false.
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null
 
-  // Only ever a demo address. A valid signature over a real customer's
+  // Only ever a seeded address. A valid signature over a real customer's
   // email would otherwise be a way in.
-  return email.endsWith('@demo.etyme.local') ? email : null
+  //
+  // Two domains, both unregistrable. `demo.etyme.local` is where every
+  // seeded company seat lives; `seed.etyme.invalid` is where the seeded
+  // world's consultants live, and a consultant is a person rather than a
+  // company seat, so the candidate doors on /demo sit at one of those.
+  // `.local` is mDNS and `.invalid` is reserved by RFC 2606 — neither can
+  // be bought, so no signature minted here can ever name a real inbox.
+  return ALLOWED.some((d) => email.endsWith(d)) ? email : null
 }
+
+/** The two domains a signed demo cookie may name. Nobody can register either. */
+const ALLOWED = ['@demo.etyme.local', '@seed.etyme.invalid']
 
 /** The address a demo person is given. */
 export function addressFor(handle: string): string {

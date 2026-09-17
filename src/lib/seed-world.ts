@@ -36,6 +36,7 @@
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes } from '@/lib/seed-programmes'
+import { seedDoors } from '@/lib/seed-doors'
 import { anchorSeed, day, at } from '@/lib/seed-days'
 import { rolesFor } from '@/lib/company-defaults'
 
@@ -988,12 +989,19 @@ export async function seedWorld(): Promise<{
   // the officer who answers for tenure and paperwork.
   const programs = await seedProgrammes({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
 
+  // ── The last mile: the doors themselves ────────────────────────────
+  //
+  // Four people with a seat of their own and something waiting on it,
+  // and the two firms whose door on /demo led to an empty book. Runs
+  // last because two of the four are placed by the program seed above.
+  const doors = await seedDoors({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
+
   return {
     firms: FIRMS.length,
-    placements: placed.length + programs.placements,
+    placements: placed.length + programs.placements + doors.placements,
     /// Employees of the two integrators, on payroll and on nobody's bench.
     onPayroll,
-    consultants: NAMES.length + LIVE.length + programs.people,
+    consultants: NAMES.length + LIVE.length + programs.people + doors.people,
     live: LIVE.length,
     roster: FIRMS.map((f) => ({ kind: f.kind as string, name: f.name, slug: PREFIX + f.slug })),
   }

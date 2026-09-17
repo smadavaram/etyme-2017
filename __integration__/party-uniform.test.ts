@@ -46,7 +46,7 @@ import { GET as tenure } from '@/app/api/tenure/route'
  * ── One deal, eight positions ────────────────────────────────────────
  *
  *   Northbend Athletic          CLIENT        buys, signs the hours, pays
- *   Aptiva        MSP           runs a program; supplies nobody
+ *   Kestrel       MSP           runs a program; supplies nobody
  *   Teleworld     GSI           invited to the role, did not submit
  *   Pinnacle      PRIME         submitted Rhea and holds the contract
  *   Brightmoor    SUB           a supplier of Northbend Athletic's, not on this deal
@@ -66,9 +66,25 @@ const NIKE = {
   program: `world-nike-programme${D}`,
   ap: `world-nike-ap${D}`,
 }
+/**
+ * The MSP row is Kestrel, not Aptiva.
+ *
+ * Both are program offices and they are two different businesses. An
+ * agent MSP runs a client's program and supplies nobody, which is the
+ * position this grid needs: nothing ties it to a client, so it cannot
+ * raise a requisition and has to be told why in a sentence. Aptiva was
+ * that firm until the world seeded it to CLAUDE.md's correction of
+ * 2026-09-17 — an MSP that sells to its client and buys below it,
+ * including its own W2 employee — and a firm with a placement is tied
+ * to a client, which is the rule working rather than a regression.
+ *
+ * So the untied position moved to the firm that is still untied. If
+ * Kestrel is ever given a placement too, this row moves again or the
+ * gap it holds the sentence for has closed.
+ */
 const SEAT: Record<Party, string> = {
   CLIENT: NIKE.hiring,
-  MSP: `world-aptiva${D}`,
+  MSP: `world-kestrel${D}`,
   GSI: `world-teleworld${D}`,
   PRIME: `world-pinnacle${D}`,
   SUB: `world-brightmoor${D}`,
@@ -77,7 +93,7 @@ const SEAT: Record<Party, string> = {
   CANDIDATE: 'rhea.saunders@party.invalid',
 }
 const FIRM: Record<Party, string> = {
-  CLIENT: 'Northbend Athletic', MSP: 'Aptiva Workforce', GSI: 'Teleworld Solutions',
+  CLIENT: 'Northbend Athletic', MSP: 'Kestrel MSP', GSI: 'Teleworld Solutions',
   PRIME: 'Pinnacle Resourcing', SUB: 'Brightmoor Staffing', BENCH_VENDOR: 'Consultis',
   SOLOPRENEUR: 'Marsh Analytics', CANDIDATE: 'Rhea Saunders',
 }
@@ -86,7 +102,7 @@ const FIRM: Record<Party, string> = {
 const OWN_FIRM = (party: Party): string =>
   party === 'SOLOPRENEUR' ? co['marsh']
   : party === 'CANDIDATE' ? co['world-pinnacle']
-  : co[{ CLIENT: 'world-nike', MSP: 'world-aptiva', GSI: 'world-teleworld', PRIME: 'world-pinnacle', SUB: 'world-brightmoor', BENCH_VENDOR: 'world-consultis' }[party as 'CLIENT']]
+  : co[{ CLIENT: 'world-nike', MSP: 'world-kestrel', GSI: 'world-teleworld', PRIME: 'world-pinnacle', SUB: 'world-brightmoor', BENCH_VENDOR: 'world-consultis' }[party as 'CLIENT']]
 
 const call = async (fn: (r: any, ctx: any) => Promise<Response>, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
@@ -141,7 +157,7 @@ function refusalsAreSentences(grid: Grid) {
 beforeAll(async () => {
     await resetDatabase()
     await seedWorld()
-    for (const slug of ['world-nike', 'world-aptiva', 'world-teleworld', 'world-pinnacle', 'world-brightmoor', 'world-consultis']) {
+    for (const slug of ['world-nike', 'world-kestrel', 'world-teleworld', 'world-pinnacle', 'world-brightmoor', 'world-consultis']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
 

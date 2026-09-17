@@ -4925,6 +4925,20 @@ enum VerificationType {
   // A supplier-level document the founder named: it has a start and an
   // end, like cover, and nothing here could hold one.
   GOOD_STANDING // certificate of good standing from the state of registration
+
+  // The licence a regulator issues to a person to do the work at all: a
+  // state RN licence, a professional engineer's registration, a CDL.
+  // Added 2026-09-17, because the first non-IT worker in the seeded world
+  // is a travel nurse and nothing here could hold the one document her
+  // whole assignment rests on. Nothing in the horizontal core may assume
+  // IT staffing, and the enum did.
+  //
+  // It expires like cover does, so the compliance page and the expiry
+  // watch read it the way they read everything else. No shipped packet
+  // asks for one yet — which packet requires a licence, and whether a
+  // lapsed one blocks a start, is a rule with a legal consequence and
+  // belongs to etyme-regulatory rather than to a seed.
+  PROFESSIONAL_LICENSE
 }
 
 enum VerificationStatus {

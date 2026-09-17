@@ -8,6 +8,7 @@ import { seedDemoClientCompany } from '@/lib/demo-seed-client'
 import { seedDemoConsultant } from '@/lib/demo-seed-consultant'
 import { addVolume } from '@/lib/demo-volume'
 import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor } from '@/lib/demo-session'
+import { CANDIDATE_SEATS } from '@/app/demo/seats'
 
 /**
  * POST /api/demo — give this visitor their own seeded workspace
@@ -139,9 +140,10 @@ export async function POST(request: NextRequest) {
   // ever held a private client sandbox was handed that sandbox back
   // instead of Northbend Athletic. The world branch below is the only answer to `as`.
   const asWorld = typeof (body as any)?.as === 'string' ? String((body as any).as) : null
+  const asPerson = typeof (body as any)?.person === 'string' ? String((body as any).person) : null
   const wanted = seatAsked(body)
   const existing = read(request.cookies.get(DEMO_COOKIE)?.value)
-  if (existing && !asWorld) {
+  if (existing && !asWorld && !asPerson) {
     const person = await prisma.person.findUnique({
       where: { primaryEmail: existing },
       select: {
@@ -164,6 +166,93 @@ export async function POST(request: NextRequest) {
         })
       }
     }
+  }
+
+  // ── A person, rather than a company ─────────────────────────────
+  //
+  // `{ person: "colleen-byrne" }` sits at one of the four consultants
+  // the seeded world holds. They are the one party to a placement who is
+  // not a firm, and until now the only way to look around as one was a
+  // private throwaway workspace with a random developer in it —
+  // invisible to everybody else and unconnected to the placement the
+  // client and the supplier doors were looking at.
+  //
+  // The handle is looked up in the seat list rather than trusted off the
+  // wire: `app/demo/seats` is what the page draws, so a door cannot name
+  // somebody the page does not, and an address in the body is not a way
+  // to be seated as anybody in the database.
+  //
+  // Lands on /dashboard/my-work every time. It is the one page in this
+  // product that belongs to a person and not to a company — their
+  // placement, their hours, what has been asked of them — and landing a
+  // consultant on a company overview is how the integrator seat was lost
+  // for a week.
+  if (asPerson) {
+    const door = CANDIDATE_SEATS.find((c) => c.slug === asPerson)
+    if (!door) {
+      return NextResponse.json(
+        { error: { code: 'NOT_A_PERSON_SEAT', message: 'No such person on the demo page.' } },
+        { status: 400 }
+      )
+    }
+    let seated
+    try {
+      seated = await prisma.person.findUnique({
+        where: { primaryEmail: door.email },
+        select: {
+          id: true, name: true,
+          contexts: {
+            where: { revokedAt: null, suspendedAt: null },
+            select: { type: true, company: { select: { id: true, name: true, kind: true } } },
+            orderBy: { grantedAt: 'desc' },
+            take: 1,
+          },
+        },
+      })
+    } catch (err: any) {
+      const why = String(err?.message ?? err)
+      reportError('demo: could not look up a person seat', why)
+      return NextResponse.json(
+        {
+          error: {
+            code: 'DEMO_FAILED',
+            message: 'Could not take that seat just now. Nothing was changed.',
+          },
+        },
+        { status: 503 }
+      )
+    }
+    // A person with no seat anywhere cannot be signed in as: every route
+    // resolves a context, so they would land on a page that refuses them.
+    if (!seated || seated.contexts.length === 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_SEEDED',
+            message: `${door.name} is not in this deployment's world yet. POST /api/seed-world to build it first.`,
+          },
+        },
+        { status: 404 }
+      )
+    }
+    const res = NextResponse.json({
+      data: {
+        person: door.slug,
+        personName: seated.name,
+        // Whose books they appear in, which is not theirs. A consultant
+        // belongs to a company without being of it, and the difference is
+        // the whole point of the seat.
+        listedBy: seated.contexts[0].company?.name ?? null,
+        contextType: seated.contexts[0].type,
+        landing: '/dashboard/my-work',
+      },
+    })
+    res.cookies.set(DEMO_COOKIE, sign(door.email), {
+      httpOnly: true, sameSite: 'lax', path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: COOKIE_DAYS * 24 * 60 * 60,
+    })
+    return res
   }
 
   // ── The seeded world ────────────────────────────────────────────
@@ -265,12 +354,16 @@ export async function POST(request: NextRequest) {
         // thing that seat exists to demonstrate, putting somebody off
         // its own payroll in front of a client, was three guesses away.
         // Submissions is where that starts and it is in their nav.
+        // An MSP is not a client either. /dashboard/program is the
+        // client's own overview and an MSP takes the vendor navigation —
+        // CLAUDE.md specifies a nav per company type and names no MSP —
+        // so landing one there was the same dead end the integrator had:
+        // a page with no way back into its own work.
         landing:
           desk ? DESK_LANDING[desk]
           : company.kind === 'GSI' ? '/dashboard/submissions'
-          : company.kind === 'CLIENT' || company.kind === 'MSP'
-            ? '/dashboard/program'
-            : '/dashboard',
+          : company.kind === 'CLIENT' ? '/dashboard/program'
+          : '/dashboard',
       },
     })
     res.cookies.set(DEMO_COOKIE, sign(email), {
@@ -383,7 +476,7 @@ export async function POST(request: NextRequest) {
       // lands where an integrator works, not on the client's overview
       // its navigation does not offer.
       landing:
-        side === 'BENCH' ? '/dashboard'
+        side === 'BENCH' || side === 'MSP' ? '/dashboard'
         : side === 'CANDIDATE' ? '/dashboard/my-work'
         : side === 'GSI' ? '/dashboard/submissions'
         : '/dashboard/program',

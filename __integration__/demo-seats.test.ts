@@ -2,13 +2,16 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { NextRequest } from 'next/server'
 import { req, json, resetDatabase, prisma, as } from './harness'
 import { DEMO_COOKIE, read as readCookie } from '@/lib/demo-session'
-import { ALL_SEATS, INTEGRATOR_SEATS } from '@/app/demo/seats'
+import { ALL_SEATS, INTEGRATOR_SEATS, CANDIDATE_SEATS, PROGRAM_OFFICE_SEATS } from '@/app/demo/seats'
 import { getNavForKind } from '@/components/shell/sidebar'
 import { seedWorld } from '@/lib/seed-world'
 
 import { POST as demo } from '@/app/api/demo/route'
 import { GET as ownPeople } from '@/app/api/submissions/own-people/route'
 import { GET as requirements } from '@/app/api/requirements/route'
+import { GET as myWork } from '@/app/api/me/work/route'
+import { GET as myPapers } from '@/app/api/me/papers/route'
+import { GET as compliance } from '@/app/api/compliance/route'
 
 /**
  * Every door on the home page lands somewhere different.
@@ -39,6 +42,16 @@ async function enter(seat: string, cookie?: string) {
 /** POST /api/demo asking for a named seat in the seeded world. */
 async function sit(slug: string, cookie?: string) {
   const r = req('POST', '/api/demo', { as: slug }, cookie ? { cookie: `${DEMO_COOKIE}=${cookie}` } : {})
+  const res = await demo(r as NextRequest)
+  const body = (await res.json()).data
+  const setCookie = res.headers.get('set-cookie') ?? ''
+  const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(setCookie)
+  return { body, cookie: m?.[1] ?? cookie }
+}
+
+/** POST /api/demo asking to sit as one of the four people. */
+async function sitAs(handle: string, cookie?: string) {
+  const r = req('POST', '/api/demo', { person: handle }, cookie ? { cookie: `${DEMO_COOKIE}=${cookie}` } : {})
   const res = await demo(r as NextRequest)
   const body = (await res.json()).data
   const setCookie = res.headers.get('set-cookie') ?? ''
@@ -145,8 +158,9 @@ describe('every seat on the demo page opens', () => {
     await seedWorld()
   }, 600_000)
 
-  it('offers seven doors, three client programs and four firms that supply them', () => {
-    expect(ALL_SEATS).toHaveLength(7)
+  it('offers nine company doors and four people — three programs, three suppliers, a program office, two integrators', () => {
+    expect(ALL_SEATS).toHaveLength(9)
+    expect(CANDIDATE_SEATS).toHaveLength(4)
   })
 
   it('names a company the seed actually builds, for every one of the seven', async () => {
@@ -218,6 +232,278 @@ describe('every seat on the demo page opens', () => {
       })
       // Four on the payroll, and the delivery manager who submits them.
       expect(payroll, `${s.name} has nobody to submit`).toBeGreaterThanOrEqual(5)
+    }
+  })
+})
+
+/**
+ * The four people, and the two firms whose door led to an empty book.
+ *
+ * ── Why a person is a door at all ────────────────────────────────────
+ *
+ * Every seat on /demo was a company, and the consultant is the one party
+ * to a placement who is not one. The only candidate door minted a
+ * private throwaway workspace holding a random Java developer — one
+ * profile, invisible to everybody else, unconnected to the placement the
+ * client and supplier doors were both looking at. So the third side of
+ * this market could not be shown against the same contract.
+ *
+ * And two doors were worse than missing. Aptiva Workforce and Kestrel
+ * MSP held no contracts at all, because the seed was written to a model
+ * where an MSP routes work and takes no rate. An MSP of the ordinary
+ * kind sells to its client and buys below it, including from itself when
+ * the person on the seat is its own employee.
+ */
+describe('the four people the demo can be walked as', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  /** Whatever /api/me/work says about whoever the cookie names. */
+  async function ownWork(email: string) {
+    as(email)
+    const r = await json(await myWork(req('GET', '/api/me/work')))
+    return r.body.data
+  }
+  async function ownPapers(email: string) {
+    as(email)
+    const r = await json(await myPapers(req('GET', '/api/me/papers')))
+    return r.body.data.papers as { name: string; askedBy: string; todo: string | null }[]
+  }
+
+  it('offers four people, in four industries, and not one of them a company', () => {
+    expect(CANDIDATE_SEATS).toHaveLength(4)
+    const trades = new Set(CANDIDATE_SEATS.map((c) => c.where.split('·')[0].trim()))
+    expect(trades.size, [...trades].join(', ')).toBe(4)
+    for (const c of CANDIDATE_SEATS) {
+      expect(c.email, c.name).toMatch(/@seed\.etyme\.invalid$/)
+      expect(c.about.trim().endsWith('.'), `${c.name}: ${c.about}`).toBe(true)
+      expect(c.about.split(/\s+/).length, `${c.name} says too little`).toBeGreaterThan(20)
+    }
+  })
+
+  it('seats the visitor as the person themselves, never at the firm that employs or lists them', async () => {
+    for (const c of CANDIDATE_SEATS) {
+      const { body, cookie } = await sitAs(c.slug)
+      expect(body.personName, c.slug).toBe(c.name)
+      expect(await whoIsSitting(cookie!)).toBe(c.name)
+      // The door says who holds them without handing them that company.
+      expect(body.companyId, `${c.name} was handed a company`).toBeUndefined()
+    }
+  }, 60_000)
+
+  it('lands every candidate on their own work, and never on a company dashboard', async () => {
+    for (const c of CANDIDATE_SEATS) {
+      const { body } = await sitAs(c.slug)
+      expect(body.landing, c.name).toBe('/dashboard/my-work')
+      expect(body.landing).not.toBe('/dashboard')
+      expect(body.landing).not.toBe('/dashboard/program')
+    }
+  }, 60_000)
+
+  it('opens that page on something real for all four — a placement, a week of hours, or a paper somebody has asked them for', async () => {
+    for (const c of CANDIDATE_SEATS) {
+      const work = await ownWork(c.email)
+      const papers = await ownPapers(c.email)
+      const found = work.placements.length + work.timesheets.length + papers.length
+      expect(
+        found,
+        `${c.name} opens on an empty page: ${work.placements.length} placements, ` +
+          `${work.timesheets.length} weeks, ${papers.length} papers`
+      ).toBeGreaterThan(0)
+    }
+  }, 60_000)
+
+  it('refuses a name that is not one of the four, rather than seating a stranger off the wire', async () => {
+    const r = req('POST', '/api/demo', { person: 'somebody.else@seed.etyme.invalid' })
+    const res = await demo(r as NextRequest)
+    expect(res.status).toBe(400)
+  })
+
+  it('shows Helena Marsh the week she filed that nobody has signed yet', async () => {
+    const work = await ownWork('helena.marsh@seed.etyme.invalid')
+    expect(work.summary.awaitingApproval).toBeGreaterThan(0)
+    expect(work.placements.length).toBeGreaterThan(0)
+  }, 30_000)
+
+  it('shows Chidi Okafor the attestation his client has asked him to sign, in words rather than a code', async () => {
+    const papers = await ownPapers('chidi.okafor@seed.etyme.invalid')
+    const one = papers.find((p) => /attestation/i.test(p.name))
+    expect(one, JSON.stringify(papers)).toBeTruthy()
+    expect(one!.todo).toBe('sign')
+  }, 30_000)
+
+  it('shows Karthik Menon the project he has just come off, so the page a W2 employee opens is not empty', async () => {
+    const work = await ownWork('karthik.menon@seed.etyme.invalid')
+    expect(work.placements.length, 'no placement at all').toBeGreaterThan(0)
+    expect(work.timesheets.length, 'no hours at all').toBeGreaterThan(0)
+    // Ended, because he is between projects — which is why his employer
+    // has an open seat to put him forward for.
+    expect(work.summary.livePlacements).toBe(0)
+  }, 30_000)
+
+  it('has not submitted Karthik for the open seat, because that is the thing the integrator door exists to do', async () => {
+    const seat = await prisma.requirement.findFirstOrThrow({
+      where: { title: 'DO-178C verification engineer', company: { slug: 'world-corveldt' } },
+    })
+    const karthik = await prisma.person.findFirstOrThrow({
+      where: { primaryEmail: 'karthik.menon@seed.etyme.invalid' },
+    })
+    const already = await prisma.submission.findFirst({
+      where: { requirementId: seat.id, personId: karthik.id },
+    })
+    expect(already, 'the seed submitted him, so the demo has nothing left to walk').toBeNull()
+  })
+
+  it('pays the travel nurse through the limited company she owns, not through the agency', async () => {
+    const profile = await prisma.consultantProfile.findFirstOrThrow({
+      where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
+      include: { ownCompany: true },
+    })
+    expect(profile.ownCompany, 'ownCompanyId is still unset on every row in this world').toBeTruthy()
+    expect(profile.ownCompany!.kind).toBe('CONSULTANT_CORP')
+
+    const buy = await prisma.buyContract.findFirstOrThrow({
+      where: { candidates: { some: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } } } },
+    })
+    expect(buy.contractType).toBe('C2C')
+    expect(buy.vendorCompanyId, 'the agency is buying from itself').toBe(profile.ownCompanyId)
+  })
+
+  it('carries the liability cover on her own company, which is the company that owes it on corp to corp', async () => {
+    const profile = await prisma.consultantProfile.findFirstOrThrow({
+      where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
+    })
+    const cover = await prisma.verification.findMany({
+      where: { companyId: profile.ownCompanyId!, type: { in: ['INSURANCE_GL', 'INSURANCE_WC'] } },
+    })
+    expect(cover).toHaveLength(2)
+    for (const c of cover) expect(c.expiresAt!.getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it('files a nurse’s week as three twelve-hour shifts, not as five eights', async () => {
+    const week = await prisma.timesheet.findFirstOrThrow({
+      where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
+      orderBy: { periodStart: 'desc' },
+    })
+    expect(Number(week.totalHours)).toBe(36)
+    expect(Object.keys(week.days as Record<string, number>)).toHaveLength(3)
+  })
+
+  it('gives her state license the day it runs out, and the client’s compliance desk reads that date', async () => {
+    as('world-harlow-health@demo.etyme.local')
+    const r = await json(await compliance(req('GET', '/api/compliance')))
+    const people = r.body.data?.verifications?.persons ?? []
+    const her = people.find((p: any) => p.name === 'Colleen Byrne')
+    expect(her, JSON.stringify(people.map((p: any) => p.name))).toBeTruthy()
+    const license = her.checks.find((c: any) => c.type === 'PROFESSIONAL_LICENSE')
+    expect(license, JSON.stringify(her.checks)).toBeTruthy()
+    expect(license.expiresAt, 'a license with no expiry is a license nobody can chase').toBeTruthy()
+    const daysLeft = (new Date(license.expiresAt).getTime() - Date.now()) / 86_400_000
+    expect(daysLeft).toBeGreaterThan(0)
+    expect(daysLeft).toBeLessThan(60)
+  }, 30_000)
+
+  it('asks her for the renewal on her own page, and it is hers to answer', async () => {
+    const papers = await ownPapers('colleen.byrne@seed.etyme.invalid')
+    const renewal = papers.find((p) => /renewal/i.test(p.name))
+    expect(renewal, JSON.stringify(papers)).toBeTruthy()
+    expect(renewal!.todo).toBe('upload')
+  }, 30_000)
+})
+
+/**
+ * The two party doors that opened on an empty book.
+ */
+describe('an MSP that sells and buys, and a sub-vendor that only ever sees the rung above it', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  const aptiva = () => prisma.company.findFirstOrThrow({ where: { slug: 'world-aptiva' } })
+
+  it('offers a door for the program office and one for the sub-vendor, beside the primes and the integrators', () => {
+    expect(PROGRAM_OFFICE_SEATS).toHaveLength(1)
+    expect(ALL_SEATS.map((s) => s.slug)).toContain('world-aptiva')
+    expect(ALL_SEATS.map((s) => s.slug)).toContain('world-cloudepa')
+  })
+
+  it('names something waiting on both sides of every supplying firm’s book, not only on the side it sells from', () => {
+    for (const s of [...ALL_SEATS].filter((x) => !x.slug.startsWith('world-nike') && !x.slug.startsWith('world-corning') && !x.slug.startsWith('world-terumo'))) {
+      const says = s.about.toLowerCase()
+      expect(/sell|sells/.test(says), `${s.name} never says what it sells`).toBe(true)
+      expect(/buy|buys|employs/.test(says), `${s.name} never says what it buys`).toBe(true)
+    }
+  })
+
+  it('gives the MSP a sell contract to its client and a buy contract of its own', async () => {
+    const co = await aptiva()
+    const sells = await prisma.sellContract.findMany({ where: { companyId: co.id } })
+    const buys = await prisma.buyContract.findMany({ where: { companyId: co.id } })
+    expect(sells.length, 'an MSP with nothing to sell').toBeGreaterThan(0)
+    expect(buys.length, 'an MSP that buys nothing, which was the pre-correction model').toBeGreaterThan(0)
+  })
+
+  it('buys its own employee on a W2 leg with no purchase order behind it — you do not raise a PO to your own staff', async () => {
+    const co = await aptiva()
+    const buy = await prisma.buyContract.findFirstOrThrow({ where: { companyId: co.id } })
+    expect(buy.contractType).toBe('W2')
+    expect(buy.vendorCompanyId).toBeNull()
+    expect(buy.purchaseOrderId).toBeNull()
+  })
+
+  it('records that submission as internal, because the firm already employs the person it put forward', async () => {
+    const co = await aptiva()
+    const sub = await prisma.submission.findFirstOrThrow({ where: { fromCompanyId: co.id } })
+    expect(sub.kind).toBe('INTERNAL')
+    const listing = await prisma.benchListing.findFirst({
+      where: { companyId: co.id, consultant: { personId: sub.personId } },
+    })
+    expect(listing, 'a bench listing for its own employee, whose consent the job already gave').toBeNull()
+  })
+
+  it('leaves the MSP a week its client has signed and it has not accepted as the employer', async () => {
+    const co = await aptiva()
+    const sell = await prisma.sellContract.findFirstOrThrow({ where: { companyId: co.id } })
+    const waiting = await prisma.timesheet.findMany({
+      where: { sellContractId: sell.id, clientApprovedAt: { not: null }, employerAcceptedAt: null },
+    })
+    expect(waiting.length, 'nothing on the buy side of the desk').toBeGreaterThan(0)
+    const billable = await prisma.timesheet.findMany({
+      where: { sellContractId: sell.id, status: 'APPROVED', invoiceLines: { none: {} } },
+    })
+    expect(billable.length, 'nothing on the sell side of the desk').toBeGreaterThan(0)
+  })
+
+  it('lands the MSP on a page its own navigation offers, which is the vendor’s', async () => {
+    const { body } = await sit('world-aptiva')
+    expect(body.kind).toBe('MSP')
+    const hrefs = getNavForKind('MSP', false).flatMap((s) => s.items.map((i) => i.href))
+    expect(hrefs, `landed on ${body.landing}`).toContain(body.landing)
+  }, 30_000)
+
+  it('gives the sub-vendor a prime above it and its own consultant below, and never the prime’s client', async () => {
+    const cloudepa = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' } })
+    const harlow = await prisma.company.findFirstOrThrow({ where: { slug: 'world-harlow-health' } })
+    // It sells to the prime, never to the hospital.
+    const sells = await prisma.sellContract.findMany({ where: { companyId: cloudepa.id } })
+    expect(sells.length).toBeGreaterThan(0)
+    for (const s of sells) {
+      expect(s.clientCompanyId, 'a sub-vendor billing the client directly').not.toBe(harlow.id)
+    }
+    // And a paper it is chasing its own consultant for.
+    const asked = await prisma.docInstance.findMany({
+      where: { template: { companyId: cloudepa.id }, status: 'SENT' },
+      include: { template: true },
+    })
+    expect(asked.length, 'a bench vendor chasing nobody for anything').toBeGreaterThan(0)
+  })
+
+  it('leaves the prime and the integrator a bill from the firm below, so the buy side of each is not an empty page', async () => {
+    for (const slug of ['world-computer-systems', 'world-teleworld']) {
+      const co = await prisma.company.findFirstOrThrow({ where: { slug } })
+      const bills = await prisma.vendorBill.findMany({ where: { companyId: co.id, paidAt: null } })
+      expect(bills.length, `${slug} owes nobody anything`).toBeGreaterThan(0)
     }
   })
 })

@@ -254,7 +254,7 @@ export const DOMAINS: Domain[] = [
       'app/api/placements', 'app/dashboard/placements',
       // Somebody else in the seat: a new contract on the same terms, the old one ended.
       'lib/replacement',
-      'lib/seed-world', 'lib/seed-programmes', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
+      'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
       // How much we do unprompted, as a ladder a buyer already knows.
