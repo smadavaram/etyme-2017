@@ -5,6 +5,13 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
 import { daysOnSite } from '@/lib/tenure-days'
+// etyme-architect, 2026-09-17. A cross-domain edit in etyme-supply's
+// file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
+// the prime's to keep unless the client's agreement with the prime says
+// otherwise, and one rule landing in three routes at once is a rule, not
+// three changes. Nothing else in this file was touched — who is eligible,
+// and from when, is unchanged.
+import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 
 /**
  * GET /api/alumni
@@ -63,6 +70,54 @@ export async function GET(request: NextRequest) {
     },
     orderBy: { startDate: 'asc' },
   })
+
+  // ── Whose name this reader may read ─────────────────────────────────
+  //
+  // "Released May 2026 · CloudEPA" named the prime's sub-vendor on the
+  // client's own page, and the vendor list beside it did the same. Who
+  // worked here and when is the client's; which firm below its supplier
+  // employed them is the prime's, unless the agreement says otherwise.
+  // A supplier reading this page reads its own chain unmasked.
+  const viewerIsClient = caller.company?.id === clientCompany.id
+  const disclosureTerms = viewerIsClient
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: clientCompany.id },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
+  const seenNames = viewerIsClient
+    ? namesForClient(
+        contracts.map(c => ({
+          id: c.id,
+          personId: c.personId,
+          companyId: c.companyId,
+          companyName: c.company.name,
+          clientCompanyId: c.clientCompanyId,
+        })),
+        clientCompany.id,
+        (primeCompanyId: string) =>
+          mayNameSubVendors(disclosureTerms, clientCompany.id, primeCompanyId)
+      )
+    : new Map<string, SeenName>()
+
+  /**
+   * What this reader may call a firm on a row.
+   *
+   * A firm that holds somebody on its bench and has never placed them
+   * here is not a rung of anybody's chain at this client, so it is not in
+   * the map and keeps its own name — the client met it on the bench, not
+   * behind a prime.
+   */
+  const shown = (companyId: string, trueName: string): SeenName =>
+    seenNames.get(companyId) ?? {
+      companyId,
+      name: trueName,
+      masked: false,
+      through: null,
+      phrase: trueName,
+      says: trueName,
+    }
 
   // Load governance rules for tenure eligibility check
   const tenureRule = await prisma.governanceRule.findFirst({
@@ -183,14 +238,17 @@ export async function GET(request: NextRequest) {
       const benchVendor = benchByPerson.get(personId)
       if (benchVendor) {
         state = 'available'
-        detail = `Available now · ${benchVendor.name}`
-        currentVendor = benchVendor
+        const seen = shown(benchVendor.id, benchVendor.name)
+        detail = `Available now · ${seen.name}`
+        currentVendor = { id: benchVendor.id, name: seen.name }
       } else {
         state = 'ended'
         const endStr = data.lastEndDate
           ? data.lastEndDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
           : 'Unknown'
-        const vendorName = data.latestVendor?.name ?? 'Unknown'
+        const vendorName = data.latestVendor
+          ? shown(data.latestVendor.id, data.latestVendor.name).name
+          : 'Unknown'
         detail = `Released ${endStr} · ${vendorName}`
       }
     }
@@ -232,7 +290,12 @@ export async function GET(request: NextRequest) {
       state,
       detail,
       currentVendor,
-      vendors: Array.from(data.vendors.entries()).map(([id, name]) => ({ id, name })),
+      vendors: Array.from(data.vendors.entries()).map(([id, name]) => ({
+        id,
+        name: shown(id, name).name,
+        nameWithheld: shown(id, name).masked,
+        suppliedThrough: shown(id, name).through,
+      })),
       canReengage,
       reengageBlockReason,
       eligibleDate,

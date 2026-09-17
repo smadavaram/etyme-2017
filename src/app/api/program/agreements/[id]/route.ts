@@ -82,6 +82,7 @@ export async function PATCH(
       currency: true,
       minMarginPct: true,
       capacity: true,
+      disclosesSubVendors: true,
       effectiveDate: true,
       expiresAt: true,
       renewalKind: true,
@@ -181,6 +182,31 @@ export async function PATCH(
       }
     }
     data.capacity = cap
+  }
+
+  // ── Whose name the client may read ──────────────────────────────────
+  //
+  // (etyme-architect, 2026-09-17. A cross-domain line in etyme-demand's
+  // file, on the precedent of c126c1c4 and f901e914: the rule that a
+  // sub-vendor's name is the prime's to keep is one sentence, and the
+  // only place the term can be recorded is the route that already
+  // versions every other term. Nothing else in this file was touched.)
+  //
+  // Recorded here by the supplier, the way every other term on this
+  // endpoint is, because Phase 1 is vendor-side and the vendor is writing
+  // down what was agreed. Recording is not granting: a client that did
+  // not demand this at signing does not get it because somebody ticked a
+  // box, and the version trail is what makes that auditable.
+  if ('disclosesSubVendors' in body) {
+    const discloses = body.disclosesSubVendors
+    if (typeof discloses !== 'boolean') {
+      return bad(
+        'Say yes or no: does this agreement require the sub-vendors behind a placement ' +
+          'to be named to the client?',
+        'disclosesSubVendors'
+      )
+    }
+    data.disclosesSubVendors = discloses
   }
 
   if ('currency' in body) {
@@ -284,6 +310,7 @@ export async function PATCH(
     currency: agreement.currency,
     minMarginPct: agreement.minMarginPct,
     capacity: agreement.capacity,
+    disclosesSubVendors: agreement.disclosesSubVendors,
     effectiveDate: agreement.effectiveDate,
     expiresAt: agreement.expiresAt,
     renewalKind: agreement.renewalKind,
@@ -318,6 +345,7 @@ export async function PATCH(
       minMarginPct: true,
       capacity: true,
       currency: true,
+      disclosesSubVendors: true,
       signedAt: true,
       effectiveDate: true,
       expiresAt: true,
@@ -381,6 +409,10 @@ export async function PATCH(
         marginFloorSays: marginFloorSays(updated.minMarginPct),
         capacity: updated.capacity,
         currency: updated.currency,
+        disclosesSubVendors: updated.disclosesSubVendors,
+        disclosureSays: updated.disclosesSubVendors
+          ? 'Sub-vendors are named to the client.'
+          : 'Sub-vendors are the supplier\u2019s own; the client sees their standing, not their names.',
         signedAt: updated.signedAt?.toISOString() ?? null,
         effectiveDate: updated.effectiveDate?.toISOString() ?? null,
         expiresAt: updated.expiresAt?.toISOString() ?? null,

@@ -51,6 +51,12 @@ const TERM_COLUMNS = {
   status: true,
   signedAt: true,
   executedFileName: true,
+  // Whether this client's agreement requires its supplier to name the
+  // firms it buys from. A term like any other, so it versions like any
+  // other: "were we entitled to the sub-vendor's name in March" is the
+  // same question as "what were the payment days in March".
+  // (etyme-architect, 2026-09-17 — one rule across three domains.)
+  disclosesSubVendors: true,
 } as const
 
 export type TermSnapshot = {
@@ -67,6 +73,7 @@ export type TermSnapshot = {
   status: string
   signedAt: Date | null
   executedFileName: string | null
+  disclosesSubVendors: boolean
 }
 
 /** The agreement's terms as they stand right now. */

@@ -45,6 +45,9 @@ import { GET as payroll } from '@/app/api/payroll/route'
 import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
 import { POST as recordReceipt } from '@/app/api/ar/payments/route'
 import { GET as complianceView } from '@/app/api/compliance/route'
+import { GET as tenureView } from '@/app/api/tenure/route'
+import { GET as alumniView } from '@/app/api/alumni/route'
+import { PATCH as amendAgreement } from '@/app/api/program/agreements/[id]/route'
 import { GET as profitability } from '@/app/api/profitability/route'
 import { GET as placement } from '@/app/api/placements/[id]/route'
 
@@ -823,25 +826,27 @@ describe('Step 14 — who Adobe can see on its site, once the contracts are live
   // client is that site. They were in the paperwork block above and ran
   // before the contracts were live, which is the one moment they cannot
   // be true.
-  it('shows Adobe every firm working on its site, CloudEPA included', async () => {
-    // Worth saying out loud, because it cuts against the rest of the
-    // walk. Adobe has no counterparty record for CloudEPA and cannot
-    // find them anywhere else in the product — and here they are, named
-    // on Adobe's own compliance page, because CloudEPA holds a contract
-    // whose end client is Adobe.
+  it('shows Adobe every firm working on its site, and names only the one it pays', async () => {
+    // This test used to assert the opposite — that CloudEPA was named on
+    // Adobe's own compliance page — and said in a comment that it was a
+    // decision nobody had made. It was made on 2026-09-17: the NDA
+    // between a prime and its sub is what stops the sub going round the
+    // prime, so the client sees the rung it pays and nothing below it
+    // unless its own agreement with the prime says otherwise.
     //
-    // That is Addendum E working rather than a leak: tenure accrues to
-    // the person at the client aggregated across every vendor, and a
-    // client that cannot see which firms are on its site cannot compute
-    // it or answer for it. But it is also the prime's supply chain, and
-    // primes hide subs for a living. It is a decision, and it should be
-    // a decided one.
+    // Both firms are still on the page, because Addendum E is right that
+    // a client which cannot see who is on its site cannot answer for it.
+    // What changed is the name on the second row.
     as(ADOBE_PM)
     const r = await json(await complianceView(req('GET', '/api/compliance')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    const named = (r.body.data.verifications.companies ?? []).map((c: any) => c.name)
-    expect(named).toContain('CloudEPA')
+    const companies = r.body.data.verifications.companies ?? []
+    expect(companies.length).toBe(2)
+    const named = companies.map((c: any) => c.name)
     expect(named).toContain('Computer Systems')
+    expect(named).not.toContain('CloudEPA')
+    expect(named).toContain('Supplied through Computer Systems.')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
   })
 
   it('still gives Adobe no way to reach CloudEPA — the visibility is the site, not the relationship', async () => {
@@ -876,6 +881,131 @@ describe('Step 14 — who Adobe can see on its site, once the contracts are live
 // ═══════════════════════════════════════════════════════════════════
 // Part four — compliance
 // ═══════════════════════════════════════════════════════════════════
+
+describe('Step 14a — the name below the rung Adobe pays, and the term that opens it', () => {
+  /**
+   * Ratified 2026-09-17. The client sees the standing of whoever employs
+   * the person on its site — insured or not, authorized or not, because
+   * that exposure is its own — and not that firm's name, unless its
+   * agreement with the prime requires disclosure.
+   *
+   * Asserted on what the routes return, never on what a screen renders.
+   * The screen is what hid the last one of these.
+   */
+  const asAdobe = async () => {
+    as(ADOBE_PM)
+    return {
+      compliance: await json(await complianceView(req('GET', '/api/compliance'))),
+      tenure: await json(await tenureView(req('GET', '/api/tenure'))),
+      alumni: await json(await alumniView(req('GET', '/api/alumni'))),
+    }
+  }
+
+  const amend = async (discloses: boolean) => {
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { clientId: co.adobe, vendorId: co.prime },
+      select: { id: true },
+    })
+    as(PRIME)
+    return json(
+      await amendAgreement(
+        req('PATCH', `/api/program/agreements/${msa.id}`, {
+          disclosesSubVendors: discloses,
+          reason: discloses
+            ? 'Adobe required its suppliers to name their sub-vendors at signing.'
+            : 'Reverted — the disclosure term was recorded against the wrong agreement.',
+        }),
+        { params: Promise.resolve({ id: msa.id }) }
+      )
+    )
+  }
+
+  it('carries the cover of the firm that employs Priya without carrying that firm\u2019s name', async () => {
+    const { compliance } = await asAdobe()
+    expect(compliance.body?.error, JSON.stringify(compliance.body)).toBeUndefined()
+
+    const companies = compliance.body.data.verifications.companies
+    const hidden = companies.find((c: any) => c.companyId === co.sub)
+    expect(hidden, 'the firm employing her is still on the page').toBeTruthy()
+    expect(hidden.name).toBe('Supplied through Computer Systems.')
+    expect(hidden.nameWithheld).toBe(true)
+    expect(hidden.suppliedThrough).toBe('Computer Systems')
+    // The standing is the client's own exposure and no NDA moves it.
+    const cover = new Set(hidden.checks.map((c: any) => c.type))
+    expect(cover.has('INSURANCE_GL')).toBe(true)
+    expect(cover.has('INSURANCE_WC')).toBe(true)
+    expect(hidden.cover.outcome).toBe('PASS')
+  })
+
+  it('counts Priya\u2019s days at Adobe without naming the firm below the one Adobe pays', async () => {
+    const { tenure } = await asAdobe()
+    expect(tenure.body?.error, JSON.stringify(tenure.body)).toBeUndefined()
+
+    const priya = tenure.body.data.people.find((p: any) => p.personId === who.priya)
+    expect(priya.vendors.length, 'both rungs are still counted').toBe(2)
+    expect(priya.vendors.map((v: any) => v.name)).toContain('Computer Systems')
+    expect(priya.vendors.map((v: any) => v.name)).toContain('Supplied through Computer Systems.')
+    expect(JSON.stringify(tenure.body)).not.toContain('CloudEPA')
+  })
+
+  it('remembers she worked here without remembering which firm below the supplier released her', async () => {
+    const { alumni } = await asAdobe()
+    expect(alumni.body?.error, JSON.stringify(alumni.body)).toBeUndefined()
+
+    const priya = alumni.body.data.alumni.find((a: any) => a.personId === who.priya)
+    expect(priya.vendors.map((v: any) => v.name)).toContain('Supplied through Computer Systems.')
+    expect(JSON.stringify(alumni.body)).not.toContain('CloudEPA')
+  })
+
+  it('leaves Computer Systems reading its own supply chain by name, because it is its own', async () => {
+    as(PRIME)
+    const r = await json(await complianceView(req('GET', `/api/compliance?clientCompanyId=${co.adobe}`)))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.verifications.companies.map((c: any) => c.name)).toContain('CloudEPA')
+  })
+
+  it('records the disclosure term as an amendment, in the words a contract manager would use', async () => {
+    const r = await amend(true)
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.changed).toContain('whether sub-vendors are named to the client')
+    expect(r.body.data.terms.disclosesSubVendors).toBe(true)
+
+    // On the version trail like every other term, so "what were the
+    // terms on 3 March" still answers.
+    const versions = await prisma.masterAgreementVersion.findMany({
+      where: { agreement: { clientId: co.adobe, vendorId: co.prime } },
+      orderBy: { version: 'asc' },
+      select: { version: true, disclosesSubVendors: true },
+    })
+    expect(versions[0].disclosesSubVendors, 'what it said before the amendment').toBe(false)
+    expect(versions[versions.length - 1].disclosesSubVendors).toBe(true)
+  })
+
+  it('names CloudEPA on all three of Adobe\u2019s pages once the agreement requires it', async () => {
+    const { compliance, tenure, alumni } = await asAdobe()
+
+    const firm = compliance.body.data.verifications.companies.find((c: any) => c.companyId === co.sub)
+    expect(firm.name).toBe('CloudEPA')
+    expect(firm.nameWithheld).toBe(false)
+
+    const inTenure = tenure.body.data.people.find((p: any) => p.personId === who.priya)
+    expect(inTenure.vendors.map((v: any) => v.name)).toContain('CloudEPA')
+
+    const inAlumni = alumni.body.data.alumni.find((a: any) => a.personId === who.priya)
+    expect(inAlumni.vendors.map((v: any) => v.name)).toContain('CloudEPA')
+  })
+
+  it('closes again the moment the term comes back off, leaving the standing where it was', async () => {
+    const off = await amend(false)
+    expect(off.body?.error, JSON.stringify(off.body)).toBeUndefined()
+
+    const { compliance } = await asAdobe()
+    const firm = compliance.body.data.verifications.companies.find((c: any) => c.companyId === co.sub)
+    expect(firm.name).toBe('Supplied through Computer Systems.')
+    expect(firm.cover.outcome).toBe('PASS')
+  })
+})
+
 
 // ═══════════════════════════════════════════════════════════════════
 // Part five — the money

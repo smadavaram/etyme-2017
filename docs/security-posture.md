@@ -122,11 +122,12 @@ Tested by `__tests__/invariants/walls.test.ts`,
 `__tests__/invariants/bench-scope.test.ts`,
 `__integration__/placement-payload.test.ts`.
 
-### The chain, and what is still open
+### The chain, and whose name is on the row
 
 The fix above was followed by a sweep for the same shape elsewhere, since
 one route hiding a field is rarely the only one. What the sweep found is
-here in full.
+here in full, and what was undecided when it was written was decided on
+2026-09-17.
 
 In a supply chain — a client buys from a prime, the prime buys from a
 sub-vendor — **every rung's contract names the client as the site where
@@ -143,29 +144,90 @@ customer's screen or an understated bill. Held by
 `__tests__/invariants/chain-top.test.ts` and
 `__integration__/full-spine.test.ts`.
 
-**Names are not closed everywhere.** Three read surfaces still name a
-sub-vendor to a client, in each case because the aggregation counts rungs
-rather than the rung the client pays. None of the three carries a rate,
-and each is owned by a different domain (`src/lib/domains.ts`), so they
-are named here rather than reached into — one agent editing another's
-files is how two individually correct changes produce a wrong result.
+**Names are closed too, and the rule is one sentence.** The NDA between a
+prime and its sub is what stops the sub going round the prime to reach
+the end client. So the client sees the rung it pays and nothing below it
+— **unless the client's agreement with the prime requires disclosure**, in
+which case it sees the sub by name. That is a term on the
+`MasterAgreement` between client and prime, `disclosesSubVendors`, **off
+by default**, the client's to demand at signing and never the platform's
+to grant. It is amended through `PATCH /api/program/agreements/:id` and
+lands on `MasterAgreementVersion` like every other term, so "were we
+entitled to that name in March" is answerable from the trail rather than
+from today's row.
 
-| Surface | What a client can see | Owner |
+**What the client always sees, name or no name, is standing** — whether
+the firm employing somebody on its site is insured, whether its cover has
+lapsed, whether the person is authorized to work. That exposure is the
+client's own and no NDA moves it. Nothing in the rule touches a
+certificate, a verification or a gate.
+
+**A withheld name is a sentence, not a blank.** The row reads "Supplied
+through Computer Systems Inc." A dash reads as missing data, and the firm
+the client can actually call about that person is the firm it pays.
+Where the chain above a rung is not on file, the row says that instead of
+guessing at a supplier.
+
+One function decides it for every surface — `src/lib/chain-names.ts`,
+which is to names what `src/lib/chain-top.ts` is to rates, and it sits
+beside it so the two cannot drift. It reads the client↔prime agreement
+and nothing else: not a permission, because no seat at the client can
+grant what the client's paper does not, and not the sub's own agreement
+with the prime, which is a deal the client is not party to. A term on a
+TERMINATED or EXPIRED agreement discloses nobody; a term on a DRAFT does,
+because DRAFT is the honest placeholder the award path writes for a
+relationship that plainly exists.
+
+| Surface | What a client sees now | Owner |
 |---|---|---|
-| `GET /api/compliance` | Every firm with somebody on site, a sub-vendor included, and that firm's insurance certificates | `etyme-regulatory` |
-| `GET /api/tenure` | The vendor list on a person names every rung they were supplied through | `etyme-regulatory` |
-| `GET /api/alumni` | The same vendor list, and the "released by" line on a past placement | `etyme-supply` |
+| `GET /api/compliance` | Every firm with somebody on site, and every certificate it holds. A firm below the rung the client pays carries `name: "Supplied through …"`, `nameWithheld: true` and `suppliedThrough`; its cover, its standing and the lapse sentence travel unchanged, the sentence naming the prime rather than the firm | `etyme-regulatory` |
+| `GET /api/tenure` | Every day on site, counted once, across every rung. The vendor list and each contract's `vendorName` withhold a firm below the rung the client pays and say which firm it came through | `etyme-regulatory` |
+| `GET /api/alumni` | The same vendor list, plus "released by" and "available now", withheld the same way. A firm that holds somebody on its bench and has never placed them here keeps its own name — the client met it on the bench, not behind a prime | `etyme-supply` |
+
+All three unmask in full the moment the agreement carries the term, and
+close again the moment it comes off. A supplier reading any of the three
+about a client it places at reads its own supply chain by name, because
+the term being read is the client's agreement rather than theirs.
+
+Three files owned by three other domains were edited for it, each with a
+comment saying why and by whom, on the precedent set in `c126c1c4` and
+`f901e914`: one rule landing in three routes at once is one change, and
+splitting it across three agents is how two individually correct changes
+produce a wrong result.
 
 `GET /api/timesheets` puts the employing rung's company **id** — never
 its name, never its rate — on a client's copy of a week, so the screen
-can work out who may sign it. Smaller than the three above, and listed so
-the list is complete (`etyme-demand`).
+can work out who may sign it. Ids still travel everywhere a name is
+withheld, because a row needs something to hang a certificate on, and a
+client cannot turn an id into a firm it has no relationship with
+(`etyme-demand`).
 
-Whether a client should see the whole chain at its own site is a product
-question before it is a security one: co-employment and aggregate tenure
-are precisely what a client buys this to answer, and a prime's supplier
-list is its own commercial property. **It has not been decided, so
-nothing here claims it is closed.**
+Tested by `__tests__/invariants/chain-names.test.ts` — sixteen sentences
+on the rule itself, including a firm that is a prime on one row and a sub
+on another, a chain three deep, and a rung whose parent is missing — and
+by Step 14a of `__integration__/full-spine.test.ts`, which walks Adobe →
+Computer Systems → CloudEPA and asserts the JSON of all three routes
+under both settings of the term. Asserted on what the route returns,
+never on what the screen renders: the screen is what hid the last one of
+these.
+
+**Still open after this.** Two things, named rather than implied.
+
+- **The term has no control on the agreements screen yet.** The column is
+  written and read by the API (`PATCH` and `GET
+  /api/program/agreements`), and the screen that would tick it is
+  `etyme-demand`'s. What it needs is one line on the terms panel — a
+  checkbox reading "Name our sub-vendors to this client", bound to
+  `terms.disclosesSubVendors`, with `terms.disclosureSays` under it —
+  until which a client that demanded disclosure at signing has it
+  recorded through the API rather than by its supplier's contract
+  manager.
+- **Nothing refuses a prime that lists a sub as a supplier elsewhere.**
+  The wall is on these read surfaces; it is not a constraint the database
+  enforces. A future surface that joins sell contracts at a client and
+  prints `company.name` will leak the same way these three did, and the
+  thing that would catch it is a scanner over client-facing routes rather
+  than a test per route. Not built.
 
 ---
 
@@ -505,9 +567,13 @@ Stated in one place so a reviewer does not have to assemble it.
   recorded in this repository.
 
 **Coverage gaps in controls that do exist**
-- A client can see a sub-vendor's **name** — never its rate — on three
-  chain-aggregating surfaces, and the employing firm's id on a timesheet
-  row. Listed by route in section 3, undecided rather than pending.
+- A sub-vendor's **name** is withheld from the client on all three
+  chain-aggregating surfaces unless the client's agreement with the prime
+  requires disclosure (section 3). What remains is that the wall lives in
+  the read surfaces rather than in a constraint, so a surface written
+  tomorrow can leak the same way, and the disclosure term has no control
+  on the agreements screen yet. The employing firm's **id** still travels
+  on a timesheet row, deliberately.
 - Access logging covers 19 route files of 231 (section 4).
 - Access logging is fire-and-forget, so a log write failure does not fail
   the request.

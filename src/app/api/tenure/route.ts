@@ -5,6 +5,13 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+// etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
+// file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
+// the prime's to keep unless the client's agreement with the prime says
+// otherwise, and one rule landing in three routes at once is a rule, not
+// three changes. Nothing else in this file was touched — every day on
+// site is still counted the same way, from the same rungs.
+import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 
 /**
  * GET /api/tenure
@@ -52,6 +59,47 @@ export async function GET(request: NextRequest) {
     },
     orderBy: { startDate: 'asc' },
   })
+
+  // ── Whose name this reader may read ─────────────────────────────────
+  //
+  // Tenure is aggregated across every vendor, which is the point of it —
+  // and in a chain the vendor list named the prime's sub-vendor, a firm
+  // the client has no contract with. The days stay; the name is the
+  // prime's to keep unless the client's agreement with the prime says
+  // otherwise. A supplier reading this page reads its own chain unmasked.
+  const viewerIsClient = caller.company?.id === clientCompany.id
+  const disclosureTerms = viewerIsClient
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: clientCompany.id },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
+  const seenNames = viewerIsClient
+    ? namesForClient(
+        contracts.map(c => ({
+          id: c.id,
+          personId: c.personId,
+          companyId: c.companyId,
+          companyName: c.company.name,
+          clientCompanyId: c.clientCompanyId,
+        })),
+        clientCompany.id,
+        (primeCompanyId: string) =>
+          mayNameSubVendors(disclosureTerms, clientCompany.id, primeCompanyId)
+      )
+    : new Map<string, SeenName>()
+
+  /** What this reader may call a firm on a row. */
+  const shown = (companyId: string, trueName: string): SeenName =>
+    seenNames.get(companyId) ?? {
+      companyId,
+      name: trueName,
+      masked: false,
+      through: null,
+      phrase: trueName,
+      says: trueName,
+    }
 
   // Load governance rules for tenure cap and break-in-service
   const tenureRule = await prisma.governanceRule.findFirst({
@@ -149,7 +197,12 @@ export async function GET(request: NextRequest) {
     return {
       personId,
       name: data.name,
-      vendors: Array.from(data.vendors.entries()).map(([id, name]) => ({ id, name })),
+      vendors: Array.from(data.vendors.entries()).map(([id, name]) => ({
+        id,
+        name: shown(id, name).name,
+        nameWithheld: shown(id, name).masked,
+        suppliedThrough: shown(id, name).through,
+      })),
       cumulativeMonths,
       cumulativeDays: data.totalDays,
       contractCount: data.contracts.length,
@@ -158,7 +211,11 @@ export async function GET(request: NextRequest) {
       hasActive: data.hasActive,
       contracts: data.contracts.map(c => ({
         id: c.id,
-        vendorName: c.company.name,
+        vendorName: shown(c.companyId, c.company.name).name,
+        vendorNameWithheld: shown(c.companyId, c.company.name).masked,
+        // Who this rung reaches the client through. Never withheld: it is
+        // a firm the client itself pays and can call about this person.
+        suppliedThrough: shown(c.companyId, c.company.name).through,
         payingCustomer: c.clientCompany.name,
         endClient: c.endClientCompany?.name ?? c.clientCompany.name,
         workLocation: c.workLocation

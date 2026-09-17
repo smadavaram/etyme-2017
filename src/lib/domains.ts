@@ -259,6 +259,11 @@ export const DOMAINS: Domain[] = [
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
       // How much we do unprompted, as a ladder a buyer already knows.
       'lib/autonomy',
+      // Whose name a client may read in a chain. The names twin of
+      // `lib/chain-top`, which is demand's: the rule is one sentence read
+      // by compliance, tenure and the bench at once, so it belongs to
+      // none of them and queues here with the schema term it reads.
+      'lib/chain-names',
       // Where a company's cover has a hole in it — the weeks between one
       // policy ending and the next beginning. The nightly chase's own
       // arithmetic, here because the chase is here; the standing of a

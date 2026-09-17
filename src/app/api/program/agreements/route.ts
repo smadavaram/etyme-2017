@@ -72,6 +72,10 @@ export async function GET(request: NextRequest) {
       signedAt: true,
       minMarginPct: true,
       capacity: true,
+      // Whether the client is entitled to the names of the firms behind a
+      // placement. (etyme-architect, 2026-09-17 — read by the screen so
+      // the control can show what the agreement says.)
+      disclosesSubVendors: true,
       createdAt: true,
       // ── The term, the standing and the paper ──
       effectiveDate: true,
@@ -189,6 +193,10 @@ export async function GET(request: NextRequest) {
         minMarginPct: seller ? a.minMarginPct : null,
         marginFloorSays: seller ? marginFloorSays(a.minMarginPct) : null,
         capacity: a.capacity,
+        disclosesSubVendors: a.disclosesSubVendors,
+        disclosureSays: a.disclosesSubVendors
+          ? 'Sub-vendors are named to the client.'
+          : 'Sub-vendors are the supplier\u2019s own; the client sees their standing, not their names.',
         signedAt: a.signedAt?.toISOString() ?? null,
         effectiveDate: a.effectiveDate?.toISOString() ?? null,
         expiresAt: a.expiresAt?.toISOString() ?? null,

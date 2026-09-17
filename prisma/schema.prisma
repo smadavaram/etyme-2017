@@ -1356,7 +1356,31 @@ model MasterAgreement {
   minMarginPct Int? // the floor a recruiter may not price below without approval
   rateCard     Json? // condition records: client + skill + level + location
   capacity     Int? // max resources for GSA global contracts (null = unlimited)
-  createdAt    DateTime  @default(now())
+
+  // ── Whose name the client may read ──────────────────────────────────
+  //
+  // Whether this client's agreement with this supplier requires the
+  // supplier to name the firms it buys from — the sub-vendors whose
+  // people stand on the client's site under the supplier's own paper.
+  //
+  // Off by default, and deliberately. In a chain the NDA between a prime
+  // and its sub is the thing that stops the sub going round the prime to
+  // reach the end client, so a platform that names the sub by default
+  // breaks the relationship it is carrying. A client that wants the names
+  // demands them at signing, and the term is recorded here.
+  //
+  // Never the platform's to grant. Nothing sets this except an amendment
+  // somebody records, which lands on `MasterAgreementVersion` like every
+  // other term, so "what were the terms on 3 March" still answers.
+  //
+  // What it does not gate is standing. The client always sees whether the
+  // firm employing somebody on its site is insured and whether that
+  // person is authorized to work — name or no name — because that
+  // exposure is the client's own and no NDA moves it. The rule is one
+  // function, `lib/chain-names`, which is to names what `lib/chain-top`
+  // is to rates; the two must never disagree.
+  disclosesSubVendors Boolean  @default(false)
+  createdAt           DateTime @default(now())
 
   // ── The term ────────────────────────────────────────────────────────
   //
@@ -1460,19 +1484,20 @@ model MasterAgreementVersion {
   version Int
 
   // ── The terms, as they stood after this change ──
-  paymentTerms     Int
-  paymentTermsFrom String
-  currency         String
-  minMarginPct     Int?
-  capacity         Int?
-  effectiveDate    DateTime?
-  expiresAt        DateTime?
-  renewalKind      String
-  renewalMonths    Int?
-  noticeDays       Int?
-  status           String
-  signedAt         DateTime?
-  executedFileName String?
+  paymentTerms        Int
+  paymentTermsFrom    String
+  currency            String
+  minMarginPct        Int?
+  capacity            Int?
+  disclosesSubVendors Boolean   @default(false)
+  effectiveDate       DateTime?
+  expiresAt           DateTime?
+  renewalKind         String
+  renewalMonths       Int?
+  noticeDays          Int?
+  status              String
+  signedAt            DateTime?
+  executedFileName    String?
 
   /// RECORDED · AMENDED · SIGNED · DOCUMENT_ATTACHED · RENEWED · EXPIRED · TERMINATED
   action      String

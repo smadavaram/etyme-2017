@@ -66,6 +66,7 @@ export async function POST(
       currency: true,
       minMarginPct: true,
       capacity: true,
+      disclosesSubVendors: true,
       effectiveDate: true,
       expiresAt: true,
       renewalKind: true,
@@ -142,6 +143,9 @@ export async function POST(
     currency: agreement.currency,
     minMarginPct: agreement.minMarginPct,
     capacity: agreement.capacity,
+    // (etyme-architect, 2026-09-17 — the sub-vendor disclosure term
+    // travels on the version trail like every other term.)
+    disclosesSubVendors: agreement.disclosesSubVendors,
     effectiveDate: agreement.effectiveDate,
     expiresAt: agreement.expiresAt,
     renewalKind: agreement.renewalKind,

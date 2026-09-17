@@ -469,6 +469,9 @@ export const TERM_WORDS: Record<string, string> = {
   status: 'its standing',
   signedAt: 'the signature',
   executedFileName: 'the executed document',
+  // In the words a contract manager would use, not the column's.
+  // (etyme-architect, 2026-09-17 — the sub-vendor disclosure term.)
+  disclosesSubVendors: 'whether sub-vendors are named to the client',
 }
 
 /**

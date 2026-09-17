@@ -5,6 +5,14 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel } from '@/lib/document-stages'
+// etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
+// file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
+// the prime's to keep unless the client's agreement with the prime says
+// otherwise, and one rule landing in three routes at once is a rule, not
+// three changes. Nothing else in this file was touched — the standing of
+// every firm travels exactly as it did, because that exposure is the
+// client's own and no NDA moves it.
+import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 
 /**
  * GET /api/compliance
@@ -80,6 +88,7 @@ export async function GET(request: NextRequest) {
       state: { in: ['IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
     },
     select: {
+      id: true,
       personId: true,
       companyId: true,
       person: { select: { id: true, name: true } },
@@ -92,6 +101,50 @@ export async function GET(request: NextRequest) {
 
   const contractPersonIds = [...new Set(activeContracts.map(c => c.personId))]
   const vendorCompanyIds = [...new Set(activeContracts.map(c => c.companyId))]
+
+  // ── Whose name this reader may read ─────────────────────────────────
+  //
+  // Every rung of a chain names the client as the site the work happens
+  // at, so "every firm with somebody on site" returned the prime's
+  // sub-vendor too — a firm the client has no contract with and was never
+  // told about. The standing stays; the name is the prime's to keep.
+  //
+  // Only the client's own seats are masked. A supplier reading this page
+  // about a client it places at is looking at its own supply chain, and
+  // the term this reads is the client's agreement, not theirs.
+  const viewerIsClient = caller.company?.id === clientCompany.id
+  const disclosureTerms = viewerIsClient
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: clientCompany.id },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
+  const seenNames = viewerIsClient
+    ? namesForClient(
+        activeContracts.map(c => ({
+          id: c.id,
+          personId: c.personId,
+          companyId: c.companyId,
+          companyName: c.company.name,
+          clientCompanyId: c.clientCompany.id,
+        })),
+        clientCompany.id,
+        (primeCompanyId: string) =>
+          mayNameSubVendors(disclosureTerms, clientCompany.id, primeCompanyId)
+      )
+    : new Map<string, SeenName>()
+
+  /** What this reader may call a firm on a row. */
+  const shown = (companyId: string, trueName: string): SeenName =>
+    seenNames.get(companyId) ?? {
+      companyId,
+      name: trueName,
+      masked: false,
+      through: null,
+      phrase: trueName,
+      says: trueName,
+    }
 
   // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
   logBulkAccess(contractPersonIds, {
@@ -205,7 +258,9 @@ export async function GET(request: NextRequest) {
       v => v.companyId === companyId && v.type.startsWith('INSURANCE_')
     )
     const gate = supplierCoverGate({
-      supplierName: data.name,
+      // The sentence a client reads about a lapse names the firm it can
+      // call about it, not a firm it has never heard of.
+      supplierName: shown(companyId, data.name).phrase,
       clientName: clientCompany.name,
       certificates: rows.map(v => ({
         type: v.type,
@@ -276,7 +331,10 @@ export async function GET(request: NextRequest) {
         })),
         companies: Array.from(companyVerifMap.entries()).map(([companyId, data]) => ({
           companyId,
-          name: data.name,
+          name: shown(companyId, data.name).name,
+          /** True where the name above is who it comes through, not the firm. */
+          nameWithheld: shown(companyId, data.name).masked,
+          suppliedThrough: shown(companyId, data.name).through,
           checks: data.checks,
           // BLOCK here means this supplier cannot submit anybody today.
           cover: coverByCompany.get(companyId) ?? null,
@@ -286,7 +344,13 @@ export async function GET(request: NextRequest) {
       // the list because a lapse buried in a table of forty vendors is a
       // lapse nobody sees.
       lapsed: Array.from(companyVerifMap.entries())
-        .map(([companyId, data]) => ({ companyId, name: data.name, ...coverByCompany.get(companyId)! }))
+        .map(([companyId, data]) => ({
+          companyId,
+          name: shown(companyId, data.name).name,
+          nameWithheld: shown(companyId, data.name).masked,
+          suppliedThrough: shown(companyId, data.name).through,
+          ...coverByCompany.get(companyId)!,
+        }))
         .filter(c => c.outcome === 'BLOCK'),
       health: {
         totalChecks,
