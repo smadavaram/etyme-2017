@@ -1,6 +1,8 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { useSession } from '@/components/session-provider'
+import { sectionOfHref } from '@/lib/page-framing'
 
 import { useEffect, useState } from 'react'
 
@@ -54,6 +56,7 @@ const KIND: Record<string, string> = {
 }
 
 export default function TextsPage() {
+  const { company } = useSession()
   const [f, setF] = useState<Feed | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -71,7 +74,11 @@ export default function TextsPage() {
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Talent</p>
+        {/* The section the reader's own menu puts this page under — a
+            bench firm files it under Procure, an integrator and a program
+            office under Supply. It read "Talent" until the menus were
+            organized, and by then no menu had a Talent section at all. */}
+        <p className="eyebrow">{sectionOfHref(company?.kind ?? 'VENDOR', '/dashboard/texts')}</p>
         <h1 className="headline-serif text-[30px] leading-tight">Bench check-ins</h1>
         <p className="mt-1 max-w-[60ch] text-[13px] text-etyme-muted">
           A record that says somebody is free at $78 was true three weeks
