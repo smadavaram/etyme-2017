@@ -250,6 +250,78 @@ does not hold.
 
 ---
 
+## When one party is not on the system
+
+The founder asked this before authorizing the order merge, and it was the
+right gate: *"can other parties function when one of the parties is not on
+system?"* A chain where every firm must be a tenant before anything can be
+recorded is a chain nobody can start using.
+
+**Mostly yes, and deliberately.** `Company.claimedAt` is null for a
+**shell** — a firm on the register that has not taken possession of
+itself. The rule is in the schema: *"An unclaimed shell can be sent a role
+and can be scored. It cannot sign in, cannot be seen by the network, and
+must never be mistaken for a firm that chose to be here."*
+
+What works against a shell today, verified:
+
+- **It can be sent a role** and scored.
+- **It can be named on either contract** — a claimed firm's sell or buy
+  contract may name an unclaimed counterparty, on either side.
+- **A PO can be raised to it.** `issuedToId` is checked for existence and
+  non-self, never for `claimedAt`.
+- **It can be invoiced and paid**, and the AP desk *narrates* the edge
+  rather than hiding it: *"…is not on the platform. Whoever they pay next
+  is outside anything we hold. If this chain matters, invite them."*
+- **Timesheets name the hole instead of faking a signature.** The walk
+  expects a leg for every rung, then says *"X is not on Etyme, so nothing
+  here carries their approval. Somebody has to collect it another way."*
+  That is the "never silently permit" rule applied to an absent party.
+- **The claim moment is designed, not stubbed.** Rows already point at the
+  company id, so they are the claimant's the instant `claimedAt` is set;
+  `lib/join-companies` handles the duplicate case on its own terms and
+  requires a matching domain and a shared seat before folding two records.
+
+### The one that breaks, and it is the opposite way round
+
+**Only a client can create a shell.** Both paths that make one —
+`POST /api/suppliers` and the supplier-onboarding walk — run from the
+client's side. There is **no route where a vendor lists a client that is
+not here**, and `POST /api/contracts` requires `clientCompanyId` to name a
+company that already exists.
+
+So a staffing firm that signs up with an existing book of business cannot
+record any of it. Every contract it already holds names a client that is
+not on the platform, and nothing lets it say so.
+
+That is worth stating plainly because it inverts the assumption in "Who
+pays": the client is the customer and **the client-first path is the one
+that is built**. The vendor-first path — the firm that hears about this
+from a peer, signs up on a Tuesday and wants to put its current
+placements in — has no door. Suppliers are supposed to be here because
+their clients are; nothing yet serves the supplier who arrives first.
+
+**The second half of the same gap:** `PurchaseOrder.issuedById` can only
+ever be the caller's own company, so **a supplier cannot record the
+client's PO** — the work order it was handed. `SellContract.purchaseOrderId`
+exists to hold exactly that and nothing can write the row it points at.
+
+### What this means for the order merge
+
+**The two questions are almost orthogonal.** The shell mechanism keys on
+`Company.id` and does not care how many order tables exist. Merging
+`SalesOrder` into `PurchaseOrder` neither helps nor harms the off-system
+case, so **the merge is safe on these grounds.**
+
+They touch in one place. A merged order still needs an issuer, and the
+unsolved problem is not that the two sides need separate rows — it is
+that **nothing lets a claimed firm write an order naming a shell on the
+leg where it is not the natural issuer.** That permission carve-out has
+to be written either way. The merge makes it one write path to get right
+instead of two, which is a reason to merge first, not a reason to wait.
+
+---
+
 ## What this statement changes
 
 Three things it says that the build does not yet do, in the order the
