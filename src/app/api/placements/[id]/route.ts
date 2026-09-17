@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { logAccess } from '@/lib/access-log'
 import { canReadPayRate, canReadBillRate, canReadMargin } from '@/lib/permissions'
+import { contractSide } from '@/lib/resolve-client-company'
 import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { categoryOf, labelOf } from '@/lib/cycle-kinds'
@@ -49,6 +50,19 @@ import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages
  *   what it pays the hop below, because that is its own cost. It never
  *   sees what the firm above charges, because that is their margin and
  *   the whole network stops working the day it leaks.
+ *
+ * ── The buy leg is the supplier's, and is not fetched for anybody else ─
+ *
+ * A permission is not a position. A client owner holds `*`, so every
+ * `canRead…` check in this file passed for them, and the payload carried
+ * the supplier's buy contract, the sub-vendor's name, that firm's
+ * insurance, what the firm below charged, and the supplier's own cost and
+ * margin. The screen hid all of it, which is exactly the fault: a screen
+ * that filters is a screen somebody reads around with the network tab.
+ *
+ * So the side is resolved from three ids before the record is read, and
+ * the buy-side queries are only asked on the supplier's own side. For a
+ * client seat those rows are not hidden — they are never fetched.
  */
 
 const money = (cents: number | null | undefined) =>
@@ -70,6 +84,54 @@ export async function GET(
       { status: 403 }
     )
   }
+
+  // ── Which side of this placement the caller sits on ─────────────────
+  //
+  // Three ids, read first. The answer decides what is asked for below,
+  // so a client seat's query never names the buy contract at all — and a
+  // stranger is refused from this row rather than after the whole
+  // placement has been loaded and thrown away.
+  const parties = await prisma.sellContract.findUnique({
+    where: { id },
+    select: {
+      personId: true,
+      companyId: true,
+      clientCompanyId: true,
+      endClientCompanyId: true,
+    },
+  })
+
+  // A placement that is not ours is a placement that does not exist.
+  const isParty =
+    parties != null &&
+    (parties.companyId === mine ||
+      parties.clientCompanyId === mine ||
+      parties.endClientCompanyId === mine)
+
+  if (!parties || !isParty) {
+    // The refusal is logged too. CLAUDE.md: every read of another
+    // person's data writes an AccessLog row, including refusals.
+    if (parties) {
+      logAccess({
+        subjectId: parties.personId,
+        actorPersonId: caller.person.id,
+        actorCompanyId: mine,
+        action: 'CONTRACT_VIEW',
+        allowed: false,
+        reason: 'Not a party to this placement',
+      })
+    }
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No placement by that id.' } },
+      { status: 404 }
+    )
+  }
+
+  // SUPPLIER, PAYER or END_CLIENT — a position, not a permission. A
+  // consultant seat is a party to nobody's commercial record, so it
+  // resolves to none of the three and reads the narrowest view.
+  const side = contractSide(caller, parties)
+  const isSupplier = side === 'SUPPLIER'
 
   const placement = await prisma.sellContract.findUnique({
     where: { id },
@@ -98,24 +160,6 @@ export async function GET(
           company: { select: { id: true, name: true } },
         },
       },
-      buyLinks: {
-        select: {
-          effectiveFrom: true, effectiveTo: true,
-          buyContract: {
-            select: {
-              id: true, contractType: true, state: true, payCurrency: true,
-              supplierSellContractId: true,
-              vendorCompany: { select: { id: true, name: true } },
-              // The buy side: pay days and vendor bills. Our own cost,
-              // shown only to a viewer who may see what we pay.
-              buyCycles: {
-                select: { kind: true, dueOn: true, completedAt: true },
-                orderBy: { dueOn: 'asc' },
-              },
-            },
-          },
-        },
-      },
       timesheets: {
         orderBy: { periodStart: 'desc' },
         take: 12,
@@ -131,26 +175,10 @@ export async function GET(
     },
   })
 
-  // A placement that is not ours is a placement that does not exist.
-  const isParty =
-    placement != null &&
-    (placement.companyId === mine ||
-      placement.clientCompanyId === mine ||
-      placement.endClientCompanyId === mine)
-
-  if (!placement || !isParty) {
-    // The refusal is logged too. CLAUDE.md: every read of another
-    // person's data writes an AccessLog row, including refusals.
-    if (placement) {
-      logAccess({
-        subjectId: placement.personId,
-        actorPersonId: caller.person.id,
-        actorCompanyId: mine,
-        action: 'CONTRACT_VIEW',
-        allowed: false,
-        reason: 'Not a party to this placement',
-      })
-    }
+  // Deleted between the two reads. Vanishingly rare and the same answer
+  // either way, rather than a 500 and an incident email about a row that
+  // is genuinely gone.
+  if (!placement) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'No placement by that id.' } },
       { status: 404 }
@@ -166,7 +194,6 @@ export async function GET(
     reason: 'Party to this placement',
   })
 
-  const isSupplier = placement.companyId === mine
   const perms = {
     permissions: caller.permissions,
     isClientOnMsa: placement.clientCompanyId === mine,
@@ -199,14 +226,9 @@ export async function GET(
         select: {
           id: true, rate: true, status: true, submittedAt: true, forwardedAt: true,
           checkState: true, screenState: true, requirementId: true,
+          parentSubmissionId: true,
           fromCompany: { select: { id: true, name: true } },
           toCompany: { select: { id: true, name: true } },
-          parentSubmission: {
-            select: {
-              id: true, rate: true, submittedAt: true,
-              fromCompany: { select: { id: true, name: true } },
-            },
-          },
           interviews: {
             orderBy: { round: 'asc' },
             select: {
@@ -227,10 +249,54 @@ export async function GET(
       })
     : null
 
+  // Who put this person in front of us, and at what price.
+  //
+  // The firm below the supplier, and their asking price, which is the
+  // supplier's own cost. A client reading this thread was shown both —
+  // "CloudEPA put them forward to you" over a rate that is the prime's
+  // margin minus one subtraction. Not fetched at all unless the reader
+  // is the firm that bought.
+  const sentOnBy =
+    isSupplier && submission?.parentSubmissionId
+      ? await prisma.submission.findUnique({
+          where: { id: submission.parentSubmissionId },
+          select: {
+            id: true, rate: true, submittedAt: true,
+            fromCompany: { select: { id: true, name: true } },
+          },
+        })
+      : null
+
   // ── The chain, downwards only ───────────────────────────────────────
   const rungs = await ladderFor([placement.id])
   const below = descend(placement.id, rungs).slice(1)
-  const ourBuy = placement.buyLinks[0]?.buyContract ?? null
+
+  // The buy leg. What the supplier pays, to whom, and when — their own
+  // paper on their own side of the trade. A client is a party to the
+  // sell contract and to nothing underneath it, so this query is not
+  // asked on their behalf and every field derived from it below falls to
+  // null on its own: the sub-vendor's name, that firm's insurance, the
+  // pay days, the cost and the margin.
+  const ourBuy = isSupplier
+    ? (
+        await prisma.contractLink.findFirst({
+          where: { sellContractId: placement.id },
+          select: {
+            buyContract: {
+              select: {
+                id: true, contractType: true, state: true, payCurrency: true,
+                supplierSellContractId: true,
+                vendorCompany: { select: { id: true, name: true } },
+                buyCycles: {
+                  select: { kind: true, dueOn: true, completedAt: true },
+                  orderBy: { dueOn: 'asc' },
+                },
+              },
+            },
+          },
+        })
+      )?.buyContract ?? null
+    : null
   const seat = ourBuy
     ? await prisma.buyContractCandidate.findFirst({
         where: { buyContractId: ourBuy.id, personId: placement.personId },
@@ -239,7 +305,13 @@ export async function GET(
     : null
 
   // ── Cleared to work ─────────────────────────────────────────────────
-  const [personChecks, supplierCover, ourCover] = await Promise.all([
+  // Two different firms' certificates, and the names have caused trouble
+  // before: `subVendorCertificates` is the cover of the firm BELOW the
+  // supplier, fetched only when there is a buy leg to read it from — so
+  // empty for every reader but the supplier. `ourCover` is the supplier
+  // on this contract, the firm the client actually pays, and the client
+  // is entitled to know whether it is insured.
+  const [personChecks, subVendorCertificates, ourCover] = await Promise.all([
     prisma.verification.findMany({
       where: { personId: placement.personId },
       orderBy: { createdAt: 'desc' },
@@ -273,8 +345,8 @@ export async function GET(
         })
       : Promise.resolve([]),
     // The supplier on this contract — the firm that has to be insured
-    // for this person to start. Different from supplierCover above,
-    // which is the vendor BELOW us where there is one.
+    // for this person to start. Different from subVendorCertificates
+    // above, which is the vendor BELOW us where there is one.
     prisma.verification.findMany({
       where: {
         companyId: placement.companyId,
@@ -329,7 +401,9 @@ export async function GET(
   // `*` and passes it — and isSupplier is a position. Buy cycles are the
   // supplier's own cost; a client with every permission in the world is
   // still not the supplier, and saw fifty-three pay days it had no
-  // business seeing.
+  // business seeing. `ourBuy` is now null off the sell side as well, so
+  // this reads belt and braces; both are kept because the position is
+  // the rule and the query is the enforcement.
   const buyDue = isSupplier && seePay && ourBuy ? (ourBuy.buyCycles ?? []).map(toDue) : []
   const allDue = [...sellDue, ...buyDue].sort((a, b) => a.dueOn.localeCompare(b.dueOn))
   const timeline = {
@@ -373,7 +447,7 @@ export async function GET(
     ? supplierCoverGate({
         supplierName: ourBuy.vendorCompany.name,
         clientName: placement.clientCompany.name,
-        certificates: supplierCover.map((v) => ({
+        certificates: subVendorCertificates.map((v) => ({
           type: v.type,
           status: v.status,
           issuedAt: v.issuedAt,
@@ -406,7 +480,10 @@ export async function GET(
       endDate: placement.endDate?.toISOString() ?? null,
       paymentTerms: placement.paymentTerms,
       currency: placement.billCurrency,
-      viewer: { isSupplier, seeBill, seePay, seeMargin },
+      // Which side, said out loud, so the screen frames the same facts
+      // the way this reader would say them rather than guessing from a
+      // permission.
+      viewer: { side, isSupplier, seeBill, seePay, seeMargin },
 
       // ── Station 1 · where the work came from ──
       origin: placement.requirement
@@ -442,12 +519,15 @@ export async function GET(
             from: submission.fromCompany,
             to: submission.toCompany,
             checkState: submission.checkState,
-            sentOnBy: submission.parentSubmission
+            // Null for a client seat whatever their permissions, because
+            // the firm below the supplier is not their counterparty and
+            // its price is not their business.
+            sentOnBy: sentOnBy
               ? {
-                  company: submission.parentSubmission.fromCompany,
-                  at: submission.parentSubmission.submittedAt?.toISOString() ?? null,
+                  company: sentOnBy.fromCompany,
+                  at: sentOnBy.submittedAt?.toISOString() ?? null,
                   // Their asking price is our cost, so we may see it.
-                  rate: seePay ? money(submission.parentSubmission.rate) : null,
+                  rate: seePay ? money(sentOnBy.rate) : null,
                 }
               : null,
           }
@@ -495,9 +575,14 @@ export async function GET(
       //
       // How many firms stand between us and the person. Ids only, and
       // only downwards — what sits above is somebody else's margin.
+      // How many firms stand below this contract is the client's own
+      // co-employment question and carries no name. Whether the supplier
+      // employs the person or buys them in is read off the buy leg, so
+      // off the sell side it is null — unknown, rather than a confident
+      // "employs them directly" computed from a row we did not fetch.
       chain: {
         hopsBelow: below.length,
-        weEmployThem: ourBuy?.vendorCompany == null,
+        weEmployThem: isSupplier ? ourBuy?.vendorCompany == null : null,
       },
 
       // ── Station 6 · cleared to work ──
@@ -509,7 +594,10 @@ export async function GET(
           expiresAt: v.expiresAt?.toISOString() ?? null,
         })),
         // The sub-vendor's cover, as standing rather than as the status
-        // somebody typed when they filed it.
+        // somebody typed when they filed it. Empty for a client seat:
+        // the firm below the supplier has no relationship with them and
+        // its paperwork is not theirs to read. The key keeps its name
+        // because the supplier's own screen reads it.
         //
         // A stored status is a claim about a past moment. This row said
         // "Clear" over a certificate whose cover begins in October, while
@@ -517,7 +605,7 @@ export async function GET(
         // refusal giving two answers about the same policy. The stored
         // value stays, because it is a fact about the record; what the
         // screen should read is `standing`.
-        supplierCover: supplierCover.map((v) => {
+        supplierCover: subVendorCertificates.map((v) => {
           const standing = standingOf(
             {
               key: v.type,
@@ -619,6 +707,11 @@ export async function GET(
         // because nobody set a cost is the kind of wrong that looks like
         // good news.
         revenue: seeBill ? money(revenueCents) : null,
+        // Both are null off the sell side without asking a permission:
+        // the seat that carries the pay rate hangs off the buy leg, and
+        // the buy leg is not read for anybody but the supplier. A client
+        // owner holds `*`, so the permission alone let the supplier's
+        // cost and margin through.
         cost: seePay ? money(costCents) : null,
         margin: seeMargin && costCents != null ? money(revenueCents - costCents) : null,
       },

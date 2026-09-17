@@ -46,7 +46,14 @@ interface Placement {
   endDate: string | null
   paymentTerms: number | null
   currency: string
-  viewer: { isSupplier: boolean; seeBill: boolean; seePay: boolean; seeMargin: boolean }
+  // Which side of the trade this reader sits on. The buy-side fields
+  // below arrive empty for anybody but the supplier — they are gated in
+  // the route, not here, because a screen that filters is a screen
+  // somebody reads around with the network tab open.
+  viewer: {
+    side: 'SUPPLIER' | 'PAYER' | 'END_CLIENT' | null
+    isSupplier: boolean; seeBill: boolean; seePay: boolean; seeMargin: boolean
+  }
   origin: {
     id: string; title: string; skills: string[]; location: string | null
     raisedBy: { id: string; name: string }; neededBy: string | null; approvalState: string
@@ -67,7 +74,9 @@ interface Placement {
     sell: { id: string; billRate: number | null; state: string; purchaseOrder: { number: string; amount: number; currency: string } | null }
     buy: { id: string; contractType: string; state: string; vendor: { id: string; name: string } | null; payRate: number | null } | null
   }
-  chain: { hopsBelow: number; weEmployThem: boolean }
+  // `weEmployThem` is null where the reader is not the supplier: the
+  // answer lives on the buy contract, which nobody else is sent.
+  chain: { hopsBelow: number; weEmployThem: boolean | null }
   compliance: {
     person: Array<{ type: string; status: string; provider: string | null; expiresAt: string | null }>
     // The firm below us, where there is one. `standing` is computed for

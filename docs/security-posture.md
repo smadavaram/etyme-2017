@@ -11,8 +11,11 @@ paying customers, and this document is written on the assumption that a
 reviewer would rather have an accurate gap list than a polished one. A
 security document with no gaps is a document nobody checked.
 
-Facts verified against the code on **2026-09-15**. Anything that changes
-should change this file in the same commit.
+Facts verified against the code on **2026-09-15**. Section 3 was
+re-verified on **2026-09-17**, when one of its claims was found to be
+false; what was wrong, what was fixed and what is still open is written
+there rather than quietly corrected. Anything that changes should change
+this file in the same commit.
 
 ---
 
@@ -65,6 +68,33 @@ company formed earlier without a migration
 company does not arrive and then get hidden; it is excluded by the
 database query.
 
+**That claim was false for one route until 2026-09-17.** It is written
+here rather than fixed silently, because a reviewer checking this
+document against the code would have found it and been right to.
+`GET /api/placements/:id` hid the supplier's buy leg — the sub-vendor's
+name, that firm's insurance certificates, what it charged, the pay days,
+and the supplier's own cost and margin — in the React component, behind
+a `viewer.isSupplier` flag, while the route returned every one of those
+fields to a client seat. The screen looked correct and the payload was a
+supplier's cost book, one browser network tab away from any hiring
+manager.
+
+Fixed the way the paragraph above describes: the route resolves which
+side of the placement the caller sits on from three ids before it reads
+the record, and the buy-side queries are not run at all off the sell side
+(`src/app/api/placements/[id]/route.ts`, using `contractSide` in
+`src/lib/resolve-client-company.ts`). A client's answer now has no buy
+contract, no sub-vendor, no cost and no margin in it, rather than having
+them and not drawing them.
+
+Two things a reviewer should take from it. **A permission check is not a
+place.** Every field-level permission in that route passed for the client,
+because a client's own owner holds `*` inside their own company; position
+and permission are different questions and the product now asks both.
+And **the test asserts the JSON, not the component**, since the component
+is what hid the bug — `__integration__/placement-payload.test.ts`, which
+reddens on nine sentences against the old route.
+
 - **Outward.** What a firm's own people may see of the market. Wide open
   for a staffing vendor, named people only for a delivery firm where an
   engineer browsing the contractor market is at best a distraction.
@@ -89,7 +119,53 @@ Tested by `__tests__/invariants/walls.test.ts`,
 `__tests__/invariants/seat.test.ts`,
 `__tests__/invariants/company-walls.test.ts`,
 `__tests__/invariants/client-scoping.test.ts`,
-`__tests__/invariants/bench-scope.test.ts`.
+`__tests__/invariants/bench-scope.test.ts`,
+`__integration__/placement-payload.test.ts`.
+
+### The chain, and what is still open
+
+The fix above was followed by a sweep for the same shape elsewhere, since
+one route hiding a field is rarely the only one. What the sweep found is
+here in full.
+
+In a supply chain — a client buys from a prime, the prime buys from a
+sub-vendor — **every rung's contract names the client as the site where
+the work is done.** So a query written as "everybody at this client"
+returns the sub-vendor's leg too, and the sub-vendor is a firm the client
+has no contract with and has usually never been told about.
+
+**Rates are closed.** Every client-facing surface that carries money
+walks up to the rung the client itself pays, per person or per row
+(`chainTop` and `payerRung` in `src/lib/chain-top.ts`); a week that no
+single rung covers is shown blank with a sentence rather than priced at a
+guess, because a guess there is either the prime's margin on its own
+customer's screen or an understated bill. Held by
+`__tests__/invariants/chain-top.test.ts` and
+`__integration__/full-spine.test.ts`.
+
+**Names are not closed everywhere.** Three read surfaces still name a
+sub-vendor to a client, in each case because the aggregation counts rungs
+rather than the rung the client pays. None of the three carries a rate,
+and each is owned by a different domain (`src/lib/domains.ts`), so they
+are named here rather than reached into — one agent editing another's
+files is how two individually correct changes produce a wrong result.
+
+| Surface | What a client can see | Owner |
+|---|---|---|
+| `GET /api/compliance` | Every firm with somebody on site, a sub-vendor included, and that firm's insurance certificates | `etyme-regulatory` |
+| `GET /api/tenure` | The vendor list on a person names every rung they were supplied through | `etyme-regulatory` |
+| `GET /api/alumni` | The same vendor list, and the "released by" line on a past placement | `etyme-supply` |
+
+`GET /api/timesheets` puts the employing rung's company **id** — never
+its name, never its rate — on a client's copy of a week, so the screen
+can work out who may sign it. Smaller than the three above, and listed so
+the list is complete (`etyme-demand`).
+
+Whether a client should see the whole chain at its own site is a product
+question before it is a security one: co-employment and aggregate tenure
+are precisely what a client buys this to answer, and a prime's supplier
+list is its own commercial property. **It has not been decided, so
+nothing here claims it is closed.**
 
 ---
 
@@ -429,6 +505,9 @@ Stated in one place so a reviewer does not have to assemble it.
   recorded in this repository.
 
 **Coverage gaps in controls that do exist**
+- A client can see a sub-vendor's **name** — never its rate — on three
+  chain-aggregating surfaces, and the employing firm's id on a timesheet
+  row. Listed by route in section 3, undecided rather than pending.
 - Access logging covers 19 route files of 231 (section 4).
 - Access logging is fire-and-forget, so a log write failure does not fail
   the request.
