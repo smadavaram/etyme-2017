@@ -43,6 +43,8 @@ interface Data {
     company: string; client: string; role: string; when: string
     status: string; sentOnTo: string | null
   }[]
+  /** Firms that employ them. They need no listing to staff somebody. */
+  employers: string[]
   note: string
 }
 
@@ -195,6 +197,13 @@ export default function MyBenchesPage() {
             <p className="text-[13px] text-etyme-faint">
               Nobody is marketing you. A bench listing is your permission — yours to give and to take
               back.
+              {/* Said here too, because this panel is where somebody looks
+                  to find out whether anybody has them at all, and for an
+                  employee the answer is yes without a listing. */}
+              {data.employers?.length > 0 && (
+                <> {data.employers.join(' and ')} staff{data.employers.length === 1 ? 's' : ''} you
+                  directly, which needs no listing.</>
+              )}
             </p>
           ) : (
             <div className="space-y-5">

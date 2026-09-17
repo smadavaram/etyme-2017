@@ -245,6 +245,190 @@ export function buildPortfolio(input: PortfolioInput, now: Date): Portfolio {
   }
 }
 
+// ── Whose page this is ────────────────────────────────────────────────
+
+/**
+ * Who has a page of their own, and why.
+ *
+ * ── The bug this exists to stop coming back ──────────────────────────
+ *
+ * A page used to be a thing only a bench listing could produce: the
+ * profile row was created when somebody joined an agency's bench, and
+ * every consultant-facing surface read that row or refused. So a GSI's
+ * own W2 — Karthik Menon on the demo door, an engineer his employer
+ * staffs directly — opened his own page and was told he did not have a
+ * profile and that "one is made when you join a bench".
+ *
+ * That refusal was wrong twice. It refused somebody who is placed,
+ * working and billed through this system; and the instruction it gave
+ * him was to consent to being marketed by a firm that is not his
+ * employer, which is the one thing his situation says he should not do.
+ *
+ * CLAUDE.md settled the party half of this on 2026-09-17: a firm may
+ * put its own W2 in front of a client with no listing, because the
+ * employment contract is the consent. This is the person half of the
+ * same sentence. **A page is for the person the work is about, not for
+ * somebody who has agreed to be sold by a third party.**
+ *
+ * ── Why work rather than employment is the test ──────────────────────
+ *
+ * There is no column saying "this person does the work". Every staffer
+ * of every company holds an EMPLOYEE context too — the client's own
+ * bookkeeper has one — so employment alone cannot tell an avionics
+ * engineer from an accounts payable clerk, and handing a page to
+ * everybody would let a desk worker take a permanent public address they
+ * will never use.
+ *
+ * What does tell them apart is the work itself: a placement in their
+ * name, a submission that put them forward, a contract under which
+ * somebody pays them to do the job. That is derived from the flows
+ * rather than typed in by anybody, which is the rule the rest of this
+ * product already follows.
+ */
+export type PageBecause =
+  /** An agency markets them under a listing they granted. */
+  | 'BENCH'
+  /** Their employer staffs them directly, and needs no listing to. */
+  | 'EMPLOYED'
+  /** The work is on the record with no agency and no employer behind it. */
+  | 'PLACED'
+  /** Nothing here is about them as somebody who does the work. */
+  | 'NOBODY'
+
+export interface WorkingLife {
+  /** Agencies currently marketing them, by name. A listing they granted. */
+  benches: string[]
+  /** Firms that employ them, by name. No listing is needed to staff them. */
+  employers: string[]
+  /** Placements in their name, live or finished. */
+  placements: number
+  /** Times somebody has put them forward. */
+  submissions: number
+  /** Contracts under which somebody pays them for the work. */
+  paidEngagements: number
+  /** A profile row already exists — from a bench, an import, or their own hand. */
+  hasProfile: boolean
+}
+
+export interface PageVerdict {
+  ok: boolean
+  because: PageBecause
+  /**
+   * Their standing, in a sentence, in their own situation's words.
+   *
+   * Shown whether the answer is yes or no, because a refusal on this
+   * surface has to say what is missing and what to do — and the old one
+   * said what to do and had it backwards.
+   */
+  says: string
+}
+
+/** "A", "A and B", "A, B and C" — a list a person would say out loud. */
+export function joinNames(names: string[]): string {
+  if (names.length === 0) return ''
+  if (names.length === 1) return names[0]
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+export function ownPage(life: WorkingLife): PageVerdict {
+  const works =
+    life.hasProfile ||
+    life.placements > 0 ||
+    life.submissions > 0 ||
+    life.paidEngagements > 0
+
+  if (!works) {
+    return {
+      ok: false,
+      because: 'NOBODY',
+      says:
+        'This page is for the person the work is about, and nothing here has your name ' +
+        'on it as a contractor yet. It appears by itself the first time somebody puts ' +
+        'you forward or places you. If you do contract work through a firm on Etyme, ' +
+        'ask them to add you and it starts there.',
+    }
+  }
+
+  // Order matters, and it is the order a person would answer the
+  // question in: who is selling me, else who employs me, else the work
+  // itself. Somebody can be both — a nurse on a bench who also owns the
+  // company that pays her — and the listing is the louder fact.
+  if (life.benches.length > 0) {
+    return {
+      ok: true,
+      because: 'BENCH',
+      says:
+        `${joinNames(life.benches)} ${life.benches.length === 1 ? 'markets' : 'market'} you. ` +
+        'This page is yours rather than theirs: it goes with you when you leave, and ' +
+        'nothing on it is public until you turn it on.',
+    }
+  }
+
+  if (life.employers.length > 0) {
+    return {
+      ok: true,
+      because: 'EMPLOYED',
+      says:
+        `${joinNames(life.employers)} ${life.employers.length === 1 ? 'employs' : 'employ'} you ` +
+        'and can staff you directly, so you are on no agency’s bench and need no listing ' +
+        'to work. This page is still yours, it goes with you, and nothing on it is public ' +
+        'until you turn it on.',
+    }
+  }
+
+  return {
+    ok: true,
+    because: 'PLACED',
+    says:
+      'Your work is on the record here, so this page is yours. No agency markets you, ' +
+      'and nothing on it is public until you turn it on.',
+  }
+}
+
+/**
+ * What a page is when it is first made.
+ *
+ * Made by the person, on their own first edit — never by a firm, never by
+ * a placement, never by this file. Neutrality is absolute: Etyme markets
+ * nobody, so a row coming into existence must publish nothing.
+ *
+ * Both fields are the schema’s defaults and both are written anyway. A
+ * default is a fact about a migration; this is the promise, and it is
+ * held in one place where a test can read it.
+ */
+export function startingPage(): { visibility: Visibility; pageLiveAt: null } {
+  return { visibility: 'INTERNAL', pageLiveAt: null }
+}
+
+/**
+ * The sentence on "Who has you".
+ *
+ * It used to read "No agency is marketing you" to everybody with no
+ * listings, which is true and, to somebody a firm employs, lands as
+ * "nobody has you". Karthik Menon has an employer, a finished placement
+ * and four signed weeks; being told nobody has him is the same bug as
+ * the page refusing him.
+ */
+export function whoHasYouNote(input: { benches: number; employers: string[] }): string {
+  if (input.benches > 0) {
+    return (
+      `${input.benches} ${input.benches === 1 ? 'agency markets' : 'agencies market'} you. ` +
+      'They cannot see each other, and none of them can see this page.'
+    )
+  }
+  if (input.employers.length > 0) {
+    return (
+      `${joinNames(input.employers)} ${input.employers.length === 1 ? 'employs and staffs' : 'employ and staff'} ` +
+      'you directly — an employer needs no listing, and tells you rather than asks. ' +
+      'No agency is marketing you besides, and a listing is yours to give and to take back.'
+    )
+  }
+  return (
+    'No agency is marketing you. A bench listing is your permission, and it is yours to ' +
+    'give and to take back.'
+  )
+}
+
 // ── Their address ─────────────────────────────────────────────────────
 
 const RESERVED = new Set([
@@ -309,7 +493,7 @@ Rules that matter more than style:
 - If they have done little, say so plainly. Somebody with one engagement
   should read as somebody with one engagement.
 - Never name or hint at a client. Sectors only.
-- British spelling.
+- American spelling. Every reader is a US enterprise.
 
 Return only JSON: {"headline":"...","intro":"..."}`
 

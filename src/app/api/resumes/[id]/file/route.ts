@@ -32,6 +32,12 @@ export async function GET(
           consultant: {
             select: { listings: { where: { revokedAt: null }, select: { companyId: true } } },
           },
+          // The firm that employs them, which needs no listing to hold
+          // their CV — an employer does not put its own W2 on a bench.
+          contexts: {
+            where: { revokedAt: null, type: 'EMPLOYEE' },
+            select: { companyId: true },
+          },
         },
       },
       submissions: { select: { toCompanyId: true } },
@@ -47,6 +53,7 @@ export async function GET(
     {
       personId: resume.personId,
       listedTo: resume.person.consultant?.listings.map((l) => l.companyId) ?? [],
+      employedBy: resume.person.contexts.flatMap((c) => (c.companyId ? [c.companyId] : [])),
     },
     resume.submissions.map((s) => s.toCompanyId)
   )

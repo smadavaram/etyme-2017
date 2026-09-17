@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { whoHasMe, endHold } from '@/lib/holds'
+import { whoHasYouNote } from '@/lib/consultant-portfolio'
+import { workingLifeOf } from '@/lib/portfolio-data'
 import { clientLabel } from '@/lib/openings'
 import { notify } from '@/lib/notify'
 import { emit } from '@/lib/events'
@@ -43,14 +45,17 @@ export async function GET(_request: NextRequest) {
   if (!person) return unauthenticated
 
   const data = await whoHasMe(person.id)
+  // Who employs them, which is the other way somebody is staffed. Without
+  // it a person on no bench read "No agency is marketing you" as "nobody
+  // has you" — said to an integrator's own W2 with a finished placement
+  // and four signed weeks behind him.
+  const life = await workingLifeOf(person.id)
 
   return NextResponse.json({
     data: {
       ...data,
-      note:
-        data.benches.length === 0
-          ? 'No agency is marketing you. A bench listing is your permission, and it is yours to give and to take back.'
-          : `${data.benches.length} ${data.benches.length === 1 ? 'agency markets' : 'agencies market'} you. They cannot see each other, and none of them can see this page.`,
+      employers: life.employers,
+      note: whoHasYouNote({ benches: data.benches.length, employers: life.employers }),
     },
   })
 }

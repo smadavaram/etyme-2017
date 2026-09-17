@@ -12,22 +12,43 @@ import {
  * PATCH  /api/me/resumes — make one current, or rename it
  * DELETE /api/me/resumes?id= — hide one
  *
- * The CV belongs to the person. An agency they are on the bench of may
- * upload on their behalf — a recruiter usually holds the document before
- * the consultant has an account — and who did it is recorded.
+ * The CV belongs to the person. An agency they are on the bench of, or
+ * the firm that employs them, may upload on their behalf — a recruiter
+ * usually holds the document before the consultant has an account — and
+ * who did it is recorded.
  *
- * ?personId= lets a recruiter act for somebody on their bench. Without it
- * the caller is acting for themselves.
+ * ?personId= lets a recruiter act for somebody on their bench, or an
+ * employer act for its own W2. Without it the caller is acting for
+ * themselves.
  */
 
+/**
+ * Whose CV it is, and who else may touch it.
+ *
+ * Two ways a firm has business with somebody's CV, and only one of them
+ * used to be here: a bench listing they granted, and employment. A firm's
+ * own W2 is on no bench — nobody asks an employee's permission to be
+ * staffed — so reading only the listings meant an integrator could
+ * submit its own engineer and not attach his CV.
+ */
 async function ownerOf(personId: string) {
-  const profile = await prisma.consultantProfile.findUnique({
-    where: { personId },
+  const person = await prisma.person.findUnique({
+    where: { id: personId },
     select: {
-      listings: { where: { revokedAt: null }, select: { companyId: true } },
+      consultant: {
+        select: { listings: { where: { revokedAt: null }, select: { companyId: true } } },
+      },
+      contexts: {
+        where: { revokedAt: null, type: 'EMPLOYEE' },
+        select: { companyId: true },
+      },
     },
   })
-  return { personId, listedTo: profile?.listings.map((l) => l.companyId) ?? [] }
+  return {
+    personId,
+    listedTo: person?.consultant?.listings.map((l) => l.companyId) ?? [],
+    employedBy: (person?.contexts ?? []).flatMap((c) => (c.companyId ? [c.companyId] : [])),
+  }
 }
 
 export async function GET(request: NextRequest) {

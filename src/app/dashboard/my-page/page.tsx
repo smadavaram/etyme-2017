@@ -14,6 +14,14 @@ import { useEffect, useState, useCallback } from 'react'
  *
  * Written for somebody who will open it three times ever — once to claim an
  * address, once to fix a sentence, and once when they start looking again.
+ *
+ * Their standing is the first thing on it, because who has you decides
+ * how the rest reads. Somebody an agency markets, somebody their employer
+ * staffs directly, and somebody with only the work behind them are three
+ * different people opening the same screen — and this used to show the
+ * second of them a red error telling him to go and get himself listed on
+ * an agency's bench — which, for somebody's employee, is the opposite of
+ * what his situation calls for.
  */
 
 interface Preview {
@@ -29,6 +37,10 @@ interface Preview {
 }
 
 interface MyPage {
+  /** Whether this page is theirs to have, and why, in a sentence. */
+  yours: boolean
+  because: 'BENCH' | 'EMPLOYED' | 'PLACED' | 'NOBODY'
+  standing: string
   address: string | null
   url: string | null
   previousAddresses: string[]
@@ -131,6 +143,22 @@ export default function MyPagePage() {
   }
   if (!data) return null
 
+  // Not everybody who can reach this URL is somebody it is about — a
+  // client's own approver, say. They are told what the page is for, in a
+  // sentence, instead of being handed an error or an editor that would
+  // take a permanent address they will never use.
+  if (!data.yours) {
+    return (
+      <div className="p-8 max-w-2xl">
+        <div className="eyebrow">You</div>
+        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Your page</h1>
+        <p className="text-[15px] text-etyme-muted mt-3 max-w-prose leading-relaxed">
+          {data.standing}
+        </p>
+      </div>
+    )
+  }
+
   const p = data.preview
 
   return (
@@ -138,8 +166,10 @@ export default function MyPagePage() {
       <div className="eyebrow">You</div>
       <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Your page</h1>
       <p className="text-[15px] text-etyme-muted mt-2 max-w-prose leading-relaxed">
-        Yours, not your agency&rsquo;s. It goes with you when you leave, it shows what you did
-        without naming who for, and it is off until you turn it on.
+        {data.standing}
+      </p>
+      <p className="text-[14px] text-etyme-faint mt-2 max-w-prose leading-relaxed">
+        It shows what you did without naming who for.
       </p>
 
       {flash && <p className="text-[13px] text-etyme-verified mt-4">{flash}</p>}

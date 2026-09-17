@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { writeBioBest } from '@/lib/consultant-portfolio'
-import { factsFor } from '@/lib/portfolio-data'
+import { factsFor, ensureOwnPage } from '@/lib/portfolio-data'
 
 /**
  * POST /api/me/portfolio/write — write the words for them.
@@ -14,6 +14,11 @@ import { factsFor } from '@/lib/portfolio-data'
  *
  * Offered rather than automatic. Somebody who has written their own line
  * should not lose it because a contract ended.
+ *
+ * Like the page itself, this no longer needs a bench behind it. The facts
+ * come from the work, and the row that stores the two sentences is made
+ * by this save if it is not there yet — private and off, because writing
+ * a line about yourself is not publishing it.
  */
 export async function POST(request: NextRequest) {
   const email = await getSessionEmail()
@@ -29,20 +34,23 @@ export async function POST(request: NextRequest) {
     select: { id: true, consultant: { select: { id: true, bioIntro: true, bioWrittenBy: true } } },
   })
 
-  if (!person?.consultant) {
+  if (!person) {
     return NextResponse.json(
-      {
-        error: {
-          code: 'NO_PROFILE',
-          message: 'You do not have a consultant profile yet. One is made when you join a bench.',
-        },
-      },
-      { status: 404 }
+      { error: { code: 'UNAUTHORIZED', message: 'Not signed in' } },
+      { status: 401 }
+    )
+  }
+
+  const made = await ensureOwnPage(person.id)
+  if ('refused' in made) {
+    return NextResponse.json(
+      { error: { code: 'NOT_YOUR_PAGE', message: made.refused.says } },
+      { status: 403 }
     )
   }
 
   const body = await request.json().catch(() => ({}))
-  const existing = person.consultant
+  const existing = person.consultant ?? { id: made.id, bioIntro: null, bioWrittenBy: null }
 
   // Replacing something they wrote is worth asking about once.
   if (existing.bioWrittenBy === 'PERSON' && existing.bioIntro && body.replaceMine !== true) {
@@ -60,8 +68,10 @@ export async function POST(request: NextRequest) {
 
   const facts = await factsFor(person.id)
   if (!facts) {
+    // Only reachable if the person vanished between two queries. Said as
+    // a sentence all the same.
     return NextResponse.json(
-      { error: { code: 'NO_PROFILE', message: 'No profile to write from.' } },
+      { error: { code: 'NOT_FOUND', message: 'We cannot find your record to write from.' } },
       { status: 404 }
     )
   }

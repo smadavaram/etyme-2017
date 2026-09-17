@@ -87,15 +87,29 @@ export interface Owner {
   personId: string
   /** Companies holding a live bench listing for them. */
   listedTo: string[]
+  /**
+   * Companies that employ them.
+   *
+   * A firm does not put its own W2 on its own bench — there is nobody to
+   * ask, because the employment contract already said yes. CLAUDE.md
+   * settled that for submissions on 2026-09-17, and the document a
+   * submission carries has to follow it: an integrator whose engineer
+   * cannot hand over a CV is an integrator whose employee is submitted
+   * with nothing attached.
+   *
+   * Optional so every existing caller keeps its meaning — an absent list
+   * is the old answer, which was "nobody employs them".
+   */
+  employedBy?: string[]
 }
 
 /**
  * Who may put a CV on somebody's file.
  *
- * Them, or an agency they have put themselves on the bench of. A recruiter
- * holding the CV before the person has an account is the ordinary way this
- * starts, and refusing it would mean the document lives in an inbox
- * instead.
+ * Them, an agency they have put themselves on the bench of, or the firm
+ * that employs them. A recruiter holding the CV before the person has an
+ * account is the ordinary way this starts, and refusing it would mean the
+ * document lives in an inbox instead.
  */
 export function mayUpload(actor: Actor, owner: Owner): Verdict {
   if (actor.personId === owner.personId) return { ok: true, reason: 'Their own CV.' }
@@ -104,18 +118,24 @@ export function mayUpload(actor: Actor, owner: Owner): Verdict {
     return { ok: true, reason: 'Uploaded by an agency they are on the bench of.' }
   }
 
+  if (actor.companyId && (owner.employedBy ?? []).includes(actor.companyId)) {
+    return { ok: true, reason: 'Uploaded by the firm that employs them.' }
+  }
+
   return {
     ok: false,
-    reason: 'Only the consultant, or an agency they have put themselves on the bench of, can add a CV.',
+    reason:
+      'Only the person themselves, the firm that employs them, or an agency they have put ' +
+      'themselves on the bench of, can add a CV.',
   }
 }
 
 /**
  * Who may open one.
  *
- * The person; an agency currently representing them; and anybody who was
- * actually sent it. That last one is the point of a version — a client
- * keeps what they were given.
+ * The person; an agency currently representing them; the firm that
+ * employs them; and anybody who was actually sent it. That last one is the
+ * point of a version — a client keeps what they were given.
  */
 export function mayRead(
   actor: Actor,
@@ -128,13 +148,19 @@ export function mayRead(
     return { ok: true, reason: 'They are on this agency’s bench.' }
   }
 
+  if (actor.companyId && (owner.employedBy ?? []).includes(actor.companyId)) {
+    return { ok: true, reason: 'This firm employs them.' }
+  }
+
   if (actor.companyId && sentTo.includes(actor.companyId)) {
     return { ok: true, reason: 'This CV was sent to them with a submission.' }
   }
 
   return {
     ok: false,
-    reason: 'This CV was never sent to you, and this person is not on your bench.',
+    reason:
+      'This CV was never sent to you, this person is not on your bench, and you do not ' +
+      'employ them.',
   }
 }
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { checkSlug, checkBioEdit, bioModelAvailable, buildPortfolio } from '@/lib/consultant-portfolio'
-import { factsFor, addressTaken, suggestAddress } from '@/lib/portfolio-data'
+import { factsFor, addressTaken, suggestAddress, ownPageFor, ensureOwnPage } from '@/lib/portfolio-data'
 
 /**
  * GET   /api/me/portfolio — their page, and whether it is on
@@ -15,6 +15,20 @@ import { factsFor, addressTaken, suggestAddress } from '@/lib/portfolio-data'
  * company resource — editable by a recruiter with the right permission,
  * and lost the day the bench listing is revoked. It is the one thing here
  * that has to survive leaving.
+ *
+ * ── No profile row is not a refusal ──────────────────────────────────
+ *
+ * This route used to answer 404 to anybody without a `ConsultantProfile`,
+ * telling them one is made when they get themselves listed on an agency's
+ * bench — and a profile was only ever created that way. An integrator's own W2, placed
+ * and billed through this system and on nobody's bench by design, read
+ * that as an instruction to consent to being marketed by a firm that is
+ * not his employer. Wrong answer, and wrong advice.
+ *
+ * So the page is read from the work (`factsFor`), the standing is a
+ * sentence (`ownPage`), and the row is made by the person's own first
+ * edit — private and off. See lib/consultant-portfolio, "Whose page this
+ * is".
  */
 
 async function me() {
@@ -31,22 +45,27 @@ const unauthenticated = NextResponse.json(
   { status: 401 }
 )
 
-const noProfile = NextResponse.json(
-  {
-    error: {
-      code: 'NO_PROFILE',
-      message: 'You do not have a consultant profile yet. One is made when you join a bench.',
-    },
-  },
-  { status: 404 }
-)
-
 export async function GET(_request: NextRequest) {
   const person = await me()
   if (!person) return unauthenticated
-  if (!person.consultant) return noProfile
 
-  const p = person.consultant
+  // Their standing in a sentence, whether or not a row exists. Somebody
+  // this page is not for is told what it is for, calmly, rather than
+  // handed a red error where their page should be.
+  const standing = await ownPageFor(person.id)
+
+  // Every field a row would carry, with nothing in it. A person who has
+  // never saved anything has an empty page, not a missing one.
+  const p = person.consultant ?? {
+    id: null,
+    slug: null,
+    previousSlugs: [] as string[],
+    pageLiveAt: null as Date | null,
+    bioHeadline: null as string | null,
+    bioIntro: null as string | null,
+    bioWrittenBy: null as string | null,
+    availableFrom: null as Date | null,
+  }
 
   // What a stranger would see. Shown whether the page is on or off,
   // because somebody deciding whether to turn it on has to be able to read
@@ -56,6 +75,11 @@ export async function GET(_request: NextRequest) {
 
   return NextResponse.json({
     data: {
+      // Whether this page is theirs at all, and why, in words the screen
+      // shows as it stands rather than translating.
+      yours: standing.ok,
+      because: standing.because,
+      standing: standing.says,
       address: p.slug,
       url: p.slug ? `/c/${p.slug}` : null,
       // Held forever so an old link never lands on somebody else.
@@ -75,7 +99,9 @@ export async function GET(_request: NextRequest) {
         intro: p.bioIntro ?? preview.intro,
       },
       modelAvailable: bioModelAvailable(),
-      note: p.pageLiveAt === null
+      note: !standing.ok
+        ? standing.says
+        : p.pageLiveAt === null
         ? 'Your page is off. Nothing is public until you turn it on.'
         : 'Your page is on. The numbers on it are read live from your work — only the words are stored.',
     },
@@ -91,9 +117,20 @@ export async function GET(_request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const person = await me()
   if (!person) return unauthenticated
-  if (!person.consultant) return noProfile
 
-  const p = person.consultant
+  // The first save is what brings the page into being, and it comes into
+  // being private and off. Nothing a firm does creates one.
+  const made = await ensureOwnPage(person.id)
+  if ('refused' in made) {
+    return NextResponse.json(
+      { error: { code: 'NOT_YOUR_PAGE', message: made.refused.says } },
+      { status: 403 }
+    )
+  }
+
+  const p = person.consultant ?? (await prisma.consultantProfile.findUniqueOrThrow({
+    where: { id: made.id },
+  }))
   const body = await request.json().catch(() => ({}))
   const data: Record<string, unknown> = {}
   const said: string[] = []
@@ -184,7 +221,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const updated = await prisma.consultantProfile.update({
-    where: { id: p.id },
+    where: { id: made.id },
     data,
     select: { slug: true, pageLiveAt: true, bioHeadline: true, bioIntro: true, previousSlugs: true },
   })

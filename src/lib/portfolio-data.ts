@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/db'
 import {
-  buildPortfolio, pageIsLive,
+  buildPortfolio, pageIsLive, ownPage, startingPage,
   type Portfolio, type PortfolioInput, type Engagement, type Visibility,
+  type WorkingLife, type PageVerdict,
 } from '@/lib/consultant-portfolio'
 
 /**
@@ -196,6 +197,14 @@ export function suggestAddress(name: string): string {
  * Loaded by person rather than by address, because this runs before they
  * have an address — the words come first, the page comes after.
  *
+ * **Read off the person, not off the profile.** It used to start from
+ * `consultantProfile.findFirst` and return null when there was none, so
+ * somebody a firm employs rather than markets — who has placements,
+ * signed weeks and finished courses on the record — had nothing to build
+ * a page from. The profile row now supplies only what a person typed
+ * into it; every fact comes from the work, which is where the facts
+ * were all along.
+ *
  * Note what is not in here: no client names, no rates, no documents. What
  * gets sent to a model to be written up is the same thing a stranger would
  * be allowed to read.
@@ -203,53 +212,58 @@ export function suggestAddress(name: string): string {
 export async function factsFor(personId: string): Promise<PortfolioInput | null> {
   const now = new Date()
 
-  const profile = await prisma.consultantProfile.findFirst({
-    where: { personId },
+  const person = await prisma.person.findUnique({
+    where: { id: personId },
     select: {
-      headline: true, skills: true, location: true, visibility: true, availableFrom: true,
-      person: {
+      name: true,
+      consultant: {
         select: {
-          name: true,
-          sellContracts: {
-            where: { state: { in: ['IN_PROGRESS', 'PAUSED', 'ENDED'] } },
-            orderBy: { startDate: 'desc' },
-            take: 20,
-            select: {
-              startDate: true, endDate: true,
-              requirement: { select: { title: true, skills: true } },
-              workLocation: { select: { city: true, state: true } },
-              clientCompany: { select: { name: true, kind: true } },
-              endClientCompany: { select: { name: true, kind: true } },
-            },
-          },
-          enrollments: {
-            where: { completedAt: { not: null } },
-            orderBy: { completedAt: 'desc' },
-            take: 10,
-            select: { completedAt: true, course: { select: { title: true } } },
-          },
-          verifications: {
-            where: {
-              status: { in: ['CLEAR', 'CONDITIONAL'] },
-              OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-            },
-            select: { type: true },
-          },
+          headline: true, skills: true, location: true,
+          visibility: true, availableFrom: true,
         },
+      },
+      sellContracts: {
+        where: { state: { in: ['IN_PROGRESS', 'PAUSED', 'ENDED'] } },
+        orderBy: { startDate: 'desc' },
+        take: 20,
+        select: {
+          startDate: true, endDate: true,
+          requirement: { select: { title: true, skills: true } },
+          workLocation: { select: { city: true, state: true } },
+          clientCompany: { select: { name: true, kind: true } },
+          endClientCompany: { select: { name: true, kind: true } },
+        },
+      },
+      enrollments: {
+        where: { completedAt: { not: null } },
+        orderBy: { completedAt: 'desc' },
+        take: 10,
+        select: { completedAt: true, course: { select: { title: true } } },
+      },
+      verifications: {
+        where: {
+          status: { in: ['CLEAR', 'CONDITIONAL'] },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: { type: true },
       },
     },
   })
-  if (!profile) return null
+  if (!person) return null
+
+  const profile = person.consultant
 
   return {
-    name: profile.person.name,
-    headline: profile.headline,
-    skills: profile.skills,
-    location: profile.location,
-    visibility: profile.visibility as Visibility,
-    availableFrom: profile.availableFrom,
-    engagements: profile.person.sellContracts.map((c) => ({
-      role: c.requirement?.title ?? profile.headline ?? 'Contract engagement',
+    name: person.name,
+    headline: profile?.headline ?? null,
+    skills: profile?.skills ?? [],
+    location: profile?.location ?? null,
+    // The private setting, for anybody who has not got a row yet. Nothing
+    // about somebody becomes visible by the act of reading their facts.
+    visibility: (profile?.visibility as Visibility | undefined) ?? 'INTERNAL',
+    availableFrom: profile?.availableFrom ?? null,
+    engagements: person.sellContracts.map((c) => ({
+      role: c.requirement?.title ?? profile?.headline ?? 'Contract engagement',
       skills: c.requirement?.skills ?? [],
       startedAt: c.startDate,
       endedAt: c.endDate,
@@ -261,12 +275,105 @@ export async function factsFor(personId: string): Promise<PortfolioInput | null>
         ? [c.workLocation.city, c.workLocation.state].filter(Boolean).join(', ')
         : null,
     })),
-    completedTraining: profile.person.enrollments.map((e) => ({
+    completedTraining: person.enrollments.map((e) => ({
       title: e.course.title,
       completedAt: e.completedAt!,
     })),
     verified: [...new Set(
-      profile.person.verifications.map((v) => READABLE[v.type]).filter(Boolean)
+      person.verifications.map((v) => READABLE[v.type]).filter(Boolean)
     )],
   }
+}
+
+// ── Whose page this is, against the database ──────────────────────────
+
+/**
+ * What the system knows about somebody as a person who does the work.
+ *
+ * Every count here comes from a flow that already happened — a listing
+ * granted, a seat held, a placement, a submission, a contract that pays
+ * them. None of it is typed in, and none of it is a company saying so
+ * about somebody.
+ */
+export async function workingLifeOf(personId: string): Promise<WorkingLife> {
+  const person = await prisma.person.findUnique({
+    where: { id: personId },
+    select: {
+      consultant: {
+        select: {
+          id: true,
+          listings: {
+            where: { revokedAt: null },
+            select: { company: { select: { name: true } } },
+          },
+        },
+      },
+      // Live seats only. A revoked context is a firm somebody used to
+      // work for, and it should not go on speaking for them.
+      contexts: {
+        where: { revokedAt: null, type: 'EMPLOYEE' },
+        select: { company: { select: { name: true } } },
+      },
+      _count: {
+        select: {
+          sellContracts: true,
+          submissions: true,
+          buyCandidacies: true,
+        },
+      },
+    },
+  })
+
+  if (!person) {
+    return { benches: [], employers: [], placements: 0, submissions: 0, paidEngagements: 0, hasProfile: false }
+  }
+
+  return {
+    benches: [...new Set(person.consultant?.listings.map((l) => l.company.name) ?? [])],
+    // A context can hang off no company at all — a person invited before
+    // their firm exists — and a nameless employer is no answer to "who
+    // has you", so it is dropped rather than shown as a blank.
+    employers: [...new Set(person.contexts.flatMap((c) => (c.company ? [c.company.name] : [])))],
+    placements: person._count.sellContracts,
+    submissions: person._count.submissions,
+    paidEngagements: person._count.buyCandidacies,
+    hasProfile: person.consultant !== null,
+  }
+}
+
+/** Their standing, and whether this page is theirs at all. */
+export async function ownPageFor(personId: string): Promise<PageVerdict> {
+  return ownPage(await workingLifeOf(personId))
+}
+
+/**
+ * The profile row, made on their own first edit if it is not there yet.
+ *
+ * **Created by the person and by nobody else.** A row could have been
+ * written at placement, which would have been simpler and wrong: Etyme
+ * markets nobody, and a record that exists because a firm hired somebody
+ * is a record that firm caused. So the first save a person makes on
+ * their own page is what brings it into being, and it comes into being
+ * private and off (`startingPage`).
+ *
+ * Returns null where the page is not theirs to have, with the sentence
+ * saying why, so the caller refuses in words rather than in a code.
+ */
+export async function ensureOwnPage(
+  personId: string
+): Promise<{ id: string } | { refused: PageVerdict }> {
+  const existing = await prisma.consultantProfile.findUnique({
+    where: { personId },
+    select: { id: true },
+  })
+  if (existing) return existing
+
+  const verdict = await ownPageFor(personId)
+  if (!verdict.ok) return { refused: verdict }
+
+  const made = await prisma.consultantProfile.create({
+    data: { personId, ...startingPage() },
+    select: { id: true },
+  })
+  return made
 }
