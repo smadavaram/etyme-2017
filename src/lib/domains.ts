@@ -313,6 +313,10 @@ export const DOMAINS: Domain[] = [
       'lib/readiness', 'lib/readiness-facts', 'app/api/ready', 'app/ready', 'components/reseed-button',
       // Somebody is told when it breaks: the diary, the reporter, the boundaries.
       'lib/alerts', 'lib/staff', 'lib/cron-auth', 'app/api/incidents', 'app/error', 'app/global-error',
+      // Which desk a due date is put in front of. Pure, and here rather
+      // than beside the cron because only a route.ts belongs under
+      // app/api — see the cron check in __tests__/invariants/alerts.
+      'lib/due-cycle-desks',
       'app/api/cron', 'app/api/import',
       'components/',
     ],

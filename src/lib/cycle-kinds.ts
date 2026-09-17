@@ -170,7 +170,11 @@ const LABEL: Record<string, string> = {
   INVOICE_DUE: 'Invoice due',
   SALARY_CALCULATE: 'Pay to calculate',
   SALARY_PAY: 'Pay day',
-  VENDOR_BILL_GENERATE: 'Vendor bill to raise',
+  // Wrong twice over until 2026-09-17: we do not raise it — the supplier
+  // issues its invoice and we receive it — and "bill" now belongs to the
+  // customer direction. SAP calls this invoice receipt; an AP clerk calls
+  // it recording the supplier's invoice, and CLAUDE.md says use theirs.
+  VENDOR_BILL_GENERATE: 'Supplier invoice to record',
   VENDOR_BILL_DUE: 'Vendor bill due',
   COMMISSION_CALCULATE: 'Commission to calculate',
   COMMISSION_PAY: 'Commission pay day',
