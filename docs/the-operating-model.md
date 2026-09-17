@@ -72,10 +72,34 @@ Three things, and the third is the one the build under-reads:
 - **An MSA if the relationship is new.** *Built* — term, lifecycle, both
   signatures, amendment trail, expiry watch.
 - **A work order every time.** Not once per relationship — once per
-  engagement. *This is the gap.* `SalesOrder` carries the ceiling and
-  **nothing creates one**: no route, no seed, and `SellContract.salesOrderId`
-  is null on every row that exists. The Milestones screen that reads them
-  is permanently empty.
+  engagement.
+
+  **The work order is the PO. Settled by the founder, 2026-09-17:** *"work
+  order is not separate from PO — the client gives it to the supplier and
+  it agrees rate, duration, resource and location of work."* So it is one
+  document with four terms, and **it is not `SalesOrder`** — that model is
+  a supplier-side instrument the founder's account of the trade does not
+  contain, which is the likeliest reason nothing has ever created one.
+  Do not build `SalesOrder` to fill this station.
+
+  The four terms already exist, split across two rows the way CLAUDE.md's
+  own rule requires — *an order carries a ceiling, a contract carries a
+  rate*:
+
+  | The paper says | The system holds it on |
+  |---|---|
+  | how much may be spent, by when | `PurchaseOrder.amount`, `startDate`, `endDate` |
+  | the rate | `SellContract.billRate` |
+  | the resource | `SellContract.personId` |
+  | the location of work | `SellContract.workLocationId` |
+  | the two joined | `SellContract.purchaseOrderId` |
+
+  *So the shape is right and the station is empty.* `purchaseOrderId` is
+  nullable and **the award never sets it**. A client awards, a contract
+  appears, and no work order is raised or required — while the founder
+  says the client raises one every time. Nothing refuses a placement that
+  no work order authorizes, so the ceiling that governs the spend is
+  absent on every placement the product has ever created.
 - **Compliance requirements at supplier and candidate level, every
   time.** Per engagement, not per relationship — a client can require
   different checks for a role in a hospital than for one in a warehouse.
