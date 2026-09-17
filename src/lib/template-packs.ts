@@ -27,7 +27,7 @@ export interface ContractTypeDef {
 // reminders (a visa expiring, a GST return owed) in the same table as
 // payments. Reminders live with the watch cron now; an IR35
 // determination is a document in docTemplates below. What is left is
-// the eight kinds something actually reads — see lib/cycle-kinds.
+// the six kinds something actually reads — see lib/cycle-kinds.
 // Five frequencies: WEEKLY, BIWEEKLY, SEMIMONTHLY, MONTHLY, ON_COMPLETION.
 // Business-day shifting applied against the company's holiday calendar.
 
@@ -74,7 +74,6 @@ const COMMON_CYCLES: CycleDefinition[] = [
   { kind: 'TIMESHEET_SUBMIT', label: 'Timesheet submission', frequency: 'WEEKLY', dayOfWeek: 5 },
   { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 1 },
   { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'SEMIMONTHLY', dayOfMonth: 1 },
-  { kind: 'INVOICE_DUE', label: 'Invoice due', frequency: 'MONTHLY', dayOfMonth: 28 },
   { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'BIWEEKLY', dayOfWeek: 3 },
   { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'BIWEEKLY', dayOfWeek: 5 },
 ]
@@ -92,7 +91,6 @@ const US_IT: TemplatePack = {
   cycleDefinitions: [
     ...COMMON_CYCLES,
     { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'SEMIMONTHLY', dayOfMonth: 1 },
-    { kind: 'VENDOR_BILL_DUE', label: 'Vendor bill due', frequency: 'MONTHLY', dayOfMonth: 15 },
   ],
   docTemplates: [
     { name: 'Employment Agreement (W-2)', audience: 'CANDIDATE', needsSignature: true },
@@ -150,7 +148,6 @@ const IN_DELIVERY: TemplatePack = {
     { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'MONTHLY', dayOfMonth: 25 },
     { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'MONTHLY', dayOfMonth: 28 },
     { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 1 },
-    { kind: 'INVOICE_DUE', label: 'Invoice due', frequency: 'MONTHLY', dayOfMonth: 28 },
   ],
   docTemplates: [
     { name: 'Appointment Letter', audience: 'CANDIDATE', needsSignature: true },
@@ -176,9 +173,7 @@ const UK: TemplatePack = {
     { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'MONTHLY', dayOfMonth: 25 },
     { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'MONTHLY', dayOfMonth: 28 },
     { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 1 },
-    { kind: 'INVOICE_DUE', label: 'Invoice due', frequency: 'MONTHLY', dayOfMonth: 28 },
     { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'MONTHLY', dayOfMonth: 1 },
-    { kind: 'VENDOR_BILL_DUE', label: 'Vendor bill due', frequency: 'MONTHLY', dayOfMonth: 15 },
   ],
   docTemplates: [
     { name: 'Contract for Services (Ltd)', audience: 'VENDOR', needsSignature: true },
