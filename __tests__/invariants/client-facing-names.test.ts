@@ -45,8 +45,16 @@ import { join, relative } from 'node:path'
  *      a chain the employer.
  *
  * And it is clean if those rows are handed to `nameForClient` /
- * `namesForClient`, or reduced by `chainTop` / `payerRung` to the rung
- * the client pays before any name is read off them.
+ * `namesForClient`, or reduced by `chainTop` / `payerRung` / `asPayer` to
+ * the rung the client pays before any name is read off them.
+ *
+ * `asPayer` was added to that list on 2026-09-17, having been left off
+ * it on the first run. It is `chainTop` with a price test on top — the
+ * same reduction, in the same file, exported for the one caller that
+ * needs the rate beside the row — and its absence made the client's org
+ * view read as a leak when every name on that page comes off a rung the
+ * client is itself billed on. Recognizing the fix is not the same as
+ * excusing the file, which is why it is here and not in the list below.
  *
  * ── What it deliberately does not flag ───────────────────────────────
  *
@@ -178,7 +186,7 @@ export function namesBelowTheRung(src: string): Query[] {
       everyRungAtAClient(withScope(src, q.text)) &&
       namesTheSellingFirm(q.text) &&
       !handedTo(src, 'nameForClient|namesForClient', q.into) &&
-      !handedTo(src, 'chainTop|payerRung', q.into)
+      !handedTo(src, 'chainTop|payerRung|asPayer', q.into)
   )
 }
 
@@ -186,37 +194,34 @@ export function namesBelowTheRung(src: string): Query[] {
  * Client-facing reads that still name a firm below the rung the client
  * pays, with whose file each is and what it gives away.
  *
- * Listed rather than fixed, because a file belongs to exactly one agent
- * and every one of these belongs to somebody else. Listed rather than
- * ignored, because a gap nobody wrote down is the one that survives. A
- * new one fails this test on the commit that adds it.
+ * Empty, and kept rather than deleted, because an empty list is the
+ * statement: every read in `src/` that is scoped to a client's whole
+ * site and prints a selling firm's name now asks `lib/chain-names` whose
+ * name it may print. A new one fails this test on the commit that adds
+ * it, and its author either routes it through the rule or writes a line
+ * here saying whose file it is and what it gives away.
+ *
+ * ── What was on it, and what it cost ─────────────────────────────────
+ *
+ * Six files on the first run, all `etyme-demand`'s, listed rather than
+ * reached into because a file belongs to exactly one agent. All six were
+ * closed on 2026-09-17, on the same walk that added `asPayer` to the
+ * reductions this recognizes:
+ *
+ *   decisions      the client's "needs you" queue named the employer's
+ *                  own firm wherever the walk up the chain came back
+ *                  empty, and read no disclosure term at all
+ *   identity       `vendorName` off every rung, beside a person's
+ *                  history, on the screen where two records are merged
+ *   people         the register, on the row and in the time-here column
+ *   people/[id]    one page per person, on every engagement row
+ *   program        the roster was right; the approval queue named the
+ *                  leg a week or a claim was filed against
+ *   program/org    read as a leak and was not one — every name on that
+ *                  page comes off a rung the client is billed on, and
+ *                  the sweep could not see `asPayer` doing the reducing
  */
-const KNOWN_TO_NAME_BELOW_THE_RUNG: Record<string, string> = {
-  'src/app/api/decisions/route.ts':
-    'etyme-demand — the client’s "needs you" queue. It walks up to the firm it pays for the ' +
-    'supplier’s name, and where that rung is not on file it falls back to the employer’s own ' +
-    'name, which is the firm two rungs down. It never reads the disclosure term either, so a ' +
-    'client whose agreement entitles it to the sub’s name reads its prime’s instead.',
-  'src/app/api/identity/route.ts':
-    'etyme-demand — cross-vendor identity resolution. Each candidate’s stints carry ' +
-    '`vendorName` off every rung at the client, so a sub-vendor is named beside a person’s ' +
-    'history on the screen where two records are merged.',
-  'src/app/api/people/[id]/route.ts':
-    'etyme-demand — one page per person as this client knows them. Every contract row carries ' +
-    'the whole selling company, so the firm employing somebody below a prime is named on the ' +
-    'page the client opens about them.',
-  'src/app/api/people/route.ts':
-    'etyme-demand — the client’s Network register. Each person’s stints carry `vendorName` ' +
-    'off every rung, so a sub-vendor is named in the list and in the time-here column.',
-  'src/app/api/program/org/route.ts':
-    'etyme-demand — the client’s org view. Each placement entry carries `vendorName` off its ' +
-    'own rung and the supplier roll-up is keyed on the same name, so a sub-vendor appears as ' +
-    'one of the client’s suppliers with a headcount.',
-  'src/app/api/program/route.ts':
-    'etyme-demand — the client dashboard. The roster is reduced by `chainTop` and is right; ' +
-    'the approval queue is not. A timesheet or an expense is filed against the employer’s leg, ' +
-    'so `vendor:` on the row a client approves names the firm below the one it pays.',
-}
+const KNOWN_TO_NAME_BELOW_THE_RUNG: Record<string, string> = {}
 
 // ── The three that were closed ───────────────────────────────────────
 
@@ -283,6 +288,18 @@ describe('the sweep can tell a firm the client pays from a firm below it', () =>
         where: { id },
         select: { clientCompanyId: true, endClientCompanyId: true, company: { select: { name: true } } },
       })
+    `
+    expect(namesBelowTheRung(src)).toEqual([])
+  })
+
+  it('rows reduced by asPayer — which is that same reduction with a price test — are left alone too', () => {
+    const src = `
+      const rungs = await prisma.sellContract.findMany({
+        where: { ...endClientFilter(clientCompany.id) },
+        select: { personId: true, companyId: true, clientCompanyId: true, billRate: true, company: { select: { name: true } } },
+      })
+      const rows = asPayer(rungs, clientCompany.id)
+      const priced = rows.filter((r) => r.rateCents !== null).map((r) => r.contract.company.name)
     `
     expect(namesBelowTheRung(src)).toEqual([])
   })

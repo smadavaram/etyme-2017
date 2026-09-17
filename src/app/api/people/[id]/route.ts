@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop } from '@/lib/chain-top'
+import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { logAccess } from '@/lib/access-log'
 
@@ -25,23 +26,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const companyId = caller.company!.id
   const now = new Date()
 
-  const [subs, everyRung] = await Promise.all([
-    prisma.submission.findMany({
-      where: { toCompanyId: companyId, personId: id },
-      select: {
-        id: true, rate: true, submittedAt: true, status: true, screenState: true, requirementId: true,
-        fromCompany: { select: { id: true, name: true } },
-        requirement: { select: { title: true } },
-        interviews: { select: { id: true, round: true, state: true, scheduledAt: true }, orderBy: { round: 'asc' } },
-      },
-      orderBy: { submittedAt: 'desc' },
-    }),
-    prisma.sellContract.findMany({
-      where: { ...endClientFilter(companyId), personId: id, state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED', 'DRAFT', 'VERIFIED', 'PENDING_VERIFICATION'] } },
-      select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, startDate: true, endDate: true, billRate: true, company: { select: { id: true, name: true } } },
-      orderBy: { startDate: 'desc' },
-    }),
-  ])
+  // Every rung of every chain this person stands on here. Read on its
+  // own rather than beside the submissions, because the chain has to be
+  // in hand before the name on each rung can be decided, and a name
+  // decided after the row is built is a name that was already sent.
+  const everyRung = await prisma.sellContract.findMany({
+    where: { ...endClientFilter(companyId), personId: id, state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED', 'DRAFT', 'VERIFIED', 'PENDING_VERIFICATION'] } },
+    select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, startDate: true, endDate: true, billRate: true, company: { select: { id: true, name: true } } },
+    orderBy: { startDate: 'desc' },
+  })
+
+  const subs = await prisma.submission.findMany({
+    where: { toCompanyId: companyId, personId: id },
+    select: {
+      id: true, rate: true, submittedAt: true, status: true, screenState: true, requirementId: true,
+      fromCompany: { select: { id: true, name: true } },
+      requirement: { select: { title: true } },
+      interviews: { select: { id: true, round: true, state: true, scheduledAt: true }, orderBy: { round: 'asc' } },
+    },
+    orderBy: { submittedAt: 'desc' },
+  })
 
   if (subs.length === 0 && everyRung.length === 0) {
     logAccess({ subjectId: id, actorPersonId: caller.person.id, actorCompanyId: companyId, action: 'PROFILE_VIEW', allowed: false, reason: 'Not on this company’s register' })
@@ -82,12 +86,50 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     } else status = 'ELIGIBLE'
   }
 
+  // ── Whose name this page may print ─────────────────────────────────
+  //
+  // `chainTop` gives one row per engagement rather than one per rung,
+  // and on an ordinary chain that row is the contract this client pays.
+  // It is not always: where the rung above is not in hand — a leg ended,
+  // cancelled, or bought by somebody else — the reduction keeps the leg
+  // underneath, and this page printed the firm on it by name. The name
+  // is decided by the one rule that decides names, which returns the
+  // firm's own where the client pays it and says who it comes through
+  // where it does not (`lib/chain-names`).
+  const disclosureTerms = await prisma.masterAgreement.findMany({
+    where: { clientId: companyId },
+    select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+  })
+
+  const seenNames = namesForClient(
+    everyRung.map((c) => ({
+      id: c.id, personId: c.personId, companyId: c.companyId,
+      companyName: c.company.name, clientCompanyId: c.clientCompanyId,
+    })),
+    companyId,
+    (primeCompanyId: string) => mayNameSubVendors(disclosureTerms, companyId, primeCompanyId)
+  )
+
   // ── The contracts this client pays, one per engagement ─────────────
-  const engagements = chainTop(everyRung).map((c) => ({
-    contractId: c.id, supplier: c.company, state: c.state,
-    startDate: c.startDate.toISOString(), endDate: c.endDate?.toISOString() ?? null,
-    rateCents: c.clientCompanyId === companyId ? c.billRate : null,
-  }))
+  //
+  // The id travels whether or not the name does: a row needs something
+  // to hang a certificate on, and a client cannot turn an id into a firm
+  // it has no relationship with.
+  const engagements = chainTop(everyRung).map((c) => {
+    const seen = seenNames.get(c.companyId)
+    return {
+      contractId: c.id,
+      supplier: {
+        id: c.company.id,
+        name: seen?.name ?? 'A supplier on this site',
+        nameWithheld: seen?.masked ?? false,
+        suppliedThrough: seen?.through ?? null,
+      },
+      state: c.state,
+      startDate: c.startDate.toISOString(), endDate: c.endDate?.toISOString() ?? null,
+      rateCents: c.clientCompanyId === companyId ? c.billRate : null,
+    }
+  })
 
   const rates = subs.map((s) => s.rate).filter((r): r is number => r != null)
   const submissions = subs.map((s) => ({
@@ -99,9 +141,28 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // Who can put them forward: a firm holding their consent on its bench,
   // else whoever last submitted them here.
-  const represented = new Map<string, { id: string; name: string; how: 'bench' | 'submitted' }>()
-  for (const l of listings) represented.set(l.company.id, { ...l.company, how: 'bench' })
-  for (const s of subs) if (!represented.has(s.fromCompany.id)) represented.set(s.fromCompany.id, { ...s.fromCompany, how: 'submitted' })
+  //
+  // Named by the same rule as everything else on this page. A firm that
+  // listed them and submitted them here is this client's own
+  // counterparty and is named; a firm this client knows only as the leg
+  // under its own supplier is not, and the row says who it comes
+  // through. The id travels either way, because the ask is routed
+  // server-side and a client cannot turn an id into a firm it has no
+  // relationship with.
+  const represented = new Map<string, { id: string; name: string; phrase: string; nameWithheld: boolean; suppliedThrough: string | null; how: 'bench' | 'submitted' }>()
+  const asFirm = (c: { id: string; name: string }, how: 'bench' | 'submitted') => {
+    const seen = seenNames.get(c.id)
+    return {
+      id: c.id,
+      name: seen?.name ?? c.name,
+      phrase: seen?.phrase ?? c.name,
+      nameWithheld: seen?.masked ?? false,
+      suppliedThrough: seen?.through ?? null,
+      how,
+    }
+  }
+  for (const l of listings) represented.set(l.company.id, asFirm(l.company, 'bench'))
+  for (const s of subs) if (!represented.has(s.fromCompany.id)) represented.set(s.fromCompany.id, asFirm(s.fromCompany, 'submitted'))
 
   // The roles they could be asked for: published, and not one they are
   // already on — that one is read in Submissions.
@@ -130,11 +191,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const openRequirements = published.filter((r) => !on.has(r.id))
   const alreadyOn = published.filter((r) => on.has(r.id)).map((r) => r.title)
 
-  const supplierWord = represented.size === 0 ? 'no supplier can put them forward yet' : `${[...represented.values()].map((r) => r.name).join(' and ')} can put them forward`
+  const supplierWord = represented.size === 0 ? 'no supplier can put them forward yet' : `${[...represented.values()].map((r) => r.phrase).join(' and ')} can put them forward`
   const says = block
     ? `${person.name} is blocked here: ${block.reason}`
     : onSite
-      ? `${person.name} is on site now, ${months} months into a ${capMonths ? `${capMonths}-month` : ''} cap across every supplier.`
+      ? capMonths
+        ? `${person.name} is on site now, ${months} months into a ${capMonths}-month cap across every supplier.`
+        : `${person.name} is on site now, ${months} months here across every supplier. No tenure cap is set, so there is nothing to measure it against.`
       : status === 'IN_BREAK'
         ? `${person.name} is in a break in service and can come back on ${eligibleDate}.`
         : `${person.name} is not on site. ${months > 0 ? `${months} months here before, across every supplier; ` : ''}${supplierWord}.`

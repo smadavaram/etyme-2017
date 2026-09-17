@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { merge, order, summarize, type Person, type Offer } from '@/lib/one-person'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { bestMatchPerPerson, type Candidate } from '@/lib/identity-resolution'
@@ -58,16 +59,49 @@ export async function GET(request: NextRequest) {
 
   const personIds = [...new Set(subs.map((s) => s.personId))]
 
-  const [contracts, barred, cap, interviews, profiles, stars] = await Promise.all([
-    // Time served here, through anybody. Counted against the person,
-    // which is the entire reason this register is worth having.
-    prisma.sellContract.findMany({
-      where: { ...endClientFilter(companyId), personId: { in: personIds } },
-      select: {
-        personId: true, startDate: true, endDate: true, state: true,
-        company: { select: { name: true } },
-      },
-    }),
+  // Time served here, through anybody. Counted against the person,
+  // which is the entire reason this register is worth having.
+  //
+  // Read on its own rather than beside the five below, because the
+  // chain has to be in hand before the name on each rung can be
+  // decided, and a name decided after the row is built is a name that
+  // was already sent.
+  const contracts = await prisma.sellContract.findMany({
+    where: { ...endClientFilter(companyId), personId: { in: personIds } },
+    select: {
+      id: true, personId: true, companyId: true, clientCompanyId: true,
+      startDate: true, endDate: true, state: true,
+      company: { select: { name: true } },
+    },
+  })
+
+  // ── Whose name this register may print ──────────────────────────────
+  //
+  // Every rung of a chain names this company as the site, so "time
+  // served here, through anybody" returns the leg a prime arranged with
+  // its own sub-vendor — and the register printed that firm on the row
+  // and in the time-here column. A client reads the rung it pays and
+  // "Supplied through …" underneath, unless its own agreement with the
+  // prime carries the disclosure term (`lib/chain-names`).
+  const disclosureTerms = await prisma.masterAgreement.findMany({
+    where: { clientId: companyId },
+    select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+  })
+
+  const seenNames = namesForClient(
+    contracts.map((c) => ({
+      id: c.id, personId: c.personId, companyId: c.companyId,
+      companyName: c.company.name, clientCompanyId: c.clientCompanyId,
+    })),
+    companyId,
+    (primeCompanyId: string) => mayNameSubVendors(disclosureTerms, companyId, primeCompanyId)
+  )
+
+  /** What this register may call the firm on a rung. A cell, not a sentence. */
+  const supplierOn = (vendorCompanyId: string): string =>
+    seenNames.get(vendorCompanyId)?.name ?? 'A supplier on this site'
+
+  const [barred, cap, interviews, profiles, stars] = await Promise.all([
     prisma.blacklist.findMany({
       where: {
         companyId,
@@ -174,7 +208,7 @@ export async function GET(request: NextRequest) {
         stints: servedBy(s.personId).map((c) => ({
           startedAt: c.startDate,
           endedAt: c.endDate,
-          vendorName: c.company.name,
+          vendorName: supplierOn(c.companyId),
         })),
         startingOn: startingOn(s.personId),
         barred: barredBy.has(s.personId)
@@ -235,7 +269,9 @@ export async function GET(request: NextRequest) {
       stints: servedBy(p.personId).map((c) => ({
         start: c.startDate,
         end: c.endDate,
-        vendorName: c.company.name,
+        // Inside a sentence here — the duplicate verdict reads
+        // "…through X" — so the phrase rather than the cell.
+        vendorName: seenNames.get(c.companyId)?.phrase ?? 'a supplier on this site',
         months: monthsOf(daysOnSite([{ startDate: c.startDate, endDate: c.endDate }], now)),
       })),
     }

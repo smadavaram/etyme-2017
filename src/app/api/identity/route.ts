@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import {
   compare, worthAsking, summarize, ifConfirmed, type Candidate,
 } from '@/lib/identity-resolution'
@@ -61,12 +62,42 @@ export async function GET(request: NextRequest) {
       sellContracts: {
         where: endClientFilter(companyId),
         select: {
+          id: true, companyId: true, clientCompanyId: true,
           startDate: true, endDate: true,
           company: { select: { name: true } },
         },
       },
     },
   })
+
+  // ── Whose name goes in the verdict ──────────────────────────────────
+  //
+  // Every rung of a chain names this company as the site the work
+  // happens at, so a person's stints here include the leg a prime
+  // arranged with its own sub-vendor. The sentence this screen prints —
+  // "this is one person through X and Y" — was naming that sub, on the
+  // screen where a client merges two records. The rule is the client
+  // reads the rung it pays and nothing under it, unless its own
+  // agreement with the prime says otherwise (`lib/chain-names`).
+  //
+  // Read on the caller's own site: `endClientFilter(companyId)` above
+  // means the chains here are the ones standing at this company's
+  // buildings, so the term to read is this company's own.
+  const disclosureTerms = await prisma.masterAgreement.findMany({
+    where: { clientId: companyId },
+    select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+  })
+
+  const seenNames = namesForClient(
+    people.flatMap((p) =>
+      p.sellContracts.map((c) => ({
+        id: c.id, personId: p.id, companyId: c.companyId,
+        companyName: c.company.name, clientCompanyId: c.clientCompanyId,
+      }))
+    ),
+    companyId,
+    (primeCompanyId: string) => mayNameSubVendors(disclosureTerms, companyId, primeCompanyId)
+  )
 
   const cap = await prisma.governanceRule.findFirst({
     where: { ruleType: 'TENURE_CAP', isActive: true, policy: { companyId, isActive: true } },
@@ -84,7 +115,10 @@ export async function GET(request: NextRequest) {
     stints: p.sellContracts.map((c) => ({
       start: c.startDate,
       end: c.endDate,
-      vendorName: c.company.name,
+      // The phrase, because this one only ever lands inside a sentence
+      // somebody else writes: "…through Computer Systems", or "…through
+      // the firm supplied through Computer Systems".
+      vendorName: seenNames.get(c.companyId)?.phrase ?? 'a supplier on this site',
       months: c.endDate
         ? Math.max(0, Math.round((c.endDate.getTime() - c.startDate.getTime()) / DAY / 30.44))
         : 0,

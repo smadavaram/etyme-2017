@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop } from '@/lib/chain-top'
+import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 import { contractClearance } from '@/lib/contract-clearance'
 import { tierWord } from '@/lib/supplier-tier'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
@@ -72,6 +73,136 @@ export async function GET(request: NextRequest) {
   // not started; it is on the Contractors tab with that word on it.
   const onSite = contracts.filter((c) => c.state === 'IN_PROGRESS')
 
+  // ── Weeks and claims waiting on this desk ───────────────────────────
+  //
+  // Read here rather than further down, because the firm named on a row
+  // this desk is asked to approve is decided by the chain, and the chain
+  // has to be in hand first. A timesheet and an expense are filed
+  // against the contract of the firm that employs the person, which in a
+  // chain is the rung below the one this client pays.
+  const pendingTimesheets = await prisma.timesheet.findMany({
+    where: {
+      sellContract: endClientFilter(clientCompany.id),
+      status: 'SUBMITTED',
+      clientApprovedAt: null,
+    },
+    include: {
+      sellContract: {
+        include: {
+          person: { select: { id: true, name: true } },
+          company: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: { periodEnd: 'desc' },
+  })
+
+  const pendingExpenses = await prisma.expense.findMany({
+    where: {
+      sellContract: endClientFilter(clientCompany.id),
+      status: 'SUBMITTED',
+    },
+    include: {
+      sellContract: {
+        include: {
+          person: { select: { id: true, name: true } },
+          company: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: { submittedAt: 'asc' },
+  })
+
+  // ── Whose name this reader may print ────────────────────────────────
+  //
+  // The roster is reduced to the rung this client pays and was right.
+  // The approval queue was not: a week is filed against the employer's
+  // leg, so `vendor` on the row a client is asked to sign named the firm
+  // below the one it pays. One rule answers for both (`lib/chain-names`),
+  // and it is asked about every row on this page rather than only the
+  // queue — the reduction above keeps the leg underneath where the rung
+  // above it is not in hand, and a name is not something to be right
+  // about by accident.
+  //
+  // Only a client's own seats are masked. A supplier reading this page
+  // about a client it places at is looking at its own supply chain, and
+  // the term this reads is the client's agreement, not theirs.
+  const viewerIsClient = caller.company?.id === clientCompany.id
+
+  // Unfiltered by state or by account wall, and only for the reader that
+  // needs it: the walk up a chain is only as good as the rungs it can
+  // see, and a prime's leg filtered out of the roster above would leave
+  // the sub below it looking like the top of its own chain.
+  const chainRungs = viewerIsClient
+    ? await prisma.sellContract.findMany({
+        where: endClientFilter(clientCompany.id),
+        select: {
+          id: true, personId: true, companyId: true, clientCompanyId: true,
+          company: { select: { name: true } },
+        },
+      })
+    : []
+
+  const disclosureTerms = viewerIsClient
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: clientCompany.id },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
+  /** One rung, in the shape the name rule reads. */
+  const asRung = (c: {
+    id: string; personId: string; companyId: string; clientCompanyId: string
+    company: { name: string }
+  }) => ({
+    id: c.id, personId: c.personId, companyId: c.companyId,
+    companyName: c.company.name, clientCompanyId: c.clientCompanyId,
+  })
+
+  /**
+   * The same rung arrives from four reads; keep one of each.
+   *
+   * Not tidiness. The walk up a chain asks which single rung sits above
+   * this one, and two copies of the prime's leg are two answers, which
+   * the rule reads as a chain nobody can follow and refuses to name at
+   * all.
+   */
+  const byId = <T extends { id: string }>(rows: T[]): T[] =>
+    [...new Map(rows.map((r) => [r.id, r])).values()]
+
+  const seenNames = viewerIsClient
+    ? namesForClient(
+        byId([
+          ...chainRungs.map(asRung),
+          ...everyRung.map(asRung),
+          ...pendingTimesheets.map((t) => asRung(t.sellContract)),
+          ...pendingExpenses.map((e) => asRung(e.sellContract)),
+        ]),
+        clientCompany.id,
+        (primeCompanyId: string) =>
+          mayNameSubVendors(disclosureTerms, clientCompany.id, primeCompanyId)
+      )
+    : new Map<string, SeenName>()
+
+  /** What this reader may call a firm on a row. */
+  const shown = (companyId: string, trueName: string): SeenName =>
+    seenNames.get(companyId) ?? {
+      companyId, name: trueName, masked: false, through: null,
+      phrase: trueName, says: trueName,
+    }
+
+  /** A firm on the payload, named or withheld. The id travels either way. */
+  const firm = (c: { id: string; name: string }) => {
+    const seen = shown(c.id, c.name)
+    return {
+      id: c.id,
+      name: seen.name,
+      phrase: seen.phrase,
+      nameWithheld: seen.masked,
+      suppliedThrough: seen.through,
+    }
+  }
+
   // Aggregate by vendor — the suppliers with people on site
   const vendorMap = new Map<string, {
     id: string
@@ -83,7 +214,7 @@ export async function GET(request: NextRequest) {
 
   for (const c of onSite) {
     const vendorId = c.company.id
-    const vendorName = c.company.name
+    const vendorName = shown(c.company.id, c.company.name).name
     const existing = vendorMap.get(vendorId)
     if (existing) {
       existing.headcount++
@@ -141,13 +272,15 @@ export async function GET(request: NextRequest) {
       ])
       const papers = contractClearance({
         personName: c.person.name, personVerifications,
-        supplierName: c.company.name, supplierCertificates,
+        // Inside a sentence the desk reads, so the phrase: "the firm
+        // supplied through Computer Systems has no current certificate".
+        supplierName: shown(c.company.id, c.company.name).phrase, supplierCertificates,
         clientName: clientCompany.name, on: c.startDate > now ? c.startDate : now,
       })
       return {
         contractId: c.id,
         person: { id: c.person.id, name: c.person.name },
-        vendor: c.company,
+        vendor: firm(c.company),
         startDate: c.startDate.toISOString(),
         daysUntil: Math.ceil((c.startDate.getTime() - now.getTime()) / 86_400_000),
         paperwork: { outcome: papers.outcome, says: papers.says, fix: papers.fix },
@@ -185,46 +318,14 @@ export async function GET(request: NextRequest) {
   const today = [
     ...signedToday.map((t) => ({ id: `t-${t.id}`, what: 'Hours signed', who: `${t.person.name}, ${Number(t.totalHours)}h`, at: t.clientApprovedAt!.toISOString() })),
     ...claimsToday.map((e) => ({ id: `e-${e.id}`, what: 'Expense approved', who: `${e.person.name}, $${Number(e.total).toFixed(2)}`, at: e.approvedAt!.toISOString() })),
-    ...onSite.filter((c) => c.startDate >= dayStart).map((c) => ({ id: `s-${c.id}`, what: 'Started', who: `${c.person.name} through ${c.company.name}`, at: c.startDate.toISOString() })),
+    ...onSite.filter((c) => c.startDate >= dayStart).map((c) => ({ id: `s-${c.id}`, what: 'Started', who: `${c.person.name} through ${shown(c.company.id, c.company.name).phrase}`, at: c.startDate.toISOString() })),
     ...awardedToday.map((a) => ({ id: `a-${a.id}`, what: 'Awarded', who: `${a.person.name} — ${a.requirement.title}`, at: a.decidedAt!.toISOString() })),
     ...asksToday.map((m) => { const md = (m.metadata ?? {}) as Record<string, string>; return { id: `k-${m.id}`, what: 'Asked for', who: `${md.personName ?? 'somebody'} through ${md.supplierName ?? 'a supplier'} — ${md.roleTitle ?? ''}`, at: m.createdAt.toISOString() } }),
   ].sort((a, b) => b.at.localeCompare(a.at))
 
-  // Weeks waiting for the client's signature. Once this client has
-  // signed, the sheet is the employer's to accept, not this desk's.
-  const pendingTimesheets = await prisma.timesheet.findMany({
-    where: {
-      sellContract: endClientFilter(clientCompany.id),
-      status: 'SUBMITTED',
-      clientApprovedAt: null,
-    },
-    include: {
-      sellContract: {
-        include: {
-          person: { select: { id: true, name: true } },
-          company: { select: { id: true, name: true } },
-        },
-      },
-    },
-    orderBy: { periodEnd: 'desc' },
-  })
-
-  // Pending expenses
-  const pendingExpenses = await prisma.expense.findMany({
-    where: {
-      sellContract: endClientFilter(clientCompany.id),
-      status: 'SUBMITTED',
-    },
-    include: {
-      sellContract: {
-        include: {
-          person: { select: { id: true, name: true } },
-          company: { select: { id: true, name: true } },
-        },
-      },
-    },
-    orderBy: { submittedAt: 'asc' },
-  })
+  // Weeks waiting for the client's signature, and the claims beside
+  // them, are read above — the name on each row is the chain's answer,
+  // not the filing leg's.
 
   // Contracts ending within 60 days
   const sixtyDaysOut = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
@@ -277,7 +378,9 @@ export async function GET(request: NextRequest) {
       id: ts.id,
       kind: 'timesheet' as const,
       person: ts.sellContract.person.name,
-      vendor: ts.sellContract.company.name,
+      // The firm this client can call about the week it is being asked
+      // to sign, which below its own supplier is the supplier.
+      vendor: shown(ts.sellContract.company.id, ts.sellContract.company.name).name,
       detail: `Week ending ${ts.periodEnd.toLocaleDateString()}`,
       amount: ts.totalHours ? Number(ts.totalHours) : null,
       submittedAt: ts.periodEnd.toISOString(),
@@ -287,7 +390,7 @@ export async function GET(request: NextRequest) {
       id: exp.id,
       kind: 'expense' as const,
       person: exp.sellContract.person.name,
-      vendor: exp.sellContract.company.name,
+      vendor: shown(exp.sellContract.company.id, exp.sellContract.company.name).name,
       detail: `${exp.category} · ${exp.billable ? 'Billable' : 'Internal'}`,
       // Whole currency, not cents. See decisions/route.ts.
       amount: exp.total ? Number(exp.total) : null,
@@ -315,7 +418,7 @@ export async function GET(request: NextRequest) {
       contractors: contracts.map(c => ({
         contractId: c.id,
         person: c.person,
-        vendor: c.company,
+        vendor: firm(c.company),
         payingCustomer: c.clientCompany,
         endClient: c.endClientCompany,
         workLocation: c.workLocation,
@@ -345,7 +448,7 @@ export async function GET(request: NextRequest) {
       endingSoon: endingSoon.map(c => ({
         contractId: c.id,
         person: c.person,
-        vendor: c.company,
+        vendor: firm(c.company),
         endDate: c.endDate?.toISOString() ?? null,
         daysRemaining: c.endDate
           ? Math.ceil((c.endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))

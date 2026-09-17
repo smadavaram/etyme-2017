@@ -3,6 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { unitsVisibleTo } from '@/lib/walls'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { mayNameSubVendors, nameForClient } from '@/lib/chain-names'
 import {
   whyContract, whyConsultant, whyRequirement, refusalText, type Viewer,
 } from '@/lib/why'
@@ -119,7 +121,7 @@ export async function GET(
       const c = await prisma.sellContract.findUnique({
         where: { id },
         select: {
-          personId: true, companyId: true, clientCompanyId: true,
+          id: true, personId: true, companyId: true, clientCompanyId: true,
           endClientCompanyId: true, deliveryUnitId: true, orgUnitId: true,
           person: { select: { name: true } },
           company: { select: { name: true } },
@@ -127,7 +129,21 @@ export async function GET(
       })
       if (!c) return notFound('placement')
       const why = whyContract(viewer, c)
-      return answer(why, viewer, `${c.person.name}’s placement through ${c.company.name}`)
+
+      // ── The subject is read off the verdict, never before it ────────
+      //
+      // "Priya Raman's placement through CloudEPA" was built from the
+      // record the moment it was fetched and sent whatever the verdict
+      // said — so the sentence explaining that somebody may not read a
+      // placement handed them the placement. The same shape leaked a
+      // firm two rungs down on `GET /api/placements/:id` and was closed
+      // there on 2026-09-17.
+      if (!why.visible) return answer(why, viewer, 'that placement')
+
+      return answer(
+        why, viewer,
+        `${c.person.name}’s placement through ${await supplierAsSeenBy(caller.company?.id, c)}`
+      )
     }
 
     case 'consultant': {
@@ -184,6 +200,66 @@ export async function GET(
         { status: 422 }
       )
   }
+}
+
+/**
+ * What the asking company may call the firm selling one placement.
+ *
+ * A client is a party to every rung of a chain at its own site, because
+ * every rung names that site — so a hiring manager can hold the id of
+ * the leg its own supplier arranged, and this route would answer with
+ * that firm's name. The rule is the client reads the rung it pays and
+ * "Supplied through …" underneath, unless its own agreement with the
+ * prime carries the disclosure term (`lib/chain-names`).
+ *
+ * Everybody else reads the name they always did: the vendor selling it,
+ * the firm being billed, and a client that is itself the buyer of this
+ * rung are all reading their own counterparty.
+ */
+async function supplierAsSeenBy(
+  askingCompanyId: string | null | undefined,
+  c: {
+    id: string; personId: string; companyId: string; clientCompanyId: string
+    endClientCompanyId: string | null
+    company: { name: string }
+  }
+): Promise<string> {
+  const below =
+    !!askingCompanyId &&
+    askingCompanyId !== c.companyId &&
+    askingCompanyId !== c.clientCompanyId &&
+    askingCompanyId === c.endClientCompanyId
+
+  if (!below) return c.company.name
+
+  const rungs = await prisma.sellContract.findMany({
+    where: { ...endClientFilter(askingCompanyId), personId: c.personId },
+    select: {
+      id: true, personId: true, companyId: true, clientCompanyId: true,
+      company: { select: { name: true } },
+    },
+  })
+  const terms = await prisma.masterAgreement.findMany({
+    where: { clientId: askingCompanyId },
+    select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+  })
+
+  const asRung = (r: {
+    id: string; personId: string; companyId: string; clientCompanyId: string
+    company: { name: string }
+  }) => ({
+    id: r.id, personId: r.personId, companyId: r.companyId,
+    companyName: r.company.name, clientCompanyId: r.clientCompanyId,
+  })
+
+  // The phrase, because this lands inside a sentence: "Priya Raman's
+  // placement through the firm supplied through Computer Systems".
+  return nameForClient(
+    asRung(c),
+    rungs.map(asRung),
+    askingCompanyId,
+    (primeCompanyId: string) => mayNameSubVendors(terms, askingCompanyId, primeCompanyId)
+  ).phrase
 }
 
 function notFound(what: string) {

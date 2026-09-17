@@ -25,7 +25,17 @@ describe('what the client desk is told', () => {
 
   it("a client sees the hours on a sheet, never the rate its supplier's supplier charges", () => {
     expect(decisions).toContain('`${ts.totalHours}h · through ${supplier} · ${period}`')
-    expect(decisions).toContain('const supplier = paidSupplier.get(ts.personId) ?? sc.company.name')
+  })
+
+  it("and never the name of its supplier's supplier either, which is the same walk for the name", () => {
+    // This used to pin `paidSupplier.get(ts.personId) ?? sc.company.name`
+    // — a lookup of the firm the client pays, falling back where the walk
+    // came back empty to the employer, which is the firm two rungs down
+    // printed on its own customer's queue. Found by the sweep in
+    // `client-facing-names` on 2026-09-17 and routed through the one rule
+    // that decides whose name a client may read.
+    expect(decisions).toContain("import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'")
+    expect(decisions).toContain("seenNames.get(sc.companyId)?.phrase ?? 'a supplier on this site'")
   })
 
   it('the queue a client approves from prices a week at the contract that client is billed on', () => {

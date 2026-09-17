@@ -5,6 +5,7 @@ import { hasAnyPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
+import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
 import { desksFor } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-onboarding'
@@ -81,32 +82,66 @@ export async function GET(request: NextRequest) {
     // The client knows its people by the supplier it pays, not by the
     // firm two rungs down that employs them.
     const clientRows = pendingTimesheets.filter((ts) => ts.sellContract.companyId !== companyId)
-    const paidSupplier = new Map<string, string>()
+    const people = [...new Set(clientRows.map((ts) => ts.personId))]
     // Every rung of every chain these people stand on here, so a week
     // filed against the employer's leg can be walked up to the contract
     // this reader is actually billed on. A queue that prices a week at
     // the leg it happens to be filed against is quoting the client its
     // supplier's supplier's rate.
-    let rungs: {
-      id: string; personId: string; companyId: string; clientCompanyId: string
-      startDate: Date; endDate: Date | null; billRate: number
-    }[] = []
-    if (clientRows.length > 0) {
-      const people = [...new Set(clientRows.map((ts) => ts.personId))]
-      const direct = await prisma.sellContract.findMany({
-        where: { clientCompanyId: companyId, personId: { in: people }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
-        select: { personId: true, company: { select: { name: true } } },
-      })
-      for (const d of direct) paidSupplier.set(d.personId, d.company.name)
+    const rungs = people.length > 0
+      ? await prisma.sellContract.findMany({
+          where: { ...endClientFilter(companyId), personId: { in: people } },
+          select: {
+            id: true, personId: true, companyId: true, clientCompanyId: true,
+            startDate: true, endDate: true, billRate: true,
+            company: { select: { name: true } },
+          },
+        })
+      : []
 
-      rungs = await prisma.sellContract.findMany({
-        where: { ...endClientFilter(companyId), personId: { in: people } },
-        select: {
-          id: true, personId: true, companyId: true, clientCompanyId: true,
-          startDate: true, endDate: true, billRate: true,
-        },
-      })
-    }
+    // ── And whose name goes on the row ──────────────────────────────
+    //
+    // The same walk, for the name rather than the rate (`lib/chain-names`,
+    // and they must never disagree). This queue used to name the firm it
+    // was billed by where it could and fall back to `sellContract.company`
+    // where it could not — which is the employer, the firm two rungs
+    // down, printed on its own customer's queue. And it never read the
+    // disclosure term, so a client whose agreement entitles it to the
+    // sub's name was shown its prime's instead.
+    const terms = people.length > 0
+      ? await prisma.masterAgreement.findMany({
+          where: { clientId: companyId },
+          select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+        })
+      : []
+
+    /** One rung, in the shape the name rule reads. */
+    const asRung = (c: {
+      id: string; personId: string; companyId: string; clientCompanyId: string
+      company: { name: string }
+    }) => ({
+      id: c.id, personId: c.personId, companyId: c.companyId,
+      companyName: c.company.name, clientCompanyId: c.clientCompanyId,
+    })
+
+    // The legs the weeks were filed against go in beside the chains, so
+    // the walk starts from the row the desk is actually looking at. One
+    // of each: two copies of a rung are two answers to "what is above
+    // this", and the rule reads that as a chain nobody can follow.
+    const seenNames = namesForClient(
+      [
+        ...new Map(
+          [
+            ...rungs.map(asRung),
+            ...pendingTimesheets
+              .filter((ts) => ts.sellContract.companyId !== companyId)
+              .map((ts) => asRung(ts.sellContract)),
+          ].map((r) => [r.id, r])
+        ).values(),
+      ],
+      companyId,
+      (primeCompanyId: string) => mayNameSubVendors(terms, companyId, primeCompanyId)
+    )
 
     for (const ts of pendingTimesheets) {
       const daysSinceSubmit = Math.floor(
@@ -114,7 +149,14 @@ export async function GET(request: NextRequest) {
       )
       const sc = ts.sellContract
       const asClient = sc.companyId !== companyId
-      const supplier = paidSupplier.get(ts.personId) ?? sc.company.name
+      // Inside a sentence, so the phrase and not the cell: "through
+      // Computer Systems" where the name is this reader's to read, and
+      // "through the firm supplied through Computer Systems" where it is
+      // not. Never the employer's own name, which is what a blank walk
+      // used to fall through to.
+      const supplier = !asClient
+        ? sc.company.name
+        : seenNames.get(sc.companyId)?.phrase ?? 'a supplier on this site'
       // A client sees the hours. The rate on this sheet is what the
       // employer charges the rung above it, which is the client's own
       // rate only on a direct placement. Where the reader is further up

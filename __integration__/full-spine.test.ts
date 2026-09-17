@@ -50,6 +50,12 @@ import { GET as alumniView } from '@/app/api/alumni/route'
 import { PATCH as amendAgreement } from '@/app/api/program/agreements/[id]/route'
 import { GET as profitability } from '@/app/api/profitability/route'
 import { GET as placement } from '@/app/api/placements/[id]/route'
+import { GET as register } from '@/app/api/people/route'
+import { GET as onePerson } from '@/app/api/people/[id]/route'
+import { GET as programView } from '@/app/api/program/route'
+import { GET as decisionQueue } from '@/app/api/decisions/route'
+import { GET as identityView } from '@/app/api/identity/route'
+import { GET as whyView } from '@/app/api/why/[type]/[id]/route'
 
 /**
  * L4 — the whole spine, one placement, walked in the order it happens.
@@ -1011,6 +1017,180 @@ describe('Step 14a — the name below the rung Adobe pays, and the term that ope
 // Part five — the money
 // ═══════════════════════════════════════════════════════════════════
 
+describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
+  /**
+   * Step 14a closed compliance, tenure and alumni. The sweep in
+   * `__tests__/invariants/client-facing-names.test.ts` then named six
+   * more reads with the same shape, all on the demand side: the
+   * register, one person’s page, the program dashboard, the org view,
+   * identity resolution and the decision queue. This is those, on the
+   * JSON, because the screen is what hid the last one of these.
+   */
+  const asAdobe = async () => {
+    as(ADOBE_PM)
+    return {
+      register: await json(await register(req('GET', '/api/people'))),
+      person: await json(await onePerson(
+        req('GET', `/api/people/${who.priya}`),
+        { params: Promise.resolve({ id: who.priya }) }
+      )),
+      program: await json(await programView(req('GET', '/api/program'))),
+      identity: await json(await identityView(req('GET', '/api/identity'))),
+    }
+  }
+
+  const discloses = async (on: boolean) => {
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { clientId: co.adobe, vendorId: co.prime },
+      select: { id: true },
+    })
+    as(PRIME)
+    const r = await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: on,
+        reason: on
+          ? 'Adobe required its suppliers to name their sub-vendors at signing.'
+          : 'Reverted — the disclosure term was recorded against the wrong agreement.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+  }
+
+  it('names the firm Adobe pays on its register, and says who the rung below it comes through', async () => {
+    const { register: r } = await asAdobe()
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const priya = r.body.data.people.find((p: any) => p.personId === who.priya)
+    const named = priya.stints.map((s: any) => s.vendorName)
+    expect(named, 'both rungs are still counted').toHaveLength(2)
+    expect(named).toContain('Computer Systems')
+    expect(named).toContain('Supplied through Computer Systems.')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+  })
+
+  it('counts her days at Adobe off both rungs while naming only one of them', async () => {
+    const { register: r } = await asAdobe()
+    const priya = r.body.data.people.find((p: any) => p.personId === who.priya)
+    // One person, one spell here — not one per rung of the chain.
+    expect(priya.monthsHere).toBe(0)
+    expect(priya.state).toBe('PLACED')
+  })
+
+  it('shows Priya’s own page one engagement at the rung Adobe pays, and no firm under it', async () => {
+    const { person } = await asAdobe()
+    expect(person.body?.error, JSON.stringify(person.body)).toBeUndefined()
+
+    // One row per engagement rather than one per rung, so a two-rung
+    // chain is one line and that line is the contract Adobe pays.
+    expect(person.body.data.engagements).toHaveLength(1)
+    const [e] = person.body.data.engagements
+    expect(e.supplier.name).toBe('Computer Systems')
+    expect(e.supplier.nameWithheld).toBe(false)
+    expect(JSON.stringify(person.body)).not.toContain('CloudEPA')
+  })
+
+  it('says who can put her forward without naming the firm holding her consent below the supplier', async () => {
+    // The other door onto the same firm on the same page: CloudEPA holds
+    // Priya's bench listing, so "who can put them forward" named it
+    // beside the engagement the rule had already closed.
+    const { person } = await asAdobe()
+    const bench = person.body.data.representedBy.find((f: any) => f.how === 'bench')
+    expect(bench.name).toBe('Supplied through Computer Systems.')
+    expect(bench.nameWithheld).toBe(true)
+    expect(bench.suppliedThrough).toBe('Computer Systems')
+    // The id travels, because the ask is routed to the firm server-side.
+    expect(bench.id).toBe(co.sub)
+  })
+
+  it('offers Adobe no name below its own supplier when it weighs two records as one person', async () => {
+    const { identity } = await asAdobe()
+    expect(identity.body?.error, JSON.stringify(identity.body)).toBeUndefined()
+    expect(JSON.stringify(identity.body)).not.toContain('CloudEPA')
+  })
+
+  it('never names the firm below Computer Systems anywhere on Adobe’s dashboard', async () => {
+    const { program } = await asAdobe()
+    expect(program.body?.error, JSON.stringify(program.body)).toBeUndefined()
+
+    const suppliers = program.body.data.vendors.map((v: any) => v.name)
+    expect(suppliers).toContain('Computer Systems')
+    expect(suppliers).not.toContain('CloudEPA')
+    expect(program.body.data.contractors).toHaveLength(1)
+    expect(program.body.data.contractors[0].vendor.name).toBe('Computer Systems')
+    expect(JSON.stringify(program.body)).not.toContain('CloudEPA')
+  })
+
+  it('tells Adobe why it may read the leg below its supplier without naming the firm on it', async () => {
+    as(ADOBE_PM)
+    const r = await json(await whyView(
+      req('GET', `/api/why/contract/${it_.subSell}`),
+      { params: Promise.resolve({ type: 'contract', id: it_.subSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.visible).toBe(true)
+    expect(r.body.data.subject).toBe(
+      'Priya Raman’s placement through the firm supplied through Computer Systems'
+    )
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+  })
+
+  it('says nothing at all about a placement the asker may not read, not even whose it is', async () => {
+    // Magnit routes Adobe’s demand and holds no contract, so it is a
+    // party to no rung of this chain. The sentence explaining that used
+    // to be built from the record before the verdict was read, and so
+    // handed over the person and the firm it was refusing.
+    as(MSP)
+    const r = await json(await whyView(
+      req('GET', `/api/why/contract/${it_.subSell}`),
+      { params: Promise.resolve({ type: 'contract', id: it_.subSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.visible).toBe(false)
+    expect(r.body.data.subject).toBe('that placement')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+    expect(JSON.stringify(r.body)).not.toContain('Priya')
+  })
+
+  it('names CloudEPA on the register, on her page and on the dashboard once the agreement requires it', async () => {
+    await discloses(true)
+    const { register: r, person, program } = await asAdobe()
+
+    const priya = r.body.data.people.find((p: any) => p.personId === who.priya)
+    expect(priya.stints.map((s: any) => s.vendorName)).toContain('CloudEPA')
+
+    // Her page still shows one row per engagement, and that row is still
+    // the contract Adobe pays — the term opens a name, it does not add a
+    // rung to the picture.
+    expect(person.body.data.engagements).toHaveLength(1)
+    expect(person.body.data.engagements[0].supplier.name).toBe('Computer Systems')
+
+    expect(program.body.data.contractors[0].vendor.name).toBe('Computer Systems')
+    expect(program.body.data.contractors[0].vendor.nameWithheld).toBe(false)
+  })
+
+  it('closes again the moment the term comes off, on every one of them', async () => {
+    await discloses(false)
+    const { register: r, person, program } = await asAdobe()
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+    expect(JSON.stringify(person.body)).not.toContain('CloudEPA')
+    expect(JSON.stringify(program.body)).not.toContain('CloudEPA')
+  })
+
+  it('leaves Computer Systems reading its own sub by name on the same person\u2019s page', async () => {
+    // The masking is the client's, not the platform's. Computer Systems
+    // opening Priya's page reads its own supply chain, because CloudEPA
+    // is the firm it buys her from and its own counterparty.
+    as(PRIME)
+    const r = await json(await onePerson(
+      req('GET', `/api/people/${who.priya}`),
+      { params: Promise.resolve({ id: who.priya }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.representedBy.map((f: any) => f.name)).toContain('CloudEPA')
+  })
+})
+
 describe('Step 15 — Priya files one week, once', () => {
   it('files it against the contract of the firm that employs her', async () => {
     as(CONSULTANT)
@@ -1040,6 +1220,88 @@ describe('Step 15 — Priya files one week, once', () => {
     ))
     expect(r.status).toBe(403)
     expect(r.body.error.message).toBe('Nobody approves their own hours.')
+  })
+})
+
+describe('Step 15a — the week waiting on Adobe’s desk, and whose name is on it', () => {
+  /**
+   * A timesheet is filed against the contract of the firm that employs
+   * the person, which in a chain is the rung below the one the client
+   * pays. Both queues that ask Adobe to sign it read that leg, so the
+   * row said "through CloudEPA" on the desk of a client that has never
+   * heard of CloudEPA. The hours are Adobe’s own; the name is not.
+   */
+  it('tells Adobe a week is waiting through the supplier it pays, not the firm that filed it', async () => {
+    as(ADOBE_PM)
+    const r = await json(await programView(req('GET', '/api/program')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const week = r.body.data.approvalQueue.find((x: any) => x.kind === 'timesheet')
+    expect(week, 'the week is on the queue at all').toBeTruthy()
+    expect(week.person).toBe('Priya Raman')
+    expect(week.amount).toBe(40)
+    expect(week.vendor).toBe('Supplied through Computer Systems.')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+  })
+
+  it('says the same on the decision queue, which is where the desk actually reads it', async () => {
+    as(ADOBE_PM)
+    const r = await json(await decisionQueue(req('GET', '/api/decisions')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
+    expect(week, 'the client desk is told a week is waiting').toBeTruthy()
+    expect(week.subtitle).toContain('through the firm supplied through Computer Systems')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+  })
+
+  it('prices that week at the rung Adobe is billed on, which is the rate beside the name', async () => {
+    as(ADOBE_PM)
+    const r = await json(await decisionQueue(req('GET', '/api/decisions')))
+    const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
+    // 40 hours at the $135 Adobe pays, never the $110 its supplier pays.
+    expect(week.amount).toBe(40 * 135)
+  })
+
+  it('names CloudEPA on both queues once Adobe’s agreement with Computer Systems requires it', async () => {
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { clientId: co.adobe, vendorId: co.prime },
+      select: { id: true },
+    })
+    as(PRIME)
+    await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: true,
+        reason: 'Adobe required its suppliers to name their sub-vendors at signing.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+
+    as(ADOBE_PM)
+    const p = await json(await programView(req('GET', '/api/program')))
+    expect(p.body.data.approvalQueue.find((x: any) => x.kind === 'timesheet').vendor).toBe('CloudEPA')
+
+    const d = await json(await decisionQueue(req('GET', '/api/decisions')))
+    expect(d.body.data.decisions.find((x: any) => x.type === 'TIMESHEET_APPROVAL').subtitle)
+      .toContain('through CloudEPA')
+
+    as(PRIME)
+    await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: false,
+        reason: 'Reverted — the disclosure term was recorded against the wrong agreement.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+  })
+
+  it('leaves CloudEPA’s own desk reading the same week under its own name', async () => {
+    as(SUB)
+    const r = await json(await decisionQueue(req('GET', '/api/decisions')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
+    expect(week, 'the employer is asked to accept what it will pay for').toBeTruthy()
+    expect(week.subtitle).toContain('Computer Systems')
   })
 })
 

@@ -173,13 +173,32 @@ describe('cover that has not begun refuses a start, and the preview of it says t
     expect(r.body.error.message).not.toContain('back in date')
   })
 
-  it('the client’s starting-soon preview refuses in exactly the words activation uses', async () => {
+  it('the client’s starting-soon preview refuses in exactly the words activation uses, under the name each desk may read', async () => {
     const row = await previewRow()
     const pressed = await pressActivate()
     expect(row.paperwork.outcome).toBe('BLOCK')
-    // Word for word. A preview that disagrees with the decision it
-    // previews is worse than no preview at all.
-    expect(row.paperwork.says).toBe(pressed.body.error.message)
+
+    // The verdict is the same verdict and the sentence is the same
+    // sentence. What differs is the name of the firm inside it, and only
+    // because this client buys this person through a prime: it has no
+    // contract with the firm that employs her and its own agreement does
+    // not require that firm to be named, so its copy says who she comes
+    // through instead (`lib/chain-names`, ratified 2026-09-17). The
+    // supplier pressing the button is reading its own company.
+    //
+    // Standing is never what is withheld. A preview that disagreed with
+    // the decision it previews would still be worse than no preview; a
+    // preview that agrees with it and names a firm the reader is not
+    // entitled to is the prime's supplier list, given away on a
+    // compliance row.
+    expect(row.vendor.nameWithheld).toBe(true)
+    expect(row.vendor.suppliedThrough).toBeTruthy()
+    expect(row.paperwork.says).toBe(
+      pressed.body.error.message.split('CloudEPA').join(row.vendor.phrase)
+    )
+    expect(row.paperwork.says).not.toContain('CloudEPA')
+    expect(row.paperwork.says).toContain('supplied through')
+
     // The remedy is the same remedy. The one word that differs is which
     // company the certificate should name as holder, because each desk
     // names the counterparty it is talking to: the supplier is told to
