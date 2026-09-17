@@ -137,7 +137,8 @@ export async function POST(request: NextRequest) {
         ...result,
         says:
           `${result.firms} firms, ${result.placements} placements, ` +
-          `${result.consultants} consultants. Enter one with ` +
+          `${result.consultants} consultants, ${result.onPayroll} integrator employees ` +
+          `on payroll and on nobody's bench. Enter one with ` +
           `POST /api/demo {"as":"world-cloudepa"}, or sit at a client desk at /demo — ` +
           `POST /api/demo {"as":"world-nike","desk":"ap"}.`,
       },

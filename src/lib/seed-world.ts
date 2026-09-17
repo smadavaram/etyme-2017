@@ -127,6 +127,8 @@ const NAMES: string[] = [
 
 export async function seedWorld(): Promise<{
   firms: number; placements: number; consultants: number
+  /// The integrators' own employees — a live EMPLOYEE seat, no bench listing.
+  onPayroll: number
   /// Chains still mid-flight — open requirements with rounds not yet held.
   live: number
   roster: { kind: string; name: string; slug: string }[]
@@ -827,6 +829,132 @@ export async function seedWorld(): Promise<{
   }
 
 
+
+  // ── The delivery firms' own payroll ──────────────────────────────────
+  //
+  // An integrator staffs a seat two ways: it buys a consultant from a
+  // bench vendor, and it puts one of its own employees on it. The second
+  // is the ordinary case at a firm like this and the world had none of
+  // it — each GSI held exactly one EMPLOYEE seat, the delivery manager's
+  // own login — so the submit picker's "On our payroll" group offered a
+  // delivery manager himself and nobody else.
+  //
+  // These people carry a live EMPLOYEE seat and nothing else: no
+  // `ConsultantProfile` and no `BenchListing`, because that absence is
+  // precisely what tells staff from a marketed consultant. Nobody asks
+  // an employee's permission to be staffed on a project — the
+  // employment contract already said it — so the submit door skips the
+  // listing for them, computes the kind as INTERNAL and tells them where
+  // they went (`app/api/submissions/kind.ts`).
+  //
+  // The discipline rides on the seat's role name, because the picker
+  // falls back to the role where a person has no skills, and seeding a
+  // consultant profile to carry four words would seed the very thing the
+  // carve-out exists to do without. `ensureDefaultRoles` never touches a
+  // role a company wrote itself, so these survive every later run.
+  interface Staffer {
+    name: string
+    /** What they do, in the trade's words. The name of their seat's role. */
+    discipline: string
+    /** The practice they sit in, read on the seat as the reason it was granted. */
+    practice: string
+  }
+  const PAYROLL: { slug: string; team: Staffer[] }[] = [
+    { slug: 'teleworld', team: [
+      { name: 'Karthik Menon',   discipline: 'Validation Engineer',   practice: 'Delivery — avionics software assurance practice' },
+      { name: 'Amara Nwosu',     discipline: 'Data Engineer',         practice: 'Delivery — data platform practice' },
+      { name: 'Felix Brenner',   discipline: 'SAP Consultant',        practice: 'Delivery — SAP S/4HANA finance practice' },
+      { name: 'Deepa Varma',     discipline: 'Integration Architect', practice: 'Delivery — integration practice' },
+    ]},
+    { slug: 'sundara', team: [
+      { name: 'Aditi Ramaswamy', discipline: 'Validation Engineer',   practice: 'Delivery — safety-critical software practice' },
+      { name: 'Olivier Renard',  discipline: 'Data Engineer',         practice: 'Delivery — manufacturing data practice' },
+      { name: 'Harish Pillai',   discipline: 'SAP Consultant',        practice: 'Delivery — SAP plant maintenance practice' },
+      { name: 'Beatriz Salgado', discipline: 'PLM Systems Engineer',  practice: 'Delivery — Teamcenter practice' },
+    ]},
+  ]
+
+  let onPayroll = 0
+  for (const { slug, team } of PAYROLL) {
+    const co = firmBySlug.get(slug)!
+    for (const s of team) {
+      const email = `${s.name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
+      const person = await db.person.upsert({
+        where: { primaryEmail: email }, update: { name: s.name }, create: { name: s.name, primaryEmail: email },
+      })
+      const role =
+        (await db.role.findFirst({ where: { companyId: co.id, name: s.discipline } })) ??
+        (await db.role.create({
+          data: {
+            companyId: co.id, name: s.discipline, isDefault: false,
+            // A delivery engineer reads the work they are on and files
+            // their own week. Nothing else — they staff nobody, sell
+            // nobody, and see no money.
+            permissions: ['assignments.read', 'timesheets.read'],
+          },
+        }))
+      if (!(await db.context.findFirst({ where: { personId: person.id, companyId: co.id } }))) {
+        await db.context.create({
+          data: {
+            personId: person.id, companyId: co.id, roleId: role.id, type: 'EMPLOYEE',
+            grantReason: s.practice,
+          },
+        })
+      }
+      onPayroll++
+    }
+
+    // Cover on file, which is what lets a firm put anybody in front of a
+    // client at all. Neither integrator had any: `place` writes a
+    // certificate for whoever employs the consultant, and on every chain
+    // in this world these two sit in the middle. So the submit door
+    // refused them on COVER_LAPSED one screen before the payroll
+    // carve-out was ever reached.
+    for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+      if (await db.verification.findFirst({ where: { companyId: co.id, type } })) continue
+      await db.verification.create({
+        data: {
+          companyId: co.id, type, status: 'CLEAR', provider: 'Hartford',
+          issuedAt: day(-300), validFrom: day(-300), expiresAt: day(200),
+          uploadedById: seatBySlug.get(slug)!.personId,
+          verifiedById: seatBySlug.get(slug)!.personId, verifiedAt: day(-299),
+          result: { outcome: 'CLEAR' },
+        },
+      })
+    }
+  }
+
+  // And a seat one of them can actually answer with somebody off that
+  // payroll. Corveldt's DO-178C verification engineer is open and
+  // Corveldt chose which suppliers see it, so without an invitation the
+  // submit door refuses both integrators with NOT_INVITED and the picker
+  // leads nowhere. Both already supply Corveldt — Teleworld on avionics,
+  // Sundara on PLM — and Karthik Menon and Aditi Ramaswamy are the two
+  // people on this list who could do the work.
+  const corveldt = firmBySlug.get('corveldt')!
+  const avionics = await db.requirement.findFirst({
+    where: { companyId: corveldt.id, title: 'DO-178C verification engineer' },
+    select: { id: true },
+  })
+  if (avionics) {
+    for (const slug of ['teleworld', 'sundara']) {
+      const to = firmBySlug.get(slug)!
+      if (await db.requirementInvitation.findFirst({ where: { requirementId: avionics.id, toCompanyId: to.id } })) continue
+      await db.requirementInvitation.create({
+        data: {
+          requirementId: avionics.id, fromCompanyId: corveldt.id, toCompanyId: to.id,
+          // Under the client's own ceiling, and not the same for both.
+          payMin: 13_000, payMax: slug === 'teleworld' ? 14_500 : 14_000,
+          expiresAt: day(12), status: 'SENT', createdAt: day(-9),
+        },
+      })
+    }
+  }
+
   // ── The three client programs ──────────────────────────────────────
   //
   // Everything above is one placement seen from each firm in its chain.
@@ -839,6 +967,8 @@ export async function seedWorld(): Promise<{
   return {
     firms: FIRMS.length,
     placements: placed.length + programs.placements,
+    /// Employees of the two integrators, on payroll and on nobody's bench.
+    onPayroll,
     consultants: NAMES.length + LIVE.length + programs.people,
     live: LIVE.length,
     roster: FIRMS.map((f) => ({ kind: f.kind as string, name: f.name, slug: PREFIX + f.slug })),

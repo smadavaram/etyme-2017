@@ -212,18 +212,23 @@ under both settings of the term. Asserted on what the route returns,
 never on what the screen renders: the screen is what hid the last one of
 these.
 
-**Still open after this.** Named rather than implied — including the one
-that was open when this was written and is closed now.
+**Still open after this.** Named rather than implied — including the two
+that were open when this was written and are closed now, kept in the list
+rather than deleted so a reviewer can see what moved and when.
 
-- **The term has no control on the agreements screen yet.** The column is
-  written and read by the API (`PATCH` and `GET
-  /api/program/agreements`), and the screen that would tick it is
-  `etyme-demand`'s. What it needs is one line on the terms panel — a
-  checkbox reading "Name our sub-vendors to this client", bound to
-  `terms.disclosesSubVendors`, with `terms.disclosureSays` under it —
-  until which a client that demanded disclosure at signing has it
-  recorded through the API rather than by its supplier's contract
-  manager.
+- **The term has a control on the agreements screen, as of `fd577747`.**
+  It was open when this section was written. The terms panel on
+  `/dashboard/program/agreements` now carries a checkbox reading "Name
+  our sub-vendors to this client", bound to `terms.disclosesSubVendors`,
+  amended through the same `PATCH /api/program/agreements/:id` with the
+  same reason field and landing on `MasterAgreementVersion` like every
+  other term. Both sides read it — the client is the party that demands
+  disclosure at signing, so its copy carries the chip, the sentence and
+  a line saying whose terms these are to change. The words a reader sees
+  are arithmetic in
+  `src/app/dashboard/program/agreements/standing.ts`, tested as
+  sentences by `__tests__/invariants/agreement-screen.test.ts` rather
+  than matched as a regex over JSX.
 - **Nothing refuses a prime that lists a sub as a supplier elsewhere.**
   The wall is on the read surfaces; it is not a constraint the database
   enforces. **The scanner is built** —
@@ -614,11 +619,30 @@ Stated in one place so a reviewer does not have to assemble it.
 **Coverage gaps in controls that do exist**
 - A sub-vendor's **name** is withheld from the client on all three
   chain-aggregating surfaces unless the client's agreement with the prime
-  requires disclosure (section 3). What remains is that the wall lives in
-  the read surfaces rather than in a constraint, so a surface written
-  tomorrow can leak the same way, and the disclosure term has no control
-  on the agreements screen yet. The employing firm's **id** still travels
-  on a timesheet row, deliberately.
+  requires disclosure (section 3), and that term now has a control on the
+  agreements screen. What remains is that **the wall lives in the read
+  surfaces rather than in a constraint the database enforces**, so a
+  surface written tomorrow can leak the same way. What stands against
+  that is a source scanner rather than a constraint —
+  `__tests__/invariants/client-facing-names.test.ts`, in the pure suite
+  on every commit — which fails on any new read scoped to every rung at a
+  client that asks the selling firm for its name without going through
+  `nameForClient` / `namesForClient` or `chainTop` / `payerRung`. It
+  currently lists six files that still do, all `etyme-demand`'s, each
+  with what it gives away: the client's "needs you" queue
+  (`src/app/api/decisions/route.ts`), cross-vendor identity resolution
+  (`src/app/api/identity/route.ts`), the client's Network register
+  (`src/app/api/people/route.ts`), one person's page
+  (`src/app/api/people/[id]/route.ts`), the org view
+  (`src/app/api/program/org/route.ts`) and the client dashboard's
+  approval queue (`src/app/api/program/route.ts`). A seventh appearing
+  anywhere fails the build on the commit that adds it; what the scanner
+  cannot see is listed in section 3. `KNOWN_TO_NAME_BELOW_THE_RUNG` in
+  that test is the register and this paragraph follows it — read the test
+  rather than this list if the two ever disagree, because the test is
+  wrong for exactly one commit and a document is wrong for a month. The
+  employing firm's **id** still travels on a timesheet row,
+  deliberately.
 - Access logging covers 19 route files of 231 (section 4).
 - Access logging is fire-and-forget, so a log write failure does not fail
   the request.
