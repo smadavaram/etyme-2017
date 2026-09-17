@@ -56,6 +56,13 @@ export interface TermRow {
   minMarginPct: number | null
   marginFloorSays: string | null
   capacity: number | null
+  /**
+   * Whether this agreement entitles the client to the names of the firms
+   * behind a placement. Off unless the client demanded it at signing —
+   * a sub-vendor's name is the prime's to keep.
+   */
+  disclosesSubVendors: boolean
+  disclosureSays: string | null
   signedAt: string | null
   effectiveDate: string | null
   expiresAt: string | null
@@ -514,6 +521,7 @@ export function termLines(
     renewalKind: string
     renewalMonths: number | null
     noticeDays: number | null
+    disclosesSubVendors?: boolean | null
   },
   role: 'VENDOR' | 'CLIENT'
 ): TermLine[] {
@@ -537,6 +545,22 @@ export function termLines(
     },
   ]
 
+  // Who the client is entitled to be told about. Both sides read this
+  // one — unlike the margin floor, which is the supplier's alone — because
+  // the client is the party that demands disclosure at signing and should
+  // be able to see on the screen whether it was granted.
+  //
+  // An older amendment snapshot that predates the term carries no answer
+  // at all, and the line is left off rather than printed as "Ours to
+  // keep", which would be this morning's default passed off as March's
+  // agreement.
+  if (terms.disclosesSubVendors != null) {
+    lines.push({
+      label: 'Sub-vendor names',
+      value: disclosureValue(terms.disclosesSubVendors, role),
+    })
+  }
+
   if (role === 'VENDOR') {
     lines.push({
       label: 'Margin floor',
@@ -545,6 +569,134 @@ export function termLines(
   }
 
   return lines
+}
+
+/** The disclosure term as a value on the terms grid, from where you sit. */
+function disclosureValue(discloses: boolean, role: 'VENDOR' | 'CLIENT'): string {
+  if (role === 'CLIENT') return discloses ? 'Named to us' : 'Not named to us'
+  return discloses ? 'Named to this client' : 'Ours to keep'
+}
+
+// ── Who gets named ────────────────────────────────────────────────────
+
+/**
+ * The one control on this screen for a decision that is otherwise only
+ * reachable through the API.
+ *
+ * The rule it sets: a sub-vendor's name is the prime's to keep, so a
+ * client sees the rung it pays and "Supplied through Computer Systems"
+ * below it — unless its agreement with the prime requires disclosure, in
+ * which case it sees the sub by name. Off by default, because the NDA
+ * between a prime and its sub is what stops the sub going round the
+ * prime, and nothing the platform does grants what the paper did not.
+ *
+ * Recording is not granting. Ticking this box writes down what the two
+ * firms agreed; it goes on the version trail with a reason like every
+ * other term, so "were we entitled to that name in March" is answered
+ * from the trail rather than from today's row.
+ */
+export interface DisclosureControl {
+  /** The checkbox's own words, from the side of the deal reading it. */
+  label: string
+  /** Whether the agreement as it stands names sub-vendors to the client. */
+  checked: boolean
+  /** What that means, in a sentence, under the control. */
+  says: string
+  /** Whether this reader may amend it. */
+  editable: boolean
+  /** If they may not, why — never a disabled box with no words. */
+  whyNot: string | null
+}
+
+export function disclosureControl(
+  terms: { disclosesSubVendors?: boolean | null; disclosureSays?: string | null },
+  role: 'VENDOR' | 'CLIENT',
+  status: string,
+  counterpartyName: string
+): DisclosureControl {
+  const checked = terms.disclosesSubVendors === true
+  const says =
+    terms.disclosureSays ??
+    (checked
+      ? 'Sub-vendors are named to the client.'
+      : 'Sub-vendors are the supplier\u2019s own; the client sees their standing, not their names.')
+
+  const label =
+    role === 'VENDOR'
+      ? 'Name our sub-vendors to this client'
+      : `${counterpartyName} names its sub-vendors to us`
+
+  if (role === 'CLIENT') {
+    return {
+      label,
+      checked,
+      says,
+      editable: false,
+      whyNot:
+        `These are ${counterpartyName}\u2019s terms to record. You read them here; they change ` +
+        `them. If your agreement says you are entitled to the names of the firms behind the ` +
+        `people on your sites and this says otherwise, ask them to amend it.`,
+    }
+  }
+
+  const amendable = status !== 'TERMINATED'
+  return {
+    label,
+    checked,
+    says,
+    editable: amendable,
+    whyNot: amendable
+      ? null
+      : 'This agreement was ended, so its terms are history. Who was named under it stays ' +
+        'what it was on the day.',
+  }
+}
+
+// ── What the amendment form sends ─────────────────────────────────────
+
+/** The form as a person filled it in — every field a string or a tick. */
+export interface AmendmentForm {
+  paymentTermsDays: string
+  marginFloor: string
+  capacity: string
+  starts: string
+  ends: string
+  renewalKind: string
+  renewalMonths: string
+  noticeDays: string
+  disclosesSubVendors: boolean
+  reason: string
+}
+
+/**
+ * The body of `PATCH /api/program/agreements/:id`, built from the form.
+ *
+ * Pure, and out here rather than inside the component, so what the screen
+ * actually sends can be read by a test that calls it instead of by a
+ * regex over JSX. Two things it deliberately does:
+ *
+ * - **No `signedAt`.** A signature is two named people with titles,
+ *   recorded on the Signing panel. The route refuses a bare date for
+ *   exactly that reason, and the old form sent one on every save, so
+ *   every amendment failed and nobody knew.
+ * - **`disclosesSubVendors` goes with the rest.** A change to who gets
+ *   named is an amendment, not a setting, so it travels the same path,
+ *   carries the same reason, and lands on the same version trail.
+ */
+export function amendmentBody(form: AmendmentForm): Record<string, unknown> {
+  const blank = (v: string) => v.trim() === ''
+  return {
+    paymentTerms: Number(form.paymentTermsDays),
+    minMarginPct: blank(form.marginFloor) ? null : Number(form.marginFloor),
+    capacity: blank(form.capacity) ? null : Number(form.capacity),
+    effectiveDate: blank(form.starts) ? null : form.starts,
+    expiresAt: blank(form.ends) ? null : form.ends,
+    renewalKind: form.renewalKind,
+    renewalMonths: blank(form.renewalMonths) ? null : Number(form.renewalMonths),
+    noticeDays: blank(form.noticeDays) ? null : Number(form.noticeDays),
+    disclosesSubVendors: form.disclosesSubVendors,
+    reason: blank(form.reason) ? undefined : form.reason.trim(),
+  }
 }
 
 /** How an agreement renews, said. */

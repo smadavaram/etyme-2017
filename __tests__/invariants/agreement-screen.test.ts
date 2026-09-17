@@ -22,7 +22,9 @@ import { join } from 'node:path'
 import { AGREEMENT_REASONS } from '@/app/api/program/agreements/verdict'
 import {
   DO_THIS,
+  amendmentBody,
   amendmentHeading,
+  disclosureControl,
   emptySays,
   headline,
   insideNoticePeriod,
@@ -79,6 +81,9 @@ function row(over: Partial<StandingInput> = {}): StandingInput {
       renewalKind: 'FIXED',
       renewalMonths: null,
       noticeDays: null,
+      disclosesSubVendors: false,
+      disclosureSays:
+        'Sub-vendors are the supplier\u2019s own; the client sees their standing, not their names.',
     },
     signing: { says: 'Nobody has signed it.', signatures: [] },
     headcount: 0,
@@ -509,5 +514,197 @@ describe('The screen itself', () => {
   it('the screen reaches for no color outside the brand', () => {
     const offBrand = PAGE.match(/bg-(red|amber|orange|emerald|green|blue|yellow|purple|indigo)-\d00/g)
     expect(offBrand).toBeNull()
+  })
+})
+
+// ── Who the client may be told about ─────────────────────────────
+
+/**
+ * A sub-vendor's name is the prime's to keep, unless the client's
+ * agreement with the prime requires disclosure. That is one column,
+ * `MasterAgreement.disclosesSubVendors`, off by default, on the version
+ * trail — and for a day it was a decision only reachable by sending a
+ * PATCH by hand, because no screen drew it. These are the sentences that
+ * would have caught that.
+ */
+
+describe('Whether the firms behind a placement are named to the client', () => {
+  const clientRow = row({ role: 'CLIENT', counterparty: { id: 'v1', name: 'Computer Systems' } })
+
+  it('the terms panel says whether the firms behind a placement are named to this client', () => {
+    const named = termLines({ ...row().terms, disclosesSubVendors: true }, 'VENDOR')
+    expect(named.find((l) => l.label === 'Sub-vendor names')?.value).toBe('Named to this client')
+  })
+
+  it('a supplier that agreed nothing reads that the names are its own to keep', () => {
+    const lines = termLines(row().terms, 'VENDOR')
+    expect(lines.find((l) => l.label === 'Sub-vendor names')?.value).toBe('Ours to keep')
+  })
+
+  it('a client reading the same agreement sees whether the names are disclosed to it', () => {
+    const withheld = termLines(clientRow.terms, 'CLIENT')
+    expect(withheld.find((l) => l.label === 'Sub-vendor names')?.value).toBe('Not named to us')
+    const named = termLines({ ...clientRow.terms, disclosesSubVendors: true }, 'CLIENT')
+    expect(named.find((l) => l.label === 'Sub-vendor names')?.value).toBe('Named to us')
+  })
+
+  it('an amendment recorded before the term existed says nothing about it rather than guessing', () => {
+    // An older version snapshot carries no answer. Printing today's
+    // default as March's agreement would be a fact nobody can stand
+    // behind, so the line is left off the trail entirely.
+    const lines = termLines(
+      {
+        paymentTerms: 45,
+        currency: 'USD',
+        minMarginPct: null,
+        capacity: null,
+        effectiveDate: null,
+        expiresAt: null,
+        renewalKind: 'EVERGREEN',
+        renewalMonths: null,
+        noticeDays: null,
+      },
+      'VENDOR'
+    )
+    expect(lines.map((l) => l.label)).not.toContain('Sub-vendor names')
+  })
+
+  it('the control is off unless the agreement says otherwise, because the name is the prime’s to keep', () => {
+    expect(disclosureControl({}, 'VENDOR', 'ACTIVE', 'Northwind').checked).toBe(false)
+    expect(
+      disclosureControl({ disclosesSubVendors: null }, 'VENDOR', 'ACTIVE', 'Northwind').checked
+    ).toBe(false)
+  })
+
+  it('the control is bound to the agreement’s own term, not to a preference', () => {
+    const on = disclosureControl(row().terms, 'VENDOR', 'ACTIVE', 'Northwind')
+    expect(on.checked).toBe(false)
+    const off = disclosureControl(
+      { ...row().terms, disclosesSubVendors: true, disclosureSays: 'Sub-vendors are named to the client.' },
+      'VENDOR',
+      'ACTIVE',
+      'Northwind'
+    )
+    expect(off.checked).toBe(true)
+    expect(off.says).toBe('Sub-vendors are named to the client.')
+  })
+
+  it('the supplier is asked in its own words whether to name its sub-vendors to this client', () => {
+    const control = disclosureControl(row().terms, 'VENDOR', 'ACTIVE', 'Northwind')
+    expect(control.label).toBe('Name our sub-vendors to this client')
+    expect(control.editable).toBe(true)
+    expect(control.whyNot).toBeNull()
+    expect(control.says.length).toBeGreaterThan(20)
+  })
+
+  it('a client may read who gets named but not change it, and is told whose terms these are', () => {
+    const control = disclosureControl(clientRow.terms, 'CLIENT', 'ACTIVE', 'Computer Systems')
+    expect(control.editable).toBe(false)
+    expect(control.label).toContain('Computer Systems')
+    expect(control.whyNot).toContain('Computer Systems')
+    expect(control.whyNot).toMatch(/amend/)
+  })
+
+  it('an ended agreement offers nobody the control, and says why rather than going gray', () => {
+    const control = disclosureControl(row().terms, 'VENDOR', 'TERMINATED', 'Northwind')
+    expect(control.editable).toBe(false)
+    expect(control.whyNot).toContain('history')
+  })
+
+  it('never shows a blank where the term should be, whichever side is reading', () => {
+    for (const role of ['VENDOR', 'CLIENT'] as const) {
+      for (const discloses of [true, false]) {
+        const control = disclosureControl({ disclosesSubVendors: discloses }, role, 'ACTIVE', 'Northwind')
+        expect(control.says.trim()).not.toBe('')
+        expect(control.label.trim()).not.toBe('')
+      }
+    }
+  })
+})
+
+describe('Changing who gets named is an amendment, not a setting', () => {
+  const filled = {
+    paymentTermsDays: '45',
+    marginFloor: '20',
+    capacity: '',
+    starts: '2026-01-01',
+    ends: '2026-12-31',
+    renewalKind: 'FIXED',
+    renewalMonths: '',
+    noticeDays: '60',
+    disclosesSubVendors: false,
+    reason: '',
+  }
+
+  it('ticking the box goes through the amendment path with every other term', () => {
+    const body = amendmentBody({ ...filled, disclosesSubVendors: true })
+    expect(body.disclosesSubVendors).toBe(true)
+    expect(body.paymentTerms).toBe(45)
+    expect(body.minMarginPct).toBe(20)
+  })
+
+  it('unticking it is sent too, so taking the entitlement away is on the trail as well as granting it', () => {
+    expect(amendmentBody(filled).disclosesSubVendors).toBe(false)
+  })
+
+  it('the amendment carries the reason somebody typed, the way every other term change does', () => {
+    const body = amendmentBody({
+      ...filled,
+      disclosesSubVendors: true,
+      reason: '  Amendment 3, signed 2 April — Northwind is entitled to the names.  ',
+    })
+    expect(body.reason).toBe('Amendment 3, signed 2 April — Northwind is entitled to the names.')
+  })
+
+  it('an amendment nobody explained sends no reason at all, rather than an empty one', () => {
+    expect(amendmentBody(filled).reason).toBeUndefined()
+  })
+
+  it('the amendment form still never sends a signature, whatever else moved', () => {
+    expect(Object.keys(amendmentBody({ ...filled, disclosesSubVendors: true }))).not.toContain(
+      'signedAt'
+    )
+  })
+
+  it('a blank field is sent as nothing on file, not as zero', () => {
+    const body = amendmentBody({ ...filled, capacity: '', noticeDays: '', marginFloor: '' })
+    expect(body.capacity).toBeNull()
+    expect(body.noticeDays).toBeNull()
+    expect(body.minMarginPct).toBeNull()
+  })
+})
+
+describe('The control is actually on the screen', () => {
+  const PAGE = read('src/app/dashboard/program/agreements/page.tsx')
+
+  it('the terms panel draws the disclosure term for whoever is reading it', () => {
+    expect(PAGE).toContain('disclosureControl(')
+    expect(PAGE).toContain('<Disclosure control={disclosure} />')
+  })
+
+  it('the supplier’s amendment form carries a checkbox for naming its sub-vendors', () => {
+    const start = PAGE.indexOf('function AmendForm(')
+    const form = PAGE.slice(start, PAGE.indexOf('\n}\n', start))
+    expect(form).toContain('type="checkbox"')
+    expect(form).toContain('name="disclosesSubVendors"')
+    expect(form).toContain('Name our sub-vendors to this client')
+  })
+
+  it('the checkbox shows what the agreement says today, and sends what the reader set', () => {
+    const start = PAGE.indexOf('function AmendForm(')
+    const form = PAGE.slice(start, PAGE.indexOf('\n}\n', start))
+    expect(form).toContain('useState(t.disclosesSubVendors === true)')
+    expect(form).toContain('checked={discloses}')
+    expect(form).toContain('disclosesSubVendors: discloses')
+    expect(form).toContain('amendmentBody({')
+  })
+
+  it('the client sees the term on the same panel, with no control to change it', () => {
+    // TermPanel is drawn for both sides; only the supplier is handed the
+    // amendment form. The client's copy is the sentence and the chip.
+    const start = PAGE.indexOf('function TermPanel(')
+    const panel = PAGE.slice(start, PAGE.indexOf('\n}\n', start))
+    expect(panel).toContain('<Disclosure control={disclosure} />')
+    expect(panel).toContain('{editable && agreement.status !==')
   })
 })

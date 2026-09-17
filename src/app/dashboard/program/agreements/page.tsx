@@ -9,7 +9,9 @@ import {
   FILTERS,
   RENEWAL_CHOICES,
   SIGNING_CHOICES,
+  amendmentBody,
   amendmentHeading,
+  disclosureControl,
   emptySays,
   headline,
   insideNoticePeriod,
@@ -26,6 +28,7 @@ import {
   tasks,
   termLines,
   type AmendmentRow,
+  type DisclosureControl,
   type SignatureRow,
   type StandingInput,
   type Task,
@@ -969,6 +972,12 @@ function TermPanel({
 }) {
   const [editing, setEditing] = useState(false)
   const lines = termLines(agreement.terms, agreement.role)
+  const disclosure = disclosureControl(
+    agreement.terms,
+    agreement.role,
+    agreement.status,
+    agreement.counterparty.name
+  )
 
   return (
     <div className="mt-6 border-t border-etyme-rule pt-6">
@@ -1001,6 +1010,8 @@ function TermPanel({
         </p>
       )}
 
+      <Disclosure control={disclosure} />
+
       {agreement.status === 'TERMINATED' && (
         <p className="mt-3 text-[12px] text-etyme-muted">
           These terms are history. An ended agreement cannot be amended — changing the payment
@@ -1018,6 +1029,33 @@ function TermPanel({
           onFailed={onFailed}
         />
       )}
+    </div>
+  )
+}
+
+/**
+ * Whether this client is entitled to the names of the firms behind a
+ * placement — read by both sides of the deal.
+ *
+ * The margin floor above it is the supplier's alone. This one is not: the
+ * client is the party that demands disclosure at signing, and a client
+ * that demanded it should be able to see on a screen whether it was
+ * written down, rather than take somebody's word for it. Read-only for
+ * whichever side cannot amend, with a sentence saying why.
+ */
+function Disclosure({ control }: { control: DisclosureControl }) {
+  return (
+    <div className="mt-4 rounded border border-etyme-rule bg-etyme-surface p-3">
+      <div className="flex items-start gap-3">
+        <span className={`chip shrink-0 ${control.checked ? 'chip--action' : 'chip--passive'}`}>
+          {control.checked ? 'Named' : 'Withheld'}
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm text-etyme-ink">{control.label}</p>
+          <p className="mt-0.5 text-[12px] text-etyme-muted">{control.says}</p>
+          {control.whyNot && <p className="mt-1 text-[12px] text-etyme-faint">{control.whyNot}</p>}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1040,6 +1078,7 @@ function AmendForm({
   const [renewal, setRenewal] = useState(t.renewalKind)
   const [months, setMonths] = useState(t.renewalMonths == null ? '' : String(t.renewalMonths))
   const [notice, setNotice] = useState(t.noticeDays == null ? '' : String(t.noticeDays))
+  const [discloses, setDiscloses] = useState(t.disclosesSubVendors === true)
   const [why, setWhy] = useState('')
   const [busy, setBusy] = useState(false)
   const [refusal, setRefusal] = useState<string | null>(null)
@@ -1056,15 +1095,18 @@ function AmendForm({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paymentTerms: Number(days),
-          minMarginPct: floor.trim() === '' ? null : Number(floor),
-          capacity: capacity.trim() === '' ? null : Number(capacity),
-          effectiveDate: starts.trim() === '' ? null : starts,
-          expiresAt: ends.trim() === '' ? null : ends,
-          renewalKind: renewal,
-          renewalMonths: months.trim() === '' ? null : Number(months),
-          noticeDays: notice.trim() === '' ? null : Number(notice),
-          reason: why.trim() || undefined,
+          ...amendmentBody({
+            paymentTermsDays: days,
+            marginFloor: floor,
+            capacity,
+            starts,
+            ends,
+            renewalKind: renewal,
+            renewalMonths: months,
+            noticeDays: notice,
+            disclosesSubVendors: discloses,
+            reason: why,
+          }),
         }),
       })
       onDone(body.says)
@@ -1119,6 +1161,38 @@ function AmendForm({
         {renewal === 'AUTO_RENEW' && (
           <Field label="Renews for (months)" value={months} onChange={setMonths} placeholder="12" />
         )}
+
+        {/*
+          Who the client may be told about. A term, not a setting: it is
+          recorded here beside the payment days and the margin floor so it
+          amends through the same path, carries the same reason, and lands
+          on the same version trail.
+        */}
+        <label className="block sm:col-span-2 md:col-span-4">
+          <span className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              name="disclosesSubVendors"
+              checked={discloses}
+              onChange={(e) => setDiscloses(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-etyme-action"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm text-etyme-ink">
+                Name our sub-vendors to this client
+              </span>
+              <span className="mt-0.5 block text-[12px] text-etyme-muted">
+                {discloses
+                  ? 'Every firm behind a placement is named to the client, on compliance, on tenure and on the alumni list.'
+                  : 'The client sees the rung it pays and \u201cSupplied through us\u201d below it. A sub-vendor\u2019s name is ours to keep.'}
+              </span>
+              <span className="mt-0.5 block text-[11px] text-etyme-faint">
+                Tick this only where the signed agreement requires it. Recording is not
+                granting, and what you record here is on the trail with your reason.
+              </span>
+            </span>
+          </span>
+        </label>
       </div>
 
       <label className="mt-4 block">
