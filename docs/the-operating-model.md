@@ -74,13 +74,63 @@ Three things, and the third is the one the build under-reads:
 - **A work order every time.** Not once per relationship — once per
   engagement.
 
-  **The work order is the PO. Settled by the founder, 2026-09-17:** *"work
-  order is not separate from PO — the client gives it to the supplier and
-  it agrees rate, duration, resource and location of work."* So it is one
-  document with four terms, and **it is not `SalesOrder`** — that model is
-  a supplier-side instrument the founder's account of the trade does not
-  contain, which is the likeliest reason nothing has ever created one.
-  Do not build `SalesOrder` to fill this station.
+  **The work order is the PO, and the PO is the sales order. Settled by
+  the founder, 2026-09-17**, in two statements an hour apart:
+
+  > Work order is not separate from PO — the client gives it to the
+  > supplier and it agrees rate, duration, resource and location of work.
+
+  > The PO on the client side is the sales order on the vendor side.
+
+  So there is **one commercial document with three names**, depending on
+  which end of it you stand: the client raises a purchase order, the
+  supplier receives it as a sales order, and the trade calls the whole
+  thing a work order. Not three documents. Not two rows.
+
+  *An earlier version of this file, written an hour before the second
+  statement, concluded "do not build `SalesOrder` — the trade does not
+  contain one". That was wrong, and wrong in an instructive way: the
+  trade contains it, under the name the seller uses. The observation
+  underneath it still holds — nothing has ever created a `SalesOrder` —
+  but the reason is not that the document is fictional. It is that the
+  product models one document as two rows and only ever writes one of
+  them.*
+
+  **And the two rows are not duplicates. Each carries what the other
+  lacks**, which is why neither can be deleted without moving fields:
+
+  | | `PurchaseOrder` (client's name) | `SalesOrder` (vendor's name) |
+  |---|---|---|
+  | Ever created? | **yes** — 3 write sites | **no** — none, anywhere |
+  | Parties | issuer, recipient | **sold-to, bill-to, ship-to, payer** |
+  | Ceiling | `amount` | `ceilingCents` |
+  | Dates | start, end | start, end |
+  | Billed how | — | **`billingBasis`: time or milestone** |
+  | Milestones | — | **`OrderMilestone[]`** |
+  | Silence counts as approval | — | **`autoApproveTimesheets`, `approvalWindowDays`** |
+
+  The vendor's view holds all the commercial substance — a client that
+  signs in one entity, is billed through a shared service centre, has the
+  work done at a third site and pays from a fourth; whether the thing is
+  billed by time or by milestone; and the term that says an unanswered
+  timesheet is approved after N days. The client's view is what actually
+  gets written, and can express none of it.
+
+  **Three consequences follow, and one of them is already costing money:**
+
+  1. **Auto-approval of timesheets can never fire.** `cron/auto-approve`
+     reads `salesOrder.autoApproveTimesheets`, and no `SalesOrder` exists,
+     so the flag is false on every timesheet in the world. The cron runs
+     nightly and approves nothing. It is not broken — it is reading a term
+     from a row nobody writes.
+  2. **Milestone billing is unreachable** by the same route, and the
+     Milestones screen is permanently empty.
+  3. **The four-party billing split is unreachable**, which is the first
+     thing a large enterprise asks for.
+
+  The fix is one order object named per viewer — a client reads "purchase
+  order", a supplier reads "sales order", the trade says "work order", one
+  row underneath. That is a schema change and the architect's to make.
 
   The four terms already exist, split across two rows the way CLAUDE.md's
   own rule requires — *an order carries a ceiling, a contract carries a
