@@ -116,24 +116,23 @@ describe('the travel nurse whose license runs out inside her assignment', () => 
     expect(startPacketFor(contract.requirement?.title)).toBe('CONTRACT_START_LICENSED')
   })
 
-  it('has a renewal ask on her own page, and the nightly chase would raise the same one', async () => {
-    // The seed writes the ask by hand so the seat has something to show.
-    // This is the part that matters: the arithmetic behind a nightly
-    // chase, run against her real row, wants the same ask — so the seat
-    // is describing the system rather than a prop placed beside it.
+  it('has a renewal ask raised by the nightly chase, which is the same ask the arithmetic wants', async () => {
+    // etyme-architect, 2026-09-17. This used to read the request the seed
+    // typed in by hand and say the chase "would" raise the same one. It
+    // does raise it now (`lib/credential-chase`, called by
+    // `api/cron/watch` and once by the seed over the world it makes), so
+    // the ask being read here is the product's own.
     const colleen = await prisma.person.findUniqueOrThrow({
       where: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' },
       select: { id: true },
     })
-    const asked = await prisma.docInstance.findFirst({
-      where: {
-        subjectType: 'PERSON',
-        subjectId: colleen.id,
-        template: { name: { contains: 'renewal' } },
-      },
+    const asked = await prisma.documentPacket.findFirst({
+      where: { packetKey: 'CREDENTIAL_RENEWAL', subjectPersonId: colleen.id },
+      include: { items: true },
     })
     expect(asked, 'her seat promises a renewal has been asked for').toBeTruthy()
-    expect(asked!.status).toBe('SENT')
+    expect(asked!.items.map((i) => i.key)).toEqual(['PROFESSIONAL_LICENSE'])
+    expect(asked!.reopenedReason).toContain('Wisconsin Board of Nursing')
 
     const [chase] = credentialsToChase(await herCredentials(), credentialKeys(), now())
     expect(chase, 'a license inside sixty days of lapsing is chased').toBeTruthy()

@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from 'next/server'
  * Three kinds of host reach us:
  *
  *   cloudepa.etyme.com        a company's address
- *   talent.cloudepa.com       a domain they own, pointed here
+ *   talent.cloudepa.example   a domain they own, pointed here
  *   etyme.com, localhost      the platform itself
  *
  * The host is read here and passed down as a header, so every page and

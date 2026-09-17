@@ -16,6 +16,13 @@ import {
 } from '@/lib/watch'
 import { packetByKey, resolveItems, itemsToAsk, type HeldDocument } from '@/lib/packets'
 import { coverGaps } from '@/lib/cover-gap'
+import {
+  lookAtCredentials,
+  askForRenewal,
+  CREDENTIAL_KINDS,
+  CREDENTIAL_FINDING_NEEDS,
+  isCredential,
+} from '@/lib/credential-chase'
 import { sweepExpired } from '@/lib/holds'
 
 /**
@@ -54,6 +61,7 @@ export async function GET(request: NextRequest) {
   const findings = ordered([
     ...(await lookAtVerifications(now)),
     ...(await lookAtCoverGaps(now)),
+    ...(await lookAtCredentials(now)),
     ...(await lookAtPurchaseOrders(now)),
     ...(await lookAtAccess(now)),
     ...(await lookAtPackets(now)),
@@ -81,7 +89,13 @@ export async function GET(request: NextRequest) {
 
   if (!dry) {
     for (const f of findings.filter((x) => x.action === 'REOPEN_PACKET')) {
-      const outcome = await reopenFor(f, now)
+      // A license is a person's and a certificate of insurance is a
+      // firm's, so the two asks are raised against different subjects and
+      // sent to different people. Same rung, same automation log, one
+      // dispatch.
+      const outcome = (CREDENTIAL_KINDS as readonly string[]).includes(f.kind)
+        ? await askForRenewal({ personId: f.subjectId, askingCompanyId: f.companyId }, now)
+        : await reopenFor(f, now)
       if (outcome.done) {
         acted++
         actions.push(outcome.done)
@@ -130,19 +144,27 @@ async function lookAtVerifications(now: Date): Promise<Finding[]> {
       issuedAt: true, validFrom: true, expiresAt: true,
       company: { select: { name: true } },
       person: { select: { name: true } },
+      // Only to tell a license apart from everything else a person holds.
+      documentType: { select: { purpose: true, blocks: true, suppliedBy: true } },
     },
   })
 
   return watchVerifications(
-    rows.map((v) => ({
-      id: v.id,
-      companyId: v.companyId,
-      personId: v.personId,
-      type: v.type,
-      status: v.status,
-      expiresAt: v.expiresAt,
-      subjectName: v.company?.name ?? v.person?.name ?? 'Somebody',
-    })),
+    rows
+      // A person's license is chased by `lookAtCredentials`, which knows
+      // which firm places them and therefore which desk can do something.
+      // Left here as well it would be said twice, and the copy said here
+      // carries no company, so it would reach nobody.
+      .filter((v) => !(v.personId && isCredential(v)))
+      .map((v) => ({
+        id: v.id,
+        companyId: v.companyId,
+        personId: v.personId,
+        type: v.type,
+        status: v.status,
+        expiresAt: v.expiresAt,
+        subjectName: v.company?.name ?? v.person?.name ?? 'Somebody',
+      })),
     now
   )
 }
@@ -291,11 +313,12 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
       company: { select: { id: true, name: true } },
     },
   })
-  // Only a company's own cover is chased automatically. A person's
-  // documents belong to a conversation somebody is already having.
+  // A company's cover is chased here; a person's license is chased by
+  // `askForRenewal` in lib/credential-chase, which the loop above routes
+  // to. This used to return early on anything with a personId on the
+  // reasoning that a person's documents belong to a conversation somebody
+  // is already having — and nobody was having it.
   if (!verification?.companyId || !verification.company) {
-    // A person's documents belong to a conversation somebody is already
-    // having, so this is not a failure.
     return { done: null, because: null }
   }
 
@@ -485,6 +508,12 @@ async function tell(findings: Finding[], now: Date): Promise<number> {
     VERIFICATION_EXPIRING: 'vendors.manage',
     COVER_NOT_STARTED: 'vendors.manage',
     COVER_GAP: 'vendors.manage',
+    // A contractor's license is looked after by whoever looks after
+    // contractors — the recruiter, the resource manager, HR — and not by
+    // the desk that chases suppliers for their insurance.
+    CREDENTIAL_EXPIRED: CREDENTIAL_FINDING_NEEDS,
+    CREDENTIAL_EXPIRING: CREDENTIAL_FINDING_NEEDS,
+    CREDENTIAL_UNDATED: CREDENTIAL_FINDING_NEEDS,
     PO_EXHAUSTED: 'invoices.issue',
     PO_NEARLY_SPENT: 'invoices.issue',
     PO_ENDING: 'invoices.issue',

@@ -63,6 +63,10 @@ export async function GET(request: NextRequest) {
       workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
       engagement: { select: { id: true, title: true } },
       timesheets: { select: { id: true, status: true } },
+      // 2026-09-17. The role the contract is for, read by the starting-soon
+      // preview below: a licensed role is cleared against the licensed
+      // start packet, and a SellContract carries no title of its own.
+      requirement: { select: { title: true } },
     },
     orderBy: { endDate: 'asc' },
   })
@@ -263,7 +267,13 @@ export async function GET(request: NextRequest) {
   // October held in September, while activation refused the same
   // certificate on the start date. The shape is shared by both queries
   // below, which is why adding the column to one query would have missed.
-  const verificationShape = { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true } as const
+  // 2026-09-17, on the same precedent as `validFrom` above and for the
+  // same reason: a column nobody selects is invisible to arithmetic that
+  // is already right. `provider` and `result` carry who issued a license
+  // and its number and state, and the refusal has to name them — "RN
+  // 154-882, WI expired" can be checked against a register; "your license
+  // expired" cannot.
+  const verificationShape = { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true, provider: true, result: true } as const
   const startingSoon = await Promise.all(
     contracts.filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5).map(async (c) => {
       const [personVerifications, supplierCertificates] = await Promise.all([
@@ -276,6 +286,12 @@ export async function GET(request: NextRequest) {
         // supplied through Computer Systems has no current certificate".
         supplierName: shown(c.company.id, c.company.name).phrase, supplierCertificates,
         clientName: clientCompany.name, on: c.startDate > now ? c.startDate : now,
+        // The role, so the preview runs the same packet activation will:
+        // a licensed role with no license on file reads as a block a week
+        // early rather than as a pass here and a refusal on the day. The
+        // last day says whether the license outlives the assignment.
+        role: c.requirement?.title ?? null,
+        through: c.endDate,
       })
       return {
         contractId: c.id,

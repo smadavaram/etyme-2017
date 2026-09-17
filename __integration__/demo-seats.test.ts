@@ -404,11 +404,33 @@ describe('the four people the demo can be walked as', () => {
     expect(daysLeft).toBeLessThan(60)
   }, 30_000)
 
-  it('asks her for the renewal on her own page, and it is hers to answer', async () => {
-    const papers = await ownPapers('colleen.byrne@seed.etyme.invalid')
-    const renewal = papers.find((p) => /renewal/i.test(p.name))
-    expect(renewal, JSON.stringify(papers)).toBeTruthy()
-    expect(renewal!.todo).toBe('upload')
+  // etyme-architect, 2026-09-17. This read a document request the seed
+  // typed in by hand — the seed describing what the product ought to do.
+  // The nightly chase raises the ask now (`lib/credential-chase`), as a
+  // packet addressed to her with a link of her own, so the sentence moves
+  // to what is actually true of the seeded world.
+  it('asks her for the renewal at a link of her own, raised by the nightly chase and not typed into the seed', async () => {
+    const packet = await prisma.documentPacket.findFirst({
+      where: {
+        packetKey: 'CREDENTIAL_RENEWAL',
+        subjectPerson: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' },
+      },
+      include: { items: true },
+    })
+    expect(packet, 'nothing asked her for the renewal her seat promises').toBeTruthy()
+    expect(packet!.recipientEmail).toBe('colleen.byrne@seed.etyme.invalid')
+    expect(packet!.items.map((i) => i.key)).toEqual(['PROFESSIONAL_LICENSE'])
+
+    // And she hears about it where she will see it, with the link in it.
+    const her = await prisma.person.findUniqueOrThrow({
+      where: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' },
+      select: { id: true },
+    })
+    const told = await prisma.notification.findFirst({
+      where: { personId: her.id, entityId: packet!.id },
+    })
+    expect(told, 'she is asked and nobody told her').toBeTruthy()
+    expect(told!.body).toContain(`/packet/${packet!.token}`)
   }, 30_000)
 })
 

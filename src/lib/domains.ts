@@ -264,6 +264,11 @@ export const DOMAINS: Domain[] = [
       // by compliance, tenure and the bench at once, so it belongs to
       // none of them and queues here with the schema term it reads.
       'lib/chain-names',
+      // Asking a person for the renewal of the license they practice on.
+      // The person-side twin of the cover chase below, here for the same
+      // reason: the chase's plumbing belongs with the chase, and the
+      // standing of a single document stays with regulation.
+      'lib/credential-chase',
       // Where a company's cover has a hole in it — the weeks between one
       // policy ending and the next beginning. The nightly chase's own
       // arithmetic, here because the chase is here; the standing of a

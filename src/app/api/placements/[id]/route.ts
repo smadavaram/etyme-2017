@@ -407,8 +407,11 @@ export async function GET(
       // `validFrom` and `formEdition` were added on 2026-09-16 and have to
       // be selected explicitly or the floor and the edition check read
       // undefined and quietly pass.
+      // `result` joins them on 2026-09-17, on the same precedent: it
+      // carries a license's number and the state that issued it, which
+      // is what a refusal has to name to be checkable against a register.
       select: {
-        id: true, type: true, status: true, provider: true,
+        id: true, type: true, status: true, provider: true, result: true,
         issuedAt: true, validFrom: true, expiresAt: true, formEdition: true,
         backedBy: {
           select: {
@@ -536,6 +539,13 @@ export async function GET(
     supplierCertificates: ourCover,
     clientName: placement.clientCompany.name,
     on: now,
+    // 2026-09-17. The role picks the start packet, so a licensed role
+    // with no license on file is a gap the thread shows before anybody
+    // presses activate — until now the checklist could only judge a
+    // license somebody had already produced. The last day is what says
+    // a license in date today runs out inside the assignment.
+    role: placement.requirement?.title ?? null,
+    through: placement.endDate,
   })
 
   // The firm below us, read the same way we read the firm above. Null

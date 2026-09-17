@@ -76,6 +76,13 @@ const SURFACES: Record<string, string> = {
   'src/lib/onboarding.ts': read('src/lib/onboarding.ts'),
   'src/app/dashboard/access/page.tsx': read('src/app/dashboard/access/page.tsx'),
   'src/app/dashboard/suppliers/page.tsx': read('src/app/dashboard/suppliers/page.tsx'),
+  // etyme-architect, 2026-09-17. Not a screen, and here anyway: the host
+  // rules are the first thing every request passes through and their
+  // worked example named a domain an invented firm would have to own.
+  // `talent.cloudepa.com` is buyable by anybody, which is the hazard the
+  // seeds and the screens were just cleared of, and this file was outside
+  // the wall only because nothing thought to read it.
+  'src/middleware.ts': read('src/middleware.ts'),
 }
 
 /**

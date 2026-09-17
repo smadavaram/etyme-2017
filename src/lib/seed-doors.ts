@@ -53,6 +53,7 @@
 
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
+import { chaseCredentials } from '@/lib/credential-chase'
 import { day } from '@/lib/seed-days'
 import type { World } from '@/lib/seed-programmes'
 
@@ -533,14 +534,12 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
       },
     })
   }
-  await asked({
-    companySlug: 'halcyon',
-    name: 'Wisconsin RN license — renewal',
-    needsSignature: false,
-    audience: 'CANDIDATE',
-    personId: nurse.id,
-    sentDaysAgo: 3,
-  })
+  // The renewal ask is not written here. It used to be — a DocInstance
+  // typed into the seed so her seat had something to show — and that is
+  // the seed describing what the product ought to do rather than what it
+  // does. The nightly chase raises it now (`lib/credential-chase`, run at
+  // the end of this file), so what a visitor reads on her door is a
+  // packet the product itself raised, with its automation log beside it.
 
   // ── Karthik Menon, between projects ──────────────────────────────────
   //
@@ -747,6 +746,14 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
       sentDaysAgo: 6,
     })
   }
+
+  // ── The nightly chase, run once over the world it just made ─────────
+  //
+  // Colleen Byrne's license runs out inside her assignment, so the watch
+  // asks her for the renewal — the same call `api/cron/watch` makes every
+  // night, against the same rows. Idempotent by the packet it looks for
+  // before it writes one, so seeding twice asks nobody twice.
+  await chaseCredentials(day(0))
 
   return { people, placements }
 }

@@ -86,6 +86,10 @@ export async function POST(
       company: { select: { id: true, name: true } },
       clientCompany: { select: { id: true, name: true } },
       endClientCompany: { select: { id: true, name: true } },
+      // The role, because the clearance picks the start packet off it:
+      // a nurse is asked for a state license and a developer is not.
+      // A SellContract carries no title of its own.
+      requirement: { select: { title: true } },
     },
   })
 
@@ -158,8 +162,16 @@ export async function POST(
     // here as held, at the one moment that matters: somebody starting
     // work. Addendum E names lapsed supplier insurance as a block, and
     // cover that has not begun is the same exposure a month early.
+    //
+    // 2026-09-17, on the same precedent and for the same reason a column
+    // nobody selects is invisible to arithmetic that is already right:
+    // `provider` and `result` carry who issued a license and its number
+    // and state, which is what the refusal has to name — "RN 154-882, WI
+    // expired" is something a compliance officer can check against a
+    // register and "your license expired" is not.
     const FLOOR_AND_CEILING = {
       type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true,
+      provider: true, result: true,
     } as const
     const [personVerifications, supplier, supplierCertificates] = await Promise.all([
       prisma.verification.findMany({
@@ -182,6 +194,13 @@ export async function POST(
       supplierCertificates,
       clientName: contract.clientCompany.name,
       on: new Date(),
+      // 2026-09-17. The role decides which start packet is run, and a
+      // licensed role's packet requires the license — so a nurse with no
+      // license on file at all is refused here, where before there was
+      // no row to be lapsed and nothing to refuse. The last day says
+      // whether a license in date today runs out inside the assignment.
+      role: contract.requirement?.title ?? null,
+      through: contract.endDate,
     })
 
     if (papers.outcome === 'BLOCK') {
