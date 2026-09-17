@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { generateCycles } from '@/lib/cycle-generator'
-import { cyclesFor } from '@/lib/cycle-kinds'
+import { writeCyclesFor } from '@/lib/contract-cycles'
 import { loadContractHolidays } from '@/lib/holidays'
-import { getTemplatePack } from '@/lib/template-packs'
 import { evaluateGovernance } from '@/lib/governance'
 
 /**
@@ -230,52 +228,42 @@ export async function POST(
         })
       }
 
-      // Generate sell-side cycles from template pack (same pattern as POST /api/contracts)
+      // The dates this pair owes, through the one door that knows them.
+      //
+      // This route used to split the pack and call the generator itself,
+      // six lines copied from POST /api/contracts. That was survivable
+      // until a company could choose which way its dates move off a
+      // weekend or a holiday (`lib/cycle-shift`): the helper reads that
+      // answer off the company holding the contract and this copy did
+      // not, so a placement made by converting a submission was paid on
+      // the shipped default while the identical placement made by an
+      // award was paid on the day the company asked for. Nothing on any
+      // screen would have said why the two differed.
+      //
+      // Whatever is added to the helper next — a final partial period, a
+      // salary lag — now reaches this path without anybody remembering
+      // it exists.
       let sellCyclesCreated = 0
       if (submission.fromCompany.templatePack && end) {
-        const pack = getTemplatePack(submission.fromCompany.templatePack)
-        if (pack) {
-          // Only what this contract needs, on the side it belongs to.
-          //
-          // Every cycle used to land on the sell contract — including the
-          // salary and vendor-bill cycles that describe money going out.
-          // The payroll screen reads those off the buy contract, where
-          // they belong, so its list was always empty and nothing said so.
-          // And the pack's day fields were dropped here on the way in,
-          // which is why a pack asking for Monday got Friday.
-          const bc = buyContract
-          const split = cyclesFor(
-            bc ? { contractType: bc.contractType, vendorCompanyId: bc.vendorCompanyId } : null,
-            pack.cycleDefinitions
-          )
-          // Both calendars, unioned. A pay day on the client's holiday is
-          // as wrong as one on ours.
-          const holidays = await loadContractHolidays(
-            submission.fromCompanyId, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear()
-          )
+        // Both calendars, unioned. A pay day on the client's holiday is
+        // as wrong as one on ours.
+        const holidays = await loadContractHolidays(
+          submission.fromCompanyId, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear()
+        )
 
-          const generatedCycles = generateCycles(start, end, split.sell, holidays)
-
-          if (bc && split.buy.length > 0) {
-            const buyCycles = generateCycles(start, end, split.buy, holidays)
-            if (buyCycles.length > 0) {
-              await tx.cycle.createMany({
-                data: buyCycles.map((c) => ({ buyContractId: bc.id, kind: c.kind, dueOn: c.dueOn })),
-              })
-            }
-          }
-
-          if (generatedCycles.length > 0) {
-            await tx.cycle.createMany({
-              data: generatedCycles.map((c) => ({
-                sellContractId: sellContract.id,
-                kind: c.kind,
-                dueOn: c.dueOn,
-              })),
-            })
-            sellCyclesCreated = generatedCycles.length
-          }
-        }
+        const written = await writeCyclesFor(tx, {
+          sell: { id: sellContract.id, startDate: start, endDate: end },
+          buy: buyContract
+            ? {
+                id: buyContract.id,
+                contractType: buyContract.contractType,
+                vendorCompanyId: buyContract.vendorCompanyId,
+              }
+            : null,
+          packId: submission.fromCompany.templatePack,
+          holidays,
+        })
+        sellCyclesCreated = written.sell
       }
 
       // AutomationLog — CLAUDE.md: plain-English reason and honest reversible flag
