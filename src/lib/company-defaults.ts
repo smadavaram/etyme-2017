@@ -109,14 +109,30 @@ const SUPPLIER_ROLES: RoleSeed[] = [
   {
     name: 'Resource Manager',
     blurb: 'Owns the bench and who goes where.',
-    permissions: uniq(SEE_PEOPLE, ['consultants.write'], SEE_DEMAND, SEND_SUPPLY, SEE_WORK, ['assignments.write', 'utilization.read']),
+    // Same reason as the account manager below, from the other side: this
+    // is the desk that decides who fills a seat, which is what an award
+    // is. They already hold `assignments.write`; without
+    // `requirements.write` they could move somebody onto a project and
+    // not award them onto the requisition that pays for it.
+    permissions: uniq(SEE_PEOPLE, ['consultants.write'], ['requirements.read', 'requirements.write'], SEND_SUPPLY, SEE_WORK, ['assignments.write', 'utilization.read']),
   },
   {
     // The client relationship: the roles, the rates, the submissions,
     // what has been billed. Not payroll, not P&L.
     name: 'Account Manager',
     blurb: 'Owns the client relationship — roles, rates, submissions, and what was billed.',
-    permissions: uniq(SEE_PEOPLE, SEE_DEMAND, SEND_SUPPLY, SEE_WORK, OWN_PRICE, SEE_MONEY, ['vendors.read'], SEE_OUTSIDE),
+    // `requirements.write` because a prime is both sell and buy.
+    //
+    // A prime or a GSI raises its own requisition and buys against it from
+    // a sub-vendor, and awarding is an act on the requisition rather than
+    // on the person — it consumes a seat, closes the role and stands the
+    // other suppliers down. When the award route started asking which
+    // seat rather than only which company (2026-09-17), the only supplier
+    // desks holding this were Owner and Admin, so the account manager who
+    // had just sold the person could not award them. That is exactly the
+    // shape CLAUDE.md's "Who sells and who buys" exists to rule out, and
+    // the blurb has said "roles" since the day it was written.
+    permissions: uniq(SEE_PEOPLE, ['requirements.read', 'requirements.write'], SEND_SUPPLY, SEE_WORK, OWN_PRICE, SEE_MONEY, ['vendors.read'], SEE_OUTSIDE),
   },
   {
     // The firm's own people: paperwork, work authorization, starts. No
@@ -130,6 +146,11 @@ const SUPPLIER_ROLES: RoleSeed[] = [
     // invoices they give rise to. Does not submit people or pay anyone.
     name: 'Contract Manager',
     blurb: 'Agreements, orders, extensions and rate changes.',
+    // Deliberately not `requirements.write`. This desk papers an award —
+    // the agreement, the order, the rate, the extension — and does not
+    // choose who gets the seat. A firm where the same person picks the
+    // candidate and writes the contract they are paid under has no
+    // segregation on the one decision that commits money.
     permissions: uniq(SEE_PEOPLE, SEE_DEMAND, SEE_WORK, ['assignments.write'], OWN_PRICE, SEE_MONEY, ['vendors.read']),
   },
   {
@@ -291,6 +312,44 @@ export const RENAMED_ROLES: Record<string, string> = {
   // A staffing firm calls the desk that bills and pays Finance.
   'Accountant': 'Finance',
 }
+
+/**
+ * Permissions added to a default role after companies were already using
+ * it, and the reason each was added.
+ *
+ * `ensureDefaultRoles` adds a role that did not exist when a company was
+ * formed; it has never changed a role that does, on purpose — an admin
+ * who took a permission off a role meant it, and a wholesale sync would
+ * undo that silently every time somebody opened the access screen.
+ *
+ * So a widened default is declared here, one line per grant, and applied
+ * additively: a permission is added where the role lacks it and nothing
+ * is ever removed. The same shape as RENAMED_ROLES above, for the same
+ * reason — a company formed last month should not need a migration to
+ * pick up a decision taken this month.
+ *
+ * A grant here is not a small thing. Read the reason before adding one.
+ */
+export const GRANTED_SINCE: {
+  role: string
+  kinds: CompanyKind[]
+  permissions: Permission[]
+  /** Why, in a sentence, for whoever reads the access screen and wonders. */
+  why: string
+}[] = [
+  {
+    role: 'Account Manager',
+    kinds: ['VENDOR', 'GSI'],
+    permissions: ['requirements.write'],
+    why: 'A prime buys as well as sells, and the desk that sold the person awards them onto the prime\u2019s own requisition.',
+  },
+  {
+    role: 'Resource Manager',
+    kinds: ['VENDOR', 'GSI'],
+    permissions: ['requirements.write'],
+    why: 'The desk that decides who goes where awards the seat it is filling.',
+  },
+]
 
 export function rolesFor(kind: CompanyKind): RoleSeed[] {
   switch (kind) {
