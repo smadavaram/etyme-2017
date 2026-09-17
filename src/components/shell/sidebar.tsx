@@ -390,8 +390,13 @@ const CLIENT_NAV: NavSection[] = [
 /**
  * MSP and GSI both sit on the supply side of a placement, so they take
  * the vendor nav until their own sections are specified (Phase 3/4).
+ *
+ * Exported so that a test can ask whether a landing page a seat is sent
+ * to is a page that seat's own navigation offers. A demo door that lands
+ * somebody on a page with no way back is how the integrator seat was
+ * lost for a week.
  */
-function getNavForKind(
+export function getNavForKind(
   kind: CompanyKind | null | undefined,
   isConsultant: boolean
 ): NavSection[] {

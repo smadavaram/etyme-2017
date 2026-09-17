@@ -54,8 +54,13 @@ export function DeskPicker({ programs, supplier = false }: { programs: Program[]
     }
   }
 
+  // Two firms in a three-column grid read as two narrow columns of
+  // broken words with a hole beside them. The column count follows the
+  // number of doors.
+  const columns = programs.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'
+
   return (
-    <div className="mt-8 grid gap-4 md:grid-cols-3">
+    <div className={`mt-8 grid gap-4 ${columns}`}>
       {programs.map((p) => (
         <section key={p.slug} className="panel flex flex-col p-5">
           <p className="eyebrow">{p.where}</p>
@@ -95,7 +100,7 @@ export function DeskPicker({ programs, supplier = false }: { programs: Program[]
         </section>
       ))}
       {error && (
-        <p className="md:col-span-3 text-sm text-etyme-danger">
+        <p className="md:col-span-2 lg:col-span-3 text-sm text-etyme-danger">
           {error}
           {/seed-world/.test(error) && ' The shared programs have to be seeded once by whoever runs this deployment.'}
         </p>

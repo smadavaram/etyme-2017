@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { EtymeLogo } from '@/components/logo'
-import { DeskPicker, type Program } from './desk-picker'
+import { DeskPicker } from './desk-picker'
+import { CLIENT_PROGRAMS, SUPPLIER_SEATS, INTEGRATOR_SEATS } from './seats'
 
 /**
  * Three running programs, from whichever desk is yours.
@@ -12,37 +13,11 @@ import { DeskPicker, type Program } from './desk-picker'
  * their own desk and finding their own work waiting. So the door says
  * which desk, and each lands on its own queue.
  *
- * Everything below is true of the seeded programs (lib/seed-programmes)
- * and stays true when the seed is re-run. Nothing here describes a
- * screen that does not exist.
+ * Everything below is true of the seeded programs (lib/seed-programmes,
+ * lib/seed-world) and stays true when the seed is re-run. Nothing here
+ * describes a screen that does not exist. The seats themselves are in
+ * ./seats, where a test can read them.
  */
-
-const PROGRAMMES: Program[] = [
-  {
-    slug: 'world-nike',
-    name: 'Nike',
-    where: 'Beaverton, OR',
-    about:
-      'Three suppliers, one of them supplying through a bench vendor it never names. ' +
-      'A planning analyst on her second supplier here, fourteen months into an eighteen-month cap.',
-  },
-  {
-    slug: 'world-corning',
-    name: 'Corning',
-    where: 'Corning, NY',
-    about:
-      'A glass plant hiring validation, MES and quality people. A supplier whose liability ' +
-      'certificate runs out in twelve days, and a past contractor who is clear to come back.',
-  },
-  {
-    slug: 'world-terumo-bct',
-    name: 'Terumo BCT',
-    where: 'Lakewood, CO',
-    about:
-      'A medical device maker. One SAP consultant is twenty-three months on site across two ' +
-      'suppliers, against a cap of eighteen — a number neither supplier can see.',
-  },
-]
 
 export default function DemoPage() {
   return (
@@ -67,22 +42,27 @@ export default function DemoPage() {
           the data is shared, and what you change, everybody else at that company sees.
         </p>
 
-        <DeskPicker programs={PROGRAMMES} />
+        <DeskPicker programs={CLIENT_PROGRAMS} />
 
-        <section className="mt-16 max-w-2xl">
+        <section className="mt-16">
           <p className="eyebrow">The other side of the same placements</p>
-          <p className="mt-2 text-sm leading-relaxed text-etyme-muted">
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-etyme-muted">
             Every contractor above was placed by a supplier that is also here. Computer Systems sells
             into Nike and Terumo BCT; Vertex Global into Corning and Terumo BCT. Sit at one to see what
             a supplier sees of the same contract — and what it cannot.
           </p>
-          <DeskPicker
-            programs={[
-              { slug: 'world-computer-systems', name: 'Computer Systems Inc', where: 'Prime supplier', about: 'Sells into Nike and Terumo BCT. Buys one of those people from a bench vendor.' },
-              { slug: 'world-vertex-global', name: 'Vertex Global', where: 'Prime supplier', about: 'Sells into Corning and Terumo BCT.' },
-            ]}
-            supplier
-          />
+          <DeskPicker programs={SUPPLIER_SEATS} supplier />
+        </section>
+
+        <section className="mt-16">
+          <p className="eyebrow">The firm that staffs a seat off its own payroll</p>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-etyme-muted">
+            An integrator sells people it already employs. There is no bench listing to grant and
+            nobody&rsquo;s consent to ask — the employment contract already said it — so the submission
+            is an internal one and the client is told which firm the person works for. Both seats open
+            at the delivery manager&rsquo;s desk, which is the desk that submits.
+          </p>
+          <DeskPicker programs={INTEGRATOR_SEATS} supplier />
         </section>
       </main>
     </div>

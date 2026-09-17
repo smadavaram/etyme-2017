@@ -257,9 +257,18 @@ export async function POST(request: NextRequest) {
         //
         // A desk lands on its own work: the clerk on the invoices, the
         // officer on compliance, the manager on the roles they raised.
+        //
+        // An integrator is not a program office. /dashboard/program is
+        // the client's own overview and appears nowhere in the GSI nav
+        // (Deliver → Supply → Operate), so a delivery manager landed on
+        // a page with no way back into their own work — and the one
+        // thing that seat exists to demonstrate, putting somebody off
+        // its own payroll in front of a client, was three guesses away.
+        // Submissions is where that starts and it is in their nav.
         landing:
           desk ? DESK_LANDING[desk]
-          : company.kind === 'CLIENT' || company.kind === 'MSP' || company.kind === 'GSI'
+          : company.kind === 'GSI' ? '/dashboard/submissions'
+          : company.kind === 'CLIENT' || company.kind === 'MSP'
             ? '/dashboard/program'
             : '/dashboard',
       },
@@ -370,9 +379,13 @@ export async function POST(request: NextRequest) {
       companyName: seeded.companyName,
       counts: seeded.counts,
       side,
+      // Same rule as the world seats above: an integrator's own sandbox
+      // lands where an integrator works, not on the client's overview
+      // its navigation does not offer.
       landing:
         side === 'BENCH' ? '/dashboard'
         : side === 'CANDIDATE' ? '/dashboard/my-work'
+        : side === 'GSI' ? '/dashboard/submissions'
         : '/dashboard/program',
       expiresInDays: DEMO_DAYS,
       resumed: false,
