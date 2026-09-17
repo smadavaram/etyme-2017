@@ -57,9 +57,60 @@ minds the residue.
 | `__integration__/client-programme.test.ts` | 26–27 (prose only) |
 | `CLAUDE.md` | 311, 584 (Infosys → Teleworld), 589, 1039, 1055, 1102 |
 
-About 120 test files use the names as fixtures — not customer-facing;
-sweep later.
+## The names landed — what is closed, 2026-09-17
 
-**The gap that let this survive.** `positioning.ts` reads `app/page.tsx`
-only, so it stripped these names off the home page and never saw `/demo`
-one click away. Extend it to the demo surfaces once the names land.
+The sheet above is applied. Three lines survived it, because they were
+in three other agents' files and the architect who applied the sheet
+could not write there. All three are customer-facing and all three are
+now closed, each carrying a dated cross-domain comment on the precedent
+of `c126c1c4` and `f901e914`:
+
+| File | Was | Now |
+|---|---|---|
+| `src/lib/onboarding.ts` (etyme-supply) | `example: 'Terumo BCT, Nike'` on the live sign-up picker | `example: 'Talvern Medical, Northbend Athletic'` |
+| `src/lib/onboarding.ts` (etyme-supply) | `example: 'Infosys, Accenture'` | `example: 'Teleworld Solutions, Sundara Systems'` |
+| `src/app/dashboard/access/page.tsx` (etyme-regulatory) | placeholder `Joining the Terumo delivery team` | `Joining the Talvern Medical delivery team` |
+| `src/app/dashboard/suppliers/page.tsx` (etyme-demand) | paste example `Vertex Talent Ltd, priya@vertextalent.io` | `Veritan Talent Ltd, priya@veritantalent.io` |
+
+The integrators were the closer call: Infosys and Accenture were used as
+examples of *a kind of firm*, not as customers. They went anyway,
+because the example sat one line under two real client names and reads
+as the same claim. The replacements are the two integrators the seeded
+world already invented — Teleworld Solutions and Sundara Systems — so
+the picker, the demo and the world say one thing.
+
+**Still carrying the old names: roughly 120 unit fixtures.** Found by
+the architect. `Nike`, `Corning` and `Terumo` as `const` strings inside
+`__tests__/` and `__integration__/`. None is customer-facing, none is
+rendered, and a fixture name is not a claim about who uses this — the
+rule is about what a visitor or a signing-up company reads. Sweep when
+something else takes those files; do not open 120 files for it.
+
+## Where the wall is
+
+`__tests__/invariants/demo-names.test.ts` (etyme-architect's) is the
+guard. It fails on any retired name in these, and only these:
+
+- the demo doors — `src/app/demo/seats.ts`, `src/app/demo/page.tsx`,
+  `src/components/try-demo.tsx`
+- the routes behind them — `src/app/api/demo/route.ts`,
+  `src/app/api/seed-world/route.ts`, `src/lib/readiness.ts`
+- the seeds that fill them — `src/lib/seed-world.ts`,
+  `src/lib/seed-programmes.ts`, `src/lib/demo-seed.ts`,
+  `src/lib/demo-seed-client.ts`, `src/lib/demo-seed-consultant.ts`,
+  `prisma/seed.ts`
+- the evals' fixtures — `src/lib/evals/surfaces.ts`
+
+and it runs `namedCompanies` from `lib/positioning` over the two a
+visitor actually reads. `lib/positioning` itself reads `app/page.tsx`.
+
+**So the wall does not cover the signed-in app.** Nothing reads
+`src/app/dashboard/**` or `src/lib/onboarding.ts`, which is exactly why
+these three lines lived through the rename — and why the first of them
+was on the picker every new company sees. A name on a screen behind
+sign-in is still a name on a screen. The next real-company residue will
+be found the way these were: by somebody looking, not by the suite.
+Extending the guard to the dashboard is a whole-repo grep with a long
+allow-list for skills and systems (`Workday Studio`, `Oracle Retail`),
+which is the reason it has not been done, not an argument that it
+should not be.

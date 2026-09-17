@@ -754,8 +754,15 @@ export default function SuppliersPage() {
           onChange={(e) => setText(e.target.value)}
           rows={7}
           placeholder={
+            /* etyme-market, 2026-09-17. A cross-domain line in etyme-demand's
+               file, on the precedent of c126c1c4 and f901e914: the second
+               example named Vertex, which is a real firm and also collided
+               with Vertex Global in the seeded world. The sheet in
+               docs/demo-names.md moves it to Veritan Talent. Nothing else in
+               this file was touched — the paste parser, the desks and the
+               import are etyme-demand's and are unchanged. */
             'Cloudepa Systems, Ravi Menon, ravi@cloudepa.com\n' +
-            'Vertex Talent Ltd, priya@vertextalent.io\n' +
+            'Veritan Talent Ltd, priya@veritantalent.io\n' +
             'Brightmoor Staffing <hello@brightmoor.co.uk>'
           }
           className="w-full rounded-lg border border-etyme-rule bg-white p-3 font-mono

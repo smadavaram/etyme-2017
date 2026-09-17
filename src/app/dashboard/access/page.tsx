@@ -375,10 +375,18 @@ export default function AccessPage() {
                         {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                       </select>
                     </label>
+                    {/* etyme-market, 2026-09-17. A cross-domain line in
+                        etyme-regulatory's file, on the precedent of c126c1c4
+                        and f901e914: the placeholder below named a real
+                        company on a live screen, and a trademark inside our
+                        own product is a claim that they use it. Replaced from
+                        the sheet in docs/demo-names.md. Nothing else in this
+                        file was touched — who may grant what, and for how
+                        long, is etyme-regulatory's and is unchanged. */}
                     <label className="block">
                       <Lbl>Why do they need it?</Lbl>
                       <input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
-                        placeholder="Joining the Terumo delivery team"
+                        placeholder="Joining the Talvern Medical delivery team"
                         className={`${field} w-full mt-1`} />
                       <p className="text-xs text-etyme-muted mt-1">
                         Whoever reviews this in six months is probably not you.

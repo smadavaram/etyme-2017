@@ -15,6 +15,7 @@ import {
   classifyEmail, domainOf, decideEntry, slugFromDomain,
   guessCompanyName, COMPANY_TYPES, typeByKey,
 } from '@/lib/onboarding'
+import { namedCompanies } from '@/lib/positioning'
 
 const terumo = { id: 'c1', name: 'Terumo BCT', kind: 'CLIENT', memberCount: 12 }
 
@@ -160,7 +161,29 @@ describe('What this company does here', () => {
   it('a client who hires contractors', () => {
     const t = typeByKey('client')!
     expect(t.kind).toBe('CLIENT')
-    expect(t.example).toContain('Terumo')
+    expect(t.example).toContain('Talvern Medical')
+  })
+
+  // etyme-market, 2026-09-17. A cross-domain edit in etyme-supply's test
+  // file, on the precedent of c126c1c4 and f901e914. The assertion above
+  // pinned 'Terumo' — it was holding a real trademark on the live sign-up
+  // picker in place, so the rename could not land without coming through
+  // here, and a red test cannot be left behind. The sentence below is the
+  // rule that string was standing in for, so the next example added to
+  // this list is checked rather than trusted. Nothing else in this file
+  // was touched — the domain-is-the-company rule is etyme-supply's, and
+  // the `terumo` fixture above is a fixture, which nobody reads.
+  it('offers no real company as an example, because an example beside "we hire contractors" reads as who already does', () => {
+    const everything = COMPANY_TYPES
+      .map((t) => `${t.label} ${t.blurb} ${t.example}`)
+      .join(' ')
+    expect(
+      namedCompanies(everything),
+      'A company signing up reads these examples as who already uses this. Nobody ' +
+        'at a named firm has agreed to appear here, and the pricing decision is that ' +
+        'no agent invents a claim about who uses this. Invent one, or take it from ' +
+        'the sheet in docs/demo-names.md.'
+    ).toEqual([])
   })
 
   it('a GSI both delivers and buys', () => {

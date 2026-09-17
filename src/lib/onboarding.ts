@@ -57,6 +57,18 @@ export interface CompanyTypeOption {
  * The five ways in. Written so a person recognizes themselves in one line,
  * because a wrong choice here is felt for months.
  */
+// etyme-market, 2026-09-17. A cross-domain edit in etyme-supply's file,
+// on the precedent of c126c1c4 and f901e914: the two `example` strings
+// below named four real firms — Terumo BCT and Nike on the client door,
+// Infosys and Accenture on the integrator door — on the live picker a
+// company reads while signing up. An example beside "We hire
+// contractors" reads as who already does, and nobody at those four has
+// agreed to appear here; the pricing decision is that no agent invents a
+// claim about who uses this, and a trademark in our own product is one.
+// The four are replaced from the sheet in docs/demo-names.md and from
+// the invented integrators already seeded in the world. Nothing else in
+// this file was touched — the keys, kinds, postures, labels and blurbs
+// are etyme-supply's and are exactly as they were.
 export const COMPANY_TYPES: CompanyTypeOption[] = [
   {
     key: 'client',
@@ -64,7 +76,7 @@ export const COMPANY_TYPES: CompanyTypeOption[] = [
     posture: null,
     label: 'We hire contractors',
     blurb: 'You bring in contract staff through suppliers, and you want to see what you are spending and who is on site.',
-    example: 'Terumo BCT, Nike',
+    example: 'Talvern Medical, Northbend Athletic',
   },
   {
     key: 'gsi',
@@ -72,7 +84,7 @@ export const COMPANY_TYPES: CompanyTypeOption[] = [
     posture: 'PRIME',
     label: 'We deliver projects and supply people',
     blurb: 'You run delivery for your clients and also buy people in to staff it.',
-    example: 'Infosys, Accenture',
+    example: 'Teleworld Solutions, Sundara Systems',
   },
   {
     key: 'msp',
