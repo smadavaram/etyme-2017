@@ -31,24 +31,44 @@ screening → interviews → onboarding → timesheets → invoices →
 compliance. Naming one station makes the whole product read as that
 station.
 
-**The sharpest wedge is tenure**, not efficiency. A contractor's time on
-site aggregated across every supplier is a number no vendor can compute
-and no client can obtain by asking. Efficiency pitches lose to "we are
-managing fine".
+**Tenure is the moat, not the wedge. Decided 2026-09-17.** This section
+has now been corrected twice, and the second correction reverses what the
+first left standing.
 
-**Why tenure — the reason corrected 2026-09-15.** This paragraph used to
-say tenure was the wedge because it is "a legal exposure rather than a
-saving". The founder pushed back and was right. Nobody is fined at month
-nineteen. There is no tenure regulator. Enterprises have run eighteen-month
-rules on spreadsheets for years and mostly nothing happens. **A compliance
-pitch loses to "we have never been caught"** — which is worse than losing
-to "we are managing fine", because it is true.
+On the 15th it said tenure was the wedge because it is "a legal exposure
+rather than a saving". The founder pushed back: nobody is fined at month
+nineteen, there is no tenure regulator, enterprises have run eighteen-month
+rules on spreadsheets for years and mostly nothing happens. The reason was
+replaced — tenure is the number nobody can produce — and the conclusion
+was kept.
 
-The conclusion survives; the reason does not. **Tenure is the wedge
-because it is the number nobody can produce.** A VMS sees inside one
-client's program. A supplier sees its own slice. Neither can add them up,
-and the client cannot get it by asking. That is a defensibility argument
-and it does not need anybody to be punished.
+On the 17th the founder pushed back on the conclusion: **"Tenure is
+nobody's problem — only you expect it to be solved."** And that was right
+too. Cross-supplier identity resolution and the union of periods are
+beautiful engineering problems, and a builder mistakes a problem that is
+satisfying to solve for one somebody is paying to have solved. Every
+agent read "the sharpest wedge is tenure" and built toward it; no buyer
+ever said it.
+
+**A wedge is why they buy. A moat is why they cannot leave.** The two
+were conflated here. Tenure is a plausible moat — once every supplier's
+contracts for a client are in one place, a number is computable that no
+VMS and no supplier can produce, and that gets harder to walk away from
+over time. It is a bad wedge — nobody wakes up worried about it, and "we
+have never been caught" is true.
+
+So: **keep the tenure ledger, computed correctly, as one line in the
+picture. Stop leading with it.** The screens were already more honest
+than this paragraph — the client dashboard shows tenure as one panel of
+six, and the home page hooks on not-knowing, not on tenure. What was
+wrong was the sentence agents were steered by.
+
+**What the wedge actually is is not decided here**, on purpose. It is one
+of the four questions below, and which is sharpest is something a buyer
+says, not something an agent derives. Twice now an agent has picked
+confidently and been repeating somebody else's confidence. The fastest
+way to find out is one client answering their CFO with this instead of a
+spreadsheet.
 
 **Compliance is the justification, not the motivation.** People buy
 because somebody asks a basic question about their own workforce and they
@@ -174,6 +194,22 @@ we do not use LinkedIn OAuth.
   and would stop a VP recommending anybody at all.
 - Most requisitions must clear **without human approval**. Governance slower than the
   workaround produces the workaround.
+- **A sub-vendor's name is the prime's to keep. Decided 2026-09-17.** In a
+  chain — client buys from a prime, the prime buys from a sub — the NDA
+  between prime and sub is what stops the sub learning who the end client
+  is and going round the prime to reach them. The client sees the rung it
+  pays and nothing below it, **unless the client's agreement with the prime
+  requires disclosure**, in which case it sees the sub by name. That is a
+  term on the `MasterAgreement` between client and prime, off by default,
+  and it is the client's to demand at signing, never the platform's to
+  grant. Rates were already closed at every rung (`lib/chain-top`); names
+  now follow the same rule. What the client always sees, name or no name,
+  is the **standing** of whoever employs the person on its site — insured
+  or not, authorized or not — because that is the client's own exposure
+  and no NDA changes it. The sub, for its part, knows the site it works
+  at — it must, for tenure and compliance — and the platform carries no
+  thread from a sub to a client it has no deal with (`lib/threads`), which
+  is the other half of the same NDA.
 
 ---
 
