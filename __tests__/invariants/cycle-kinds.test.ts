@@ -31,13 +31,13 @@ const c2c = { contractType: 'C2C', vendorCompanyId: 'vendor-below' }
 
 describe('which side a cycle sits on', () => {
   it('hours and invoices are the sell side — the client pays for them', () => {
-    for (const k of ['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE', 'INVOICE_DUE']) {
+    for (const k of ['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE']) {
       expect(sideOf(k), k).toBe('SELL')
     }
   })
 
   it('salary and vendor bills are the buy side — money going out', () => {
-    for (const k of ['SALARY_CALCULATE', 'SALARY_PAY', 'VENDOR_BILL_GENERATE', 'VENDOR_BILL_DUE']) {
+    for (const k of ['SALARY_CALCULATE', 'SALARY_PAY', 'VENDOR_BILL_GENERATE']) {
       expect(sideOf(k), k).toBe('BUY')
     }
   })
@@ -60,14 +60,14 @@ describe('which cycles a contract actually needs', () => {
   it('a C2C contract gets vendor-bill cycles and no salary — we do not run their payroll', () => {
     const { buy } = cyclesFor(c2c, ALL)
     const kinds = buy.map((d) => d.kind)
-    expect(kinds).toEqual(expect.arrayContaining(['VENDOR_BILL_GENERATE', 'VENDOR_BILL_DUE']))
+    expect(kinds).toEqual(expect.arrayContaining(['VENDOR_BILL_GENERATE']))
     expect(kinds.filter((k) => k.startsWith('SALARY_'))).toEqual([])
   })
 
   it('the fact decides, not the label — a vendor below means vendor bills whatever the type says', () => {
     const mislabelled = { contractType: 'W2', vendorCompanyId: 'somebody' }
     const { buy } = cyclesFor(mislabelled, ALL)
-    expect(buy.map((d) => d.kind)).toEqual(expect.arrayContaining(['VENDOR_BILL_DUE']))
+    expect(buy.map((d) => d.kind)).toEqual(expect.arrayContaining(['VENDOR_BILL_GENERATE']))
     expect(buy.map((d) => d.kind)).not.toContain('SALARY_PAY')
   })
 
@@ -75,7 +75,7 @@ describe('which cycles a contract actually needs', () => {
     for (const shape of [w2, c2c, null]) {
       const { sell } = cyclesFor(shape, ALL)
       expect(sell.map((d) => d.kind)).toEqual(
-        expect.arrayContaining(['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE', 'INVOICE_DUE'])
+        expect.arrayContaining(['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE'])
       )
     }
   })
@@ -107,7 +107,7 @@ describe('which cycles a contract actually needs', () => {
   })
 
   it('what is refused is said, so a stale pack does not fail silently', () => {
-    const { refused } = cyclesFor(w2, [def('INVOICE_DUE'), def('VISA_TRACK')])
+    const { refused } = cyclesFor(w2, [def('INVOICE_GENERATE'), def('VISA_TRACK')])
     expect(refused).toEqual(['VISA_TRACK'])
   })
 })
@@ -116,8 +116,8 @@ describe('how a person reads the list', () => {
   it('there are three words, not nineteen states: hours, pay, bill', () => {
     expect(categoryOf('TIMESHEET_SUBMIT')).toBe('HOURS')
     expect(categoryOf('SALARY_PAY')).toBe('PAY')
-    expect(categoryOf('VENDOR_BILL_DUE')).toBe('PAY')
-    expect(categoryOf('INVOICE_DUE')).toBe('BILL')
+    expect(categoryOf('VENDOR_BILL_GENERATE')).toBe('PAY')
+    expect(categoryOf('INVOICE_GENERATE')).toBe('BILL')
   })
 
   it('every money kind has a category — nothing falls into OTHER by accident', () => {

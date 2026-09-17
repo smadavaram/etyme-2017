@@ -150,7 +150,10 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.buy } })).state).toBe('DRAFT')
 
     const sellCycles = await cycles({ sellContractId: it_.contract })
-    expect(Object.keys(sellCycles).sort()).toEqual(['INVOICE_DUE', 'INVOICE_GENERATE', 'TIMESHEET_APPROVE', 'TIMESHEET_SUBMIT'])
+    // No invoice-due cycle: when an invoice falls due is the invoice's
+    // own fact, counted from the day the client received it, and a date
+    // guessed on the 28th months ahead could only disagree with it.
+    expect(Object.keys(sellCycles).sort()).toEqual(['INVOICE_GENERATE', 'TIMESHEET_APPROVE', 'TIMESHEET_SUBMIT'])
     expect(Object.values(sellCycles).every((c) => c.done === 0)).toBe(true)
   })
 
@@ -239,7 +242,7 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: it_.invoice } })).status).toBe('SUBMITTED')
   })
 
-  it('the payment: invoice PAID with its expense, a payment row saying who paid whom, and the invoice-due cycle is done', async () => {
+  it('the payment: invoice PAID with its expense, and a payment row saying who paid whom', async () => {
     as(NIKE.ap)
     const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1932.5, method: 'ACH', reference: 'NIKE-AP-1001' })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -248,7 +251,9 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: it_.expense } })).status).toBe('PAID')
     const p = await prisma.payment.findFirstOrThrow({ where: { invoiceId: it_.invoice } })
     expect([p.payerCompanyId, p.receivedByCompanyId]).toEqual([co['world-nike'], co['world-pinnacle']])
-    expect((await cycles({ sellContractId: it_.contract })).INVOICE_DUE.done).toBe(1)
+    // Nothing closes an invoice-due cycle, because nothing opens one.
+    // The invoice's own status is what says it was paid.
+    expect((await cycles({ sellContractId: it_.contract })).INVOICE_DUE).toBeUndefined()
   })
 
   it('the placement timeline now reads hours, bill done for that week and nothing overdue', async () => {
@@ -257,7 +262,7 @@ describe('the ledger: one placement, every table, every station', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const t = r.body.data.timeline
     const doneKinds = [...t.hours, ...t.bill].filter((d: any) => d.done).map((d: any) => d.kind)
-    expect(doneKinds).toEqual(expect.arrayContaining(['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE', 'INVOICE_DUE']))
+    expect(doneKinds).toEqual(expect.arrayContaining(['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE']))
     // The week before, which nobody filed, is still owed — a later week
     // does not quietly complete it.
     expect(t.hours.filter((d: any) => d.kind === 'TIMESHEET_SUBMIT' && d.overdue).length).toBeGreaterThanOrEqual(1)

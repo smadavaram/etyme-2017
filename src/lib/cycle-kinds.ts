@@ -20,8 +20,61 @@
  * So this is only the money. Reminders already have a home — the watch
  * cron sweeps Verification.expiresAt and says so out loud — and an IR35
  * determination is a document the UK pack already asks for, not a date
- * to shift. What is left is eight kinds, and every one of them is read
- * by something.
+ * to shift.
+ *
+ * ── Why it got shorter again ─────────────────────────────────────────
+ *
+ * Eight became six, and this time because a due date belongs to the
+ * document rather than to the calendar.
+ *
+ * INVOICE_DUE and VENDOR_BILL_DUE were calendar guesses at a fact the
+ * document already carries, and they carried it worse. `Invoice.dueAt`
+ * is the truth: it counts from what the agreement says it counts from,
+ * and where that is the day the client received it, `Invoice.receivedAt`
+ * is what starts the clock — a due date computed from anything else was
+ * a guess wearing a date. `VendorBill.dueAt` is the same fact on the buy
+ * side, sitting beside `receivedAt` and `paidAt` because collapsing the
+ * three is what makes a payment delay unmeasurable.
+ *
+ * Against that, the packs scheduled an invoice due date MONTHLY on the
+ * 28th and a vendor bill due date MONTHLY on the 15th, months ahead of
+ * any invoice or bill existing. The default pack raises invoices
+ * SEMIMONTHLY on the 1st, so a NET-30 invoice raised on the 16th falls
+ * due on the 15th of the next month while the cycle row said the 28th.
+ * The two disagreed by construction, and the cycle row was the one the
+ * placement timeline and the due-cycles scan put in front of a person.
+ * Two dates for one obligation is not redundancy; it is one wrong
+ * number with a schedule behind it.
+ *
+ * ── Why pay day is not in the same boat ──────────────────────────────
+ *
+ * SALARY_PAY looks like a due date and is not one. Nobody sends a
+ * document that decides when payroll runs — the biweekly Friday was
+ * agreed at hire and lives nowhere else, so if it is not a cycle it is
+ * not anywhere. The same is true of the other five: the week decides
+ * when hours are due and when they must be signed, and the day we
+ * raise an invoice or a vendor bill is ours to schedule in advance.
+ * The day either one falls due is not ours and never was.
+ *
+ * The rule the six pass and the two failed: a cycle is money that moves
+ * on a schedule decided in advance. A payment term is not that. It is a
+ * clock a document starts, and only the document knows when it started.
+ *
+ * ── What happens to the rows already written ─────────────────────────
+ *
+ * Seeded and production databases hold rows of both kinds, so both keep
+ * their CATEGORY and LABEL entries below and an old row still reads as
+ * "Invoice due" rather than as an enum. What they do not keep is the
+ * ability to be created or completed.
+ *
+ * A row left uncompleted is the one that has to go: it is an obligation
+ * against a date nobody can now stand behind, and the placement
+ * timeline would go on calling it overdue for the life of the contract
+ * while the invoice beside it says something else. `scripts/retire-due-
+ * cycles.mjs` deletes the uncompleted ones, once, and counts them; it
+ * leaves the completed ones alone, because those are a true record that
+ * something happened on a day. Not a silent orphan and not a quiet
+ * rewrite of history.
  *
  * ── Why a kind knows its side ────────────────────────────────────────
  *
@@ -52,16 +105,18 @@ export type Side = 'SELL' | 'BUY'
  */
 export type Category = 'HOURS' | 'PAY' | 'BILL' | 'OTHER'
 
-/** The eight that are generated. Every one is read by something. */
+/**
+ * The six that are generated. Every one is read by something, and every
+ * one is a date the calendar decides rather than a date a document
+ * carries.
+ */
 export const MONEY_KINDS = [
   'TIMESHEET_SUBMIT',
   'TIMESHEET_APPROVE',
   'INVOICE_GENERATE',
-  'INVOICE_DUE',
   'SALARY_CALCULATE',
   'SALARY_PAY',
   'VENDOR_BILL_GENERATE',
-  'VENDOR_BILL_DUE',
 ] as const
 
 export type MoneyKind = (typeof MONEY_KINDS)[number]
@@ -71,19 +126,27 @@ export type MoneyKind = (typeof MONEY_KINDS)[number]
  *
  * A commission cycle is a due date for a calculation. Until a commission
  * plan exists to calculate against, that date is a promise nothing can
- * keep. The names are kept so an old row still reads sensibly.
+ * keep.
+ *
+ * An invoice due date and a vendor bill due date are here for the
+ * opposite reason: not because nothing can compute them, but because
+ * something already does, honestly, from the document itself. See the
+ * header. The names are kept so an old row still reads sensibly.
  */
-export const RESERVED_KINDS = ['COMMISSION_CALCULATE', 'COMMISSION_PAY'] as const
+export const RESERVED_KINDS = [
+  'COMMISSION_CALCULATE',
+  'COMMISSION_PAY',
+  'INVOICE_DUE',
+  'VENDOR_BILL_DUE',
+] as const
 
 const SIDE: Record<MoneyKind, Side> = {
   TIMESHEET_SUBMIT: 'SELL',
   TIMESHEET_APPROVE: 'SELL',
   INVOICE_GENERATE: 'SELL',
-  INVOICE_DUE: 'SELL',
   SALARY_CALCULATE: 'BUY',
   SALARY_PAY: 'BUY',
   VENDOR_BILL_GENERATE: 'BUY',
-  VENDOR_BILL_DUE: 'BUY',
 }
 
 const CATEGORY: Record<string, Category> = {

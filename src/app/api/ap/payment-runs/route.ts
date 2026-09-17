@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { completeCycle } from '@/lib/cycle-complete'
 import { staffOnly } from '@/lib/seat'
 import {
   proposeRun, remittanceAdvice, mayApproveRun, applyRunPayment,
@@ -350,13 +349,11 @@ export async function PATCH(request: NextRequest) {
         where: { id: o.billId },
         data: { paidCents: o.paidCentsAfter, paidAt: o.paidAt, status: o.status },
       })
-      // Settled: the "vendor bill due" cycle on its buy contract is done.
-      if (o.paidAt) {
-        const bill = await tx.vendorBill.findUnique({ where: { id: o.billId }, select: { buyContractId: true, periodEnd: true } })
-        if (bill?.buyContractId && bill.periodEnd) {
-          await completeCycle(tx, { buyContractId: bill.buyContractId, kind: 'VENDOR_BILL_DUE', periodEnd: bill.periodEnd, at: o.paidAt })
-        }
-      }
+      // Settling a bill closes no cycle. The bill's own three dates say
+      // everything a run needs — when it was received, when it falls
+      // due, and now when it was paid — and a "vendor bill due" cycle
+      // was a fourth date, guessed monthly in advance, that could only
+      // ever disagree with them. See lib/cycle-kinds.
     }
     await tx.paymentRun.update({ where: { id }, data: { status: 'PAID', paidAt } })
   })

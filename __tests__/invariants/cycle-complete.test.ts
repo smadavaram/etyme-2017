@@ -62,9 +62,7 @@ describe('every event that ends a wait marks its cycle', () => {
     ['src/app/api/timesheets/[id]/submit/route.ts', 'TIMESHEET_SUBMIT', 'hours are sent'],
     ['src/app/api/timesheets/[id]/approve/route.ts', 'TIMESHEET_APPROVE', 'both parties have signed the hours'],
     ['src/app/api/invoices/generate/route.ts', 'INVOICE_GENERATE', 'the invoice is raised'],
-    ['src/app/api/invoices/[id]/payments/route.ts', 'INVOICE_DUE', 'the invoice is paid in full'],
     ['src/app/api/ap/bills/route.ts', 'VENDOR_BILL_GENERATE', 'a vendor bill is recorded'],
-    ['src/app/api/ap/payment-runs/route.ts', 'VENDOR_BILL_DUE', 'a payment run settles the bill'],
   ]
   for (const [file, kind, when] of cases) {
     it(`when ${when}, the ${kind.replace(/_/g, ' ').toLowerCase()} cycle is done`, () => {
@@ -81,5 +79,31 @@ describe('every event that ends a wait marks its cycle', () => {
 
   it('a pay run already marked its cycles; nothing here doubles it', () => {
     expect(read('src/app/api/payroll/run/route.ts')).not.toContain('cycle-complete')
+  })
+})
+
+/**
+ * A cycle that is never written cannot be completed.
+ *
+ * Paying an invoice and settling a vendor bill used to close an
+ * INVOICE_DUE and a VENDOR_BILL_DUE cycle. Neither kind is generated
+ * any more — when a document falls due is the document's own fact, not
+ * a day the calendar picked months before it existed — so the calls
+ * were looking for a row nothing writes and quietly finding none.
+ */
+describe('nothing completes a cycle that is no longer generated', () => {
+  it('paying an invoice no longer closes a cycle nothing ever wrote', () => {
+    expect(read('src/app/api/invoices/[id]/payments/route.ts')).not.toContain("kind: 'INVOICE_DUE'")
+  })
+
+  it('settling a vendor bill no longer closes a cycle nothing ever wrote', () => {
+    for (const f of ['src/app/api/ap/bills/route.ts', 'src/app/api/ap/payment-runs/route.ts']) {
+      expect(read(f), f).not.toContain("kind: 'VENDOR_BILL_DUE'")
+    }
+  })
+
+  it('raising the invoice and raising the vendor bill still close theirs', () => {
+    expect(read('src/app/api/invoices/generate/route.ts')).toContain("kind: 'INVOICE_GENERATE'")
+    expect(read('src/app/api/ap/bills/route.ts')).toContain("kind: 'VENDOR_BILL_GENERATE'")
   })
 })

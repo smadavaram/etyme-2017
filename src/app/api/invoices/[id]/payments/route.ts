@@ -3,7 +3,6 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { completeCycle } from '@/lib/cycle-complete'
 import { emit } from '@/lib/events'
 import { invoiceScope } from '@/lib/resolve-client-company'
 
@@ -153,14 +152,16 @@ export async function POST(
         },
       })
 
-      // Paid in full: the expenses that rode on this invoice are paid, and
-      // the "invoice due" cycle on every contract billed is done.
+      // Paid in full: the expenses that rode on this invoice are paid.
+      //
+      // Nothing completes an "invoice due" cycle here any more, because
+      // nothing generates one. When an invoice falls due is the
+      // invoice's own fact — `dueAt`, counted from the term and from the
+      // day the client received it — and the AR desk reads it there.
+      // Scheduling a second, earlier answer to the same question months
+      // in advance is how the two came to disagree. See lib/cycle-kinds.
       if (newStatus === 'PAID') {
         await tx.expense.updateMany({ where: { invoiceId: id, status: 'INVOICED' }, data: { status: 'PAID' } })
-        const billed = await tx.invoiceLine.findMany({ where: { invoiceId: id }, select: { sellContractId: true } })
-        for (const sellContractId of new Set(billed.map((b) => b.sellContractId))) {
-          await completeCycle(tx, { sellContractId, kind: 'INVOICE_DUE', periodEnd: invoice.periodEnd })
-        }
       }
 
       await tx.automationLog.create({

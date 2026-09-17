@@ -37,7 +37,7 @@ const SEMIMONTHLY_PAY: CycleDefinition = {
 }
 
 const ON_COMPLETION: CycleDefinition = {
-  kind: 'INVOICE_DUE',
+  kind: 'INVOICE_GENERATE',
   frequency: 'ON_COMPLETION',
   offsetDays: 0,
 }
@@ -233,9 +233,9 @@ describe('the day a pack asks for is the day it gets', () => {
     for (const c of cycles) expect(c.dueOn.getDay()).toBe(1)
   })
 
-  it('a vendor bill due on the 15th lands on the 15th, not at month-end', () => {
+  it('a vendor bill raised on the 15th lands on the 15th, not at month-end', () => {
     const cycles = generateCycles(on(2026, 1, 1), on(2026, 3, 31), [
-      { kind: 'VENDOR_BILL_DUE', frequency: 'MONTHLY', dayOfMonth: 15 },
+      { kind: 'VENDOR_BILL_GENERATE', frequency: 'MONTHLY', dayOfMonth: 15 },
     ])
     // Jan 15 2026 is a Thursday. Feb 15 and Mar 15 are both Sundays, and a
     // vendor bill is money going out, so each lands on the Friday before
@@ -260,7 +260,7 @@ describe('the day a pack asks for is the day it gets', () => {
 
   it('a day at or past 28 means month-end whatever the month has', () => {
     const cycles = generateCycles(on(2026, 4, 1), on(2026, 5, 31), [
-      { kind: 'INVOICE_DUE', frequency: 'MONTHLY', dayOfMonth: 28 },
+      { kind: 'INVOICE_GENERATE', frequency: 'MONTHLY', dayOfMonth: 28 },
     ])
     // Apr 30 2026 is a Thursday; May 31 a Sunday → Mon 1 Jun
     expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-04-30', '2026-06-01'])
@@ -296,11 +296,11 @@ describe('the day a pack asks for is the day it gets', () => {
     expect(ymd(pay[0].dueOn)).toBe('2026-07-03')
   })
 
-  it('an invoice due on a Saturday is still due on the Monday', () => {
-    // The other direction on purpose: pulling a client's payment terms
-    // shorter than the contract says is the surprise, on that side.
+  it('an invoice falling on a Saturday is raised on the Monday', () => {
+    // The other direction on purpose: raising a client's invoice early
+    // is the surprise on that side, so billing moves forward.
     const bill = generateCycles(on(2026, 7, 1), on(2026, 7, 31), [
-      { kind: 'INVOICE_DUE', frequency: 'MONTHLY', dayOfMonth: 4 },
+      { kind: 'INVOICE_GENERATE', frequency: 'MONTHLY', dayOfMonth: 4 },
     ])
     expect(ymd(bill[0].dueOn)).toBe('2026-07-06')
   })
@@ -334,7 +334,7 @@ describe('the day a pack asks for is the day it gets', () => {
         const cycles = generateCycles(
           on(2026, 7, 1),
           on(2026, 7, 31),
-          [{ kind: 'INVOICE_DUE', frequency: 'MONTHLY', dayOfMonth: 6 }],
+          [{ kind: 'INVOICE_GENERATE', frequency: 'MONTHLY', dayOfMonth: 6 }],
           ['2026-07-06']
         )
         // Mon 6 Jul is a holiday, so the invoice moves to the Tuesday.
@@ -388,10 +388,10 @@ describe('the day a pack asks for is the day it gets', () => {
     const cycles = generateCycles(on(2026, 1, 1), on(2026, 12, 31), [
       { kind: 'GST_RETURN', frequency: 'MONTHLY', dayOfMonth: 20 },
       { kind: 'IR35_ASSESSMENT', frequency: 'ON_COMPLETION' },
-      { kind: 'INVOICE_DUE', frequency: 'MONTHLY' },
+      { kind: 'INVOICE_GENERATE', frequency: 'MONTHLY' },
     ])
     expect(cycles.map((c) => c.kind)).not.toContain('GST_RETURN')
     expect(cycles.map((c) => c.kind)).not.toContain('IR35_ASSESSMENT')
-    expect(cycles.some((c) => c.kind === 'INVOICE_DUE')).toBe(true)
+    expect(cycles.some((c) => c.kind === 'INVOICE_GENERATE')).toBe(true)
   })
 })

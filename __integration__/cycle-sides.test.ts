@@ -82,10 +82,10 @@ describe('cycles land on the side of the trade they describe', () => {
 
   it('hours and invoices are on the sell contract, not the buy contract', async () => {
     const onSell = await prisma.cycle.count({
-      where: { sellContractId: sell.id, kind: { in: ['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE', 'INVOICE_DUE'] } },
+      where: { sellContractId: sell.id, kind: { in: ['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE'] } },
     })
     const onBuy = await prisma.cycle.count({
-      where: { buyContractId: buy.id, kind: { in: ['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE', 'INVOICE_DUE'] } },
+      where: { buyContractId: buy.id, kind: { in: ['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE'] } },
     })
     expect(onSell).toBeGreaterThan(0)
     expect(onBuy).toBe(0)

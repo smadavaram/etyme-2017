@@ -505,11 +505,13 @@ export async function POST(request: NextRequest) {
     })))
   }
 
-  // The "vendor bill to raise" cycle on the buy contract is done — and
-  // if the bill arrived already paid, so is "vendor bill due".
+  // The "vendor bill to raise" cycle on the buy contract is done.
+  //
+  // When the bill falls due is not scheduled here and never was ours to
+  // schedule: it is `VendorBill.dueAt`, beside `receivedAt` and
+  // `paidAt`, and the AP desk reads it off the bill. See lib/cycle-kinds.
   if (buyContractId && periodEnd) {
     await completeCycle(prisma, { buyContractId, kind: 'VENDOR_BILL_GENERATE', periodEnd })
-    if (paidAt) await completeCycle(prisma, { buyContractId, kind: 'VENDOR_BILL_DUE', periodEnd, at: paidAt })
   }
 
   return NextResponse.json({
