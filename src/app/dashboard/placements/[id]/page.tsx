@@ -37,7 +37,9 @@ import { CoverChip, SubVendorCover } from '@/components/cover-standing'
 interface Placement {
   id: string
   person: { id: string; name: string; skills: string[]; location: string | null; workAuth: string | null }
-  supplier: { id: string; name: string }
+  // `nameWithheld` where this reader is below the rung it pays: the name
+  // is a sentence naming the firm they can actually call.
+  supplier: { id: string; name: string; phrase?: string; nameWithheld?: boolean; suppliedThrough?: string | null }
   client: { id: string; name: string }
   endClient: { id: string; name: string } | null
   hiringManager: { id: string; name: string } | null
@@ -62,7 +64,7 @@ interface Placement {
   submission: {
     id: string; status: string; rate: number | null
     submittedAt: string | null; forwardedAt: string | null
-    from: { id: string; name: string }; to: { id: string; name: string } | null
+    from: { id: string; name: string; phrase?: string }; to: { id: string; name: string } | null
     checkState: string
     sentOnBy: { company: { id: string; name: string }; at: string | null; rate: number | null } | null
   } | null
@@ -101,6 +103,8 @@ interface Placement {
     invoices: Array<{ id: string; number: string; status: string; hours: number; weeks: number; amount: number | null; total: number; paid: number; dueAt: string }>
     billed: number | null; collected: number | null
     revenue: number | null; cost: number | null; margin: number | null
+    // Why there is nothing here, where there is nothing here.
+    says: string | null
   }
   timeline: {
     hours: Due[]; pay: Due[]; bill: Due[]
@@ -244,7 +248,14 @@ export default function PlacementPage() {
             supplier's business — showing a buyer an empty "Paying" column
             invites exactly the question the column cannot answer. */}
         <div className="mt-6 grid grid-cols-1 gap-6 border-t border-etyme-rule pt-5 sm:grid-cols-2 lg:grid-cols-4">
-          <Fact label={p.viewer.isSupplier ? 'Billing' : 'You pay'} value={rate(p.contracts.sell.billRate)} />
+          {/* A client reading a leg its own supplier arranged does not
+              pay it, and "You pay —" invites the one question the
+              column cannot answer. */}
+          {p.viewer.side === 'END_CLIENT' ? (
+            <Fact label="Arranged by your supplier" value={<span className="text-etyme-faint">not your rate</span>} />
+          ) : (
+            <Fact label={p.viewer.isSupplier ? 'Billing' : 'You pay'} value={rate(p.contracts.sell.billRate)} />
+          )}
           {p.viewer.isSupplier && <Fact label="Paying" value={rate(p.contracts.buy?.payRate ?? null)} />}
           <Fact label="Hours accepted" value={p.money.hoursAccepted || '—'} />
           {p.viewer.isSupplier && (
@@ -297,7 +308,7 @@ export default function PlacementPage() {
           p.submission?.sentOnBy
             ? `${p.submission.sentOnBy.company.name} put them forward to you on ${day(p.submission.sentOnBy.at)}.`
             : p.submission
-              ? `Submitted by ${p.submission.from.name}${p.submission.to ? ` to ${p.submission.to.name}` : ''}.`
+              ? `Submitted by ${p.submission.from.phrase ?? p.submission.from.name}${p.submission.to ? ` to ${p.submission.to.name}` : ''}.`
               : 'This placement has no submission behind it.'
         }
       >
@@ -356,7 +367,9 @@ export default function PlacementPage() {
             <div className="lbl mb-2">
               {p.viewer.isSupplier
                 ? `You sell to ${p.client.name}`
-                : `${p.supplier.name} sells to you`}
+                : p.viewer.side === 'END_CLIENT'
+                  ? `Sold to ${p.client.name}, not to you`
+                  : `${p.supplier.name} sells to you`}
             </div>
             <div className="stat-value">{rate(p.contracts.sell.billRate)}</div>
             <p className="mt-2 text-[13px] text-etyme-muted">
@@ -501,7 +514,9 @@ export default function PlacementPage() {
           <Fact label={p.viewer.isSupplier ? 'Collected' : 'Paid'} value={cash(p.money.collected)} />
         </div>
 
-        {p.money.invoices.length === 0 ? (
+        {p.money.says ? (
+          <p className="text-[13px] text-etyme-muted">{p.money.says}</p>
+        ) : p.money.invoices.length === 0 ? (
           <p className="text-[13px] text-etyme-muted">Nothing invoiced against this placement yet.</p>
         ) : (
           <ul className="space-y-2">

@@ -183,6 +183,7 @@ relationship that plainly exists.
 | `GET /api/compliance` | Every firm with somebody on site, and every certificate it holds. A firm below the rung the client pays carries `name: "Supplied through …"`, `nameWithheld: true` and `suppliedThrough`; its cover, its standing and the lapse sentence travel unchanged, the sentence naming the prime rather than the firm | `etyme-regulatory` |
 | `GET /api/tenure` | Every day on site, counted once, across every rung. The vendor list and each contract's `vendorName` withhold a firm below the rung the client pays and say which firm it came through | `etyme-regulatory` |
 | `GET /api/alumni` | The same vendor list, plus "released by" and "available now", withheld the same way. A firm that holds somebody on its bench and has never placed them here keeps its own name — the client met it on the bench, not behind a prime | `etyme-supply` |
+| `GET /api/placements/:id` | A client is a party to every rung at its own site, so it could open the leg its supplier arranged. On that leg the supplier is named through the same rule, and no rate, margin or invoice is computed at all | `etyme-architect` |
 
 All three unmask in full the moment the agreement carries the term, and
 close again the moment it comes off. A supplier reading any of the three
@@ -211,7 +212,8 @@ under both settings of the term. Asserted on what the route returns,
 never on what the screen renders: the screen is what hid the last one of
 these.
 
-**Still open after this.** Two things, named rather than implied.
+**Still open after this.** Named rather than implied — including the one
+that was open when this was written and is closed now.
 
 - **The term has no control on the agreements screen yet.** The column is
   written and read by the API (`PATCH` and `GET
@@ -223,11 +225,54 @@ these.
   recorded through the API rather than by its supplier's contract
   manager.
 - **Nothing refuses a prime that lists a sub as a supplier elsewhere.**
-  The wall is on these read surfaces; it is not a constraint the database
-  enforces. A future surface that joins sell contracts at a client and
-  prints `company.name` will leak the same way these three did, and the
-  thing that would catch it is a scanner over client-facing routes rather
-  than a test per route. Not built.
+  The wall is on the read surfaces; it is not a constraint the database
+  enforces. **The scanner is built** —
+  `__tests__/invariants/client-facing-names.test.ts`, which runs in the
+  pure suite on every commit. It reads source rather than payloads, and
+  it fails on any database read that is scoped to *every rung at a
+  client* (`endClientFilter`, or an `endClientCompanyId` matched by hand)
+  and asks the selling firm for its name, unless those rows are handed to
+  `nameForClient` / `namesForClient` or reduced by `chainTop` /
+  `payerRung` to the rung the client pays first. A list scoped by
+  `payerScope` or a plain `clientCompanyId` is deliberately not flagged:
+  it returns the rung the client is the buyer of, and that firm's name is
+  the client's own supplier's.
+
+  **What it names today**, none of them fixed here because each file
+  belongs to another agent and a file belongs to exactly one: the
+  client's "needs you" queue (`api/decisions`) falls back to the
+  employer's own name where the rung the client pays is not on file;
+  cross-vendor identity resolution (`api/identity`), the client's Network
+  register (`api/people`), one person's page (`api/people/[id]`) and the
+  org view (`api/program/org`) all carry `vendorName` off every rung; and
+  the client dashboard's approval queue (`api/program`) names the firm a
+  timesheet or expense was filed against, which below a prime is the
+  sub. All six are `etyme-demand`'s, are listed in the test with what
+  each gives away, and a seventh appearing anywhere fails the build on
+  the commit that adds it.
+
+  **What the scanner cannot see, and is written down rather than
+  implied.** A name fetched in a second query — select `companyId` off
+  every rung, look the names up separately — carries no client scope on
+  the second read and is not caught; fourteen files query a company by id
+  for ordinary reasons, so a rule over those would be noise. Where rows
+  are reduced by `chainTop` it trusts the reduction, so a route that
+  reduces its rows for one panel and keeps the raw ones for another would
+  read clean. And it does not cover a record fetched **by id** and gated
+  by a party check in code rather than by a filter — a party check is not
+  a filter and one instance is not a population.
+
+- **That by-id door was open, and is closed.** Found by hand while
+  building the sweep: a client is a party to every rung at its own site,
+  because every rung names that site, so `GET /api/placements/:id` let a
+  hiring manager open the contract *its supplier's supplier* holds and
+  read that firm by name, what it charged, and the invoices between two
+  other firms. The route now resolves `END_CLIENT` — the position of
+  being the site but not the buyer of this rung — and on it the supplier
+  is named through `chain-names`, the rates are not computed, and the
+  invoice lines are not fetched, with `money.says` explaining the blank
+  in a sentence rather than leaving a screen of dashes. Walked as
+  Step 21a of `__integration__/full-spine.test.ts`, on the JSON.
 
 ---
 

@@ -1355,3 +1355,115 @@ describe('Step 21 — one placement, opened, top to bottom', () => {
     expect(refused, 'the refusal was not logged').toBe(true)
   })
 })
+
+
+describe('Step 21a — Adobe opens the leg below the one it pays', () => {
+  /**
+   * The same rule as Step 14a, reached by a different door. Those three
+   * surfaces are lists filtered to a client's site; this is one record
+   * fetched by id, and a client is a party to every rung of a chain at
+   * its own site because every rung names that site. So Adobe could open
+   * CloudEPA's contract with Computer Systems and read the firm by name,
+   * what it charged, and the invoices between the two of them.
+   *
+   * On the JSON, never on the screen.
+   */
+  const adobeOpens = async () => {
+    as(ADOBE_PM)
+    return json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+  }
+
+  it('lets Adobe open it at all, because the work on that contract happens on Adobe\u2019s site', async () => {
+    const r = await adobeOpens()
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.viewer.side).toBe('END_CLIENT')
+    expect(r.body.data.person.name).toBe('Priya Raman')
+  })
+
+  it('says who supplied her instead of naming the firm below Computer Systems', async () => {
+    const r = await adobeOpens()
+    const d = r.body.data
+    expect(d.supplier.name).toBe('Supplied through Computer Systems.')
+    expect(d.supplier.nameWithheld).toBe(true)
+    expect(d.supplier.suppliedThrough).toBe('Computer Systems')
+    // The id travels either way: a row needs something to hang a
+    // certificate on, and an id is not a firm Adobe can reach.
+    expect(d.supplier.id).toBe(co.sub)
+    expect(JSON.stringify(d)).not.toContain('CloudEPA')
+  })
+
+  it('withholds the name on the submission behind it too, which is the same firm twice', async () => {
+    const r = await adobeOpens()
+    expect(r.body.data.submission.from.name).toBe('Supplied through Computer Systems.')
+  })
+
+  it('shows Adobe no price at all on a leg its supplier arranged, and says why', async () => {
+    const r = await adobeOpens()
+    const d = r.body.data
+    // $110 is what CloudEPA charges Computer Systems — the prime's own
+    // cost, and its margin one subtraction from the $135 Adobe pays.
+    expect(ratesIn(d)).not.toContain(110)
+    expect(ratesIn(d)).not.toContain(85)
+    expect(d.contracts.sell.billRate).toBeNull()
+    expect(d.money.invoices).toEqual([])
+    expect(d.money.says).toContain('between those two firms')
+  })
+
+  it('still counts the week she worked, because the hours on Adobe\u2019s site are Adobe\u2019s own', async () => {
+    const r = await adobeOpens()
+    expect(r.body.data.timesheets[0].hours).toBe(40)
+  })
+
+  it('names CloudEPA on that row once Adobe\u2019s agreement with Computer Systems requires it', async () => {
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { clientId: co.adobe, vendorId: co.prime },
+      select: { id: true },
+    })
+    as(PRIME)
+    const amended = await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: true,
+        reason: 'Adobe required its suppliers to name their sub-vendors at signing.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+    expect(amended.body?.error, JSON.stringify(amended.body)).toBeUndefined()
+
+    const r = await adobeOpens()
+    expect(r.body.data.supplier.name).toBe('CloudEPA')
+    expect(r.body.data.supplier.nameWithheld).toBe(false)
+    // The name is a term on paper. The price never was.
+    expect(ratesIn(r.body.data)).not.toContain(110)
+  })
+
+  it('and closes again the moment the term comes off', async () => {
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { clientId: co.adobe, vendorId: co.prime },
+      select: { id: true },
+    })
+    as(PRIME)
+    await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: false,
+        reason: 'Reverted — the disclosure term was recorded against the wrong agreement.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+    const r = await adobeOpens()
+    expect(r.body.data.supplier.name).toBe('Supplied through Computer Systems.')
+  })
+
+  it('leaves Computer Systems reading its own sub by name on the same contract', async () => {
+    as(PRIME)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.supplier.name).toBe('CloudEPA')
+    expect(r.body.data.contracts.sell.billRate).toBe(110)
+  })
+})

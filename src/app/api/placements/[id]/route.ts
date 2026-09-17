@@ -9,6 +9,8 @@ import { ladderFor } from '@/lib/work-chain-read'
 import { categoryOf, labelOf } from '@/lib/cycle-kinds'
 import { contractClearance } from '@/lib/contract-clearance'
 import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 
 /**
  * GET /api/placements/:id
@@ -198,9 +200,96 @@ export async function GET(
     permissions: caller.permissions,
     isClientOnMsa: placement.clientCompanyId === mine,
   }
-  const seeBill = canReadBillRate(perms)
-  const seePay = canReadPayRate(perms)
-  const seeMargin = canReadMargin(perms)
+  // ── Whose money is on this rung ─────────────────────────────────────
+  //
+  // A client is a party to every rung of a chain at its own site and to
+  // the money of exactly one of them. On any other rung the price is
+  // what one of its suppliers charges another, which is the prime's
+  // margin one subtraction away — the same thing `lib/chain-top` keeps
+  // off every client list, arriving here by id instead of by list.
+  //
+  // Not blanked: not read. A permission is not a position, and a client
+  // owner holds `*`.
+  const readsOurMoney = side !== 'END_CLIENT'
+  const seeBill = canReadBillRate(perms) && readsOurMoney
+  const seePay = canReadPayRate(perms) && readsOurMoney
+  const seeMargin = canReadMargin(perms) && readsOurMoney
+
+  // ── Whose name this reader may read ─────────────────────────────────
+  //
+  // A client is a party to every rung of a chain at its own site, because
+  // every rung names it as the place the work is done. So a client seat
+  // handed the sub-vendor's leg by id was a party to it and read that
+  // firm by name — the same leak the compliance, tenure and alumni lists
+  // had, arriving by a different door: a check on the record rather than
+  // a filter on a list. END_CLIENT is exactly that position, since a
+  // client that is the buyer of this rung reads PAYER instead.
+  //
+  // Found by hand while building the sweep in
+  // `__tests__/invariants/client-facing-names.test.ts`, which does not
+  // catch this shape and says so.
+  const readsFromBelow = side === 'END_CLIENT'
+
+  const chainRungs = readsFromBelow
+    ? await prisma.sellContract.findMany({
+        where: { ...endClientFilter(mine), personId: placement.personId },
+        select: {
+          id: true, personId: true, companyId: true, clientCompanyId: true,
+          company: { select: { name: true } },
+        },
+      })
+    : []
+
+  const disclosureTerms = readsFromBelow
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: mine },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
+  const seenNames = readsFromBelow
+    ? namesForClient(
+        chainRungs.map((c) => ({
+          id: c.id,
+          personId: c.personId,
+          companyId: c.companyId,
+          companyName: c.company.name,
+          clientCompanyId: c.clientCompanyId,
+        })),
+        mine,
+        (primeCompanyId: string) => mayNameSubVendors(disclosureTerms, mine, primeCompanyId)
+      )
+    : new Map<string, SeenName>()
+
+  /** What this reader may call a firm. Its own name for everybody else. */
+  const shown = (companyId: string, trueName: string): SeenName =>
+    seenNames.get(companyId) ?? {
+      companyId, name: trueName, masked: false, through: null,
+      phrase: trueName, says: trueName,
+    }
+
+  /**
+   * A firm on the payload, named or withheld.
+   *
+   * The id travels either way: a row needs something to hang a
+   * certificate on, and a client cannot turn an id into a firm it has no
+   * relationship with.
+   */
+  const firm = <T extends { id: string; name: string }>(c: T | null) => {
+    if (!c) return null
+    const seen = shown(c.id, c.name)
+    return {
+      ...c,
+      name: seen.name,
+      // What to call this firm inside a sentence somebody else writes.
+      // "Supplied through Pinnacle" is a cell; "submitted by the firm
+      // supplied through Pinnacle" is the sentence, and one string
+      // cannot be both.
+      phrase: seen.phrase,
+      nameWithheld: seen.masked,
+      suppliedThrough: seen.through,
+    }
+  }
 
   // ── How this person reached us ──────────────────────────────────────
   //
@@ -357,15 +446,22 @@ export async function GET(
   ])
 
   // ── Money ───────────────────────────────────────────────────────────
-  const invoiceLines = await prisma.invoiceLine.findMany({
-    where: { sellContractId: placement.id },
-    orderBy: { createdAt: 'desc' },
-    take: 12,
-    select: {
-      id: true, hours: true, rateCents: true, amountCents: true,
-      invoice: { select: { id: true, number: true, status: true, total: true, paid: true, dueAt: true, issuedAt: true } },
-    },
-  })
+  //
+  // The invoices on this rung are between the firm that sold it and the
+  // firm that bought it. An end client is neither, so they are not
+  // fetched rather than fetched and nulled: `invoice.total` was sent
+  // whatever the permissions said.
+  const invoiceLines = readsOurMoney
+    ? await prisma.invoiceLine.findMany({
+        where: { sellContractId: placement.id },
+        orderBy: { createdAt: 'desc' },
+        take: 12,
+        select: {
+          id: true, hours: true, rateCents: true, amountCents: true,
+          invoice: { select: { id: true, number: true, status: true, total: true, paid: true, dueAt: true, issuedAt: true } },
+        },
+      })
+    : []
 
   const billedCents = invoiceLines.reduce((n, l) => n + l.amountCents, 0)
   const paidCents = invoiceLines.reduce(
@@ -434,7 +530,9 @@ export async function GET(
           !(b.evidence.expiresAt && b.evidence.expiresAt < now),
       })),
     })),
-    supplierName: placement.company.name,
+    // The sentence names the firm the client can actually call about
+    // this person, which below its own supplier is the prime.
+    supplierName: shown(placement.companyId, placement.company.name).phrase,
     supplierCertificates: ourCover,
     clientName: placement.clientCompany.name,
     on: now,
@@ -470,7 +568,7 @@ export async function GET(
         location: placement.person.consultant?.location ?? null,
         workAuth: placement.person.consultant?.workAuth ?? null,
       },
-      supplier: placement.company,
+      supplier: firm(placement.company),
       client: placement.clientCompany,
       endClient: placement.endClientCompany,
       hiringManager: placement.hiringManager,
@@ -492,7 +590,7 @@ export async function GET(
             title: placement.requirement.title,
             skills: placement.requirement.skills,
             location: placement.requirement.location,
-            raisedBy: placement.requirement.company,
+            raisedBy: firm(placement.requirement.company),
             neededBy: placement.requirement.neededBy?.toISOString() ?? null,
             approvalState: placement.requirement.approvalState,
           }
@@ -516,7 +614,7 @@ export async function GET(
             rate: seeBill ? money(submission.rate) : null,
             submittedAt: submission.submittedAt?.toISOString() ?? null,
             forwardedAt: submission.forwardedAt?.toISOString() ?? null,
-            from: submission.fromCompany,
+            from: firm(submission.fromCompany),
             to: submission.toCompany,
             checkState: submission.checkState,
             // Null for a client seat whatever their permissions, because
@@ -714,6 +812,11 @@ export async function GET(
         // cost and margin through.
         cost: seePay ? money(costCents) : null,
         margin: seeMargin && costCents != null ? money(revenueCents - costCents) : null,
+        // Why it is blank, rather than a screen of dashes somebody
+        // raises a ticket about.
+        says: readsOurMoney
+          ? null
+          : 'This leg was arranged by one of your suppliers. What it is billed at is between those two firms — your own rate is on the placement you pay for.',
       },
     },
   })
