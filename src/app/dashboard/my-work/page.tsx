@@ -505,6 +505,14 @@ function YourCV() {
  * asked and what to do; uploading is a link to the file, signing is
  * your word that it is you. Nothing else about the request is shown,
  * because nothing else is yours.
+ *
+ * Two kinds of ask arrive here and they are answered in different
+ * places. A document sent for signature is answered on this page,
+ * through `/api/documents/:id/:todo`. An ask that came in a packet is
+ * answered at the packet's own link, because its id is a packet item
+ * and there is no document row behind it — posting one here would post
+ * to nothing, and the row would sit there unanswerable. So where
+ * `myPapers` gives a row a `link`, the link is what the person gets.
  */
 function YourPapers() {
   const [papers, setPapers] = useState<any[]>([])
@@ -552,7 +560,16 @@ function YourPapers() {
               <div className="text-etyme-ink">{p.name}</div>
               <div className="text-xs text-etyme-muted">{p.askedBy} · {p.word}</div>
             </div>
-            {p.todo === 'upload' && (
+            {/* Answered somewhere else. The only thing to do is go there. */}
+            {p.todo && p.link && (
+              <a
+                href={p.link}
+                className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90"
+              >
+                Answer it
+              </a>
+            )}
+            {!p.link && p.todo === 'upload' && (
               <>
                 <input
                   value={fileUrl[p.id] ?? ''}
@@ -566,7 +583,7 @@ function YourPapers() {
                 </button>
               </>
             )}
-            {p.todo === 'sign' && (
+            {!p.link && p.todo === 'sign' && (
               <button onClick={() => answer(p)} disabled={busy === p.id}
                 className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
                 Sign as myself
