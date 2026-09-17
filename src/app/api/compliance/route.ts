@@ -4,7 +4,9 @@ import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
-import { supplierCoverGate, standingOf, coverLabel } from '@/lib/document-stages'
+import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, type HeldCredential } from '@/lib/document-stages'
+import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
+import { labelFor } from '@/lib/document-type'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -173,10 +175,32 @@ export async function GET(request: NextRequest) {
     : []
 
   // Group verifications by person
-  const personVerifMap = new Map<string, { name: string; checks: any[] }>()
+  //
+  // A license carries its computed standing, for the same reason every
+  // certificate below does: a stored status is a claim about a past
+  // moment and standing is what is true today. The 2017 build showed the
+  // stored one, so a registration that lapsed in March still read CLEAR
+  // in July. Where the two disagree the computed one is what the screen
+  // shows, and the screen says which.
+  const practiceKeys = credentialKeys()
+  const personVerifMap = new Map<string, { name: string; checks: any[]; license: any | null }>()
   for (const v of personVerifications) {
     if (!v.personId || !v.person) continue
     const existing = personVerifMap.get(v.personId)
+    const detail = credentialDetail(v as any)
+    const isLicense = practiceKeys.includes(v.type)
+    const named = isLicense
+      ? nameCredential({ label: labelFor(v.type), type: v.type, number: detail.number, state: detail.state })
+      : null
+    const computed = isLicense
+      ? standingOf(
+          { key: v.type, label: named!, issuedAt: v.issuedAt, validFrom: v.validFrom, expiresAt: v.expiresAt, verifiedAt: v.verifiedAt },
+          // No month count and it expires anyway: a license with no date
+          // against it is the fourth state, not a permanent one.
+          { key: v.type, label: named!, validMonths: null, expires: true },
+          now
+        )
+      : null
     const check = {
       type: v.type,
       status: v.status,
@@ -186,12 +210,48 @@ export async function GET(request: NextRequest) {
       // ahead of the day its cover begins is on file and holds nothing.
       validFrom: (v.validFrom ?? v.issuedAt)?.toISOString() ?? null,
       expiresAt: v.expiresAt?.toISOString() ?? null,
+      named,
+      licenseState: detail.state,
+      licenseNumber: detail.number,
+      standing: computed?.standing ?? null,
+      says: computed?.says ?? null,
+      // True where a lapse here stops the work rather than starting a
+      // conversation about it.
+      stopsWork: isLicense,
     }
     if (existing) {
       existing.checks.push(check)
     } else {
-      personVerifMap.set(v.personId, { name: v.person.name, checks: [check] })
+      personVerifMap.set(v.personId, { name: v.person.name, checks: [check], license: null })
     }
+  }
+
+  // Whether each person may practice today — the same function the
+  // activation refusal calls, so the desk that reads the screen and the
+  // button that refuses the start cannot drift apart.
+  for (const [personId, data] of personVerifMap) {
+    const theirs = personVerifications.filter((v) => v.personId === personId && practiceKeys.includes(v.type))
+    if (theirs.length === 0) continue
+    data.license = licenseGate({
+      personName: data.name,
+      credentials: theirs.map((v): HeldCredential => {
+        const detail = credentialDetail(v as any)
+        return {
+          type: v.type,
+          label: labelFor(v.type),
+          status: v.status,
+          issuedAt: v.issuedAt,
+          validFrom: v.validFrom,
+          expiresAt: v.expiresAt,
+          verifiedAt: v.verifiedAt,
+          number: detail.number,
+          state: detail.state,
+          issuer: v.provider,
+        }
+      }),
+      keys: practiceKeys,
+      on: now,
+    })
   }
 
   // Group verifications by company
@@ -328,6 +388,10 @@ export async function GET(request: NextRequest) {
           personId,
           name: data.name,
           checks: data.checks,
+          // Whether this person may practice today, in a sentence. Null
+          // where they hold no license at all, which is most people and
+          // is a real answer rather than a gap.
+          license: data.license,
         })),
         companies: Array.from(companyVerifMap.entries()).map(([companyId, data]) => ({
           companyId,

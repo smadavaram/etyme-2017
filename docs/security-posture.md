@@ -332,9 +332,23 @@ sentence rather than a code.
   submission; an AP clerk who is a party cannot activate a start.
   `__integration__/client-programme.test.ts`
 - **BLOCK where legally grounded** — tenure limit, break in service, work
-  authorization, lapsed insurance, segregation of duties. **WARN, capture
-  a reason, proceed** everywhere else. Never silently permit.
+  authorization, lapsed insurance, a lapsed license to practice,
+  segregation of duties. **WARN, capture a reason, proceed** everywhere
+  else. Never silently permit.
   `src/lib/contract-clearance.ts`, `src/lib/governance.ts`
+- **A license to practice is judged on the day, not on the stored
+  status.** A registered nurse on a lapsed state registration is
+  practicing without a license, so a lapsed one — and one whose period
+  has not begun — refuses the start in a sentence naming the license
+  number and the state. A license in date today that runs out before the
+  last day of the assignment warns with the date and is chased; it does
+  not refuse work the law permits. Which types count as a license is read
+  off the company's own document dictionary — compliance purpose, blocks
+  on lapse, supplied by the candidate — so a client that defines its own
+  gets the same refusal with no code change.
+  `src/lib/document-stages.ts` (`licenseGate`),
+  `__tests__/invariants/professional-license.test.ts`,
+  `__integration__/licensed-practice.test.ts`
 - **A desk nobody has named falls back; it never refuses.** Where a chain
   needs a department lead and no rule names one, the program office
   stands in and the screen says so — because refusing would mean a client

@@ -127,6 +127,11 @@ interface VerificationSubject {
   name: string
   checks: VerificationCheck[]
   cover?: { outcome: string; says: string; fix: string | null } | null
+  /**
+   * Whether this person may practice today. Null where they hold no
+   * license, which is most people and is an answer rather than a gap.
+   */
+  license?: { outcome: string; says: string | null; fix: string | null } | null
 }
 
 interface VerificationCheck {
@@ -140,6 +145,11 @@ interface VerificationCheck {
   /** What is true today, as against what the stored status claims. */
   standing?: string | null
   says?: string | null
+  /** The credential named as somebody reads it aloud, where it is one. */
+  named?: string | null
+  licenseState?: string | null
+  /** True where a lapse here stops the work rather than starting a chat. */
+  stopsWork?: boolean
 }
 
 // ── Status helpers ─────────────────────────────────────────
@@ -781,17 +791,44 @@ function VerificationsTab({
                             <span
                               key={i}
                               className="inline-flex items-center gap-1.5 text-[11px] bg-etyme-canvas/80 rounded px-2 py-1"
+                              title={check.says ?? undefined}
                             >
+                              {/*
+                                The computed standing, never the stored
+                                status. A license that lapsed in March
+                                reading "Clear" in July is the 2017 bug,
+                                and a person's row showed exactly that
+                                until 2026-09-17 while the company rows
+                                beside it did not.
+                              */}
                               <span
-                                className={verifDotClass(check.status)}
-                                style={check.status === 'EXPIRED' ? { background: 'var(--color-faint)' } : undefined}
+                                className={effectiveDotClass(check)}
+                                style={check.status === 'EXPIRED' && !check.standing ? { background: 'var(--color-faint)' } : undefined}
                               />
-                              <span className="text-etyme-muted">{formatRuleType(check.type)}</span>
+                              <span className="text-etyme-muted">
+                                {check.licenseState ? `${formatRuleType(check.type)} · ${check.licenseState}` : formatRuleType(check.type)}
+                              </span>
                               <span className="text-etyme-faint">·</span>
-                              <span className="font-medium text-etyme-ink">{verifLabel(check.status)}</span>
+                              <span className="font-medium text-etyme-ink">{effectiveLabel(check)}</span>
                             </span>
                           ))}
                         </div>
+                        {/*
+                          A license is the one check on this row whose
+                          lapse stops the work, so it gets a sentence
+                          rather than a chip. The same sentence the
+                          activation refusal gives, from the same
+                          function, so the screen and the button cannot
+                          disagree.
+                        */}
+                        {person.license && person.license.says && (
+                          <p
+                            className={`mt-2 text-[12px] ${person.license.outcome === 'BLOCK' ? 'text-etyme-attention' : 'text-etyme-muted'}`}
+                          >
+                            {person.license.says}
+                            {person.license.fix ? ` ${person.license.fix}` : ''}
+                          </p>
+                        )}
                       </td>
                     </tr>
                   ))}

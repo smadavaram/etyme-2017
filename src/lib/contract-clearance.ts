@@ -31,12 +31,34 @@
  * contractual, the client may well waive them, and a system that blocks
  * on a signature page gets worked around by email.
  *
+ * A professional license blocks, decided 2026-09-17 and argued in full
+ * above `licenseGate` in lib/document-stages. A registered nurse working
+ * on a lapsed state registration is practicing without a license — the
+ * law says the work stops, no client can waive it, and the exposure lands
+ * on the worker before it lands on anybody else. It is the same shape as
+ * lapsed cover and is enforced by the same arithmetic.
+ *
+ * Which keys count as a license is not a list in here. It is every type in
+ * the company's own document dictionary that says it is compliance, that
+ * says it blocks, and that the candidate supplies — so a client whose
+ * trade needs a state contractor registration or a site induction adds one
+ * type and gets the same refusal, with no code change and no migration.
+ *
  * A warning captures a reason and proceeds. Never silently.
  */
 
-import { packetByKey, resolveItems, type HeldDocument, type ResolvedItem } from '@/lib/packets'
-import { supplierCoverGate, type CoverCertificate, type CoverGate, type DocStanding } from '@/lib/document-stages'
+import { packetByKey, resolveItems, startPacketFor, type HeldDocument, type ResolvedItem } from '@/lib/packets'
 import {
+  supplierCoverGate,
+  licenseGate,
+  type CoverCertificate,
+  type CoverGate,
+  type DocStanding,
+  type HeldCredential,
+  type LicenseGate,
+} from '@/lib/document-stages'
+import {
+  typesFor,
   typeByKey,
   backingFinding,
   editionFinding,
@@ -65,6 +87,38 @@ const SATISFIED_BY: Record<string, readonly string[]> = {
   RIGHT_TO_WORK: ['I9_EVERIFY'],
 }
 
+/**
+ * The types this company treats as a license to practice.
+ *
+ * Read off the dictionary rather than listed here, which is the whole
+ * extensibility story: a type is a license if it is COMPLIANCE (it has to
+ * be in date), if it says it blocks (a lapse stops work), and if the
+ * candidate is the one who supplies it (a regulator issued it to the
+ * person, not to the firm). PROFESSIONAL_LICENSE is the shipped default
+ * that satisfies all three; a client that adds STATE_CONTRACTOR_REG or
+ * SITE_INDUCTION with the same three answers is enforced by this same
+ * code on the same day it defines it.
+ *
+ * Work authorization is excluded because it already has its own path and
+ * its own sentence; counting it twice would refuse a start with two
+ * different explanations of the same fact.
+ *
+ * A company that edits its own copy of a type to say it does not block
+ * gets a warning instead. That is the company's call and the system still
+ * never silently permits: the warning takes a reason and records it.
+ */
+export function credentialKeys(documentTypes: DefinedType[] = []): string[] {
+  return typesFor(documentTypes)
+    .filter(
+      (t) =>
+        t.purpose === 'COMPLIANCE' &&
+        t.blocks &&
+        t.suppliedBy === 'CANDIDATE' &&
+        !(AUTHORISATION_KEYS as readonly string[]).includes(t.key)
+    )
+    .map((t) => t.key)
+}
+
 export interface ChecklistItem {
   key: string
   label: string
@@ -85,6 +139,12 @@ export interface Clearance {
   items: ChecklistItem[]
   /** The supplier's own cover, judged the same way it is everywhere else. */
   cover: CoverGate
+  /**
+   * The licenses this person practices on. A lapsed one, or one that has
+   * not begun, refuses the start; one that runs out inside the assignment
+   * warns with the date named.
+   */
+  license: LicenseGate
   /**
    * Forms held with nothing behind them. An I-9 is a record that somebody
    * looked at a document; a record of looking with no record of what was
@@ -125,6 +185,27 @@ export interface VerificationRow {
   completedAt?: Date | null
   /** The type keys of the documents recorded as standing behind this one. */
   backedBy?: BackingDocument[]
+  /** Who ran or issued it — a board of nursing, an insurer, a screener. */
+  provider?: string | null
+  /**
+   * Whatever the check came back with. Read only for the two fields a
+   * license refusal has to name — the number and the state — because
+   * "your license expired" is not something a compliance officer can
+   * check against a register and "RN 154-882, WI expired" is.
+   */
+  result?: unknown
+}
+
+/** The number and the state off a verification's own result, where recorded. */
+export function credentialDetail(row: VerificationRow): { number: string | null; state: string | null } {
+  const r = row.result
+  if (!r || typeof r !== 'object') return { number: null, state: null }
+  const bag = r as Record<string, unknown>
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null)
+  return {
+    number: str(bag.license) ?? str(bag.licenseNumber) ?? str(bag.number) ?? null,
+    state: str(bag.state) ?? str(bag.jurisdiction) ?? null,
+  }
 }
 
 /**
@@ -155,10 +236,28 @@ function outstanding(state: ResolvedItem['state']): boolean {
   return state === 'NEEDED' || state === 'EXPIRED' || state === 'NOT_YET_VALID'
 }
 
-function blocksStart(item: ResolvedItem): boolean {
+/**
+ * Which outstanding items refuse the start.
+ *
+ * Work authorization always, because the two keys are the floor and a
+ * company cannot edit its way out of a federal form. Everything else by
+ * what the dictionary says: a type whose `blocks` is true stops a start
+ * when it is required and outstanding. Nothing in the shipped W-2 start
+ * packet changes meaning — RIGHT_TO_WORK and I9_EVERIFY blocked before
+ * this and block now; background check, drug screening and the NDA say
+ * they do not block and still do not.
+ */
+function blockingKeysFor(documentTypes: DefinedType[] = []): Set<string> {
+  return new Set<string>([
+    ...AUTHORISATION_KEYS,
+    ...typesFor(documentTypes).filter((t) => t.blocks).map((t) => t.key),
+  ])
+}
+
+function blocksStart(item: ResolvedItem, blockingKeys: Set<string>): boolean {
   if (!item.required) return false
   if (!outstanding(item.state)) return false
-  return (AUTHORISATION_KEYS as readonly string[]).includes(item.key)
+  return blockingKeys.has(item.key)
 }
 
 /**
@@ -198,6 +297,20 @@ export function contractClearance(input: {
   supplierCertificates: CoverCertificate[]
   clientName?: string | null
   on: Date
+  /**
+   * The last day of the assignment, where the caller knows it.
+   *
+   * Only used to say that a license runs out before the work does. Absent
+   * means nothing is claimed about the end — which is right: a warning
+   * about a date nobody supplied would be invented.
+   */
+  through?: Date | null
+  /**
+   * The role, as a person would say it. Picks the start packet: a
+   * licensed role asks for the license, everything else asks for what it
+   * always asked for. Absent means the W-2 packet, unchanged.
+   */
+  role?: string | null
   packetKey?: string
   /**
    * The company's own document dictionary, where it has one. Omitted
@@ -217,21 +330,30 @@ export function contractClearance(input: {
    */
   extraHeld?: HeldDocument[]
 }): Clearance {
-  const spec = packetByKey(input.packetKey ?? 'CONTRACT_START_W2')
+  const credentials = credentialKeys(input.documentTypes ?? [])
+  const spec = packetByKey(input.packetKey ?? startPacketFor(input.role))
   const held = [...heldFrom(input.personVerifications), ...(input.extraHeld ?? [])]
   const resolved = spec ? resolveItems(spec, held, input.on) : []
 
+  const blockingKeys = blockingKeysFor(input.documentTypes ?? [])
   const items: ChecklistItem[] = resolved.map((r) => ({
     key: r.key,
     label: r.label,
     required: r.required,
     state: r.state,
     note: r.note,
-    blocks: blocksStart(r),
+    blocks: blocksStart(r, blockingKeys),
   }))
 
   const blocking = items.filter((i) => i.blocks)
-  const holdable = new Set<string>([...HOLDABLE, ...(input.extraHeld ?? []).map((h) => h.key)])
+  const holdable = new Set<string>([
+    ...HOLDABLE,
+    // A license is holdable: `Verification` has recorded one since
+    // PROFESSIONAL_LICENSE existed, so an outstanding one is a real gap
+    // rather than an item with nowhere to live.
+    ...credentials,
+    ...(input.extraHeld ?? []).map((h) => h.key),
+  ])
   const chasing = items.filter(
     (i) => !i.blocks && outstandingRequired(resolved.find((r) => r.key === i.key)!, holdable)
   )
@@ -271,6 +393,37 @@ export function contractClearance(input: {
     }
   }
 
+  // ── The license the person practices on ──
+  //
+  // Judged on what is held rather than on what a packet asked for, which
+  // is the half that needs no configuration: a nurse whose registration
+  // is on file and lapsed is refused whether or not anybody set this
+  // client up with a licensed-role packet. The packet half catches the
+  // other case — a licensed role with no license on file at all.
+  const license = licenseGate({
+    personName: input.personName,
+    credentials: input.personVerifications
+      .filter((v) => credentials.includes(v.type))
+      .map((v): HeldCredential => {
+        const detail = credentialDetail(v)
+        return {
+          type: v.type,
+          label: labelFor(v.type, input.documentTypes ?? []),
+          status: v.status,
+          issuedAt: v.issuedAt ?? null,
+          validFrom: v.validFrom ?? null,
+          expiresAt: v.expiresAt ?? null,
+          verifiedAt: v.verifiedAt ?? null,
+          number: detail.number,
+          state: detail.state,
+          issuer: v.provider ?? null,
+        }
+      }),
+    keys: credentials,
+    on: input.on,
+    through: input.through ?? null,
+  })
+
   const rawCover = supplierCoverGate({
     supplierName: input.supplierName,
     certificates: input.supplierCertificates,
@@ -305,8 +458,8 @@ export function contractClearance(input: {
     editions.some((e) => e.standing === 'SUPERSEDED')
 
   const outcome: Outcome =
-    blocking.length > 0 || cover.outcome === 'BLOCK' ? 'BLOCK'
-    : chasing.length > 0 || cover.outcome === 'WARN' || paperworkWarns ? 'WARN'
+    blocking.length > 0 || cover.outcome === 'BLOCK' || license.outcome === 'BLOCK' ? 'BLOCK'
+    : chasing.length > 0 || cover.outcome === 'WARN' || license.outcome === 'WARN' || paperworkWarns ? 'WARN'
     : 'PASS'
 
   return {
@@ -315,10 +468,11 @@ export function contractClearance(input: {
     chasing,
     items,
     cover,
+    license,
     unsupported,
     editions,
-    says: sayIt(input.personName, outcome, blocking, chasing, cover, unsupported, editions),
-    fix: fixFor(blocking, chasing, cover, unsupported, editions),
+    says: sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions),
+    fix: fixFor(blocking, chasing, cover, license, unsupported, editions),
   }
 }
 
@@ -390,6 +544,7 @@ function sayIt(
   blocking: ChecklistItem[],
   chasing: ChecklistItem[],
   cover: CoverGate,
+  license: LicenseGate,
   unsupported: BackingFinding[] = [],
   editions: EditionFinding[] = []
 ): string {
@@ -408,9 +563,14 @@ function sayIt(
     return reported.length === 0 ? cleared : `${cleared} ${reported.join(' ')}`
   }
   const parts: string[] = []
+  // The license first when it is what refuses. It is the most specific
+  // sentence anybody gets here — it names the number and the state, and
+  // it is the one somebody can act on without asking what was meant.
+  if (license.outcome === 'BLOCK' && license.says) parts.push(license.says)
   if (blocking.length > 0) parts.push(`${person} cannot start without ${names(blocking)}`)
   if (cover.outcome === 'BLOCK') parts.push(cover.says)
-  if (outcome === 'BLOCK') return parts.join('. ') + '.'
+  if (outcome === 'BLOCK') return parts.join(' ').replace(/\s+/g, ' ').trim().replace(/([^.])$/, '$1.')
+  if (license.outcome === 'WARN' && license.says) parts.push(license.says)
   if (chasing.length > 0) parts.push(`still waiting on ${names(chasing)} for ${person}`)
   if (cover.outcome === 'WARN') parts.push(cover.says)
   for (const u of unsupported) {
@@ -427,13 +587,17 @@ function fixFor(
   blocking: ChecklistItem[],
   chasing: ChecklistItem[],
   cover: CoverGate,
+  license: LicenseGate,
   unsupported: BackingFinding[] = [],
   editions: EditionFinding[] = []
 ): string | null {
+  if (license.outcome === 'BLOCK') return license.fix
   if (blocking.length > 0) return `Get ${names(blocking)} on file, then activate.`
   if (cover.outcome === 'BLOCK') return cover.fix
+  if (license.outcome === 'WARN' && license.lapsingInside.length > 0) return license.fix
   if (chasing.length > 0) return `Chase ${names(chasing)}, or activate with a reason.`
   if (cover.outcome === 'WARN') return cover.fix
+  if (license.outcome === 'WARN') return license.fix
   const stale = unsupported.find((u) => u.standing === 'BACKING_NOT_IN_FORCE')
   if (stale) return stale.fix
   const superseded = editions.find((e) => e.standing === 'SUPERSEDED')

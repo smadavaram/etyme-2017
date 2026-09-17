@@ -132,6 +132,47 @@ export const PACKETS: PacketSpec[] = [
     ],
   },
   {
+    // The licensed twin of CONTRACT_START_W2. Everything that packet asks
+    // for, plus the one document the law rather than the client requires:
+    // the state license the person practices on.
+    //
+    // A separate packet rather than an optional item on the W-2 one,
+    // because an optional item that is only required for some people is
+    // how a required item stops being required. Which of the two a start
+    // uses is `startPacketFor` below, off the role.
+    key: 'CONTRACT_START_LICENSED',
+    label: 'Starting somebody in a licensed role',
+    purpose: 'CONTRACT_START',
+    subject: 'PERSON',
+    preamble:
+      'Before the first day. This role cannot lawfully be worked without a current license, so that one is not optional.',
+    items: [
+      { key: 'PROFESSIONAL_LICENSE', label: 'State license', hint: 'The license you practice on — the number, the state that issued it, and the day it runs out.', required: true, validMonths: null },
+      { key: 'RIGHT_TO_WORK', label: 'Proof of right to work', hint: 'Now that there is an offer, we take the document. You choose which one from the acceptable list — we do not.', required: true, validMonths: null },
+      { key: 'I9_EVERIFY', label: 'I-9 and E-Verify', hint: 'Federal work authorization. Nobody may start without it.', required: true, validMonths: null },
+      { key: 'BACKGROUND_CHECK', label: 'Background check', hint: 'Through our provider, or yours if the client accepts it.', required: true, validMonths: 12 },
+      { key: 'DRUG_SCREENING', label: 'Drug screening', hint: 'Where the client site requires it.', required: false, validMonths: 12 },
+      { key: 'NDA', label: 'Signed non-disclosure agreement', hint: 'Ours, unless the client supplies their own.', required: true, validMonths: null },
+    ],
+  },
+  {
+    // What the nightly chase sends a person whose license is running out.
+    //
+    // COMPLIANCE_ANNUAL is the company-side version of exactly this, and
+    // it is the one the watcher already knows how to raise. A license is
+    // a person's, not a firm's, so the subject and the words are
+    // different and nothing else is.
+    key: 'CREDENTIAL_RENEWAL',
+    label: 'Renewing a license',
+    purpose: 'COMPLIANCE_ANNUAL',
+    subject: 'PERSON',
+    preamble:
+      'Your license is close to running out. Working on a lapsed license is not something anybody can waive, so this is worth doing before it does.',
+    items: [
+      { key: 'PROFESSIONAL_LICENSE', label: 'State license — renewal', hint: 'The renewed license: the number and the new expiry date.', required: true, validMonths: null },
+    ],
+  },
+  {
     key: 'COMPLIANCE_ANNUAL',
     label: 'Annual supplier refresh',
     purpose: 'COMPLIANCE_ANNUAL',
@@ -160,6 +201,89 @@ export const PACKETS: PacketSpec[] = [
     ],
   },
 ]
+
+// ── Which roles cannot be worked without a license ────────────────────
+//
+// Data, not a conditional, so a change of law is a change of a line — and
+// so that somebody who is not a programmer can be walked through why a
+// role asks for a license.
+//
+// Deliberately narrow. A matcher that fires on "engineer" would ask a
+// validation engineer at a pharmaceutical client for a license that does
+// not exist, on every start, forever — and a requirement that fires on
+// everybody is a click rather than a requirement. Every row here names a
+// title where a regulator, not an employer, decides who may do the work.
+// A role this table does not recognize asks for nothing extra, which is
+// the right failure: the held-license block in `lib/contract-clearance`
+// still catches anybody who actually holds one.
+//
+// Horizontal, per CLAUDE.md: healthcare is the first industry in here and
+// is not the only one. A client whose trade is not listed adds its own
+// blocking document type instead — see `credentialKeys`.
+
+export interface LicensedOccupation {
+  key: string
+  label: string
+  /** Words that name this occupation in a role title, lowercase. */
+  names: string[]
+  /** What the license is called, in the words the person would use. */
+  credential: string
+  /** Who issues it. */
+  issuer: string
+}
+
+export const LICENSED_OCCUPATIONS: LicensedOccupation[] = [
+  // ── Healthcare ──
+  { key: 'NURSE', label: 'Nursing', names: ['nurse', 'nursing', 'rn', 'lpn', 'lvn', 'crna', 'cna'], credential: 'state nursing license', issuer: "the state's board of nursing" },
+  { key: 'PHYSICIAN', label: 'Medicine', names: ['physician', 'doctor', 'hospitalist', 'surgeon', 'anesthesiologist', 'radiologist'], credential: 'state medical license', issuer: "the state's medical board" },
+  { key: 'ADVANCED_PRACTICE', label: 'Advanced practice', names: ['nurse practitioner', 'physician assistant', 'midwife'], credential: 'state practice license', issuer: "the state's licensing board" },
+  { key: 'PHARMACY', label: 'Pharmacy', names: ['pharmacist', 'pharmacy technician'], credential: 'state pharmacy license', issuer: "the state's board of pharmacy" },
+  { key: 'THERAPY', label: 'Therapy', names: ['physical therapist', 'occupational therapist', 'respiratory therapist', 'speech language pathologist', 'physiotherapist'], credential: 'state therapy license', issuer: "the state's licensing board" },
+  { key: 'IMAGING', label: 'Imaging and laboratory', names: ['radiologic technologist', 'sonographer', 'mri technologist', 'medical technologist', 'phlebotomist'], credential: 'state certification', issuer: "the state's health department" },
+  { key: 'SOCIAL_WORK', label: 'Social work', names: ['social worker', 'clinical counselor', 'psychologist'], credential: 'state license', issuer: "the state's licensing board" },
+  // ── Everything else, so nothing here reads as a healthcare product ──
+  { key: 'PROFESSIONAL_ENGINEER', label: 'Professional engineering', names: ['professional engineer', 'licensed engineer', 'structural engineer', 'land surveyor'], credential: 'professional engineer registration', issuer: "the state's board of engineers" },
+  { key: 'TRADES', label: 'Licensed trades', names: ['electrician', 'plumber', 'journeyman', 'crane operator', 'hvac technician'], credential: 'trade license', issuer: "the state's licensing authority" },
+  { key: 'COMMERCIAL_DRIVER', label: 'Commercial driving', names: ['cdl driver', 'truck driver', 'commercial driver'], credential: 'commercial driver\u2019s license', issuer: "the state's motor vehicle authority" },
+  { key: 'ACCOUNTING', label: 'Public accounting', names: ['cpa', 'certified public accountant'], credential: 'CPA license', issuer: "the state's board of accountancy" },
+  { key: 'LEGAL', label: 'Law', names: ['attorney', 'solicitor', 'barrister'], credential: 'bar admission', issuer: "the state bar" },
+  { key: 'ARCHITECTURE', label: 'Architecture', names: ['licensed architect', 'registered architect'], credential: 'architect registration', issuer: "the state's board of architects" },
+]
+
+/**
+ * The occupation a role title names, where it names a licensed one.
+ *
+ * Null is the ordinary answer and is a real one: most work needs no
+ * license, and guessing would put a permanent warning on every start.
+ * Matched on whole words, so "engineering manager" does not match
+ * "engineer" in "professional engineer" and "cna" does not match inside
+ * "financial".
+ */
+export function licensedOccupation(role: string | null | undefined): LicensedOccupation | null {
+  if (!role || !role.trim()) return null
+  const text = role.toLowerCase()
+  // Longest phrase first, so "nurse practitioner" wins over "nurse" and
+  // the sentence names the right board.
+  const candidates = LICENSED_OCCUPATIONS.flatMap((o) =>
+    o.names.map((n) => ({ occupation: o, name: n }))
+  ).sort((a, b) => b.name.length - a.name.length)
+  for (const { occupation, name } of candidates) {
+    const pattern = new RegExp(`(^|[^a-z0-9])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9])`)
+    if (pattern.test(text)) return occupation
+  }
+  return null
+}
+
+/**
+ * Which start packet a role uses.
+ *
+ * A licensed role asks for the license; everything else asks for what it
+ * always asked for. Callers that do not know the role get the W-2 packet,
+ * unchanged — this widens the ask, it never narrows it.
+ */
+export function startPacketFor(role: string | null | undefined, fallback = 'CONTRACT_START_W2'): string {
+  return licensedOccupation(role) ? 'CONTRACT_START_LICENSED' : fallback
+}
 
 export function packetByKey(key: string): PacketSpec | null {
   return PACKETS.find((p) => p.key === key) ?? null

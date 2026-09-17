@@ -256,6 +256,34 @@ const RULES: Record<string, Rule> = {
     kind: 'DOCUMENT',
     validMonths: 36,
   },
+
+  // The license a regulator issues a person to do the work at all — a
+  // state RN registration, a professional engineer's stamp, a pharmacy
+  // license, a commercial driver's license.
+  //
+  // APPLICATION, and that is not the two-stage rule being relaxed. The
+  // rule exists because identity documents reveal national origin,
+  // immigration status and age, and asking for them before an offer lets
+  // an employer pick which one it wants to see. A license number is none
+  // of that: it is a qualification, it is published on the issuing
+  // board's own public register, and a hospital that may not ask a nurse
+  // whether she is licensed in the state cannot staff a shift. Asking
+  // early protects the candidate first — being put forward for work she
+  // is not licensed to do wastes her time before it wastes anybody's.
+  //
+  // VERIFICATION rather than DOCUMENT for the same reason: the answer is
+  // checked against the board's register, not collected as a file.
+  //
+  // `validMonths: null` because renewal cycles differ by state and by
+  // profession — Wisconsin renews an RN every two years, other boards
+  // every one or three — and a number invented here would put a computed
+  // expiry on a license nobody had ever dated. The kind still expires;
+  // `licenseGate` says so without guessing when.
+  PROFESSIONAL_LICENSE: {
+    earliest: { DEFAULT: 'APPLICATION' },
+    kind: 'VERIFICATION',
+    validMonths: null,
+  },
   SECURITY_CLEARANCE: {
     earliest: { DEFAULT: 'APPLICATION' },
     kind: 'ATTESTATION',
@@ -451,9 +479,31 @@ export interface DocStanding {
  */
 export function standingOf(
   held: Held | null,
-  spec: { key: string; label: string; validMonths: number | null },
+  spec: {
+    key: string
+    label: string
+    validMonths: number | null
+    /**
+     * Whether this kind expires at all, where the answer is not "every N
+     * months".
+     *
+     * A certificate of insurance is good for twelve, so `validMonths`
+     * said two things at once: how long it counts for, and that it counts
+     * for a limited time. A state license says neither — renewal cycles
+     * differ by board, so there is no honest number — and it plainly
+     * expires. Left to `validMonths` alone, a license on file with
+     * nobody's expiry date against it read as "on file and does not
+     * expire", which is the exact 2017 bug this function exists to kill,
+     * arriving through a different door.
+     *
+     * Defaults to `validMonths != null`, so every caller written before
+     * this keeps the answer it already had.
+     */
+    expires?: boolean
+  },
   on: Date
 ): DocStanding {
+  const kindExpires = spec.expires ?? spec.validMonths != null
   if (!held) {
     return {
       key: spec.key,
@@ -475,7 +525,7 @@ export function standingOf(
   // kind that does not expire does not have a start worth enforcing
   // either; the floor is only asked of paper that covers a period.
   const floor = held.validFrom ?? held.issuedAt ?? null
-  if (spec.validMonths != null && floor && floor.getTime() > on.getTime()) {
+  if (kindExpires && floor && floor.getTime() > on.getTime()) {
     const until = Math.ceil((floor.getTime() - on.getTime()) / 86_400_000)
     const day = floor.toISOString().slice(0, 10)
     return {
@@ -506,7 +556,7 @@ export function standingOf(
       : null)
 
   if (!expires) {
-    if (spec.validMonths == null) {
+    if (!kindExpires) {
       return {
         key: spec.key,
         label: spec.label,
@@ -859,4 +909,368 @@ export function supplierCoverGate(input: {
 /** "Certificate of X expired" → "certificate of X expired", inside a sentence. */
 function lowerFirst(s: string): string {
   return s.charAt(0).toLowerCase() + s.slice(1)
+}
+
+// ── The license a person practices on ─────────────────────────────────
+//
+// The twin of `supplierCoverGate`, on the other side of the same rule.
+// Addendum E names five things that BLOCK, and the shared property of all
+// five is that the law rather than a client says the work stops: tenure
+// limit, break in service, work authorization, lapsed supplier insurance,
+// segregation of duties.
+//
+// A registered nurse on a lapsed state license is practicing without a
+// license. That is not a contractual preference a client may waive, it is
+// not an audit finding to be tidied up afterwards, and the person who
+// carries the exposure is the worker herself — the board disciplines her,
+// and every hour she billed unlicensed is a claim the hospital's insurer
+// can decline. It is the same shape as lapsed cover and it blocks for the
+// same reason.
+//
+// The three severities, and why each is where it is:
+//
+//   EXPIRED on the day of the start      BLOCK — unlicensed practice
+//   NOT_YET_VALID on the day of the start BLOCK — a license that begins
+//                                         next month licenses nobody this
+//                                         week, exactly as cover does not
+//   runs out inside the assignment        WARN, with the date named. She
+//                                         is licensed today; refusing the
+//                                         start three weeks early stops
+//                                         work the law permits, which is
+//                                         the workaround trap. What it
+//                                         must never do is go unsaid.
+//   NO_EXPIRY_RECORDED                    WARN. The fourth state: on
+//                                         file, on a kind that expires,
+//                                         with no date anybody can check.
+//                                         Blocking would refuse every
+//                                         license imported without dates;
+//                                         silence is what went green in
+//                                         2017.
+
+/** A credential row, reduced to what the gate needs. */
+export interface HeldCredential {
+  /** The document type key — PROFESSIONAL_LICENSE, or a company's own. */
+  type: string
+  /** What this company calls it. Falls back to the key, said in words. */
+  label?: string | null
+  /** The Verification status: PENDING · CLEAR · EXPIRED · FAILED · … */
+  status: string
+  issuedAt?: Date | null
+  validFrom?: Date | null
+  expiresAt?: Date | null
+  verifiedAt?: Date | null
+  /** The number printed on it, where it was recorded. */
+  number?: string | null
+  /** The state or country whose regulator issued it. */
+  state?: string | null
+  /** The board or registry that issued it, in its own name. */
+  issuer?: string | null
+}
+
+export interface LicenseStanding extends DocStanding {
+  /** The credential named the way somebody would read it aloud. */
+  named: string
+  /** Where it was issued, where that was recorded. Null is a real answer. */
+  state: string | null
+}
+
+export interface LicenseGate {
+  outcome: 'PASS' | 'WARN' | 'BLOCK'
+  /** Licenses that do not cover the day somebody starts. */
+  blocking: LicenseStanding[]
+  /** Worth chasing; stops nothing on the first day. */
+  chasing: LicenseStanding[]
+  /**
+   * Licensed on the first day and not on the last. Never a block and
+   * never silent: the days after the lapse are named so somebody renews
+   * before them rather than after.
+   */
+  lapsingInside: LicenseStanding[]
+  says: string | null
+  fix: string | null
+}
+
+/** A credential somebody has actually produced, whatever its dates say. */
+const A_CREDENTIAL = ['CLEAR', 'CONDITIONAL', 'EXPIRED']
+
+function sayKey(key: string): string {
+  return key.toLowerCase().replace(/_/g, ' ')
+}
+
+/**
+ * The credential, named so a person can act on the sentence.
+ *
+ * "professional license (RN 154-882, WI)" rather than
+ * "PROFESSIONAL_LICENSE". The number and the state are what somebody
+ * types into a board's renewal page, and they are the two things a
+ * compliance officer checks against the register.
+ */
+export function nameCredential(c: { label?: string | null; type: string; number?: string | null; state?: string | null }): string {
+  const base = (c.label ?? sayKey(c.type)).toLowerCase()
+  const inside = [c.number, c.state].filter((x): x is string => !!x && !!x.trim())
+  return inside.length > 0 ? `${base} (${inside.join(', ')})` : base
+}
+
+/**
+ * Whether this person may practice today, and through to the last day.
+ *
+ * Pure. The caller reads the person's Verification rows and passes them
+ * in, so every branch is testable against a fixed date — and so the
+ * screen that shows the standing and the button that refuses the start
+ * cannot drift apart.
+ */
+export function licenseGate(input: {
+  /** The person, by name. They appear in the refusal. */
+  personName: string
+  credentials: HeldCredential[]
+  /**
+   * The keys this company treats as a license to practice. Comes from the
+   * company's own document dictionary, so a client that defines its own
+   * blocking credential is enforced by the same code as a state RN
+   * license — see `credentialKeys` in lib/contract-clearance.
+   */
+  keys: string[]
+  on: Date
+  /** The last day of the assignment, where the caller knows it. */
+  through?: Date | null
+}): LicenseGate {
+  const blocking: LicenseStanding[] = []
+  const chasing: LicenseStanding[] = []
+  const lapsingInside: LicenseStanding[] = []
+
+  const kinds = [...new Set(input.credentials.map((c) => c.type).filter((t) => input.keys.includes(t)))]
+
+  for (const kind of kinds) {
+    const rows = input.credentials.filter((c) => c.type === kind)
+    // A check still running is not a license. Saying "on file" of a
+    // verification that has not come back is how somebody is waved onto a
+    // ward on a registration nobody confirmed.
+    const produced = rows.filter((c) => A_CREDENTIAL.includes(c.status))
+    if (produced.length === 0) continue
+
+    // A renewal supersedes the license it renews, and the one that counts
+    // is the one covering today ahead of the one running longest — the
+    // same order `supplierCoverGate` settled on, and for the same reason:
+    // somebody who files the renewal early holds both, and picking the
+    // future one would refuse a person for being organized.
+    const coversToday = (c: HeldCredential): boolean => {
+      const floor = c.validFrom ?? c.issuedAt ?? null
+      if (floor && floor.getTime() > input.on.getTime()) return false
+      if (c.expiresAt && c.expiresAt.getTime() < input.on.getTime()) return false
+      return true
+    }
+    const best = produced.slice().sort((a, b) => {
+      const at = coversToday(a) ? 1 : 0
+      const bt = coversToday(b) ? 1 : 0
+      if (at !== bt) return bt - at
+      const ae = a.expiresAt?.getTime() ?? -Infinity
+      const be = b.expiresAt?.getTime() ?? -Infinity
+      if (ae !== be) return be - ae
+      return (b.issuedAt?.getTime() ?? 0) - (a.issuedAt?.getTime() ?? 0)
+    })[0]
+
+    const named = nameCredential(best)
+    let standing = standingOf(
+      {
+        key: kind,
+        label: named,
+        issuedAt: best.issuedAt ?? null,
+        validFrom: best.validFrom ?? null,
+        expiresAt: best.expiresAt ?? null,
+        verifiedAt: best.verifiedAt ?? null,
+      },
+      // No month count, and it expires anyway. See `expires` on
+      // standingOf: a license with no date against it is the fourth
+      // state, not a permanent one.
+      { key: kind, label: named, validMonths: null, expires: true },
+      input.on
+    )
+
+    // The board's own record says it lapsed. Believe it even where no
+    // date was recorded — a status nobody can reconcile against a date is
+    // exactly the row that went green in 2017.
+    if (best.status === 'EXPIRED' && standing.standing !== 'EXPIRED') {
+      standing = {
+        ...standing,
+        standing: 'EXPIRED',
+        daysLeft: null,
+        says: `${named} is marked expired on ${input.personName}'s own record.`,
+      }
+    }
+
+    const row: LicenseStanding = { ...standing, named, state: best.state ?? null }
+
+    if (standing.standing === 'EXPIRED' || standing.standing === 'NOT_YET_VALID') {
+      blocking.push(row)
+      continue
+    }
+
+    if (
+      input.through &&
+      best.expiresAt &&
+      best.expiresAt.getTime() < input.through.getTime()
+    ) {
+      const uncovered = Math.ceil((input.through.getTime() - best.expiresAt.getTime()) / 86_400_000)
+      lapsingInside.push({
+        ...row,
+        says:
+          `${input.personName}'s ${named} runs out on ${best.expiresAt.toISOString().slice(0, 10)}, ` +
+          `inside the assignment — ${uncovered} day${uncovered === 1 ? '' : 's'} of it fall after the license does. ` +
+          `They can start; they cannot work those days until the renewal is on file.`,
+      })
+      continue
+    }
+
+    if (standing.standing !== 'VALID' || standing.unverified) chasing.push(row)
+  }
+
+  const outcome: LicenseGate['outcome'] =
+    blocking.length > 0 ? 'BLOCK' : chasing.length > 0 || lapsingInside.length > 0 ? 'WARN' : 'PASS'
+
+  if (outcome === 'PASS') return { outcome, blocking, chasing, lapsingInside, says: null, fix: null }
+
+  if (outcome === 'BLOCK') {
+    const early = blocking.every((b) => b.standing === 'NOT_YET_VALID')
+    const where = [...new Set(blocking.map((b) => b.state).filter((s): s is string => !!s))]
+    const issuedIn = where.length > 0 ? ` The license is issued in ${where.join(' and ')}.` : ''
+    const says =
+      blocking.length === 1
+        ? `${input.personName} cannot start: ${lowerFirst(blocking[0].says)} ` +
+          (early
+            ? `A license that has not begun licenses nobody, so nothing can start before it does.${issuedIn}`
+            : `Working on a lapsed license is unlicensed practice, so nobody can start until it is renewed.${issuedIn}`)
+        : `${input.personName} holds ${blocking.length} licenses that do not cover today — ${blocking[0].named} among them. ` +
+          `Nobody can start until ${early ? 'they begin' : 'they are renewed'}.${issuedIn}`
+    const fix = early
+      ? `Either the board brings the start date forward, or nobody starts before the license does.`
+      : `Record the renewal — the number and the day it runs out — against ${input.personName}'s ${blocking[0].named}, then activate.`
+    return { outcome, blocking, chasing, lapsingInside, says, fix }
+  }
+
+  const worst = lapsingInside[0] ?? chasing[0]
+  return {
+    outcome,
+    blocking,
+    chasing,
+    lapsingInside,
+    says: worst.says,
+    fix:
+      lapsingInside.length > 0
+        ? `Ask ${input.personName} for the renewal now, so the last weeks of the assignment are covered.`
+        : `Ask ${input.personName} for the current ${worst.named}.`,
+  }
+}
+
+// ── Asking for the renewal before it lapses ───────────────────────────
+//
+// The nightly watcher already reopens a supplier's annual refresh packet
+// when a certificate of insurance is inside sixty days of running out. A
+// license is the same problem with a different owner: the person holds
+// it, the board renews it, and the day it lapses is the day the work
+// stops. Chasing it the day after is not a reminder, it is an emergency.
+//
+// Sixty days rather than thirty, and not because sixty is a rounder
+// number. A state board takes weeks: continuing-education hours have to
+// be filed, a fee clears, and a renewal filed in the last fortnight of a
+// cycle routinely issues after the old one expires. The window is the
+// same one the insurance chase uses, for the same reason — the person on
+// the other end needs longer than we do.
+
+/** Chase a license this far ahead. A board takes weeks, not days. */
+export const CHASE_CREDENTIAL_WITHIN_DAYS = 60
+
+export interface CredentialChase {
+  /** The document type to ask for. */
+  key: string
+  /** The credential, named the way somebody reads it aloud. */
+  named: string
+  /** Where it was issued. Null where nobody recorded it. */
+  state: string | null
+  /** Negative once it has lapsed. */
+  daysLeft: number | null
+  /** Said to the person being asked. Names the board and the state. */
+  says: string
+}
+
+/**
+ * Which of a person's licenses to ask for the renewal of, and in what
+ * words.
+ *
+ * Pure, and it decides nothing about who is told or how — that is the
+ * watcher's job and the notifier's. What it settles is the two things
+ * that must not be guessed at a call site: whether it is time to ask, and
+ * what the ask says.
+ *
+ * A license already renewed is not asked for again: the renewal on file
+ * is the newest one there is, and asking somebody for a document they
+ * have already sent is how a system teaches them to ignore it.
+ *
+ * The fourth state is chased too. A license on file with no expiry date
+ * against it is not a license anybody can rely on, and it is the exact
+ * row that went green in 2017 — so the ask is for the date, and says so.
+ */
+export function credentialsToChase(
+  credentials: HeldCredential[],
+  keys: string[],
+  on: Date,
+  withinDays = CHASE_CREDENTIAL_WITHIN_DAYS
+): CredentialChase[] {
+  const out: CredentialChase[] = []
+
+  for (const kind of [...new Set(credentials.map((c) => c.type).filter((t) => keys.includes(t)))]) {
+    const produced = credentials.filter((c) => c.type === kind && A_CREDENTIAL.includes(c.status))
+    if (produced.length === 0) continue
+
+    // The one that runs longest, which on a person who has already
+    // renewed is the renewal. Asking again would be asking for what we
+    // hold.
+    const best = produced.slice().sort((a, b) => {
+      const ae = a.expiresAt?.getTime() ?? Infinity
+      const be = b.expiresAt?.getTime() ?? Infinity
+      return be - ae
+    })[0]
+
+    const named = nameCredential(best)
+    const where = best.state ?? null
+    const issuedBy = best.issuer ? `${best.issuer}` : where ? `the ${where} board` : 'the issuing board'
+
+    if (!best.expiresAt) {
+      if (best.status === 'EXPIRED') {
+        out.push({
+          key: kind, named, state: where, daysLeft: null,
+          says:
+            `Your ${named} is marked expired and no date is recorded against it. ` +
+            `Send the current one from ${issuedBy} — the number and the day it runs out.`,
+        })
+      } else {
+        out.push({
+          key: kind, named, state: where, daysLeft: null,
+          says:
+            `Your ${named} is on file with no expiry date against it, and a license expires. ` +
+            `Tell us the day it runs out — until then nobody can tell whether you are licensed today.`,
+        })
+      }
+      continue
+    }
+
+    const days = Math.floor((best.expiresAt.getTime() - on.getTime()) / 86_400_000)
+    if (days > withinDays) continue
+
+    out.push({
+      key: kind,
+      named,
+      state: where,
+      daysLeft: days,
+      says:
+        days < 0
+          ? `Your ${named} lapsed ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago. ` +
+            `Working on a lapsed license is not something anybody here can waive, so the work stops until ` +
+            `${issuedBy} renews it. Send the renewal and it starts again.`
+          : `Your ${named} runs out in ${days} day${days === 1 ? '' : 's'}. ` +
+            `${issuedBy} usually takes a few weeks, so this is worth filing now — send us the renewal and ` +
+            `nothing has to stop.`,
+    })
+  }
+
+  return out.sort((a, b) => (a.daysLeft ?? 9_999) - (b.daysLeft ?? 9_999))
 }
