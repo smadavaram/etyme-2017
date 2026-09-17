@@ -129,6 +129,8 @@ const KIND_WORD: Record<string, string> = {
   ROLLOFF_ACTION: 'Ending',
   SUBMISSION_REVIEW: 'Candidate',
   SUPPLIER_REVIEW: 'Supplier',
+  CONTRACT_PAPERING: 'To paper',
+  CONTRACT_START: 'To start',
   INVOICE_OVERDUE: 'Invoice',
   RATE_CONFIRMATION: 'Rate',
   BILL_DISPUTED: 'Bill',

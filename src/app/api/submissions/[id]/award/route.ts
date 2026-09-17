@@ -12,6 +12,7 @@ import {
   checkClassification, checkCover, insuranceRestsWith, type WorkerType,
 } from '@/lib/worker-classification'
 import { writeCyclesFor } from '@/lib/contract-cycles'
+import { awardHandoff } from '@/lib/papering'
 import { loadContractHolidays } from '@/lib/holidays'
 
 /**
@@ -66,6 +67,10 @@ export async function POST(
         },
       },
       fromCompany: { select: { id: true, name: true, templatePack: true } },
+      // Who the supplier bills, by name. The papering notice has to say
+      // it, and reading it off the requirement would name the site
+      // rather than the counterparty on a three-party placement.
+      toCompany: { select: { id: true, name: true } },
       requirement: {
         include: {
           costCenter: { select: { id: true, code: true } },
@@ -670,6 +675,64 @@ export async function POST(
     })
   }
 
+  // ── The baton passes ────────────────────────────────────────────────
+  //
+  // The founder's question: "how will the placed transition to contract
+  // from account manager to contract manager, and at what point?" Here,
+  // and nowhere else. `company-defaults` already separates the desks —
+  // an Account Manager submits and cannot write a contract; a Contract
+  // Manager writes contracts and cannot submit — and until now the award
+  // told neither. It told the client's own requisition raiser and left a
+  // DRAFT contract on nobody's desk at the supplier.
+  //
+  // So the supplier's seats are read and split by what they may actually
+  // do: whoever can paper it is asked to, by email as well as in the app,
+  // and whoever sells is told it was won and who has it now. Nobody is
+  // handed a job they would be refused on arrival. src/lib/papering.ts
+  const seats = await prisma.context.findMany({
+    where: { companyId: submission.fromCompanyId, revokedAt: null, type: 'EMPLOYEE' },
+    select: {
+      personId: true,
+      person: { select: { name: true } },
+      role: { select: { name: true, permissions: true } },
+    },
+  })
+
+  const handoff = awardHandoff(
+    {
+      personName: submission.person.name,
+      clientName: submission.toCompany.name,
+      roleTitle: req.title,
+      rateCents: awardedRate,
+      currency: terms.currency.value,
+      startDate: start,
+    },
+    seats.map((s) => ({
+      personId: s.personId,
+      personName: s.person.name,
+      roleName: s.role?.name ?? null,
+      permissions: s.role?.permissions ?? [],
+    }))
+  )
+
+  for (const notice of [handoff.toPaper, handoff.toSell]) {
+    if (!notice) continue
+    for (const personId of notice.personIds) {
+      void notify({
+        personId,
+        companyId: submission.fromCompanyId,
+        type: 'CONTRACT',
+        // Email as well as in the app. A desk that only hears when it
+        // happens to open the app is a desk that hears late.
+        channel: 'EMAIL',
+        title: notice.title,
+        body: notice.body,
+        entityId: result.contract.id,
+        data: { contractId: result.contract.id, requirementId: req.id, href: '/dashboard/contracts' },
+      })
+    }
+  }
+
   return NextResponse.json(
     {
       data: {
@@ -694,6 +757,14 @@ export async function POST(
         currency: terms.currency.value,
         checks: decision.checks,
         notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
+        // Where it went next, in the supplier's own words. The award is
+        // the handoff, and saying so is how a person learns the rule
+        // without being trained on it.
+        handoff: {
+          desk: handoff.deskPhrase,
+          told: (handoff.toPaper?.personIds.length ?? 0) + (handoff.toSell?.personIds.length ?? 0),
+          says: handoff.says,
+        },
         message: decision.summary,
       },
     },

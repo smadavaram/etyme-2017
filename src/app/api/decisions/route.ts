@@ -9,6 +9,7 @@ import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
 import { desksFor } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { paperingRow } from '@/lib/papering'
 
 /**
  * GET /api/decisions
@@ -27,6 +28,8 @@ import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-
  *   INVOICE_OVERDUE    — invoices past due
  *   RATE_CONFIRMATION  — rate changes that need confirmation
  *   SUPPLIER_REVIEW    — a firm recommended, waiting on Procurement's paperwork and yes
+ *   CONTRACT_PAPERING  — a placement won and still a draft: the contract desk's
+ *   CONTRACT_START     — a contract papered and nobody started on it yet
  *
  * Each decision has: type, title, subtitle, urgency (HIGH|MEDIUM|LOW),
  * entityType, entityId, dueDate (if applicable), and actionUrl.
@@ -308,6 +311,70 @@ export async function GET(request: NextRequest) {
           createdAt: w.createdAt.toISOString(),
         })
       }
+    }
+  }
+
+  // ── 2d. Placements won and not yet papered, and papered and not started ──
+  //
+  // The handoff from the desk that sells to the desk that papers. An
+  // Account Manager holds `submissions.create` and not `assignments.write`;
+  // a Contract Manager holds the reverse. So the award ends one desk's
+  // job and starts another's, and until this row existed the second desk
+  // was never told: a won deal became a DRAFT contract on nobody's queue,
+  // found only by somebody browsing the contracts list.
+  //
+  // Gated on the permission that acts, not on a role name. A firm that
+  // renamed Contract Manager still sees its own drafts, and an account
+  // manager who cannot write a contract is not shown a row they would be
+  // refused on — they were told at the award instead, by name, who has it.
+  if (hasAnyPermission(caller.permissions, ['assignments.write'])) {
+    const waiting = await prisma.sellContract.findMany({
+      where: { companyId, state: { in: ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] } },
+      select: {
+        id: true, state: true, billRate: true, billCurrency: true,
+        startDate: true, createdAt: true, updatedAt: true,
+        person: { select: { name: true } },
+        clientCompany: { select: { name: true } },
+        requirement: { select: { title: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 20,
+    })
+
+    for (const c of waiting) {
+      // When this contract reached the state it is stuck in. A draft has
+      // waited since the award, which is when the row was written; a
+      // papered one since somebody papered it, which is its last write.
+      const since = c.state === 'DRAFT' ? c.createdAt : c.updatedAt
+      const row = paperingRow(
+        {
+          state: c.state,
+          personName: c.person.name,
+          clientName: c.clientCompany?.name ?? 'a client',
+          roleTitle: c.requirement?.title ?? null,
+          rateCents: c.billRate,
+          currency: c.billCurrency ?? 'USD',
+          waitingSince: since,
+          startDate: c.startDate ?? null,
+        },
+        now
+      )
+      if (!row) continue
+
+      decisions.push({
+        type: row.type,
+        title: row.title,
+        subtitle: row.subtitle,
+        urgency: row.urgency,
+        entityType: 'SELL_CONTRACT',
+        entityId: c.id,
+        dueDate: c.startDate?.toISOString() ?? null,
+        actionUrl: `/dashboard/contracts/${c.id}`,
+        // No amount. A draft contract has committed nothing, and adding
+        // its rate to the "needs you" total would read as money waiting.
+        amount: null,
+        createdAt: since.toISOString(),
+      })
     }
   }
 

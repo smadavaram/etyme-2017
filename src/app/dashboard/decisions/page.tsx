@@ -35,7 +35,7 @@ interface Decision {
   createdAt: string
 }
 
-type TypeFilter = 'all' | 'TIMESHEET_APPROVAL' | 'EXPENSE_APPROVAL' | 'ROLLOFF_ACTION' | 'SUBMISSION_REVIEW' | 'INVOICE_OVERDUE'
+type TypeFilter = 'all' | 'TIMESHEET_APPROVAL' | 'EXPENSE_APPROVAL' | 'ROLLOFF_ACTION' | 'SUBMISSION_REVIEW' | 'CONTRACT_PAPERING' | 'CONTRACT_START' | 'INVOICE_OVERDUE'
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -45,6 +45,8 @@ function typeIcon(type: string): string {
     EXPENSE_APPROVAL:   '◫',
     ROLLOFF_ACTION:     '⚠',
     SUBMISSION_REVIEW:  '◇',
+    CONTRACT_PAPERING:  '✎',
+    CONTRACT_START:     '▷',
     INVOICE_OVERDUE:    '▧',
     RATE_CONFIRMATION:  '↕',
   }
@@ -57,6 +59,8 @@ function typeLabel(type: string): string {
     EXPENSE_APPROVAL:   'Expense',
     ROLLOFF_ACTION:     'Rolloff',
     SUBMISSION_REVIEW:  'Submission',
+    CONTRACT_PAPERING:  'To paper',
+    CONTRACT_START:     'To start',
     INVOICE_OVERDUE:    'Invoice',
     RATE_CONFIRMATION:  'Rate',
   }
@@ -206,6 +210,8 @@ export default function DecisionsPage() {
     { key: 'EXPENSE_APPROVAL', label: 'Expenses', count: counts.EXPENSE_APPROVAL ?? 0 },
     { key: 'ROLLOFF_ACTION', label: 'Rolloff', count: counts.ROLLOFF_ACTION ?? 0 },
     { key: 'SUBMISSION_REVIEW', label: 'Submissions', count: counts.SUBMISSION_REVIEW ?? 0 },
+    { key: 'CONTRACT_PAPERING', label: 'To paper', count: counts.CONTRACT_PAPERING ?? 0 },
+    { key: 'CONTRACT_START', label: 'To start', count: counts.CONTRACT_START ?? 0 },
     { key: 'INVOICE_OVERDUE', label: 'Invoices', count: counts.INVOICE_OVERDUE ?? 0 },
   ]
 

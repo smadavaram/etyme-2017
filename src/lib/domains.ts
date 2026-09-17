@@ -176,6 +176,10 @@ export const DOMAINS: Domain[] = [
       'app/api/checks', 'app/api/why',
       'lib/openings', 'lib/lead-reader', 'lib/requirement-quality',
       'lib/screening', 'lib/checks', 'lib/award', 'lib/first-good', 'lib/chain-top', 'lib/timesheet-flag',
+      // The baton from the desk that wins a deal to the desk that papers
+      // it. Who hears at the award and what the queue row says; the
+      // contract state machine itself is money's.
+      'lib/papering',
       // The term, the standing and the signature on a master agreement.
       // Lives with app/api/program/agreements, which is the screen that
       // reads it — commercial papering is L2.2.1 and belongs here.
