@@ -179,7 +179,9 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   PACKET_REOPENED: {
     rung: 'L3',
     basis: 'RULE',
-    says: 'A document that has run out is asked for again, from the company that owes it. Asking is all it does.',
+    says:
+      'A document that has run out — or that leaves weeks uncovered between one policy ending and the next ' +
+      'beginning — is asked for again, from the company that owes it. Asking is all it does.',
   },
   WEBHOOK_DISABLED: {
     rung: 'L3',
@@ -373,7 +375,9 @@ export const JOBS: Record<string, Job> = {
     job: 'watch',
     rung: 'L3',
     basis: 'RULE',
-    says: 'Asks again for documents that have run out, from the company that owes them.',
+    says:
+      'Asks again for documents that have run out, and for cover for the weeks between one policy ending ' +
+      'and the next beginning, from the company that owes them.',
     writes: ['PACKET_REOPENED'],
   },
   'auto-approve': {

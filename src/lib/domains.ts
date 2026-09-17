@@ -249,6 +249,11 @@ export const DOMAINS: Domain[] = [
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
       // How much we do unprompted, as a ladder a buyer already knows.
       'lib/autonomy',
+      // Where a company's cover has a hole in it — the weeks between one
+      // policy ending and the next beginning. The nightly chase's own
+      // arithmetic, here because the chase is here; the standing of a
+      // single document stays with regulation.
+      'lib/cover-gap',
       // What kind of thing a document is — purpose, validity shape, edition,
       // and what has to stand behind it. The company's own dictionary over
       // shipped defaults. Here rather than under regulation because

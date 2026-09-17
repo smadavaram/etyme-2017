@@ -331,10 +331,6 @@ function verificationQueries(src: string): string[] {
  * new one fails this test on the commit that adds it.
  */
 const KNOWN_TO_DROP_THE_FLOOR: Record<string, string> = {
-  'src/app/api/cron/watch/route.ts':
-    'etyme-architect\u2019s. The nightly chase treats a certificate beginning next month as on file, so nobody is asked to cover the weeks in between.',
-  'src/app/api/placements/[id]/route.ts':
-    'etyme-architect\u2019s, and smaller: the two queries feeding the checklist do read the floor. The one that does not is the sub-vendor\u2019s cover, echoed to the screen as a stored status with no standing computed at all.',
 }
 
 describe('a query that feeds the compliance arithmetic asks when a document starts', () => {

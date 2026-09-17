@@ -15,6 +15,7 @@ import {
   type Finding,
 } from '@/lib/watch'
 import { packetByKey, resolveItems, itemsToAsk, type HeldDocument } from '@/lib/packets'
+import { coverGaps } from '@/lib/cover-gap'
 import { sweepExpired } from '@/lib/holds'
 
 /**
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
 
   const findings = ordered([
     ...(await lookAtVerifications(now)),
+    ...(await lookAtCoverGaps(now)),
     ...(await lookAtPurchaseOrders(now)),
     ...(await lookAtAccess(now)),
     ...(await lookAtPackets(now)),
@@ -121,7 +123,11 @@ async function lookAtVerifications(now: Date): Promise<Finding[]> {
       status: { in: ['CLEAR', 'CONDITIONAL'] },
     },
     select: {
-      id: true, companyId: true, personId: true, type: true, status: true, expiresAt: true,
+      id: true, companyId: true, personId: true, type: true, status: true,
+      // The floor as well as the ceiling. Selecting only `expiresAt` made
+      // a policy beginning next month read as cover held today, which is
+      // how the chase came to be silent on the one gap it exists for.
+      issuedAt: true, validFrom: true, expiresAt: true,
       company: { select: { name: true } },
       person: { select: { name: true } },
     },
@@ -136,6 +142,46 @@ async function lookAtVerifications(now: Date): Promise<Finding[]> {
       status: v.status,
       expiresAt: v.expiresAt,
       subjectName: v.company?.name ?? v.person?.name ?? 'Somebody',
+    })),
+    now
+  )
+}
+
+/**
+ * The weeks nobody is insured.
+ *
+ * `watchVerifications` above answers "what is about to run out", which is
+ * silent on a supplier whose old policy lapsed and whose new one starts in
+ * October: nothing expires this week, so nothing was said, and the days in
+ * between were nobody's. Every certificate on file is read here rather
+ * than only the ones expiring, because a gap is the distance between two
+ * dates and one of them is usually outside the sixty-day window.
+ */
+async function lookAtCoverGaps(now: Date): Promise<Finding[]> {
+  const rows = await prisma.verification.findMany({
+    where: {
+      companyId: { not: null },
+      type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
+      status: { in: ['CLEAR', 'CONDITIONAL'] },
+    },
+    // `validFrom` is the whole point of this query: the day cover begins.
+    select: {
+      id: true, companyId: true, type: true, status: true,
+      issuedAt: true, validFrom: true, expiresAt: true,
+      company: { select: { name: true } },
+    },
+  })
+
+  return coverGaps(
+    rows.map((v) => ({
+      id: v.id,
+      companyId: v.companyId!,
+      companyName: v.company?.name ?? 'This supplier',
+      type: v.type,
+      status: v.status,
+      issuedAt: v.issuedAt,
+      validFrom: v.validFrom,
+      expiresAt: v.expiresAt,
     })),
     now
   )
@@ -236,8 +282,12 @@ interface ActOutcome {
 async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
   const verification = await prisma.verification.findUnique({
     where: { id: f.subjectId },
+    // Whose document this is and what kind — no dates. This lookup does
+    // not judge the document; `heldDocs` below does, and it selects both
+    // the day cover begins and the day it ends. A date read here and
+    // nowhere else is how a floor comes to be half-read.
     select: {
-      id: true, type: true, companyId: true, personId: true, expiresAt: true,
+      id: true, type: true, companyId: true, personId: true,
       company: { select: { id: true, name: true } },
     },
   })
@@ -293,10 +343,16 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
 
   const held = await prisma.verification.findMany({
     where: { companyId: verification.companyId },
-    select: { type: true, status: true, expiresAt: true },
+    // The floor, or the chase decides a policy beginning in October is
+    // already on file in September and asks for nothing at all — which is
+    // exactly the supplier nobody is chasing.
+    select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true },
   })
   const heldDocs: HeldDocument[] = held.map((v) => ({
     key: v.type,
+    // Where the paper does not say when cover begins, the day it was
+    // issued is the best floor there is — the same fallback clearance uses.
+    validFrom: v.validFrom ?? v.issuedAt,
     expiresAt: v.expiresAt,
     accepted: v.status === 'CLEAR' || v.status === 'CONDITIONAL',
   }))
@@ -349,10 +405,15 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
       expiresAt: new Date(now.getTime() + 45 * 86_400_000),
       createdById: creator.personId,
       // Said to the recipient, so being asked again is not a mystery.
+      // A supplier whose renewal is already on file cannot act on "renew
+      // it". Where the finding is about a hole between two policies, the
+      // finding's own sentence is the one to send.
       reopenedReason:
-        f.daysUntil !== null && f.daysUntil < 0
-          ? `Your cover lapsed ${Math.abs(f.daysUntil)} days ago, which stops us placing anybody through you until it is renewed.`
-          : `Your cover expires in ${f.daysUntil} days. Renewing before then means nothing has to stop.`,
+        f.kind === 'COVER_GAP' || f.kind === 'COVER_NOT_STARTED'
+          ? f.detail
+          : f.daysUntil !== null && f.daysUntil < 0
+            ? `Your cover lapsed ${Math.abs(f.daysUntil)} days ago, which stops us placing anybody through you until it is renewed.`
+            : `Your cover expires in ${f.daysUntil} days. Renewing before then means nothing has to stop.`,
       items: {
         create: asking.map((item, position) => ({
           key: item.key,
@@ -422,6 +483,8 @@ async function tell(findings: Finding[], now: Date): Promise<number> {
   const NEEDS: Record<string, string> = {
     VERIFICATION_EXPIRED: 'vendors.manage',
     VERIFICATION_EXPIRING: 'vendors.manage',
+    COVER_NOT_STARTED: 'vendors.manage',
+    COVER_GAP: 'vendors.manage',
     PO_EXHAUSTED: 'invoices.issue',
     PO_NEARLY_SPENT: 'invoices.issue',
     PO_ENDING: 'invoices.issue',

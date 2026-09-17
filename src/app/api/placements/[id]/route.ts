@@ -7,6 +7,7 @@ import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { categoryOf, labelOf } from '@/lib/cycle-kinds'
 import { contractClearance } from '@/lib/contract-clearance'
+import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
 
 /**
  * GET /api/placements/:id
@@ -261,7 +262,14 @@ export async function GET(
             companyId: ourBuy.vendorCompany.id,
             type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
           },
-          select: { id: true, type: true, status: true, expiresAt: true },
+          // The floor and the day somebody said they had seen it, because
+          // this row is not echoed to the screen as a stored status any
+          // more — its standing is computed the same way the compliance
+          // page computes it.
+          select: {
+            id: true, type: true, status: true,
+            issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true,
+          },
         })
       : Promise.resolve([]),
     // The supplier on this contract — the firm that has to be insured
@@ -357,6 +365,25 @@ export async function GET(
     clientName: placement.clientCompany.name,
     on: now,
   })
+
+  // The firm below us, read the same way we read the firm above. Null
+  // where we employ the person ourselves, which is a fact rather than a
+  // gap and is said as `weEmployThem` in the chain.
+  const subVendorCover = ourBuy?.vendorCompany
+    ? supplierCoverGate({
+        supplierName: ourBuy.vendorCompany.name,
+        clientName: placement.clientCompany.name,
+        certificates: supplierCover.map((v) => ({
+          type: v.type,
+          status: v.status,
+          issuedAt: v.issuedAt,
+          validFrom: v.validFrom,
+          expiresAt: v.expiresAt,
+          verifiedAt: v.verifiedAt,
+        })),
+        on: now,
+      })
+    : null
 
   return NextResponse.json({
     data: {
@@ -481,11 +508,51 @@ export async function GET(
           provider: v.provider,
           expiresAt: v.expiresAt?.toISOString() ?? null,
         })),
-        supplierCover: supplierCover.map((v) => ({
-          type: v.type,
-          status: v.status,
-          expiresAt: v.expiresAt?.toISOString() ?? null,
-        })),
+        // The sub-vendor's cover, as standing rather than as the status
+        // somebody typed when they filed it.
+        //
+        // A stored status is a claim about a past moment. This row said
+        // "Clear" over a certificate whose cover begins in October, while
+        // the same certificate blocked at activation — the screen and the
+        // refusal giving two answers about the same policy. The stored
+        // value stays, because it is a fact about the record; what the
+        // screen should read is `standing`.
+        supplierCover: supplierCover.map((v) => {
+          const standing = standingOf(
+            {
+              key: v.type,
+              label: coverLabel(v.type),
+              issuedAt: v.issuedAt,
+              validFrom: v.validFrom,
+              expiresAt: v.expiresAt,
+              verifiedAt: v.verifiedAt,
+            },
+            // Brokers issue cover annually, which is the same window the
+            // compliance page and the submission door use.
+            { key: v.type, label: coverLabel(v.type), validMonths: 12 },
+            now
+          )
+          return {
+            type: v.type,
+            status: v.status,
+            validFrom: (v.validFrom ?? v.issuedAt)?.toISOString() ?? null,
+            expiresAt: v.expiresAt?.toISOString() ?? null,
+            standing: standing.standing,
+            says: standing.says,
+          }
+        }),
+        // Whether the firm below us could put anybody forward today. The
+        // same function the submission door and the compliance page call,
+        // so a placement cannot read green on cover that refuses a
+        // submission an hour later.
+        subVendorCover: subVendorCover
+          ? {
+              vendor: ourBuy!.vendorCompany!.name,
+              outcome: subVendorCover.outcome,
+              says: subVendorCover.says,
+              fix: subVendorCover.fix,
+            }
+          : null,
       },
 
       // ── Station 7 · the hours ──
