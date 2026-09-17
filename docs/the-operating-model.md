@@ -217,6 +217,16 @@ signed. But `cron/due-cycles` notifies **the consultant** for
 desk-side money events routed to the one person who cannot act on them.
 **AR hears nothing until an invoice is already overdue.**
 
+And the notice it sends is titled with the engine's own enum:
+`"INVOICE_GENERATE cycle due in 3 days"`. So a contractor is told
+`SALARY_CALCULATE` about her own pay. That is the precise mistake
+CLAUDE.md records from 2017 — *"the timeline filter was the cycle
+engine's own enum (`TimesheetSubmit`, `SalaryCalculation`) … exposing how
+it is built instead of what it is for"* — reintroduced in the one place
+nobody read, and `labelOf()` in `lib/cycle-kinds` already returns "Pay
+day", "Invoice to raise" and "Hours due" for exactly this purpose. Two
+bugs on the same six lines: the wrong person, told in the wrong words.
+
 ### 8 · The employer pays, and decides what the candidate sees
 
 > The employer pays salary as per agreed terms. The employer reserves the
