@@ -13,6 +13,7 @@ import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
 import { submissionScope } from '@/lib/resolve-client-company'
 import { isConsultantSeat } from '@/lib/seat'
+import { submissionKind, tellEmployee, blockedSays } from './kind'
 
 /**
  * POST /api/submissions
@@ -333,114 +334,196 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      // 2. Check for live BenchListing from this company
-      // CLAUDE.md: "A Submission requires a live BenchListing granted by the consultant"
-      const consultant = await prisma.consultantProfile.findUnique({
-        where: { personId },
+      // ── Ours, or somebody else's? ──────────────────────────────
+      //
+      // Asked before the bench walls, because for our own W2 employee
+      // there is no bench and there was never going to be one.
+      //
+      // A prime, a GSI and an MSP all sell to a client and buy either
+      // from a sub-vendor or from their own payroll. A delivery manager
+      // moving somebody off a winding-down project onto a new client, or
+      // HR placing an employee sitting between assignments, is the
+      // ordinary way those firms staff work — and this route refused all
+      // of it, because it demanded a `ConsultantProfile` and a bench
+      // listing the employee had granted to the firm that already
+      // employs them. The employment contract is that consent: nobody
+      // asks an employee's permission to be staffed on a project.
+      //
+      // So the carve-out is narrow and it is exactly three things. The
+      // listing is skipped. The employee is told rather than asked. The
+      // read is logged like every other. A firm putting forward somebody
+      // it does not employ walks the same walls it always did.
+      //
+      // Live means live: revoked, suspended and expired seats are all
+      // people this firm no longer employs, and a lapsed seat falls back
+      // to the listing path rather than opening the door wider.
+      const employment = await prisma.context.findFirst({
+        where: {
+          personId,
+          companyId: fromCompanyId,
+          type: 'EMPLOYEE',
+          revokedAt: null,
+          suspendedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
         select: { id: true },
       })
+      const employedByUs = employment !== null
 
-      if (!consultant) {
-        item.status = 'error'
-        item.error = 'Person has no consultant profile'
-        results.push(item)
-        continue
-      }
+      // The bench listing this firm holds, where it needs one. Null for
+      // an employee, which is what makes the submission INTERNAL.
+      let listing: { tier: string | null } | null = null
+      // What `maySubmit` said when it ran — "you already represent this
+      // person here for another 12 days", and the like. There is no such
+      // sentence for an employee, because none of it applies.
+      let representationNote: string | undefined
 
-      const listing = await prisma.benchListing.findFirst({
-        where: {
-          consultantId: consultant.id,
-          companyId: fromCompanyId,
-          revokedAt: null,
-        },
-      })
+      if (employedByUs) {
+        // An employer may skip the listing. It may not skip a block.
+        //
+        // A client off somebody's list is off it however they are
+        // engaged, and being on the submitting firm's payroll does not
+        // override a decision that was never the firm's to make.
+        // `maySubmit` bundles this check with the listing checks and so
+        // does not run here; `lib/holds` belongs to etyme-regulatory and
+        // exports nothing that answers this on its own, so the query is
+        // here, deliberately reading the same row `maySubmit` reads.
+        const blocked = await prisma.doNotSubmit.findUnique({
+          where: { personId_companyId: { personId, companyId: clientCompanyId } },
+          select: { id: true },
+        })
 
-      if (!listing) {
-        item.status = 'error'
-        item.error = 'No active bench listing from this company. The consultant must grant a listing first.'
-        results.push(item)
-        continue
-      }
+        if (blocked) {
+          item.status = 'error'
+          item.code = 'BLOCKED'
+          item.error = blockedSays()
 
-      // And has the consultant actually agreed to it.
-      //
-      // The listing existing was never the point. `grantedAt` used to be
-      // stamped the moment a vendor created the row, so this check
-      // passed on a listing nobody had ever been asked about — which
-      // made CLAUDE.md's firmest invariant true in letter and empty in
-      // substance. A listing now starts INVITED and only the consultant
-      // moves it.
-      const consented = mayMarket({ state: listing.state as State, revokedAt: listing.revokedAt })
-      if (!consented.ok) {
-        item.status = 'error'
-        item.error = consented.reason
-        results.push(item)
-        continue
-      }
-
-      // 2b. May this vendor put this person in front of this client at all?
-      //
-      // A listing is permission to market somebody. It is not permission to
-      // send them anywhere, and the difference is what stops a consultant
-      // being burned: two vendors submitting the same name to the same
-      // client in the same week gets both rejected, and the person never
-      // finds out why.
-      //
-      // The refusal never says who else is involved. A consultant is on ten
-      // benches and that is nobody's business but theirs.
-      const verdict = await maySubmit({
-        personId,
-        companyId: fromCompanyId,
-        clientCompanyId,
-      })
-
-      if (!verdict.ok) {
-        item.status = verdict.code === 'HELD_ELSEWHERE' ? 'held' : 'error'
-        item.code = verdict.code
-        item.error = verdict.message
-
-        // Somebody who wants to be asked gets asked, here, once.
-        if (verdict.code === 'ASK_FIRST') {
-          const asked = await askFor({
-            personId,
-            companyId: fromCompanyId,
-            clientCompanyId,
-            requirementId,
+          await prisma.accessLog.create({
+            data: {
+              subjectId: personId,
+              actorCompanyId: fromCompanyId,
+              action: 'SUBMIT',
+              allowed: false,
+              reason: item.error,
+            },
           })
-          if (asked) {
-            void emit({
-              type: 'representation.requested',
-              companyId: fromCompanyId,
-              subjectType: 'Representation',
-              subjectId: asked.id,
-              actorPersonId: submitter?.id ?? null,
-              payload: { personId, clientCompanyId, requirementId },
-            })
-            void notify({
-              personId,
-              type: 'SUBMISSION',
-              title: 'An agency wants to put you forward',
-              body: `${vendorName} would like to submit you to ${clientName} for ${requirement.title}. They cannot until you say yes.`,
-              entityId: asked.id,
-              data: { representationId: asked.id, clientCompanyId, requirementId },
-            })
-          }
+
+          results.push(item)
+          continue
+        }
+      } else {
+        // 2. Check for live BenchListing from this company
+        // CLAUDE.md: "A Submission requires a live BenchListing granted by the consultant"
+        const consultant = await prisma.consultantProfile.findUnique({
+          where: { personId },
+          select: { id: true },
+        })
+
+        if (!consultant) {
+          item.status = 'error'
+          item.error = 'Person has no consultant profile'
+          results.push(item)
+          continue
         }
 
-        // A refused submission is still a read of somebody's data, and
-        // CLAUDE.md says refusals are logged too.
-        await prisma.accessLog.create({
-          data: {
-            subjectId: personId,
-            actorCompanyId: fromCompanyId,
-            action: 'SUBMIT',
-            allowed: false,
-            reason: verdict.message,
+        const benchListing = await prisma.benchListing.findFirst({
+          where: {
+            consultantId: consultant.id,
+            companyId: fromCompanyId,
+            revokedAt: null,
           },
         })
 
-        results.push(item)
-        continue
+        if (!benchListing) {
+          item.status = 'error'
+          item.error = 'No active bench listing from this company. The consultant must grant a listing first.'
+          results.push(item)
+          continue
+        }
+
+        // And has the consultant actually agreed to it.
+        //
+        // The listing existing was never the point. `grantedAt` used to be
+        // stamped the moment a vendor created the row, so this check
+        // passed on a listing nobody had ever been asked about — which
+        // made CLAUDE.md's firmest invariant true in letter and empty in
+        // substance. A listing now starts INVITED and only the consultant
+        // moves it.
+        const consented = mayMarket({ state: benchListing.state as State, revokedAt: benchListing.revokedAt })
+        if (!consented.ok) {
+          item.status = 'error'
+          item.error = consented.reason
+          results.push(item)
+          continue
+        }
+
+        // 2b. May this vendor put this person in front of this client at all?
+        //
+        // A listing is permission to market somebody. It is not permission to
+        // send them anywhere, and the difference is what stops a consultant
+        // being burned: two vendors submitting the same name to the same
+        // client in the same week gets both rejected, and the person never
+        // finds out why.
+        //
+        // The refusal never says who else is involved. A consultant is on ten
+        // benches and that is nobody's business but theirs.
+        const verdict = await maySubmit({
+          personId,
+          companyId: fromCompanyId,
+          clientCompanyId,
+        })
+
+        if (!verdict.ok) {
+          item.status = verdict.code === 'HELD_ELSEWHERE' ? 'held' : 'error'
+          item.code = verdict.code
+          item.error = verdict.message
+
+          // Somebody who wants to be asked gets asked, here, once.
+          if (verdict.code === 'ASK_FIRST') {
+            const asked = await askFor({
+              personId,
+              companyId: fromCompanyId,
+              clientCompanyId,
+              requirementId,
+            })
+            if (asked) {
+              void emit({
+                type: 'representation.requested',
+                companyId: fromCompanyId,
+                subjectType: 'Representation',
+                subjectId: asked.id,
+                actorPersonId: submitter?.id ?? null,
+                payload: { personId, clientCompanyId, requirementId },
+              })
+              void notify({
+                personId,
+                type: 'SUBMISSION',
+                title: 'An agency wants to put you forward',
+                body: `${vendorName} would like to submit you to ${clientName} for ${requirement.title}. They cannot until you say yes.`,
+                entityId: asked.id,
+                data: { representationId: asked.id, clientCompanyId, requirementId },
+              })
+            }
+          }
+
+          // A refused submission is still a read of somebody's data, and
+          // CLAUDE.md says refusals are logged too.
+          await prisma.accessLog.create({
+            data: {
+              subjectId: personId,
+              actorCompanyId: fromCompanyId,
+              action: 'SUBMIT',
+              allowed: false,
+              reason: verdict.message,
+            },
+          })
+
+          results.push(item)
+          continue
+        }
+
+        listing = benchListing
+        representationNote = verdict.note
       }
 
       // 3. Check for duplicate — unique on (requirementId, personId)
@@ -460,14 +543,13 @@ export async function POST(request: NextRequest) {
       }
 
       // 4. Compute SubmissionKind from ownership (never accepted from client)
-      let kind: 'INTERNAL' | 'BENCH' | 'NETWORK'
-      if (fromCompanyId === toCompanyId) {
-        kind = 'INTERNAL'
-      } else if (listing.tier === 'RETAINED') {
-        kind = 'BENCH'
-      } else {
-        kind = 'NETWORK'
-      }
+      //
+      // This used to read `fromCompanyId === toCompanyId` for INTERNAL,
+      // which is unreachable — NO_RECIPIENT refuses a submission to
+      // yourself several screens above — and meant the wrong thing
+      // besides. INTERNAL is about the person, not the recipient. See
+      // `./kind`.
+      const kind = submissionKind({ employedByUs, listingTier: listing?.tier ?? null })
 
       // 5. Create the submission, with the CV that is current right now.
       //
@@ -510,16 +592,24 @@ export async function POST(request: NextRequest) {
       // After the submission rather than before: a hold taken for a
       // submission that then failed would keep somebody out of a client's
       // pipeline for a month for nothing.
-      const held = await takeHold({
-        personId,
-        companyId: fromCompanyId,
-        clientCompanyId,
-        requirementId,
-      })
+      //
+      // Not taken for our own employee. A hold is one agency warning
+      // another off a name it is working; the employment already says
+      // who this person answers to, and writing a representation row
+      // against a firm's own payroll would put a marketplace claim on an
+      // employee who is not on the market.
+      const held = employedByUs
+        ? null
+        : await takeHold({
+            personId,
+            companyId: fromCompanyId,
+            clientCompanyId,
+            requirementId,
+          })
 
       if (held) {
         item.heldUntil = held.expiresAt.toISOString().slice(0, 10)
-        item.note = verdict.ok ? verdict.note : undefined
+        item.note = representationNote
 
         void emit({
           type: 'representation.taken',
@@ -615,6 +705,35 @@ export async function POST(request: NextRequest) {
 
           item.asked = true
         }
+      }
+
+      // ── The employee is told ────────────────────────────────────
+      //
+      // The whole carve-out rests on this message, so it is awaited
+      // rather than fired and forgotten. A submission that went ahead
+      // without asking the person and then silently failed to tell them
+      // is the thing CLAUDE.md's listing invariant exists to prevent,
+      // and "the notification was best effort" is not an answer anybody
+      // wants to give afterwards.
+      //
+      // One message, no button. A consultant on a bench gets a consent
+      // ask alongside theirs; this deliberately has none, because there
+      // is nothing for an employee to accept and offering a choice whose
+      // answer is thrown away is worse than offering none.
+      if (employedByUs) {
+        await notify({
+          personId,
+          companyId: fromCompanyId,
+          type: 'SUBMISSION',
+          title: `${vendorName} put you forward to ${clientName}`,
+          body: tellEmployee({
+            employerName: vendorName,
+            clientName,
+            roleTitle: requirement.title,
+          }),
+          entityId: submission.id,
+          data: { submissionId: submission.id, clientCompanyId, requirementId, kind },
+        })
       }
 
       // The band is advisory, so the submission stands and the warning

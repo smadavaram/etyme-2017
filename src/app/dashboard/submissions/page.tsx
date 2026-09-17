@@ -180,6 +180,21 @@ interface BenchConsultant {
   skills: string[]
 }
 
+/**
+ * Somebody on our own payroll.
+ *
+ * A prime, a GSI or an MSP staffs a client seat from two places: a
+ * consultant who granted us a bench listing, and an employee who granted
+ * nothing because their employment already said it. The picker offered
+ * only the first, so the second could never be chosen.
+ */
+interface OwnEmployee {
+  personId: string
+  name: string
+  role: string | null
+  skills: string[]
+}
+
 function SubmitToRequirementModal({
   companyId,
   onClose,
@@ -191,6 +206,8 @@ function SubmitToRequirementModal({
 }) {
   const [requirements, setRequirements] = useState<RequirementOption[]>([])
   const [consultants, setConsultants] = useState<BenchConsultant[]>([])
+  const [ourPeople, setOurPeople] = useState<OwnEmployee[]>([])
+  const [ourPeopleSays, setOurPeopleSays] = useState<string | null>(null)
   const [loadingOptions, setLoadingOptions] = useState(true)
 
   const [form, setForm] = useState({
@@ -208,9 +225,10 @@ function SubmitToRequirementModal({
     async function loadOptions() {
       setLoadingOptions(true)
       try {
-        const [reqRes, benchRes] = await Promise.all([
+        const [reqRes, benchRes, ownRes] = await Promise.all([
           fetch('/api/requirements?status=OPEN&limit=50'),
           fetch('/api/bench?limit=100'),
+          fetch('/api/submissions/own-people'),
         ])
 
         if (reqRes.ok) {
@@ -244,6 +262,12 @@ function SubmitToRequirementModal({
           }
           setConsultants(all)
         }
+
+        if (ownRes.ok) {
+          const body = await ownRes.json()
+          setOurPeople(body.data?.people ?? [])
+          setOurPeopleSays(body.data?.says ?? null)
+        }
       } catch {
         // Options failed to load — form will show empty selects
       } finally {
@@ -255,7 +279,10 @@ function SubmitToRequirementModal({
 
   // Selected items for match preview
   const selectedReq = requirements.find((r) => r.id === form.requirementId)
-  const selectedConsultant = consultants.find((c) => c.personId === form.personId)
+  const selectedOwn = ourPeople.find((p) => p.personId === form.personId)
+  const selectedConsultant =
+    consultants.find((c) => c.personId === form.personId) ??
+    (selectedOwn ? { listingId: '', personId: selectedOwn.personId, name: selectedOwn.name, skills: selectedOwn.skills } : undefined)
 
   // Compute skill overlap
   const reqSkills = selectedReq?.skills ?? []
@@ -373,7 +400,7 @@ function SubmitToRequirementModal({
 
             {/* Consultant select */}
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Consultant *</label>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Who *</label>
               <select
                 required
                 value={form.personId}
@@ -381,16 +408,37 @@ function SubmitToRequirementModal({
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
-                <option value="">Select a consultant…</option>
-                {consultants.map((c) => (
-                  <option key={c.personId} value={c.personId}>
-                    {c.name}{c.skills.length > 0 ? ` — ${c.skills.slice(0, 3).join(', ')}` : ''}
-                  </option>
-                ))}
+                <option value="">Select somebody…</option>
+                {ourPeople.length > 0 && (
+                  <optgroup label="On our payroll">
+                    {ourPeople.map((p) => (
+                      <option key={p.personId} value={p.personId}>
+                        {p.name}
+                        {p.skills.length > 0
+                          ? ` — ${p.skills.slice(0, 3).join(', ')}`
+                          : p.role
+                            ? ` — ${p.role}`
+                            : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {consultants.length > 0 && (
+                  <optgroup label="On our bench">
+                    {consultants.map((c) => (
+                      <option key={c.personId} value={c.personId}>
+                        {c.name}{c.skills.length > 0 ? ` — ${c.skills.slice(0, 3).join(', ')}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
-              {consultants.length === 0 && (
+              {selectedOwn && ourPeopleSays && (
+                <p className="text-[11px] text-etyme-muted mt-1">{ourPeopleSays}</p>
+              )}
+              {consultants.length === 0 && ourPeople.length === 0 && (
                 <p className="text-[11px] text-etyme-faint mt-1">
-                  No bench listings found. Consultants must grant a bench listing first.
+                  Nobody to put forward yet. Invite your own team, or ask a consultant for a bench listing.
                 </p>
               )}
             </div>
@@ -422,7 +470,7 @@ function SubmitToRequirementModal({
                     </div>
                   </div>
                   <div>
-                    <p className="text-[11px] text-etyme-faint mb-1">Consultant skills</p>
+                    <p className="text-[11px] text-etyme-faint mb-1">Their skills</p>
                     <div className="flex flex-wrap gap-1">
                       {conSkills.length > 0 ? conSkills.map((skill) => (
                         <span
