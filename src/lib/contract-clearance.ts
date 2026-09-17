@@ -142,6 +142,15 @@ export interface ChecklistItem {
   required: boolean
   state: ResolvedItem['state']
   note: string
+  /**
+   * What the person is actually being asked for, in their words.
+   *
+   * Carried off the packet spec rather than dropped, because the desk
+   * that chases a document and the letter that asks for it must say the
+   * same thing — and until 2026-09-17 the checklist threw the hint away
+   * and the request had to invent one.
+   */
+  hint: string
   /** True where the state alone would stop the contract starting. */
   blocks: boolean
   /**
@@ -388,6 +397,7 @@ export function contractClearance(input: {
     required: r.required,
     state: r.state,
     note: r.note,
+    hint: r.hint,
     blocks: blocksStart(r, blockingKeys),
     ...(naming && r.key === LICENSE_KEY ? { said: naming.said } : {}),
   }))
@@ -666,4 +676,226 @@ function fixFor(
 /** The cover standings, flattened for a screen that lists everything. */
 export function coverItems(cover: CoverGate): DocStanding[] {
   return [...cover.blocking, ...cover.chasing]
+}
+
+// ── Before the start, not on it ───────────────────────────────────────
+//
+// `contractClearance` above is the verdict activation runs. Until
+// 2026-09-17 it was run in exactly one place — inside the activate
+// route, at the moment somebody pressed the button — so the first time
+// anybody asked whether a person's paperwork was in order was the moment
+// they tried to start them, and the answer arrived as a refusal to
+// whoever pressed the button rather than as work to the desk that can
+// fix it.
+//
+// The founder walked his own operation and named the gap: the contract
+// manager papers the placement, HR clears the person, and nothing told
+// HR a start was coming. It is the same shape CLAUDE.md records from the
+// client dashboard — the desk that acts is the desk that hears.
+//
+// So the verdict is read twice, from the same function: once ahead of
+// the start, as HR's work, and once at activation, as the refusal. They
+// cannot drift, because `says` and `fix` below are the clearance's own
+// strings passed through untouched rather than rewritten for a screen.
+
+/**
+ * Who has to produce a document.
+ *
+ * PERSON where a regulator issued it to the worker or the worker holds
+ * it — a license, a passport, the I-9 they complete. FIRM where the firm
+ * produces it — its own insurance, the NDA it writes. This is CLAUDE.md's
+ * "who owes it differs, and that decides who is chased", read off the
+ * company's own document dictionary rather than listed here, so a type a
+ * client invents on Tuesday is chased from the right party on Wednesday.
+ */
+export type OwedBy = 'PERSON' | 'FIRM'
+
+const FIRM_SUPPLIES = new Set(['SUPPLIER', 'CLIENT'])
+
+export function owedBy(key: string, documentTypes: DefinedType[] = []): OwedBy {
+  const t = typeByKey(key, documentTypes)
+  if (!t?.suppliedBy) return 'PERSON'
+  return FIRM_SUPPLIES.has(t.suppliedBy) ? 'FIRM' : 'PERSON'
+}
+
+/** One outstanding document, and who is being asked for it. */
+export interface ClearanceAsk {
+  key: string
+  label: string
+  /** What they are actually being asked for, in their words. */
+  hint: string
+  required: boolean
+  owedBy: OwedBy
+  /** The dictionary's own word, for a screen that wants to show it. */
+  suppliedBy: string | null
+  /** BLOCK where the absence is legally grounded; WARN everywhere else. */
+  weight: Outcome
+  state: ResolvedItem['state']
+}
+
+export interface StartPreview {
+  outcome: Outcome
+  /** The clearance's own sentence. Identical to what activation refuses with. */
+  says: string
+  /** The clearance's own remedy. Identical to what activation offers. */
+  fix: string | null
+  /** The whole verdict, where a caller wants the cover and license detail. */
+  clearance: Clearance
+  items: ChecklistItem[]
+  blocking: ChecklistItem[]
+  chasing: ChecklistItem[]
+  /** Outstanding and the worker's to produce — this is what is asked for. */
+  askOfPerson: ClearanceAsk[]
+  /** Outstanding and the firm's own to produce. Nobody emails a firm a link to itself. */
+  askOfFirm: ClearanceAsk[]
+  /** The supplier's own cover, where it is not in order. */
+  coverOutstanding: DocStanding[]
+  /** Negative once the start date has passed. Null where nobody set one. */
+  daysUntilStart: number | null
+  /** The row HR reads, and the title of the notice it gets. */
+  headline: string
+  /** What is still missing, listed. Null where nothing is. */
+  outstanding: string | null
+}
+
+/** "in 9 days" · "tomorrow" · "today" · "9 days ago". */
+export function whenWords(daysUntilStart: number | null): string {
+  if (daysUntilStart === null) return ''
+  if (daysUntilStart < 0) {
+    const n = Math.abs(daysUntilStart)
+    return n === 1 ? 'yesterday' : `${n} days ago`
+  }
+  if (daysUntilStart === 0) return 'today'
+  if (daysUntilStart === 1) return 'tomorrow'
+  return `in ${daysUntilStart} days`
+}
+
+function listed(labels: string[]): string {
+  if (labels.length <= 1) return labels.join('')
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+}
+
+/**
+ * The verdict, read ahead of the first day, for the desk that can fix it.
+ *
+ * Takes everything `contractClearance` takes, plus the start date, and
+ * answers three questions a checklist does not: how long there is, what
+ * is outstanding, and which of the two parties owes each outstanding
+ * thing. `says` and `fix` are passed through rather than rewritten —
+ * that is the whole point of running one function twice.
+ */
+export function startPreview(
+  input: Parameters<typeof contractClearance>[0] & {
+    /** The first day. Null where nobody has set one yet. */
+    startDate?: Date | null
+    /** The client the person is starting at, for the sentence HR reads. */
+    clientName?: string | null
+  }
+): StartPreview {
+  const clearance = contractClearance(input)
+  const types = input.documentTypes ?? []
+
+  const daysUntilStart =
+    input.startDate
+      ? Math.ceil((startOfDay(input.startDate).getTime() - startOfDay(input.on).getTime()) / 86_400_000)
+      : null
+
+  // Required and not in hand: not on file, run out, or not in force yet.
+  // Wider than `chasing`, deliberately — `chasing` drops anything this
+  // system has nowhere to record, and a packet is exactly the place to
+  // record it. An NDA nobody could hold as a verification can be asked
+  // for, received and filed against the item that asked.
+  const asks: ClearanceAsk[] = clearance.items
+    .filter((i) => i.required && outstanding(i.state))
+    .map((i) => ({
+      key: i.key,
+      label: i.label,
+      hint: i.hint,
+      required: i.required,
+      owedBy: owedBy(i.key, types),
+      suppliedBy: typeByKey(i.key, types)?.suppliedBy ?? null,
+      weight: i.blocks ? ('BLOCK' as Outcome) : ('WARN' as Outcome),
+      state: i.state,
+    }))
+
+  const askOfPerson = asks.filter((a) => a.owedBy === 'PERSON')
+  const askOfFirm = asks.filter((a) => a.owedBy === 'FIRM')
+  const coverOutstanding = coverItems(clearance.cover)
+
+  const who = input.personName
+  const where = input.clientName ? ` at ${input.clientName}` : ''
+  const when = whenWords(daysUntilStart)
+  const due = `${who} is due to start${where}${when ? ` ${when}` : ''}`
+
+  const headline =
+    clearance.outcome === 'BLOCK'
+      ? `${due}, and cannot.`
+      : clearance.outcome === 'WARN'
+        ? `${due}, with paperwork still outstanding.`
+        : `${due}, and everything required is on file.`
+
+  const missingLabels = [...asks.map((a) => a.label), ...coverOutstanding.map((c) => c.label)]
+
+  return {
+    outcome: clearance.outcome,
+    says: clearance.says,
+    fix: clearance.fix,
+    clearance,
+    items: clearance.items,
+    blocking: clearance.blocking,
+    chasing: clearance.chasing,
+    askOfPerson,
+    askOfFirm,
+    coverOutstanding,
+    daysUntilStart,
+    headline,
+    outstanding: missingLabels.length > 0 ? `Still needed: ${listed(missingLabels)}.` : null,
+  }
+}
+
+function startOfDay(d: Date): Date {
+  const c = new Date(d)
+  c.setUTCHours(0, 0, 0, 0)
+  return c
+}
+
+/**
+ * What HR is told, and never told.
+ *
+ * Null on PASS. A placement whose paperwork is already in order is not
+ * work, and a notice that fires on every placement is a click rather
+ * than a notice — the same argument this file already makes about a
+ * warning that fires on a hundred percent of rows.
+ *
+ * Everything else says what is missing, what to do about it, and what
+ * has already been asked of whom, so the desk does not chase a document
+ * the worker was emailed a link for ten seconds ago.
+ */
+export function hrNotice(
+  preview: StartPreview,
+  about: {
+    personName: string
+    roleTitle?: string | null
+    /** What was asked of the worker on the way past, by label. */
+    askedOfPerson?: string[]
+  }
+): { title: string; body: string } | null {
+  if (preview.outcome === 'PASS') return null
+
+  const parts: string[] = [preview.says]
+  if (preview.fix) parts.push(preview.fix)
+  if (about.roleTitle) parts.push(`The role is ${about.roleTitle}.`)
+
+  const asked = about.askedOfPerson ?? []
+  if (asked.length > 0) {
+    parts.push(`${about.personName} has been sent a link and asked for ${listed(asked)}.`)
+  }
+  if (preview.askOfFirm.length > 0) {
+    parts.push(`${listed(preview.askOfFirm.map((a) => a.label))} is ours to produce, not theirs.`)
+  }
+  if (preview.coverOutstanding.length > 0) {
+    parts.push(`Our own cover: ${listed(preview.coverOutstanding.map((c) => c.label))}.`)
+  }
+
+  return { title: preview.headline, body: parts.join(' ').replace(/\s+/g, ' ').trim() }
 }
