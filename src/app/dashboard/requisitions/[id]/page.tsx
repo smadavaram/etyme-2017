@@ -683,10 +683,20 @@ export default function RequisitionDetail() {
                       {c.status.toLowerCase().replace(/_/g, ' ')}
                     </Chip>
                     {c.status !== 'PLACED' && c.status !== 'NOT_SELECTED' && s.remaining > 0 && (
-                      <button onClick={() => award(c)}
-                        className="px-3 py-1 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
-                        Place
-                      </button>
+                      /* Placing somebody is the hiring desk's, and a desk
+                         that may not do it is told so here rather than
+                         after it has clicked. A refusal the route makes
+                         and the screen does not is a button that lies. */
+                      hasPermission(permissions, 'requirements.write') ? (
+                        <button onClick={() => award(c)}
+                          className="px-3 py-1 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
+                          Place
+                        </button>
+                      ) : (
+                        <span className="text-xs text-etyme-muted">
+                          Placing is the hiring manager&rsquo;s call.
+                        </span>
+                      )
                     )}
                   </div>
                 </div>
