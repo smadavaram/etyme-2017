@@ -175,7 +175,14 @@ const LABEL: Record<string, string> = {
   // customer direction. SAP calls this invoice receipt; an AP clerk calls
   // it recording the supplier's invoice, and CLAUDE.md says use theirs.
   VENDOR_BILL_GENERATE: 'Supplier invoice to record',
-  VENDOR_BILL_DUE: 'Vendor bill due',
+  // "Vendor bill due" until 2026-09-17, and wrong in the same two ways as
+  // the line above: the supplier issues the invoice, and "bill" is now
+  // the customer direction. Retired kinds are not exempt — an old row is
+  // read by the same AP clerk as a new one, and a screen that says
+  // "Vendor bill due" beside "Supplier invoice to record" teaches two
+  // words for one thing. The enum is untouched, so no row in any
+  // database moves; only what a person reads changes.
+  VENDOR_BILL_DUE: 'Supplier invoice due',
   COMMISSION_CALCULATE: 'Commission to calculate',
   COMMISSION_PAY: 'Commission pay day',
 }

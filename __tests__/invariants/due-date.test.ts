@@ -207,3 +207,30 @@ describe('what the payment days are counted from', () => {
     expect(book).not.toContain('dueOn(')
   })
 })
+
+describe('a document’s own due date and a company’s calendar are different things', () => {
+
+  it('an invoice due on a Saturday is due on the Saturday, because net days are calendar days', () => {
+    // 4 June 2026 plus thirty days is Saturday 4 July. A company may now
+    // say which way its *cycle* dates move off a weekend (lib/cycle-shift)
+    // and this is deliberately not one of them: net 30 is a term two firms
+    // signed, not an operating date either of them schedules. Moving it
+    // back shortens the client's terms against its own contract; moving it
+    // forward lengthens ours.
+    const verdict = dueOn({
+      anchor: 'PERIOD_END',
+      days: 30,
+      periodEnd: new Date(2026, 5, 4),
+      issuedAt: new Date(2026, 5, 6),
+    })
+    expect(verdict.dueAt.getDay()).toBe(6) // Saturday
+    expect([verdict.dueAt.getMonth() + 1, verdict.dueAt.getDate()]).toEqual([7, 4])
+    expect(verdict.clockStarted).toBe(true)
+  })
+
+  it('the reason a weekend does not move it is written beside the arithmetic, not left as a silence', () => {
+    const lib = read('src/lib/billing-cascade.ts')
+    expect(lib).toContain('why a weekend does not move it')
+    expect(lib).toContain('thirty calendar days')
+  })
+})

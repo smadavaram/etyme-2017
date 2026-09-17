@@ -19,10 +19,21 @@
 import type { Prisma } from '@prisma/client'
 import { generateCycles } from '@/lib/cycle-generator'
 import { cyclesFor } from '@/lib/cycle-kinds'
+import { policyFrom, type CycleShiftPolicy } from '@/lib/cycle-shift'
 import { getTemplatePack } from '@/lib/template-packs'
 
-/** The one table this touches, so a transaction client or the plain client both fit. */
-type CycleWriter = Pick<Prisma.TransactionClient, 'cycle'>
+/**
+ * The two tables this touches, so a transaction client or the plain
+ * client both fit.
+ *
+ * `sellContract` is read, never written: it is how the company that holds
+ * the pair — and so whose shift policy applies — is found without every
+ * caller having to know to pass it. Six callers write cycles, four of
+ * them in other domains and two of them seeds; a policy that only
+ * arrives when somebody remembers to send it is a policy half the
+ * placements in the system do not have.
+ */
+type CycleWriter = Pick<Prisma.TransactionClient, 'cycle' | 'sellContract'>
 
 export interface Written {
   sell: number
@@ -52,6 +63,28 @@ export async function writeCyclesFor(
      * generation put it, and makes calling this twice harmless.
      */
     existing?: Map<string, Set<string>>
+    /**
+     * Which way this company's dates move off a weekend or a holiday.
+     *
+     * Omitted, it is read from the company that holds the sell contract —
+     * the firm that sells to the client and buys from the consultant or
+     * the sub-vendor. All six money kinds are that firm's own operating
+     * dates, so it is one firm's answer and not a negotiation between
+     * two. A caller that has the company loaded already may pass it and
+     * save the read.
+     */
+    policy?: CycleShiftPolicy
+    /**
+     * The last day already covered, on an extension.
+     *
+     * Generation runs over the whole contract — a fortnightly cycle
+     * anchored on the original start falls on alternate weeks — and
+     * emits only periods ending after this day. Without it, a company
+     * that changed its weekend rule between the two runs has every date
+     * of the original contract written a second time, because the dates
+     * already on the books are matched by the day they landed on.
+     */
+    onlyPeriodsAfter?: Date | null
   }
 ): Promise<Written> {
   const { sell, buy } = input
@@ -65,8 +98,30 @@ export async function writeCyclesFor(
   const holidays = input.holidays ?? []
   const existing = input.existing ?? new Map<string, Set<string>>()
 
-  const sellCycles = generateCycles(sell.startDate, sell.endDate, split.sell, holidays, existing)
-  const buyCycles = buy ? generateCycles(sell.startDate, sell.endDate, split.buy, holidays, existing) : []
+  // Whose policy: the company that holds the pair. A contract row that
+  // has gone missing between the caller's write and this read would be a
+  // bug elsewhere; it reads as the shipped default rather than as no
+  // answer, because there is no third behavior for a cycle date.
+  const policy =
+    input.policy ??
+    policyFrom(
+      (
+        await db.sellContract.findUnique({
+          where: { id: sell.id },
+          select: {
+            company: {
+              select: { cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true },
+            },
+          },
+        })
+      )?.company
+    )
+  const options = { policy, onlyPeriodsAfter: input.onlyPeriodsAfter ?? null }
+
+  const sellCycles = generateCycles(sell.startDate, sell.endDate, split.sell, holidays, existing, options)
+  const buyCycles = buy
+    ? generateCycles(sell.startDate, sell.endDate, split.buy, holidays, existing, options)
+    : []
 
   const rows = [
     ...sellCycles.map((c) => ({ sellContractId: sell.id, kind: c.kind, dueOn: c.dueOn })),

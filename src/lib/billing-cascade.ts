@@ -216,6 +216,29 @@ export function resolveBillingTerms(input: CascadeInputs): BillingTerms {
 // with `clockStarted: false` and a sentence. Every reader — the aging,
 // the dunning ladder, the screen — asks whether the clock has started
 // before it calls anything late.
+//
+// ── And why a weekend does not move it. Decided 2026-09-17 ────────────
+//
+// A company can now say which way its cycle dates move off a day nobody
+// works (`lib/cycle-shift`), and this date is deliberately not one of
+// them. It was never shifted; the difference is that the silence is now
+// a decision with a reason rather than an omission nobody had noticed.
+//
+// Net 30 is thirty calendar days. It is a term of an agreement two firms
+// signed, not an operating date either of them schedules, and the two
+// belong to different owners: a cycle date says when we intend to do
+// something, a due date says when the money was promised. Moving a
+// Saturday due date to the Friday shortens a client's terms by two days
+// against its own contract; moving it to the Monday lengthens ours. A
+// firm that pays late on a weekend is late by the agreement's own
+// arithmetic, and dressing that up as a calendar rule would make every
+// aging bucket in the system disagree with the paper behind it.
+//
+// If an agreement ever says "the next working day" — some do — that is a
+// term on the agreement and belongs beside `paymentTerms` and
+// `paymentTermsFrom`, read from the contract, not from whichever party's
+// company settings happen to be loaded. That is a schema request and not
+// a silent reuse of the cycle setting.
 
 export interface DueInput {
   anchor: TermsAnchor

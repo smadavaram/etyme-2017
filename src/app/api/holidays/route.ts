@@ -3,6 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { resolveOwnCompany } from '@/lib/resolve-client-company'
+import { mayEditCalendar } from './who'
 
 /**
  * GET /api/holidays
@@ -76,22 +77,38 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/holidays
  *
- * Add a holiday to a company's calendar.
- * Accepts single or bulk: { companyId, holidays: [{ date, name, isRecurring?, country? }] }
+ * Add days off to your own company's calendar.
+ * Accepts single or bulk: { holidays: [{ date, name, isRecurring?, country? }] }
+ *
+ * `companyId` in the body is accepted only when it names the caller's own
+ * company, and is refused otherwise. It used to be written to as given,
+ * which let anybody signed in anywhere add days to anybody's calendar —
+ * and a day on a calendar moves the pay days behind it.
  */
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
   const body = await request.json()
-  const { companyId, holidays } = body
+  const { holidays } = body
 
-  if (!companyId || typeof companyId !== 'string') {
+  const verdict = mayEditCalendar(
+    {
+      companyId: caller.company?.id ?? null,
+      companyName: caller.company?.name ?? null,
+      permissions: caller.permissions,
+    },
+    typeof body.companyId === 'string' ? body.companyId : null
+  )
+  if (!verdict.ok) {
+    // A refusal leaves no row here, and that is a gap rather than a
+    // decision — see the note at the foot of this file.
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'companyId is required', field: 'companyId' } },
-      { status: 422 }
+      { error: { code: verdict.code, message: verdict.says } },
+      { status: verdict.status }
     )
   }
+  const companyId = verdict.companyId
 
   if (!Array.isArray(holidays) || holidays.length === 0) {
     return NextResponse.json(
@@ -110,7 +127,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Verify company exists
+  // The caller's own company, read for its name so the log reads as a
+  // sentence. It is the caller's own by construction now — the id came
+  // from the session, not from the body.
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: { id: true, name: true },
@@ -197,7 +216,12 @@ export async function POST(request: NextRequest) {
 /**
  * DELETE /api/holidays
  *
- * Remove a holiday by ID: { id }
+ * Remove a day from your own company's calendar: { id }
+ *
+ * Scoped, not looked up. The id used to be taken as given and the row
+ * deleted wherever it lived, so a holiday could be lifted off another
+ * firm's calendar — which moves that firm's pay days as surely as adding
+ * one does. A day that is not this company's reads as not being there.
  */
 export async function DELETE(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -206,6 +230,21 @@ export async function DELETE(request: NextRequest) {
   const body = await request.json()
   const { id } = body
 
+  const verdict = mayEditCalendar(
+    {
+      companyId: caller.company?.id ?? null,
+      companyName: caller.company?.name ?? null,
+      permissions: caller.permissions,
+    },
+    typeof body.companyId === 'string' ? body.companyId : null
+  )
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { error: { code: verdict.code, message: verdict.says } },
+      { status: verdict.status }
+    )
+  }
+
   if (!id) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'id is required' } },
@@ -213,21 +252,50 @@ export async function DELETE(request: NextRequest) {
     )
   }
 
-  const holiday = await prisma.holiday.findUnique({
-    where: { id },
+  const holiday = await prisma.holiday.findFirst({
+    where: { id, companyId: verdict.companyId },
     select: { id: true, name: true, companyId: true },
   })
 
   if (!holiday) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Holiday not found' } },
+      { error: { code: 'NOT_FOUND', message: 'No such day on this calendar.' } },
       { status: 404 }
     )
   }
 
-  await prisma.holiday.delete({ where: { id } })
+  await prisma.holiday.delete({ where: { id: holiday.id } })
 
   return NextResponse.json({
-    data: { deleted: true, message: `Removed "${holiday.name}"` },
+    data: {
+      deleted: true,
+      message: `Removed "${holiday.name}"`,
+      note: 'Cycle dates already generated keep their dates.',
+    },
   })
 }
+
+/**
+ * ── Why a refusal here leaves no trail, and what it would take ───────
+ *
+ * CLAUDE.md asks that a refusal be recorded, and neither ledger this
+ * codebase has will take this one.
+ *
+ * `AccessLog` is the trail for reading a *person's* data: `subjectId` is
+ * a required Person. A holiday calendar has no person in it, so filing a
+ * refusal there would mean naming somebody as the subject of a read that
+ * never happened — a fabricated row is worse than a missing one, because
+ * a fabricated row is what somebody audits.
+ *
+ * `AutomationLog` would fit — this route already writes `HOLIDAYS_ADDED`
+ * to it — but every action name it carries needs a rung in
+ * `lib/autonomy.ts`, which belongs to the architect, and
+ * `__tests__/invariants/autonomy.test.ts` fails on a name with no rung.
+ * Three names want a home there and are asked for rather than invented:
+ * `HOLIDAY_ADD_REFUSED` and `HOLIDAY_REMOVE_REFUSED` as ENFORCEMENT
+ * (BLOCK — somebody asked and was refused), and `HOLIDAY_REMOVED` as
+ * attributed, beside `HOLIDAYS_ADDED`, which is a person's own act.
+ *
+ * Until then the refusal is a sentence to the caller and nothing on the
+ * record. Written down here rather than left as a silence.
+ */

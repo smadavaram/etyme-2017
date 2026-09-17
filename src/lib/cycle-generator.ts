@@ -46,6 +46,25 @@
  * the Monday — pulling a client's payment terms shorter is the surprise
  * the original note described, and it is real on that side.
  *
+ * ── And whose answer that is ─────────────────────────────────────────
+ *
+ * Those three remain the defaults and are no longer the only answer.
+ * 2026-09-17, from the founder: "If Sat or Sun — company can have
+ * settings to do before weekend or after weekend. It's each company that
+ * can set up how their cycles should work during holidays including
+ * company calendar."
+ *
+ * The policy is `lib/cycle-shift`, read off the company that holds the
+ * contract pair — the firm that sells to the client and buys from the
+ * consultant or the sub-vendor, because all six money kinds are that
+ * firm's own operating dates. Holidays still union both companies'
+ * calendars; the direction is one firm's policy and not a negotiation.
+ *
+ * A caller that passes no policy generates on the shipped default, which
+ * is what every company that has said nothing is already on. There is no
+ * third behavior for a missing answer — a cycle date arrived at by
+ * falling through a gap is the one outcome that must not be possible.
+ *
  * ── The February rule ────────────────────────────────────────────────
  *
  * A day of month that does not exist in this month is the last day that
@@ -56,6 +75,13 @@
  */
 
 import { categoryOf, isMoneyKind } from '@/lib/cycle-kinds'
+import {
+  DEFAULT_CYCLE_SHIFT,
+  directionFor,
+  localDayKey,
+  shiftToWorkingDay,
+  type CycleShiftPolicy,
+} from '@/lib/cycle-shift'
 
 export type CycleFrequency = 'WEEKLY' | 'BIWEEKLY' | 'SEMIMONTHLY' | 'MONTHLY' | 'ON_COMPLETION'
 
@@ -79,8 +105,6 @@ export interface GeneratedCycle {
   dueOn: Date
 }
 
-const WEEKEND_DAYS = [0, 6] // Sunday, Saturday
-
 /** The Friday that is the default period end. */
 const DEFAULT_DAY_OF_WEEK = 5
 /** The mid-month cut that is the default first semimonthly boundary. */
@@ -91,36 +115,12 @@ const MEANS_MONTH_END = 28
 /**
  * The calendar day this date names, where the reader is.
  *
- * Every date here is built with `new Date(y, m, d)` — local midnight —
- * and the holiday calendar is keyed YYYY-MM-DD. Reading the key back out
- * with `toISOString()` converted to UTC first, so east of Greenwich local
- * midnight is the previous day and no holiday ever matched: under
- * `TZ=Asia/Kolkata` a due date falling on a holiday was not shifted at
- * all. Correct under UTC and west of it, which is why production never
- * showed it and a second region would have.
+ * One copy, in `lib/cycle-shift`, re-exported here under the name its
+ * callers already use. It used to be written out twice — once here and
+ * once there — and two copies of a timezone fix is one copy waiting to
+ * be missed.
  */
-export function localKey(d: Date): string {
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${m}-${day}`
-}
-
-/**
- * To the nearest working day, in the direction the kind wants. Iterates,
- * because the day before a holiday can be a Sunday.
- */
-function shiftToBusinessDay(date: Date, holidays: Set<string>, step: 1 | -1): Date {
-  const d = new Date(date)
-  while (WEEKEND_DAYS.includes(d.getDay()) || holidays.has(localKey(d))) {
-    d.setDate(d.getDate() + step)
-  }
-  return d
-}
-
-/** Pay lands on or before its date; everything else on or after. */
-function shiftFor(kind: string): 1 | -1 {
-  return categoryOf(kind) === 'PAY' ? -1 : 1
-}
+export { localDayKey as localKey } from '@/lib/cycle-shift'
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate()
@@ -219,6 +219,38 @@ function generatePeriodEnds(start: Date, end: Date, def: CycleDefinition): Date[
 }
 
 /**
+ * What a company asked for, and which periods this run may emit.
+ */
+export interface GenerateOptions {
+  /**
+   * Which way this company's dates move off a day nobody works. Omitted
+   * means the shipped default — pay on the working day before, hours and
+   * bills on the working day after — which is what every company that has
+   * said nothing is already on.
+   */
+  policy?: CycleShiftPolicy
+  /**
+   * Emit only periods ending after this day. Null or omitted means the
+   * whole contract.
+   *
+   * This is the extension's floor, and it exists because the day-key
+   * guard below cannot survive a company changing its direction. Dates
+   * already written are matched by the day they landed on; if pay moved
+   * from the Friday before to the Monday after between the two runs,
+   * January regenerates onto Mondays that are in nobody's existing set
+   * and every pay day of the original contract is written a second time.
+   * Two pay days for one fortnight is money, not tidiness.
+   *
+   * Bounding by period rather than by due date is the honest test of
+   * "already covered": a period that ended before the extension began was
+   * settled by the first run, whatever day its date was shifted to.
+   * Generation still runs over the whole contract so a fortnightly cycle
+   * keeps its original weeks — only the emitting is bounded.
+   */
+  onlyPeriodsAfter?: Date | null
+}
+
+/**
  * Every cycle for a contract, in date order.
  *
  * @param start          Contract start
@@ -226,6 +258,7 @@ function generatePeriodEnds(start: Date, end: Date, def: CycleDefinition): Date[
  * @param definitions    The kinds this contract needs — see cyclesFor()
  * @param holidays       YYYY-MM-DD, both companies' calendars unioned
  * @param existingDates  kind → set of YYYY-MM-DD already written, for extension
+ * @param options        The company's shift policy, and the extension floor
  *
  * A definition whose kind is not a money kind is skipped rather than
  * generated. The packs no longer carry any, but an old pack in a
@@ -237,16 +270,24 @@ export function generateCycles(
   end: Date,
   definitions: readonly CycleDefinition[],
   holidays: Iterable<string> = [],
-  existingDates: Map<string, Set<string>> = new Map()
+  existingDates: Map<string, Set<string>> = new Map(),
+  options: GenerateOptions = {}
 ): GeneratedCycle[] {
   const cycles: GeneratedCycle[] = []
   const holidaySet = new Set(holidays)
+  const policy = options.policy ?? DEFAULT_CYCLE_SHIFT
+  const floor = options.onlyPeriodsAfter ?? null
 
   for (const def of definitions) {
     if (!isMoneyKind(def.kind)) continue
     const existing = existingDates.get(def.kind) ?? new Set<string>()
 
-    const step = shiftFor(def.kind)
+    // Which way this company moves a date of this kind. OTHER is not
+    // configurable and never reaches here — an unrecognized kind is
+    // skipped above — but `directionFor` answers for it anyway, because a
+    // row written by an older engine must not change behavior because
+    // somebody edited a setting about pay.
+    const direction = directionFor(categoryOf(def.kind), policy)
 
     // What this kind already sits on: the dates written by an earlier run,
     // and the ones this run has produced so far.
@@ -260,12 +301,15 @@ export function generateCycles(
     const taken = new Set(existing)
 
     for (const periodEnd of generatePeriodEnds(start, end, def)) {
+      // A period settled by an earlier run is not emitted again, however
+      // the company has since asked its dates to move.
+      if (floor && periodEnd <= floor) continue
       const due = new Date(periodEnd)
       due.setDate(due.getDate() + (def.offsetDays ?? 0))
-      const shifted = shiftToBusinessDay(due, holidaySet, step)
+      const shifted = shiftToWorkingDay(due, holidaySet, direction)
       // Keyed the same way the holidays are, so an extension knows the
       // dates it already wrote whatever timezone the server is in.
-      const day = localKey(shifted)
+      const day = localDayKey(shifted)
       if (taken.has(day)) continue
       taken.add(day)
       cycles.push({ kind: def.kind, dueOn: shifted })

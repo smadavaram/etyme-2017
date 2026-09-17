@@ -124,7 +124,7 @@ describe('no pack brings the two back', () => {
 describe('the rows already written still read as a person would say them', () => {
   it('a cycle written by an older engine still reads "Invoice due" rather than an enum', () => {
     expect(labelOf('INVOICE_DUE')).toBe('Invoice due')
-    expect(labelOf('VENDOR_BILL_DUE')).toBe('Vendor bill due')
+    expect(labelOf('VENDOR_BILL_DUE')).toBe('Supplier invoice due')
   })
 
   it('an old invoice-due row still files under bill, and an old vendor-bill-due row under pay', () => {

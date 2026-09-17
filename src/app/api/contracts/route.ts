@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
+import { policyFrom } from '@/lib/cycle-shift'
 import { cyclesFor } from '@/lib/cycle-kinds'
 import { loadContractHolidays } from '@/lib/holidays'
 import { getTemplatePack } from '@/lib/template-packs'
@@ -136,7 +137,13 @@ export async function POST(request: NextRequest) {
   // Verify company exists and get template pack
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { id: true, name: true, templatePack: true },
+    // The three shift columns come back with the pack because the cycle
+    // dates below are this firm's own operating dates and it says which
+    // way they move off a weekend or a holiday.
+    select: {
+      id: true, name: true, templatePack: true,
+      cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true,
+    },
   })
 
   if (!company) {
@@ -344,10 +351,15 @@ export async function POST(request: NextRequest) {
             company.id, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear()
           )
 
-          const generatedCycles = generateCycles(start, end, split.sell, holidays)
+          // Which way this firm's dates move off a day nobody works. Its
+          // own answer, not the client's: these are the hours it collects,
+          // the invoices it raises and the payroll it runs.
+          const options = { policy: policyFrom(company) }
+
+          const generatedCycles = generateCycles(start, end, split.sell, holidays, new Map(), options)
 
           if (bc && split.buy.length > 0) {
-            const buyCycles = generateCycles(start, end, split.buy, holidays)
+            const buyCycles = generateCycles(start, end, split.buy, holidays, new Map(), options)
             if (buyCycles.length > 0) {
               await tx.cycle.createMany({
                 data: buyCycles.map((c) => ({ buyContractId: bc.id, kind: c.kind, dueOn: c.dueOn })),

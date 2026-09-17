@@ -185,6 +185,17 @@ export async function POST(
       packId: contract.company.templatePack ?? 'US_IT',
       holidays,
       existing: already,
+      // Only the months that were added.
+      //
+      // Generation still runs over the whole contract, so a fortnightly
+      // cycle keeps its original weeks. What is bounded is what may be
+      // written: a period that ended on or before the old end date was
+      // settled by the first run. Matching on the day a date landed on is
+      // not enough on its own — this firm may have changed which way its
+      // dates move off a weekend since then, and January regenerated onto
+      // the other side of the weekend is in nobody's existing set. Two pay
+      // days for one fortnight is money, not tidiness.
+      onlyPeriodsAfter: oldEnd,
     })
 
     await tx.automationLog.create({
