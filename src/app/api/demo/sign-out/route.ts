@@ -6,8 +6,8 @@ import { DEMO_COOKIE } from '@/lib/demo-session'
  *
  * DELETE /api/demo is "start again": it destroys the demo company and the
  * person behind the cookie. That is the wrong thing to do to somebody who
- * only wants to leave — a founder who opens Nike from /demo, signs out on
- * their phone and comes back the next morning expects Nike to still be
+ * only wants to leave — a founder who opens Northbend Athletic from /demo, signs out on
+ * their phone and comes back the next morning expects Northbend Athletic to still be
  * there. This clears the cookie and touches nothing else.
  *
  * Idempotent, and fine to call with no demo cookie at all: the shell calls

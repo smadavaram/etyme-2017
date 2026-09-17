@@ -36,7 +36,7 @@
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes } from '@/lib/seed-programmes'
-import { day, at } from '@/lib/seed-days'
+import { anchorSeed, day, at } from '@/lib/seed-days'
 import { rolesFor } from '@/lib/company-defaults'
 
 const DOMAIN = 'demo.etyme.local'          // the domain the signed demo cookie accepts
@@ -63,9 +63,9 @@ const FIRMS: Firm[] = [
   // hiring, approval, payables, compliance. The client is who pays for
   // this product, and these are the accounts it is shown on. What each
   // of them has on its books is in lib/seed-programmes.
-  { slug: 'nike',             name: 'Nike',                 kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Camille Whitford' },
-  { slug: 'corning',          name: 'Corning',              kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Ethan Garland' },
-  { slug: 'terumo-bct',       name: 'Terumo BCT',           kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Naomi Feldman' },
+  { slug: 'nike',             name: 'Northbend Athletic',   kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Camille Whitford' },
+  { slug: 'corning',          name: 'Cavanaugh Glassworks', kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Ethan Garland' },
+  { slug: 'terumo-bct',       name: 'Talvern Medical',      kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Naomi Feldman' },
 
   { slug: 'aptiva',           name: 'Aptiva Workforce',     kind: 'MSP',     seat: 'Program manager', who: 'Rashida Coleman' },
   { slug: 'kestrel',          name: 'Kestrel MSP',          kind: 'MSP',     seat: 'Program manager', who: 'Piotr Zielinski' },
@@ -133,6 +133,25 @@ export async function seedWorld(): Promise<{
   live: number
   roster: { kind: string; name: string; slug: string }[]
   }> {
+  // ── The day this world counts from ──────────────────────────────────
+  //
+  // A seeded world is written as "n days from today", which is right the
+  // first time and wrong every time after: re-seeded a week later, every
+  // week of hours the seed looks for has moved, nothing is found, and
+  // the whole world is written a second time beside the first. So the
+  // world keeps the day it was born — the created date of the first
+  // company this seed ever wrote — and a re-run on any later day
+  // computes the same midnights and finds everything.
+  //
+  // Read before anything is written, because the first write would
+  // otherwise be the answer.
+  const born = await db.company.findFirst({
+    where: { slug: { startsWith: PREFIX } },
+    orderBy: { createdAt: 'asc' },
+    select: { createdAt: true },
+  })
+  anchorSeed(born?.createdAt)
+
   // Scoped to the call, not the module: a long-lived server would
   // otherwise carry one run's ids into the next.
   const firmBySlug = new Map<string, { id: string }>()
@@ -146,6 +165,11 @@ export async function seedWorld(): Promise<{
     create: {
       slug, name: f.name, kind: f.kind, currency: 'USD',
       defaultPaymentTerms: f.kind === 'CLIENT' ? 45 : 30,
+      // The day this world counts from, written down rather than left to
+      // the database clock — this is the value the next run reads back
+      // to find the world's birthday, so it has to be the same midnight
+      // every other seeded date was measured from.
+      createdAt: day(0),
       // Never a demo company: reaped after a fortnight, and deleted
       // outright by the reset button. This world outlives both.
       isDemo: false,

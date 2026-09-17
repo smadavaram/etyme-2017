@@ -8,7 +8,7 @@ import { GET as decisions } from '@/app/api/decisions/route'
 import { GET as suppliers } from '@/app/api/suppliers/route'
 
 /**
- * Nike's hiring manager met a firm at a conference. It walks four desks
+ * Northbend Athletic's hiring manager met a firm at a conference. It walks four desks
  * — his department lead, Procurement, HR, Finance — while the firm
  * supplies its side through a link of its own; every desk is emailed;
  * nobody decides their own recommendation and nobody decides twice.
@@ -33,10 +33,10 @@ describe('a supplier walks four desks', () => {
     await seedWorld()
   }, 240_000)
 
-  it('the seeded desk holds Vertex Talent with HR, cleared by the department lead and Procurement, the firm’s side in', async () => {
+  it('the seeded desk holds Veritan Talent with HR, cleared by the department lead and Procurement, the firm’s side in', async () => {
     as(HR)
     const r = await json(await listRequests(req('GET', '/api/supplier-requests')))
-    const vertex = r.body.data.requests.find((x: any) => x.name === 'Vertex Talent')
+    const vertex = r.body.data.requests.find((x: any) => x.name === 'Veritan Talent')
     expect(vertex?.stage).toBe('HR')
     expect(vertex?.steps.map((s: any) => s.status)).toEqual(['done', 'done', 'now', 'next', 'next'])
     expect(vertex?.readiness).toMatchObject({ held: 0, of: 2, ok: false })
@@ -95,7 +95,7 @@ describe('a supplier walks four desks', () => {
   it('meanwhile the firm supplies its side through its link, with nothing to sign up for', async () => {
     const page = await viaToken(applyGet, 'GET', it_.token)
     expect(page.status).toBe(200)
-    expect(page.body.data.client).toBe('Nike')
+    expect(page.body.data.client).toBe('Northbend Athletic')
     expect(page.body.data.asks.map((a: any) => a.key)).toEqual(['EXPERIENCE', 'REFERENCES', 'REVENUE', 'PROPOSAL', 'INSURANCE', 'TAX_FORM', 'BANK'])
     const sent = await viaToken(applyPost, 'POST', it_.token, {
       legalName: 'Harbor Staffing LLC', experience: 'Nine years placing planners across CPG.',

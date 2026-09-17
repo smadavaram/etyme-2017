@@ -10,17 +10,17 @@ import { GET as budget } from '@/app/api/program/budget/route'
 /**
  * A client should see its own numbers, and only its own.
  *
- * Nike buys Helena Marsh from Computer Systems at $145/hr. Computer
+ * Northbend Athletic buys Helena Marsh from Computer Systems at $145/hr. Computer
  * Systems buys her from CloudEPA at $118/hr. Both sell contracts name
- * Nike as the end client — that is how the same person, bought through
+ * Northbend Athletic as the end client — that is how the same person, bought through
  * a chain, aggregates into one tenure ledger, and it is also how
- * Nike's own timesheet list came to print $118 beside a role it pays
+ * Northbend Athletic's own timesheet list came to print $118 beside a role it pays
  * $145 for. Subtracting one from the other is Computer Systems' entire
  * margin on the placement, computable off its own customer's screen.
  *
  * Her hours hang off the bottom leg, where the employer is, so the
- * answer is not to hide the row — Nike signs those hours. The answer
- * is to price the row at the contract Nike actually pays.
+ * answer is not to hide the row — Northbend Athletic signs those hours. The answer
+ * is to price the row at the contract Northbend Athletic actually pays.
  *
  * Four things passed 4,821 green tests, a clean typecheck and a clean
  * build. This walks all four against the seeded world, which is where
@@ -31,7 +31,7 @@ const D = '@demo.etyme.local'
 const NIKE_HIRING = `world-nike-hiring${D}`
 
 const HELENA_SUB_RATE = 11800 // CloudEPA → Computer Systems
-const HELENA_TOP_RATE = 14500 // Computer Systems → Nike
+const HELENA_TOP_RATE = 14500 // Computer Systems → Northbend Athletic
 
 let helenaId = ''
 let helenaEmail = ''
@@ -87,11 +87,11 @@ describe('a client sees the rate it pays, never the rate its supplier pays under
     expect(everyNumber).not.toContain(HELENA_SUB_RATE)
   })
 
-  it('names the firm Nike pays on the row, not the firm its prime pays', async () => {
+  it('names the firm Northbend Athletic pays on the row, not the firm its prime pays', async () => {
     as(NIKE_HIRING)
     const { body } = await json(await timesheets(req('GET', '/api/timesheets?limit=50')))
     const row = body.data.timesheets.find((t: any) => t.person.id === helenaId)
-    expect(row.sellContract.clientCompany.name).toBe('Nike')
+    expect(row.sellContract.clientCompany.name).toBe('Northbend Athletic')
   })
 })
 

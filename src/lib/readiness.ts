@@ -312,7 +312,7 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
       : !f.demo.current
         ? {
             key: 'demo', name: 'Demo world', state: 'SET', required: false,
-            says: 'Seeded by an older build. Nike has no HR or Procurement desk, so the approval chain has nobody to route to.',
+            says: 'Seeded by an older build. Northbend Athletic has no HR or Procurement desk, so the approval chain has nobody to route to.',
             fix: 'POST /api/seed-world again with the CRON_SECRET. It renames and adds; it never duplicates.',
           }
         : { key: 'demo', name: 'Demo world', state: 'PROVEN', required: false, says: 'Seeded and current.' }

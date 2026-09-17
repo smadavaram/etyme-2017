@@ -23,8 +23,8 @@ import { GET as compliance } from '@/app/api/compliance/route'
 /**
  * A client's month, from its own desks.
  *
- * Nike buys contract labour from three suppliers and pays for this
- * product. The people who use it are not "Nike": they are a hiring
+ * Northbend Athletic buys contract labour from three suppliers and pays for this
+ * product. The people who use it are not "Northbend Athletic": they are a hiring
  * manager who needs somebody, a program office that decides which
  * suppliers see the role, a VP who signs for the money, a clerk who pays
  * what matched, and an officer who answers for tenure and paperwork.
@@ -265,7 +265,7 @@ describe('4 · nobody starts without paperwork', () => {
     expect(warned.body.error.code).toBe('DOCUMENTS_WARN')
 
     const r = await call(activate, 'POST', `/api/contracts/${it_.contract}/activate`, it_.contract, {
-      action: 'activate', overrideReason: 'Background check ordered from Sterling, reference ST-90210; Nike waived it for the first fortnight in writing.',
+      action: 'activate', overrideReason: 'Background check ordered from Sterling, reference ST-90210; Northbend Athletic waived it for the first fortnight in writing.',
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const live = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract } })
@@ -325,7 +325,7 @@ describe('5 · Tariq files a week; the hiring manager signs it', () => {
   })
 })
 
-describe('6 · Pinnacle invoices; Nike pays what matched', () => {
+describe('6 · Pinnacle invoices; Northbend Athletic pays what matched', () => {
   it('Pinnacle raises the invoice from the signed week — 40 hours at $38', async () => {
     as(PINNACLE)
     const r = await json(await generateInvoice(req('POST', '/api/invoices/generate', { engagementId: it_.engagement })))
@@ -379,7 +379,7 @@ describe('6 · Pinnacle invoices; Nike pays what matched', () => {
 })
 
 describe('7 · tenure is the person\'s, across every supplier', () => {
-  it('Lucía has fourteen months at Nike — thirteen through Brightmoor, one through Pinnacle — and Pinnacle knows only the one', async () => {
+  it('Lucía has fourteen months at Northbend Athletic — thirteen through Brightmoor, one through Pinnacle — and Pinnacle knows only the one', async () => {
     as(NIKE.compliance)
     const r = await json(await tenure(req('GET', '/api/tenure')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -398,7 +398,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     expect(kwame.eligibleDate).toBe(day(40).toISOString().slice(0, 10))
   })
 
-  it('at Terumo BCT, Anders is twenty-three months on site across two suppliers against a cap of eighteen', async () => {
+  it('at Talvern Medical, Anders is twenty-three months on site across two suppliers against a cap of eighteen', async () => {
     as(`world-terumo-bct-compliance${D}`)
     const r = await json(await tenure(req('GET', '/api/tenure')))
     const anders = r.body.data.people.find((p: any) => p.name === 'Anders Lund')
@@ -410,7 +410,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   it('a person supplied through a prime and a bench vendor is counted once, not once per rung', async () => {
     as(NIKE.compliance)
     const r = await json(await tenure(req('GET', '/api/tenure')))
-    // Helena Marsh: Nike ← Computer Systems ← CloudEPA, 200 days. Two
+    // Helena Marsh: Northbend Athletic ← Computer Systems ← CloudEPA, 200 days. Two
     // contracts, one person, one stretch.
     const helena = r.body.data.people.find((p: any) => p.name === 'Helena Marsh')
     expect(helena.contractCount).toBe(2)

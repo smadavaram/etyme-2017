@@ -14,6 +14,15 @@
  * `slug` is the company slug in the seeded world — the seed writes every
  * firm with a `world-` prefix, so `teleworld` in the seed list is
  * `world-teleworld` here, which is what POST /api/demo accepts.
+ *
+ * The slugs and the names deliberately disagree. Three of these firms
+ * were named after real enterprises, which on a public page reads as
+ * three live customers who have never heard of us; the names are
+ * invented now (`docs/demo-names.md`) and the slugs stay, because a
+ * slug is an address nobody reads and changing it would break every
+ * integration test and every `POST /api/demo` body written down
+ * anywhere. `__tests__/invariants/demo-names.test.ts` refuses the old
+ * names coming back, here and in the seeds.
  */
 
 import type { Program } from './desk-picker'
@@ -27,24 +36,24 @@ import type { Program } from './desk-picker'
 export const CLIENT_PROGRAMS: Program[] = [
   {
     slug: 'world-nike',
-    name: 'Nike',
-    where: 'Beaverton, OR',
+    name: 'Northbend Athletic',
+    where: 'Tualatin, OR',
     about:
       'Three suppliers, one of them supplying through a bench vendor it never names. ' +
       'A planning analyst on her second supplier here, fourteen months into an eighteen-month cap.',
   },
   {
     slug: 'world-corning',
-    name: 'Corning',
-    where: 'Corning, NY',
+    name: 'Cavanaugh Glassworks',
+    where: 'Elmira, NY',
     about:
       'A glass plant hiring validation, MES and quality people. A supplier whose liability ' +
       'certificate runs out in twelve days, and a past contractor who is clear to come back.',
   },
   {
     slug: 'world-terumo-bct',
-    name: 'Terumo BCT',
-    where: 'Lakewood, CO',
+    name: 'Talvern Medical',
+    where: 'Westminster, CO',
     about:
       'A medical device maker. One SAP consultant is twenty-three months on site across two ' +
       'suppliers, against a cap of eighteen — a number neither supplier can see.',
@@ -57,13 +66,13 @@ export const SUPPLIER_SEATS: Program[] = [
     slug: 'world-computer-systems',
     name: 'Computer Systems Inc',
     where: 'Prime supplier',
-    about: 'Sells into Nike and Terumo BCT. Buys one of those people from a bench vendor.',
+    about: 'Sells into Northbend Athletic and Talvern Medical. Buys one of those people from a bench vendor.',
   },
   {
     slug: 'world-vertex-global',
     name: 'Vertex Global',
     where: 'Prime supplier',
-    about: 'Sells into Corning and Terumo BCT.',
+    about: 'Sells into Cavanaugh Glassworks and Talvern Medical.',
   },
 ]
 

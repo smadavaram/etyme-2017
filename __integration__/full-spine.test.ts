@@ -60,22 +60,22 @@ import { GET as whyView } from '@/app/api/why/[type]/[id]/route'
 /**
  * L4 — the whole spine, one placement, walked in the order it happens.
  *
- * A manager at Adobe needs somebody. Ninety-one days later a consultant
+ * A manager at Auralis needs somebody. Ninety-one days later a consultant
  * has been paid and four companies can each say what they made. Every
  * step in between is a real route handler called the way the browser
  * calls it — nothing is written straight to the database except the
  * world as it stood before the story started.
  *
- *   Adobe Systems     the client. Raises it, approves it, pays for it.
- *   Magnit            the MSP. Runs Adobe's programme: sees the demand,
+ *   Auralis Software  the client. Raises it, approves it, pays for it.
+ *   Maren MSP         the MSP. Runs Auralis's programme: sees the demand,
  *                     picks who gets to see it, takes no rate.
- *   Computer Systems  the prime supplier. Sells to Adobe, buys from below.
+ *   Computer Systems  the prime supplier. Sells to Auralis, buys from below.
  *   CloudEPA          the sub-vendor. Holds the bench, employs the person.
  *   Priya Raman       the consultant. Files one timesheet, once.
  *
  * The MSP here is an agent, not a principal: it routes demand and holds
  * no contract, which is the arrangement the founder described. A
- * principal MSP — one that sells to Adobe and buys from Computer
+ * principal MSP — one that sells to Auralis and buys from Computer
  * Systems — is a fourth commercial hop and is not modeled.
  *
  * Where the walk finds something the product cannot yet do, the test
@@ -133,11 +133,11 @@ beforeAll(async () => {
   await resetDatabase()
 
   // ── The world before anybody does anything ────────────────────────
-  const adobe = await company('Adobe Systems', 'adobe', 'CLIENT', ADOBE_PM)
+  const adobe = await company('Auralis Software', 'adobe', 'CLIENT', ADOBE_PM)
   co.adobe = adobe.companyId
   who.pm = adobe.personId
 
-  // Adobe's VP of engineering — the approver, a second seat at the
+  // Auralis's VP of engineering — the approver, a second seat at the
   // same company, because nobody approves their own requisition.
   const vp = await prisma.person.create({ data: { name: 'Dana Okafor', primaryEmail: ADOBE_VP } })
   await prisma.context.create({
@@ -145,7 +145,7 @@ beforeAll(async () => {
   })
   who.vp = vp.id
 
-  const magnit = await company('Magnit', 'magnit', 'MSP', MSP)
+  const magnit = await company('Maren MSP', 'magnit', 'MSP', MSP)
   co.magnit = magnit.companyId
   who.mspLead = magnit.personId
 
@@ -157,7 +157,7 @@ beforeAll(async () => {
   co.sub = sub.companyId
   who.subLead = sub.personId
 
-  // Who trades with whom. Adobe never learns CloudEPA exists.
+  // Who trades with whom. Auralis never learns CloudEPA exists.
   const trades = (a: string, b: string, relationship: string) =>
     prisma.counterparty.create({ data: { companyId: a, otherCompanyId: b, relationship } })
   await trades(co.adobe, co.magnit, 'MSP')
@@ -169,7 +169,7 @@ beforeAll(async () => {
   await trades(co.prime, co.sub, 'SUPPLIER')
   await trades(co.sub, co.prime, 'PRIME')
 
-  // Adobe's budget: the cost center the role is funded from, and the
+  // Auralis's budget: the cost center the role is funded from, and the
   // plan that says how many heads and how much money it may spend.
   const cc = await prisma.costCenter.create({
     data: { companyId: co.adobe, code: 'DME-PLAT-4100', name: 'Digital Media — Platform' },
@@ -233,7 +233,7 @@ async function insure(companyId: string, uploadedById: string) {
 // Part one — the demand
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Step 1 — a manager at Adobe raises a requisition', () => {
+describe('Step 1 — a manager at Auralis raises a requisition', () => {
   it('is routed to an approver rather than opened, because it is worth $288,000 a year', async () => {
     as(ADOBE_PM)
     const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
@@ -291,8 +291,8 @@ describe('Step 2 — the VP approves it, and only then does it open', () => {
   })
 })
 
-describe('Step 3 — Adobe puts it in front of its MSP, with a band', () => {
-  it('sends it to Magnit and nobody else', async () => {
+describe('Step 3 — Auralis puts it in front of its MSP, with a band', () => {
+  it('sends it to Maren and nobody else', async () => {
     as(ADOBE_PM)
     const r = await json(await distributeRequisition(
       req('POST', `/api/requisitions/${it_.requisition}/distribute`, {
@@ -326,7 +326,7 @@ describe('Step 3 — Adobe puts it in front of its MSP, with a band', () => {
   })
 })
 
-describe('Step 4 — Magnit takes it on and passes it down the panel', () => {
+describe('Step 4 — Maren takes it on and passes it down the panel', () => {
   it('accepts the invitation before doing anything with it', async () => {
     as(MSP)
     const r = await json(await answerInvitation(
@@ -338,7 +338,7 @@ describe('Step 4 — Magnit takes it on and passes it down the panel', () => {
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
   })
 
-  it('writes its own record of the role, carrying Adobe forward as the end client', async () => {
+  it('writes its own record of the role, carrying Auralis forward as the end client', async () => {
     as(MSP)
     const r = await json(await createRequirement(req('POST', '/api/requirements', {
       title: 'SAP FICO consultant — Digital Media platform',
@@ -360,8 +360,8 @@ describe('Step 4 — Magnit takes it on and passes it down the panel', () => {
     // recipient's own record. `Requirement.mirroredFromId` exists for
     // exactly this and only the forwarding path ever sets it.
     //
-    // The cost is not the typing. It is that Adobe's requisition and
-    // Magnit's copy of it are two unrelated rows, so nothing further
+    // The cost is not the typing. It is that Auralis's requisition and
+    // Maren's copy of it are two unrelated rows, so nothing further
     // down the chain can be counted back against the thing that was
     // approved.
     const role = await prisma.requirement.findUniqueOrThrow({ where: { id: it_.mspRole } })
@@ -403,7 +403,7 @@ describe('Step 5 — Computer Systems takes it on and asks its sub-vendor', () =
     it_.primeRole = r.body.data.requirement.id
   })
 
-  it('sends it to CloudEPA at a third band, $20 below what Adobe will pay', async () => {
+  it('sends it to CloudEPA at a third band, $20 below what Auralis will pay', async () => {
     as(PRIME)
     const r = await json(await distributeRequisition(
       req('POST', `/api/requisitions/${it_.primeRole}/distribute`, {
@@ -420,7 +420,7 @@ describe('Step 5 — Computer Systems takes it on and asks its sub-vendor', () =
     expect(inv.payMax).toBe(11_500)
   })
 
-  it('leaves CloudEPA unable to see what Adobe agreed to pay', async () => {
+  it('leaves CloudEPA unable to see what Auralis agreed to pay', async () => {
     // Three bands, three recipients, and each one reads only its own.
     const theirs = await prisma.requirementInvitation.findMany({ where: { toCompanyId: co.sub } })
     expect(theirs).toHaveLength(1)
@@ -484,7 +484,7 @@ describe('Step 7 — the package is checked before it goes anywhere', () => {
   })
 })
 
-describe('Step 8 — Computer Systems forwards her to Adobe at $135', () => {
+describe('Step 8 — Computer Systems forwards her to Auralis at $135', () => {
   it('creates a second submission with its own rate, linked to the first', async () => {
     as(PRIME)
     const r = await json(await forwardSubmission(
@@ -508,14 +508,14 @@ describe('Step 8 — Computer Systems forwards her to Adobe at $135', () => {
     expect(parent.rate).toBe(11_000)
   })
 
-  it('lands on a fresh Adobe requirement rather than the requisition that was approved', async () => {
+  it('lands on a fresh Auralis requirement rather than the requisition that was approved', async () => {
     // The second finding, and the more expensive one.
     //
-    // Forwarding mirrors the role onto the destination's books. Adobe
+    // Forwarding mirrors the role onto the destination's books. Auralis
     // already has this role — it raised it, funded it from a cost
     // center and had a VP approve it — but the chain arrived through
     // two hand-typed copies, so nothing connects the submission back to
-    // it. Adobe now holds two records of one job.
+    // it. Auralis now holds two records of one job.
     const child = await prisma.submission.findUniqueOrThrow({ where: { id: it_.primeSubmission } })
     expect(child.requirementId).not.toBe(it_.requisition)
 
@@ -529,7 +529,7 @@ describe('Step 8 — Computer Systems forwards her to Adobe at $135', () => {
   })
 })
 
-describe('Step 9 — Adobe interviews her, three rounds', () => {
+describe('Step 9 — Auralis interviews her, three rounds', () => {
   const rounds: Array<{ stage: string; mode: string; outcome: string; id?: string }> = [
     { stage: 'SCREEN', mode: 'PHONE', outcome: 'ADVANCE' },
     { stage: 'TECHNICAL', mode: 'VIDEO', outcome: 'ADVANCE' },
@@ -589,7 +589,7 @@ describe('Step 9 — Adobe interviews her, three rounds', () => {
     expect(r.body.error.code).toBe('NOT_YOURS')
   })
 
-  it('leaves CloudEPA able to see that she is interviewing without seeing Adobe’s notes', async () => {
+  it('leaves CloudEPA able to see that she is interviewing without seeing Auralis’s notes', async () => {
     const theirs = await prisma.interview.count({ where: { submissionId: it_.subSubmission } })
     expect(theirs).toBe(0)
     const forwarded = await prisma.submission.findUniqueOrThrow({ where: { id: it_.subSubmission } })
@@ -601,7 +601,7 @@ describe('Step 9 — Adobe interviews her, three rounds', () => {
 // Part three — the paper
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Step 10 — Adobe commits the budget before it commits to a person', () => {
+describe('Step 10 — Auralis commits the budget before it commits to a person', () => {
   it('raises a purchase order to Computer Systems for the year', async () => {
     as(ADOBE_PM)
     const r = await json(await raisePurchaseOrder(req('POST', '/api/purchase-orders', {
@@ -625,7 +625,7 @@ describe('Step 10 — Adobe commits the budget before it commits to a person', (
 describe('Step 10b — no supplier places anybody without cover on file', () => {
   it('refuses the award outright while Computer Systems has no certificates', async () => {
     // Addendum E: BLOCK where it is legally grounded. Somebody hurt on
-    // an Adobe site with an uninsured supplier in the chain is Adobe's
+    // an Auralis site with an uninsured supplier in the chain is Auralis's
     // problem, so this is a refusal and not a warning to click past.
     as(ADOBE_PM)
     const r = await json(await awardSubmission(
@@ -647,8 +647,8 @@ describe('Step 10b — no supplier places anybody without cover on file', () => 
   })
 })
 
-describe('Step 11 — Adobe awards it, and Computer Systems gets a contract pair', () => {
-  it('creates the sell contract Computer Systems bills Adobe under', async () => {
+describe('Step 11 — Auralis awards it, and Computer Systems gets a contract pair', () => {
+  it('creates the sell contract Computer Systems bills Auralis under', async () => {
     as(ADOBE_PM)
     const r = await json(await awardSubmission(
       req('POST', `/api/submissions/${it_.primeSubmission}/award`, {
@@ -682,7 +682,7 @@ describe('Step 11 — Adobe awards it, and Computer Systems gets a contract pair
     expect(rate(seat.payRate)).toBe('$110/hr')
   })
 
-  it('leaves Adobe’s own requisition showing nothing filled, because the award landed on the copy', async () => {
+  it('leaves Auralis’s own requisition showing nothing filled, because the award landed on the copy', async () => {
     // The cost of Step 8's finding, in the place it hurts. The award
     // route exists to carry the cost center, the hiring manager and the
     // seat count onto the contract. It carried nothing, because the
@@ -826,15 +826,15 @@ describe('Step 13 — the contracts are activated, and the PO is attached', () =
   })
 })
 
-describe('Step 14 — who Adobe can see on its site, once the contracts are live', () => {
+describe('Step 14 — who Auralis can see on its site, once the contracts are live', () => {
   // These two read the world after activation — a firm appears on the
   // client's compliance page because it holds a live contract whose end
   // client is that site. They were in the paperwork block above and ran
   // before the contracts were live, which is the one moment they cannot
   // be true.
-  it('shows Adobe every firm working on its site, and names only the one it pays', async () => {
+  it('shows Auralis every firm working on its site, and names only the one it pays', async () => {
     // This test used to assert the opposite — that CloudEPA was named on
-    // Adobe's own compliance page — and said in a comment that it was a
+    // Auralis's own compliance page — and said in a comment that it was a
     // decision nobody had made. It was made on 2026-09-17: the NDA
     // between a prime and its sub is what stops the sub going round the
     // prime, so the client sees the rung it pays and nothing below it
@@ -855,7 +855,7 @@ describe('Step 14 — who Adobe can see on its site, once the contracts are live
     expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
   })
 
-  it('still gives Adobe no way to reach CloudEPA — the visibility is the site, not the relationship', async () => {
+  it('still gives Auralis no way to reach CloudEPA — the visibility is the site, not the relationship', async () => {
     const reachable = await prisma.counterparty.findMany({ where: { companyId: co.adobe } })
     expect(reachable.map(c => c.otherCompanyId)).not.toContain(co.sub)
   })
@@ -888,7 +888,7 @@ describe('Step 14 — who Adobe can see on its site, once the contracts are live
 // Part four — compliance
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Step 14a — the name below the rung Adobe pays, and the term that opens it', () => {
+describe('Step 14a — the name below the rung Auralis pays, and the term that opens it', () => {
   /**
    * Ratified 2026-09-17. The client sees the standing of whoever employs
    * the person on its site — insured or not, authorized or not, because
@@ -918,7 +918,7 @@ describe('Step 14a — the name below the rung Adobe pays, and the term that ope
         req('PATCH', `/api/program/agreements/${msa.id}`, {
           disclosesSubVendors: discloses,
           reason: discloses
-            ? 'Adobe required its suppliers to name their sub-vendors at signing.'
+            ? 'Auralis required its suppliers to name their sub-vendors at signing.'
             : 'Reverted — the disclosure term was recorded against the wrong agreement.',
         }),
         { params: Promise.resolve({ id: msa.id }) }
@@ -943,7 +943,7 @@ describe('Step 14a — the name below the rung Adobe pays, and the term that ope
     expect(hidden.cover.outcome).toBe('PASS')
   })
 
-  it('counts Priya\u2019s days at Adobe without naming the firm below the one Adobe pays', async () => {
+  it('counts Priya\u2019s days at Auralis without naming the firm below the one Auralis pays', async () => {
     const { tenure } = await asAdobe()
     expect(tenure.body?.error, JSON.stringify(tenure.body)).toBeUndefined()
 
@@ -987,7 +987,7 @@ describe('Step 14a — the name below the rung Adobe pays, and the term that ope
     expect(versions[versions.length - 1].disclosesSubVendors).toBe(true)
   })
 
-  it('names CloudEPA on all three of Adobe\u2019s pages once the agreement requires it', async () => {
+  it('names CloudEPA on all three of Auralis\u2019s pages once the agreement requires it', async () => {
     const { compliance, tenure, alumni } = await asAdobe()
 
     const firm = compliance.body.data.verifications.companies.find((c: any) => c.companyId === co.sub)
@@ -1017,7 +1017,7 @@ describe('Step 14a — the name below the rung Adobe pays, and the term that ope
 // Part five — the money
 // ═══════════════════════════════════════════════════════════════════
 
-describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
+describe('Step 14b — the same rule on the rest of Auralis’s desks', () => {
   /**
    * Step 14a closed compliance, tenure and alumni. The sweep in
    * `__tests__/invariants/client-facing-names.test.ts` then named six
@@ -1049,7 +1049,7 @@ describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
       req('PATCH', `/api/program/agreements/${msa.id}`, {
         disclosesSubVendors: on,
         reason: on
-          ? 'Adobe required its suppliers to name their sub-vendors at signing.'
+          ? 'Auralis required its suppliers to name their sub-vendors at signing.'
           : 'Reverted — the disclosure term was recorded against the wrong agreement.',
       }),
       { params: Promise.resolve({ id: msa.id }) }
@@ -1057,7 +1057,7 @@ describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
   }
 
-  it('names the firm Adobe pays on its register, and says who the rung below it comes through', async () => {
+  it('names the firm Auralis pays on its register, and says who the rung below it comes through', async () => {
     const { register: r } = await asAdobe()
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
 
@@ -1069,7 +1069,7 @@ describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
     expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
   })
 
-  it('counts her days at Adobe off both rungs while naming only one of them', async () => {
+  it('counts her days at Auralis off both rungs while naming only one of them', async () => {
     const { register: r } = await asAdobe()
     const priya = r.body.data.people.find((p: any) => p.personId === who.priya)
     // One person, one spell here — not one per rung of the chain.
@@ -1077,12 +1077,12 @@ describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
     expect(priya.state).toBe('PLACED')
   })
 
-  it('shows Priya’s own page one engagement at the rung Adobe pays, and no firm under it', async () => {
+  it('shows Priya’s own page one engagement at the rung Auralis pays, and no firm under it', async () => {
     const { person } = await asAdobe()
     expect(person.body?.error, JSON.stringify(person.body)).toBeUndefined()
 
     // One row per engagement rather than one per rung, so a two-rung
-    // chain is one line and that line is the contract Adobe pays.
+    // chain is one line and that line is the contract Auralis pays.
     expect(person.body.data.engagements).toHaveLength(1)
     const [e] = person.body.data.engagements
     expect(e.supplier.name).toBe('Computer Systems')
@@ -1103,13 +1103,13 @@ describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
     expect(bench.id).toBe(co.sub)
   })
 
-  it('offers Adobe no name below its own supplier when it weighs two records as one person', async () => {
+  it('offers Auralis no name below its own supplier when it weighs two records as one person', async () => {
     const { identity } = await asAdobe()
     expect(identity.body?.error, JSON.stringify(identity.body)).toBeUndefined()
     expect(JSON.stringify(identity.body)).not.toContain('CloudEPA')
   })
 
-  it('never names the firm below Computer Systems anywhere on Adobe’s dashboard', async () => {
+  it('never names the firm below Computer Systems anywhere on Auralis’s dashboard', async () => {
     const { program } = await asAdobe()
     expect(program.body?.error, JSON.stringify(program.body)).toBeUndefined()
 
@@ -1121,7 +1121,7 @@ describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
     expect(JSON.stringify(program.body)).not.toContain('CloudEPA')
   })
 
-  it('tells Adobe why it may read the leg below its supplier without naming the firm on it', async () => {
+  it('tells Auralis why it may read the leg below its supplier without naming the firm on it', async () => {
     as(ADOBE_PM)
     const r = await json(await whyView(
       req('GET', `/api/why/contract/${it_.subSell}`),
@@ -1136,7 +1136,7 @@ describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
   })
 
   it('says nothing at all about a placement the asker may not read, not even whose it is', async () => {
-    // Magnit routes Adobe’s demand and holds no contract, so it is a
+    // Maren routes Auralis’s demand and holds no contract, so it is a
     // party to no rung of this chain. The sentence explaining that used
     // to be built from the record before the verdict was read, and so
     // handed over the person and the firm it was refusing.
@@ -1160,7 +1160,7 @@ describe('Step 14b — the same rule on the rest of Adobe’s desks', () => {
     expect(priya.stints.map((s: any) => s.vendorName)).toContain('CloudEPA')
 
     // Her page still shows one row per engagement, and that row is still
-    // the contract Adobe pays — the term opens a name, it does not add a
+    // the contract Auralis pays — the term opens a name, it does not add a
     // rung to the picture.
     expect(person.body.data.engagements).toHaveLength(1)
     expect(person.body.data.engagements[0].supplier.name).toBe('Computer Systems')
@@ -1223,15 +1223,15 @@ describe('Step 15 — Priya files one week, once', () => {
   })
 })
 
-describe('Step 15a — the week waiting on Adobe’s desk, and whose name is on it', () => {
+describe('Step 15a — the week waiting on Auralis’s desk, and whose name is on it', () => {
   /**
    * A timesheet is filed against the contract of the firm that employs
    * the person, which in a chain is the rung below the one the client
-   * pays. Both queues that ask Adobe to sign it read that leg, so the
+   * pays. Both queues that ask Auralis to sign it read that leg, so the
    * row said "through CloudEPA" on the desk of a client that has never
-   * heard of CloudEPA. The hours are Adobe’s own; the name is not.
+   * heard of CloudEPA. The hours are Auralis’s own; the name is not.
    */
-  it('tells Adobe a week is waiting through the supplier it pays, not the firm that filed it', async () => {
+  it('tells Auralis a week is waiting through the supplier it pays, not the firm that filed it', async () => {
     as(ADOBE_PM)
     const r = await json(await programView(req('GET', '/api/program')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -1255,15 +1255,15 @@ describe('Step 15a — the week waiting on Adobe’s desk, and whose name is on 
     expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
   })
 
-  it('prices that week at the rung Adobe is billed on, which is the rate beside the name', async () => {
+  it('prices that week at the rung Auralis is billed on, which is the rate beside the name', async () => {
     as(ADOBE_PM)
     const r = await json(await decisionQueue(req('GET', '/api/decisions')))
     const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
-    // 40 hours at the $135 Adobe pays, never the $110 its supplier pays.
+    // 40 hours at the $135 Auralis pays, never the $110 its supplier pays.
     expect(week.amount).toBe(40 * 135)
   })
 
-  it('names CloudEPA on both queues once Adobe’s agreement with Computer Systems requires it', async () => {
+  it('names CloudEPA on both queues once Auralis’s agreement with Computer Systems requires it', async () => {
     const msa = await prisma.masterAgreement.findFirstOrThrow({
       where: { clientId: co.adobe, vendorId: co.prime },
       select: { id: true },
@@ -1272,7 +1272,7 @@ describe('Step 15a — the week waiting on Adobe’s desk, and whose name is on 
     await json(await amendAgreement(
       req('PATCH', `/api/program/agreements/${msa.id}`, {
         disclosesSubVendors: true,
-        reason: 'Adobe required its suppliers to name their sub-vendors at signing.',
+        reason: 'Auralis required its suppliers to name their sub-vendors at signing.',
       }),
       { params: Promise.resolve({ id: msa.id }) }
     ))
@@ -1306,7 +1306,7 @@ describe('Step 15a — the week waiting on Adobe’s desk, and whose name is on 
 })
 
 describe('Step 16 — two signatures, from two different companies', () => {
-  it('has Adobe say the work happened', async () => {
+  it('has Auralis say the work happened', async () => {
     as(ADOBE_PM)
     const r = await json(await signTimesheet(
       req('POST', `/api/timesheets/${it_.timesheet}/approve`, {}),
@@ -1375,7 +1375,7 @@ describe('Step 18 — CloudEPA invoices Computer Systems, and is paid', () => {
   })
 })
 
-describe('Step 19 — the same week reaches Adobe, at Adobe’s rate', () => {
+describe('Step 19 — the same week reaches Auralis, at Auralis’s rate', () => {
   it('still has the hours filed nowhere but on CloudEPA’s contract', async () => {
     // Nothing was copied. One week of Priya's life, one row, exactly as
     // before — Computer Systems' own contract has no timesheet on it and
@@ -1399,7 +1399,7 @@ describe('Step 19 — the same week reaches Adobe, at Adobe’s rate', () => {
     expect(bottom.supplierSellContractId).toBeNull()
   })
 
-  it('invoices Adobe $5,400 — forty hours at $135, not at CloudEPA’s $110', async () => {
+  it('invoices Auralis $5,400 — forty hours at $135, not at CloudEPA’s $110', async () => {
     as(PRIME)
     const r = await json(await generateInvoice(req('POST', '/api/invoices/generate', {
       engagementId: it_.primeEngagement, periodStart: WEEK.start, periodEnd: WEEK.end,
@@ -1441,7 +1441,7 @@ describe('Step 19 — the same week reaches Adobe, at Adobe’s rate', () => {
     expect(po.invoices.map(i => i.id)).toEqual([it_.primeInvoice])
   })
 
-  it('records Adobe’s money arriving', async () => {
+  it('records Auralis’s money arriving', async () => {
     as(PRIME)
     const r = await json(await recordReceipt(req('POST', '/api/ar/payments', {
       invoiceId: it_.primeInvoice, amount: 5_400, currency: 'USD',
@@ -1452,7 +1452,7 @@ describe('Step 19 — the same week reaches Adobe, at Adobe’s rate', () => {
     expect(Number(inv.paid)).toBe(5_400)
   })
 
-  it('has moved $5,400 from Adobe to $3,400 in Priya’s hands, with $1,000 kept at each hop', async () => {
+  it('has moved $5,400 from Auralis to $3,400 in Priya’s hands, with $1,000 kept at each hop', async () => {
     const adobePaid = 5_400
     const cloudepaPaid = 4_400
     const priyaPaid = 40 * 85
@@ -1490,7 +1490,7 @@ describe('Step 20 — what each firm made', () => {
     expect(Number(row.grossPay)).toBe(40 * 11_000)
   }, 60_000)
 
-  it('leaves Adobe unable to see CloudEPA anywhere in its own program', async () => {
+  it('leaves Auralis unable to see CloudEPA anywhere in its own program', async () => {
     const seen = await prisma.counterparty.findMany({ where: { companyId: co.adobe } })
     expect(seen.map(c => c.otherCompanyId).sort()).toEqual([co.magnit, co.prime].sort())
     expect(seen.map(c => c.otherCompanyId)).not.toContain(co.sub)
@@ -1619,12 +1619,12 @@ describe('Step 21 — one placement, opened, top to bottom', () => {
 })
 
 
-describe('Step 21a — Adobe opens the leg below the one it pays', () => {
+describe('Step 21a — Auralis opens the leg below the one it pays', () => {
   /**
    * The same rule as Step 14a, reached by a different door. Those three
    * surfaces are lists filtered to a client's site; this is one record
    * fetched by id, and a client is a party to every rung of a chain at
-   * its own site because every rung names that site. So Adobe could open
+   * its own site because every rung names that site. So Auralis could open
    * CloudEPA's contract with Computer Systems and read the firm by name,
    * what it charged, and the invoices between the two of them.
    *
@@ -1638,7 +1638,7 @@ describe('Step 21a — Adobe opens the leg below the one it pays', () => {
     ))
   }
 
-  it('lets Adobe open it at all, because the work on that contract happens on Adobe\u2019s site', async () => {
+  it('lets Auralis open it at all, because the work on that contract happens on Auralis\u2019s site', async () => {
     const r = await adobeOpens()
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.viewer.side).toBe('END_CLIENT')
@@ -1652,7 +1652,7 @@ describe('Step 21a — Adobe opens the leg below the one it pays', () => {
     expect(d.supplier.nameWithheld).toBe(true)
     expect(d.supplier.suppliedThrough).toBe('Computer Systems')
     // The id travels either way: a row needs something to hang a
-    // certificate on, and an id is not a firm Adobe can reach.
+    // certificate on, and an id is not a firm Auralis can reach.
     expect(d.supplier.id).toBe(co.sub)
     expect(JSON.stringify(d)).not.toContain('CloudEPA')
   })
@@ -1662,11 +1662,11 @@ describe('Step 21a — Adobe opens the leg below the one it pays', () => {
     expect(r.body.data.submission.from.name).toBe('Supplied through Computer Systems.')
   })
 
-  it('shows Adobe no price at all on a leg its supplier arranged, and says why', async () => {
+  it('shows Auralis no price at all on a leg its supplier arranged, and says why', async () => {
     const r = await adobeOpens()
     const d = r.body.data
     // $110 is what CloudEPA charges Computer Systems — the prime's own
-    // cost, and its margin one subtraction from the $135 Adobe pays.
+    // cost, and its margin one subtraction from the $135 Auralis pays.
     expect(ratesIn(d)).not.toContain(110)
     expect(ratesIn(d)).not.toContain(85)
     expect(d.contracts.sell.billRate).toBeNull()
@@ -1674,12 +1674,12 @@ describe('Step 21a — Adobe opens the leg below the one it pays', () => {
     expect(d.money.says).toContain('between those two firms')
   })
 
-  it('still counts the week she worked, because the hours on Adobe\u2019s site are Adobe\u2019s own', async () => {
+  it('still counts the week she worked, because the hours on Auralis\u2019s site are Auralis\u2019s own', async () => {
     const r = await adobeOpens()
     expect(r.body.data.timesheets[0].hours).toBe(40)
   })
 
-  it('names CloudEPA on that row once Adobe\u2019s agreement with Computer Systems requires it', async () => {
+  it('names CloudEPA on that row once Auralis\u2019s agreement with Computer Systems requires it', async () => {
     const msa = await prisma.masterAgreement.findFirstOrThrow({
       where: { clientId: co.adobe, vendorId: co.prime },
       select: { id: true },
@@ -1688,7 +1688,7 @@ describe('Step 21a — Adobe opens the leg below the one it pays', () => {
     const amended = await json(await amendAgreement(
       req('PATCH', `/api/program/agreements/${msa.id}`, {
         disclosesSubVendors: true,
-        reason: 'Adobe required its suppliers to name their sub-vendors at signing.',
+        reason: 'Auralis required its suppliers to name their sub-vendors at signing.',
       }),
       { params: Promise.resolve({ id: msa.id }) }
     ))

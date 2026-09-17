@@ -45,11 +45,11 @@ import { GET as tenure } from '@/app/api/tenure/route'
  *
  * ── One deal, eight positions ────────────────────────────────────────
  *
- *   Nike          CLIENT        buys, signs the hours, pays
+ *   Northbend Athletic          CLIENT        buys, signs the hours, pays
  *   Aptiva        MSP           runs a program; supplies nobody
  *   Teleworld     GSI           invited to the role, did not submit
  *   Pinnacle      PRIME         submitted Rhea and holds the contract
- *   Brightmoor    SUB           a supplier of Nike's, not on this deal
+ *   Brightmoor    SUB           a supplier of Northbend Athletic's, not on this deal
  *   Consultis     BENCH_VENDOR  holds Rhea's consent, did not submit
  *   Marsh         SOLOPRENEUR   put its own principal up and lost
  *   Rhea          CANDIDATE     the person on the seat
@@ -77,7 +77,7 @@ const SEAT: Record<Party, string> = {
   CANDIDATE: 'rhea.saunders@party.invalid',
 }
 const FIRM: Record<Party, string> = {
-  CLIENT: 'Nike', MSP: 'Aptiva Workforce', GSI: 'Teleworld Solutions',
+  CLIENT: 'Northbend Athletic', MSP: 'Aptiva Workforce', GSI: 'Teleworld Solutions',
   PRIME: 'Pinnacle Resourcing', SUB: 'Brightmoor Staffing', BENCH_VENDOR: 'Consultis',
   SOLOPRENEUR: 'Marsh Analytics', CANDIDATE: 'Rhea Saunders',
 }
@@ -221,7 +221,7 @@ describe('1 · a role is posted', () => {
         neededBy: day(14).toISOString(),
       })))
     )
-    expect(grid.CLIENT.ok, `Nike could not open its own role: ${grid.CLIENT.says}`).toBe(true)
+    expect(grid.CLIENT.ok, `Northbend Athletic could not open its own role: ${grid.CLIENT.says}`).toBe(true)
     // A person with no seat has no company to open a role for.
     expect(grid.CANDIDATE.ok).toBe(false)
     // A supplier already placing somebody raises it for that client.
@@ -231,7 +231,7 @@ describe('1 · a role is posted', () => {
     refusalsAreSentences(grid)
     it_.turnedAway = grid
     it_.requisition = (await prisma.requirement.findFirstOrThrow({
-      where: { companyId: co['world-nike'], title: 'Sustainability data analyst — Nike' },
+      where: { companyId: co['world-nike'], title: 'Sustainability data analyst — Northbend Athletic' },
     })).id
   })
 
@@ -255,7 +255,7 @@ describe('2 · the role is put in front of suppliers', () => {
       })
     )
     for (const { party } of PARTIES) {
-      expect(grid[party].ok, `${FIRM[party]} reached inside Nike's release`).toBe(false)
+      expect(grid[party].ok, `${FIRM[party]} reached inside Northbend Athletic's release`).toBe(false)
     }
     refusalsAreSentences(grid)
   })
@@ -288,7 +288,7 @@ describe('3 · somebody is put forward', () => {
     )
     // Pinnacle was invited and holds her consent.
     expect(grid.PRIME.ok, grid.PRIME.says).toBe(true)
-    // Every other position is refused, each for its own reason: Nike and
+    // Every other position is refused, each for its own reason: Northbend Athletic and
     // its program office are the buyer, Brightmoor holds no consent,
     // Marsh may not put its principal in somebody else's name, and the
     // consultant is put forward rather than putting herself forward.
@@ -311,7 +311,7 @@ describe('4 · the award, and the contracts it writes', () => {
     )
     for (const { party } of PARTIES) {
       if (party === 'CLIENT') continue
-      expect(grid[party].ok, `${FIRM[party]} awarded Nike's role`).toBe(false)
+      expect(grid[party].ok, `${FIRM[party]} awarded Northbend Athletic's role`).toBe(false)
     }
     expect(grid.PRIME.says, 'the supplier that submitted was refused without a word').toBeTruthy()
     refusalsAreSentences(grid)
@@ -504,7 +504,7 @@ describe('9 · the client pays what came through the match', () => {
 })
 
 describe('10 · the tenure is the person’s, and every read of it leaves a trail', () => {
-  it('the desk that answers for tenure reads her days at Nike; every firm that reads anything is told only about its own', async () => {
+  it('the desk that answers for tenure reads her days at Northbend Athletic; every firm that reads anything is told only about its own', async () => {
     const grid = await eachParty(async () => json(await tenure(req('GET', '/api/tenure'))))
     refusalsAreSentences(grid)
 
@@ -512,13 +512,13 @@ describe('10 · the tenure is the person’s, and every read of it leaves a trai
     const officer = await json(await tenure(req('GET', '/api/tenure')))
     expect(officer.body?.error, JSON.stringify(officer.body)).toBeUndefined()
     const rhea = officer.body.data.people.find((p: any) => p.name === 'Rhea Saunders')
-    expect(rhea, 'Rhea is on Nike’s ledger').toBeTruthy()
+    expect(rhea, 'Rhea is on Northbend Athletic’s ledger').toBeTruthy()
     expect(rhea.vendors.map((v: any) => v.name)).toContain('Pinnacle Resourcing')
 
     // A firm that never supplied her does not learn she is there.
     as(SEAT.SUB)
     const stranger = await json(await tenure(req('GET', '/api/tenure')))
     const names = stranger.status === 200 ? (stranger.body.data.people ?? []).map((p: any) => p.name) : []
-    expect(names, 'a supplier off the deal read her days at Nike').not.toContain('Rhea Saunders')
+    expect(names, 'a supplier off the deal read her days at Northbend Athletic').not.toContain('Rhea Saunders')
   })
 })

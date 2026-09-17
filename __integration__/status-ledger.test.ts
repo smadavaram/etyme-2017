@@ -165,7 +165,7 @@ describe('the ledger: one placement, every table, every station', () => {
     })
     as(PINNACLE)
     const r = await call(activate, 'POST', `/api/contracts/${it_.contract}/activate`, it_.contract, {
-      action: 'activate', overrideReason: 'Background check ordered; Nike waived it for the first fortnight in writing.',
+      action: 'activate', overrideReason: 'Background check ordered; Northbend Athletic waived it for the first fortnight in writing.',
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect((await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract } })).state).toBe('IN_PROGRESS')
@@ -277,7 +277,7 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.buy } })).state).toBe('ENDED')
     const log = await prisma.automationLog.findFirst({ where: { companyId: co['world-pinnacle'], action: 'CONTRACTS_ENDED' }, orderBy: { at: 'desc' } })
     expect(log?.summary).toContain('Tariq')
-    expect(log?.summary).toContain('at Nike')
+    expect(log?.summary).toContain('at Northbend Athletic')
   })
 
   it('a contract still inside its term is left alone', async () => {

@@ -64,7 +64,7 @@ type Held = Seat | 'CANDIDATE'
 
 /**
  * The desks at a seeded client program, by the suffix on their address.
- * `world-nike-ap@demo.etyme.local` is the AP clerk at Nike; the roster
+ * `world-nike-ap@demo.etyme.local` is the AP clerk at Northbend Athletic; the roster
  * is in lib/seed-programmes and the words here are what a visitor reads.
  */
 const DEMO_DOMAIN = 'demo.etyme.local'
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
   // And never for a world seat. `{ as: "world-nike" }` carries no `side`,
   // so it read as the default CLIENT seat here — and a visitor who had
   // ever held a private client sandbox was handed that sandbox back
-  // instead of Nike. The world branch below is the only answer to `as`.
+  // instead of Northbend Athletic. The world branch below is the only answer to `as`.
   const asWorld = typeof (body as any)?.as === 'string' ? String((body as any).as) : null
   const wanted = seatAsked(body)
   const existing = read(request.cookies.get(DEMO_COOKIE)?.value)

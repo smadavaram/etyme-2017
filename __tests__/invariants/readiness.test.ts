@@ -104,7 +104,7 @@ describe('what production says about itself tonight', () => {
 
   it('the stale demo world is reported with the desk it lacks, and does not count against ready', () => {
     expect(edge('demo')).toMatchObject({ state: 'SET', required: false })
-    expect(edge('demo').says).toContain('Nike has no HR or Procurement desk')
+    expect(edge('demo').says).toContain('Northbend Athletic has no HR or Procurement desk')
   })
 
   it('the model key is optional and off, not missing', () => {

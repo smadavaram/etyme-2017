@@ -3,7 +3,7 @@
  *
  * Creates:
  *   - 1 vendor company (Cloudepa Inc.) with roles, a founder user
- *   - 1 client company (Terumo BCT)
+ *   - 1 client company (Talvern Medical)
  *   - 8 consultants with varied skills, work auth, availability
  *   - 6 requirements with varied statuses
  *   - 7 submissions in various pipeline stages
@@ -125,7 +125,7 @@ async function main() {
     data: {
       name: 'Cloudepa Inc.',
       slug: 'cloudepa',
-      domain: 'cloudepa.com',
+      domain: 'cloudepa.example',
       domainVerified: true,
       kind: 'VENDOR',
       outsideAccess: defaultPostureFor('VENDOR'),
@@ -138,9 +138,9 @@ async function main() {
 
   const client = await prisma.company.create({
     data: {
-      name: 'Terumo BCT',
+      name: 'Talvern Medical',
       slug: 'terumobct',
-      domain: 'terumobct.com',
+      domain: 'talvern-medical.example',
       domainVerified: true,
       kind: 'CLIENT',
       outsideAccess: defaultPostureFor('CLIENT'),
@@ -151,9 +151,9 @@ async function main() {
 
   const client2 = await prisma.company.create({
     data: {
-      name: 'Nike Inc.',
+      name: 'Northbend Athletic Inc.',
       slug: 'nike',
-      domain: 'nike.com',
+      domain: 'northbend-athletic.example',
       domainVerified: true,
       kind: 'CLIENT',
       outsideAccess: defaultPostureFor('CLIENT'),
@@ -172,7 +172,7 @@ async function main() {
     data: {
       name: 'Ravensbourne Systems',
       slug: 'ravensbourne',
-      domain: 'ravensbourne.com',
+      domain: 'ravensbourne.example',
       domainVerified: true,
       kind: 'GSI',
       supplierPosture: 'PRIME',
@@ -254,7 +254,7 @@ async function main() {
 
   // ── Client-side context for the same demo user ──
   // A person can hold contexts at more than one company. Giving the founder
-  // a seat at Terumo BCT makes the client console reachable without hand-
+  // a seat at Talvern Medical makes the client console reachable without hand-
   // written SQL: pass its id as x-context-id, or make it the active context.
   // Program Manager is a demand-side role — it reads placements, approves
   // hours, and reviews governance, but never sees vendor cost or margin.
@@ -364,7 +364,7 @@ async function main() {
     data: {
       name: 'TechVista Consulting',
       slug: 'techvista',
-      domain: 'techvista.com',
+      domain: 'techvista.example',
       domainVerified: true,
       kind: 'VENDOR',
       outsideAccess: defaultPostureFor('VENDOR'),
@@ -389,7 +389,7 @@ async function main() {
     data: {
       name: 'GlobalStaff MSP',
       slug: 'globalstaff',
-      domain: 'globalstaff.com',
+      domain: 'globalstaff.example',
       domainVerified: true,
       kind: 'MSP',
       outsideAccess: defaultPostureFor('MSP'),
@@ -412,9 +412,9 @@ async function main() {
   const locHQ = await prisma.companyLocation.create({
     data: {
       companyId: client.id,
-      name: 'Lakewood HQ',
-      address: '11158 W Jefferson Ave',
-      city: 'Lakewood',
+      name: 'Westminster HQ',
+      address: '1200 Elkhorn Commons Parkway',
+      city: 'Westminster',
       state: 'CO',
       country: 'US',
       isPrimary: true,
@@ -449,7 +449,7 @@ async function main() {
   })
 
   // ── Client org units and hiring managers (Addendum E) ──
-  // Terumo's departments and the managers who own contingent headcount.
+  // Talvern's departments and the managers who own contingent headcount.
   // Each manager sourced their own vendors and negotiated their own rates —
   // which is exactly the condition the org view exists to expose.
   const orgUnitData = [
@@ -469,11 +469,11 @@ async function main() {
   }
 
   const managerData = [
-    { key: 'whitfield',  name: 'Dana Whitfield',   email: 'd.whitfield@terumobct.com',  unit: 'mfgFinance' },
-    { key: 'okafor',     name: 'Michael Okafor',   email: 'm.okafor@terumobct.com',     unit: 'quality' },
-    { key: 'mbeki',      name: 'Joyce Mbeki',      email: 'j.mbeki@terumobct.com',      unit: 'supplyChain' },
-    { key: 'ramaswamy',  name: 'Karthik Ramaswamy',email: 'k.ramaswamy@terumobct.com',  unit: 'dataPlatform' },
-    { key: 'castellano', name: 'Rosa Castellano',  email: 'r.castellano@terumobct.com', unit: 'infra' },
+    { key: 'whitfield',  name: 'Dana Whitfield',   email: 'd.whitfield@talvern-medical.example',  unit: 'mfgFinance' },
+    { key: 'okafor',     name: 'Michael Okafor',   email: 'm.okafor@talvern-medical.example',     unit: 'quality' },
+    { key: 'mbeki',      name: 'Joyce Mbeki',      email: 'j.mbeki@talvern-medical.example',      unit: 'supplyChain' },
+    { key: 'ramaswamy',  name: 'Karthik Ramaswamy',email: 'k.ramaswamy@talvern-medical.example',  unit: 'dataPlatform' },
+    { key: 'castellano', name: 'Rosa Castellano',  email: 'r.castellano@talvern-medical.example', unit: 'infra' },
   ]
 
   const managers: Record<string, { id: string; name: string; unitId: string }> = {}
@@ -528,13 +528,13 @@ async function main() {
   const gsiPeople = [
     // Somebody has to own the walls, or the settings screen is read-only
     // for everybody and the demo shows a company nobody administers.
-    { name: 'Elena Marsh',  email: 'e.marsh@ravensbourne.com',  role: 'Owner',            unit: null },
+    { name: 'Elena Marsh',  email: 'e.marsh@ravensbourne.example',  role: 'Owner',            unit: null },
     // Two delivery managers, each walled to their own account and neither
     // able to see the outside market.
-    { name: 'Priya Anand',  email: 'p.anand@ravensbourne.com',  role: 'Delivery Manager', unit: 'retail' },
-    { name: 'Tom Rhys',     email: 't.rhys@ravensbourne.com',   role: 'Delivery Manager', unit: 'medical' },
+    { name: 'Priya Anand',  email: 'p.anand@ravensbourne.example',  role: 'Delivery Manager', unit: 'retail' },
+    { name: 'Tom Rhys',     email: 't.rhys@ravensbourne.example',   role: 'Delivery Manager', unit: 'medical' },
     // The contractor desk. Firm-wide, and the only people here who can.
-    { name: 'Aisha Bello',  email: 'a.bello@ravensbourne.com',  role: 'Contractor Desk',  unit: null },
+    { name: 'Aisha Bello',  email: 'a.bello@ravensbourne.example',  role: 'Contractor Desk',  unit: null },
   ]
 
   const gsiStaff: Record<string, { id: string }> = {}
@@ -554,7 +554,7 @@ async function main() {
     gsiStaff[p.email] = { id: person.id }
   }
 
-  // ── Terumo's cost centres (the budgets contingent labour burns) ──
+  // ── Talvern's cost centres (the budgets contingent labour burns) ──
   // Codes are the client's, and must match what their ERP expects — Etyme
   // carries them for coding and export, it does not invent them.
   const costCentreData = [
@@ -648,7 +648,7 @@ async function main() {
   }
 
   const hrLead = await prisma.person.create({
-    data: { name: 'Ravi Anand', primaryEmail: 'r.anand@terumobct.com' },
+    data: { name: 'Ravi Anand', primaryEmail: 'r.anand@talvern-medical.example' },
   })
   await prisma.context.create({
     data: {
@@ -710,14 +710,14 @@ async function main() {
   })
 
   // ── Purchase orders — one per leg of the chain ──
-  // Terumo raises a PO to each supplier it actually pays. In the layer-cake
+  // Talvern raises a PO to each supplier it actually pays. In the layer-cake
   // case that is the MSP, not the sub-vendor: GlobalStaff then raises its
   // own PO to Cloudepa. A single PO on the end client would be the wrong
   // reference for whoever's AP is paying.
   const poStart = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000)
   const poEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
 
-  const poTerumoToCloudepa = await prisma.purchaseOrder.create({
+  const poTalvernToCloudepa = await prisma.purchaseOrder.create({
     data: {
       number: 'PO-2026-4417',
       issuedById: client.id,
@@ -730,7 +730,7 @@ async function main() {
     },
   })
 
-  const poTerumoToTechVista = await prisma.purchaseOrder.create({
+  const poTalvernToTechVista = await prisma.purchaseOrder.create({
     data: {
       number: 'PO-2026-4482',
       issuedById: client.id,
@@ -792,14 +792,14 @@ async function main() {
 
   // ── People & Consultant Profiles ───────────────
   const consultantData = [
-    { name: 'Ravi Patel',       email: 'ravi@cloudepa.com',    headline: 'Senior SAP BRIM Consultant',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA', 'ABAP'],    location: 'Dallas, TX',     workAuth: 'H1B',        availDays: -30, tier: 'RETAINED' as const,  rateMin: 11000, rateMax: 13000 },
-    { name: 'Priya Sharma',     email: 'priya@cloudepa.com',   headline: 'Azure Cloud Architect',          skills: ['Azure', '.NET', 'Terraform', 'Kubernetes'],              location: 'Remote',         workAuth: 'US_CITIZEN', availDays: -10, tier: 'RETAINED' as const,  rateMin: 14000, rateMax: 16000 },
-    { name: 'Anita Desai',      email: 'anita@cloudepa.com',   headline: 'SAP SD/MM Functional Lead',      skills: ['SAP SD', 'SAP MM', 'SAP S/4HANA', 'Integration'],       location: 'Chicago, IL',    workAuth: 'GC',         availDays: 7,   tier: 'RETAINED' as const,  rateMin: 10000, rateMax: 12500, page: 'anita-desai' },
-    { name: 'Vikram Reddy',     email: 'vikram@cloudepa.com',  headline: 'Full Stack Developer',           skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],          location: 'Austin, TX',     workAuth: 'OPT',        availDays: -5,  tier: 'MARKETING' as const, rateMin: 8000,  rateMax: 10000 },
-    { name: 'Meera Krishnan',   email: 'meera@cloudepa.com',   headline: 'Data Engineer — Snowflake',      skills: ['Snowflake', 'dbt', 'Python', 'Airflow'],                 location: 'Remote',         workAuth: 'H1B',        availDays: 21,  tier: 'RETAINED' as const,  rateMin: 12000, rateMax: 14000 },
-    { name: 'John Martinez',    email: 'john@cloudepa.com',    headline: 'ServiceNow Developer',           skills: ['ServiceNow', 'ITSM', 'JavaScript', 'REST APIs'],         location: 'Denver, CO',     workAuth: 'US_CITIZEN', availDays: -60, tier: 'MARKETING' as const, rateMin: 9000,  rateMax: 11000 },
-    { name: 'Kavitha Nair',     email: 'kavitha@cloudepa.com', headline: 'SAP SuccessFactors Consultant',  skills: ['SuccessFactors', 'SAP HCM', 'Employee Central'],         location: 'Atlanta, GA',    workAuth: 'GC',         availDays: 14,  tier: 'RETAINED' as const,  rateMin: 11500, rateMax: 13500 },
-    { name: 'David Chen',       email: 'david@cloudepa.com',   headline: 'DevOps / SRE Lead',              skills: ['AWS', 'Docker', 'Kubernetes', 'CI/CD', 'Prometheus'],     location: 'San Francisco',  workAuth: 'US_CITIZEN', availDays: -2,  tier: 'RETAINED' as const,  rateMin: 15000, rateMax: 18000, page: 'david-chen' },
+    { name: 'Ravi Patel',       email: 'ravi@cloudepa.example',    headline: 'Senior SAP BRIM Consultant',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA', 'ABAP'],    location: 'Dallas, TX',     workAuth: 'H1B',        availDays: -30, tier: 'RETAINED' as const,  rateMin: 11000, rateMax: 13000 },
+    { name: 'Priya Sharma',     email: 'priya@cloudepa.example',   headline: 'Azure Cloud Architect',          skills: ['Azure', '.NET', 'Terraform', 'Kubernetes'],              location: 'Remote',         workAuth: 'US_CITIZEN', availDays: -10, tier: 'RETAINED' as const,  rateMin: 14000, rateMax: 16000 },
+    { name: 'Anita Desai',      email: 'anita@cloudepa.example',   headline: 'SAP SD/MM Functional Lead',      skills: ['SAP SD', 'SAP MM', 'SAP S/4HANA', 'Integration'],       location: 'Chicago, IL',    workAuth: 'GC',         availDays: 7,   tier: 'RETAINED' as const,  rateMin: 10000, rateMax: 12500, page: 'anita-desai' },
+    { name: 'Vikram Reddy',     email: 'vikram@cloudepa.example',  headline: 'Full Stack Developer',           skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],          location: 'Austin, TX',     workAuth: 'OPT',        availDays: -5,  tier: 'MARKETING' as const, rateMin: 8000,  rateMax: 10000 },
+    { name: 'Meera Krishnan',   email: 'meera@cloudepa.example',   headline: 'Data Engineer — Snowflake',      skills: ['Snowflake', 'dbt', 'Python', 'Airflow'],                 location: 'Remote',         workAuth: 'H1B',        availDays: 21,  tier: 'RETAINED' as const,  rateMin: 12000, rateMax: 14000 },
+    { name: 'John Martinez',    email: 'john@cloudepa.example',    headline: 'ServiceNow Developer',           skills: ['ServiceNow', 'ITSM', 'JavaScript', 'REST APIs'],         location: 'Denver, CO',     workAuth: 'US_CITIZEN', availDays: -60, tier: 'MARKETING' as const, rateMin: 9000,  rateMax: 11000 },
+    { name: 'Kavitha Nair',     email: 'kavitha@cloudepa.example', headline: 'SAP SuccessFactors Consultant',  skills: ['SuccessFactors', 'SAP HCM', 'Employee Central'],         location: 'Atlanta, GA',    workAuth: 'GC',         availDays: 14,  tier: 'RETAINED' as const,  rateMin: 11500, rateMax: 13500 },
+    { name: 'David Chen',       email: 'david@cloudepa.example',   headline: 'DevOps / SRE Lead',              skills: ['AWS', 'Docker', 'Kubernetes', 'CI/CD', 'Prometheus'],     location: 'San Francisco',  workAuth: 'US_CITIZEN', availDays: -2,  tier: 'RETAINED' as const,  rateMin: 15000, rateMax: 18000, page: 'david-chen' },
   ]
 
   const now = new Date()
@@ -935,15 +935,15 @@ async function main() {
   // ── Positions the client has opened to any supplier ──────────────
   //
   // The demand side of the network. Everything above belongs to the
-  // vendor; these belong to Terumo BCT and are the reason a supplier who
+  // vendor; these belong to Talvern Medical and are the reason a supplier who
   // has never met them would find their page at all.
   //
   // openToNetwork is off by default because a hiring plan is commercially
   // sensitive, so publishing one is a decision. These are the ones they
   // decided to publish.
   const openToNetwork = [
-    { title: 'SAP FICO Consultant — Lakewood',   skills: ['SAP FICO', 'S/4HANA'],            location: 'Lakewood, CO',  heads: 2, months: 12 },
-    { title: 'Validation Engineer — Medical Devices', skills: ['CSV', 'GAMP 5', 'FDA 21 CFR Part 11'], location: 'Lakewood, CO', heads: 1, months: 9 },
+    { title: 'SAP FICO Consultant — Westminster',   skills: ['SAP FICO', 'S/4HANA'],            location: 'Westminster, CO',  heads: 2, months: 12 },
+    { title: 'Validation Engineer — Medical Devices', skills: ['CSV', 'GAMP 5', 'FDA 21 CFR Part 11'], location: 'Westminster, CO', heads: 1, months: 9 },
     { title: 'Workday Integrations Analyst',     skills: ['Workday', 'Studio', 'EIB'],       location: 'Remote',        heads: 1, months: 6 },
   ]
 
@@ -1436,7 +1436,7 @@ async function main() {
   })
 
   const secondVendorOwner = await prisma.person.create({
-    data: { name: 'Marisa Kelly', primaryEmail: 'marisa@northwindtalent.com' },
+    data: { name: 'Marisa Kelly', primaryEmail: 'marisa@northwindtalent.example' },
   })
 
   await prisma.context.create({
@@ -1452,7 +1452,7 @@ async function main() {
   const eng1 = await prisma.engagement.create({
     data: {
       msaId: msa.id,
-      title: 'SAP BRIM Migration — Terumo BCT',
+      title: 'SAP BRIM Migration — Talvern Medical',
       invoiceCycle: 'BIWEEKLY',
     },
   })
@@ -1460,7 +1460,7 @@ async function main() {
   const eng2 = await prisma.engagement.create({
     data: {
       msaId: msa2.id,
-      title: 'Cloud Platform Modernization — Nike',
+      title: 'Cloud Platform Modernization — Northbend Athletic',
       invoiceCycle: 'MONTHLY',
     },
   })
@@ -1468,9 +1468,9 @@ async function main() {
   // ── Sell Contracts ─────────────────────────────
   // Most contracts are direct (paying customer = end client).
   // One contract demonstrates the three-party layer cake:
-  //   vendor bills MSP (paying customer) → consultant works at Terumo BCT (end client)
+  //   vendor bills MSP (paying customer) → consultant works at Talvern Medical (end client)
   // mgr/unit are the END CLIENT's owner of the engagement (Addendum E).
-  // Nike contracts carry none — the org view is a Terumo surface here.
+  // Northbend Athletic contracts carry none — the org view is a Talvern surface here.
   const contractData = [
     { personIdx: 2, clientId: client.id,  billRate: 12000, state: 'IN_PROGRESS' as const, startDays: -120, endDays: 60,  engId: eng1.id, locId: locHQ.id,     mgr: 'mbeki',      unit: 'supplyChain' },
     { personIdx: 5, clientId: client.id,  billRate: 10500, state: 'IN_PROGRESS' as const, startDays: -90,  endDays: 14,  engId: eng1.id, locId: locHQ.id,     mgr: 'castellano', unit: 'infra' },
@@ -1499,7 +1499,7 @@ async function main() {
         workLocationId: c.locId,
         hiringManagerId: c.mgr ? managers[c.mgr].id : null,
         orgUnitId: c.unit ? orgUnits[c.unit].id : null,
-        purchaseOrderId: c.clientId === client.id ? poTerumoToCloudepa.id : null,
+        purchaseOrderId: c.clientId === client.id ? poTalvernToCloudepa.id : null,
       },
     })
     sellContracts.push(sc)
@@ -1517,7 +1517,7 @@ async function main() {
     }
   }
 
-  // Three-party contract: Cloudepa bills GlobalStaff MSP, consultant works at Terumo BCT
+  // Three-party contract: Cloudepa bills GlobalStaff MSP, consultant works at Talvern Medical
   // personIdx 7 = David Chen (DevOps/SRE Lead)
   const mspContractStart = new Date(now)
   mspContractStart.setDate(mspContractStart.getDate() - 60)
@@ -1528,7 +1528,7 @@ async function main() {
     data: {
       companyId: vendor.id,
       clientCompanyId: msp.id,           // paying customer = GlobalStaff MSP
-      endClientCompanyId: client.id,      // end client = Terumo BCT
+      endClientCompanyId: client.id,      // end client = Talvern Medical
       personId: people[7].id,
       billRate: 16500,
       state: 'IN_PROGRESS',
@@ -1538,7 +1538,7 @@ async function main() {
       workLocationId: locAnnArbor.id,     // works at Ann Arbor site
       hiringManagerId: managers.castellano.id,
       orgUnitId: orgUnits.infra.id,
-      // Cloudepa invoices the MSP against the MSP's PO, not Terumo's.
+      // Cloudepa invoices the MSP against the MSP's PO, not Talvern's.
       purchaseOrderId: poMspToCloudepa.id,
     },
   })
@@ -1579,7 +1579,7 @@ async function main() {
   }
 
   // A split contractor — David Chen's time is shared between Infrastructure
-  // and Data Platform. Terumo still needs the coding even though the invoice
+  // and Data Platform. Talvern still needs the coding even though the invoice
   // it pays comes from GlobalStaff, so it can accrue against both budgets.
   await prisma.contractCostAllocation.createMany({
     data: [
@@ -1588,15 +1588,15 @@ async function main() {
     ],
   })
 
-  // ── TechVista contractors at Terumo (Addendum E rate variance) ──
+  // ── TechVista contractors at Talvern (Addendum E rate variance) ──
   // Different managers sourced the same skills from a second vendor at
   // different rates. This is the condition the org view surfaces: nobody
   // has seen these side by side, because they live in separate inboxes.
   const tvContractorData = [
-    { name: 'Elena Fischer',  email: 'elena@techvista.com',  headline: 'SAP MM / SD Consultant',   skills: ['SAP MM', 'SAP SD', 'S/4HANA'],           billRate: 14800, mgr: 'whitfield', unit: 'mfgFinance',   loc: locHQ.id,      startDays: -150, endDays: 120 },
-    { name: 'Owen Bradley',   email: 'owen@techvista.com',   headline: 'Data Engineer',            skills: ['Snowflake', 'Python', 'dbt'],            billRate: 11200, mgr: 'whitfield', unit: 'mfgFinance',   loc: locRemote.id,  startDays: -100, endDays: 200 },
-    { name: 'Aisha Mahmood',  email: 'aisha@techvista.com',  headline: 'Cloud Platform Engineer',  skills: ['AWS', 'Kubernetes', 'Terraform'],        billRate: 13800, mgr: 'ramaswamy', unit: 'dataPlatform', loc: locRemote.id,  startDays: -70,  endDays: 240 },
-    { name: 'Peter Lindgren', email: 'peter@techvista.com',  headline: 'Validation / CSV Lead',    skills: ['CSV', 'Process Validation', 'FDA'],      billRate: 9600,  mgr: 'okafor',    unit: 'quality',      loc: locAnnArbor.id, startDays: -220, endDays: 90 },
+    { name: 'Elena Fischer',  email: 'elena@techvista.example',  headline: 'SAP MM / SD Consultant',   skills: ['SAP MM', 'SAP SD', 'S/4HANA'],           billRate: 14800, mgr: 'whitfield', unit: 'mfgFinance',   loc: locHQ.id,      startDays: -150, endDays: 120 },
+    { name: 'Owen Bradley',   email: 'owen@techvista.example',   headline: 'Data Engineer',            skills: ['Snowflake', 'Python', 'dbt'],            billRate: 11200, mgr: 'whitfield', unit: 'mfgFinance',   loc: locRemote.id,  startDays: -100, endDays: 200 },
+    { name: 'Aisha Mahmood',  email: 'aisha@techvista.example',  headline: 'Cloud Platform Engineer',  skills: ['AWS', 'Kubernetes', 'Terraform'],        billRate: 13800, mgr: 'ramaswamy', unit: 'dataPlatform', loc: locRemote.id,  startDays: -70,  endDays: 240 },
+    { name: 'Peter Lindgren', email: 'peter@techvista.example',  headline: 'Validation / CSV Lead',    skills: ['CSV', 'Process Validation', 'FDA'],      billRate: 9600,  mgr: 'okafor',    unit: 'quality',      loc: locAnnArbor.id, startDays: -220, endDays: 90 },
   ]
 
   for (const t of tvContractorData) {
@@ -1635,7 +1635,7 @@ async function main() {
         workLocationId: t.loc,
         hiringManagerId: managers[t.mgr].id,
         orgUnitId: orgUnits[t.unit].id,
-        purchaseOrderId: poTerumoToTechVista.id,
+        purchaseOrderId: poTalvernToTechVista.id,
       },
     })
     sellContracts.push(sc)
@@ -1890,14 +1890,14 @@ async function main() {
       total: 4800, paid: 0, // 40hrs × $120/hr
       dueDays: 19, status: 'ISSUED',
     },
-    // Nike engagement — paid
+    // Northbend Athletic engagement — paid
     {
       engId: eng2.id, number: 'IN_NIKE01_001',
       periodStartDays: -60, periodEndDays: -31,
       total: 16200, paid: 16200, // 120hrs × $135/hr
       dueDays: -1, status: 'PAID',
     },
-    // Nike engagement — issued, current
+    // Northbend Athletic engagement — issued, current
     {
       engId: eng2.id, number: 'IN_NIKE01_002',
       periodStartDays: -30, periodEndDays: -1,
@@ -1936,7 +1936,7 @@ async function main() {
         paid: inv.paid,
         dueAt,
         status: inv.status,
-        purchaseOrderId: inv.engId === eng2.id ? null : poTerumoToCloudepa.id,
+        purchaseOrderId: inv.engId === eng2.id ? null : poTalvernToCloudepa.id,
         remitToId: cloudepaRemit.id,
       },
     })
@@ -2026,7 +2026,7 @@ async function main() {
   }
 
   // An invoice on the MSP leg: Cloudepa bills GlobalStaff for David Chen,
-  // who sits at Terumo. Its coding carries TERUMO's cost centres — because
+  // who sits at Talvern. Its coding carries TALVERN's cost centres — because
   // that is whose budget he burns — while the bill-to is GlobalStaff, who
   // will code their own onward invoice differently. The coding export
   // labels the owner rather than passing one company's codes off as another's.
@@ -2121,7 +2121,7 @@ async function main() {
   }
 
   // ── Payments ──────────────────────────────────
-  // Payment for fully paid Terumo invoice
+  // Payment for fully paid Talvern invoice
   await prisma.payment.create({
     data: {
       invoiceId: invoiceRecords[0].id,
@@ -2131,7 +2131,7 @@ async function main() {
     },
   })
 
-  // Partial payment for Terumo invoice #002
+  // Partial payment for Talvern invoice #002
   await prisma.payment.create({
     data: {
       invoiceId: invoiceRecords[1].id,
@@ -2141,7 +2141,7 @@ async function main() {
     },
   })
 
-  // Full payment for Nike invoice #001
+  // Full payment for Northbend Athletic invoice #001
   await prisma.payment.create({
     data: {
       invoiceId: invoiceRecords[3].id,
@@ -2156,7 +2156,7 @@ async function main() {
   // LEGACY_RULES.md §4.4: ClientExpense lifecycle, amount = sum(qty × unitPrice).
   const expenseData = [
     {
-      sellContractIdx: 0,  // Anita @ Terumo
+      sellContractIdx: 0,  // Anita @ Talvern
       personIdx: 2,
       category: 'TRAVEL',
       billable: true,
@@ -2173,7 +2173,7 @@ async function main() {
       daysAgo: 7,
     },
     {
-      sellContractIdx: 1,  // John @ Terumo
+      sellContractIdx: 1,  // John @ Talvern
       personIdx: 5,
       category: 'EQUIPMENT',
       billable: false,
@@ -2188,7 +2188,7 @@ async function main() {
       daysAgo: 3,
     },
     {
-      sellContractIdx: 2,  // Ravi @ Nike
+      sellContractIdx: 2,  // Ravi @ Northbend Athletic
       personIdx: 0,
       category: 'TRAINING',
       billable: true,
@@ -2203,7 +2203,7 @@ async function main() {
       daysAgo: 21,
     },
     {
-      sellContractIdx: 0,  // Anita @ Terumo
+      sellContractIdx: 0,  // Anita @ Talvern
       personIdx: 2,
       category: 'MEALS',
       billable: true,
@@ -2217,7 +2217,7 @@ async function main() {
       daysAgo: 2,
     },
     {
-      sellContractIdx: 1,  // John @ Terumo
+      sellContractIdx: 1,  // John @ Talvern
       personIdx: 5,
       category: 'TRAVEL',
       billable: true,
@@ -2235,7 +2235,7 @@ async function main() {
       daysAgo: 1,
     },
     {
-      sellContractIdx: 2,  // Ravi @ Nike
+      sellContractIdx: 2,  // Ravi @ Northbend Athletic
       personIdx: 0,
       category: 'RELOCATION',
       billable: false,
@@ -2250,7 +2250,7 @@ async function main() {
       daysAgo: 35,
     },
     {
-      sellContractIdx: 0,  // Anita @ Terumo
+      sellContractIdx: 0,  // Anita @ Talvern
       personIdx: 2,
       category: 'EQUIPMENT',
       billable: true,
@@ -2265,7 +2265,7 @@ async function main() {
       daysAgo: 12,
     },
     {
-      sellContractIdx: 1,  // John @ Terumo
+      sellContractIdx: 1,  // John @ Talvern
       personIdx: 5,
       category: 'TRAINING',
       billable: false,
@@ -2328,9 +2328,9 @@ async function main() {
     {
       topic: 'CONTRACT',
       topicId: sellContracts[0].id,
-      title: 'Anita Desai — Terumo BCT (SAP SD/MM)',
+      title: 'Anita Desai — Talvern Medical (SAP SD/MM)',
       messages: [
-        { authorIdx: -1, body: 'Sell contract created: Anita Desai → Terumo BCT at $120/hr.', type: 'SYSTEM', daysAgo: 60 },
+        { authorIdx: -1, body: 'Sell contract created: Anita Desai → Talvern Medical at $120/hr.', type: 'SYSTEM', daysAgo: 60 },
         { authorIdx: 2, body: 'Hi team, just wanted to confirm my start date is next Monday. I have completed the I-9 and background check.', type: 'TEXT', daysAgo: 55 },
         { authorIdx: -1, body: 'All verifications passed. Contract moved to IN_PROGRESS.', type: 'SYSTEM', daysAgo: 54 },
         { authorIdx: 0, body: 'Anita, please submit timesheets by Friday EOD. The approval cycle is biweekly.', type: 'TEXT', daysAgo: 50 },
@@ -2339,17 +2339,17 @@ async function main() {
     {
       topic: 'CONTRACT',
       topicId: sellContracts[2].id,
-      title: 'Ravi Patel — Nike (Cloud Platform)',
+      title: 'Ravi Patel — Northbend Athletic (Cloud Platform)',
       messages: [
-        { authorIdx: -1, body: 'Sell contract created: Ravi Patel → Nike Inc. at $135/hr.', type: 'SYSTEM', daysAgo: 120 },
-        { authorIdx: 0, body: 'Ravi is performing exceptionally. Nike has requested an extension through Q1 2027.', type: 'TEXT', daysAgo: 10 },
+        { authorIdx: -1, body: 'Sell contract created: Ravi Patel → Northbend Athletic Inc. at $135/hr.', type: 'SYSTEM', daysAgo: 120 },
+        { authorIdx: 0, body: 'Ravi is performing exceptionally. Northbend Athletic has requested an extension through Q1 2027.', type: 'TEXT', daysAgo: 10 },
         { authorIdx: -1, body: 'Rate confirmation: $135/hr maintained for extension period.', type: 'RATE_CONFIRMATION', daysAgo: 9 },
       ],
     },
     {
       topic: 'SUBMISSION',
       topicId: null,
-      title: 'Azure Architect — Terumo BCT submission discussion',
+      title: 'Azure Architect — Talvern Medical submission discussion',
       messages: [
         { authorIdx: -1, body: 'Priya Sharma shortlisted for Azure Cloud Architect position.', type: 'SYSTEM', daysAgo: 20 },
         { authorIdx: 0, body: 'Priya is available for a technical interview anytime this week. She has strong Azure + Terraform credentials.', type: 'TEXT', daysAgo: 19 },
@@ -2361,7 +2361,7 @@ async function main() {
       topicId: null,
       title: 'Q3 travel expense approvals',
       messages: [
-        { authorIdx: 0, body: 'Please submit all Q3 travel expenses by Aug 15. We need to invoice Terumo BCT for client-billable items before month-end.', type: 'TEXT', daysAgo: 5 },
+        { authorIdx: 0, body: 'Please submit all Q3 travel expenses by Aug 15. We need to invoice Talvern Medical for client-billable items before month-end.', type: 'TEXT', daysAgo: 5 },
         { authorIdx: 2, body: 'Submitted my DFW→DEN trip expenses — flight, hotel, car rental, and per diem. Total $1,801.', type: 'TEXT', daysAgo: 4 },
         { authorIdx: 5, body: 'I have some Uber receipts from last week — should those go under Travel or Other?', type: 'TEXT', daysAgo: 3 },
         { authorIdx: 0, body: 'Travel — any ground transportation for client site visits counts as travel.', type: 'TEXT', daysAgo: 3 },
@@ -2415,18 +2415,18 @@ async function main() {
   // ── Notifications ──────────────────────────────
   // BUILD.md §6.2: "type × channel routing including Teams and email digests"
   const notificationData = [
-    { type: 'SUBMISSION', title: 'Priya Sharma shortlisted', body: 'Priya Sharma has been shortlisted for Azure Cloud Architect at Terumo BCT.', daysAgo: 0.1, status: 'UNREAD' },
+    { type: 'SUBMISSION', title: 'Priya Sharma shortlisted', body: 'Priya Sharma has been shortlisted for Azure Cloud Architect at Talvern Medical.', daysAgo: 0.1, status: 'UNREAD' },
     { type: 'TIMESHEET', title: 'Timesheet due tomorrow', body: 'Anita Desai has not submitted her timesheet for the period ending Aug 15.', daysAgo: 0.5, status: 'UNREAD' },
-    { type: 'INVOICE', title: 'Invoice INV-2026-003 past due', body: 'Invoice INV-2026-003 for Terumo BCT SAP BRIM Migration is 15 days past due. Outstanding: $12,000.', daysAgo: 1, status: 'UNREAD' },
+    { type: 'INVOICE', title: 'Invoice INV-2026-003 past due', body: 'Invoice INV-2026-003 for Talvern Medical SAP BRIM Migration is 15 days past due. Outstanding: $12,000.', daysAgo: 1, status: 'UNREAD' },
     { type: 'EXPENSE', title: 'Expense submitted for approval', body: 'Anita Desai submitted a client dinner expense of $312.50 for your review.', daysAgo: 2, status: 'UNREAD' },
-    { type: 'CONTRACT', title: 'Contract extension requested', body: 'Nike Inc. has requested an extension for Ravi Patel through Q1 2027 at $135/hr.', daysAgo: 3, status: 'READ' },
-    { type: 'ROLLOFF', title: 'Rolloff alert: John Martinez', body: 'John Martinez at Terumo BCT ends in 14 days. No redeployment claim yet.', daysAgo: 3, status: 'UNREAD' },
+    { type: 'CONTRACT', title: 'Contract extension requested', body: 'Northbend Athletic Inc. has requested an extension for Ravi Patel through Q1 2027 at $135/hr.', daysAgo: 3, status: 'READ' },
+    { type: 'ROLLOFF', title: 'Rolloff alert: John Martinez', body: 'John Martinez at Talvern Medical ends in 14 days. No redeployment claim yet.', daysAgo: 3, status: 'UNREAD' },
     { type: 'EXPENSE', title: 'Expense approved', body: 'Your DFW→DEN travel expense of $1,801.00 has been approved and queued for invoicing.', daysAgo: 5, status: 'READ' },
     { type: 'CONVERSATION', title: 'New message in SAP BRIM requirement', body: 'Sharath Madavaram: I have two strong BRIM candidates available immediately.', daysAgo: 6, status: 'READ' },
     { type: 'SYSTEM', title: 'Payroll processed', body: 'Biweekly payroll cycle completed. 4 consultants processed, total gross: $18,400.', daysAgo: 7, status: 'READ' },
-    { type: 'SUBMISSION', title: 'Rate negotiation', body: 'Terumo BCT has counter-offered $125/hr for Anita Desai (you submitted at $120/hr).', daysAgo: 8, status: 'READ' },
+    { type: 'SUBMISSION', title: 'Rate negotiation', body: 'Talvern Medical has counter-offered $125/hr for Anita Desai (you submitted at $120/hr).', daysAgo: 8, status: 'READ' },
     { type: 'TIMESHEET', title: 'Timesheet approved', body: 'Ravi Patel timesheet for Jul 28 – Aug 10 approved. 80 hours at $135/hr.', daysAgo: 10, status: 'READ' },
-    { type: 'INVOICE', title: 'Payment received', body: 'Nike Inc. payment of $16,200 received for INV-2026-001. Invoice fully paid.', daysAgo: 12, status: 'READ' },
+    { type: 'INVOICE', title: 'Payment received', body: 'Northbend Athletic Inc. payment of $16,200 received for INV-2026-001. Invoice fully paid.', daysAgo: 12, status: 'READ' },
   ]
 
   for (const notif of notificationData) {
@@ -2484,7 +2484,7 @@ async function main() {
       reason: 'Initial contract rate',
       previousRate: null,
     },
-    // Ravi's sell contract at Nike — rate went $125 → $130 → $135
+    // Ravi's sell contract at Northbend Athletic — rate went $125 → $130 → $135
     {
       contractType: 'SELL',
       contractId: sellContracts[2].id,
@@ -2580,7 +2580,7 @@ async function main() {
     data: {
       name: 'Unreliable Staffing LLC',
       slug: 'unreliable-staffing',
-      domain: 'unreliable-staffing.com',
+      domain: 'unreliable-staffing.example',
       domainVerified: false,
       kind: 'VENDOR',
       outsideAccess: defaultPostureFor('VENDOR'),
@@ -2710,9 +2710,9 @@ async function main() {
     },
     {
       action: 'CONTRACT_CREATED',
-      summary: `Sell contract created for ${consultantData[2].name} at Terumo BCT`,
+      summary: `Sell contract created for ${consultantData[2].name} at Talvern Medical`,
       reason: 'Contract generated from accepted submission',
-      payload: { contractId: sellContracts[0].id, billRate: 12000, client: 'Terumo BCT' },
+      payload: { contractId: sellContracts[0].id, billRate: 12000, client: 'Talvern Medical' },
       reversible: false,
       daysAgo: 28,
     },
@@ -2734,9 +2734,9 @@ async function main() {
     },
     {
       action: 'INVOICE_GENERATED',
-      summary: `Invoice INV-2026-001 generated — $14,400 for Terumo BCT`,
+      summary: `Invoice INV-2026-001 generated — $14,400 for Talvern Medical`,
       reason: 'Invoice generated from 3 approved timesheets in billing cycle ending Jul 31',
-      payload: { invoiceNumber: 'INV-2026-001', total: 1440000, timesheets: 3, client: 'Terumo BCT' },
+      payload: { invoiceNumber: 'INV-2026-001', total: 1440000, timesheets: 3, client: 'Talvern Medical' },
       reversible: false,
       daysAgo: 12,
     },
@@ -2807,13 +2807,13 @@ async function main() {
   }
 
   // ── Alumni people (for cross-vendor tenure demo) ────────
-  // These are people who worked at Terumo BCT through different vendors
+  // These are people who worked at Talvern Medical through different vendors
   // and whose contracts have ended. Some came through TechVista.
 
   const alumniData = [
-    { name: 'Marcus Bell',     email: 'marcus@techvista.com',   headline: 'SAP FICO · CO-PA',       skills: ['SAP FICO', 'CO-PA', 'Product Costing'], location: 'Denver, CO',  workAuth: 'US_CITIZEN' },
-    { name: 'Sarah Lindqvist', email: 'sarah@techvista.com',    headline: 'Regulatory Affairs',      skills: ['Regulatory Affairs', 'FDA', 'ISO 13485'], location: 'Boulder, CO', workAuth: 'GC' },
-    { name: 'Tomás Ferreira',  email: 'tomas@techvista.com',    headline: 'Automation · PLC',        skills: ['PLC', 'Automation', 'SCADA', 'MES'],   location: 'Fort Collins, CO', workAuth: 'US_CITIZEN' },
+    { name: 'Marcus Bell',     email: 'marcus@techvista.example',   headline: 'SAP FICO · CO-PA',       skills: ['SAP FICO', 'CO-PA', 'Product Costing'], location: 'Denver, CO',  workAuth: 'US_CITIZEN' },
+    { name: 'Sarah Lindqvist', email: 'sarah@techvista.example',    headline: 'Regulatory Affairs',      skills: ['Regulatory Affairs', 'FDA', 'ISO 13485'], location: 'Boulder, CO', workAuth: 'GC' },
+    { name: 'Tomás Ferreira',  email: 'tomas@techvista.example',    headline: 'Automation · PLC',        skills: ['PLC', 'Automation', 'SCADA', 'MES'],   location: 'Fort Collins, CO', workAuth: 'US_CITIZEN' },
   ]
 
   const alumniPeople: any[] = []
@@ -2861,12 +2861,12 @@ async function main() {
     alumniPeople.push(person)
   }
 
-  // ── Ended SellContracts at Terumo BCT (alumni) ────────
+  // ── Ended SellContracts at Talvern Medical (alumni) ────────
 
   const alumniEngagement = await prisma.engagement.create({
     data: {
       msaId: msaTV.id,
-      title: 'Manufacturing Systems Support — Terumo BCT',
+      title: 'Manufacturing Systems Support — Talvern Medical',
       invoiceCycle: 'BIWEEKLY',
     },
   })
@@ -2986,18 +2986,18 @@ async function main() {
     })
   }
 
-  // ── Governance Policy + Rules (Terumo BCT) ────────────
+  // ── Governance Policy + Rules (Talvern Medical) ────────────
 
   const terumoPolicy = await prisma.governancePolicy.create({
     data: {
       companyId: client.id,
-      name: 'Terumo BCT Contingent Workforce Policy',
-      description: 'Standard governance rules for all contingent workers at Terumo BCT. Aligned with medical device quality system requirements.',
+      name: 'Talvern Medical Contingent Workforce Policy',
+      description: 'Standard governance rules for all contingent workers at Talvern Medical. Aligned with medical device quality system requirements.',
     },
   })
 
   const governanceRulesData = [
-    { ruleType: 'TENURE_CAP' as const,            enforcementMode: 'BLOCK' as const, parameters: { maxMonths: 18 }, description: 'No contingent worker beyond 18 months cumulative at Terumo BCT' },
+    { ruleType: 'TENURE_CAP' as const,            enforcementMode: 'BLOCK' as const, parameters: { maxMonths: 18 }, description: 'No contingent worker beyond 18 months cumulative at Talvern Medical' },
     { ruleType: 'BREAK_IN_SERVICE' as const,       enforcementMode: 'BLOCK' as const, parameters: { breakDays: 90 }, description: '90-day break in service required after reaching tenure cap' },
     { ruleType: 'RATE_BAND' as const,              enforcementMode: 'WARN' as const,  parameters: { minRate: 7500, maxRate: 16000 }, description: 'Bill rates must fall within $75–$160/hr band' },
     { ruleType: 'WORK_AUTHORIZATION' as const,     enforcementMode: 'BLOCK' as const, parameters: { requiredBefore: 'CONTRACT_START' }, description: 'Valid work authorization verified before assignment start' },
@@ -3037,9 +3037,9 @@ async function main() {
     // WARN — approaching headcount (no override)
     { ruleIdx: 2, triggerPoint: 'SUBMISSION', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[0].id, outcome: 'WARN', reason: 'IT contingent headcount at 87 of 100 — approaching limit', daysAgo: 30 },
     // BLOCK — Marcus Bell tenure cap reached, in break period
-    { ruleIdx: 0, triggerPoint: 'ALUMNI_REENGAGEMENT', subjectType: 'PERSON', subjectId: alumniPeople[0].id, outcome: 'BLOCK', reason: `${alumniData[0].name} — 18 months cumulative at Terumo BCT (cap: 18). In 90-day break period, eligible ${new Date(now.getTime() + 45 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}.`, daysAgo: 5 },
+    { ruleIdx: 0, triggerPoint: 'ALUMNI_REENGAGEMENT', subjectType: 'PERSON', subjectId: alumniPeople[0].id, outcome: 'BLOCK', reason: `${alumniData[0].name} — 18 months cumulative at Talvern Medical (cap: 18). In 90-day break period, eligible ${new Date(now.getTime() + 45 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}.`, daysAgo: 5 },
     // WARN — Tomás Ferreira approaching tenure cap
-    { ruleIdx: 0, triggerPoint: 'CONTRACT_EXTENSION', subjectType: 'PERSON', subjectId: alumniPeople[2].id, outcome: 'WARN', reason: `${alumniData[2].name} — 15 months cumulative at Terumo BCT (cap: 18). Approaching limit.`, daysAgo: 10 },
+    { ruleIdx: 0, triggerPoint: 'CONTRACT_EXTENSION', subjectType: 'PERSON', subjectId: alumniPeople[2].id, outcome: 'WARN', reason: `${alumniData[2].name} — 15 months cumulative at Talvern Medical (cap: 18). Approaching limit.`, daysAgo: 10 },
   ]
 
   let evalCount = 0

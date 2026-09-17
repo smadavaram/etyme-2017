@@ -9,10 +9,10 @@ import { GET as read, POST as reply } from '@/app/api/conversations/messages/rou
  *
  * The founder, on the 2017 rule: "we did not want demand side to be
  * spammed and cold-messaged by supply side, but important conversations
- * initiated from demand side should be solved." So Nike writes to
+ * initiated from demand side should be solved." So Northbend Athletic writes to
  * Pinnacle from the role; Pinnacle is told and answers; Pinnacle cannot
- * start one; a firm not on the role cannot see it exists; and Nike's own
- * Discussion never leaves Nike. Walked as the routes the screens call,
+ * start one; a firm not on the role cannot see it exists; and Northbend Athletic's own
+ * Discussion never leaves Northbend Athletic. Walked as the routes the screens call,
  * on the seeded world.
  */
 
@@ -37,7 +37,7 @@ let meiLin: { email: string; submissionId: string }
 let roleThread: string
 let candidateThread: string
 
-describe('Nike writes to Pinnacle about a role, and Pinnacle answers', () => {
+describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answers', () => {
   beforeAll(async () => {
     await resetDatabase()
     await seedWorld()
@@ -69,7 +69,7 @@ describe('Nike writes to Pinnacle about a role, and Pinnacle answers', () => {
     })
     pinnacle = { id: pin.id, name: pin.name, ...staffOf(pin) }
 
-    // A vendor in the world that Nike never asked to work this role.
+    // A vendor in the world that Northbend Athletic never asked to work this role.
     const other = await prisma.company.findFirstOrThrow({
       where: { kind: 'VENDOR', id: { notIn: [...onRole, pinnacle.id] }, contexts: { some: { revokedAt: null, type: 'EMPLOYEE' } } },
       select: { id: true, name: true, contexts: staffSelect },
@@ -102,17 +102,17 @@ describe('Nike writes to Pinnacle about a role, and Pinnacle answers', () => {
     expect(rows.length, 'nobody at Pinnacle was told').toBeGreaterThan(0)
     expect(rows.every((n) => pinnacle.staff.includes(n.personId))).toBe(true)
     expect(rows.every((n) => n.type === 'CONVERSATION' && n.channel === 'IN_APP')).toBe(true)
-    expect(rows[0].title).toMatch(new RegExp(`^.+ at Nike on ${role.title}$`))
+    expect(rows[0].title).toMatch(new RegExp(`^.+ at Northbend Athletic on ${role.title}$`))
     expect(rows[0].body).toBe('Can your Workday people start before the end of the month?')
   })
 
-  it('Pinnacle sees the thread as one Nike opened with them, and answers on it', async () => {
+  it('Pinnacle sees the thread as one Northbend Athletic opened with them, and answers on it', async () => {
     as(pinnacle.seat)
     const mine = await json(await list(req('GET', '/api/conversations')))
     const row = mine.body.data.conversations.find((c: any) => c.id === roleThread)
     expect(row, 'the thread is not in Pinnacle’s list').toBeTruthy()
     expect(row.side).toBe('ANSWERS')
-    expect(row.otherCompany.name).toBe('Nike')
+    expect(row.otherCompany.name).toBe('Northbend Athletic')
 
     const r = await json(await reply(req('POST', '/api/conversations/messages', {
       conversationId: roleThread, body: 'Two of them can. I will confirm names by Friday.',
@@ -128,18 +128,18 @@ describe('Nike writes to Pinnacle about a role, and Pinnacle answers', () => {
     // Every notice on this thread went to one side or the other; nobody
     // was told about their own note.
     const pinnacleHeard = rows.filter((n) => pinnacle.staff.includes(n.personId))
-    expect(pinnacleHeard.every((n) => n.title.includes('at Nike'))).toBe(true)
+    expect(pinnacleHeard.every((n) => n.title.includes('at Northbend Athletic'))).toBe(true)
   })
 
   it('both sides read the same thread, each note marked with the firm that wrote it', async () => {
     as(NIKE_PM)
     const r = await json(await read(req('GET', `/api/conversations/messages?conversationId=${roleThread}`)))
     expect(r.status).toBe(200)
-    expect(r.body.data.messages.map((m: any) => m.authorCompany)).toEqual(['Nike', pinnacle.name])
+    expect(r.body.data.messages.map((m: any) => m.authorCompany)).toEqual(['Northbend Athletic', pinnacle.name])
     expect(r.body.data.thread.withCompany.id).toBe(pinnacle.id)
   })
 
-  it('Pinnacle cannot open a thread with Nike; it is told to submit or answer the invitation instead', async () => {
+  it('Pinnacle cannot open a thread with Northbend Athletic; it is told to submit or answer the invitation instead', async () => {
     as(pinnacle.seat)
     const r = await json(await open(req('POST', '/api/conversations', {
       topic: 'REQUIREMENT', topicId: role.id, withCompanyId: nike.id, initialMessage: 'We have great people!',
@@ -147,7 +147,7 @@ describe('Nike writes to Pinnacle about a role, and Pinnacle answers', () => {
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('SUPPLY_ANSWERS')
     expect(r.body.error.message).toBe(
-      `Nike opens the conversation on ${role.title}; ${pinnacle.name} answers it. ` +
+      `Northbend Athletic opens the conversation on ${role.title}; ${pinnacle.name} answers it. ` +
       'Submit a candidate, or answer the invitation, and they hear from you that way.'
     )
   })
@@ -160,7 +160,7 @@ describe('Nike writes to Pinnacle about a role, and Pinnacle answers', () => {
     expect(mine.body.data.conversations.some((c: any) => c.id === roleThread)).toBe(false)
   })
 
-  it('Nike cannot write to a firm that is not on the role, and is told to invite them first', async () => {
+  it('Northbend Athletic cannot write to a firm that is not on the role, and is told to invite them first', async () => {
     as(NIKE_PM)
     const r = await json(await open(req('POST', '/api/conversations', {
       topic: 'REQUIREMENT', topicId: role.id, withCompanyId: stranger.id, initialMessage: 'Hello?',
@@ -172,7 +172,7 @@ describe('Nike writes to Pinnacle about a role, and Pinnacle answers', () => {
     )
   })
 
-  it("Nike's own Discussion on the role stays at Nike; Pinnacle's list never shows it", async () => {
+  it("Northbend Athletic's own Discussion on the role stays at Northbend Athletic; Pinnacle's list never shows it", async () => {
     as(NIKE_PM)
     const own = await json(await open(req('POST', '/api/conversations', {
       topic: 'REQUIREMENT', topicId: role.id, title: role.title, initialMessage: 'Between us: Pinnacle is our first choice.',

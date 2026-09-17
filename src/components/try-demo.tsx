@@ -13,10 +13,10 @@ import { useRouter } from 'next/navigation'
  * ── Where the door leads ─────────────────────────────────────────────
  *
  * A company seat lands in the twenty-firm world lib/seed-world builds —
- * a client sits at Nike, a bench vendor at CloudEPA — not in a private
+ * a client sits at Northbend Athletic, a bench vendor at CloudEPA — not in a private
  * copy with a made-up name. This used to mint "Oxford Corp" for anybody
  * who picked the client seat, and the founder, who had just watched
- * Nike, Corning and Terumo BCT get built, opened the product and asked
+ * Northbend Athletic, Cavanaugh Glassworks and Talvern Medical get built, opened the product and asked
  * why it said Oxford. The world is the demo; the button is a door into
  * it, and the words on the door say which firm is behind it.
  *
@@ -31,19 +31,19 @@ import { useRouter } from 'next/navigation'
 /**
  * The firm each company seat sits at, and the desk where one is chosen.
  *
- * Nike's program manager, because that desk sees the whole program
+ * Northbend Athletic's program manager, because that desk sees the whole program
  * (the clerk sees invoices, the hiring manager their own roles).
- * Computer Systems is the prime on Nike's own placements, so a visitor
+ * Computer Systems is the prime on Northbend Athletic's own placements, so a visitor
  * who tries both seats is looking at one deal from both ends.
  */
 const WORLD_SEAT: Record<string, { as: string; desk?: string; firm: string }> = {
-  CLIENT: { as: 'world-nike', desk: 'programme', firm: 'Nike' },
+  CLIENT: { as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' },
   MSP:    { as: 'world-aptiva', firm: 'Aptiva Workforce' },
   GSI:    { as: 'world-teleworld', firm: 'Teleworld Solutions' },
   PRIME:  { as: 'world-computer-systems', firm: 'Computer Systems Inc' },
   BENCH:  { as: 'world-cloudepa', firm: 'CloudEPA' },
   // The old buyer's door means the client's chair.
-  HIRING: { as: 'world-nike', desk: 'programme', firm: 'Nike' },
+  HIRING: { as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' },
 }
 export function TryDemo({
   className,
@@ -93,7 +93,7 @@ export function TryDemo({
     {
       heading: 'You buy the work',
       seats: [
-        { seat: 'CLIENT', label: 'A company hiring contractors', note: 'You pay for it. You never touch a CV. Sit at Nike.' },
+        { seat: 'CLIENT', label: 'A company hiring contractors', note: 'You pay for it. You never touch a CV. Sit at Northbend Athletic.' },
         { seat: 'MSP', label: 'An MSP running the program', note: 'You run it on the client\'s behalf. Sit at Aptiva Workforce.' },
         { seat: 'GSI', label: 'A systems integrator delivering a project', note: 'Your own people, and bought ones. Sit at Teleworld Solutions.' },
       ],

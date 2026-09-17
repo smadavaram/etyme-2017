@@ -98,7 +98,7 @@ describe('she opens her link, with nothing to sign up for', () => {
   it('it names who wants her and why, and says the client will not employ her directly', async () => {
     const page = await viaToken(welcome, 'GET', it_.token)
     expect(page.status, JSON.stringify(page.body)).toBe(200)
-    expect(page.body.data.client).toBe('Nike')
+    expect(page.body.data.client).toBe('Northbend Athletic')
     expect(page.body.data.reason).toContain('planning team')
     expect(page.body.data.says).toMatch(/rather than employing/)
   })

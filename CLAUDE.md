@@ -308,7 +308,8 @@ and refused at each to whoever has no business there:
 
 `__integration__/client-programme.test.ts` is that walk, as sentences.
 
-**Three client demo accounts** — Nike, Corning, Terumo BCT — each with a
+**Three client demo accounts** — Northbend Athletic, Cavanaugh Glassworks,
+Talvern Medical — each with a
 programme manager, hiring manager, VP, AP clerk and compliance officer
 holding the real roles from `lib/company-defaults`, several suppliers,
 a history across suppliers, and something waiting at every desk. Built
@@ -581,12 +582,12 @@ attention. What changes is density and voice.
 |---|---|
 | Vendor | Today → Sell → Procure → Operate → Grow |
 | Consultant | You → Grow |
-| GSI (Infosys) | Deliver → Supply → Operate |
+| GSI (Teleworld) | Deliver → Supply → Operate |
 | Client (Enterprise) | Workforce → Governance |
 
 **Eyebrow labels are company-type-specific.** The current build is vendor-only
 (Phase 1). Pages show eyebrows like "Sell" and "Operate" that make sense for
-a staffing vendor. A client company (Nike, Terumo BCT) would see the same data
+a staffing vendor. A client company (Northbend Athletic, Talvern Medical) would see the same data
 under different section labels (e.g. "Workforce" instead of "Sell"). When the
 client portal is built (Phase 4), the eyebrow, nav section, and page subtitle
 must adapt to the viewer's company type — the underlying data and pages are
@@ -1036,7 +1037,7 @@ starting soon shows the paperwork verdict a week early, in activation's
 own words. Each supplier carries its standing; a published role nobody
 has answered in five days says so; a client with nothing on it yet is
 told what to do first. The generic demo client's book is mostly history
-now, and the seeded Nike desk has one 44-hour week to read.
+now, and the seeded Northbend Athletic desk has one 44-hour week to read.
 
 ### Network ✓ (2026-09-13)
 
@@ -1052,7 +1053,7 @@ is the opposite of a block: a person or a firm this company would take
 again, marked with a star on the row, kept per company and never read
 across companies (`Favorite`, `/api/favorites`). Somebody on site is
 engaged today; a block keeps the row on the register but out of every
-list except its own. The seeded Nike desk stars Helena Marsh and the
+list except its own. The seeded Northbend Athletic desk stars Helena Marsh and the
 firm that supplied her.
 
 ### A supplier is a workflow, and a person has a page ✓ (2026-09-13)
@@ -1099,7 +1100,7 @@ the supplier holding their consent on its bench, else whoever last
 submitted them, on the thread for that role — never to the consultant,
 because Etyme places nobody (`/api/people/[id]/ask`). A blocked person,
 an unpublished role and a role they are already on are refused in
-words. The seeded Nike desk holds Vertex Talent with HR, cleared by the
+words. The seeded Northbend Athletic desk holds Veritan Talent with HR, cleared by the
 department lead and Procurement, the firm's side in.
 
 ### A supplier brings its team in ✓ (2026-09-13)
@@ -1216,3 +1217,40 @@ A firm not on the deal is told nothing is there. Discussion stays the
 company's own. The 2017 rule, kept because the demand side still wants
 it. Requirements name the person they are for, first, every time; a
 paused requisition refuses submissions in a sentence.
+
+### The demo names nobody real, and seeds twice ✓ (2026-09-17)
+
+The home page stopped naming Nike, Corning and Terumo BCT on
+2026-09-15, and `/demo` — the button under that line — went on using
+them as the headings on three doors. `lib/positioning` read
+`app/page.tsx` and nothing else, so a name stripped off the page and
+left one click behind it was not stripped off anything.
+
+The sheet in `docs/demo-names.md` is applied: **Northbend Athletic**,
+**Cavanaugh Glassworks** and **Talvern Medical** are the three client
+programs, with **Auralis Software** and **Maren MSP** on the spine and
+**Veritan Talent** the recommended supplier; the towns moved with them
+(Tualatin, Elmira, Westminster). **Slugs stay** — `world-nike` is an
+address, by the same precedent that kept the demo desk key `programme`,
+and only what a human reads changed.
+
+Worse than a display name, and the reason this was urgent: the seed set
+`domain: 'nike.com'` and `'terumobct.com'` with `domainVerified: true`,
+and joining beats creating, so a real employee of either signing in
+would have been seated inside a fictional tenant full of seeded rates
+and invoices. Every seeded company now holds a reserved name nobody can
+register — `.example`, `.invalid`, `.local` — and
+`__tests__/invariants/demo-names.test.ts` reads the seat list, the demo
+page, the "Look around" button, `/ready`, the world and program seeds,
+the demo seeds and `prisma/seed.ts`, and fails on a retired name or a
+buyable domain coming back.
+
+**A seeded world keeps the day it was born.** Every seeded date is
+counted in days from today, so re-seeding on a later day found none of
+the weeks it had written and wrote the lot again — and exactly seven
+days later it died halfway through on a duplicate invoice line, leaving
+the world half rewritten. `seedWorld` now reads the first company's
+`createdAt` and counts from there (`lib/seed-days`), so a second seeding
+is a true no-op whenever it happens. The cost is that a world seeded in
+March goes on reading as March: to move the dates forward, drop the
+world and seed it again. `__integration__/reseed-across-days.test.ts`.

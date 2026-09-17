@@ -5,14 +5,14 @@ import { join } from 'path'
 /**
  * The front door leads into the world, and says so.
  *
- * Founder, opening the product the day Nike, Corning and Terumo BCT were
- * built: "why does client open as Oxford instead of Nike?" The "See it
+ * Founder, opening the product the day Northbend Athletic, Cavanaugh Glassworks and Talvern Medical were
+ * built: "why does client open as Oxford instead of Northbend Athletic?" The "See it
  * as a company" button minted a private sandbox with a made-up name for
  * every visitor, while the three named programs sat behind a small
  * link underneath it. Two demos, and the button led to the wrong one.
  *
  * Now a company seat is a chair in lib/seed-world's twenty firms:
- * Company → client → Nike; Company → bench vendor → CloudEPA. The seat
+ * Company → client → Northbend Athletic; Company → bench vendor → CloudEPA. The seat
  * says which firm is behind it, because a door that does not say where
  * it goes is a form whose answer is thrown away.
  */
@@ -37,15 +37,15 @@ function worldSeats(): Record<string, { as: string; desk?: string; firm: string 
 describe('the company door leads into the seeded world, not a sandbox with a made-up name', () => {
   const seats = worldSeats()
 
-  it('a company hiring contractors sits at Nike, from the program manager\'s desk', () => {
-    expect(seats.CLIENT).toEqual({ as: 'world-nike', desk: 'programme', firm: 'Nike' })
+  it('a company hiring contractors sits at Northbend Athletic, from the program manager\'s desk', () => {
+    expect(seats.CLIENT).toEqual({ as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' })
   })
 
   it('a staffing firm with a bench sits at CloudEPA', () => {
     expect(seats.BENCH).toMatchObject({ as: 'world-cloudepa', firm: 'CloudEPA' })
   })
 
-  it('the old buyer\'s door means the client\'s chair — Nike as well', () => {
+  it('the old buyer\'s door means the client\'s chair — Northbend Athletic as well', () => {
     expect(seats.HIRING).toMatchObject({ as: 'world-nike' })
   })
 
@@ -83,7 +83,7 @@ describe('asking for a world seat is never answered with an old private sandbox'
   it('the route decides `as` before it looks at the cookie, and skips the resume for it', () => {
     // The resume shortcut ran first and read a world request as the
     // default CLIENT seat — so anybody who had ever held a private client
-    // sandbox got it back instead of Nike.
+    // sandbox got it back instead of Northbend Athletic.
     const asWorldAt = ROUTE.indexOf("const asWorld = typeof (body as any)?.as === 'string'")
     const resumeAt = ROUTE.indexOf('if (existing && !asWorld) {')
     expect(asWorldAt).toBeGreaterThan(-1)

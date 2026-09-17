@@ -15,7 +15,7 @@ import { seedWorld } from '@/lib/seed-world'
  * function cut off at ten seconds leaves the world half-built with a
  * gateway timeout for an answer — which is what happened on 2026-09-13:
  * the seed was re-run to add the HR and Procurement desks, and nothing
- * reached Nike. Sixty is the most a Hobby deployment allows.
+ * reached Northbend Athletic. Sixty is the most a Hobby deployment allows.
  */
 export const maxDuration = 60
 

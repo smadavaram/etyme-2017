@@ -48,7 +48,7 @@ import { DEMO_DAYS, type Seeded } from '@/lib/demo-seed'
  */
 const VENDORS = [
   { name: 'Cloudepa Systems', bandOfMax: 0.94, agreement: true, invited: true },
-  { name: 'Vertex Talent', bandOfMax: 0.98, agreement: true, invited: true },
+  { name: 'Veritan Talent', bandOfMax: 0.98, agreement: true, invited: true },
   { name: 'Brightmoor Staffing', bandOfMax: 0.91, agreement: true, invited: true },
   { name: 'Kestrel Consulting', bandOfMax: null, agreement: false, invited: false },
 ]
@@ -83,20 +83,20 @@ interface Candidate {
 
 const JAVA_PILE: Candidate[] = [
   { name: 'Rohan Menon', skills: ['Java', 'Spring Boot', 'AWS'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Cloudepa Systems', rate: 7800, score: 94, problem: null },
-  { name: 'Rohan Menon', skills: ['Java', 'Spring Boot', 'AWS'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Vertex Talent', rate: 9600, score: 94, problem: 'DUPLICATE' },
+  { name: 'Rohan Menon', skills: ['Java', 'Spring Boot', 'AWS'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Veritan Talent', rate: 9600, score: 94, problem: 'DUPLICATE' },
   { name: 'James Whitfield', skills: ['Java', 'Spring Boot'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Brightmoor Staffing', rate: 8000, score: 81, problem: null },
   { name: 'Lucia Braga', skills: ['Java', 'AWS', 'Kafka'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Brightmoor Staffing', rate: 8100, score: 76, problem: null },
   { name: 'Marta Farrow', skills: ['Java', 'Spring Boot', 'AWS'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Cloudepa Systems', rate: 7900, score: 88, problem: null, workedHere: { months: 14, endedDaysAgo: 430 } },
   { name: 'Adaeze Okafor', skills: ['Java', 'AWS'], location: 'Remote', auth: 'US_CITIZEN', vendor: 'Cloudepa Systems', rate: 9600, score: 62, problem: 'OVER_BAND' },
   { name: 'Tomo Nakamura', skills: ['Java', 'Spring Boot'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Kestrel Consulting', rate: 8200, score: 71, problem: 'NO_AGREEMENT' },
   { name: 'Peter Osei', skills: ['Java', 'Spring Boot', 'AWS'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Brightmoor Staffing', rate: 8100, score: 84, problem: 'TENURE', workedHere: { months: 19, endedDaysAgo: 40 } },
-  { name: 'Dermot Kelso', skills: ['Java'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Vertex Talent', rate: 8000, score: 58, problem: 'BARRED' },
-  { name: 'Sade Aluko', skills: ['Java', 'AWS'], location: 'Dallas, TX', auth: null, vendor: 'Vertex Talent', rate: 8400, score: 79, problem: 'NO_PERMIT' },
+  { name: 'Dermot Kelso', skills: ['Java'], location: 'Dallas, TX', auth: 'US_CITIZEN', vendor: 'Veritan Talent', rate: 8000, score: 58, problem: 'BARRED' },
+  { name: 'Sade Aluko', skills: ['Java', 'AWS'], location: 'Dallas, TX', auth: null, vendor: 'Veritan Talent', rate: 8400, score: 79, problem: 'NO_PERMIT' },
 ]
 
 const SAP_PILE: Candidate[] = [
   { name: 'Anita Desai', skills: ['SAP FICO', 'S/4HANA'], location: 'Denver, CO', auth: 'US_CITIZEN', vendor: 'Cloudepa Systems', rate: 12500, score: null, problem: null },
-  { name: 'Ravi Patel', skills: ['SAP FICO', 'SAP BRIM'], location: 'Remote', auth: 'H1B', vendor: 'Vertex Talent', rate: 15500, score: null, problem: 'OVER_BAND' },
+  { name: 'Ravi Patel', skills: ['SAP FICO', 'SAP BRIM'], location: 'Remote', auth: 'H1B', vendor: 'Veritan Talent', rate: 15500, score: null, problem: 'OVER_BAND' },
   { name: 'Grace Lindqvist', skills: ['SAP FICO'], location: 'Denver, CO', auth: 'GC', vendor: 'Brightmoor Staffing', rate: 12000, score: null, problem: null },
 ]
 
@@ -374,7 +374,7 @@ export async function seedDemoClientCompany(input: {
     const mirror = opening
       ? await prisma.requirement.create({
           data: {
-            companyId: vendors.get('Vertex Talent')!.id,
+            companyId: vendors.get('Veritan Talent')!.id,
             openingId: opening.id,
             mirroredFromId: requirement.id,
             payerCompanyId: company.id,

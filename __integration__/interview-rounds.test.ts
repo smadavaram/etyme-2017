@@ -13,7 +13,7 @@ import { POST as answer } from '@/app/api/me/interviews/[id]/respond/route'
  * multiple rounds of interviews." The rounds were modeled and the
  * routes were proven; nothing on a screen called them and nobody was
  * told anything. This walks what the screens now do, as the routes
- * they call, with the body the form actually builds — from Nike's
+ * they call, with the body the form actually builds — from Northbend Athletic's
  * program desk, Pinnacle's seat, and the candidate's own page.
  */
 
@@ -48,7 +48,7 @@ let daniel: { submissionId: string }
 let round1: string
 let round2: string
 
-describe('Nike interviews a candidate, from the desk that received her', () => {
+describe('Northbend Athletic interviews a candidate, from the desk that received her', () => {
   beforeAll(async () => {
     await resetDatabase()
     await seedWorld()
@@ -112,7 +112,7 @@ describe('Nike interviews a candidate, from the desk that received her', () => {
     expect(toStaff.every((n) => n.channel === 'IN_APP')).toBe(true)
     expect(toHer).toHaveLength(1)
     expect(toHer[0].channel).toBe('EMAIL')
-    expect(toHer[0].title).toBe('Nike would like to interview you')
+    expect(toHer[0].title).toBe('Northbend Athletic would like to interview you')
     expect(rows.every((n) => n.type === 'INTERVIEW')).toBe(true)
   })
 

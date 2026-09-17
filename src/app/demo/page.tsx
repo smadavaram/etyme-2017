@@ -48,8 +48,8 @@ export default function DemoPage() {
           <p className="eyebrow">The other side of the same placements</p>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-etyme-muted">
             Every contractor above was placed by a supplier that is also here. Computer Systems sells
-            into Nike and Terumo BCT; Vertex Global into Corning and Terumo BCT. Sit at one to see what
-            a supplier sees of the same contract — and what it cannot.
+            into Northbend Athletic and Talvern Medical; Vertex Global into Cavanaugh Glassworks and
+            Talvern Medical. Sit at one to see what a supplier sees of the same contract — and what it cannot.
           </p>
           <DeskPicker programs={SUPPLIER_SEATS} supplier />
         </section>

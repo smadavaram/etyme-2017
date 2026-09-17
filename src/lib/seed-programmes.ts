@@ -7,7 +7,7 @@
  * different jobs that touch a contractor between the requisition and the
  * payment — and none of those jobs is "program office".
  *
- * So each of Nike, Corning and Terumo BCT gets:
+ * So each of Northbend Athletic, Cavanaugh Glassworks and Talvern Medical gets:
  *
  *   A desk per job. The program manager who sets the rules, the hiring
  *   manager who needs somebody and signs their hours, the VP who signs
@@ -147,12 +147,12 @@ interface Program {
 
 export const PROGRAMMES: Program[] = [
   {
-    client: 'nike', loc: 'Beaverton, OR',
+    client: 'nike', loc: 'Tualatin, OR',
     people: { programme: 'Dana Whitlock', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
-    recommend: { name: 'Vertex Talent', contactEmail: 'priya@vertextalent.io', reason: 'Placed two planning analysts for us in Columbia in 2024; both extended.', held: [] },
+    recommend: { name: 'Veritan Talent', contactEmail: 'priya@veritantalent.example', reason: 'Placed two planning analysts for us in Portland in 2024; both extended.', held: [] },
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
     placements: [
-      { role: 'SAP S/4 finance lead', skills: ['SAP FICO', 'S/4HANA', 'Central Finance'], loc: 'Beaverton, OR',
+      { role: 'SAP S/4 finance lead', skills: ['SAP FICO', 'S/4HANA', 'Central Finance'], loc: 'Tualatin, OR',
         via: ['nike', 'computer-systems', 'cloudepa'], rates: [14500, 11800, 9000], takeAgain: true,
         person: 'Helena Marsh', workAuth: 'GC', startedDaysAgo: 200, endsInDays: 160, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
@@ -164,27 +164,27 @@ export const PROGRAMMES: Program[] = [
       // Direct, not through a chain: a decision is written against the
       // leg the hours sit on, and on a chain that is not yet the leg the
       // client pays.
-      { role: 'Commerce platform architect', skills: ['Salesforce Commerce', 'Node.js'], loc: 'Beaverton, OR',
+      { role: 'Commerce platform architect', skills: ['Salesforce Commerce', 'Node.js'], loc: 'Tualatin, OR',
         via: ['nike', 'brightmoor'], rates: [13200, 9600],
         overtimeAfterHours: 40, overtimeWeekHours: 45,
         person: 'Omar Haddad', workAuth: 'USC', startedDaysAgo: 45, endsInDays: 320, state: 'IN_PROGRESS',
         papers: 'BGC_EXPIRED', weeks: { approved: 2, awaiting: 0 }, invoice: 'PAID' },
-      { role: 'Supply chain planning analyst', skills: ['Kinaxis', 'Demand planning'], loc: 'Beaverton, OR',
+      { role: 'Supply chain planning analyst', skills: ['Kinaxis', 'Demand planning'], loc: 'Tualatin, OR',
         via: ['nike', 'pinnacle'], rates: [9800, 7400], exceptionHours: 44,
         person: 'Lucía Fernández', workAuth: 'USC', startedDaysAgo: 30, endsInDays: 335, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 2, awaiting: 1 }, invoice: null },
       // The same person, a year earlier, through a different supplier.
       // Pinnacle sees one month; Brightmoor saw thirteen; only the client
       // can add them up, and only here.
-      { role: 'Demand planner', skills: ['Demand planning', 'Excel'], loc: 'Beaverton, OR',
+      { role: 'Demand planner', skills: ['Demand planning', 'Excel'], loc: 'Tualatin, OR',
         via: ['nike', 'brightmoor'], rates: [8900, 6800],
         person: 'Lucía Fernández', workAuth: 'USC', startedDaysAgo: 470, endsInDays: -75, state: 'ENDED', papers: 'CLEAR' },
       // Past the cap and inside the break. The ask-back button is a date.
-      { role: 'Data engineer', skills: ['Snowflake', 'dbt', 'Python'], loc: 'Beaverton, OR',
+      { role: 'Data engineer', skills: ['Snowflake', 'dbt', 'Python'], loc: 'Tualatin, OR',
         via: ['nike', 'computer-systems'], rates: [12400, 9100],
         person: 'Kwame Mensah', workAuth: 'H1B', startedDaysAgo: 790, endsInDays: -50, state: 'ENDED', papers: 'CLEAR' },
       // Awarded, starting next week, and cannot: no I-9 on file.
-      { role: 'Cybersecurity analyst', skills: ['SIEM', 'Splunk', 'Incident response'], loc: 'Beaverton, OR',
+      { role: 'Cybersecurity analyst', skills: ['SIEM', 'Splunk', 'Incident response'], loc: 'Tualatin, OR',
         via: ['nike', 'pinnacle'], rates: [11500, 8600],
         person: 'Ingrid Sørensen', workAuth: 'GC', startedDaysAgo: -7, endsInDays: 372, state: 'DRAFT', papers: 'NO_I9' },
     ],
@@ -205,30 +205,30 @@ export const PROGRAMMES: Program[] = [
     cover: { 'computer-systems': { gl: 150, wc: 150 }, brightmoor: { gl: 20, wc: 200 }, pinnacle: { gl: 180, wc: 180 } },
   },
   {
-    client: 'corning', loc: 'Corning, NY',
+    client: 'corning', loc: 'Elmira, NY',
     people: { programme: 'Eleanor Vance', hiring: 'Derek Halvorsen', hr: 'Priya Natarajan', procurement: 'Colin Mabry', ap: 'Patrice Boyd', compliance: 'Miriam Osei' },
     governance: { tenureCapMonths: 24, breakDays: 90, band: [6500, 14000] },
     placements: [
-      { role: 'Process validation engineer', skills: ['Process validation', 'Glass forming', 'Minitab'], loc: 'Corning, NY',
+      { role: 'Process validation engineer', skills: ['Process validation', 'Glass forming', 'Minitab'], loc: 'Elmira, NY',
         via: ['corning', 'vertex-global', 'sahasra'], rates: [12800, 10300, 8000],
         person: 'Tomasz Nowak', workAuth: 'GC', startedDaysAgo: 120, endsInDays: 245, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
-      { role: 'MES specialist', skills: ['Rockwell FactoryTalk', 'MES', 'OPC UA'], loc: 'Corning, NY',
+      { role: 'MES specialist', skills: ['Rockwell FactoryTalk', 'MES', 'OPC UA'], loc: 'Elmira, NY',
         via: ['corning', 'halcyon'], rates: [11900, 8800],
         person: 'Aisha Bello', workAuth: 'USC', startedDaysAgo: 60, endsInDays: 305, state: 'IN_PROGRESS',
         papers: 'BGC_MISSING', weeks: { approved: 2, awaiting: 0 }, invoice: 'PAID' },
-      { role: 'Quality systems auditor', skills: ['ISO 9001', 'IATF 16949', 'CAPA'], loc: 'Corning, NY',
+      { role: 'Quality systems auditor', skills: ['ISO 9001', 'IATF 16949', 'CAPA'], loc: 'Elmira, NY',
         via: ['corning', 'arcadia'], rates: [10400, 7900],
         person: 'Felix Brandt', workAuth: 'USC', startedDaysAgo: 20, endsInDays: 345, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 1, awaiting: 1 }, invoice: null },
-      { role: 'Supplier quality engineer', skills: ['PPAP', 'CAPA'], loc: 'Corning, NY',
+      { role: 'Supplier quality engineer', skills: ['PPAP', 'CAPA'], loc: 'Elmira, NY',
         via: ['corning', 'halcyon'], rates: [9900, 7500],
         person: 'Felix Brandt', workAuth: 'USC', startedDaysAgo: 520, endsInDays: -90, state: 'ENDED', papers: 'CLEAR' },
       // Out long enough. Eligible to be asked back, and the button says so.
-      { role: 'Optical test technician', skills: ['Optical metrology', 'LabVIEW'], loc: 'Corning, NY',
+      { role: 'Optical test technician', skills: ['Optical metrology', 'LabVIEW'], loc: 'Elmira, NY',
         via: ['corning', 'vertex-global'], rates: [7800, 5900],
         person: 'Nadia Petrova', workAuth: 'GC', startedDaysAgo: 900, endsInDays: -100, state: 'ENDED', papers: 'CLEAR' },
-      { role: 'Controls engineer', skills: ['Allen-Bradley PLC', 'Studio 5000'], loc: 'Corning, NY',
+      { role: 'Controls engineer', skills: ['Allen-Bradley PLC', 'Studio 5000'], loc: 'Elmira, NY',
         via: ['corning', 'halcyon'], rates: [10800, 8100],
         person: 'Samuel Adeyinka', workAuth: 'H1B', startedDaysAgo: -10, endsInDays: 355, state: 'DRAFT', papers: 'NO_I9' },
     ],
@@ -245,33 +245,33 @@ export const PROGRAMMES: Program[] = [
     cover: { 'vertex-global': { gl: 160, wc: 160 }, halcyon: { gl: 12, wc: 190 }, arcadia: { gl: 200, wc: 200 } },
   },
   {
-    client: 'terumo-bct', loc: 'Lakewood, CO',
+    client: 'terumo-bct', loc: 'Westminster, CO',
     people: { programme: 'Claire Ashworth', hiring: 'Rohan Desai', hr: 'Lena Fischer', procurement: 'Andre Boateng', ap: 'Gloria Mendes', compliance: 'Hannah Baptiste' },
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15500] },
     placements: [
       // Ten months through Computer Systems on top of thirteen through
       // Vertex. Twenty-three months at an eighteen-month cap, and neither
       // supplier knows the other's number. This is the wedge.
-      { role: 'SAP BRIM consultant', skills: ['SAP BRIM', 'Convergent Invoicing', 'S/4HANA'], loc: 'Lakewood, CO',
+      { role: 'SAP BRIM consultant', skills: ['SAP BRIM', 'Convergent Invoicing', 'S/4HANA'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'computer-systems'], rates: [14800, 10900],
         person: 'Anders Lund', workAuth: 'GC', startedDaysAgo: 300, endsInDays: 60, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
-      { role: 'SAP FI/CO analyst', skills: ['SAP FICO', 'ECC'], loc: 'Lakewood, CO',
+      { role: 'SAP FI/CO analyst', skills: ['SAP FICO', 'ECC'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'vertex-global'], rates: [12600, 9400],
         person: 'Anders Lund', workAuth: 'GC', startedDaysAgo: 720, endsInDays: -330, state: 'ENDED', papers: 'CLEAR' },
-      { role: 'Computer system validation engineer', skills: ['CSV', 'GAMP 5', '21 CFR Part 11'], loc: 'Lakewood, CO',
+      { role: 'Computer system validation engineer', skills: ['CSV', 'GAMP 5', '21 CFR Part 11'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'sundara', 'nimbus'], rates: [12200, 9900, 7700],
         person: 'Chidi Okafor', workAuth: 'H1B', startedDaysAgo: 90, endsInDays: 275, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 0 }, invoice: 'PAID' },
-      { role: 'Data platform engineer', skills: ['Databricks', 'Azure', 'Python'], loc: 'Lakewood, CO',
+      { role: 'Data platform engineer', skills: ['Databricks', 'Azure', 'Python'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'vertex-global'], rates: [13000, 9800],
         person: 'Marta Kowalczyk', workAuth: 'USC', startedDaysAgo: 15, endsInDays: 350, state: 'IN_PROGRESS',
         papers: 'BGC_EXPIRED', weeks: { approved: 1, awaiting: 1 }, invoice: null },
       // Forty days out of a ninety-day break. Eligible in fifty.
-      { role: 'Quality systems analyst', skills: ['QMS', 'TrackWise', 'CAPA'], loc: 'Lakewood, CO',
+      { role: 'Quality systems analyst', skills: ['QMS', 'TrackWise', 'CAPA'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'computer-systems'], rates: [9700, 7200],
         person: 'Hiro Sato', workAuth: 'USC', startedDaysAgo: 600, endsInDays: -40, state: 'ENDED', papers: 'CLEAR' },
-      { role: 'Regulatory affairs specialist', skills: ['510(k)', 'EU MDR', 'Technical files'], loc: 'Lakewood, CO',
+      { role: 'Regulatory affairs specialist', skills: ['510(k)', 'EU MDR', 'Technical files'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'vertex-global'], rates: [11200, 8300],
         person: 'Beatriz Souza', workAuth: 'GC', startedDaysAgo: -5, endsInDays: 360, state: 'DRAFT', papers: 'NO_I9' },
     ],
@@ -284,7 +284,7 @@ export const PROGRAMMES: Program[] = [
         { person: 'Elias Varga', from: 'vertex-global', rate: 10400, status: 'SUBMITTED' },
       ],
     },
-    routed: { title: 'Lakewood plant — five QA technicians', skills: ['QA', 'GMP', 'Device assembly'], headcount: 5, billMax: 7500 },
+    routed: { title: 'Westminster plant — five QA technicians', skills: ['QA', 'GMP', 'Device assembly'], headcount: 5, billMax: 7500 },
     cover: { 'computer-systems': { gl: 150, wc: 150 }, 'vertex-global': { gl: 160, wc: 160 }, sundara: { gl: 140, wc: 140 } },
   },
 ]
@@ -551,10 +551,10 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             { stage: 'PROCUREMENT', outcome: 'APPROVED', byId: desk.procurement.personId, byName: p.people.procurement, at: day(-2).toISOString(), note: 'References confirmed; D&B rating acceptable.' },
           ] as unknown as object,
           application: {
-            legalName: 'Vertex Talent LLC', address: '400 SW 6th Ave, Portland, OR 97204', duns: '08-123-4567', website: 'vertextalent.io',
+            legalName: 'Veritan Talent LLC', address: '400 SW 6th Ave, Portland, OR 97204', duns: '08-123-4567', website: 'veritantalent.example',
             experience: 'Twelve years placing supply chain and planning consultants for consumer goods and apparel; 40 consultants on site across four clients.',
-            references: [{ name: 'Alan Reyes', company: 'Columbia Sportswear', email: 'areyes@columbia.example', phone: '' }, { name: 'Dana Kim', company: 'Adidas', email: 'dkim@adidas.example', phone: '' }],
-            bank: { bankName: 'Umpqua Bank', accountName: 'Vertex Talent LLC', last4: '4471' },
+            references: [{ name: 'Alan Reyes', company: 'Ridgeline Outfitters', email: 'areyes@ridgeline.example', phone: '' }, { name: 'Dana Kim', company: 'Ascent Athletic', email: 'dkim@ascentathletic.example', phone: '' }],
+            bank: { bankName: 'Umpqua Bank', accountName: 'Veritan Talent LLC', last4: '4471' },
             skills: ['Supply chain planning', 'Demand planning', 'Kinaxis'],
             docs: [{ key: 'TAX_FORM', fileName: 'Vertex-W9-2026.pdf', size: 184000, at }, { key: 'INSURANCE', fileName: 'Vertex-COI-2026.pdf', size: 221000, at }, { key: 'PROPOSAL', fileName: 'Vertex-rate-card.pdf', size: 96000, at }],
             submittedAt: at,
@@ -845,6 +845,11 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
         },
       })
       for (const t of signed) {
+        // A week is billed once on a contract, and the database says so.
+        // A run that found last run's timesheets and wrote a fresh
+        // invoice — which is what an off-by-one-week re-seed did — died
+        // here on the unique index and left the world half written.
+        if (await db.invoiceLine.findFirst({ where: { timesheetId: t.id, sellContractId: topContract.id } })) continue
         await db.invoiceLine.create({
           data: {
             invoiceId: inv.id, timesheetId: t.id, sellContractId: topContract.id, personId: who.id,

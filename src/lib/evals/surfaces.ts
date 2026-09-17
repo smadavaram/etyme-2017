@@ -46,7 +46,7 @@ const BRAND_NEW: SiteFacts = {
 
 const BUYER: SiteFacts = {
   ...CLOUDEPA,
-  name: 'Terumo BCT',
+  name: 'Talvern Medical',
   kind: 'CLIENT',
   posture: null,
   skills: [],
@@ -129,7 +129,7 @@ const ANITA: PortfolioInput = {
       startedAt: ago(30),
       endedAt: ago(4),
       sector: 'Enterprise',
-      location: 'Lakewood, CO',
+      location: 'Westminster, CO',
     },
   ],
   completedTraining: [{ title: 'S/4HANA conversion', completedAt: ago(3) }],
@@ -164,7 +164,7 @@ const consultantBio: Surface<PortfolioInput, string> = {
       checks: [
         { said: 'invents no number', grade: noInventedNumbers([1, 2, 3]) },
         { said: 'uses no adjective a reader could not check', grade: avoids(FILLER, 'filler') },
-        { said: 'never names the client they worked for', grade: neverMentions('Lakewood') },
+        { said: 'never names the client they worked for', grade: neverMentions('Westminster') },
       ],
     },
     {
@@ -194,7 +194,7 @@ const GOOD_ANSWER = JSON.stringify({
       rowNumber: 1,
       fields: [
         { field: 'name', value: 'Anita Desai', confidence: 0.97, foundIn: 'Anita Desai', concern: null },
-        { field: 'email', value: 'anita@cloudepa.com', confidence: 0.99, foundIn: 'anita@cloudepa.com', concern: null },
+        { field: 'email', value: 'anita@cloudepa.example', confidence: 0.99, foundIn: 'anita@cloudepa.example', concern: null },
         { field: 'rate', value: '120', confidence: 0.55, foundIn: '$120–140', concern: 'a range, not one number' },
       ],
       problems: [],
