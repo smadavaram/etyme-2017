@@ -18,6 +18,8 @@
  */
 
 import { prisma } from '@/lib/db'
+import { writeCyclesFor } from '@/lib/contract-cycles'
+import { seedCalendar } from '@/lib/seed-calendar'
 import { seedProfile } from '@/lib/candidate-fixture'
 import { defaultPostureFor } from '@/lib/walls'
 import { DEMO_DAYS } from '@/lib/demo-seed'
@@ -293,13 +295,32 @@ export async function seedDemoConsultant(input: {
     },
   })
 
-  // Four fortnights of deadlines, theirs and the client's, some already
-  // passed so the overdue state is visible rather than theoretical.
-  await prisma.cycle.createMany({
-    data: [-1, 0, 1, 2].flatMap((n) => [
-      { sellContractId: contract.id, kind: 'TIMESHEET_SUBMIT', dueOn: daysAhead(n * 14 + 2) },
-      { sellContractId: contract.id, kind: 'TIMESHEET_APPROVE', dueOn: daysAhead(n * 14 + 5) },
-    ]),
+  // The deadlines, through the one door that generates them.
+  //
+  // This used to be eight hand-made dates — `daysAhead(n * 14 + 2)` and
+  // `+ 5`, four fortnights either side of today. They were plausible and
+  // they were not generated: nothing shifted them off a Saturday, and no
+  // company's calendar answer could ever touch them, so a demo consultant
+  // could be shown a timesheet due on a Sunday. Worse, it made this the
+  // one placement in the product whose dates the calendar setting does
+  // not reach, which is precisely the thing the founder opens the demo to
+  // see working.
+  //
+  // `writeCyclesFor` is the same call every other seeded placement makes.
+  // It generates over the whole contract, so the past fortnights that made
+  // "overdue" visible are still there, and it writes the pay side as well
+  // as the hours side — which this consultant could not see at all before.
+  const calendar = await seedCalendar(
+    new Map([
+      ['demo-agency', { id: agency.id }],
+      ['demo-client', { id: client.id }],
+    ])
+  )
+  await writeCyclesFor(prisma, {
+    sell: contract,
+    buy,
+    packId: 'US_IT',
+    holidays: calendar.keys,
   })
 
   // ── The other two benches, and who is holding you ───────────────────

@@ -34,10 +34,24 @@ import { seedWorld } from '@/lib/seed-world'
  * behind it, an incident for a failure that never happened, a job run
  * for a night the cron did not run. `/ready` is where these are proven,
  * by the outside world doing it once, and that is the right place.
+ *
+ * ── Two left this list on 2026-09-17, and why ────────────────────────
+ *
+ * `message` — a thread with nothing in it is not a thread. The rule this
+ * list keeps is that the seed never claims an edge with the outside world
+ * was crossed; a Message row is content in a story, exactly like the 70
+ * timesheets seeded people filed and the 43 interviews they sat, and
+ * writing one sends no email. The edges stay where they belong: `import`,
+ * `contractorInvitation`, `textMessage` and `jobRun` are still here, and
+ * `/ready` still proves them.
+ *
+ * `agentRun` — the seed now runs the real match engine over a bench
+ * vendor's own bench, and the engine records its own run and its own
+ * cost. That is an agent loop that actually ran, which is precisely what
+ * the line said. Nothing was invented; the row is the matcher's receipt.
  */
 const RUNTIME: Record<string, string> = {
   accessLog: 'written by a real read of somebody else’s data, including refusals',
-  agentRun: 'written when an agent loop actually runs',
   approvalRuleVersion: 'written when a rule is changed, not when it is created',
   classificationCall: 'written when a worker classification is actually decided',
   contractorInvitation: 'an invitation somebody sent; /ready proves the email edge',
@@ -56,7 +70,6 @@ const RUNTIME: Record<string, string> = {
   intercompanyPosition: 'written when an intercompany entry posts',
   jobRun: 'written by the nightly job when it runs',
   masterAgreementVersion: 'written when an agreement is amended',
-  message: 'a message somebody actually sent',
   overtimeDecision: 'written when somebody decides an overtime case',
   reconciliationRun: 'written when a reconciliation is run',
   serviceAccount: 'created by a customer wiring up an integration',
@@ -77,65 +90,14 @@ const RUNTIME: Record<string, string> = {
  */
 const GAP: Record<string, string> = {
   // L1.1 Source to contract
-  lead: 'nobody has enquired, so the market pages have nothing',
-  marketingLead: 'the same, from the public site',
-  sourcedContact: 'sourcing at volume has no history',
-  opening: 'a seat advertised and waiting; the COLD job has nothing to age',
-  match: 'matching with reasons has no scores to show, and a score carries factors, basis, confidence and unknowns',
-  resume: 'no consultant has a resume on file',
-  representation: 'nobody is represented by anybody',
-  doNotSubmit: 'the list that stops a duplicate submission is empty',
-  blacklist: 'nobody is blocked anywhere',
-  conversation: 'demand opens and supply answers — and there is no thread to open',
+  marketingLead: 'nobody has enquired from the public site — and this table is not tenanted, so a seeded enquiry would be a fictional name in the founder\u2019s own sales funnel',
+  sourcedContact: 'sourcing at volume has no history; it arrives by import, and an import is a real file somebody loaded',
 
   // L1.2 Contract to onboard
-  agreementSignature: 'an MSA is countersigned by two firms and no signature is recorded',
-  documentType: 'the company-extensible document types ship as defaults and none is seeded',
-  documentEdition: 'which edition of a form somebody signed — the audit finding',
-  documentBacking: 'an I-9 with nothing behind it is not held, and nothing records what backs one',
-  credential: 'a license or certification on a person',
-  check: 'a background check with an outcome',
-  delegation: 'nobody has delegated their approval authority while away',
-  companyContact: 'a named contact at a counterparty',
-  companyDomain: 'the domains a company is known by',
-  companyLocation: 'where a firm actually sits',
-  legalEntity: 'the entity that signs, bills and employs',
-  verificationDoc: 'a verification exists with no document behind it, which is the I-9 problem exactly',
-  visaPetition: 'the whole visa lifecycle — filed, RFE, approved, stamped, active — has no row to walk',
-  visaDocument: 'and nothing behind a petition',
-  visaEvent: 'and no history of what happened to one',
-  timeOffEntry: 'nobody has taken a day off, so an absent week is never exercised',
-
-  // L1.3 Work to approve
-  expense: 'a contractor has never filed an expense, so the approve-and-bill path is unwalked',
-  holiday: 'no company calendar, so business-day shifting is never exercised on a real holiday',
-
-  // L1.4 Approve to invoice
-  workOrder: 'the order layer merged on 2026-09-17 and nothing seeds one, so every ceiling, milestone and auto-approval setting is unreachable on the seeded world — the award still does not raise one',
-  orderMilestone: 'milestone billing has no milestone to accept',
-  invoiceMatchOverride: 'the three-way match exception queue is empty',
-  creditNote: 'nothing has ever been credited back',
-  customerCreditLimit: 'credit management has no limit to test against',
-  earlyPaymentDiscount: 'no early-settlement terms anywhere',
-  remitTo: 'where a supplier is actually paid',
-
-  // L1.5 Approve to pay
-  paymentRun: 'AP has never assembled a run',
-  paymentRunItem: 'the lines of that run',
-  rateHistory: 'no rate has ever changed, so the approval path for a rise is unwalked',
-
-  // L1.6 Record to report
-  ledgerAccount: 'the chart of accounts is empty',
-  journalEntry: 'nothing has posted to the ledger',
-  journalLine: 'the lines of those entries',
-  projectOrder: 'the cost object that accumulates revenue and cost has no rows',
-  orderPosting: 'nothing draws down against an order',
-  internalOrder: 'the client’s own coding is never carried',
-
-  // L1.7 Govern and protect
-  rolloffEvent: 'nobody is rolling off, so the rolloff console is empty',
-  course: 'training has no course',
-  enrollment: 'and nobody is enrolled on one',
+  credential: 'nobody has signed in through an identity provider yet. NOT a license on a person — that is a Verification, and the line here said otherwise for as long as it existed',
+  delegation: 'nobody has delegated their approval authority while away, and nothing reads the table yet either',
+  companyDomain: 'every seeded firm admits its people through one shared demo domain, and this column is unique platform-wide — a row per firm would either be a lie or make joining behave differently across the demo',
+  timeOffEntry: 'nobody has taken a day off. The only thing that writes one is an overtime decision being banked, which is a person deciding',
 }
 
 const counts: Record<string, number> = {}
@@ -198,6 +160,33 @@ describe('the seeded world has something at every level of the matrix', () => {
       ['timesheet', 40], ['workAssertion', 40],
       ['invoice', 10], ['invoiceLine', 20], ['payment', 10], ['vendorBill', 1],
       ['cycle', 100], ['verification', 20], ['benchListing', 20],
+    ] as Array<[string, number]>) {
+      expect(counts[table] ?? 0, `${table} should carry at least ${floor} rows on a seeded world`).toBeGreaterThanOrEqual(floor)
+    }
+  })
+
+  it('the layers above and below a placement are seeded too, not just the placement', () => {
+    // Added 2026-09-17, when the seed learned to write them. Floors
+    // rather than exact counts, so the world can grow — but a layer that
+    // silently stops being written fails here rather than on the screen
+    // it empties.
+    for (const [table, floor] of [
+      // The order that authorized the spend, and the ceiling it carries.
+      ['workOrder', 10], ['orderMilestone', 3],
+      // What the work actually earned and cost, and the books under it.
+      ['projectOrder', 10], ['orderPosting', 40],
+      ['ledgerAccount', 30], ['journalEntry', 40], ['journalLine', 80],
+      // The rest of a finance desk's week.
+      ['expense', 3], ['creditNote', 1], ['rateHistory', 10],
+      ['paymentRun', 1], ['paymentRunItem', 1], ['invoiceMatchOverride', 1],
+      // Where a firm sits, and what it can prove.
+      ['companyLocation', 10], ['holiday', 100],
+      ['verificationDoc', 20], ['documentBacking', 10],
+      ['visaPetition', 3], ['visaEvent', 15], ['visaDocument', 9],
+      // Either side of the placement.
+      ['resume', 20], ['conversation', 1], ['message', 3],
+      ['opening', 3], ['lead', 3], ['match', 1],
+      ['course', 3], ['enrollment', 3],
     ] as Array<[string, number]>) {
       expect(counts[table] ?? 0, `${table} should carry at least ${floor} rows on a seeded world`).toBeGreaterThanOrEqual(floor)
     }

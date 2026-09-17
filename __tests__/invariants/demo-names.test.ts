@@ -62,6 +62,14 @@ const SURFACES: Record<string, string> = {
   // What each door opens onto: the four people the demo seats a visitor
   // as, and the two firms whose door led to an empty book.
   'src/lib/seed-doors.ts': read('src/lib/seed-doors.ts'),
+  // The layers above and below the placement, added 2026-09-17. They
+  // name no firm — every one is looked up by slug — and they are read
+  // here anyway, because the sweep is only worth having if it covers
+  // every file that writes a seeded row.
+  'src/lib/seed-calendar.ts': read('src/lib/seed-calendar.ts'),
+  'src/lib/seed-standing.ts': read('src/lib/seed-standing.ts'),
+  'src/lib/seed-order-to-cash.ts': read('src/lib/seed-order-to-cash.ts'),
+  'src/lib/seed-pipeline.ts': read('src/lib/seed-pipeline.ts'),
   'src/lib/demo-seed.ts': read('src/lib/demo-seed.ts'),
   'src/lib/demo-seed-client.ts': read('src/lib/demo-seed-client.ts'),
   'src/lib/demo-seed-consultant.ts': read('src/lib/demo-seed-consultant.ts'),

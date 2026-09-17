@@ -38,6 +38,10 @@ import { writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes } from '@/lib/seed-programmes'
 import { seedDoors } from '@/lib/seed-doors'
 import { anchorSeed, day, at } from '@/lib/seed-days'
+import { seedCalendar, holidayKeys } from '@/lib/seed-calendar'
+import { seedStanding } from '@/lib/seed-standing'
+import { seedOrderToCash } from '@/lib/seed-order-to-cash'
+import { seedPipeline } from '@/lib/seed-pipeline'
 import { rolesFor } from '@/lib/company-defaults'
 
 const DOMAIN = 'demo.etyme.local'          // the domain the signed demo cookie accepts
@@ -132,6 +136,16 @@ export async function seedWorld(): Promise<{
   onPayroll: number
   /// Chains still mid-flight — open requirements with rounds not yet held.
   live: number
+  /// Days off on every firm's calendar, so a due date can be shifted.
+  holidays: number
+  /// The layers above and below the placement.
+  orders: number
+  postings: number
+  journalEntries: number
+  petitions: number
+  backings: number
+  resumes: number
+  threads: number
   roster: { kind: string; name: string; slug: string }[]
   }> {
   // ── The day this world counts from ──────────────────────────────────
@@ -441,7 +455,7 @@ export async function seedWorld(): Promise<{
     // Its due dates, on the side each belongs to. The routes did this
     // and the seed did not, so every seeded placement's timeline read
     // "no cycles have been generated". US_IT: world firms carry no pack.
-    await writeCyclesFor(db, { sell, buy, packId: 'US_IT' })
+    await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys() })
     supplierSellContractId = sell.id
     contracts.push(sell)
   }
@@ -576,6 +590,16 @@ export async function seedWorld(): Promise<{
   // ── Build it ─────────────────────────────────────────────────────────
 
   for (const f of FIRMS) await firm(f)
+
+  // The days nobody works, before anybody is placed.
+  //
+  // Cycle dates are generated once, when a contract is written, and
+  // nothing regenerates them — which is right, because a date already
+  // issued is a date somebody is working to. So the calendar has to exist
+  // before the first contract or no due date in this world will ever have
+  // been shifted off a holiday. A world seeded before this existed keeps
+  // its dates; to move them, drop the world and seed it again.
+  const calendar = await seedCalendar(firmBySlug)
 
   // Who trades with whom. An MSP routes and holds no contract, so it is a
   // counterparty of the client and of the primes, and of nobody's money.
@@ -996,6 +1020,26 @@ export async function seedWorld(): Promise<{
   // last because two of the four are placed by the program seed above.
   const doors = await seedDoors({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
 
+  // ── The layers above and below the placement ───────────────────────
+  //
+  // Everything to here is the spine: who trades with whom, who is placed,
+  // the hours, the invoice. These three run last because every row in
+  // them is read off the spine rather than invented beside it.
+  //
+  //   standing       where a firm sits, what it can prove, and the file
+  //                  behind every proof
+  //   order-to-cash  the order that authorized the spend, the project
+  //                  that accumulates it, and the books it posts to
+  //   pipeline       the CV, the thread, the seat being chased, the
+  //                  course, and the placement winding down
+  //
+  // Order matters once: the orders need somewhere to ship to, so standing
+  // writes the locations first.
+  const ctx = { firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX }
+  const standing = await seedStanding(ctx)
+  const cash = await seedOrderToCash(ctx)
+  const pipeline = await seedPipeline(ctx)
+
   return {
     firms: FIRMS.length,
     placements: placed.length + programs.placements + doors.placements,
@@ -1003,6 +1047,17 @@ export async function seedWorld(): Promise<{
     onPayroll,
     consultants: NAMES.length + LIVE.length + programs.people + doors.people,
     live: LIVE.length,
+    /// Days off on every firm's calendar, so a due date can be shifted.
+    holidays: calendar.days,
+    /// Orders raised, project orders opened, postings and entries written.
+    orders: cash.orders,
+    postings: cash.postings,
+    journalEntries: cash.journalEntries,
+    /// Petitions walked, backings recorded, CVs and threads on file.
+    petitions: standing.petitions,
+    backings: standing.backings,
+    resumes: pipeline.resumes,
+    threads: pipeline.threads,
     roster: FIRMS.map((f) => ({ kind: f.kind as string, name: f.name, slug: PREFIX + f.slug })),
   }
 }

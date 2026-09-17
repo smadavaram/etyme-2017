@@ -31,6 +31,7 @@
 
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
+import { holidayKeys } from '@/lib/seed-calendar'
 import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
 import { day, at } from '@/lib/seed-days'
 import { newChecklist } from '@/lib/supplier-onboarding'
@@ -661,7 +662,7 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
         }
         // Due dates for anything still running or about to. A contract
         // that ended has nothing due.
-        if (pl.state !== 'ENDED') await writeCyclesFor(db, { sell, buy, packId: 'US_IT' })
+        if (pl.state !== 'ENDED') await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys() })
         supplierSellContractId = sell.id
         contracts.push(sell)
       }

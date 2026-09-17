@@ -53,6 +53,7 @@
 
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
+import { holidayKeys } from '@/lib/seed-calendar'
 import { chaseCredentials } from '@/lib/credential-chase'
 import { day } from '@/lib/seed-days'
 import type { World } from '@/lib/seed-programmes'
@@ -229,7 +230,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
       await db.contractLink.create({
         data: { sellContractId: sell.id, buyContractId: buy.id, effectiveFrom: spec.start, effectiveTo: spec.end },
       })
-      if (spec.state !== 'ENDED') await writeCyclesFor(db, { sell, buy, packId: 'US_IT' })
+      if (spec.state !== 'ENDED') await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys() })
     }
 
     if (!(await db.submission.findFirst({ where: { requirementId: requirement.id, personId: spec.personId } }))) {
@@ -441,6 +442,34 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
         type: 'CONSULTANT',
         side: 'SELL',
         grantReason: 'On the bench — corp to corp through her own company',
+      },
+    })
+  }
+
+  // And a seat at her own company, because she is the only person at it.
+  //
+  // Found by the nightly cover chase, which refused to ask Byrne Critical
+  // Care for its certificate of insurance and said exactly why: *"nobody
+  // at Byrne Critical Care LLC has ever signed in, so there is no address
+  // to send to."* That was true and it was the seed's fault, not the
+  // chase's. `ownCompanyId` already said this corporation is hers and
+  // carries the cover her assignment depends on; a company that bills for
+  // work and holds the liability policy has somebody answerable for it,
+  // and for a one-person corp that somebody is the one person.
+  if (!(await db.context.findFirst({ where: { personId: nurse.id, companyId: nurseCorp.id } }))) {
+    const ownerRole =
+      (await db.role.findFirst({ where: { companyId: nurseCorp.id, name: 'Owner' } })) ??
+      (await db.role.create({
+        data: { companyId: nurseCorp.id, name: 'Owner', permissions: ['*'], isDefault: true },
+      }))
+    await db.context.create({
+      data: {
+        personId: nurse.id,
+        companyId: nurseCorp.id,
+        roleId: ownerRole.id,
+        type: 'EMPLOYEE',
+        side: 'SELL',
+        grantReason: 'Owns the company — it is hers, and it is the one that carries the cover',
       },
     })
   }

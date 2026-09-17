@@ -259,6 +259,12 @@ export const DOMAINS: Domain[] = [
       // Somebody else in the seat: a new contract on the same terms, the old one ended.
       'lib/replacement',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
+      // The layers above and below the placement, each read off the
+      // spine the three files above wrote: the calendar the dates are
+      // shifted against, what a firm can prove, the order that
+      // authorized the spend and the books under it, and the pipeline
+      // either side of a placement.
+      'lib/seed-calendar', 'lib/seed-standing', 'lib/seed-order-to-cash', 'lib/seed-pipeline',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
       // How much we do unprompted, as a ladder a buyer already knows.
