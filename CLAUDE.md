@@ -217,7 +217,11 @@ we do not use LinkedIn OAuth.
 
 Not the UI. The database.
 
-- A `Submission` requires a live `BenchListing` granted by the consultant.
+- A `Submission` requires a live `BenchListing` granted by the consultant —
+  **unless the submitting firm employs the person** (an EMPLOYEE `Context`),
+  in which case the employment is the consent, the kind is `INTERNAL`, and
+  the employee is told rather than asked. Decided 2026-09-17; see "Who
+  sells and who buys".
 - `Submission` is unique on `(requirementId, personId)` — first submission wins on duplicates.
 - `SubmissionKind` is computed from ownership, never accepted from a client.
 - Rate bands live on `RequirementInvitation`, never on `Requirement` where a recipient
@@ -655,15 +659,19 @@ words — building teams dynamically:
 - **Submitting its own employee** to a client requisition as INTERNAL,
   alongside a sub-vendor's person as NETWORK, on the same requirement.
 
-**The question this leaves open, and it is the founder's:** CLAUDE.md's
-firmest invariant is that a submission requires a bench listing the
-consultant granted. For a W2 employee the employment contract *is* the
-consent to be assigned — nobody asks an employee's permission to staff
-them on a project. But recording an employee on a client's site, with
-their tenure and paperwork, is not nothing, and neutrality is absolute
-here. The proposal is that an employer may submit its own W2 without a
-listing, the employee is *told* rather than *asked*, and the read is
-logged like any other. **Not built until confirmed.**
+**The consent line — decided 2026-09-17.** CLAUDE.md's firmest invariant
+is that a submission requires a bench listing the consultant granted. For
+a W2 employee the employment contract *is* the consent to be assigned —
+nobody asks an employee's permission to staff them on a project. But
+recording an employee on a client's site, with their tenure and
+paperwork, is not nothing, and neutrality is absolute here. So the
+carve-out is narrow and the founder confirmed it in these terms: **an
+employer may submit its own W2 without a listing; the employee is told,
+not asked; the read is logged like any other.** "Own W2" means the firm
+holds an EMPLOYEE context for the person — answerable from `Context`
+today, no schema. A firm submitting somebody it does *not* employ still
+needs the listing, the consent and `maySubmit`, exactly as before. The
+invariant in "Invariants the database must enforce" reads accordingly.
 
 ---
 
