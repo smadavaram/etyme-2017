@@ -111,7 +111,7 @@ async function main() {
     prisma.contractCostAllocation.deleteMany(),
     prisma.costCenter.deleteMany(),
     prisma.remitTo.deleteMany(),
-    prisma.purchaseOrder.deleteMany(),
+    prisma.workOrder.deleteMany(),
     prisma.context.deleteMany(),
     prisma.role.deleteMany(),
     prisma.orgUnit.deleteMany(),
@@ -717,10 +717,11 @@ async function main() {
   const poStart = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000)
   const poEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
 
-  const poTalvernToCloudepa = await prisma.purchaseOrder.create({
+  const poTalvernToCloudepa = await prisma.workOrder.create({
     data: {
       number: 'PO-2026-4417',
       issuedById: client.id,
+      recordedById: client.id,
       issuedToId: vendor.id,
       amount: 1_200_000,
       currency: 'USD',
@@ -730,10 +731,11 @@ async function main() {
     },
   })
 
-  const poTalvernToTechVista = await prisma.purchaseOrder.create({
+  const poTalvernToTechVista = await prisma.workOrder.create({
     data: {
       number: 'PO-2026-4482',
       issuedById: client.id,
+      recordedById: client.id,
       issuedToId: vendor2.id,
       amount: 900_000,
       currency: 'USD',
@@ -744,10 +746,11 @@ async function main() {
   })
 
   // The MSP's own PO down to the sub-vendor — the leg Cloudepa invoices.
-  const poMspToCloudepa = await prisma.purchaseOrder.create({
+  const poMspToCloudepa = await prisma.workOrder.create({
     data: {
       number: 'GS-PO-88213',
       issuedById: msp.id,
+      recordedById: msp.id,
       issuedToId: vendor.id,
       amount: 400_000,
       currency: 'USD',
@@ -1499,7 +1502,7 @@ async function main() {
         workLocationId: c.locId,
         hiringManagerId: c.mgr ? managers[c.mgr].id : null,
         orgUnitId: c.unit ? orgUnits[c.unit].id : null,
-        purchaseOrderId: c.clientId === client.id ? poTalvernToCloudepa.id : null,
+        workOrderId: c.clientId === client.id ? poTalvernToCloudepa.id : null,
       },
     })
     sellContracts.push(sc)
@@ -1539,7 +1542,7 @@ async function main() {
       hiringManagerId: managers.castellano.id,
       orgUnitId: orgUnits.infra.id,
       // Cloudepa invoices the MSP against the MSP's PO, not Talvern's.
-      purchaseOrderId: poMspToCloudepa.id,
+      workOrderId: poMspToCloudepa.id,
     },
   })
   sellContracts.push(mspContract)
@@ -1635,7 +1638,7 @@ async function main() {
         workLocationId: t.loc,
         hiringManagerId: managers[t.mgr].id,
         orgUnitId: orgUnits[t.unit].id,
-        purchaseOrderId: poTalvernToTechVista.id,
+        workOrderId: poTalvernToTechVista.id,
       },
     })
     sellContracts.push(sc)
@@ -1697,10 +1700,11 @@ async function main() {
   // the same relationship. The buy contract carries the RATE Cloudepa pays
   // TechVista; the PO carries the CEILING TechVista may bill against. Linked
   // so the two records cannot drift apart.
-  const poCloudepaToTechVista = await prisma.purchaseOrder.create({
+  const poCloudepaToTechVista = await prisma.workOrder.create({
     data: {
       number: 'CLD-PO-2211',
       issuedById: vendor.id,
+      recordedById: vendor.id,
       issuedToId: vendor2.id,
       amount: 180_000,
       currency: 'USD',
@@ -1727,7 +1731,7 @@ async function main() {
       state: 'IN_PROGRESS',
       startDate: subStart,
       endDate: subEnd,
-      purchaseOrderId: poCloudepaToTechVista.id,
+      workOrderId: poCloudepaToTechVista.id,
       candidates: {
         create: [
           {
@@ -1936,7 +1940,7 @@ async function main() {
         paid: inv.paid,
         dueAt,
         status: inv.status,
-        purchaseOrderId: inv.engId === eng2.id ? null : poTalvernToCloudepa.id,
+        workOrderId: inv.engId === eng2.id ? null : poTalvernToCloudepa.id,
         remitToId: cloudepaRemit.id,
       },
     })
@@ -2071,7 +2075,7 @@ async function main() {
       paid: 0,
       dueAt: mspInvDue,
       status: 'ISSUED',
-      purchaseOrderId: poMspToCloudepa.id,
+      workOrderId: poMspToCloudepa.id,
       remitToId: cloudepaRemit.id,
     },
   })

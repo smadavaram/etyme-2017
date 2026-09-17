@@ -263,6 +263,17 @@ export const DOMAINS: Domain[] = [
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
       // How much we do unprompted, as a ladder a buyer already knows.
       'lib/autonomy',
+      // One order, three names, and the rule for a counterparty that is
+      // not on the system. Both are read by money, demand and the
+      // platform's own routes at once, so they queue here with the
+      // schema they describe.
+      'lib/order-naming', 'lib/off-system',
+      // A firm putting a counterparty on the register that is not on the
+      // system. It creates Company rows, which is company identity, and
+      // company identity is the platform's whoever is doing the listing —
+      // the client's mirror of it, `app/api/suppliers`, is demand's
+      // because it is also how a role reaches a firm.
+      'app/api/clients',
       // Whose name a client may read in a chain. The names twin of
       // `lib/chain-top`, which is demand's: the rule is one sentence read
       // by compliance, tenure and the bench at once, so it belongs to

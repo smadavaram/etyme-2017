@@ -355,14 +355,19 @@ export function dueOn(input: DueInput): DueVerdict {
 // VAT and GST do, US sales tax does not — this says so rather than
 // adjusting a rate it has no business adjusting.
 
-export type RungOwner = 'AGREEMENT' | 'SALES_ORDER' | 'PURCHASE_ORDER'
+export type RungOwner = 'AGREEMENT' | 'WORK_ORDER'
+
+// Two owners, not three. It was three while the same commercial document
+// existed as two rows — a sell-side `SalesOrder` and a buy-side
+// `PurchaseOrder` — and a rung could in principle claim both. The merge
+// to `WorkOrder` made them one row, so the question a reader asks is now
+// only "the standing terms, or this order's own?".
 
 /** A discount row as stored: exactly one owner, a window and a rate. */
 export interface DiscountRow {
   id: string
   msaId?: string | null
-  salesOrderId?: string | null
-  purchaseOrderId?: string | null
+  workOrderId?: string | null
   /** Days from the anchor. Zero is real — settlement on the day. */
   withinDays: number
   /** Basis points off the net. 300 is three per cent. */
@@ -379,7 +384,7 @@ export interface OwnerVerdict {
 /**
  * Which document a rung belongs to.
  *
- * Exactly one of the three, and the database cannot say so: there are no
+ * Exactly one of the two, and the database cannot say so: there are no
  * migration files here and therefore no CHECK constraint, so the rule
  * lives where the rows are read. It refuses both ways rather than
  * guessing — a rung on nothing would silently apply to everything, and a
@@ -388,8 +393,7 @@ export interface OwnerVerdict {
 export function ownerOf(row: DiscountRow): OwnerVerdict {
   const held: [RungOwner, string | null | undefined][] = [
     ['AGREEMENT', row.msaId],
-    ['SALES_ORDER', row.salesOrderId],
-    ['PURCHASE_ORDER', row.purchaseOrderId],
+    ['WORK_ORDER', row.workOrderId],
   ]
   const owners = held.filter(([, id]) => !!id).map(([o]) => o)
 
@@ -402,9 +406,9 @@ export function ownerOf(row: DiscountRow): OwnerVerdict {
       ok: false,
       owner: null,
       says:
-        'This early-payment rung is not attached to anything — no agreement, no sales order, ' +
-        'no purchase order. Attach it to the document it was agreed in; a rung on nothing ' +
-        'would apply to everything.',
+        'This early-payment rung is not attached to anything — no agreement and no order. ' +
+        'Attach it to the document it was agreed in; a rung on nothing would apply to ' +
+        'everything.',
     }
   }
 
@@ -413,7 +417,8 @@ export function ownerOf(row: DiscountRow): OwnerVerdict {
     owner: null,
     says:
       `This early-payment rung is attached to ${owners.length} documents at once ` +
-      `(${owners.join(' and ')}). It was agreed in one of them. Which?`,
+      `(${owners.map((o) => o.toLowerCase().replace('_', ' ')).join(' and ')}). It was agreed ` +
+      `in one of them. Which?`,
   }
 }
 

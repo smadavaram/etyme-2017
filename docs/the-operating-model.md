@@ -91,65 +91,58 @@ Three things, and the third is the one the build under-reads:
   statement, concluded "do not build `SalesOrder` — the trade does not
   contain one". That was wrong, and wrong in an instructive way: the
   trade contains it, under the name the seller uses. The observation
-  underneath it still holds — nothing has ever created a `SalesOrder` —
-  but the reason is not that the document is fictional. It is that the
-  product models one document as two rows and only ever writes one of
+  underneath it still held — nothing had ever created a `SalesOrder` —
+  but the reason was not that the document is fictional. It was that the
+  product modeled one document as two rows and only ever wrote one of
   them.*
 
-  **And the two rows are not duplicates. Each carries what the other
-  lacks**, which is why neither can be deleted without moving fields:
+  **Merged, 2026-09-17.** `PurchaseOrder` and `SalesOrder` are one
+  `WorkOrder`, carrying the union of both: the issuer and the recipient,
+  the ceiling and the dates, the four parties (sold-to, bill-to, ship-to,
+  payer), the billing basis and its `OrderMilestone[]`, and
+  `autoApproveTimesheets` with `approvalWindowDays`. The name is the
+  trade's own and belongs to neither end; `lib/order-naming` decides what
+  each reader is shown, so a client reads "purchase order" and a supplier
+  reads "sales order" off the same row. The URL stays
+  `/api/purchase-orders` and the event stays `purchase_order.raised` —
+  an address is not a word anybody reads.
 
-  | | `PurchaseOrder` (client's name) | `SalesOrder` (vendor's name) |
-  |---|---|---|
-  | Ever created? | **yes** — 3 write sites | **no** — none, anywhere |
-  | Parties | issuer, recipient | **sold-to, bill-to, ship-to, payer** |
-  | Ceiling | `amount` | `ceilingCents` |
-  | Dates | start, end | start, end |
-  | Billed how | — | **`billingBasis`: time or milestone** |
-  | Milestones | — | **`OrderMilestone[]`** |
-  | Silence counts as approval | — | **`autoApproveTimesheets`, `approvalWindowDays`** |
+  **What that fixed, and it was three things:**
 
-  The vendor's view holds all the commercial substance — a client that
-  signs in one entity, is billed through a shared service centre, has the
-  work done at a third site and pays from a fourth; whether the thing is
-  billed by time or by milestone; and the term that says an unanswered
-  timesheet is approved after N days. The client's view is what actually
-  gets written, and can express none of it.
+  1. **Auto-approval of timesheets can now fire.** `cron/auto-approve`
+     read `salesOrder.autoApproveTimesheets`, no `SalesOrder` ever
+     existed, so the flag was false on every timesheet in the world and
+     the nightly job approved nothing from the day it was written. It is
+     proven alive in `__integration__/work-order.test.ts`: *"a timesheet
+     nobody answered is approved when the order says silence counts, and
+     is not when it does not."*
+  2. **Milestone billing is reachable.** Milestones hang off the row that
+     is actually written, and the Milestones screen reads the order the
+     client raised rather than one nobody had.
+  3. **The four-party split is reachable** — the first thing a large
+     enterprise asks for.
 
-  **Three consequences follow, and one of them is already costing money:**
-
-  1. **Auto-approval of timesheets can never fire.** `cron/auto-approve`
-     reads `salesOrder.autoApproveTimesheets`, and no `SalesOrder` exists,
-     so the flag is false on every timesheet in the world. The cron runs
-     nightly and approves nothing. It is not broken — it is reading a term
-     from a row nobody writes.
-  2. **Milestone billing is unreachable** by the same route, and the
-     Milestones screen is permanently empty.
-  3. **The four-party billing split is unreachable**, which is the first
-     thing a large enterprise asks for.
-
-  The fix is one order object named per viewer — a client reads "purchase
-  order", a supplier reads "sales order", the trade says "work order", one
-  row underneath. That is a schema change and the architect's to make.
-
-  The four terms already exist, split across two rows the way CLAUDE.md's
-  own rule requires — *an order carries a ceiling, a contract carries a
-  rate*:
+  The two sentences the merge had to preserve, and did: **an order
+  carries a ceiling, a contract carries a rate**, and **a contract is per
+  person, an order is not**. One order still produces a contract for each
+  person on it, and the rate, the person and the site stay on
+  `SellContract`, joined by `workOrderId`:
 
   | The paper says | The system holds it on |
   |---|---|
-  | how much may be spent, by when | `PurchaseOrder.amount`, `startDate`, `endDate` |
+  | how much may be spent, by when | `WorkOrder.amount`, `startDate`, `endDate` |
+  | whether silence approves a timesheet | `WorkOrder.autoApproveTimesheets`, `approvalWindowDays` |
   | the rate | `SellContract.billRate` |
   | the resource | `SellContract.personId` |
   | the location of work | `SellContract.workLocationId` |
-  | the two joined | `SellContract.purchaseOrderId` |
+  | the two joined | `SellContract.workOrderId` |
 
-  *So the shape is right and the station is empty.* `purchaseOrderId` is
-  nullable and **the award never sets it**. A client awards, a contract
-  appears, and no work order is raised or required — while the founder
-  says the client raises one every time. Nothing refuses a placement that
-  no work order authorizes, so the ceiling that governs the spend is
-  absent on every placement the product has ever created.
+  *What is still empty is the station, not the shape.* `workOrderId` is
+  nullable and **the award still never sets it**. A client awards, a
+  contract appears, and no work order is raised or required — while the
+  founder says the client raises one every time. Raising one now attaches
+  every running contract with that buyer and no order, which closes it
+  for a firm recording its book; it does not close it at award.
 - **Compliance requirements at supplier and candidate level, every
   time.** Per engagement, not per relationship — a client can require
   different checks for a role in a hospital than for one in a warehouse.
@@ -292,43 +285,56 @@ What works against a shell today, verified:
   `lib/join-companies` handles the duplicate case on its own terms and
   requires a matching domain and a shared seat before folding two records.
 
-### The one that breaks, and it is the opposite way round
+### The one that broke, and it was the opposite way round — closed 2026-09-17
 
-**Only a client can create a shell.** Both paths that make one —
-`POST /api/suppliers` and the supplier-onboarding walk — run from the
-client's side. There is **no route where a vendor lists a client that is
-not here**, and `POST /api/contracts` requires `clientCompanyId` to name a
-company that already exists.
+**Only a client could create a shell.** Both paths that made one —
+`POST /api/suppliers` and the supplier-onboarding walk — ran from the
+client's side. There was **no route where a vendor listed a client that
+is not here**, and `POST /api/contracts` required `clientCompanyId` to
+name a company that already existed.
 
-So a staffing firm that signs up with an existing book of business cannot
-record any of it. Every contract it already holds names a client that is
-not on the platform, and nothing lets it say so.
+So a staffing firm that signed up with an existing book of business could
+record none of it. Every contract it already held named a client that was
+not on the platform, and nothing let it say so. That inverted the
+assumption in "Who pays": the client is the customer and the client-first
+path was the one that was built, while the vendor who arrives first — the
+firm that hears about this from a peer, signs up on a Tuesday and wants to
+put its current placements in — had no door.
 
-That is worth stating plainly because it inverts the assumption in "Who
-pays": the client is the customer and **the client-first path is the one
-that is built**. The vendor-first path — the firm that hears about this
-from a peer, signs up on a Tuesday and wants to put its current
-placements in — has no door. Suppliers are supposed to be here because
-their clients are; nothing yet serves the supplier who arrives first.
+**It has one now**, and it is deliberately the same door the other way
+round (`lib/off-system`):
 
-**The second half of the same gap:** `PurchaseOrder.issuedById` can only
-ever be the caller's own company, so **a supplier cannot record the
-client's PO** — the work order it was handed. `SellContract.purchaseOrderId`
-exists to hold exactly that and nothing can write the row it points at.
+- **`POST /api/clients`** lists a client that is not on the system,
+  creating a shell with `claimedAt` null and `listedById` set, with an
+  unsigned agreement stub and a counterparty row behind it, invitable and
+  claimable through the existing `SupplierInvite` path.
+- **`POST /api/contracts`** accepts a shell client, and — this is new and
+  closes a hole that was already open — refuses a *claimed* company the
+  caller has nothing on file with, in a sentence. Any firm being able to
+  name any client is the trap CLAUDE.md names under the MSP seat, and it
+  was live on that route until now.
+- **`POST /api/purchase-orders`** lets a claimed firm write an order on
+  the leg where it is not the natural issuer, **where that counterparty is
+  a shell**. So a supplier records the purchase order its client handed
+  it, `WorkOrder.recordedById` says who typed it in, and the row becomes
+  the client's the day they claim it. Where the buyer *is* here the
+  refusal is a next step rather than a wall: the order is theirs to raise.
 
-### What this means for the order merge
+What is still missing is a **screen** for any of it. The three routes are
+walked as sentences in `__integration__/work-order.test.ts`; nobody can
+click them yet.
 
-**The two questions are almost orthogonal.** The shell mechanism keys on
-`Company.id` and does not care how many order tables exist. Merging
-`SalesOrder` into `PurchaseOrder` neither helps nor harms the off-system
-case, so **the merge is safe on these grounds.**
+### What the merge and the door had in common
 
-They touch in one place. A merged order still needs an issuer, and the
-unsolved problem is not that the two sides need separate rows — it is
-that **nothing lets a claimed firm write an order naming a shell on the
-leg where it is not the natural issuer.** That permission carve-out has
-to be written either way. The merge makes it one write path to get right
-instead of two, which is a reason to merge first, not a reason to wait.
+**The two questions were almost orthogonal.** The shell mechanism keys on
+`Company.id` and does not care how many order tables exist.
+
+They touched in one place, and it was the reason to do them together. A
+merged order still needs an issuer, and the unsolved problem was never
+that the two sides need separate rows — it was that **nothing let a
+claimed firm write an order naming a shell on the leg where it is not the
+natural issuer.** That carve-out had to be written either way, and the
+merge made it one write path to get right instead of two.
 
 ---
 
@@ -337,10 +343,11 @@ instead of two, which is a reason to merge first, not a reason to wait.
 Three things it says that the build does not yet do, in the order the
 money justifies:
 
-1. **A work order per engagement.** `SalesOrder` is a shell with finished
-   arithmetic and no way to create one. The founder says a client raises
-   one *every time* — so this is not a missing feature, it is a station
-   of the chain with nothing in it.
+1. **A work order per engagement.** *Done as a model, 2026-09-17* — one
+   `WorkOrder`, raisable by the client and recordable by a supplier whose
+   client is not here. **Not done as a habit:** the award still does not
+   raise one, and nothing refuses a placement no order authorizes, which
+   is what "every time" actually means.
 2. **Compliance requirements set per engagement**, at both supplier and
    candidate level, by the client, at the moment of hiring. Today the
    requirement set is per company.

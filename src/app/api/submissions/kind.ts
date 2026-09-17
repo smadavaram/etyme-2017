@@ -22,7 +22,7 @@
  * INTERNAL means **the person is our own employee**. A prime, a GSI or
  * an MSP sells to a client and buys either from a sub-vendor by purchase
  * order or from its own W2 payroll with no purchase order at all. The
- * buy side always knew this — `BuyContract.purchaseOrderId` is nullable
+ * buy side always knew this — `BuyContract.workOrderId` is nullable
  * for exactly this reason — and the sell side did not.
  *
  * ── Why employment beats the bench tier ──────────────────────────────

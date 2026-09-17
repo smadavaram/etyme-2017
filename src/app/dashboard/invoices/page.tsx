@@ -330,7 +330,7 @@ interface CodingRow {
 }
 
 interface InvoiceCoding {
-  purchaseOrder: string | null
+  workOrder: string | null
   purchaseOrderBalance: {
     number: string
     amountCents: number
@@ -536,9 +536,9 @@ function InvoiceDetailDrawer({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="eyebrow mb-1">Purchase order</p>
-                  {coding.purchaseOrder ? (
+                  {coding.workOrder ? (
                     <>
-                      <p className="text-sm font-mono">{coding.purchaseOrder}</p>
+                      <p className="text-sm font-mono">{coding.workOrder}</p>
                       {coding.purchaseOrderBalance && (
                         <p className={`text-[11px] tabular-nums mt-0.5 ${
                           coding.purchaseOrderBalance.overdrawn ? 'text-etyme-attention' : 'text-etyme-muted'

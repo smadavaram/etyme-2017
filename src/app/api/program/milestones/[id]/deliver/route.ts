@@ -44,7 +44,7 @@ export async function POST(
       id: true, name: true, amountCents: true, dueOn: true,
       acceptedAt: true, status: true,
       order: {
-        select: { id: true, companyId: true, soldToId: true, billToId: true, payerId: true, soldTo: { select: { name: true } } },
+        select: { id: true, issuedToId: true, issuedById: true, billToId: true, payerId: true, issuedBy: { select: { name: true } } },
       },
     },
   })
@@ -57,8 +57,8 @@ export async function POST(
   }
 
   const may = mayDeliverAs(companyId, {
-    sellerCompanyId: milestone.order.companyId,
-    clientCompanyIds: [milestone.order.soldToId, milestone.order.billToId, milestone.order.payerId]
+    sellerCompanyId: milestone.order.issuedToId,
+    clientCompanyIds: [milestone.order.issuedById, milestone.order.billToId, milestone.order.payerId]
       .filter((x): x is string => !!x),
   })
   if (!may.ok) {
@@ -102,7 +102,7 @@ export async function POST(
   return NextResponse.json({
     data: {
       ...saved,
-      says: `${saved.name} submitted to ${milestone.order.soldTo.name} for acceptance.`,
+      says: `${saved.name} submitted to ${milestone.order.issuedBy.name} for acceptance.`,
       // Reported rather than swallowed. A caller building on this needs to
       // know the clock is not running.
       unknowns: ['No delivery date was recorded — OrderMilestone has no column for one.'],

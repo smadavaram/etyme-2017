@@ -304,7 +304,7 @@ async function keysAlreadyHere(spec: EntitySpec, companyId: string): Promise<Set
       return lower(rows.map((r) => r.primaryEmail))
     }
     case 'PURCHASE_ORDERS': {
-      const rows = await prisma.purchaseOrder.findMany({ where: { issuedById: companyId }, select: { number: true } })
+      const rows = await prisma.workOrder.findMany({ where: { issuedById: companyId }, select: { number: true } })
       return lower(rows.map((r) => r.number))
     }
     case 'HOLIDAYS': {
@@ -416,21 +416,23 @@ async function writeRows(spec: EntitySpec, companyId: string, rows: RowResult[])
             failures.push({ row: r.rowNumber, reason: `No company here called "${v.supplierName}"` })
             continue
           }
-          const existing = await prisma.purchaseOrder.findFirst({
+          const existing = await prisma.workOrder.findFirst({
             where: { issuedById: companyId, number: String(v.number) },
           })
           if (existing) {
-            await prisma.purchaseOrder.update({
+            await prisma.workOrder.update({
               where: { id: existing.id },
               data: { amount: v.amount, ...(v.endDate ? { endDate: v.endDate } : {}) },
             })
             updated++
           } else {
-            await prisma.purchaseOrder.create({
+            await prisma.workOrder.create({
               data: {
                 number: String(v.number),
                 issuedById: companyId,
                 issuedToId: supplier.id,
+                // An import is the importer's own record of its own paper.
+                recordedById: companyId,
                 amount: v.amount,
                 startDate: v.startDate ?? new Date(),
                 endDate: v.endDate ?? null,

@@ -234,7 +234,7 @@ sell contracts — guessing between them by person and date is the kind of
 join that is right in testing and wrong in March.
 
 **`BuyContract.supplierSellContractId`** is that edge, nullable for exactly
-the reason `purchaseOrderId` is: null means the person is our own employee
+the reason `workOrderId` is: null means the person is our own employee
 and there is no rung below. With it the ladder reads from any rung:
 
 ```

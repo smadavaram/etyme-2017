@@ -153,10 +153,10 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
           },
         },
       },
-      purchaseOrder: true,
+      workOrder: true,
       matchOverrides: { include: { by: { select: { name: true } } } },
       engagement: {
-        select: { sellContracts: { select: { purchaseOrderId: true }, take: 1 } },
+        select: { sellContracts: { select: { workOrderId: true }, take: 1 } },
       },
     },
   })
@@ -169,10 +169,10 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
   // What else has drawn on this purchase order. Computed rather than stored:
   // a denormalised balance drifts, and a drifted ceiling is worse than none.
   let consumedCents = 0
-  if (invoice.purchaseOrderId) {
+  if (invoice.workOrderId) {
     const others = await prisma.invoice.findMany({
       where: {
-        purchaseOrderId: invoice.purchaseOrderId,
+        workOrderId: invoice.workOrderId,
         id: { not: invoice.id },
         status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] },
       },
@@ -283,19 +283,19 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
           },
         ])
     ),
-    po: invoice.purchaseOrder
+    po: invoice.workOrder
       ? {
-          id: invoice.purchaseOrder.id,
-          number: invoice.purchaseOrder.number,
-          status: invoice.purchaseOrder.status,
-          amountCents: decimalToCents(invoice.purchaseOrder.amount),
+          id: invoice.workOrder.id,
+          number: invoice.workOrder.number,
+          status: invoice.workOrder.status,
+          amountCents: decimalToCents(invoice.workOrder.amount),
           consumedCents,
-          startDate: invoice.purchaseOrder.startDate,
-          endDate: invoice.purchaseOrder.endDate,
+          startDate: invoice.workOrder.startDate,
+          endDate: invoice.workOrder.endDate,
         }
       : null,
     // A PO is required once the contract being billed was raised against one.
-    poRequired: Boolean(invoice.engagement.sellContracts[0]?.purchaseOrderId),
+    poRequired: Boolean(invoice.engagement.sellContracts[0]?.workOrderId),
     // Exceptions an AP clerk has recorded. The engine decides which of them
     // it will honor; a waiver on a duplicate payment is simply ignored.
     overrides: invoice.matchOverrides.map(o => ({

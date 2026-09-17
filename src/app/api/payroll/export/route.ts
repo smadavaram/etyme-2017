@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
           clientCompany: { select: { name: true } },
           costCenter: { select: { code: true } },
           internalOrder: { select: { code: true } },
-          salesOrder: { select: { number: true } },
+          workOrder: { select: { number: true } },
           // ── What we actually pay, and who we pay it to ────────────
           //
           // The buy leg. This route used to put `billRate` on the file,
@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
       // both real and the client's ledger cares which.
       costCode:
         s.sellContract.internalOrder?.code ?? s.sellContract.costCenter?.code ?? null,
-      orderNumber: s.sellContract.salesOrder?.number ?? null,
+      orderNumber: s.sellContract.workOrder?.number ?? null,
       employerName: s.sellContract.company?.name ?? null,
       clientName: s.sellContract.clientCompany?.name ?? null,
     }

@@ -21,7 +21,7 @@ import { GET as ownPeople } from '@/app/api/submissions/own-people/route'
  * permission to be staffed on a project, so in practice the work went
  * back to email and the client's record of it never existed.
  *
- * The buy side already knew all this — `BuyContract.purchaseOrderId` is
+ * The buy side already knew all this — `BuyContract.workOrderId` is
  * nullable precisely because you do not raise a purchase order to your
  * own employee — and the sell side did not.
  *
@@ -376,8 +376,8 @@ describe('Corning awards the employee, and Ardent gets a contract pair with nobo
 
   it('raises no purchase order, because nobody raises one to their own employee', async () => {
     const buy = await prisma.buyContract.findFirstOrThrow({ where: { companyId: co.ardent } })
-    expect(buy.purchaseOrderId).toBeNull()
-    const orders = await prisma.purchaseOrder.count({ where: { issuedById: co.ardent } })
+    expect(buy.workOrderId).toBeNull()
+    const orders = await prisma.workOrder.count({ where: { issuedById: co.ardent } })
     expect(orders).toBe(0)
   })
 })

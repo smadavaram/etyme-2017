@@ -107,7 +107,7 @@ const EMPLOYMENT_TYPES = new Set(['W2', 'W2_HOURLY', 'W2_SALARY', 'C1099', '1099
  * they are paid through payroll, and the money leaves by an entirely
  * different route with entirely different tax consequences.
  *
- * So a `BuyContract` with `contractType: W2` and a `purchaseOrderId` set
+ * So a `BuyContract` with `contractType: W2` and a `workOrderId` set
  * is a purchase order raised to your own employee. It is not a harmless
  * extra field. It puts wages into a commitment ledger, it makes a
  * three-way match run against a person who will never send an invoice,
@@ -116,7 +116,7 @@ const EMPLOYMENT_TYPES = new Set(['W2', 'W2_HOURLY', 'W2_SALARY', 'C1099', '1099
  * employee, which is the exact shape of a misclassification finding.
  *
  * CLAUDE.md names this as the clearest proof that an order and a
- * contract are different objects: `BuyContract.purchaseOrderId` is
+ * contract are different objects: `BuyContract.workOrderId` is
  * nullable precisely because roughly half of all buy contracts have
  * none.
  *

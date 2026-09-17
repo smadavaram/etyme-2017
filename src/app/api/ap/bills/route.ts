@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
   const number = String(body.number ?? '').trim()
   const currency = String(body.currency ?? 'USD').toUpperCase()
   const buyContractId = body.buyContractId ? String(body.buyContractId) : null
-  const purchaseOrderId = body.purchaseOrderId ? String(body.purchaseOrderId) : null
+  const workOrderId = body.workOrderId ? String(body.workOrderId) : null
   const projectOrderId = body.projectOrderId ? String(body.projectOrderId) : null
   const payWhenPaid = body.payWhenPaid === true
 
@@ -263,9 +263,9 @@ export async function POST(request: NextRequest) {
   // waivable one is recorded on the bill as DISPUTED with the reason.
 
   let poFacts: PurchaseOrderFacts | null = null
-  if (purchaseOrderId) {
-    const po = await prisma.purchaseOrder.findUnique({
-      where: { id: purchaseOrderId },
+  if (workOrderId) {
+    const po = await prisma.workOrder.findUnique({
+      where: { id: workOrderId },
       select: {
         id: true, number: true, status: true, amount: true, currency: true,
         startDate: true, endDate: true, issuedById: true,
@@ -277,7 +277,7 @@ export async function POST(request: NextRequest) {
           error: {
             code: 'NOT_FOUND',
             message: 'No such purchase order of ours. A PO belongs to whoever pays.',
-            field: 'purchaseOrderId',
+            field: 'workOrderId',
           },
         },
         { status: 404 }
@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
     // not consumed anything, and counting them would refuse a bill the
     // order has room for.
     const drawn = await prisma.vendorBill.aggregate({
-      where: { purchaseOrderId, status: { notIn: ['CANCELLED'] } },
+      where: { workOrderId, status: { notIn: ['CANCELLED'] } },
       _sum: { totalCents: true },
     })
 
@@ -316,7 +316,7 @@ export async function POST(request: NextRequest) {
     const hard = ceiling.problems.filter((p) => !p.overridable)
     if (hard.length > 0) {
       return NextResponse.json(
-        { error: { code: hard[0].code, message: hard[0].says, field: 'purchaseOrderId' } },
+        { error: { code: hard[0].code, message: hard[0].says, field: 'workOrderId' } },
         { status: 422 }
       )
     }
@@ -465,7 +465,7 @@ export async function POST(request: NextRequest) {
       vendorCompanyId,
       number,
       buyContractId,
-      purchaseOrderId,
+      workOrderId,
       projectOrderId,
       periodStart,
       periodEnd,
@@ -691,7 +691,7 @@ export async function GET(request: NextRequest) {
       receivedAt: true, dueAt: true, status: true, periodStart: true, periodEnd: true,
       buyContractId: true,
       vendorCompany: { select: { id: true, name: true } },
-      purchaseOrder: {
+      workOrder: {
         select: {
           id: true, number: true, status: true, amount: true, currency: true,
           startDate: true, endDate: true,
@@ -704,15 +704,15 @@ export async function GET(request: NextRequest) {
 
   // What each purchase order has already had drawn against it, counted
   // once rather than per bill.
-  const poIds = [...new Set(bills.map((b) => b.purchaseOrder?.id).filter(Boolean))] as string[]
+  const poIds = [...new Set(bills.map((b) => b.workOrder?.id).filter(Boolean))] as string[]
   const drawn = poIds.length
     ? await prisma.vendorBill.groupBy({
-        by: ['purchaseOrderId'],
-        where: { purchaseOrderId: { in: poIds }, status: { notIn: ['CANCELLED'] } },
+        by: ['workOrderId'],
+        where: { workOrderId: { in: poIds }, status: { notIn: ['CANCELLED'] } },
         _sum: { totalCents: true },
       })
     : []
-  const drawnBy = new Map(drawn.map((d) => [d.purchaseOrderId, d._sum.totalCents ?? 0]))
+  const drawnBy = new Map(drawn.map((d) => [d.workOrderId, d._sum.totalCents ?? 0]))
 
   const items = []
   for (const b of bills) {
@@ -749,20 +749,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const po: PurchaseOrderFacts | null = b.purchaseOrder
+    const po: PurchaseOrderFacts | null = b.workOrder
       ? {
-          id: b.purchaseOrder.id,
-          number: b.purchaseOrder.number,
-          status: b.purchaseOrder.status,
+          id: b.workOrder.id,
+          number: b.workOrder.number,
+          status: b.workOrder.status,
           amountCents: Math.round(
-            parseFloat(b.purchaseOrder.amount.toString()) *
-              10 ** decimalsFor(b.purchaseOrder.currency)
+            parseFloat(b.workOrder.amount.toString()) *
+              10 ** decimalsFor(b.workOrder.currency)
           ),
           // Everything drawn INCLUDING this bill, less this bill — so the
           // match asks the same question it asked at intake.
-          consumedCents: (drawnBy.get(b.purchaseOrder.id) ?? 0) - b.totalCents,
-          startDate: b.purchaseOrder.startDate,
-          endDate: b.purchaseOrder.endDate,
+          consumedCents: (drawnBy.get(b.workOrder.id) ?? 0) - b.totalCents,
+          startDate: b.workOrder.startDate,
+          endDate: b.workOrder.endDate,
         }
       : null
 

@@ -52,7 +52,7 @@ export async function GET(
       matched: result.matched,
       summary: result.summary,
       checks: result.checks,
-      purchaseOrder: result.poAfter
+      workOrder: result.poAfter
         ? {
             remaining: result.poAfter.remainingCents / 100,
             utilisationPercent: result.poAfter.utilisationPercent,

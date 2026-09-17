@@ -82,7 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         workLocationId: old.workLocationId,
         hiringManagerId: old.hiringManagerId,
         orgUnitId: old.orgUnitId,
-        purchaseOrderId: old.purchaseOrderId,
+        workOrderId: old.workOrderId,
         billRate: old.billRate,
         billCurrency: old.billCurrency,
         paymentTerms: old.paymentTerms,

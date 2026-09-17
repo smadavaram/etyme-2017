@@ -73,7 +73,7 @@ interface Placement {
     scheduledAt: string | null; decidedAt: string | null; feedback: string | null
   }>
   contracts: {
-    sell: { id: string; billRate: number | null; state: string; purchaseOrder: { number: string; amount: number; currency: string } | null }
+    sell: { id: string; billRate: number | null; state: string; workOrder: { number: string; amount: number; currency: string } | null }
     buy: { id: string; contractType: string; state: string; vendor: { id: string; name: string } | null; payRate: number | null } | null
   }
   // `weEmployThem` is null where the reader is not the supplier: the
@@ -374,7 +374,7 @@ export default function PlacementPage() {
             <div className="stat-value">{rate(p.contracts.sell.billRate)}</div>
             <p className="mt-2 text-[13px] text-etyme-muted">
               {p.paymentTerms ? `Net ${p.paymentTerms}` : 'Terms not set'}
-              {p.contracts.sell.purchaseOrder ? ` · PO ${p.contracts.sell.purchaseOrder.number}` : ' · no purchase order'}
+              {p.contracts.sell.workOrder ? ` · PO ${p.contracts.sell.workOrder.number}` : ' · no purchase order'}
             </p>
           </div>
           {/* The buy side belongs to the supplier and is shown only to

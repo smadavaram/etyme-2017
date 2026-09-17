@@ -150,10 +150,10 @@ describe('A subcontract is the one case where the two meet', () => {
   it('the buy contract keeps the rate and the purchase order keeps the ceiling', () => {
     // Cloudepa subcontracts Kavitha from TechVista at $105/hr against a
     // $180,000 PO — both facts are needed and neither implies the other
-    const subcontract = { payRate: 10_500, purchaseOrderId: 'po-1' }
+    const subcontract = { payRate: 10_500, workOrderId: 'po-1' }
     const po = { id: 'po-1', amountCents: 18_000_000 }
 
-    expect(subcontract.purchaseOrderId).toBe(po.id)
+    expect(subcontract.workOrderId).toBe(po.id)
     expect(subcontract.payRate).not.toBe(po.amountCents)
   })
 })

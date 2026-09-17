@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
           endClientCompanyId: true,
           clientCompany: { select: { name: true } },
           endClientCompany: { select: { name: true } },
-          salesOrder: {
+          workOrder: {
             select: { autoApproveTimesheets: true, approvalWindowDays: true },
           },
         },
@@ -63,8 +63,8 @@ export async function GET(request: NextRequest) {
         clientApprovedAt: t.clientApprovedAt,
         anomalyScore: t.anomalyScore,
         anomalyReason: t.anomalyReason,
-        windowDays: t.sellContract.salesOrder?.approvalWindowDays ?? null,
-        autoApproves: t.sellContract.salesOrder?.autoApproveTimesheets ?? false,
+        windowDays: t.sellContract.workOrder?.approvalWindowDays ?? null,
+        autoApproves: t.sellContract.workOrder?.autoApproveTimesheets ?? false,
         clientName:
           t.sellContract.endClientCompany?.name ??
           t.sellContract.clientCompany.name,

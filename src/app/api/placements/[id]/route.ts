@@ -149,7 +149,7 @@ export async function GET(
       endClientCompany: { select: { id: true, name: true } },
       hiringManager: { select: { id: true, name: true } },
       engagement: { select: { id: true, title: true } },
-      purchaseOrder: { select: { id: true, number: true, amount: true, currency: true } },
+      workOrder: { select: { id: true, number: true, amount: true, currency: true } },
       // What is due on this contract. The sell side: hours and invoices.
       sellCycles: {
         select: { kind: true, dueOn: true, completedAt: true },
@@ -659,11 +659,11 @@ export async function GET(
           id: placement.id,
           billRate: seeBill ? money(placement.billRate) : null,
           state: placement.state,
-          purchaseOrder: placement.purchaseOrder
+          workOrder: placement.workOrder
             ? {
-                number: placement.purchaseOrder.number,
-                amount: Number(placement.purchaseOrder.amount),
-                currency: placement.purchaseOrder.currency,
+                number: placement.workOrder.number,
+                amount: Number(placement.workOrder.amount),
+                currency: placement.workOrder.currency,
               }
             : null,
         },

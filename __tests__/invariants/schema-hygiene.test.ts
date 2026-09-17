@@ -69,7 +69,7 @@ describe('the invariants CLAUDE.md puts in the database', () => {
 
   it('lets a purchase order number repeat across issuers but not within one', () => {
     // Two clients may both call theirs PO-001.
-    expect(model('PurchaseOrder')).toMatch(/@@unique\(\[issuedById,\s*number\]\)/)
+    expect(model('WorkOrder')).toMatch(/@@unique\(\[issuedById,\s*number\]\)/)
   })
 
   it('sends one event to a subscriber once', () => {

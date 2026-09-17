@@ -328,11 +328,12 @@ export async function seedDemoCompany(input: {
     data: { msaId: msa.id, title: 'SAP Program — Northwind', invoiceCycle: 'MONTHLY' },
   })
 
-  const po = await prisma.purchaseOrder.create({
+  const po = await prisma.workOrder.create({
     data: {
       number: 'NW-PO-40118',
       issuedById: client.id,
       issuedToId: company.id,
+      recordedById: client.id,
       amount: 250000,
       status: 'OPEN',
       startDate: daysAgo(180),
@@ -349,7 +350,7 @@ export async function seedDemoCompany(input: {
       clientCompanyId: client.id,
       engagementId: engagement.id,
       msaId: msa.id,
-      purchaseOrderId: po.id,
+      workOrderId: po.id,
       billRate: 13000,
       billCurrency: 'USD',
       startDate: daysAgo(60),

@@ -183,7 +183,7 @@ describe('Paying early for a discount', () => {
     // a reader that finds none or two refuses rather than guesses. Same
     // shape and same reasoning as InvoiceLine, which is an hours line, an
     // expense line or a milestone line and never two.
-    for (const owner of ['msaId', 'salesOrderId', 'purchaseOrderId']) {
+    for (const owner of ['msaId', 'workOrderId', 'workOrderId']) {
       expect(field('EarlyPaymentDiscount', owner).isRequired, owner).toBe(false)
       expect(uniques('EarlyPaymentDiscount')).toContainEqual([owner, 'withinDays'])
     }

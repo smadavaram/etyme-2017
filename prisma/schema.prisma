@@ -424,8 +424,9 @@ model Company {
   doNotSubmitTo         DoNotSubmit[]           @relation("doNotSubmitCompany")
   // Finance dimensions — owned per company, never shared across parties
   costCenters           CostCenter[]
-  posIssued             PurchaseOrder[]         @relation("poIssuer")
-  posReceived           PurchaseOrder[]         @relation("poRecipient")
+  ordersIssued          WorkOrder[]             @relation("orderIssuer")
+  ordersReceived        WorkOrder[]             @relation("orderRecipient")
+  ordersRecorded        WorkOrder[]             @relation("orderRecorder")
   remitTos              RemitTo[]
   consultantsBehind     ConsultantProfile[]     @relation("consultantCorp")
   documentShares        DocumentShare[]
@@ -483,10 +484,8 @@ model Company {
 
   internalOrders InternalOrder[]
 
-  ordersSold   SalesOrder[] @relation("orderSeller")
-  ordersSoldTo SalesOrder[] @relation("orderSoldTo")
-  ordersBillTo SalesOrder[] @relation("orderBillTo")
-  ordersPayer  SalesOrder[] @relation("orderPayer")
+  ordersBillTo WorkOrder[] @relation("orderBillTo")
+  ordersPayer  WorkOrder[] @relation("orderPayer")
 
   invoicesSoldTo    Invoice[]          @relation("invoiceSoldTo")
   invoicesBillTo    Invoice[]          @relation("invoiceBillTo")
@@ -600,42 +599,82 @@ model Interview {
   @@index([submissionId])
 }
 
-/// The commercial terms for one engagement, separate from the people on it.
+/// The work order — one commercial document, three names.
 ///
-/// A contract says what one person costs. A sales order says how the work
-/// is billed: on a schedule or on delivery, at what ceiling, to whom, and
-/// how long the client has to approve a timesheet before silence counts.
+/// The client raises a **purchase order**. The supplier receives the same
+/// piece of paper as its **sales order**. The trade calls the whole thing
+/// a **work order**. Settled by the founder, 2026-09-17, in two statements
+/// an hour apart: *"work order is not separate from PO — the client gives
+/// it to the supplier and it agrees rate, duration, resource and location
+/// of work"*, then *"the PO on the client side is the sales order on the
+/// vendor side."*
 ///
-/// Five contractors on one project is five contracts and one order. The
-/// order is what the invoice references and what a finance team recognises
-/// — and putting its terms on each contract instead means five places to
-/// change a payment term and four of them get missed.
-model SalesOrder {
-  id        String  @id @default(cuid())
-  /// The vendor selling.
-  companyId String
-  company   Company @relation("orderSeller", fields: [companyId], references: [id], onDelete: Cascade)
+/// It was modeled as two rows — `PurchaseOrder` and `SalesOrder` — and
+/// only the thin one was ever written. Each carried what the other
+/// lacked, so the union is here and neither one-sided name survives on
+/// the row: the four parties, the billing basis and its milestones, and
+/// the term that says an unanswered timesheet is approved after N days
+/// all lived on the seller's side and could not be recorded at all.
+/// Nothing had ever created a `SalesOrder`, which is why
+/// `cron/auto-approve` read its flag off a row that did not exist and
+/// approved nothing, every night, since the day it was written.
+///
+/// Read it per viewer, never per row: `lib/order-naming` turns this into
+/// "purchase order" for the party paying and "sales order" for the party
+/// billing.
+///
+/// ── An order carries a ceiling; a contract carries a rate ───────────
+///
+/// Unchanged by the merge, and the reason this is not simply a bigger
+/// contract. `amount` is what may be spent in total, by when; the rate,
+/// the person and the site are on `SellContract`, joined by
+/// `workOrderId`. Five contractors on one project is five contracts and
+/// one order — so a contract is per person and an order is not.
+model WorkOrder {
+  id String @id @default(cuid())
+
+  // ── The two ends of it ─────────────────────────────────────────────
+
+  /// The buyer. Raises it, owns the ceiling, reads it as a purchase
+  /// order. A client on its own order; a prime on its order to a
+  /// sub-vendor.
+  issuedById String
+  issuedBy   Company @relation("orderIssuer", fields: [issuedById], references: [id])
+  /// The seller. Bills against it, and reads the same row as its sales
+  /// order.
+  issuedToId String
+  issuedTo   Company @relation("orderRecipient", fields: [issuedToId], references: [id])
+
+  /// Which of the two actually typed it in.
+  ///
+  /// Ordinarily the issuer. A supplier whose client is not on the
+  /// platform records the purchase order it was handed, and the row then
+  /// says who recorded it rather than implying a shell company signed in
+  /// and raised one. See `lib/off-system`.
+  recordedById String
+  recordedBy   Company @relation("orderRecorder", fields: [recordedById], references: [id])
+
+  /// The buyer's number — what their AP team will quote.
+  number       String
+  /// The seller's own reference for the same paper, where they keep one.
+  /// Two numbers for one document is how the trade actually works, and
+  /// an invoice quoting the wrong one is a fortnight of AP email.
+  sellerNumber String?
+  title        String?
 
   engagementId String?
   engagement   Engagement?      @relation(fields: [engagementId], references: [id])
   msaId        String?
   msa          MasterAgreement? @relation(fields: [msaId], references: [id])
 
-  /// Their own reference — the number the client's AP team will quote.
-  number String
-  title  String
-
   // ── Who is who ─────────────────────────────────────────────────────
   //
   // A large client signs in one entity, is billed through a shared
-  // services centre in another country, has the work done at a third
+  // services center in another country, has the work done at a third
   // site, and pays from a fourth. On the order because that is where the
   // commercial relationship is agreed, and the invoice inherits it.
 
-  /// Who signed. Always present — somebody agreed to this.
-  soldToId String
-  soldTo   Company          @relation("orderSoldTo", fields: [soldToId], references: [id])
-  /// Where invoices go. Null = the sold-to.
+  /// Where invoices go. Null = the issuer.
   billToId String?
   billTo   Company?         @relation("orderBillTo", fields: [billToId], references: [id])
   /// Where the work happens. Null = wherever each contract says.
@@ -644,6 +683,13 @@ model SalesOrder {
   /// Who settles. Null = the bill-to.
   payerId  String?
   payer    Company?         @relation("orderPayer", fields: [payerId], references: [id])
+
+  // ── The ceiling ────────────────────────────────────────────────────
+
+  /// What may be billed against it in total, across however many people
+  /// and months. The control the order exists to be.
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("USD")
 
   // ── How it is billed ───────────────────────────────────────────────
 
@@ -658,21 +704,19 @@ model SalesOrder {
   billStraddle  String @default("SPLIT")
   /// Explicit dates, where the frequency is CUSTOM.
   customDates   Json?
-
   /// NET days. Cascades from the MSA, overridable here.
-  paymentTerms Int    @default(30)
-  currency     String @default("USD")
-  /// What the order may bill in total, cents. Null = uncapped.
-  ceilingCents Int?
+  paymentTerms  Int    @default(30)
 
   // ── Approving the hours ────────────────────────────────────────────
 
-  /// Whether silence counts as approval after the window below.
+  /// Whether silence counts as approval after the window below. The
+  /// client's own term, on the client's own order — never a platform
+  /// default and never the supplier's to set.
   autoApproveTimesheets Boolean @default(false)
   /// Working days the client has before it does. Null = the default.
   approvalWindowDays    Int?
 
-  status    String    @default("DRAFT") // DRAFT · OPEN · CLOSED · CANCELLED
+  status    String    @default("OPEN") // DRAFT · OPEN · CLOSED · CANCELLED
   startDate DateTime
   endDate   DateTime?
   createdAt DateTime  @default(now())
@@ -680,13 +724,15 @@ model SalesOrder {
 
   milestones            OrderMilestone[]
   sellContracts         SellContract[]
+  buyContracts          BuyContract[] // the issuer's own subcontracts drawing on it
   invoices              Invoice[]
+  vendorBills           VendorBill[]
   /// Overrides the agreement's rungs for this order's spend.
   earlyPaymentDiscounts EarlyPaymentDiscount[]
 
-  @@unique([companyId, number])
-  @@index([companyId, status])
-  @@index([soldToId])
+  @@unique([issuedById, number])
+  @@index([issuedToId, status])
+  @@index([recordedById])
   @@index([billToId])
   @@index([shipToId])
   @@index([payerId])
@@ -701,9 +747,9 @@ model SalesOrder {
 /// flattening them into one list loses which is which when somebody asks
 /// why an invoice is larger this month.
 model OrderMilestone {
-  id      String     @id @default(cuid())
+  id      String    @id @default(cuid())
   orderId String
-  order   SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   WorkOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   name            String
   amountCents     Int
@@ -912,8 +958,8 @@ model CompanyLocation {
 
   sellContracts SellContract[] // contracts at this work site
 
-  invoicesShipTo Invoice[]    @relation("invoiceShipTo")
-  ordersShipTo   SalesOrder[] @relation("orderShipTo")
+  invoicesShipTo Invoice[]   @relation("invoiceShipTo")
+  ordersShipTo   WorkOrder[] @relation("orderShipTo")
 
   @@index([companyId])
 }
@@ -1441,7 +1487,7 @@ model MasterAgreement {
   engagements           Engagement[]
   requirements          Requirement[]
   sellContracts         SellContract[]
-  salesOrders           SalesOrder[]
+  workOrders            WorkOrder[]
   /// "3% at zero days, 2% at ten, otherwise net thirty."
   earlyPaymentDiscounts EarlyPaymentDiscount[]
   /// What it said, each time it changed. The answer to "what were the
@@ -1585,7 +1631,10 @@ model AgreementSignature {
 ///
 /// ── Which document it hangs on ──────────────────────────────────────
 ///
-/// Exactly one of `msaId`, `salesOrderId` and `purchaseOrderId` is set.
+/// Exactly one of `msaId` and `workOrderId` is set. It was one of three
+/// while the same document existed as two rows; the merge to `WorkOrder`
+/// made the sell-side and buy-side order one thing, and a rung now hangs
+/// on the agreement or on the order that overrides it.
 /// The agreement carries the standing terms; an order overrides them for
 /// its own spend, the way `paymentTerms` already cascades. Postgres
 /// cannot be asked to enforce "exactly one" from this schema — there are
@@ -1604,14 +1653,13 @@ model AgreementSignature {
 model EarlyPaymentDiscount {
   id String @id @default(cuid())
 
-  msaId           String?
-  msa             MasterAgreement? @relation(fields: [msaId], references: [id], onDelete: Cascade)
-  /// The sell-side order this narrows. What we offer a client.
-  salesOrderId    String?
-  salesOrder      SalesOrder?      @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
-  /// The buy-side order this narrows. What a supplier offers us.
-  purchaseOrderId String?
-  purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  msaId       String?
+  msa         MasterAgreement? @relation(fields: [msaId], references: [id], onDelete: Cascade)
+  /// The order this narrows, on whichever side of it the reader stands.
+  /// What we offer a client, or what a supplier offers us — one row, and
+  /// which it is is read off `issuedById`.
+  workOrderId String?
+  workOrder   WorkOrder?       @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
   /// Days from the anchor. Zero is real and is the point — "net zero" is
   /// settlement on the day, and it carries the best rate precisely
@@ -1631,8 +1679,7 @@ model EarlyPaymentDiscount {
   updatedAt DateTime @updatedAt
 
   @@unique([msaId, withinDays])
-  @@unique([salesOrderId, withinDays])
-  @@unique([purchaseOrderId, withinDays])
+  @@unique([workOrderId, withinDays])
 }
 
 model Requirement {
@@ -2493,10 +2540,11 @@ model SellContract {
   // traced back to the requisition that authorised it, seats cannot be
   // counted, and spend cannot be reconciled against the budget that was
   // approved. Null on contracts that did not come from a requisition.
-  /// The order this assignment bills under. Five contractors on one
-  /// project is five contracts and one order.
-  salesOrderId    String?
-  salesOrder      SalesOrder?              @relation(fields: [salesOrderId], references: [id])
+  /// The work order this assignment bills under — the client's purchase
+  /// order, read from the other end. Five contractors on one project is
+  /// five contracts and one order.
+  workOrderId     String?
+  workOrder       WorkOrder?               @relation(fields: [workOrderId], references: [id])
   /// Where the cost lands in the client's books. Either a standing
   /// department or a project pot with an end date, never both.
   costCenterId    String?
@@ -2505,8 +2553,6 @@ model SellContract {
   internalOrder   InternalOrder?           @relation(fields: [internalOrderId], references: [id])
   requirementId   String?
   requirement     Requirement?             @relation(fields: [requirementId], references: [id])
-  purchaseOrderId String?
-  purchaseOrder   PurchaseOrder?           @relation(fields: [purchaseOrderId], references: [id])
   // How the end client splits this cost across their budgets.
   costAllocations ContractCostAllocation[]
 
@@ -2605,12 +2651,11 @@ model SellContract {
   @@index([engagementId])
   @@index([msaId])
   @@index([workLocationId])
-  /// the three-way match reads every contract on a PO
-  @@index([purchaseOrderId])
+  /// the three-way match reads every contract on an order
+  @@index([workOrderId])
   @@index([deliveryUnitId])
   @@index([costCenterId])
   @@index([internalOrderId])
-  @@index([salesOrderId])
   @@index([projectOrderId])
 }
 
@@ -2654,7 +2699,7 @@ model BuyContract {
   /// stopped one hop short of the person paying for the work.
   ///
   /// Null where there is no supplier, which is exactly when the person is
-  /// our own employee — the same reason `purchaseOrderId` is nullable.
+  /// our own employee — the same reason `workOrderId` is nullable on a buy contract.
   supplierSellContractId String?
   supplierSellContract   SellContract? @relation("suppliedBy", fields: [supplierSellContractId], references: [id])
   entityId               String? // legal entity for payroll (Infosys India vs Infosys US)
@@ -2728,8 +2773,8 @@ model BuyContract {
   // describe the same commercial relationship from two angles: the buy
   // contract carries the RATE, the PO carries the CEILING it draws down.
   // Linking them stops the two records disagreeing.
-  purchaseOrderId String?
-  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  workOrderId String?
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2797,7 +2842,7 @@ model BuyContract {
   @@index([vendorCompanyId])
   @@index([endDate])
   @@index([entityId])
-  @@index([purchaseOrderId])
+  @@index([workOrderId])
   @@index([supplierSellContractId])
   @@index([internalOrderId])
   @@index([projectOrderId])
@@ -2935,7 +2980,7 @@ model Engagement {
   invoiceCycle  String          @default("MONTHLY")
   sellContracts SellContract[]
   invoices      Invoice[]
-  salesOrders   SalesOrder[]
+  workOrders    WorkOrder[]
 
   projectOrders ProjectOrder[]
 
@@ -3249,10 +3294,10 @@ model Invoice {
   payments      Payment[]
 
   // AP references — what the payer's finance team needs to post and pay.
-  purchaseOrderId String?
-  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  remitToId       String?
-  remitTo         RemitTo?       @relation(fields: [remitToId], references: [id])
+  workOrderId String?
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id])
+  remitToId   String?
+  remitTo     RemitTo?   @relation(fields: [remitToId], references: [id])
 
   /// How many times this invoice has been put up for submission.
   ///
@@ -3273,10 +3318,6 @@ model Invoice {
   // which is the ordinary case and should not need four rows of setup.
 
   /// Who signed the agreement this is issued under.
-  /// The order this invoice bills under, where there is one.
-  salesOrderId String?
-  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
-
   soldToId String?
   soldTo   Company?         @relation("invoiceSoldTo", fields: [soldToId], references: [id])
   /// Where the invoice is sent.
@@ -3292,14 +3333,13 @@ model Invoice {
   creditNotes CreditNote[]
 
   @@index([status, dueAt])
-  @@index([purchaseOrderId])
+  @@index([workOrderId])
   @@index([engagementId])
   @@index([remitToId])
   @@index([soldToId])
   @@index([billToId])
   @@index([shipToId])
   @@index([payerId])
-  @@index([salesOrderId])
 }
 
 // Expenses — consolidates 2017 expense, client_expense, expense_account, contract_expense, expense_item.
@@ -3485,14 +3525,14 @@ model VendorBill {
   /// Their number, not ours.
   number String
 
-  buyContractId   String?
-  buyContract     BuyContract?   @relation(fields: [buyContractId], references: [id])
-  /// The purchase order it draws down, where there is one.
-  purchaseOrderId String?
-  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  buyContractId  String?
+  buyContract    BuyContract?  @relation(fields: [buyContractId], references: [id])
+  /// The work order it draws down, where there is one.
+  workOrderId    String?
+  workOrder      WorkOrder?    @relation(fields: [workOrderId], references: [id])
   /// Where the cost lands.
-  projectOrderId  String?
-  projectOrder    ProjectOrder?  @relation(fields: [projectOrderId], references: [id])
+  projectOrderId String?
+  projectOrder   ProjectOrder? @relation(fields: [projectOrderId], references: [id])
 
   periodStart DateTime?
   periodEnd   DateTime?
@@ -3525,7 +3565,7 @@ model VendorBill {
   @@index([companyId, status])
   @@index([vendorCompanyId])
   @@index([buyContractId])
-  @@index([purchaseOrderId])
+  @@index([workOrderId])
   @@index([projectOrderId])
   @@index([dueAt])
   @@index([paidAt])
@@ -4251,31 +4291,6 @@ model InvoiceMatchOverride {
 
   @@unique([invoiceId, code]) // one live exception per check
   @@index([byId])
-}
-
-model PurchaseOrder {
-  id         String    @id @default(cuid())
-  number     String // the payer's PO number
-  issuedById String // payer — raises the PO
-  issuedBy   Company   @relation("poIssuer", fields: [issuedById], references: [id])
-  issuedToId String // vendor — invoices against it
-  issuedTo   Company   @relation("poRecipient", fields: [issuedToId], references: [id])
-  amount     Decimal   @db.Decimal(12, 2) // authorised ceiling
-  currency   String    @default("USD")
-  startDate  DateTime
-  endDate    DateTime?
-  status     String    @default("OPEN") // OPEN · CLOSED · CANCELLED
-  createdAt  DateTime  @default(now())
-
-  sellContracts         SellContract[]
-  buyContracts          BuyContract[] // the issuer's own subcontracts drawing on it
-  invoices              Invoice[]
-  vendorBills           VendorBill[]
-  /// Overrides the agreement's rungs for this order's spend.
-  earlyPaymentDiscounts EarlyPaymentDiscount[]
-
-  @@unique([issuedById, number])
-  @@index([issuedToId, status])
 }
 
 // Where a vendor is paid. Referenced on invoices so AP can remit.

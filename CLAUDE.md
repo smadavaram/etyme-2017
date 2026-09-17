@@ -648,7 +648,7 @@ So the positions on a deal are:
 | **Sub-vendor / bench** | to the prime | its own people |
 | **Consultant** | is the person | — |
 
-The buy side already knew this: `BuyContract.purchaseOrderId` is nullable
+The buy side already knew this: `BuyContract.workOrderId` is nullable
 because you do not raise a PO to your own employee, and `cyclesFor` writes
 salary cycles where there is no vendor below and vendor-bill cycles where
 there is. **The sell side did not.** `SubmissionKind.INTERNAL` has been in
@@ -657,7 +657,8 @@ the schema since it was written and nothing computes it: `POST
 `BenchListing` from every person, so a GSI cannot put its own employee in
 front of a client without that employee first agreeing to be marketed by
 the firm that already employs them. A schema that knows and a route that
-forbids — the same shape as `SalesOrder`, at the party level.
+forbids — the same shape the order layer was in until 2026-09-17, at
+the party level.
 
 **What a prime needs that a staffing vendor does not**, in the founder's
 words — building teams dynamically:
@@ -688,16 +689,16 @@ invariant in "Invariants the database must enforce" reads accordingly.
 
 ---
 
-## Agreement, order, contract — six objects, not two
+## Agreement, order, contract — five objects, not two
 
 A recurring confusion, settled here so nobody has to guess: **a sell
-contract is not a sales order and a buy contract is not a purchase
-order.** Three layers, each answering a different question.
+contract is not an order, and a buy contract is not an order either.**
+Three layers, each answering a different question.
 
 | Layer | The question it answers | Sell side | Buy side |
 |---|---|---|---|
 | **Agreement** | Are we allowed to trade at all? | `MasterAgreement` | `MasterAgreement` |
-| **Order** | How much may be spent, on what, by when? | `SalesOrder` | `PurchaseOrder` |
+| **Order** | How much may be spent, on what, by when? | `WorkOrder` | `WorkOrder` |
 | **Contract** | What rate, for which person, for how long? | `SellContract` | `BuyContract` |
 
 Two sentences carry the whole distinction:
@@ -705,27 +706,69 @@ Two sentences carry the whole distinction:
 - **An order carries a ceiling. A contract carries a rate.**
 - **An order is about money. A contract is about a person.**
 
-### Why collapsing them breaks real cases
+### It was six, and one of them was two rows for one document
 
-**A sell contract is per person; a sales order is not.** One sales order
-for a five-person project produces five sell contracts. Treating them as
-the same object makes a five-person project impossible to bill as one
+**Corrected 2026-09-17, by the founder, in two statements an hour apart:**
+
+> Work order is not separate from PO — the client gives it to the
+> supplier and it agrees rate, duration, resource and location of work.
+
+> The PO on the client side is the sales order on the vendor side.
+
+So the order layer is **one commercial document with three names**
+depending on which end of it you stand at: the client raises a **purchase
+order**, the supplier receives it as its **sales order**, and the trade
+calls the whole thing a **work order**. The product modeled that as two
+rows, `PurchaseOrder` and `SalesOrder`, and the two were not duplicates —
+each carried what the other lacked, which is why neither could be deleted
+without moving fields.
+
+**Only the thin one was ever written.** Nothing anywhere had created a
+`SalesOrder`, and three things followed from that, one of them costing
+money every night:
+
+- **Auto-approval of timesheets could never fire.** `cron/auto-approve`
+  reads `autoApproveTimesheets` off the order. No order row existed to
+  carry it, so the flag was false on every timesheet in the world and the
+  nightly job approved nothing from the day it was written.
+- **Milestone billing was unreachable**, and the Milestones screen was
+  permanently empty for every user.
+- **The four-party split was unreachable** — a client that signs in one
+  entity, is billed through a shared service center, has the work done at
+  a third site and pays from a fourth. The first thing a large enterprise
+  asks for.
+
+One row now: **`WorkOrder`**. The name is the trade's own and belongs to
+neither end, which is the point — `lib/order-naming` decides what each
+reader is shown, and nothing user-facing ever says "work order" to
+somebody who is a party to it. The URL stays `/api/purchase-orders` and
+the event stays `purchase_order.raised`, by the same precedent that kept
+the demo slug `world-nike`: an address is not a word anybody reads.
+
+### Why collapsing the layers still breaks real cases
+
+**A sell contract is per person; an order is not.** One order for a
+five-person project produces five sell contracts. That survived the merge
+unchanged and is the reason the order layer exists at all — treating them
+as one object makes a five-person project impossible to bill as one
 commitment.
 
-**A buy contract to a W2 employee has no purchase order.** You do not
-raise a PO to your own employee. This is the clearest proof they are
-different things: `BuyContract.purchaseOrderId` is nullable precisely
-because roughly half of all buy contracts have none. Where there *is* a
-sub-vendor, the buy contract and the PO describe the same commercial
-relationship from two angles — the contract carries the rate, the PO
+**A buy contract to a W2 employee has no order.** You do not raise a
+purchase order to your own employee. This is the clearest proof they are
+different things: `BuyContract.workOrderId` is nullable precisely because
+roughly half of all buy contracts have none. Where there *is* a
+sub-vendor, the buy contract and the order describe the same commercial
+relationship from two angles — the contract carries the rate, the order
 carries the ceiling it draws down — and linking them stops the two
 records disagreeing.
 
-**A purchase order belongs to whoever pays.** `PurchaseOrder.issuedById`
-is the payer, which is why the model appears on both sides:
-`SellContract.purchaseOrderId` is the *client's* PO authorising spend
-with us; `BuyContract.purchaseOrderId` is *our* PO authorising spend with
-a sub-vendor. Same model, opposite direction.
+**An order belongs to whoever pays.** `WorkOrder.issuedById` is the
+buyer, which is why one model serves both directions:
+`SellContract.workOrderId` is the *client's* order authorizing spend with
+us; `BuyContract.workOrderId` is *our* order authorizing spend with a
+sub-vendor. Same model, opposite direction, and which direction a reader
+is looking from decides whether the screen says "purchase order" or
+"sales order".
 
 ### And the two that are neither
 
@@ -738,9 +781,10 @@ a sub-vendor. Same model, opposite direction.
 
 ### The invariant that is not yet enforced
 
-A `BuyContract` with `contractType: W2` and a `purchaseOrderId` set is a
-contradiction — a purchase order raised to an employee. Nothing currently
-refuses it. It belongs in `etyme-money`'s next piece of work.
+A `BuyContract` with `contractType: W2` and a `workOrderId` set is a
+contradiction — a purchase order raised to an employee. `POST
+/api/contracts` refuses it on the way in; nothing refuses it on an
+update. It belongs in `etyme-money`'s next piece of work.
 
 ---
 

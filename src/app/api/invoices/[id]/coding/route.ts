@@ -98,7 +98,7 @@ export async function GET(
           },
         },
       },
-      purchaseOrder: {
+      workOrder: {
         select: { id: true, number: true, amount: true, status: true, endDate: true },
       },
       remitTo: {
@@ -170,7 +170,7 @@ export async function GET(
       dueDate,
       vendor: invoice.engagement.msa.vendor.name,
       billTo: invoice.engagement.msa.client.name,
-      poNumber: invoice.purchaseOrder?.number ?? null,
+      poNumber: invoice.workOrder?.number ?? null,
       personName: line.personName ?? 'Unknown',
       currency: invoice.currency,
     }
@@ -219,21 +219,21 @@ export async function GET(
   // paying — an invoice that takes the PO past its ceiling needs a change
   // order, not a payment run.
   let poState: ReturnType<typeof poBalance> & { number: string } | null = null
-  if (invoice.purchaseOrder) {
+  if (invoice.workOrder) {
     const drawn = await prisma.invoice.aggregate({
       where: {
-        purchaseOrderId: invoice.purchaseOrder.id,
+        workOrderId: invoice.workOrder.id,
         status: { not: 'CANCELLED' },
       },
       _sum: { total: true },
     })
     poState = {
-      number: invoice.purchaseOrder.number,
+      number: invoice.workOrder.number,
       ...poBalance({
-        amountCents: Math.round(Number(invoice.purchaseOrder.amount) * 100),
+        amountCents: Math.round(Number(invoice.workOrder.amount) * 100),
         invoicedCents: Math.round(Number(drawn._sum.total ?? 0) * 100),
-        status: invoice.purchaseOrder.status as any,
-        endDate: invoice.purchaseOrder.endDate,
+        status: invoice.workOrder.status as any,
+        endDate: invoice.workOrder.endDate,
       }),
     }
   }
@@ -329,7 +329,7 @@ export async function GET(
       },
       vendor: invoice.engagement.msa.vendor,
       billTo: invoice.engagement.msa.client,
-      purchaseOrder: invoice.purchaseOrder?.number ?? null,
+      workOrder: invoice.workOrder?.number ?? null,
       purchaseOrderBalance: poState,
       remitTo: invoice.remitTo,
       rows,

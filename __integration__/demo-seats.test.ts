@@ -514,7 +514,7 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
     const buy = await prisma.buyContract.findFirstOrThrow({ where: { companyId: co.id } })
     expect(buy.contractType).toBe('W2')
     expect(buy.vendorCompanyId).toBeNull()
-    expect(buy.purchaseOrderId).toBeNull()
+    expect(buy.workOrderId).toBeNull()
   })
 
   it('records that submission as internal, because the firm already employs the person it put forward', async () => {

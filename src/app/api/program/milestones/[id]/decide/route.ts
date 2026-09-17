@@ -68,8 +68,8 @@ export async function POST(
       acceptedAt: true, status: true, note: true,
       order: {
         select: {
-          id: true, companyId: true, soldToId: true, billToId: true, payerId: true,
-          company: { select: { name: true } },
+          id: true, issuedToId: true, issuedById: true, billToId: true, payerId: true,
+          issuedTo: { select: { name: true } },
         },
       },
     },
@@ -83,8 +83,8 @@ export async function POST(
   }
 
   const may = mayDecideAs(companyId, {
-    sellerCompanyId: milestone.order.companyId,
-    clientCompanyIds: [milestone.order.soldToId, milestone.order.billToId, milestone.order.payerId]
+    sellerCompanyId: milestone.order.issuedToId,
+    clientCompanyIds: [milestone.order.issuedById, milestone.order.billToId, milestone.order.payerId]
       .filter((x): x is string => !!x),
   })
   if (!may.ok) {

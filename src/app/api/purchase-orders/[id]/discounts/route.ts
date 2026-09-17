@@ -35,7 +35,7 @@ import { ladderFor, rateWords } from '@/lib/billing-cascade'
 const CAP_BPS = 1_000
 
 async function mine(id: string, companyId: string) {
-  return prisma.purchaseOrder.findFirst({
+  return prisma.workOrder.findFirst({
     where: { id, OR: [{ issuedById: companyId }, { issuedToId: companyId }] },
     select: {
       id: true, number: true, issuedById: true,
@@ -74,14 +74,14 @@ export async function GET(
   }
 
   const rows = await prisma.earlyPaymentDiscount.findMany({
-    where: { purchaseOrderId: id },
+    where: { workOrderId: id },
     orderBy: { withinDays: 'asc' },
   })
   const ladder = ladderFor({ order: rows })
 
   return NextResponse.json({
     data: {
-      purchaseOrder: { id: po.id, number: po.number },
+      workOrder: { id: po.id, number: po.number },
       rungs: ladder.rungs,
       says: ladder.says,
       // Only the payer sets them. The supplier reads what it has been
@@ -187,9 +187,9 @@ export async function POST(
       // One rate per window per document — a second rung at ten days
       // would mean two answers to one question, so agreeing it again
       // moves the rate rather than stacking.
-      where: { purchaseOrderId_withinDays: { purchaseOrderId: id, withinDays } },
+      where: { workOrderId_withinDays: { workOrderId: id, withinDays } },
       create: {
-        purchaseOrderId: id,
+        workOrderId: id,
         withinDays,
         discountBps,
         note: typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null,
@@ -201,7 +201,7 @@ export async function POST(
     })
 
     const rows = await prisma.earlyPaymentDiscount.findMany({
-      where: { purchaseOrderId: id },
+      where: { workOrderId: id },
       orderBy: { withinDays: 'asc' },
     })
     const ladder = ladderFor({ order: rows })

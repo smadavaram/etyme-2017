@@ -48,12 +48,12 @@ export async function GET(request: NextRequest) {
 
   const orderId = request.nextUrl.searchParams.get('orderId')
 
-  const orders = await prisma.salesOrder.findMany({
+  const orders = await prisma.workOrder.findMany({
     where: {
       ...(orderId ? { id: orderId } : {}),
       OR: [
-        { companyId },
-        { soldToId: companyId },
+        { issuedToId: companyId },
+        { issuedById: companyId },
         { billToId: companyId },
         { payerId: companyId },
       ],
@@ -65,13 +65,13 @@ export async function GET(request: NextRequest) {
       status: true,
       billingBasis: true,
       currency: true,
-      ceilingCents: true,
-      companyId: true,
-      soldToId: true,
+      amount: true,
+      issuedToId: true,
+      issuedById: true,
       billToId: true,
       payerId: true,
-      company: { select: { id: true, name: true } },
-      soldTo: { select: { id: true, name: true } },
+      issuedTo: { select: { id: true, name: true } },
+      issuedBy: { select: { id: true, name: true } },
       milestones: {
         select: {
           id: true, name: true, amountCents: true, dueOn: true,
@@ -90,8 +90,8 @@ export async function GET(request: NextRequest) {
 
   const rows = orders.map((o) => {
     const sides = {
-      sellerCompanyId: o.companyId,
-      clientCompanyIds: [o.soldToId, o.billToId, o.payerId].filter((x): x is string => !!x),
+      sellerCompanyId: o.issuedToId,
+      clientCompanyIds: [o.issuedById, o.billToId, o.payerId].filter((x): x is string => !!x),
     }
 
     const milestones: Milestone[] = o.milestones.map((m) => ({
@@ -116,11 +116,14 @@ export async function GET(request: NextRequest) {
       status: o.status,
       billingBasis: o.billingBasis,
       currency: o.currency,
-      ceilingCents: o.ceilingCents,
-      seller: o.company,
-      client: o.soldTo,
+      // The ceiling, in the minor units every other figure on this
+      // screen is in. `amount` is a decimal on the row because that is
+      // what a purchase order is written in.
+      ceilingCents: Math.round(Number(o.amount) * 100),
+      seller: o.issuedTo,
+      client: o.issuedBy,
       /** Which side of this order the reader is on. */
-      yourRole: companyId === o.companyId ? 'SELLER' : 'CLIENT',
+      yourRole: companyId === o.issuedToId ? 'SELLER' : 'CLIENT',
       may: { deliver: canDeliver, decide: canDecide },
       standing: standing(milestones, now),
       milestones: o.milestones.map((m, i) => {
@@ -209,10 +212,10 @@ export async function POST(request: NextRequest) {
     return bad('A milestone is worth a whole number of cents, above zero.', 'amountCents')
   }
 
-  const order = await prisma.salesOrder.findUnique({
+  const order = await prisma.workOrder.findUnique({
     where: { id: orderId },
     select: {
-      id: true, companyId: true, soldToId: true, billToId: true, payerId: true,
+      id: true, issuedToId: true, issuedById: true, billToId: true, payerId: true,
       billingBasis: true, status: true,
     },
   })
@@ -222,8 +225,8 @@ export async function POST(request: NextRequest) {
   }
 
   const may = mayDeliverAs(companyId, {
-    sellerCompanyId: order.companyId,
-    clientCompanyIds: [order.soldToId, order.billToId, order.payerId].filter((x): x is string => !!x),
+    sellerCompanyId: order.issuedToId,
+    clientCompanyIds: [order.issuedById, order.billToId, order.payerId].filter((x): x is string => !!x),
   })
   if (!may.ok) {
     return NextResponse.json({ error: { code: 'NOT_YOURS', message: may.says } }, { status: 403 })

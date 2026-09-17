@@ -213,7 +213,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
           // No purchase order on either of these legs. A PO raised to
           // your own employee is a contradiction, and the consultant's
           // own company is paid against the contract's rate.
-          purchaseOrderId: null,
+          workOrderId: null,
         },
       })
       await db.buyContractCandidate.create({

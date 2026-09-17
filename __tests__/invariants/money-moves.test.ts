@@ -44,7 +44,7 @@ describe('a bill that did not match is a decision for the desk that pays', () =>
 describe('a milestone bills on acceptance', () => {
   it('generation picks up accepted milestones on the engagement’s orders, bills them as lines with the milestone behind, and marks them INVOICED', () => {
     const g = read('src/app/api/invoices/generate/route.ts')
-    expect(g).toContain("where: { status: 'ACCEPTED', order: { engagementId, companyId: caller.company!.id } }")
+    expect(g).toContain("where: { status: 'ACCEPTED', order: { engagementId, issuedToId: caller.company!.id } }")
     expect(g).toMatch(/milestoneId: m\.id,\s*timesheetId: null,\s*sellContractId: null,\s*personId: null/)
     expect(g).toContain("await tx.orderMilestone.update({ where: { id: m.id }, data: { status: 'INVOICED' } })")
   })

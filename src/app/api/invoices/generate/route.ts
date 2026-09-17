@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
       overtimeDecisions: true,
       sellContract: {
         select: {
-          id: true, billRate: true, billCurrency: true, purchaseOrderId: true,
+          id: true, billRate: true, billCurrency: true, workOrderId: true,
           overtimeAfterHours: true, overtimeMultiplierBps: true,
           startDate: true,
           // The contract says what a period is. Without these three the
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
         id: ours.id,
         billRate: ours.billRate,
         billCurrency: ours.billCurrency,
-        purchaseOrderId: ours.purchaseOrderId,
+        workOrderId: ours.workOrderId,
         // From the contract being billed, never the one underneath it.
         // A prime's overtime terms with its client are its own; reading
         // the sub's here would bill the client on somebody else's
@@ -252,11 +252,11 @@ export async function POST(request: NextRequest) {
 
   // ── Milestones accepted under this engagement's orders ──────────────
   //
-  // A fixed sum the client has accepted, on a sales order for this
+  // A fixed sum the client has accepted, on a work order for this
   // engagement, not yet billed. No person and no contract behind it —
   // the acceptance is the receipt.
   const milestones = await prisma.orderMilestone.findMany({
-    where: { status: 'ACCEPTED', order: { engagementId, companyId: caller.company!.id } },
+    where: { status: 'ACCEPTED', order: { engagementId, issuedToId: caller.company!.id } },
     include: { order: { select: { id: true, number: true, title: true } } },
     orderBy: { acceptedAt: 'asc' },
   })
@@ -743,8 +743,8 @@ export async function POST(request: NextRequest) {
           payerId: partners.payer.party.id,
           // Inherit the PO the work was authorized under. Without it the
           // three-way match has only two records to compare.
-          purchaseOrderId: billing.find(t => t.sellContract.purchaseOrderId)
-            ?.sellContract.purchaseOrderId ?? null,
+          workOrderId: billing.find(t => t.sellContract.workOrderId)
+            ?.sellContract.workOrderId ?? null,
         },
       })
 

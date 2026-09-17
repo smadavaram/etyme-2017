@@ -83,8 +83,8 @@ describe('the last money moves', () => {
   })
 
   it('a milestone Nike accepted bills on the next invoice as a line with the acceptance behind it, and the match takes it as the receipt', async () => {
-    const order = await prisma.salesOrder.create({
-      data: { companyId: co['world-pinnacle'], engagementId: it_.omar.engagementId!, number: 'SO-NIKE-01', title: 'Analytics phase one', soldToId: co['world-nike'], status: 'OPEN', startDate: day(-30) },
+    const order = await prisma.workOrder.create({
+      data: { issuedToId: co['world-pinnacle'], recordedById: co['world-pinnacle'], engagementId: it_.omar.engagementId!, number: 'SO-NIKE-01', title: 'Analytics phase one', issuedById: co['world-nike'], status: 'OPEN', billingBasis: 'MILESTONE', amount: 500, startDate: day(-30) },
       select: { id: true },
     })
     const m = await prisma.orderMilestone.create({ data: { orderId: order.id, name: 'Data model signed off', amountCents: 500_000, status: 'ACCEPTED', acceptedAt: day(-2) }, select: { id: true } })

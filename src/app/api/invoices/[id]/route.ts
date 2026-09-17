@@ -41,7 +41,7 @@ export async function GET(
   const invoice = await prisma.invoice.findFirst({
     where: { id, ...scope },
     include: {
-      purchaseOrder: {
+      workOrder: {
         select: {
           id: true, number: true, amount: true, status: true, endDate: true,
           // What we offer this client for settling early on this order.
@@ -146,7 +146,7 @@ export async function GET(
   // The standing ladder, narrowed by the order's own where there is one.
   const ladder = ladderFor({
     agreement: invoice.engagement.msa.earlyPaymentDiscounts,
-    order: invoice.purchaseOrder?.earlyPaymentDiscounts ?? [],
+    order: invoice.workOrder?.earlyPaymentDiscounts ?? [],
   })
 
   const grossMinor = decimalToCents(invoice.total)
@@ -202,13 +202,13 @@ export async function GET(
         vendor: invoice.engagement.msa.vendor,
         client: invoice.engagement.msa.client,
       },
-      purchaseOrder: invoice.purchaseOrder
+      workOrder: invoice.workOrder
         ? {
-            id: invoice.purchaseOrder.id,
-            number: invoice.purchaseOrder.number,
-            status: invoice.purchaseOrder.status,
-            amount: decimalToCents(invoice.purchaseOrder.amount) / 100,
-            endDate: invoice.purchaseOrder.endDate?.toISOString().slice(0, 10) ?? null,
+            id: invoice.workOrder.id,
+            number: invoice.workOrder.number,
+            status: invoice.workOrder.status,
+            amount: decimalToCents(invoice.workOrder.amount) / 100,
+            endDate: invoice.workOrder.endDate?.toISOString().slice(0, 10) ?? null,
           }
         : null,
       // Each line with the receipt behind it. A line whose timesheet is not
@@ -261,7 +261,7 @@ export async function GET(
               // Say plainly whether this is anybody's to wave through.
               overridable: OVERRIDABLE[c.code],
             })),
-            purchaseOrder: match.poAfter
+            workOrder: match.poAfter
               ? {
                   remaining: match.poAfter.remainingCents / 100,
                   utilisationPercent: match.poAfter.utilisationPercent,

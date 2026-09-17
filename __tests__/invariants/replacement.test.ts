@@ -47,7 +47,7 @@ describe('the route keeps the history where it belongs', () => {
   it('ends the old sell contract the day before and creates a new one on the same terms', () => {
     expect(route).toContain("await tx.sellContract.update({ where: { id: old.id }, data: { state: 'ENDED', endDate: verdict.endsOn } })")
     expect(route).toContain('billRate: old.billRate,')
-    expect(route).toContain('purchaseOrderId: old.purchaseOrderId,')
+    expect(route).toContain('workOrderId: old.workOrderId,')
   })
   it('marks the old candidate REPLACED, the new one ACTIVE, and links the buy contract to the new sell contract', () => {
     expect(route).toContain("data: { state: 'REPLACED', endDate: verdict.endsOn }")

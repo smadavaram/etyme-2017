@@ -21,6 +21,14 @@ import { ListSurface, type Column } from '@/components/list-surface'
 interface PO {
   id: string
   number: string
+  /** What this reader calls it: "purchase order" or "sales order". */
+  noun: string
+  /** PO · SO. One row, read from whichever end you stand at. */
+  short: string
+  /** Their number, or ours where we kept one. */
+  reference: string
+  /** Said out loud where the other end has not joined. */
+  offSystem: string | null
   direction: 'issued' | 'received'
   counterparty: { id: string; name: string }
   currency: string
@@ -81,7 +89,7 @@ export default function PurchaseOrdersPage() {
     try {
       const res = await fetch('/api/purchase-orders')
       const body = await readJson(res)
-      setPos(body.data.purchaseOrders)
+      setPos(body.data.orders)
       setCanRaise(body.data.canRaise)
       setNeedsAttention(body.data.needsAttention)
     } catch (e: any) {
@@ -233,7 +241,14 @@ export default function PurchaseOrdersPage() {
 
 
 const PO_COLUMNS: Column<PO>[] = [
-  { key: 'number', label: 'PO', render: (po) => <span className="font-mono text-etyme-ink">{po.number}</span> },
+  // A client reads its own purchase orders; a supplier reads the same
+  // rows as its sales orders. One list, and each row says which it is —
+  // a GSI has both in the same week.
+  { key: 'number', label: 'Reference', render: (po) => (
+    <span className="font-mono text-etyme-ink">
+      <span className="text-etyme-faint mr-1.5">{po.short}</span>{po.reference}
+    </span>
+  ), sortValue: (po) => po.reference },
   { key: 'counterparty', label: 'With', render: (po) => <span className="text-etyme-muted">{po.direction === 'issued' ? 'to' : 'from'} {po.counterparty.name}</span>, sortValue: (po) => po.counterparty.name },
   { key: 'amount', label: 'Ceiling', align: 'right', render: (po) => <span className="tabular-nums">{money(po.amount, po.currency)}</span> },
   { key: 'invoiced', label: 'Invoiced', align: 'right', render: (po) => <span className="tabular-nums">{money(po.invoiced, po.currency)}</span>, hideOnMobile: true },
@@ -245,9 +260,14 @@ const PO_COLUMNS: Column<PO>[] = [
 function Row({ po }: { po: PO }) {
   return (
     <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4">
+      {po.offSystem && (
+        <p className="text-[12px] text-etyme-muted mb-2">{po.offSystem}</p>
+      )}
       <div className="flex items-baseline justify-between gap-4 mb-2">
         <div>
-          <span className="text-[14px] font-mono text-etyme-ink">{po.number}</span>
+          <span className="text-[14px] font-mono text-etyme-ink">
+            <span className="text-etyme-faint mr-1.5 text-[12px]">{po.short}</span>{po.reference}
+          </span>
           <span className="ml-3 text-[13px] text-etyme-muted">
             {po.direction === 'issued' ? 'to' : 'from'} {po.counterparty.name}
           </span>

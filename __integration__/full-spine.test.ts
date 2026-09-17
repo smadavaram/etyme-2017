@@ -609,14 +609,14 @@ describe('Step 10 — Auralis commits the budget before it commits to a person',
       currency: 'USD', startDate: '2026-09-14', endDate: '2027-09-13',
     })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    it_.po = r.body.data.purchaseOrder?.id ?? r.body.data.id
-    const po = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: it_.po } })
+    it_.po = r.body.data.order?.id ?? r.body.data.id
+    const po = await prisma.workOrder.findUniqueOrThrow({ where: { id: it_.po } })
     expect(po.issuedById).toBe(co.adobe)
     expect(po.issuedToId).toBe(co.prime)
   })
 
   it('carries a ceiling, not a rate — $259,200 for 1,920 hours at $135', async () => {
-    const po = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: it_.po } })
+    const po = await prisma.workOrder.findUniqueOrThrow({ where: { id: it_.po } })
     expect(Number(po.amount)).toBe(259_200)
     expect(13_500 * 1_920).toBe(25_920_000) // the same number, in cents
   })
@@ -809,10 +809,10 @@ describe('Step 13 — the contracts are activated, and the PO is attached', () =
     // AP clerk would do by hand, and it is the reason the invoice
     // matches in Step 18 rather than aging unmatched.
     await prisma.sellContract.update({
-      where: { id: it_.primeSell }, data: { purchaseOrderId: it_.po },
+      where: { id: it_.primeSell }, data: { workOrderId: it_.po },
     })
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.primeSell } })
-    expect(sell.purchaseOrderId).toBe(it_.po)
+    expect(sell.workOrderId).toBe(it_.po)
   })
 
   it('activates both buy contracts so payroll has something to pay against', async () => {
@@ -1435,7 +1435,7 @@ describe('Step 19 — the same week reaches Auralis, at Auralis’s rate', () =>
   })
 
   it('draws the invoice down against the purchase order that authorized it', async () => {
-    const po = await prisma.purchaseOrder.findUniqueOrThrow({
+    const po = await prisma.workOrder.findUniqueOrThrow({
       where: { id: it_.po }, include: { invoices: true },
     })
     expect(po.invoices.map(i => i.id)).toEqual([it_.primeInvoice])

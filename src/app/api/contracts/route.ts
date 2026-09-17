@@ -12,6 +12,7 @@ import { payerScope, sellContractScope, buyContractScope } from '@/lib/resolve-c
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { canAttachPoToBuyContract } from '@/lib/purchase-order'
+import { mayNameCounterparty } from '@/lib/off-system'
 
 /**
  * POST /api/contracts
@@ -145,6 +146,85 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // ── The client on the other side of it ─────────────────────────────
+  //
+  // This is the route a staffing firm uses to put its existing book in,
+  // and until now it could not: `clientCompanyId` had to name a company
+  // that already existed, and every client it already works with is one
+  // that has never heard of us. So a firm that arrives before its clients
+  // had no way to record a single placement it was already running.
+  //
+  // Two things are checked here and neither was before. The client must
+  // exist — a foreign-key error is not a sentence anybody can act on —
+  // and naming it must be the caller's to do. A firm not on Etyme is a
+  // shell and anybody may record their own dealings with it. A firm that
+  // *is* here is a tenant with its own desks, and asserting it is your
+  // client without anybody there involved is the thing CLAUDE.md refuses
+  // under the MSP seat.
+  //
+  // `endClientCompanyId` is deliberately not checked the same way yet: it
+  // is the top of a chain the caller often does not trade with directly,
+  // and the rule for it is a different one. Said out loud rather than
+  // left looking finished.
+  const clientCompany = await prisma.company.findUnique({
+    where: { id: clientCompanyId },
+    select: { id: true, name: true, claimedAt: true, listedById: true },
+  })
+
+  if (!clientCompany) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message:
+            'No company of that id. If the client is not on Etyme, put them on your register first — POST /api/clients with their name — and use the id it gives you.',
+          field: 'clientCompanyId',
+        },
+      },
+      { status: 404 }
+    )
+  }
+
+  const relationshipExists =
+    clientCompany.claimedAt == null
+      ? true
+      : Boolean(
+          (await prisma.masterAgreement.findFirst({
+            where: { vendorId: companyId, clientId: clientCompanyId },
+            select: { id: true },
+          })) ??
+            (await prisma.counterparty.findFirst({
+              where: {
+                OR: [
+                  { companyId, otherCompanyId: clientCompanyId },
+                  { companyId: clientCompanyId, otherCompanyId: companyId },
+                ],
+              },
+              select: { id: true },
+            })) ??
+            (await prisma.sellContract.findFirst({
+              where: { companyId, clientCompanyId },
+              select: { id: true },
+            })) ??
+            (await prisma.requirementInvitation.findFirst({
+              where: { toCompanyId: companyId, requirement: { companyId: clientCompanyId } },
+              select: { id: true },
+            }))
+        )
+
+  const naming = mayNameCounterparty({
+    callerCompanyId: companyId,
+    other: clientCompany,
+    relationshipExists,
+    as: 'client',
+  })
+  if (!naming.ok) {
+    return NextResponse.json(
+      { error: { code: 'NOT_YOURS', message: naming.says, field: 'clientCompanyId' } },
+      { status: 403 }
+    )
+  }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       // ── The paper behind the contract ─────────────────────────────
@@ -213,7 +293,7 @@ export async function POST(request: NextRequest) {
             entityId: entityId ?? null,
             payCurrency: payCurrency ?? 'USD',
             contractType: contractType ?? 'W2',
-            purchaseOrderId: buyPurchaseOrderId ?? null,
+            workOrderId: buyPurchaseOrderId ?? null,
             state: 'DRAFT',
             startDate: start,
             endDate: end,

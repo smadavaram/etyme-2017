@@ -87,7 +87,7 @@ are two sell contracts.
 
 **`BuyContract.supplierSellContractId`** is that edge — null when the
 person is our own employee, which is where the ladder ends, the same
-reason `purchaseOrderId` is nullable. The walk asserts both: Contract
+reason `workOrderId` is nullable. The walk asserts both: Contract
 1's buy side points at Contract 2's sell side, and Contract 2's buy side
 points at nobody.
 

@@ -210,7 +210,7 @@ async function lookAtCoverGaps(now: Date): Promise<Finding[]> {
 }
 
 async function lookAtPurchaseOrders(now: Date): Promise<Finding[]> {
-  const rows = await prisma.purchaseOrder.findMany({
+  const rows = await prisma.workOrder.findMany({
     where: { status: 'OPEN' },
     select: {
       id: true, issuedById: true, number: true, amount: true, endDate: true, status: true,

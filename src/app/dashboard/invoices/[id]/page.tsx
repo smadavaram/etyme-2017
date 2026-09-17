@@ -297,10 +297,10 @@ export default function InvoiceDetail() {
             <div>
               <Lbl>{m.matched ? (m.cleanMatch ? 'Matched' : 'Matched with exceptions') : 'Does not match'}</Lbl>
               <p className="font-serif text-lg text-etyme-ink mt-1 text-balance">{m.summary}</p>
-              {m.purchaseOrder && (
+              {m.workOrder && (
                 <p className="text-sm text-etyme-muted mt-1 tabular-nums">
-                  {amountFromUnits(m.purchaseOrder.remaining)} left on the purchase order
-                  {' · '}{m.purchaseOrder.utilisationPercent}% used
+                  {amountFromUnits(m.workOrder.remaining)} left on the purchase order
+                  {' · '}{m.workOrder.utilisationPercent}% used
                 </p>
               )}
             </div>
@@ -357,10 +357,10 @@ export default function InvoiceDetail() {
         </div>
       </section>
 
-      {data.purchaseOrder && (
+      {data.workOrder && (
         <p className="text-xs text-etyme-faint mt-8 pt-6 border-t border-etyme-rule">
-          Raised against purchase order {data.purchaseOrder.number} — {amountFromUnits(data.purchaseOrder.amount)} authorized,
-          {data.purchaseOrder.endDate ? ` running to ${data.purchaseOrder.endDate}` : ' open ended'}.
+          Raised against purchase order {data.workOrder.number} — {amountFromUnits(data.workOrder.amount)} authorized,
+          {data.workOrder.endDate ? ` running to ${data.workOrder.endDate}` : ' open ended'}.
           An approved timesheet is the receipt: no receipt, no payment.
         </p>
       )}

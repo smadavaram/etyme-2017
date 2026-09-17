@@ -43,7 +43,7 @@ describe('what paying early is worth', () => {
     expect(orphan.ok).toBe(false)
     expect(orphan.says).toContain('a rung on nothing would apply to everything')
 
-    const twoMasters = ownerOf({ id: 'r1', msaId: 'm', salesOrderId: 's', withinDays: 10, discountBps: 200 })
+    const twoMasters = ownerOf({ id: 'r1', msaId: 'm', workOrderId: 's', withinDays: 10, discountBps: 200 })
     expect(twoMasters.ok).toBe(false)
     expect(twoMasters.says).toContain('It was agreed in one of them. Which?')
   })
@@ -51,7 +51,7 @@ describe('what paying early is worth', () => {
   it("an order's own terms replace the agreement's for its own spend, and are never merged with them", () => {
     const ladder = ladderFor({
       agreement: [rung({ withinDays: 20, discountBps: 100 }), rung({ withinDays: 10, discountBps: 200 })],
-      order: [{ id: 'o1', purchaseOrderId: 'po-1', withinDays: 15, discountBps: 150 }],
+      order: [{ id: 'o1', workOrderId: 'po-1', withinDays: 15, discountBps: 150 }],
     })
 
     // One rung, from the order. Taking 2/10 from the agreement and 1.5/15
@@ -194,13 +194,13 @@ describe('what paying early is worth', () => {
     expect(route).toContain('A rung with nothing off it is not a term')
     expect(route).toContain('it is a renegotiation')
     // Agreeing the same window again moves the rate rather than stacking.
-    expect(route).toContain('purchaseOrderId_withinDays')
+    expect(route).toContain('workOrderId_withinDays')
   })
 
   it('the invoice shows what settles it sooner, from the ladder in force', () => {
     const api = read('src/app/api/invoices/[id]/route.ts')
     expect(api).toContain('ladderFor({')
-    expect(api).toContain('order: invoice.purchaseOrder?.earlyPaymentDiscounts')
+    expect(api).toContain('order: invoice.workOrder?.earlyPaymentDiscounts')
     expect(api).toContain('anchoredOn: clock.anchoredOn')
     const page = read('src/app/dashboard/invoices/[id]/page.tsx')
     expect(page).toContain('inv.earlyPayment?.discount > 0')
