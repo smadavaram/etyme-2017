@@ -7,9 +7,14 @@ import { negotiation, mayMove, messageFor, type Event, type Move } from '@/lib/r
  * GET  /api/me/submissions/:id/rate — where the rate has got to
  * POST /api/me/submissions/:id/rate — the candidate's move
  *
- * The rate on a submission is set by the vendor, and the person it
- * concerns has had no move at all. They consent to being put forward
- * and then the number attached to them is somebody else's decision.
+ * What a consultant is paid is agreed with the firm that pays them, and
+ * the person it concerns has had no move at all — they consent to being
+ * put forward and then the number is somebody else's decision. This is
+ * where they get one.
+ *
+ * Nothing here reads the rate on the submission. That is the sell-side
+ * price at that rung, between two firms, and it is not what anybody
+ * offered the person.
  *
  * The whole negotiation lives in the conversation on that submission —
  * `Conversation.topic = 'SUBMISSION'`, messages of type
@@ -23,7 +28,7 @@ async function load(submissionId: string, personId: string) {
   const submission = await prisma.submission.findUnique({
     where: { id: submissionId },
     select: {
-      id: true, personId: true, rate: true, status: true, fromCompanyId: true,
+      id: true, personId: true, status: true, fromCompanyId: true,
       requirement: { select: { title: true } },
       fromCompany: { select: { id: true, name: true } },
     },
@@ -46,14 +51,26 @@ async function load(submissionId: string, personId: string) {
       })
     : []
 
-  // The vendor's original rate is the opening offer, whether or not
-  // anybody wrote it into the thread. Ignoring it would show a
-  // consultant "no rate proposed" next to a submission that plainly has
-  // one.
+  // ── Why there is no opening offer from the vendor ──────────────────
+  //
+  // This used to seed the timeline with `submission.rate` as the
+  // vendor's opening OFFER, on the reasoning that ignoring it would show
+  // a consultant "no rate proposed" beside a submission that plainly has
+  // a rate on it. The reasoning rested on a misreading of the column.
+  //
+  // `Submission.rate` is the price at that rung — what the sending firm
+  // charges the receiving firm — and the schema settles it on
+  // `parentSubmissionId`: a sub at $62 and the prime above it at $95 are
+  // two rows of one chain. It was never an offer to the candidate. On
+  // the seeded world this told Karthik "they offered you $136/hr" while
+  // his employer pays him $89 — the markup, stated as a proposal, to the
+  // one person who may not read it (matrix L3.7.3.5).
+  //
+  // So the timeline carries only what somebody actually said to the
+  // candidate, in the thread. "No rate has been proposed yet" is the
+  // true answer where nobody has, and the candidate may still open with
+  // their own ask — `mayCounter` is true from NOT_STARTED.
   const events: Event[] = []
-  if (submission.rate > 0) {
-    events.push({ at: new Date(0), by: 'VENDOR', move: 'OFFER', cents: submission.rate })
-  }
   for (const m of messages) {
     const meta = (m.metadata ?? {}) as any
     const move = String(meta.move ?? '') as Move

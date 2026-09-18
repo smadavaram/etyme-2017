@@ -81,9 +81,35 @@ export async function GET(request: NextRequest) {
   // per-requirement choice for the vendor to make.
   const payLines = await prisma.buyContractCandidate.findMany({
     where: { personId: caller.person.id, state: 'ACTIVE' },
-    select: { payRate: true, payCurrency: true, startDate: true, buyContract: { select: { companyId: true } } },
+    select: {
+      payRate: true, payCurrency: true, startDate: true,
+      buyContract: { select: { companyId: true, supplierSellContractId: true } },
+    },
   })
-  const payByCompany = new Map(payLines.map(l => [l.buyContract.companyId, l]))
+
+  // ── Only the leg that reaches the person ───────────────────────────
+  //
+  // Every rung of a chain has a sell contract naming the person, and the
+  // query above pulls all of them, so this list has a row per rung. Every
+  // rung also has a `BuyContractCandidate` with that person's name on it
+  // — award writes one at each hop — and at every rung but the bottom its
+  // `payRate` is what one firm pays another firm for that person's hours.
+  // That is a sell-side price one rung down. Showing it to the person as
+  // "your pay" hands them a markup, which is the same defect as reading
+  // `Submission.rate` on their own screen.
+  //
+  // `supplierSellContractId` is exactly the rung below, and null means
+  // there is none: this firm pays the person (or their own corporation)
+  // directly, so the figure is theirs. Anything else is withheld with a
+  // sentence rather than shown — including the rare case of a
+  // corp-to-corp consultant whose own company happens to hold a sell
+  // contract here, where a blank is the safe direction to be wrong in.
+  const paysAnybody = new Map(payLines.map(l => [l.buyContract.companyId, l]))
+  const payByCompany = new Map(
+    payLines
+      .filter(l => l.buyContract.supplierSellContractId === null)
+      .map(l => [l.buyContract.companyId, l])
+  )
 
   return NextResponse.json({
     data: {
@@ -102,7 +128,14 @@ export async function GET(request: NextRequest) {
         payCurrency: payByCompany.get(c.companyId)?.payCurrency ?? null,
         rateNote: payByCompany.has(c.companyId)
           ? null
-          : 'Your rate is not recorded on Etyme for this placement. Your agency has it.',
+          : paysAnybody.has(c.companyId)
+            // Two different blanks, and saying which one it is matters:
+            // one is a gap in the record, the other is a rate that was
+            // never theirs to read.
+            ? 'This firm buys you from another supplier, so what it pays is a ' +
+              'price between two firms and not your rate. Yours is on the agreement ' +
+              'with whoever employs you.'
+            : 'Your rate is not recorded on Etyme for this placement. Your agency has it.',
         state: c.state,
         startDate: c.startDate.toISOString().slice(0, 10),
         endDate: c.endDate?.toISOString().slice(0, 10) ?? null,

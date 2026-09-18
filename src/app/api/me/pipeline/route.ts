@@ -70,9 +70,25 @@ export async function GET(request: NextRequest) {
     submittedOn: s.submittedAt.toISOString().slice(0, 10),
     status: s.status,
     says: saysOf(s.status, s.interviews.length),
-    // Their own rate on this submission. It is about them and they
-    // agreed to it; withholding it here would be strange.
-    rateCents: s.rate,
+    // ── No rate on this row, and that is the point ───────────────
+    //
+    // This used to send `s.rate` as "their own rate on this
+    // submission". It is not their rate. `Submission.rate` is the price
+    // at that rung — what the sending firm charges the receiving one —
+    // and the schema settles it on `parentSubmissionId`: a sub at $62
+    // and the prime above it at $95 are two rows of one chain. On the
+    // seeded world it handed Karthik 13600 while he is paid 8900, which
+    // is his employer's margin on his own screen.
+    //
+    // The person named on a sell contract is the subject of it, not a
+    // party to it, so they may not read it (matrix L3.7.3.5). No page
+    // rendered the field, which is the only reason it was never seen.
+    //
+    // Their own pay is not here either, deliberately. A submission is
+    // not a payment — nobody is paid for being put forward, and a pay
+    // rate exists only once a buy contract does. Where one does,
+    // `/api/me/work` shows it, read from the agreement that pays them
+    // and never from a subtraction.
     interviews: s.interviews.map((i) => {
       // Slots, not a single time: a proposed interview has several and
       // showing one of them as if it were fixed is how somebody misses

@@ -63,14 +63,41 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Concentration risk')
   if (notStaff) return notStaff
 
+  // ── Why the whole page is behind margin, and not just some figures ──
+  //
+  // Checked 2026-09-18 against the nine gates of this exact shape that
+  // `lib/money/desks.ts` found were wrong. Those were wrong for two
+  // reasons and neither holds here.
+  //
+  // Theirs was a READ gated harder than the WRITE beside it in the same
+  // file — an AR clerk could record a payment against a queue they could
+  // not see. There is no write in this file. And theirs refused the desk
+  // the page is NAMED for; no default role in `lib/company-defaults` has
+  // a blurb that claims this work. The nearest is Finance — "closes the
+  // month" — which holds `pnl.read` and gets in, as do Owner and Admin.
+  //
+  // What is left after that is the payload, and here all of it is the
+  // fenced class. AR is the invoice book read by age and AP the bill book
+  // read by due date: operational, one side each. This is the firm's
+  // turnover for the year, its total supplier spend, and what share of
+  // each one client, one supplier and one person carry — with a named
+  // risk owner against it. There is no non-money half to show somebody
+  // who may not read the money half, so the per-figure fence that
+  // `vendors/risk` next door uses has nothing to fence.
+  //
+  // It is checked per section on the screen, not per page: `dashboard/
+  // scorecards` loads standing, scorecards and shape independently, so a
+  // refusal here leaves the supplier-standing half of that page working.
   if (!hasPermission(caller.permissions, 'margin.read') && !hasPermission(caller.permissions, 'pnl.read')) {
     return NextResponse.json(
       {
         error: {
           code: 'FORBIDDEN',
           message:
-            'You cannot see where the revenue comes from. It is the same class of fact as ' +
-            'what a placement earns, and this role deliberately does not see either.',
+            'You cannot see the shape of the book here — what the firm turned over this ' +
+            'year and how much of it rides on one client, one supplier or one person. ' +
+            'Supplier standing above does not need it. Ask whoever manages roles here for ' +
+            'the profitability desk if this is your job.',
         },
       },
       { status: 403 }
