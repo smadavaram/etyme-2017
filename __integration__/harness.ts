@@ -9,6 +9,7 @@
 import { NextRequest } from 'next/server'
 import { execSync } from 'node:child_process'
 import { prisma } from '@/lib/db'
+import { TEST_DB, TEST_DATABASE_URL } from './database'
 
 export function as(email: string) {
   process.env.DEV_BYPASS_AUTH = email
@@ -35,8 +36,8 @@ export async function json(res: Response) {
 /** A clean database, once, before the story starts. */
 export async function resetDatabase() {
   execSync(
-    'psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS etyme_test;" ' +
-      '-c "CREATE DATABASE etyme_test;"',
+    `psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS ${TEST_DB};" ` +
+      `-c "CREATE DATABASE ${TEST_DB};"`,
     { stdio: 'pipe' }
   )
   // Best-effort, and deliberately not fatal.
@@ -49,15 +50,19 @@ export async function resetDatabase() {
   // does arrive, this goes back to being required and the failure
   // becomes correct again.
   try {
-    execSync('psql -h localhost -U postgres -d etyme_test -c "CREATE EXTENSION IF NOT EXISTS vector;"', {
+    execSync(`psql -h localhost -U postgres -d ${TEST_DB} -c "CREATE EXTENSION IF NOT EXISTS vector;"`, {
       stdio: 'pipe',
     })
   } catch {
     // No pgvector here. Nothing in the schema needs it.
   }
-  execSync('npx prisma db push --skip-generate', {
+  // --accept-data-loss: the database was dropped and recreated two lines
+  // above, so there is no data to lose. Without it, a push onto a
+  // database another run has just touched dies on a warning rather than
+  // on a fault, which reads as a failure of the change under test.
+  execSync('npx prisma db push --skip-generate --accept-data-loss', {
     stdio: 'pipe',
-    env: { ...process.env, DATABASE_URL: 'postgresql://postgres@localhost:5432/etyme_test' },
+    env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL },
   })
 }
 

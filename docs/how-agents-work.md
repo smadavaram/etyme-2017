@@ -118,6 +118,44 @@ pieces of work want the same domain, they run one after the other. This
 is slower and it is still faster than a merge conflict nobody can
 adjudicate.
 
+### Two things the boundary does not cover
+
+`src/lib/domains.ts` maps source files. It says nothing about the two
+pieces of shared state every agent touches when it verifies, and both
+bit repeatedly on 2026-09-17.
+
+**The test database.** `resetDatabase()` drops and creates. The suite
+already runs its files one at a time, so a single run is safe; two runs
+at once are not, and two at once is the ordinary case here. When they
+overlap, one drops the database out from under the other and the victim
+fails with `database "etyme_test" is being accessed by other users`, or
+`public.Company does not exist`, or a bare data-loss warning — none of
+which says "you collided", and all of which read exactly like a
+regression in the change under test. That cost six or seven runs and
+three false failures in one day, each chased down by hand before being
+dismissed.
+
+So **give your run a database of its own** whenever anybody else may be
+verifying:
+
+```
+ETYME_TEST_DB=etyme_test_<yourname> npx vitest run -c vitest.integration.config.ts
+```
+
+The default is `etyme_test` and is unchanged, so CI — which runs alone —
+needs to know nothing about this.
+
+**The build directory.** Two agents running `npm run build` in one tree
+clobber `.next`, and the loser gets `ENOENT .next/build-manifest.json`
+or a missing `_ssgManifest.js` **after** "Compiled successfully". That
+is not your change either. Re-run it when the other finishes; if you
+report a red build, say whether anybody else was building.
+
+The rule for both: **a failure you have to interpret is not a signal.**
+Before reporting a suite red, check whether the failure names a file you
+touched. If it names the harness or the build directory, it is traffic,
+not a fault.
+
 ---
 
 ## What gets work rejected

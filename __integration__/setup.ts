@@ -5,7 +5,9 @@
  * use — the routes run their real code path for everything except the
  * session lookup, which is the one thing a test cannot have.
  */
-process.env.DATABASE_URL = 'postgresql://postgres@localhost:5432/etyme_test'
+import { TEST_DATABASE_URL } from './database'
+
+process.env.DATABASE_URL = TEST_DATABASE_URL
 // NODE_ENV is typed read-only; the assignment is real all the same.
 ;(process.env as Record<string, string>).NODE_ENV = 'development'
 process.env.NEXTAUTH_SECRET = 'integration-test-secret'
