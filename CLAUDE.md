@@ -821,6 +821,27 @@ So the words change and the two rows stay:
 | **Purchase order · sales order · work order** — one document, three names | `WorkOrder` | the **header**: counterparty, ceiling, dates, terms, partners |
 | **a line on it** — this person, this rate, this site | `SellContract` / `BuyContract` | the **lines**: per person, carrying the rate and everything that hangs off a person |
 
+**What a line does — the founder, later the same morning:**
+
+> Sell contract will bill customer. Buy contract will pay supplier or
+> run payroll for candidate.
+
+That is the reason the lines stay rows: **each is the source of one
+direction of money.** The sell line is what the firm bills from — it
+carries the bill rate and the hours the customer signs, and AR raises
+the bill against it. The buy line is what the firm pays from — to a
+supplier by invoice receipt where a sub-vendor is below, or to the
+candidate by payroll where the firm employs them — and `cyclesFor` in
+`lib/cycle-kinds` already writes vendor-bill or salary cycles on exactly
+that split. The header carries the ceiling and the terms; a line carries
+a rate and moves money one way.
+
+It is also why "sell contract" and "buy contract" are the founder's own
+words and may appear on a screen — **as lines of a document, never as a
+document of their own** with a page, a number and a flow beside the
+order. A screen that offers "New sell contract" as a thing to create
+standalone has reintroduced the second document.
+
 **What this fixes, in order:**
 
 1. **One document on every screen, created once.** The award writes the
