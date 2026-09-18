@@ -3,6 +3,7 @@ import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { mayOpen, refusal, RECEIVABLE } from '@/lib/money/desks'
 import { fromPrismaDecimal, decimalsFor } from '@/lib/money'
 import {
   checkCreditNote, disputesView, ageInvoice, creditsByInvoice, netOfCredits,
@@ -53,14 +54,8 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
-  if (
-    !hasPermission(caller.permissions, 'margin.read') &&
-    !hasPermission(caller.permissions, 'pnl.read')
-  ) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'You cannot see what has been credited away.' } },
-      { status: 403 }
-    )
+  if (!mayOpen(caller.permissions, RECEIVABLE)) {
+    return NextResponse.json(refusal(RECEIVABLE), { status: 403 })
   }
 
   const companyId = caller.company.id

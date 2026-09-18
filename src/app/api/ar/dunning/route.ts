@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { mayOpen, refusal, RECEIVABLE } from '@/lib/money/desks'
 import { hasPermission } from '@/lib/permissions'
 import { dunningRun, stepsAlreadySent, type DunningStep, type SentLetter } from '@/lib/ar-ageing'
 import { loadBook, openInvoiceIdsAcross } from '../book'
@@ -264,19 +265,8 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (
-    !hasPermission(caller.permissions, 'margin.read') &&
-    !hasPermission(caller.permissions, 'pnl.read')
-  ) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message: 'Who has been chased for what is the same class of fact as what a placement earns.',
-        },
-      },
-      { status: 403 }
-    )
+  if (!mayOpen(caller.permissions, RECEIVABLE)) {
+    return NextResponse.json(refusal(RECEIVABLE), { status: 403 })
   }
 
   const url = request.nextUrl

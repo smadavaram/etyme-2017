@@ -119,7 +119,8 @@ export default function ArPage() {
         <div className="panel">
           <p className="text-[13px] text-etyme-ink">{denied}</p>
           <p className="mt-2 text-[13px] text-etyme-muted">
-            Ask whoever manages roles here for <code>margin.read</code> if you need it.
+            Whoever manages roles at your company can seat you at the desk that bills
+            clients.
           </p>
         </div>
       )}

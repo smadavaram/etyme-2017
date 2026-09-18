@@ -95,7 +95,8 @@ export default function ApPage() {
         <div className="panel">
           <p className="text-[13px] text-etyme-ink">{denied}</p>
           <p className="mt-2 text-[13px] text-etyme-muted">
-            Ask whoever manages roles here for <code>margin.read</code> if you need it.
+            Whoever manages roles at your company can seat you at the desk that pays
+            suppliers.
           </p>
         </div>
       )}
@@ -196,17 +197,22 @@ export default function ApPage() {
 function Mirror({ book }: { book: any }) {
   const ccy = book.currency
   const m = book.mirror
+  // Null where the reader may not put cost beside revenue. Not zero —
+  // zero would be a claim about the receivable book.
+  const bothSides = m != null
 
   return (
     <section className="space-y-4 border-b border-etyme-rule pb-5">
       <div className="flex flex-wrap items-baseline gap-8">
-        <div>
-          <p className="stat-label">Days to get paid</p>
-          <p className="stat-value tabular-nums">{book.dso?.days ?? '—'}</p>
-          <p className="mt-0.5 max-w-[30ch] text-[11px] text-etyme-faint">
-            {book.dso?.says ?? 'Nothing on the receivable side to count back through.'}
-          </p>
-        </div>
+        {bothSides && (
+          <div>
+            <p className="stat-label">Days to get paid</p>
+            <p className="stat-value tabular-nums">{book.dso?.days ?? '—'}</p>
+            <p className="mt-0.5 max-w-[30ch] text-[11px] text-etyme-faint">
+              {book.dso?.says ?? 'Nothing on the receivable side to count back through.'}
+            </p>
+          </div>
+        )}
         <div>
           <p className="stat-label">Days to pay</p>
           <p className="stat-value tabular-nums">{book.dpo.days ?? '—'}</p>
@@ -219,29 +225,32 @@ function Mirror({ book }: { book: any }) {
             {book.billCount} bill{book.billCount === 1 ? '' : 's'} · {compact(book.overdueMinor, ccy)} past due
           </p>
         </div>
-        <div>
-          <p className="stat-label">Owed to us</p>
-          <p className="stat-value tabular-nums">
-            {book.receivableMinor == null ? '—' : compact(book.receivableMinor, ccy)}
-          </p>
-        </div>
+        {bothSides && (
+          <div>
+            <p className="stat-label">Owed to us</p>
+            <p className="stat-value tabular-nums">
+              {book.receivableMinor == null ? '—' : compact(book.receivableMinor, ccy)}
+            </p>
+          </div>
+        )}
       </div>
 
-      <p
-        className="max-w-[72ch] text-[13px]"
-        style={{
-          color:
-            m.direction === 'FINANCING' ? 'var(--color-attention)' : 'var(--color-ink)',
-        }}
-      >
-        {m.says}
-      </p>
+      {bothSides && (
+        <p
+          className="max-w-[72ch] text-[13px]"
+          style={{
+            color:
+              m.direction === 'FINANCING' ? 'var(--color-attention)' : 'var(--color-ink)',
+          }}
+        >
+          {m.says}
+        </p>
+      )}
 
       <p className="max-w-[72ch] text-[11px] text-etyme-faint">
-        Both figures are counted back through real months rather than divided by an
-        average, so growth does not move them. The textbook ratio reads{' '}
-        {book.dpo.naiveDays ?? '—'} days on the paying side, which is what a spreadsheet
-        would have said.
+        Days to pay is counted back through real months rather than divided by an
+        average, so growth does not move it. The textbook ratio reads{' '}
+        {book.dpo.naiveDays ?? '—'} days, which is what a spreadsheet would have said.
       </p>
     </section>
   )
@@ -251,6 +260,19 @@ function Mirror({ book }: { book: any }) {
 
 function Chains({ data }: { data: any; book: any }) {
   const chains = data.chains ?? []
+
+  if (chains.length === 0 && data.bothSides === false) {
+    return (
+      <div className="panel">
+        <p className="text-[13px] text-etyme-muted">
+          A chain lays what a client paid beside what its supplier was paid for the same
+          work, and the gap between those two numbers is the margin on that placement. So
+          the chains are not drawn for this desk. Everything the firm owes, and when each
+          bill falls due, is above.
+        </p>
+      </div>
+    )
+  }
 
   if (chains.length === 0) {
     return (
@@ -427,10 +449,12 @@ function Hops({ data, book }: { data: any; book: any }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-8">
-        <p className="max-w-[36ch] text-[13px] text-etyme-muted">
-          <span className="stat-label block">Money in</span>
-          {book.in.says}
-        </p>
+        {book.in && (
+          <p className="max-w-[36ch] text-[13px] text-etyme-muted">
+            <span className="stat-label block">Money in</span>
+            {book.in.says}
+          </p>
+        )}
         <p className="max-w-[36ch] text-[13px] text-etyme-muted">
           <span className="stat-label block">Money out</span>
           {book.out.says}

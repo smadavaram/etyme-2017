@@ -6,6 +6,9 @@ import { notifyBulk } from '@/lib/notify'
 import { completeCycle } from '@/lib/cycle-complete'
 import { fractionFor } from '@/lib/contract-links'
 import { staffOnly } from '@/lib/seat'
+import {
+  mayOpen, refusal, mayRecordSupplierInvoice, PAYABLE, NOT_THE_PAYING_DESK,
+} from '@/lib/money/desks'
 import { decimalsFor } from '@/lib/money'
 import { canAttachPoToBuyContract, overBillCheck } from '@/lib/purchase-order'
 import {
@@ -70,14 +73,9 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (!hasPermission(caller.permissions, 'invoices.issue')) {
+  if (!mayRecordSupplierInvoice(caller.permissions)) {
     return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message: 'Recording what the firm owes a supplier needs invoices.issue',
-        },
-      },
+      { error: { code: 'FORBIDDEN', message: NOT_THE_PAYING_DESK } },
       { status: 403 }
     )
   }
@@ -673,14 +671,8 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
-  if (
-    !hasPermission(caller.permissions, 'margin.read') &&
-    !hasPermission(caller.permissions, 'pnl.read')
-  ) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'You cannot see what the firm owes its suppliers.' } },
-      { status: 403 }
-    )
+  if (!mayOpen(caller.permissions, PAYABLE)) {
+    return NextResponse.json(refusal(PAYABLE), { status: 403 })
   }
 
   const companyId = caller.company.id

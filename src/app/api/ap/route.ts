@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
+import {
+  mayOpen, refusal, maySeeBothSides, PAYABLE, BOTH_SIDES_WITHHELD,
+} from '@/lib/money/desks'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
@@ -50,6 +52,23 @@ import { loadBook } from '../ar/book'
  * assignment. If it is the other way round, we are doing to our
  * suppliers exactly what our clients are doing to us.
  *
+ * ── Who may open it, and the one figure that is fenced ──────────────
+ *
+ * Opened by `invoices.read` — the desk that pays suppliers. It used to
+ * be gated on `margin.read || pnl.read`, which refused AP & Payroll and
+ * a client's AP Clerk the page they are named for while the PATCH below
+ * accepted their payment. What the firm owes and when it falls due is
+ * not margin; it is buy-side only, the way the receivable book is
+ * sell-side only.
+ *
+ * One thing here genuinely is margin, and it is fenced per figure
+ * instead: the chains lay what a client paid beside what its supplier
+ * was paid FOR THE SAME WORK, and the gap between those two numbers is
+ * the margin on that placement. So the chains, the incoming hops and the
+ * DSO-beside-DPO comparison need `margin.read` or `pnl.read`; the
+ * payables, the due dates, the outgoing hops and DPO do not. Withheld is
+ * said in `gaps` rather than shown as a zero — see `lib/money/desks`.
+ *
  * ── Where the guarantee stops ────────────────────────────────────────
  *
  * We see our own hops. A supplier who is not on the platform pays
@@ -86,25 +105,14 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // The same gate as the AR screen and the profitability route. What a
-  // firm owes, and how long it holds money before paying, is the same
-  // class of fact as what a placement earns.
-  if (
-    !hasPermission(caller.permissions, 'margin.read') &&
-    !hasPermission(caller.permissions, 'pnl.read')
-  ) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message:
-            'You cannot see what the firm owes its suppliers or how long it takes to pay ' +
-            'them. A recruiter role deliberately does not.',
-        },
-      },
-      { status: 403 }
-    )
+  if (!mayOpen(caller.permissions, PAYABLE)) {
+    return NextResponse.json(refusal(PAYABLE), { status: 403 })
   }
+
+  // Cost beside revenue for the same piece of work is margin, whoever is
+  // reading. The page opens without it; the chains and the comparison do
+  // not.
+  const bothSides = maySeeBothSides(caller.permissions)
 
   const companyId = caller.company.id
   const usName = caller.company.name
@@ -211,7 +219,8 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  if (arDatedByProxy > 0) {
+  // Only says anything to a reader who is shown the incoming hops.
+  if (arDatedByProxy > 0 && bothSides) {
     gaps.push(
       `${arDatedByProxy} of ${receivables.length} invoice${receivables.length === 1 ? '' : 's'} ` +
         `carry no issued-at date, so the incoming hops date ${
@@ -290,12 +299,16 @@ export async function GET(request: NextRequest) {
       payableMinor,
       overdueMinor,
       billCount: theirBills.length,
-      receivableMinor: cb?.outstandingMinor ?? null,
       dpo: ourDpo,
-      dso: ourDso,
-      mirror: mirror(ourDso?.days ?? null, ourDpo.days),
       out: summarizeHops(theirDelays, 'OUT'),
-      in: summarizeHops(theirDelays, 'IN'),
+      // The receivable side of the same book, and the comparison that
+      // needs both halves. Withheld rather than zeroed for a reader who
+      // may not put cost beside revenue: a zero would be a claim, and
+      // "we are owed nothing" is a worse answer than "not shown here".
+      receivableMinor: bothSides ? cb?.outstandingMinor ?? null : null,
+      dso: bothSides ? ourDso : null,
+      mirror: bothSides ? mirror(ourDso?.days ?? null, ourDpo.days) : null,
+      in: bothSides ? summarizeHops(theirDelays, 'IN') : null,
     }
   })
 
@@ -319,7 +332,7 @@ export async function GET(request: NextRequest) {
   )
 
   const sellInvoices =
-    sellContractIds.length === 0
+    sellContractIds.length === 0 || !bothSides
       ? []
       : await prisma.invoice.findMany({
           where: {
@@ -416,7 +429,7 @@ export async function GET(request: NextRequest) {
     .filter((c): c is NonNullable<typeof c> => c !== null)
 
   const unlinked = bills.filter((b) => (b.buyContract?.sellLinks.length ?? 0) === 0).length
-  if (unlinked > 0) {
+  if (unlinked > 0 && bothSides) {
     gaps.push(
       `${unlinked} supplier bill${unlinked === 1 ? '' : 's'} cannot be tied to the client ` +
         `invoice that funds ${unlinked === 1 ? 'it' : 'them'}, so ${
@@ -426,6 +439,8 @@ export async function GET(request: NextRequest) {
         `included in any float figure.`
     )
   }
+
+  if (!bothSides) gaps.push(BOTH_SIDES_WITHHELD)
 
   const offPlatform = Array.from(
     new Set(
@@ -448,23 +463,33 @@ export async function GET(request: NextRequest) {
       asOf: now.toISOString(),
       source: 'BILLS_AND_INVOICES',
       us: usName,
+      // So the screen says "withheld" where the chains would be rather
+      // than "nothing could be tied together", which is a different
+      // sentence and would be a lie.
+      bothSides,
       currencies: books,
-      hops: delays.map((d) => ({
-        id: d.hopId,
-        side: d.side,
-        payerName: d.payerName,
-        payeeName: d.payeeName,
-        currency: d.currency,
-        amountMinor: d.amountMinor,
-        state: d.state,
-        agreedDays: d.agreedDays,
-        actualDays: d.actualDays,
-        lateDays: d.lateDays,
-        elapsedDays: d.elapsedDays,
-        overdueDays: d.overdueDays,
-        payWhenPaid: d.payWhenPaid,
-        says: d.says,
-      })),
+      // Incoming hops are what clients paid us. On their own they are the
+      // receivable book, which is AR's page; here, beside the outgoing
+      // hops, they are half of a margin — so the reader who may not see
+      // both sides sees the paying side only.
+      hops: delays
+        .filter((d) => bothSides || d.side === 'OUT')
+        .map((d) => ({
+          id: d.hopId,
+          side: d.side,
+          payerName: d.payerName,
+          payeeName: d.payeeName,
+          currency: d.currency,
+          amountMinor: d.amountMinor,
+          state: d.state,
+          agreedDays: d.agreedDays,
+          actualDays: d.actualDays,
+          lateDays: d.lateDays,
+          elapsedDays: d.elapsedDays,
+          overdueDays: d.overdueDays,
+          payWhenPaid: d.payWhenPaid,
+          says: d.says,
+        })),
       payWhenPaid: flags,
       chains,
       gaps,

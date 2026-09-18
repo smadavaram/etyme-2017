@@ -3,6 +3,7 @@ import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
   proposeRun, remittanceAdvice, mayApproveRun, applyRunPayment,
   type PayableBill,
@@ -52,14 +53,8 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
-  if (
-    !hasPermission(caller.permissions, 'margin.read') &&
-    !hasPermission(caller.permissions, 'pnl.read')
-  ) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'You cannot see what the firm is about to pay.' } },
-      { status: 403 }
-    )
+  if (!mayOpen(caller.permissions, PAYABLE)) {
+    return NextResponse.json(refusal(PAYABLE), { status: 403 })
   }
 
   const companyId = caller.company.id

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
+import { mayOpen, refusal, RECEIVABLE } from '@/lib/money/desks'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
@@ -23,10 +23,13 @@ import {
  * ninety days is a problem on the Friday payroll runs, and margin has
  * nothing to say about it.
  *
- * Gated on the same permission as the profitability route — `margin.read`
- * or `pnl.read`. Who owes what and how thin the cash is are the same
- * class of fact as what a placement earns, and a recruiter role
- * deliberately does not see either.
+ * Opened by `invoices.read` — the desk that bills clients and records
+ * what came in. This used to be gated on `margin.read || pnl.read` on
+ * the reasoning that who owes what is the same class of fact as what a
+ * placement earns. It is not: every figure here is sell-side, there is
+ * no cost on this page at all, and the gate refused the Accounts
+ * Receivable clerk the page is named after while the POST beside it
+ * accepted her receipt. See `lib/money/desks`.
  *
  * ── What this reads, and what it cannot ──────────────────────────────
  *
@@ -78,18 +81,8 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Accounts receivable')
   if (notStaff) return notStaff
 
-  if (!hasPermission(caller.permissions, 'margin.read') && !hasPermission(caller.permissions, 'pnl.read')) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message:
-            'You cannot see what clients owe. A recruiter role deliberately does not — ' +
-            'it is the same class of fact as what a placement earns.',
-        },
-      },
-      { status: 403 }
-    )
+  if (!mayOpen(caller.permissions, RECEIVABLE)) {
+    return NextResponse.json(refusal(RECEIVABLE), { status: 403 })
   }
 
   const companyId = caller.company!.id

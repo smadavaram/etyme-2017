@@ -3,6 +3,7 @@ import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { mayOpen, refusal, RECEIVABLE } from '@/lib/money/desks'
 import { decimalsFor, fromPrismaDecimal } from '@/lib/money'
 import { unappliedCash, applyReceipt, type Receipt } from '@/lib/ar-ageing'
 
@@ -54,21 +55,8 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
-  if (
-    !hasPermission(caller.permissions, 'margin.read') &&
-    !hasPermission(caller.permissions, 'pnl.read')
-  ) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'FORBIDDEN',
-          message:
-            'You cannot see cash the firm holds and has not placed. It is the same class ' +
-            'of fact as what a placement earns.',
-        },
-      },
-      { status: 403 }
-    )
+  if (!mayOpen(caller.permissions, RECEIVABLE)) {
+    return NextResponse.json(refusal(RECEIVABLE), { status: 403 })
   }
 
   const companyId = caller.company.id

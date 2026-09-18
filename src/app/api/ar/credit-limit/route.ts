@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { mayOpen, refusal, RECEIVABLE } from '@/lib/money/desks'
 import { hasPermission } from '@/lib/permissions'
 import { decimalsFor } from '@/lib/money'
 
@@ -227,14 +228,8 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (
-    !hasPermission(caller.permissions, 'margin.read') &&
-    !hasPermission(caller.permissions, 'pnl.read')
-  ) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'What a client may owe is the same class of fact as what a placement earns.' } },
-      { status: 403 }
-    )
+  if (!mayOpen(caller.permissions, RECEIVABLE)) {
+    return NextResponse.json(refusal(RECEIVABLE), { status: 403 })
   }
 
   const now = new Date()
