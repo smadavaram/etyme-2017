@@ -43,10 +43,32 @@ function situation(over: Partial<Situation> = {}): Situation {
     companyId: 'cloudepa',
     listing: { revokedAt: null, askFirst: false },
     blocked: false,
+    barredByUs: false,
     holds: [],
     ...over,
   }
 }
+
+describe('a person this firm has already ruled out', () => {
+  it('is refused before anybody goes looking for a bench listing', () => {
+    // Told "get a listing" first, a recruiter would chase consent from
+    // somebody their own firm has barred and hit the same wall a day later.
+    const v = decideSubmission(situation({ barredByUs: true, listing: null }))
+    expect(v.ok).toBe(false)
+    expect(v.ok === false && v.code).toBe('ON_OUR_DNR_LIST')
+  })
+
+  it('is told to lift the bar with a reason, rather than given a code', () => {
+    const v = decideSubmission(situation({ barredByUs: true }))
+    expect(v.ok === false && v.message).toContain('do-not-return list')
+    expect(v.ok === false && v.message).toContain('reason')
+    expect(v.ok === false && v.message.toLowerCase()).not.toContain('permission')
+  })
+
+  it('and somebody who is on nobody’s list is not stopped by this', () => {
+    expect(decideSubmission(situation({ barredByUs: false })).ok).toBe(true)
+  })
+})
 
 describe('being on more than one bench', () => {
   it('lets a vendor submit somebody who is on other benches', () => {

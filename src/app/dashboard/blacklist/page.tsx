@@ -97,11 +97,11 @@ function AddBlacklistModal({
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        setError(body.error?.message ?? 'Failed to add to blacklist')
+        setError(body.error?.message ?? 'That could not be added to the do-not-return list.')
         return
       }
 
-      onCreated(`${targetType === 'PERSON' ? 'Person' : 'Company'} added to blacklist.`)
+      onCreated(`${targetType === 'PERSON' ? 'Person' : 'Company'} added to the do-not-return list.`)
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -114,7 +114,7 @@ function AddBlacklistModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Add to blacklist</h2>
+          <h2 className="text-lg font-semibold">Add to the do-not-return list</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -190,7 +190,7 @@ function AddBlacklistModal({
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
-              {submitting ? 'Adding…' : 'Add to blacklist'}
+              {submitting ? 'Adding…' : 'Add to the list'}
             </button>
           </div>
         </form>
@@ -396,14 +396,16 @@ export default function BlacklistPage() {
         <div>
           <div className="eyebrow mb-2">Operate</div>
           <h1 className="headline-serif text-heading text-etyme-ink mb-1">
-            Blacklist
+            Do-not-return list
           </h1>
           <p className="text-body-sm text-etyme-muted">
-            Manage blocked candidates and companies — prevent them from appearing in search, feeds, or contracts.
+            The people and firms this company has decided not to work with again, and why. Read
+            before anybody is put forward — somebody on it cannot be submitted until the bar is
+            lifted with a reason.
           </p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="btn-primary self-start md:mt-3 shrink-0">
-          Add to blacklist
+          Add somebody
         </button>
       </div>
 
@@ -431,7 +433,7 @@ export default function BlacklistPage() {
           row.targetType.toLowerCase().includes(q)
         }
         searchPlaceholder="Search by subject, reason…"
-        emptyMessage="No blacklist entries."
+        emptyMessage="Nobody is on the do-not-return list."
         emptyDetail="No candidates or companies have been blocked. Use the button above to add an entry."
         exportName="etyme-blacklist"
         filters={

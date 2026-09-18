@@ -78,7 +78,7 @@ export async function maySubmit(input: {
 }): Promise<Verdict> {
   const now = input.now ?? new Date()
 
-  const [profile, blocked, holds] = await Promise.all([
+  const [profile, blocked, ourBar, holds] = await Promise.all([
     prisma.consultantProfile.findUnique({
       where: { personId: input.personId },
       select: {
@@ -93,6 +93,28 @@ export async function maySubmit(input: {
       where: { personId_companyId: { personId: input.personId, companyId: input.clientCompanyId } },
       select: { id: true },
     }),
+    // The submitting firm's OWN do-not-return list.
+    //
+    // A list that nothing reads is a decision nobody made: the whole
+    // point of putting somebody on it is that they are not put forward
+    // again, and until now the only thing that consulted it was a
+    // screen. `companyId` here is deliberately the submitting firm and
+    // never `clientCompanyId` — a client's bar is the client's record,
+    // enforced at the client's own desk, and reading it here would tell
+    // a supplier what is on another company's list.
+    //
+    // The clock is in the query rather than in a sweep, so a bar that
+    // ran out this morning stops blocking this morning.
+    prisma.blacklist.findFirst({
+      where: {
+        companyId: input.companyId,
+        targetType: 'PERSON',
+        targetId: input.personId,
+        liftedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { id: true },
+    }),
     holdsAt(input.personId, input.clientCompanyId),
   ])
 
@@ -101,6 +123,7 @@ export async function maySubmit(input: {
     companyId: input.companyId,
     listing: profile?.listings[0] ?? null,
     blocked: blocked !== null,
+    barredByUs: ourBar !== null,
     holds,
   })
 }

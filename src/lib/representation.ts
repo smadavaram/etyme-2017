@@ -86,6 +86,8 @@ export function daysLeft(hold: Hold, now: Date): number {
 }
 
 export type Refusal =
+  /** This company has already decided not to put this person forward again. */
+  | 'ON_OUR_DNR_LIST'
   /** No bench listing from this company, so no permission to market them at all. */
   | 'NO_LISTING'
   /** The person will not be submitted to this client, and the reason is theirs. */
@@ -107,6 +109,16 @@ export interface Situation {
   listing: { revokedAt: Date | null; askFirst: boolean } | null
   /** True when the person has said this client is off limits. */
   blocked: boolean
+  /**
+   * True when this company has put this person on its OWN do-not-return
+   * list and the bar still stands.
+   *
+   * This company's list, never the client's. A supplier is not told that
+   * a client has barred somebody — that is the client's record, read at
+   * the client's own screening desk, and a refusal that quoted it would
+   * hand one firm another firm's list by inference.
+   */
+  barredByUs: boolean
   /** Every hold on this person at this client, live or not. */
   holds: Hold[]
 }
@@ -118,6 +130,21 @@ export interface Situation {
  * a refusal that leaks who else is involved undoes the whole point.
  */
 export function decideSubmission(s: Situation): Verdict {
+  // Our own decision, first, because it is the answer whatever else is
+  // true. A recruiter told "get a listing" would go and chase consent
+  // from somebody their own firm has already ruled out, and come back
+  // to the same wall a day later.
+  if (s.barredByUs) {
+    return {
+      ok: false,
+      code: 'ON_OUR_DNR_LIST',
+      message:
+        'Somebody here put this person on your do-not-return list, so they are not to be put ' +
+        'forward again. If that has changed, lift the bar on the do-not-return list with a ' +
+        'reason first — the reason is what the next person reads.',
+    }
+  }
+
   // A listing is the person's permission to be marketed at all. Without
   // one there is nothing further to discuss.
   if (!s.listing || s.listing.revokedAt !== null) {

@@ -22,6 +22,7 @@ export type AccessAction =
   | 'MATCH_VIEW'          // viewed match scores for a person
   | 'RELEASING_SOON_VIEW' // saw somebody listed as coming free before they are
   | 'CLASSIFICATION_CALL' // took a position on whether somebody is employed
+  | 'DNR_VIEW'            // read the do-not-return list, which names people and why
 
 interface LogAccessParams {
   /** The person whose data was accessed */

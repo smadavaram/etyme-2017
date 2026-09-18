@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { staffOnly } from '@/lib/seat'
+import { logBulkAccess } from '@/lib/access-log'
+import {
+  mayRead, mayBar, stillStands,
+  CANNOT_READ, NO_COMPANY, cannotBar, cannotLift,
+  type Target,
+} from './desks'
+
+/** Every refusal on this route says what is missing and what to do. */
+function refuse(message: string) {
+  return NextResponse.json({ error: { code: 'FORBIDDEN', message } }, { status: 403 })
+}
 
 /**
  * GET /api/blacklist
@@ -19,18 +30,22 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  if (!hasPermission(caller.permissions, 'consultants.write')) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires consultants.write permission' } },
-      { status: 403 }
-    )
-  }
+  // A consultant on somebody's bench is the subject of these records, not
+  // a member of the staff who keep them.
+  const notStaff = staffOnly(caller, 'The do-not-return list')
+  if (notStaff) return notStaff
+
+  // Asked before the query, not assumed by it. See NO_COMPANY.
+  const companyId = caller.company?.id
+  if (!companyId) return refuse(NO_COMPANY)
+
+  if (!mayRead(caller.permissions)) return refuse(CANNOT_READ)
 
   const url = request.nextUrl
   const includeInactive = url.searchParams.get('includeInactive') === 'true'
   const targetType = url.searchParams.get('targetType') // PERSON | COMPANY
 
-  const where: any = { companyId: caller.company?.id }
+  const where: any = { companyId }
 
   if (!includeInactive) {
     where.liftedAt = null
@@ -49,10 +64,24 @@ export async function GET(request: NextRequest) {
     orderBy: { blockedAt: 'desc' },
   })
 
-  // Count active entries
-  const activeCount = entries.filter(
-    (e) => !e.liftedAt && (!e.expiresAt || e.expiresAt > new Date())
-  ).length
+  const now = new Date()
+
+  // Every read of another person's data leaves a trail, refusals
+  // included. A refused request above names nobody, so there is nobody
+  // to log it against; this one hands back a page of named people and
+  // what was held against them, which is exactly the read the trail
+  // exists for.
+  logBulkAccess(
+    entries.filter((e) => e.targetType === 'PERSON').map((e) => e.targetId),
+    {
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'DNR_VIEW',
+      reason: `Do-not-return list at ${caller.company!.name}`,
+    }
+  )
+
+  const activeCount = entries.filter((e) => stillStands(e, now)).length
 
   return NextResponse.json({
     data: {
@@ -67,7 +96,7 @@ export async function GET(request: NextRequest) {
         liftedAt: e.liftedAt?.toISOString() ?? null,
         liftedById: e.liftedById,
         liftReason: e.liftReason,
-        isActive: !e.liftedAt && (!e.expiresAt || e.expiresAt > new Date()),
+        isActive: stillStands(e, now),
       })),
       activeCount,
     },
@@ -87,13 +116,14 @@ export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  if (!hasPermission(caller.permissions, 'consultants.write')) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires consultants.write permission' } },
-      { status: 403 }
-    )
-  }
+  const notStaff = staffOnly(caller, 'The do-not-return list')
+  if (notStaff) return notStaff
 
+  if (!caller.company?.id) return refuse(NO_COMPANY)
+
+  // The gate is per half of the list and is checked inside each handler,
+  // because barring a person and barring a firm are different decisions
+  // taken at different desks. See ./desks.
   const body = await request.json()
   const { action } = body
 
@@ -128,8 +158,15 @@ async function handleAdd(body: any, caller: any) {
     )
   }
 
+  const target = targetType.toUpperCase() as Target
+
+  // Who may place the bar depends on what is being barred. A recruiter
+  // may keep somebody off the people they put forward; taking a whole
+  // firm off the supplier panel is procurement's act, not theirs.
+  if (!mayBar(caller.permissions, target)) return refuse(cannotBar(target))
+
   // Validate target exists
-  if (targetType.toUpperCase() === 'PERSON') {
+  if (target === 'PERSON') {
     const person = await prisma.person.findUnique({ where: { id: targetId } })
     if (!person) {
       return NextResponse.json(
@@ -148,7 +185,7 @@ async function handleAdd(body: any, caller: any) {
   }
 
   // Cannot blacklist your own company
-  if (targetType.toUpperCase() === 'COMPANY' && targetId === caller.company?.id) {
+  if (target === 'COMPANY' && targetId === caller.company?.id) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'Cannot blacklist your own company' } },
       { status: 422 }
@@ -161,7 +198,7 @@ async function handleAdd(body: any, caller: any) {
     where: {
       companyId_targetType_targetId: {
         companyId: caller.company.id,
-        targetType: targetType.toUpperCase(),
+        targetType: target,
         targetId,
       },
     },
@@ -182,7 +219,7 @@ async function handleAdd(body: any, caller: any) {
   const entry = await prisma.blacklist.create({
     data: {
       companyId: caller.company.id,
-      targetType: targetType.toUpperCase(),
+      targetType: target,
       targetId,
       reason,
       blockedById: caller.person.id,
@@ -195,10 +232,10 @@ async function handleAdd(body: any, caller: any) {
     data: {
       companyId: caller.company?.id ?? targetId,
       action: 'BLACKLIST_ADD',
-      summary: `${targetType.toUpperCase()} ${targetId} blacklisted: ${reason}`,
+      summary: `${target} ${targetId} blacklisted: ${reason}`,
       reason: `Blacklist entry created via API`,
       reversible: true,
-      payload: { blacklistId: entry.id, targetType: targetType.toUpperCase(), targetId },
+      payload: { blacklistId: entry.id, targetType: target, targetId },
     },
   })
 
@@ -229,6 +266,9 @@ async function handleLift(body: any, caller: any) {
     )
   }
 
+  // Scoped to the caller's own company on the way in, so a bar at
+  // another company is not found rather than refused — one company's
+  // do-not-return list is never read by another, by id or otherwise.
   const entry = await prisma.blacklist.findFirst({
     where: { id: blacklistId, companyId: caller.company?.id },
   })
@@ -239,6 +279,9 @@ async function handleLift(body: any, caller: any) {
       { status: 404 }
     )
   }
+
+  const target = entry.targetType.toUpperCase() as Target
+  if (!mayBar(caller.permissions, target)) return refuse(cannotLift(target))
 
   if (entry.liftedAt) {
     return NextResponse.json(
