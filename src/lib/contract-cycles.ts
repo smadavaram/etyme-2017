@@ -21,6 +21,7 @@ import { generateCycles } from '@/lib/cycle-generator'
 import { cyclesFor } from '@/lib/cycle-kinds'
 import { policyFrom, type CycleShiftPolicy } from '@/lib/cycle-shift'
 import { getTemplatePack } from '@/lib/template-packs'
+import { termsFor, type OrderHeader } from '@/lib/money/order-terms'
 
 /**
  * The two tables this touches, so a transaction client or the plain
@@ -45,7 +46,22 @@ export interface Written {
 export async function writeCyclesFor(
   db: CycleWriter,
   input: {
-    sell: { id: string; startDate: Date | null; endDate: Date | null }
+    /**
+     * The sell line, and the document it is on where the caller has it.
+     *
+     * The dates generated over are the **line's**, and the header is
+     * read only so that decision goes through one door
+     * (`lib/money/order-terms`). An order is not a person: one header
+     * for a five-person project runs the length of the project, and the
+     * third person on it starts in March. Generating from the header's
+     * start would write months of due dates before anybody worked.
+     *
+     * The rhythm does not come from either — every cycle's frequency is
+     * the template pack's, which is why a header that says WEEKLY does
+     * not move an hours-due date. `billFrequency` decides what an
+     * invoice period is, not when a cycle falls.
+     */
+    sell: { id: string; startDate: Date | null; endDate: Date | null; workOrder?: OrderHeader | null }
     buy: { id: string; contractType: string; vendorCompanyId: string | null } | null
     /** Which pack's definitions. Seeds have no company pack and say US_IT. */
     packId: string
@@ -89,7 +105,8 @@ export async function writeCyclesFor(
 ): Promise<Written> {
   const { sell, buy } = input
   const pack = getTemplatePack(input.packId)
-  if (!pack || !sell.startDate || !sell.endDate) return { sell: 0, buy: 0, refused: [] }
+  const dates = termsFor('SELL', sell)
+  if (!pack || !dates.startDate || !dates.endDate) return { sell: 0, buy: 0, refused: [] }
 
   const split = cyclesFor(
     buy ? { contractType: buy.contractType, vendorCompanyId: buy.vendorCompanyId } : null,
@@ -118,9 +135,9 @@ export async function writeCyclesFor(
     )
   const options = { policy, onlyPeriodsAfter: input.onlyPeriodsAfter ?? null }
 
-  const sellCycles = generateCycles(sell.startDate, sell.endDate, split.sell, holidays, existing, options)
+  const sellCycles = generateCycles(dates.startDate, dates.endDate, split.sell, holidays, existing, options)
   const buyCycles = buy
-    ? generateCycles(sell.startDate, sell.endDate, split.buy, holidays, existing, options)
+    ? generateCycles(dates.startDate, dates.endDate, split.buy, holidays, existing, options)
     : []
 
   const rows = [

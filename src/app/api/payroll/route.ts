@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { daysFor } from '@/lib/contract-links'
 import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
 import { rateInForce } from '@/lib/contract-rate'
+import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 
 /**
  * GET /api/payroll
@@ -57,6 +58,10 @@ export async function GET(request: NextRequest) {
       },
       vendorCompany: { select: { id: true, name: true } },
       entity: { select: { id: true, name: true } },
+      // The document this pay line is on, where there is one. A W2 has
+      // none — you do not raise a purchase order to your own employee —
+      // and then the line's own columns answer, as they always did.
+      workOrder: { select: ORDER_HEADER_SELECT },
       // The rung below, where this firm buys from another. The hours are
       // filed on the supplier's contract, so a corp-to-corp buy contract
       // reaching only its own sell side finds nothing and reports a
@@ -247,10 +252,13 @@ export async function GET(request: NextRequest) {
       // to the contract. On this seed that is 200 hours instead of 160.
       // On a book with a year of history it is a five-figure overpayment
       // on the default view of the screen.
+      // The rhythm is the order's where this contract is on one — the
+      // order we raised to the sub-vendor is billed by them on the
+      // rhythm we pay it on, one document and two words for one fact.
+      // The date the period is counted from stays this candidate's own:
+      // a line is a person and an order is not.
       const terms: Terms = {
-        frequency: bc.payFrequency as Terms['frequency'],
-        anchor: bc.payAnchor as Terms['anchor'],
-        straddle: bc.payStraddle as Terms['straddle'],
+        ...periodTermsFor('BUY', bc),
         startedOn: cand.startDate,
       }
 

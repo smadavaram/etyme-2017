@@ -6,12 +6,21 @@
  * contract got net 30 until somebody retyped it, and a client with net 45
  * in their signed agreement was silently invoiced on net 30 forever.
  *
- * Four levels, most general to most specific:
+ * Five levels, most general to most specific:
  *
  *   PLATFORM   what the system assumes when nobody has said
  *   COMPANY    what this company does by default
  *   AGREEMENT  what the signed master agreement says
  *   CONTRACT   what was agreed for this one placement
+ *   ORDER      what the purchase order says — the header this line is on
+ *
+ * ORDER sits above CONTRACT because a purchase order is a header and its
+ * lines (CLAUDE.md, 2026-09-18), and the net days are the header's. The
+ * line's copy of the same number is not nullable and carries a schema
+ * default, so it cannot say "nobody told me" — and a value that cannot
+ * say it did not say must not beat one somebody typed. Every reader in
+ * the money domain asks `lib/money/order-terms` for the header rather
+ * than reading a line's copy.
  *
  * The important part is not the precedence — that is obvious. It is that
  * every resolved value carries where it came from. When an invoice is
@@ -20,7 +29,7 @@
  * wrong again.
  */
 
-export type Source = 'PLATFORM' | 'COMPANY' | 'AGREEMENT' | 'CONTRACT'
+export type Source = 'PLATFORM' | 'COMPANY' | 'AGREEMENT' | 'CONTRACT' | 'ORDER'
 
 export interface Resolved<T> {
   value: T
@@ -78,7 +87,7 @@ export interface Level<T> {
  * treating it as absent would silently push it to net 30.
  */
 export function resolve<T>(levels: Level<T>[], platform: T, platformLabel: string): Resolved<T> {
-  const order: Source[] = ['CONTRACT', 'AGREEMENT', 'COMPANY', 'PLATFORM']
+  const order: Source[] = ['ORDER', 'CONTRACT', 'AGREEMENT', 'COMPANY', 'PLATFORM']
   const said = levels.filter((l) => l.value !== null && l.value !== undefined)
 
   const sorted = said
@@ -136,6 +145,20 @@ export interface CascadeInputs {
     currency?: string | null
     paymentTermsFrom?: string | null
   } | null
+  /**
+   * The purchase order this line sits on, where there is one.
+   *
+   * No `paymentTermsFrom`: `WorkOrder` has no column for what the days
+   * are counted from, so that half of the term still comes from the
+   * line. Said out loud in `lib/money/order-terms` rather than left for
+   * somebody to discover from a due date that is six days out.
+   */
+  order?: {
+    paymentTermsDays?: number | null
+    currency?: string | null
+    /** The buyer's number, for the sentence on the screen. */
+    number?: string | null
+  } | null
 }
 
 export interface BillingTerms {
@@ -148,10 +171,14 @@ export function resolveBillingTerms(input: CascadeInputs): BillingTerms {
   const agreementLabel = input.agreement
     ? `from your agreement with ${input.agreement.counterpartyName}`
     : ''
+  // Never "work order" to somebody who is a party to it — `lib/order-naming`
+  // owns that word. "On order PO-2026-4417" reads right from either end.
+  const orderLabel = input.order?.number ? `on order ${input.order.number}` : 'set on the order'
 
   return {
     paymentTermsDays: resolve<number>(
       [
+        { source: 'ORDER', value: input.order?.paymentTermsDays, label: orderLabel },
         { source: 'CONTRACT', value: input.contract?.paymentTermsDays, label: 'set on this contract' },
         { source: 'AGREEMENT', value: input.agreement?.paymentTermsDays, label: agreementLabel },
         { source: 'COMPANY', value: input.company.paymentTermsDays, label: `${input.company.name}'s default` },
@@ -161,6 +188,7 @@ export function resolveBillingTerms(input: CascadeInputs): BillingTerms {
     ),
     currency: resolve<string>(
       [
+        { source: 'ORDER', value: input.order?.currency, label: orderLabel },
         { source: 'CONTRACT', value: input.contract?.currency, label: 'set on this contract' },
         { source: 'AGREEMENT', value: input.agreement?.currency, label: agreementLabel },
         { source: 'COMPANY', value: input.company.currency, label: `${input.company.name}'s default` },
@@ -650,9 +678,13 @@ export function explain(r: Resolved<number>): string {
 /**
  * When an override is worth mentioning.
  *
- * Only a contract departing from the signed agreement is a concern. That
- * is somebody having agreed something they may not have meant to, and it
- * is the commonest way money goes missing quietly.
+ * Only a contract — or the purchase order it sits on — departing from
+ * the signed agreement is a concern. That is somebody having agreed
+ * something they may not have meant to, and it is the commonest way
+ * money goes missing quietly. An order is the same case and arguably
+ * the sharper one: a client whose own paper says net 60 where the signed
+ * agreement says net 45 has moved the terms on a document the supplier
+ * did not draft.
  *
  * An agreement departing from a company default is not a concern at all —
  * the agreement is the thing that was actually signed, and overriding a
@@ -664,19 +696,21 @@ export function overrideConcern(r: Resolved<number>): { concern: boolean; note: 
   if (!r.overrode) return null
 
   // A default being superseded by something signed is ordinary.
-  if (r.source !== 'CONTRACT') return null
+  if (r.source !== 'CONTRACT' && r.source !== 'ORDER') return null
 
+  const what = r.source === 'ORDER' ? 'This order' : 'This contract'
   const worse = r.value > r.overrode.value
   return {
     concern: worse,
     note: worse
-      ? `This contract is on net ${r.value} where ${sourceWords(r.overrode.source)} says net ${r.overrode.value}. You wait ${r.value - r.overrode.value} days longer to be paid than you agreed to.`
-      : `This contract is on net ${r.value}, better than the net ${r.overrode.value} in ${sourceWords(r.overrode.source)}.`,
+      ? `${what} is on net ${r.value} where ${sourceWords(r.overrode.source)} says net ${r.overrode.value}. You wait ${r.value - r.overrode.value} days longer to be paid than you agreed to.`
+      : `${what} is on net ${r.value}, better than the net ${r.overrode.value} in ${sourceWords(r.overrode.source)}.`,
   }
 }
 
 function sourceWords(s: Source): string {
   switch (s) {
+    case 'ORDER': return 'the purchase order'
     case 'AGREEMENT': return 'the master agreement'
     case 'COMPANY': return 'your company default'
     case 'CONTRACT': return 'the contract'

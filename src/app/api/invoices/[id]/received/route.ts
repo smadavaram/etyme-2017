@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { invoiceScope } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { dueOn, resolveBillingTerms } from '@/lib/billing-cascade'
+import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 
 /**
  * POST /api/invoices/:id/received
@@ -61,7 +62,13 @@ export async function POST(
                 },
               },
               sellContracts: {
-                select: { paymentTerms: true, paymentTermsFrom: true },
+                select: {
+                  paymentTerms: true, paymentTermsFrom: true,
+                  // The net days are the purchase order's where this
+                  // placement is on one, so recording receipt moves the
+                  // date the document promised and not a stale copy.
+                  workOrder: { select: ORDER_HEADER_SELECT },
+                },
                 orderBy: { createdAt: 'asc' },
                 take: 1,
               },
@@ -123,6 +130,7 @@ export async function POST(
   // The same cascade the invoice was raised under: this contract, then
   // the agreement, then the end of the work period.
   const contract = invoice.engagement.sellContracts[0] ?? null
+  const onOrder = contract ? termsFor('SELL', contract) : null
   const terms = resolveBillingTerms({
     company: { name: caller.company?.name ?? 'this company' },
     agreement: {
@@ -134,6 +142,10 @@ export async function POST(
       paymentTermsDays: contract?.paymentTerms,
       paymentTermsFrom: contract?.paymentTermsFrom,
     },
+    order:
+      onOrder?.from.paymentTermsDays === 'ORDER'
+        ? { paymentTermsDays: onOrder.paymentTermsDays, number: onOrder.orderNumber }
+        : null,
   })
 
   const due = dueOn({

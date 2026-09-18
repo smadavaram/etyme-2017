@@ -15,6 +15,7 @@ import { minorPerUnit } from '@/lib/money'
 import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { policyOf, type Decision } from '@/lib/overtime'
+import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 
 /**
  * POST /api/invoices/generate
@@ -79,6 +80,10 @@ export async function POST(request: NextRequest) {
           workLocation: {
             select: { id: true, name: true, country: true, state: true, companyId: true },
           },
+          // The document this line is on. A purchase order is a header
+          // and its lines, and the rhythm and the net days are the
+          // header's — `lib/money/order-terms` decides which copy wins.
+          workOrder: { select: ORDER_HEADER_SELECT },
         },
       },
     },
@@ -182,10 +187,12 @@ export async function POST(request: NextRequest) {
           id: true, billRate: true, billCurrency: true, workOrderId: true,
           overtimeAfterHours: true, overtimeMultiplierBps: true,
           startDate: true,
-          // The contract says what a period is. Without these three the
-          // period was invented from whatever timesheets happened to be
-          // waiting.
+          // The contract says what a period is — unless it is on an
+          // order, and then the order does. Both are selected and
+          // `lib/money/order-terms` picks; these three are never read
+          // directly.
           billFrequency: true, billAnchor: true, billStraddle: true,
+          workOrder: { select: ORDER_HEADER_SELECT },
         },
       },
     },
@@ -221,6 +228,10 @@ export async function POST(request: NextRequest) {
         billFrequency: ours.billFrequency,
         billAnchor: ours.billAnchor,
         billStraddle: ours.billStraddle,
+        // And the document our contract is on, never the sub's. The
+        // period a prime bills its client is the period on the prime's
+        // own purchase order.
+        workOrder: ours.workOrder,
       },
     }
   })
@@ -244,6 +255,7 @@ export async function POST(request: NextRequest) {
         select: {
           id: true, billCurrency: true, startDate: true,
           billFrequency: true, billAnchor: true, billStraddle: true,
+          workOrder: { select: ORDER_HEADER_SELECT },
         },
       },
     },
@@ -305,14 +317,16 @@ export async function POST(request: NextRequest) {
     expenseRows[0]?.sellContract ??
     (await prisma.sellContract.findFirstOrThrow({
       where: { engagementId },
-      select: { id: true, billCurrency: true, startDate: true, billFrequency: true, billAnchor: true, billStraddle: true },
+      select: {
+        id: true, billCurrency: true, startDate: true,
+        billFrequency: true, billAnchor: true, billStraddle: true,
+        workOrder: { select: ORDER_HEADER_SELECT },
+      },
     }))
-  const terms: Terms = {
-    frequency: anchorContract.billFrequency as Terms['frequency'],
-    anchor: anchorContract.billAnchor as Terms['anchor'],
-    straddle: anchorContract.billStraddle as Terms['straddle'],
-    startedOn: anchorContract.startDate,
-  }
+  // The document first, the line where there is no document. The line's
+  // own start date either way — an order is not a person, and a header
+  // covering five people starts before four of them do.
+  const terms: Terms = periodTermsFor('SELL', anchorContract)
 
   const latestWork = [...billing.map((t) => t.periodEnd), ...expenseRows.map((e) => e.periodEnd), ...milestones.map((m) => m.acceptedAt ?? new Date())]
     .reduce((latest, d) => (d > latest ? d : latest))
@@ -611,6 +625,10 @@ export async function POST(request: NextRequest) {
   // agreement, then the end of the work period, which is what every
   // invoice raised before the term existed was counted from.
   const termsContract = firstContract ?? engagement.sellContracts[0]
+  // And the net days are the order's where this line is on one. The
+  // line's column is not nullable and carries a default, so it cannot
+  // say "nobody told me" — which is why it does not get to win.
+  const onOrder = termsContract ? termsFor('SELL', termsContract) : null
   const terms_ = resolveBillingTerms({
     company: { name: caller.company!.name },
     agreement: {
@@ -622,6 +640,10 @@ export async function POST(request: NextRequest) {
       paymentTermsDays: termsContract?.paymentTerms,
       paymentTermsFrom: termsContract?.paymentTermsFrom,
     },
+    order:
+      onOrder?.from.paymentTermsDays === 'ORDER'
+        ? { paymentTermsDays: onOrder.paymentTermsDays, number: onOrder.orderNumber }
+        : null,
   })
   const paymentTerms = terms_.paymentTermsDays.value
   const issuedAt = new Date()

@@ -13,6 +13,7 @@ import { payerScope, sellContractScope, buyContractScope } from '@/lib/resolve-c
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { canAttachPoToBuyContract } from '@/lib/purchase-order'
+import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { mayNameCounterparty } from '@/lib/off-system'
 
 /**
@@ -126,6 +127,25 @@ export async function POST(request: NextRequest) {
       return errResponse(po.reason, 'buyPurchaseOrderId')
     }
   }
+
+  // ── A line created under a document is created on its terms ────────
+  //
+  // The six duplicated fields are read from the header
+  // (`lib/money/order-terms`), and the columns on the line stay for now
+  // — so a line written here has to agree with its own document from the
+  // first second, or the row on the screen and the row in the database
+  // say different things until somebody reads the header.
+  //
+  // Only the rhythm. The dates stay this person's: an order is not a
+  // person, and one header covering five people starts before four of
+  // them do.
+  const buyHeader = buyPurchaseOrderId
+    ? await prisma.workOrder.findUnique({
+        where: { id: String(buyPurchaseOrderId) },
+        select: ORDER_HEADER_SELECT,
+      })
+    : null
+  const buyRhythm = termsFor('BUY', { workOrder: buyHeader })
 
   const start = new Date(startDate)
   const end = endDate ? new Date(endDate) : null
@@ -301,6 +321,11 @@ export async function POST(request: NextRequest) {
             payCurrency: payCurrency ?? 'USD',
             contractType: contractType ?? 'W2',
             workOrderId: buyPurchaseOrderId ?? null,
+            // Written from the document where there is one, so the copy
+            // on the line cannot disagree with the paper it is on.
+            payFrequency: buyRhythm.frequency,
+            payAnchor: buyRhythm.anchor,
+            payStraddle: buyRhythm.straddle,
             state: 'DRAFT',
             startDate: start,
             endDate: end,

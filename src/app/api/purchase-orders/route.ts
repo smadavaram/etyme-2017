@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
@@ -6,6 +7,7 @@ import { emit } from '@/lib/events'
 import { poBalance } from '@/lib/purchase-order'
 import { mayWriteOrder, shellNotice } from '@/lib/off-system'
 import { nounFor, referenceFor, sideOf } from '@/lib/order-naming'
+import { termsFor } from '@/lib/money/order-terms'
 
 /**
  * GET  /api/purchase-orders — what is authorized, and how much is left
@@ -294,6 +296,52 @@ export async function POST(request: NextRequest) {
     ? String(body.billingBasis).toUpperCase()
     : 'TIME'
 
+  // ── The rhythm this order is billed on ─────────────────────────────
+  //
+  // It used to take the schema default and nothing could say otherwise,
+  // which mattered the moment the header started deciding: a client
+  // whose paper says weekly would have had every placement on it read as
+  // monthly, and the default nobody chose would have beaten the answer
+  // somebody typed on the line. A raiser states it or the default stands
+  // and is the same default the lines already carry.
+  //
+  // The header keeps its own vocabulary — CONTRACT_START, TO_EARLIER,
+  // TO_LATER — and a line's words are accepted as synonyms, because
+  // whoever is typing has no idea there are two.
+  const RHYTHM: Record<string, Record<string, string>> = {
+    billFrequency: {
+      WEEKLY: 'WEEKLY', BIWEEKLY: 'BIWEEKLY', SEMIMONTHLY: 'SEMIMONTHLY',
+      MONTHLY: 'MONTHLY', CUSTOM: 'CUSTOM',
+    },
+    billAnchor: {
+      CALENDAR: 'CALENDAR', CONTRACT: 'CONTRACT_START', CONTRACT_START: 'CONTRACT_START',
+      CUSTOM: 'CUSTOM',
+    },
+    billStraddle: {
+      SPLIT: 'SPLIT', START: 'TO_EARLIER', TO_EARLIER: 'TO_EARLIER',
+      END: 'TO_LATER', TO_LATER: 'TO_LATER',
+    },
+  }
+  const rhythm: Record<string, string> = {}
+  for (const field of ['billFrequency', 'billAnchor', 'billStraddle']) {
+    const said = body[field]
+    if (said == null || said === '') continue
+    const known = RHYTHM[field][String(said).toUpperCase()]
+    if (!known) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION',
+            message: `${said} is not a rhythm anything here can bill on. Use one of ${Object.keys(RHYTHM[field]).join(', ')}.`,
+            field,
+          },
+        },
+        { status: 422 }
+      )
+    }
+    rhythm[field] = known
+  }
+
   const approvalWindowDays =
     body.approvalWindowDays == null || body.approvalWindowDays === ''
       ? null
@@ -325,6 +373,7 @@ export async function POST(request: NextRequest) {
       endDate,
       status: 'OPEN',
       billingBasis,
+      ...rhythm,
       billToId: body.billToId ? String(body.billToId) : null,
       shipToId: body.shipToId ? String(body.shipToId) : null,
       payerId: body.payerId ? String(body.payerId) : null,
@@ -339,6 +388,7 @@ export async function POST(request: NextRequest) {
     select: {
       id: true, number: true, sellerNumber: true, amount: true, currency: true,
       startDate: true, endDate: true, billingBasis: true,
+      billFrequency: true, billAnchor: true, billStraddle: true, paymentTerms: true,
       autoApproveTimesheets: true, approvalWindowDays: true,
       issuedById: true, issuedToId: true, billToId: true, payerId: true,
     },
@@ -347,24 +397,71 @@ export async function POST(request: NextRequest) {
   // Attach it to contracts that were already running against this supplier
   // with no PO. Without this the PO exists and every invoice still fails
   // the check, which reads as the feature not working.
+  //
+  // ── And the terms come with it ──────────────────────────────────────
+  //
+  // A purchase order is a header and its lines, and the rhythm and the
+  // net days are the header's. So a running placement that joins this
+  // order is billed on this order's terms from now on, and its own copy
+  // of those four is corrected to match rather than left to disagree
+  // silently with the paper it now sits under.
+  //
+  // The header wins because it is the document the two firms actually
+  // signed: a client's purchase order saying net 45 is the term, and a
+  // supplier's line saying net 30 is either a stale copy or a default
+  // nobody chose — and the line cannot tell you which, because those
+  // columns are not nullable. What is NOT touched is either date. An
+  // order is not a person; the line's dates are when this person works.
+  //
+  // The correction is money, so it is counted and logged rather than
+  // done quietly. Past invoices keep the periods they were raised for.
   let attached = 0
+  let corrected = 0
   if (body.attachExistingContracts !== false) {
-    const result = await prisma.sellContract.updateMany({
-      where: {
-        // The seller's own running contracts with this buyer, whichever
-        // of the two recorded the order. A supplier entering the paper
-        // its client handed it wants exactly this: the placements it is
-        // already running now bill against the ceiling that authorizes
-        // them.
-        companyId: seller.id,
-        clientCompanyId: buyer.id,
-        workOrderId: null,
-        state: { in: ['IN_PROGRESS', 'PAUSED'] },
+    const where: Prisma.SellContractWhereInput = {
+      // The seller's own running contracts with this buyer, whichever
+      // of the two recorded the order. A supplier entering the paper
+      // its client handed it wants exactly this: the placements it is
+      // already running now bill against the ceiling that authorizes
+      // them.
+      companyId: seller.id,
+      clientCompanyId: buyer.id,
+      workOrderId: null,
+      state: { in: ['IN_PROGRESS', 'PAUSED'] },
+    }
+    const running = await prisma.sellContract.findMany({
+      where,
+      select: {
+        id: true, billFrequency: true, billAnchor: true, billStraddle: true, paymentTerms: true,
       },
-      data: { workOrderId: po.id },
+    })
+    const onThisOrder = termsFor('SELL', { workOrder: po })
+    corrected = running.filter(
+      (c) =>
+        c.billFrequency !== onThisOrder.frequency ||
+        c.billAnchor !== onThisOrder.anchor ||
+        c.billStraddle !== onThisOrder.straddle ||
+        c.paymentTerms !== (onThisOrder.paymentTermsDays ?? c.paymentTerms)
+    ).length
+
+    const result = await prisma.sellContract.updateMany({
+      where,
+      data: {
+        workOrderId: po.id,
+        billFrequency: onThisOrder.frequency,
+        billAnchor: onThisOrder.anchor,
+        billStraddle: onThisOrder.straddle,
+        ...(onThisOrder.paymentTermsDays !== null
+          ? { paymentTerms: onThisOrder.paymentTermsDays }
+          : {}),
+      },
     })
     attached = result.count
   }
+  const correctionSays =
+    corrected > 0
+      ? `${corrected} of them were on different terms and now read ${onOrderWords(po)}.`
+      : null
 
   await prisma.automationLog.create({
     data: {
@@ -373,12 +470,20 @@ export async function POST(request: NextRequest) {
       summary: allowed.onBehalf
         ? `${caller.person.name} recorded ${buyer.name}'s order ${number} — $${amount.toLocaleString()} authorized to ${seller.name}`
         : `${caller.person.name} authorized $${amount.toLocaleString()} to ${seller.name} on ${number}`,
-      reason: allowed.onBehalf
-        ? allowed.says
-        : attached > 0
-          ? `${attached} running contract(s) with no PO were attached to it`
-          : 'Raised from the purchase orders screen',
-      payload: { workOrderId: po.id, number, supplierId: seller.id, amount, attached, onBehalf: allowed.onBehalf },
+      reason: [
+        allowed.onBehalf
+          ? allowed.says
+          : attached > 0
+            ? `${attached} running contract(s) with no PO were attached to it`
+            : 'Raised from the purchase orders screen',
+        correctionSays,
+      ]
+        .filter(Boolean)
+        .join(' '),
+      payload: {
+        workOrderId: po.id, number, supplierId: seller.id, amount, attached,
+        termsCorrected: corrected, onBehalf: allowed.onBehalf,
+      },
       reversible: true,
     },
   })
@@ -413,6 +518,9 @@ export async function POST(request: NextRequest) {
           endDate: po.endDate?.toISOString().slice(0, 10) ?? null,
         },
         contractsAttached: attached,
+        /** Of those, how many were on terms this document has now corrected. */
+        termsCorrected: corrected,
+        ...(correctionSays ? { termsCorrectedSays: correctionSays } : {}),
         /** What the caller's own side calls this row. */
         noun: nounFor(po, companyId).noun,
         recordedForThem: allowed.onBehalf,
@@ -547,4 +655,22 @@ export async function PATCH(request: NextRequest) {
       message: `${existing.number} ${changes.join(', ')}.`,
     },
   })
+}
+
+/**
+ * The terms an order now imposes, as somebody would say them.
+ *
+ * Used in the automation log when running placements are corrected onto
+ * the document they have joined, so the line reads as a sentence rather
+ * than as four column names.
+ */
+function onOrderWords(po: {
+  billFrequency: string
+  billAnchor: string
+  billStraddle: string
+  paymentTerms: number
+}): string {
+  const t = termsFor('SELL', { workOrder: po })
+  const from = t.anchor === 'CONTRACT' ? 'from the day each one started' : 'from the 1st'
+  return `${t.frequency.toLowerCase()}, ${from}, net ${t.paymentTermsDays ?? po.paymentTerms}`
 }

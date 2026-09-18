@@ -9,6 +9,7 @@ import { loadContractHolidays } from '@/lib/holidays'
 import { hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
+import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 
 /**
  * POST /api/contracts/:id/extend
@@ -53,6 +54,10 @@ export async function POST(
       endClientCompany: { select: { id: true, name: true } },
       workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
       company: { select: { id: true, name: true, templatePack: true } },
+      // The document this placement is on. Its terms are what the
+      // added months will be billed under, and its window is what the
+      // added months have to fit inside.
+      workOrder: { select: ORDER_HEADER_SELECT },
     },
   })
 
@@ -180,7 +185,9 @@ export async function POST(
     if (buyId) await tx.buyContract.update({ where: { id: buyId }, data: { endDate: newEnd } })
 
     const cycles = await writeCyclesFor(tx, {
-      sell: { id, startDate: contract.startDate, endDate: newEnd },
+      // The document travels with the line, so the dates the added
+      // months are generated over go through one door.
+      sell: { id, startDate: contract.startDate, endDate: newEnd, workOrder: contract.workOrder },
       buy,
       packId: contract.company.templatePack ?? 'US_IT',
       holidays,
@@ -245,12 +252,27 @@ export async function POST(
 
   const warnings = governance.evaluations.filter((e) => e.outcome === 'WARN')
 
+  // ── Past the end of the paper that authorizes it ───────────────────
+  //
+  // A placement extended beyond its purchase order's end date is not
+  // refused — the work is real and somebody senior decided it — but
+  // every invoice raised for those months fails the three-way match,
+  // because an expired order cannot be billed against (`poBalance`). It
+  // is said here, in words, rather than discovered when the bill bounces
+  // a month later.
+  const order = termsFor('SELL', { startDate: contract.startDate, endDate: newEnd, workOrder: contract.workOrder })
+  const pastTheOrder =
+    order.outsideOrderWindow && order.orderWindow?.end
+      ? `This now runs to ${newEnd.toISOString().slice(0, 10)}, past ${order.orderNumber ?? 'the order'}, which ends ${order.orderWindow.end.toISOString().slice(0, 10)}. Raise a new order or extend that one, or the months after it cannot be billed.`
+      : null
+
   return NextResponse.json({
     data: {
       id,
       personName: contract.person.name,
       newEndDate: newEnd.toISOString(),
       message: `Contract extended by ${months} month${months !== 1 ? 's' : ''}`,
+      ...(pastTheOrder ? { pastTheOrder } : {}),
       ...(warnings.length > 0 && {
         governanceWarnings: warnings.map((w) => ({
           ruleType: w.ruleType,

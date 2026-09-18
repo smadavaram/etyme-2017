@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/db'
 import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
 import { rateInForce } from '@/lib/contract-rate'
-import { bandsOf, billableInPeriod, periodFor, type Band, type Period, type Terms } from '@/lib/periods'
+import { bandsOf, billableInPeriod, periodFor, type Band, type Period } from '@/lib/periods'
 import { policyOf, type Decision } from '@/lib/overtime'
+import { ORDER_HEADER_SELECT, periodTermsFor, type OrderHeader } from '@/lib/money/order-terms'
 
 /**
  * A line as this file needs to read it: the money on it, and the records
@@ -35,7 +36,14 @@ export interface PricedLine {
     sellContract: {
       overtimeAfterHours: number | null
       overtimeMultiplierBps: number
+      /**
+       * The line's own copy, and the document it sits on. Which of the
+       * two answers is `lib/money/order-terms`' decision and not this
+       * file's — a week that crosses a month end goes where the purchase
+       * order says it goes.
+       */
       billStraddle: string
+      workOrder?: OrderHeader | null
     }
   } | null
 }
@@ -92,7 +100,11 @@ export function recompute(line: PricedLine, period: Period): Working | null {
       totalHours: Number(ts.totalHours),
     },
     period,
-    ts.sellContract.billStraddle as Terms['straddle'],
+    periodTermsFor('SELL', {
+      startDate: ts.periodStart,
+      billStraddle: ts.sellContract.billStraddle,
+      workOrder: ts.sellContract.workOrder ?? null,
+    }).straddle,
     line.rateCents,
     policyOf(ts.sellContract),
     decisions
@@ -147,6 +159,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
                   billRate: true, startDate: true,
                   overtimeAfterHours: true, overtimeMultiplierBps: true,
                   billFrequency: true, billAnchor: true, billStraddle: true,
+                  workOrder: { select: ORDER_HEADER_SELECT },
                 },
               },
             },
@@ -212,14 +225,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
   // no line has a contract to ask, in which case the check stays silent
   // rather than inventing an opinion.
   const terms = invoice.invoiceLines.find(l => l.timesheet)?.timesheet?.sellContract
-  const contractPeriod = terms
-    ? periodFor(invoice.periodStart, {
-        frequency: terms.billFrequency as Terms['frequency'],
-        anchor: terms.billAnchor as Terms['anchor'],
-        straddle: terms.billStraddle as Terms['straddle'],
-        startedOn: terms.startDate,
-      })
-    : null
+  const contractPeriod = terms ? periodFor(invoice.periodStart, periodTermsFor('SELL', terms)) : null
 
   const premiumOn = (line: PricedLine): number | null =>
     recompute(line, { start: inv.periodStart, end: inv.periodEnd, label: '' })?.premiumCents ?? null

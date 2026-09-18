@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { matchInvoice, recompute } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
 import { discountDeadline, discountOn, dueOn, ladderFor, resolveBillingTerms } from '@/lib/billing-cascade'
+import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 
 /**
  * GET /api/invoices/:id
@@ -55,7 +56,12 @@ export async function GET(
         select: {
           id: true, title: true,
           sellContracts: {
-            select: { paymentTerms: true, paymentTermsFrom: true },
+            select: {
+              paymentTerms: true, paymentTermsFrom: true,
+              // A purchase order is a header and its lines, and the net
+              // days are the header's where there is one.
+              workOrder: { select: ORDER_HEADER_SELECT },
+            },
             orderBy: { createdAt: 'asc' },
             take: 1,
           },
@@ -87,6 +93,11 @@ export async function GET(
               sellContract: {
                 select: {
                   overtimeAfterHours: true, overtimeMultiplierBps: true, billStraddle: true,
+                  // The same document the three-way match reads the
+                  // straddle from. Without it the screen and the match
+                  // would hold two opinions about which period a week
+                  // crossing a month end belongs to.
+                  workOrder: { select: ORDER_HEADER_SELECT },
                 },
               },
             },
@@ -121,6 +132,7 @@ export async function GET(
   // because the discount window counts from the same day, and whether
   // that day has happened at all.
   const contractTerms = invoice.engagement.sellContracts[0] ?? null
+  const onOrder = contractTerms ? termsFor('SELL', contractTerms) : null
   const terms = resolveBillingTerms({
     company: { name: invoice.engagement.msa.vendor.name },
     agreement: {
@@ -132,6 +144,10 @@ export async function GET(
       paymentTermsDays: contractTerms?.paymentTerms,
       paymentTermsFrom: contractTerms?.paymentTermsFrom,
     },
+    order:
+      onOrder?.from.paymentTermsDays === 'ORDER'
+        ? { paymentTermsDays: onOrder.paymentTermsDays, number: onOrder.orderNumber }
+        : null,
   })
 
   const clock = dueOn({
