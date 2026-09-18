@@ -33,8 +33,40 @@ export async function json(res: Response) {
   return { status: res.status, body }
 }
 
+/**
+ * Postgres dies with the container.
+ *
+ * Every time this session goes idle long enough to be paused, the
+ * database server is gone when it comes back — "removed stale pid
+ * file" on restart, "database system was not properly shut down" in
+ * the log — and the next agent to run this suite gets ECONNREFUSED
+ * dressed up as a failing test. On 2026-09-18 it had been down for
+ * twenty-two hours before anybody noticed, and three agents were
+ * launched into it. A red suite that means "the server is off" is the
+ * exact class of signal the database-name fix above was for.
+ *
+ * So: check, start, wait, and if it still refuses say so in a sentence
+ * that names the command, rather than letting a connection error stand
+ * in for a verdict on somebody's change.
+ */
+function ensurePostgres() {
+  const up = () => { try { execSync('pg_isready -h localhost -p 5432', { stdio: 'pipe' }); return true } catch { return false } }
+  if (up()) return
+  for (const cmd of ['pg_ctlcluster 16 main start', 'service postgresql start', 'sudo service postgresql start']) {
+    try { execSync(cmd, { stdio: 'pipe' }) } catch { /* try the next form */ }
+    for (let i = 0; i < 10 && !up(); i++) execSync('sleep 1')
+    if (up()) return
+  }
+  throw new Error(
+    'Postgres is not running on localhost:5432, and could not be started. ' +
+      'This is the server, not the change under test — start it with ' +
+      '`pg_ctlcluster 16 main start` (or `service postgresql start`) and run again.'
+  )
+}
+
 /** A clean database, once, before the story starts. */
 export async function resetDatabase() {
+  ensurePostgres()
   execSync(
     `psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS ${TEST_DB};" ` +
       `-c "CREATE DATABASE ${TEST_DB};"`,

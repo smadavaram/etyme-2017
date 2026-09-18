@@ -145,6 +145,16 @@ ETYME_TEST_DB=etyme_test_<yourname> npx vitest run -c vitest.integration.config.
 The default is `etyme_test` and is unchanged, so CI — which runs alone —
 needs to know nothing about this.
 
+**The database server itself.** Postgres dies whenever the container is
+paused — every idle stretch long enough to be reclaimed — and does not
+come back on its own. On 2026-09-18 it had been down for twenty-two
+hours before three agents were launched into it, and each would have
+read "connection refused" as a red suite. `resetDatabase()` now checks,
+starts it, and refuses with a sentence if it cannot. If you see
+`ECONNREFUSED` or `pg_isready` failing, that is the server: start it
+(`pg_ctlcluster 16 main start`) and run again. Never diagnose a change
+against a database that was not there.
+
 **The build directory.** Two agents running `npm run build` in one tree
 clobber `.next`, and the loser gets `ENOENT .next/build-manifest.json`
 or a missing `_ssgManifest.js` **after** "Compiled successfully". That
