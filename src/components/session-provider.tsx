@@ -34,6 +34,21 @@ export interface SessionState {
   company: SessionCompany | null
   roleName: string | null
   permissions: readonly string[]
+  /**
+   * Whether this person is somebody the work is about, as well as
+   * somebody's staff.
+   *
+   * Not read off `contextType`. Every staffer of every company holds an
+   * EMPLOYEE context — a client's own bookkeeper has one — so employment
+   * alone cannot tell an avionics engineer from an accounts payable
+   * clerk. The answer is `ownPage()` in lib/consultant-portfolio, which
+   * keys on the work itself: a placement in their name, a submission
+   * that put them forward, a contract that pays them.
+   *
+   * It comes from the server layout rather than /api/me because the
+   * question is a database read and the shell renders before any fetch.
+   */
+  isWorker: boolean
   loading: boolean
   error: string | null
 }
@@ -44,6 +59,7 @@ const EMPTY: SessionState = {
   contextType: null,
   roleName: null,
   permissions: [],
+  isWorker: false,
   loading: true,
   error: null,
 }
@@ -61,8 +77,19 @@ function normalizeKind(kind: string | undefined): CompanyKind {
   return 'VENDOR'
 }
 
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<SessionState>(EMPTY)
+export function SessionProvider({
+  children,
+  worker = false,
+}: {
+  children: ReactNode
+  /**
+   * Answered on the server, before anything renders, because the shell
+   * decides whether to offer this person their own section and a menu
+   * that appears one fetch late is a menu that flickers.
+   */
+  worker?: boolean
+}) {
+  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker })
 
   useEffect(() => {
     let cancelled = false
@@ -101,6 +128,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             : null,
           roleName: active?.role?.name ?? null,
           permissions: active?.role?.permissions ?? [],
+          isWorker: worker,
           loading: false,
           error: null,
         })
@@ -108,7 +136,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (cancelled) return
         // A failed session read must not blank the app — fall back to the
         // vendor shell and let the individual pages surface their own errors.
-        setState({ ...EMPTY, loading: false, error: err.message })
+        setState({ ...EMPTY, isWorker: worker, loading: false, error: err.message })
       }
     }
 
@@ -116,7 +144,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [worker])
 
   return <SessionContext.Provider value={state}>{children}</SessionContext.Provider>
 }

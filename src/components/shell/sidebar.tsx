@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
+import type { Permission } from '@/lib/permissions'
 /**
  * Sidebar navigation — from CLAUDE.md design system.
  *
@@ -40,6 +41,21 @@ type NavItem = {
    * the outside — or every link in it carries one of these.
    */
   group?: string
+  /**
+   * The permission the page behind this link actually asks for — any one
+   * of them, because several routes accept either of two.
+   *
+   * Read off the route's own GET handler, never guessed. A link with
+   * nothing here opens a page that refuses nobody: it scopes itself to
+   * the caller's company and shows what that company has.
+   *
+   * CLAUDE.md, 2026-09-17: "A button that the route will refuse is a
+   * button that lies." A menu entry makes the same promise a button
+   * does, and an engineer holding two read permissions was being shown
+   * forty links of his employer's administration, fifteen of which
+   * answered him with a red error he could not have predicted.
+   */
+  needs?: readonly Permission[]
 }
 
 type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
@@ -126,24 +142,31 @@ const NETWORK: NavItem[] = [
 const CONTRACTS_AND_TIME: NavItem[] = [
   { label: 'Sell contracts', href: '/dashboard/contracts?side=sell', icon: '▤', group: 'Contracts & time' },
   { label: 'Buy contracts', href: '/dashboard/contracts?side=buy', icon: '▥', group: 'Contracts & time' },
-  { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Contracts & time' },
+  { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Contracts & time', needs: ['invoices.read'] },
   { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Contracts & time' },
-  { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Contracts & time' },
+  { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Contracts & time', needs: ['invoices.read'] },
 ]
 
 /** What was billed, what came back, what went out. */
 const MONEY: NavItem[] = [
-  { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
+  { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
   // Next to Invoices deliberately: same money, different question. One
   // is what we sent, the other is what came back.
+  // Deliberately unannotated, and it is not an oversight. /api/ar and
+  // /api/ap gate their GET on margin.read or pnl.read, which the
+  // Accounts Receivable and AP & Payroll roles do not hold — so the two
+  // desks named after these pages are refused by them today. Hiding the
+  // link would turn a wrong gate on somebody else's route into a missing
+  // desk in the menu, which is the worse of the two. Reported to
+  // etyme-money; the annotation goes on when the gate is right.
   { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money' },
   // The other half of the same question — who is funding whom while
   // everybody waits.
   { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
-  { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
+  { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money', needs: ['payroll.read'] },
   // What a recruiter earned on a placement. The run has been there since
   // commissions were built; nothing in the nav reached it.
-  { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', group: 'Money' },
+  { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', group: 'Money', needs: ['payroll.run', 'invoices.read'] },
 ]
 
 /**
@@ -168,6 +191,9 @@ const COMPLIANCE: NavItem[] = [
   // being screened as screening.
   { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲', group: 'Compliance' },
   { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Compliance' },
+  // Unannotated for the same reason as AR and AP: /api/blacklist gates a
+  // read on consultants.write, which a Compliance Officer does not hold,
+  // and a do-not-return list is compliance's own screen.
   { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Compliance' },
 ]
 
@@ -227,7 +253,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Leads', href: '/dashboard/leads', icon: '⌁' },
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -239,8 +265,8 @@ const VENDOR_NAV: NavSection[] = [
     // what a firm is doing when it signs somebody to a bench.
     label: 'Procure',
     items: [
-      { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
-      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Bench', href: '/dashboard/bench', icon: '◎', needs: ['consultants.read'] },
+      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
       { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
     ],
@@ -251,7 +277,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       // Gated on margin.read — a Recruiter role deliberately cannot see
       // what a placement earns.
-      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑' },
+      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
       // Rate progression is how trust is carried where markup is not
       // disclosed (Addendum D), so it reads as analysis rather than as
@@ -287,7 +313,7 @@ const GSI_NAV: NavSection[] = [
       // What the end client sent — a GSI is prime here, the same seat a
       // vendor sits in when it receives a role.
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -299,8 +325,8 @@ const GSI_NAV: NavSection[] = [
     // that check is scoped to this company's own bench and nobody else's.
     label: 'Supply',
     items: [
-      { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
-      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Bench', href: '/dashboard/bench', icon: '◎', needs: ['consultants.read'] },
+      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
       { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
     ],
@@ -309,7 +335,7 @@ const GSI_NAV: NavSection[] = [
   {
     label: 'Grow',
     items: [
-      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑' },
+      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
       { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻' },
       { label: 'Your scorecard', href: '/dashboard/my-standing', icon: '◈' },
@@ -347,7 +373,7 @@ const MSP_NAV: NavSection[] = [
     label: 'Demand',
     items: [
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -360,8 +386,8 @@ const MSP_NAV: NavSection[] = [
       // Only computable where somebody buys from several firms for one
       // program, which is the whole of what an MSP is for.
       { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈' },
-      { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
-      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Bench', href: '/dashboard/bench', icon: '◎', needs: ['consultants.read'] },
+      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
       { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
     ],
   },
@@ -376,7 +402,7 @@ const MSP_NAV: NavSection[] = [
   {
     label: 'Grow',
     items: [
-      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑' },
+      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
       { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻' },
     ],
@@ -394,23 +420,37 @@ const MSP_NAV: NavSection[] = [
 // saw every number at zero, because none of it was about them. A wrong
 // link is worse than a missing section; this comes back once there is
 // a real, candidate-scoped training screen to put here.
+/**
+ * The three pages that belong to a person rather than to a firm.
+ *
+ * Kept apart from CONSULTANT_NAV because they are read by two different
+ * people. Somebody on a bench has nothing else and reads only these. A
+ * GSI's own billable engineer reads them **and** his employer's menu,
+ * because he is both — Teleworld's payroll and the person the work is
+ * about. Nothing here asks a permission: they are his own record, and
+ * the routes behind them answer him because he is him.
+ */
+const YOURS: NavItem[] = [
+  { label: 'Your work', href: '/dashboard/my-work', icon: '◉' },
+  // Not a separate "Your profile" link to /dashboard/consultants —
+  // that is the vendor staff's bench-management screen, gated on
+  // consultants.read, and a consultant hitting it saw a red
+  // "You need consultants.read permission" where their own profile
+  // should have been. /dashboard/my-page already IS the self-service
+  // editor (headline, intro, skills) plus the public-page toggle;
+  // having a second, broken link to a different page was the bug,
+  // not a missing feature.
+  { label: 'Your page', href: '/dashboard/my-page', icon: '◐' },
+  { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈' },
+]
+
 const CONSULTANT_NAV: NavSection[] = [
   {
     label: 'You',
-    items: [
-      { label: 'Your work', href: '/dashboard/my-work', icon: '◉' },
-      // Not a separate "Your profile" link to /dashboard/consultants —
-      // that is the vendor staff's bench-management screen, gated on
-      // consultants.read, and a consultant hitting it saw a red
-      // "You need consultants.read permission" where their own profile
-      // should have been. /dashboard/my-page already IS the self-service
-      // editor (headline, intro, skills) plus the public-page toggle;
-      // having a second, broken link to a different page was the bug,
-      // not a missing feature.
-      { label: 'Your page', href: '/dashboard/my-page', icon: '◐' },
-      { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈' },
-      { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
-    ],
+    // Notifications only here. A firm's menu already carries it under
+    // Today, and two doors onto one page is a question the reader has to
+    // answer before they can click.
+    items: [...YOURS, { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' }],
   },
 ]
 
@@ -510,9 +550,9 @@ const CLIENT_NAV: NavSection[] = [
       // in different buildings and neither wants the other's screens in
       // the way.
       { label: 'Contracts', href: '/dashboard/contracts', icon: '▤', group: 'Operate' },
-      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate' },
+      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate', needs: ['invoices.read'] },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Operate' },
-      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Operate' },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Operate', needs: ['invoices.read'] },
       // Money is finance's. A client buys, so its whole money side is
       // payable: the bills its suppliers send, what is owed and aging,
       // and the budget all of it draws down.
@@ -521,7 +561,7 @@ const CLIENT_NAV: NavSection[] = [
       // money for contract labor, and the supplier employs the
       // contractor — so both would be a menu entry with nothing behind
       // it, which this nav already has a rule against.
-      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
       { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
       { label: 'Budget', href: '/dashboard/program/budget', icon: '◱', group: 'Money' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard' },
@@ -562,14 +602,94 @@ const CLIENT_NAV: NavSection[] = [
  * door that lands somebody on a page with no way back is how the
  * integrator seat was lost for a week.
  */
+export type SeatFacts = {
+  /**
+   * This person is somebody the work is about, as well as somebody's
+   * staff — `ownPage()` in lib/consultant-portfolio, read off placements,
+   * submissions and contracts rather than off a context type.
+   *
+   * Their firm's menu gains a "You" section; it never replaces it.
+   */
+  worker?: boolean
+  /**
+   * What this seat holds. Undefined means "do not filter" — which is
+   * what the structural tests read, and what the shell shows for the
+   * moment before /api/me answers.
+   */
+  permissions?: readonly string[] | null
+}
+
+/** Whether this seat can open the page behind a link at all. */
+export function mayReach(item: NavItem, permissions: readonly string[] | null | undefined): boolean {
+  if (!item.needs || permissions == null) return true
+  return item.needs.some((p) => permissions.includes(p))
+}
+
+/**
+ * What a page asks for, wherever in the product it is reached from.
+ *
+ * The + button and ⌘K open the same pages the menu does, and a page's
+ * gate is a fact about the page rather than about the menu that names
+ * it. Asking "is it on this seat's menu" instead was briefly the rule
+ * and it emptied the client's + button: "New role" opens
+ * /dashboard/requirements?new=1 while a client's own menu reaches the
+ * same roles through /dashboard/requisitions, and "Review approvals"
+ * opens a page no client menu names at all. Neither refuses anybody.
+ *
+ * A path nothing anywhere annotates is a page that refuses nobody, and
+ * the answer is yes.
+ */
+export function mayOpen(href: string, permissions: readonly string[] | null | undefined): boolean {
+  if (permissions == null) return true
+  const path = href.split('?')[0]
+  for (const nav of [VENDOR_NAV, GSI_NAV, MSP_NAV, CLIENT_NAV]) {
+    for (const section of nav) {
+      for (const item of section.items) {
+        if (item.href.split('?')[0] === path && item.needs) return mayReach(item, permissions)
+      }
+    }
+  }
+  return true
+}
+
 export function getNavForKind(
   kind: CompanyKind | null | undefined,
-  isConsultant: boolean
+  isConsultant: boolean,
+  seat: SeatFacts = {}
 ): NavSection[] {
   // A consultant is a context type, not an absent company. Somebody on a
   // vendor's bench HAS a company — that is what a bench is — and keying on
   // the company would show them their agency's payroll and buy contracts.
-  if (isConsultant || !kind) return CONSULTANT_NAV
+  const base = (isConsultant || !kind)
+    ? CONSULTANT_NAV
+    : kindNav(kind)
+
+  // ── Both, never one or the other ──────────────────────────────────
+  //
+  // CLAUDE.md, "Who sells and who buys", 2026-09-17: a prime, a GSI or
+  // an MSP staffs a client with its own W2, who needs no bench listing
+  // because the employment contract already said it. Karthik Menon is
+  // that person on the seeded world, and the shell forced a choice it
+  // had no business forcing: his only context is EMPLOYEE at Teleworld,
+  // so he read Teleworld's whole integrator menu and the four pages
+  // that are actually his — his work, his page, who has him — appeared
+  // nowhere at all. The demo door dropped him on /dashboard/my-work and
+  // nothing in his own navigation pointed back to it.
+  //
+  // He is an employee of Teleworld with a real seat, and he is the
+  // person the work is about. Appending rather than substituting is the
+  // only reading that is true of both.
+  const sections = (!isConsultant && kind && seat.worker)
+    ? [...base, { label: 'You', items: YOURS }]
+    : base
+
+  if (seat.permissions == null) return sections
+  return sections
+    .map((s) => ({ ...s, items: s.items.filter((i) => mayReach(i, seat.permissions)) }))
+    .filter((s) => s.items.length > 0)
+}
+
+function kindNav(kind: CompanyKind): NavSection[] {
   switch (kind) {
     case 'CLIENT': return CLIENT_NAV
     case 'GSI': return GSI_NAV
@@ -592,6 +712,8 @@ export function Sidebar({
   companyName,
   companyLabel,
   isConsultant = false,
+  worker = false,
+  permissions,
   pending = false,
   sheet = false,
   onDismiss,
@@ -603,6 +725,13 @@ export function Sidebar({
   companyLabel?: string
   /** True when this person is on a bench rather than of the company. */
   isConsultant?: boolean
+  /** True when this person is also somebody the work is about — a GSI's
+   *  own billable engineer holds a seat AND is the subject of a
+   *  placement. They get their firm's menu and "You" both. */
+  worker?: boolean
+  /** What this seat holds. Undefined while the session loads, which
+   *  shows the menu unfiltered rather than flashing a short one. */
+  permissions?: readonly string[] | null
   /** Session still loading — render the frame without nav items so the
    *  wrong company's navigation never flashes on screen. */
   pending?: boolean
@@ -618,7 +747,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const sections = pending ? [] : getNavForKind(companyKind, isConsultant)
+  const sections = pending ? [] : getNavForKind(companyKind, isConsultant, { worker, permissions })
 
   // For client view, the "dashboard" link is /dashboard/program
   const dashboardHref = isConsultant

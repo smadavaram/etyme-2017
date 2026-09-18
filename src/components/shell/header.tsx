@@ -34,7 +34,7 @@ import { NotificationBell } from '@/components/notification-bell'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
-import { getNavForKind } from '@/components/shell/sidebar'
+import { getNavForKind, mayOpen } from '@/components/shell/sidebar'
 
 type HeaderProps = {
   title?: string
@@ -198,15 +198,33 @@ const CLIENT_PLUS_MENU: PlusMenuSection[] = [
  */
 function plusMenuFor(
   kind: string | null,
-  isConsultant: boolean
+  isConsultant: boolean,
+  /** What this seat holds. Undefined while the session loads. */
+  permissions: readonly string[] | null | undefined
 ): PlusMenuSection[] {
   if (isConsultant || !kind) return []
-  if (kind === 'CLIENT') return CLIENT_PLUS_MENU
-  const names = PLUS_SECTIONS[kind as keyof typeof PLUS_SECTIONS] ?? PLUS_SECTIONS.VENDOR
-  return PLUS_MENU.map((section, i) => ({
-    ...section,
-    label: i < names.length ? names[i] : section.label,
-  }))
+  const sections = kind === 'CLIENT'
+    ? CLIENT_PLUS_MENU
+    : (() => {
+        const names = PLUS_SECTIONS[kind as keyof typeof PLUS_SECTIONS] ?? PLUS_SECTIONS.VENDOR
+        return PLUS_MENU.map((section, i) => ({
+          ...section,
+          label: i < names.length ? names[i] : section.label,
+        }))
+      })()
+
+  // ── The + button says the same thing the menu says ────────────────
+  //
+  // Every item here opens a page: "Add consultant" goes to
+  // /dashboard/consultants?new=1, which refuses anybody without
+  // consultants.read one screen later. So an action this seat's
+  // permissions cannot carry through is not offered, and a seat left
+  // with nothing to create gets no + button at all — the rule already
+  // written for a consultant, now read off the page's own gate rather
+  // than off a second hand-kept list.
+  return sections
+    .map((section) => ({ ...section, items: section.items.filter((i) => mayOpen(i.href, permissions)) }))
+    .filter((section) => section.items.length > 0)
 }
 
 // ── Global search results ──
@@ -233,9 +251,10 @@ type SearchResult = {
  */
 function reachablePagesFor(
   kind: Parameters<typeof getNavForKind>[0],
-  isConsultant: boolean
+  isConsultant: boolean,
+  seat: Parameters<typeof getNavForKind>[2]
 ): SearchResult[] {
-  return getNavForKind(kind, isConsultant).flatMap((section) =>
+  return getNavForKind(kind, isConsultant, seat).flatMap((section) =>
     section.items.map((item) => ({
       label: item.label,
       type: 'page',
@@ -265,9 +284,9 @@ const ICON_BUTTON =
 
 export function Header({ title }: HeaderProps) {
   const router = useRouter()
-  const { company, person, roleName, contextType } = useSession()
+  const { company, person, roleName, contextType, isWorker, permissions } = useSession()
   const isClient = company?.kind === 'CLIENT'
-  const plusMenu = plusMenuFor(company?.kind ?? null, contextType === 'CONSULTANT')
+  const plusMenu = plusMenuFor(company?.kind ?? null, contextType === 'CONSULTANT', permissions)
   const [plusOpen, setPlusOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
@@ -342,9 +361,14 @@ export function Header({ title }: HeaderProps) {
 
   // Search results — filter pages by query, scoped to what this company
   // can reach, which is what its own navigation offers and nothing else.
+  //
+  // "A page reachable from the menu is searchable; one that is not, is
+  // not" — so the seat goes in too. Searching for a page whose route
+  // refuses you is the ⌘K version of a button that lies.
   const reachablePages = reachablePagesFor(
     company?.kind ?? null,
-    contextType === 'CONSULTANT'
+    contextType === 'CONSULTANT',
+    { worker: isWorker, permissions }
   )
 
   const searchResults: SearchResult[] = searchQuery.length >= 1

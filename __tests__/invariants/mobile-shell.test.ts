@@ -150,7 +150,7 @@ describe('sign out is reachable from a phone, and signs a demo visitor out too',
 })
 
 describe('the sidebar props are read off the session the same way for both surfaces', () => {
-  const base = { company: null, contextType: null, loading: false } as const
+  const base = { company: null, contextType: null, loading: false, isWorker: false, permissions: [] } as const
 
   it('renders the frame without a navigation while the session is still loading', () => {
     expect(sidebarPropsFrom({ ...base, loading: true })).toMatchObject({ pending: true })

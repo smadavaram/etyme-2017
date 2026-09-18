@@ -595,6 +595,37 @@ people at them. `__tests__/invariants/sidebar-nav.test.ts` reads this table
 and fails when the code and it disagree, so a section renamed in one and not
 the other breaks the build rather than the founder's walk.
 
+**A person who is also a worker keeps their firm's sections and gains "You"
+at the end.** Decided 2026-09-17, on the founder opening Karthik Menon's
+demo door and saying "Candidate Karthik is all buggy". He is a systems
+integrator's own W2 — the case "Who sells and who buys" added the same day
+— so his only context is EMPLOYEE at Teleworld and the shell read identity
+off the seat's type: he was served Teleworld's whole integrator menu, and
+the four pages that are actually his appeared nowhere at all. The demo door
+dropped him on `/dashboard/my-work` and nothing in his own navigation
+pointed back to it.
+
+Appended, never substituted. He is Teleworld staff with a real seat **and**
+the person the work is about, and giving him the consultant menu instead
+would be the same bug facing the other way. Whether somebody is a worker is
+read off the work — a placement, a submission, a contract that pays them
+(`ownPage` in `lib/consultant-portfolio`) — and never off a context type,
+because every staffer of every firm holds an EMPLOYEE context and a
+client's bookkeeper is not a contractor. Somebody whose seat already **is**
+the consultant seat reads the Consultant row and nothing changes for them.
+
+**A menu entry the route will refuse is a menu entry that lies.** The same
+rule as the buttons, one layer up: a nav item names the permission the page
+behind it actually asks for, read off that route's own GET handler, and a
+seat that holds none of them is not shown the link. A link with no
+permission beside it opens a page that refuses nobody — it scopes itself to
+the caller's company and shows what that company has. The + button and ⌘K
+are filtered from the same answer, so the three doors into a page cannot
+disagree. Where a route's gate refuses the very desk the page is named for
+— `/api/ar` and `/api/ap` ask for `margin.read` and the Accounts Receivable
+desk does not hold it — the link stays unfiltered and the gate is the bug,
+because hiding a desk from itself is worse than a refusal.
+
 **Eyebrow labels are company-type-specific.** Pages show eyebrows like "Sell"
 and "Operate" that make sense for a staffing vendor. A client company
 (Northbend Athletic, Talvern Medical) sees the same data under different

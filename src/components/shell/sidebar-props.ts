@@ -22,18 +22,22 @@ export type SidebarIdentity = {
     ? C extends { kind: infer K } ? K | null : null
     : null
   isConsultant: boolean
+  /** Also somebody the work is about — their firm's menu plus "You". */
+  worker: boolean
+  /** What the seat holds; undefined means the menu is not filtered yet. */
+  permissions?: readonly string[] | null
   companyName?: string
   companyLabel?: string
   pending: boolean
 }
 
 export function sidebarPropsFrom(
-  session: Pick<SessionState, 'company' | 'contextType' | 'loading'>
+  session: Pick<SessionState, 'company' | 'contextType' | 'loading' | 'isWorker' | 'permissions'>
 ): SidebarIdentity {
   // While the session loads, the frame without nav items — rather than
   // flashing the wrong company's navigation.
   if (session.loading) {
-    return { companyKind: 'VENDOR', isConsultant: false, pending: true }
+    return { companyKind: 'VENDOR', isConsultant: false, worker: false, pending: true }
   }
 
   // Null, not a default. A person with no company is a consultant, and
@@ -46,8 +50,20 @@ export function sidebarPropsFrom(
   return {
     companyKind: kind,
     isConsultant,
+    // A seat's type says who employs them; it does not say whether the
+    // work is about them. Karthik Menon's only context is EMPLOYEE at a
+    // systems integrator and he is the person on the placement, so this
+    // is read off the work (`ownPage`) and never off contextType.
+    //
+    // Never both at once: somebody whose seat already IS the consultant
+    // seat reads CONSULTANT_NAV, which carries these pages already.
+    worker: !isConsultant && session.isWorker,
+    // The label stays the firm's. He is Teleworld staff with a real
+    // seat, and calling him a consultant would be the mirror image of
+    // the bug this fixes.
     companyName: session.company?.name,
     companyLabel: isConsultant ? 'Consultant' : kind ? (KIND_LABEL[kind] ?? 'Vendor') : 'Consultant',
+    permissions: session.permissions,
     pending: false,
   }
 }

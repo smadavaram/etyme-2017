@@ -411,6 +411,28 @@ export const MATRIX: L1[] = [
           implementedBy: ['src/lib/onboarding.ts', 'src/lib/company-defaults.ts', 'src/lib/company-roles.ts', 'src/lib/public-site.ts'],
           testedBy: ['__tests__/invariants/onboarding.test.ts', '__tests__/invariants/company-defaults.test.ts',
             '__tests__/invariants/award-desks.test.ts'] },
+        { code: 'L3.2.2.11', name: 'What a seat reads', owner: 'Etyme', status: B,
+          tasks: [
+            'A seat reads the menu of the firm it sits at, and the table in CLAUDE.md and the code cannot disagree without the build failing',
+            'Somebody a firm employs who the work is also about keeps their firm\u2019s sections and gains their own \u2014 appended, never substituted',
+            'Whether somebody is a worker is read off the work rather than off a context type, because every staffer of every firm holds an EMPLOYEE context',
+            'The answer is the one their own page already uses, asked once on the server before anything draws, rather than a second answer to the same question',
+            'A menu entry names the permission its own route asks for, read back out of that route by a test',
+            'A seat holding none of them is not shown the link, and the + button and the search box are filtered from the same answer',
+            'A route whose gate refuses the desk the page is named for keeps its link and is reported, because hiding a desk from itself is worse than a refusal',
+            'No seat is filtered down to a menu it cannot work from, and nobody who holds the whole company loses a link',
+            'Nothing is filtered at all until the seat is known, so a menu never shortens itself a beat after it draws',
+          ],
+          implementedBy: [
+            'src/components/shell/sidebar.tsx', 'src/components/shell/sidebar-props.ts',
+            'src/components/shell/header.tsx', 'src/components/session-provider.tsx',
+            'src/app/dashboard/layout.tsx', 'src/app/dashboard/shell.tsx',
+            'src/components/shell/mobile-nav.tsx',
+          ],
+          testedBy: [
+            '__tests__/invariants/sidebar-nav.test.ts',
+            '__tests__/invariants/mobile-shell.test.ts',
+          ] },
       ]},
       { code: 'L2.2.3', name: 'Compliance clearance', domain: 'REGULATORY', processes: [
         { code: 'L3.2.3.1', name: 'Work authorization', owner: 'Compliance', status: B,

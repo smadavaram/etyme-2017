@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { globSync } from 'fs'
-import { getNavForKind } from '@/components/shell/sidebar'
+import { getNavForKind, mayOpen } from '@/components/shell/sidebar'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { ownPage } from '@/lib/consultant-portfolio'
+import { PERMISSIONS } from '@/lib/permissions'
+import { rolesFor } from '@/lib/company-defaults'
 
 /**
  * The founder's own words: "apps on client side seems to be duplicating
@@ -66,19 +70,24 @@ describe('a candidate never lands on the vendor staff\'s own screens', () => {
   // "Training" pointed at the vendor's company-wide skill-gap analysis,
   // which showed every number at zero because none of it was about the
   // person looking at it.
-  const consultantNav = extractArray('CONSULTANT_NAV')
+  //
+  // Read off the navigation rather than off the source text of one
+  // array: the three pages that belong to a person moved into a `YOURS`
+  // constant when a GSI's own W2 started getting them alongside his
+  // employer's menu, and a test that greps a declaration would have gone
+  // green on a menu that had lost them.
+  const consultantHrefs = getNavForKind(null, true).flatMap((s) => s.items.map((i) => i.href))
 
   it('has no link into the vendor staff\'s consultant list', () => {
-    expect(consultantNav).not.toContain("href: '/dashboard/consultants'")
+    expect(consultantHrefs).not.toContain('/dashboard/consultants')
   })
 
   it('has no link into the vendor\'s bench-wide training analytics', () => {
-    expect(consultantNav).not.toContain("href: '/dashboard/training'")
+    expect(consultantHrefs).not.toContain('/dashboard/training')
   })
 
   it('gives a candidate exactly one place to edit their own profile', () => {
-    const matches = consultantNav.match(/href:\s*'\/dashboard\/my-page'/g) ?? []
-    expect(matches.length).toBe(1)
+    expect(consultantHrefs.filter((h) => h === '/dashboard/my-page').length).toBe(1)
   })
 })
 
@@ -400,6 +409,30 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
       expect(CODE[party]).toEqual(documented.get(party))
     })
   }
+
+  it('states the rule for a person who is also a worker, in the same place as the table', () => {
+    // The table is per company type and a worker's menu is a firm's plus
+    // one section, so the rule cannot be a row. It is the sentence under
+    // the table, and this is what stops the code and the document
+    // drifting apart the way they did over "Talent" and "Procure".
+    expect(
+      table,
+      'CLAUDE.md no longer states what a menu does for somebody who is also a worker'
+    ).toContain('A person who is also a worker keeps their firm\'s sections and gains "You"\nat the end.')
+  })
+
+  for (const party of ['Vendor', 'GSI', 'MSP', 'Client'] as const) {
+    it(`gives ${party} its own sections and then "You" when the reader is also a worker`, () => {
+      const kind = party === 'Vendor' ? 'VENDOR' : party.toUpperCase()
+      expect(getNavForKind(kind as any, false, { worker: true }).map((s) => s.label))
+        .toEqual([...documented.get(party)!, 'You'])
+    })
+  }
+
+  it('changes nothing for somebody whose seat already is the consultant seat', () => {
+    expect(getNavForKind(null, true, { worker: true }).map((s) => s.label))
+      .toEqual(documented.get('Consultant'))
+  })
 })
 
 describe('no menu is a long flat list of links', () => {
@@ -637,7 +670,240 @@ describe('the + button and the search box say what the menu beside them says', (
   it('searches the pages the reader’s own menu offers, and no others', () => {
     // Read off the navigation rather than kept beside it: the two lists
     // cannot disagree if there is only one.
-    expect(HEADER_SRC).toContain('getNavForKind(kind, isConsultant)')
+    expect(HEADER_SRC).toContain('getNavForKind(kind, isConsultant, seat)')
     expect(HEADER_SRC).not.toContain('CLIENT_SEARCH_LABELS')
+  })
+})
+
+/**
+ * ── A person who is also a worker ────────────────────────────────────
+ *
+ * Founder report, 2026-09-17, opening the Karthik Menon door on /demo:
+ * "Candidate Karthik is all buggy."
+ *
+ * He is a systems integrator's own W2 — the case CLAUDE.md added the
+ * same day under "Who sells and who buys" — so his only context is
+ * EMPLOYEE at Teleworld Solutions. The shell read identity off the
+ * seat's type (`contextType === 'CONSULTANT'`) and therefore served him
+ * Teleworld's whole integrator menu, while the four pages that are
+ * actually his appeared nowhere at all. The demo door drops him on
+ * /dashboard/my-work and nothing in his own navigation pointed back.
+ *
+ * The same class of bug supply had just fixed on his page: identity read
+ * from the seat instead of from the work.
+ */
+describe('somebody a firm employs and the work is about reads both menus', () => {
+  const GSI_PERMS = ['assignments.read', 'timesheets.read'] as const
+  const engineer = getNavForKind('GSI', false, { worker: true, permissions: GSI_PERMS })
+
+  it('a GSI\'s own engineer can reach their own work from their own menu', () => {
+    const you = engineer.find((s) => s.label === 'You')
+    expect(you, 'no "You" section at all').toBeTruthy()
+    expect(you!.items.map((i) => i.href)).toEqual([
+      '/dashboard/my-work', '/dashboard/my-page', '/dashboard/my-benches',
+    ])
+  })
+
+  it('and still sees the firm that employs them, because they are both', () => {
+    // Not the consultant menu instead. He holds a real seat at
+    // Teleworld, and hiding his employer's menu would be this same bug
+    // facing the other way.
+    expect(engineer.map((s) => s.label)).toEqual(
+      ['Today', 'Deliver', 'Supply', 'Operate', 'Grow', 'Governance', 'You']
+    )
+  })
+
+  it('reads their own work last, after the firm\'s, not instead of it', () => {
+    expect(engineer[engineer.length - 1].label).toBe('You')
+  })
+
+  it('is told they are staff of the firm, not that they are a consultant', () => {
+    const props = sidebarPropsFrom({
+      company: { id: 't', name: 'Teleworld Solutions', slug: 'teleworld', kind: 'GSI' },
+      contextType: 'EMPLOYEE',
+      isWorker: true,
+      permissions: GSI_PERMS,
+      loading: false,
+    })
+    expect(props).toMatchObject({
+      companyKind: 'GSI', isConsultant: false, worker: true,
+      companyName: 'Teleworld Solutions', companyLabel: 'GSI · Delivery',
+    })
+  })
+
+  it('a client\'s bookkeeper is not offered a worker\'s menu', () => {
+    // Every staffer of every firm holds an EMPLOYEE context, so
+    // employment cannot be the test. `ownPage` asks the work instead —
+    // a placement, a submission, a contract that pays them — and an
+    // accounts payable clerk has none of the three.
+    const clerk = ownPage({
+      benches: [], employers: ['Northbend Athletic'],
+      placements: 0, submissions: 0, paidEngagements: 0, hasProfile: false,
+    })
+    expect(clerk.ok).toBe(false)
+    expect(clerk.because).toBe('NOBODY')
+
+    const menu = getNavForKind('CLIENT', false, { worker: clerk.ok })
+    expect(menu.map((s) => s.label)).not.toContain('You')
+  })
+
+  it('reads the same answer the engineer\'s own page reads, rather than a second one', () => {
+    // Karthik's working life on the seeded world: employed by Teleworld,
+    // one finished placement, no bench listing anywhere.
+    const karthik = ownPage({
+      benches: [], employers: ['Teleworld Solutions'],
+      placements: 1, submissions: 0, paidEngagements: 1, hasProfile: false,
+    })
+    expect(karthik.ok).toBe(true)
+    expect(karthik.because).toBe('EMPLOYED')
+    expect(getNavForKind('GSI', false, { worker: karthik.ok }).map((s) => s.label))
+      .toContain('You')
+  })
+
+  it('never gives somebody on a bench the section twice', () => {
+    // A consultant seat already reads CONSULTANT_NAV, which carries
+    // these pages. sidebarPropsFrom refuses to call them a worker as
+    // well, so "You" cannot be appended to a menu that is already it.
+    const onABench = sidebarPropsFrom({
+      company: { id: 'v', name: 'Brightmoor', slug: 'brightmoor', kind: 'VENDOR' },
+      contextType: 'CONSULTANT', isWorker: true, permissions: [], loading: false,
+    })
+    expect(onABench).toMatchObject({ isConsultant: true, worker: false })
+    expect(getNavForKind(null, true, { worker: false }).map((s) => s.label)).toEqual(['You'])
+  })
+
+  it('offers the notifications page once, from Today, not twice', () => {
+    const hrefs = engineer.flatMap((s) => s.items.map((i) => i.href))
+    expect(hrefs.filter((h) => h === '/dashboard/notifications').length).toBe(1)
+  })
+})
+
+/**
+ * ── A menu entry the route will refuse is a menu entry that lies ─────
+ *
+ * The second half of the same report. A "Validation Engineer" holds
+ * assignments.read and timesheets.read and was shown forty-three links
+ * of his employer's administration, fifteen of which answered him with
+ * a red permission error he could not have predicted from the menu.
+ *
+ * CLAUDE.md, commit 47bd0d03: "A button that the route will refuse is a
+ * button that lies." A menu entry makes the same promise a button does.
+ */
+describe('a menu offers only what this seat can actually open', () => {
+  const API = join(process.cwd(), 'src/app/api')
+
+  /** Every annotated item in the product, by the page it opens. */
+  const annotated = [...new Set(
+    (['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const)
+      .flatMap((k) => itemsOf(getNavForKind(k, false)))
+      .filter((i) => i.needs)
+      .map((i) => JSON.stringify({ href: pathOf(i.href), needs: i.needs }))
+  )].map((j) => JSON.parse(j) as { href: string; needs: string[] })
+
+  it('names a real permission on every link that names one', () => {
+    expect(annotated.length).toBeGreaterThan(5)
+    const unknown = annotated.flatMap((a) => a.needs.filter((p) => !PERMISSIONS.includes(p as any)))
+    expect(unknown, `no such permission: ${unknown.join(', ')}`).toEqual([])
+  })
+
+  it('asks for exactly what the route behind it asks for, read off that route', () => {
+    // Not a second hand-kept table. The permission on a nav item is read
+    // back out of the GET handler it points at, so a gate that changes
+    // in one place and not the other breaks the build.
+    const wrong: string[] = []
+    for (const { href, needs } of annotated) {
+      const route = join(API, href.replace('/dashboard/', ''), 'route.ts')
+      if (!existsSync(route)) {
+        wrong.push(`${href} — no route at ${route} to check the claim against`)
+        continue
+      }
+      const src = readFileSync(route, 'utf8')
+      const start = src.indexOf('export async function GET')
+      const after = src.indexOf('export async function', start + 10)
+      const body = src.slice(start, after < 0 ? src.length : after)
+      const guard = body.match(/if \(!hasPermission\((?:[^{])*/)?.[0] ?? ''
+      const asked = [...guard.matchAll(/hasPermission\([^,]+,\s*'([^']+)'/g)].map((m) => m[1])
+      if (asked.join('|') !== needs.join('|')) {
+        wrong.push(`${href} — menu says ${needs.join(', ') || '(nothing)'}; the route asks ${asked.join(', ') || '(nothing)'}`)
+      }
+    }
+    expect(wrong, `these promise something the route does not:\n  ${wrong.join('\n  ')}`).toEqual([])
+  })
+
+  it('shows a delivery engineer no payroll, no invoices and no profit', () => {
+    const labels = itemsOf(getNavForKind('GSI', false, {
+      worker: true, permissions: ['assignments.read', 'timesheets.read'],
+    })).map((i) => i.label)
+    for (const refused of ['Payroll', 'Commissions', 'Invoices', 'Profitability', 'POs', 'Expenses', 'Bench', 'Consultants']) {
+      expect(labels, `${refused} would answer him with a permission error`).not.toContain(refused)
+    }
+    // And he keeps the week he files and the contracts he is on.
+    expect(labels).toContain('Timesheets')
+    expect(labels).toContain('Sell contracts')
+  })
+
+  it('shortens nobody\'s menu who holds the whole company', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+      const owner = rolesFor(kind === 'CLIENT' ? 'CLIENT' : kind).find((r) => r.isOwner)!
+      expect(
+        itemsOf(getNavForKind(kind, false, { permissions: owner.permissions })).length,
+        `${kind}'s owner lost a link`
+      ).toBe(itemsOf(getNavForKind(kind, false)).length)
+    }
+  })
+
+  it('leaves every seeded desk a menu it can work from', () => {
+    // A filter that empties somebody's navigation is worse than the
+    // refusals it removes.
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+      for (const role of rolesFor(kind)) {
+        const nav = getNavForKind(kind, false, { permissions: role.permissions })
+        expect(nav.length, `${kind} / ${role.name} has no sections left`).toBeGreaterThan(0)
+        expect(
+          itemsOf(nav).length,
+          `${kind} / ${role.name} keeps too little to work from`
+        ).toBeGreaterThan(15)
+      }
+    }
+  })
+
+  it('offers no shortcut to create a thing the seat cannot create', () => {
+    // The + button opens the same pages the menu does. "Add consultant"
+    // goes to /dashboard/consultants?new=1, which refuses anybody
+    // without consultants.read one screen later.
+    expect(mayOpen('/dashboard/consultants?new=1', ['assignments.read'])).toBe(false)
+    expect(mayOpen('/dashboard/invoices?new=1', ['assignments.read'])).toBe(false)
+    expect(mayOpen('/dashboard/consultants?new=1', ['consultants.read'])).toBe(true)
+  })
+
+  it('still offers a client the two things a client creates', () => {
+    // Keyed on what the page asks for, not on whether the page is on
+    // this reader's own menu. A client raises a role through
+    // /dashboard/requirements?new=1 while its own menu reaches the same
+    // roles through /dashboard/requisitions, and reads its approvals on
+    // a page no client menu names — and neither refuses anybody. Asking
+    // the menu instead of the gate emptied the client's + button
+    // entirely, for every role including the owner.
+    const hiringManager = rolesFor('CLIENT').find((r) => r.name === 'Hiring Manager')!
+    for (const href of ['/dashboard/requirements?new=1', '/dashboard/conversations?new=1', '/dashboard/decisions']) {
+      expect(mayOpen(href, hiringManager.permissions), href).toBe(true)
+    }
+    const owner = rolesFor('CLIENT').find((r) => r.isOwner)!
+    for (const href of ['/dashboard/requirements?new=1', '/dashboard/conversations?new=1', '/dashboard/decisions']) {
+      expect(mayOpen(href, owner.permissions), href).toBe(true)
+    }
+  })
+
+  it('reads the + button and the search box off the same answer as the menu', () => {
+    const HEADER_SRC = readFileSync(join(process.cwd(), 'src/components/shell/header.tsx'), 'utf8')
+    expect(HEADER_SRC).toContain('mayOpen(i.href, permissions)')
+    expect(HEADER_SRC).toContain('{ worker: isWorker, permissions }')
+  })
+
+  it('does not filter a menu at all until it knows what the seat holds', () => {
+    // The moment before /api/me answers. A menu that shortens itself a
+    // beat after it draws is a menu that flickers.
+    expect(itemsOf(getNavForKind('GSI', false, { permissions: null })).length)
+      .toBe(itemsOf(getNavForKind('GSI', false)).length)
   })
 })
