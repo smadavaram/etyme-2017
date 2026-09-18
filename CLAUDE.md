@@ -862,13 +862,11 @@ standalone has reintroduced the second document.
    first. "We don't need a master contract if there is no budget
    profile" is exactly right.
 4. **The thing that links sell to buy for profitability already
-   exists and has the wrong name.** It is `ContractLink` (a sell line
-   joined to the buy line that funds it) settling into `ProjectOrder`
-   (the cost object) — not the MSA. That is what the founder means by
-   "master contract … for profitability analysis": the deal, revenue
-   side and cost side, margin between. It needs the trade's word on the
-   screen; SAP's is the internal order or WBS that both the SO and the
-   PO settle to.
+   exists, and it has a name — the 2017 one.** It is `ContractLink` (a
+   sell line joined to the buy line that funds it) settling into
+   `ProjectOrder` (the roll-up). The founder calls the roll-up the
+   **master contract**, and that is what a screen calls it. See "The
+   master contract" below.
 
 **What survives from the argument above**, restated as header and
 lines rather than as two objects: an order still carries a ceiling and
@@ -876,6 +874,61 @@ a line still carries a rate; a header still covers five people where a
 line covers one; a W2 line still has no external PO. Those were true.
 They were reasons to keep two *rows*. They were never reasons to show
 two *documents*, and the section read as if they were.
+
+### The master contract — the 2017 word, kept, and made optional
+
+The founder, on where the two lines came from:
+
+> Our original contract form in Etyme-2017 had these both under one
+> form under master contract, but now we are splitting them and letting
+> companies tag them to master contract if they want to see contract
+> profitability.
+
+The archive (`763c6f57`) bears it out exactly. `LEGACY_RULES.md` §2.1:
+a single `Contract` was *"the master container"*, polymorphic on a
+Company or a Candidate, and every one spawned two children — a
+`SellContract` holding `customer_rate` and a `BuyContract` holding
+`payrate`, numbered `SC_` and `BC_`. The 2018 migration then flattened
+both onto **one row** — `customer_rate` beside `payrate`,
+`buy_company_id`, `b_time_sheet`, `b_show_accounting_to_employee`, the
+`b_` prefix marking the buy side — so margin was a subtraction on the
+row. A child's invoice created its parent's: *"margin = parent total −
+child total"* (§4). That is the form he means.
+
+**So "master contract" is the trade's word — this trade's, since 2017
+— for the profitability roll-up, and it is kept.** What changes is that
+it is no longer the container every contract is born inside. The lines
+come first; the master is a tag.
+
+| Level | The word | The row | Optional? |
+|---|---|---|---|
+| a sell line and the buy line that funds it | **the pair** — a placement's own margin | `ContractLink` | no — written by the award, because a buy line always pays for some sell line |
+| several pairs a company reads as one deal | **master contract** | `ProjectOrder` | **yes** — a company tags lines to one when it wants to see contract profitability; `projectOrderId` is nullable on both lines |
+| the legal umbrella between two firms | **agreement · MSA** | `MasterAgreement` | yes, since this morning |
+
+**Two words, never confused on a screen.** `MasterAgreement` is shown as
+"Agreement" or "MSA" today — thirteen and two occurrences, and "master
+agreement" spelled out nowhere — and it stays that way. "Master
+contract" is the roll-up and nothing else. A screen that puts "master
+agreement" beside "master contract" has made two things sound like one.
+
+**What is already built, and what is not.** `ProjectOrder` exists,
+carries `budgetCents` — the founder's "budget profile" — and a kind
+(time-and-materials, fixed price, milestone, retainer). `orderFor` in
+`lib/order-postings` groups lines into one **by engagement**, so six
+consultants on a project share a bucket, and every posting settles into
+it. What is not built is the name a person recognizes, and the
+**choice**: today the system decides the grouping, where the founder
+wants the company to tag a line to the master it belongs to — or to
+none. That is `etyme-money`'s screen work after the current pieces land,
+and it needs no schema.
+
+**What 2017 got wrong, stated so it is not rebuilt.** The master was
+mandatory, so a firm recording one contractor on one PO had to paper a
+container it did not want. And the propagated invoice let the parent's
+rate and the child's total disagree with the hours between them. Etyme
+bills each rung on the same signed hours through the chain instead, and
+the master *reads* what was posted rather than creating anything.
 
 **Sequencing.** This is a schema move and queues through
 `etyme-architect`. The cheap half — award creates the header, the six
