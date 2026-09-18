@@ -720,7 +720,7 @@ invariant in "Invariants the database must enforce" reads accordingly.
 
 ---
 
-## Agreement, order, contract — five objects, not two
+## Agreement, order, contract — one document, a header and its lines
 
 A recurring confusion, settled here so nobody has to guess: **a sell
 contract is not an order, and a buy contract is not an order either.**
@@ -776,7 +776,95 @@ somebody who is a party to it. The URL stays `/api/purchase-orders` and
 the event stays `purchase_order.raised`, by the same precedent that kept
 the demo slug `world-nike`: an address is not a word anybody reads.
 
-### Why collapsing the layers still breaks real cases
+### Corrected again, 2026-09-18 — one document, a header and its lines
+
+The founder, the morning after the order merge:
+
+> Sell contract (how sales documents flow from the upper layer to the
+> company) and sales order (how money flows, the rules) are duplicated.
+> Buy contract and purchase order are also duplicates. Master contract
+> is something that links both for profitability analysis. We don't
+> need a master contract if there is no budget profile — sell PO linked
+> to buy PO or payroll.
+
+He is right, and the section above over-defended a split that is real
+in the tables and wrong in the product. The evidence is in the schema:
+
+- **Six fields are carried on both rows** — `billFrequency`,
+  `billAnchor`, `billStraddle`, `paymentTerms`, `startDate`, `endDate`
+  sit on `WorkOrder` *and* on `SellContract`, and nothing reconciles
+  them. `BuyContract` repeats the set against its own `workOrderId`.
+  Two places for one fact is one wrong number waiting.
+- **The award still never sets `workOrderId`.** A person awards, a
+  contract appears, no order is raised or required. That is the exact
+  symptom of a duplicated object: one half is never written, and it
+  took a seed audit to notice that `WorkOrder` had zero rows for the
+  life of the product.
+- **`SellContract` has four optional parents** — `msaId`,
+  `engagementId`, `workOrderId`, `projectOrderId` — four different
+  attempts at "which deal is this part of."
+
+**The resolution is SAP's, and the swim-lane drawing already had it
+before the prose did:** a purchase order is a **header and its lines**.
+The header is the commitment to a counterparty — who, ceiling, dates,
+terms, the four partner functions, whether silence approves a week. A
+line is one person at one rate at one site. SAP has no "buy contract"
+beside the PO item; the item *is* the contract for that service, and
+the Service Entry Sheet (our timesheet receipt) posts against it. SD is
+the mirror: contract header (VA41), sales order items (VA01), one item
+per worker.
+
+So the words change and the two rows stay:
+
+| The trade says | The row | What it is |
+|---|---|---|
+| **Purchase order · sales order · work order** — one document, three names | `WorkOrder` | the **header**: counterparty, ceiling, dates, terms, partners |
+| **a line on it** — this person, this rate, this site | `SellContract` / `BuyContract` | the **lines**: per person, carrying the rate and everything that hangs off a person |
+
+**What this fixes, in order:**
+
+1. **One document on every screen, created once.** The award writes the
+   header and its first line together. A single-person deal — most of
+   them — is a header with one line, and the person never meets two
+   things. Five people on one PO is one header, five lines. A W2 is a
+   line whose header is the firm's own, with no external number,
+   because you do not raise a PO to your own employee — SAP agrees; an
+   employee is HCM master data, not a vendor.
+2. **The six duplicated fields live on the header only.** A line reads
+   its dates and its billing rhythm from the document it is on; it
+   carries what only a line can carry — the person, the rate, the
+   site, the hours.
+3. **The MSA is the legal umbrella and nothing more, and it is
+   optional.** No route requires one today; `Engagement.msaId` is the
+   one hard dependency and it becomes optional too. A client that sends
+   one PO and a contractor should never be made to paper an agreement
+   first. "We don't need a master contract if there is no budget
+   profile" is exactly right.
+4. **The thing that links sell to buy for profitability already
+   exists and has the wrong name.** It is `ContractLink` (a sell line
+   joined to the buy line that funds it) settling into `ProjectOrder`
+   (the cost object) — not the MSA. That is what the founder means by
+   "master contract … for profitability analysis": the deal, revenue
+   side and cost side, margin between. It needs the trade's word on the
+   screen; SAP's is the internal order or WBS that both the SO and the
+   PO settle to.
+
+**What survives from the argument above**, restated as header and
+lines rather than as two objects: an order still carries a ceiling and
+a line still carries a rate; a header still covers five people where a
+line covers one; a W2 line still has no external PO. Those were true.
+They were reasons to keep two *rows*. They were never reasons to show
+two *documents*, and the section read as if they were.
+
+**Sequencing.** This is a schema move and queues through
+`etyme-architect`. The cheap half — award creates the header, the six
+fields stop being written to lines, the screens show one document with
+lines, `Engagement.msaId` goes optional — needs no table dropped and
+should go first. Whether the tables themselves merge afterwards is a
+question to answer with a paying client's data in the system, not
+before.
+
+### Why collapsing the layers still breaks real cases — read now as header and lines
 
 **A sell contract is per person; an order is not.** One order for a
 five-person project produces five sell contracts. That survived the merge
