@@ -1108,6 +1108,48 @@ codebase holds all five:
    why the certificate shows up in supplier onboarding rather than in
    somebody's personal file.
 
+### Where a document lives — on the line, on the side it protects
+
+**Decided 2026-09-18, by the founder**, the morning the order became a
+header and its lines:
+
+> Compliance should live in sell and buy contracts. The MSA from the
+> client or customer is signed by the company that is supplying
+> contingent talent. Similarly the employee contract or MSA, NDA, NCA
+> and the build of HR documents — visa as attachment, background
+> verification — or company insurance and good-standing certificate for
+> a supplier will all live on the buy contract side.
+
+So paperwork attaches to the **line**, on the side of the trade it
+protects:
+
+| Line | Carries | Because |
+|---|---|---|
+| **Sell** — bills the customer | the customer's paper the firm signs as its supplier: the MSA, and the customer's compliance line inherited from the header | it is what the customer may hold the firm to |
+| **Buy** — pays the supplier or runs payroll | everything about the party the firm pays: an employment contract or the sub-vendor's MSA; NDA, NCA; visa, background check, licenses; for a supplier, its insurance and good standing | it is what the firm may hold *them* to, and what stops the money if it lapses |
+
+This is the "two greens" gate at station 5 stated as data. Candidate
+green and company green are both **buy-side** facts — the person and
+the firm being paid — and the header carries the customer's required
+set, so a hospital role and a warehouse role under the same MSA can
+demand different things and each line knows which.
+
+**What this does and does not move.** Evidence stays where it is: a
+person's I-9 is the person's (`Verification`), a supplier's certificate
+is the company's, and copying a passport onto every placement would be
+the duplication this whole section exists to end. What moves to the
+line is the **requirement and the verdict** — which documents this line
+needs, from whom, and whether it is green. `DocInstance` already hangs
+off both `SellContract.docs` and `BuyContract.docs`, so signed papers
+have a home. **Nothing yet says what a line requires**: there is no
+per-line required set anywhere in the schema, and
+`lib/contract-clearance` reads the person and the company rather than
+the line. That is the next schema request to `etyme-architect` — a
+required set on the buy line, inherited from the header, declared in
+`lib/document-type`'s purposes — and the rewiring of clearance to read
+it is `etyme-regulatory`'s, sequenced after the header-and-lines pieces
+land.
+
 **Four models overlap here and none is a superset:** `Verification` and
 `VerificationDoc` (the person's compliance evidence, expiry watched by
 `cron/watch`), `DocInstance` and `DocTemplate` (papers sent for signature,
