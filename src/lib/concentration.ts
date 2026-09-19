@@ -43,6 +43,9 @@
  * dollars and euros has a share in each and a total in neither.
  */
 
+import { partiesOf, type PartiesInput } from '@/lib/money/invoice-parties'
+import { amount as formatAmount } from '@/lib/money-display'
+
 /** What is being concentrated. */
 export type Dimension = 'CLIENT' | 'SUPPLIER' | 'PERSON'
 
@@ -421,5 +424,109 @@ export function concentrationReport(parts: Concentration[]): ConcentrationReport
           ? 'Nothing here can be measured yet. That is a small book rather than a safe one.'
           : 'No single client, supplier or person is large enough to be worth naming.'
         : `${worst.says} ${worst.breach!.meaning}`,
+  }
+}
+
+// ── Whose invoice is it, when there is no agreement ───────────────────
+//
+// `Engagement.msaId` went optional on 2026-09-18: a client that sends one
+// purchase order and one contractor is not made to paper a master
+// agreement first. Everything that asked an invoice who it was between
+// through `engagement.msa` therefore has to ask a cascade instead — the
+// agreement, then the order, then the lines billed on it — and that
+// cascade is `lib/money/invoice-parties`, which is the one door.
+//
+// It matters here more than it looks. The client share of a book is
+// built by rolling invoices up on a client, and an invoice nobody could
+// attribute was an invoice that silently did not exist: the scope
+// filtered through the agreement, and a relation filter on a null
+// relation matches nothing. A firm's largest client could have been its
+// largest by never having signed an agreement — and the figure on the
+// screen would have looked entirely reasonable.
+
+/** One invoice, as much of it as the shape of the book needs. */
+export interface BilledRow extends PartiesInput {
+  /** What was billed on it. Minor units, like every other figure here. */
+  amountMinor: number
+  currency: string
+}
+
+export interface ClientExposures {
+  /** One row per client per currency, ready for `concentration`. */
+  exposures: Exposure[]
+  /** Invoices nothing behind them could attribute to a client. */
+  unattributed: number
+  /** What those came to. Null where they are in more than one currency. */
+  unattributedMinor: number | null
+  /** The sentence for the gaps list, or null where nothing was dropped. */
+  says: string | null
+}
+
+/**
+ * Invoices rolled up on the client who owes them.
+ *
+ * Each invoice is attributed through the cascade rather than through the
+ * agreement alone, so a placement sold on an order with no agreement
+ * behind it counts toward its client's exposure like any other.
+ *
+ * An invoice the cascade cannot name is **left out and counted**, never
+ * folded into the first client loaded. A concentration figure is read as
+ * a warning about one named firm, and quietly adding somebody else's
+ * money to that firm's row is the exact shape of wrong number this file
+ * exists to refuse.
+ *
+ * Two currencies are never added, here as everywhere else in this file.
+ * One client billed in dollars and in euros comes back as two rows, so
+ * `concentration` sees the mix and says it cannot total it, rather than
+ * being handed a single row whose number is neither amount. The gap is
+ * reported the same way: a count, and a total only where there is one
+ * currency to total.
+ */
+export function clientExposures(rows: readonly BilledRow[]): ClientExposures {
+  /** Named separately from the total, so a blank cannot become the name. */
+  const byClient = new Map<string, { id: string; name: string | null; amountMinor: number; currency: string }>()
+  let unattributed = 0
+  let droppedMinor = 0
+  const droppedCurrencies = new Set<string>()
+
+  for (const row of rows) {
+    const client = partiesOf(row).client
+    if (!client) {
+      unattributed += 1
+      droppedMinor += row.amountMinor
+      droppedCurrencies.add(row.currency)
+      continue
+    }
+
+    const key = `${client.id}\u0000${row.currency}`
+    const had = byClient.get(key)
+    byClient.set(key, {
+      id: client.id,
+      // A name we did load beats a blank we did not: an invoice
+      // attributed through its order can carry the firm's id without its
+      // name, and the next invoice for the same firm may carry both. The
+      // placeholder is put on at the end rather than stored, or the
+      // first nameless invoice would name the client for good.
+      name: had?.name ?? client.name ?? null,
+      amountMinor: (had?.amountMinor ?? 0) + row.amountMinor,
+      currency: row.currency,
+    })
+  }
+
+  const oneCurrency = droppedCurrencies.size === 1 ? [...droppedCurrencies][0] : null
+  const size = oneCurrency ? ` — ${formatAmount(droppedMinor, oneCurrency)} in all` : ''
+  const they = unattributed === 1 ? 'it' : 'them'
+
+  return {
+    exposures: [...byClient.values()].map((e) => ({ ...e, name: e.name ?? 'Unnamed client' })),
+    unattributed,
+    unattributedMinor: oneCurrency ? droppedMinor : null,
+    says:
+      unattributed === 0
+        ? null
+        : `${unattributed} invoice${unattributed === 1 ? '' : 's'}${size} could not be ` +
+          `attributed to a client: no agreement, no order and no line behind ${they}. ` +
+          `${unattributed === 1 ? 'It is' : 'They are'} left out of the shares above, ` +
+          `rather than added to whichever client was loaded first.`,
   }
 }

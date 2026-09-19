@@ -17,8 +17,10 @@ import { describe, it, expect } from 'vitest'
 import {
   concentration,
   concentrationReport,
+  clientExposures,
   THRESHOLDS,
   ENOUGH_TO_CONCENTRATE,
+  type BilledRow,
   type Exposure,
 } from '@/lib/concentration'
 
@@ -256,5 +258,156 @@ describe('The three dimensions together, worst first', () => {
     ])
     expect(report.worst).toBeNull()
     expect(report.says).toContain('small book rather than a safe one')
+  })
+})
+
+/**
+ * Whose invoice it is, when there is no agreement.
+ *
+ * `Engagement.msaId` went optional on 2026-09-18. Before these tests the
+ * client share of a book was rolled up through the agreement alone, and
+ * a relation filter on a null relation matches nothing — so an invoice
+ * sold on a purchase order with no agreement behind it was not a smaller
+ * share, it was no share at all. The figure on the screen stayed
+ * perfectly plausible while the book underneath it shrank.
+ *
+ * The other half of the same failure is the tempting fix: attributing
+ * the invoice to whichever client happened to be loaded first, so the
+ * total comes out right and one named firm is accused of somebody
+ * else's revenue.
+ */
+describe('An invoice with no agreement behind it still belongs to somebody', () => {
+
+  const billed = (row: Partial<BilledRow>): BilledRow => ({
+    amountMinor: 100_000_00,
+    currency: 'USD',
+    ...row,
+  })
+
+  const agreement = (clientId: string, name: string) => ({
+    vendorId: 'us',
+    clientId,
+    client: { id: clientId, name },
+  })
+
+  const order = (clientId: string, name: string) => ({
+    issuedById: clientId,
+    issuedToId: 'us',
+    issuedBy: { id: clientId, name },
+    issuedTo: { id: 'us', name: 'Auralis Software' },
+  })
+
+  const line = (clientId: string, name: string) => ({
+    companyId: 'us',
+    clientCompanyId: clientId,
+    clientCompany: { id: clientId, name },
+  })
+
+  it('an invoice billed under an agreement counts toward the client who signed it', () => {
+    const out = clientExposures([billed({ agreement: agreement('c1', 'Northbend Athletic') })])
+    expect(out.exposures).toHaveLength(1)
+    expect(out.exposures[0]).toMatchObject({ id: 'c1', name: 'Northbend Athletic', amountMinor: 100_000_00 })
+    expect(out.unattributed).toBe(0)
+  })
+
+  it('an invoice sold on an order with no agreement behind it still counts toward its client', () => {
+    const out = clientExposures([billed({ order: order('c2', 'Cavanaugh Glassworks') })])
+    expect(out.exposures).toHaveLength(1)
+    expect(out.exposures[0]).toMatchObject({ id: 'c2', name: 'Cavanaugh Glassworks' })
+    expect(out.unattributed).toBe(0)
+    expect(out.says).toBeNull()
+  })
+
+  it('an invoice with neither an agreement nor an order is attributed from the lines billed on it', () => {
+    const out = clientExposures([billed({ lines: [line('c3', 'Talvern Medical')] })])
+    expect(out.exposures[0]).toMatchObject({ id: 'c3', name: 'Talvern Medical' })
+    expect(out.unattributed).toBe(0)
+  })
+
+  it('one client reached through three different documents is one row, not three', () => {
+    const out = clientExposures([
+      billed({ agreement: agreement('c1', 'Northbend Athletic'), amountMinor: 10_000_00 }),
+      billed({ order: order('c1', 'Northbend Athletic'), amountMinor: 20_000_00 }),
+      billed({ lines: [line('c1', 'Northbend Athletic')], amountMinor: 30_000_00 }),
+    ])
+    expect(out.exposures).toHaveLength(1)
+    expect(out.exposures[0].amountMinor).toBe(60_000_00)
+  })
+
+  it('an invoice nobody can attribute is left out and counted, never added to the first client loaded', () => {
+    const out = clientExposures([
+      billed({ agreement: agreement('c1', 'Northbend Athletic'), amountMinor: 40_000_00 }),
+      billed({ amountMinor: 900_000_00 }),
+    ])
+    expect(out.exposures).toHaveLength(1)
+    expect(out.exposures[0].amountMinor).toBe(40_000_00)
+    expect(out.unattributed).toBe(1)
+    expect(out.unattributedMinor).toBe(900_000_00)
+  })
+
+  it('the sentence about what was dropped says what is missing and what was done with it', () => {
+    const out = clientExposures([billed({ amountMinor: 12_345_00 })])
+    expect(out.says).toContain('1 invoice')
+    expect(out.says).toContain('$12,345')
+    expect(out.says).toContain('no agreement, no order and no line')
+    expect(out.says).toContain('left out of the shares above')
+  })
+
+  it('nothing dropped says nothing at all, rather than a reassuring note about zero', () => {
+    const out = clientExposures([billed({ agreement: agreement('c1', 'Northbend Athletic') })])
+    expect(out.says).toBeNull()
+    expect(out.unattributedMinor).toBeNull()
+  })
+
+  it('two currencies in the unattributed gap are reported as a count with no total', () => {
+    const out = clientExposures([
+      billed({ amountMinor: 10_000_00, currency: 'USD' }),
+      billed({ amountMinor: 20_000_00, currency: 'EUR' }),
+    ])
+    expect(out.unattributed).toBe(2)
+    expect(out.unattributedMinor).toBeNull()
+    expect(out.says).toContain('2 invoices')
+    expect(out.says).not.toContain('in all')
+  })
+
+  it('one client billed in two currencies is kept apart rather than added into one total', () => {
+    const out = clientExposures([
+      billed({ agreement: agreement('c1', 'Northbend Athletic'), amountMinor: 10_000_00, currency: 'USD' }),
+      billed({ agreement: agreement('c1', 'Northbend Athletic'), amountMinor: 20_000_00, currency: 'EUR' }),
+    ])
+    expect(out.exposures).toHaveLength(2)
+    expect(out.exposures.map((e) => e.currency).sort()).toEqual(['EUR', 'USD'])
+    const shape = concentration({ dimension: 'CLIENT', unit: 'MONEY', exposures: out.exposures })
+    expect(shape.totalMinor).toBeNull()
+    expect(shape.says).toContain('cannot be added across them')
+  })
+
+  it('a name loaded on one invoice is kept when another for the same client carries none', () => {
+    const out = clientExposures([
+      billed({ order: { issuedById: 'c4', issuedToId: 'us' }, amountMinor: 5_000_00 }),
+      billed({ agreement: agreement('c4', 'Veritan Talent'), amountMinor: 5_000_00 }),
+    ])
+    expect(out.exposures).toHaveLength(1)
+    expect(out.exposures[0].name).toBe('Veritan Talent')
+  })
+
+  it('an invoice whose lines name two different customers is attributed to neither', () => {
+    const out = clientExposures([
+      billed({ lines: [line('c1', 'Northbend Athletic'), line('c2', 'Cavanaugh Glassworks')] }),
+    ])
+    expect(out.exposures).toHaveLength(0)
+    expect(out.unattributed).toBe(1)
+  })
+
+  it('a book attributed through orders alone still reads as a concentration', () => {
+    const out = clientExposures([
+      billed({ order: order('c1', 'Northbend Athletic'), amountMinor: 700_000_00 }),
+      billed({ order: order('c2', 'Cavanaugh Glassworks'), amountMinor: 200_000_00 }),
+      billed({ order: order('c3', 'Talvern Medical'), amountMinor: 100_000_00 }),
+    ])
+    const shape = concentration({ dimension: 'CLIENT', unit: 'MONEY', exposures: out.exposures })
+    expect(shape.topName).toBe('Northbend Athletic')
+    expect(shape.topSharePct).toBe(70)
+    expect(shape.breach?.severity).toBe('WARN')
   })
 })

@@ -166,6 +166,7 @@ export default function ScorecardsPage() {
 
   const [list, setList] = useState<Watchlist | null>(null)
   const [riskNote, setRiskNote] = useState<string | null>(null)
+  const [riskGaps, setRiskGaps] = useState<string[]>([])
   const [riskError, setRiskError] = useState<string | null>(null)
   const [openRisk, setOpenRisk] = useState<string | null>(null)
 
@@ -199,6 +200,7 @@ export default function ScorecardsPage() {
       const body = await readJson(res)
       setList(body.data.watchlist)
       setRiskNote(body.data.note ?? null)
+      setRiskGaps(body.data.gaps ?? [])
       setRiskError(null)
     } catch (err: any) {
       setRiskError(err.message)
@@ -257,6 +259,10 @@ export default function ScorecardsPage() {
             <p className="text-[13px] text-etyme-muted">{riskNote}</p>
           </div>
         )}
+
+        {riskGaps.map((g, i) => (
+          <p key={i} className="max-w-[58ch] text-[12px] text-etyme-faint">{g}</p>
+        ))}
 
         {list && list.rows.length > 0 && (
           <>

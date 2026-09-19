@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
+import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
 import {
   supplierRisk, watchlist,
   type Cover, type Settlement, type Owner, type CounterpartyRegister,
@@ -142,10 +143,39 @@ export async function GET(request: NextRequest) {
 
     // What they did with money they owed us. Our side only: an invoice
     // where we are the client is somebody else's receivable.
+    //
+    // Who owed it is `lib/money/invoice-parties`, not the agreement
+    // alone. An agreement became optional on 2026-09-18, and a relation
+    // filter on a null relation matches nothing — so a counterparty who
+    // pays late on purchase orders and has never signed an agreement
+    // would have come back with a clean payment record built out of no
+    // invoices at all. Days sales outstanding computed over a book that
+    // silently lost rows is the failure this cascade prevents.
     prisma.invoice.findMany({
       where: {
-        engagement: { msa: { vendorId: companyId, clientId: { in: otherIds } } },
         status: { notIn: NOT_RECEIVABLE },
+        // Two conditions, each of them an OR, so they are AND'd by hand.
+        // Spreading the first and writing the second as another `OR` key
+        // beside it reads as both and is neither: the second key
+        // overwrites the first, the our-side-only scope disappears, and
+        // a bill we RECEIVED lands in somebody's payment record as
+        // though they had owed it to us.
+        AND: [
+          // Ours to collect: the agreement, the order or a line says we
+          // are the firm that billed.
+          invoicesRaisedBy(companyId),
+          // And somebody on the register is on one of the same three
+          // documents. Which of them actually names the client is
+          // decided once, below, so the rows loaded and the sentence
+          // read cannot disagree.
+          {
+            OR: [
+              { engagement: { msa: { clientId: { in: otherIds } } } },
+              { workOrder: { issuedById: { in: otherIds } } },
+              { invoiceLines: { some: { sellContract: { clientCompanyId: { in: otherIds } } } } },
+            ],
+          },
+        ],
       },
       select: {
         id: true,
@@ -154,7 +184,40 @@ export async function GET(request: NextRequest) {
         paid: true,
         dueAt: true,
         payments: { select: { amount: true, receivedAt: true } },
-        engagement: { select: { msa: { select: { clientId: true } } } },
+        engagement: {
+          select: {
+            msa: {
+              select: {
+                vendorId: true,
+                clientId: true,
+                client: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        workOrder: {
+          select: {
+            number: true,
+            issuedById: true,
+            issuedToId: true,
+            issuedBy: { select: { id: true, name: true } },
+            issuedTo: { select: { id: true, name: true } },
+          },
+        },
+        // The last resort, bounded the way `api/ar/book` bounds it.
+        invoiceLines: {
+          select: {
+            sellContract: {
+              select: {
+                companyId: true,
+                clientCompanyId: true,
+                company: { select: { id: true, name: true } },
+                clientCompany: { select: { id: true, name: true } },
+              },
+            },
+          },
+          take: 2,
+        },
       },
       take: 5_000,
     }),
@@ -212,8 +275,31 @@ export async function GET(request: NextRequest) {
     settlementsFor.set(companyKey, list)
   }
 
+  const onRegister = new Set(otherIds)
+  let unattributed = 0
+
   for (const inv of invoices) {
-    const clientId = inv.engagement.msa.clientId
+    // The agreement, then the order, then the lines billed on it. An
+    // invoice none of the three can name is counted and left out: it
+    // cannot be charged to a counterparty's payment record, and putting
+    // it on the nearest one would be an accusation nobody could check.
+    const client = partiesOf({
+      agreement: inv.engagement.msa,
+      order: inv.workOrder,
+      lines: inv.invoiceLines.map((l) => l.sellContract).filter((c) => c != null),
+    }).client
+
+    if (!client) {
+      unattributed += 1
+      continue
+    }
+
+    // Named by a document other than the one that brought it back — a
+    // client not on this register. Not a gap, just not this page's
+    // subject.
+    if (!onRegister.has(client.id)) continue
+
+    const clientId = client.id
     const total = fromPrismaDecimal(inv.total, inv.currency).minor
     const paid = fromPrismaDecimal(inv.paid, inv.currency).minor
 
@@ -289,6 +375,18 @@ export async function GET(request: NextRequest) {
         wePayThem: { ...r.wePayThem, openOverdueMinor: null },
       }))
 
+  const gaps: string[] = []
+  if (unattributed > 0) {
+    gaps.push(
+      `${unattributed} invoice${unattributed === 1 ? '' : 's'} could not be attributed to a ` +
+        `counterparty — no agreement, no order and no line behind ` +
+        `${unattributed === 1 ? 'it' : 'them'}. ` +
+        `${unattributed === 1 ? 'It is' : 'They are'} left out of the payment records here ` +
+        `rather than charged to whoever was nearest, so somebody's record may be built on ` +
+        `less than their whole book.`
+    )
+  }
+
   if (!seesMoney) {
     withheld.push(
       'Amounts are withheld. How much a counterparty owes is the same class of fact as ' +
@@ -302,12 +400,15 @@ export async function GET(request: NextRequest) {
       watchlist: { ...list, rows: shown },
       seesMoney,
       withheld,
+      gaps,
       // Said on the page rather than assumed. A watchlist nobody can
       // account for is one nobody acts on.
       howJudged:
         'Certificates on file, what they did with money they owed us, what we did with ' +
-        'money we owed them, and whatever somebody last recorded in the register. Where ' +
-        'none of those exist the answer is that nobody has looked — never a clean bill.',
+        'money we owed them, and whatever somebody last recorded in the register. An ' +
+        'invoice is charged to a counterparty through the agreement, the order or the ' +
+        'lines billed on it, in that order. Where none of those exist the answer is that ' +
+        'nobody has looked — never a clean bill.',
       neverBlocks:
         'Nothing here stops a submission or a placement. Lapsed cover blocks through ' +
         'governance, which is a legal rule; this is commercial judgment and it warns.',

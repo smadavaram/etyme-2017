@@ -4,8 +4,9 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
+import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 import {
-  concentration, concentrationReport,
+  concentration, concentrationReport, clientExposures,
   type Concentration, type Exposure, type Owners,
 } from '@/lib/concentration'
 
@@ -18,10 +19,19 @@ import {
  *
  * ── Where each number comes from ─────────────────────────────────────
  *
- *   **Client.** Invoices raised under an agreement where we are the
- *   vendor, rolled up on the client on the agreement rather than on
- *   whichever of their entities the invoice was posted to. If they stop
- *   paying, all of their entities stop.
+ *   **Client.** Invoices we raised, rolled up on the client who owes
+ *   them rather than on whichever of their entities the invoice was
+ *   posted to. If they stop paying, all of their entities stop.
+ *
+ *   Who that client is comes from `lib/money/invoice-parties`: the
+ *   agreement where there is one, the order where there is not, the
+ *   lines where there is neither. This used to read the agreement alone,
+ *   and an agreement became optional on 2026-09-18 — a relation filter
+ *   on a null relation matches nothing, so an invoice sold on a purchase
+ *   order would have been left out of the book entirely and the share on
+ *   the screen would have looked no less convincing for it. An invoice
+ *   nothing can attribute is counted into the gaps below as a number,
+ *   and never added to a client who did not owe it.
  *
  *   **Supplier.** What we were billed by sub-vendors. Where nothing has
  *   been billed yet, the fallback is people supplied on live buy
@@ -112,7 +122,7 @@ export async function GET(request: NextRequest) {
   const [invoices, bills, people, lines] = await Promise.all([
     prisma.invoice.findMany({
       where: {
-        engagement: { msa: { vendorId: companyId } },
+        ...invoicesRaisedBy(companyId),
         status: { notIn: NOT_REVENUE },
       },
       select: {
@@ -121,8 +131,44 @@ export async function GET(request: NextRequest) {
         total: true,
         issuedAt: true,
         periodEnd: true,
+        // The three documents that can say who this is between, in the
+        // order `partiesOf` reads them.
         engagement: {
-          select: { msa: { select: { clientId: true, client: { select: { name: true } } } } },
+          select: {
+            msa: {
+              select: {
+                vendorId: true,
+                clientId: true,
+                client: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        workOrder: {
+          select: {
+            number: true,
+            issuedById: true,
+            issuedToId: true,
+            issuedBy: { select: { id: true, name: true } },
+            issuedTo: { select: { id: true, name: true } },
+          },
+        },
+        // Two lines, not all of them — the same bound `api/ar/book` takes
+        // for the same last resort. Two is enough to name the pair and to
+        // notice that the first two disagree, and five thousand invoices
+        // times every line on each is a different query.
+        invoiceLines: {
+          select: {
+            sellContract: {
+              select: {
+                companyId: true,
+                clientCompanyId: true,
+                company: { select: { id: true, name: true } },
+                clientCompany: { select: { id: true, name: true } },
+              },
+            },
+          },
+          take: 2,
         },
       },
       take: 5_000,
@@ -187,23 +233,25 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const byClient = new Map<string, Exposure>()
-  for (const i of inWindow) {
-    const id = i.engagement.msa.clientId
-    const had = byClient.get(id)
-    const minor = fromPrismaDecimal(i.total, i.currency).minor
-    byClient.set(id, {
-      id,
-      name: i.engagement.msa.client.name,
-      amountMinor: (had?.amountMinor ?? 0) + minor,
+  const attributed = clientExposures(
+    inWindow.map((i) => ({
+      agreement: i.engagement.msa,
+      order: i.workOrder,
+      lines: i.invoiceLines.map((l) => l.sellContract).filter((c) => c != null),
+      amountMinor: fromPrismaDecimal(i.total, i.currency).minor,
       currency: i.currency,
-    })
-  }
+    }))
+  )
+
+  // Said out loud rather than absorbed. A share is read as a statement
+  // about one named firm, so money that belongs to nobody we can name
+  // sits outside the shares and is reported as its own number.
+  if (attributed.says) gaps.push(attributed.says)
 
   const client = concentration({
     dimension: 'CLIENT',
     unit: 'MONEY',
-    exposures: [...byClient.values()],
+    exposures: attributed.exposures,
     owners: NAMED_OWNERS,
   })
 
@@ -296,8 +344,11 @@ export async function GET(request: NextRequest) {
       gaps,
       howJudged:
         'Invoices for the client share, sub-vendor bills for the supplier share, invoice ' +
-        'lines for the person share. Thresholds are published beside the figures — a line ' +
-        'somebody chose is one the next person can move.',
+        'lines for the person share. An invoice is attributed to its client through the ' +
+        'agreement, the order or the lines billed on it, in that order, and one that none ' +
+        'of the three can name is counted in the gaps rather than given to somebody. ' +
+        'Thresholds are published beside the figures — a line somebody chose is one the ' +
+        'next person can move.',
     },
   })
 }
