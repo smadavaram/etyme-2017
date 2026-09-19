@@ -801,8 +801,21 @@ describe('a menu offers only what this seat can actually open', () => {
     (['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const)
       .flatMap((k) => itemsOf(getNavForKind(k, false)))
       .filter((i) => i.needs)
-      .map((i) => JSON.stringify({ href: pathOf(i.href), needs: i.needs }))
-  )].map((j) => JSON.parse(j) as { href: string; needs: string[] })
+      .map((i) => JSON.stringify({ href: pathOf(i.href), needs: i.needs, api: i.api ?? null }))
+  )].map((j) => JSON.parse(j) as { href: string; needs: string[]; api: string | null })
+
+  /**
+   * A route may name its gate rather than spell it, and most of them
+   * that have two gates do: `const TO_READ = 'governance.read'` above a
+   * handler that reads it. Resolving the name against its own
+   * declaration keeps the check reading the route rather than being
+   * defeated by a constant.
+   */
+  function literalOf(src: string, token: string): string {
+    if (token.startsWith("'")) return token.slice(1, -1)
+    const decl = src.match(new RegExp(`const ${token}(?::[^=]+)? = '([^']+)'`))
+    return decl ? decl[1] : `${token} (no such constant in that route)`
+  }
 
   it('names a real permission on every link that names one', () => {
     expect(annotated.length).toBeGreaterThan(5)
@@ -815,8 +828,11 @@ describe('a menu offers only what this seat can actually open', () => {
     // back out of the GET handler it points at, so a gate that changes
     // in one place and not the other breaks the build.
     const wrong: string[] = []
-    for (const { href, needs } of annotated) {
-      const route = join(API, href.replace('/dashboard/', ''), 'route.ts')
+    for (const { href, needs, api } of annotated) {
+      // A page usually sits at the route it is named after. Where it
+      // does not — the compliance desk at /dashboard/privacy reads
+      // /api/data-requests — the link says so itself.
+      const route = join(API, api ?? href.replace('/dashboard/', ''), 'route.ts')
       if (!existsSync(route)) {
         wrong.push(`${href} — no route at ${route} to check the claim against`)
         continue
@@ -826,7 +842,8 @@ describe('a menu offers only what this seat can actually open', () => {
       const after = src.indexOf('export async function', start + 10)
       const body = src.slice(start, after < 0 ? src.length : after)
       const guard = body.match(/if \(!hasPermission\((?:[^{])*/)?.[0] ?? ''
-      const asked = [...guard.matchAll(/hasPermission\([^,]+,\s*'([^']+)'/g)].map((m) => m[1])
+      const asked = [...guard.matchAll(/hasPermission\([^,]+,\s*('[^']+'|[A-Za-z_$][\w$]*)/g)]
+        .map((m) => literalOf(src, m[1]))
       if (asked.join('|') !== needs.join('|')) {
         wrong.push(`${href} — menu says ${needs.join(', ') || '(nothing)'}; the route asks ${asked.join(', ') || '(nothing)'}`)
       }
@@ -909,5 +926,153 @@ describe('a menu offers only what this seat can actually open', () => {
     // beat after it draws is a menu that flickers.
     expect(itemsOf(getNavForKind('GSI', false, { permissions: null })).length)
       .toBe(itemsOf(getNavForKind('GSI', false)).length)
+  })
+})
+
+/**
+ * ── What is held about a person, from every desk ─────────────────────
+ *
+ * The founder, on the retention, export, erasure and breach work:
+ * "Implement it across the app and not for client."
+ *
+ * Two doors were missing. The compliance desk at /dashboard/privacy was
+ * in nobody's menu at all — not a vendor's, not a client's — so a page
+ * built, tested and deployed could be reached only by typing its
+ * address, which is the same bug as a column nothing writes to. And
+ * "Your data" was in the consultant's own section and nowhere else,
+ * while every signed-in person has data held about them: a client's AP
+ * clerk is a "Business user" in lib/legal's own HELD table.
+ */
+describe('the compliance desk and a person’s own record have a door in every menu', () => {
+  const PRIVACY_DESK = '/dashboard/privacy'
+  const OWN_DATA = '/dashboard/my-data'
+
+  const officerOf = (kind: 'VENDOR' | 'GSI' | 'MSP' | 'CLIENT') =>
+    rolesFor(kind).find((r) => r.name === 'Compliance Officer')!
+
+  for (const [party, kind] of [
+    ['a supplier', 'VENDOR'], ['an integrator', 'GSI'], ['a program office', 'MSP'], ['a client', 'CLIENT'],
+  ] as const) {
+    it(`${party}'s compliance officer finds the privacy desk under Governance`, () => {
+      const nav = getNavForKind(kind, false, { permissions: officerOf(kind).permissions })
+      const governance = nav.find((s) => s.label === 'Governance')
+      expect(governance, `${party} has no Governance section`).toBeTruthy()
+      const desk = governance!.items.find((i) => pathOf(i.href) === PRIVACY_DESK)
+      expect(desk, `${party}'s compliance officer cannot reach ${PRIVACY_DESK}`).toBeTruthy()
+      expect(desk!.label).toBe('Data requests')
+    })
+  }
+
+  it('a hiring manager without the governance read is not shown a door the route would refuse', () => {
+    // /api/data-requests, /api/legal-holds and /api/breaches all gate
+    // their GET on governance.read, which a hiring manager does not
+    // hold. A link that opens a red refusal is a link that lies.
+    const manager = rolesFor('CLIENT').find((r) => r.name === 'Hiring Manager')!
+    const hrefs = itemsOf(getNavForKind('CLIENT', false, { permissions: manager.permissions })).map((i) => i.href)
+    expect(manager.permissions).not.toContain('governance.read')
+    expect(hrefs).not.toContain(PRIVACY_DESK)
+    expect(mayOpen(PRIVACY_DESK, manager.permissions)).toBe(false)
+  })
+
+  it('an AP clerk can reach their own data from their firm’s menu', () => {
+    // She holds no governance read and is nobody's contractor, so she
+    // reads neither the desk's queue nor a "You" section — and lib/legal
+    // still holds her name, her seat and every log of what she opened.
+    const clerk = rolesFor('CLIENT').find((r) => r.name === 'AP Clerk')!
+    const nav = getNavForKind('CLIENT', false, { permissions: clerk.permissions })
+    const hrefs = itemsOf(nav).map((i) => i.href)
+    expect(hrefs).toContain(OWN_DATA)
+    expect(hrefs).not.toContain(PRIVACY_DESK)
+    expect(nav.map((s) => s.label)).not.toContain('You')
+  })
+
+  it('offers every seated desk in every firm a way to what is held about them', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+      for (const role of rolesFor(kind)) {
+        const hrefs = itemsOf(getNavForKind(kind, false, { permissions: role.permissions })).map((i) => i.href)
+        expect(hrefs, `${kind} / ${role.name} cannot reach their own data`).toContain(OWN_DATA)
+      }
+    }
+  })
+
+  it('a GSI’s own engineer is shown Your data once, not twice', () => {
+    // Karthik Menon: Teleworld's W2 and the person the work is about, so
+    // he reads his firm's menu and "You" both. The page belongs to both
+    // and may print once — under "You", because it is his.
+    const engineer = getNavForKind('GSI', false, { worker: true })
+    const hrefs = itemsOf(engineer).map((i) => i.href)
+    expect(hrefs.filter((h) => h === OWN_DATA).length).toBe(1)
+    const you = engineer.find((s) => s.label === 'You')!
+    expect(you.items.map((i) => i.href)).toContain(OWN_DATA)
+    expect(engineer.find((s) => s.label === 'Governance')!.items.map((i) => i.href)).not.toContain(OWN_DATA)
+  })
+
+  it('leaves the desk’s own queue on an employed worker’s menu, because it is his firm’s job not his record', () => {
+    // Dedupe is by page, not by section: a GSI compliance officer who is
+    // also billable keeps the queue under Governance and reads his own
+    // record under "You".
+    const officer = getNavForKind('GSI', false, {
+      worker: true, permissions: officerOf('GSI').permissions,
+    })
+    expect(officer.find((s) => s.label === 'Governance')!.items.map((i) => pathOf(i.href)))
+      .toContain(PRIVACY_DESK)
+  })
+
+  it('reads the desk under its own heading, never beside Document requests', () => {
+    // "Data requests" and "Document requests" are two different things
+    // and would read as the pair of near-duplicates this menu has been
+    // corrected for three times. A heading of its own is the answer.
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+      const governance = getNavForKind(kind, false).find((s) => s.label === 'Governance')!
+      const desk = governance.items.find((i) => pathOf(i.href) === PRIVACY_DESK)!
+      const packets = governance.items.find((i) => i.href === '/dashboard/packets')!
+      expect(desk.group, `${kind} files the privacy desk under ${desk.group}`).toBe('Privacy')
+      expect(packets.group).not.toBe(desk.group)
+    }
+  })
+
+  it('names the same permission all three of the desk’s own routes ask for', () => {
+    // Belt and braces over the generic check above, which reads only the
+    // first route a link names. The page loads all three at once, so a
+    // seat that clears one and not the others sees half a screen.
+    for (const route of ['data-requests', 'legal-holds', 'breaches']) {
+      const src = readFileSync(join(process.cwd(), 'src/app/api', route, 'route.ts'), 'utf8')
+      expect(src, `${route} no longer gates its read on governance.read`)
+        .toMatch(/const TO_READ = 'governance\.read'/)
+    }
+  })
+
+  it('asks nothing of somebody opening their own record', () => {
+    const own = itemsOf(getNavForKind('CLIENT', false)).find((i) => i.href === OWN_DATA)!
+    expect(own.needs).toBeUndefined()
+    expect(mayOpen(OWN_DATA, [])).toBe(true)
+  })
+})
+
+describe('a seat that holds everything is shown everything', () => {
+  // Found on the browser walk, not in a test: every seeded owner in the
+  // world carries the wildcard `*` rather than a list of permissions —
+  // `lib/permissions` has read it that way since it was written — and
+  // the menu was comparing strings instead of asking. So CloudEPA's
+  // owner opened his own company and was shown no Requirements, no
+  // Bench, no Invoices and no Payroll, while every one of those routes
+  // would have let him in. A menu shorter than the product is the same
+  // lie as a menu longer than it, facing the other way.
+  const WILDCARD = ['*'] as const
+
+  for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+    it(`gives ${kind}'s owner the whole menu when the seat is stored as the wildcard`, () => {
+      expect(itemsOf(getNavForKind(kind, false, { permissions: WILDCARD })).length)
+        .toBe(itemsOf(getNavForKind(kind, false)).length)
+    })
+  }
+
+  it('answers the + button and the search box the same way', () => {
+    expect(mayOpen('/dashboard/consultants?new=1', WILDCARD)).toBe(true)
+    expect(mayOpen('/dashboard/privacy', WILDCARD)).toBe(true)
+  })
+
+  it('still refuses a seat that holds nothing at all', () => {
+    expect(mayOpen('/dashboard/privacy', [])).toBe(false)
   })
 })

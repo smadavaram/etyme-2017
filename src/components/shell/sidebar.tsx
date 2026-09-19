@@ -4,7 +4,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
-import type { Permission } from '@/lib/permissions'
+import { hasAnyPermission, type Permission } from '@/lib/permissions'
 /**
  * Sidebar navigation — from CLAUDE.md design system.
  *
@@ -56,6 +56,18 @@ type NavItem = {
    * answered him with a red error he could not have predicted.
    */
   needs?: readonly Permission[]
+  /**
+   * Where this page's own reads come from, when the page is not named
+   * after the route behind it.
+   *
+   * The compliance desk at /dashboard/privacy reads three routes —
+   * data requests, legal holds and breaches — and there is no
+   * /api/privacy to mirror it. Without this, the test that reads a
+   * link's permission back out of its own GET handler has nothing to
+   * check the claim against, and an unchecked claim is how a menu entry
+   * and the route it opens drift apart.
+   */
+  api?: string
 }
 
 type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
@@ -197,6 +209,36 @@ const COMPLIANCE: NavItem[] = [
   { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Compliance' },
 ]
 
+/**
+ * What is held about a person, and what they may ask for.
+ *
+ * Its own heading rather than a line in Compliance, for two reasons.
+ * A compliance officer chasing a lapsed certificate and a compliance
+ * officer answering "send me everything you hold about me" are the same
+ * desk on two different mornings, and "Data requests" sitting next to
+ * "Document requests" with nothing between them is exactly the pair of
+ * near-identical labels this menu has been corrected for three times.
+ *
+ * The desk's queue and the reader's own record sit together on purpose:
+ * everybody signed in has data held about them — a client's AP clerk as
+ * much as a consultant — and "Your data" was reachable only from the
+ * consultant's own menu, which is a right nobody else could find.
+ * Somebody who already reads it under "You" is not shown it twice; see
+ * getNavForKind.
+ */
+const PRIVACY: NavItem[] = [
+  // Requests soonest-due first, the holds this company placed, and any
+  // incident its records were in. Both reads are governance.read, read
+  // off the three GET handlers behind the page rather than guessed.
+  {
+    label: 'Data requests', href: '/dashboard/privacy', icon: '⚖', group: 'Privacy',
+    needs: ['governance.read'], api: 'data-requests',
+  },
+  // No permission beside it on purpose: the route behind it asks for
+  // none, because it answers this person about this person.
+  { label: 'Your data', href: '/dashboard/my-data', icon: '⛁', group: 'Privacy' },
+]
+
 /** Done once, by one person, and never on a Friday afternoon. */
 const ADMIN: NavItem[] = [
   { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
@@ -228,7 +270,7 @@ function operateSection(network: NavItem[], money: NavItem[]): NavSection {
 
 /** Compliance and the things set up once — never the week's work. */
 function governanceSection(): NavSection {
-  return { label: 'Governance', items: [...COMPLIANCE, ...ADMIN] }
+  return { label: 'Governance', items: [...COMPLIANCE, ...PRIVACY, ...ADMIN] }
 }
 
 /**
@@ -593,6 +635,12 @@ const CLIENT_NAV: NavSection[] = [
       // Where a chain we can only see part of makes one person look like
       // two, and the tenure number quietly goes wrong.
       { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉', group: 'Oversight' },
+      // The same two links every other party gets, from the same
+      // description of them. A client has a compliance officer holding
+      // the same governance read, and an AP clerk with data held about
+      // them, and neither had a door: the desk's queue was in nobody's
+      // menu at all, and "Your data" was the consultant's alone.
+      ...PRIVACY,
       { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Setup' },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup' },
       { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup' },
@@ -626,10 +674,23 @@ export type SeatFacts = {
   permissions?: readonly string[] | null
 }
 
-/** Whether this seat can open the page behind a link at all. */
+/**
+ * Whether this seat can open the page behind a link at all.
+ *
+ * Asked through `hasAnyPermission` rather than by comparing strings,
+ * because a seat that holds everything holds it as the single wildcard
+ * `*` and not as a list — that is what every seeded owner in the world
+ * carries, and what `lib/permissions` has always meant by it. Comparing
+ * strings here meant the menu and the routes disagreed for exactly the
+ * people who can do the most: CloudEPA's owner was shown no
+ * Requirements, no Bench, no Invoices and no Payroll, while every one of
+ * those routes let him straight in. Found on the browser walk for the
+ * privacy desk, 2026-09-19 — the vendor's own owner could not see a link
+ * his own company's compliance desk is named for.
+ */
 export function mayReach(item: NavItem, permissions: readonly string[] | null | undefined): boolean {
   if (!item.needs || permissions == null) return true
-  return item.needs.some((p) => permissions.includes(p))
+  return hasAnyPermission(permissions, item.needs)
 }
 
 /**
@@ -686,8 +747,21 @@ export function getNavForKind(
   // He is an employee of Teleworld with a real seat, and he is the
   // person the work is about. Appending rather than substituting is the
   // only reading that is true of both.
+  //
+  // "Your data" is the one page both menus name — a firm's Governance
+  // carries it because everybody signed in has data held about them,
+  // and "You" carries it because it is the reader's own record. Two
+  // doors onto one page is a question the reader has to answer before
+  // they can click, so the firm's copy gives way to the personal one:
+  // somebody who has a "You" section reads it there.
+  const ownHrefs = new Set(YOURS.map((i) => i.href))
   const sections = (!isConsultant && kind && seat.worker)
-    ? [...base, { label: 'You', items: YOURS }]
+    ? [
+        ...base
+          .map((s) => ({ ...s, items: s.items.filter((i) => !ownHrefs.has(i.href)) }))
+          .filter((s) => s.items.length > 0),
+        { label: 'You', items: YOURS },
+      ]
     : base
 
   if (seat.permissions == null) return sections
