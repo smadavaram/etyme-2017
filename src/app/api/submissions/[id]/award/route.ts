@@ -346,55 +346,45 @@ export async function POST(
 
   // ── Something to bill under ──
   //
-  // An invoice is raised per engagement, and an engagement hangs off an
-  // agreement. An award created neither, so work done through the platform
-  // could never be invoiced — the money chain simply stopped.
+  // An invoice is raised per engagement, and an engagement is the piece
+  // of work several people and several contracts sit under. An award
+  // created neither, so work done through the platform could never be
+  // invoiced — the money chain simply stopped.
   //
-  // Paper often lags the start date in this business. Recording the
-  // relationship that plainly exists, and marking it unsigned, is honest;
-  // refusing the placement until somebody uploads a contract is not how
-  // anybody actually works.
+  // **What this used to do, and why it stopped, 2026-09-19.** Where the
+  // two firms had no master agreement, the award wrote one: a DRAFT row
+  // with `signedAt: null`, so that the contract had a parent. That was
+  // worse than a blank. Nobody proposed it, nobody negotiated it, and on
+  // the agreements page it reads as a thing somebody started — an
+  // agreement invented by the system to satisfy a foreign key.
   //
-  // It is written DRAFT, which is the honest name for what it is: a row
-  // so the contract has a parent, not an agreement anybody negotiated. A
-  // DRAFT with people under it raises MSA_UNSIGNED and MSA_NO_TERM on the
-  // agreements screen, and the first recorded signature makes it ACTIVE
-  // (`api/program/agreements/[id]/sign`). The alternative — refusing the
-  // award — would stop the ten-station path in CLAUDE.md Phase 1 at
-  // station three, and would move the placement into email where nothing
-  // can see it at all.
-  //
-  // TO COME, and written and verified already: this fabrication stops.
-  // An agreement nobody proposed reads on the agreements page as a thing
-  // somebody started, and the founder settled it — *"we don't need a
-  // master contract if there is no budget profile"*. It waits on
-  // `Engagement.msaId` going optional, which is the architect's line and
-  // is not committed yet; the moment it is, the award writes no
-  // agreement and the placement stands on its order alone.
-  const msa =
-    agreement ??
-    (await prisma.masterAgreement.create({
-      data: {
-        vendorId: submission.fromCompanyId,
-        clientId: payerId,
-        paymentTerms: vendorCompany?.defaultPaymentTerms ?? 30,
-        currency: vendorCompany?.currency ?? 'USD',
-        // Nobody has signed anything. Said in the column rather than
-        // assumed away, so "three placements running on a handshake" is a
-        // number somebody can pull.
-        signedAt: null,
-        status: 'DRAFT',
-      },
-      select: { id: true, paymentTerms: true, currency: true, client: { select: { name: true } } },
-    }))
-
+  // The founder settled it the same morning as the header and the lines:
+  // *"we don't need a master contract if there is no budget profile."*
+  // The agreement is the legal umbrella where one exists and the order
+  // is what authorizes the spend either way, so a client that sends one
+  // purchase order and one contractor is never made to paper an
+  // agreement first. `SellContract.msaId` and `Engagement.msaId` are
+  // both nullable, and a reader that needs the two firms reads them off
+  // the order or the contracts below.
   const engagement =
     (await prisma.engagement.findFirst({
-      where: { msaId: msa.id, title: req.title },
+      where: agreement
+        ? { msaId: agreement.id, title: req.title }
+        // No agreement, so no `msaId` to scope by, and a title on its
+        // own would match another client's engagement of the same name.
+        // The contracts underneath are what say which two firms this is
+        // between — the same place the schema says to read them.
+        : {
+            msaId: null,
+            title: req.title,
+            sellContracts: {
+              some: { companyId: submission.fromCompanyId, clientCompanyId: payerId },
+            },
+          },
       select: { id: true },
     })) ??
     (await prisma.engagement.create({
-      data: { msaId: msa.id, title: req.title, invoiceCycle: 'BIWEEKLY' },
+      data: { msaId: agreement?.id ?? null, title: req.title, invoiceCycle: 'BIWEEKLY' },
       select: { id: true },
     }))
 
@@ -530,7 +520,7 @@ export async function POST(
           amountDollars: ceiling.dollars,
           currency: terms.currency.value,
           paymentTerms: terms.paymentTermsDays.value,
-          msaId: msa.id,
+          msaId: agreement?.id ?? null,
           engagementId: engagement.id,
           shipToId: site?.id ?? null,
           start, end,
@@ -558,7 +548,9 @@ export async function POST(
         // which made every three-party placement look direct.
         endClientCompanyId: req.endClientCompanyId,
         engagementId: engagement.id,
-        msaId: msa.id,
+        // Null where the two firms have no agreement, which is ordinary:
+        // the order authorizes the spend and the line carries the rate.
+        msaId: agreement?.id ?? null,
         personId: submission.personId,
         requirementId: req.id,
         hiringManagerId: req.raisedById,

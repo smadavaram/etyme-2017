@@ -300,6 +300,26 @@ describe('A client awards, and the order it will quote exists the same second', 
     expect(order.approvalWindowDays).toBeNull()
   })
 
+  it('an award with no agreement behind it writes no agreement, and the placement stands on the order alone', async () => {
+    // Northbend and Veritan have never papered an agreement. The award
+    // used to invent one — a DRAFT row nobody proposed, which reads on
+    // the agreements page as something somebody started. The order is
+    // what authorizes the spend; the agreement is the umbrella where one
+    // exists, and here there is none.
+    const agreements = await prisma.masterAgreement.count({
+      where: { vendorId: co.veritan, clientId: co.northbend },
+    })
+    expect(agreements).toBe(0)
+
+    const line = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.firstContract } })
+    expect(line.msaId).toBeNull()
+    expect(line.workOrderId).toBe(it_.order)
+
+    // The engagement it bills under still exists, with no agreement over it.
+    const engagement = await prisma.engagement.findUniqueOrThrow({ where: { id: line.engagementId! } })
+    expect(engagement.msaId).toBeNull()
+  })
+
   it('an employee’s line hangs on no order at all', async () => {
     const link = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: it_.firstContract } })
     const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: link.buyContractId } })
@@ -327,6 +347,19 @@ describe('Five people on one commitment is one document with five lines', () => 
     expect(lines.map((l) => l.id).sort()).toEqual([it_.firstContract, it_.secondContract].sort())
   })
 
+  it('the second award joins the engagement the first one opened, so one deal is not billed as two', async () => {
+    // With no agreement over it, an engagement has no other parent —
+    // the sell lines underneath are what say which two firms it is
+    // between. If that lookup misses, every award opens a folder of its
+    // own and the client is invoiced twice for one piece of work.
+    const first = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.firstContract } })
+    const second = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.secondContract } })
+    expect(second.engagementId).toBe(first.engagementId)
+
+    const folders = await prisma.engagement.count({ where: { title: 'Data engineer \u2014 Tualatin' } })
+    expect(folders).toBe(1)
+  })
+
   it('does not raise a second order to the same supplier, so the client has one number to quote', async () => {
     const orders = await prisma.workOrder.count({
       where: { issuedById: co.northbend, issuedToId: co.veritan },
@@ -337,6 +370,58 @@ describe('Five people on one commitment is one document with five lines', () => 
   it('the ceiling is not quietly raised to fit the second person — that is the client’s own act', async () => {
     const order = await prisma.workOrder.findUniqueOrThrow({ where: { id: it_.order } })
     expect(Number(order.amount)).toBe(260_000)
+  })
+
+  it('an engagement of the same name between two other firms is never joined, because the lines underneath say whose it is', async () => {
+    // A title is not an identity. Two clients can both be hiring a
+    // systems analyst in the same town, and before there was an
+    // agreement to scope by, a lookup on the title alone would have put
+    // Northbend's placement inside somebody else's folder — and its
+    // invoices with it.
+    const decoyPerson = await prisma.person.create({
+      data: { name: 'Ines Vargas', primaryEmail: 'ines@marrow.invalid' },
+    })
+    const decoy = await prisma.engagement.create({
+      data: { msaId: null, title: 'Systems analyst \u2014 Tualatin', invoiceCycle: 'MONTHLY' },
+    })
+    await prisma.sellContract.create({
+      data: {
+        companyId: co.marrow, clientCompanyId: co.auralis, personId: decoyPerson.id,
+        engagementId: decoy.id, billRate: 8_000, startDate: new Date('2026-09-01'),
+      },
+    })
+
+    const seat = await prisma.requirement.create({
+      data: {
+        companyId: co.northbend, title: 'Systems analyst \u2014 Tualatin',
+        skills: ['SQL'], status: 'OPEN', approvalState: 'APPROVED', headcount: 1,
+        billMax: 9_500, months: 6, budgetCents: 9_000_000,
+        raisedById: who.pm, ownerId: who.pm,
+      },
+    })
+    const person = await prisma.person.create({
+      data: { name: 'Tobias Werner', primaryEmail: 'tobias@veritan.invalid' },
+    })
+    const submission = await prisma.submission.create({
+      data: {
+        requirementId: seat.id, personId: person.id,
+        fromCompanyId: co.veritan, toCompanyId: co.northbend,
+        kind: 'INTERNAL', rate: 9_500, contractType: 'W2', status: 'SUBMITTED',
+      },
+    })
+
+    as(NORTHBEND)
+    const r = await award(submission.id, {
+      rate: 9_500, startDate: '2026-10-05', endDate: '2027-04-04',
+    })
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const line = await prisma.sellContract.findUniqueOrThrow({ where: { id: r.body.data.contractId } })
+    expect(line.engagementId).not.toBe(decoy.id)
+
+    // And the other firms' folder is untouched: still the one line it had.
+    const inDecoy = await prisma.sellContract.count({ where: { engagementId: decoy.id } })
+    expect(inDecoy).toBe(1)
   })
 })
 

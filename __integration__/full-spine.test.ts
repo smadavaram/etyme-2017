@@ -908,10 +908,41 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
   }
 
   const amend = async (discloses: boolean) => {
-    const msa = await prisma.masterAgreement.findFirstOrThrow({
-      where: { clientId: co.adobe, vendorId: co.prime },
-      select: { id: true },
-    })
+    // The agreement the term is amended onto, papered off-platform.
+    //
+    // It used to be here because the award invented one — a DRAFT row
+    // nobody proposed, so that a contract had a parent. That stopped on
+    // 2026-09-19: an agreement is the legal umbrella where one exists,
+    // and a client that sends one order and one contractor is not made
+    // to paper one first.
+    //
+    // So this walk papers its own, and names what is missing while it
+    // does. A stub agreement IS written where a counterparty is first
+    // registered or onboarded — `api/clients`, `api/suppliers`,
+    // `api/supplier-requests/[id]` all write one, unsigned — and these
+    // four firms were wired to each other as counterparties instead,
+    // the way a client and a prime who already trade arrive. What no
+    // route offers anywhere is recording an agreement two firms
+    // actually negotiated: its term, its payment days, its margin
+    // floor, a disclosure clause. The agreements screen reads, signs,
+    // amends and ends one it did not raise. That is the next piece of
+    // commercial papering and is L3.2.1.1's, not a comment's.
+    const msa =
+      (await prisma.masterAgreement.findFirst({
+        where: { clientId: co.adobe, vendorId: co.prime },
+        select: { id: true },
+      })) ??
+      (await prisma.masterAgreement.create({
+        data: {
+          clientId: co.adobe,
+          vendorId: co.prime,
+          paymentTerms: 45,
+          currency: 'USD',
+          status: 'ACTIVE',
+          signedAt: new Date('2026-09-01'),
+        },
+        select: { id: true },
+      }))
     as(PRIME)
     return json(
       await amendAgreement(

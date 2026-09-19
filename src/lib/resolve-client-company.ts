@@ -301,20 +301,34 @@ export async function resolveClientCompany(
 }
 
 /**
- * Prisma WHERE fragment for Invoice reads.
- *
- * An invoice is between two companies — the vendor who raised it and the
- * customer being asked to pay — and both sit on the master agreement behind
- * the engagement, not on the invoice row itself.
- *
- * The list route composed this by hand; the two single-invoice routes never
- * composed it at all. They authenticated the caller and threw them away, so
- * a competitor with the id read the number, the total, the purchase order
- * and its ceiling. Same rule, one place, used by all three.
+ * Whether this caller is a party to bills at all.
  *
  * Returns null for a consultant seat: an invoice is a bill between
  * companies, and the person whose hours are on it is not a party to it.
- * Their hours are on their own timesheet, which is theirs to read.
+ * Their hours are on their own timesheet, which is theirs to read. Null
+ * too for a caller with no company, because a seat with no firm behind
+ * it is on nobody's paper.
+ *
+ * The list route composed this by hand; the two single-invoice routes
+ * never composed it at all. They authenticated the caller and threw them
+ * away, so a competitor with the id read the number, the total, the
+ * purchase order and its ceiling.
+ *
+ * ── Two questions, not one ───────────────────────────────────────
+ *
+ * This answers *who may look at a bill*. **Which** bills are ours is a
+ * different question and has moved: an invoice used to name its two
+ * firms on the agreement behind the engagement, and an agreement is
+ * optional now (2026-09-18, and the award stopped inventing one on
+ * 2026-09-19). A relation filter on a null relation matches nothing, so
+ * a firm's own bill would vanish from its own receivables rather than
+ * merely losing a name.
+ *
+ * `invoiceBetween` in `lib/money/invoice-parties` is that cascade — the
+ * agreement, then the order, then the sell lines actually billed — and
+ * every route that opens one invoice asks both: this for the gate, that
+ * for the scope. The filter returned here is the agreement alone and is
+ * not enough on its own; a new reader wants the pair.
  */
 export function invoiceScope(
   caller: CallerContext
