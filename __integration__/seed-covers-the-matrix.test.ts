@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
+import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * Every level of the delivery matrix has something to look at.
@@ -190,6 +191,86 @@ describe('the seeded world has something at every level of the matrix', () => {
     ] as Array<[string, number]>) {
       expect(counts[table] ?? 0, `${table} should carry at least ${floor} rows on a seeded world`).toBeGreaterThanOrEqual(floor)
     }
+  })
+
+  /**
+   * The agreement-less placement, walked end to end.
+   *
+   * `Engagement.msaId` went optional on 2026-09-18 and an invoice
+   * learned to say who it was between through the order, else through
+   * the lines billed on it. Both new branches had nothing on the seeded
+   * world to read, because every other placement here is papered with
+   * an MSA. Cavanaugh Glassworks sent Wrenfield Technical a purchase
+   * order and one contractor started; that is the sentence below.
+   */
+  it('a supplier that sent one order and one contractor, and never signed an agreement, is billed and attributed like any other', async () => {
+    const engagement = await prisma.engagement.findFirst({
+      where: { msaId: null, title: 'Furnace controls technician' },
+      select: { id: true },
+    })
+    expect(engagement, 'the seeded world has an engagement with no agreement above it').not.toBeNull()
+
+    const invoice = await prisma.invoice.findFirst({
+      where: { engagementId: engagement!.id },
+      select: {
+        total: true,
+        engagement: { select: { msa: { select: { vendorId: true, clientId: true } } } },
+        workOrder: {
+          select: {
+            id: true, number: true, msaId: true,
+            issuedById: true, issuedToId: true,
+            issuedBy: { select: { id: true, name: true } },
+            issuedTo: { select: { id: true, name: true } },
+          },
+        },
+        invoiceLines: {
+          select: {
+            hours: true,
+            timesheet: { select: { status: true } },
+            sellContract: {
+              select: {
+                msaId: true, workOrderId: true, billRate: true,
+                companyId: true, clientCompanyId: true,
+                company: { select: { id: true, name: true } },
+                clientCompany: { select: { id: true, name: true } },
+                buyLinks: { select: { buyContract: { select: { contractType: true, workOrderId: true, vendorCompanyId: true } } } },
+              },
+            },
+          },
+        },
+      },
+    })
+    expect(invoice, 'a bill went out on it').not.toBeNull()
+
+    // Nothing above the order, and nothing above the line either.
+    expect(invoice!.engagement.msa).toBeNull()
+    expect(invoice!.workOrder!.msaId).toBeNull()
+    const line = invoice!.invoiceLines[0]
+    expect(line.sellContract!.msaId).toBeNull()
+
+    // The week was signed before it was billed.
+    expect(line.timesheet!.status).toBe('APPROVED')
+    expect(Number(line.hours)).toBe(40)
+    expect(Number(invoice!.total)).toBe((40 * line.sellContract!.billRate) / 100)
+
+    // The sell line is on the client's order; the buy line is payroll,
+    // and a firm raises no purchase order to its own employee.
+    expect(line.sellContract!.workOrderId).toBe(invoice!.workOrder!.id)
+    const buy = line.sellContract!.buyLinks[0].buyContract
+    expect(buy.contractType).toBe('W2')
+    expect(buy.workOrderId).toBeNull()
+    expect(buy.vendorCompanyId).toBeNull()
+
+    // And who the bill is between is answered by the order, in words.
+    const parties = partiesOf({
+      agreement: invoice!.engagement.msa,
+      order: invoice!.workOrder,
+      lines: invoice!.invoiceLines.map((l) => l.sellContract!),
+    })
+    expect(parties.basis).toBe('ORDER')
+    expect(parties.vendor!.name).toBe('Wrenfield Technical')
+    expect(parties.client!.name).toBe('Cavanaugh Glassworks')
+    expect(parties.says).toContain('there is no agreement behind this engagement')
   })
 
   it('both sides of every placement are seeded, never just the side that bills', () => {

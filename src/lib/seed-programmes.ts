@@ -137,6 +137,39 @@ interface Program {
   cover: Record<string, { gl: number; wc: number }>
   /** A firm the hiring manager recommended, on Procurement's desk with some of its paperwork in. */
   recommend?: { name: string; contactEmail: string; reason: string; held: string[] }
+  /**
+   * One supplier, one order, one contractor, and no agreement at all.
+   *
+   * Every other placement in this world is papered the same way: an
+   * MSA between the two firms, an engagement under it, a line under
+   * that. So every invoice could say who it was between by reading
+   * `engagement.msa`, and the two branches added when `Engagement.msaId`
+   * went optional — attribute through the ORDER, else through the LINES
+   * billed on it — had nothing on the seeded world to read.
+   *
+   * This is that sentence as data. The founder, 2026-09-18: *"We don't
+   * need a master contract if there is no budget profile."* A client
+   * sends a purchase order, somebody starts, the week is signed and the
+   * bill goes out, and nobody is made to paper an umbrella first.
+   *
+   * The contractor is the supplier's own W2, so the buy line has no
+   * order of its own either — you do not raise a purchase order to your
+   * own employee.
+   */
+  direct?: {
+    /** The supplier's slug. Its only business with this client is this one line. */
+    supplier: string
+    role: string
+    skills: string[]
+    person: string
+    workAuth: 'USC' | 'GC' | 'H1B'
+    /** The client pays the first; the supplier pays its employee the second. */
+    rates: [number, number]
+    /** The ceiling on the order. What a line may draw down, not what it charges. */
+    ceiling: number
+    startedDaysAgo: number
+    endsInDays: number
+  }
 }
 
 // ── The three ────────────────────────────────────────────────────────
@@ -244,6 +277,16 @@ export const PROGRAMMES: Program[] = [
     },
     routed: { title: 'Fab expansion — six automation engineers', skills: ['Automation', 'PLC', 'Robotics'], headcount: 6, billMax: 11500 },
     cover: { 'vertex-global': { gl: 160, wc: 160 }, halcyon: { gl: 12, wc: 190 }, arcadia: { gl: 200, wc: 200 } },
+    // The plant needed one furnace controls technician for a season and
+    // sent Wrenfield a purchase order. No MSA was ever signed, and the
+    // week is still signed, billed and attributed like any other.
+    direct: {
+      supplier: 'wrenfield', role: 'Furnace controls technician',
+      skills: ['Furnace controls', 'Siemens PCS 7', 'Thermocouples'],
+      person: 'Elsa Thornquist', workAuth: 'USC',
+      rates: [9600, 7300], ceiling: 180_000_00,
+      startedDaysAgo: 75, endsInDays: 110,
+    },
   },
   {
     client: 'terumo-bct', loc: 'Westminster, CO',
@@ -865,6 +908,193 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             invoiceId: inv.id, payerCompanyId: client.id, receivedByCompanyId: topContract.companyId,
             amount: cents / 100, currency: 'USD', method: 'ACH', reference: `ACH-${number.slice(-8)}`,
             receivedAt: day(-2), appliedAt: day(-2),
+          },
+        })
+      }
+    }
+
+    // ── One order, one contractor, no agreement ────────────────────
+    //
+    // The plant needed somebody for a season, sent a purchase order and
+    // that was the whole of the paperwork. There is no MSA between the
+    // two firms, so the engagement has no `msaId`, the order has none
+    // and neither does the line on it.
+    //
+    // It is here because every other placement in this world is papered
+    // the same way and an invoice could always answer "who is this
+    // between" through `engagement.msa`. When that column went optional
+    // the answer became a cascade — the agreement, else the order, else
+    // the lines billed on it — and the two new branches had nothing on
+    // the seeded world to read. Now the order branch has one.
+    //
+    // The contractor is Wrenfield's own W2, so the buy line carries no
+    // order of its own: a firm does not raise a purchase order to its
+    // own employee.
+    if (p.direct) {
+      const d = p.direct
+      const supplier = firmBySlug.get(d.supplier)!
+      const supplierSeat = seatBySlug.get(d.supplier)!
+      const dStart = day(-d.startedDaysAgo), dEnd = day(d.endsInDays)
+
+      // On the register both ways, and its cover on file — a supplier
+      // whose insurance has lapsed places nobody, agreement or no
+      // agreement, and that rule never read the MSA.
+      await trade(d.supplier, p.client, 'CLIENT')
+      await trade(p.client, d.supplier, 'SUPPLIER')
+      await cover(d.supplier, 210, 210, supplierSeat.personId, desk.compliance.personId)
+
+      const dWho = await person(d.person)
+      await onBench(dWho.id, d.skills, p.loc, d.workAuth, d.supplier)
+      if (!(await db.context.findFirst({ where: { personId: dWho.id, companyId: supplier.id, type: 'CONSULTANT' } }))) {
+        await db.context.create({
+          data: { personId: dWho.id, companyId: supplier.id, type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' },
+        })
+      }
+
+      const dRequirement =
+        (await db.requirement.findFirst({ where: { companyId: client.id, title: d.role } })) ??
+        (await db.requirement.create({
+          data: {
+            companyId: client.id, title: d.role, skills: d.skills, location: p.loc,
+            billMin: d.rates[0] - 1000, billMax: d.rates[0] + 400, months: 6, headcount: 1, hoursPerWeek: 40,
+            status: 'FILLED', approvalState: 'AUTO_APPROVED', source: 'MANUAL', neededBy: dStart,
+            raisedById: desk.hiring.personId, costCenterId: costCentre?.id ?? null,
+            orgUnitId: unitByName.get('Apps')?.id ?? null,
+          },
+        }))
+
+      // The engagement with nothing above it. Looked up by title and by
+      // the absence, so a re-seed finds this one rather than papering a
+      // second.
+      const dEng =
+        (await db.engagement.findFirst({ where: { msaId: null, title: d.role } })) ??
+        (await db.engagement.create({ data: { msaId: null, title: d.role, invoiceCycle: 'MONTHLY' } }))
+
+      // The order. The client raised it, the supplier reads it as its
+      // sales order, and the trade calls the whole thing a work order.
+      const orderNumber = `PO-${slug.toUpperCase()}-0001`
+      const dOrder =
+        (await db.workOrder.findFirst({ where: { issuedById: client.id, number: orderNumber } })) ??
+        (await db.workOrder.create({
+          data: {
+            issuedById: client.id, issuedToId: supplier.id, recordedById: client.id,
+            number: orderNumber, title: d.role,
+            engagementId: dEng.id, msaId: null,
+            billToId: client.id, payerId: client.id,
+            amount: d.ceiling / 100, currency: 'USD',
+            billingBasis: 'TIME', billFrequency: 'MONTHLY', billAnchor: 'CALENDAR', billStraddle: 'SPLIT',
+            paymentTerms: 30, status: 'OPEN', startDate: dStart, endDate: dEnd,
+          },
+        }))
+
+      let dSell = await db.sellContract.findFirst({
+        where: { companyId: supplier.id, personId: dWho.id, clientCompanyId: client.id },
+      })
+      if (!dSell) {
+        dSell = await db.sellContract.create({
+          data: {
+            companyId: supplier.id, clientCompanyId: client.id, endClientCompanyId: client.id,
+            personId: dWho.id, requirementId: dRequirement.id,
+            engagementId: dEng.id, msaId: null, workOrderId: dOrder.id,
+            hiringManagerId: desk.hiring.personId, orgUnitId: unitByName.get('Apps')?.id ?? null,
+            billRate: d.rates[0], billCurrency: 'USD', paymentTerms: 30, state: 'IN_PROGRESS',
+            startDate: dStart, endDate: dEnd,
+          },
+        })
+        // No order on the buy line, on purpose: Elsa is Wrenfield's own
+        // employee and a firm raises no purchase order to itself.
+        const dBuy = await db.buyContract.create({
+          data: {
+            companyId: supplier.id, vendorCompanyId: null, workOrderId: null,
+            payCurrency: 'USD', contractType: 'W2', state: 'IN_PROGRESS',
+            startDate: dStart, endDate: dEnd,
+          },
+        })
+        await db.buyContractCandidate.create({
+          data: { buyContractId: dBuy.id, personId: dWho.id, payRate: d.rates[1], payCurrency: 'USD', startDate: dStart, endDate: dEnd },
+        })
+        await db.contractLink.create({
+          data: { sellContractId: dSell.id, buyContractId: dBuy.id, effectiveFrom: dStart, effectiveTo: dEnd },
+        })
+        if (costCentre) {
+          await db.contractCostAllocation.create({
+            data: { sellContractId: dSell.id, costCenterId: costCentre.id, shareBps: 10_000 },
+          })
+        }
+        await writeCyclesFor(db, { sell: dSell, buy: dBuy, packId: 'US_IT', holidays: holidayKeys() })
+      }
+      placements++
+
+      if (!(await db.submission.findFirst({ where: { requirementId: dRequirement.id, personId: dWho.id } }))) {
+        await db.submission.create({
+          data: {
+            requirementId: dRequirement.id, personId: dWho.id,
+            fromCompanyId: supplier.id, toCompanyId: client.id, kind: 'BENCH',
+            rate: d.rates[0], status: 'PLACED', checkState: 'SENT',
+            submittedAt: day(-d.startedDaysAgo - 14), decidedAt: day(-d.startedDaysAgo - 4),
+          },
+        })
+      }
+
+      // Paperwork on the person, so the placement clears the same gate
+      // every other one does.
+      for (const v of [
+        { type: 'I9_EVERIFY' as const, expiresAt: null, provider: 'E-Verify' },
+        { type: 'BACKGROUND_CHECK' as const, expiresAt: day(250), provider: 'Sterling' },
+      ]) {
+        if (await db.verification.findFirst({ where: { personId: dWho.id, type: v.type } })) continue
+        await db.verification.create({
+          data: {
+            personId: dWho.id, type: v.type, status: 'CLEAR', provider: v.provider,
+            issuedAt: day(-d.startedDaysAgo - 8), expiresAt: v.expiresAt,
+            uploadedById: supplierSeat.personId, verifiedById: desk.compliance.personId,
+            verifiedAt: day(-d.startedDaysAgo - 7), result: { outcome: 'CLEAR' },
+          },
+        })
+      }
+
+      // One week, signed by the client and accepted by the employer.
+      const { start: dWs, end: dWe, days: dDays } = week(2)
+      let dSheet = await db.timesheet.findFirst({ where: { sellContractId: dSell.id, periodStart: dWs } })
+      if (!dSheet) {
+        dSheet = await db.timesheet.create({
+          data: {
+            sellContractId: dSell.id, personId: dWho.id, periodStart: dWs, periodEnd: dWe, days: dDays,
+            totalHours: 40, status: 'APPROVED', submittedAt: dWe,
+            approvedAt: day(-12), approvedById: desk.hiring.personId,
+            clientApprovedAt: day(-12), clientApprovedById: desk.hiring.personId,
+            employerAcceptedAt: day(-11), employerAcceptedById: supplierSeat.personId,
+          },
+        })
+        await db.workAssertion.createMany({
+          data: [
+            { timesheetId: dSheet.id, companyId: client.id, role: 'CLIENT_APPROVAL', hours: 40,
+              rateCents: d.rates[0], state: 'LIVE', byId: desk.hiring.personId },
+            { timesheetId: dSheet.id, companyId: supplier.id, role: 'EMPLOYER_ACCEPTANCE', hours: 40,
+              rateCents: d.rates[1], state: 'LIVE', byId: supplierSeat.personId },
+          ],
+        })
+      }
+
+      // And the bill for it, on the order rather than on an agreement.
+      // This is the row the ORDER branch of `partiesOf` reads.
+      const dNumber = `IN-${dSell.id.slice(-6).toUpperCase()}-${dWs.toISOString().slice(0, 10).replace(/-/g, '')}`
+      if (!(await db.invoice.findUnique({ where: { number: dNumber } }))) {
+        const dCents = 40 * d.rates[0]
+        const dInv = await db.invoice.create({
+          data: {
+            engagementId: dEng.id, workOrderId: dOrder.id, number: dNumber,
+            periodStart: dWs, periodEnd: dWe, currency: 'USD',
+            total: dCents / 100, paid: 0,
+            issuedAt: day(-9), submittedAt: day(-8), dueAt: day(21), status: 'SUBMITTED',
+            soldToId: client.id, billToId: client.id, payerId: client.id,
+          },
+        })
+        await db.invoiceLine.create({
+          data: {
+            invoiceId: dInv.id, timesheetId: dSheet.id, sellContractId: dSell.id, personId: dWho.id,
+            hours: 40, rateCents: d.rates[0], amountCents: dCents,
+            description: `${d.person} — ${dWs.toISOString().slice(0, 10)} to ${dWe.toISOString().slice(0, 10)}`,
           },
         })
       }

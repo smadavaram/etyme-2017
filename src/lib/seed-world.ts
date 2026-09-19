@@ -91,6 +91,12 @@ const FIRMS: Firm[] = [
   { slug: 'sahasra',          name: 'Sahasra Infotech',     kind: 'VENDOR',  seat: 'Bench sales', who: 'Anjali Deshmukh' },
   { slug: 'orchid',           name: 'Orchid Systems',       kind: 'VENDOR',  seat: 'Bench sales', who: 'Yusuf Demir' },
   { slug: 'bluecrest',        name: 'Bluecrest Staffing',   kind: 'VENDOR',  seat: 'Bench sales', who: 'Hollis Grant' },
+
+  // The one firm in this world with no agreement behind it. Cavanaugh
+  // Glassworks sent it a purchase order and one contractor started; nobody
+  // papered an MSA first, and nothing in the product asks them to. What
+  // it has on its books is the `direct` block in lib/seed-programmes.
+  { slug: 'wrenfield',        name: 'Wrenfield Technical',  kind: 'VENDOR',  seat: 'Account manager', who: 'Dale Kirkbride' },
 ]
 
 // ── The placements ───────────────────────────────────────────────────
