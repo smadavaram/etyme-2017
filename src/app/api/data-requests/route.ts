@@ -12,32 +12,50 @@ import { logAccess } from '@/lib/access-log'
  * The compliance desk's queue: requests that arrived by email, logged
  * against a person this company actually holds, and answered from here.
  *
- * ── Why the gate is governance.read and not governance.write ─────────
+ * ── Two gates, because reading a queue is not answering it ───────────
  *
- * CLAUDE.md: "Where a route's gate refuses the very desk the page is
- * named for… the gate is the bug, because hiding a desk from itself is
- * worse than a refusal." The Compliance Officer role — at a client, at a
- * supplier, at an MSP — holds `governance.read` and nothing wider
- * (`lib/company-defaults`), and logging and answering a data request is
- * that desk's own job description. A write gate the named desk does not
- * hold would ship a page nobody who needs it can use.
+ * Reading the queue asks for the governance read the compliance desk
+ * already holds (`lib/company-defaults`), so the page opens for the desk
+ * it is named for. CLAUDE.md: "Where a route's gate refuses the very
+ * desk the page is named for… the gate is the bug, because hiding a desk
+ * from itself is worse than a refusal."
  *
- * The honest version of this is a `privacy.manage` permission on the
- * Compliance Officer role. That is a change to `lib/company-defaults`,
- * which is the architect's, and it is written up rather than worked
- * around.
+ * Acting asks for the privacy permission. Logging a request against
+ * somebody else, producing their export and running their erasure are
+ * acts on another person's record with a legal consequence, and for a
+ * week they were gated on a read because no permission for them existed.
+ * One does now, and the Compliance Officer role is granted it in
+ * `lib/company-defaults`, which is the architect's file.
+ *
+ * A person's own request about their own data goes through
+ * `/api/me/data` and asks for no permission at all, by design.
  */
-const NEEDED = 'governance.read'
+const TO_READ = 'governance.read'
+const TO_ACT = 'privacy.manage'
 
-const refusal = NextResponse.json(
-  {
-    error:
-      'Reading and answering somebody’s data request is the compliance desk’s job here, ' +
-      'and this seat does not hold it. An owner or administrator can add it under Users ' +
-      'and permissions.',
-  },
-  { status: 403 }
-)
+const readRefusal = () =>
+  NextResponse.json(
+    {
+      error:
+        'Reading the queue of data requests is the compliance desk’s job here, and this ' +
+        'seat does not hold it. An owner or administrator can add it under Users and ' +
+        'permissions.',
+    },
+    { status: 403 }
+  )
+
+const actRefusal = () =>
+  NextResponse.json(
+    {
+      error:
+        'Logging somebody else’s data request, or answering one, needs the privacy ' +
+        'permission, and this seat does not hold it. The compliance officer at your ' +
+        'company holds it, and an owner or administrator can add it to another seat ' +
+        'under Users and permissions. Your own data is on your own page and needs ' +
+        'nobody’s permission.',
+    },
+    { status: 403 }
+  )
 
 /** Does this company have any record of this person at all? */
 async function holdsThePerson(companyId: string, personId: string): Promise<boolean> {
@@ -57,7 +75,7 @@ export async function GET(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json({ error: 'This page belongs to a company’s compliance desk.' }, { status: 403 })
   }
-  if (!hasPermission(caller.permissions, NEEDED)) return refusal
+  if (!hasPermission(caller.permissions, TO_READ)) return readRefusal()
 
   const rows = await prisma.dataRequest.findMany({
     where: { requestedByCompanyId: caller.company.id },
@@ -111,7 +129,7 @@ export async function POST(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json({ error: 'This page belongs to a company’s compliance desk.' }, { status: 403 })
   }
-  if (!hasPermission(caller.permissions, NEEDED)) return refusal
+  if (!hasPermission(caller.permissions, TO_ACT)) return actRefusal()
 
   const body = await request.json().catch(() => ({}))
   const companyId = caller.company.id

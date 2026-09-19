@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { oneSubject, mayAsk, reference, heldCategories, categoriesHeldAbout } from '@/lib/data-request'
 import { readClock, readBreach, mayWorkBreach, mayClose, type ClockState } from '@/lib/breach'
 import { HELD } from '@/lib/legal'
+import { PERMISSIONS, DEFAULT_ROLES, hasPermission } from '@/lib/permissions'
 
 /**
  * Who may ask, who may answer, and what a clock says out loud.
@@ -226,5 +227,88 @@ describe('the routes refuse in sentences, not in codes', () => {
     const src = readFileSync(join(process.cwd(), 'src/app/api/me/data/route.ts'), 'utf8')
     expect(src).toContain('allowed: false')
     expect(src).toContain('Asked to download an export that is not theirs.')
+  })
+})
+
+// ── The gate on somebody else's record ───────────────────────────────
+
+/**
+ * Reading a queue is not answering it.
+ *
+ * For a week every write on these three routes was gated on
+ * `governance.read` — a *read* — because the only alternative was a
+ * write permission the compliance desk does not hold, and hiding a desk
+ * from itself is worse than a refusal. The honest fix is a permission
+ * of its own, and this is it: reads stay where they were, and logging a
+ * request against another person, placing a hold that stops their
+ * erasure everywhere, and recording a breach notice ask for the privacy
+ * permission instead.
+ */
+describe('acting on somebody else’s record asks for the privacy permission', () => {
+  const DATA_REQUESTS = readFileSync(join(process.cwd(), 'src/app/api/data-requests/route.ts'), 'utf8')
+  const LEGAL_HOLDS = readFileSync(join(process.cwd(), 'src/app/api/legal-holds/route.ts'), 'utf8')
+  const BREACHES = readFileSync(join(process.cwd(), 'src/app/api/breaches/route.ts'), 'utf8')
+
+  /** The guard the POST handler of a route actually runs. */
+  function writeGate(source: string): string {
+    const start = source.indexOf('export async function POST')
+    return source.slice(start)
+  }
+
+  /** The guard the GET handler of a route actually runs. */
+  function readGate(source: string): string {
+    const start = source.indexOf('export async function GET')
+    const after = source.indexOf('export async function', start + 10)
+    return source.slice(start, after < 0 ? source.length : after)
+  }
+
+  it('the privacy permission is on the canonical list, so a role naming it grants something', () => {
+    expect(PERMISSIONS).toContain('privacy.manage')
+  })
+
+  it('an owner holds it, because somebody at a company has to be able to hand it out', () => {
+    const owner = DEFAULT_ROLES.find((r) => r.name === 'Owner')!
+    expect(hasPermission(owner.permissions, 'privacy.manage')).toBe(true)
+  })
+
+  it('placing a hold needs the privacy permission, and the refusal says who at the company holds it', () => {
+    expect(writeGate(LEGAL_HOLDS)).toContain("hasPermission(caller.permissions, TO_ACT)")
+    expect(LEGAL_HOLDS).toContain("const TO_ACT = 'privacy.manage'")
+    expect(LEGAL_HOLDS).toContain('needs the privacy ')
+    expect(LEGAL_HOLDS).toContain('The compliance officer at your company holds the permission')
+    expect(LEGAL_HOLDS).toContain('an owner or ')
+  })
+
+  it('reading the queue needs only the governance read the desk already has', () => {
+    expect(readGate(DATA_REQUESTS)).toContain("hasPermission(caller.permissions, TO_READ)")
+    expect(DATA_REQUESTS).toContain("const TO_READ = 'governance.read'")
+    expect(readGate(DATA_REQUESTS)).not.toContain('TO_ACT')
+    expect(readGate(LEGAL_HOLDS)).toContain("hasPermission(caller.permissions, TO_READ)")
+    expect(readGate(BREACHES)).toContain("hasPermission(caller.permissions, TO_READ)")
+  })
+
+  it('logging or answering a request about somebody else needs the privacy permission', () => {
+    expect(writeGate(DATA_REQUESTS)).toContain("hasPermission(caller.permissions, TO_ACT)")
+    expect(DATA_REQUESTS).toContain("const TO_ACT = 'privacy.manage'")
+  })
+
+  it('recording that a customer was told about a breach needs it too, and opening one is still Etyme’s alone', () => {
+    expect(writeGate(BREACHES)).toContain("!staff && !hasPermission(caller.permissions, TO_ACT)")
+    expect(writeGate(BREACHES)).toContain('Opening an incident, setting its deadlines and closing it are Etyme')
+  })
+
+  it('a person asking about their own data is still asked for no permission at all', () => {
+    const mine = readFileSync(join(process.cwd(), 'src/app/api/me/data/route.ts'), 'utf8')
+    expect(mine).not.toContain('privacy.manage')
+    expect(mine).not.toContain('hasPermission')
+  })
+
+  it('no refusal on these three routes hands somebody a permission string to read', () => {
+    for (const [name, src] of [
+      ['data requests', DATA_REQUESTS], ['legal holds', LEGAL_HOLDS], ['breaches', BREACHES],
+    ] as const) {
+      const messages = [...src.matchAll(/error:\s*\n?\s*((?:'[^']*')(?:\s*\+\s*'[^']*')*)/g)].map((m) => m[1]).join(' ')
+      expect(messages, name).not.toMatch(/privacy\.manage|governance\.read/)
+    }
   })
 })

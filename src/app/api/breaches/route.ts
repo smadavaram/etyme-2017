@@ -24,8 +24,24 @@ import type { Audience } from '@/lib/notify/letters'
  * personal data was involved, whose, and what counsel says about it. A
  * four-point scale invented here would make the DPA false without making
  * anybody safer.
+ *
+ * ── Two gates, and one of them is not a permission ───────────────────
+ *
+ * Reading asks for the governance read a compliance desk already holds,
+ * and the customer still has to have been in the incident to see a row
+ * at all. Acting on a customer's own line — recording that the company
+ * was told, and when — asks for the privacy permission, because it is a
+ * write on a record two firms answer for afterwards.
+ *
+ * Opening an incident, setting its clocks and closing it are Etyme's,
+ * and the gate on them is being Etyme staff rather than holding a
+ * permission: staff is read off `ETYME_STAFF_EMAILS` and no customer
+ * role can grant it. That is deliberate and it is not the privacy
+ * permission's job — a customer holding the privacy permission must not
+ * be able to move a deadline Etyme owns.
  */
-const NEEDED = 'governance.read'
+const TO_READ = 'governance.read'
+const TO_ACT = 'privacy.manage'
 
 function isStaff(email: string): boolean {
   return staffAddresses().includes(email.toLowerCase())
@@ -56,7 +72,7 @@ export async function GET(request: NextRequest) {
   const companyId = caller.company?.id ?? null
   const mayRead = mayWorkBreach({
     isStaff: staff,
-    hasCompliancePermission: hasPermission(caller.permissions, NEEDED),
+    hasCompliancePermission: hasPermission(caller.permissions, TO_READ),
     companyIsAffected: companyId
       ? (await prisma.breachCompany.count({ where: { companyId } })) > 0
       : false,
@@ -136,6 +152,22 @@ export async function POST(request: NextRequest) {
         error:
           'Opening an incident, setting its deadlines and closing it are Etyme’s to do. ' +
           'What you can record here is the hour your company was told, on your own line.',
+      },
+      { status: 403 }
+    )
+  }
+
+  // Recording that a company was told is a write on a record two firms
+  // answer for afterwards, so it asks for the privacy permission the
+  // compliance desk holds. Etyme's own staff are gated by being staff.
+  if (!staff && !hasPermission(caller.permissions, TO_ACT)) {
+    return NextResponse.json(
+      {
+        error:
+          'Recording that your company was told about an incident needs the privacy ' +
+          'permission, and this seat does not hold it. The compliance officer at your ' +
+          'company holds it, and an owner or administrator can add it to another seat ' +
+          'under Users and permissions.',
       },
       { status: 403 }
     )

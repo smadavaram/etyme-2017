@@ -25,7 +25,7 @@ import {
 
 describe('Permissions (BUILD.md §2)', () => {
   describe('The flat permission list', () => {
-    it('has exactly 31 permissions', () => {
+    it('has exactly 33 permissions', () => {
       // Deliberately a canary. Permission lists grow by accident, and every
       // addition is a new thing somebody can be granted without anyone
       // deciding they should be. Changing this number should be a decision.
@@ -43,7 +43,16 @@ describe('Permissions (BUILD.md §2)', () => {
       // you already have and browsing the outside market are different
       // jobs — thirty thousand engineers need the first and none of them
       // need the second, and one permission could not say that.
-      expect(PERMISSIONS).toHaveLength(32)
+      //
+      // 32 → 33: privacy.manage. Logging a data request against another
+      // person, placing a hold that stops their erasure everywhere, and
+      // recording a breach notice were all gated on governance.read — a
+      // read standing in for a write, because the compliance desk holds
+      // no write and hiding a desk from itself is worse than a refusal.
+      // The desk that answers for a person's record is not the desk that
+      // edits the approval chain, so it is its own permission rather than
+      // governance.write.
+      expect(PERMISSIONS).toHaveLength(33)
     })
 
     it('every permission follows the resource.action pattern', () => {

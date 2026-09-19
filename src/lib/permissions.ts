@@ -54,6 +54,16 @@ export const PERMISSIONS = [
   // rates.write because writing the rule is not approving the spend.
   'governance.read',
   'governance.write',
+  // Acting on somebody else's data rights: logging and answering a data
+  // request for another person, placing and lifting a legal hold, and
+  // running a breach — opening one, setting its clocks, recording that a
+  // notice went, closing it. Held apart from governance.write because
+  // writing an approval rule is not the same job as deciding what
+  // happens to a person's record, and apart from governance.read
+  // because reading the queue is not acting on it. A person's own
+  // request about their own data asks for none of these: a gate on your
+  // own file is one the person it protects cannot open.
+  'privacy.manage',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]

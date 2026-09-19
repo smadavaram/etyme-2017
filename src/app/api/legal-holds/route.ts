@@ -8,11 +8,15 @@ import { logAccess } from '@/lib/access-log'
 /**
  * A company saying a subject's records may not be deleted yet.
  *
- * ── The gate ─────────────────────────────────────────────────────────
+ * ── Two gates ────────────────────────────────────────────────────────
  *
- * `governance.read`, which is what the Compliance Officer role actually
- * holds. Same reasoning as `/api/data-requests`: a gate that refuses the
- * desk the page is named for is the bug, not the feature.
+ * Reading the holds this company placed asks for the governance read the
+ * compliance desk already holds, so the page opens for the desk it is
+ * named for. Placing one and lifting one ask for the privacy permission:
+ * a hold suspends somebody's erasure everywhere, which is an act on a
+ * person's record rather than a reading of one, and a read was standing
+ * in for it only because no permission for it existed. The Compliance
+ * Officer role is granted it in `lib/company-defaults`.
  *
  * ── What a hold costs somebody else ──────────────────────────────────
  *
@@ -20,7 +24,8 @@ import { logAccess } from '@/lib/access-log'
  * company's records. So a company may only hold a subject it has
  * actually traded with, and the refusal says so in words.
  */
-const NEEDED = 'governance.read'
+const TO_READ = 'governance.read'
+const TO_ACT = 'privacy.manage'
 
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -28,9 +33,14 @@ export async function GET(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json({ error: 'A legal hold belongs to a company, and this seat has none.' }, { status: 403 })
   }
-  if (!hasPermission(caller.permissions, NEEDED)) {
+  if (!hasPermission(caller.permissions, TO_READ)) {
     return NextResponse.json(
-      { error: 'Placing and reading legal holds is the compliance desk’s job here, and this seat does not hold it.' },
+      {
+        error:
+          'Reading the legal holds this company placed is the compliance desk’s job here, ' +
+          'and this seat does not hold it. An owner or administrator can add it under ' +
+          'Users and permissions.',
+      },
       { status: 403 }
     )
   }
@@ -87,9 +97,15 @@ export async function POST(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json({ error: 'A legal hold belongs to a company, and this seat has none.' }, { status: 403 })
   }
-  if (!hasPermission(caller.permissions, NEEDED)) {
+  if (!hasPermission(caller.permissions, TO_ACT)) {
     return NextResponse.json(
-      { error: 'Placing and lifting legal holds is the compliance desk’s job here, and this seat does not hold it.' },
+      {
+        error:
+          'Placing and lifting legal holds needs the privacy permission, and this seat ' +
+          'does not hold it. A hold stops somebody’s erasure everywhere, not only here. ' +
+          'The compliance officer at your company holds the permission, and an owner or ' +
+          'administrator can add it to another seat under Users and permissions.',
+      },
       { status: 403 }
     )
   }
