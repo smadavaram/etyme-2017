@@ -96,16 +96,23 @@ export const COUNSEL_QUESTIONS: CounselQuestion[] = [
       'What retention periods apply, and what must be deleted rather than kept for ' +
       'the audit trail?',
     whatTheCodeDoes:
-      'There is no retention schedule and no erasure path. Ending somebody access ' +
-      'revokes a seat and deletes nothing. A resume a candidate removes is hidden from ' +
-      'their own list but stays readable by a company it was already sent to. Demo ' +
-      'workspaces nobody returns to are cleared after a fixed number of days. ' +
-      'Everything else is kept indefinitely.',
+      'There is a retention schedule in code, one line per category named in the notice, ' +
+      'and every period on it is a United States federal minimum with its rule cited — ' +
+      'the I-9 at 8 CFR 274a.2, employment tax at 26 CFR 31.6001-1, payroll at 29 CFR ' +
+      '516.5, personnel records at 29 CFR 1602.14. Where no federal minimum can be cited ' +
+      'the line returns nothing and says why, and a visa petition file is one of those. A ' +
+      'person can ask for everything held about them or ask to be forgotten, from their ' +
+      'own page; an erasure waits fourteen days, anonymizes rather than deleting, and ' +
+      'reports what a statutory minimum keeps back. A nightly sweep deletes what has ' +
+      'passed its period and holds anything a live legal hold names.',
     whyItIsOpen:
-      'Payroll, immigration and tax records carry statutory minimum retention that ' +
-      'conflicts with erasure rights, and the resolution is jurisdictional. No period ' +
-      'is stated in these documents because none is implemented, and inventing one ' +
-      'would be the misrepresentation this whole exercise exists to avoid.',
+      'The federal floors are citable and the state floors are not, several states run ' +
+      'longer than the federal minimum, and which regime a given person is under is a ' +
+      'question about where they live and worked rather than about the code. The clock ' +
+      'on a request is one calendar month or forty-five days depending on the regime, ' +
+      'and where nobody has recorded one the shortest of them is used and called ' +
+      'conservative rather than correct. Whether a person who has simply gone quiet ' +
+      'should be aged out at all is not decided, and nothing does it.',
   },
   {
     id: 'model-disclosure',
@@ -512,11 +519,25 @@ export const NOT_USED = [
 // ── What happens to it over time ──────────────────────────────────────
 
 export const RETENTION = {
-  /** The honest headline, and it is not a period. */
-  headline: 'There is no retention schedule today, and nothing is deleted on one.',
+  /** The honest headline, and it is a schedule with blanks in it. */
+  headline:
+    'There is a retention schedule, one line per category above, and where no legal ' +
+    'minimum can be cited the line says so instead of naming a period.',
   paragraphs: [
-    'This is stated plainly because the alternative — writing a period nobody ' +
-      'implemented — would make this document false on the day it was published.',
+    'The schedule is code rather than a setting, because a client who sets a retention ' +
+      'period wrong deletes something that is gone. A company that needs records kept ' +
+      'longer places a legal hold, which carries a reason and a name and a review date.',
+    'Every period stated is a United States federal minimum with its rule cited. ' +
+      'Employment tax records run four years from the later of the tax being due and ' +
+      'being paid; payroll records three years; an I-9 three years after the date of hire ' +
+      'or one year after the employment ends, whichever is later; personnel records made ' +
+      'in the course of hiring one year, two for a federal contractor. State law is ' +
+      'longer in places and the schedule says so where it is. Which applies to whom is ' +
+      'still counsel.',
+    'Where no federal minimum can be cited, no period is stated and nothing is deleted ' +
+      'on one. A visa petition file is the clearest case: what can be cited covers the ' +
+      'public access file and not the petition, so the line returns nothing and says why. ' +
+      'A retention period invented by an engineer deletes a record that does not come back.',
     'Ending somebody access revokes their seat and deletes no record. That is ' +
       'deliberate: a person who worked somewhere worked there, and an audit long ' +
       'afterward has to be able to find them. Suspension is the reversible form, for a ' +
@@ -525,14 +546,22 @@ export const RETENTION = {
       'already sent to can still open its copy, because it is in that company records ' +
       'and Etyme cannot unsend it.',
     'Demo workspaces nobody returns to are cleared automatically after a fixed number ' +
-      'of days. That is the only scheduled deletion in the product.',
-    'There is no self-service export and no self-service erasure. A request for either ' +
-      'is handled by hand today. The retention question is on the list for counsel.',
+      'of days.',
+    'Erasure is anonymization and never a row delete. A person who asks to be forgotten ' +
+      'keeps every row a counterparty book depends on — the signed hours, the amounts, ' +
+      'the days on a client site — and loses the name on them: the address becomes one ' +
+      'on a reserved domain that cannot be registered or routed to, and the name becomes ' +
+      '"Erased person". Sign-in records, the consultant profile, resumes never sent, and ' +
+      'bars and stars set against the name are deleted outright.',
+    'A statutory minimum beats an erasure request, and the request says which and why ' +
+      'in the person own words rather than being refused.',
   ],
   provenBy:
-    'src/lib/account-lifecycle.ts, Resume.deletedAt in prisma/schema.prisma, ' +
-    'src/app/api/cron/reap-demos/route.ts. No file under src/ mentions retention, ' +
-    'erasure or a data subject request.',
+    'src/lib/retention.ts, src/lib/erasure.ts, src/lib/data-request.ts, ' +
+    'src/lib/legal-hold.ts, src/lib/account-lifecycle.ts, ' +
+    'Person.erasedAt and Resume.deletedAt in prisma/schema.prisma, ' +
+    'src/app/api/cron/reap-demos/route.ts, ' +
+    '__tests__/invariants/retention.test.ts, __tests__/invariants/erasure.test.ts',
 } as const
 
 // ── The walls, stated where a data subject cares ──────────────────────
@@ -852,12 +881,30 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
         'A consultant can see and change their own profile, resumes, availability and ' +
           'rate floor, answer or withdraw a bench listing, answer an interview, and read ' +
           'their own paperwork, from their own pages in the product.',
-        'Access, correction, export, objection and erasure beyond that are handled by ' +
-          'hand. There is no self-service export and no erasure endpoint. That is the ' +
-          'state of the software, not a position on what the law requires, and it is on ' +
-          'the list for counsel.',
+        'Anybody signed in can ask for everything held about them, or ask to be ' +
+          'forgotten, from their own page. Neither needs anybody permission and neither ' +
+          'goes through a company. The copy is produced on the spot, in the categories ' +
+          'this notice names, and every time it is opened a line is written saying who ' +
+          'opened it — including us.',
+        'A request to be forgotten waits fourteen days, so it can be stopped, and the ' +
+          'letter sent at the time of asking says exactly what goes and what stays. What ' +
+          'stays is said before the day rather than after it: payroll and tax records ' +
+          'with whoever paid you, the I-9 with whoever took it, the days on site with the ' +
+          'client whose site it was. Those are their obligations and are not Etyme to ' +
+          'waive.',
+        'Where a company has placed a legal hold naming somebody, an erasure is held ' +
+          'rather than refused, the person is told that a hold applies and in whose ' +
+          'words, and it runs by itself the day the last hold is lifted. The holder own ' +
+          'case reference is never shown to the person.',
+        'A request that arrives by email is logged by the compliance desk at a company ' +
+          'that actually holds the person, and the clock counts from the day it arrived ' +
+          'rather than the day it was typed in. Correction and objection are still ' +
+          'handled by hand.',
       ],
-      provenBy: 'src/app/api/me/*, src/app/dashboard/my-page, src/app/dashboard/my-work',
+      provenBy:
+        'src/app/api/me/data, src/app/dashboard/my-data, src/app/api/data-requests, ' +
+        'src/lib/data-request.ts, src/lib/erasure.ts, src/lib/legal-hold.ts, ' +
+        'src/app/api/me/*, src/app/dashboard/my-page, src/app/dashboard/my-work',
       open: 'retention',
     },
     {
@@ -919,8 +966,10 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
         'Subject matter: running a contingent workforce across multiple staffing ' +
           'suppliers — requisition, supplier release, submission, screening, interview, ' +
           'award, onboarding, time, invoicing and compliance.',
-        'Duration: for as long as the customer has an account, and after it, because ' +
-          'nothing is deleted on a schedule today. See retention.',
+        'Duration: for as long as the customer has an account, and after it for as long ' +
+          'as the retention schedule says of each category — which for several of them ' +
+          'is a statutory minimum measured in years, and for a few is no stated period ' +
+          'at all. See retention.',
         'Nature and purpose: storage, structuring, retrieval, disclosure to the ' +
           'counterparties on a deal, and analysis for matching and compliance.',
       ],
@@ -1000,23 +1049,52 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
     {
       heading: 'Assisting the customer with data subject requests',
       paragraphs: [
-        'Today this is manual. There is no export endpoint and no erasure endpoint. A ' +
-          'consultant can read and change their own profile, resumes and permissions ' +
-          'from their own pages; anything beyond that is handled by hand.',
-        'The response time to promise, and what has to be built to meet it, are open.',
+        'A data subject can ask for everything held about them, or ask to be forgotten, ' +
+          'from their own page, without going through a customer at all. A customer ' +
+          'compliance desk can log a request that arrived by email against somebody it ' +
+          'holds, see what is due and when, and answer it from one page.',
+        'The deadline on each request is stored with the reason for it in words, rather ' +
+          'than recomputed from a constant, so a period counsel corrects next year does ' +
+          'not silently rewrite the deadline on a request already answered. Where nobody ' +
+          'has recorded which regime applies, the earliest date any of them would allow ' +
+          'is used and is described as conservative rather than correct.',
+        'What is refused is recorded as carefully as what is granted, in a sentence the ' +
+          'person can act on rather than a code. Correction and objection are still ' +
+          'handled by hand, and the response time to promise is still counsel.',
       ],
+      provenBy:
+        'src/app/api/me/data, src/app/api/data-requests, src/lib/data-request.ts, ' +
+        'src/lib/retention.ts, src/app/dashboard/privacy',
       open: 'retention',
     },
     {
       heading: 'Breach notification',
       paragraphs: [
-        'What exists: an incident is recorded and staff are emailed when a route fails, ' +
-          'and a page that throws reports itself.',
-        'What does not exist: a defined severity scale, a notification clock, a named ' +
-          'contact at the customer, or a rehearsed runbook. The notification period is ' +
-          'for counsel and the runbook is for Etyme; neither is written.',
+        'What exists: a breach is its own record, opened deliberately by somebody who ' +
+          'decided that personal data went where it should not have, separate from the ' +
+          'machine errors a failing route writes. It carries when somebody here became ' +
+          'aware, whether personal data was involved, which populations and which ' +
+          'categories, which customers, and a notification deadline for the supervisory ' +
+          'authority, for the people affected, and for each customer on that customer own ' +
+          'agreed period. Every deadline names the person who owns sending it. A nightly ' +
+          'sweep says so a day before each one and goes on saying so once a day after it ' +
+          'has passed, and a breach cannot be closed over a deadline with no notice ' +
+          'recorded against it.',
+        'What is deliberately absent: a severity scale. Inventing a four-point one here ' +
+          'would make this paragraph read better and make nobody safer. What decides the ' +
+          'deadlines is whether personal data was involved, whose, and what counsel says ' +
+          'about it, and those are the facts the record holds. A scale can be added the ' +
+          'day counsel gives one.',
+        'Every deadline is empty until somebody decides one applies, and every screen ' +
+          'says "nobody has decided" rather than counting down to a date the software ' +
+          'invented. The GDPR seventy-two hours is not the United States state patchwork ' +
+          'clock, and not every incident is notifiable at all.',
+        'What still does not exist: a rehearsed runbook, and a named contact at each ' +
+          'customer held in advance rather than looked up on the day.',
       ],
-      provenBy: 'src/lib/alerts.ts, Incident in prisma/schema.prisma',
+      provenBy:
+        'src/lib/breach.ts, src/app/api/breaches, src/lib/notify/breach.ts, ' +
+        'src/lib/alerts.ts, Breach and BreachCompany and Incident in prisma/schema.prisma',
     },
     {
       heading: 'International transfers',
@@ -1037,10 +1115,19 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
     {
       heading: 'Return and deletion at the end',
       paragraphs: [
-        'Not implemented. There is no export of a customer data and no deletion of it ' +
-          'on termination. This is the single largest gap in this document and it is ' +
-          'named rather than papered over.',
+        'Half built, and the half that is missing is named rather than papered over. A ' +
+          'request can be raised about a customer own records and carries a deadline like ' +
+          'any other, and the customer own tombstone column exists so that erasing a firm ' +
+          'is anonymization rather than a row delete.',
+        'What is not built is the export itself. A customer export is refused in words ' +
+          'today, because nobody has decided which of the joint records travel with it — ' +
+          'a contract between two firms, an invoice between them, and the days a person ' +
+          'worked on a site are the other firm records as much as this one, and handing ' +
+          'over a copy of them is a decision about somebody else data. Answering by hand ' +
+          'is the honest path until that is decided.',
       ],
+      provenBy:
+        'Company.erasedAt and DataRequest in prisma/schema.prisma, src/lib/data-request.ts',
       open: 'retention',
     },
   ],

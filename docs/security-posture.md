@@ -609,13 +609,30 @@ Stated in one place so a reviewer does not have to assemble it.
 - No cyber insurance disclosed here.
 
 **Data lifecycle**
-- **No retention schedule.** Nothing is deleted on one. Ending somebody's
-  access revokes a seat and erases no record, deliberately, so an audit
-  six months later can still find them (`src/lib/account-lifecycle.ts`).
-- **No erasure path and no self-service export.** A data subject request
-  is handled by hand. No file under `src/` mentions retention, erasure,
-  GDPR, CCPA or a data subject request.
-- **No return or deletion of customer data on termination.**
+- **A retention schedule with blanks in it, and the blanks are stated.**
+  One line per category the privacy notice names, in `src/lib/retention.ts`.
+  Every period on it is a US federal minimum with its rule cited — the I-9
+  at 8 CFR 274a.2, employment tax at 26 CFR 31.6001-1, payroll at 29 CFR
+  516.5, personnel records at 29 CFR 1602.14. Where no federal minimum can
+  be cited, the line states no period and says why; a visa petition file is
+  one of those. **No state minimum is implemented**, several states run
+  longer than the federal floor, and which regime applies to a given person
+  is still counsel's.
+- **Self-service export and erasure, and erasure is anonymization.**
+  `src/app/api/me/data` and `src/app/dashboard/my-data`. Erasure never
+  deletes the `Person` row: the address becomes one on a reserved domain
+  that cannot be registered or routed to, the name becomes a tombstone, and
+  the signed hours, the amounts and the days on a client site stay exactly
+  as they were. Ending somebody's access still revokes a seat and erases no
+  record (`src/lib/account-lifecycle.ts`).
+- **No aging-out of a person who has simply gone quiet.** Nothing
+  anonymizes a living record on a timer. The test for "no longer engaged"
+  is not written anywhere counsel has seen, and getting it wrong takes the
+  name off a contractor who is coming back.
+- **Return and deletion of customer data on termination is half built.** A
+  request can be raised about a customer's own records and carries a
+  deadline; the export itself is refused in words, because nobody has
+  decided which of the joint records travel with it.
 - The only scheduled deletion in the product is demo workspaces nobody
   returned to (`src/app/api/cron/reap-demos/route.ts`).
 - A resume a candidate removes is soft-deleted: hidden from their list,

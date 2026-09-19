@@ -16,6 +16,7 @@ import {
   allProse,
   type Section,
 } from '@/lib/legal'
+import { SCHEDULE } from '@/lib/retention'
 import { domainOf } from '@/lib/domains'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
 
@@ -126,20 +127,58 @@ describe('The privacy notice describes the system that exists', () => {
     expect(section, 'the notice must open on the two populations').toBeDefined()
   })
 
-  it('it states no retention period, because nothing in the system deletes anything on a schedule', () => {
-    expect(RETENTION.headline).toMatch(/no retention schedule/i)
+  it('every retention period it states is a rule somebody can look up, and where none can be cited it says so instead of naming one', () => {
+    // This test used to hold the opposite sentence — "it states no
+    // retention period, because nothing in the system deletes anything
+    // on a schedule" — and that was the right test for as long as it was
+    // true. The schedule landed on 2026-09-19, so the check is now that
+    // every period on the page is citable and every blank is admitted.
+    expect(RETENTION.headline).toMatch(/retention schedule/i)
+    expect(RETENTION.headline).toMatch(/no legal minimum can be cited/i)
 
-    // No number of days, months or years is promised anywhere.
     const retention = PRIVACY.sections.find((s) => s.heading === 'How long it is kept')!
     const text = [...retention.paragraphs, ...(retention.bullets ?? [])].join(' ')
-    expect(
-      text,
-      'a retention period nobody implemented must not appear'
-    ).not.toMatch(/\b(\d+|thirty|sixty|ninety|seven|six|three)\s+(days|months|years)\b/i)
 
-    // And the claim is true: nothing under src/ knows the words.
+    // A period on this page is a federal rule with a citation behind it.
+    for (const rule of ['8 CFR 274a.2', '26 CFR 31.6001-1', '29 CFR 516.5', '29 CFR 1602.14']) {
+      expect(SCHEDULE.map((l) => l.basis).join(' '), `${rule} is not cited anywhere in the schedule`).toContain(rule)
+    }
+    expect(text, 'the page must say that state law runs longer in places').toMatch(/State law is\s*longer in places/i)
+    expect(text, 'the page must say where no period can be cited at all').toMatch(/no federal minimum can be cited/i)
+
+    // And the blanks are real blanks in the code, not prose.
+    const uncitable = SCHEDULE.filter((l) => l.fate === 'HELD_THEN_DELETED' && l.months === null)
+    expect(uncitable.length, 'at least one category is honestly left without a period').toBeGreaterThan(0)
+
+    // Ending somebody's access still deletes nothing, which is a
+    // different thing from a retention schedule and is still true.
     const lifecycle = readFileSync(join(ROOT, 'src/lib/account-lifecycle.ts'), 'utf8')
     expect(lifecycle).toMatch(/Nothing here is ever deleted/i)
+  })
+
+  it('it says erasure is anonymization and never a row delete, because an invoice that has been paid has to go on footing', () => {
+    const text = RETENTION.paragraphs.join(' ')
+    expect(text).toMatch(/anonymization and never a row delete/i)
+    expect(text).toMatch(/reserved domain that cannot be registered or routed to/i)
+    expect(text).toMatch(/statutory minimum beats an erasure request/i)
+  })
+
+  it('it says a person can ask for their own data and ask to be forgotten, from their own page', () => {
+    const rights = PRIVACY.sections.find((s) => s.heading === 'Rights, and how they are honored today')!
+    const text = rights.paragraphs.join(' ')
+    expect(text).toMatch(/ask for everything held about them, or ask to be\s*forgotten, from their own page/i)
+    expect(text, 'what stays must be said before the day, not after').toMatch(/said before the day rather than after it/i)
+    expect(text, 'a hold holds rather than refuses').toMatch(/held\s*rather than refused/i)
+    expect(text, 'the holder’s matter reference never reaches the person').toMatch(/case reference is never shown to the person/i)
+  })
+
+  it('it says a breach has a clock and a named owner, and says there is still no severity scale', () => {
+    const section = DPA.sections.find((s) => s.heading === 'Breach notification')!
+    const text = section.paragraphs.join(' ')
+    expect(text).toMatch(/names the person who owns sending it/i)
+    expect(text).toMatch(/deliberately absent: a severity scale/i)
+    expect(text, 'an undecided deadline must read as undecided').toMatch(/nobody has decided/i)
+    expect(text, 'the runbook is still missing and must still be named').toMatch(/no.{0,40}rehearsed runbook/i)
   })
 
   it('it says that ending somebody access ends a seat and erases no record', () => {
@@ -299,9 +338,16 @@ describe('The DPA lists only measures the repository can point at', () => {
     expect(cron).toContain('if (!secret) return')
   })
 
-  it('it says plainly that return and deletion at the end are not built', () => {
+  it('it says plainly which half of return and deletion at the end is not built, and why nobody has decided it', () => {
     const section = DPA.sections.find((s) => s.heading.includes('Return and deletion'))!
-    expect(section.paragraphs.join(' ')).toMatch(/Not implemented/i)
+    const text = section.paragraphs.join(' ')
+    expect(text).toMatch(/What is not built is the export itself/i)
+    expect(text, 'the reason has to be the joint records, not a vague gap').toMatch(
+      /the other firm records as much as this one/i
+    )
+    // And the route actually refuses it rather than producing a file.
+    const lib = readFileSync(join(ROOT, 'src/lib/data-request.ts'), 'utf8')
+    expect(lib).toContain('a company export is not built yet')
   })
 
   it('it offers no audit report it does not have', () => {
@@ -377,7 +423,13 @@ describe('The security posture is as plain about what is absent as what is prese
     expect(POSTURE).toMatch(/No ISO 27001/i)
     expect(POSTURE).toMatch(/No third-party penetration test, ever/i)
     expect(POSTURE).toMatch(/No live vulnerability disclosure address/i)
-    expect(POSTURE).toMatch(/No retention schedule/i)
+    // Until 2026-09-19 this read "No retention schedule". There is one
+    // now, and what the posture has to be plain about is the half that
+    // is still missing: no state minimum is implemented, and nothing
+    // ages out a person who has simply gone quiet.
+    expect(POSTURE).toMatch(/No state minimum is implemented/i)
+    expect(POSTURE).toMatch(/No aging-out of a person who has simply gone quiet/i)
+    expect(POSTURE).toMatch(/Return and deletion of customer data on termination is half built/i)
     expect(POSTURE).toMatch(/No rate limiting/i)
     expect(POSTURE).toMatch(/No disaster recovery plan/i)
   })
