@@ -61,7 +61,7 @@ export const DOMAINS: Domain[] = [
       'What may be asked for and when, in which country. Work authorization, ' +
       'background verification, classification, tenure and co-employment, and the ' +
       'difference between attesting that a check happened and declaring a person fit.',
-    l2: ['L2.2.3', 'L2.7.1', 'L2.7.3'],
+    l2: ['L2.2.3', 'L2.7.1', 'L2.7.3', 'L2.7.4'],
     owns: [
       'app/dashboard/governance', 'app/dashboard/tenure', 'app/dashboard/blacklist',
       'app/api/governance', 'app/api/tenure', 'app/api/blacklist', 'app/api/bar',

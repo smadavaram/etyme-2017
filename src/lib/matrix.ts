@@ -850,7 +850,7 @@ export const MATRIX: L1[] = [
   },
   {
     code: 'L1.7', stream: 'Govern and protect',
-    blurb: 'The exposures nobody bills for. Block where legally grounded, warn and record a reason everywhere else.',
+    blurb: 'The exposures nobody bills for. Block where legally grounded, warn and record a reason everywhere else \u2014 and the attestations a buyer asks for before it believes any of it.',
     groups: [
       { code: 'L2.7.1', name: 'Workforce risk', domain: 'REGULATORY', processes: [
         { code: 'L3.7.1.1', name: 'Tenure and co-employment', owner: 'Compliance', status: B,
@@ -1003,7 +1003,7 @@ export const MATRIX: L1[] = [
             'DONE: Every deletion nobody asked for writes an automation log row at L5 with reversible false, because nothing puts a deleted record back',
             'DONE: lib/legal.ts, the privacy notice, the DPA and the security posture describe the schedule, the export, the erasure and the breach clock that now exist, instead of saying none of them do',
             'DONE: Acting on somebody else\u2019s record asks for a permission of its own \u2014 privacy.manage on logging and answering a request, placing and lifting a hold, and recording a breach notice \u2014 while reading the queue still asks only for the governance read the compliance desk already holds, and a person\u2019s own request about their own data asks for nothing',
-            'OPEN, ARCHITECT: app/api/cron/retention/route.ts calling runRetentionSweep, its entry in app/api/cron/daily, and its JOBS entry in lib/autonomy.ts. The sweep is written and tested; nothing runs it on a schedule yet, so every clock is read only when somebody calls it.',
+            'DONE: app/api/cron/retention calls runRetentionSweep on a schedule, after end-contracts in the nightly fan-out because the I-9 floor counts from the day employment ended, and it sits at L5 on the ladder with reversible false \u2014 until it landed the sweep was written, tested and called by nobody, so every clock moved only when somebody happened to open a screen',
             'DONE: what is held about a business user is a category of its own \u2014 the seat, its role and org unit, and every decision made from it: a requisition raised, an approval given with its reason, a week of somebody else\u2019s hours signed. Kept under a marker and never deleted; no federal minimum can be cited for a seat, so no period is stated, and the EEOC personnel-record floor is cited where it does apply. The matching fate in etyme-conversation\u2019s FATES table went in the same commit, because the invariant fails the moment the two disagree.',
             'OPEN: no state retention minimum is implemented, only federal ones, and several states run longer. Counsel\u2019s, and the schedule says so in every basis.',
             'OPEN: a customer export at the end of a contract is refused in words, because nobody has decided which of the joint records travel with it',
@@ -1016,13 +1016,67 @@ export const MATRIX: L1[] = [
             'src/app/api/me/data/route.ts', 'src/app/api/data-requests/route.ts',
             'src/app/api/data-requests/[id]/withdraw/route.ts',
             'src/app/api/legal-holds/route.ts', 'src/app/api/breaches/route.ts',
+            'src/app/api/cron/retention/route.ts',
             'src/app/dashboard/my-data/page.tsx', 'src/app/dashboard/privacy/page.tsx',
             'docs/security-posture.md'],
           testedBy: [
             '__tests__/invariants/retention.test.ts', '__tests__/invariants/erasure.test.ts',
             '__tests__/invariants/legal-hold.test.ts', '__tests__/invariants/data-rights.test.ts',
             '__tests__/invariants/legal-pages.test.ts', '__tests__/invariants/autonomy.test.ts',
-            '__integration__/data-rights.test.ts'] },
+            '__integration__/data-rights.test.ts',
+            '__integration__/every-nightly-job-runs.test.ts'] },
+      ]},
+      // ── Assurance ────────────────────────────────────────────────
+      //
+      // These two rows are not code an agent ships. They are
+      // organizational programs an auditor closes — policies, a pen
+      // test, staff controls, an observation window — and the founder
+      // runs them, which is why both name Etyme as the owner and
+      // neither will ever be closed by a commit.
+      //
+      // They are in the matrix anyway because procurement asks for them
+      // in the same breath as the features: the security questionnaire
+      // that asks whether reads are logged asks for the SOC 2 report on
+      // the next line, and a row that exists nowhere is a row nobody
+      // sequences. What the product already produces is real evidence
+      // and is listed as DONE beside the file that proves it; the rest
+      // is honestly OPEN and marked FOUNDER so no agent picks it up.
+      { code: 'L2.7.4', name: 'Assurance', domain: 'REGULATORY', processes: [
+        { code: 'L3.7.4.1', name: 'SOC 2', owner: 'Etyme', status: N,
+          tasks: [
+            'DONE: Every read of another person\u2019s data writes a log row, refusals included \u2014 src/lib/access-log.ts',
+            'DONE: Segregation of duties is enforced in code and refused in a sentence: nobody approves their own requisition, and nobody decides the supplier they recommended or sits at two desks of one onboarding \u2014 src/lib/requisition-approval.ts, src/lib/supplier-desks.ts, src/lib/supplier-onboarding.ts',
+            'DONE: A retention schedule as code, one period per category with the legal basis cited or the absence of one stated, swept nightly, and every deletion nobody asked for written to the automation log at L5 with reversible false \u2014 src/lib/retention.ts, src/app/api/cron/retention/route.ts',
+            'DONE: A person can ask for everything held about them or ask to be forgotten, each on a stored statutory clock with the reason for the period in words \u2014 src/lib/data-request.ts, src/lib/erasure.ts',
+            'DONE: An incident register every route failure reports into, and a breach as a record of its own carrying who was affected and a deadline and an owner per audience \u2014 src/lib/alerts.ts, src/lib/breach.ts',
+            'DONE: Access is role-based per kind of company, with a test that every permission the code checks is granted by some role and every role names real permissions \u2014 src/lib/permissions.ts, src/lib/company-defaults.ts',
+            'DONE: Everything the system does unprompted sits on a declared ladder from L0 to L5, and a new automated action with no level fails the build on the commit that adds it \u2014 src/lib/autonomy.ts',
+            'DONE: A deploy is a reviewed replay onto the production branch through two gates \u2014 the replay must be byte-identical to the reviewed work across the app, and nothing from the legacy tree may ride along \u2014 docs/deploying.md',
+            'DONE: The DPA says what exists and what does not, rather than claiming a control nobody has \u2014 src/lib/legal.ts',
+            'OPEN, FOUNDER: A third-party penetration test, and its report',
+            'OPEN, FOUNDER: A written policy set \u2014 information security, acceptable use, access control, incident response, business continuity, vendor management, secure development',
+            'OPEN, FOUNDER: Staff controls \u2014 background checks, security training, onboarding and offboarding checklists, quarterly access reviews',
+            'OPEN, FOUNDER: Infrastructure evidence \u2014 Vercel\u2019s and the database provider\u2019s own SOC 2 reports held as sub-processors, encryption at rest and in transit documented, backups tested by restoring one, MFA on every admin console',
+            'OPEN, FOUNDER: A compliance automation platform connected to Vercel, GitHub and Google Workspace, collecting the evidence continuously rather than in a scramble before the audit',
+            'OPEN, FOUNDER: An auditor engaged',
+            'OPEN, FOUNDER: SOC 2 Type 1 \u2014 the controls as they stand at one point in time',
+            'OPEN, FOUNDER: SOC 2 Type 2 \u2014 the same controls observed operating over a three-to-twelve-month window',
+            'The sequencing is already decided: this starts after the first contract that requires it, and never before the pen test. An attestation bought ahead of a buyer is a year of cost with nobody on the other side of it, and a report written over controls a pen test has not been run against is the wrong order.',
+          ] },
+        { code: 'L3.7.4.2', name: 'ISO 27001', owner: 'Etyme', status: N,
+          tasks: [
+            'DONE: the evidence the product itself produces \u2014 the same evidence as L3.7.4.1, reused. Nothing in this row is built a second time',
+            'OPEN, FOUNDER: An ISMS scope statement \u2014 what is inside the management system and what is not',
+            'OPEN, FOUNDER: A risk assessment and a risk register, with an owner and a treatment per risk',
+            'OPEN, FOUNDER: A Statement of Applicability against Annex A, saying which control applies and justifying every exclusion',
+            'OPEN, FOUNDER: The policy set from L3.7.4.1, extended to cover the ISO clauses',
+            'OPEN, FOUNDER: An internal audit',
+            'OPEN, FOUNDER: A management review',
+            'OPEN, FOUNDER: Stage 1 audit \u2014 the documentation',
+            'OPEN, FOUNDER: Stage 2 audit \u2014 the operation of it',
+            'OPEN, FOUNDER: The certificate, then an annual surveillance audit for as long as it is held',
+            'This matters mostly to European and Asian buyers, and it reuses most of SOC 2\u2019s evidence rather than needing its own. US mid-market procurement asks for SOC 2 first, so this follows it rather than competing with it for the same year.',
+          ] },
       ]},
     ],
   },
