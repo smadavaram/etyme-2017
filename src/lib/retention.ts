@@ -554,19 +554,30 @@ export function verdictsFor(facts: Facts, categories?: string[]): Verdict[] {
 // is testable without a database — and there is no branch in this file
 // that money or a legal consequence does not hang off.
 //
-// ── What this sweep deliberately does not do ─────────────────────────
+// ── Two things this sweep deliberately does not do ───────────────────
 //
-// It does not anonymize a living person who has merely gone quiet. The
-// schedule above has a four-year floor on money records, and it would be
-// easy to read that as "anybody last paid five years ago loses their
-// name". Nobody has decided that, the test for "no longer engaged" is
-// not written anywhere a lawyer has seen, and getting it wrong takes the
-// name off a contractor who is coming back next month — permanently, and
-// with no request behind it. So `RETENTION_ANONYMIZE` fires only where a
-// person is **already tombstoned** and something still names them, which
-// is drift being corrected rather than a new judgement about somebody.
-// Whether a quiet person should be aged out at all is counsel's, and it
-// is named in `COUNSEL_QUESTIONS['retention']`.
+// **It does not anonymize a living person who has merely gone quiet.**
+// The schedule above has a four-year floor on money records, and it
+// would be easy to read that as "anybody last paid five years ago loses
+// their name". Nobody has decided that, the test for "no longer engaged"
+// is not written anywhere a lawyer has seen, and getting it wrong takes
+// the name off a contractor who is coming back next month —
+// permanently, and with no request behind it. Whether a quiet person
+// should be aged out at all is counsel's, and it is named in
+// `COUNSEL_QUESTIONS['retention']`.
+//
+// **And it does not anonymize a tombstoned one either, which is why
+// `RETENTION_ANONYMIZE` is still only planned.** It was going to: the
+// first draft re-checked every erased person for anything that still
+// named them. Nothing ever does. The tombstone *is* the anonymization —
+// every row goes on pointing at the same `Person` and that row now reads
+// "Erased person" — so there is no second occasion for the act, and a
+// sweep that logged one would be logging that it had found nothing.
+// `lib/autonomy`'s own rule is that an inventory listing actions nobody
+// performs overstates what we do, and that is the more dangerous of its
+// two lies because a buyer reads it. So the name stays in `PLANNED`
+// until something genuinely writes it, and `retention.test.ts` holds
+// that sentence.
 
 export type RequestStatus = 'RECEIVED' | 'HELD' | 'READY' | 'DONE' | 'REFUSED'
 
@@ -616,8 +627,6 @@ export interface SweepSubject {
   /** The companies whose records changed, for the automation log. */
   companyIds: string[]
   facts: Facts
-  /** Categories that still name this person, by `HELD`'s own names. */
-  stillNaming: string[]
   /** Held evidence whose statutory floor may have passed, by category. */
   stillHeld: string[]
 }
@@ -645,7 +654,7 @@ export interface ErasureDecision {
 }
 
 export interface RetentionAct {
-  action: 'RETENTION_DELETE' | 'RETENTION_ANONYMIZE' | 'RETENTION_HELD'
+  action: 'RETENTION_DELETE' | 'RETENTION_HELD'
   personId: string
   companyIds: string[]
   category: string
@@ -783,29 +792,6 @@ export function sweep(now: Date, deps: SweepDeps): SweepPlan {
       }
       // A HELD_UNTIL with no date is kept and said nothing about. A
       // period nobody can cite is not a period that expires tonight.
-    }
-
-    for (const category of s.stillNaming) {
-      if (s.facts.underLegalHold) {
-        plan.retention.push({
-          action: 'RETENTION_HELD', personId: s.personId, companyIds: s.companyIds,
-          category,
-          says: verdictFor(category, s.facts).says,
-          basis: verdictFor(category, s.facts).basis,
-        })
-        continue
-      }
-      const v = verdictFor(category, s.facts)
-      if (v.verdict !== 'ANONYMIZE') continue
-      plan.retention.push({
-        action: 'RETENTION_ANONYMIZE', personId: s.personId, companyIds: s.companyIds,
-        category,
-        says:
-          `${category} still names somebody who has already been forgotten. The dates and ` +
-          'the amounts stay exactly as they were and the name comes off, so the arithmetic ' +
-          'goes on footing and the person is gone from it.',
-        basis: v.basis,
-      })
     }
   }
 

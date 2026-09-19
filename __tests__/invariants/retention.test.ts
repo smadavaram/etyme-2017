@@ -6,6 +6,7 @@ import {
   type SweepDeps, type SweepRequest, type SweepBreach, type SweepSubject,
 } from '@/lib/retention'
 import { HELD } from '@/lib/legal'
+import { ALL_PLANNED, ALL_ACTIONS } from '@/lib/autonomy'
 
 /**
  * How long a record is kept, why, and what happens on the night the
@@ -284,7 +285,7 @@ describe('records past their period, for somebody already forgotten', () => {
   const subject = (over: Partial<SweepSubject> = {}): SweepSubject => ({
     personId: 'p1', companyIds: ['c1'],
     facts: { now, hiredAt: new Date('2019-01-01T00:00:00Z'), employmentEndedAt: new Date('2022-01-01T00:00:00Z') },
-    stillNaming: [], stillHeld: [], ...over,
+    stillHeld: [], ...over,
   })
 
   it('an I-9 whose floor has run is deleted, and the row says nothing puts it back', () => {
@@ -310,25 +311,28 @@ describe('records past their period, for somebody already forgotten', () => {
     expect(p.retention).toEqual([])
   })
 
-  it('something that still names a person who has already been forgotten loses the name and keeps the amounts', () => {
-    const p = sweep(now, { ...nothing, subjects: [subject({ stillNaming: ['Money about a person'] })] })
-    expect(p.retention[0].action).toBe('RETENTION_ANONYMIZE')
-    expect(p.retention[0].says).toContain('the name comes off')
-  })
-
-  it('a legal hold stops both the deletion and the anonymization, and the row says a hold is why', () => {
+  it('a legal hold stops the deletion, and the row says a hold is why', () => {
     const p = sweep(now, {
       ...nothing,
       subjects: [subject({
-        stillHeld: ['Checks somebody else ran'], stillNaming: ['Money about a person'],
+        stillHeld: ['Checks somebody else ran'],
         facts: {
           now, hiredAt: new Date('2019-01-01T00:00:00Z'), employmentEndedAt: new Date('2022-01-01T00:00:00Z'),
           underLegalHold: true, holdReason: 'A wage claim is open.',
         },
       })],
     })
-    expect(p.retention.map((r) => r.action)).toEqual(['RETENTION_HELD', 'RETENTION_HELD'])
+    expect(p.retention.map((r) => r.action)).toEqual(['RETENTION_HELD'])
     expect(p.retention[0].says).toContain('A wage claim is open.')
+  })
+
+  it('the sweep claims no anonymization of its own, because the tombstone already did it', () => {
+    // An inventory listing an act nobody performs overstates what this
+    // product does, which is the more dangerous of the two lies the
+    // ladder exists to prevent. RETENTION_ANONYMIZE stays planned until
+    // something genuinely writes it.
+    expect(ALL_PLANNED).toContain('RETENTION_ANONYMIZE')
+    expect(ALL_ACTIONS).not.toContain('RETENTION_ANONYMIZE')
   })
 })
 

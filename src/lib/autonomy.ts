@@ -220,6 +220,36 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     says:
       'Somebody asked to be forgotten and the last thing standing in the way came free, so it finished on its own: the identity is a tombstone on a domain nothing can be sent to, and the work they did is still on the record under nobody’s name. Nothing puts this back.',
   },
+  RETENTION_HELD: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'Records were due for deletion and were left alone, because a legal hold names the person or the company they belong to. Not deleting is the whole act, and the reason the hold gave is recorded with it.',
+  },
+  RETENTION_DELETE: {
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A record whose retention period has run out is deleted, with nobody asked, because a written schedule said the day had come. It cannot be put back. It is a date comparison, and the consequence is permanent — which is why it is at the top of the ladder and not beside ending a contract.',
+  },
+  DATA_REQUEST_CLOCK_WARNED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A request for somebody’s data falls due inside a day and nobody has answered it, so staff were told. It answers nothing itself.',
+  },
+  BREACH_CLOCK_WARNED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A deadline for telling an authority, a customer or the people whose data it was falls inside a day, so staff were told. Once a day, not once a run, and it sends no notice itself — a notice about a breach is written by a person.',
+  },
+  BREACH_CLOCK_MISSED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A deadline passed with no notice recorded against it. It is said out loud, every night, until somebody records the notice or closes the breach — a missed clock that stops being mentioned is a missed clock nobody fixes.',
+  },
 }
 
 // ── The things that are governance, not autonomy ─────────
@@ -250,6 +280,12 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
     basis: 'RULE',
     says: 'Somebody was let into this company without an admin approving them, because their work email is on a domain this company had already claimed. A permit is a governance decision and is logged like a refusal.',
   },
+  DATA_REQUEST_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says:
+      'Somebody asked for a person’s data or for them to be forgotten and was refused — they are not the person, or not the company that holds the record. A refusal aimed at somebody who asked carries no autonomy level, and it is logged as carefully as a grant.',
+  },
 }
 
 // ── The things a person did ─────────────────────────
@@ -275,30 +311,33 @@ const ATTRIBUTED: Record<string, { basis: Basis }> = {}
 const RULE_ATTRIBUTED = [
   'ACCESS_GRANTED', 'ACCESS_REINSTATED', 'ACCESS_REVOKED',
   'ACCESS_SUSPENDED', 'ADDRESS_CHANGED', 'AGREEMENT_AMENDED',
-  'AGREEMENT_ENDED', 'AGREEMENT_SIGNED', 'ALUMNI_ASK_BACK', 'API_KEY_ISSUED',
-  'API_KEY_REVOKED', 'APPROVAL_RULE_CREATED', 'APPROVAL_RULE_DEACTIVATED',
-  'BENCH_CONSENT_DECLINED', 'BENCH_CONSENT_GIVEN', 'BENCH_LISTING_GRANTED',
+  'AGREEMENT_ENDED', 'AGREEMENT_SIGNED', 'ALUMNI_ASK_BACK',
+  'API_KEY_ISSUED', 'API_KEY_REVOKED', 'APPROVAL_RULE_CREATED',
+  'APPROVAL_RULE_DEACTIVATED', 'BENCH_CONSENT_DECLINED',
+  'BENCH_CONSENT_GIVEN', 'BENCH_LISTING_GRANTED',
   'BENCH_LISTING_REQUESTED', 'BENCH_LISTING_REVOKED', 'BLACKLIST_ADD',
-  'BLACKLIST_LIFT', 'CANDIDATE_AWARDED', 'CLIENT_LISTED',
-  'COLLECTIONS_FACTORED', 'COLLECTIONS_OWNER_ASSIGNED',
-  'COLLECTIONS_PROMISE_MADE', 'COLLECTIONS_STOP_WORK_ADVISED',
-  'COLLECTIONS_WRITTEN_OFF', 'COMMISSION_RUN', 'COMPANY_CREATED',
-  'COMPANY_SETTINGS_CHANGED', 'CONSULTANT_CREATED', 'CONTRACT_ACTIVATED',
-  'CONTRACT_CANCELLED', 'CONTRACT_COMPLETED', 'CONTRACT_CREATED',
-  'CONTRACT_EXTENDED', 'CONTRACT_PAUSED', 'CONTRACT_RESUMED',
-  'CONTRACT_VERIFICATION_REQUESTED', 'CREDIT_LIMIT_CHANGED',
-  'CREDIT_LIMIT_SET', 'CUSTOM_DOMAIN_ADDED', 'CUSTOM_DOMAIN_REMOVED',
-  'DOCUMENTS_SHARED', 'DOCUMENT_SHARE_REVOKED', 'DOMAIN_CLAIMED',
-  'DUNNING_SENT', 'EXPENSE_APPROVED', 'EXPENSE_REJECTED',
-  'EXPENSE_SUBMITTED', 'HOLIDAYS_ADDED', 'HOLIDAY_REMOVED',
-  'IMPORT_COMMITTED', 'INTERVIEW_ACCEPTED', 'INTERVIEW_DECLINED',
-  'INVITATION_ACCEPTED', 'INVITATION_DECLINED', 'INVITATION_WITHDRAWN',
-  'INVOICE_GENERATED', 'INVOICE_MATCH_OVERRIDDEN',
-  'INVOICE_MATCH_OVERRIDE_WITHDRAWN', 'INVOICE_SUBMITTED', 'LEADS_READ',
-  'LEAD_KEPT_APART_BY_PERSON', 'LEAD_MERGED_BY_PERSON', 'OPENING_WRITTEN_UP',
-  'ORDER_LOCKED', 'ORDER_SETTLED', 'ORDER_UNLOCKED', 'OUTBOUND_PACK_SENT',
-  'OWN_DOCUMENT_RECORDED', 'PACKET_REQUESTED', 'PAYMENT_RECORDED',
-  'PAYROLL_OFF_CYCLE', 'PAYROLL_RUN', 'PERSON_INVITED',
+  'BLACKLIST_LIFT', 'BREACH_CLOSED', 'BREACH_NOTICE_SENT', 'BREACH_OPENED',
+  'CANDIDATE_AWARDED', 'CLIENT_LISTED', 'COLLECTIONS_FACTORED',
+  'COLLECTIONS_OWNER_ASSIGNED', 'COLLECTIONS_PROMISE_MADE',
+  'COLLECTIONS_STOP_WORK_ADVISED', 'COLLECTIONS_WRITTEN_OFF',
+  'COMMISSION_RUN', 'COMPANY_CREATED', 'COMPANY_SETTINGS_CHANGED',
+  'CONSULTANT_CREATED', 'CONTRACT_ACTIVATED', 'CONTRACT_CANCELLED',
+  'CONTRACT_COMPLETED', 'CONTRACT_CREATED', 'CONTRACT_EXTENDED',
+  'CONTRACT_PAUSED', 'CONTRACT_RESUMED', 'CONTRACT_VERIFICATION_REQUESTED',
+  'CREDIT_LIMIT_CHANGED', 'CREDIT_LIMIT_SET', 'CUSTOM_DOMAIN_ADDED',
+  'CUSTOM_DOMAIN_REMOVED', 'DATA_ERASURE_REQUESTED',
+  'DATA_EXPORT_REQUESTED', 'DATA_REQUEST_ANSWERED', 'DOCUMENTS_SHARED',
+  'DOCUMENT_SHARE_REVOKED', 'DOMAIN_CLAIMED', 'DUNNING_SENT',
+  'EXPENSE_APPROVED', 'EXPENSE_REJECTED', 'EXPENSE_SUBMITTED',
+  'HOLIDAYS_ADDED', 'HOLIDAY_REMOVED', 'IMPORT_COMMITTED',
+  'INTERVIEW_ACCEPTED', 'INTERVIEW_DECLINED', 'INVITATION_ACCEPTED',
+  'INVITATION_DECLINED', 'INVITATION_WITHDRAWN', 'INVOICE_GENERATED',
+  'INVOICE_MATCH_OVERRIDDEN', 'INVOICE_MATCH_OVERRIDE_WITHDRAWN',
+  'INVOICE_SUBMITTED', 'LEADS_READ', 'LEAD_KEPT_APART_BY_PERSON',
+  'LEAD_MERGED_BY_PERSON', 'LEGAL_HOLD_LIFTED', 'LEGAL_HOLD_PLACED',
+  'OPENING_WRITTEN_UP', 'ORDER_LOCKED', 'ORDER_SETTLED', 'ORDER_UNLOCKED',
+  'OUTBOUND_PACK_SENT', 'OWN_DOCUMENT_RECORDED', 'PACKET_REQUESTED',
+  'PAYMENT_RECORDED', 'PAYROLL_OFF_CYCLE', 'PAYROLL_RUN', 'PERSON_INVITED',
   'PLACEMENT_CONVERTED', 'PLACEMENT_REPLACED', 'PURCHASE_ORDER_CHANGED',
   'PURCHASE_ORDER_RAISED', 'RATE_AMENDMENT_APPROVED',
   'RATE_AMENDMENT_REJECTED', 'REMIT_TO_ADDED', 'REMIT_TO_CHANGED',
@@ -310,7 +349,7 @@ const RULE_ATTRIBUTED = [
   'ROLLOFF_RESOLVED', 'SUBMISSION_STATUS_CHANGED', 'SUPPLIER_APPROVED',
   'SUPPLIER_DECLINED', 'SUPPLIER_ITEM_MARKED', 'TEMPLATE_PACK_APPLIED',
   'TIMESHEET_APPROVED', 'TIMESHEET_REJECTED', 'WEBHOOK_ADDED',
-  'WORK_ORDER_RECORDED',
+  'WORK_ORDER_RECORDED'
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 
@@ -366,22 +405,6 @@ export const PLANNED: Record<string, PlannedAct> = {
       'Every night it reads which records have passed the end of their retention period and tells whoever owns them. It deletes nothing and is the rung every other retention row is measured against.',
     willBeWrittenBy: 'etyme-regulatory',
   },
-  RETENTION_HELD: {
-    kind: 'UNPROMPTED',
-    rung: 'L0',
-    basis: 'RULE',
-    says:
-      'Records were due for deletion and were left alone, because a legal hold names the person or the company they belong to. Not deleting is the whole act, and the reason the hold gave is recorded with it.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  RETENTION_DELETE: {
-    kind: 'UNPROMPTED',
-    rung: 'L5',
-    basis: 'RULE',
-    says:
-      'A record whose retention period has run out is deleted, with nobody asked, because a written schedule said the day had come. It cannot be put back. It is a date comparison, and the consequence is permanent — which is why it is at the top of the ladder and not beside ending a contract.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
   RETENTION_ANONYMIZE: {
     kind: 'UNPROMPTED',
     rung: 'L5',
@@ -391,99 +414,14 @@ export const PLANNED: Record<string, PlannedAct> = {
     willBeWrittenBy: 'etyme-regulatory',
   },
 
-  // ── The clocks ─────────────────────────────────────────────────────
+  // ── The clocks ───────────────────────────────────────────────────
 
-  DATA_REQUEST_CLOCK_WARNED: {
-    kind: 'UNPROMPTED',
-    rung: 'L0',
-    basis: 'RULE',
-    says:
-      'A request for somebody’s data falls due inside a day and nobody has answered it, so staff were told. It answers nothing itself.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  BREACH_CLOCK_WARNED: {
-    kind: 'UNPROMPTED',
-    rung: 'L0',
-    basis: 'RULE',
-    says:
-      'A deadline for telling an authority, a customer or the people whose data it was falls inside a day, so staff were told. Once a day, not once a run, and it sends no notice itself — a notice about a breach is written by a person.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  BREACH_CLOCK_MISSED: {
-    kind: 'UNPROMPTED',
-    rung: 'L0',
-    basis: 'RULE',
-    says:
-      'A deadline passed with no notice recorded against it. It is said out loud, every night, until somebody records the notice or closes the breach — a missed clock that stops being mentioned is a missed clock nobody fixes.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
 
   // ── A refusal aimed at somebody who asked ──────────────────────────
 
-  DATA_REQUEST_REFUSED: {
-    kind: 'ENFORCEMENT',
-    outcome: 'BLOCK',
-    basis: 'RULE',
-    says:
-      'Somebody asked for a person’s data or for them to be forgotten and was refused — they are not the person, or not the company that holds the record. A refusal aimed at somebody who asked carries no autonomy level, and it is logged as carefully as a grant.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
 
   // ── Acts a person took ─────────────────────────────────────────────
 
-  DATA_EXPORT_REQUESTED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says: 'A person asked for everything held about them, and a statutory clock started.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  DATA_ERASURE_REQUESTED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says: 'A person asked to be forgotten, and a statutory clock started.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  DATA_REQUEST_ANSWERED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says:
-      'Somebody answered a request for a person’s data — produced the export, or finished the erasure — and the row says what was kept and why.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  LEGAL_HOLD_PLACED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says:
-      'A company said a person’s or its own records may not be deleted yet, and gave a reason. It suspends every scheduled deletion of that subject, including ones this company would never see.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  LEGAL_HOLD_LIFTED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says:
-      'A company lifted its hold. Anything another company still holds stays held, and the lifted row stays on the record as the answer to why something was still here.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  BREACH_OPENED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says:
-      'Somebody decided that personal data went where it should not have, and opened a breach. The clocks count from when they became aware, not from when it happened.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  BREACH_NOTICE_SENT: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says:
-      'A notice about a breach went to an authority, to a customer, or to the people whose data it was, and the row says which and when.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  BREACH_CLOSED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says: 'A breach was closed out, on a stated basis, by somebody who put their name to it.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
 }
 
 export const ALL_PLANNED: string[] = Object.keys(PLANNED).sort()
