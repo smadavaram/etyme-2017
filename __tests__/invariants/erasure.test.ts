@@ -209,3 +209,21 @@ describe('the row that records it is honest about what it did', () => {
     expect(src).toContain('for (const companyId of companyIds)')
   })
 })
+
+describe('a business user asks to be forgotten too', () => {
+  const SEAT = 'A seat at a company, and what was decided from it'
+
+  it('their seat and the decisions made from it are kept under a marker, and the letter and the plan agree', () => {
+    expect(fateOf(SEAT)!.fate).toBe('UNDER_A_MARKER')
+    const plan = planErasure(footprint({ counts: { [SEAT]: 4 } }))
+    const line = plan.lines.find((l) => l.category === SEAT)!
+    expect(line.disposition).toBe('ANONYMIZED')
+    expect(willDelete(plan)).not.toContain(SEAT)
+  })
+
+  it('an approval with nobody behind it is worse than one nobody is named on, and the letter says so in the reader\u2019s words', () => {
+    expect(fateOf(SEAT)!.why).toContain('under a marker instead of your name')
+    expect(fateOf(SEAT)!.why).not.toContain('deleted')
+  })
+})
+

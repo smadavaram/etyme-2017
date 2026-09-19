@@ -406,3 +406,43 @@ describe('a breach clock is said out loud once a day, and a breach with no clock
     expect(p.breachWarnings[0].says).toContain('Northbend Athletic')
   })
 })
+
+// ── The population the notice had forgotten ──────────────────────────
+
+/**
+ * A privacy notice that names every category held about a candidate and
+ * nothing held about the people who sign in to run the place is a notice
+ * that is untrue of half its readers. Both populations are named in
+ * `POPULATIONS` and only one of them had a category.
+ */
+describe('what is held about a business user has a line like anything else', () => {
+  const SEAT = 'A seat at a company, and what was decided from it'
+
+  it('a seat at a company, and the decisions made from it, is a category the privacy notice names', () => {
+    const line = HELD.find((h) => h.category === SEAT)
+    expect(line, 'the notice names nothing about business users').toBeTruthy()
+    expect(line!.about).toBe('Business users')
+    expect(line!.provenBy).toContain('Context')
+    expect(line!.provenBy).toContain('RequirementApproval')
+  })
+
+  it('an approval keeps its date and its reason and stops naming anybody, rather than being deleted', () => {
+    const v = verdictFor(SEAT, { now })
+    expect(v.verdict).toBe('ANONYMIZE')
+    expect(v.says).toContain('stops naming anybody')
+  })
+
+  it('no period is stated for a seat, because no federal minimum can be cited for one', () => {
+    expect(scheduleFor(SEAT)!.months).toBeNull()
+    expect(verdictFor(SEAT, { now }).until).toBeNull()
+    expect(verdictFor(SEAT, { now }).says).toContain('No statute sets a date')
+  })
+
+  it('the EEOC personnel-record floor is cited where it does apply, and named as a floor on keeping rather than a day for deleting', () => {
+    const basis = scheduleFor(SEAT)!.basis
+    expect(basis).toContain('29 CFR 1602.14')
+    expect(basis).toContain('41 CFR 60-1.12')
+    expect(basis).toContain('floor on keeping rather than a day')
+  })
+})
+

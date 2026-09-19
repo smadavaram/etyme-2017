@@ -144,6 +144,18 @@ export const FATES: CategoryFate[] = [
     until: null,
   },
   {
+    // Cross-boundary, and said out loud: this file is
+    // etyme-conversation's. The entry is here because
+    // `data-rights-notices.test.ts` fails the moment `HELD` in
+    // `lib/legal` names a category with no fate beside it, and the two
+    // edits cannot be in two commits without a red build between them.
+    // The fate itself was never in doubt.
+    category: 'A seat at a company, and what was decided from it',
+    fate: 'UNDER_A_MARKER',
+    why: 'Your seat is closed and your name comes off it. The approvals you gave, the requisitions you raised and the weeks of somebody else\'s hours you signed stay as your company\'s record of its own decisions, under a marker instead of your name — a decision with nobody behind it is worse for everybody than one nobody is named on.',
+    until: null,
+  },
+  {
     category: 'Money about a person',
     fate: 'KEPT',
     why: 'Payroll, tax, the hours signed and the invoices between two firms. Whoever paid you is required to keep these, and two firms\' books have to go on adding up.',

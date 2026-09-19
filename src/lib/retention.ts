@@ -235,6 +235,22 @@ export const SCHEDULE: ScheduleLine[] = [
       'none is offered.',
   },
   {
+    category: 'A seat at a company, and what was decided from it',
+    fate: 'KEPT_ANONYMIZED',
+    anchor: 'NONE',
+    months: null,
+    basis:
+      'A decision is the company own record of a decision it made, and it keeps its date, ' +
+      'its outcome and the reason in words while it stops naming anybody. Where one of ' +
+      'these is itself a personnel record made in the course of a hiring action, the EEOC ' +
+      'minimum applies to keeping it — one year at 29 CFR 1602.14, two for a federal ' +
+      'contractor at 41 CFR 60-1.12 — and that is a floor on keeping rather than a day ' +
+      'for deleting. For the seat itself, and for an approval or a signature on somebody ' +
+      'else file, no federal minimum can be cited at all, so no period is stated and ' +
+      'nothing is deleted on one. An approval with nobody behind it is worse for everybody ' +
+      'than one nobody is named on, which is why the fate is a marker and never a delete.',
+  },
+  {
     category: 'Money about a person',
     fate: 'KEPT_ANONYMIZED',
     anchor: 'LAST_PAID',

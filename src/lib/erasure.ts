@@ -226,6 +226,7 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
     credentials, profile, resumes, visas, verifications, packets,
     classifications, exempts, sells, buys, timesheets, messages,
     accessLogs, blacklists, doNotSubmits, favorites,
+    seats, approvals, requisitions, signedWeeks, deskDecisions,
   ] = await Promise.all([
     prisma.credential.count({ where: { personId } }),
     prisma.consultantProfile.count({ where: { personId } }),
@@ -243,6 +244,22 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
     prisma.blacklist.count({ where: { targetType: 'PERSON', targetId: personId } }),
     prisma.doNotSubmit.count({ where: { personId } }),
     prisma.favorite.count({ where: { targetType: 'PERSON', targetId: personId } }),
+    // The business-user side of the same person. Everybody who signs in
+    // holds a seat, and a seat that decided things is the company's own
+    // record of its own decisions — so it is counted, and the letter
+    // says it is kept under a marker rather than forgotten.
+    prisma.context.count({ where: { personId } }),
+    prisma.requirementApproval.count({ where: { approverId: personId } }),
+    prisma.requirement.count({ where: { raisedById: personId } }),
+    prisma.timesheet.count({
+      where: { OR: [{ clientApprovedById: personId }, { employerAcceptedById: personId }] },
+    }),
+    Promise.all([
+      prisma.overtimeDecision.count({ where: { decidedById: personId } }),
+      prisma.classificationCall.count({ where: { decidedById: personId } }),
+      prisma.supplierRequest.count({ where: { decidedById: personId } }),
+      prisma.legalHold.count({ where: { placedById: personId } }),
+    ]).then((n) => n.reduce((a, b) => a + b, 0)),
   ])
 
   const counts: Record<string, number> = {
@@ -265,6 +282,8 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
     'Payment details': 0,
     'Messages': messages,
     'Logs': accessLogs,
+    'A seat at a company, and what was decided from it':
+      seats + approvals + requisitions + signedWeeks + deskDecisions,
   }
 
   const holds = await prisma.legalHold.findMany({

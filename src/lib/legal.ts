@@ -377,6 +377,25 @@ export const HELD: HeldCategory[] = [
     provenBy: 'src/lib/tenure-days.ts',
   },
   {
+    category: 'A seat at a company, and what was decided from it',
+    examples:
+      'The seat itself — which company granted it, the role and the permissions on it, ' +
+      'the org unit it sits in, why it was granted, when it was last used and whether it ' +
+      'is suspended or ended — and every act taken from it: a requisition raised, an ' +
+      'approval given or refused with the reason in words, somebody else week of hours ' +
+      'signed off, an overtime call, a position taken on how a worker is engaged, a ' +
+      'supplier decided at a desk, a payment run approved, a legal hold placed, an ' +
+      'incident opened. An agreement carries the signer own name, title and email as they ' +
+      'appear on the paper. An order names the company that raised it and not a person, ' +
+      'so nothing here claims one.',
+    about: 'Business users',
+    provenBy:
+      'Context, Role, OrgUnit, Requirement.raisedById, RequirementApproval, ' +
+      'Timesheet.clientApprovedById and Timesheet.employerAcceptedById, OvertimeDecision, ' +
+      'ClassificationCall, SupplierRequest, PaymentRun, LegalHold, Breach, ' +
+      'AgreementSignature in prisma/schema.prisma',
+  },
+  {
     category: 'Bars and preferences',
     examples:
       'A bar on a named person or firm with a reason, held by the company that set it; ' +
