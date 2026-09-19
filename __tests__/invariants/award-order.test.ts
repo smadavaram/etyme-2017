@@ -17,7 +17,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   orderCeiling, orderNumbers, orderNumberAttempt, chooseHeader,
-  headerWindow, lineAgreesWithHeader, ORDER_RHYTHM,
+  headerWindow, lineAgreesWithHeader,
   type HeaderCandidate,
 } from '@/lib/award'
 import { annualValue } from '@/lib/requisition-approval'
@@ -235,57 +235,106 @@ describe('One document, two numbers — the buyer’s and the seller’s', () =>
   })
 })
 
-// ── The six fields that used to sit on both rows ───────────────
+// ── The four fields that used to sit on both rows ──────────────
 
-const terms = (over: Record<string, unknown> = {}) => ({
-  ...ORDER_RHYTHM,
+const headerOf = (over: Record<string, unknown> = {}) => ({
+  id: 'wo-1',
+  number: 'PO-2026-ABCDE',
+  billFrequency: 'MONTHLY',
+  billAnchor: 'CALENDAR',
+  billStraddle: 'SPLIT',
   paymentTerms: 45,
   startDate: day('2026-03-01'),
   endDate: day('2026-10-30'),
   ...over,
-} as any)
+})
+
+const lineOf = (over: Record<string, unknown> = {}) => ({
+  billFrequency: 'MONTHLY',
+  billAnchor: 'CALENDAR',
+  billStraddle: 'SPLIT',
+  paymentTerms: 45,
+  startDate: day('2026-03-01'),
+  endDate: day('2026-09-30'),
+  ...over,
+})
 
 describe('A line never disagrees with its header on the day it is written', () => {
 
-  it('a header and the line written from it agree on all six', () => {
-    const h = terms()
-    const l = terms({ startDate: day('2026-03-01'), endDate: day('2026-09-30') })
-    expect(lineAgreesWithHeader(h, l)).toEqual([])
+  it('a header and the line written from it agree on all four', () => {
+    expect(lineAgreesWithHeader('SELL', headerOf(), lineOf()).differences).toEqual([])
   })
 
   it('a line billing on a different rhythm from its order is named as a disagreement', () => {
-    expect(lineAgreesWithHeader(terms(), terms({ billFrequency: 'WEEKLY' })))
+    expect(lineAgreesWithHeader('SELL', headerOf(), lineOf({ billFrequency: 'WEEKLY' })).differences)
       .toEqual(['the order bills MONTHLY and the line says WEEKLY'])
   })
 
   it('a line anchored differently from its order is named as a disagreement', () => {
-    expect(lineAgreesWithHeader(terms(), terms({ billAnchor: 'CONTRACT_START' })).length).toBe(1)
+    expect(lineAgreesWithHeader('SELL', headerOf(), lineOf({ billAnchor: 'CONTRACT' })).differences.length).toBe(1)
   })
 
-  it('a line splitting a straddling period differently from its order is named as a disagreement', () => {
-    expect(lineAgreesWithHeader(terms(), terms({ billStraddle: 'TO_LATER' })).length).toBe(1)
+  it('the two rows spell the same anchor differently, and that is not a disagreement', () => {
+    // The header says CONTRACT_START where the line says CONTRACT. One
+    // answer, two vocabularies — compared as written it would read as
+    // two, which is why both go through money's translation first.
+    expect(
+      lineAgreesWithHeader('SELL', headerOf({ billAnchor: 'CONTRACT_START' }), lineOf({ billAnchor: 'CONTRACT' }))
+        .differences
+    ).toEqual([])
+  })
+
+  it('the two rows spell the same straddle differently, and that is not a disagreement either', () => {
+    expect(
+      lineAgreesWithHeader('SELL', headerOf({ billStraddle: 'TO_EARLIER' }), lineOf({ billStraddle: 'START' }))
+        .differences
+    ).toEqual([])
+    expect(
+      lineAgreesWithHeader('SELL', headerOf({ billStraddle: 'TO_LATER' }), lineOf({ billStraddle: 'END' }))
+        .differences
+    ).toEqual([])
   })
 
   it('a line on net 30 under an order on net 45 is named as a disagreement', () => {
-    expect(lineAgreesWithHeader(terms(), terms({ paymentTerms: 30 })))
+    expect(lineAgreesWithHeader('SELL', headerOf(), lineOf({ paymentTerms: 30 })).differences)
       .toEqual(['the order is net 45 and the line is net 30'])
   })
 
-  it('a line may not start before the order that authorizes it', () => {
-    expect(lineAgreesWithHeader(terms(), terms({ startDate: day('2026-02-01') })))
-      .toEqual(['the line starts before the order that authorizes it'])
+  it('a header saying something the money engine cannot read is named, never guessed at', () => {
+    const answer = lineAgreesWithHeader('SELL', headerOf({ billFrequency: 'CUSTOM' }), lineOf())
+    expect(answer.unreadable).toEqual(['frequency "CUSTOM"'])
+    // And the line answers instead of a rhythm being invented.
+    expect(answer.differences).toEqual([])
   })
 
-  it('a line may not run past the end of the order that authorizes it', () => {
-    expect(lineAgreesWithHeader(terms(), terms({ endDate: day('2027-01-01') })))
-      .toEqual(['the line runs past the end of the order that authorizes it'])
+  it('a buy line is read as a buy line, because the side is said and never inferred', () => {
+    const buyLine = { payFrequency: 'WEEKLY', payAnchor: 'CALENDAR', payStraddle: 'SPLIT', paymentTerms: 45 }
+    // The header's bill columns are what a buy line is paid on — the
+    // same document read from the other end.
+    expect(lineAgreesWithHeader('BUY', headerOf(), buyLine).differences)
+      .toEqual(['the order bills MONTHLY and the line says WEEKLY'])
   })
 
-  it('a line ending inside its order is no disagreement, because a header outlives its lines', () => {
-    expect(lineAgreesWithHeader(terms(), terms({ endDate: day('2026-06-30') }))).toEqual([])
+  it('the dates are the line’s and are never a disagreement, because a header outlives its lines', () => {
+    const ending = lineAgreesWithHeader('SELL', headerOf(), lineOf({ endDate: day('2026-06-30') }))
+    expect(ending.differences).toEqual([])
+    expect(ending.outsideOrderWindow).toBe(false)
   })
 
-  it('an open-ended line under an open-ended order agrees', () => {
-    expect(lineAgreesWithHeader(terms({ endDate: null }), terms({ endDate: null }))).toEqual([])
+  it('a line running past the end of its order is a fact reported beside the answer, not a term rewritten', () => {
+    const over = lineAgreesWithHeader('SELL', headerOf(), lineOf({ endDate: day('2027-01-01') }))
+    expect(over.differences).toEqual([])
+    expect(over.outsideOrderWindow).toBe(true)
+  })
+
+  it('a line starting before the order that authorizes it is reported the same way', () => {
+    expect(lineAgreesWithHeader('SELL', headerOf(), lineOf({ startDate: day('2026-02-01') })).outsideOrderWindow)
+      .toBe(true)
+  })
+
+  it('a line on no order at all disagrees with nothing', () => {
+    const none = lineAgreesWithHeader('SELL', null, lineOf())
+    expect(none.differences).toEqual([])
+    expect(none.outsideOrderWindow).toBe(false)
   })
 })

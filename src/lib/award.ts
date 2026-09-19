@@ -23,6 +23,8 @@
  *   sourcing effort on a role that no longer exists, and they remember.
  */
 
+import { termsFor, type OrderHeader, type OrderLine, type OrderSide } from '@/lib/money/order-terms'
+
 export type AwardCode =
   | 'APPROVAL'    // the requisition itself cleared approval
   | 'SEATS'       // a position remains to be filled
@@ -549,58 +551,76 @@ export function headerWindow(line: { start: Date; end: Date | null }): {
   }
 }
 
-export interface HeaderTerms {
-  billFrequency: string
-  billAnchor: string
-  billStraddle: string
-  paymentTerms: number
-  startDate: Date
-  endDate: Date | null
-}
-
-export interface LineTerms {
-  billFrequency: string
-  billAnchor: string
-  billStraddle: string
-  paymentTerms: number
-  startDate: Date
-  endDate: Date | null
-}
-
 /**
  * Whether a line and the header it hangs on say the same thing.
  *
- * Six fields sit on both rows and nothing reconciled them, which is two
- * places for one fact and one wrong number waiting. Four of them are
- * copies and must be identical. The two dates are not copies — a header
- * covers several lines and outlives each of them — so the test on those
- * is containment: a line may not start before the order that authorizes
- * it, and may not run past its end.
+ * ── Why this is not a string comparison ──────────────────────────────
+ *
+ * The two rows do not share a vocabulary, which is its own evidence
+ * that nothing ever reconciled them: a header says `CONTRACT_START` and
+ * `TO_EARLIER` where a line says `CONTRACT` and `START`. Compared as
+ * written, one answer reads as two. So both sides go through money's
+ * one door (`lib/money/order-terms`), which translates each vocabulary
+ * into the period engine's, and what is compared is the answer rather
+ * than the spelling.
+ *
+ * ── Four fields, not six ─────────────────────────────────────────────
+ *
+ * Ratified 2026-09-19, after money audited the seeded world. The
+ * **rhythm and the net days are the document's** — how often a deal is
+ * billed and how many days there are to pay are properties of the paper
+ * two firms signed, and one order billed two ways is incoherent. The
+ * **dates are the line's**, because a line is a person and a header is
+ * not: one header for a five-person project runs the length of the
+ * project and the third person on it starts in March. Twenty-nine
+ * seeded lines end a month to a year before their order, deliberately,
+ * so the order can carry the final invoice.
+ *
+ * So a line running outside its order's window is not a disagreement —
+ * it is a separate fact, reported beside the answer, because cutting a
+ * running placement short because its paper expired is a decision for a
+ * person.
  *
  * Returns the disagreements in plain English. Empty means they agree.
  */
-export function lineAgreesWithHeader(header: HeaderTerms, line: LineTerms): string[] {
-  const out: string[] = []
-  if (header.billFrequency !== line.billFrequency) {
-    out.push(`the order bills ${header.billFrequency} and the line says ${line.billFrequency}`)
+export interface LineAgreement {
+  /** Where the document and the line's own copy give different answers. */
+  differences: string[]
+  /** The line starts before its order, or runs past the end of it. */
+  outsideOrderWindow: boolean
+  /** Header values the money engine cannot read, named rather than guessed. */
+  unreadable: string[]
+}
+
+export function lineAgreesWithHeader(
+  side: OrderSide,
+  header: OrderHeader | null,
+  line: Omit<OrderLine, 'workOrder'>
+): LineAgreement {
+  const withHeader = termsFor(side, { ...line, workOrder: header })
+  const lineAlone = termsFor(side, { ...line, workOrder: null })
+
+  const differences: string[] = []
+  if (withHeader.frequency !== lineAlone.frequency) {
+    differences.push(`the order bills ${withHeader.frequency} and the line says ${lineAlone.frequency}`)
   }
-  if (header.billAnchor !== line.billAnchor) {
-    out.push(`the order is anchored ${header.billAnchor} and the line says ${line.billAnchor}`)
+  if (withHeader.anchor !== lineAlone.anchor) {
+    differences.push(`the order is anchored ${withHeader.anchor} and the line says ${lineAlone.anchor}`)
   }
-  if (header.billStraddle !== line.billStraddle) {
-    out.push(`the order splits a straddling period ${header.billStraddle} and the line says ${line.billStraddle}`)
+  if (withHeader.straddle !== lineAlone.straddle) {
+    differences.push(
+      `the order splits a straddling period ${withHeader.straddle} and the line says ${lineAlone.straddle}`
+    )
   }
-  if (header.paymentTerms !== line.paymentTerms) {
-    out.push(`the order is net ${header.paymentTerms} and the line is net ${line.paymentTerms}`)
+  if (withHeader.paymentTermsDays !== lineAlone.paymentTermsDays) {
+    differences.push(
+      `the order is net ${withHeader.paymentTermsDays} and the line is net ${lineAlone.paymentTermsDays}`
+    )
   }
-  if (line.startDate.getTime() < header.startDate.getTime()) {
-    out.push('the line starts before the order that authorizes it')
+
+  return {
+    differences,
+    outsideOrderWindow: withHeader.outsideOrderWindow,
+    unreadable: withHeader.unreadable,
   }
-  if (header.endDate !== null) {
-    if (line.endDate === null) out.push('the line has no end date and the order does')
-    else if (line.endDate.getTime() > header.endDate.getTime()) {
-      out.push('the line runs past the end of the order that authorizes it')
-    }
-  }
-  return out
 }

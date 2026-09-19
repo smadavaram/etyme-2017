@@ -363,6 +363,14 @@ export async function POST(
   // award — would stop the ten-station path in CLAUDE.md Phase 1 at
   // station three, and would move the placement into email where nothing
   // can see it at all.
+  //
+  // TO COME, and written and verified already: this fabrication stops.
+  // An agreement nobody proposed reads on the agreements page as a thing
+  // somebody started, and the founder settled it — *"we don't need a
+  // master contract if there is no budget profile"*. It waits on
+  // `Engagement.msaId` going optional, which is the architect's line and
+  // is not committed yet; the moment it is, the award writes no
+  // agreement and the placement stands on its order alone.
   const msa =
     agreement ??
     (await prisma.masterAgreement.create({
@@ -600,8 +608,8 @@ export async function POST(
     // Only where we buy from another firm. A W2 line hangs on no order:
     // you do not raise a purchase order to your own employee, which is
     // the reason `BuyContract.workOrderId` is nullable and why
-    // `POST /api/contracts` refuses a W2 carrying one. SAP agrees — an
-    // employee is HCM master data, not a vendor.
+    // `POST /api/contracts` refuses a W2 carrying one. An employee is
+    // not a supplier, and an order is a thing you raise to a supplier.
     //
     // Null too where nobody has said what we pay yet: an order needs a
     // ceiling, and a ceiling over a pay rate nobody has agreed is a
@@ -753,32 +761,30 @@ export async function POST(
     }
 
     // Whether the line and the header it landed on say the same thing.
+    //
+    // Four fields, not six: the rhythm and the net days are the
+    // document's and the dates are the line's (ratified 2026-09-19), so
+    // a line ending before its order is ordinary and a line running
+    // past it is reported rather than trimmed. Both sides are read
+    // through money's one door, which translates the two vocabularies —
+    // a header saying CONTRACT_START beside a line saying CONTRACT is
+    // one answer, not two.
+    //
     // Empty where this award raised the header, because both came from
     // one computation; a sentence each where the line joined an order
     // somebody else raised on other terms, so the difference is said out
     // loud instead of being discovered on an invoice.
-    const disagreements = sellHeader
-      ? lineAgreesWithHeader(
-          {
-            billFrequency: sellHeader.billFrequency,
-            billAnchor: sellHeader.billAnchor,
-            billStraddle: sellHeader.billStraddle,
-            paymentTerms: sellHeader.paymentTerms,
-            startDate: sellHeader.startDate,
-            endDate: sellHeader.endDate,
-          },
-          {
-            billFrequency: contract.billFrequency,
-            billAnchor: contract.billAnchor,
-            billStraddle: contract.billStraddle,
-            paymentTerms: contract.paymentTerms,
-            startDate: contract.startDate,
-            endDate: contract.endDate,
-          }
-        )
-      : []
+    const lineCheck = lineAgreesWithHeader('SELL', sellHeader, {
+      billFrequency: contract.billFrequency,
+      billAnchor: contract.billAnchor,
+      billStraddle: contract.billStraddle,
+      paymentTerms: contract.paymentTerms,
+      paymentTermsFrom: contract.paymentTermsFrom,
+      startDate: contract.startDate,
+      endDate: contract.endDate,
+    })
 
-    return { contract, buyContract, standDown, passedOver, cycles, sellHeader, buyHeader, disagreements }
+    return { contract, buyContract, standDown, passedOver, cycles, sellHeader, buyHeader, lineCheck }
   })
 
   // ── The cost object ─────────────────────────────────────────────────
@@ -845,7 +851,8 @@ export async function POST(
         subOrder: result.buyHeader
           ? { workOrderId: result.buyHeader.id, number: result.buyHeader.number, raised: result.buyHeader.raised }
           : null,
-        lineDisagreesWithOrder: result.disagreements,
+        lineDisagreesWithOrder: result.lineCheck.differences,
+        lineOutsideOrderWindow: result.lineCheck.outsideOrderWindow,
       },
       // Reversible only until the person actually starts.
       reversible: true,
@@ -1068,7 +1075,10 @@ export async function POST(
                 : null,
               // Said out loud rather than resolved behind somebody's
               // back. Empty on an order this award raised.
-              differsFromLine: result.disagreements,
+              differsFromLine: result.lineCheck.differences,
+              // The line runs outside the window of the order that
+              // authorizes it. Reported, never trimmed.
+              outsideOrderWindow: result.lineCheck.outsideOrderWindow,
             }
           : {
               id: null,
@@ -1078,6 +1088,7 @@ export async function POST(
                 'on the award — so no purchase order was raised. Raise one from the purchase orders screen.',
               ceiling: null,
               differsFromLine: [],
+              outsideOrderWindow: false,
             },
         // Not just the number — where it came from. "Net 60, from your
         // agreement with Terumo BCT" names the document to read when

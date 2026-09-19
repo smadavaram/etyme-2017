@@ -46,7 +46,12 @@ export async function PUT(
       id: true,
       title: true,
       msa: { select: { vendorId: true, clientId: true } },
-      sellContracts: { select: { state: true } },
+      // Who the two firms are where no agreement names them. An
+      // agreement is the legal umbrella where one exists, and a client
+      // that sends one order and one contractor is not made to paper
+      // one — so the contracts underneath are what say whose engagement
+      // this is, which is where the schema says to read them.
+      sellContracts: { select: { state: true, companyId: true, clientCompanyId: true } },
     },
   })
 
@@ -57,13 +62,29 @@ export async function PUT(
     )
   }
 
-  if (engagement.msa.vendorId !== companyId) {
+  const vendorId = engagement.msa?.vendorId ?? engagement.sellContracts[0]?.companyId ?? null
+  const clientId = engagement.msa?.clientId ?? engagement.sellContracts[0]?.clientCompanyId ?? null
+
+  if (vendorId === null) {
     return NextResponse.json(
       {
         error: {
           code: 'NOT_YOURS',
           message:
-            engagement.msa.clientId === companyId
+            'This engagement has no agreement and nobody placed under it yet, so there is nothing yet to say whose it is. Award somebody to it first.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  if (vendorId !== companyId) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOURS',
+          message:
+            clientId === companyId
               ? 'The supplier records the scope. You can read it and sign for it off-platform until the client portal lands.'
               : 'You are not a party to this engagement.',
         },

@@ -468,11 +468,19 @@ export async function GET(request: NextRequest) {
       where: {
         status: { in: ['ISSUED', 'PARTIALLY_PAID'] },
         dueAt: { lt: now },
-        engagement: {
-          msa: {
-            vendorId: companyId,
-          },
-        },
+        // Ours, whether or not there is an agreement behind it.
+        //
+        // This used to ask only `engagement.msa.vendorId`, which was
+        // safe while every placement had an agreement because the award
+        // invented one. It no longer does — an agreement is the legal
+        // umbrella where one exists and a client that sends one order
+        // and one contractor is not made to paper one — so an invoice
+        // on an engagement with no agreement was ours and was invisible
+        // here, which is an overdue invoice nobody is told about.
+        OR: [
+          { engagement: { msa: { vendorId: companyId } } },
+          { engagement: { sellContracts: { some: { companyId } } } },
+        ],
       },
       include: {
         engagement: {
@@ -482,6 +490,13 @@ export async function GET(request: NextRequest) {
               select: {
                 client: { select: { name: true } },
               },
+            },
+            // Who the bill is to, where no agreement names them. The
+            // contracts underneath are what say which two firms this is
+            // between, which is where the schema says to read them.
+            sellContracts: {
+              select: { clientCompany: { select: { name: true } } },
+              take: 1,
             },
           },
         },
@@ -501,7 +516,9 @@ export async function GET(request: NextRequest) {
         title: `Overdue invoice — ${inv.number}`,
         // Same again, and worse here: a $7,600 overdue invoice read
         // "$76.00 outstanding", which is an amount nobody chases.
-        subtitle: `${inv.engagement.msa.client.name} · $${outstanding.toFixed(2)} outstanding · ${daysOverdue}d overdue`,
+        subtitle:
+          `${inv.engagement.msa?.client.name ?? inv.engagement.sellContracts[0]?.clientCompany?.name ?? 'Client'}` +
+          ` · $${outstanding.toFixed(2)} outstanding · ${daysOverdue}d overdue`,
         urgency: daysOverdue >= 60 ? 'HIGH' : daysOverdue >= 30 ? 'MEDIUM' : 'LOW',
         entityType: 'INVOICE',
         entityId: inv.id,

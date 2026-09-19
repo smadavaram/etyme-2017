@@ -65,8 +65,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   await prisma.requirementInvitation.update({ where: { id }, data: { status: 'DECLINED' } })
 
   // Whoever is hiring hears it, in the supplier's words when there are any.
+  //
+  // Awaited, not fired and forgotten: a caller that reads the answer and
+  // then looks for the notice — a test, a screen that refreshes itself —
+  // raced the write and found nothing there. Telling somebody is part of
+  // declining, not a side effect of it.
   const hearers = [...new Set([invitation.requirement.ownerId, invitation.requirement.raisedById].filter(Boolean))] as string[]
-  void notifyBulk(
+  await notifyBulk(
     hearers.map((personId) => ({
       personId,
       companyId: invitation.requirement.companyId,

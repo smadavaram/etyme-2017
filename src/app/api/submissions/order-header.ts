@@ -23,6 +23,7 @@
 
 import type { Prisma } from '@prisma/client'
 import { chooseHeader, headerWindow, orderNumbers, orderNumberAttempt, ORDER_RHYTHM } from '@/lib/award'
+import { termsFor } from '@/lib/money/order-terms'
 
 /** A transaction client or the plain one; only the order table is touched. */
 type OrderWriter = Pick<Prisma.TransactionClient, 'workOrder'>
@@ -156,17 +157,23 @@ export async function headerFor(db: OrderWriter, input: HeaderInput): Promise<Fo
  * difference is reported in words, and money's readers prefer the
  * header anyway (`lib/money/order-terms`), so nothing is billed on the
  * losing copy.
+ *
+ * The values are taken through money's door rather than copied across,
+ * because the two rows do not share a vocabulary — a header says
+ * `CONTRACT_START` and `TO_EARLIER` where a line says `CONTRACT` and
+ * `START` — and writing the header's spelling onto a line would store a
+ * word the period engine cannot read.
  */
 export function lineTermsFrom(
   header: FoundHeader | null,
   cascadePaymentTerms: number
 ): { billFrequency: string; billAnchor: string; billStraddle: string; paymentTerms: number } {
-  return header?.raised
-    ? {
-        billFrequency: header.billFrequency,
-        billAnchor: header.billAnchor,
-        billStraddle: header.billStraddle,
-        paymentTerms: header.paymentTerms,
-      }
-    : { ...ORDER_RHYTHM, paymentTerms: cascadePaymentTerms }
+  if (!header?.raised) return { ...ORDER_RHYTHM, paymentTerms: cascadePaymentTerms }
+  const terms = termsFor('SELL', { workOrder: header })
+  return {
+    billFrequency: terms.frequency,
+    billAnchor: terms.anchor,
+    billStraddle: terms.straddle,
+    paymentTerms: terms.paymentTermsDays ?? cascadePaymentTerms,
+  }
 }
