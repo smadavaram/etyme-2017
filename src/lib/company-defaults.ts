@@ -48,6 +48,19 @@ const OWN_PRICE: Permission[] = ['rates.read', 'rates.write']
 const OWN_RULES: Permission[] = ['governance.read', 'governance.write']
 const SEE_RULES: Permission[] = ['governance.read']
 /**
+ * Acting on somebody else's record rather than reading it: logging and
+ * answering a data request for another person, placing and lifting a
+ * legal hold, running a breach from discovery to closed.
+ *
+ * One desk per company holds it, and it is the compliance desk, because
+ * these are the acts somebody has to be able to explain to a regulator
+ * by name. Nobody else gets it but the owner and the admin, who hold
+ * everything by construction. A person asking about their own file asks
+ * for none of it — a gate on your own record is one the person it
+ * protects cannot open.
+ */
+const RUN_PRIVACY: Permission[] = ['privacy.manage']
+/**
  * Looking outside the company at all: other firms' consultants, who is
  * coming free, which suppliers exist.
  *
@@ -79,6 +92,7 @@ const ALL: string[] = [
   'utilization.read', 'margin.read', 'pnl.read',
   'team.manage', 'settings.manage',
   'governance.read', 'governance.write',
+  'privacy.manage',
 ]
 
 function uniq(...groups: Permission[][]): Permission[] {
@@ -179,8 +193,8 @@ const SUPPLIER_ROLES: RoleSeed[] = [
   },
   {
     name: 'Compliance Officer',
-    blurb: 'Checks documents and work authorization. Reads only.',
-    permissions: uniq(SEE_PEOPLE, ['assignments.read'], ['timesheets.read'], SEE_RULES),
+    blurb: 'Checks documents and work authorization, and answers what a person asks about their own record.',
+    permissions: uniq(SEE_PEOPLE, ['assignments.read'], ['timesheets.read'], SEE_RULES, RUN_PRIVACY),
   },
 ]
 
@@ -236,8 +250,8 @@ const CLIENT_ROLES: RoleSeed[] = [
   },
   {
     name: 'Compliance Officer',
-    blurb: 'Owns tenure, work authorization and supplier insurance.',
-    permissions: uniq(SEE_PEOPLE, ['assignments.read', 'timesheets.read', 'vendors.read'], SEE_RULES),
+    blurb: 'Owns tenure, work authorization, supplier insurance, and what is held about a person.',
+    permissions: uniq(SEE_PEOPLE, ['assignments.read', 'timesheets.read', 'vendors.read'], SEE_RULES, RUN_PRIVACY),
   },
   {
     name: 'Viewer',
@@ -277,8 +291,8 @@ const MSP_ROLES: RoleSeed[] = [
   },
   {
     name: 'Compliance Officer',
-    blurb: 'Owns tenure, work authorization and supplier insurance.',
-    permissions: uniq(SEE_PEOPLE, ['assignments.read', 'timesheets.read', 'vendors.read'], SEE_RULES),
+    blurb: 'Owns tenure, work authorization, supplier insurance, and what is held about a person.',
+    permissions: uniq(SEE_PEOPLE, ['assignments.read', 'timesheets.read', 'vendors.read'], SEE_RULES, RUN_PRIVACY),
   },
 ]
 
