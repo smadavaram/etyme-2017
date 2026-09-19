@@ -1674,6 +1674,20 @@ describe('Step 21a — Auralis opens the leg below the one it pays', () => {
     expect(d.money.says).toContain('between those two firms')
   })
 
+  it('tells Auralis the paper behind that leg is between two of its suppliers, rather than that there is none', async () => {
+    const d = (await adobeOpens()).body.data
+    // A purchase order is a header and its lines, and this line is on
+    // one — it is simply not Auralis's document. "Not yet on an order"
+    // would be a false sentence where the honest one is withheld.
+    const doc = d.contracts.sell.document
+    expect(doc.order).toBeNull()
+    expect(doc.says).toContain('between two of your suppliers')
+    expect(doc.says).not.toContain('Not yet on an order')
+    // And nobody else on that document is named, for the same reason
+    // the firm below is not.
+    expect(d.contracts.lines).toEqual([])
+  })
+
   it('still counts the week she worked, because the hours on Auralis\u2019s site are Auralis\u2019s own', async () => {
     const r = await adobeOpens()
     expect(r.body.data.timesheets[0].hours).toBe(40)

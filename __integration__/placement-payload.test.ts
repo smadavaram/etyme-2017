@@ -266,3 +266,118 @@ describe('a client opens a placement bought through two firms', () => {
     expect(r.body.error.message).toBe('No placement by that id.')
   })
 })
+
+/**
+ * The document a placement is a line of.
+ *
+ * A purchase order is a header and its lines (CLAUDE.md, 2026-09-18).
+ * `WorkOrder` is the header; this placement is one line. What the paper
+ * is called depends on which end of it the reader stands at, so the same
+ * row has to come back as a purchase order to the client that raised it
+ * and as a sales order to the supplier billing against it — from one
+ * answer, not from two screens deciding separately.
+ *
+ * Read from the JSON for the same reason as everything above it: a
+ * component test would go green on a screen that made the words up.
+ */
+describe('a placement is a line on a document, and says which', () => {
+  const on: Record<string, any> = {}
+
+  beforeAll(async () => {
+    const line = await prisma.sellContract.findFirstOrThrow({
+      where: { workOrderId: { not: null } },
+      select: {
+        id: true,
+        personId: true,
+        companyId: true,
+        clientCompanyId: true,
+        person: { select: { name: true } },
+        workOrder: { select: { id: true, number: true, issuedById: true, issuedToId: true } },
+      },
+    })
+    on.id = line.id
+    on.personName = line.person.name
+    on.number = line.workOrder!.number
+
+    const owner = async (companyId: string) =>
+      (
+        await prisma.context.findFirstOrThrow({
+          where: { companyId, revokedAt: null, role: { permissions: { has: '*' } } },
+          select: { person: { select: { primaryEmail: true } } },
+        })
+      ).person.primaryEmail
+
+    on.supplierEmail = await owner(line.companyId)
+    on.buyerEmail = await owner(line.workOrder!.issuedById)
+
+    on.supplier = (await open(on.supplierEmail, line.id)).body
+    on.buyer = (await open(on.buyerEmail, line.id)).body
+
+    // A seat with no paper behind it — every row written before the
+    // award began raising a header, which is most of them.
+    const bare = await prisma.sellContract.findFirstOrThrow({
+      where: { workOrderId: null },
+      select: { id: true, companyId: true },
+    })
+    on.bare = (await open(await owner(bare.companyId), bare.id)).body
+  })
+
+  it('the firm that raised the paper reads it as its purchase order, and this person as a numbered line of it', () => {
+    const doc = on.buyer.data.contracts.sell.document
+    expect(doc.onOrder).toBe(true)
+    expect(doc.heading).toContain('Purchase order')
+    expect(doc.heading).toContain(on.number)
+    expect(doc.heading).toMatch(/line \d+/)
+  })
+
+  it('the supplier billing against the same row reads it as a sales order, because it is not buying anything', () => {
+    const doc = on.supplier.data.contracts.sell.document
+    expect(doc.Noun).toBe('Sales order')
+    expect(doc.does).toBe('You bill from this line.')
+  })
+
+  it('a line is named by the person and the place, and never by a contract id', () => {
+    const doc = on.supplier.data.contracts.sell.document
+    expect(doc.name).toContain(on.personName)
+    expect(doc.name).not.toContain(on.id)
+    expect(JSON.stringify(doc)).not.toContain(on.id)
+  })
+
+  it('the client reads what its own document authorized and what has been billed against it', () => {
+    const order = on.buyer.data.contracts.sell.document.order
+    expect(order.ceiling).toBeGreaterThan(0)
+    expect(order.drawn).not.toBeNull()
+    expect(order.remaining).toBe(
+      Math.round((order.ceiling - order.drawn) * 100) / 100
+    )
+    // The figure is dollars, not cents, and not dollars divided twice.
+    expect(order.ceiling).toBeLessThan(100_000_000)
+  })
+
+  it('everybody else on the same document is listed with it, because five people on one order is one document', () => {
+    const lines = on.supplier.data.contracts.lines
+    expect(lines.length).toBeGreaterThanOrEqual(1)
+    expect(lines.filter((l: any) => l.isThisOne)).toHaveLength(1)
+    for (const l of lines) {
+      expect(l.person.length, 'a line is a person').toBeGreaterThan(1)
+      expect(l.position).toBeGreaterThan(0)
+    }
+  })
+
+  it('a seat nobody has papered yet says so in a sentence, and says what will attach', () => {
+    const doc = on.bare.data.contracts.sell.document
+    expect(doc.onOrder).toBe(false)
+    expect(doc.order).toBeNull()
+    expect(doc.says).toBe(
+      "Not yet on an order. The client's paper, when it arrives, attaches here."
+    )
+    expect(on.bare.data.contracts.lines).toEqual([])
+  })
+
+  it('a line on no master contract is offered the tag rather than warned about it', () => {
+    const master = on.supplier.data.contracts.masterContract
+    expect(master).not.toBeNull()
+    expect(master.says.length).toBeGreaterThan(20)
+    if (!master.tag) expect(master.says).toContain('Tag it to one')
+  })
+})

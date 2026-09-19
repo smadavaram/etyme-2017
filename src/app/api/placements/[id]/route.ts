@@ -11,6 +11,8 @@ import { contractClearance } from '@/lib/contract-clearance'
 import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
+import { describeLine, masterContractLine, pairLine } from '@/lib/order-naming'
+import { poBalance } from '@/lib/purchase-order'
 
 /**
  * GET /api/placements/:id
@@ -149,7 +151,24 @@ export async function GET(
       endClientCompany: { select: { id: true, name: true } },
       hiringManager: { select: { id: true, name: true } },
       engagement: { select: { id: true, title: true } },
-      workOrder: { select: { id: true, number: true, amount: true, currency: true } },
+      // The document this line is on. A purchase order is a header and
+      // its lines (CLAUDE.md, 2026-09-18): this row is the header, and
+      // the placement is one line of it. Both ends of it are selected
+      // because which end the reader stands at decides what the paper is
+      // called — `lib/order-naming`, not this route.
+      workOrder: {
+        select: {
+          id: true, number: true, sellerNumber: true, title: true, status: true,
+          amount: true, currency: true, startDate: true, endDate: true,
+          issuedById: true, issuedToId: true, billToId: true, payerId: true,
+        },
+      },
+      // The master contract this line is tagged to, where the company
+      // tags. Optional by decision — a line with no tag is a complete
+      // line, not a broken one.
+      projectOrder: { select: { id: true, companyId: true, code: true, name: true } },
+      /// The site, for naming the line. A line is a person at a place.
+      workLocation: { select: { city: true, state: true } },
       // What is due on this contract. The sell side: hours and invoices.
       sellCycles: {
         select: { kind: true, dueOn: true, completedAt: true },
@@ -376,6 +395,15 @@ export async function GET(
                 id: true, contractType: true, state: true, payCurrency: true,
                 supplierSellContractId: true,
                 vendorCompany: { select: { id: true, name: true } },
+                // Our own order to the firm below us, where we raised
+                // one. A W2 buy line has none and never will.
+                workOrder: {
+                  select: {
+                    id: true, number: true, sellerNumber: true, status: true,
+                    amount: true, currency: true, startDate: true, endDate: true,
+                    issuedById: true, issuedToId: true, billToId: true, payerId: true,
+                  },
+                },
                 buyCycles: {
                   select: { kind: true, dueOn: true, completedAt: true },
                   orderBy: { dueOn: 'asc' },
@@ -392,6 +420,177 @@ export async function GET(
         select: { payRate: true, payCurrency: true, startDate: true, endDate: true },
       })
     : null
+
+  // One clock for the whole answer. Two `new Date()`s in one request is
+  // how a ceiling reads expired on the same screen that reads open.
+  const now = new Date()
+
+  // ── The document this line is on ────────────────────────────────────
+  //
+  // A purchase order is a header and its lines. The placement is one
+  // line; this is the paper it hangs on, what the ceiling is, how much
+  // of it has been drawn, and who else is on it.
+  //
+  // Not fetched for an end client reading a rung below the one it pays:
+  // the ceiling on a prime's order to its sub is two other firms' money,
+  // and the names on it are the same withheld names `lib/chain-names`
+  // keeps off every other list. `readsOurMoney` is already that rule.
+  const header = readsOurMoney ? placement.workOrder : null
+
+  const siblings = header
+    ? await prisma.sellContract.findMany({
+        where: { workOrderId: header.id },
+        orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
+        select: {
+          id: true, state: true, startDate: true, endDate: true,
+          person: { select: { id: true, name: true } },
+          workLocation: { select: { city: true, state: true } },
+          endClientCompany: { select: { name: true } },
+          clientCompany: { select: { name: true } },
+        },
+      })
+    : []
+
+  // What has been billed against it. Two figures, from two places, and
+  // neither is guessed: the order's own invoices are what AP matches
+  // against the ceiling, and the per-line amounts are what each line put
+  // there. A line billed through an invoice nobody tagged to the order
+  // shows on the line and not in the drawn total, which is a gap worth
+  // seeing rather than a sum worth inventing.
+  const [orderInvoices, lineBillings] = header
+    ? await Promise.all([
+        prisma.invoice.findMany({
+          where: { workOrderId: header.id },
+          select: { id: true, total: true },
+        }),
+        prisma.invoiceLine.groupBy({
+          by: ['sellContractId'],
+          where: { sellContractId: { in: siblings.map((c) => c.id) } },
+          _sum: { amountCents: true },
+        }),
+      ])
+    : [[], [] as Array<{ sellContractId: string | null; _sum: { amountCents: number | null } }>]
+
+  const billedByLine = new Map<string, number>()
+  for (const g of lineBillings) {
+    if (g.sellContractId) billedByLine.set(g.sellContractId, g._sum.amountCents ?? 0)
+  }
+
+  const site = (l: { city: string | null; state: string | null } | null) =>
+    l ? [l.city, l.state].filter(Boolean).join(', ') || null : null
+
+  const thisSite =
+    site(placement.workLocation ?? null) ??
+    placement.endClientCompany?.name ??
+    placement.clientCompany.name
+
+  /** One header, read as this viewer would read it, with its lines under it. */
+  const documentFor = (
+    order: {
+      id: string; number: string; sellerNumber: string | null; status: string
+      amount: unknown; currency: string; startDate: Date; endDate: Date | null
+      issuedById: string; issuedToId: string; billToId: string | null; payerId: string | null
+    } | null,
+    line: { side: 'SELL' | 'BUY'; personName: string; siteName: string | null; paidToName?: string | null },
+    place: { position: number | null; of: number | null },
+    ceiling: { drawnCents: number | null; mayRead: boolean }
+  ) => {
+    const described = describeLine({ order, companyId: mine, line, place })
+    if (!order) return { ...described, order: null }
+
+    const amountCents = Math.round(Number(order.amount) * 100)
+    const balance =
+      ceiling.mayRead && ceiling.drawnCents != null
+        ? poBalance(
+            {
+              amountCents,
+              invoicedCents: ceiling.drawnCents,
+              status: (order.status === 'CLOSED' || order.status === 'CANCELLED'
+                ? order.status
+                : 'OPEN') as 'OPEN' | 'CLOSED' | 'CANCELLED',
+              endDate: order.endDate,
+            },
+            now
+          )
+        : null
+
+    return {
+      ...described,
+      order: {
+        id: order.id,
+        number: order.number,
+        reference: described.reference,
+        status: order.status,
+        startDate: order.startDate.toISOString().slice(0, 10),
+        endDate: order.endDate?.toISOString().slice(0, 10) ?? null,
+        // The ceiling is money. A recruiter who deliberately cannot see
+        // what a placement earns cannot see what the client authorized
+        // for it either; the reference stays, because quoting a number
+        // on an email is not reading a rate.
+        ceiling: ceiling.mayRead ? Math.round(amountCents) / 100 : null,
+        currency: order.currency,
+        drawn: balance ? Math.round(balance.invoicedCents) / 100 : null,
+        remaining: balance ? Math.round(balance.remainingCents) / 100 : null,
+        consumedPercent: balance?.consumedPercent ?? null,
+        overdrawn: balance?.overdrawn ?? false,
+        says: balance?.reason ?? null,
+      },
+    }
+  }
+
+  const position = header ? siblings.findIndex((c) => c.id === placement.id) : -1
+  const sellDocument = readsOurMoney
+    ? documentFor(
+        header,
+        { side: 'SELL', personName: placement.person.name, siteName: thisSite },
+        { position: position >= 0 ? position + 1 : null, of: header ? siblings.length : null },
+        {
+          drawnCents: orderInvoices.reduce((n, i) => n + Math.round(Number(i.total) * 100), 0),
+          mayRead: seeBill,
+        }
+      )
+    : // A client reading a rung below the one it pays. The paper behind
+      // this leg may well exist — it is simply not theirs, and saying
+      // "not yet on an order" to them would be a false sentence rather
+      // than a withheld one. Same rule as the money on the same payload.
+      {
+        onOrder: false,
+        Noun: null,
+        reference: null,
+        heading: 'Arranged by your supplier',
+        name: `${placement.person.name}${thisSite ? ` — ${thisSite}` : ''}`,
+        does: 'You are billed on the rung you pay; what your supplier agreed with the firm below it is between those two.',
+        says:
+          'The paper behind this leg is between two of your suppliers. Your own document is on the ' +
+          'placement you pay for.',
+        order: null,
+      }
+
+  // Our order to the firm below us. The buy leg is the supplier's own
+  // paper and is not fetched for anybody else, so this is null off that
+  // side without a permission being asked.
+  const buyDocument = ourBuy
+    ? documentFor(
+        ourBuy.workOrder ?? null,
+        {
+          side: 'BUY',
+          personName: placement.person.name,
+          siteName: thisSite,
+          paidToName: ourBuy.vendorCompany?.name ?? null,
+        },
+        { position: null, of: null },
+        { drawnCents: null, mayRead: seePay }
+      )
+    : null
+
+  // The master contract, where this company tags its lines to one. Only
+  // its own: a roll-up is a firm's own view of its margin, and another
+  // firm's grouping of its deals is not on this screen at any
+  // permission.
+  const ourMaster =
+    placement.projectOrder && placement.projectOrder.companyId === mine
+      ? { code: placement.projectOrder.code, name: placement.projectOrder.name }
+      : null
 
   // ── Cleared to work ─────────────────────────────────────────────────
   // Two different firms' certificates, and the names have caused trouble
@@ -486,7 +685,6 @@ export async function GET(
   // the engine's kind names. Buy-side cycles are our cost and follow the
   // same rule as the pay rate: a viewer who may not see what we pay may
   // not see when we pay it either.
-  const now = new Date()
   type Due = { kind: string; label: string; dueOn: string; done: boolean; overdue: boolean }
   const toDue = (c: { kind: string; dueOn: Date; completedAt: Date | null }): Due => ({
     kind: c.kind,
@@ -659,13 +857,20 @@ export async function GET(
           id: placement.id,
           billRate: seeBill ? money(placement.billRate) : null,
           state: placement.state,
-          workOrder: placement.workOrder
+          workOrder: header
             ? {
-                number: placement.workOrder.number,
-                amount: Number(placement.workOrder.amount),
-                currency: placement.workOrder.currency,
+                number: header.number,
+                // The ceiling follows the bill rate: both are what this
+                // deal is worth, and a recruiter who may not read one
+                // may not read the other.
+                amount: seeBill ? Number(header.amount) : null,
+                currency: header.currency,
               }
             : null,
+          // The document this line is on, named as this reader would
+          // name it — purchase order to the client who raised it, sales
+          // order to the supplier billing against it.
+          document: sellDocument,
         },
         buy: ourBuy
           ? {
@@ -675,7 +880,52 @@ export async function GET(
               // Null means we employ them. That is the fact, not a gap.
               vendor: ourBuy.vendorCompany,
               payRate: seePay && seat ? money(seat.payRate) : null,
+              // Our own order to the firm below us, where there is one.
+              // A W2 line has none and says so in a sentence.
+              document: buyDocument,
             }
+          : null,
+        // ── The document, and everybody on it ──
+        //
+        // Five people on one order is one document and five lines. A
+        // line that reads as a document of its own is the thing the
+        // header-and-lines correction exists to stop, so the siblings
+        // travel with it.
+        lines: header
+          ? siblings.map((c, i) => ({
+              id: c.id,
+              position: i + 1,
+              person: c.person.name,
+              isThisOne: c.id === placement.id,
+              site:
+                site(c.workLocation) ??
+                c.endClientCompany?.name ??
+                c.clientCompany.name,
+              state: c.state,
+              startDate: c.startDate.toISOString().slice(0, 10),
+              endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
+              // What this line has put against the ceiling. Null rather
+              // than zero where the reader may not read money at all.
+              billed: seeBill ? Math.round(billedByLine.get(c.id) ?? 0) / 100 : null,
+            }))
+          : [],
+        // The pair — this line and the one on the other side of the
+        // trade that funds it. Read off the buy leg, so null for
+        // anybody but the supplier, who is the only party to both.
+        pair: isSupplier
+          ? pairLine({ side: 'SELL', counterpartName: ourBuy?.vendorCompany?.name ?? null })
+          : null,
+        // The master contract, where this company tags its lines to one.
+        // The sentence says what to do where it does not; nothing here
+        // tags anything by itself.
+        //
+        // Offered to the firm that has a margin to read — the supplier
+        // on this rung. A client has no cost side on this deal, so
+        // "tag it to see this deal's margin" would be an invitation to
+        // something that does not exist for them; where a client has
+        // tagged a line to its own, it reads what it tagged.
+        masterContract: isSupplier || ourMaster
+          ? { tag: ourMaster, says: masterContractLine(ourMaster) }
           : null,
       },
 

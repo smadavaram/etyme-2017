@@ -67,7 +67,7 @@ export const VOICES: Voice[] = [
     callsItself: 'the program, or the hiring desk',
     vocabulary: {
       req: 'requirement', requisition: 'requirement', 'purchase req': 'requirement',
-      'supplier': 'vendor company', 'MSA': 'master agreement',
+      'supplier': 'vendor company', 'MSA': 'agreement',
       'headcount': 'requirement headcount', 'SOW': 'engagement',
     },
     usuallyWants:

@@ -6,7 +6,8 @@ import { staffOnly } from '@/lib/seat'
 import { notifyBulk } from '@/lib/notify'
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { loadContractHolidays } from '@/lib/holidays'
-import { mayReplace } from '@/lib/replacement'
+import { mayReplace, nextLineOnSameDocument } from '@/lib/replacement'
+import { ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
 
 /**
  * POST /api/placements/:id/replace   { personId, from?, payRateCents? }
@@ -40,6 +41,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     include: {
       person: { select: { id: true, name: true } },
       clientCompany: { select: { id: true, name: true } },
+      // The document this seat is a line of. Selected through money's own
+      // list so the four terms below are read the same way every other
+      // reader of a header reads them.
+      workOrder: { select: ORDER_HEADER_SELECT },
       buyLinks: { include: { buyContract: { include: { candidates: { where: { state: 'ACTIVE' } } } } } },
     },
   })
@@ -61,6 +66,27 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 409 })
 
   const payRateCents = Number.isFinite(Number(body.payRateCents)) && body.payRateCents != null ? Math.round(Number(body.payRateCents)) : null
+
+  // What the new line is created with — the same document, the header's
+  // own terms, this person's dates.
+  const line = nextLineOnSameDocument({
+    old: {
+      workOrderId: old.workOrderId,
+      projectOrderId: old.projectOrderId,
+      engagementId: old.engagementId,
+      msaId: old.msaId,
+      billFrequency: old.billFrequency,
+      billAnchor: old.billAnchor,
+      billStraddle: old.billStraddle,
+      paymentTerms: old.paymentTerms,
+      paymentTermsFrom: old.paymentTermsFrom,
+    },
+    header: old.workOrder,
+    startsOn: verdict.startsOn,
+    endsOn: old.endDate,
+    outgoingName: old.person.name,
+    incomingName: incoming.name,
+  })
   const site = await prisma.companyLocation.findFirst({ where: { companyId: old.clientCompanyId }, orderBy: [{ isPrimary: 'desc' }], select: { country: true } })
   const holidays = old.endDate
     ? await loadContractHolidays(old.companyId, old.clientCompanyId, verdict.startsOn.getFullYear(), old.endDate.getFullYear(), site?.country ?? null)
@@ -71,27 +97,38 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // tenure stay with the person who earned them.
     await tx.sellContract.update({ where: { id: old.id }, data: { state: 'ENDED', endDate: verdict.endsOn } })
 
-    // The new one, same seat, same terms.
+    // The new one, same seat, same document.
+    //
+    // A replacement does not raise a second order: the client authorized
+    // a seat and a ceiling, and who stands in the seat is a line on the
+    // paper it already signed. The four rhythm-and-terms columns are
+    // taken from that header where there is one, so the new row cannot
+    // disagree with the document it hangs on.
     const next = await tx.sellContract.create({
       data: {
         companyId: old.companyId,
         clientCompanyId: old.clientCompanyId,
         endClientCompanyId: old.endClientCompanyId,
         personId: incoming.id,
-        engagementId: old.engagementId,
+        engagementId: line.engagementId,
+        msaId: line.msaId,
         workLocationId: old.workLocationId,
         hiringManagerId: old.hiringManagerId,
         orgUnitId: old.orgUnitId,
-        workOrderId: old.workOrderId,
+        workOrderId: line.workOrderId,
+        // The master contract the seat was tagged to, carried across.
+        // Optional, and never invented here — tagging is the company's
+        // choice, and a replacement is not the moment to make it.
+        projectOrderId: line.projectOrderId,
         billRate: old.billRate,
         billCurrency: old.billCurrency,
-        paymentTerms: old.paymentTerms,
-        billFrequency: old.billFrequency,
-        billAnchor: old.billAnchor,
-        billStraddle: old.billStraddle,
+        paymentTerms: line.paymentTerms ?? old.paymentTerms,
+        billFrequency: line.billFrequency,
+        billAnchor: line.billAnchor,
+        billStraddle: line.billStraddle,
         state: 'IN_PROGRESS',
-        startDate: verdict.startsOn,
-        endDate: old.endDate,
+        startDate: line.startDate,
+        endDate: line.endDate,
       },
       select: { id: true },
     })
@@ -129,7 +166,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         action: 'PLACEMENT_REPLACED',
         summary: verdict.says,
         reason: `${caller.person.name} replaced ${old.person.name} with ${incoming.name} on the ${old.clientCompany.name} seat.`,
-        payload: { oldSellContractId: old.id, newSellContractId: next.id, from: verdict.startsOn.toISOString() },
+        payload: {
+          oldSellContractId: old.id,
+          newSellContractId: next.id,
+          from: verdict.startsOn.toISOString(),
+          // Which document the seat is on, so the trail answers "was a
+          // second order raised" without reading two rows.
+          workOrderId: line.workOrderId,
+          termsFrom: line.termsFrom,
+        },
         reversible: false,
       },
     })
@@ -152,5 +197,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     channel: personId === old.hiringManagerId ? 'IN_APP' : 'EMAIL',
   })))
 
-  return NextResponse.json({ data: { id: result.id, endedId: old.id, says: verdict.says } }, { status: 201 })
+  return NextResponse.json(
+    {
+      data: {
+        id: result.id,
+        endedId: old.id,
+        says: verdict.says,
+        // The document the new line sits on, said out loud, because a
+        // replacement quietly starting a second order is the failure
+        // this is guarding against.
+        onDocument: line.says,
+        outsideOrderWindow: line.outsideOrderWindow,
+      },
+    },
+    { status: 201 }
+  )
 }

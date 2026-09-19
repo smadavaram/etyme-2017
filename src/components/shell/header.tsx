@@ -114,7 +114,12 @@ const PLUS_MENU: PlusMenuSection[] = [
       // them, are the administration of a placement.
       {
         label: 'New contract',
-        description: 'Create a sell or buy contract',
+        // Not "a sell or buy contract" — those are two lines on one
+        // document, not two documents to pick between (CLAUDE.md,
+        // "one document, a header and its lines"). The form writes the
+        // line this firm bills from and, where it is asked to, the line
+        // it pays from beside it.
+        description: 'One person, one rate — the line you bill from and the line you pay from',
         href: '/dashboard/contracts?new=1',
         icon: '▣',
       },

@@ -34,7 +34,7 @@ const JOBS = [
   { path: 'end-contracts', does: 'ends the contracts whose last day has passed' },
   { path: 'rolloff-scan', does: 'finds assignments ending soon' },
   { path: 'visa-watch', does: 'finds permits expiring inside a contract' },
-  { path: 'agreement-terms', does: 'finds master agreements running out, and rolls the ones that renew themselves' },
+  { path: 'agreement-terms', does: 'finds agreements running out, and rolls the ones that renew themselves' },
   { path: 'loose-ends', does: 'chases placements billed with no cost behind them' },
   { path: 'expire-invitations', does: 'closes invitations nobody answered' },
   { path: 'cold-openings', does: 'marks seats nobody has advertised in six weeks as cold' },

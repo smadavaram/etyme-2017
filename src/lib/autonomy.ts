@@ -207,7 +207,7 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   AGREEMENT_TERM_WATCH: {
     rung: 'L5',
     basis: 'RULE',
-    says: 'Every night it reads the end date on every master agreement, marks the ones running out, rolls forward the ones whose own paper says they renew themselves, and tells the contracting desk at ninety, sixty and thirty days. Rolling a term forward changes what a firm is trading under, and it happens because a written agreement said the day had come.',
+    says: 'Every night it reads the end date on every agreement, marks the ones running out, rolls forward the ones whose own paper says they renew themselves, and tells the contracting desk at ninety, sixty and thirty days. Rolling a term forward changes what a firm is trading under, and it happens because a written agreement said the day had come.',
   },
   CONTRACTS_ENDED: {
     rung: 'L5',
@@ -449,7 +449,7 @@ export const JOBS: Record<string, Job> = {
     job: 'agreement-terms',
     rung: 'L5',
     basis: 'RULE',
-    says: 'Marks a master agreement as running out or run out, and rolls an auto-renewing one on for another term. A date comparison against a document both sides signed.',
+    says: 'Marks an agreement as running out or run out, and rolls an auto-renewing one on for another term. A date comparison against a document both sides signed.',
     writes: ['AGREEMENT_TERM_WATCH'],
   },
   'end-contracts': {

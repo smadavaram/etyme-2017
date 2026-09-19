@@ -34,6 +34,33 @@ import { CoverChip, SubVendorCover } from '@/components/cover-standing'
  * hop can see.
  */
 
+/**
+ * A line, and the document it is a line of.
+ *
+ * Every string here is written by `lib/order-naming` on the server, so
+ * the client, the supplier and a bystander cannot be shown three
+ * different words by three different screens. `order` is null where the
+ * line is not on one yet — which is every row written before the award
+ * began raising a header, and every W2 buy line, which never has one.
+ */
+interface LineDoc {
+  onOrder: boolean
+  Noun: string | null
+  reference: string | null
+  heading: string
+  name: string
+  does: string
+  says: string
+  order: {
+    id: string; number: string; reference: string; status: string
+    startDate: string; endDate: string | null
+    ceiling: number | null; currency: string
+    drawn: number | null; remaining: number | null
+    consumedPercent: number | null; overdrawn: boolean
+    says: string | null
+  } | null
+}
+
 interface Placement {
   id: string
   person: { id: string; name: string; skills: string[]; location: string | null; workAuth: string | null }
@@ -73,8 +100,26 @@ interface Placement {
     scheduledAt: string | null; decidedAt: string | null; feedback: string | null
   }>
   contracts: {
-    sell: { id: string; billRate: number | null; state: string; workOrder: { number: string; amount: number; currency: string } | null }
-    buy: { id: string; contractType: string; state: string; vendor: { id: string; name: string } | null; payRate: number | null } | null
+    // A purchase order is a header and its lines. `document` is the
+    // header as this reader names it — purchase order to the client,
+    // sales order to the supplier — and `lines` is everybody on it.
+    sell: {
+      id: string; billRate: number | null; state: string
+      workOrder: { number: string; amount: number | null; currency: string } | null
+      document: LineDoc
+    }
+    buy: {
+      id: string; contractType: string; state: string
+      vendor: { id: string; name: string } | null; payRate: number | null
+      document: LineDoc | null
+    } | null
+    lines: Array<{
+      id: string; position: number; person: string; isThisOne: boolean
+      site: string; state: string; startDate: string; endDate: string | null
+      billed: number | null
+    }>
+    pair: string | null
+    masterContract: { tag: { code: string; name: string } | null; says: string } | null
   }
   // `weEmployThem` is null where the reader is not the supplier: the
   // answer lives on the buy contract, which nobody else is sent.
@@ -136,6 +181,98 @@ function tone(status: string): string {
 }
 
 const words = (s: string) => s.replace(/_/g, ' ').toLowerCase()
+
+/**
+ * One document, and this line on it.
+ *
+ * A purchase order is a header and its lines (CLAUDE.md, 2026-09-18).
+ * The placement is one line; this is the paper it hangs on, what it
+ * authorizes, how much of that has been drawn, and who else is on it.
+ *
+ * Every word comes off the server, because what this paper is called
+ * depends on which end of it the reader stands at — a purchase order to
+ * the client who raised it, a sales order to the supplier billing
+ * against it — and three screens deciding that separately is three
+ * screens that will disagree.
+ *
+ * A line with no header says so in a sentence rather than showing a
+ * blank. That is the ordinary case today, not an error: every row
+ * written before the award began raising a header has none, and a buy
+ * line to our own employee never will.
+ */
+function Document({
+  doc, lines,
+}: { doc: LineDoc; lines: Placement['contracts']['lines'] }) {
+  if (!doc.onOrder || !doc.order) {
+    return (
+      <div className="card">
+        <div className="lbl mb-1">{doc.heading}</div>
+        <p className="text-[13px] leading-relaxed text-etyme-muted">{doc.says}</p>
+      </div>
+    )
+  }
+  const o = doc.order
+  const others = lines.filter((l) => !l.isThisOne).length
+  return (
+    <div className="card">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="lbl">{doc.heading}</div>
+        <span className={`chip ${tone(o.status)}`}>{words(o.status)}</span>
+      </div>
+      <p className="mt-1 text-[13px] text-etyme-muted">
+        {doc.name} · {doc.does}
+      </p>
+      {o.ceiling != null ? (
+        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[13px] tabular-nums text-etyme-muted">
+          <span>
+            Authorized <span className="text-etyme-ink">{cash(o.ceiling)}</span>
+          </span>
+          <span>
+            Billed against it <span className="text-etyme-ink">{cash(o.drawn)}</span>
+          </span>
+          <span className={o.overdrawn ? 'text-etyme-attention' : undefined}>
+            Left <span className={o.overdrawn ? '' : 'text-etyme-ink'}>{cash(o.remaining)}</span>
+          </span>
+        </div>
+      ) : (
+        <p className="mt-2 text-[13px] text-etyme-faint">
+          What this document authorizes is money, and this desk does not read money.
+        </p>
+      )}
+      {o.says && o.ceiling != null && (
+        <p className="mt-1 text-[12px] text-etyme-faint">{o.says}</p>
+      )}
+      {lines.length > 0 && (
+        <ul className="mt-3 divide-y divide-etyme-rule border-t border-etyme-rule">
+          {lines.map((l) => (
+            <li
+              key={l.id}
+              className={`flex flex-wrap items-baseline justify-between gap-2 py-1.5 text-[13px] ${
+                l.isThisOne ? 'text-etyme-ink' : 'text-etyme-muted'
+              }`}
+            >
+              <span>
+                <span className="tabular-nums text-etyme-faint">{l.position}</span>{' '}
+                {l.person} — {l.site}
+                {l.isThisOne && <span className="ml-2 chip chip--action">this line</span>}
+              </span>
+              <span className="tabular-nums">
+                {words(l.state)}
+                {l.billed != null && <span className="ml-3 text-etyme-ink">{cash(l.billed)}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {others > 0 && (
+        <p className="mt-2 text-[12px] text-etyme-faint">
+          One document, {lines.length} lines. {others === 1 ? 'The other line is' : `The other ${others} lines are`} billed
+          against the same ceiling.
+        </p>
+      )}
+    </div>
+  )
+}
 
 /** One station on the thread. */
 function Station({
@@ -362,7 +499,13 @@ export default function PlacementPage() {
       </Station>
 
       <Station n={4} title="What was agreed, on both sides" subtitle={chainLine}>
-        <div className="grid gap-3 sm:grid-cols-2">
+        {/* The document first, then the two rates on it.
+            A purchase order is a header and its lines: this placement is
+            one line, and showing the rate without the paper it hangs on
+            is how a line comes to read as a document of its own. */}
+        <Document doc={p.contracts.sell.document} lines={p.contracts.lines} />
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div className="card">
             <div className="lbl mb-2">
               {p.viewer.isSupplier
@@ -374,7 +517,8 @@ export default function PlacementPage() {
             <div className="stat-value">{rate(p.contracts.sell.billRate)}</div>
             <p className="mt-2 text-[13px] text-etyme-muted">
               {p.paymentTerms ? `Net ${p.paymentTerms}` : 'Terms not set'}
-              {p.contracts.sell.workOrder ? ` · PO ${p.contracts.sell.workOrder.number}` : ' · no purchase order'}
+              {' · '}
+              {p.contracts.sell.document.does}
             </p>
           </div>
           {/* The buy side belongs to the supplier and is shown only to
@@ -388,14 +532,34 @@ export default function PlacementPage() {
             <div className="stat-value">{rate(p.contracts.buy?.payRate ?? null)}</div>
             <p className="mt-2 text-[13px] text-etyme-muted">
               {p.contracts.buy
-                ? p.contracts.buy.vendor
-                  ? `${p.contracts.buy.contractType} · no purchase order is raised to a person you employ`
-                  : `${p.contracts.buy.contractType} · your own employee`
-                : 'No buy contract yet, so this placement has a price and no cost.'}
+                ? p.contracts.buy.document
+                  ? `${p.contracts.buy.contractType} · ${
+                      p.contracts.buy.document.order
+                        ? p.contracts.buy.document.does
+                        : p.contracts.buy.document.says
+                    }`
+                  : `${p.contracts.buy.contractType} · this side has no paper yet.`
+                : 'Nothing is bought against this line yet, so this placement has a price and no cost.'}
             </p>
           </div>
           )}
         </div>
+
+        {/* Our own order to the firm below us, where we raised one —
+            the same shape as the client's, read from the other end. */}
+        {p.viewer.isSupplier && p.contracts.buy?.document?.order && (
+          <div className="mt-3">
+            <Document doc={p.contracts.buy.document} lines={[]} />
+          </div>
+        )}
+
+        {(p.contracts.pair || p.contracts.masterContract) && (
+          <p className="mt-3 text-[13px] leading-relaxed text-etyme-muted">
+            {p.contracts.pair}
+            {p.contracts.pair && p.contracts.masterContract ? ' ' : ''}
+            {p.contracts.masterContract?.says}
+          </p>
+        )}
       </Station>
 
       <Station

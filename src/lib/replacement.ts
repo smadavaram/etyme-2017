@@ -56,3 +56,112 @@ export function mayReplace(input: {
     says: `${input.incomingName} takes over from ${input.outgoingName} on ${from.toISOString().slice(0, 10)}. ${input.outgoingName}'s contract ends the day before; the client has been told.`,
   }
 }
+
+// ── The new line goes on the same document ───────────────────────────
+//
+// A purchase order is a header and its lines (CLAUDE.md, 2026-09-18).
+// Replacing somebody does not raise a second order: the client
+// authorized a seat and a ceiling, and who stands in the seat is a line
+// on the paper it already signed. So the new line is written onto the
+// same header, with the header's own terms, and the only things that
+// change are the person and the dates.
+//
+// Three writers create lines — the award, the convert, and this. The
+// other two are `etyme-demand`'s; this one is here, and all three have
+// to agree or a replacement quietly starts a second document.
+
+import { termsFor, type OrderHeader } from '@/lib/money/order-terms'
+
+export type { OrderHeader }
+
+/** The line being replaced, as much of it as the new one copies. */
+export interface SeatLine {
+  /** The document it hangs on. Null on every row written before the award raised one. */
+  workOrderId: string | null
+  /** The master contract it is tagged to, where the company tags. Carried, never invented. */
+  projectOrderId?: string | null
+  engagementId?: string | null
+  msaId?: string | null
+  billFrequency?: string | null
+  billAnchor?: string | null
+  billStraddle?: string | null
+  paymentTerms?: number | null
+  paymentTermsFrom?: string | null
+}
+
+export interface NextLine {
+  workOrderId: string | null
+  projectOrderId: string | null
+  engagementId: string | null
+  msaId: string | null
+  billFrequency: string
+  billAnchor: string
+  billStraddle: string
+  paymentTerms: number | null
+  startDate: Date
+  endDate: Date | null
+  /** ORDER where the document answered, LINE where only the old row did. */
+  termsFrom: 'ORDER' | 'LINE' | 'DEFAULT'
+  /** The new line runs past the last day of the order that authorizes it. */
+  outsideOrderWindow: boolean
+  says: string
+}
+
+/**
+ * What the replacement line is created with.
+ *
+ * The four rhythm-and-terms columns are resolved through money's one
+ * door (`lib/money/order-terms`) rather than copied off the old row, so
+ * a document that says BIWEEKLY is not quietly overridden by a line
+ * carrying the schema's MONTHLY default. The dates stay the line's,
+ * because a line is a person and a document is not — the person taking
+ * over starts the day they take over.
+ *
+ * Running past the order's last day is reported, never trimmed. Cutting
+ * a placement short because its paper expired is a decision for a
+ * person; a silent date change is the kind of wrong nobody audits.
+ */
+export function nextLineOnSameDocument(input: {
+  old: SeatLine
+  header: OrderHeader | null
+  startsOn: Date
+  endsOn: Date | null
+  outgoingName: string
+  incomingName: string
+}): NextLine {
+  const { old, header } = input
+  const terms = termsFor('SELL', {
+    ...old,
+    startDate: input.startsOn,
+    endDate: input.endsOn,
+    workOrder: header,
+  })
+
+  const onOrder = old.workOrderId != null
+  // Neutral on purpose: what the paper is called depends on which end of
+  // it the reader stands at, and that is `lib/order-naming`'s answer, not
+  // a writer's. This says which document, never what to call it.
+  const says = onOrder
+    ? header?.number
+      ? `${input.incomingName} goes on ${header.number} — the same document ${input.outgoingName} was a line on. Nothing was renegotiated.`
+      : `${input.incomingName} goes on the same document ${input.outgoingName} was a line on.`
+    : `${input.outgoingName}'s seat is not on a document, so ${input.incomingName}'s line is not either. The paper, when it arrives, attaches to both.`
+
+  return {
+    // The same document, always. A replacement that raised a second
+    // order would bill a client twice against one authorization.
+    workOrderId: old.workOrderId,
+    projectOrderId: old.projectOrderId ?? null,
+    engagementId: old.engagementId ?? null,
+    msaId: old.msaId ?? null,
+    billFrequency: terms.frequency,
+    billAnchor: terms.anchor,
+    billStraddle: terms.straddle,
+    paymentTerms: terms.paymentTermsDays,
+    startDate: input.startsOn,
+    endDate: input.endsOn,
+    termsFrom: terms.from.frequency,
+    outsideOrderWindow: terms.outsideOrderWindow,
+    says,
+  }
+}

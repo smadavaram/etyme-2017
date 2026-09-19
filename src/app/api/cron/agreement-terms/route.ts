@@ -221,7 +221,7 @@ export async function GET(request: NextRequest) {
           companyId,
           action: 'AGREEMENT_TERM_WATCH',
           summary: `Told the contracting desk about ${theirs.length} agreement${theirs.length === 1 ? '' : 's'} running out.`,
-          reason: 'Nightly scan of master agreement end dates.',
+          reason: 'Nightly scan of agreement end dates.',
           payload: {
             agreements: theirs.map((t) => ({ counterparty: t.counterparty, milestone: t.milestone })),
           },
