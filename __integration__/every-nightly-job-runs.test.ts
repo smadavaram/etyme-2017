@@ -10,7 +10,7 @@ import { seedWorld } from '@/lib/seed-world'
  * The run records it and staff are emailed, but nothing here would have
  * caught a job that breaks before it ships.
  *
- * The daily route fans out to fourteen sub-jobs over HTTP and reports how
+ * The daily route fans out to every sub-job over HTTP and reports how
  * many failed. This calls each handler directly, against the same seeded
  * world the founder clicks through, and fails by name. It is deliberately
  * shallow: it proves each job runs to completion and answers, not that it
@@ -23,9 +23,10 @@ import { seedWorld } from '@/lib/seed-world'
  */
 
 const JOBS = [
-  'auto-approve', 'due-cycles', 'end-contracts', 'rolloff-scan', 'visa-watch',
-  'agreement-terms', 'loose-ends', 'expire-invitations', 'cold-openings',
-  'proactive-match', 'freshness-ping', 'deliver-webhooks', 'watch', 'reap-demos',
+  'auto-approve', 'due-cycles', 'end-contracts', 'retention', 'rolloff-scan',
+  'visa-watch', 'agreement-terms', 'loose-ends', 'expire-invitations',
+  'cold-openings', 'proactive-match', 'freshness-ping', 'deliver-webhooks',
+  'watch', 'reap-demos',
 ] as const
 
 const outcome: Record<string, { status: number; body: unknown; threw?: string }> = {}

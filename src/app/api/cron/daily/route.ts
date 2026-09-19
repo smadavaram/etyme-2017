@@ -6,9 +6,11 @@ import { startRun, finishRun } from '@/lib/alerts'
  * GET /api/cron/daily — every overnight job, in one run.
  *
  * Not an aesthetic choice. Vercel's Hobby plan allows two scheduled jobs
- * and this product has nine, so declaring them one by one meant either
- * paying before there was anything to pay for, or quietly dropping seven
- * — and a job nobody declared is a job nobody notices has stopped.
+ * and this product has many more than two, so declaring them one by one
+ * meant either paying before there was anything to pay for, or quietly
+ * dropping most of them — and a job nobody declared is a job nobody
+ * notices has stopped. The count is left out on purpose: it was written
+ * as nine, and was fourteen for months before anybody reread the line.
  *
  * One entry in vercel.json, one fan-out here. It also survives the move
  * to Pro unchanged, and gives something the per-job schedules never did:
@@ -32,6 +34,10 @@ const JOBS = [
   { path: 'auto-approve', does: 'approves the timesheets nobody responded to' },
   { path: 'due-cycles', does: 'generates the billing and pay cycles that fell due' },
   { path: 'end-contracts', does: 'ends the contracts whose last day has passed' },
+  // After end-contracts, never before it: the I-9 floor is counted from
+  // the day employment ended, so a contract ended tonight moves the date
+  // this sweep measures against.
+  { path: 'retention', does: 'answers the clocks on data requests, finishes the erasures that are due, and says when a breach deadline is close' },
   { path: 'rolloff-scan', does: 'finds assignments ending soon' },
   { path: 'visa-watch', does: 'finds permits expiring inside a contract' },
   { path: 'agreement-terms', does: 'finds agreements running out, and rolls the ones that renew themselves' },
@@ -101,7 +107,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Leads with the failures, because the successes are the ordinary
-  // case and nobody reads a list of nine green ticks.
+  // case and nobody reads a list of green ticks.
   const says = broke.length
     ? `${broke.length} of ${JOBS.length} overnight jobs did not run: ${broke.map((b) => b.job).join(', ')}.`
     : `All ${JOBS.length} overnight jobs ran.`

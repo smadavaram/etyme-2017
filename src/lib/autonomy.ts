@@ -571,6 +571,22 @@ export const JOBS: Record<string, Job> = {
     says: 'Ends contracts whose last day has passed, both sides, with nobody asked. A date comparison with a legal consequence.',
     writes: ['CONTRACTS_ENDED'],
   },
+  retention: {
+    job: 'retention',
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'Every night it answers the clocks on data requests, finishes the erasures whose cooling period has passed with nothing in the way, deletes the evidence whose statutory period has run, and says out loud when a deadline for telling somebody about a breach is close or has been missed. A date comparison with a legal consequence, and the deletions cannot be put back.',
+    // Empty on purpose, and not an oversight. The route calls
+    // `runRetentionSweep` and names nothing itself; every row it writes
+    // — RETENTION_DELETE, RETENTION_HELD, DATA_REQUEST_CLOCK_WARNED,
+    // BREACH_CLOCK_WARNED, BREACH_CLOCK_MISSED, ERASURE_COMPLETE — is
+    // named in lib/data-request and lib/erasure, where each already sits
+    // on the ladder.
+    // The check reads a job's own route file, so claiming them here
+    // would be claiming names this file cannot see written.
+    writes: [],
+  },
   'reap-demos': {
     job: 'reap-demos',
     rung: 'L5',
