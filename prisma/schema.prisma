@@ -106,8 +106,85 @@ model Person {
   /// whoever they work for.
   timezone String?
 
+  // ── Erasure ─────────────────────────────────────────────────────────
+  //
+  /// When this person was erased. Erasure here is **anonymization, never
+  /// a row delete**, and the reason is in the relations above: this row
+  /// is the hinge of the whole model. Dropping it would take the access
+  /// log with it (`AccessLog.subject` cascades), leave every approval
+  /// signed by nobody, and make an invoice that has already been paid
+  /// stop footing. `lib/account-lifecycle` refuses an outright delete for
+  /// the same reason and has since it was written.
+  ///
+  /// So the record of the work survives and the identity does not. On
+  /// erasure, `primaryEmail` becomes a tombstone on a reserved domain
+  /// that cannot be registered or routed to —
+  /// `erased-<id>@erased.invalid` — which satisfies the `@unique` above
+  /// while guaranteeing nothing can ever be sent to it. `.invalid` is
+  /// reserved by RFC 2606 and is the same precedent the seeded demo
+  /// companies use so that a real employee cannot be seated inside a
+  /// fictional tenant. `name` becomes a plain "Erased person".
+  ///
+  /// ── What happens to each category ──────────────────────────────────
+  ///
+  /// By the categories in `src/lib/legal.ts` HELD, so that the privacy
+  /// notice and the behavior are read off one list. **Statutory minimums
+  /// beat erasure**, and which they are is etyme-regulatory's to fill in
+  /// per jurisdiction in `lib/retention`; this is the shape, not the
+  /// periods.
+  ///
+  ///   KEPT, ANONYMIZED — the money and the client's own records. Sell
+  ///     and buy contract lines, timesheets and accepted hours, expenses,
+  ///     invoice lines, payments, days on site. The amounts, the hours
+  ///     and the days stay exactly as they were and point at the
+  ///     tombstone. A client's tenure exposure is the client's fact about
+  ///     its own site, and an invoice that has been paid must go on
+  ///     footing. Messages and conversations are anonymized the same way:
+  ///     the body is the counterparty's record of a deal, the author
+  ///     becomes the tombstone.
+  ///
+  ///   KEPT IN FULL — the logs. AccessLog, AutomationLog, JobRun,
+  ///     Incident. They name ids, which after the tombstone resolve to
+  ///     nobody, and deleting the trail of who read somebody's record is
+  ///     the one deletion that hurts the person it was meant to protect.
+  ///
+  ///   KEPT UNTIL A STATUTORY PERIOD RUNS, THEN DELETED — work
+  ///     authorization and immigration (VisaPetition and its documents),
+  ///     checks somebody else ran (Verification, VerificationDoc — the
+  ///     I-9 above all), onboarding paperwork (DocumentPacket,
+  ///     PacketItem), and the positions taken about how somebody is
+  ///     engaged (ClassificationCall, ExemptAssertion, which are the
+  ///     employer's own defense and not only this person's record).
+  ///     These are the ones an erasure request lands on as HELD, with
+  ///     `DataRequest.keptBecause` saying which and why.
+  ///
+  ///   DELETED — the identity and the marketing. Credential rows first,
+  ///     because a live sign-in method for somebody who asked to be
+  ///     forgotten is the one survivor that cannot be defended.
+  ///     ConsultantProfile, the public page, resumes never sent (bytes
+  ///     and extracted text), and — deliberately — bars and preferences:
+  ///     Blacklist, DoNotSubmit and Favorite rows naming this person. A
+  ///     bar on somebody nobody can name goes on refusing them forever.
+  ///     A resume that was already sent keeps its row with its bytes and
+  ///     text cleared, because it is in the receiving company's records
+  ///     and Etyme cannot unsend it — which is what the privacy notice
+  ///     already promises.
+  ///
+  /// Nothing above happens because this column exists. It is the flag the
+  /// behavior in `lib/erasure` will set, and until that is written this
+  /// is null on every row.
+  erasedAt DateTime?
+
+  dataRequestsAbout DataRequest[] @relation("dataRequestSubject")
+  dataRequestsMade  DataRequest[] @relation("dataRequestAsker")
+  legalHoldsAbout   LegalHold[]   @relation("legalHoldSubject")
+  legalHoldsPlaced  LegalHold[]   @relation("legalHoldPlacer")
+  legalHoldsLifted  LegalHold[]   @relation("legalHoldLifter")
+  breachesOpened    Breach[]      @relation("breachOpener")
+
   @@index([name])
   @@index([createdAt])
+  @@index([erasedAt])
 }
 
 model Credential {
@@ -557,6 +634,23 @@ model Company {
   /// the defaults ship in code and a row exists only where somebody
   /// added a type or changed one of ours.
   documentTypes       DocumentType[]
+
+  /// When this company's own record was erased, at the end of a
+  /// relationship — the DPA's "return and deletion at the end", which
+  /// today says "not implemented". Anonymization again, and narrower
+  /// than a person's: the firm's own details go, and nothing belonging
+  /// to a counterparty moves. The contracts it was party to, the
+  /// invoices between it and somebody else, and the days its people
+  /// worked on somebody's site are the other firm's records as much as
+  /// this one's, and are kept. Null on every row until `lib/erasure`
+  /// is written.
+  erasedAt DateTime?
+
+  dataRequestsAbout DataRequest[]   @relation("dataRequestSubjectCompany")
+  dataRequestsMade  DataRequest[]   @relation("dataRequestAskerCompany")
+  legalHoldsPlaced  LegalHold[]     @relation("legalHoldPlacingCompany")
+  legalHoldsAbout   LegalHold[]     @relation("legalHoldSubjectCompany")
+  breachNotices     BreachCompany[]
 
   @@index([listedById])
 }
@@ -4735,6 +4829,9 @@ model Incident {
   // When staff were emailed about it. Rate-limited: one per `where` per hour.
   toldAt    DateTime?
 
+  /// A breach that grew out of this error, where somebody escalated one.
+  breaches Breach[]
+
   @@index([at])
   @@index([where, at])
 }
@@ -6246,4 +6343,403 @@ model SourcedContact {
   @@index([email])
   @@index([optedOutAt, approachedAt])
   @@index([heldByCompanyId])
+}
+
+// ─────────────────────────────────────────────
+// RETENTION, EXPORT, ERASURE AND THE BREACH CLOCK
+//
+// `src/lib/legal.ts` says, in RETENTION, "There is no retention schedule
+// today, and nothing is deleted on one", and COUNSEL_QUESTIONS carries
+// 'retention' as the open question behind it. That sentence is true on the
+// day this section is written and it is the gap these models close.
+//
+// Four things are being asked for and they are four different shapes:
+//
+//   DataRequest    somebody asked for their data, or asked to be forgotten,
+//                  and a statutory clock started running
+//   LegalHold      a company says a subject's records may not be deleted
+//                  yet, and why
+//   Breach         personal data went where it should not have, and two
+//                  or three notification clocks started running
+//   Person.erasedAt / Company.erasedAt
+//                  the tombstone, because erasure here is anonymization
+//                  and never a row delete
+//
+// ── The schedule itself is not in this file ──────────────────────────
+//
+// How long each category is kept is code — a table per HELD category in
+// `src/lib/retention.ts`, written by etyme-regulatory — and not a column
+// on Company. CLAUDE.md: default aggressively, configure rarely. A knob
+// per client is how the 2017 cycle engine reached four thousand commits,
+// and a retention period is worse than a cycle date because a client who
+// sets it wrong deletes something that is gone. A company that genuinely
+// needs longer places a LegalHold, which is a decision with a reason and
+// a name on it rather than a number in a settings page.
+//
+// ── Nothing here deletes anything by existing ────────────────────────
+//
+// These are the records the behavior will be written against. Until
+// etyme-regulatory writes `lib/retention`, the sweep and the routes,
+// nothing is exported, nothing is erased and no clock is read. A column
+// is not a feature, and RETENTION in `lib/legal.ts` should go on saying
+// what is true until the behavior ships.
+// ─────────────────────────────────────────────
+
+/// What somebody asked for: their data, or to be forgotten.
+enum DataRequestKind {
+  /// Give me everything you hold about me.
+  EXPORT
+  /// Forget me. Which here means anonymize — see `Person.erasedAt`.
+  ERASURE
+}
+
+/// Where a request has got to.
+///
+/// Five states and no more, because a person reading their own request
+/// needs to know one of five things: you have it, you are blocked, it is
+/// waiting for me, it is done, or you said no and here is why. Every
+/// internal transition does not deserve a name on a screen (CLAUDE.md,
+/// "Three words, not nineteen states").
+enum DataRequestStatus {
+  /// Logged, clock running, nobody has done anything yet.
+  RECEIVED
+  /// Part of it cannot be done yet — a statutory retention period or a
+  /// legal hold covers some of what was asked for. `keptBecause` says
+  /// which, in plain English. The clock does NOT stop: somebody still
+  /// owes the person an answer by `dueAt`, even if the answer is "these
+  /// six things, and the other two in March".
+  HELD
+  /// An export has been produced and is waiting to be downloaded.
+  /// Meaningless for an erasure, which goes straight to DONE.
+  READY
+  /// Finished. `completedAt` says when.
+  DONE
+  /// Refused, with `refusedBecause` in a sentence a person can act on —
+  /// "we could not establish that you are who this record is about",
+  /// never a code. A refusal is recorded as carefully as a grant.
+  REFUSED
+}
+
+/// A person asking for their data, or asking to be forgotten.
+///
+/// ── Why the clock is a column and not arithmetic ─────────────────────
+///
+/// `dueAt` is stored rather than computed from `receivedAt` plus a
+/// constant. The statutory period depends on where the person is and
+/// which regime applies — thirty days, forty-five days, sixty with an
+/// extension — and that is counsel's answer, not an engineer's. Storing
+/// the date means a period counsel corrects next year does not silently
+/// rewrite the deadline on a request somebody already answered. `dueBasis`
+/// carries the reason in words, so a date nobody can explain never
+/// appears on a screen.
+///
+/// ── The subject is a person or a company, never both ─────────────────
+///
+/// A consultant asks about themselves; a client's owner asks for the
+/// firm's own records at the end of a contract (the DPA's "return and
+/// deletion at the end", which today says "not implemented"). Prisma
+/// cannot express exactly-one-of, so the route refuses a request with
+/// neither or both, and a test holds the sentence.
+///
+/// ── Who asked is not who it is about ─────────────────────────────────
+///
+/// A recruiter forwards a candidate's emailed request; counsel asks on a
+/// client's behalf. `requestedById` may be null when the request arrived
+/// by email and staff recorded it — an honest null beats naming the wrong
+/// person as the asker.
+model DataRequest {
+  id     String            @id @default(cuid())
+  kind   DataRequestKind
+  status DataRequestStatus @default(RECEIVED)
+
+  /// The person the request is about. One of this and `subjectCompanyId`.
+  subjectPersonId  String?
+  subjectPerson    Person?  @relation("dataRequestSubject", fields: [subjectPersonId], references: [id])
+  /// The company the request is about. One of this and `subjectPersonId`.
+  subjectCompanyId String?
+  subjectCompany   Company? @relation("dataRequestSubjectCompany", fields: [subjectCompanyId], references: [id])
+
+  /// Who asked. Null where it arrived by email and staff logged it.
+  requestedById        String?
+  requestedBy          Person?  @relation("dataRequestAsker", fields: [requestedById], references: [id])
+  /// The seat they asked from, where they asked from one.
+  requestedByCompanyId String?
+  requestedByCompany   Company? @relation("dataRequestAskerCompany", fields: [requestedByCompanyId], references: [id])
+
+  /// When we received it. The clock starts here, not when the row was
+  /// written: a request emailed on Friday and logged on Monday is three
+  /// days old, and pretending otherwise is how a deadline is missed.
+  receivedAt DateTime @default(now())
+  /// The day it is due by. Set by `lib/retention`, never by a screen.
+  dueAt      DateTime
+  /// Why that day, in a sentence — "forty-five days from receipt".
+  /// A date on a screen with no reason behind it is a number nobody can
+  /// stand behind.
+  dueBasis   String
+
+  /// What was kept and why — one plain-English sentence per category, in
+  /// the person's words and not the schema's. "Your I-9 and the checks
+  /// behind it, because an employer must keep them for three years after
+  /// hire." An array rather than a paragraph so each line can be shown
+  /// beside the category it is about.
+  keptBecause    String[]
+  /// Why it was refused. Set only where status is REFUSED.
+  refusedBecause String?
+
+  // ── What an export produced ────────────────────────────────────────
+  //
+  // Two places on purpose, and the same choice Resume made: the document
+  // itself sits in the database while there are a few of them, and `path`
+  // is here so moving to object storage later is a write-path change and
+  // not a migration.
+
+  /// The export itself, category by category, as JSON. Null for an
+  /// erasure and null before it is produced.
+  document     Json?
+  /// Where the bytes are, if they are not in `document`.
+  documentPath String?
+  /// When the export was produced.
+  producedAt   DateTime?
+  /// When the person actually downloaded it. A request is not answered
+  /// because a file exists; it is answered when they have it.
+  downloadedAt DateTime?
+
+  /// When the whole request was finished, whichever way it ended.
+  completedAt DateTime?
+  /// Free notes from whoever handled it. Never shown to the subject.
+  note        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subjectPersonId, receivedAt])
+  @@index([subjectCompanyId, receivedAt])
+  @@index([requestedById])
+  @@index([requestedByCompanyId])
+  /// The nightly sweep's own query: what is open, soonest due first.
+  @@index([status, dueAt])
+}
+
+/// A company saying that a subject's records may not be deleted yet.
+///
+/// ── Why this is a model and not a boolean on Person ──────────────────
+///
+/// Three reasons, and the second is the one that decides it.
+///
+/// A hold has to carry a reason, who placed it and when it will be
+/// reviewed. A boolean carries none of those, and a hold nobody can
+/// explain is a hold nobody will ever dare lift.
+///
+/// **Two companies can hold the same person at once.** A client under
+/// audit and a supplier in litigation are two separate obligations over
+/// one contractor. With a boolean, the second company's lift releases the
+/// first company's hold and the records go — which is the exact failure
+/// a litigation hold exists to prevent, and it would be invisible.
+///
+/// And a hold outlives what it holds. A contract ends, a seat is revoked,
+/// a placement closes; the hold has to survive all of it, which means it
+/// cannot live on any of them.
+///
+/// ── A hold suspends deletion for everybody, not just its holder ──────
+///
+/// Said plainly because it is uncomfortable: a hold placed by one company
+/// suspends the scheduled deletion and the erasure of that subject
+/// wherever it would have happened, not only on that company's own rows.
+/// The records a litigation needs are usually somebody else's — the
+/// supplier's timesheets in the client's case, the client's approvals in
+/// the supplier's.
+///
+/// The counterweights are that a company may only hold a subject it
+/// actually has a relationship with (the route's check, not the
+/// database's), that the erasure request goes to HELD rather than
+/// REFUSED, that `keptBecause` tells the person a hold applies and in
+/// whose words — never the matter reference, which is the holder's own
+/// business — and that `reviewBy` exists so a hold cannot quietly become
+/// permanent.
+model LegalHold {
+  id String @id @default(cuid())
+
+  /// Whose hold it is. Required: a hold with nobody behind it cannot be
+  /// lifted by anybody.
+  placedByCompanyId String
+  placedByCompany   Company @relation("legalHoldPlacingCompany", fields: [placedByCompanyId], references: [id], onDelete: Cascade)
+
+  /// The person held. One of this and `subjectCompanyId`.
+  subjectPersonId  String?
+  subjectPerson    Person?  @relation("legalHoldSubject", fields: [subjectPersonId], references: [id])
+  /// The company held — usually the placing company holding itself, for
+  /// an audit of its own books.
+  subjectCompanyId String?
+  subjectCompany   Company? @relation("legalHoldSubjectCompany", fields: [subjectCompanyId], references: [id])
+
+  /// Why, in plain English, in words that can be shown to the person
+  /// whose erasure this suspends. Required.
+  reason String
+  /// The holder's own reference for the matter — a case number, an audit
+  /// name. Never shown to the subject and never leaves the holder.
+  matter String?
+
+  placedById String?
+  placedBy   Person?  @relation("legalHoldPlacer", fields: [placedById], references: [id])
+  placedAt   DateTime @default(now())
+
+  /// The day somebody has to look at this again. A hold with no review
+  /// date is a hold forever, which is a retention schedule set by
+  /// forgetting. Same reasoning as `ClassificationCall.reviewBy`.
+  reviewBy DateTime?
+
+  /// Null while the hold is live. Set, with who lifted it, when the
+  /// matter closes. The row is never deleted: a hold that was placed and
+  /// lifted is the answer to "why was this still here in March".
+  liftedAt     DateTime?
+  liftedById   String?
+  liftedBy     Person?   @relation("legalHoldLifter", fields: [liftedById], references: [id])
+  liftedReason String?
+
+  @@index([subjectPersonId, liftedAt])
+  @@index([subjectCompanyId, liftedAt])
+  @@index([placedByCompanyId, liftedAt])
+  @@index([placedById])
+  @@index([liftedById])
+}
+
+/// Personal data went somewhere it should not have, and the clocks that
+/// started when somebody noticed.
+///
+/// ── Why this is not a `kind` on Incident ─────────────────────────────
+///
+/// `Incident` is a machine's row. `reportError` writes one from every
+/// failing route, fire-and-forget, rate-limited to one email per place
+/// per hour, and there will be thousands of them. It has one lifecycle
+/// column — `toldAt` — and no owner.
+///
+/// A breach is a person's row. One of them is opened deliberately, by
+/// somebody who decided this is a breach; it carries dates that are legal
+/// deadlines rather than diagnostics; and it must never be swept up with
+/// the noise around it. Folding the two would put six nullable deadline
+/// columns on the hottest write path in the product, and — worse — would
+/// make a five-hundred error and a notifiable breach the same shape, so
+/// that telling them apart depended on reading a string.
+///
+/// The link is kept rather than the table: `incidentId` points at the
+/// machine error this grew out of, where it grew out of one. Most will:
+/// somebody reads an incident, realizes what it exposed, and opens this.
+///
+/// ── No severity scale, deliberately ──────────────────────────────────
+///
+/// The DPA says plainly that there is no defined severity scale, and
+/// inventing a four-point one here would make that sentence false without
+/// making anybody safer. What decides the clocks is whether personal data
+/// was involved, whose, and what counsel says about it — which is what
+/// the columns below hold. A scale can be added the day counsel gives one.
+///
+/// ── The clocks are nullable and that is the honest shape ─────────────
+///
+/// `notifyAuthorityBy` and `notifySubjectsBy` are null until somebody has
+/// decided a deadline applies. A default of "discovered plus 72 hours"
+/// would be a legal conclusion written by an engineer — GDPR's 72 hours
+/// is not the US state patchwork's clock, and not every breach is
+/// notifiable at all. Null means nobody has decided yet, and the nightly
+/// sweep says so rather than counting down to a date it made up.
+model Breach {
+  id String @id @default(cuid())
+
+  /// When somebody here became aware. Every statutory clock counts from
+  /// awareness, not from the breach, which is why this is required and
+  /// `occurredAt` is not.
+  discoveredAt DateTime
+  /// When it actually happened, where that is known. Null is honest and
+  /// common: most breaches are found long after they start.
+  occurredAt   DateTime?
+
+  /// Whether personal data was involved. No default: whoever opens the
+  /// row says, because this is the fact every clock below hangs off and a
+  /// default would answer it by accident.
+  personalData Boolean
+
+  /// Which populations, using the ids in `src/lib/legal.ts` POPULATIONS —
+  /// 'business', 'candidate'. Two populations with two channels: a
+  /// business user is reached on their work address, a candidate on their
+  /// own, and a notice that goes to the wrong one has not gone.
+  populations String[]
+  /// Which of the categories in `src/lib/legal.ts` HELD were exposed,
+  /// by `HELD[].category`. The privacy notice already lists them; a
+  /// breach notice that describes the data differently from the notice
+  /// the person was given is its own problem.
+  categories  String[]
+
+  /// What happened, in plain English, for the person who has to write
+  /// the notice. Required — a breach row with no summary is a row nobody
+  /// can act on at three in the morning.
+  summary String
+
+  // ── The clocks ─────────────────────────────────────────────────────
+
+  /// The deadline for telling a supervisory authority. Null until
+  /// somebody decides one applies.
+  notifyAuthorityBy   DateTime?
+  /// When the authority was actually told, and who.
+  authorityNotifiedAt DateTime?
+  authorityNotice     String?
+
+  /// The deadline for telling the people whose data it was.
+  notifySubjectsBy   DateTime?
+  /// When they were told, and how.
+  subjectsNotifiedAt DateTime?
+  subjectsNotice     String?
+
+  /// When the nightly sweep last warned staff about a clock on this row.
+  /// So the warning is once a day rather than once a run; the history of
+  /// every warning is in the automation log, not here.
+  lastWarnedAt DateTime?
+
+  /// When it was closed out, and on what basis.
+  closedAt      DateTime?
+  closedBecause String?
+
+  /// The machine error this grew out of, where it grew out of one.
+  incidentId String?
+  incident   Incident? @relation(fields: [incidentId], references: [id])
+
+  openedById String?
+  openedBy   Person?  @relation("breachOpener", fields: [openedById], references: [id])
+  createdAt  DateTime @default(now())
+
+  /// The customers affected, and when each was told.
+  companies BreachCompany[]
+
+  @@index([closedAt, discoveredAt])
+  @@index([notifyAuthorityBy])
+  @@index([notifySubjectsBy])
+  @@index([incidentId])
+  @@index([openedById])
+}
+
+/// One customer affected by one breach, and when that customer was told.
+///
+/// A row per company rather than an array of ids on `Breach`, for two
+/// reasons. An array is an unindexed foreign key the database cannot
+/// check, and `schema-hygiene` exists because unindexed keys have been
+/// missed here three times. And the notice period is a term of each
+/// client's own agreement — one promises twenty-four hours, the next
+/// seventy-two — so "when do we owe this client a notice" is a fact about
+/// the pair, not about the breach.
+model BreachCompany {
+  id        String  @id @default(cuid())
+  breachId  String
+  breach    Breach  @relation(fields: [breachId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// The deadline this client's own agreement sets. Null where nobody has
+  /// read the agreement yet, which is a state worth being able to see.
+  notifyBy   DateTime?
+  /// When they were told, and who at that firm heard it.
+  notifiedAt DateTime?
+  notifiedTo String?
+
+  @@unique([breachId, companyId])
+  @@index([breachId])
+  @@index([companyId])
+  @@index([notifyBy])
 }

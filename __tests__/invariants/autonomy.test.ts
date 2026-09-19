@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import {
   ACTIONS, ALL_ACTIONS, JOBS, ALL_JOBS, LADDER, RUNGS, TALLY,
+  PLANNED, ALL_PLANNED,
   rungOf, kindOf, decidedBy, undoSays, readRow, KIND_SAYS,
   actionsNamedIn, branchesOf, namesIn,
 } from '../../src/lib/autonomy'
@@ -296,5 +297,68 @@ describe('how much we do unprompted, as a level and a log', () => {
     expect(branchesOf(`chosen ?? 'PAYMENT_RECORDED'`)).toEqual([`chosen ?? 'PAYMENT_RECORDED'`])
     expect(namesIn(`a?.b ? 'INVOICE_SUBMITTED' : 'INVOICE_GENERATED'`).names)
       .toEqual(['INVOICE_GENERATED', 'INVOICE_SUBMITTED'])
+  })
+})
+
+describe('an action designed before it is built is named as planned, and cannot stay that way', () => {
+  /**
+   * Two promises this file already holds pull against each other the
+   * moment a schema lands ahead of the behavior built on it: an action
+   * written with no rung fails, and a rung with no writer fails too.
+   * `PLANNED` is how a designed-but-unwritten action is named without
+   * the ladder claiming the product does it. These three keep that
+   * honest.
+   */
+
+  it('nothing planned is counted as something we actually do', () => {
+    const claimed = ALL_PLANNED.filter((a) => ACTIONS[a])
+    expect(
+      claimed,
+      'These sit in PLANNED and in the inventory at once, so the ladder both ' +
+        'claims them and does not:\n  ' + claimed.join('\n  ')
+    ).toEqual([])
+    for (const a of ALL_PLANNED) expect(ALL_ACTIONS).not.toContain(a)
+    expect(TALLY.UNPROMPTED + TALLY.ENFORCEMENT + TALLY.ATTRIBUTED).toBe(ALL_ACTIONS.length)
+  })
+
+  it('the day something writes a planned action, it has to move onto the ladder', () => {
+    // This is the whole point of the list. A planned name that code has
+    // started writing is an act with no level, and leaving it here would
+    // route around the check that catches exactly that.
+    const written = ALL_PLANNED.filter((a) => WRITTEN.has(a))
+    expect(
+      written,
+      'These are written under src/ and are still only planned. Move each ' +
+        'into UNPROMPTED, ENFORCEMENT or ATTRIBUTED in src/lib/autonomy.ts, ' +
+        'in this commit:\n  ' +
+        written.map((a) => `${a}  — ${WRITTEN.get(a)!.join(', ')}`).join('\n  ')
+    ).toEqual([])
+  })
+
+  it('every planned action already says what it will do, in a sentence', () => {
+    // Deciding the rung and the words when the record is designed is the
+    // reason to write one down at all. An entry with no sentence is a
+    // name, and a name is what the next agent would have invented anyway.
+    for (const a of ALL_PLANNED) {
+      const p = PLANNED[a]
+      expect(p.says.length, a).toBeGreaterThan(40)
+      expect(p.willBeWrittenBy, a).toMatch(/^etyme-[a-z]+$/)
+      if (p.kind === 'UNPROMPTED') expect(RUNGS, a).toContain(p.rung)
+      if (p.kind === 'ENFORCEMENT') expect(['BLOCK', 'WARN', 'PERMIT'], a).toContain(p.outcome)
+    }
+  })
+
+  it('a deletion or an anonymization nobody asked for sits at the top of the ladder', () => {
+    // Nothing puts a deleted record back, so nothing that deletes one may
+    // read as low risk. L3 says "it can be put back" in so many words.
+    for (const a of ALL_PLANNED) {
+      // The three the nightly sweep performs, not the acts a person
+      // takes around them — asking to be forgotten is a request, and
+      // requests have no rung.
+      if (!/^(RETENTION_DELETE|RETENTION_ANONYMIZE|ERASURE_COMPLETE)$/.test(a)) continue
+      const p = PLANNED[a]
+      expect(p.kind, a).toBe('UNPROMPTED')
+      if (p.kind === 'UNPROMPTED') expect(p.rung, a).toBe('L5')
+    }
   })
 })

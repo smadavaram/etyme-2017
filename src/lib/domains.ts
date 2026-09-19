@@ -84,6 +84,22 @@ export const DOMAINS: Domain[] = [
       'lib/requisition-approval', 'lib/requisition-stage',
       'lib/document-share', 'lib/template-packs',
       'lib/access-log', 'lib/access-grant', 'lib/walls', 'lib/account-walls',
+      // Retention, export, erasure and the breach clock. Registered when
+      // the schema landed (2026-09-19) rather than when the first file
+      // does, so that the agent writing them is not also deciding whose
+      // they are. `lib/retention` is the schedule as code — a period per
+      // category in `lib/legal`'s HELD — and it is here rather than under
+      // company settings on purpose: how long a record is kept is a legal
+      // answer, not a knob, and a client who sets it wrong deletes
+      // something that is gone.
+      'lib/retention', 'lib/data-request', 'lib/erasure', 'lib/legal-hold', 'lib/breach',
+      'app/api/data-requests', 'app/api/legal-holds', 'app/api/breaches',
+      'app/dashboard/privacy',
+      // The subject's own door to their own data. Carved out of supply's
+      // `app/api/me` and `app/dashboard/my-*` by the longest-match rule,
+      // the same way `app/api/me/papers` already is: a bench is supply's
+      // business and a data subject request is not.
+      'app/api/me/data', 'app/dashboard/my-data',
       'lib/permissions', 'lib/seat', 'lib/persona',
       'lib/outbound-pack',
       'app/dashboard/packets', 'app/dashboard/compliance', 'app/dashboard/access',

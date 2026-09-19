@@ -54,6 +54,18 @@ import { partiesOf } from '@/lib/money/invoice-parties'
 const RUNTIME: Record<string, string> = {
   accessLog: 'written by a real read of somebody else’s data, including refusals',
   approvalRuleVersion: 'written when a rule is changed, not when it is created',
+  // ── Four that must never be seeded, added 2026-09-19 ───────────────
+  //
+  // These are the strongest case this list has. A seeded DataRequest
+  // claims a real person asked to be forgotten; a seeded Breach claims
+  // personal data escaped, on a demo a founder walks in front of buyers.
+  // Both would be a lie of a different order from an empty screen, and
+  // an empty privacy desk is the honest reading of a world where nobody
+  // has asked for anything yet.
+  breach: 'written when somebody decides personal data went where it should not have — a seeded one would claim a breach that never happened',
+  breachCompany: 'written when a breach names the customers it touched',
+  dataRequest: 'written when a person actually asks for their data or asks to be forgotten',
+  legalHold: 'written when a company places a hold, with a reason and a name on it',
   classificationCall: 'written when a worker classification is actually decided',
   contractorInvitation: 'an invitation somebody sent; /ready proves the email edge',
   documentShare: 'written when a person shares a document',

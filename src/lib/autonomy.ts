@@ -314,6 +314,182 @@ ATTRIBUTED.MATCH_RUN = { basis: 'RECORDED' }
 ATTRIBUTED.SITE_WRITTEN = { basis: 'RECORDED' }
 ATTRIBUTED.DATA_IMPORTED = { basis: 'RECORDED' }
 
+// ── Named before anything writes them ────────────────
+//
+// The ladder's own test holds two promises, and they pull in opposite
+// directions the moment a schema lands ahead of the behavior built on
+// it. "Every automated action has a level" means a new writer with no
+// rung fails the build. "The ladder claims nothing the code does not
+// actually write" means a rung with no writer fails it too — an
+// inventory listing acts nobody performs overstates what we do, which is
+// the more dangerous of the two lies because a buyer reads it.
+//
+// So an action that is designed but not yet written sits here instead of
+// in the inventory above. It is NOT merged into `ACTIONS`, does not
+// appear in `ALL_ACTIONS`, and is not counted in `TALLY`, so nothing
+// this file claims about the product changes by naming one. What it
+// gives is the rung, the basis and the sentence, decided once by whoever
+// designed the record, so that the agent who writes the code is not
+// inventing a level on a Friday afternoon.
+//
+// The day something under `src/` writes one of these names, the entry
+// moves into `UNPROMPTED`, `ENFORCEMENT` or `ATTRIBUTED` above — in the
+// same commit, because `autonomy.test.ts` fails otherwise. That is
+// deliberate: it costs one line and it is the only thing that stops this
+// list becoming a graveyard of good intentions.
+//
+// Retention, export, erasure and the breach clock are here because the
+// schema for them landed on 2026-09-19 and the behavior is
+// etyme-regulatory's next piece of work. Every deletion and every
+// anonymization below is `reversible: false` on the row that records it,
+// honestly, because nothing puts a deleted record back.
+
+export type PlannedAct =
+  | { kind: 'UNPROMPTED'; rung: Rung; basis: Basis; says: string; willBeWrittenBy: string }
+  | { kind: 'ENFORCEMENT'; outcome: Outcome; basis: Basis; says: string; willBeWrittenBy: string }
+  | { kind: 'ATTRIBUTED'; basis: Basis; says: string; willBeWrittenBy: string }
+
+export const PLANNED: Record<string, PlannedAct> = {
+  // ── What the nightly sweep does with nobody watching ───────────────
+
+  RETENTION_DUE_SCAN: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'Every night it reads which records have passed the end of their retention period and tells whoever owns them. It deletes nothing and is the rung every other retention row is measured against.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  RETENTION_HELD: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'Records were due for deletion and were left alone, because a legal hold names the person or the company they belong to. Not deleting is the whole act, and the reason the hold gave is recorded with it.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  RETENTION_DELETE: {
+    kind: 'UNPROMPTED',
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A record whose retention period has run out is deleted, with nobody asked, because a written schedule said the day had come. It cannot be put back. It is a date comparison, and the consequence is permanent — which is why it is at the top of the ladder and not beside ending a contract.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  RETENTION_ANONYMIZE: {
+    kind: 'UNPROMPTED',
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A record that has to survive for the money or for the client — an invoice line, a signed week, a day on site — kept its amounts and forgot whose they were, because the period for holding the name ran out. The arithmetic still foots and the person is gone from it, and it cannot be put back.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  ERASURE_COMPLETE: {
+    kind: 'UNPROMPTED',
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'Somebody asked to be forgotten and the last thing standing in the way came free, so it finished on its own: the identity is a tombstone on a domain nothing can be sent to, and the work they did is still on the record under nobody’s name. Nothing puts this back.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+
+  // ── The clocks ─────────────────────────────────────────────────────
+
+  DATA_REQUEST_CLOCK_WARNED: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A request for somebody’s data falls due inside a day and nobody has answered it, so staff were told. It answers nothing itself.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  BREACH_CLOCK_WARNED: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A deadline for telling an authority, a customer or the people whose data it was falls inside a day, so staff were told. Once a day, not once a run, and it sends no notice itself — a notice about a breach is written by a person.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  BREACH_CLOCK_MISSED: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A deadline passed with no notice recorded against it. It is said out loud, every night, until somebody records the notice or closes the breach — a missed clock that stops being mentioned is a missed clock nobody fixes.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+
+  // ── A refusal aimed at somebody who asked ──────────────────────────
+
+  DATA_REQUEST_REFUSED: {
+    kind: 'ENFORCEMENT',
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says:
+      'Somebody asked for a person’s data or for them to be forgotten and was refused — they are not the person, or not the company that holds the record. A refusal aimed at somebody who asked carries no autonomy level, and it is logged as carefully as a grant.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+
+  // ── Acts a person took ─────────────────────────────────────────────
+
+  DATA_EXPORT_REQUESTED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RULE',
+    says: 'A person asked for everything held about them, and a statutory clock started.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  DATA_ERASURE_REQUESTED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RULE',
+    says: 'A person asked to be forgotten, and a statutory clock started.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  DATA_REQUEST_ANSWERED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RULE',
+    says:
+      'Somebody answered a request for a person’s data — produced the export, or finished the erasure — and the row says what was kept and why.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  LEGAL_HOLD_PLACED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RULE',
+    says:
+      'A company said a person’s or its own records may not be deleted yet, and gave a reason. It suspends every scheduled deletion of that subject, including ones this company would never see.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  LEGAL_HOLD_LIFTED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RULE',
+    says:
+      'A company lifted its hold. Anything another company still holds stays held, and the lifted row stays on the record as the answer to why something was still here.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  BREACH_OPENED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RULE',
+    says:
+      'Somebody decided that personal data went where it should not have, and opened a breach. The clocks count from when they became aware, not from when it happened.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  BREACH_NOTICE_SENT: {
+    kind: 'ATTRIBUTED',
+    basis: 'RULE',
+    says:
+      'A notice about a breach went to an authority, to a customer, or to the people whose data it was, and the row says which and when.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  BREACH_CLOSED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RULE',
+    says: 'A breach was closed out, on a stated basis, by somebody who put their name to it.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+}
+
+export const ALL_PLANNED: string[] = Object.keys(PLANNED).sort()
+
 // ── The whole inventory ──────────────────────────────
 
 export const ACTIONS: Record<string, Act> = {}
