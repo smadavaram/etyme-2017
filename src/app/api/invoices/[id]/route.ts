@@ -6,7 +6,7 @@ import { matchInvoice, recompute } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
 import { discountDeadline, discountOn, dueOn, ladderFor, resolveBillingTerms } from '@/lib/billing-cascade'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
-import { partiesOf } from '@/lib/money/invoice-parties'
+import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * GET /api/invoices/:id
@@ -32,7 +32,15 @@ export async function GET(
   // Both parties to the bill, and nobody else. This route took the id and
   // returned the invoice — number, total, purchase order and its ceiling —
   // to any authenticated caller, which on a marketplace means competitors.
-  const scope = invoiceScope(caller)
+  // Who may look at an invoice at all is `invoiceScope` — a consultant
+  // seat is not a party to a bill between two companies, however many of
+  // their hours are on it. WHICH invoices are ours is the cascade in
+  // `lib/money/invoice-parties`: the scope helper still asks the
+  // agreement alone, and an agreement is optional now, so an invoice with
+  // none behind it would 404 for the two firms whose bill it is. Their
+  // helper is demand's; the substitution is here, in money's own routes.
+  const mayLook = invoiceScope(caller)
+  const scope = mayLook ? invoiceBetween(caller.company!.id) : null
   if (!scope) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },

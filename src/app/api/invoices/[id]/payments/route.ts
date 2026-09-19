@@ -5,7 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { invoiceScope } from '@/lib/resolve-client-company'
-import { partiesOf } from '@/lib/money/invoice-parties'
+import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * POST /api/invoices/:id/payments
@@ -49,7 +49,15 @@ export async function POST(
   // whose invoice it was — so an accountant at one firm could mark
   // another firm's invoice paid, and the receivable quietly vanished
   // from the dunning run.
-  const scope = invoiceScope(caller)
+  // Who may look at an invoice at all is `invoiceScope` — a consultant
+  // seat is not a party to a bill between two companies, however many of
+  // their hours are on it. WHICH invoices are ours is the cascade in
+  // `lib/money/invoice-parties`: the scope helper still asks the
+  // agreement alone, and an agreement is optional now, so an invoice with
+  // none behind it would 404 for the two firms whose bill it is. Their
+  // helper is demand's; the substitution is here, in money's own routes.
+  const mayLook = invoiceScope(caller)
+  const scope = mayLook ? invoiceBetween(caller.company!.id) : null
   const invoice = scope
     ? await prisma.invoice.findFirst({
         where: { id, ...scope },

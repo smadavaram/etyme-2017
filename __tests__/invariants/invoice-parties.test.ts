@@ -179,6 +179,26 @@ describe('an invoice with no agreement is still found by the scope that lists it
     }
   })
 
+  it('opening one invoice asks who may look and what is ours as two questions, not one', () => {
+    // `invoiceScope` answers the first — a consultant seat is not a party
+    // to a bill between two companies, however many of their hours are on
+    // it — and it answers the second through the agreement alone, which
+    // would 404 an invoice with none behind it for the two firms whose
+    // bill it is. The gate stays; the cascade decides ours.
+    for (const file of [
+      'src/app/api/invoices/[id]/route.ts',
+      'src/app/api/invoices/[id]/received/route.ts',
+      'src/app/api/invoices/[id]/match/route.ts',
+      'src/app/api/invoices/[id]/payments/route.ts',
+    ]) {
+      const src = readFileSync(join(process.cwd(), file), 'utf8')
+      expect(src, `${file} should keep the consultant gate`).toContain('invoiceScope(caller)')
+      expect(src, `${file} should scope through the cascade`).toContain(
+        'invoiceBetween(caller.company!.id)'
+      )
+    }
+  })
+
   it('a bill is submitted by the firm that raised it, and by nobody else who happens to have the id', () => {
     // This route authenticated the caller, checked a permission at their
     // own company, and then loaded any invoice by id — so a firm with

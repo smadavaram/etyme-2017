@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { invoiceBetween } from '@/lib/money/invoice-parties'
 import { getCallerContext } from '@/lib/api-context'
 import { matchInvoice } from '@/lib/invoice-match'
 import { invoiceScope } from '@/lib/resolve-client-company'
@@ -25,7 +26,15 @@ export async function GET(
   // Same rule as the invoice itself. A match report names the purchase
   // order and what is left on it, which is the one number a competitor
   // bidding for the same account would most like to have.
-  const scope = invoiceScope(caller)
+  // Who may look at an invoice at all is `invoiceScope` — a consultant
+  // seat is not a party to a bill between two companies, however many of
+  // their hours are on it. WHICH invoices are ours is the cascade in
+  // `lib/money/invoice-parties`: the scope helper still asks the
+  // agreement alone, and an agreement is optional now, so an invoice with
+  // none behind it would 404 for the two firms whose bill it is. Their
+  // helper is demand's; the substitution is here, in money's own routes.
+  const mayLook = invoiceScope(caller)
+  const scope = mayLook ? invoiceBetween(caller.company!.id) : null
   const mine = scope
     ? await prisma.invoice.findFirst({ where: { id, ...scope }, select: { id: true } })
     : null
