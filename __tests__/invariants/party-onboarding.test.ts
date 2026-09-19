@@ -10,7 +10,7 @@ import {
 } from '@/lib/party-onboarding'
 
 const client = (over = {}) => clientChecklist({
-  name: 'Terumo', onRegister: true, contacts: 1, msaSigned: true,
+  name: 'Talvern Medical', onRegister: true, contacts: 1, msaSigned: true,
   costCenters: 2, holidayCalendar: true, approvalRules: true, ...over,
 })
 
@@ -18,13 +18,13 @@ describe('A checklist is derived from real state, never a list of ticked boxes',
 
   it('a fully set up client says so in one line', () => {
     expect(client().ready).toBe(true)
-    expect(client().says).toBe('Terumo is fully set up.')
+    expect(client().says).toBe('Talvern Medical is fully set up.')
   })
 
   it('one gap names the next thing to do, not just a count', () => {
     const c = client({ holidayCalendar: false })
     expect(c.ready).toBe(false)
-    expect(c.says).toBe('Terumo: one thing left — holiday calendar.')
+    expect(c.says).toBe('Talvern Medical: one thing left — holiday calendar.')
   })
 
   it('every item says why it matters and where to fix it', () => {
@@ -82,7 +82,7 @@ describe('An assignment stands on one fact: somebody confirmed the start', () =>
 
   it('billing before a confirmed start is billing on a guess, and the item says so', () => {
     const a = assignmentChecklist({
-      label: 'Priya at Terumo', contractActive: true, cleared: true,
+      label: 'Priya at Talvern Medical', contractActive: true, cleared: true,
       startConfirmed: false, firstTimesheetIn: false,
     })
     expect(a.items.find((i) => i.key === 'start')!.why).toContain('every invoice stands on')
@@ -91,7 +91,7 @@ describe('An assignment stands on one fact: somebody confirmed the start', () =>
 
   it('the first timesheet is a habit set in week one or chased forever', () => {
     const a = assignmentChecklist({
-      label: 'Priya at Terumo', contractActive: true, cleared: true,
+      label: 'Priya at Talvern Medical', contractActive: true, cleared: true,
       startConfirmed: true, firstTimesheetIn: false,
     })
     expect(a.says).toContain('first timesheet in')

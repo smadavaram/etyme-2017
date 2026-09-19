@@ -69,7 +69,7 @@ function row(over: Partial<SheetToPay> = {}): SheetToPay {
     costCode: 'EA-4100',
     orderNumber: 'SO-2026-014',
     employerName: 'Brightmoor',
-    clientName: 'Nike',
+    clientName: 'Northbend Athletic',
     ...over,
   }
 }

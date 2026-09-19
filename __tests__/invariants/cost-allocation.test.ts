@@ -243,7 +243,7 @@ describe('Coding is labeled with the company that owns it', () => {
   })
 
   it('on an MSP leg the codes belong to the end client, not the payer', () => {
-    // Cloudepa invoices GlobalStaff; David Chen sits at Terumo
+    // Cloudepa invoices GlobalStaff; David Chen sits at Talvern Medical
     expect(codingIsPayers('terumo', 'globalstaff-msp')).toBe(false)
   })
 

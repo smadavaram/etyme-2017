@@ -44,7 +44,7 @@ const ndaToSign = (over: Partial<SentDocument> = {}): SentDocument => ({
   status: 'SENT',
   templateName: 'Non-disclosure agreement',
   needsSignature: true,
-  issuerName: 'Nike',
+  issuerName: 'Northbend Athletic',
   sentAt: new Date('2026-09-10T00:00:00Z'),
   signedAt: null,
   ...over,

@@ -39,7 +39,7 @@ const NOV_FROM = new Date('2026-11-02T00:00:00Z')
 const NOV_TO = new Date('2026-11-08T00:00:00Z')
 
 // ── The engagement this file walks ─────────────────────────
-// Terumo BCT needs two SAP MM analysts in Lakewood at up to $130/hr.
+// Talvern Medical needs two SAP MM analysts in Lakewood at up to $130/hr.
 
 const CEILING = 13_000
 const NEEDED_BY = new Date('2026-10-01T00:00:00Z')
@@ -109,7 +109,7 @@ describe('2 · It goes to three vendors, each at its own rate', () => {
     message: 'Preferred supplier rate', status: 'SENT',
     expiresAt: new Date('2026-09-30T00:00:00Z'),
     createdAt: new Date('2026-08-16T00:00:00Z'),
-    fromCompany: { id: 'terumo', name: 'Terumo BCT', slug: 'terumo' },
+    fromCompany: { id: 'terumo', name: 'Talvern Medical', slug: 'terumo' },
     requirement: {
       id: 'r-1', title: 'SAP MM Analyst', skills: ['SAP MM'],
       location: 'Lakewood, CO', headcount: 2, months: 6,
@@ -237,7 +237,7 @@ describe('4 · One is placed, and the seats run out', () => {
     // is the moment the exposure would begin.
     const d = assessAward({
       ...clean,
-      governance: { blocks: ['Vikram Reddy has 18 of 18 months at Terumo BCT across all vendors'], warnings: [] },
+      governance: { blocks: ['Vikram Reddy has 18 of 18 months at Talvern Medical across all vendors'], warnings: [] },
     })
     expect(d.decision).toBe('BLOCKED')
   })

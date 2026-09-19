@@ -9,7 +9,7 @@ import { mayRecommend, mayActAt } from '@/lib/supplier-onboarding'
  *
  * ── The bug this is named after ──────────────────────────────────────
  *
- * The founder opened Suppliers as Nike's account owner and asked how to
+ * The founder opened Suppliers as Northbend Athletic's account owner and asked how to
  * add one. The page said, in its own subtitle, that anybody who raises a
  * requirement can recommend a firm — and showed no button, because the
  * gate behind it read `permissions.includes('requirements.write')`.

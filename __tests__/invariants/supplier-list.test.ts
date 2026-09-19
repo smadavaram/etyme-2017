@@ -24,8 +24,8 @@ describe('the shapes a vendor list arrives in', () => {
 
   it('reads a signature block, where the person comes first', () => {
     // The order is not fixed, so the legal suffix settles it.
-    const r = readOne('Priya Sharma | Vertex Talent Ltd | priya@vertextalent.io', 'priya@vertextalent.io')
-    expect(r.company).toBe('Vertex Talent Ltd')
+    const r = readOne('Priya Sharma | Veritan Talent Ltd | priya@vertextalent.io', 'priya@vertextalent.io')
+    expect(r.company).toBe('Veritan Talent Ltd')
     expect(r.contactName).toBe('Priya Sharma')
   })
 
@@ -77,7 +77,7 @@ describe('a name out of a domain', () => {
   })
 
   it('splits a hyphenated one into words', () => {
-    expect(nameFromDomain('vertex-talent.io')).toBe('Vertex Talent')
+    expect(nameFromDomain('veritan-talent.example')).toBe('Veritan Talent')
   })
 })
 
@@ -102,8 +102,8 @@ describe('a whole pasted list', () => {
   const paste = `
 Supplier contacts — Q3
 Cloudepa Systems, Ravi Menon, ravi@cloudepa.com
-Vertex Talent Ltd, Priya Sharma, priya@vertextalent.io
-Vertex Talent Ltd, Dan Okoro, dan@vertextalent.io
+Veritan Talent Ltd, Priya Sharma, priya@vertextalent.io
+Veritan Talent Ltd, Dan Okoro, dan@vertextalent.io
 Brightmoor Staffing <hello@brightmoor.co.uk>
 ravi@cloudepa.com
 some note to self

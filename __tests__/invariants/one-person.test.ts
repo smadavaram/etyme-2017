@@ -186,7 +186,7 @@ describe('time already served here', () => {
   })
 
   it('has served one set of days, not two, when bought through two legs of one chain', () => {
-    // Nike buys Helena from Computer Systems, who buys her from
+    // Northbend Athletic buys Helena from Computer Systems, who buys her from
     // CloudEPA. Two sell contracts, one person, the same days on the
     // same site. Summed, they said fourteen months and printed "past
     // your cap" about somebody seven months in — the double-count
@@ -398,7 +398,7 @@ describe('the line above the register', () => {
 
 describe('somebody placed twice, years apart, through two agencies', () => {
   /**
-   * Lucía Fernández on the seeded Nike desk, and the row the founder
+   * Lucía Fernández on the seeded Northbend Athletic desk, and the row the founder
    * could not make sense of:
    *
    *   "2 suppliers are selling them. 25 months here already — past your

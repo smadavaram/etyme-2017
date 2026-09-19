@@ -99,7 +99,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
     as(PINNACLE)
     const r = await call(amend, 'PATCH', `/api/program/agreements/${it_.msa}`, it_.msa, {
       paymentTerms: it_.originalPaymentTerms + 15,
-      reason: 'Agreed with Nike procurement at the Q3 review.',
+      reason: 'Agreed with Northbend Athletic procurement at the Q3 review.',
     })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.changed).toEqual(['payment days'])
@@ -170,12 +170,12 @@ describe('a master agreement gets a term, a signature and a trail', () => {
   it('recording the executed document keeps the file and its name on the agreement, not in somebody’s email', async () => {
     as(PINNACLE)
     const r = await call(amend, 'PATCH', `/api/program/agreements/${it_.msa}`, it_.msa, {
-      executedFileName: 'Nike-Pinnacle-MSA-executed.pdf',
+      executedFileName: 'Northbend Athletic-Pinnacle-MSA-executed.pdf',
       executedFileUrl: 'https://files.etyme.test/nike-pinnacle-msa.pdf',
       executedFileHash: 'a'.repeat(64),
     })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.executedDocument.fileName).toBe('Nike-Pinnacle-MSA-executed.pdf')
+    expect(r.body.data.executedDocument.fileName).toBe('Northbend Athletic-Pinnacle-MSA-executed.pdf')
     const v = await prisma.masterAgreementVersion.findFirstOrThrow({
       where: { agreementId: it_.msa },
       orderBy: { version: 'desc' },
@@ -461,7 +461,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
     expect(row.status).toBe('TERMINATED')
     expect(row.findings[0].code).toBe('MSA_ENDED')
     expect(row.signing.signatures).toHaveLength(2)
-    expect(row.executedDocument.fileName).toBe('Nike-Pinnacle-MSA-executed.pdf')
+    expect(row.executedDocument.fileName).toBe('Northbend Athletic-Pinnacle-MSA-executed.pdf')
     expect(r.body.data.summary.ended).toBeGreaterThan(0)
   })
 

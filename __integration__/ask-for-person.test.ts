@@ -5,7 +5,7 @@ import { GET as person } from '@/app/api/people/[id]/route'
 import { POST as ask } from '@/app/api/people/[id]/ask/route'
 
 /**
- * Nike's hiring manager liked a candidate a supplier sent for one role
+ * Northbend Athletic's hiring manager liked a candidate a supplier sent for one role
  * and wants him for another. He stars him and asks; the supplier, not
  * the candidate, hears.
  */
@@ -103,9 +103,9 @@ describe('asking for a person you were shown', () => {
 
   // ── The rung the client pays, and nothing below it ────────────────
   //
-  // Nike buys Helena Marsh from Computer Systems, who buy her from
+  // Northbend Athletic buys Helena Marsh from Computer Systems, who buy her from
   // CloudEPA, and the bench listing that makes a submission possible at
-  // all is CloudEPA's. So "Ask for them" named CloudEPA on Nike's own
+  // all is CloudEPA's. So "Ask for them" named CloudEPA on Northbend Athletic's own
   // page and opened a thread straight to it — the prime's supplier list
   // and a direct channel, both given away by one button, and the NDA
   // between prime and sub breached in each direction at once.
@@ -130,7 +130,7 @@ describe('asking for a person you were shown', () => {
       })).id
       it_.chainRole = await role('Central Finance lead')
       it_.discloseRole = await role('S/4 migration lead')
-      // Somebody on a bench Nike has never bought from and was never
+      // Somebody on a bench Northbend Athletic has never bought from and was never
       // offered: no contract, no submission, no deal of any kind.
       const stranger = await prisma.person.create({ data: { name: 'Anselm Roche', primaryEmail: 'anselm.roche@seed.etyme.invalid' }, select: { id: true } })
       const profile = await prisma.consultantProfile.create({ data: { personId: stranger.id, skills: ['Workday'], location: 'Beaverton, OR', visibility: 'VERIFIED', workAuth: 'USC' }, select: { id: true } })
@@ -139,7 +139,7 @@ describe('asking for a person you were shown', () => {
       it_.openRole = (await prisma.requirement.findFirstOrThrow({ where: { companyId: it_.nike, title: 'Workday HCM integration lead' }, select: { id: true } })).id
     }, 120_000)
 
-    it('the bench listing that would be submitted against belongs to the firm below the one Nike pays', async () => {
+    it('the bench listing that would be submitted against belongs to the firm below the one Northbend Athletic pays', async () => {
       const listing = await prisma.benchListing.findFirstOrThrow({
         where: { consultant: { personId: it_.helena }, state: 'GRANTED' },
         select: { companyId: true },
@@ -149,7 +149,7 @@ describe('asking for a person you were shown', () => {
       expect(paid.companyId).toBe(it_.prime)
     })
 
-    it('asking for her opens the thread with the prime Nike pays, and never with the sub-vendor holding her', async () => {
+    it('asking for her opens the thread with the prime Northbend Athletic pays, and never with the sub-vendor holding her', async () => {
       as(HIRING)
       const r = await call(ask, 'POST', `/api/people/${it_.helena}/ask`, it_.helena, { requirementId: it_.chainRole })
       expect(r.status, JSON.stringify(r.body)).toBe(201)
@@ -161,7 +161,7 @@ describe('asking for a person you were shown', () => {
       expect(withSub).toBeNull()
     })
 
-    it('and nothing in the reply, the thread title, the message or its metadata names the firm below the rung Nike pays', async () => {
+    it('and nothing in the reply, the thread title, the message or its metadata names the firm below the rung Northbend Athletic pays', async () => {
       const thread = await prisma.conversation.findFirstOrThrow({
         where: { companyId: it_.nike, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole },
         include: { messages: true },
@@ -204,7 +204,7 @@ describe('asking for a person you were shown', () => {
       await prisma.masterAgreement.updateMany({ where: { clientId: it_.nike, vendorId: it_.prime }, data: { disclosesSubVendors: false } })
     })
 
-    it('somebody Nike has never bought through anyone is refused in a sentence that names Nike’s own suppliers and not the firm holding them', async () => {
+    it('somebody Northbend Athletic has never bought through anyone is refused in a sentence that names Northbend Athletic’s own suppliers and not the firm holding them', async () => {
       as(HIRING)
       const r = await call(ask, 'POST', `/api/people/${it_.stranger}/ask`, it_.stranger, { requirementId: it_.openRole })
       expect(r.status, JSON.stringify(r.body)).toBe(409)

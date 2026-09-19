@@ -77,7 +77,7 @@ describe('which ways in are offered', () => {
     process.env.AZURE_AD_CLIENT_SECRET = 'secret'
     const mod = await import('@/lib/auth')
     const azure: any = mod.configuredProviders().find((p: any) => p.id === 'azure-ad')
-    // Terumo BCT and Nike are different tenants and both must get in.
+    // Talvern Medical and Northbend Athletic are different tenants and both must get in.
     expect(azure.options?.tenantId ?? 'common').toBe('common')
   })
 

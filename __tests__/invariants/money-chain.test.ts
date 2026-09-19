@@ -112,9 +112,9 @@ describe('what an award has to leave behind', () => {
 describe('the whole chain, in order', () => {
   it('runs role → submit → award → activate → hours → approve → invoice → paid', () => {
     // Walked in the product against a live server, not in the seed:
-    //   role       cmt31s9sq  (worked through Terumo)
+    //   role       cmt31s9sq  (worked through Talvern Medical)
     //   submission cmt31sa3j  ($130/hr)
-    //   contract   cmt31satf  (Cloudepa → Terumo, engagement attached)
+    //   contract   cmt31satf  (Cloudepa → Talvern Medical, engagement attached)
     //   timesheet  cmt31th8k  (40h, approved by the client)
     //   invoice    IN_W60JQL_001  $5,200
     //   payment    $5,200 ACH

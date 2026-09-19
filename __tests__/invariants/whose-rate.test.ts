@@ -9,10 +9,10 @@ import type { CallerContext } from '@/lib/api-context'
 /**
  * Whose rate is on the row.
  *
- * Nike buys Helena from Computer Systems at $145. Computer Systems buys
- * her from CloudEPA at $118. Both contracts name Nike as the end
+ * Northbend Athletic buys Helena from Computer Systems at $145. Computer Systems buys
+ * her from CloudEPA at $118. Both contracts name Northbend Athletic as the end
  * client, because that is where she physically works and that is how
- * tenure aggregates — so a list scoped by end client hands Nike both
+ * tenure aggregates — so a list scoped by end client hands Northbend Athletic both
  * rows, and $145 − $118 is Computer Systems' entire margin, computable
  * off its own customer's screen.
  *
@@ -59,7 +59,7 @@ describe('a client sees the rate it pays, never the rate its supplier pays under
 
   it('never widens a client to every rung standing at its sites', () => {
     // endClientFilter is the shape that leaked: both of Helena's legs
-    // carry Nike as end client, so this is the clause that must never
+    // carry Northbend Athletic as end client, so this is the clause that must never
     // come back on a list carrying a rate.
     for (const scope of [payerScope(caller('CLIENT', NIKE)), sellContractScope(caller('CLIENT', NIKE))]) {
       expect(JSON.stringify(scope)).not.toContain('endClientCompanyId')
@@ -119,7 +119,7 @@ describe('the same person bought through a chain is one row and one rate on the 
   })
 
   it('keeps two separate placements for one person apart, instead of merging them into a chain', () => {
-    // Lucía worked for Nike through Brightmoor in 2025 and works there
+    // Lucía worked for Northbend Athletic through Brightmoor in 2025 and works there
     // now through Pinnacle. Both are tops. Neither is above the other.
     const then: DatedRung & { billRate: number } = {
       id: 'then', personId: 'lucia', companyId: 'brightmoor', clientCompanyId: NIKE,
@@ -177,7 +177,7 @@ describe('what a client has approved is valued at the rate that client is billed
   })
 
   it('understates the client by the prime’s whole margin when it reads the wrong leg', () => {
-    // 3 approved weeks of Helena: $17,400 at what Nike pays, $14,160 at
+    // 3 approved weeks of Helena: $17,400 at what Northbend Athletic pays, $14,160 at
     // what its supplier pays. The $3,240 gap is the bug, and it is also
     // exactly the margin the client must not be able to compute.
     const atTop = valued(120, TOP.billRate)!
@@ -262,9 +262,9 @@ describe('the client’s own picture is one row per person at the price it pays'
 
   it('what a client is told it spends counts each person once', () => {
     // 160 hours a month, twelve months. Over both rungs the run rate was
-    // $504,960 for one contractor; over the rung Nike pays it is
+    // $504,960 for one contractor; over the rung Northbend Athletic pays it is
     // $278,400, and the $226,560 difference is a person who does not
-    // exist plus a margin that is not Nike's to see.
+    // exist plus a margin that is not Northbend Athletic's to see.
     const annual = (cents: number) => (cents * 160 * 12) / 100
     const bothRungs = [SUB, TOP].reduce((sum, c) => sum + annual(c.billRate), 0)
     const asPaid = asPayer([SUB, TOP], NIKE).reduce((sum, r) => sum + annual(r.rateCents!), 0)
@@ -276,7 +276,7 @@ describe('the client’s own picture is one row per person at the price it pays'
   it('a rung the client does not itself pay is counted as a head and priced at nothing', () => {
     // Helena's top leg is a draft, so the live rows stop at CloudEPA →
     // Computer Systems. She is still in the building and still a head;
-    // pricing her at $118 would put her supplier's cost in Nike's run
+    // pricing her at $118 would put her supplier's cost in Northbend Athletic's run
     // rate, so the row carries no rate and the page says how many.
     const rows = asPayer([SUB], NIKE)
     expect(rows.length).toBe(1)
@@ -293,7 +293,7 @@ describe('the client’s own picture is one row per person at the price it pays'
 
   it('the queue a client approves from quotes the rate that client is billed', () => {
     // The queue values a week off the contract the sheet hangs on, which
-    // in a chain is the bottom leg. Walked to the rung Nike pays, forty
+    // in a chain is the bottom leg. Walked to the rung Northbend Athletic pays, forty
     // hours is $5,800 and not $4,720.
     const rate = payerRung(SUB, [SUB, TOP])!.billRate
     expect(40 * rate).toBe(580_000)
@@ -313,10 +313,10 @@ describe('a client’s own benchmark is built from its own prices, never its sup
     ({ clientCompanyId, billRate, skills })
 
   it('a client’s own benchmark is built from its own prices, never its supplier’s cost', () => {
-    // Three SAP people at Nike: two bought direct at $140 and $150, one
+    // Three SAP people at Northbend Athletic: two bought direct at $140 and $150, one
     // through Computer Systems at $145 — which CloudEPA sells to the
-    // prime at $118. Nike's own median is $145. Over every rung standing
-    // at the site it is $140, dragged down by a cost that is not Nike's.
+    // prime at $118. Northbend Athletic's own median is $145. Over every rung standing
+    // at the site it is $140, dragged down by a cost that is not Northbend Athletic's.
     const rungs = [
       rung(NIKE, 14000, ['SAP MM']),
       rung(NIKE, 15000, ['SAP MM']),

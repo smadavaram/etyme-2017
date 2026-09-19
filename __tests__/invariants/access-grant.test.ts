@@ -26,7 +26,7 @@ function grant(over: Partial<GrantRequest> = {}): GrantRequest {
     roleName: 'Recruiter',
     permissions: ['requirements.read', 'submissions.create'],
     requestedDays: null,
-    reason: 'Joining the Terumo delivery team',
+    reason: 'Joining the Talvern Medical delivery team',
     selfGranted: false,
     otherHoldersOfCritical: 2,
     ...over,

@@ -31,7 +31,7 @@ function row(overrides: Partial<InvitationRow> = {}): InvitationRow {
     status: 'SENT',
     expiresAt: new Date('2026-09-01T00:00:00Z'),
     createdAt: new Date('2026-08-01T00:00:00Z'),
-    fromCompany: { id: 'client-1', name: 'Terumo BCT', slug: 'terumo' },
+    fromCompany: { id: 'client-1', name: 'Talvern Medical', slug: 'terumo' },
     requirement: {
       id: 'req-1',
       title: 'SAP MM Consultant',

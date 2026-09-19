@@ -104,7 +104,7 @@ describe('The legally grounded gates stop an award, and nobody can wave them thr
 
   it('a tenure cap breach blocks the placement', () => {
     const d = assessAward(facts({
-      governance: { blocks: ['Ravi Patel has 18 of 18 months at Terumo BCT across all vendors'], warnings: [] },
+      governance: { blocks: ['Ravi Patel has 18 of 18 months at Talvern Medical across all vendors'], warnings: [] },
     }))
     expect(d.decision).toBe('BLOCKED')
     expect(check(d, 'GOVERNANCE')?.outcome).toBe('BLOCK')

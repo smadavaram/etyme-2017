@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { chainTop } from '@/lib/chain-top'
 
 /**
- * Nike's dashboard said five contractors through four suppliers for
+ * Northbend Athletic's dashboard said five contractors through four suppliers for
  * three people, and showed what CloudEPA charges Computer Systems for
  * Helena. The client sees the contract it pays, and nothing below it.
  */

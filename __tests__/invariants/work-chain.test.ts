@@ -4,7 +4,7 @@ import {
 } from '@/lib/work-chain'
 
 /**
- * Adobe ← Computer Systems ← CloudEPA ← Priya.
+ * Auralis Software ← Computer Systems ← CloudEPA ← Priya.
  *
  * Two sell contracts. Computer Systems' buy contract points at
  * CloudEPA's sell contract, which is the edge that makes the ladder

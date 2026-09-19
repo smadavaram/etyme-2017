@@ -25,7 +25,7 @@ function inv(over: Partial<ArInvoice> = {}): ArInvoice {
     paidMinor: 0,
     dueAt: new Date('2026-07-30T00:00:00Z'),
     customerId: 'c-nike',
-    customerName: 'Nike Inc',
+    customerName: 'Northbend Athletic Inc',
     ...over,
   }
 }
@@ -170,7 +170,7 @@ describe('One view for the same argument', () => {
       shortPaid,
       [
         {
-          invoiceId: 'inv-2', invoiceNumber: 'IN_ABC_002', customerName: 'Nike Inc',
+          invoiceId: 'inv-2', invoiceNumber: 'IN_ABC_002', customerName: 'Northbend Athletic Inc',
           currency: 'USD', amountMinor: 300_000, reasonCode: 'HOURS_DISPUTED',
           appliedAt: NOW, issuedAt: new Date('2026-08-01T00:00:00Z'),
         },
@@ -191,7 +191,7 @@ describe('One view for the same argument', () => {
       [],
       [
         {
-          invoiceId: 'inv-2', invoiceNumber: 'IN_ABC_002', customerName: 'Nike Inc',
+          invoiceId: 'inv-2', invoiceNumber: 'IN_ABC_002', customerName: 'Northbend Athletic Inc',
           currency: 'USD', amountMinor: 100_000, reasonCode: 'GOODWILL',
           appliedAt: null, issuedAt: new Date('2026-08-25T00:00:00Z'),
         },

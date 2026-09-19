@@ -27,14 +27,14 @@ import { GET as ownPeople } from '@/app/api/submissions/own-people/route'
  *
  * ── Who is in it ─────────────────────────────────────────────────────
  *
- *   Corning           the client. Publishes the seat, awards it, pays.
- *   Ardent Systems    a GSI. Sells to Corning and brings Arun, who is on
+ *   Cavanaugh Glassworks           the client. Publishes the seat, awards it, pays.
+ *   Ardent Systems    a GSI. Sells to Cavanaugh Glassworks and brings Arun, who is on
  *                     its own payroll. No supplier under it.
- *   Vertex Talent     a staffing vendor. Sells to Corning and brings
+ *   Veritan Talent     a staffing vendor. Sells to Cavanaugh Glassworks and brings
  *                     Lena, a consultant who granted it a bench listing.
  *   Arun Nadar        Ardent's employee. Told, never asked.
  *   Lena Ortiz        Vertex's bench consultant. Asked, as always.
- *   Maya Rao          also Ardent's employee, and Corning is on her
+ *   Maya Rao          also Ardent's employee, and Cavanaugh Glassworks is on her
  *                     do-not-submit list.
  *
  * Both submissions land on the same requirement, which is the case the
@@ -84,7 +84,7 @@ async function insure(companyId: string, uploadedById: string) {
 beforeAll(async () => {
   await resetDatabase()
 
-  const corning = await company('Corning', 'corning', 'CLIENT', CORNING_PM)
+  const corning = await company('Cavanaugh Glassworks', 'corning', 'CLIENT', CORNING_PM)
   co.corning = corning.companyId
   who.pm = corning.personId
 
@@ -92,7 +92,7 @@ beforeAll(async () => {
   co.ardent = ardent.companyId
   who.dm = ardent.personId
 
-  const vertex = await company('Vertex Talent', 'vertex-talent', 'VENDOR', VERTEX)
+  const vertex = await company('Veritan Talent', 'vertex-talent', 'VENDOR', VERTEX)
   co.vertex = vertex.companyId
   who.vertexLead = vertex.personId
 
@@ -113,7 +113,7 @@ beforeAll(async () => {
     },
   })
 
-  // Maya is too, and she has told the system she will not go to Corning.
+  // Maya is too, and she has told the system she will not go to Cavanaugh Glassworks.
   const maya = await prisma.person.create({
     data: { name: 'Maya Rao', primaryEmail: 'maya@ardent.test' },
   })
@@ -137,7 +137,7 @@ beforeAll(async () => {
   const profile = await prisma.consultantProfile.create({
     data: {
       personId: lena.id, skills: ['Validation', 'GxP'],
-      location: 'Corning, New York', visibility: 'VERIFIED', workAuth: 'GC',
+      location: 'Cavanaugh Glassworks, New York', visibility: 'VERIFIED', workAuth: 'GC',
     },
   })
   await prisma.benchListing.create({
@@ -155,12 +155,12 @@ beforeAll(async () => {
   })
   who.stranger = stranger.id
 
-  // Corning's seat. Two heads, so the walk can award one and still read
+  // Cavanaugh Glassworks's seat. Two heads, so the walk can award one and still read
   // what happened to the other.
   const requirement = await prisma.requirement.create({
     data: {
       companyId: co.corning, title: 'Validation engineer — Sullivan Park',
-      skills: ['Validation', 'GxP'], location: 'Corning, New York',
+      skills: ['Validation', 'GxP'], location: 'Cavanaugh Glassworks, New York',
       status: 'OPEN', approvalState: 'APPROVED', headcount: 2,
       billMin: 9_000, billMax: 13_000, months: 12,
       startDate: new Date('2026-10-05'), raisedById: who.pm, ownerId: who.pm,
@@ -216,7 +216,7 @@ describe('A GSI puts its own employee in front of a client', () => {
       where: { personId: who.arun, type: 'SUBMISSION' },
     })
     expect(told.title).toContain('Ardent Systems')
-    expect(told.title).toContain('Corning')
+    expect(told.title).toContain('Cavanaugh Glassworks')
     expect(told.body).toContain('Validation engineer — Sullivan Park')
   })
 
@@ -288,7 +288,7 @@ describe('A staffing vendor answers the same seat the old way, and both stand', 
 })
 
 describe('Employing somebody does not override what they said about a client', () => {
-  it('refuses Maya even though Ardent employs her, because Corning is on her list', async () => {
+  it('refuses Maya even though Ardent employs her, because Cavanaugh Glassworks is on her list', async () => {
     as(ARDENT_DM)
     const r = await json(await submitCandidate(req('POST', '/api/submissions', {
       requirementId: it_.requirement,
@@ -349,8 +349,8 @@ describe('The rule has a door, so somebody can actually pick an employee', () =>
   })
 })
 
-describe('Corning awards the employee, and Ardent gets a contract pair with nobody underneath', () => {
-  it('lets Corning award Ardent’s own employee', async () => {
+describe('Cavanaugh Glassworks awards the employee, and Ardent gets a contract pair with nobody underneath', () => {
+  it('lets Cavanaugh Glassworks award Ardent’s own employee', async () => {
     as(CORNING_PM)
     const r = await json(await awardSubmission(
       req('POST', `/api/submissions/${it_.internal}/award`, {
@@ -361,7 +361,7 @@ describe('Corning awards the employee, and Ardent gets a contract pair with nobo
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
   })
 
-  it('writes the sell contract Ardent bills Corning under', async () => {
+  it('writes the sell contract Ardent bills Cavanaugh Glassworks under', async () => {
     const sell = await prisma.sellContract.findFirstOrThrow({
       where: { companyId: co.ardent, clientCompanyId: co.corning, personId: who.arun },
     })

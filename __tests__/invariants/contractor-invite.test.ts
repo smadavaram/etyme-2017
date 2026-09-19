@@ -28,10 +28,10 @@ describe('who may be asked', () => {
   })
 
   it('a person this client barred does not come back through a side door, and is refused with the reason they were barred for', () => {
-    const v = mayInvite({ ...base, blockedReason: 'Walked off a Terumo site with no notice.' })
+    const v = mayInvite({ ...base, blockedReason: 'Walked off a Talvern Medical site with no notice.' })
     expect(v.ok).toBe(false)
     expect(v.ok === false && v.code).toBe('BLOCKED')
-    expect(v.ok === false && v.message).toContain('Walked off a Terumo site')
+    expect(v.ok === false && v.message).toContain('Walked off a Talvern Medical site')
     expect(v.ok === false && v.message).toContain('Lift the block first')
   })
 
@@ -142,11 +142,11 @@ describe('the link the person opens', () => {
 
   it('the letter says who wants them, why, and that the client is not the employer — before it asks anything', () => {
     const letter = inviteLetter({
-      name: 'Lucía Fernández', clientName: 'Nike', inviterName: 'Dana Roy',
+      name: 'Lucía Fernández', clientName: 'Northbend Athletic', inviterName: 'Dana Roy',
       reason: 'Finished twelve months on our planning team and we would take her back.',
       token: 'abc',
     })
-    expect(letter.subject).toContain('Nike')
+    expect(letter.subject).toContain('Northbend Athletic')
     expect(letter.body).toContain('Dana Roy')
     expect(letter.body).toContain('planning team')
     expect(letter.body).toMatch(/rather than directly/)
@@ -155,7 +155,7 @@ describe('the link the person opens', () => {
   })
 
   it('opens on their first name, because a letter to a stranger that opens "Hello," reads as a mailshot', () => {
-    expect(inviteLetter({ name: 'Lucía Fernández', clientName: 'Nike', inviterName: 'D', reason: 'r', token: 't' }).body)
+    expect(inviteLetter({ name: 'Lucía Fernández', clientName: 'Northbend Athletic', inviterName: 'D', reason: 'r', token: 't' }).body)
       .toMatch(/^Lucía,/)
   })
 })

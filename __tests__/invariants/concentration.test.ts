@@ -33,7 +33,7 @@ describe('Too small to concentrate is a different answer from safe', () => {
     const c = concentration({
       dimension: 'CLIENT',
       unit: 'MONEY',
-      exposures: money([['Terumo BCT', 700_000_00], ['Nike', 300_000_00]]),
+      exposures: money([['Talvern Medical', 700_000_00], ['Northbend Athletic', 300_000_00]]),
     })
     expect(c.topSharePct).toBeNull()
     expect(c.says).toContain('small book')
@@ -66,7 +66,7 @@ describe('Too small to concentrate is a different answer from safe', () => {
       dimension: 'CLIENT',
       unit: 'MONEY',
       exposures: money([
-        ['Terumo BCT', 50_000_00], ['Nike', 30_000_00],
+        ['Talvern Medical', 50_000_00], ['Northbend Athletic', 30_000_00],
         ['Baxter', 20_000_00], ['Dormant Co', 0],
       ]),
     })
@@ -81,9 +81,9 @@ describe('Too small to concentrate is a different answer from safe', () => {
       dimension: 'CLIENT',
       unit: 'MONEY',
       exposures: [
-        { id: '1', name: 'Terumo BCT', amountMinor: 500_000_00, currency: 'USD' },
+        { id: '1', name: 'Talvern Medical', amountMinor: 500_000_00, currency: 'USD' },
         { id: '2', name: 'Siemens Healthineers', amountMinor: 300_000_00, currency: 'EUR' },
-        { id: '3', name: 'Nike', amountMinor: 200_000_00, currency: 'USD' },
+        { id: '3', name: 'Northbend Athletic', amountMinor: 200_000_00, currency: 'USD' },
       ],
     })
     expect(c.topSharePct).toBeNull()
@@ -98,12 +98,12 @@ describe('The share that decides whether one phone call closes the firm', () => 
       dimension: 'CLIENT',
       unit: 'MONEY',
       exposures: money([
-        ['Terumo BCT', 500_000_00], ['Nike', 200_000_00],
+        ['Talvern Medical', 500_000_00], ['Northbend Athletic', 200_000_00],
         ['Baxter', 200_000_00], ['Kaiser', 100_000_00],
       ]),
     })
     expect(c.topSharePct).toBe(50)
-    expect(c.topName).toBe('Terumo BCT')
+    expect(c.topName).toBe('Talvern Medical')
     expect(c.breach?.severity).toBe('WARN')
     expect(c.breach?.atOrAbovePct).toBe(40)
     expect(c.breach?.meaning).toContain('owns the firm')
@@ -114,7 +114,7 @@ describe('The share that decides whether one phone call closes the firm', () => 
       dimension: 'CLIENT',
       unit: 'MONEY',
       exposures: money([
-        ['Terumo BCT', 300_000_00], ['Nike', 250_000_00],
+        ['Talvern Medical', 300_000_00], ['Northbend Athletic', 250_000_00],
         ['Baxter', 250_000_00], ['Kaiser', 200_000_00],
       ]),
     })
@@ -155,7 +155,7 @@ describe('The share that decides whether one phone call closes the firm', () => 
       dimension: 'CLIENT',
       unit: 'MONEY',
       exposures: money([
-        ['Terumo BCT', 400_000_00], ['Nike', 300_000_00],
+        ['Talvern Medical', 400_000_00], ['Northbend Athletic', 300_000_00],
         ['Baxter', 200_000_00], ['Kaiser', 100_000_00],
       ]),
     })
@@ -187,7 +187,7 @@ describe('A breach with nobody against it does not get acted on', () => {
       dimension: 'CLIENT',
       unit: 'MONEY',
       exposures: money([
-        ['Terumo BCT', 500_000_00], ['Nike', 200_000_00],
+        ['Talvern Medical', 500_000_00], ['Northbend Athletic', 200_000_00],
         ['Baxter', 200_000_00], ['Kaiser', 100_000_00],
       ]),
     })
@@ -201,7 +201,7 @@ describe('A breach with nobody against it does not get acted on', () => {
       dimension: 'CLIENT',
       unit: 'MONEY',
       exposures: money([
-        ['Terumo BCT', 500_000_00], ['Nike', 200_000_00],
+        ['Talvern Medical', 500_000_00], ['Northbend Athletic', 200_000_00],
         ['Baxter', 200_000_00], ['Kaiser', 100_000_00],
       ]),
       owners: { CLIENT: { name: 'Dana Whitfield', role: 'Managing Director' } },
@@ -226,7 +226,7 @@ describe('The three dimensions together, worst first', () => {
       dimension: 'CLIENT',
       unit: 'MONEY',
       exposures: money([
-        ['Terumo BCT', 500_000_00], ['Nike', 200_000_00],
+        ['Talvern Medical', 500_000_00], ['Northbend Athletic', 200_000_00],
         ['Baxter', 200_000_00], ['Kaiser', 100_000_00],
       ]),
     })
@@ -247,7 +247,7 @@ describe('The three dimensions together, worst first', () => {
     expect(report.notes).toBe(1)
     expect(report.silent).toBe(1)
     expect(report.blocks).toBe(false)
-    expect(report.says).toContain('Terumo BCT')
+    expect(report.says).toContain('Talvern Medical')
   })
 
   it('a book too small to measure anywhere says that, rather than showing three clean ticks', () => {

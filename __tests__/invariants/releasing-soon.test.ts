@@ -18,7 +18,7 @@ function person(over: Partial<RollingOff> = {}): RollingOff {
     personName: 'Anita Desai',
     vendorCompanyId: 'v1',
     vendorName: 'Cloudepa Inc.',
-    endClientName: 'Terumo BCT',
+    endClientName: 'Talvern Medical',
     endDate: inDays(20),
     consented: true,
     headline: 'SAP FICO Consultant',
@@ -64,7 +64,7 @@ describe('what a buyer is told', () => {
 
   it('says what they are finishing, because doing beats claiming', () => {
     const [r] = releasing([person()], NOW)
-    expect(r.proven).toBe('Finishing at Terumo BCT')
+    expect(r.proven).toBe('Finishing at Talvern Medical')
   })
 
   it('says plainly when they may extend instead', () => {

@@ -249,13 +249,13 @@ describe('what the person themselves is told', () => {
     // this exists to answer.
     const said = tellThem({
       vendorName: 'Cloudepa Inc.',
-      clientName: 'Terumo BCT',
+      clientName: 'Talvern Medical',
       roleTitle: 'SAP FICO Consultant',
       hold: hold({ expiresAt: ahead(30) }),
       now: NOW,
     })
     expect(said).toContain('Cloudepa Inc.')
-    expect(said).toContain('Terumo BCT')
+    expect(said).toContain('Talvern Medical')
     expect(said).toContain('SAP FICO Consultant')
     expect(said).toMatch(/30 days/)
   })
@@ -263,19 +263,19 @@ describe('what the person themselves is told', () => {
   it('reads as a sentence even when the role has no title', () => {
     const said = tellThem({
       vendorName: 'Cloudepa Inc.',
-      clientName: 'Terumo BCT',
+      clientName: 'Talvern Medical',
       roleTitle: null,
       hold: hold(),
       now: NOW,
     })
     expect(said).not.toMatch(/\bfor\s+\./)
-    expect(said).toContain('put you forward to Terumo BCT')
+    expect(said).toContain('put you forward to Talvern Medical')
   })
 
   it('tells them what the hold stops other agencies doing', () => {
     const said = tellThem({
       vendorName: 'Cloudepa Inc.',
-      clientName: 'Terumo BCT',
+      clientName: 'Talvern Medical',
       roleTitle: null,
       hold: hold(),
       now: NOW,

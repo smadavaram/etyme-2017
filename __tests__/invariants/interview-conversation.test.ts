@@ -31,7 +31,7 @@ const ctx: NoticeContext = {
   stage: 'Technical',
   role: 'Workday integrator',
   consultant: { id: 'p-priya', name: 'Priya Raman' },
-  client: { id: 'c-nike', name: 'Nike' },
+  client: { id: 'c-nike', name: 'Northbend Athletic' },
   vendor: { id: 'c-cloudepa', name: 'CloudEPA' },
   requesterId: 'p-dana',
   vendorStaffIds: ['p-bench', 'p-recruiter'],

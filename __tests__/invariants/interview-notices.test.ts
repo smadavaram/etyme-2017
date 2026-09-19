@@ -16,7 +16,7 @@ const ctx: NoticeContext = {
   stage: 'Technical',
   role: 'Workday integrator',
   consultant: { id: 'p-priya', name: 'Priya Raman' },
-  client: { id: 'c-nike', name: 'Nike' },
+  client: { id: 'c-nike', name: 'Northbend Athletic' },
   vendor: { id: 'c-cloudepa', name: 'CloudEPA' },
   requesterId: 'p-dana',
   vendorStaffIds: ['p-bench', 'p-recruiter'],
@@ -41,7 +41,7 @@ describe('when a client proposes a round', () => {
 
   it('says which client, which round, what for, and how many times were offered', () => {
     const [vendor] = noticesFor('PROPOSED', ctx)
-    expect(vendor.title).toBe('Nike wants to interview Priya Raman')
+    expect(vendor.title).toBe('Northbend Athletic wants to interview Priya Raman')
     expect(vendor.body).toContain('Technical, round 2, for Workday integrator')
     expect(vendor.body).toContain('3 times offered')
   })

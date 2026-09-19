@@ -23,7 +23,7 @@ function sent(over: Partial<SentDocument> = {}): SentDocument {
     status: 'SENT',
     templateName: 'Non-disclosure agreement',
     needsSignature: true,
-    issuerName: 'Nike',
+    issuerName: 'Northbend Athletic',
     sentAt: new Date('2026-09-10T00:00:00Z'),
     signedAt: null,
     ...over,
@@ -62,7 +62,7 @@ describe('what a person sees on their own paperwork page', () => {
   it('shows a document sent for signature, with who asked and what to do about it', () => {
     const [paper] = mine({ documents: [sent()] })
     expect(paper.name).toBe('Non-disclosure agreement')
-    expect(paper.askedBy).toBe('Nike')
+    expect(paper.askedBy).toBe('Northbend Athletic')
     expect(paper.word).toBe('Asked for')
     expect(paper.todo).toBe('sign')
   })

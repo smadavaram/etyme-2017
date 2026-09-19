@@ -329,12 +329,12 @@ describe('Somebody is told before the agreement above their placements runs out'
   })
 
   it('what the reader is told names the client, the date and what to do about it', () => {
-    const soon = milestoneSays('Nike', term({ expiresAt: new Date('2026-10-10T12:00:00.000Z') }), NOW)
-    expect(soon?.title).toContain('Nike')
+    const soon = milestoneSays('Northbend Athletic', term({ expiresAt: new Date('2026-10-10T12:00:00.000Z') }), NOW)
+    expect(soon?.title).toContain('Northbend Athletic')
     expect(soon?.title).toContain('24 days')
     expect(soon?.body).toContain('Start the renewal')
 
-    const gone = milestoneSays('Nike', term({ expiresAt: new Date('2026-09-01T12:00:00.000Z') }), NOW)
+    const gone = milestoneSays('Northbend Athletic', term({ expiresAt: new Date('2026-09-01T12:00:00.000Z') }), NOW)
     expect(gone?.title).toContain('has run out')
     expect(gone?.body).toContain('lapsed paper')
   })

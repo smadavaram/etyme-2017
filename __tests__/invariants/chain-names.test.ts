@@ -15,7 +15,7 @@ import { mayNameSubVendors, nameForClient, namesForClient } from '@/lib/chain-na
 const rung = (id: string, personId: string, companyId: string, companyName: string, clientCompanyId: string) =>
   ({ id, personId, companyId, companyName, clientCompanyId })
 
-// Nike buys Helena from Computer Systems, who buys her from CloudEPA.
+// Northbend Athletic buys Helena from Computer Systems, who buys her from CloudEPA.
 const CHAIN = [
   rung('sub', 'helena', 'cloudepa', 'CloudEPA', 'computer-systems'),
   rung('top', 'helena', 'computer-systems', 'Computer Systems Inc', 'nike'),

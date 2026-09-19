@@ -185,7 +185,7 @@ describe('holding somebody on a blind role', () => {
   })
 
   it('keys it to the client once the name is known', () => {
-    // So a seat that turns out to be Terumo joins every other Terumo hold
+    // So a seat that turns out to be Talvern Medical joins every other Talvern Medical hold
     // rather than living in its own world.
     expect(holdKeyFor({ clientCompanyId: 'terumo', id: 'op1' })).toBe('terumo')
   })

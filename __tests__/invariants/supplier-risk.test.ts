@@ -264,7 +264,7 @@ describe('The verdict warns, names somebody, and never stops the work', () => {
   it('a client is not put at risk for holding no insurance certificate, because cover flows the other way', () => {
     const client = supplierRisk(
       input({
-        counterparty: { ...supplier, relationship: 'CLIENT', name: 'Terumo BCT' },
+        counterparty: { ...supplier, relationship: 'CLIENT', name: 'Talvern Medical' },
         settlements: settled(6, 0, 'THEIRS'),
       }),
       NOW
@@ -278,7 +278,7 @@ describe('The verdict warns, names somebody, and never stops the work', () => {
   it('a client who settles a month late is warned about, with the days named', () => {
     const risk = supplierRisk(
       input({
-        counterparty: { ...supplier, relationship: 'CLIENT', name: 'Terumo BCT' },
+        counterparty: { ...supplier, relationship: 'CLIENT', name: 'Talvern Medical' },
         settlements: settled(6, 34, 'THEIRS'),
       }),
       NOW

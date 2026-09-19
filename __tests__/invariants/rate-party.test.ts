@@ -162,7 +162,7 @@ describe('a rate is a term of a contract, and only its two parties may read it',
   })
 
   it('never lets the site the work happens at stand in for the firm that pays', () => {
-    // Both of Helena's legs name Nike as end client — the sub's as much
+    // Both of Helena's legs name Northbend Athletic as end client — the sub's as much
     // as the prime's — so an end-client clause on a list that carries a
     // rate is the leak itself, not a route to it.
     for (const kind of ['CLIENT', 'VENDOR', 'MSP', 'GSI']) {
@@ -338,8 +338,8 @@ describe('which scope a route may use is written down, not remembered', () => {
 
   it('catches the timesheet list as it was written this morning, which is how this register earns its keep', () => {
     // Verbatim from src/app/api/timesheets/route.ts at 258b4bfd. It
-    // showed Nike $118 — what CloudEPA charges Computer Systems —
-    // against the $145 Nike pays.
+    // showed Northbend Athletic $118 — what CloudEPA charges Computer Systems —
+    // against the $145 Northbend Athletic pays.
     const thisMorning = `
       import { sellContractScope } from '@/lib/resolve-client-company'
       // A client approves hours worked at their sites; a vendor sees the hours
@@ -357,8 +357,8 @@ describe('which scope a route may use is written down, not remembered', () => {
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
- * Helena's chain. Nike buys her from Computer Systems at $145; Computer
- * Systems buys her from CloudEPA at $118. Both legs name Nike as the end
+ * Helena's chain. Northbend Athletic buys her from Computer Systems at $145; Computer
+ * Systems buys her from CloudEPA at $118. Both legs name Northbend Athletic as the end
  * client, because that is the building she walks into.
  */
 const BOTTOM: DatedRung & { billRate: number } = {
@@ -377,7 +377,7 @@ describe('in a chain the client reads the rung it pays and never the one underne
   })
 
   it('understates the client by the prime’s whole margin when it reads the leg underneath', () => {
-    // Three approved weeks: $17,400 at what Nike pays, $14,160 at what
+    // Three approved weeks: $17,400 at what Northbend Athletic pays, $14,160 at what
     // its supplier pays. The $3,240 gap is both the wrong bill and the
     // exact figure a client must not be able to compute.
     expect(120 * TOP.billRate - 120 * BOTTOM.billRate).toBe(324_000)

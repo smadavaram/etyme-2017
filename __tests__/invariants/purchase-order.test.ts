@@ -59,7 +59,7 @@ describe('A purchase order is not a buy contract', () => {
   })
 
   it('a client issues purchase orders while having no buy contracts at all', () => {
-    // Terumo buys services against an MSA, not talent. It has no payroll
+    // Talvern Medical buys services against an MSA, not talent. It has no payroll
     // entity, no pay rate and no W2 — so no buy contract can represent
     // the PO it must raise to its suppliers.
     const client = { kind: 'CLIENT', buyContracts: 0, posIssued: 2 }

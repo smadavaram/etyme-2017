@@ -8,8 +8,8 @@ import { POST as addUnit } from '@/app/api/program/units/route'
 import { GET as coldOpenings } from '@/app/api/cron/cold-openings/route'
 
 /**
- * Nike puts Pinnacle on probation and Brightmoor on the preferred list;
- * the suppliers page shows both. Nike adds a practice under Technology.
+ * Northbend Athletic puts Pinnacle on probation and Brightmoor on the preferred list;
+ * the suppliers page shows both. Northbend Athletic adds a practice under Technology.
  * A seat Pinnacle has not advertised in eight weeks goes cold overnight.
  */
 
@@ -27,7 +27,7 @@ describe('standing, units and cold seats', () => {
     }
   }, 240_000)
 
-  it('Nike rates Pinnacle on probation and Brightmoor preferred, and the suppliers page says so', async () => {
+  it('Northbend Athletic rates Pinnacle on probation and Brightmoor preferred, and the suppliers page says so', async () => {
     as(NIKE_OFFICE)
     for (const [slug, tier] of [['world-pinnacle', 'PROBATION'], ['world-brightmoor', 'PREFERRED']]) {
       const r = await json(await setStanding(req('PATCH', '/api/counterparties', { otherCompanyId: co[slug], relationship: 'SUPPLIER', tier })))
@@ -47,7 +47,7 @@ describe('standing, units and cold seats', () => {
     expect(r.body.error.message).toContain('not "GOLD"')
   })
 
-  it('Nike adds a Data practice under Technology; adding it twice hands back the first', async () => {
+  it('Northbend Athletic adds a Data practice under Technology; adding it twice hands back the first', async () => {
     as(NIKE_OFFICE)
     const tech = await prisma.orgUnit.findFirstOrThrow({ where: { companyId: co['world-nike'], name: 'Technology' }, select: { id: true } })
     const r = await json(await addUnit(req('POST', '/api/program/units', { name: 'Data practice', kind: 'PRACTICE', parentId: tech.id })))

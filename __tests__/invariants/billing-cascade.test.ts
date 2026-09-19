@@ -19,7 +19,7 @@ import {
  */
 
 const COMPANY = { name: 'Cloudepa Inc.', paymentTermsDays: 45, currency: 'USD' }
-const AGREEMENT = { counterpartyName: 'Terumo BCT', paymentTermsDays: 60, currency: 'USD' }
+const AGREEMENT = { counterpartyName: 'Talvern Medical', paymentTermsDays: 60, currency: 'USD' }
 
 describe('which level decides', () => {
   it('uses the contract when the contract says something', () => {
@@ -72,8 +72,8 @@ describe('which level decides', () => {
 describe('saying where a value came from', () => {
   it('names the agreement, so somebody knows which document to read', () => {
     const t = resolveBillingTerms({ company: COMPANY, agreement: AGREEMENT, contract: null })
-    expect(t.paymentTermsDays.because).toContain('Terumo BCT')
-    expect(explain(t.paymentTermsDays)).toBe('Net 60, from your agreement with Terumo BCT')
+    expect(t.paymentTermsDays.because).toContain('Talvern Medical')
+    expect(explain(t.paymentTermsDays)).toBe('Net 60, from your agreement with Talvern Medical')
   })
 
   it('records what it overrode, so the level to fix is visible', () => {
@@ -145,7 +145,7 @@ describe('the currency travels the same path', () => {
   it('takes the currency from the agreement when the contract is silent', () => {
     const t = resolveBillingTerms({
       company: { name: 'Infosys', currency: 'INR', paymentTermsDays: null },
-      agreement: { counterpartyName: 'Nike', currency: 'USD', paymentTermsDays: null },
+      agreement: { counterpartyName: 'Northbend Athletic', currency: 'USD', paymentTermsDays: null },
       contract: null,
     })
     // A US client pays in dollars even where the supplier's own default is

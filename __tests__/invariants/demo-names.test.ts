@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { namedCompanies } from '@/lib/positioning'
 
@@ -119,6 +119,9 @@ const RETIRED: { was: string; now: string }[] = [
   { was: 'Lakewood', now: 'Westminster, CO' },
 ]
 
+/** The two that are places rather than companies. Surfaces only — see below. */
+const TOWNS = new Set(['Beaverton', 'Lakewood'])
+
 /** Where a retired name still appears, with the line, so somebody can go and look. */
 function stillNames(source: string, was: string): string[] {
   const pattern = new RegExp(`\\b${was.replace(/ /g, '\\s+')}\\b`)
@@ -167,6 +170,83 @@ describe('The demo names no real company, on any surface a visitor reaches', () 
     expect(stillNames('    name: \'Nike\',', 'Nike')).toHaveLength(1)
     expect(stillNames("    slug: 'world-nike',", 'Nike')).toEqual([])
   })
+})
+
+/**
+ * And the fixtures, which are where the names come back from.
+ *
+ * ── Why a test file is on this list at all ────────────────────────────
+ *
+ * Nobody demos a test. The sweep above is about what a visitor reads,
+ * and a visitor never reads `__tests__`. This half is about the other
+ * direction: where a retired name comes back from once it has been
+ * taken off every screen.
+ *
+ * It comes back from a fixture. A seed is written by reading the test
+ * that describes the thing being seeded, and a fixture that still says
+ * `name: 'Nike'` is a name sitting one copy-paste away from a screen.
+ * That is exactly how this was found — `concentration.test.ts` named
+ * two of the three retired clients in its exposure fixtures for two
+ * days after the sheet was applied, because the sweep read the seeds
+ * and not the tests the seeds are written against.
+ *
+ * ── The company names, not the towns ─────────────────────────────────
+ *
+ * The sheet retired two towns as well, because a headquarters town
+ * names a company as surely as the company does when it is printed on
+ * a door beside it. In a fixture it does not: `location: 'Lakewood,
+ * CO'` on a requirement is a city where a job is, next to an invented
+ * firm, and the seeded world's own towns — Tualatin, Westminster — are
+ * equally real places. So this half reads the company names only, and
+ * the towns stay a rule about surfaces.
+ *
+ * ── The two files that must name a real company ──────────────────────
+ *
+ * A guard is only worth having if something proves it bites, and both
+ * proofs need the thing being guarded against. This file holds the
+ * sheet itself; `positioning.test.ts` feeds the retired line back into
+ * `namedCompanies` to show the home-page guard still catches it. Every
+ * other file under both directories is swept.
+ */
+
+const FIXTURE_DIRS = ['__tests__', '__integration__']
+
+/** The files that are allowed to say a retired name, and why. */
+const MAY_NAME = new Set([
+  '__tests__/invariants/demo-names.test.ts',
+  '__tests__/invariants/positioning.test.ts',
+])
+
+function testFiles(dir: string): string[] {
+  const out: string[] = []
+  for (const entry of readdirSync(join(process.cwd(), dir), { withFileTypes: true })) {
+    const path = `${dir}/${entry.name}`
+    if (entry.isDirectory()) out.push(...testFiles(path))
+    else if (/\.tsx?$/.test(entry.name) && !MAY_NAME.has(path)) out.push(path)
+  }
+  return out
+}
+
+describe('The names are gone from the fixtures too, which is where they come back from', () => {
+  const files = FIXTURE_DIRS.flatMap(testFiles)
+
+  it('finds the test files at all, rather than passing on a directory it never opened', () => {
+    expect(files.length).toBeGreaterThan(100)
+  })
+
+  for (const { was, now } of RETIRED.filter((r) => !TOWNS.has(r.was))) {
+    it(`no fixture, no comment and no test name under __tests__ or __integration__ still says ${was} — it is ${now}`, () => {
+      const left = files.flatMap((file) =>
+        stillNames(read(file), was).map((where) => `${file} ${where}`)
+      )
+      expect(
+        left,
+        `"${was}" is still written down in a test. The sheet in docs/demo-names.md moves it to ` +
+          `"${now}". A fixture is where a name comes back from: the next seed is written by ` +
+          'reading the test that describes it, and a screen is one copy-paste away.'
+      ).toEqual([])
+    })
+  }
 })
 
 describe('The slugs stay, because an address is not a word anybody reads', () => {

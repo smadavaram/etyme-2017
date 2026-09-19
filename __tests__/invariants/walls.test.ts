@@ -171,7 +171,7 @@ describe('telling somebody they are seeing less than everything', () => {
   })
 
   it('names the account, so a smaller number is understood rather than doubted', () => {
-    expect(scopeNote(['x'], 'Terumo account')).toMatch(/Terumo account/)
+    expect(scopeNote(['x'], 'Talvern Medical account')).toMatch(/Talvern Medical account/)
   })
 
   it('still says something when the account has no name to hand', () => {

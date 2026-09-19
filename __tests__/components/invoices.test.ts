@@ -363,8 +363,8 @@ describe('Invoice aging summary', () => {
 
 describe('Invoice search filter', () => {
   const invoices = [
-    { number: 'IN_AB12CD_001', engagement: 'SAP BRIM Migration', client: 'Terumo BCT', status: 'ISSUED' },
-    { number: 'IN_EF34GH_001', engagement: 'Cloud Platform', client: 'Nike Inc.', status: 'PAID' },
+    { number: 'IN_AB12CD_001', engagement: 'SAP BRIM Migration', client: 'Talvern Medical', status: 'ISSUED' },
+    { number: 'IN_EF34GH_001', engagement: 'Cloud Platform', client: 'Northbend Athletic Inc.', status: 'PAID' },
   ]
 
   const searchFilter = (row: typeof invoices[0], q: string) =>
@@ -385,9 +385,9 @@ describe('Invoice search filter', () => {
   })
 
   it('searches by client name', () => {
-    const filtered = invoices.filter((i) => searchFilter(i, 'nike'))
+    const filtered = invoices.filter((i) => searchFilter(i, 'northbend'))
     expect(filtered).toHaveLength(1)
-    expect(filtered[0].client).toBe('Nike Inc.')
+    expect(filtered[0].client).toBe('Northbend Athletic Inc.')
   })
 
   it('searches by status', () => {

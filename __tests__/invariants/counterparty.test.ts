@@ -28,7 +28,7 @@ describe('The register is typed, because Wipro is not a fact about a relationshi
 describe('Agreements prove relationships, the register does not repeat them', () => {
 
   it('an MSA where we are the vendor makes the other side a client', () => {
-    const rows = register('me', [], [{ vendorId: 'me', clientId: 'terumo', otherName: 'Terumo' }])
+    const rows = register('me', [], [{ vendorId: 'me', clientId: 'terumo', otherName: 'Talvern Medical' }])
     expect(rows[0].relationship).toBe('CLIENT')
     expect(rows[0].hasAgreement).toBe(true)
   })
@@ -42,15 +42,15 @@ describe('Agreements prove relationships, the register does not repeat them', ()
     // Requiring an MSA first would mean the register only records
     // relationships after they stop needing recording.
     const rows = register('me', [
-      { otherCompanyId: 'nike', otherCompanyName: 'Nike', relationship: 'CLIENT', status: 'PROSPECT' },
+      { otherCompanyId: 'nike', otherCompanyName: 'Northbend Athletic', relationship: 'CLIENT', status: 'PROSPECT' },
     ], [])
     expect(rows[0].says).toContain('no agreement yet')
   })
 
   it('a register row and an agreement for the same pair are one row, not two', () => {
     const rows = register('me',
-      [{ otherCompanyId: 'terumo', otherCompanyName: 'Terumo', relationship: 'CLIENT', status: 'ACTIVE' }],
-      [{ vendorId: 'me', clientId: 'terumo', otherName: 'Terumo' }])
+      [{ otherCompanyId: 'terumo', otherCompanyName: 'Talvern Medical', relationship: 'CLIENT', status: 'ACTIVE' }],
+      [{ vendorId: 'me', clientId: 'terumo', otherName: 'Talvern Medical' }])
     expect(rows).toHaveLength(1)
     expect(rows[0].hasAgreement).toBe(true)
   })
@@ -58,8 +58,8 @@ describe('Agreements prove relationships, the register does not repeat them', ()
   it('BLOCKED on the register blocks, agreement or no agreement', () => {
     // An agreement proves you trade, not that you still want to.
     const rows = register('me',
-      [{ otherCompanyId: 'terumo', otherCompanyName: 'Terumo', relationship: 'CLIENT', status: 'BLOCKED' }],
-      [{ vendorId: 'me', clientId: 'terumo', otherName: 'Terumo' }])
+      [{ otherCompanyId: 'terumo', otherCompanyName: 'Talvern Medical', relationship: 'CLIENT', status: 'BLOCKED' }],
+      [{ vendorId: 'me', clientId: 'terumo', otherName: 'Talvern Medical' }])
     expect(rows[0].status).toBe('BLOCKED')
     expect(rows[0].says).toContain('Nothing moves between you')
   })

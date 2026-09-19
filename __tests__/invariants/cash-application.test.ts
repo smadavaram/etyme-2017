@@ -16,7 +16,7 @@ function receipt(over: Partial<Receipt> = {}): Receipt {
   return {
     id: 'r1',
     payerCompanyId: 'c-nike',
-    payerName: 'Nike Inc',
+    payerName: 'Northbend Athletic Inc',
     currency: 'USD',
     amountMinor: 500_000,
     receivedAt: new Date('2026-08-20T00:00:00Z'),
@@ -48,7 +48,7 @@ describe('A receipt that names nothing is still a fact', () => {
   it('the unapplied queue shows the payer, the amount and the date, because that is what a person matches by hand', () => {
     const books = unappliedCash([receipt()], NOW)
     const r = books[0].receipts[0]
-    expect(r.payerName).toBe('Nike Inc')
+    expect(r.payerName).toBe('Northbend Athletic Inc')
     expect(r.amountMinor).toBe(500_000)
     expect(r.receivedAt.toISOString().slice(0, 10)).toBe('2026-08-20')
     expect(books[0].oldestDays).toBe(9)

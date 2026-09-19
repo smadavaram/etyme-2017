@@ -7,7 +7,7 @@ import { GET as contacts } from '@/app/api/contacts/route'
 
 /**
  * Brightmoor's owner brings the team in — account manager, HR, contract
- * manager, finance — and Nike's Contacts page fills with them.
+ * manager, finance — and Northbend Athletic's Contacts page fills with them.
  */
 const D = '@demo.etyme.local'
 const BRIGHTMOOR = `world-brightmoor${D}`
@@ -55,7 +55,7 @@ describe('a supplier brings its team in', () => {
     expect(told?.title).toContain('invited you to Brightmoor Staffing')
   })
 
-  it('Nike’s Contacts page now lists Brightmoor’s account manager, HR, contract manager and finance, sorted into the right chips', async () => {
+  it('Northbend Athletic’s Contacts page now lists Brightmoor’s account manager, HR, contract manager and finance, sorted into the right chips', async () => {
     as(NIKE_PM)
     const r = await json(await contacts(req('GET', '/api/contacts')))
     const at = r.body.data.contacts.filter((c: any) => c.at.name === 'Brightmoor Staffing')

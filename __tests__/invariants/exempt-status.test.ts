@@ -62,7 +62,7 @@ function position(over: Partial<WagePosition> = {}): WagePosition {
     assertion: asserted(),
     client: { treatment: null, appliedBps: null },
     employerName: 'Brightmoor Staffing',
-    clientName: 'Nike',
+    clientName: 'Northbend Athletic',
     ...over,
   }
 }
@@ -176,7 +176,7 @@ describe('what a client decided about a bill never reaches a wage', () => {
     // 5 hours at $100, at time and a half.
     expect(pay.overtimeCents).toBe(75_000)
     expect(pay.appliedBps).toBe(15_000)
-    // Nike priced nothing, so Brightmoor carries the whole premium this period.
+    // Northbend Athletic priced nothing, so Brightmoor carries the whole premium this period.
     expect(pay.uncoveredPremiumCents).toBe(75_000)
     expect(pay.says).toContain('public agencies only')
     expect(pay.says).toContain('$750.00')
@@ -187,7 +187,7 @@ describe('what a client decided about a bill never reaches a wage', () => {
     const pay = weekWage(WEEK, position({ client: { treatment: 'SAME_RATE', appliedBps: 10_000 } }))
     expect(pay.code).toBe('OWED_IN_MONEY')
     expect(pay.overtimeCents).toBe(75_000)
-    // Nike paid the plain rate on those hours; the half-rate premium is Brightmoor's.
+    // Northbend Athletic paid the plain rate on those hours; the half-rate premium is Brightmoor's.
     expect(pay.uncoveredPremiumCents).toBe(25_000)
     expect(pay.says).toContain('does not set')
   })

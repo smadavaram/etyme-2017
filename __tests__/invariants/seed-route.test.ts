@@ -6,7 +6,7 @@ import { join } from 'path'
  * The route that builds the demo world on a deployment.
  *
  * Re-run on production to add the HR and Procurement desks, it returned
- * nothing useful and changed nothing at Nike: a serverless function gets
+ * nothing useful and changed nothing at Northbend Athletic: a serverless function gets
  * ten seconds by default, and the seed needs more than that even when it
  * has nothing new to write. The limit is pinned here because nothing
  * else would catch it — the integration suite runs the seed in-process

@@ -64,7 +64,7 @@ function assertion(over: Partial<Assertion> = {}): Assertion {
 /** A real three-party chain: sub employs, prime passes on, client signs. */
 const THREE: { companyId: string; companyName: string; role: Role }[] = [
   { companyId: 'client', companyName: 'Calder Manufacturing', role: 'CLIENT_APPROVAL' },
-  { companyId: 'prime', companyName: 'Vertex Talent', role: 'PASS_THROUGH' },
+  { companyId: 'prime', companyName: 'Veritan Talent', role: 'PASS_THROUGH' },
   { companyId: 'sub', companyName: 'Cloudepa Systems', role: 'EMPLOYER_ACCEPTANCE' },
 ]
 
@@ -73,14 +73,14 @@ describe('a chain deeper than two', () => {
     // The exact case the two-column model got silently wrong.
     const legs = chain(record(), THREE, [assertion()])
     const p = position(record(), legs)
-    expect(p.waitingOn.map((l) => l.companyName)).toEqual(['Vertex Talent', 'Cloudepa Systems'])
-    expect(p.says).toBe('40 hours submitted. Waiting on Vertex Talent and Cloudepa Systems.')
+    expect(p.waitingOn.map((l) => l.companyName)).toEqual(['Veritan Talent', 'Cloudepa Systems'])
+    expect(p.says).toBe('40 hours submitted. Waiting on Veritan Talent and Cloudepa Systems.')
   })
 
   it('is complete only when everybody has spoken', () => {
     const legs = chain(record(), THREE, [
       assertion(),
-      assertion({ id: 'a2', companyId: 'prime', companyName: 'Vertex Talent', role: 'PASS_THROUGH', rateCents: 8500 }),
+      assertion({ id: 'a2', companyId: 'prime', companyName: 'Veritan Talent', role: 'PASS_THROUGH', rateCents: 8500 }),
       assertion({ id: 'a3', companyId: 'sub', companyName: 'Cloudepa Systems', role: 'EMPLOYER_ACCEPTANCE', rateCents: 7800 }),
     ])
     expect(position(record(), legs).complete).toBe(true)
@@ -92,7 +92,7 @@ describe('a chain deeper than two', () => {
     // missing.
     const legs = chain(record(), THREE, [])
     expect(legs).toHaveLength(3)
-    expect(legs[1].says).toBe('Vertex Talent has not passed on these hours yet.')
+    expect(legs[1].says).toBe('Veritan Talent has not passed on these hours yet.')
   })
 })
 
@@ -101,7 +101,7 @@ describe('each leg carries its own money', () => {
     const legs = chain(record(), THREE, [
       assertion({ rateCents: 9000 }),
       assertion({ id: 'a3', companyId: 'sub', companyName: 'Cloudepa Systems', role: 'EMPLOYER_ACCEPTANCE', rateCents: 7800 }),
-      assertion({ id: 'a2', companyId: 'prime', companyName: 'Vertex Talent', role: 'PASS_THROUGH', rateCents: 8500 }),
+      assertion({ id: 'a2', companyId: 'prime', companyName: 'Veritan Talent', role: 'PASS_THROUGH', rateCents: 8500 }),
     ])
     const p = position(record(), legs)
     expect(p.billableCents).toBe(40 * 9000)
@@ -199,7 +199,7 @@ describe('a chain with an offline party in the middle', () => {
     // pays on a signature nobody collected.
     const legs = chain(record(), THREE, [assertion()])
     expect(gaps(legs, new Set(['client', 'sub']))).toEqual([
-      'Vertex Talent is not on Etyme, so nothing here carries their approval. Somebody has to collect it another way.',
+      'Veritan Talent is not on Etyme, so nothing here carries their approval. Somebody has to collect it another way.',
     ])
   })
 

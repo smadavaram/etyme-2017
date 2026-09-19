@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 
 /**
- * The client dashboard, read from Nike's program desk: five contractors
+ * The client dashboard, read from Northbend Athletic's program desk: five contractors
  * for three people, $972.80 a month, seven roles waiting when two were
  * open, and "Nothing needs you" over six weeks of unsigned hours. Each
  * was a real number computed the wrong way round.
@@ -41,7 +41,7 @@ describe('what the client desk is told', () => {
   it('the queue a client approves from prices a week at the contract that client is billed on', () => {
     // A week is filed against the employer's leg, which in a chain is two
     // firms below the reader. Priced there it was blank for the client
-    // and, before that, its supplier's supplier's rate. Walked up, Nike
+    // and, before that, its supplier's supplier's rate. Walked up, Northbend Athletic
     // reads its own $145.
     expect(decisions).toContain("import { payerRung } from '@/lib/chain-top'")
     expect(decisions).toContain('const filed = rungs.find((r) => r.id === sc.id)')
@@ -116,7 +116,7 @@ describe('what the client desk is told', () => {
     expect(volume).toContain("? [['OPEN', 12], ['FILLED', 48], ['CLOSED', 22], ['CANCELLED', 10], ['DRAFT', 8]]")
   })
 
-  it('the seeded Nike desk has one week claimed over the role, so there is an exception to read', () => {
+  it('the seeded Northbend Athletic desk has one week claimed over the role, so there is an exception to read', () => {
     expect(seed).toContain("rates: [9800, 7400], exceptionHours: 44,")
     expect(seed).toContain('const longHours = awaiting && w === 1 ? pl.exceptionHours ?? null : null')
     // The hours reach the days, not only the total: a sheet that says

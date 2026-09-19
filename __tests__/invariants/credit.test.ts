@@ -83,7 +83,7 @@ describe('Exposure is three numbers, and the smallest of them is the invoices', 
 
   const base = {
     customerId: 'cus-nike',
-    customerName: 'Nike',
+    customerName: 'Northbend Athletic',
     currency: 'GBP',
   }
 
@@ -173,7 +173,7 @@ describe('A credit limit warns, and never blocks, and is never silently permitte
 
   const exposure = (minor: number, complete = true) => ({
     customerId: 'cus-nike',
-    customerName: 'Nike',
+    customerName: 'Northbend Athletic',
     currency: 'GBP',
     minor,
     withOpenEndedMinor: minor,

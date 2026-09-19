@@ -89,7 +89,7 @@ describe('Chapter 2 — the client exists, on the register, with somebody to cal
     as(DANA)
     const r = await json(
       await registerCompany(req('POST', '/api/companies', {
-        name: 'Terumo Client Corp',
+        name: 'Talvern Medical Client Corp',
         kind: 'CLIENT',
       }))
     )

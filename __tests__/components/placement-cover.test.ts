@@ -133,7 +133,7 @@ describe('the verdict on the firm below us reaches the screen', () => {
   // The same gate the submission door calls, on the same facts.
   const gate = supplierCoverGate({
     supplierName: 'Brightmoor Talent',
-    clientName: 'Nike',
+    clientName: 'Northbend Athletic',
     certificates: [
       { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: inDays(-2), validFrom: inDays(21), expiresAt: inDays(386), verifiedAt: inDays(-2) },
       { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: inDays(-200), validFrom: inDays(-200), expiresAt: inDays(160), verifiedAt: inDays(-200) },
@@ -172,8 +172,8 @@ describe('the verdict on the firm below us reaches the screen', () => {
 
   it('a firm whose cover holds is told so, rather than shown a blank', () => {
     const clear = supplierCoverGate({
-      supplierName: 'Vertex Talent',
-      clientName: 'Nike',
+      supplierName: 'Veritan Talent',
+      clientName: 'Northbend Athletic',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: inDays(-200), validFrom: inDays(-200), expiresAt: inDays(160), verifiedAt: inDays(-200) },
         { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: inDays(-200), validFrom: inDays(-200), expiresAt: inDays(160), verifiedAt: inDays(-200) },
@@ -182,12 +182,12 @@ describe('the verdict on the firm below us reaches the screen', () => {
     })
     const markup = renderToStaticMarkup(
       createElement(SubVendorCover, {
-        cover: { vendor: 'Vertex Talent', outcome: clear.outcome, says: clear.says, fix: clear.fix },
+        cover: { vendor: 'Veritan Talent', outcome: clear.outcome, says: clear.says, fix: clear.fix },
       })
     )
     expect(clear.outcome).toBe('PASS')
     expect(markup).toContain('chip--verified')
-    expect(text(markup)).toContain("Vertex Talent's cover is on file and in date")
+    expect(text(markup)).toContain("Veritan Talent's cover is on file and in date")
   })
 
   it('and a placement with nobody below it draws no verdict at all, because that is a fact and not a gap', () => {

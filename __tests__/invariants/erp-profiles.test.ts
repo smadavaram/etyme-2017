@@ -24,7 +24,7 @@ function line(over: Partial<CodedLine> = {}): CodedLine {
     invoiceDate: '2026-08-01',
     dueDate: '2026-08-31',
     vendor: 'Cloudepa Inc.',
-    billTo: 'Terumo BCT',
+    billTo: 'Talvern Medical',
     poNumber: 'PO-9001',
     personName: 'John Martinez',
     costCenterCode: 'MFG-FIN-4100',

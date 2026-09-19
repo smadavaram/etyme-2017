@@ -168,7 +168,7 @@ describe('what each party sees of the journey', () => {
 })
 
 describe('what the consultant is told', () => {
-  const names = { cloudepa: 'Cloudepa Inc.', vertex: 'Vertex Global', terumo: 'Terumo BCT' }
+  const names = { cloudepa: 'Cloudepa Inc.', vertex: 'Vertex Global', terumo: 'Talvern Medical' }
   const hops: Hop[] = [
     { from: 'cloudepa', to: 'vertex', rateCents: null, status: 'SUBMITTED', at: new Date('2026-08-18'), yours: false },
     { from: 'vertex', to: 'terumo', rateCents: null, status: 'SUBMITTED', at: new Date('2026-08-20'), yours: false },
@@ -177,7 +177,7 @@ describe('what the consultant is told', () => {
   it('reads as the answer to the question they asked', () => {
     const said = journeySentence(hops, names)
     expect(said).toBe(
-      'Cloudepa Inc. put you forward to Vertex Global on 2026-08-18, and Vertex Global sent you on to Terumo BCT on 2026-08-20.'
+      'Cloudepa Inc. put you forward to Vertex Global on 2026-08-18, and Vertex Global sent you on to Talvern Medical on 2026-08-20.'
     )
   })
 
@@ -262,7 +262,7 @@ describe('the role on the way up', () => {
 // work — and tenure, which Addendum E requires to aggregate at the end
 // client across every vendor, counted the wrong company.
 //
-// Twelve months at Nike direct and twelve at Nike through a prime read as
+// Twelve months at Northbend Athletic direct and twelve at Northbend Athletic through a prime read as
 // two unrelated years at two firms. That is precisely the industry blind
 // spot this product exists to close, and the forward route was selecting
 // the field and then not using it.

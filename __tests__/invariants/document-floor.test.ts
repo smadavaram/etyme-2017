@@ -61,7 +61,7 @@ describe('a certificate that has not started covers nobody', () => {
 
   it('a supplier that filed next year’s certificate early is not blocked for being organized', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Vertex Talent',
+      supplierName: 'Veritan Talent',
       certificates: [
         // This year's, running out in three weeks.
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: inDays(-340), validFrom: inDays(-340), expiresAt: inDays(21), verifiedAt: inDays(-340) },
@@ -76,7 +76,7 @@ describe('a certificate that has not started covers nobody', () => {
 
   it('but a gap between cover that ran out and cover that starts later is a gap, and it blocks', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Vertex Talent',
+      supplierName: 'Veritan Talent',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: inDays(-400), validFrom: inDays(-400), expiresAt: inDays(-30), verifiedAt: inDays(-400) },
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: inDays(-3), validFrom: inDays(14), expiresAt: inDays(379), verifiedAt: inDays(-3) },
@@ -87,7 +87,7 @@ describe('a certificate that has not started covers nobody', () => {
     expect(gate.outcome).toBe('BLOCK')
     // The one that covers the nearest thing to today is the one to talk
     // about, and neither of these does.
-    expect(gate.says).toContain('Vertex Talent')
+    expect(gate.says).toContain('Veritan Talent')
   })
 
   it('cover that has not begun stops a start the same way lapsed cover does', () => {

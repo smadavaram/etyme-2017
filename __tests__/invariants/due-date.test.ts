@@ -38,7 +38,7 @@ const invoice = (over: Partial<ArInvoice>): ArInvoice => ({
   id: 'inv-1', number: 'IN_001', currency: 'USD',
   totalMinor: 500_000, paidMinor: 0,
   dueAt: new Date('2026-09-30T00:00:00.000Z'),
-  customerId: 'c1', customerName: 'Nike',
+  customerId: 'c1', customerName: 'Northbend Athletic',
   status: 'ISSUED',
   ...over,
 })
@@ -77,16 +77,16 @@ describe('what the payment days are counted from', () => {
   it("an agreement's anchor reaches a contract that never named one, and a contract that did wins", () => {
     const fromAgreement = resolveBillingTerms({
       company: { name: 'Brightmoor' },
-      agreement: { paymentTermsFrom: 'RECEIPT_DATE', counterpartyName: 'Nike' },
+      agreement: { paymentTermsFrom: 'RECEIPT_DATE', counterpartyName: 'Northbend Athletic' },
       contract: { paymentTermsDays: 45 },
     })
     expect(fromAgreement.paymentTermsFrom.value).toBe('RECEIPT_DATE')
     expect(fromAgreement.paymentTermsFrom.source).toBe('AGREEMENT')
-    expect(fromAgreement.paymentTermsFrom.because).toContain('agreement with Nike')
+    expect(fromAgreement.paymentTermsFrom.because).toContain('agreement with Northbend Athletic')
 
     const onThisPlacement = resolveBillingTerms({
       company: { name: 'Brightmoor' },
-      agreement: { paymentTermsFrom: 'RECEIPT_DATE', counterpartyName: 'Nike' },
+      agreement: { paymentTermsFrom: 'RECEIPT_DATE', counterpartyName: 'Northbend Athletic' },
       contract: { paymentTermsFrom: 'INVOICE_DATE' },
     })
     expect(onThisPlacement.paymentTermsFrom.value).toBe('INVOICE_DATE')

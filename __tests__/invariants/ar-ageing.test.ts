@@ -30,7 +30,7 @@ const invoice = (over: Partial<ArInvoice> = {}): ArInvoice => ({
   paidMinor: 0,
   dueAt: dueAgo(10),
   customerId: 'cus-nike',
-  customerName: 'Nike',
+  customerName: 'Northbend Athletic',
   ...over,
 })
 
@@ -321,16 +321,16 @@ describe('Four letters and then a person, because the fifth is filed by a rule',
   it('a run over the whole book decides once per customer, worst first', () => {
     const book = ageBook(
       [
-        invoice({ id: 'a', customerId: 'nike', customerName: 'Nike', dueAt: dueAgo(50) }),
-        invoice({ id: 'b', customerId: 'nike', customerName: 'Nike', dueAt: dueAgo(12) }),
-        invoice({ id: 'c', customerId: 'terumo', customerName: 'Terumo BCT', dueAt: dueAgo(9) }),
+        invoice({ id: 'a', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(50) }),
+        invoice({ id: 'b', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(12) }),
+        invoice({ id: 'c', customerId: 'terumo', customerName: 'Talvern Medical', dueAt: dueAgo(9) }),
       ],
       NOW
     ).byCurrency[0]
 
     const run = dunningRun(book, {})
     expect(run.send).toHaveLength(2)
-    expect(run.send[0].customerName).toBe('Nike')
+    expect(run.send[0].customerName).toBe('Northbend Athletic')
     expect(run.send[0].invoiceIds).toHaveLength(2)
     expect(run.send[0].step).toBe('FINAL')
   })
@@ -411,7 +411,7 @@ describe('The ladder can only stop repeating itself if something records a send'
 
   const nikeBook = (over: Partial<ArInvoice> = {}) =>
     ageBook(
-      [invoice({ id: 'a', customerId: 'nike', customerName: 'Nike', dueAt: dueAgo(12), ...over })],
+      [invoice({ id: 'a', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(12), ...over })],
       NOW
     ).byCurrency[0]
 
@@ -437,8 +437,8 @@ describe('The ladder can only stop repeating itself if something records a send'
     // row exists from six months ago is worse than saying nothing.
     const book = ageBook(
       [
-        invoice({ id: 'a', customerId: 'nike', customerName: 'Nike', paidMinor: 960_000, dueAt: dueAgo(200) }),
-        invoice({ id: 'b', customerId: 'nike', customerName: 'Nike', dueAt: dueAgo(12) }),
+        invoice({ id: 'a', customerId: 'nike', customerName: 'Northbend Athletic', paidMinor: 960_000, dueAt: dueAgo(200) }),
+        invoice({ id: 'b', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(12) }),
       ],
       NOW
     ).byCurrency[0]
@@ -464,7 +464,7 @@ describe('The ladder can only stop repeating itself if something records a send'
 
   it('once a person owns the debt nothing automated goes out', () => {
     const book = ageBook(
-      [invoice({ id: 'a', customerId: 'nike', customerName: 'Nike', dueAt: dueAgo(70) })],
+      [invoice({ id: 'a', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(70) })],
       NOW
     ).byCurrency[0]
     const sent = stepsAlreadySent([letter({ step: 'ESCALATED' })], openInvoiceIds(book))

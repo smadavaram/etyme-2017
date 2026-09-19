@@ -6,10 +6,10 @@ import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
 import { GET as readInvoice } from '@/app/api/invoices/[id]/route'
 
 /**
- * The week Nike's desk signed at time and a half, as far as the document.
+ * The week Northbend Athletic's desk signed at time and a half, as far as the document.
  *
  * Omar Haddad worked forty-five hours at $132 an hour for Brightmoor on
- * Nike's site. Five of those hours were over the line and the desk that
+ * Northbend Athletic's site. Five of those hours were over the line and the desk that
  * signs the week chose the contract's time and a half, so the invoice is
  * $6,270 — and forty-five times $132 is $5,940.
  *
@@ -48,7 +48,7 @@ describe('a week signed at a premium, as far as the invoice', () => {
     })
 
     const weekOf = Object.keys(sheet.days as Record<string, number>).sort()[0]
-    // Nike's hiring manager, the desk that signs Omar's week.
+    // Northbend Athletic's hiring manager, the desk that signs Omar's week.
     const signer = await prisma.person.findFirstOrThrow({
       where: { name: 'Marcus Oyelaran' },
       select: { id: true },

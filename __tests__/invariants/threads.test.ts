@@ -13,7 +13,7 @@ import {
  * answers, and a thread reaches nobody who is not on the deal.
  */
 
-const nike = { id: 'c-nike', name: 'Nike' }
+const nike = { id: 'c-nike', name: 'Northbend Athletic' }
 const cloudepa = { id: 'c-cloudepa', name: 'Cloudepa' }
 const pinnacle = { id: 'c-pinnacle', name: 'Pinnacle' }
 const stranger = { id: 'c-stranger', name: 'Somebody Else Staffing' }
@@ -47,7 +47,7 @@ describe('who may open a conversation about a role', () => {
     if (v.ok) return
     expect(v.code).toBe('SUPPLY_ANSWERS')
     expect(v.message).toBe(
-      'Nike opens the conversation on Kinaxis planners; Cloudepa answers it. ' +
+      'Northbend Athletic opens the conversation on Kinaxis planners; Cloudepa answers it. ' +
       'Submit a candidate, or answer the invitation, and they hear from you that way.'
     )
   })
@@ -151,12 +151,12 @@ describe('what the notice says', () => {
   it('names who wrote, at which firm, about what, and opens with what they said', () => {
     expect(
       messageNotice({
-        author: { name: 'Dana Whitlock', companyName: 'Nike' },
+        author: { name: 'Dana Whitlock', companyName: 'Northbend Athletic' },
         threadTitle: 'Kinaxis planners',
         body: 'Can Mei-Lin start a week earlier?',
       })
     ).toEqual({
-      title: 'Dana Whitlock at Nike on Kinaxis planners',
+      title: 'Dana Whitlock at Northbend Athletic on Kinaxis planners',
       body: 'Can Mei-Lin start a week earlier?',
     })
   })

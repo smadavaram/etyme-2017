@@ -10,19 +10,19 @@ import { policyOf, splitWeeks, valueOf, weekStart, type Decision } from '@/lib/o
  * on it and the decision was unclickable. A feature the founder cannot
  * click is a feature that is not done.
  *
- * So Nike's desk gets one week over the line, on one contract, waiting.
+ * So Northbend Athletic's desk gets one week over the line, on one contract, waiting.
  * These are the sentences that hold it there — the arithmetic of the
  * seeded week, not a screenshot of it.
  */
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
-/** Omar Haddad's leg: Brightmoor bills Nike direct, $132 an hour. */
+/** Omar Haddad's leg: Brightmoor bills Northbend Athletic direct, $132 an hour. */
 const nike = PROGRAMMES.find((p) => p.client === 'nike')!
 const over = nike.placements.filter((pl) => pl.overtimeWeekHours)
 
 describe('the seeded week somebody has to decide the overtime on', () => {
-  it('the seeded Nike desk has a week somebody must decide the overtime on', () => {
+  it('the seeded Northbend Athletic desk has a week somebody must decide the overtime on', () => {
     expect(over).toHaveLength(1)
     const pl = over[0]
     expect(pl.person).toBe('Omar Haddad')
@@ -158,7 +158,7 @@ describe('the seeded week somebody has to decide the overtime on', () => {
   })
 })
 
-/** Nike's rate on that leg, in cents an hour. */
+/** Northbend Athletic's rate on that leg, in cents an hour. */
 const RATE = 13_200
 
 function decided(treatment: 'SAME_RATE' | 'PREMIUM' | 'TIME_OFF', appliedBps: number) {

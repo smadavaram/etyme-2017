@@ -360,7 +360,7 @@ describe('Expense search filter', () => {
 
   const expense = {
     person: { name: 'Raj Kumar' },
-    client: { name: 'Terumo BCT' },
+    client: { name: 'Talvern Medical' },
     category: 'TRAVEL',
     description: 'Flight to Denver office',
     status: 'SUBMITTED',
@@ -372,7 +372,7 @@ describe('Expense search filter', () => {
   })
 
   it('matches by client name', () => {
-    expect(searchFilter(expense, 'terumo')).toBe(true)
+    expect(searchFilter(expense, 'talvern')).toBe(true)
   })
 
   it('matches by category', () => {

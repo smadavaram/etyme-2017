@@ -28,7 +28,7 @@ const hop = (over: Partial<Hop> = {}): Hop => ({
 const req = (over: Partial<Requirement> = {}): Requirement => ({
   id: 'req-1',
   title: 'Validation engineer',
-  endClientName: 'Terumo BCT',
+  endClientName: 'Talvern Medical',
   endClientIndustry: 'Fortune 500 medical device',
   endClientRegion: 'the Denver area',
   hiringManager: 'Dana Whitfield',
@@ -56,7 +56,7 @@ describe('A requirement going down the chain loses what it may not carry', () =>
 
   it('names it where the agreement allows and an NDA is on file', () => {
     const d = forward(req(), hop({ clientNameConfidential: false, ndaInPlace: true }), 'client-1', SALT)
-    expect(d.payload.client).toBe('Terumo BCT')
+    expect(d.payload.client).toBe('Talvern Medical')
     expect(d.payload.clientIsDescribed).toBe(false)
   })
 

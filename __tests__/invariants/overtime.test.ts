@@ -275,7 +275,7 @@ describe('who may say what a week is worth', () => {
     employerCompanyId: 'brightmoor',
     clientCompanyId: 'nike',
     endClientCompanyId: null,
-    clientName: 'Nike',
+    clientName: 'Northbend Athletic',
     employerName: 'Brightmoor',
   }
 
@@ -289,7 +289,7 @@ describe('who may say what a week is worth', () => {
     const v = mayDecide({ personId: 'someone-at-vertex', companyId: 'vertex' }, leg)
     expect(v.ok).toBe(false)
     expect(v.says).toBe(
-      'That week is between Nike and Brightmoor. Decide what you pay on your own contract.'
+      'That week is between Northbend Athletic and Brightmoor. Decide what you pay on your own contract.'
     )
   })
 
@@ -325,7 +325,7 @@ describe('turning a choice into a number an invoice can price from', () => {
 
   it('choosing a multiplier the contract never said needs a reason on the record', () => {
     expect(priceChoice({ treatment: 'PREMIUM', multiplierBps: 20_000 }, OT).ok).toBe(false)
-    expect(priceChoice({ treatment: 'PREMIUM', multiplierBps: 20_000, reason: 'Go-live weekend, agreed with Nike' }, OT))
+    expect(priceChoice({ treatment: 'PREMIUM', multiplierBps: 20_000, reason: 'Go-live weekend, agreed with Northbend Athletic' }, OT))
       .toMatchObject({ ok: true, appliedBps: 20_000 })
   })
 
@@ -401,7 +401,7 @@ describe('the split still values a plain week the way it always did', () => {
 })
 
 describe('in a chain, nobody decides their own leg', () => {
-  // Adobe buys Priya from Computer Systems, who buys her from CloudEPA,
+  // Auralis Software buys Priya from Computer Systems, who buys her from CloudEPA,
   // who employs her. The hours are filed once, at the bottom.
   const TOP: ChainRung = {
     sellContractId: 'cs-adobe',
@@ -460,8 +460,8 @@ describe('in a chain, nobody decides their own leg', () => {
   })
 
   it('the end client is named on every rung and buys only on the top one', () => {
-    // Adobe appears as end client on the sub's contract too. Reading that
-    // as a purchase would put Adobe's agreement on CloudEPA's row, which
+    // Auralis Software appears as end client on the sub's contract too. Reading that
+    // as a purchase would put Auralis Software's agreement on CloudEPA's row, which
     // is the bug this exists to stop.
     expect(BOTTOM.endClientCompanyId).toBe('adobe')
     expect(decidingLeg('adobe', CHAIN, HOURS).sellContractId).toBe('cs-adobe')

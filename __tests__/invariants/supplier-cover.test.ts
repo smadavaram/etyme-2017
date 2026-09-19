@@ -38,7 +38,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
   it('the refusal names the certificate, the day it lapsed, and what the broker has to do', () => {
     const gate = supplierCoverGate({
       supplierName: 'Cloudepa',
-      clientName: 'Terumo BCT',
+      clientName: 'Talvern Medical',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: d('2025-01-01'), expiresAt: d('2026-08-17') },
         ...inDate.slice(1),
@@ -50,7 +50,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
     expect(gate.says).toContain('general liability')
     expect(gate.says).toContain('12 days ago')
     expect(gate.fix).toContain('broker')
-    expect(gate.fix).toContain('Terumo BCT')
+    expect(gate.fix).toContain('Talvern Medical')
   })
 
   it('a supplier with both certificates on file and in date may submit', () => {

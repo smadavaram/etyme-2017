@@ -10,10 +10,10 @@ import { ladderFor } from '@/lib/work-chain-read'
  *
  * The chain from the diagram:
  *
- *   Adobe Systems  ←  Computer Futures  ←  CloudEPA  ←  candidate1
+ *   Auralis Software Systems  ←  Computer Futures  ←  CloudEPA  ←  candidate1
  *      (client)          (prime)            (sub)       (the person)
  *
- * Contract 1 belongs to Computer Futures: it sells to Adobe and buys
+ * Contract 1 belongs to Computer Futures: it sells to Auralis Software and buys
  * from CloudEPA, corp to corp. Candidate1 appears on it only to submit
  * timesheets — the counterparty is CloudEPA, not the person.
  *
@@ -59,7 +59,7 @@ beforeAll(async () => {
     return c.id
   }
 
-  ids.adobe = await mk('Adobe Systems', 'adobe', 'CLIENT', ADOBE)
+  ids.adobe = await mk('Auralis Software Systems', 'adobe', 'CLIENT', ADOBE)
   ids.cf = await mk('Computer Futures', 'computer-futures', 'VENDOR', CF)
   ids.cloudepa = await mk('CloudEPA', 'cloudepa', 'VENDOR', CLOUDEPA)
 
@@ -112,7 +112,7 @@ beforeAll(async () => {
 
   // ── Step 5. Contract 1 — Computer Futures' pair ───────────────────
   //
-  // They sell to Adobe at $135 and buy from CloudEPA at $110, corp to
+  // They sell to Auralis Software at $135 and buy from CloudEPA at $110, corp to
   // corp. The person is on this contract to file hours and for nothing
   // else — the counterparty here is CloudEPA.
   const sell1 = await prisma.sellContract.create({
@@ -148,12 +148,12 @@ describe('Step 1–2 — the chain exists, and nobody sees past their neighbors'
     expect(n).toBe(3)
   })
 
-  it('lets Computer Futures see Adobe above and CloudEPA below', async () => {
+  it('lets Computer Futures see Auralis Software above and CloudEPA below', async () => {
     const seen = await prisma.counterparty.findMany({ where: { companyId: ids.cf } })
     expect(seen.map((c) => c.otherCompanyId).sort()).toEqual([ids.adobe, ids.cloudepa].sort())
   })
 
-  it('does not let Adobe see CloudEPA at all', async () => {
+  it('does not let Auralis Software see CloudEPA at all', async () => {
     // The client buys from Computer Futures and has no relationship with
     // the firm that actually found the person. That is the whole reason
     // a chain exists, and the reason tenure cannot be computed by asking.
@@ -279,7 +279,7 @@ describe('Step 7 — CloudEPA is paid and pays', () => {
 describe('Step 8 — one week of hours, billed once at each hop', () => {
   it('leaves the hours where they were filed, on the employer’s contract', async () => {
     // Nothing is copied. Contract 1's sell side — the one that bills
-    // Adobe $135 — has no timesheet on it and never will.
+    // Auralis Software $135 — has no timesheet on it and never will.
     const onCF = await prisma.timesheet.count({ where: { sellContractId: ids.sell1 } })
     expect(onCF).toBe(0)
     const anywhere = await prisma.timesheet.count({ where: { personId: ids.person } })

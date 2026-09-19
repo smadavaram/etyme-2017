@@ -7,8 +7,8 @@ import { join } from 'path'
  *
  * A program is four or five jobs. Setting up a round, deciding it and
  * choosing who is in the room is the hiring manager's and the program
- * manager's — the same permission that raises a requisition. Nike's
- * accounts-payable clerk is a party to every submission at Nike and,
+ * manager's — the same permission that raises a requisition. Northbend Athletic's
+ * accounts-payable clerk is a party to every submission at Northbend Athletic and,
  * before this, saw every button; the route would have refused, but a
  * button that only ever refuses is a form whose answer is thrown away.
  */

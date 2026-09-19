@@ -6,9 +6,9 @@ import { askGoesTo } from '@/lib/chain-top'
  * rate and a name: the client reaches the rung it pays and nothing
  * below it.
  *
- * Nike buys Helena Marsh from Computer Systems, who buys her from
+ * Northbend Athletic buys Helena Marsh from Computer Systems, who buys her from
  * CloudEPA, and the bench listing that makes a submission possible is
- * CloudEPA's. So the button on Nike's own page named CloudEPA and
+ * CloudEPA's. So the button on Northbend Athletic's own page named CloudEPA and
  * opened a thread with it — the prime's supplier list and a direct
  * channel to it, given away in one press, from both ends of the same
  * NDA. The ask goes to Computer Systems; reaching CloudEPA is Computer
@@ -120,7 +120,7 @@ describe('where an ask for a person goes', () => {
   it('a chain whose rung above is missing routes to nobody rather than guessing at a prime', () => {
     const route = askGoesTo({
       // The leg Computer Systems is billed on is not on file, so who
-      // Nike pays for this person cannot be read without guessing.
+      // Northbend Athletic pays for this person cannot be read without guessing.
       rungs: [rung('sub', 'helena', 'cloudepa', 'computer-systems')],
       benchHolderIds: ['cloudepa'],
       submitterIds: [],

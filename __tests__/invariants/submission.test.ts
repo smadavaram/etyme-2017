@@ -74,12 +74,12 @@ describe('Submission Invariants (BUILD.md §1, §4.C)', () => {
   describe('An employer may submit its own W2, and the employee is told rather than asked', () => {
     const told = tellEmployee({
       employerName: 'Infosys',
-      clientName: 'Corning',
+      clientName: 'Cavanaugh Glassworks',
       roleTitle: 'Validation engineer',
     })
 
     it('the employee is told which client they have been put forward to, and for what', () => {
-      expect(told).toContain('Corning')
+      expect(told).toContain('Cavanaugh Glassworks')
       expect(told).toContain('Validation engineer')
       expect(told).toContain('Infosys')
     })

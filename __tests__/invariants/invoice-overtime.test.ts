@@ -336,7 +336,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
   })
 
   it('a premium week\'s invoice can be checked by the person paying it', () => {
-    // Omar Haddad on Nike's desk: $132 an hour, forty-five hours, the
+    // Omar Haddad on Northbend Athletic's desk: $132 an hour, forty-five hours, the
     // five over the line signed at the contract's time and a half. The
     // line says $6,270 and forty-five times $132 is $5,940, so the
     // amount on its own cannot be checked by anybody.

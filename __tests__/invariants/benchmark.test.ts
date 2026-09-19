@@ -180,7 +180,7 @@ describe('the same figure, told to the consultant', () => {
   })
 
   it('names no client, ever', () => {
-    expect(forTheConsultant(b, FICO)).not.toMatch(/Terumo|Nike|client/i)
+    expect(forTheConsultant(b, FICO)).not.toMatch(/Talvern Medical|Northbend Athletic|client/i)
   })
 
   it('stays quiet until one person’s rate is not visible in it', () => {

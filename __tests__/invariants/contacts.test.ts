@@ -79,31 +79,31 @@ describe('Two Rajesh Kumars at Infosys is Tuesday, not a duplicate', () => {
 describe('When a contact joins the platform, the entry links rather than duplicating', () => {
 
   const contacts = [
-    { id: 'c1', name: 'Dana Whitfield', email: 'dana@terumo.com', personId: null },
-    { id: 'c2', name: 'Old Entry', email: 'dana@terumo.com', personId: 'already-linked' },
-    { id: 'c3', name: 'Somebody Else', email: 'other@terumo.com', personId: null },
+    { id: 'c1', name: 'Dana Whitfield', email: 'dana@talvern.example', personId: null },
+    { id: 'c2', name: 'Old Entry', email: 'dana@talvern.example', personId: 'already-linked' },
+    { id: 'c3', name: 'Somebody Else', email: 'other@talvern.example', personId: null },
   ]
 
   it('matches on the exact email they signed in with, nothing fuzzier', () => {
     // Linking the wrong contact hands one tenant's notes about a person
     // to a different person.
-    const m = claimMatches('Dana@Terumo.com', contacts)
+    const m = claimMatches('Dana@Talvern.Example', contacts)
     expect(m.map((x) => x.contactId)).toEqual(['c1'])
   })
 
   it('links, never merges — the notes stay the rolodex owner’s', () => {
-    expect(claimMatches('dana@terumo.com', contacts)[0].says).toContain('Linked, not merged')
+    expect(claimMatches('dana@talvern.example', contacts)[0].says).toContain('Linked, not merged')
   })
 
   it('leaves an already-linked entry alone', () => {
-    expect(claimMatches('dana@terumo.com', contacts).map((x) => x.contactId)).not.toContain('c2')
+    expect(claimMatches('dana@talvern.example', contacts).map((x) => x.contactId)).not.toContain('c2')
   })
 })
 
 describe('Normalization is boring on purpose', () => {
 
   it('emails compare lowercased and trimmed', () => {
-    expect(normalEmail(' Dana@Terumo.COM ')).toBe('dana@terumo.com')
+    expect(normalEmail(' Dana@Talvern.EXAMPLE ')).toBe('dana@talvern.example')
   })
 
   it('phones compare as digits, so formatting never makes two of one number', () => {

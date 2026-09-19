@@ -9,9 +9,9 @@ import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
 import { GET as decisions } from '@/app/api/decisions/route'
 
 /**
- * Pinnacle replaces Lucía with Tariq on the Nike seat; a recruiter on a
- * capped commission is paid for two periods; a milestone Nike accepted
- * bills on the next invoice; a bill that did not match sits on Nike's
+ * Pinnacle replaces Lucía with Tariq on the Northbend Athletic seat; a recruiter on a
+ * capped commission is paid for two periods; a milestone Northbend Athletic accepted
+ * bills on the next invoice; a bill that did not match sits on Northbend Athletic's
  * AP desk as a decision.
  */
 
@@ -82,7 +82,7 @@ describe('the last money moves', () => {
     expect(second.body.data.posted[0].says).toContain('cap is reached')
   })
 
-  it('a milestone Nike accepted bills on the next invoice as a line with the acceptance behind it, and the match takes it as the receipt', async () => {
+  it('a milestone Northbend Athletic accepted bills on the next invoice as a line with the acceptance behind it, and the match takes it as the receipt', async () => {
     const order = await prisma.workOrder.create({
       data: { issuedToId: co['world-pinnacle'], recordedById: co['world-pinnacle'], engagementId: it_.omar.engagementId!, number: 'SO-NIKE-01', title: 'Analytics phase one', issuedById: co['world-nike'], status: 'OPEN', billingBasis: 'MILESTONE', amount: 500, startDate: day(-30) },
       select: { id: true },
@@ -100,7 +100,7 @@ describe('the last money moves', () => {
     expect(receipt.lines ?? []).not.toContain(line!.id)
   })
 
-  it("a bill that did not match sits on Nike's AP desk as a decision, held out of payment runs", async () => {
+  it("a bill that did not match sits on Northbend Athletic's AP desk as a decision, held out of payment runs", async () => {
     const bill = await prisma.vendorBill.create({
       data: { companyId: co['world-nike'], vendorCompanyId: co['world-pinnacle'], number: 'PIN-9001', totalCents: 123_400, receivedAt: day(-1), dueAt: day(29), status: 'DISPUTED' },
       select: { id: true },

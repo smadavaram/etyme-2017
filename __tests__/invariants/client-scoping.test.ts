@@ -58,8 +58,8 @@ function caller(overrides: {
   }
 }
 
-const TERUMO = { id: 'client-terumo', name: 'Terumo BCT', slug: 'terumobct', kind: 'CLIENT' }
-const NIKE = { id: 'client-nike', name: 'Nike Inc.', slug: 'nike', kind: 'CLIENT' }
+const TERUMO = { id: 'client-terumo', name: 'Talvern Medical', slug: 'terumobct', kind: 'CLIENT' }
+const NIKE = { id: 'client-nike', name: 'Northbend Athletic Inc.', slug: 'nike', kind: 'CLIENT' }
 
 beforeEach(() => {
   vi.mocked(prisma.company.findUnique).mockReset()
@@ -173,7 +173,7 @@ describe('A vendor who does not name a client', () => {
   })
 
   it('prefers the end client over the paying customer in the fallback', async () => {
-    // Three-party: vendor bills the MSP, consultant works at Terumo
+    // Three-party: vendor bills the MSP, consultant works at Talvern Medical
     vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({
       clientCompany: { id: 'msp-globalstaff', name: 'GlobalStaff MSP', slug: 'globalstaff', kind: 'MSP' },
       endClientCompany: TERUMO,
@@ -182,7 +182,7 @@ describe('A vendor who does not name a client', () => {
     const result = await resolveClientCompany(caller({}), null)
 
     expect(result.client?.id).toBe(TERUMO.id)
-    expect(result.client?.name).toBe('Terumo BCT')
+    expect(result.client?.name).toBe('Talvern Medical')
   })
 
   it('a vendor with no contracts at all gets not found', async () => {
@@ -230,7 +230,7 @@ describe('Contract list scoping — every caller sees only their own side', () =
 
   it('a client is shown nothing rather than its supplier\u2019s cost where a chain has no top rung', () => {
     // Three-party: Cloudepa bills GlobalStaff MSP, consultant works at
-    // Terumo, and no contract names Terumo as the buyer. Terumo is not
+    // Talvern Medical, and no contract names Talvern Medical as the buyer. Talvern Medical is not
     // a party to the money of that row, so it is not on this list —
     // who is on site is endClientFilter's question, asked on the
     // screens built for it, where no rate is shown.

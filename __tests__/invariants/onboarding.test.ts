@@ -3,7 +3,7 @@
  *
  * What goes wrong is not sign-in. It is that the second person from a
  * company creates a second company, and six weeks later there are three
- * "Nike Inc" records with the requisitions split between them.
+ * "Northbend Athletic Inc" records with the requisitions split between them.
  *
  * A verified work-email domain solves that outright, and these tests are
  * mostly about holding that one rule: the domain is the company, so
@@ -17,7 +17,7 @@ import {
 } from '@/lib/onboarding'
 import { namedCompanies } from '@/lib/positioning'
 
-const terumo = { id: 'c1', name: 'Terumo BCT', kind: 'CLIENT', memberCount: 12 }
+const terumo = { id: 'c1', name: 'Talvern Medical', kind: 'CLIENT', memberCount: 12 }
 
 describe('Who is signing in', () => {
 
@@ -88,8 +88,8 @@ describe('The domain is the company', () => {
   it('a company with nobody in it yet does not say "0 colleagues"', () => {
     // Companies exist before their first sign-in — imported from a client
     // list, or seeded. The count is true and reads as broken.
-    const d = decideEntry('a@nike.com', { ...terumo, name: 'Nike Inc.', memberCount: 0 })
-    expect(d.message).toBe('Nike Inc. is already on Etyme. Joining it.')
+    const d = decideEntry('a@nike.com', { ...terumo, name: 'Northbend Athletic Inc.', memberCount: 0 })
+    expect(d.message).toBe('Northbend Athletic Inc. is already on Etyme. Joining it.')
     expect(d.message).not.toContain('0 colleagues')
   })
 
@@ -166,7 +166,7 @@ describe('What this company does here', () => {
 
   // etyme-market, 2026-09-17. A cross-domain edit in etyme-supply's test
   // file, on the precedent of c126c1c4 and f901e914. The assertion above
-  // pinned 'Terumo' — it was holding a real trademark on the live sign-up
+  // pinned 'Talvern Medical' — it was holding a real trademark on the live sign-up
   // picker in place, so the rename could not land without coming through
   // here, and a red test cannot be left behind. The sentence below is the
   // rule that string was standing in for, so the next example added to
