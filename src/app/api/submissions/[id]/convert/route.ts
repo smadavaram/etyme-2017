@@ -5,6 +5,9 @@ import { prisma } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { loadContractHolidays } from '@/lib/holidays'
 import { evaluateGovernance } from '@/lib/governance'
+import { orderCeiling } from '@/lib/award'
+import { annualValue } from '@/lib/requisition-approval'
+import { headerFor, lineTermsFrom } from '../../order-header'
 
 /**
  * POST /api/submissions/:id/convert
@@ -88,7 +91,15 @@ export async function POST(
     where: { id },
     include: {
       person: { select: { id: true, name: true } },
-      requirement: { select: { id: true, title: true, companyId: true } },
+      requirement: {
+        select: {
+          id: true, title: true, companyId: true,
+          // What the order's ceiling is computed from — the same
+          // figures the approval chain routed the requisition on.
+          budgetCents: true, billMax: true, headcount: true,
+          months: true, hoursPerWeek: true,
+        },
+      },
       fromCompany: { select: { id: true, name: true, templatePack: true } },
       toCompany: { select: { id: true, name: true } },
     },
@@ -176,8 +187,68 @@ export async function POST(
   // Warnings are allowed to proceed — contract starts in DRAFT,
   // governance will be re-checked on activation
 
+  // ── The header this line goes on ──────────────────────────────────
+  //
+  // A purchase order is a header and its lines, and this route creates a
+  // line. It is the older path to the same pair the award creates, and
+  // until now it left the line on no document at all — so a placement
+  // recorded this way had no ceiling to match an invoice against and no
+  // order to carry the client's own timesheet terms.
+  //
+  // The ceiling is the requisition's own approved value, by the one rule
+  // in `lib/award`, falling back to the rate being recorded where the
+  // requisition states neither a budget nor a ceiling. Null means no
+  // figure anybody can stand behind, and then no order is raised.
+  const ceiling = orderCeiling({
+    budgetCents: submission.requirement.budgetCents,
+    billMaxCents: submission.requirement.billMax,
+    headcount: submission.requirement.headcount,
+    months: submission.requirement.months,
+    hoursPerWeek: submission.requirement.hoursPerWeek,
+    awardedRateCents: billRate,
+    annualValue,
+  })
+
+  // Where the work happens, for the order's ship-to.
+  const site = await prisma.companyLocation.findFirst({
+    where: { companyId: submission.toCompanyId },
+    orderBy: [{ isPrimary: 'desc' }],
+    select: { id: true },
+  })
+
+  // The terms on the paper, where the two firms have an agreement. Read
+  // rather than created: this route records a deal somebody already did.
+  const agreement = await prisma.masterAgreement.findFirst({
+    where: { vendorId: submission.fromCompanyId, clientId: submission.toCompanyId },
+    select: { id: true, paymentTerms: true, currency: true },
+  })
+  const vendorCompany = await prisma.company.findUnique({
+    where: { id: submission.fromCompanyId },
+    select: { currency: true, defaultPaymentTerms: true },
+  })
+  const paymentTerms = agreement?.paymentTerms ?? vendorCompany?.defaultPaymentTerms ?? 30
+  const currency = agreement?.currency ?? vendorCompany?.currency ?? 'USD'
+
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // One open order per buyer-and-seller pair, through the same door
+      // the award uses — never a second implementation of the rule.
+      const header = ceiling
+        ? await headerFor(tx, {
+            buyerId: submission.toCompanyId,
+            sellerId: submission.fromCompanyId,
+            recordedById: caller.company?.id ?? submission.toCompanyId,
+            title: `Contingent staffing — ${submission.fromCompany.name}`,
+            amountDollars: ceiling.dollars,
+            currency,
+            paymentTerms,
+            msaId: msaId ?? agreement?.id ?? null,
+            engagementId: engagementId ?? null,
+            shipToId: site?.id ?? null,
+            start, end,
+          })
+        : null
+
       // Create SellContract: vendor (fromCompany) sells to client (toCompany)
       const sellContract = await tx.sellContract.create({
         data: {
@@ -189,6 +260,10 @@ export async function POST(
           engagementId: engagementId ?? null,
           msaId: msaId ?? null,
           billRate,
+          // The line, on its header: four fields written from the
+          // document so they cannot disagree on the day they are made.
+          ...lineTermsFrom(header, paymentTerms),
+          workOrderId: header?.id ?? null,
           state: 'DRAFT',
           startDate: start,
           endDate: end,
@@ -203,6 +278,10 @@ export async function POST(
         buyContract = await tx.buyContract.create({
           data: {
             companyId: submission.fromCompanyId,
+            // W2 on this path, and so no order: you do not raise a
+            // purchase order to your own employee. A placement bought
+            // from a sub-vendor comes through the award, which raises
+            // the order to that sub.
             contractType: 'W2',
             state: 'DRAFT',
             startDate: start,
@@ -283,12 +362,18 @@ export async function POST(
             billRate,
             payRate: payRate ?? null,
             sellCyclesCreated,
+            // The document it went on, and the ceiling with the basis
+            // it was computed from — never a bare figure.
+            workOrderId: header?.id ?? null,
+            orderNumber: header?.number ?? null,
+            orderRaised: header?.raised ?? false,
+            ceiling: ceiling ? { amount: ceiling.dollars, basis: ceiling.basis, says: ceiling.says } : null,
           },
           reversible: false,
         },
       })
 
-      return { sellContract, buyContract, contractLink, sellCyclesCreated }
+      return { sellContract, buyContract, contractLink, sellCyclesCreated, header }
     })
 
     return NextResponse.json({
@@ -309,6 +394,17 @@ export async function POST(
         } : null,
         contractLink: result.contractLink ? { id: result.contractLink.id } : null,
         sellCyclesCreated: result.sellCyclesCreated,
+        // The document the line hangs on. Neutral in the payload;
+        // `lib/order-naming` decides whether a reader is shown
+        // "purchase order" or "sales order".
+        order: result.header
+          ? {
+              id: result.header.id,
+              number: result.header.number,
+              raised: result.header.raised,
+              ceiling: ceiling ? { amount: ceiling.dollars, currency, basis: ceiling.basis, because: ceiling.says } : null,
+            }
+          : null,
         message: `Placement converted to contract with ${result.sellCyclesCreated} cycles`,
       },
     }, { status: 201 })

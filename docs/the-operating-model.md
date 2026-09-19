@@ -137,12 +137,29 @@ Three things, and the third is the one the build under-reads:
   | the location of work | `SellContract.workLocationId` |
   | the two joined | `SellContract.workOrderId` |
 
-  *What is still empty is the station, not the shape.* `workOrderId` is
-  nullable and **the award still never sets it**. A client awards, a
-  contract appears, and no work order is raised or required — while the
-  founder says the client raises one every time. Raising one now attaches
-  every running contract with that buyer and no order, which closes it
-  for a firm recording its book; it does not close it at award.
+  **The station is closed, 2026-09-19.** The award now raises the header
+  and writes the contract as its first line, in one transaction
+  (`api/submissions/[id]/award`, `api/submissions/order-header.ts`), and
+  so does the older convert path. The rule is **one open order per
+  buyer-and-seller pair** — the second person awarded to the same client
+  joins the order the first one opened, as a second line, because five
+  people on one commitment is one document with five lines. An order
+  that has closed, or whose dates do not cover the placement, is not
+  quietly widened: a new one is raised and says why.
+
+  The ceiling is **the requisition's own approved value** — the same
+  `annualValue` that decided who had to sign it, extended over the term
+  and rounded up to the nearest thousand, because a ceiling is a round
+  number somebody signed. It carries its basis (the stated budget, the
+  approval estimate, or the line itself where the requisition priced
+  nothing), and where nothing supports a figure **no order is raised and
+  the answer says so** rather than authorizing a number nobody chose.
+
+  Down the chain, a prime's own order to its sub-vendor is raised the
+  same way and is the prime's alone — the client is not a party to it.
+  **A W2 line hangs on no order at all**: you do not raise a purchase
+  order to your own employee, which is why `BuyContract.workOrderId` is
+  nullable. `__integration__/award-order.test.ts` walks all of it.
 - **Compliance requirements at supplier and candidate level, every
   time.** Per engagement, not per relationship — a client can require
   different checks for a role in a hospital than for one in a warehouse.

@@ -6,7 +6,9 @@ import { clientOf, releaseAllAt } from '@/lib/holds'
 import { emit } from '@/lib/events'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { evaluateGovernance } from '@/lib/governance'
-import { assessAward, buySide, type AwardFacts } from '@/lib/award'
+import { assessAward, buySide, orderCeiling, lineAgreesWithHeader, type AwardFacts } from '@/lib/award'
+import { annualValue } from '@/lib/requisition-approval'
+import { headerFor, lineTermsFrom } from '../../order-header'
 import { orderFor } from '@/lib/order-postings'
 import { notify } from '@/lib/notify'
 import {
@@ -420,13 +422,121 @@ export async function POST(
   const site = await prisma.companyLocation.findFirst({
     where: { companyId: payerId },
     orderBy: [{ isPrimary: 'desc' }],
-    select: { country: true },
+    select: { id: true, country: true },
   })
   const holidays = end
     ? await loadContractHolidays(submission.fromCompanyId, payerId, start.getFullYear(), end.getFullYear(), site?.country ?? null)
     : new Set<string>()
 
+  // ── The header this line goes on ────────────────────────────────────
+  //
+  // A purchase order is a header and its lines. The header is the
+  // commitment to a counterparty — who, how much, over what dates, on
+  // what terms; the line is one person at one rate at one site, and
+  // `SellContract` is that line. Until this was written the award made
+  // the line and never the header, so `WorkOrder` had zero rows for the
+  // life of the product: no ceiling for an invoice to match against, no
+  // milestones, and `cron/auto-approve` reading the client's own term
+  // off a row that did not exist, which is why it had approved nothing
+  // since the day it was written. CLAUDE.md, 2026-09-18.
+  //
+  // Who is who on it, and why the award may raise it at all: the client
+  // is the buyer and the supplier is the seller, the awarding company
+  // recorded it, and the permission that got this far is
+  // `requirements.write` rather than `invoices.issue` — because this is
+  // not somebody raising an order from the purchase orders screen. It is
+  // the paper consequence of the award they just made, and the ceiling
+  // on it is the one their own approval chain already signed.
+  //
+  // The buy side is decided here too, one screen earlier than it used
+  // to be, because whether there is a sub-vendor below decides whether
+  // there is a second header at all. It is pure arithmetic over facts
+  // already read.
+  const buy = buySide({
+    awardedCompanyId: submission.fromCompanyId,
+    suppliedByCompanyId: suppliedBy?.fromCompanyId ?? null,
+    suppliedRateCents: suppliedBy?.rate ?? null,
+    agreedRateCents: typeof body?.payRate === 'number' ? body.payRate : null,
+  })
+
+  // What the client's order may authorize in total. The requisition's
+  // own approved value, extended over its term and rounded up to the
+  // thousand — the rule and the arithmetic are in `lib/award`, and the
+  // arithmetic is `annualValue`, which is the same function that decided
+  // who had to approve the requisition in the first place. Null where
+  // nothing supports a figure, and then no order is raised: a ceiling
+  // nobody can stand behind is worse than none, because an invoice would
+  // be matched against a number nobody chose.
+  const ceiling = orderCeiling({
+    budgetCents: req.budgetCents,
+    billMaxCents: req.billMax,
+    headcount: req.headcount,
+    months: req.months,
+    hoursPerWeek: req.hoursPerWeek,
+    awardedRateCents: awardedRate,
+    annualValue,
+  })
+
+  // The agreement under our own order to a sub-vendor, where there is
+  // one. Read, never created: papering our relationship with a supplier
+  // is the supplier desk's act, not a side effect of a client's award.
+  const buyAgreement = buy.vendorCompanyId
+    ? await prisma.masterAgreement.findFirst({
+        where: { vendorId: buy.vendorCompanyId, clientId: submission.fromCompanyId },
+        select: { id: true, paymentTerms: true, currency: true },
+      })
+    : null
+
+  // What we pay down the chain, valued the same way. The client's
+  // ceiling is what the client authorized; ours to a sub-vendor is our
+  // own money and is never the client's number.
+  const buyCeiling = buy.vendorCompanyId && buy.rateKnown
+    ? orderCeiling({
+        budgetCents: null,
+        billMaxCents: buy.payRateCents,
+        headcount: 1,
+        months: req.months,
+        hoursPerWeek: req.hoursPerWeek,
+        awardedRateCents: buy.payRateCents,
+        annualValue,
+      })
+    : null
+
   const result = await prisma.$transaction(async (tx) => {
+    // One open order per buyer-and-seller pair: found, or raised with
+    // this line. `order-header.ts`, beside this route, because the
+    // convert path creates the same pair and a second implementation of
+    // this rule would quietly raise a second document.
+
+    // The client's order to the supplier. Raised only where a ceiling
+    // could be stated at all.
+    const sellHeader = ceiling
+      ? await headerFor(tx, {
+          buyerId: payerId,
+          sellerId: submission.fromCompanyId,
+          // Whoever awarded typed it in. Ordinarily the buyer; on a
+          // three-party placement the company that raised the
+          // requisition, which the column exists to record.
+          recordedById: caller.company?.id ?? payerId,
+          title: `Contingent staffing — ${submission.fromCompany.name}`,
+          amountDollars: ceiling.dollars,
+          currency: terms.currency.value,
+          paymentTerms: terms.paymentTermsDays.value,
+          msaId: msa.id,
+          engagementId: engagement.id,
+          shipToId: site?.id ?? null,
+          start, end,
+        })
+      : null
+
+    // The line takes its rhythm and its terms from the header it is on,
+    // but only where this award raised that header. Joining an order
+    // somebody else raised is not license to rewrite a term they agreed:
+    // where the two differ, the line keeps what the agreement cascade
+    // gave it and the difference is written down below, in words, rather
+    // than silently resolved in favor of whichever row was read last.
+    const lineTerms = lineTermsFrom(sellHeader, terms.paymentTermsDays.value)
+
     // The contract carries the demand-side coding forward. This is the
     // whole point: an invoice raised in four months matches a purchase
     // order because the award attached one, not because somebody
@@ -452,7 +562,16 @@ export async function POST(
         overtimeAfterHours: req.overtimeAfterHours ?? null,
         overtimeMultiplierBps: req.overtimeMultiplierBps ?? 15_000,
         billCurrency: terms.currency.value,
-        paymentTerms: terms.paymentTermsDays.value,
+        // ── The line, on its header ──────────────────────────────────
+        //
+        // Four of the six fields that sit on both rows, written from the
+        // order this line hangs on so they cannot disagree on the day
+        // they are made. The other two are the dates, which are not
+        // copies: a header covers several lines and outlives each of
+        // them, so the line's dates sit inside the header's window
+        // rather than equalling it.
+        ...lineTerms,
+        workOrderId: sellHeader?.id ?? null,
         state: 'DRAFT',
         startDate: start,
         endDate: end,
@@ -471,15 +590,43 @@ export async function POST(
     // the buy side is raised here. Where the submission came from
     // another firm, what they asked for IS the cost — that is the whole
     // arrangement, and defaulting to it is right rather than lazy.
-    const buy = buySide({
-      awardedCompanyId: submission.fromCompanyId,
-      // Who supplied the person to them, read off the chain rather than
-      // inferred. A forwarded submission carries its parent; the parent's
-      // sender is the supplier and the parent's rate is the cost.
-      suppliedByCompanyId: suppliedBy?.fromCompanyId ?? null,
-      suppliedRateCents: suppliedBy?.rate ?? null,
-      agreedRateCents: typeof body?.payRate === 'number' ? body.payRate : null,
-    })
+    //
+    // `buy` is decided above the transaction now, because whether there
+    // is a sub-vendor below is what decides whether this firm's own
+    // order to that sub-vendor exists at all.
+
+    // ── Our own order to the sub-vendor, where there is one ──────────
+    //
+    // Only where we buy from another firm. A W2 line hangs on no order:
+    // you do not raise a purchase order to your own employee, which is
+    // the reason `BuyContract.workOrderId` is nullable and why
+    // `POST /api/contracts` refuses a W2 carrying one. SAP agrees — an
+    // employee is HCM master data, not a vendor.
+    //
+    // Null too where nobody has said what we pay yet: an order needs a
+    // ceiling, and a ceiling over a pay rate nobody has agreed is a
+    // number invented on the way past. The supplier desk raises it from
+    // the purchase orders screen when the rate is settled.
+    const buyHeader = buy.vendorCompanyId && buyCeiling
+      ? await headerFor(tx, {
+          buyerId: submission.fromCompanyId,
+          sellerId: buy.vendorCompanyId,
+          // Our own order, recorded by us. The client that awarded has
+          // no part in what we pay below us and never sees this row.
+          recordedById: submission.fromCompanyId,
+          title: `Subcontract — ${req.title}`,
+          amountDollars: buyCeiling.dollars,
+          currency: terms.currency.value,
+          // Our agreement with that supplier where we have one, and the
+          // client's terms otherwise — never a third number.
+          paymentTerms: buyAgreement?.paymentTerms ?? terms.paymentTermsDays.value,
+          msaId: buyAgreement?.id ?? null,
+          // The engagement above is the client's deal, not this one.
+          engagementId: null,
+          shipToId: site?.id ?? null,
+          start, end,
+        })
+      : null
 
     const buyContract = await tx.buyContract.create({
       data: {
@@ -496,6 +643,9 @@ export async function POST(
         // The rung below, so the hours this firm bills for can be found
         // at all. Null on a W2 placement, where there is no rung below.
         supplierSellContractId: supplierContract?.id ?? null,
+        // The header this line hangs on: our order to the sub-vendor,
+        // and null for our own employee.
+        workOrderId: buyHeader?.id ?? null,
         startDate: start,
         endDate: end,
       },
@@ -602,7 +752,33 @@ export async function POST(
       standDown = stood.count
     }
 
-    return { contract, buyContract, standDown, passedOver, cycles }
+    // Whether the line and the header it landed on say the same thing.
+    // Empty where this award raised the header, because both came from
+    // one computation; a sentence each where the line joined an order
+    // somebody else raised on other terms, so the difference is said out
+    // loud instead of being discovered on an invoice.
+    const disagreements = sellHeader
+      ? lineAgreesWithHeader(
+          {
+            billFrequency: sellHeader.billFrequency,
+            billAnchor: sellHeader.billAnchor,
+            billStraddle: sellHeader.billStraddle,
+            paymentTerms: sellHeader.paymentTerms,
+            startDate: sellHeader.startDate,
+            endDate: sellHeader.endDate,
+          },
+          {
+            billFrequency: contract.billFrequency,
+            billAnchor: contract.billAnchor,
+            billStraddle: contract.billStraddle,
+            paymentTerms: contract.paymentTerms,
+            startDate: contract.startDate,
+            endDate: contract.endDate,
+          }
+        )
+      : []
+
+    return { contract, buyContract, standDown, passedOver, cycles, sellHeader, buyHeader, disagreements }
   })
 
   // ── The cost object ─────────────────────────────────────────────────
@@ -654,11 +830,101 @@ export async function POST(
         seatsAfter: decision.seatsAfter,
         costCenter: req.costCenter?.code ?? null,
         cycles: { sell: result.cycles.sell, buy: result.cycles.buy },
+        // The paper the award raised, and the number on it. A ceiling is
+        // money, so it carries where it came from — never a bare figure.
+        order: result.sellHeader
+          ? {
+              workOrderId: result.sellHeader.id,
+              number: result.sellHeader.number,
+              raised: result.sellHeader.raised,
+              ceilingDollars: ceiling?.dollars ?? null,
+              ceilingBasis: ceiling?.basis ?? null,
+              says: ceiling?.says ?? null,
+            }
+          : null,
+        subOrder: result.buyHeader
+          ? { workOrderId: result.buyHeader.id, number: result.buyHeader.number, raised: result.buyHeader.raised }
+          : null,
+        lineDisagreesWithOrder: result.disagreements,
       },
       // Reversible only until the person actually starts.
       reversible: true,
     },
   })
+
+  // ── The order is paper, so it is logged as paper ────────────────────
+  //
+  // Its own line in the client's automation log, in the words an AP desk
+  // uses: a number, a ceiling and who it authorizes. The award above is
+  // about a person; this is about money, and somebody auditing the
+  // ceiling should not have to read a placement record to find it.
+  if (result.sellHeader?.raised && ceiling) {
+    await prisma.automationLog.create({
+      data: {
+        companyId: payerId,
+        action: 'PURCHASE_ORDER_RAISED',
+        summary:
+          `${result.sellHeader.number} — $${ceiling.dollars.toLocaleString()} authorized to ` +
+          `${submission.fromCompany.name}, with ${submission.person.name} as its first line`,
+        reason: ceiling.says,
+        payload: {
+          workOrderId: result.sellHeader.id,
+          number: result.sellHeader.number,
+          supplierId: submission.fromCompanyId,
+          amount: ceiling.dollars,
+          basis: ceiling.basis,
+          requirementId: req.id,
+          contractId: result.contract.id,
+        },
+        reversible: true,
+      },
+    })
+
+    void emit({
+      type: 'purchase_order.raised',
+      companyId: payerId,
+      subjectType: 'WorkOrder',
+      subjectId: result.sellHeader.id,
+      actorPersonId: caller.person.id,
+      payload: {
+        number: result.sellHeader.number,
+        supplierCompanyId: submission.fromCompanyId,
+        supplierName: submission.fromCompany.name,
+        amount: ceiling.dollars,
+        currency: terms.currency.value,
+        startDate: result.sellHeader.startDate.toISOString(),
+        endDate: result.sellHeader.endDate?.toISOString() ?? null,
+        contractsAttached: 1,
+        raisedByAward: true,
+        ceilingBasis: ceiling.basis,
+      },
+    })
+  }
+
+  // The order below, where this firm bought from a sub-vendor. Logged
+  // against the firm that raised it, never against the client — what a
+  // prime pays its sub is not the client's to read.
+  if (result.buyHeader?.raised && buyCeiling) {
+    await prisma.automationLog.create({
+      data: {
+        companyId: submission.fromCompanyId,
+        action: 'PURCHASE_ORDER_RAISED',
+        summary:
+          `${result.buyHeader.number} — $${buyCeiling.dollars.toLocaleString()} authorized to the supplier of ` +
+          `${submission.person.name}`,
+        reason: buyCeiling.says,
+        payload: {
+          workOrderId: result.buyHeader.id,
+          number: result.buyHeader.number,
+          supplierId: buy.vendorCompanyId,
+          amount: buyCeiling.dollars,
+          basis: buyCeiling.basis,
+          buyContractId: result.buyContract.id,
+        },
+        reversible: true,
+      },
+    })
+  }
 
   void emit({
     type: 'submission.awarded',
@@ -783,6 +1049,36 @@ export async function POST(
         vendorsStoodDown: result.standDown,
         candidatesPassedOver: result.passedOver,
         costCenter: req.costCenter?.code ?? null,
+        // ── The paper the award raised ─────────────────────────────────
+        //
+        // The client reads this row as its purchase order and the
+        // supplier reads the same row as its sales order, which is why
+        // both numbers are here and neither is called a "work order" on
+        // a screen (`lib/order-naming` decides which word each reader
+        // sees). The ceiling carries its basis, because a figure nobody
+        // can stand behind is worse than a blank.
+        order: result.sellHeader
+          ? {
+              id: result.sellHeader.id,
+              number: result.sellHeader.number,
+              raised: result.sellHeader.raised,
+              says: result.sellHeader.says,
+              ceiling: ceiling
+                ? { amount: ceiling.dollars, currency: terms.currency.value, basis: ceiling.basis, because: ceiling.says }
+                : null,
+              // Said out loud rather than resolved behind somebody's
+              // back. Empty on an order this award raised.
+              differsFromLine: result.disagreements,
+            }
+          : {
+              id: null,
+              raised: false,
+              says:
+                'No ceiling could be stated — the requisition carries no budget, no rate ceiling and no rate ' +
+                'on the award — so no purchase order was raised. Raise one from the purchase orders screen.',
+              ceiling: null,
+              differsFromLine: [],
+            },
         // Not just the number — where it came from. "Net 60, from your
         // agreement with Terumo BCT" names the document to read when
         // somebody queries a due date.
