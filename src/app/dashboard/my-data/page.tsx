@@ -20,6 +20,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
  */
 
 interface Held { category: string; examples: string; about: string }
+interface Holder { name: string; how: 'EMPLOYER' | 'SUPPLIER' | 'CLIENT' }
 interface Request_ {
   id: string
   reference: string
@@ -53,6 +54,8 @@ function day(iso: string | null): string {
 export default function MyDataPage() {
   const [held, setHeld] = useState<Held[]>([])
   const [aboutYou, setAboutYou] = useState<string[]>([])
+  const [youAre, setYouAre] = useState<string[]>([])
+  const [told, setTold] = useState<Holder[]>([])
   const [requests, setRequests] = useState<Request_[]>([])
   const [contact, setContact] = useState('')
   const [loading, setLoading] = useState(true)
@@ -65,11 +68,18 @@ export default function MyDataPage() {
     setLoading(true)
     setError(null)
     try {
+      // `{ data: ... }`, which is what this route sends and what
+      // `/api/me/papers` next door sends. `readJson` hands back the
+      // whole body, so the envelope is unwrapped here rather than
+      // assumed away.
       const r = await fetch('/api/me/data').then(readJson)
-      setHeld(r?.data?.held ?? [])
-      setAboutYou(r?.data?.aboutYou ?? [])
-      setRequests(r?.data?.requests ?? [])
-      setContact(r?.data?.contactEmail ?? '')
+      const d = r?.data ?? {}
+      setHeld(d.held ?? [])
+      setAboutYou(d.aboutYou ?? [])
+      setYouAre(d.youAre ?? [])
+      setTold(d.whoWouldBeTold ?? [])
+      setRequests(d.requests ?? [])
+      setContact(d.contactEmail ?? '')
     } catch {
       setError('We could not read your record just now. Nothing has changed — try again in a moment.')
     } finally {
@@ -158,17 +168,44 @@ export default function MyDataPage() {
       {confirming && (
         <div className="mt-4 bg-etyme-surface border border-etyme-rule rounded-lg p-4">
           <h2 className="font-serif text-lg text-etyme-ink">Before you ask to be forgotten</h2>
+          {/* Two readers, and for a week only one of them was written
+              for. A firm's own staff — an AP clerk, a recruiter, a
+              compliance officer — read a paragraph about payroll and
+              a client's site and nothing about the seat that is their
+              whole relationship with this product. Whether somebody is
+              a worker, a business user or both is read off the work
+              (`audiencesOf`), never off a seat type. */}
           <p className="text-sm text-etyme-muted mt-2">
             Nothing happens for fourteen days, so you can change your mind, and you will get a
-            letter first saying exactly what goes and what stays. Some of it stays: whoever paid
-            you keeps payroll and tax records, whoever took your I-9 keeps it, and the client
-            whose site you stood on keeps the days you were there. Those are their obligations,
-            not ours to waive.
+            letter first saying exactly what goes and what stays.
           </p>
+          {youAre.includes('candidate') && (
+            <p className="text-sm text-etyme-muted mt-2">
+              Some of it stays: whoever paid you keeps payroll and tax records, whoever took your
+              I-9 keeps it, and the client whose site you stood on keeps the days you were there.
+              Those are their obligations, not ours to waive.
+            </p>
+          )}
+          {youAre.includes('business') && (
+            <p className="text-sm text-etyme-muted mt-2">
+              Your seat and what you decided from it stay under a marker: a requisition you
+              raised, an approval you gave with its reason, a week of somebody&rsquo;s hours you
+              signed. Those are your company&rsquo;s record of its own decisions, and they keep
+              their dates and their reasons while they stop naming you. An approval with nobody
+              behind it is worse for everybody than one nobody is named on.
+            </p>
+          )}
           <p className="text-sm text-etyme-muted mt-2">
             Your name, your sign-in, your profile and your resumes go, and you will not be able
             to sign in again.
           </p>
+          {told.length > 0 && (
+            <p className="text-sm text-etyme-muted mt-2">
+              We write to {told.map((t) => t.name).join(', ')} the day it runs, because it is
+              their records that change. There is nothing for them to do and nothing for them to
+              decide.
+            </p>
+          )}
           <div className="mt-3 flex gap-3">
             <button
               onClick={() => void ask('ERASURE')}

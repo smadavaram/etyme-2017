@@ -123,11 +123,11 @@ describe('a person asks what is held about them', () => {
     as(HELENA)
     const { status, body } = await json(await myData(req('GET', '/api/me/data')))
     expect(status).toBe(200)
-    expect(body.held.length).toBeGreaterThanOrEqual(10)
+    expect(body.data.held.length).toBeGreaterThanOrEqual(10)
     for (const c of ['Resumes', 'Time on site', 'Money about a person', 'Logs']) {
-      expect(body.held.map((h: { category: string }) => h.category)).toContain(c)
+      expect(body.data.held.map((h: { category: string }) => h.category)).toContain(c)
     }
-    expect(body.requests).toEqual([])
+    expect(body.data.requests).toEqual([])
   })
 
   it('she asks for her data and gets a file naming every category, not a promise to come back in a month', async () => {
@@ -137,7 +137,7 @@ describe('a person asks what is held about them', () => {
     expect(body.says).toContain('ready')
 
     const listed = await json(await myData(req('GET', '/api/me/data')))
-    const request_ = listed.body.requests[0]
+    const request_ = listed.body.data.requests[0]
     expect(request_.kind).toBe('EXPORT')
     expect(request_.downloadUrl).not.toBeNull()
     expect(request_.dueBasis.length).toBeGreaterThan(40)
@@ -350,8 +350,8 @@ describe('the compliance desk’s own queue', () => {
     as(TALVERN_COMPLIANCE)
     const { status, body } = await json(await holdList(req('GET', '/api/legal-holds')))
     expect(status).toBe(200)
-    expect(body.holds.length).toBeGreaterThan(0)
-    expect(body.holds[0].reason).toContain('A wage claim is open')
+    expect(body.data.holds.length).toBeGreaterThan(0)
+    expect(body.data.holds[0].reason).toContain('A wage claim is open')
   })
 
   it('a compliance officer cannot log a request about somebody their company has never held, and is not told who does hold them', async () => {
@@ -402,7 +402,7 @@ describe('a breach opens a clock, or says that nobody has decided one', () => {
     expect(body.says).toContain('No deadline is set on it yet')
 
     const listed = await json(await breachList(req('GET', '/api/breaches')))
-    const row = listed.body.breaches.find((b: { id: string }) => b.id === breachId)
+    const row = listed.body.data.breaches.find((b: { id: string }) => b.id === breachId)
     expect(row.nobodyHasDecided).toBe(true)
     expect(row.says).toContain('Nobody has decided a deadline')
   })

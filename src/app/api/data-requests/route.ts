@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import {
   oneSubject, mayAsk, raiseRequest, produceExport, completeErasure,
-  reference, coolingEndsAtFor,
+  reference, coolingEndsAtFor, deskFraming,
 } from '@/lib/data-request'
 import { logAccess } from '@/lib/access-log'
 
@@ -98,22 +98,40 @@ export async function GET(request: NextRequest) {
     reason: `Read the compliance desk’s queue of ${rows.length} data requests.`,
   })
 
+  // ── The envelope ────────────────────────────────────────────────────
+  //
+  // `{ data: ... }`, which is what every neighbouring route in this
+  // domain sends — `/api/compliance`, `/api/tenure`, `/api/access`,
+  // `/api/me/papers` — and what the page was written to read. This one
+  // sent the payload at the top level instead, so `d?.data?.requests`
+  // came back undefined on a 200, the page's "none of the three
+  // answered" branch fired, and a compliance officer who holds the
+  // governance read was told on their own page that they do not.
+  // Found on the deployed commit by walking it as the Northbend desk.
   return NextResponse.json({
-    requests: rows.map((r) => ({
-      id: r.id,
-      reference: reference(r.id),
-      kind: r.kind,
-      status: r.status,
-      subject: r.subjectPerson?.name ?? r.subjectCompany?.name ?? 'nobody named',
-      subjectPersonId: r.subjectPerson?.id ?? null,
-      receivedAt: r.receivedAt,
-      dueAt: r.dueAt,
-      dueBasis: r.dueBasis,
-      runsOn: r.kind === 'ERASURE' ? coolingEndsAtFor(r.receivedAt) : null,
-      keptBecause: r.keptBecause,
-      refusedBecause: r.refusedBecause,
-      completedAt: r.completedAt,
-    })),
+    data: {
+      // Whose desk this is, in this reader's own words. A staffing
+      // supplier answering for the people it employs is not "your
+      // program", and an MSP that places nobody is told what it is
+      // missing rather than shown an empty list that reads as "nobody
+      // has asked".
+      desk: deskFraming(caller.company.kind, caller.company.name),
+      requests: rows.map((r) => ({
+        id: r.id,
+        reference: reference(r.id),
+        kind: r.kind,
+        status: r.status,
+        subject: r.subjectPerson?.name ?? r.subjectCompany?.name ?? 'nobody named',
+        subjectPersonId: r.subjectPerson?.id ?? null,
+        receivedAt: r.receivedAt,
+        dueAt: r.dueAt,
+        dueBasis: r.dueBasis,
+        runsOn: r.kind === 'ERASURE' ? coolingEndsAtFor(r.receivedAt) : null,
+        keptBecause: r.keptBecause,
+        refusedBecause: r.refusedBecause,
+        completedAt: r.completedAt,
+      })),
+    },
   })
 }
 

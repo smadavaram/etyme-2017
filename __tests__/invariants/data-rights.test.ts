@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { oneSubject, mayAsk, reference, heldCategories, categoriesHeldAbout } from '@/lib/data-request'
+import { oneSubject, mayAsk, reference, heldCategories, categoriesHeldAbout, deskFraming, deskRefusal } from '@/lib/data-request'
 import { readClock, readBreach, mayWorkBreach, mayClose, type ClockState } from '@/lib/breach'
 import { HELD } from '@/lib/legal'
 import { PERMISSIONS, DEFAULT_ROLES, hasPermission } from '@/lib/permissions'
@@ -86,9 +86,60 @@ describe('what a person is shown about what is held', () => {
     expect(mine).not.toContain('Company and supplier records')
   })
 
+  it('somebody who is both a worker and a seat is shown both lists, once each, in the notice’s own order', () => {
+    const both = categoriesHeldAbout(['business', 'candidate'])
+    expect(both, 'the work he is the subject of').toContain('Resumes')
+    expect(both, 'the seat his employer granted him').toContain('A seat at a company, and what was decided from it')
+    expect(new Set(both).size, 'a category shown twice is a list nobody trusts').toBe(both.length)
+    expect(both).toEqual(HELD.map((h) => h.category).filter((c) => both.includes(c)))
+  })
+
   it('a reference is short enough to quote down a phone and the same in every letter', () => {
     expect(reference('clabcdef12345678')).toBe('DR-12345678')
     expect(reference('clabcdef12345678')).toBe(reference('clabcdef12345678'))
+  })
+})
+
+describe('the compliance desk is one page and four kinds of firm open it', () => {
+  it('a client reads about its own sites and a supplier about the people it employs', () => {
+    expect(deskFraming('CLIENT', 'Northbend Athletic').says).toContain('your sites')
+    const supplier = deskFraming('VENDOR', 'CloudEPA')
+    expect(supplier.says).toContain('CloudEPA')
+    expect(supplier.says).toContain('employs or lists')
+    expect(supplier.says).not.toContain('your sites')
+  })
+
+  it('an integrator is described as placing people as well as employing them, because it does both', () => {
+    expect(deskFraming('GSI', 'Teleworld Solutions').says).toContain('employs or places')
+  })
+
+  it('a program office is told what it is missing, and the sentence never invents the seat it lacks', () => {
+    const msp = deskFraming('MSP', 'Aptiva Workforce')
+    expect(msp.missing).not.toBeNull()
+    expect(msp.missing!).toContain('program office')
+    expect(msp.missing!).toContain('granted by the client')
+    expect(msp.missing!).toContain('not built yet')
+  })
+
+  it('a desk that could read either of its two lists is never told it cannot read the desk', () => {
+    expect(deskRefusal({ requests: null, holds: null })).toBeNull()
+    expect(deskRefusal({ requests: 'This seat cannot read the queue.', holds: null })).toBeNull()
+    expect(deskRefusal({ requests: null, holds: 'This seat cannot read the holds.' })).toBeNull()
+  })
+
+  it('a seat that could read neither is told in the route’s own words, not in a second copy of them', () => {
+    const said = deskRefusal({
+      requests: 'Reading the queue of data requests is the compliance desk’s job here, and this seat does not hold it.',
+      holds: 'Reading the legal holds this company placed is the compliance desk’s job here.',
+    })
+    expect(said).toContain('compliance desk')
+    expect(said).toContain('does not hold it')
+  })
+
+  it('nobody else is handed a sentence invented to fill the slot', () => {
+    for (const kind of ['CLIENT', 'VENDOR', 'GSI', 'CONSULTANT_CORP']) {
+      expect(deskFraming(kind, 'A firm').missing, kind).toBeNull()
+    }
   })
 })
 

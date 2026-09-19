@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import {
-  raiseRequest, produceExport, heldCategories, categoriesHeldAbout,
+  raiseRequest, produceExport, heldCategories, categoriesHeldAbout, audiencesOf,
   reference, contactEmail, coolingEndsAtFor,
 } from '@/lib/data-request'
+import { holdersOf } from '@/lib/erasure'
 import { logAccess } from '@/lib/access-log'
 
 /**
@@ -61,9 +62,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(row.document)
   }
 
-  const audience = (await prisma.context.count({ where: { personId: me, companyId: { not: null } } })) > 0
-    ? 'business' as const
-    : 'candidate' as const
+  // Both, where somebody is both. A systems integrator's own W2 holds a
+  // seat at his employer and is also the person the work is about, and
+  // this used to answer "business" and stop — so the categories about
+  // candidates, which are most of what is held about him, were on
+  // nobody's page.
+  const audiences = await audiencesOf(me)
+
+  // Who gets written to if they ask to be forgotten, by name, read off
+  // the same function the erasure itself uses. The page said "whoever
+  // paid you" and "the client whose site you stood on", which is a
+  // sentence for a contractor and nothing at all for a firm's own staff.
+  const holders = await holdersOf(me)
 
   const requests = await prisma.dataRequest.findMany({
     where: { subjectPersonId: me },
@@ -74,17 +84,25 @@ export async function GET(request: NextRequest) {
     },
   })
 
+  // `{ data: ... }`, the envelope `/api/me/papers` next door sends and
+  // the one this page reads. The download above is deliberately not
+  // wrapped: it is the file itself, and a person who opens it should
+  // find their record rather than an envelope around it.
   return NextResponse.json({
-    held: heldCategories(),
-    aboutYou: categoriesHeldAbout(audience),
-    contactEmail: contactEmail(),
-    requests: requests.map((r) => ({
-      ...r,
-      reference: reference(r.id),
-      runsOn: r.kind === 'ERASURE' ? coolingEndsAtFor(r.receivedAt) : null,
-      canWithdraw: r.status !== 'DONE' && r.status !== 'REFUSED',
-      downloadUrl: r.kind === 'EXPORT' && r.producedAt ? `/api/me/data?download=${r.id}` : null,
-    })),
+    data: {
+      held: heldCategories(),
+      aboutYou: categoriesHeldAbout(audiences),
+      youAre: audiences,
+      whoWouldBeTold: holders.map((h) => ({ name: h.companyName, how: h.holding })),
+      contactEmail: contactEmail(),
+      requests: requests.map((r) => ({
+        ...r,
+        reference: reference(r.id),
+        runsOn: r.kind === 'ERASURE' ? coolingEndsAtFor(r.receivedAt) : null,
+        canWithdraw: r.status !== 'DONE' && r.status !== 'REFUSED',
+        downloadUrl: r.kind === 'EXPORT' && r.producedAt ? `/api/me/data?download=${r.id}` : null,
+      })),
+    },
   })
 }
 

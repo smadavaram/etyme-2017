@@ -68,20 +68,25 @@ export async function GET(request: NextRequest) {
     reviewBy: r.reviewBy, liftedAt: r.liftedAt,
   }))
 
+  // `{ data: ... }`, the envelope every neighbouring route in this
+  // domain sends and the one the page reads. See the note in
+  // `/api/data-requests`.
   return NextResponse.json({
-    holds: rows.map((r) => ({
-      id: r.id,
-      subject: r.subjectPerson?.name ?? r.subjectCompany?.name ?? 'nobody named',
-      subjectPersonId: r.subjectPerson?.id ?? null,
-      reason: r.reason,
-      matter: r.matter,
-      placedAt: r.placedAt,
-      placedBy: r.placedBy?.name ?? 'somebody who no longer has a seat here',
-      reviewBy: r.reviewBy,
-      liftedAt: r.liftedAt,
-      liftedReason: r.liftedReason,
-    })),
-    overdueForReview: overdueForReview(holds, new Date()).map((h) => h.id),
+    data: {
+      holds: rows.map((r) => ({
+        id: r.id,
+        subject: r.subjectPerson?.name ?? r.subjectCompany?.name ?? 'nobody named',
+        subjectPersonId: r.subjectPerson?.id ?? null,
+        reason: r.reason,
+        matter: r.matter,
+        placedAt: r.placedAt,
+        placedBy: r.placedBy?.name ?? 'somebody who no longer has a seat here',
+        reviewBy: r.reviewBy,
+        liftedAt: r.liftedAt,
+        liftedReason: r.liftedReason,
+      })),
+      overdueForReview: overdueForReview(holds, new Date()).map((h) => h.id),
+    },
   })
 }
 

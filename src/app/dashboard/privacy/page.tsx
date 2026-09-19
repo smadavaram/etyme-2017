@@ -1,8 +1,34 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { readJson } from '@/lib/read-response'
+import { statusMeans } from '@/lib/read-response'
+import { deskRefusal } from '@/lib/data-request'
 import { ListSurface, type Column } from '@/components/list-surface'
+
+/**
+ * One read, one envelope.
+ *
+ * These three routes answer `{ data: ... }` and refuse with
+ * `{ error: <sentence> }`, the way every route in this domain does.
+ * `readJson` was used here and it throws a *generic* message on a
+ * refusal — `body.error.message` on a body whose error is a sentence —
+ * so the words the route chose never reached the screen, and the page
+ * fell back to a refusal it had written itself. Both halves of that are
+ * what this replaces.
+ */
+async function read(url: string): Promise<{ data: any | null; error: string | null }> {
+  try {
+    const res = await fetch(url)
+    const body = await res.json().catch(() => null)
+    if (!res.ok) {
+      const said = typeof body?.error === 'string' ? body.error : body?.error?.message
+      return { data: null, error: said ?? statusMeans(res.status) }
+    }
+    return { data: body?.data ?? null, error: null }
+  } catch {
+    return { data: null, error: 'We could not reach the server just now. Nothing has changed — try again in a moment.' }
+  }
+}
 
 /**
  * Privacy — the compliance desk's own page: requests soonest due first,
@@ -46,6 +72,7 @@ interface Hold {
   liftedReason: string | null
 }
 
+interface Desk { says: string; missing: string | null }
 interface Clock { who: string; reading: string; says: string; hours: number | null }
 interface Breach_ {
   id: string
@@ -81,6 +108,7 @@ function word(r: Request_): string {
 
 export default function PrivacyPage() {
   const [requests, setRequests] = useState<Request_[]>([])
+  const [desk, setDesk] = useState<Desk | null>(null)
   const [holds, setHolds] = useState<Hold[]>([])
   const [overdue, setOverdue] = useState<string[]>([])
   const [breaches, setBreaches] = useState<Breach_[]>([])
@@ -94,20 +122,20 @@ export default function PrivacyPage() {
     setError(null)
     try {
       const [d, h, b] = await Promise.all([
-        fetch('/api/data-requests').then(readJson).catch(() => null),
-        fetch('/api/legal-holds').then(readJson).catch(() => null),
-        fetch('/api/breaches').then(readJson).catch(() => null),
+        read('/api/data-requests'),
+        read('/api/legal-holds'),
+        read('/api/breaches'),
       ])
-      setRequests(d?.data?.requests ?? [])
-      setHolds(h?.data?.holds ?? [])
-      setOverdue(h?.data?.overdueForReview ?? [])
-      setBreaches(b?.data?.breaches ?? [])
-      if (!d?.data && !h?.data && !b?.data) {
-        setError(
-          'Reading and answering data requests is the compliance desk’s job here, and this ' +
-          'seat does not hold it. An owner or administrator can add it under Users and permissions.'
-        )
-      }
+      setRequests(d.data?.requests ?? [])
+      setDesk(d.data?.desk ?? null)
+      setHolds(h.data?.holds ?? [])
+      setOverdue(h.data?.overdueForReview ?? [])
+      setBreaches(b.data?.breaches ?? [])
+      // A company that was in no incident is refused by the incidents
+      // route, correctly, and that is not a refusal of this page. Only
+      // the two lists every compliance desk has decide whether this seat
+      // can read the desk at all.
+      setError(deskRefusal({ requests: d.error, holds: h.error }))
     } finally {
       setLoading(false)
     }
@@ -211,10 +239,23 @@ export default function PrivacyPage() {
     <div className="max-w-6xl">
       <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">Governance</p>
       <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">{headline}</h1>
+      {/* Whose desk this is, said the way this kind of firm would say it.
+          The page used to describe a client program to a staffing
+          supplier and to an MSP alike; the sentence now comes from the
+          route, which knows the company kind, the same way
+          `lib/order-naming` decides what each end of an order is
+          called. */}
       <p className="text-sm text-etyme-muted mt-2 max-w-2xl">
-        Requests for somebody&rsquo;s data, the records this company has asked to keep, and any
-        incident its records were in. Soonest due first.
+        {desk?.says ??
+          'Requests for somebody’s data, the records this company has asked to keep, and any incident its records were in.'}{' '}
+        Soonest due first.
       </p>
+
+      {desk?.missing && (
+        <p className="mt-3 px-4 py-3 rounded-lg bg-etyme-canvas border border-etyme-rule text-sm text-etyme-muted max-w-2xl">
+          {desk.missing}
+        </p>
+      )}
 
       {said && (
         <div className="mt-4 px-4 py-3 rounded-lg bg-etyme-verified/10 text-sm text-etyme-verified flex justify-between gap-4">

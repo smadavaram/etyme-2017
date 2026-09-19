@@ -99,32 +99,37 @@ export async function GET(request: NextRequest) {
   })
 
   const now = new Date()
+  // `{ data: ... }`, as above. A refusal stays `{ error: <sentence> }`
+  // at the top level, because the sentence is the product and the page
+  // shows it.
   return NextResponse.json({
-    breaches: rows.map((b) => {
-      const clocks = clocksOf(b)
-      const reading = readBreach(clocks, now, b.closedAt)
-      return {
-        id: b.id,
-        reference: referenceOfBreach(b.id),
-        summary: b.summary,
-        discoveredAt: b.discoveredAt,
-        occurredAt: b.occurredAt,
-        personalData: b.personalData,
-        populations: b.populations,
-        categories: b.categories,
-        closedAt: b.closedAt,
-        closedBecause: b.closedBecause,
-        openedBy: b.openedBy?.name ?? null,
-        says: reading.says,
-        nobodyHasDecided: reading.nobodyHasDecided,
-        clocks: reading.clocks,
-        companies: b.companies.map((c) => ({
-          id: c.id, name: c.company.name, notifyBy: c.notifyBy, notifiedAt: c.notifiedAt, notifiedTo: c.notifiedTo,
-        })),
-      }
-    }),
-    youAre: staff ? 'staff' : 'a customer whose records were in one of these',
-    populations: POPULATIONS.map((p) => ({ id: p.id, name: p.name })),
+    data: {
+      breaches: rows.map((b) => {
+        const clocks = clocksOf(b)
+        const reading = readBreach(clocks, now, b.closedAt)
+        return {
+          id: b.id,
+          reference: referenceOfBreach(b.id),
+          summary: b.summary,
+          discoveredAt: b.discoveredAt,
+          occurredAt: b.occurredAt,
+          personalData: b.personalData,
+          populations: b.populations,
+          categories: b.categories,
+          closedAt: b.closedAt,
+          closedBecause: b.closedBecause,
+          openedBy: b.openedBy?.name ?? null,
+          says: reading.says,
+          nobodyHasDecided: reading.nobodyHasDecided,
+          clocks: reading.clocks,
+          companies: b.companies.map((c) => ({
+            id: c.id, name: c.company.name, notifyBy: c.notifyBy, notifiedAt: c.notifiedAt, notifiedTo: c.notifiedTo,
+          })),
+        }
+      }),
+      youAre: staff ? 'staff' : 'a customer whose records were in one of these',
+      populations: POPULATIONS.map((p) => ({ id: p.id, name: p.name })),
+    },
   })
 }
 

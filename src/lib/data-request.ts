@@ -132,14 +132,185 @@ export function mayAsk(input: {
 
 // ── What a subject is told is being held about them ───────────────────
 
-/** The categories the privacy notice says are held about this reader. */
-export function categoriesHeldAbout(audience: Audience): string[] {
-  return categoriesFor(audience)
+/**
+ * Which populations one person is in — and it can be both.
+ *
+ * `categoriesFor` takes one audience and the code asked it one question:
+ * does this person hold a seat at a company. That substituted one answer
+ * for the other, and it was wrong at both ends. A systems integrator's
+ * own W2 holds a seat *and* is the person the work is about, so he was
+ * shown the business categories and none of the ones about candidates —
+ * no resumes, no work authorization, no time on site, which is most of
+ * what is actually held about him. A consultant with a CONSULTANT seat
+ * at the firm that benches her had the same bug facing the other way.
+ *
+ * It is the same decision the shell makes about his menu, decided
+ * 2026-09-17: appended, never substituted, and whether somebody is a
+ * worker is read off the work rather than off a seat type.
+ *
+ * Business is read off a seat that is not the consultant seat, or off
+ * anything decided from a seat — an approval, a requisition, a week
+ * signed — because that is what the "a seat at a company, and what was
+ * decided from it" category actually contains. A person with neither is
+ * a candidate: somebody who has just signed up is asked no questions
+ * about which they are.
+ */
+export async function audiencesOf(personId: string): Promise<Audience[]> {
+  const [seats, approvals, requisitions, signedWeeks, profile, submissions, sells, buys, weeks] =
+    await Promise.all([
+      prisma.context.count({ where: { personId, companyId: { not: null }, type: { not: 'CONSULTANT' } } }),
+      prisma.requirementApproval.count({ where: { approverId: personId } }),
+      prisma.requirement.count({ where: { raisedById: personId } }),
+      prisma.timesheet.count({
+        where: { OR: [{ clientApprovedById: personId }, { employerAcceptedById: personId }] },
+      }),
+      prisma.consultantProfile.count({ where: { personId } }),
+      prisma.submission.count({ where: { personId } }),
+      prisma.sellContract.count({ where: { personId } }),
+      prisma.buyContractCandidate.count({ where: { personId } }),
+      prisma.timesheet.count({ where: { personId } }),
+    ])
+
+  const business = seats + approvals + requisitions + signedWeeks > 0
+  const worker = profile + submissions + sells + buys + weeks > 0
+
+  if (business && worker) return ['business', 'candidate']
+  if (business) return ['business']
+  return ['candidate']
+}
+
+/**
+ * The categories the privacy notice says are held about this reader.
+ *
+ * Takes one audience or several, and the several are unioned in the
+ * notice's own order so a person who is both reads one list rather than
+ * two lists with the same category in both.
+ */
+export function categoriesHeldAbout(audience: Audience | Audience[]): string[] {
+  const all = Array.isArray(audience) ? audience : [audience]
+  const mine = new Set(all.flatMap((a) => categoriesFor(a)))
+  return HELD.map((h) => h.category).filter((c) => mine.has(c))
 }
 
 /** Everything the notice names, for a screen that renders the list. */
 export function heldCategories(): { category: string; examples: string; about: string }[] {
   return HELD.map((h) => ({ category: h.category, examples: h.examples, about: h.about }))
+}
+
+/**
+ * What the compliance desk's page says when it could not read itself.
+ *
+ * The page wrote its own refusal — "this seat does not hold it" — and
+ * showed it whenever all three of its reads came back empty. Two things
+ * were wrong with that and both reached a real screen. The envelope was
+ * misread, so a 200 with a full queue in it looked like nothing; and the
+ * incidents route correctly refuses a company that was in no incident,
+ * which is the ordinary case and not a refusal of the page.
+ *
+ * So the decision is here, it takes the routes' own sentences rather
+ * than a second copy of one, and it only speaks when both of the two
+ * lists that belong to every compliance desk were refused. A company
+ * with no incident reads its incidents list as empty, because that is
+ * what it is.
+ */
+export function deskRefusal(refusals: {
+  /** The refusal from `/api/data-requests`, or null where it answered. */
+  requests: string | null
+  /** The refusal from `/api/legal-holds`, or null where it answered. */
+  holds: string | null
+}): string | null {
+  if (!refusals.requests || !refusals.holds) return null
+  return refusals.requests
+}
+
+// ── Whose desk this is, in this reader's own words ────────────────────
+
+export type DeskKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+
+export interface DeskFraming {
+  /** Whose requests, holds and incidents this desk answers for. */
+  says: string
+  /**
+   * What this desk cannot reach, and what is missing to reach it. Null
+   * where nothing is missing — never a sentence invented to fill a slot.
+   */
+  missing: string | null
+}
+
+/**
+ * The compliance desk is one page and four kinds of firm open it.
+ *
+ * "Implement it across the app and not for client" — the founder,
+ * 2026-09-19. The page described the reader as a client program, which
+ * is the wrong sentence for a staffing supplier answering for the people
+ * it employs, and a false one for a program office that answers for
+ * nobody yet. Same data, same route, the framing picked off the company
+ * kind — the rule `lib/order-naming` already applies to a document that
+ * is a purchase order at one end and a sales order at the other.
+ *
+ * ── The program office is a refusal, on purpose ──────────────────────
+ *
+ * An MSP runs a client's program and places nobody, so no contract ties
+ * it to a client and nothing here can tell a real program office from a
+ * firm that typed a client's name. CLAUDE.md settled this for
+ * requisitions — "the answer is a seat: the client grants the MSP a desk
+ * in its program office" — and that seat is not built. `Delegation` is a
+ * table with no writer and no reader, which is a column rather than a
+ * feature. So the honest answer is to say what is missing, rather than
+ * show an empty list that reads as "nobody has asked", and never to
+ * invent the seat here.
+ */
+export function deskFraming(kind: DeskKind | string, companyName: string): DeskFraming {
+  switch (kind) {
+    case 'CLIENT':
+      return {
+        says:
+          'Requests from the people on your sites and from your own staff, the records ' +
+          'this program has asked to keep, and any incident its records were in.',
+        missing: null,
+      }
+    case 'VENDOR':
+      return {
+        says:
+          `Requests from the people ${companyName} employs or lists and from its own ` +
+          'staff, the records it has asked to keep, and any incident its records were in.',
+        missing: null,
+      }
+    case 'GSI':
+      return {
+        says:
+          `Requests from the people ${companyName} employs or places and from its own ` +
+          'staff, the records it has asked to keep, and any incident its records were in.',
+        missing: null,
+      }
+    case 'MSP':
+      return {
+        says:
+          `Requests ${companyName} has logged itself, the records it has asked to keep, ` +
+          'and any incident its records were in.',
+        missing:
+          `${companyName} runs somebody else's program and places nobody, so nothing here ` +
+          'ties it to a client. A request from one of a client’s contractors is answered ' +
+          `by that client’s own compliance desk, and reading one from here needs a desk in ` +
+          `the client’s program office — granted by the client, the way it grants one to ` +
+          'its own people. That seat is not built yet, so this page shows ' +
+          `${companyName}’s own and says so rather than showing an empty list.`,
+      }
+    case 'CONSULTANT_CORP':
+      return {
+        says:
+          'Requests about the people this company contracts out, and any incident its ' +
+          'records were in. Your own data is on your own page and needs nobody’s permission.',
+        missing: null,
+      }
+    default:
+      return {
+        says:
+          'Requests for somebody’s data, the records this company has asked to keep, and ' +
+          'any incident its records were in. Soonest due first.',
+        missing: null,
+      }
+  }
 }
 
 // ── The export document ───────────────────────────────────────────────
@@ -175,6 +346,8 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
     credentials, profile, resumes, visas, verifications, packets,
     classifications, exempts, sells, buys, timesheets, expenses,
     invoiceLines, messages, accessLogs, blacklists, doNotSubmits, favorites,
+    seats, approvals, raised, signedWeeks, overtimeCalls, classedOthers,
+    supplierDecisions, holdsPlaced, breachesOpened, signatures,
   ] = await Promise.all([
     prisma.credential.findMany({ where: { personId }, select: { provider: true, email: true, lastUsedAt: true, createdAt: true } }),
     prisma.consultantProfile.findUnique({ where: { personId }, select: { headline: true, skills: true, location: true, workAuth: true, rateFloor: true, slug: true, mobile: true, availableFrom: true, visibility: true } }),
@@ -194,6 +367,76 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
     prisma.blacklist.findMany({ where: { targetType: 'PERSON', targetId: personId }, select: { reason: true, blockedAt: true, liftedAt: true, company: { select: { name: true } } } }),
     prisma.doNotSubmit.findMany({ where: { personId }, select: { note: true, createdAt: true, company: { select: { name: true } } } }),
     prisma.favorite.findMany({ where: { targetType: 'PERSON', targetId: personId }, select: { note: true, createdAt: true, company: { select: { name: true } } } }),
+
+    // ── The business-user half of the same person ────────────────────
+    //
+    // The privacy notice has said since it was written that a seat and
+    // what was decided from it is held, and for a week the export did
+    // not contain it: an AP clerk, a procurement lead, a compliance
+    // officer — anybody whose whole relationship with Etyme is a seat —
+    // asked for everything held about them and got a file with nothing
+    // about them in it. `footprintFor` counted all of this from the
+    // first commit, so the erasure letter named a category the export
+    // did not carry.
+    //
+    // What is deliberately **not** in it is the other person: the week
+    // somebody signed names the week and not the contractor, and a
+    // position taken about how somebody is engaged names the decision
+    // and not the worker. Those are somebody else's personal data and
+    // they belong in that person's own file, not in this one.
+    prisma.context.findMany({
+      where: { personId },
+      select: {
+        type: true, side: true, persona: true, grantReason: true, grantedAt: true,
+        lastUsedAt: true, suspendedAt: true, revokedAt: true, revokeReason: true,
+        company: { select: { name: true } }, role: { select: { name: true, permissions: true } },
+      },
+    }),
+    prisma.requirementApproval.findMany({
+      where: { approverId: personId },
+      select: {
+        stage: true, outcome: true, reason: true, decidedAt: true,
+        requirement: { select: { title: true, company: { select: { name: true } } } },
+      },
+    }),
+    prisma.requirement.findMany({
+      where: { raisedById: personId },
+      select: { title: true, status: true, createdAt: true, company: { select: { name: true } } },
+    }),
+    prisma.timesheet.findMany({
+      where: { OR: [{ clientApprovedById: personId }, { employerAcceptedById: personId }] },
+      select: {
+        periodStart: true, periodEnd: true, totalHours: true, acceptedHours: true,
+        clientApprovedAt: true, employerAcceptedAt: true, clientApprovedById: true,
+      },
+    }),
+    prisma.overtimeDecision.findMany({
+      where: { decidedById: personId },
+      select: { weekOf: true, treatment: true, decidedAt: true },
+    }),
+    prisma.classificationCall.findMany({
+      where: { decidedById: personId },
+      select: { decidedAt: true, position: true, arrangement: true, company: { select: { name: true } } },
+    }),
+    prisma.supplierRequest.findMany({
+      where: { decidedById: personId },
+      select: { name: true, state: true, stage: true, decidedAt: true },
+    }),
+    prisma.legalHold.findMany({
+      where: { placedById: personId },
+      select: { reason: true, matter: true, placedAt: true, liftedAt: true },
+    }),
+    prisma.breach.findMany({
+      where: { openedById: personId },
+      select: { summary: true, discoveredAt: true, closedAt: true },
+    }),
+    prisma.agreementSignature.findMany({
+      where: { OR: [{ attestedById: personId }, { signerEmail: person.primaryEmail }] },
+      select: {
+        party: true, signerName: true, signerTitle: true, signerEmail: true,
+        signedAt: true, method: true, attestation: true, attestedAt: true,
+      },
+    }),
   ])
 
   // Days on site, per client, counted once per day however many firms
@@ -231,6 +474,38 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
         note: 'Counted once per day however many firms billed it, and only days actually served.',
       })),
       'Bars and preferences': { bars: blacklists, doNotSubmit: doNotSubmits, stars: favorites },
+      'A seat at a company, and what was decided from it': {
+        seats: seats.map((c) => ({
+          company: c.company?.name ?? 'no company',
+          role: c.role?.name ?? 'no role',
+          permissions: c.role?.permissions ?? [],
+          kind: c.type, side: c.side, reach: c.persona,
+          whyItWasGranted: c.grantReason, granted: c.grantedAt, lastUsed: c.lastUsedAt,
+          paused: c.suspendedAt, ended: c.revokedAt, endedBecause: c.revokeReason,
+        })),
+        requisitionsRaised: raised.map((r) => ({
+          role: r.title, client: r.company.name, raised: r.createdAt, where: r.status,
+        })),
+        approvalsGiven: approvals.map((a) => ({
+          role: a.requirement.title, client: a.requirement.company.name,
+          desk: a.stage, decision: a.outcome, reason: a.reason, decided: a.decidedAt,
+        })),
+        weeksSignedOff: signedWeeks.map((t) => ({
+          week: t.periodStart, to: t.periodEnd,
+          hours: Number(t.totalHours), accepted: t.acceptedHours ? Number(t.acceptedHours) : null,
+          as: t.clientApprovedById === personId ? 'signed by the client' : 'accepted by the employer',
+          at: t.clientApprovedById === personId ? t.clientApprovedAt : t.employerAcceptedAt,
+          note: 'The week is here; the person who worked it is not. Their hours are in their own file.',
+        })),
+        overtimeCalls: overtimeCalls.map((o) => ({ week: o.weekOf, treatment: o.treatment, decided: o.decidedAt })),
+        positionsTakenAboutSomebodyElse: classedOthers.map((c) => ({
+          company: c.company.name, position: c.position, arrangement: c.arrangement, decided: c.decidedAt,
+        })),
+        suppliersDecided: supplierDecisions,
+        legalHoldsPlaced: holdsPlaced,
+        incidentsOpened: breachesOpened,
+        agreementsSigned: signatures,
+      },
       'Messages': messages,
       'Logs': accessLogs,
     },
@@ -332,13 +607,18 @@ export async function raiseRequest(input: {
   const runsOn = input.kind === 'ERASURE' ? coolingEndsAt(receivedAt) : null
 
   if (input.kind === 'ERASURE' && input.subjectPersonId) {
+    // The categories are the union of every population this person is
+    // in, and the tone is the single audience the letter is written for.
+    // An integrator's own W2 is both, and a letter listing only one half
+    // promises a fate for half of what is held about him.
+    const mine = categoriesHeldAbout(await audiencesOf(input.subjectPersonId))
     await tellSubject(input.subjectPersonId, (person) =>
       erasureReceivedNotice({
         person,
         reference: reference(row.id),
         requestedAt: receivedAt,
         completesOn: runsOn!,
-        categories: categoriesFor(person.audience),
+        categories: mine,
         withdrawUrl: withdrawUrl(row.id),
         contactEmail: contactEmail(),
       })
@@ -448,7 +728,7 @@ export async function completeErasure(
   const name = row.subjectPerson.name
   const replyTo = row.subjectPerson.primaryEmail
   const audience: Audience = await audienceOf(row.subjectPersonId)
-  const categories = categoriesFor(audience)
+  const categories = categoriesHeldAbout(await audiencesOf(row.subjectPersonId))
 
   const outcome = await executeErasure(row.subjectPersonId, { now })
 
@@ -528,9 +808,16 @@ export async function withdrawRequest(
 
 // ── Sending the letters ───────────────────────────────────────────────
 
+/**
+ * The one voice a letter is written in.
+ *
+ * Which categories a person is shown is `audiencesOf`, and can be both.
+ * A letter still has to pick one register to speak in, and a person with
+ * a seat is addressed as a business user because that is the inbox it
+ * arrives in.
+ */
 async function audienceOf(personId: string): Promise<Audience> {
-  const seats = await prisma.context.count({ where: { personId, companyId: { not: null } } })
-  return seats > 0 ? 'business' : 'candidate'
+  return (await audiencesOf(personId)).includes('business') ? 'business' : 'candidate'
 }
 
 async function tellSubject(

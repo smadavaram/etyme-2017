@@ -323,9 +323,26 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
   return { personId, facts, counts, holds, holders: await holdersOf(personId) }
 }
 
-/** The firms to write to once it has run, and how each knew them. */
+/**
+ * The firms to write to once it has run, and how each knew them.
+ *
+ * ── A seat is a way of knowing somebody too ──────────────────────────
+ *
+ * This read contracts and listings only, so a person whose whole
+ * relationship with Etyme is a seat — a client's AP clerk, a supplier's
+ * account manager, a compliance officer — was erased and **nobody was
+ * told**. Their employer's approvals, signed weeks and requisitions
+ * quietly stopped naming anybody and the firm whose record it was read
+ * nothing about it. Every other holder gets a letter saying its books
+ * still add up; the one firm that employs the person got silence.
+ *
+ * So an EMPLOYEE seat counts as employment, which is what it is. A
+ * CONSULTANT seat does not: that firm is already here as a supplier
+ * through the listing or the contract, and the employer letter would
+ * tell a bench vendor it holds payroll it does not.
+ */
 export async function holdersOf(personId: string): Promise<Holder[]> {
-  const [buys, sells, listings] = await Promise.all([
+  const [buys, sells, listings, seats] = await Promise.all([
     prisma.buyContractCandidate.findMany({
       where: { personId },
       select: { buyContract: { select: { companyId: true, company: { select: { name: true } } } } },
@@ -339,6 +356,10 @@ export async function holdersOf(personId: string): Promise<Holder[]> {
     }),
     prisma.benchListing.findMany({
       where: { consultant: { personId }, revokedAt: null },
+      select: { companyId: true, company: { select: { name: true } } },
+    }),
+    prisma.context.findMany({
+      where: { personId, type: 'EMPLOYEE', companyId: { not: null } },
       select: { companyId: true, company: { select: { name: true } } },
     }),
   ])
@@ -357,6 +378,14 @@ export async function holdersOf(personId: string): Promise<Holder[]> {
     out.set(b.buyContract.companyId, {
       companyId: b.buyContract.companyId,
       companyName: b.buyContract.company.name,
+      holding: 'EMPLOYER',
+    })
+  }
+  for (const c of seats) {
+    if (!c.companyId) continue
+    out.set(c.companyId, {
+      companyId: c.companyId,
+      companyName: c.company?.name ?? 'their employer',
       holding: 'EMPLOYER',
     })
   }
@@ -409,6 +438,14 @@ export async function executeErasure(
 
   const tombstone = plan.tombstone
 
+  // Read before anything is written: the address is what finds a
+  // signature that carries this person's name as text rather than as a
+  // link, and after the tombstone it finds nothing.
+  const was = await prisma.person.findUniqueOrThrow({
+    where: { id: personId },
+    select: { primaryEmail: true },
+  })
+
   await prisma.$transaction(async (tx) => {
     // 1. The door, first.
     await tx.credential.deleteMany({ where: { personId } })
@@ -437,6 +474,27 @@ export async function executeErasure(
     await tx.blacklist.deleteMany({ where: { targetType: 'PERSON', targetId: personId } })
     await tx.doNotSubmit.deleteMany({ where: { personId } })
     await tx.favorite.deleteMany({ where: { targetType: 'PERSON', targetId: personId } })
+
+    // 4b. A signature on an agreement carries a name as **text**, not as
+    //     a link to this row, so the tombstone does not reach it: a
+    //     person who asked to be forgotten went on being named, in full,
+    //     with their work email beside it, on every agreement they put
+    //     their name to. The paper itself is outside Etyme and cannot be
+    //     rewritten; what is here is the record of it, and the record
+    //     keeps everything that proves the agreement was executed — the
+    //     title that speaks to authority, the date on the paper, how it
+    //     was signed and the attestation word for word — while the
+    //     identity goes, which is exactly what a marker is.
+    const signed = await tx.agreementSignature.findMany({
+      where: { OR: [{ attestedById: personId }, { signerEmail: was.primaryEmail }] },
+      select: { id: true },
+    })
+    if (signed.length > 0) {
+      await tx.agreementSignature.updateMany({
+        where: { id: { in: signed.map((r) => r.id) } },
+        data: { signerName: tombstone.name, signerEmail: null },
+      })
+    }
 
     // 5. The tombstone. Everything else on this person goes on pointing
     //    at this row and now resolves to nobody — which is what keeps the
