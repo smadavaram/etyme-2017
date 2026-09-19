@@ -214,6 +214,12 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'A contract whose last day has passed is ended, both sides, with nobody asked. It is a date comparison, and it is what break-in-service and tenure are counted from.',
   },
+  ERASURE_COMPLETE: {
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'Somebody asked to be forgotten and the last thing standing in the way came free, so it finished on its own: the identity is a tombstone on a domain nothing can be sent to, and the work they did is still on the record under nobody’s name. Nothing puts this back.',
+  },
 }
 
 // ── The things that are governance, not autonomy ─────────
@@ -382,14 +388,6 @@ export const PLANNED: Record<string, PlannedAct> = {
     basis: 'RULE',
     says:
       'A record that has to survive for the money or for the client — an invoice line, a signed week, a day on site — kept its amounts and forgot whose they were, because the period for holding the name ran out. The arithmetic still foots and the person is gone from it, and it cannot be put back.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  ERASURE_COMPLETE: {
-    kind: 'UNPROMPTED',
-    rung: 'L5',
-    basis: 'RULE',
-    says:
-      'Somebody asked to be forgotten and the last thing standing in the way came free, so it finished on its own: the identity is a tombstone on a domain nothing can be sent to, and the work they did is still on the record under nobody’s name. Nothing puts this back.',
     willBeWrittenBy: 'etyme-regulatory',
   },
 

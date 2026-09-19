@@ -23,6 +23,16 @@ export type AccessAction =
   | 'RELEASING_SOON_VIEW' // saw somebody listed as coming free before they are
   | 'CLASSIFICATION_CALL' // took a position on whether somebody is employed
   | 'DNR_VIEW'            // read the do-not-return list, which names people and why
+  // ── The subject's own record, read for their own sake ──────────────
+  //
+  // Both of these are reads of somebody's whole file, and both are the
+  // ones a regulator asks about first. An export is every category the
+  // privacy notice names, in one document; an erasure reads the lot in
+  // order to decide what goes. A person reading their own file is still
+  // logged here, unlike the rest of `/api/me`, because this read is the
+  // one that produces a file somebody else could later be handed.
+  | 'DATA_EXPORT'         // produced or downloaded an export of everything held
+  | 'ERASURE'             // read the whole footprint in order to erase it
 
 interface LogAccessParams {
   /** The person whose data was accessed */
