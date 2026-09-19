@@ -810,9 +810,9 @@ The header is the commitment to a counterparty — who, ceiling, dates,
 terms, the four partner functions, whether silence approves a week. A
 line is one person at one rate at one site. SAP has no "buy contract"
 beside the PO item; the item *is* the contract for that service, and
-the Service Entry Sheet (our timesheet receipt) posts against it. SD is
-the mirror: contract header (VA41), sales order items (VA01), one item
-per worker.
+the Service Entry Sheet (our timesheet receipt) posts against it. The sell side is
+the mirror: a sales contract as the header, sales order items as the
+lines, one item per worker.
 
 So the words change and the two rows stay:
 
@@ -1026,14 +1026,15 @@ statement corrected the reading, and the third named the authority:
 
 > Do what SAP would do.
 
-**"Invoice receipt" is not a coinage — it is SAP's own term**, the IR in
-GR/IR, and using it settles the whole vocabulary by pointing at a system
-every enterprise buyer already has. So the words are SAP's:
+**"Invoice receipt" is not a coinage — it is SAP's own term** for the
+step where a supplier's invoice is received and matched, and using it
+settles the whole vocabulary by pointing at a system every enterprise
+buyer already has. So the words are SAP's:
 
 | Direction | SAP calls it | Etyme says |
 |---|---|---|
-| **Out to the customer** | Billing — the process is *billing*, the document a *billing document*, the output a *customer invoice* (FI-AR) | **bill**, and "invoice" is a correct synonym, not a mistake |
-| **In from a supplier** | **Invoice receipt** — MIRO, the IR half of GR/IR (FI-AP) | **invoice receipt**; the supplier issues its invoice, we receive it |
+| **Out to the customer** | Billing — the process is *billing*, the document a *billing document*, the output a *customer invoice* | **bill**, and "invoice" is a correct synonym, not a mistake |
+| **In from a supplier** | **Invoice receipt** — the supplier's invoice, received and matched | **invoice receipt**; the supplier issues its invoice, we receive it |
 | **To our own employee** | Payroll | **payroll** — never billed, never invoiced |
 
 **The rule underneath, which is the real answer to "what would SAP
@@ -1064,8 +1065,8 @@ So the match is:
 
 **work order ↔ timesheet receipt (or expense receipt) ↔ supplier invoice**
 
-exactly SAP's PO ↔ GR ↔ IR, with the approved timesheet standing where
-the goods receipt stands: the proof that what was ordered actually
+exactly SAP's purchase order ↔ goods receipt ↔ invoice receipt, with the
+approved timesheet standing where the goods receipt stands: the proof that what was ordered actually
 happened, signed by the party who received it.
 
 Three things can be the receipt, and the app already treats all three
@@ -1080,8 +1081,8 @@ the same way, which is the sign the shape is right:
 `WorkOrder` is the ceiling, the receipt is the proof, the supplier's
 invoice is what gets matched against both — and a client pays what came
 through the match, never an invoice with no receipt behind it. The
-three-way match exceptions that route to the AP desk are the SAP GR/IR
-exception queue, in the trade's words.
+three-way match exceptions that route to the AP desk are SAP's
+receipt-against-invoice exception queue, in the trade's words.
 
 **Accounting integrations.** QuickBooks and Xero say *Invoice* for the
 customer document and *Bill* for the received supplier one. That maps
