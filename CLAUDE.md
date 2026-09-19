@@ -851,10 +851,38 @@ standalone has reintroduced the second document.
    line whose header is the firm's own, with no external number,
    because you do not raise a PO to your own employee — SAP agrees; an
    employee is HCM master data, not a vendor.
-2. **The six duplicated fields live on the header only.** A line reads
-   its dates and its billing rhythm from the document it is on; it
-   carries what only a line can carry — the person, the rate, the
-   site, the hours.
+2. **Four of the six fields are the header's; the two dates are the
+   line's.** Corrected by `etyme-money` on 2026-09-19 against the
+   seeded world, and ratified. The billing rhythm and the net days —
+   `billFrequency`, `billAnchor`, `billStraddle`, `paymentTerms` — are
+   read from the document the line is on, because a line's own copy
+   cannot report its silence: those columns carry schema defaults, so
+   `MONTHLY` on a line may mean "agreed" or "nobody asked", and a value
+   that cannot say it did not say must not beat one somebody typed.
+   **`startDate` and `endDate` stay the line's**, because a line is a
+   person and an order is not — a line's start is never a default, it
+   is the day *this person* starts. The header's window is *reported*
+   beside the line's dates and never applied: twenty-nine seeded lines
+   end a month to a year before their order does, on purpose, because
+   an order that closes the day the work does cannot carry the final
+   invoice, and reading the header's dates onto them would have billed
+   a fortnight's placement for thirteen months. A line outside its
+   order's window is a sentence on the screen, not a correction.
+   `lib/money/order-terms` is the one door (`termsFor`, side explicit),
+   and `terms-through-one-door.test.ts` fails on any reader in any
+   domain that decides a period from a line's own copy.
+
+   Two things the work surfaced, written down so they are not
+   rediscovered: the header and the line did not even share a
+   vocabulary for the same four fields — `CONTRACT_START` against
+   `CONTRACT`, `TO_LATER` against `END` — which is its own evidence
+   nothing had reconciled them; the helper translates, and one
+   vocabulary is an enum change for the architect. And `billFrequency`
+   decides what an *invoice period* is and nothing else: cycle dates
+   come from the template pack, so a header that says WEEKLY does not
+   yet move an hours-due or a pay day. Making the document's rhythm
+   reach the cycle dates is real, separate money work, documented in
+   `lib/contract-cycles`.
 3. **The MSA is the legal umbrella and nothing more, and it is
    optional.** No route requires one today; `Engagement.msaId` is the
    one hard dependency and it becomes optional too. A client that sends
