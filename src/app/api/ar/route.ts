@@ -9,7 +9,7 @@ import {
   type BillingPeriod, type CurrencyBook,
   type DunningStep, type SentLetter, type Receipt,
 } from '@/lib/ar-ageing'
-import { loadBook, openInvoiceIdsAcross } from './book'
+import { customerOf, loadBook, openInvoiceIdsAcross } from './book'
 import {
   committedOf, exposureOf, assess,
   type RunningAssignment, type Committed, type CreditLimit,
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
   // and is billed through a shared services center in another; if they
   // stop paying, both stop.
   const billedVia = new Map(
-    raw.filter((i) => i.billTo && i.billTo.id !== i.engagement.msa.client.id)
+    raw.filter((i) => i.billTo && i.billTo.id !== customerOf(i).client?.id)
       .map((i) => [i.id, i.billTo!.name])
   )
 

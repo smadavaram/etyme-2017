@@ -5,6 +5,7 @@ import { invoiceScope } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { dueOn, resolveBillingTerms } from '@/lib/billing-cascade'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
+import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * POST /api/invoices/:id/received
@@ -53,12 +54,23 @@ export async function POST(
         where: { id, ...scope },
         select: {
           id: true, number: true, issuedAt: true, periodEnd: true, receivedAt: true, dueAt: true,
+          // Who this is addressed to, where no agreement says.
+          workOrder: {
+            select: {
+              number: true,
+              issuedById: true, issuedToId: true,
+              issuedBy: { select: { id: true, name: true } },
+              issuedTo: { select: { id: true, name: true } },
+            },
+          },
           engagement: {
             select: {
               msa: {
                 select: {
+                  vendorId: true, clientId: true,
                   paymentTerms: true, paymentTermsFrom: true,
-                  client: { select: { name: true } },
+                  client: { select: { id: true, name: true } },
+                  vendor: { select: { id: true, name: true } },
                 },
               },
               sellContracts: {
@@ -131,13 +143,20 @@ export async function POST(
   // the agreement, then the end of the work period.
   const contract = invoice.engagement.sellContracts[0] ?? null
   const onOrder = contract ? termsFor('SELL', contract) : null
+  const msa = invoice.engagement.msa
+  const customer =
+    partiesOf({ agreement: msa, order: invoice.workOrder }).client?.name ?? 'the client'
   const terms = resolveBillingTerms({
     company: { name: caller.company?.name ?? 'this company' },
-    agreement: {
-      paymentTermsDays: invoice.engagement.msa.paymentTerms,
-      paymentTermsFrom: invoice.engagement.msa.paymentTermsFrom,
-      counterpartyName: invoice.engagement.msa.client.name,
-    },
+    // Null where the engagement has no agreement behind it. The cascade
+    // then runs order → contract → default and says which answered.
+    agreement: msa
+      ? {
+          paymentTermsDays: msa.paymentTerms,
+          paymentTermsFrom: msa.paymentTermsFrom,
+          counterpartyName: customer,
+        }
+      : null,
     contract: {
       paymentTermsDays: contract?.paymentTerms,
       paymentTermsFrom: contract?.paymentTermsFrom,

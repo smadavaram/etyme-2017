@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { fromPrismaDecimal, minorPerUnit } from '@/lib/money'
 import { ageBook, type ArInvoice, type Book } from '@/lib/ar-ageing'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
+import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * The receivable book, loaded once and used by every AR route.
@@ -21,16 +22,22 @@ import { resolveBillingTerms } from '@/lib/billing-cascade'
 export const NOT_RECEIVABLE = ['DRAFT', 'CANCELLED', 'VOID']
 
 /**
- * Invoices raised under an agreement where we are the VENDOR.
+ * Invoices this company raised — the agreement, the order, or a line on
+ * it saying that we are the firm that billed.
  *
  * Our side only. An invoice where we are the client is somebody else's
  * receivable and our payable, and mixing the two is how an AR report
  * shows a positive balance to a company that owes money.
+ *
+ * It used to read the agreement alone. An agreement is optional now, and
+ * a relation filter on a null relation matches nothing — so a firm's own
+ * bill would have disappeared from its own receivables and never been
+ * chased. `lib/money/invoice-parties` holds the one cascade.
  */
 export async function loadReceivables(companyId: string) {
   return prisma.invoice.findMany({
     where: {
-      engagement: { msa: { vendorId: companyId } },
+      ...invoicesRaisedBy(companyId),
       status: { notIn: NOT_RECEIVABLE },
     },
     select: {
@@ -47,11 +54,43 @@ export async function loadReceivables(companyId: string) {
       // this join exists to prevent.
       creditNotes: { select: { amount: true, appliedAt: true, reasonCode: true } },
       billTo: { select: { id: true, name: true } },
+      // Who this is addressed to, where no agreement says. The buyer
+      // raised the order; the seller bills against it.
+      workOrder: {
+        select: {
+          number: true,
+          issuedById: true, issuedToId: true,
+          issuedBy: { select: { id: true, name: true } },
+          issuedTo: { select: { id: true, name: true } },
+          paymentTerms: true,
+        },
+      },
+      // And where neither says, the lines billed on it do. Two of them,
+      // not all: the book loads five thousand invoices and this is the
+      // last resort of the three, so two lines is enough to name the
+      // pair and to notice that the first two disagree. An invoice whose
+      // third line names a different firm is caught where it costs
+      // money — on the invoice itself and on a payment against it, both
+      // of which load every line.
+      invoiceLines: {
+        select: {
+          sellContract: {
+            select: {
+              companyId: true, clientCompanyId: true,
+              company: { select: { id: true, name: true } },
+              clientCompany: { select: { id: true, name: true } },
+            },
+          },
+        },
+        take: 2,
+      },
       engagement: {
         select: {
           title: true,
           msa: {
             select: {
+              vendorId: true, clientId: true,
+              vendor: { select: { id: true, name: true } },
               client: { select: { id: true, name: true } },
               paymentTerms: true, paymentTermsFrom: true,
             },
@@ -75,6 +114,22 @@ export async function loadReceivables(companyId: string) {
 }
 
 export type RawReceivable = Awaited<ReturnType<typeof loadReceivables>>[number]
+
+/**
+ * The customer on one receivable, from whichever document says.
+ *
+ * Used for the roll-up and for the chase letter, so both name the same
+ * firm. Null on an invoice nothing can attribute — which is chased by
+ * nobody, deliberately: a dunning letter addressed to a guess is worse
+ * than one that never goes out.
+ */
+export function customerOf(i: RawReceivable) {
+  return partiesOf({
+    agreement: i.engagement.msa,
+    order: i.workOrder,
+    lines: i.invoiceLines.map((l) => l.sellContract).filter((c) => c != null),
+  })
+}
 
 /**
  * Database rows to the shape the arithmetic works in.
@@ -120,8 +175,12 @@ export function toArInvoices(raw: RawReceivable[]): ArInvoice[] {
       totalMinor: Math.max(0, gross - credited),
       paidMinor: fromPrismaDecimal(i.paid, i.currency).minor,
       dueAt: i.dueAt,
-      customerId: i.engagement.msa.client.id,
-      customerName: i.engagement.msa.client.name,
+      // An invoice nothing can attribute gets a bucket of its own rather
+      // than sharing one: two unknown customers added together is a
+      // figure about nobody. Exposure and arrears roll up on the firm,
+      // and where there is no firm there is no roll-up.
+      customerId: customerOf(i).client?.id ?? `unattributed:${i.id}`,
+      customerName: customerOf(i).client?.name ?? 'Not yet attributed',
       status: i.status,
       receiptsMinor: receipts,
       lastPaymentAt: lastAt,
@@ -148,17 +207,27 @@ export function toArInvoices(raw: RawReceivable[]): ArInvoice[] {
  */
 function clockOf(i: RawReceivable): { clockStarted: boolean; waitingFor: string | null } {
   const contract = i.engagement.sellContracts[0] ?? null
+  const customer = customerOf(i).client?.name ?? 'the client'
+  const msa = i.engagement.msa
   const anchor = resolveBillingTerms({
-    company: { name: i.engagement.msa.client.name },
-    agreement: {
-      paymentTermsDays: i.engagement.msa.paymentTerms,
-      paymentTermsFrom: i.engagement.msa.paymentTermsFrom,
-      counterpartyName: i.engagement.msa.client.name,
-    },
+    company: { name: customer },
+    // Null where the engagement has no agreement behind it, which is
+    // ordinary: the cascade then runs order → contract → default, and
+    // says which of them answered.
+    agreement: msa
+      ? {
+          paymentTermsDays: msa.paymentTerms,
+          paymentTermsFrom: msa.paymentTermsFrom,
+          counterpartyName: customer,
+        }
+      : null,
     contract: {
       paymentTermsDays: contract?.paymentTerms,
       paymentTermsFrom: contract?.paymentTermsFrom,
     },
+    order: i.workOrder
+      ? { paymentTermsDays: i.workOrder.paymentTerms, number: i.workOrder.number }
+      : null,
   }).paymentTermsFrom.value
 
   if (anchor === 'RECEIPT_DATE' && !i.receivedAt) {

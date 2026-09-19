@@ -29,13 +29,15 @@
  * wrong again.
  */
 
+import { AGREEMENT_WORD } from '@/lib/order-naming'
+
 export type Source = 'PLATFORM' | 'COMPANY' | 'AGREEMENT' | 'CONTRACT' | 'ORDER'
 
 export interface Resolved<T> {
   value: T
   /** Which level decided it. */
   source: Source
-  /** In words, for the screen: "from your agreement with Terumo BCT". */
+  /** In words, for the screen: "from your agreement with Talvern Medical". */
   because: string
   /** What the level below would have given, when something overrode it. */
   overrode: { value: T; source: Source } | null
@@ -668,7 +670,7 @@ export function discountDeadline(
 /**
  * Said the way somebody would say it, for the screen.
  *
- * "Net 45, from your agreement with Terumo BCT" beats "45" every time an
+ * "Net 45, from your agreement with Talvern Medical" beats "45" every time an
  * invoice is queried, because it names the document to go and read.
  */
 export function explain(r: Resolved<number>): string {
@@ -711,7 +713,11 @@ export function overrideConcern(r: Resolved<number>): { concern: boolean; note: 
 function sourceWords(s: Source): string {
   switch (s) {
     case 'ORDER': return 'the purchase order'
-    case 'AGREEMENT': return 'the master agreement'
+    // Never "master agreement". Beside "master contract" — which is the
+    // profitability roll-up a company tags its lines to — the two become
+    // one thing in a reader's head, and they are not one thing.
+    // `lib/order-naming` owns the word.
+    case 'AGREEMENT': return `the ${AGREEMENT_WORD.noun}`
     case 'COMPANY': return 'your company default'
     case 'CONTRACT': return 'the contract'
     case 'PLATFORM': return 'the system default'
@@ -727,7 +733,8 @@ function sourceWords(s: Source): string {
 // from a fourth. Treating those as one party is how an invoice reaches
 // the wrong address and ages ninety days before anybody notices.
 //
-// SAP calls these partner functions and there are four that matter here:
+// Four parties, and an invoice that treats them as one reaches the wrong
+// address:
 //
 //   SOLD_TO   who signed the agreement this is issued under
 //   BILL_TO   where the invoice is sent
@@ -742,7 +749,7 @@ function sourceWords(s: Source): string {
 
 export type PartnerFunction = 'SOLD_TO' | 'BILL_TO' | 'SHIP_TO' | 'PAYER'
 
-/** Where a partner function was decided. Most specific first. */
+/** Where one of the four was decided. Most specific first. */
 export type PartnerSource = 'CONTRACT' | 'ENGAGEMENT' | 'AGREEMENT'
 
 export interface Party {

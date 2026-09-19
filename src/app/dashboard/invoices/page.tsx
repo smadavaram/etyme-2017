@@ -36,14 +36,32 @@ interface InvoicePayment {
   receivedAt: string
 }
 
+/**
+ * The customer's name, or what to say instead.
+ *
+ * An invoice with no agreement, no order and no line behind it cannot
+ * name the firm it is addressed to, and a blank in a column is read as a
+ * loading state. The sentence from the server says what is missing.
+ */
+function customerName(inv: { engagement: { clientCompany: { name?: string | null } | null } }): string {
+  return inv.engagement.clientCompany?.name ?? 'Not yet attributed'
+}
+
 interface Invoice {
   id: string
   number: string
   engagement: {
     id: string
     title: string
-    vendorCompany: { id: string; name: string }
-    clientCompany: { id: string; name: string }
+    /**
+     * The two firms, from whichever document says — the agreement, the
+     * order, or a line billed on it. Null where nothing behind the
+     * invoice could say, and `between` is the sentence for that.
+     */
+    vendorCompany: { id: string; name?: string | null } | null
+    clientCompany: { id: string; name?: string | null } | null
+    /** "Veritan Talent bills Northbend Athletic, from order PO-4471." */
+    between?: string
   }
   /** RECEIVABLE — ours to collect. PAYABLE — ours to pay. Never summed. */
   direction: 'RECEIVABLE' | 'PAYABLE' | 'NEITHER'
@@ -501,7 +519,7 @@ function InvoiceDetailDrawer({
           <div>
             <h2 className="text-lg font-semibold font-mono">{invoice.number}</h2>
             <p className="text-[13px] text-etyme-muted mt-0.5">
-              {invoice.engagement.clientCompany.name}
+              {customerName(invoice)}
             </p>
           </div>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
@@ -899,7 +917,7 @@ export default function InvoicesPage() {
       const dueDate = new Date(inv.dueAt).toLocaleDateString('en-US')
       return [
         inv.number,
-        inv.engagement.clientCompany.name,
+        customerName(inv),
         inv.engagement.title,
         periodStart,
         periodEnd,
@@ -980,9 +998,11 @@ export default function InvoicesPage() {
       key: 'client',
       label: 'Client',
       render: (row) => (
-        <span className="text-etyme-ink">{row.engagement.clientCompany.name}</span>
+        <span className={row.engagement.clientCompany ? 'text-etyme-ink' : 'text-etyme-faint'}>
+          {customerName(row)}
+        </span>
       ),
-      sortValue: (row) => row.engagement.clientCompany.name,
+      sortValue: (row) => customerName(row),
       hideOnMobile: true,
     },
     {
@@ -1068,7 +1088,7 @@ export default function InvoicesPage() {
   const searchFilter = (row: Invoice, q: string) =>
     row.number.toLowerCase().includes(q) ||
     row.engagement.title.toLowerCase().includes(q) ||
-    row.engagement.clientCompany.name.toLowerCase().includes(q) ||
+    customerName(row).toLowerCase().includes(q) ||
     row.status.toLowerCase().includes(q)
 
   // ── Status filter options ─────────────────────────

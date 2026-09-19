@@ -4,9 +4,10 @@ import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { fromPrismaDecimal } from '@/lib/money'
 import {
-  ageBook, directionOf, BUCKETS,
+  ageBook, BUCKETS,
   type ArInvoice, type Bucket, type Direction,
 } from '@/lib/ar-ageing'
+import { directionFrom, invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * GET /api/invoices
@@ -111,17 +112,19 @@ export async function GET(request: NextRequest) {
 
   const where: any = {}
 
-  // Scope to caller's company through engagement → MSA → company chain.
-  // This stays deliberately two-sided: a prime genuinely wants to see
-  // both what it has billed and what it has been billed on one screen.
-  // What it must never see is the two ADDED, which is what the summary
-  // below now refuses to do.
+  // Scope to the caller's company through whichever document says who
+  // the invoice is between: the agreement, the order, or a line billed
+  // on it (`lib/money/invoice-parties`). It used to read the agreement
+  // alone, and an agreement is optional now — a relation filter on a
+  // null relation matches nothing, so a supplier's own bill would have
+  // vanished from its own list rather than merely losing a name.
+  //
+  // Deliberately two-sided: a prime genuinely wants to see both what it
+  // has billed and what it has been billed on one screen. What it must
+  // never see is the two ADDED, which is what the summary below refuses
+  // to do.
   if (companyId) {
-    where.engagement = {
-      msa: {
-        OR: [{ vendorId: companyId }, { clientId: companyId }],
-      },
-    }
+    Object.assign(where, invoiceBetween(companyId))
   }
 
   if (status) where.status = status.toUpperCase()
@@ -176,6 +179,17 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        // Where there is no agreement, the order says who the two firms
+        // are: the buyer raised it, the seller bills against it.
+        workOrder: {
+          select: {
+            number: true,
+            issuedById: true,
+            issuedToId: true,
+            issuedBy: { select: { id: true, name: true } },
+            issuedTo: { select: { id: true, name: true } },
+          },
+        },
         payments: {
           select: { id: true, amount: true, currency: true, receivedAt: true },
           orderBy: { receivedAt: 'desc' },
@@ -195,13 +209,11 @@ export async function GET(request: NextRequest) {
    * is ours to collect or to pay, so every row is NEITHER and the
    * summary comes back empty rather than guessing a side.
    */
+  const partiesFor = (inv: (typeof invoices)[number]) =>
+    partiesOf({ agreement: inv.engagement.msa, order: inv.workOrder })
+
   const sideOf = (inv: (typeof invoices)[number]): Direction =>
-    companyId == null
-      ? 'NEITHER'
-      : directionOf(
-          { vendorId: inv.engagement.msa.vendorId, clientId: inv.engagement.msa.clientId },
-          companyId
-        )
+    directionFrom(partiesFor(inv), companyId)
 
   // Classify aging for each invoice
   const classified = invoices
@@ -219,14 +231,20 @@ export async function GET(request: NextRequest) {
       const totalMinor = fromPrismaDecimal(inv.total, inv.currency).minor
       const paidMinor = fromPrismaDecimal(inv.paid, inv.currency).minor
 
+      const parties = partiesFor(inv)
+
       return {
         id: inv.id,
         number: inv.number,
         engagement: {
           id: inv.engagement.id,
           title: inv.engagement.title,
-          vendorCompany: inv.engagement.msa.vendor,
-          clientCompany: inv.engagement.msa.client,
+          // Null where nothing behind the invoice could say. A screen
+          // shows the sentence rather than a name nobody chose.
+          vendorCompany: parties.vendor,
+          clientCompany: parties.client,
+          between: parties.says,
+          betweenFrom: parties.basis,
         },
         /** RECEIVABLE — ours to collect. PAYABLE — ours to pay. */
         direction: sideOf(inv),
@@ -274,6 +292,7 @@ export async function GET(request: NextRequest) {
       dueAt: true,
       status: true,
       engagement: { select: { msa: { select: { vendorId: true, clientId: true } } } },
+      workOrder: { select: { issuedById: true, issuedToId: true } },
     },
     take: 10_000,
   })
@@ -285,13 +304,10 @@ export async function GET(request: NextRequest) {
   let unattributed = 0
 
   for (const i of allInvoices) {
-    const side =
-      companyId == null
-        ? 'NEITHER'
-        : directionOf(
-            { vendorId: i.engagement.msa.vendorId, clientId: i.engagement.msa.clientId },
-            companyId
-          )
+    const side = directionFrom(
+      partiesOf({ agreement: i.engagement.msa, order: i.workOrder }),
+      companyId
+    )
     if (side === 'NEITHER') {
       unattributed += 1
       continue
@@ -338,8 +354,9 @@ export async function GET(request: NextRequest) {
     gaps.push(
       `${unattributed} invoice${unattributed === 1 ? '' : 's'} in scope belong${
         unattributed === 1 ? 's' : ''
-      } to two other companies and ${unattributed === 1 ? 'is' : 'are'} left out of both ` +
-        `totals. That is a scoping problem upstream, not a figure to be shown on either side.`
+      } to two other companies — or have no agreement, no order and no line to say who ` +
+        `they are between — and ${unattributed === 1 ? 'is' : 'are'} left out of both totals. ` +
+        `That is a record to fix, not a figure to be shown on either side.`
     )
   }
   if (receivable.length > 1 || payable.length > 1) {

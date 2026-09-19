@@ -7,20 +7,56 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { hasPermission } from '@/lib/permissions'
+import {
+  describeLine, pairLine, masterContractLine, orderNoun, sideOf,
+  MASTER_CONTRACT_WORD,
+  type OrderParties,
+} from '@/lib/order-naming'
 
 /**
- * Contracts working surface — sell and buy side.
+ * The documents, and their lines.
+ *
+ * ── What this screen used to say, and why it was wrong ───────────────
+ *
+ * It listed sell contracts and buy contracts as rows, offered "Create
+ * contract" as a thing to make on its own, and never mentioned the order
+ * either one is a line of. A reader concluded the contract is the
+ * document and the order is something else — which is exactly the
+ * confusion CLAUDE.md's header-and-lines correction exists to end:
+ *
+ *   > A screen that offers "New sell contract" as a thing to create
+ *   > standalone has reintroduced the second document.
+ *
+ * So: a row here is **a line on a document**. It carries the document's
+ * own name in the reader's words — a client reads its purchase order, a
+ * supplier reads the same row as its sales order — the person and the
+ * site, the pair on the other side of the trade, and the master contract
+ * the company tagged it to, or the offer to tag it.
+ *
+ * "Sell contract" and "buy contract" stay: they are the founder's words
+ * and the trade's, and they say which direction the money runs. What
+ * they may never be is a document of their own beside the order.
  *
  * CLAUDE.md design system:
  *   Working surfaces: "Tables, search, filters, bulk, density"
  *   "Tabular figures, tight rows"
- *
- * Sell contracts → what you bill clients (revenue).
- * Buy contracts → what you pay talent (cost).
- * Filter tabs partition by state group (Active, Draft, Ended).
  */
 
 // ── Types ──────────────────────────────────────────────────
+
+/** The header a line sits on, as much of it as a screen needs. */
+interface Document extends OrderParties {
+  id: string
+  number: string
+  sellerNumber: string | null
+  status: string
+  /** The ceiling, in whole currency. Null where the reader may not see it. */
+  amount?: number | null
+  currency?: string
+  /** How many people are on this document. */
+  lines?: number
+}
 
 interface Contract {
   id: string
@@ -39,6 +75,20 @@ interface Contract {
   startDate: string
   endDate: string | null
   daysUntilEnd: number | null
+  /** The document this line is on. Null where no paper has arrived. */
+  document: Document | null
+  /** The line on the other side of the trade that pairs with this one. */
+  pairedWith: { id: string; counterpartName: string | null } | null
+  /** The roll-up the company tagged it to. Null is a complete line. */
+  masterContract: { id: string; code: string; name: string; status: string } | null
+}
+
+/** One master contract, for the picker. */
+interface MasterContract {
+  id: string
+  code: string
+  name: string
+  open: boolean
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -97,7 +147,90 @@ function matchesFilter(state: string, filter: StateFilter): boolean {
   return true
 }
 
-// ── Create Contract Modal ─────────────────────────────────
+/**
+ * The line, described on the document it is on.
+ *
+ * One function, so the card, the table and the drawer cannot disagree
+ * about what the paper is called — and so a client reading its own
+ * purchase order and the supplier reading the same row as its sales
+ * order both see their own word for it.
+ */
+function lineOf(row: Contract, viewerId: string | null) {
+  return describeLine({
+    order: row.document,
+    companyId: viewerId,
+    line: {
+      side: row.side === 'sell' ? 'SELL' : 'BUY',
+      personName: row.personName,
+      siteName: row.workLocationLabel ?? row.endClientName,
+      // On a buy line, the firm we pay. Null where we employ them, and
+      // then payroll pays the line and no order is raised at all.
+      paidToName: row.side === 'buy' ? row.counterpartyName : null,
+    },
+  })
+}
+
+/** "PO PO-2026-4471" · "Not yet on an order". */
+function DocumentChip({ row, viewerId }: { row: Contract; viewerId: string | null }) {
+  if (!row.document) {
+    return (
+      <span className="text-[12px] text-etyme-faint">
+        {row.side === 'buy' && !row.counterpartyName ? 'No order — payroll' : 'Not yet on an order'}
+      </span>
+    )
+  }
+  const noun = orderNoun(sideOf(row.document, viewerId))
+  const ref = viewerId === row.document.issuedToId && row.document.sellerNumber
+    ? row.document.sellerNumber
+    : row.document.number
+  return (
+    <span className="font-mono text-[12px] text-etyme-ink">
+      <span className="text-etyme-faint mr-1.5">{noun.short}</span>{ref}
+    </span>
+  )
+}
+
+/** A line, as a card in the feed: the document first, then the person. */
+function LineCard({ row, viewerId }: { row: Contract; viewerId: string | null }) {
+  const line = lineOf(row, viewerId)
+  const pair = pairLine({
+    side: row.side === 'sell' ? 'SELL' : 'BUY',
+    counterpartName: row.pairedWith?.counterpartName ?? null,
+    paidToName: row.side === 'buy' ? row.counterpartyName : null,
+  })
+  return (
+    <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4">
+      <p className="text-[11px] uppercase tracking-[0.12em] text-etyme-faint font-medium">
+        {line.heading}
+      </p>
+      <div className="flex items-baseline justify-between gap-4 mt-1">
+        <span className="text-[15px] text-etyme-ink font-medium">{line.name}</span>
+        <span className="text-[13px] tabular-nums text-etyme-ink shrink-0">
+          {compact(row.rate)}<span className="text-etyme-faint">/hr</span>
+        </span>
+      </div>
+      <p className="text-[12px] text-etyme-muted mt-1">{line.does}</p>
+      <p className="text-[12px] text-etyme-muted">
+        {row.pairedWith ? pair : 'No line on the other side of this one yet.'}
+      </p>
+      <p className="text-[12px] text-etyme-faint mt-1">
+        {masterContractLine(row.masterContract)}
+      </p>
+      <div className="flex items-center gap-2 mt-2">
+        <span className={`chip ${stateChipClass(row.state)}`}>{stateLabel(row.state)}</span>
+        <span className="text-[11px] tabular-nums text-etyme-faint">
+          {new Date(row.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+          {' – '}
+          {row.endDate
+            ? new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+            : 'open-ended'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ── Recording a placement ─────────────────────────────────
 
 interface ClientCompanyOption {
   id: string
@@ -109,7 +242,7 @@ interface ConsultantOption {
   name: string
 }
 
-function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onCreated: (says: string) => void }) {
   const [form, setForm] = useState({
     personId: '',
     clientCompanyId: '',
@@ -237,16 +370,17 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
         body: JSON.stringify(payload),
       })
 
+      // Parsed on both paths now: the reply names the document this
+      // line went on — raised, or found already open between the two
+      // firms — and a person who is not told either way has to go
+      // looking for a purchase order they did not know existed.
+      const body = await res.json().catch(() => ({}) as any)
       if (!res.ok) {
-        // Parsed inside the failure branch, so an empty body threw
-        // from the error handler itself and the message below never
-        // ran.
-        const body = await res.json().catch(() => ({}) as any)
-        setError(body.error?.message ?? 'Failed to create contract')
+        setError(body.error?.message ?? 'That placement could not be recorded')
         return
       }
 
-      onCreated()
+      onCreated(body.data?.message ?? 'Recorded.')
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -265,7 +399,14 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-2xl mx-4 animate-slide-up max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Create contract</h2>
+          <div>
+            <h2 className="text-lg font-semibold">Record a placement</h2>
+            <p className="text-[12px] text-etyme-muted mt-0.5">
+              For work you are already running. The line goes on the order already open with
+              this client; where there is none yet, record the purchase order they gave you and
+              it attaches here.
+            </p>
+          </div>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -374,7 +515,9 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
                   className={inputClass}
                   placeholder="95.00"
                 />
-                <p className="text-[10px] text-etyme-faint mt-1">Creates a linked buy contract</p>
+                <p className="text-[10px] text-etyme-faint mt-1">
+                  Writes the buy line beside it — what you pay, to a supplier or through payroll
+                </p>
               </div>
               <div>
                 <label className={labelClass}>Pay currency</label>
@@ -420,7 +563,7 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
                 Cancel
               </button>
               <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
-                {submitting ? 'Creating…' : 'Create contract'}
+                {submitting ? 'Recording…' : 'Record it'}
               </button>
             </div>
           </form>
@@ -435,16 +578,24 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
 function ContractDetailDrawer({
   contract,
   tab,
+  viewerId,
+  mayTag,
   onClose,
   onToast,
   onRefresh,
 }: {
   contract: Contract
   tab: ViewTab
+  /** Which end of the document the reader stands at. */
+  viewerId: string | null
+  /** Whether this seat may move a line onto a master contract. */
+  mayTag: boolean
   onClose: () => void
   onToast: (message: string, type: 'success' | 'error') => void
   onRefresh: () => void
 }) {
+  const [masters, setMasters] = useState<MasterContract[] | null>(null)
+  const [tagging, setTagging] = useState(false)
   const [showExtendConfirm, setShowExtendConfirm] = useState(false)
   const [showRolloffConfirm, setShowRolloffConfirm] = useState(false)
   const [extending, setExtending] = useState(false)
@@ -452,6 +603,43 @@ function ContractDetailDrawer({
   const [activating, setActivating] = useState(false)
   const [governanceWarn, setGovernanceWarn] = useState<{ message: string; evaluations: any[] } | null>(null)
   const [overrideReason, setOverrideReason] = useState('')
+
+  // Only for a seat the route would let through. A picker somebody
+  // cannot use is a picker that lies.
+  useEffect(() => {
+    if (!mayTag) return
+    let live = true
+    fetch('/api/profitability/master-contracts')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => { if (live) setMasters(b?.data?.masterContracts ?? []) })
+      .catch(() => { if (live) setMasters([]) })
+    return () => { live = false }
+  }, [mayTag])
+
+  async function moveToMaster(masterContractId: string | null) {
+    setTagging(true)
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}/master-contract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ masterContractId }),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) {
+        onToast(body.error?.message ?? 'That line could not be moved.', 'error')
+        return
+      }
+      onToast(body.data?.message ?? 'Moved.', 'success')
+      onRefresh()
+      onClose()
+    } catch {
+      onToast('Network error. Please try again.', 'error')
+    } finally {
+      setTagging(false)
+    }
+  }
+
+  const line = lineOf(contract, viewerId)
 
   const isActive = contract.state === 'IN_PROGRESS'
   const isDraft = contract.state === 'DRAFT'
@@ -662,6 +850,68 @@ function ContractDetailDrawer({
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* The document this line is on, and the roll-up it belongs to */}
+          <div>
+            <p className="eyebrow mb-2">The document</p>
+            <div className="bg-etyme-canvas rounded-lg px-4 py-3 space-y-2">
+              <p className="text-sm font-medium text-etyme-ink">{line.heading}</p>
+              <p className="text-[12px] text-etyme-muted">{line.does}</p>
+              {contract.document?.amount != null && (
+                <p className="text-[12px] text-etyme-muted tabular-nums">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: contract.document.currency ?? 'USD',
+                    maximumFractionDigits: 0,
+                  }).format(contract.document.amount)}{' '}
+                  authorized in total
+                  {contract.document.lines && contract.document.lines > 1
+                    ? ` · ${contract.document.lines} lines on it`
+                    : ''}
+                </p>
+              )}
+              <p className="text-[12px] text-etyme-muted">
+                {contract.pairedWith
+                  ? pairLine({
+                      side: contract.side === 'sell' ? 'SELL' : 'BUY',
+                      counterpartName: contract.pairedWith.counterpartName,
+                      paidToName: contract.side === 'buy' ? contract.counterpartyName : null,
+                    })
+                  : 'No line on the other side of this one yet, so this placement has no margin of its own.'}
+              </p>
+            </div>
+          </div>
+
+          {/* The master contract — the company's own tag, never the system's */}
+          <div>
+            <p className="eyebrow mb-2">{MASTER_CONTRACT_WORD.Noun}</p>
+            <p className="text-[13px] text-etyme-muted">
+              {masterContractLine(contract.masterContract)}
+            </p>
+            {mayTag && (
+              <div className="mt-2">
+                <select
+                  disabled={tagging || masters == null}
+                  value={contract.masterContract?.id ?? ''}
+                  onChange={(e) => moveToMaster(e.target.value || null)}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
+                >
+                  <option value="">Not on one</option>
+                  {(masters ?? [])
+                    .filter((m) => m.open || m.id === contract.masterContract?.id)
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>{m.code} — {m.name}</option>
+                    ))}
+                </select>
+                <p className="text-[11px] text-etyme-faint mt-1">
+                  {masters != null && masters.length === 0
+                    ? 'You have not opened one yet. Open one on Profitability and it appears here.'
+                    : 'What it has already posted stays where it posted. Nothing is restated.'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Three-party display */}
@@ -905,8 +1155,14 @@ export default function ContractsPage() {
   const searchParams = useSearchParams()
   const initialSide = (searchParams.get('side') === 'buy' ? 'buy' : 'sell') as ViewTab
 
-  const { company } = useSession()
+  const { company, permissions } = useSession()
   const isClient = company?.kind === 'CLIENT'
+  /** Which end of every document on this page the reader stands at. */
+  const viewerId = company?.id ?? null
+  // The same permission `/api/contracts/[id]/master-contract` asks for,
+  // asked the same way — a raw includes cannot see an owner's ["*"], and
+  // a control the route would refuse is a control that lies.
+  const mayTagLines = hasPermission(permissions, 'assignments.write')
 
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
@@ -969,6 +1225,9 @@ export default function ContractsPage() {
           companyId: c.companyId,
           personId: c.personId ?? c.person?.id,
           personName: c.person?.name ?? 'Unknown',
+          document: c.workOrder ?? null,
+          pairedWith: c.pairedWith ?? null,
+          masterContract: c.masterContract ?? null,
           counterpartyName: tab === 'sell'
             ? (endClientName ?? c.clientCompany?.name ?? null)
             : c.vendorCompany?.name ?? null,
@@ -1023,6 +1282,16 @@ export default function ContractsPage() {
 
   // ── Column definitions ──
   const columns: Column<Contract>[] = [
+    {
+      key: 'document',
+      // A client reads its own paper as a purchase order and a supplier
+      // reads the same row as its sales order, so the column is named
+      // for the thing rather than for one end of it.
+      label: 'Document',
+      render: (row) => <DocumentChip row={row} viewerId={viewerId} />,
+      sortValue: (row) => row.document?.number ?? '',
+      hideOnMobile: true,
+    },
     {
       key: 'personName',
       label: 'Consultant',
@@ -1112,6 +1381,18 @@ export default function ContractsPage() {
       hideOnMobile: true,
     },
     {
+      key: 'masterContract',
+      label: MASTER_CONTRACT_WORD.Noun,
+      render: (row) =>
+        row.masterContract ? (
+          <span className="font-mono text-[12px] text-etyme-ink">{row.masterContract.code}</span>
+        ) : (
+          <span className="text-[12px] text-etyme-faint">Not tagged</span>
+        ),
+      sortValue: (row) => row.masterContract?.code ?? '',
+      hideOnMobile: true,
+    },
+    {
       key: 'state',
       label: 'Status',
       render: (row) => (
@@ -1171,7 +1452,7 @@ export default function ContractsPage() {
         {/* A client does not raise contracts here — their vendors do. */}
         {!isClient && (
           <button onClick={() => setShowCreate(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
-            + New
+            + Record a placement
           </button>
         )}
       </div>
@@ -1245,23 +1526,29 @@ export default function ContractsPage() {
         rowKey={(row) => row.id}
         loading={loading}
         error={error}
-        searchPlaceholder={`Search by consultant${tab === 'sell' ? ', client' : ', vendor'}…`}
+        searchPlaceholder={`Search by consultant, order number${tab === 'sell' ? ', client' : ', vendor'}…`}
         searchFilter={(row, q) =>
           row.personName.toLowerCase().includes(q) ||
           (row.counterpartyName?.toLowerCase().includes(q) ?? false) ||
+          (row.document?.number.toLowerCase().includes(q) ?? false) ||
+          (row.document?.sellerNumber?.toLowerCase().includes(q) ?? false) ||
+          (row.masterContract?.code.toLowerCase().includes(q) ?? false) ||
           stateLabel(row.state).toLowerCase().includes(q)
         }
         emptyMessage={
           stateFilter === 'all'
-            ? `No ${tab} contracts yet.`
-            : `No ${stateFilter} ${tab} contracts.`
+            ? `Nothing on the ${tab} side yet.`
+            : `No ${stateFilter} lines on the ${tab} side.`
         }
         emptyDetail={
           tab === 'sell'
-            ? 'Sell contracts are created when a submission is accepted or via import.'
-            : 'Buy contracts track what you pay — created alongside sell contracts or for bench/internal employees.'
+            ? 'A sell line is what you bill a customer from. One arrives when a client awards a ' +
+              'submission, and you can record work you are already running with Record a placement.'
+            : 'A buy line is what you pay from — a supplier’s invoice where you buy the person, ' +
+              'payroll where you employ them. One is written beside each placement you record.'
         }
-        exportName={`${tab}-contracts`}
+        exportName={`${tab}-contract-lines`}
+        card={(row) => <LineCard row={row} viewerId={viewerId} />}
         onRowClick={(row) => setSelectedContract(row)}
         filters={
           <div className="flex flex-wrap gap-1.5">
@@ -1288,6 +1575,8 @@ export default function ContractsPage() {
         <ContractDetailDrawer
           contract={selectedContract}
           tab={tab}
+          viewerId={viewerId}
+          mayTag={mayTagLines}
           onClose={() => setSelectedContract(null)}
           onToast={(message, type) => setToast({ type, message })}
           onRefresh={fetchContracts}
@@ -1296,10 +1585,10 @@ export default function ContractsPage() {
 
       {/* Create contract modal */}
       {showCreate && (
-        <CreateContractModal
+        <RecordPlacementModal
           onClose={() => setShowCreate(false)}
-          onCreated={() => {
-            setToast({ type: 'success', message: 'Contract created successfully.' })
+          onCreated={(says) => {
+            setToast({ type: 'success', message: says })
             fetchContracts()
           }}
         />

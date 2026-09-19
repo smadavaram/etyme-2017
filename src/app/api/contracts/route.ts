@@ -15,6 +15,8 @@ import { andAll } from '@/lib/walls'
 import { canAttachPoToBuyContract } from '@/lib/purchase-order'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { mayNameCounterparty } from '@/lib/off-system'
+import { chooseHeader } from '@/lib/award'
+import { HEADER_SELECT, lineTermsFrom } from '../submissions/order-header'
 
 /**
  * POST /api/contracts
@@ -261,34 +263,106 @@ export async function POST(request: NextRequest) {
       // every solo tester starts on — got no engagement, and an invoice
       // hangs off the engagement. So the contract could be worked and
       // approved and never billed. The award path already finds or
-      // creates both; a recorded contract deserves the same paper.
+      // creates the paper; a recorded contract deserves the same.
+      //
+      // ── What it no longer creates ────────────────────────────────
+      //
+      // An agreement. This used to invent one — `masterAgreement.create`
+      // with nothing signed — so that the engagement had a parent, which
+      // satisfied the founder's *"we don't need a master contract"* by
+      // writing a contract nobody signed. That is worse than a null: a
+      // DRAFT agreement between two firms is a fact about a negotiation,
+      // and one appearing because somebody recorded a placement is a
+      // fact about nothing. An existing agreement is used where there is
+      // one; where there is not, the line has no agreement and says so.
       const msa =
         (msaId
-          ? await tx.masterAgreement.findUnique({ where: { id: msaId }, select: { id: true } })
+          ? await tx.masterAgreement.findUnique({
+              where: { id: msaId },
+              select: { id: true, paymentTerms: true },
+            })
           : null) ??
         (await tx.masterAgreement.findFirst({
           where: { vendorId: companyId, clientId: clientCompanyId },
-          select: { id: true },
-        })) ??
-        (await tx.masterAgreement.create({
-          data: { vendorId: companyId, clientId: clientCompanyId, paymentTerms: 30 },
-          select: { id: true },
+          select: { id: true, paymentTerms: true },
         }))
 
+      // The engagement: the named one, then this agreement's, then the
+      // one these two firms are already trading under, and only then a
+      // new one. Found through the contracts where there is no agreement
+      // to look under, because an engagement with no agreement has no
+      // other parent.
       const engagement =
         (engagementId
           ? await tx.engagement.findUnique({ where: { id: engagementId }, select: { id: true } })
           : null) ??
-        (await tx.engagement.findFirst({
-          where: { msaId: msa.id },
-          select: { id: true },
-        })) ??
+        (msa
+          ? await tx.engagement.findFirst({ where: { msaId: msa.id }, select: { id: true } })
+          : null) ??
+        (
+          await tx.sellContract.findFirst({
+            where: { companyId, clientCompanyId, engagementId: { not: null } },
+            orderBy: { createdAt: 'asc' },
+            select: { engagement: { select: { id: true } } },
+          })
+        )?.engagement ??
         (await tx.engagement.create({
-          data: { msaId: msa.id, title: 'Recorded work', invoiceCycle: 'MONTHLY' },
+          data: {
+            msaId: msa?.id ?? null,
+            title: `${company.name} — ${clientCompany.name}`,
+            invoiceCycle: 'MONTHLY',
+          },
           select: { id: true },
         }))
 
-      // Create the sell contract
+      // ── The document this line goes on ────────────────────────────
+      //
+      // A purchase order is a header and its lines, so a line goes on
+      // the document that is already open between these two firms —
+      // found by the same rule the award uses (`chooseHeader`), so a
+      // recorded placement and an awarded one land on one document per
+      // buyer-and-seller pair rather than two.
+      //
+      // ── Why this finds and never creates ─────────────────────────
+      //
+      // The award creates a header because an award IS the moment the
+      // commitment is made, with both firms here. Recording a placement
+      // you are already running is not that moment: the client's paper
+      // exists in somebody's drawer and we cannot quote its number, and
+      // a derived reference on a document nobody signed is a number an
+      // AP clerk will be asked for and cannot find.
+      //
+      // The platform already refuses the same thing one route over: a
+      // supplier may not raise an order in the name of a client that is
+      // here and could have raised it (`POST /api/purchase-orders`).
+      // Creating one here would have been that refusal's own shape,
+      // written by a different door.
+      //
+      // So a line with no document says what will attach and where
+      // (`describeLine` in `lib/order-naming`), and recording the
+      // client's purchase order attaches every running line with none —
+      // which is the walk a staffing firm with an existing book actually
+      // takes.
+      const openOrders = await tx.workOrder.findMany({
+        where: { issuedById: clientCompanyId, issuedToId: companyId },
+        select: HEADER_SELECT,
+      })
+      const choice = chooseHeader(openOrders, {
+        issuedById: clientCompanyId,
+        issuedToId: companyId,
+        start,
+        end,
+      })
+      const found = choice.id ? openOrders.find((o) => o.id === choice.id) ?? null : null
+      const header = found ? { ...found, raised: false, says: choice.says } : null
+
+      // Joining a document somebody else agreed is not license to
+      // rewrite its terms onto the line: the line keeps what the
+      // cascade gave it, and every money reader prefers the header
+      // anyway (`lib/money/order-terms`).
+      const sellRhythm = lineTermsFrom(header, msa?.paymentTerms ?? 30)
+
+      // Create the sell contract — the first line on that document.
       const sellContract = await tx.sellContract.create({
         data: {
           companyId,
@@ -297,9 +371,16 @@ export async function POST(request: NextRequest) {
           workLocationId: workLocationId ?? null,
           personId,
           engagementId: engagement.id,
-          msaId: msa.id,
+          msaId: msa?.id ?? null,
+          workOrderId: header?.id ?? null,
           billRate,
           billCurrency: billCurrency ?? 'USD',
+          // Written from the document where this call raised it, so the
+          // row and the paper cannot disagree on the day they are made.
+          billFrequency: sellRhythm.billFrequency,
+          billAnchor: sellRhythm.billAnchor,
+          billStraddle: sellRhythm.billStraddle,
+          paymentTerms: sellRhythm.paymentTerms,
           state: 'DRAFT',
           startDate: start,
           endDate: end,
@@ -431,9 +512,10 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           action: 'CONTRACT_CREATED',
-          summary: `Sell contract created for person ${personId}: $${billRate}/hr to client. ${buyContract ? `Buy contract linked at $${payRate}/hr.` : 'No buy contract linked.'} ${sellCyclesCreated} cycles generated.`,
+          summary: `A line for person ${personId} at $${billRate}/hr${header ? ` on ${header.number}` : ', not yet on an order'}. ${buyContract ? `The buy line that funds it pays $${payRate}/hr.` : 'No buy line beside it.'} ${sellCyclesCreated} cycles generated.`,
           reason: 'Contract created via API',
           payload: {
+            workOrderId: header?.id ?? null,
             sellContractId: sellContract.id,
             buyContractId: buyContract?.id ?? null,
             contractLinkId: contractLink?.id ?? null,
@@ -448,11 +530,21 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      return { sellContract, buyContract, contractLink, sellCyclesCreated, rolloff }
+      return { sellContract, buyContract, contractLink, sellCyclesCreated, rolloff, header }
     })
 
     return NextResponse.json({
       data: {
+        // The document the line went on, so the caller is told what was
+        // created rather than discovering an order it did not ask for.
+        document: result.header
+          ? {
+              id: result.header.id,
+              number: result.header.number,
+              sellerNumber: result.header.sellerNumber,
+              says: result.header.says,
+            }
+          : null,
         sellContract: {
           id: result.sellContract.id,
           personId: result.sellContract.personId,
@@ -470,7 +562,12 @@ export async function POST(request: NextRequest) {
         contractLink: result.contractLink ? { id: result.contractLink.id } : null,
         sellCyclesCreated: result.sellCyclesCreated,
         rolloff: result.rolloff ? { id: result.rolloff.id, endDate: result.rolloff.endDate.toISOString() } : null,
-        message: `Contract created with ${result.sellCyclesCreated} cycles${result.rolloff ? ' and rolloff event' : ''}`,
+        message: result.header
+          ? `Recorded on ${result.header.number}, the order already open with ${clientCompany.name}. ` +
+            `${result.sellCyclesCreated} cycles${result.rolloff ? ' and a rolloff' : ''}.`
+          : `Recorded. No order between you and ${clientCompany.name} yet — record the purchase ` +
+            `order they gave you and this line attaches to it. ` +
+            `${result.sellCyclesCreated} cycles${result.rolloff ? ' and a rolloff' : ''}.`,
       },
     }, { status: 201 })
   } catch (err: any) {
@@ -529,6 +626,27 @@ export async function GET(request: NextRequest) {
             orderBy: { startDate: 'asc' },
           },
           vendorCompany: { select: { id: true, name: true } },
+          // The document this line is on. A buy line to our own W2 has
+          // none and never will — nobody raises a purchase order to an
+          // employee — which the screen says rather than leaving blank.
+          workOrder: {
+            select: {
+              id: true, number: true, sellerNumber: true, status: true,
+              issuedById: true, issuedToId: true, billToId: true, payerId: true,
+            },
+          },
+          // The master contract this line is tagged to, if the company
+          // tagged it. Optional on purpose.
+          projectOrder: { select: { id: true, code: true, name: true, status: true } },
+          // The sell line it funds — the other half of the pair.
+          sellLinks: {
+            select: {
+              sellContract: {
+                select: { id: true, clientCompany: { select: { name: true } } },
+              },
+            },
+            take: 1,
+          },
           _count: { select: { buyCycles: true } },
         },
         orderBy: { startDate: 'desc' },
@@ -570,6 +688,17 @@ export async function GET(request: NextRequest) {
               state: cd.state,
             })),
             vendorCompany: c.vendorCompany,
+            // The document, the pair and the tag — raw, because the
+            // words for them belong to `lib/order-naming` and the screen
+            // reads them from there with the viewer's own side in hand.
+            workOrder: c.workOrder,
+            masterContract: c.projectOrder,
+            pairedWith: c.sellLinks[0]?.sellContract
+              ? {
+                  id: c.sellLinks[0].sellContract.id,
+                  counterpartName: c.sellLinks[0].sellContract.clientCompany.name,
+                }
+              : null,
             state: c.state,
             contractType: c.contractType,
             payRate: single?.payRate ?? null,
@@ -624,6 +753,27 @@ export async function GET(request: NextRequest) {
         endClientCompany: { select: { id: true, name: true } },
         workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
         engagement: { select: { id: true, title: true } },
+        // The document this line is on, and the two ends of it, so the
+        // screen can say "purchase order" to the client that raised it
+        // and "sales order" to the supplier billing against it.
+        workOrder: {
+          select: {
+            id: true, number: true, sellerNumber: true, status: true, amount: true, currency: true,
+            issuedById: true, issuedToId: true, billToId: true, payerId: true,
+            _count: { select: { sellContracts: true } },
+          },
+        },
+        projectOrder: { select: { id: true, code: true, name: true, status: true } },
+        // The buy line that funds it: who we pay, or nobody where we
+        // employ the person and payroll pays them.
+        buyLinks: {
+          select: {
+            buyContract: {
+              select: { id: true, contractType: true, vendorCompany: { select: { name: true } } },
+            },
+          },
+          take: 1,
+        },
         _count: { select: { timesheets: true, sellCycles: true } },
         rolloff: { select: { id: true, endDate: true, outcome: true } },
       },
@@ -648,6 +798,33 @@ export async function GET(request: NextRequest) {
         endClientCompany: c.endClientCompany,
         workLocation: c.workLocation,
         engagement: c.engagement ?? null,
+        workOrder: c.workOrder
+          ? {
+              id: c.workOrder.id,
+              number: c.workOrder.number,
+              sellerNumber: c.workOrder.sellerNumber,
+              status: c.workOrder.status,
+              issuedById: c.workOrder.issuedById,
+              issuedToId: c.workOrder.issuedToId,
+              billToId: c.workOrder.billToId,
+              payerId: c.workOrder.payerId,
+              // A ceiling is money, and a consultant sitting on the line
+              // is not a party to the order above it.
+              amount: isConsultant ? null : Number(c.workOrder.amount),
+              currency: c.workOrder.currency,
+              /** How many people are on this document, this one included. */
+              lines: c.workOrder._count.sellContracts,
+            }
+          : null,
+        masterContract: c.projectOrder,
+        pairedWith: c.buyLinks[0]?.buyContract
+          ? {
+              id: c.buyLinks[0].buyContract.id,
+              // Null where we employ the person: payroll pays that line,
+              // and there is no firm below us to name.
+              counterpartName: c.buyLinks[0].buyContract.vendorCompany?.name ?? null,
+            }
+          : null,
         state: c.state,
         // What the client is charged is the supplier's margin seen from the
         // other end, and a consultant reading it can subtract their own pay

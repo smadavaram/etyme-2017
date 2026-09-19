@@ -12,7 +12,8 @@ import {
   payWhenPaidFlags, dpo, mirror,
   type Hop, type Chain, type PurchasePeriod,
 } from '@/lib/ap-delay'
-import { loadBook } from '../ar/book'
+import { customerOf, loadBook } from '../ar/book'
+import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * GET /api/ap — how long money takes to travel, and who is paying for the wait.
@@ -195,11 +196,12 @@ export async function GET(request: NextRequest) {
     return {
       id: i.id,
       side: 'IN' as const,
-      payerName: i.engagement.msa.client.name,
+      payerName: customerOf(i).client?.name ?? 'Not yet attributed',
       payeeName: usName,
       currency: i.currency,
       amountMinor: totalMinor,
-      termsDays: i.engagement.msa.paymentTerms ?? null,
+      // The agreement's net days where there is one, else the order's.
+      termsDays: i.engagement.msa?.paymentTerms ?? i.workOrder?.paymentTerms ?? null,
       termsFrom: (i.issuedAt ? 'BILL_DATE' : 'PERIOD_END') as Hop['termsFrom'],
       // The day it was actually billed, where that is held. Falling back
       // to the end of the period covered, which always understates the
@@ -345,7 +347,24 @@ export async function GET(request: NextRequest) {
             payments: { select: { amount: true, receivedAt: true } },
             invoiceLines: { select: { sellContractId: true } },
             engagement: {
-              select: { msa: { select: { client: { select: { name: true } }, paymentTerms: true } } },
+              select: {
+                msa: {
+                  select: {
+                    vendorId: true, clientId: true,
+                    client: { select: { id: true, name: true } },
+                    paymentTerms: true,
+                  },
+                },
+              },
+            },
+            // Who the client is where no agreement says: the firm that
+            // raised the order is the firm that pays against it.
+            workOrder: {
+              select: {
+                issuedById: true, issuedToId: true,
+                issuedBy: { select: { id: true, name: true } },
+                paymentTerms: true,
+              },
             },
           },
           take: 2_000,
@@ -377,18 +396,23 @@ export async function GET(request: NextRequest) {
       )
       const clientPaidAt = invTotal - invPaid <= ROUNDING_TOLERANCE_MINOR ? lastPaymentAt : null
 
+      // The client on this invoice, through the one cascade: the
+      // agreement, then the order. A chain step addressed to a guess
+      // would put a name beside a payment date that is not theirs.
+      const payer = partiesOf({ agreement: inv.engagement.msa, order: inv.workOrder }).client
+
       const chain: Chain = {
         // The work is done by the end of the period billed. Every count
         // in the chain runs from there.
         workedAt: inv.periodEnd,
         steps: [
           {
-            payerName: inv.engagement.msa.client.name,
+            payerName: payer?.name ?? 'Not yet attributed',
             payeeName: usName,
             currency: inv.currency.toUpperCase(),
             amountMinor: invTotal,
             paidAt: clientPaidAt,
-            termsDays: inv.engagement.msa.paymentTerms ?? null,
+            termsDays: inv.engagement.msa?.paymentTerms ?? inv.workOrder?.paymentTerms ?? null,
             termsFrom: inv.issuedAt ? 'BILL_DATE' : 'PERIOD_END',
             payWhenPaid: false,
             observed: true,
@@ -414,7 +438,7 @@ export async function GET(request: NextRequest) {
         billNumber: b.number,
         invoiceNumber: inv.number,
         vendorName: b.vendorCompany.name,
-        clientName: inv.engagement.msa.client.name,
+        clientName: payer?.name ?? 'Not yet attributed',
         pairingInferred: candidates.length > 1,
         pairingSays:
           candidates.length > 1

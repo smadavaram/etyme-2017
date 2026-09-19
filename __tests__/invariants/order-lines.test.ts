@@ -274,16 +274,13 @@ const NAMES_A_DOCUMENT = /purchase order|sales order|work order|order-naming|doc
  * so the list cannot quietly become decoration.
  */
 const KNOWN_TO_SHOW_A_LINE_AS_A_DOCUMENT: Record<string, string> = {
-  'src/app/dashboard/contracts/page.tsx':
-    'etyme-money — the Contracts screen creates a sell contract and a linked buy contract from its own ' +
-    'form, lists them as rows, and never names the order either one is a line of. A reader concludes ' +
-    'the contract is the document and the order is something else, which is the confusion the ' +
-    'header-and-lines correction exists to end. Money applies the words to its screens in the piece ' +
-    'after this one.',
-  'src/app/dashboard/payroll/page.tsx':
-    'etyme-money — "Create buy contracts to set up payroll for your consultants" offers the pay line as ' +
-    'a thing to create on its own. A buy line is a line on an order, or on nothing at all where the ' +
-    'firm employs the person; payroll is how it is settled, not what it is.',
+  // Both of money's entries came off on 2026-09-19. The Contracts screen
+  // reads as the document and its lines — the heading in the reader's own
+  // words, the person and the site, the pair on the other side of the
+  // trade, and the master contract it is tagged to — and its form records
+  // a placement by finding or raising the header and putting the line on
+  // it. Payroll's empty state points at the placement a pay line is
+  // written beside, instead of offering the line as a thing to create.
 }
 
 describe('a sell line and a buy line are lines, never documents beside the order', () => {
@@ -349,10 +346,8 @@ describe('a sell line and a buy line are lines, never documents beside the order
 const SPELLS_OUT_MASTER_AGREEMENT = /master\s+agreements?/i
 
 const KNOWN_TO_SPELL_OUT_MASTER_AGREEMENT: Record<string, string> = {
-  'src/lib/billing-cascade.ts':
-    'etyme-money — the cascade names its own top rung "the master agreement" in the sentence it hands ' +
-    'a screen, so a payment term explained to a client reads the collision out loud. One word in one ' +
-    'return, and the file is money\'s and live in their current piece.',
+  // billing-cascade came off on 2026-09-19: the sentence it hands a
+  // screen now reads "the agreement", through AGREEMENT_WORD.
   'src/app/dashboard/program/agreements/page.tsx':
     'etyme-demand — the placeholder in "why it is ending" reads "Replaced by the 2027 master agreement". ' +
     'Beside the master contract, which is the profitability roll-up, a reader hears one thing where ' +

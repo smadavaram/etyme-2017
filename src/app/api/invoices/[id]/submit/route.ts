@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { matchAndRecord } from '@/lib/invoice-loop'
+import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 
 /**
  * POST /api/invoices/:id/submit
@@ -31,32 +32,44 @@ export async function POST(
 
   const { id } = await params
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      number: true,
-      status: true,
-      total: true,
-      currency: true,
-      engagementId: true,
-      matchAttempt: true,
-      engagement: {
+  // ── Ours to submit ─────────────────────────────────────────────────
+  //
+  // The permission above says this caller may issue invoices at their
+  // own company. It says nothing about whose invoice this is, and an
+  // invoice id is not a secret — so this route loaded any row by id and
+  // pushed it into the three-way match on somebody else's behalf. It
+  // even selected the two parties off the agreement and then compared
+  // them to nothing.
+  //
+  // A bill is submitted by the firm that raised it, which the agreement,
+  // the order, or a line on the invoice can each say
+  // (`lib/money/invoice-parties`).
+  const companyId = caller.company?.id ?? null
+  const invoice = companyId
+    ? await prisma.invoice.findFirst({
+        where: { id, ...invoicesRaisedBy(companyId) },
         select: {
-          msa: {
-            select: {
-              vendorId: true,
-              clientId: true,
-            },
-          },
+          id: true,
+          number: true,
+          status: true,
+          total: true,
+          currency: true,
+          engagementId: true,
+          matchAttempt: true,
         },
-      },
-    },
-  })
+      })
+    : null
 
   if (!invoice) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message: companyId
+            ? 'No such invoice of yours. A bill is submitted by the firm that raised it.'
+            : 'An invoice is a bill between two companies, and your seat is not at one.',
+        },
+      },
       { status: 404 }
     )
   }

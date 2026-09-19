@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { allocateAmount, formatShare, type AllocationShare } from '@/lib/cost-allocation'
 import { poBalance } from '@/lib/purchase-order'
 import { PROFILES, profileById, render, type CodedLine } from '@/lib/erp-profiles'
+import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * GET /api/invoices/:id/coding
@@ -99,7 +100,14 @@ export async function GET(
         },
       },
       workOrder: {
-        select: { id: true, number: true, amount: true, status: true, endDate: true },
+        select: {
+          id: true, number: true, amount: true, status: true, endDate: true,
+          // Who the two firms are where no agreement says. The order is
+          // what authorized the spend either way.
+          issuedById: true, issuedToId: true,
+          issuedBy: { select: { id: true, name: true } },
+          issuedTo: { select: { id: true, name: true } },
+        },
       },
       remitTo: {
         select: {
@@ -117,13 +125,22 @@ export async function GET(
     )
   }
 
-  // Both parties to the agreement may read the coding; nobody else.
-  const vendorId = invoice.engagement.msa.vendorId
-  const clientId = invoice.engagement.msa.clientId
+  // Both parties to the invoice may read the coding; nobody else. Who
+  // those two are comes from the agreement where there is one and from
+  // the order where there is not — and where neither says, nobody is a
+  // party and the answer is the same refusal.
+  const parties = partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder })
   const callerCompanyId = caller.company?.id
-  if (callerCompanyId !== vendorId && callerCompanyId !== clientId) {
+  if (callerCompanyId !== parties.vendor?.id && callerCompanyId !== parties.client?.id) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Not a party to this invoice' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: parties.basis
+            ? 'Not a party to this invoice'
+            : `Not a party to this invoice. ${parties.says}`,
+        },
+      },
       { status: 403 }
     )
   }
@@ -168,8 +185,8 @@ export async function GET(
       invoiceNumber: invoice.number,
       invoiceDate,
       dueDate,
-      vendor: invoice.engagement.msa.vendor.name,
-      billTo: invoice.engagement.msa.client.name,
+      vendor: parties.vendor?.name ?? 'Not yet attributed',
+      billTo: parties.client?.name ?? 'Not yet attributed',
       poNumber: invoice.workOrder?.number ?? null,
       personName: line.personName ?? 'Unknown',
       currency: invoice.currency,
@@ -187,7 +204,7 @@ export async function GET(
         glAccount: null,
         share: '100%',
         amount: amountCents / 100,
-        codingOwner: invoice.engagement.msa.client.name,
+        codingOwner: parties.client?.name ?? 'Not yet attributed',
         codingIsPayers: true,
       })
       continue
@@ -210,7 +227,7 @@ export async function GET(
         share: formatShare(part.shareBps),
         amount: part.amountCents / 100,
         codingOwner: alloc.costCenter.company.name,
-        codingIsPayers: alloc.costCenter.companyId === clientId,
+        codingIsPayers: alloc.costCenter.companyId === parties.client?.id,
       })
     }
   }
@@ -327,8 +344,8 @@ export async function GET(
         periodEnd: invoice.periodEnd.toISOString().slice(0, 10),
         dueAt: dueDate,
       },
-      vendor: invoice.engagement.msa.vendor,
-      billTo: invoice.engagement.msa.client,
+      vendor: parties.vendor,
+      billTo: parties.client,
       workOrder: invoice.workOrder?.number ?? null,
       purchaseOrderBalance: poState,
       remitTo: invoice.remitTo,

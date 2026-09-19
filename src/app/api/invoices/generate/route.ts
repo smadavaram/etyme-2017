@@ -16,6 +16,7 @@ import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { policyOf, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
+import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * POST /api/invoices/generate
@@ -62,6 +63,20 @@ export async function POST(request: NextRequest) {
           client: { select: { id: true, name: true } },
         },
       },
+      // The order the work was authorized under, where no agreement
+      // sits above it. One document per buyer-and-seller pair, so the
+      // engagement's own orders name the same two firms its lines do.
+      workOrders: {
+        select: {
+          number: true,
+          issuedById: true, issuedToId: true,
+          issuedBy: { select: { id: true, name: true } },
+          issuedTo: { select: { id: true, name: true } },
+          paymentTerms: true,
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 1,
+      },
       sellContracts: {
         where: { state: 'IN_PROGRESS' },
         include: {
@@ -96,17 +111,31 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Only the supplier on the agreement bills under it. The permission
-  // check above says the caller may issue invoices at their own company;
-  // it says nothing about whose engagement this is, and an engagement id
-  // is not a secret. Without this, a firm could raise an invoice in
-  // another supplier's name, addressed to that supplier's client.
-  if (engagement.msa.vendor.id !== caller.company!.id) {
+  // Only the supplier bills under this engagement. The permission check
+  // above says the caller may issue invoices at their own company; it
+  // says nothing about whose engagement this is, and an engagement id is
+  // not a secret. Without this, a firm could raise an invoice in another
+  // supplier's name, addressed to that supplier's client.
+  //
+  // Who this engagement is between. The agreement where there is one;
+  // the order it was authorized under where there is not; and the lines
+  // under it where there is neither — a firm recording its own book has
+  // all three eventually and may have only the last today.
+  const parties = partiesOf({
+    agreement: engagement.msa,
+    order: engagement.workOrders[0] ?? null,
+    lines: engagement.sellContracts,
+  })
+
+  const { vendor: billedBy_, client: billedTo } = parties
+  if (!billedBy_ || !billedTo || billedBy_.id !== caller.company!.id) {
     return NextResponse.json(
       {
         error: {
           code: 'NOT_THE_SUPPLIER',
-          message: `This engagement is ${engagement.msa.vendor.name}'s to bill, not ${caller.company!.name}'s.`,
+          message: billedBy_
+            ? `This engagement is ${billedBy_.name ?? 'another firm'}'s to bill, not ${caller.company!.name}'s.`
+            : `Nothing says who this engagement is between, so nobody can bill under it. ${parties.says}`,
         },
       },
       { status: 403 }
@@ -500,11 +529,15 @@ export async function POST(request: NextRequest) {
   const consolidation = mayConsolidate(
     [...lines, ...expLines, ...milestoneParties].map((l) => {
       const sc = contractById.get(l.sellContractId)
-      const billTo = sc?.clientCompany ?? engagement.msa.client
+      // The contract's own paying customer, else the firm this
+      // engagement is with.
+      const billTo = sc?.clientCompany ?? billedTo
       return {
         sellContractId: l.sellContractId,
         billToId: billTo.id,
-        billToName: billTo.name,
+        // A firm on the platform always has a name; the fallback is for
+        // a bill-to read off an order that carried only an id.
+        billToName: billTo.name ?? 'the client',
         payerId: billTo.id,
         currency: l.currency,
       }
@@ -535,9 +568,12 @@ export async function POST(request: NextRequest) {
 
   // ── The four parties ────────────────────────────────────────────────
   const firstContract = contractById.get(lines[0]?.sellContractId ?? expLines[0]?.sellContractId ?? anchorContract.id)
+  // The default for all four: the firm this engagement is with. Every
+  // one of them is overridable on the contract, which is the ordinary
+  // four-party split.
   const agreementClient: Party = {
-    id: engagement.msa.client.id,
-    name: engagement.msa.client.name,
+    id: billedTo.id,
+    name: billedTo.name ?? 'the client',
   }
   const shipTo: Place | null = firstContract?.workLocation
     ? {
@@ -631,11 +667,13 @@ export async function POST(request: NextRequest) {
   const onOrder = termsContract ? termsFor('SELL', termsContract) : null
   const terms_ = resolveBillingTerms({
     company: { name: caller.company!.name },
-    agreement: {
-      paymentTermsDays: engagement.msa.paymentTerms,
-      paymentTermsFrom: engagement.msa.paymentTermsFrom,
-      counterpartyName: engagement.msa.client.name,
-    },
+    agreement: engagement.msa
+      ? {
+          paymentTermsDays: engagement.msa.paymentTerms,
+          paymentTermsFrom: engagement.msa.paymentTermsFrom,
+          counterpartyName: billedTo.name ?? 'the client',
+        }
+      : null,
     contract: {
       paymentTermsDays: termsContract?.paymentTerms,
       paymentTermsFrom: termsContract?.paymentTermsFrom,
@@ -758,7 +796,7 @@ export async function POST(request: NextRequest) {
           total,
           dueAt,
           status: 'ISSUED',
-          // The four partner functions, written rather than left null.
+          // The four parties, written rather than left null.
           soldToId: partners.soldTo.party.id,
           billToId: partners.billTo.party.id,
           shipToId: partners.shipTo?.party.id ?? null,

@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { invoiceScope } from '@/lib/resolve-client-company'
+import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * POST /api/invoices/:id/payments
@@ -61,7 +62,18 @@ export async function POST(
           currency: true,
           engagementId: true,
           periodEnd: true,
-          engagement: { select: { msa: { select: { vendorId: true, clientId: true } } } },
+          engagement: {
+            select: {
+              msa: { select: { vendorId: true, clientId: true } },
+            },
+          },
+          // Who the two firms are where no agreement says. A payment row
+          // has to name both — "the payment says who paid whom" — so the
+          // same cascade answers here as on every other read.
+          workOrder: { select: { issuedById: true, issuedToId: true } },
+          invoiceLines: {
+            select: { sellContract: { select: { companyId: true, clientCompanyId: true } } },
+          },
         },
       })
     : null
@@ -80,7 +92,31 @@ export async function POST(
   // checked against the hours and the purchase order, and is not yet a
   // debt. Paying it would be paying around the one control finance buys
   // this for.
-  const payer = caller.company!.id === invoice.engagement.msa.clientId
+  const parties = partiesOf({
+    agreement: invoice.engagement.msa,
+    order: invoice.workOrder,
+    lines: invoice.invoiceLines.map((l) => l.sellContract).filter((c) => c != null),
+  })
+
+  // A payment that cannot say who paid whom is not recorded. The row
+  // would post cash into the books against nobody, and unapplied cash
+  // with no payer is the one thing an AR clerk cannot clear by hand.
+  if (!parties.vendor || !parties.client) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_ATTRIBUTED',
+          message:
+            `Invoice ${invoice.number} cannot say who it is between, so a payment against it ` +
+            `cannot say who paid whom. ${parties.says}`,
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  const { vendor: billedBy, client: billedTo } = parties
+  const payer = caller.company!.id === billedTo.id
   if (payer && invoice.status === 'ISSUED') {
     return NextResponse.json(
       {
@@ -136,10 +172,11 @@ export async function POST(
           method: method ?? null,
           reference: reference ?? null,
           // Who paid and whose account it landed in — read off the
-          // agreement, not off the caller, so the row says the same
-          // thing whichever side recorded it.
-          payerCompanyId: invoice.engagement.msa.clientId,
-          receivedByCompanyId: invoice.engagement.msa.vendorId,
+          // paper, not off the caller, so the row says the same thing
+          // whichever side recorded it. The agreement where there is
+          // one, the order where there is not.
+          payerCompanyId: billedTo.id,
+          receivedByCompanyId: billedBy.id,
           appliedAt: new Date(),
         },
       })

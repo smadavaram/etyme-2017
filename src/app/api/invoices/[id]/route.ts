@@ -6,6 +6,7 @@ import { matchInvoice, recompute } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
 import { discountDeadline, discountOn, dueOn, ladderFor, resolveBillingTerms } from '@/lib/billing-cascade'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
+import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * GET /api/invoices/:id
@@ -45,6 +46,11 @@ export async function GET(
       workOrder: {
         select: {
           id: true, number: true, amount: true, status: true, endDate: true,
+          // The two firms, where no agreement names them: the buyer
+          // raised this, the seller bills against it.
+          issuedById: true, issuedToId: true,
+          issuedBy: { select: { id: true, name: true } },
+          issuedTo: { select: { id: true, name: true } },
           // What we offer this client for settling early on this order.
           // A PO belongs to whoever pays, so on our own sales invoice
           // this is the client's order and its rungs narrow the standing
@@ -70,6 +76,7 @@ export async function GET(
           // relationship in its own right.
           msa: {
             select: {
+              vendorId: true, clientId: true,
               client: { select: { id: true, name: true } },
               vendor: { select: { id: true, name: true } },
               paymentTerms: true, paymentTermsFrom: true,
@@ -133,13 +140,20 @@ export async function GET(
   // that day has happened at all.
   const contractTerms = invoice.engagement.sellContracts[0] ?? null
   const onOrder = contractTerms ? termsFor('SELL', contractTerms) : null
+  // Who this invoice is between: the agreement, then the order. Both
+  // names below come from one answer, so the header and the terms
+  // sentence cannot name two different firms.
+  const msa = invoice.engagement.msa
+  const parties = partiesOf({ agreement: msa, order: invoice.workOrder })
   const terms = resolveBillingTerms({
-    company: { name: invoice.engagement.msa.vendor.name },
-    agreement: {
-      paymentTermsDays: invoice.engagement.msa.paymentTerms,
-      paymentTermsFrom: invoice.engagement.msa.paymentTermsFrom,
-      counterpartyName: invoice.engagement.msa.client.name,
-    },
+    company: { name: parties.vendor?.name ?? 'this company' },
+    agreement: msa
+      ? {
+          paymentTermsDays: msa.paymentTerms,
+          paymentTermsFrom: msa.paymentTermsFrom,
+          counterpartyName: parties.client?.name ?? 'the client',
+        }
+      : null,
     contract: {
       paymentTermsDays: contractTerms?.paymentTerms,
       paymentTermsFrom: contractTerms?.paymentTermsFrom,
@@ -160,8 +174,13 @@ export async function GET(
   })
 
   // The standing ladder, narrowed by the order's own where there is one.
+  //
+  // "Exactly one of msaId and workOrderId" holds on every rung, and with
+  // no agreement behind the engagement there is no standing ladder at
+  // all — the order's rungs are then the whole ladder rather than an
+  // override of nothing.
   const ladder = ladderFor({
-    agreement: invoice.engagement.msa.earlyPaymentDiscounts,
+    agreement: msa?.earlyPaymentDiscounts ?? [],
     order: invoice.workOrder?.earlyPaymentDiscounts ?? [],
   })
 
@@ -215,8 +234,12 @@ export async function GET(
           taxNeedsAThought: offer.taxNeedsAThought,
         },
         engagement: invoice.engagement.title,
-        vendor: invoice.engagement.msa.vendor,
-        client: invoice.engagement.msa.client,
+        // Null where nothing behind the invoice can say who it is
+        // between, with the sentence beside it rather than a blank.
+        vendor: parties.vendor,
+        client: parties.client,
+        between: parties.says,
+        betweenFrom: parties.basis,
       },
       workOrder: invoice.workOrder
         ? {

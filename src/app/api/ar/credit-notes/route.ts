@@ -11,6 +11,7 @@ import {
   type ArInvoice, type AppliedCredit,
 } from '@/lib/ar-ageing'
 import { onCreditNote, balance, wellFormed } from '@/lib/gl'
+import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * Credit notes, and the disputes view they belong in.
@@ -63,12 +64,31 @@ export async function GET(request: NextRequest) {
 
   const invoices = await prisma.invoice.findMany({
     where: {
-      engagement: { msa: { vendorId: companyId } },
+      // Ours to credit means ours to have billed, which the agreement,
+      // the order or a line on it can each say.
+      ...invoicesRaisedBy(companyId),
       status: { notIn: NOT_CREDITABLE },
     },
     select: {
       id: true, number: true, currency: true, total: true, paid: true, dueAt: true,
-      engagement: { select: { msa: { select: { client: { select: { id: true, name: true } } } } } },
+      engagement: {
+        select: {
+          msa: {
+            select: {
+              vendorId: true, clientId: true,
+              client: { select: { id: true, name: true } },
+              vendor: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+      workOrder: {
+        select: {
+          issuedById: true, issuedToId: true,
+          issuedBy: { select: { id: true, name: true } },
+          issuedTo: { select: { id: true, name: true } },
+        },
+      },
       creditNotes: {
         select: {
           id: true, amount: true, reasonCode: true, note: true,
@@ -90,7 +110,8 @@ export async function GET(request: NextRequest) {
   const aged: ArInvoice[] = []
 
   for (const i of invoices) {
-    const client = i.engagement.msa.client
+    // The customer, from the agreement or from the order behind it.
+    const client = partiesOf({ agreement: i.engagement.msa, order: i.workOrder }).client
     for (const c of i.creditNotes) {
       credits.push({
         invoiceId: i.id,
@@ -99,7 +120,7 @@ export async function GET(request: NextRequest) {
         reasonCode: c.reasonCode,
         appliedAt: c.appliedAt,
         invoiceNumber: i.number,
-        customerName: client.name,
+        customerName: client?.name ?? 'Not yet attributed',
         issuedAt: c.issuedAt,
         note: c.note,
       })
@@ -111,8 +132,8 @@ export async function GET(request: NextRequest) {
       totalMinor: fromPrismaDecimal(i.total, i.currency).minor,
       paidMinor: fromPrismaDecimal(i.paid, i.currency).minor,
       dueAt: i.dueAt,
-      customerId: client.id,
-      customerName: client.name,
+      customerId: client?.id ?? `unattributed:${i.id}`,
+      customerName: client?.name ?? 'Not yet attributed',
     })
   }
 
@@ -194,7 +215,7 @@ export async function POST(request: NextRequest) {
   const invoice = await prisma.invoice.findFirst({
     where: {
       id: invoiceId,
-      engagement: { msa: { vendorId: companyId } },
+      ...invoicesRaisedBy(companyId),
       status: { notIn: NOT_CREDITABLE },
     },
     select: {

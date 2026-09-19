@@ -61,12 +61,16 @@ const LINE_COLUMNS = [
  *     the header's four onto the line, so a line agrees with its
  *     document from the first second. That is demand's half of the same
  *     change and it reads the *header*, which is the copy that wins.
- *   · **A replacement.** `app/api/placements/[id]/replace` — the
- *     architect's — copies the OLD LINE's four onto the new one. That is
- *     the stale copy, and after an order corrects a line the replacement
- *     inherits what the line used to say. One line fixes it:
- *     `termsFor('SELL', old)`. Named here rather than left for somebody
- *     to find in a due date that is fifteen days out.
+ *
+ * The replacement route was on this list and came off on 2026-09-19:
+ * the architect routed it through `nextLineOnSameDocument`, which asks
+ * `termsFor` for the header's answer and falls back to the line's own
+ * copy only where the seat was never on an order at all. It still names
+ * the four columns — it has to, to hand the door what the line says —
+ * and that is not a copy onto a row, so the sweep learned the
+ * difference rather than keeping a file-shaped hole. Handing the door
+ * the line's copy is allowed anywhere; copying it onto another row is
+ * allowed only here.
  *
  * The list is a ceiling, never a floor: a file leaving it is the fix
  * landing and the test does not care. A file joining it means another
@@ -76,12 +80,73 @@ const LINE_COLUMNS = [
 const MAY_COPY_THE_COLUMNS = [
   /^src\/app\/api\/submissions\//,
   /^src\/lib\/award\.ts$/,
-  /^src\/app\/api\/placements\/\[id\]\/replace\/route\.ts$/,
 ]
 
 /** Copying one of the four from one row onto another. */
 const COPIES_A_COLUMN =
   /\b(bill|pay)(Frequency|Anchor|Straddle)\s*:\s*[^,\n;}]*\.(bill|pay)(Frequency|Anchor|Straddle)\b/
+
+/**
+ * The one door — called with what the line says, and answering.
+ *
+ *   const line = nextLineOnSameDocument({ old: { billFrequency: old.billFrequency, … } })
+ *   …
+ *   billFrequency: line.billFrequency,
+ *
+ * Neither of those is a second opinion about a period. The first is the
+ * door being TOLD what the line's own copy is, so it can use it where
+ * there is no header to beat it; the second is the door's own ANSWER
+ * being written onto the new row. What is still forbidden is what it
+ * always was: taking one row's copy and putting it on another without
+ * asking which copy wins.
+ */
+const DOORS = ['nextLineOnSameDocument(', 'termsFor(', 'periodTermsFor(']
+
+/** What the door's answer was called in this file: `const line = …`. */
+function doorOutputs(src: string): string[] {
+  const names = new Set<string>()
+  for (const door of DOORS) {
+    const fn = door.slice(0, -1)
+    const re = new RegExp(`\\b(?:const|let|var)\\s+(\\w+)\\s*=\\s*(?:await\\s+)?${fn}\\s*\\(`, 'g')
+    for (const m of src.matchAll(re)) names.add(m[1])
+  }
+  return [...names]
+}
+
+/** Which object a copied value came from: `old` in `old.billFrequency`. */
+const COPIES_FROM =
+  /\b(?:bill|pay)(?:Frequency|Anchor|Straddle)\s*:\s*([A-Za-z_$][\w$]*)[^,\n;}]*\.(?:bill|pay)(?:Frequency|Anchor|Straddle)\b/g
+
+/** Every copy in this source that did not come out of the door. */
+function copiesFrom(src: string): string[] {
+  const fromTheDoor = new Set(doorOutputs(src))
+  return [...outsideTheDoor(src).matchAll(COPIES_FROM)]
+    .filter((m) => !fromTheDoor.has(m[1]))
+    .map((m) => m[0])
+}
+
+/** The source with every argument list of a door call removed. */
+function outsideTheDoor(src: string): string {
+  let out = src
+  for (const door of DOORS) {
+    for (;;) {
+      const at = out.indexOf(door)
+      if (at === -1) break
+      // Walk the brackets, so a nested object inside the call goes too.
+      let depth = 0
+      let i = at + door.length - 1
+      for (; i < out.length; i++) {
+        if (out[i] === '(') depth += 1
+        else if (out[i] === ')') {
+          depth -= 1
+          if (depth === 0) break
+        }
+      }
+      out = out.slice(0, at) + out.slice(i + 1)
+    }
+  }
+  return out
+}
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -182,7 +247,7 @@ describe('a placement is billed on the rhythm of the document it is on', () => {
     const copying = filesTouchingTheColumns()
       .filter((f) => f !== THE_DOOR)
       .filter((f) => domainOf(f)?.key !== 'MONEY')
-      .filter((f) => COPIES_A_COLUMN.test(text(f)))
+      .filter((f) => copiesFrom(text(f)).length > 0)
     const unexpected = copying.filter((f) => !MAY_COPY_THE_COLUMNS.some((r) => r.test(f)))
     expect(
       unexpected,
@@ -224,5 +289,24 @@ describe('a placement is billed on the rhythm of the document it is on', () => {
 
     const comparing = 'c.billFrequency !== onThisOrder.frequency'
     expect([...comparing.matchAll(DECIDES_ON_A_LINE)]).toHaveLength(0)
+  })
+
+  it('and a row copied straight off another row is still caught, in the same file that calls the door', () => {
+    // The sweep tested on itself again, because the exemption added on
+    // 2026-09-19 is the kind that quietly swallows the rule it is an
+    // exception to. A file that calls the door does not thereby get to
+    // copy a stale line onto a new one somewhere else in itself.
+    const fromTheDoor =
+      'const line = nextLineOnSameDocument({ old: { billFrequency: old.billFrequency } })\n' +
+      'await tx.sellContract.create({ data: { billFrequency: line.billFrequency } })'
+    expect(copiesFrom(fromTheDoor)).toEqual([])
+
+    const stale =
+      'const line = nextLineOnSameDocument({ old: {} })\n' +
+      'await tx.sellContract.create({ data: { billFrequency: old.billFrequency } })'
+    expect(copiesFrom(stale)).toHaveLength(1)
+
+    // And with no door in the file at all, nothing is exempt.
+    expect(copiesFrom('data: { payFrequency: bc.payFrequency }')).toHaveLength(1)
   })
 })

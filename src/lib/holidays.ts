@@ -12,7 +12,7 @@ import { prisma } from '@/lib/db'
  *
  * A calendar carries the whole company's days off; a holiday marked
  * with a country is that country's alone. A Tokyo site's Golden Week
- * shifted a Lakewood contractor's pay day, because every holiday on the
+ * shifted a Westminster, CO contractor's pay day, because every holiday on the
  * calendar was applied everywhere. Where the work site's country is
  * known, a holiday marked for another country is not this site's.
  */

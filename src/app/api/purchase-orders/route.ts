@@ -76,9 +76,58 @@ export async function GET(request: NextRequest) {
       issuedBy: { select: { id: true, name: true, claimedAt: true } },
       issuedTo: { select: { id: true, name: true, claimedAt: true } },
       invoices: { select: { total: true, status: true } },
+      // The lines on it. A document is a header and its lines, and an
+      // order screen that shows only headers is half the paper: five
+      // people on one order is one ceiling and five names, and which
+      // name is eating the ceiling is the question this page is open
+      // for.
+      sellContracts: {
+        select: {
+          id: true, billRate: true, billCurrency: true, state: true,
+          startDate: true, endDate: true,
+          person: { select: { id: true, name: true } },
+          workLocation: { select: { name: true, city: true, state: true, isRemote: true } },
+          clientCompany: { select: { name: true } },
+        },
+        orderBy: { startDate: 'asc' },
+      },
+      buyContracts: {
+        select: {
+          id: true, payCurrency: true, contractType: true, state: true,
+          startDate: true, endDate: true,
+          vendorCompany: { select: { name: true } },
+          candidates: {
+            select: { payRate: true, person: { select: { id: true, name: true } } },
+            orderBy: { startDate: 'asc' },
+          },
+        },
+        orderBy: { startDate: 'asc' },
+      },
       _count: { select: { sellContracts: true, milestones: true } },
     },
   })
+
+  // What each sell line has actually billed against the ceiling above
+  // it. Read from the invoice lines rather than apportioned from the
+  // header: an order's total is the sum of what its lines billed, and
+  // dividing the header by the headcount would invent a figure.
+  const sellIds = pos.flatMap((po) => po.sellContracts.map((sc) => sc.id))
+  const billedByLine = new Map<string, number>()
+  if (sellIds.length > 0) {
+    const sums = await prisma.invoiceLine.groupBy({
+      by: ['sellContractId'],
+      where: {
+        sellContractId: { in: sellIds },
+        // Void and cancelled invoices never consumed anything, on the
+        // line or on the header. Same rule as the ceiling above.
+        invoice: { status: { notIn: ['VOID', 'CANCELLED'] } },
+      },
+      _sum: { amountCents: true },
+    })
+    for (const row of sums) {
+      if (row.sellContractId) billedByLine.set(row.sellContractId, row._sum.amountCents ?? 0)
+    }
+  }
 
   const rows = pos.map((po) => {
     // Void and cancelled invoices never consumed anything. Counting them
@@ -136,6 +185,43 @@ export async function GET(request: NextRequest) {
       startDate: po.startDate.toISOString().slice(0, 10),
       endDate: po.endDate?.toISOString().slice(0, 10) ?? null,
       contractsAgainst: po._count.sellContracts,
+      // Each line on this document, with what it has billed. A line is
+      // a person at a site, never a row id.
+      lines: [
+        ...po.sellContracts.map((sc) => ({
+          id: sc.id,
+          side: 'SELL' as const,
+          personName: sc.person.name,
+          siteName: siteOf(sc.workLocation) ?? sc.clientCompany.name,
+          /** Cents per hour. */
+          rate: sc.billRate,
+          currency: sc.billCurrency,
+          state: sc.state,
+          startDate: sc.startDate.toISOString().slice(0, 10),
+          endDate: sc.endDate?.toISOString().slice(0, 10) ?? null,
+          /** Whole currency, to match the ceiling beside it. */
+          billed: (billedByLine.get(sc.id) ?? 0) / 100,
+          paidToName: null as string | null,
+        })),
+        ...po.buyContracts.flatMap((bc) =>
+          bc.candidates.map((cand) => ({
+            id: `${bc.id}:${cand.person.id}`,
+            side: 'BUY' as const,
+            personName: cand.person.name,
+            siteName: null as string | null,
+            rate: cand.payRate,
+            currency: bc.payCurrency,
+            state: bc.state,
+            startDate: bc.startDate.toISOString().slice(0, 10),
+            endDate: bc.endDate?.toISOString().slice(0, 10) ?? null,
+            // A buy line is settled against a supplier's invoice
+            // received, which is not an invoice line of ours, so there
+            // is nothing honest to put here yet.
+            billed: null as number | null,
+            paidToName: bc.vendorCompany?.name ?? null,
+          }))
+        ),
+      ],
     }
   })
 
@@ -151,6 +237,15 @@ export async function GET(request: NextRequest) {
       needsAttention: rows.filter((r) => r.overdrawn || r.expired || r.consumedPercent >= 90).length,
     },
   })
+}
+
+/** A site, in the words a person would use. Null where nobody said. */
+function siteOf(
+  loc: { name: string; city: string | null; state: string | null; isRemote: boolean } | null
+): string | null {
+  if (!loc) return null
+  if (loc.isRemote) return 'Remote'
+  return [loc.name, loc.city, loc.state].filter(Boolean).join(', ') || null
 }
 
 export async function POST(request: NextRequest) {

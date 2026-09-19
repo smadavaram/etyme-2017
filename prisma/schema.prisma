@@ -3002,13 +3002,29 @@ model ContractLink {
 // WORK AND MONEY
 // ─────────────────────────────────────────────
 
+/// A project or statement of work — several people, several contracts,
+/// one thing the client calls by name.
+///
+/// ── Why the agreement above it is optional ──────────────────────────
+///
+/// `msaId` was required, and it was the only hard dependency on a master
+/// agreement anywhere in the schema — no route has ever demanded one.
+/// The founder, 2026-09-18: *"We don't need a master contract if there is
+/// no budget profile."* A client that sends one purchase order and one
+/// contractor must not be made to paper an agreement before the work can
+/// be recorded. The agreement is the legal umbrella where one exists, and
+/// the order is what authorizes the spend either way.
+///
+/// So a reader that needs the two firms reads them off the order or the
+/// contracts below, never off the agreement alone — an engagement with no
+/// MSA behind it is an ordinary engagement, not a broken one.
 model Engagement {
-  id            String          @id @default(cuid())
-  msaId         String
-  msa           MasterAgreement @relation(fields: [msaId], references: [id])
+  id            String           @id @default(cuid())
+  msaId         String?
+  msa           MasterAgreement? @relation(fields: [msaId], references: [id])
   title         String
   rateCard      Json? // onshore / nearshore / offshore tiers
-  invoiceCycle  String          @default("MONTHLY")
+  invoiceCycle  String           @default("MONTHLY")
   sellContracts SellContract[]
   invoices      Invoice[]
   workOrders    WorkOrder[]

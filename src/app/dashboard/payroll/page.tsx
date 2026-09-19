@@ -7,7 +7,22 @@ import { compact as formatRate } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
- * Payroll working surface — buy-side payment processing.
+ * Payroll working surface — what the buy lines pay out.
+ *
+ * ── What a row here is ───────────────────────────────────────────────
+ *
+ * A **buy line** on an order, and payroll is how it is settled. The
+ * founder, 2026-09-18: *"Buy contract will pay supplier or run payroll
+ * for candidate."* Where a sub-vendor is below us the line is settled
+ * against that firm's invoice, received and matched; where we employ the
+ * person ourselves there is no order at all — nobody raises a
+ * purchase order to their own employee — and payroll is the whole of it.
+ *
+ * This screen used to tell an empty-handed reader to *"create buy
+ * contracts to set up payroll"*, which offers a line as a document of
+ * its own and sends somebody to a form that does not exist. A buy line
+ * is written beside the placement it funds, on the placement's own
+ * document, and that is where the empty state points.
  *
  * CLAUDE.md design system:
  *   Working surfaces: "Tables, search, filters, bulk, density"
@@ -613,12 +628,13 @@ export default function PayrollPage() {
         emptyMessage={
           statusFilter !== 'ALL'
             ? `No ${statusFilter.toLowerCase().replace('_', ' ')} pay items.`
-            : 'No active buy contracts.'
+            : 'Nobody is on payroll this period.'
         }
         emptyDetail={
           statusFilter !== 'ALL'
             ? 'Try "All" to see every pay item.'
-            : 'Create buy contracts to set up payroll for your consultants.'
+            : 'A pay line is written beside the placement it funds — record one on Contracts, ' +
+              'or award a submission, and whoever it pays appears here.'
         }
         exportName={`payroll${selectedPeriod ? `-${selectedPeriod}` : ''}`}
         defaultPageSize={20}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -323,7 +324,12 @@ async function loadInvoice(invoiceId: string, companyId: string) {
   const inv = await prisma.invoice.findFirst({
     where: {
       id: invoiceId,
-      engagement: { msa: { vendorId: companyId } },
+      // Ours to apply cash to means ours to have billed — said by the
+      // agreement, the order, or a line on the invoice. An agreement is
+      // optional, and a filter through a null relation matches nothing:
+      // this asked the agreement alone, so a receipt against a bill with
+      // no agreement behind it was refused as "no such invoice of ours".
+      ...invoicesRaisedBy(companyId),
       status: { notIn: NOT_APPLICABLE },
     },
     select: { id: true, number: true, currency: true, total: true, paid: true },

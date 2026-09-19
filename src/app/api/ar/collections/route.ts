@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -106,7 +107,9 @@ export async function GET(request: NextRequest) {
   // money an account manager has already agreed to credit is the fastest
   // way to lose an account you had just repaired.
   const creditRows = await prisma.creditNote.findMany({
-    where: { invoice: { engagement: { msa: { vendorId: companyId } } } },
+    // Ours to have credited means ours to have billed, which the
+    // agreement, the order or a line on it can each say.
+    where: { invoice: invoicesRaisedBy(companyId) },
     select: {
       invoiceId: true, amount: true, appliedAt: true, reasonCode: true,
       invoice: { select: { currency: true } },
@@ -343,7 +346,7 @@ export async function POST(request: NextRequest) {
   // invoice from a settled run of arrears would silence a ladder that
   // should be starting from the bottom.
   const mine = await prisma.invoice.findMany({
-    where: { id: { in: invoiceIds }, engagement: { msa: { vendorId: companyId } } },
+    where: { id: { in: invoiceIds }, ...invoicesRaisedBy(companyId) },
     select: { id: true },
   })
   if (mine.length === 0) {
