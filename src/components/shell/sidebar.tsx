@@ -421,7 +421,7 @@ const MSP_NAV: NavSection[] = [
 // link is worse than a missing section; this comes back once there is
 // a real, candidate-scoped training screen to put here.
 /**
- * The three pages that belong to a person rather than to a firm.
+ * The pages that belong to a person rather than to a firm.
  *
  * Kept apart from CONSULTANT_NAV because they are read by two different
  * people. Somebody on a bench has nothing else and reads only these. A
@@ -442,6 +442,13 @@ const YOURS: NavItem[] = [
   // not a missing feature.
   { label: 'Your page', href: '/dashboard/my-page', icon: '◐' },
   { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈' },
+  // What is held about them, and the two things they can ask for: a
+  // copy of it, or to be forgotten. The page was built with no door on
+  // to it, which is the same bug as a column nothing writes to — a
+  // right nobody can find is a right nobody has. No permission beside
+  // it on purpose: the route behind it asks for none, because it
+  // answers this person about this person.
+  { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' },
 ]
 
 const CONSULTANT_NAV: NavSection[] = [

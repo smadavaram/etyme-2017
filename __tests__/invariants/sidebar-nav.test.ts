@@ -701,6 +701,10 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
     expect(you, 'no "You" section at all').toBeTruthy()
     expect(you!.items.map((i) => i.href)).toEqual([
       '/dashboard/my-work', '/dashboard/my-page', '/dashboard/my-benches',
+      // What is held about him and the two things he can ask for. The
+      // page existed for a week with nothing anywhere pointing at it,
+      // which is a right nobody can find.
+      '/dashboard/my-data',
     ])
   })
 
