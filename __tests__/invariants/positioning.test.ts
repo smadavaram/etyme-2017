@@ -542,6 +542,8 @@ describe('The claim about how much of this is a model is computed, not asserted'
 
   const NUMBERS: Record<number, string> = {
     6: 'Six', 11: 'Eleven', 12: 'Twelve', 13: 'Thirteen', 14: 'Fourteen', 15: 'Fifteen',
+    16: 'Sixteen', 17: 'Seventeen', 18: 'Eighteen', 19: 'Nineteen', 20: 'Twenty',
+    21: 'Twenty-one', 22: 'Twenty-two',
   }
 
   it('counts the things that happen without anybody asking, and says that number on the page', () => {

@@ -955,11 +955,11 @@ export default function LandingPage() {
                 Most of what looks like AI here is a rule, and we would rather say so
               </h2>
               <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
-                Fourteen things in here happen without anybody asking for them.
-                Thirteen of the fourteen are a date, a threshold or a count —
-                a permit running out, an agreement whose term has lapsed, the
-                same person submitted twice. The one that is left scores a
-                person against a role, and even that falls back to arithmetic
+                Twenty things in here happen without anybody asking for them.
+                Nineteen of the twenty are a date, a threshold or a count —
+                a permit running out, an agreement whose term has lapsed, a
+                retention period that has run out. The one that is left scores
+                a person against a role, and even that falls back to arithmetic
                 when there is no model to call.
               </p>
             </div>
