@@ -45,6 +45,23 @@ const co = { northbend: '', talvern: '' }
 let helenaDaysBefore = 0
 let helenaHolders: string[] = []
 
+/**
+ * Wait for a fire-and-forget write to land.
+ *
+ * `logAccess` deliberately does not block the response — CLAUDE.md's
+ * invariant is that the read is recorded, not that the reader waits for
+ * it — so a test that reads the trail immediately after the route
+ * returns is racing the write it is checking for.
+ */
+async function eventually<T>(read: () => Promise<T>, done: (v: T) => boolean, tries = 40): Promise<T> {
+  let last = await read()
+  for (let i = 0; i < tries && !done(last); i++) {
+    await new Promise((r) => setTimeout(r, 50))
+    last = await read()
+  }
+  return last
+}
+
 async function daysAt(personId: string, clientCompanyId: string): Promise<number> {
   const lines = await prisma.sellContract.findMany({
     where: { personId, clientCompanyId },
@@ -139,10 +156,17 @@ describe('a person asks what is held about them', () => {
   })
 
   it('the export she produced is a read of her record and is in the trail, including that she was the one who opened it', async () => {
-    const rows = await prisma.accessLog.findMany({
-      where: { subjectId: who.helena, action: 'DATA_EXPORT' },
-      select: { reason: true, allowed: true },
-    })
+    // `logAccess` is fire-and-forget by design — the invariant is that
+    // the read is recorded, not that the reader waits for it — so this
+    // waits for the row rather than assuming it has landed. Asserting on
+    // it without the wait failed about one run in three.
+    const rows = await eventually(
+      () => prisma.accessLog.findMany({
+        where: { subjectId: who.helena, action: 'DATA_EXPORT' },
+        select: { reason: true, allowed: true },
+      }),
+      (r) => r.length >= 2 && r.some((x) => (x.reason ?? '').includes('Downloaded their own export'))
+    )
     expect(rows.length).toBeGreaterThanOrEqual(2)
     expect(rows.map((r) => r.reason).join(' ')).toContain('Downloaded their own export')
   })
@@ -152,16 +176,12 @@ describe('a person asks what is held about them', () => {
     const hers = await prisma.dataRequest.findFirstOrThrow({ where: { subjectPersonId: who.helena } })
     const { status } = await json(await myData(req('GET', `/api/me/data?download=${hers.id}`)))
     expect(status).toBe(404)
-    // `logAccess` is fire-and-forget by design — the invariant is that
-    // the read is recorded, not that the reader waits for it — so this
-    // looks for the row rather than assuming it has landed.
-    let refused = null
-    for (let i = 0; i < 20 && !refused; i++) {
-      refused = await prisma.accessLog.findFirst({
+    const refused = await eventually(
+      () => prisma.accessLog.findFirst({
         where: { subjectId: who.anders, action: 'DATA_EXPORT', allowed: false },
-      })
-      if (!refused) await new Promise((r) => setTimeout(r, 50))
-    }
+      }),
+      (r) => r != null
+    )
     expect(refused).not.toBeNull()
   })
 })
