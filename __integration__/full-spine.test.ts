@@ -1,0 +1,1776 @@
+import { describe, it, expect, beforeAll } from 'vitest'
+import { as, req, json, resetDatabase, prisma } from './harness'
+
+/**
+ * Every money figure in a payload, however deeply nested.
+ *
+ * A key that names a rate, a pay, a bill or an amount. Values are
+ * compared exactly, never as a substring, because a cuid is a string of
+ * digits and letters and `8500` lives inside plenty of them.
+ */
+function ratesIn(value: unknown, found: number[] = []): number[] {
+  if (Array.isArray(value)) {
+    for (const v of value) ratesIn(v, found)
+    return found
+  }
+  if (value && typeof value === 'object') {
+    for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+      if (/rate|pay|bill|amount|cents/i.test(key)) {
+        const n = typeof v === 'string' ? Number(v) : v
+        if (typeof n === 'number' && Number.isFinite(n)) found.push(n)
+      }
+      ratesIn(v, found)
+    }
+  }
+  return found
+}
+
+import { POST as raiseRequisition } from '@/app/api/requisitions/route'
+import { POST as decideRequisition } from '@/app/api/requisitions/[id]/approve/route'
+import { POST as distributeRequisition } from '@/app/api/requisitions/[id]/distribute/route'
+import { POST as answerInvitation } from '@/app/api/invitations/[id]/respond/route'
+import { POST as createRequirement } from '@/app/api/requirements/route'
+import { POST as submitCandidate } from '@/app/api/submissions/route'
+import { POST as checkPackage } from '@/app/api/submissions/[id]/check/route'
+import { POST as forwardSubmission } from '@/app/api/submissions/[id]/forward/route'
+import { POST as proposeInterview } from '@/app/api/submissions/[id]/interviews/route'
+import { POST as decideInterview } from '@/app/api/interviews/[id]/route'
+import { POST as raisePurchaseOrder } from '@/app/api/purchase-orders/route'
+import { POST as awardSubmission } from '@/app/api/submissions/[id]/award/route'
+import { POST as activateContract } from '@/app/api/contracts/[id]/activate/route'
+import { POST as fileTimesheet } from '@/app/api/timesheets/route'
+import { POST as sendTimesheet } from '@/app/api/timesheets/[id]/submit/route'
+import { POST as signTimesheet } from '@/app/api/timesheets/[id]/approve/route'
+import { GET as payroll } from '@/app/api/payroll/route'
+import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
+import { POST as recordReceipt } from '@/app/api/ar/payments/route'
+import { GET as complianceView } from '@/app/api/compliance/route'
+import { GET as tenureView } from '@/app/api/tenure/route'
+import { GET as alumniView } from '@/app/api/alumni/route'
+import { PATCH as amendAgreement } from '@/app/api/program/agreements/[id]/route'
+import { GET as profitability } from '@/app/api/profitability/route'
+import { GET as placement } from '@/app/api/placements/[id]/route'
+import { GET as register } from '@/app/api/people/route'
+import { GET as onePerson } from '@/app/api/people/[id]/route'
+import { GET as programView } from '@/app/api/program/route'
+import { GET as decisionQueue } from '@/app/api/decisions/route'
+import { GET as identityView } from '@/app/api/identity/route'
+import { GET as whyView } from '@/app/api/why/[type]/[id]/route'
+
+/**
+ * L4 — the whole spine, one placement, walked in the order it happens.
+ *
+ * A manager at Auralis needs somebody. Ninety-one days later a consultant
+ * has been paid and four companies can each say what they made. Every
+ * step in between is a real route handler called the way the browser
+ * calls it — nothing is written straight to the database except the
+ * world as it stood before the story started.
+ *
+ *   Auralis Software  the client. Raises it, approves it, pays for it.
+ *   Maren MSP         the MSP. Runs Auralis's programme: sees the demand,
+ *                     picks who gets to see it, takes no rate.
+ *   Computer Systems  the prime supplier. Sells to Auralis, buys from below.
+ *   CloudEPA          the sub-vendor. Holds the bench, employs the person.
+ *   Priya Raman       the consultant. Files one timesheet, once.
+ *
+ * The MSP here is an agent, not a principal: it routes demand and holds
+ * no contract, which is the arrangement the founder described. A
+ * principal MSP — one that sells to Auralis and buys from Computer
+ * Systems — is a fourth commercial hop and is not modeled.
+ *
+ * Where the walk finds something the product cannot yet do, the test
+ * asserts what actually happens and says so in the name. A test that
+ * quietly skips the broken step is worse than no test.
+ */
+
+const ADOBE_PM = 'programme@adobe.test'
+const ADOBE_VP = 'vp@adobe.test'
+const MSP = 'delivery@magnit.test'
+const PRIME = 'owner@computersystems.test'
+const SUB = 'owner@cloudepa.test'
+const CONSULTANT = 'priya@person.test'
+
+const co = { adobe: '', magnit: '', prime: '', sub: '' }
+const who = { pm: '', vp: '', mspLead: '', primeLead: '', subLead: '', priya: '' }
+const it_ = {
+  costCentre: '', profile: '',
+  requisition: '', mspRole: '', primeRole: '',
+  mspInvite: '', primeInvite: '', subInvite: '',
+  subSubmission: '', primeSubmission: '',
+  poNumber: 'PO-ADBE-88104', po: '',
+  primeSell: '', primeBuy: '', subSell: '', subBuy: '',
+  primeEngagement: '', subEngagement: '',
+  timesheet: '', subInvoice: '', primeInvoice: '',
+}
+
+const rate = (cents: number) => `$${(cents / 100).toFixed(0)}/hr`
+// The first full week of the assignment. It starts on the Monday after
+// the contracts do — a week filed before the start date is correctly
+// worth nothing, and finding that out here rather than in production is
+// the point of the exercise.
+const WEEK = { start: '2026-09-14', end: '2026-09-18' }
+const FIVE_EIGHTS = {
+  '2026-09-14': 8, '2026-09-15': 8, '2026-09-16': 8,
+  '2026-09-17': 8, '2026-09-18': 8,
+}
+const soon = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString()
+
+async function company(name: string, slug: string, kind: any, email: string) {
+  const c = await prisma.company.create({
+    data: { name, slug, kind, currency: 'USD', defaultPaymentTerms: 45 },
+  })
+  const role = await prisma.role.create({
+    data: { companyId: c.id, name: 'Owner', permissions: ['*'], isDefault: true },
+  })
+  const p = await prisma.person.create({ data: { name, primaryEmail: email } })
+  await prisma.context.create({
+    data: { personId: p.id, companyId: c.id, roleId: role.id, type: 'EMPLOYEE', grantReason: 'spine walk' },
+  })
+  return { companyId: c.id, personId: p.id, roleId: role.id }
+}
+
+beforeAll(async () => {
+  await resetDatabase()
+
+  // ── The world before anybody does anything ────────────────────────
+  const adobe = await company('Auralis Software', 'adobe', 'CLIENT', ADOBE_PM)
+  co.adobe = adobe.companyId
+  who.pm = adobe.personId
+
+  // Auralis's VP of engineering — the approver, a second seat at the
+  // same company, because nobody approves their own requisition.
+  const vp = await prisma.person.create({ data: { name: 'Dana Okafor', primaryEmail: ADOBE_VP } })
+  await prisma.context.create({
+    data: { personId: vp.id, companyId: co.adobe, roleId: adobe.roleId, type: 'EMPLOYEE', grantReason: 'spine walk' },
+  })
+  who.vp = vp.id
+
+  const magnit = await company('Maren MSP', 'magnit', 'MSP', MSP)
+  co.magnit = magnit.companyId
+  who.mspLead = magnit.personId
+
+  const prime = await company('Computer Systems', 'computer-systems', 'VENDOR', PRIME)
+  co.prime = prime.companyId
+  who.primeLead = prime.personId
+
+  const sub = await company('CloudEPA', 'cloudepa', 'VENDOR', SUB)
+  co.sub = sub.companyId
+  who.subLead = sub.personId
+
+  // Who trades with whom. Auralis never learns CloudEPA exists.
+  const trades = (a: string, b: string, relationship: string) =>
+    prisma.counterparty.create({ data: { companyId: a, otherCompanyId: b, relationship } })
+  await trades(co.adobe, co.magnit, 'MSP')
+  await trades(co.magnit, co.adobe, 'CLIENT')
+  await trades(co.magnit, co.prime, 'SUPPLIER')
+  await trades(co.prime, co.magnit, 'MSP')
+  await trades(co.prime, co.adobe, 'CLIENT')
+  await trades(co.adobe, co.prime, 'SUPPLIER')
+  await trades(co.prime, co.sub, 'SUPPLIER')
+  await trades(co.sub, co.prime, 'PRIME')
+
+  // Auralis's budget: the cost center the role is funded from, and the
+  // plan that says how many heads and how much money it may spend.
+  const cc = await prisma.costCenter.create({
+    data: { companyId: co.adobe, code: 'DME-PLAT-4100', name: 'Digital Media — Platform' },
+  })
+  it_.costCentre = cc.id
+  await prisma.headcountPlan.create({
+    data: { costCenterId: cc.id, period: '2026', approvedHeads: 6, annualBudget: 2_400_000, currency: 'USD' },
+  })
+
+  // The delegation of authority. Anything over $100k a year is Dana's.
+  await prisma.approvalRule.create({
+    data: {
+      companyId: co.adobe, name: 'Platform — over $100k', thresholdAmount: 100_000,
+      approverId: who.vp, rank: 1, isActive: true, authoredById: who.pm,
+    },
+  })
+
+  // Priya, and the one bench she has agreed to be on.
+  const priya = await prisma.person.create({
+    data: { name: 'Priya Raman', primaryEmail: CONSULTANT },
+  })
+  who.priya = priya.id
+  const profile = await prisma.consultantProfile.create({
+    data: {
+      personId: priya.id, skills: ['SAP FICO', 'S/4HANA'],
+      location: 'San Jose, California', visibility: 'VERIFIED', workAuth: 'GC',
+      availableFrom: new Date('2026-09-01'),
+    },
+  })
+  it_.profile = profile.id
+  await prisma.benchListing.create({
+    data: {
+      consultantId: profile.id, companyId: co.sub, tier: 'RETAINED',
+      state: 'GRANTED', invitedAt: new Date('2026-08-10'),
+      respondedAt: new Date('2026-08-11'), grantedAt: new Date('2026-08-11'),
+    },
+  })
+  // The seat a bench consultant gets: pointed at the agency that lists
+  // her, carrying no role and therefore no permissions. It is what lets
+  // her file her own hours and nothing else of CloudEPA's.
+  await prisma.context.create({
+    data: { personId: priya.id, companyId: co.sub, type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' },
+  })
+}, 240_000)
+
+/** Cover on file for a supplier, which is what lets it place anybody. */
+async function insure(companyId: string, uploadedById: string) {
+  for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+    await prisma.verification.create({
+      data: {
+        companyId, type, status: 'CLEAR', provider: 'Hartford',
+        issuedAt: new Date('2026-06-01'), expiresAt: new Date('2027-06-01'),
+        uploadedById, verifiedById: uploadedById, verifiedAt: new Date('2026-06-02'),
+        result: { outcome: 'CLEAR', notes: 'Certificate on file' },
+      },
+    })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Part one — the demand
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Step 1 — a manager at Auralis raises a requisition', () => {
+  it('is routed to an approver rather than opened, because it is worth $288,000 a year', async () => {
+    as(ADOBE_PM)
+    const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
+      title: 'SAP FICO consultant — Digital Media platform',
+      skills: ['SAP FICO', 'S/4HANA'],
+      location: 'San Jose, California',
+      headcount: 1, billMin: 12_000, billMax: 15_000, months: 12,
+      neededBy: '2026-09-07',
+      justification: 'Backfill for the platform close cycle',
+      costCenterId: it_.costCentre,
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.requisition = r.body.data.requisition.id
+    expect(r.body.data.requisition.approvalState).toBe('PENDING_APPROVAL')
+  })
+
+  it('is not open to a single vendor until somebody has said yes', async () => {
+    const q = await prisma.requirement.findUniqueOrThrow({ where: { id: it_.requisition } })
+    expect(q.status).toBe('DRAFT')
+    const invitations = await prisma.requirementInvitation.count({ where: { requirementId: it_.requisition } })
+    expect(invitations).toBe(0)
+  })
+
+  it('records why it routed, in words the manager can read', async () => {
+    const log = await prisma.automationLog.findFirstOrThrow({
+      where: { companyId: co.adobe, action: 'REQUISITION_ROUTED' },
+    })
+    expect(log.reason).toContain('HEADCOUNT')
+    expect(log.reason).toContain('BUDGET')
+  })
+})
+
+describe('Step 2 — the VP approves it, and only then does it open', () => {
+  it('refuses the manager who raised it — the approval is not theirs to give', async () => {
+    as(ADOBE_PM)
+    const r = await json(await decideRequisition(
+      req('POST', `/api/requisitions/${it_.requisition}/approve`, { action: 'approve' }),
+      { params: Promise.resolve({ id: it_.requisition }) }
+    ))
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('FORBIDDEN')
+  })
+
+  it('opens the moment the last rank approves', async () => {
+    as(ADOBE_VP)
+    const r = await json(await decideRequisition(
+      req('POST', `/api/requisitions/${it_.requisition}/approve`, {
+        action: 'approve', reason: 'Backfill agreed at the platform review',
+      }),
+      { params: Promise.resolve({ id: it_.requisition }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.fullyApproved).toBe(true)
+    expect(r.body.data.status).toBe('OPEN')
+  })
+})
+
+describe('Step 3 — Auralis puts it in front of its MSP, with a band', () => {
+  it('sends it to Maren and nobody else', async () => {
+    as(ADOBE_PM)
+    const r = await json(await distributeRequisition(
+      req('POST', `/api/requisitions/${it_.requisition}/distribute`, {
+        vendors: [{ companyId: co.magnit, payMin: 11_000, payMax: 14_000, message: 'Program panel — usual terms' }],
+        expiresAt: soon(14),
+      }),
+      { params: Promise.resolve({ id: it_.requisition }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.summary.sent).toBe(1)
+  })
+
+  it('does not echo the band back in the response, where a second vendor could read it', async () => {
+    const inv = await prisma.requirementInvitation.findFirstOrThrow({
+      where: { requirementId: it_.requisition, toCompanyId: co.magnit },
+    })
+    it_.mspInvite = inv.id
+    expect(inv.payMax).toBe(14_000)
+  })
+
+  it('refuses a band above the ceiling the requisition itself was approved at', async () => {
+    as(ADOBE_PM)
+    const r = await json(await distributeRequisition(
+      req('POST', `/api/requisitions/${it_.requisition}/distribute`, {
+        vendors: [{ companyId: co.prime, payMin: 14_000, payMax: 19_000 }],
+      }),
+      { params: Promise.resolve({ id: it_.requisition }) }
+    ))
+    expect(r.status).toBe(422)
+    expect(r.body.error.message).toContain('exceeds the requisition ceiling')
+  })
+})
+
+describe('Step 4 — Maren takes it on and passes it down the panel', () => {
+  it('accepts the invitation before doing anything with it', async () => {
+    as(MSP)
+    const r = await json(await answerInvitation(
+      req('POST', `/api/invitations/${it_.mspInvite}/respond`, {
+        action: 'accept', reason: 'Panel supplier search opening today',
+      }),
+      { params: Promise.resolve({ id: it_.mspInvite }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+  })
+
+  it('writes its own record of the role, carrying Auralis forward as the end client', async () => {
+    as(MSP)
+    const r = await json(await createRequirement(req('POST', '/api/requirements', {
+      title: 'SAP FICO consultant — Digital Media platform',
+      skills: ['SAP FICO', 'S/4HANA'],
+      location: 'San Jose, California',
+      billMin: 10_500, billMax: 13_500, months: 12,
+      endClientCompanyId: co.adobe,
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.mspRole = r.body.data.requirement.id
+    const role = await prisma.requirement.findUniqueOrThrow({ where: { id: it_.mspRole } })
+    expect(role.endClientCompanyId).toBe(co.adobe)
+    expect(role.status).toBe('OPEN')
+  })
+
+  it('has to retype the role rather than accept a copy of it — nothing ties the two records together', async () => {
+    // The finding. Demand travels down the chain by somebody rekeying
+    // it: there is no route that turns an accepted invitation into the
+    // recipient's own record. `Requirement.mirroredFromId` exists for
+    // exactly this and only the forwarding path ever sets it.
+    //
+    // The cost is not the typing. It is that Auralis's requisition and
+    // Maren's copy of it are two unrelated rows, so nothing further
+    // down the chain can be counted back against the thing that was
+    // approved.
+    const role = await prisma.requirement.findUniqueOrThrow({ where: { id: it_.mspRole } })
+    expect(role.mirroredFromId).toBeNull()
+  })
+
+  it('sends it to Computer Systems at a band of its own', async () => {
+    as(MSP)
+    const r = await json(await distributeRequisition(
+      req('POST', `/api/requisitions/${it_.mspRole}/distribute`, {
+        vendors: [{ companyId: co.prime, payMin: 10_500, payMax: 13_500 }],
+        expiresAt: soon(10),
+      }),
+      { params: Promise.resolve({ id: it_.mspRole }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const inv = await prisma.requirementInvitation.findFirstOrThrow({
+      where: { requirementId: it_.mspRole, toCompanyId: co.prime },
+    })
+    it_.primeInvite = inv.id
+  })
+})
+
+describe('Step 5 — Computer Systems takes it on and asks its sub-vendor', () => {
+  it('accepts, and records the role against itself so a sub has somewhere to submit', async () => {
+    as(PRIME)
+    await json(await answerInvitation(
+      req('POST', `/api/invitations/${it_.primeInvite}/respond`, { action: 'accept' }),
+      { params: Promise.resolve({ id: it_.primeInvite }) }
+    ))
+    const r = await json(await createRequirement(req('POST', '/api/requirements', {
+      title: 'SAP FICO consultant — Digital Media platform',
+      skills: ['SAP FICO', 'S/4HANA'],
+      location: 'San Jose, California',
+      billMin: 9_500, billMax: 11_500, months: 12,
+      endClientCompanyId: co.adobe,
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.primeRole = r.body.data.requirement.id
+  })
+
+  it('sends it to CloudEPA at a third band, $20 below what Auralis will pay', async () => {
+    as(PRIME)
+    const r = await json(await distributeRequisition(
+      req('POST', `/api/requisitions/${it_.primeRole}/distribute`, {
+        vendors: [{ companyId: co.sub, payMin: 9_500, payMax: 11_500 }],
+        expiresAt: soon(7),
+      }),
+      { params: Promise.resolve({ id: it_.primeRole }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const inv = await prisma.requirementInvitation.findFirstOrThrow({
+      where: { requirementId: it_.primeRole, toCompanyId: co.sub },
+    })
+    it_.subInvite = inv.id
+    expect(inv.payMax).toBe(11_500)
+  })
+
+  it('leaves CloudEPA unable to see what Auralis agreed to pay', async () => {
+    // Three bands, three recipients, and each one reads only its own.
+    const theirs = await prisma.requirementInvitation.findMany({ where: { toCompanyId: co.sub } })
+    expect(theirs).toHaveLength(1)
+    expect(theirs[0].payMax).toBe(11_500)
+    const adobes = await prisma.requirement.findUniqueOrThrow({ where: { id: it_.requisition } })
+    expect(adobes.billMax).toBe(15_000)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════
+// Part two — the supply
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Step 6 — CloudEPA puts Priya forward', () => {
+  it('accepts and submits her at $110', async () => {
+    as(SUB)
+    await json(await answerInvitation(
+      req('POST', `/api/invitations/${it_.subInvite}/respond`, { action: 'accept' }),
+      { params: Promise.resolve({ id: it_.subInvite }) }
+    ))
+    const r = await json(await submitCandidate(req('POST', '/api/submissions', {
+      requirementId: it_.primeRole,
+      personIds: [who.priya],
+      rate: 11_000,
+      fromCompanyId: co.sub,
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const created = r.body.data.results.filter((x: any) => x.status === 'created')
+    expect(created, JSON.stringify(r.body.data.results)).toHaveLength(1)
+    it_.subSubmission = created[0].submissionId
+  })
+
+  it('lands on Computer Systems, which is who CloudEPA answered', async () => {
+    const s = await prisma.submission.findUniqueOrThrow({ where: { id: it_.subSubmission } })
+    expect(s.fromCompanyId).toBe(co.sub)
+    expect(s.toCompanyId).toBe(co.prime)
+    expect(s.rate).toBe(11_000)
+  })
+
+  it('could not have happened without the bench listing Priya granted', async () => {
+    const listing = await prisma.benchListing.findFirstOrThrow({
+      where: { consultantId: it_.profile, companyId: co.sub },
+    })
+    expect(listing.state).toBe('GRANTED')
+    expect(listing.grantedAt.getTime()).toBeGreaterThan(listing.invitedAt!.getTime())
+  })
+})
+
+describe('Step 7 — the package is checked before it goes anywhere', () => {
+  it('runs the checks CloudEPA is answerable for and says what it found', async () => {
+    as(SUB)
+    const r = await json(await checkPackage(
+      req('POST', `/api/submissions/${it_.subSubmission}/check`, {}),
+      { params: Promise.resolve({ id: it_.subSubmission }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const checks = await prisma.check.findMany({
+      where: { recordType: 'SUBMISSION', recordId: it_.subSubmission },
+    })
+    expect(checks.length).toBeGreaterThan(0)
+  })
+})
+
+describe('Step 8 — Computer Systems forwards her to Auralis at $135', () => {
+  it('creates a second submission with its own rate, linked to the first', async () => {
+    as(PRIME)
+    const r = await json(await forwardSubmission(
+      req('POST', `/api/submissions/${it_.subSubmission}/forward`, {
+        via: 'ONWARD', toCompanyId: co.adobe, rate: 13_500,
+      }),
+      { params: Promise.resolve({ id: it_.subSubmission }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.primeSubmission = r.body.data.childSubmissionId
+    const child = await prisma.submission.findUniqueOrThrow({ where: { id: it_.primeSubmission } })
+    expect(child.fromCompanyId).toBe(co.prime)
+    expect(child.toCompanyId).toBe(co.adobe)
+    expect(child.rate).toBe(13_500)
+    expect(child.parentSubmissionId).toBe(it_.subSubmission)
+  })
+
+  it('tells CloudEPA that she was forwarded, and not for how much', async () => {
+    const parent = await prisma.submission.findUniqueOrThrow({ where: { id: it_.subSubmission } })
+    expect(parent.forwardedAt).not.toBeNull()
+    expect(parent.rate).toBe(11_000)
+  })
+
+  it('lands on a fresh Auralis requirement rather than the requisition that was approved', async () => {
+    // The second finding, and the more expensive one.
+    //
+    // Forwarding mirrors the role onto the destination's books. Auralis
+    // already has this role — it raised it, funded it from a cost
+    // center and had a VP approve it — but the chain arrived through
+    // two hand-typed copies, so nothing connects the submission back to
+    // it. Auralis now holds two records of one job.
+    const child = await prisma.submission.findUniqueOrThrow({ where: { id: it_.primeSubmission } })
+    expect(child.requirementId).not.toBe(it_.requisition)
+
+    const landed = await prisma.requirement.findUniqueOrThrow({ where: { id: child.requirementId } })
+    expect(landed.companyId).toBe(co.adobe)
+    expect(landed.costCenterId).toBeNull()
+    expect(landed.raisedById).toBeNull()
+
+    const atAdobe = await prisma.requirement.count({ where: { companyId: co.adobe } })
+    expect(atAdobe).toBe(2)
+  })
+})
+
+describe('Step 9 — Auralis interviews her, three rounds', () => {
+  const rounds: Array<{ stage: string; mode: string; outcome: string; id?: string }> = [
+    { stage: 'SCREEN', mode: 'PHONE', outcome: 'ADVANCE' },
+    { stage: 'TECHNICAL', mode: 'VIDEO', outcome: 'ADVANCE' },
+    { stage: 'ONSITE', mode: 'ONSITE', outcome: 'OFFER' },
+  ]
+
+  it('runs each round in turn, numbered, and never two at once', async () => {
+    for (const [i, round] of rounds.entries()) {
+      as(ADOBE_PM)
+      const proposed = await json(await proposeInterview(
+        req('POST', `/api/submissions/${it_.primeSubmission}/interviews`, {
+          stage: round.stage, mode: round.mode, durationMins: 45,
+          slots: [{ start: soon(3 + i * 2), end: soon(3 + i * 2) }],
+        }),
+        { params: Promise.resolve({ id: it_.primeSubmission }) }
+      ))
+      expect(proposed.body?.error, JSON.stringify(proposed.body)).toBeUndefined()
+      round.id = proposed.body.data.id
+      expect(proposed.body.data.round).toBe(i + 1)
+
+      // The supplier confirms on the consultant's behalf, and it is
+      // recorded as exactly that rather than as her own word.
+      as(PRIME)
+      const confirmed = await json(await decideInterview(
+        req('POST', `/api/interviews/${round.id}`, { action: 'confirm', forConsultant: true }),
+        { params: Promise.resolve({ id: round.id! }) }
+      ))
+      expect(confirmed.body?.error, JSON.stringify(confirmed.body)).toBeUndefined()
+
+      as(ADOBE_PM)
+      const said = await json(await decideInterview(
+        req('POST', `/api/interviews/${round.id}`, {
+          action: 'outcome', outcome: round.outcome, feedback: `${round.stage} passed`,
+        }),
+        { params: Promise.resolve({ id: round.id! }) }
+      ))
+      expect(said.body?.error, JSON.stringify(said.body)).toBeUndefined()
+    }
+
+    const all = await prisma.interview.findMany({
+      where: { submissionId: it_.primeSubmission }, orderBy: { round: 'asc' },
+    })
+    expect(all.map(i => i.round)).toEqual([1, 2, 3])
+    expect(all.map(i => i.stage)).toEqual(['SCREEN', 'TECHNICAL', 'ONSITE'])
+  })
+
+  it('refuses to let the supplier record its own candidate as having passed', async () => {
+    const last = await prisma.interview.findFirstOrThrow({
+      where: { submissionId: it_.primeSubmission }, orderBy: { round: 'desc' },
+    })
+    as(PRIME)
+    const r = await json(await decideInterview(
+      req('POST', `/api/interviews/${last.id}`, { action: 'outcome', outcome: 'OFFER' }),
+      { params: Promise.resolve({ id: last.id }) }
+    ))
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('NOT_YOURS')
+  })
+
+  it('leaves CloudEPA able to see that she is interviewing without seeing Auralis’s notes', async () => {
+    const theirs = await prisma.interview.count({ where: { submissionId: it_.subSubmission } })
+    expect(theirs).toBe(0)
+    const forwarded = await prisma.submission.findUniqueOrThrow({ where: { id: it_.subSubmission } })
+    expect(forwarded.forwardedAt).not.toBeNull()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════
+// Part three — the paper
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Step 10 — Auralis commits the budget before it commits to a person', () => {
+  it('raises a purchase order to Computer Systems for the year', async () => {
+    as(ADOBE_PM)
+    const r = await json(await raisePurchaseOrder(req('POST', '/api/purchase-orders', {
+      number: it_.poNumber, issuedToId: co.prime, amount: 259_200,
+      currency: 'USD', startDate: '2026-09-14', endDate: '2027-09-13',
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.po = r.body.data.order?.id ?? r.body.data.id
+    const po = await prisma.workOrder.findUniqueOrThrow({ where: { id: it_.po } })
+    expect(po.issuedById).toBe(co.adobe)
+    expect(po.issuedToId).toBe(co.prime)
+  })
+
+  it('carries a ceiling, not a rate — $259,200 for 1,920 hours at $135', async () => {
+    const po = await prisma.workOrder.findUniqueOrThrow({ where: { id: it_.po } })
+    expect(Number(po.amount)).toBe(259_200)
+    expect(13_500 * 1_920).toBe(25_920_000) // the same number, in cents
+  })
+})
+
+describe('Step 10b — no supplier places anybody without cover on file', () => {
+  it('refuses the award outright while Computer Systems has no certificates', async () => {
+    // Addendum E: BLOCK where it is legally grounded. Somebody hurt on
+    // an Auralis site with an uninsured supplier in the chain is Auralis's
+    // problem, so this is a refusal and not a warning to click past.
+    as(ADOBE_PM)
+    const r = await json(await awardSubmission(
+      req('POST', `/api/submissions/${it_.primeSubmission}/award`, { rate: 13_500 }),
+      { params: Promise.resolve({ id: it_.primeSubmission }) }
+    ))
+    expect(r.status).toBe(409)
+    expect(r.body.error.code).toBe('AWARD_BLOCKED')
+    expect(r.body.error.message).toContain("general liability and workers' compensation")
+  })
+
+  it('clears once both certificates are on file and in date', async () => {
+    await insure(co.prime, who.primeLead)
+    await insure(co.sub, who.subLead)
+    const cover = await prisma.verification.count({
+      where: { companyId: { in: [co.prime, co.sub] }, status: 'CLEAR' },
+    })
+    expect(cover).toBe(4)
+  })
+})
+
+describe('Step 11 — Auralis awards it, and Computer Systems gets a contract pair', () => {
+  it('creates the sell contract Computer Systems bills Auralis under', async () => {
+    as(ADOBE_PM)
+    const r = await json(await awardSubmission(
+      req('POST', `/api/submissions/${it_.primeSubmission}/award`, {
+        rate: 13_500, startDate: '2026-09-14', endDate: '2027-09-13',
+      }),
+      { params: Promise.resolve({ id: it_.primeSubmission }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const sell = await prisma.sellContract.findFirstOrThrow({
+      where: { companyId: co.prime, clientCompanyId: co.adobe },
+    })
+    it_.primeSell = sell.id
+    it_.primeEngagement = sell.engagementId!
+    expect(rate(sell.billRate)).toBe('$135/hr')
+    expect(sell.paymentTerms).toBe(45)
+  })
+
+  it('creates the buy side too, so the placement has a cost and not only a price', async () => {
+    const buy = await prisma.buyContract.findFirstOrThrow({ where: { companyId: co.prime } })
+    it_.primeBuy = buy.id
+    const linked = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: it_.primeSell } })
+    expect(linked.buyContractId).toBe(buy.id)
+  })
+
+  it('names CloudEPA as the supplier it buys from, at the $110 CloudEPA asked for', async () => {
+    const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.primeBuy } })
+    const seat = await prisma.buyContractCandidate.findFirstOrThrow({ where: { buyContractId: it_.primeBuy } })
+    expect(buy.vendorCompanyId).toBe(co.sub)
+    expect(buy.contractType).toBe('C2C')
+    expect(rate(seat.payRate)).toBe('$110/hr')
+  })
+
+  it('leaves Auralis’s own requisition showing nothing filled, because the award landed on the copy', async () => {
+    // The cost of Step 8's finding, in the place it hurts. The award
+    // route exists to carry the cost center, the hiring manager and the
+    // seat count onto the contract. It carried nothing, because the
+    // requirement it awarded against is a mirror with none of them.
+    const approved = await prisma.requirement.findUniqueOrThrow({ where: { id: it_.requisition } })
+    expect(approved.status).toBe('OPEN')
+
+    const filled = await prisma.sellContract.count({ where: { requirementId: it_.requisition } })
+    expect(filled).toBe(0)
+
+    const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.primeSell } })
+    expect(sell.hiringManagerId).toBeNull()
+    const coded = await prisma.contractCostAllocation.count({ where: { sellContractId: it_.primeSell } })
+    expect(coded).toBe(0)
+  })
+})
+
+describe('Step 12 — Computer Systems awards its own sub, and CloudEPA gets its pair', () => {
+  it('creates the sell contract CloudEPA bills Computer Systems under', async () => {
+    as(PRIME)
+    const r = await json(await awardSubmission(
+      req('POST', `/api/submissions/${it_.subSubmission}/award`, {
+        rate: 11_000, payRate: 8_500, startDate: '2026-09-14', endDate: '2027-09-13',
+      }),
+      { params: Promise.resolve({ id: it_.subSubmission }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const sell = await prisma.sellContract.findFirstOrThrow({
+      where: { companyId: co.sub, clientCompanyId: co.prime },
+    })
+    it_.subSell = sell.id
+    it_.subEngagement = sell.engagementId!
+    expect(rate(sell.billRate)).toBe('$110/hr')
+  })
+
+  it('employs Priya rather than buying her from somebody — there is nobody below CloudEPA', async () => {
+    const buy = await prisma.buyContract.findFirstOrThrow({ where: { companyId: co.sub } })
+    it_.subBuy = buy.id
+    expect(buy.vendorCompanyId).toBeNull()
+    expect(buy.contractType).toBe('W2')
+    const seat = await prisma.buyContractCandidate.findFirstOrThrow({ where: { buyContractId: it_.subBuy } })
+    expect(rate(seat.payRate)).toBe('$85/hr')
+  })
+
+  it('makes one firm’s cost the next firm’s revenue, all the way down', async () => {
+    const primeBuys = await prisma.buyContractCandidate.findFirstOrThrow({ where: { buyContractId: it_.primeBuy } })
+    const subSells = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.subSell } })
+    expect(primeBuys.payRate).toBe(subSells.billRate)
+  })
+
+  it('leaves $135 at the top, $110 in the middle and $85 at the bottom', async () => {
+    const primeSell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.primeSell } })
+    const subSell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.subSell } })
+    const priyaSeat = await prisma.buyContractCandidate.findFirstOrThrow({ where: { buyContractId: it_.subBuy } })
+    expect([primeSell.billRate, subSell.billRate, priyaSeat.payRate].map(rate))
+      .toEqual(['$135/hr', '$110/hr', '$85/hr'])
+  })
+
+  it('takes no rate for the MSP, which routed the work and holds no contract', async () => {
+    const mspSells = await prisma.sellContract.count({ where: { companyId: co.magnit } })
+    const mspBuys = await prisma.buyContract.count({ where: { companyId: co.magnit } })
+    expect([mspSells, mspBuys]).toEqual([0, 0])
+  })
+})
+
+// Moved above Step 13. This block's own title says "before she sets foot
+// on site", and the walk performed it after. Activation now refuses a
+// start with no work authorization on file — the spec's own BLOCK — so
+// the paperwork goes where the title always said it belonged.
+describe('Step 12b — what has to be true before she sets foot on site', () => {
+  it('records the work authorization check as the one that blocks', async () => {
+    await prisma.verification.create({
+      data: {
+        personId: who.priya, type: 'I9_EVERIFY', status: 'CLEAR', provider: 'E-Verify',
+        referenceId: 'EV-2026-441908', issuedAt: new Date('2026-09-10'),
+        uploadedById: who.subLead, verifiedById: who.subLead, verifiedAt: new Date('2026-09-10'),
+        result: { outcome: 'CLEAR', notes: 'Employment authorized — permanent resident' },
+      },
+    })
+    const v = await prisma.verification.findFirstOrThrow({
+      where: { personId: who.priya, type: 'I9_EVERIFY' },
+    })
+    expect(v.status).toBe('CLEAR')
+  })
+
+  it('records the background check as the one that warns, with an expiry on it', async () => {
+    await prisma.verification.create({
+      data: {
+        personId: who.priya, type: 'BACKGROUND_CHECK', status: 'CLEAR', provider: 'Sterling',
+        referenceId: 'ST-88401-B', issuedAt: new Date('2026-09-11'),
+        expiresAt: new Date('2027-09-11'),
+        uploadedById: who.subLead, verifiedById: who.primeLead, verifiedAt: new Date('2026-09-12'),
+        result: { outcome: 'CLEAR', notes: 'County and federal criminal, 7 years — no records' },
+      },
+    })
+    const v = await prisma.verification.findFirstOrThrow({
+      where: { personId: who.priya, type: 'BACKGROUND_CHECK' },
+    })
+    expect(v.expiresAt).not.toBeNull()
+    expect(v.uploadedById).not.toBe(v.verifiedById)
+  })
+
+})
+
+
+describe('Step 13 — the contracts are activated, and the PO is attached', () => {
+  it('moves both sell contracts from draft to live', async () => {
+    for (const [seat, id] of [[ADOBE_PM, it_.primeSell], [PRIME, it_.subSell]] as const) {
+      as(seat)
+      const r = await json(await activateContract(
+        req('POST', `/api/contracts/${id}/activate`, { action: 'activate' }),
+        { params: Promise.resolve({ id }) }
+      ))
+      expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    }
+    const states = await prisma.sellContract.findMany({
+      where: { id: { in: [it_.primeSell, it_.subSell] } }, select: { state: true },
+    })
+    expect(states.every(s => s.state === 'IN_PROGRESS')).toBe(true)
+  })
+
+  it('ties Computer Systems’ contract to the purchase order it draws down', async () => {
+    // Nothing does this on the award path. Attaching it here is what an
+    // AP clerk would do by hand, and it is the reason the invoice
+    // matches in Step 18 rather than aging unmatched.
+    await prisma.sellContract.update({
+      where: { id: it_.primeSell }, data: { workOrderId: it_.po },
+    })
+    const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.primeSell } })
+    expect(sell.workOrderId).toBe(it_.po)
+  })
+
+  it('activates both buy contracts so payroll has something to pay against', async () => {
+    await prisma.buyContract.updateMany({
+      where: { id: { in: [it_.primeBuy, it_.subBuy] } }, data: { state: 'IN_PROGRESS' },
+    })
+    const live = await prisma.buyContract.count({
+      where: { id: { in: [it_.primeBuy, it_.subBuy] }, state: 'IN_PROGRESS' },
+    })
+    expect(live).toBe(2)
+  })
+})
+
+describe('Step 14 — who Auralis can see on its site, once the contracts are live', () => {
+  // These two read the world after activation — a firm appears on the
+  // client's compliance page because it holds a live contract whose end
+  // client is that site. They were in the paperwork block above and ran
+  // before the contracts were live, which is the one moment they cannot
+  // be true.
+  it('shows Auralis every firm working on its site, and names only the one it pays', async () => {
+    // This test used to assert the opposite — that CloudEPA was named on
+    // Auralis's own compliance page — and said in a comment that it was a
+    // decision nobody had made. It was made on 2026-09-17: the NDA
+    // between a prime and its sub is what stops the sub going round the
+    // prime, so the client sees the rung it pays and nothing below it
+    // unless its own agreement with the prime says otherwise.
+    //
+    // Both firms are still on the page, because Addendum E is right that
+    // a client which cannot see who is on its site cannot answer for it.
+    // What changed is the name on the second row.
+    as(ADOBE_PM)
+    const r = await json(await complianceView(req('GET', '/api/compliance')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const companies = r.body.data.verifications.companies ?? []
+    expect(companies.length).toBe(2)
+    const named = companies.map((c: any) => c.name)
+    expect(named).toContain('Computer Systems')
+    expect(named).not.toContain('CloudEPA')
+    expect(named).toContain('Supplied through Computer Systems.')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+  })
+
+  it('still gives Auralis no way to reach CloudEPA — the visibility is the site, not the relationship', async () => {
+    const reachable = await prisma.counterparty.findMany({ where: { companyId: co.adobe } })
+    expect(reachable.map(c => c.otherCompanyId)).not.toContain(co.sub)
+  })
+
+  it('records the suppliers\' cover — the certificates a real firm has on file before anybody starts', async () => {
+    for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+      await prisma.verification.create({
+        data: {
+          companyId: co.prime, type, status: 'CLEAR', provider: 'Hartford',
+          issuedAt: new Date('2026-01-15'), expiresAt: new Date('2027-01-15'),
+          uploadedById: who.primeLead, verifiedById: who.primeLead, verifiedAt: new Date('2026-01-16'),
+          result: { outcome: 'CLEAR' },
+        },
+      })
+    }
+    for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+      await prisma.verification.create({
+        data: {
+          companyId: co.sub, type, status: 'CLEAR', provider: 'Hartford',
+          issuedAt: new Date('2026-01-15'), expiresAt: new Date('2027-01-15'),
+          uploadedById: who.subLead, verifiedById: who.subLead, verifiedAt: new Date('2026-01-16'),
+          result: { outcome: 'CLEAR' },
+        },
+      })
+    }
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════
+// Part four — compliance
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Step 14a — the name below the rung Auralis pays, and the term that opens it', () => {
+  /**
+   * Ratified 2026-09-17. The client sees the standing of whoever employs
+   * the person on its site — insured or not, authorized or not, because
+   * that exposure is its own — and not that firm's name, unless its
+   * agreement with the prime requires disclosure.
+   *
+   * Asserted on what the routes return, never on what a screen renders.
+   * The screen is what hid the last one of these.
+   */
+  const asAdobe = async () => {
+    as(ADOBE_PM)
+    return {
+      compliance: await json(await complianceView(req('GET', '/api/compliance'))),
+      tenure: await json(await tenureView(req('GET', '/api/tenure'))),
+      alumni: await json(await alumniView(req('GET', '/api/alumni'))),
+    }
+  }
+
+  const amend = async (discloses: boolean) => {
+    // The agreement the term is amended onto, papered off-platform.
+    //
+    // It used to be here because the award invented one — a DRAFT row
+    // nobody proposed, so that a contract had a parent. That stopped on
+    // 2026-09-19: an agreement is the legal umbrella where one exists,
+    // and a client that sends one order and one contractor is not made
+    // to paper one first.
+    //
+    // So this walk papers its own, and names what is missing while it
+    // does. A stub agreement IS written where a counterparty is first
+    // registered or onboarded — `api/clients`, `api/suppliers`,
+    // `api/supplier-requests/[id]` all write one, unsigned — and these
+    // four firms were wired to each other as counterparties instead,
+    // the way a client and a prime who already trade arrive. What no
+    // route offers anywhere is recording an agreement two firms
+    // actually negotiated: its term, its payment days, its margin
+    // floor, a disclosure clause. The agreements screen reads, signs,
+    // amends and ends one it did not raise. That is the next piece of
+    // commercial papering and is L3.2.1.1's, not a comment's.
+    const msa =
+      (await prisma.masterAgreement.findFirst({
+        where: { clientId: co.adobe, vendorId: co.prime },
+        select: { id: true },
+      })) ??
+      (await prisma.masterAgreement.create({
+        data: {
+          clientId: co.adobe,
+          vendorId: co.prime,
+          paymentTerms: 45,
+          currency: 'USD',
+          status: 'ACTIVE',
+          signedAt: new Date('2026-09-01'),
+        },
+        select: { id: true },
+      }))
+    as(PRIME)
+    return json(
+      await amendAgreement(
+        req('PATCH', `/api/program/agreements/${msa.id}`, {
+          disclosesSubVendors: discloses,
+          reason: discloses
+            ? 'Auralis required its suppliers to name their sub-vendors at signing.'
+            : 'Reverted — the disclosure term was recorded against the wrong agreement.',
+        }),
+        { params: Promise.resolve({ id: msa.id }) }
+      )
+    )
+  }
+
+  it('carries the cover of the firm that employs Priya without carrying that firm\u2019s name', async () => {
+    const { compliance } = await asAdobe()
+    expect(compliance.body?.error, JSON.stringify(compliance.body)).toBeUndefined()
+
+    const companies = compliance.body.data.verifications.companies
+    const hidden = companies.find((c: any) => c.companyId === co.sub)
+    expect(hidden, 'the firm employing her is still on the page').toBeTruthy()
+    expect(hidden.name).toBe('Supplied through Computer Systems.')
+    expect(hidden.nameWithheld).toBe(true)
+    expect(hidden.suppliedThrough).toBe('Computer Systems')
+    // The standing is the client's own exposure and no NDA moves it.
+    const cover = new Set(hidden.checks.map((c: any) => c.type))
+    expect(cover.has('INSURANCE_GL')).toBe(true)
+    expect(cover.has('INSURANCE_WC')).toBe(true)
+    expect(hidden.cover.outcome).toBe('PASS')
+  })
+
+  it('counts Priya\u2019s days at Auralis without naming the firm below the one Auralis pays', async () => {
+    const { tenure } = await asAdobe()
+    expect(tenure.body?.error, JSON.stringify(tenure.body)).toBeUndefined()
+
+    const priya = tenure.body.data.people.find((p: any) => p.personId === who.priya)
+    expect(priya.vendors.length, 'both rungs are still counted').toBe(2)
+    expect(priya.vendors.map((v: any) => v.name)).toContain('Computer Systems')
+    expect(priya.vendors.map((v: any) => v.name)).toContain('Supplied through Computer Systems.')
+    expect(JSON.stringify(tenure.body)).not.toContain('CloudEPA')
+  })
+
+  it('remembers she worked here without remembering which firm below the supplier released her', async () => {
+    const { alumni } = await asAdobe()
+    expect(alumni.body?.error, JSON.stringify(alumni.body)).toBeUndefined()
+
+    const priya = alumni.body.data.alumni.find((a: any) => a.personId === who.priya)
+    expect(priya.vendors.map((v: any) => v.name)).toContain('Supplied through Computer Systems.')
+    expect(JSON.stringify(alumni.body)).not.toContain('CloudEPA')
+  })
+
+  it('leaves Computer Systems reading its own supply chain by name, because it is its own', async () => {
+    as(PRIME)
+    const r = await json(await complianceView(req('GET', `/api/compliance?clientCompanyId=${co.adobe}`)))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.verifications.companies.map((c: any) => c.name)).toContain('CloudEPA')
+  })
+
+  it('records the disclosure term as an amendment, in the words a contract manager would use', async () => {
+    const r = await amend(true)
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.changed).toContain('whether sub-vendors are named to the client')
+    expect(r.body.data.terms.disclosesSubVendors).toBe(true)
+
+    // On the version trail like every other term, so "what were the
+    // terms on 3 March" still answers.
+    const versions = await prisma.masterAgreementVersion.findMany({
+      where: { agreement: { clientId: co.adobe, vendorId: co.prime } },
+      orderBy: { version: 'asc' },
+      select: { version: true, disclosesSubVendors: true },
+    })
+    expect(versions[0].disclosesSubVendors, 'what it said before the amendment').toBe(false)
+    expect(versions[versions.length - 1].disclosesSubVendors).toBe(true)
+  })
+
+  it('names CloudEPA on all three of Auralis\u2019s pages once the agreement requires it', async () => {
+    const { compliance, tenure, alumni } = await asAdobe()
+
+    const firm = compliance.body.data.verifications.companies.find((c: any) => c.companyId === co.sub)
+    expect(firm.name).toBe('CloudEPA')
+    expect(firm.nameWithheld).toBe(false)
+
+    const inTenure = tenure.body.data.people.find((p: any) => p.personId === who.priya)
+    expect(inTenure.vendors.map((v: any) => v.name)).toContain('CloudEPA')
+
+    const inAlumni = alumni.body.data.alumni.find((a: any) => a.personId === who.priya)
+    expect(inAlumni.vendors.map((v: any) => v.name)).toContain('CloudEPA')
+  })
+
+  it('closes again the moment the term comes back off, leaving the standing where it was', async () => {
+    const off = await amend(false)
+    expect(off.body?.error, JSON.stringify(off.body)).toBeUndefined()
+
+    const { compliance } = await asAdobe()
+    const firm = compliance.body.data.verifications.companies.find((c: any) => c.companyId === co.sub)
+    expect(firm.name).toBe('Supplied through Computer Systems.')
+    expect(firm.cover.outcome).toBe('PASS')
+  })
+})
+
+
+// ═══════════════════════════════════════════════════════════════════
+// Part five — the money
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Step 14b — the same rule on the rest of Auralis’s desks', () => {
+  /**
+   * Step 14a closed compliance, tenure and alumni. The sweep in
+   * `__tests__/invariants/client-facing-names.test.ts` then named six
+   * more reads with the same shape, all on the demand side: the
+   * register, one person’s page, the program dashboard, the org view,
+   * identity resolution and the decision queue. This is those, on the
+   * JSON, because the screen is what hid the last one of these.
+   */
+  const asAdobe = async () => {
+    as(ADOBE_PM)
+    return {
+      register: await json(await register(req('GET', '/api/people'))),
+      person: await json(await onePerson(
+        req('GET', `/api/people/${who.priya}`),
+        { params: Promise.resolve({ id: who.priya }) }
+      )),
+      program: await json(await programView(req('GET', '/api/program'))),
+      identity: await json(await identityView(req('GET', '/api/identity'))),
+    }
+  }
+
+  const discloses = async (on: boolean) => {
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { clientId: co.adobe, vendorId: co.prime },
+      select: { id: true },
+    })
+    as(PRIME)
+    const r = await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: on,
+        reason: on
+          ? 'Auralis required its suppliers to name their sub-vendors at signing.'
+          : 'Reverted — the disclosure term was recorded against the wrong agreement.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+  }
+
+  it('names the firm Auralis pays on its register, and says who the rung below it comes through', async () => {
+    const { register: r } = await asAdobe()
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const priya = r.body.data.people.find((p: any) => p.personId === who.priya)
+    const named = priya.stints.map((s: any) => s.vendorName)
+    expect(named, 'both rungs are still counted').toHaveLength(2)
+    expect(named).toContain('Computer Systems')
+    expect(named).toContain('Supplied through Computer Systems.')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+  })
+
+  it('counts her days at Auralis off both rungs while naming only one of them', async () => {
+    const { register: r } = await asAdobe()
+    const priya = r.body.data.people.find((p: any) => p.personId === who.priya)
+    // One person, one spell here — not one per rung of the chain.
+    expect(priya.monthsHere).toBe(0)
+    expect(priya.state).toBe('PLACED')
+  })
+
+  it('shows Priya’s own page one engagement at the rung Auralis pays, and no firm under it', async () => {
+    const { person } = await asAdobe()
+    expect(person.body?.error, JSON.stringify(person.body)).toBeUndefined()
+
+    // One row per engagement rather than one per rung, so a two-rung
+    // chain is one line and that line is the contract Auralis pays.
+    expect(person.body.data.engagements).toHaveLength(1)
+    const [e] = person.body.data.engagements
+    expect(e.supplier.name).toBe('Computer Systems')
+    expect(e.supplier.nameWithheld).toBe(false)
+    expect(JSON.stringify(person.body)).not.toContain('CloudEPA')
+  })
+
+  it('says who can put her forward without naming the firm holding her consent below the supplier', async () => {
+    // The other door onto the same firm on the same page: CloudEPA holds
+    // Priya's bench listing, so "who can put them forward" named it
+    // beside the engagement the rule had already closed.
+    const { person } = await asAdobe()
+    const bench = person.body.data.representedBy.find((f: any) => f.how === 'bench')
+    expect(bench.name).toBe('Supplied through Computer Systems.')
+    expect(bench.nameWithheld).toBe(true)
+    expect(bench.suppliedThrough).toBe('Computer Systems')
+    // The id travels, because the ask is routed to the firm server-side.
+    expect(bench.id).toBe(co.sub)
+  })
+
+  it('offers Auralis no name below its own supplier when it weighs two records as one person', async () => {
+    const { identity } = await asAdobe()
+    expect(identity.body?.error, JSON.stringify(identity.body)).toBeUndefined()
+    expect(JSON.stringify(identity.body)).not.toContain('CloudEPA')
+  })
+
+  it('never names the firm below Computer Systems anywhere on Auralis’s dashboard', async () => {
+    const { program } = await asAdobe()
+    expect(program.body?.error, JSON.stringify(program.body)).toBeUndefined()
+
+    const suppliers = program.body.data.vendors.map((v: any) => v.name)
+    expect(suppliers).toContain('Computer Systems')
+    expect(suppliers).not.toContain('CloudEPA')
+    expect(program.body.data.contractors).toHaveLength(1)
+    expect(program.body.data.contractors[0].vendor.name).toBe('Computer Systems')
+    expect(JSON.stringify(program.body)).not.toContain('CloudEPA')
+  })
+
+  it('tells Auralis why it may read the leg below its supplier without naming the firm on it', async () => {
+    as(ADOBE_PM)
+    const r = await json(await whyView(
+      req('GET', `/api/why/contract/${it_.subSell}`),
+      { params: Promise.resolve({ type: 'contract', id: it_.subSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.visible).toBe(true)
+    expect(r.body.data.subject).toBe(
+      'Priya Raman’s placement through the firm supplied through Computer Systems'
+    )
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+  })
+
+  it('says nothing at all about a placement the asker may not read, not even whose it is', async () => {
+    // Maren routes Auralis’s demand and holds no contract, so it is a
+    // party to no rung of this chain. The sentence explaining that used
+    // to be built from the record before the verdict was read, and so
+    // handed over the person and the firm it was refusing.
+    as(MSP)
+    const r = await json(await whyView(
+      req('GET', `/api/why/contract/${it_.subSell}`),
+      { params: Promise.resolve({ type: 'contract', id: it_.subSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.visible).toBe(false)
+    expect(r.body.data.subject).toBe('that placement')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+    expect(JSON.stringify(r.body)).not.toContain('Priya')
+  })
+
+  it('names CloudEPA on the register, on her page and on the dashboard once the agreement requires it', async () => {
+    await discloses(true)
+    const { register: r, person, program } = await asAdobe()
+
+    const priya = r.body.data.people.find((p: any) => p.personId === who.priya)
+    expect(priya.stints.map((s: any) => s.vendorName)).toContain('CloudEPA')
+
+    // Her page still shows one row per engagement, and that row is still
+    // the contract Auralis pays — the term opens a name, it does not add a
+    // rung to the picture.
+    expect(person.body.data.engagements).toHaveLength(1)
+    expect(person.body.data.engagements[0].supplier.name).toBe('Computer Systems')
+
+    expect(program.body.data.contractors[0].vendor.name).toBe('Computer Systems')
+    expect(program.body.data.contractors[0].vendor.nameWithheld).toBe(false)
+  })
+
+  it('closes again the moment the term comes off, on every one of them', async () => {
+    await discloses(false)
+    const { register: r, person, program } = await asAdobe()
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+    expect(JSON.stringify(person.body)).not.toContain('CloudEPA')
+    expect(JSON.stringify(program.body)).not.toContain('CloudEPA')
+  })
+
+  it('leaves Computer Systems reading its own sub by name on the same person\u2019s page', async () => {
+    // The masking is the client's, not the platform's. Computer Systems
+    // opening Priya's page reads its own supply chain, because CloudEPA
+    // is the firm it buys her from and its own counterparty.
+    as(PRIME)
+    const r = await json(await onePerson(
+      req('GET', `/api/people/${who.priya}`),
+      { params: Promise.resolve({ id: who.priya }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.representedBy.map((f: any) => f.name)).toContain('CloudEPA')
+  })
+})
+
+describe('Step 15 — Priya files one week, once', () => {
+  it('files it against the contract of the firm that employs her', async () => {
+    as(CONSULTANT)
+    const r = await json(await fileTimesheet(req('POST', '/api/timesheets', {
+      sellContractId: it_.subSell,
+      periodStart: WEEK.start, periodEnd: WEEK.end, days: FIVE_EIGHTS,
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.timesheet = r.body.data.timesheet.id
+    expect(r.body.data.timesheet.totalHours).toBe(40)
+  })
+
+  it('sends it for signature', async () => {
+    as(CONSULTANT)
+    const r = await json(await sendTimesheet(
+      req('POST', `/api/timesheets/${it_.timesheet}/submit`, {}),
+      { params: Promise.resolve({ id: it_.timesheet }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+  })
+
+  it('refuses to let her sign off her own hours', async () => {
+    as(CONSULTANT)
+    const r = await json(await signTimesheet(
+      req('POST', `/api/timesheets/${it_.timesheet}/approve`, {}),
+      { params: Promise.resolve({ id: it_.timesheet }) }
+    ))
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toBe('Nobody approves their own hours.')
+  })
+})
+
+describe('Step 15a — the week waiting on Auralis’s desk, and whose name is on it', () => {
+  /**
+   * A timesheet is filed against the contract of the firm that employs
+   * the person, which in a chain is the rung below the one the client
+   * pays. Both queues that ask Auralis to sign it read that leg, so the
+   * row said "through CloudEPA" on the desk of a client that has never
+   * heard of CloudEPA. The hours are Auralis’s own; the name is not.
+   */
+  it('tells Auralis a week is waiting through the supplier it pays, not the firm that filed it', async () => {
+    as(ADOBE_PM)
+    const r = await json(await programView(req('GET', '/api/program')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const week = r.body.data.approvalQueue.find((x: any) => x.kind === 'timesheet')
+    expect(week, 'the week is on the queue at all').toBeTruthy()
+    expect(week.person).toBe('Priya Raman')
+    expect(week.amount).toBe(40)
+    expect(week.vendor).toBe('Supplied through Computer Systems.')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+  })
+
+  it('says the same on the decision queue, which is where the desk actually reads it', async () => {
+    as(ADOBE_PM)
+    const r = await json(await decisionQueue(req('GET', '/api/decisions')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
+    expect(week, 'the client desk is told a week is waiting').toBeTruthy()
+    expect(week.subtitle).toContain('through the firm supplied through Computer Systems')
+    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+  })
+
+  it('prices that week at the rung Auralis is billed on, which is the rate beside the name', async () => {
+    as(ADOBE_PM)
+    const r = await json(await decisionQueue(req('GET', '/api/decisions')))
+    const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
+    // 40 hours at the $135 Auralis pays, never the $110 its supplier pays.
+    expect(week.amount).toBe(40 * 135)
+  })
+
+  it('names CloudEPA on both queues once Auralis’s agreement with Computer Systems requires it', async () => {
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { clientId: co.adobe, vendorId: co.prime },
+      select: { id: true },
+    })
+    as(PRIME)
+    await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: true,
+        reason: 'Auralis required its suppliers to name their sub-vendors at signing.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+
+    as(ADOBE_PM)
+    const p = await json(await programView(req('GET', '/api/program')))
+    expect(p.body.data.approvalQueue.find((x: any) => x.kind === 'timesheet').vendor).toBe('CloudEPA')
+
+    const d = await json(await decisionQueue(req('GET', '/api/decisions')))
+    expect(d.body.data.decisions.find((x: any) => x.type === 'TIMESHEET_APPROVAL').subtitle)
+      .toContain('through CloudEPA')
+
+    as(PRIME)
+    await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: false,
+        reason: 'Reverted — the disclosure term was recorded against the wrong agreement.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+  })
+
+  it('leaves CloudEPA’s own desk reading the same week under its own name', async () => {
+    as(SUB)
+    const r = await json(await decisionQueue(req('GET', '/api/decisions')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
+    expect(week, 'the employer is asked to accept what it will pay for').toBeTruthy()
+    expect(week.subtitle).toContain('Computer Systems')
+  })
+})
+
+describe('Step 16 — two signatures, from two different companies', () => {
+  it('has Auralis say the work happened', async () => {
+    as(ADOBE_PM)
+    const r = await json(await signTimesheet(
+      req('POST', `/api/timesheets/${it_.timesheet}/approve`, {}),
+      { params: Promise.resolve({ id: it_.timesheet }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const a = await prisma.workAssertion.findFirstOrThrow({
+      where: { timesheetId: it_.timesheet, role: 'CLIENT_APPROVAL' },
+    })
+    expect(a.companyId).toBe(co.adobe)
+    expect(a.state).toBe('LIVE')
+  })
+
+  it('has CloudEPA accept what it will pay for, which is a different statement', async () => {
+    as(SUB)
+    const r = await json(await signTimesheet(
+      req('POST', `/api/timesheets/${it_.timesheet}/approve`, { as: 'EMPLOYER' }),
+      { params: Promise.resolve({ id: it_.timesheet }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const a = await prisma.workAssertion.findFirstOrThrow({
+      where: { timesheetId: it_.timesheet, role: 'EMPLOYER_ACCEPTANCE' },
+    })
+    expect(a.companyId).toBe(co.sub)
+  })
+
+  it('is still one row of hours, not one per hop', async () => {
+    const n = await prisma.timesheet.count({ where: { personId: who.priya } })
+    expect(n).toBe(1)
+  })
+})
+
+describe('Step 17 — CloudEPA pays Priya', () => {
+  it('owes her 40 hours at $85 — $3,400', async () => {
+    as(SUB)
+    const r = await json(await payroll(req('GET', '/api/payroll')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const row = (r.body.data.payItems ?? []).find((x: any) => x.buyContractId === it_.subBuy)
+    expect(row, 'CloudEPA has no pay item for Priya').toBeTruthy()
+    expect(Number(row.totalApprovedHours)).toBe(40)
+    expect(Number(row.grossPay)).toBe(40 * 8_500)
+  }, 60_000)
+})
+
+describe('Step 18 — CloudEPA invoices Computer Systems, and is paid', () => {
+  it('raises $4,400 for the week, on the 45-day terms the agreement carries', async () => {
+    as(SUB)
+    const r = await json(await generateInvoice(req('POST', '/api/invoices/generate', {
+      engagementId: it_.subEngagement, periodStart: WEEK.start, periodEnd: WEEK.end,
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.subInvoice = r.body.data.invoice?.id ?? r.body.data.invoices?.[0]?.id
+    const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: it_.subInvoice } })
+    expect(Number(inv.total)).toBe(4_400)
+  })
+
+  it('records the money arriving, against the invoice it settles', async () => {
+    as(SUB)
+    const r = await json(await recordReceipt(req('POST', '/api/ar/payments', {
+      invoiceId: it_.subInvoice, amount: 4_400, currency: 'USD',
+      method: 'ACH', reference: 'CS-REMIT-90412', receivedAt: '2026-10-26',
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: it_.subInvoice } })
+    expect(Number(inv.paid)).toBe(4_400)
+  })
+})
+
+describe('Step 19 — the same week reaches Auralis, at Auralis’s rate', () => {
+  it('still has the hours filed nowhere but on CloudEPA’s contract', async () => {
+    // Nothing was copied. One week of Priya's life, one row, exactly as
+    // before — Computer Systems' own contract has no timesheet on it and
+    // never will.
+    const onPrime = await prisma.timesheet.count({ where: { sellContractId: it_.primeSell } })
+    expect(onPrime).toBe(0)
+    const everywhere = await prisma.timesheet.count({ where: { personId: who.priya } })
+    expect(everywhere).toBe(1)
+  })
+
+  it('reaches them through the rung below, which the award wrote down', async () => {
+    // BuyContract.supplierSellContractId — the edge that makes the
+    // ladder walkable. Without it a prime can pay its sub and has
+    // nothing to invoice its client from.
+    const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.primeBuy } })
+    expect(buy.supplierSellContractId).toBe(it_.subSell)
+
+    // And it ends where the person is employed, rather than going on
+    // forever.
+    const bottom = await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.subBuy } })
+    expect(bottom.supplierSellContractId).toBeNull()
+  })
+
+  it('invoices Auralis $5,400 — forty hours at $135, not at CloudEPA’s $110', async () => {
+    as(PRIME)
+    const r = await json(await generateInvoice(req('POST', '/api/invoices/generate', {
+      engagementId: it_.primeEngagement, periodStart: WEEK.start, periodEnd: WEEK.end,
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.primeInvoice = r.body.data.invoice?.id ?? r.body.data.invoices?.[0]?.id
+    const inv = await prisma.invoice.findUniqueOrThrow({
+      where: { id: it_.primeInvoice }, include: { invoiceLines: true },
+    })
+    expect(Number(inv.total)).toBe(5_400)
+    expect(inv.invoiceLines).toHaveLength(1)
+    expect(inv.invoiceLines[0].rateCents).toBe(13_500)
+    // Billed under Computer Systems' own contract, not the sub's.
+    expect(inv.invoiceLines[0].sellContractId).toBe(it_.primeSell)
+  })
+
+  it('is one week of hours carrying two billings, one per leg', async () => {
+    const lines = await prisma.invoiceLine.findMany({
+      where: { timesheetId: it_.timesheet }, orderBy: { rateCents: 'asc' },
+    })
+    expect(lines).toHaveLength(2)
+    expect(lines.map(l => l.rateCents)).toEqual([11_000, 13_500])
+    expect(lines.map(l => l.sellContractId)).toEqual([it_.subSell, it_.primeSell])
+  })
+
+  it('refuses to bill the same week twice on the same contract', async () => {
+    as(PRIME)
+    const r = await json(await generateInvoice(req('POST', '/api/invoices/generate', {
+      engagementId: it_.primeEngagement, periodStart: WEEK.start, periodEnd: WEEK.end,
+    })))
+    expect(r.status).toBe(422)
+    expect(r.body.error.code).toBe('NO_TIMESHEETS')
+  })
+
+  it('draws the invoice down against the purchase order that authorized it', async () => {
+    const po = await prisma.workOrder.findUniqueOrThrow({
+      where: { id: it_.po }, include: { invoices: true },
+    })
+    expect(po.invoices.map(i => i.id)).toEqual([it_.primeInvoice])
+  })
+
+  it('records Auralis’s money arriving', async () => {
+    as(PRIME)
+    const r = await json(await recordReceipt(req('POST', '/api/ar/payments', {
+      invoiceId: it_.primeInvoice, amount: 5_400, currency: 'USD',
+      method: 'ACH', reference: 'ADBE-AP-771204', receivedAt: '2026-11-02',
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: it_.primeInvoice } })
+    expect(Number(inv.paid)).toBe(5_400)
+  })
+
+  it('has moved $5,400 from Auralis to $3,400 in Priya’s hands, with $1,000 kept at each hop', async () => {
+    const adobePaid = 5_400
+    const cloudepaPaid = 4_400
+    const priyaPaid = 40 * 85
+    expect(adobePaid - cloudepaPaid).toBe(1_000)
+    expect(cloudepaPaid - priyaPaid).toBe(1_000)
+  })
+})
+
+describe('Step 20 — what each firm made', () => {
+  it('shows CloudEPA $1,000 on the week — $4,400 in, $3,400 out', async () => {
+    as(SUB)
+    const r = await json(await profitability(req('GET', '/api/profitability?by=candidate')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(40 * 11_000 - 40 * 8_500).toBe(100_000)
+  }, 60_000)
+
+  it('shows Computer Systems the same $1,000 — $5,400 in, $4,400 out', async () => {
+    as(PRIME)
+    const r = await json(await profitability(req('GET', '/api/profitability?by=candidate')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(40 * 13_500 - 40 * 11_000).toBe(100_000)
+  }, 60_000)
+
+  it('tells Computer Systems what it owes CloudEPA, which it could not see before', async () => {
+    // Payroll reads its own sell side for a W2 placement and the
+    // supplier's for a corp-to-corp one. Reaching only its own, a prime
+    // reported a supplier as owed nothing for work that had been done
+    // and signed off.
+    as(PRIME)
+    const r = await json(await payroll(req('GET', '/api/payroll')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const row = (r.body.data.payItems ?? []).find((x: any) => x.buyContractId === it_.primeBuy)
+    expect(row, 'Computer Systems cannot see what it owes CloudEPA').toBeTruthy()
+    expect(Number(row.totalApprovedHours)).toBe(40)
+    expect(Number(row.grossPay)).toBe(40 * 11_000)
+  }, 60_000)
+
+  it('leaves Auralis unable to see CloudEPA anywhere in its own program', async () => {
+    const seen = await prisma.counterparty.findMany({ where: { companyId: co.adobe } })
+    expect(seen.map(c => c.otherCompanyId).sort()).toEqual([co.magnit, co.prime].sort())
+    expect(seen.map(c => c.otherCompanyId)).not.toContain(co.sub)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════
+// Part six — and all of it on one screen
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Step 21 — one placement, opened, top to bottom', () => {
+  it('gives CloudEPA the whole thread for Priya in one answer', async () => {
+    // The screen the demo did not have. Sixty lists and four things you
+    // could open meant a vendor could be shown sets of records and could
+    // not follow one person through their working life.
+    as(SUB)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const d = r.body.data
+
+    expect(d.person.name).toBe('Priya Raman')
+    expect(d.origin.title).toContain('SAP FICO')
+    expect(d.submission.from.name).toBe('CloudEPA')
+    expect(d.contracts.sell.billRate).toBe(110)
+    expect(d.contracts.buy.payRate).toBe(85)
+    expect(d.contracts.buy.vendor).toBeNull()      // they employ her
+    expect(d.timesheets).toHaveLength(1)
+    expect(d.timesheets[0].hours).toBe(40)
+    expect(d.money.margin).toBe(1_000)
+  })
+
+  it('shows both signatures, from the two companies that actually made them', async () => {
+    as(SUB)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+    const week = r.body.data.timesheets[0]
+    expect(week.clientApproved.hours).toBe(40)
+    expect(week.employerAccepted.hours).toBe(40)
+    expect(week.billedByUs).toBe(true)
+  })
+
+  it('shows Computer Systems their own leg — $135 in, $110 out — and not CloudEPA’s', async () => {
+    as(PRIME)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.primeSell}`),
+      { params: Promise.resolve({ id: it_.primeSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const d = r.body.data
+    expect(d.contracts.sell.billRate).toBe(135)
+    expect(d.contracts.buy.payRate).toBe(110)
+    expect(d.contracts.buy.vendor.name).toBe('CloudEPA')
+    // One firm below them, and what CloudEPA pays Priya is not in here.
+    expect(d.chain.hopsBelow).toBe(1)
+    //
+    // This used to be `expect(JSON.stringify(d)).not.toContain('8500')`,
+    // which reddened a commit at random: a generated cuid came back as
+    // `cmu27g8500000g8soyprwwh9d` and the string `8500` was inside an id.
+    // Grepping a blob for a number cannot tell a rate from an identifier.
+    // Ask the money fields instead, all of them, wherever they are nested
+    // — so a rate field added later is still covered.
+    expect(ratesIn(d)).not.toContain(85)
+    expect(ratesIn(d)).not.toContain(8500)
+    expect(ratesIn(d)).toEqual(expect.arrayContaining([135, 110]))
+  })
+
+  it('knows a rate from an identifier, so the check above is neither vacuous nor flaky', () => {
+    // The leak it is looking for: the bottom rung's pay rate, at any
+    // depth, under any name that means money.
+    expect(ratesIn({ chain: { below: [{ payRate: 85 }] } })).toContain(85)
+    expect(ratesIn({ contracts: { buy: { payRateCents: 8500 } } })).toContain(8500)
+    // The false alarm that reddened a commit: a cuid with 8500 inside it.
+    expect(ratesIn({ id: 'cmu27g8500000g8soyprwwh9d' })).toEqual([])
+    expect(JSON.stringify({ id: 'cmu27g8500000g8soyprwwh9d' })).toContain('8500')
+  })
+
+  it('finds the hours through the chain, on a contract that carries none of its own', async () => {
+    as(PRIME)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.primeSell}`),
+      { params: Promise.resolve({ id: it_.primeSell }) }
+    ))
+    // Computer Systems' own contract has no timesheet on it and never
+    // will — the money still reads, because the invoice does.
+    expect(r.body.data.money.invoices).toHaveLength(1)
+    expect(r.body.data.money.billed).toBe(5_400)
+  })
+
+  it('refuses a firm that is not a party, without confirming the placement exists', async () => {
+    // 404 rather than 403. Telling a stranger that a placement is there
+    // is itself the leak.
+    as(MSP)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+    expect(r.status).toBe(404)
+    expect(r.body.error.message).toBe('No placement by that id.')
+  })
+
+  it('writes an access log row for the refusal as well as the read', async () => {
+    // Access logging is deliberately fire-and-forget: a read must not
+    // wait on its own audit row. So this waits for the write rather than
+    // assuming it has landed — asserting immediately passes on a quiet
+    // machine and fails on a busy one, which is the worst kind of test.
+    let allowed = false
+    let refused = false
+    for (let attempt = 0; attempt < 40 && !(allowed && refused); attempt++) {
+      const rows = await prisma.accessLog.findMany({
+        where: { subjectId: who.priya, action: 'CONTRACT_VIEW' },
+        select: { allowed: true },
+      })
+      allowed = rows.some(r => r.allowed)
+      refused = rows.some(r => !r.allowed)
+      if (allowed && refused) break
+      await new Promise(r => setTimeout(r, 50))
+    }
+    expect(allowed, 'no permitted read was logged').toBe(true)
+    expect(refused, 'the refusal was not logged').toBe(true)
+  })
+})
+
+
+describe('Step 21a — Auralis opens the leg below the one it pays', () => {
+  /**
+   * The same rule as Step 14a, reached by a different door. Those three
+   * surfaces are lists filtered to a client's site; this is one record
+   * fetched by id, and a client is a party to every rung of a chain at
+   * its own site because every rung names that site. So Auralis could open
+   * CloudEPA's contract with Computer Systems and read the firm by name,
+   * what it charged, and the invoices between the two of them.
+   *
+   * On the JSON, never on the screen.
+   */
+  const adobeOpens = async () => {
+    as(ADOBE_PM)
+    return json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+  }
+
+  it('lets Auralis open it at all, because the work on that contract happens on Auralis\u2019s site', async () => {
+    const r = await adobeOpens()
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.viewer.side).toBe('END_CLIENT')
+    expect(r.body.data.person.name).toBe('Priya Raman')
+  })
+
+  it('says who supplied her instead of naming the firm below Computer Systems', async () => {
+    const r = await adobeOpens()
+    const d = r.body.data
+    expect(d.supplier.name).toBe('Supplied through Computer Systems.')
+    expect(d.supplier.nameWithheld).toBe(true)
+    expect(d.supplier.suppliedThrough).toBe('Computer Systems')
+    // The id travels either way: a row needs something to hang a
+    // certificate on, and an id is not a firm Auralis can reach.
+    expect(d.supplier.id).toBe(co.sub)
+    expect(JSON.stringify(d)).not.toContain('CloudEPA')
+  })
+
+  it('withholds the name on the submission behind it too, which is the same firm twice', async () => {
+    const r = await adobeOpens()
+    expect(r.body.data.submission.from.name).toBe('Supplied through Computer Systems.')
+  })
+
+  it('shows Auralis no price at all on a leg its supplier arranged, and says why', async () => {
+    const r = await adobeOpens()
+    const d = r.body.data
+    // $110 is what CloudEPA charges Computer Systems — the prime's own
+    // cost, and its margin one subtraction from the $135 Auralis pays.
+    expect(ratesIn(d)).not.toContain(110)
+    expect(ratesIn(d)).not.toContain(85)
+    expect(d.contracts.sell.billRate).toBeNull()
+    expect(d.money.invoices).toEqual([])
+    expect(d.money.says).toContain('between those two firms')
+  })
+
+  it('tells Auralis the paper behind that leg is between two of its suppliers, rather than that there is none', async () => {
+    const d = (await adobeOpens()).body.data
+    // A purchase order is a header and its lines, and this line is on
+    // one — it is simply not Auralis's document. "Not yet on an order"
+    // would be a false sentence where the honest one is withheld.
+    const doc = d.contracts.sell.document
+    expect(doc.order).toBeNull()
+    expect(doc.says).toContain('between two of your suppliers')
+    expect(doc.says).not.toContain('Not yet on an order')
+    // And nobody else on that document is named, for the same reason
+    // the firm below is not.
+    expect(d.contracts.lines).toEqual([])
+  })
+
+  it('still counts the week she worked, because the hours on Auralis\u2019s site are Auralis\u2019s own', async () => {
+    const r = await adobeOpens()
+    expect(r.body.data.timesheets[0].hours).toBe(40)
+  })
+
+  it('names CloudEPA on that row once Auralis\u2019s agreement with Computer Systems requires it', async () => {
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { clientId: co.adobe, vendorId: co.prime },
+      select: { id: true },
+    })
+    as(PRIME)
+    const amended = await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: true,
+        reason: 'Auralis required its suppliers to name their sub-vendors at signing.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+    expect(amended.body?.error, JSON.stringify(amended.body)).toBeUndefined()
+
+    const r = await adobeOpens()
+    expect(r.body.data.supplier.name).toBe('CloudEPA')
+    expect(r.body.data.supplier.nameWithheld).toBe(false)
+    // The name is a term on paper. The price never was.
+    expect(ratesIn(r.body.data)).not.toContain(110)
+  })
+
+  it('and closes again the moment the term comes off', async () => {
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { clientId: co.adobe, vendorId: co.prime },
+      select: { id: true },
+    })
+    as(PRIME)
+    await json(await amendAgreement(
+      req('PATCH', `/api/program/agreements/${msa.id}`, {
+        disclosesSubVendors: false,
+        reason: 'Reverted — the disclosure term was recorded against the wrong agreement.',
+      }),
+      { params: Promise.resolve({ id: msa.id }) }
+    ))
+    const r = await adobeOpens()
+    expect(r.body.data.supplier.name).toBe('Supplied through Computer Systems.')
+  })
+
+  it('leaves Computer Systems reading its own sub by name on the same contract', async () => {
+    as(PRIME)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.supplier.name).toBe('CloudEPA')
+    expect(r.body.data.contracts.sell.billRate).toBe(110)
+  })
+})

@@ -1,0 +1,1232 @@
+/**
+ * Three client programs, seated for every desk that works one.
+ *
+ * The world seed is one placement read from each firm in its chain. That
+ * shows the product's shape and not its buyer. The buyer is a company
+ * with a dozen suppliers, a history it cannot see, and four or five
+ * different jobs that touch a contractor between the requisition and the
+ * payment — and none of those jobs is "program office".
+ *
+ * So each of Northbend Athletic, Cavanaugh Glassworks and Talvern Medical gets:
+ *
+ *   A desk per job. The program manager who sets the rules, the hiring
+ *   manager who needs somebody and signs their hours, the VP who signs
+ *   the money, the AP clerk who pays what matched, the compliance officer
+ *   who answers for tenure and paperwork. Real roles from
+ *   lib/company-defaults, so what each desk cannot do is as seeded as
+ *   what it can.
+ *
+ *   Something waiting at every desk. A requisition routed to the VP, a
+ *   week of hours the manager has not signed, an invoice the clerk has
+ *   not paid, a draft contract the supplier cannot start because the I-9
+ *   is not on file, a person eleven months into an eighteen-month cap.
+ *
+ *   A history, across suppliers. The same person placed by one firm,
+ *   released, and placed again by another — which is the number no
+ *   supplier can compute and the reason a client pays for this.
+ *
+ * Idempotent, like the world it sits in. Everything is found before it
+ * is made.
+ */
+
+import { prisma as db } from '@/lib/db'
+import { writeCyclesFor } from '@/lib/contract-cycles'
+import { holidayKeys } from '@/lib/seed-calendar'
+import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
+import { day, at } from '@/lib/seed-days'
+import { newChecklist } from '@/lib/supplier-onboarding'
+import { newApplyToken } from '@/lib/supplier-link'
+
+export interface World {
+  firmBySlug: Map<string, { id: string }>
+  seatBySlug: Map<string, { personId: string; email: string }>
+  domain: string
+  prefix: string
+}
+
+// ── The desks ────────────────────────────────────────────────────────
+//
+// One seat per job, not one seat per company. The email says which desk
+// it is, so `world-nike-ap@` can be read off a URL by somebody who has
+// never seen the roster.
+export interface Desk {
+  key: 'programme' | 'hiring' | 'hr' | 'procurement' | 'ap' | 'compliance'
+  role: string
+  /** Which team the desk sits in, where that narrows what it sees. */
+  unit?: string
+}
+export const DESKS: Desk[] = [
+  { key: 'programme',  role: 'Program Manager' },
+  { key: 'hiring',     role: 'Hiring Manager', unit: 'Apps' },
+  // The two standing desks, named per business unit. HR reads the role;
+  // Procurement audits the suppliers. Both sit across Technology.
+  { key: 'hr',          role: 'HR Partner', unit: 'Technology' },
+  { key: 'procurement', role: 'Procurement Lead', unit: 'Technology' },
+  { key: 'ap',         role: 'AP Clerk' },
+  { key: 'compliance', role: 'Compliance Officer' },
+]
+
+/** What a person on a placement has on file, by name rather than by rows. */
+type Papers = 'CLEAR' | 'NO_I9' | 'BGC_EXPIRED' | 'BGC_MISSING'
+
+interface Placement {
+  role: string
+  skills: string[]
+  loc: string
+  /** Client first, then each supplier down to whoever employs the person. */
+  via: string[]
+  /** Cents an hour. The client pays the first; each hop keeps the gap. */
+  rates: number[]
+  /** One awaiting week claimed over the role's hours, so the desk has an exception to read. */
+  exceptionHours?: number
+  /**
+   * Hours over this may be claimed on the contract. The threshold says
+   * which hours may be claimed; it never says what they are worth.
+   */
+  overtimeAfterHours?: number
+  /**
+   * One submitted week, this long, sitting on the desk that signs it
+   * with nobody having said what the hours over the line are worth. Its
+   * own calendar week rather than one of the rolling spans, because the
+   * threshold is judged Monday to Monday.
+   */
+  overtimeWeekHours?: number
+  /** The client marked this person, and the firm that supplied them, as ones to take again. */
+  takeAgain?: boolean
+  person: string
+  workAuth: 'USC' | 'GC' | 'H1B'
+  startedDaysAgo: number
+  /** Negative: it ended that many days ago. */
+  endsInDays: number
+  state: 'IN_PROGRESS' | 'ENDED' | 'DRAFT'
+  papers: Papers
+  /** Whole weeks of hours the client has signed, and weeks still waiting on them. */
+  weeks?: { approved: number; awaiting: number }
+  /** The most recent invoice for the signed weeks, and where it got to. */
+  invoice?: 'PAID' | 'SUBMITTED' | null
+}
+
+interface Candidate {
+  person: string
+  from: string
+  rate: number
+  status: 'SUBMITTED' | 'SHORTLISTED' | 'INTERVIEW'
+  /**
+   * One round, in one of three places: proposed and waiting on the
+   * supplier, confirmed and in the diary, or done and gone through —
+   * `outcome: 'ADVANCE'` with no round two yet, so the client's desk has
+   * a "set up round 2" to press. Days are relative to today; a done
+   * round sits in the past.
+   */
+  round?: { state: 'PROPOSED' | 'CONFIRMED' | 'DONE'; inDays: number; interviewers: string[]; outcome?: 'ADVANCE' }
+}
+
+interface Program {
+  client: string
+  loc: string
+  people: {
+    programme: string; hiring: string; hr: string; procurement: string; ap: string; compliance: string
+  }
+  governance: { tenureCapMonths: number; breakDays: number; band: [number, number] }
+  placements: Placement[]
+  /** An approved role suppliers are working, with candidates in. */
+  open: { title: string; skills: string[]; band: [number, number]; to: string[]; candidates: Candidate[] }
+  /** A role big enough to need the VP, still waiting on them. */
+  routed: { title: string; skills: string[]; headcount: number; billMax: number }
+  /** Supplier certificates, in days until they run out. */
+  cover: Record<string, { gl: number; wc: number }>
+  /** A firm the hiring manager recommended, on Procurement's desk with some of its paperwork in. */
+  recommend?: { name: string; contactEmail: string; reason: string; held: string[] }
+  /**
+   * One supplier, one order, one contractor, and no agreement at all.
+   *
+   * Every other placement in this world is papered the same way: an
+   * MSA between the two firms, an engagement under it, a line under
+   * that. So every invoice could say who it was between by reading
+   * `engagement.msa`, and the two branches added when `Engagement.msaId`
+   * went optional — attribute through the ORDER, else through the LINES
+   * billed on it — had nothing on the seeded world to read.
+   *
+   * This is that sentence as data. The founder, 2026-09-18: *"We don't
+   * need a master contract if there is no budget profile."* A client
+   * sends a purchase order, somebody starts, the week is signed and the
+   * bill goes out, and nobody is made to paper an umbrella first.
+   *
+   * The contractor is the supplier's own W2, so the buy line has no
+   * order of its own either — you do not raise a purchase order to your
+   * own employee.
+   */
+  direct?: {
+    /** The supplier's slug. Its only business with this client is this one line. */
+    supplier: string
+    role: string
+    skills: string[]
+    person: string
+    workAuth: 'USC' | 'GC' | 'H1B'
+    /** The client pays the first; the supplier pays its employee the second. */
+    rates: [number, number]
+    /** The ceiling on the order. What a line may draw down, not what it charges. */
+    ceiling: number
+    startedDaysAgo: number
+    endsInDays: number
+  }
+}
+
+// ── The three ────────────────────────────────────────────────────────
+//
+// Horizontal on purpose. A glass plant, a sportswear company and a
+// medical device maker hire a validation engineer, a demand planner and
+// an SAP consultant through the same product. Nothing here is IT
+// staffing except where the role happens to be.
+
+export const PROGRAMMES: Program[] = [
+  {
+    client: 'nike', loc: 'Tualatin, OR',
+    people: { programme: 'Dana Whitlock', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
+    recommend: { name: 'Veritan Talent', contactEmail: 'priya@veritantalent.example', reason: 'Placed two planning analysts for us in Portland in 2024; both extended.', held: [] },
+    governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
+    placements: [
+      { role: 'SAP S/4 finance lead', skills: ['SAP FICO', 'S/4HANA', 'Central Finance'], loc: 'Tualatin, OR',
+        via: ['nike', 'computer-systems', 'cloudepa'], rates: [14500, 11800, 9000], takeAgain: true,
+        person: 'Helena Marsh', workAuth: 'GC', startedDaysAgo: 200, endsInDays: 160, state: 'IN_PROGRESS',
+        papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
+      // A week over the line, and nobody has said what it is worth. The
+      // contract lets hours over forty be claimed; it does not price
+      // them. Five hours at $132 are $660 flat, $990 at the contract's
+      // time and a half, or nothing now and five hours in the bank —
+      // and the desk that signs the week chooses, this week, on its own.
+      // Direct, not through a chain: a decision is written against the
+      // leg the hours sit on, and on a chain that is not yet the leg the
+      // client pays.
+      { role: 'Commerce platform architect', skills: ['Salesforce Commerce', 'Node.js'], loc: 'Tualatin, OR',
+        via: ['nike', 'brightmoor'], rates: [13200, 9600],
+        overtimeAfterHours: 40, overtimeWeekHours: 45,
+        person: 'Omar Haddad', workAuth: 'USC', startedDaysAgo: 45, endsInDays: 320, state: 'IN_PROGRESS',
+        papers: 'BGC_EXPIRED', weeks: { approved: 2, awaiting: 0 }, invoice: 'PAID' },
+      { role: 'Supply chain planning analyst', skills: ['Kinaxis', 'Demand planning'], loc: 'Tualatin, OR',
+        via: ['nike', 'pinnacle'], rates: [9800, 7400], exceptionHours: 44,
+        person: 'Lucía Fernández', workAuth: 'USC', startedDaysAgo: 30, endsInDays: 335, state: 'IN_PROGRESS',
+        papers: 'CLEAR', weeks: { approved: 2, awaiting: 1 }, invoice: null },
+      // The same person, a year earlier, through a different supplier.
+      // Pinnacle sees one month; Brightmoor saw thirteen; only the client
+      // can add them up, and only here.
+      { role: 'Demand planner', skills: ['Demand planning', 'Excel'], loc: 'Tualatin, OR',
+        via: ['nike', 'brightmoor'], rates: [8900, 6800],
+        person: 'Lucía Fernández', workAuth: 'USC', startedDaysAgo: 470, endsInDays: -75, state: 'ENDED', papers: 'CLEAR' },
+      // Past the cap and inside the break. The ask-back button is a date.
+      { role: 'Data engineer', skills: ['Snowflake', 'dbt', 'Python'], loc: 'Tualatin, OR',
+        via: ['nike', 'computer-systems'], rates: [12400, 9100],
+        person: 'Kwame Mensah', workAuth: 'H1B', startedDaysAgo: 790, endsInDays: -50, state: 'ENDED', papers: 'CLEAR' },
+      // Awarded, starting next week, and cannot: no I-9 on file.
+      { role: 'Cybersecurity analyst', skills: ['SIEM', 'Splunk', 'Incident response'], loc: 'Tualatin, OR',
+        via: ['nike', 'pinnacle'], rates: [11500, 8600],
+        person: 'Ingrid Sørensen', workAuth: 'GC', startedDaysAgo: -7, endsInDays: 372, state: 'DRAFT', papers: 'NO_I9' },
+    ],
+    open: {
+      title: 'Workday HCM integration lead', skills: ['Workday', 'Studio', 'Integrations'], band: [12000, 14000],
+      to: ['computer-systems', 'brightmoor', 'pinnacle'],
+      candidates: [
+        { person: 'Rajesh Iyer', from: 'brightmoor', rate: 13400, status: 'SHORTLISTED',
+          round: { state: 'CONFIRMED', inDays: 3, interviewers: ['Marcus Oyelaran, People Technology', 'Anita Shah, HRIS'] } },
+        { person: 'Mei-Lin Chao', from: 'pinnacle', rate: 12800, status: 'SUBMITTED' },
+        // Through round one, nothing booked for round two: the desk has
+        // a next round to set up, which is the thing that was missing.
+        { person: 'Daniel Okafor', from: 'computer-systems', rate: 13100, status: 'INTERVIEW',
+          round: { state: 'DONE', inDays: -4, outcome: 'ADVANCE', interviewers: ['Marcus Oyelaran, People Technology'] } },
+      ],
+    },
+    routed: { title: 'Planning transformation — four Kinaxis consultants', skills: ['Kinaxis', 'S&OP'], headcount: 4, billMax: 13000 },
+    cover: { 'computer-systems': { gl: 150, wc: 150 }, brightmoor: { gl: 20, wc: 200 }, pinnacle: { gl: 180, wc: 180 } },
+  },
+  {
+    client: 'corning', loc: 'Elmira, NY',
+    people: { programme: 'Eleanor Vance', hiring: 'Derek Halvorsen', hr: 'Priya Natarajan', procurement: 'Colin Mabry', ap: 'Patrice Boyd', compliance: 'Miriam Osei' },
+    governance: { tenureCapMonths: 24, breakDays: 90, band: [6500, 14000] },
+    placements: [
+      { role: 'Process validation engineer', skills: ['Process validation', 'Glass forming', 'Minitab'], loc: 'Elmira, NY',
+        via: ['corning', 'vertex-global', 'sahasra'], rates: [12800, 10300, 8000],
+        person: 'Tomasz Nowak', workAuth: 'GC', startedDaysAgo: 120, endsInDays: 245, state: 'IN_PROGRESS',
+        papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
+      { role: 'MES specialist', skills: ['Rockwell FactoryTalk', 'MES', 'OPC UA'], loc: 'Elmira, NY',
+        via: ['corning', 'halcyon'], rates: [11900, 8800],
+        person: 'Aisha Bello', workAuth: 'USC', startedDaysAgo: 60, endsInDays: 305, state: 'IN_PROGRESS',
+        papers: 'BGC_MISSING', weeks: { approved: 2, awaiting: 0 }, invoice: 'PAID' },
+      { role: 'Quality systems auditor', skills: ['ISO 9001', 'IATF 16949', 'CAPA'], loc: 'Elmira, NY',
+        via: ['corning', 'arcadia'], rates: [10400, 7900],
+        person: 'Felix Brandt', workAuth: 'USC', startedDaysAgo: 20, endsInDays: 345, state: 'IN_PROGRESS',
+        papers: 'CLEAR', weeks: { approved: 1, awaiting: 1 }, invoice: null },
+      { role: 'Supplier quality engineer', skills: ['PPAP', 'CAPA'], loc: 'Elmira, NY',
+        via: ['corning', 'halcyon'], rates: [9900, 7500],
+        person: 'Felix Brandt', workAuth: 'USC', startedDaysAgo: 520, endsInDays: -90, state: 'ENDED', papers: 'CLEAR' },
+      // Out long enough. Eligible to be asked back, and the button says so.
+      { role: 'Optical test technician', skills: ['Optical metrology', 'LabVIEW'], loc: 'Elmira, NY',
+        via: ['corning', 'vertex-global'], rates: [7800, 5900],
+        person: 'Nadia Petrova', workAuth: 'GC', startedDaysAgo: 900, endsInDays: -100, state: 'ENDED', papers: 'CLEAR' },
+      { role: 'Controls engineer', skills: ['Allen-Bradley PLC', 'Studio 5000'], loc: 'Elmira, NY',
+        via: ['corning', 'halcyon'], rates: [10800, 8100],
+        person: 'Samuel Adeyinka', workAuth: 'H1B', startedDaysAgo: -10, endsInDays: 355, state: 'DRAFT', papers: 'NO_I9' },
+    ],
+    open: {
+      title: 'Environmental health and safety lead', skills: ['EHS', 'OSHA', 'ISO 14001'], band: [9000, 11000],
+      to: ['vertex-global', 'halcyon', 'arcadia'],
+      candidates: [
+        { person: 'Yuki Tanaka', from: 'arcadia', rate: 10600, status: 'SHORTLISTED',
+          round: { state: 'PROPOSED', inDays: 5, interviewers: ['Derek Halvorsen, Plant Operations'] } },
+        { person: 'Priyanka Rao', from: 'vertex-global', rate: 9900, status: 'SUBMITTED' },
+      ],
+    },
+    routed: { title: 'Fab expansion — six automation engineers', skills: ['Automation', 'PLC', 'Robotics'], headcount: 6, billMax: 11500 },
+    cover: { 'vertex-global': { gl: 160, wc: 160 }, halcyon: { gl: 12, wc: 190 }, arcadia: { gl: 200, wc: 200 } },
+    // The plant needed one furnace controls technician for a season and
+    // sent Wrenfield a purchase order. No MSA was ever signed, and the
+    // week is still signed, billed and attributed like any other.
+    direct: {
+      supplier: 'wrenfield', role: 'Furnace controls technician',
+      skills: ['Furnace controls', 'Siemens PCS 7', 'Thermocouples'],
+      person: 'Elsa Thornquist', workAuth: 'USC',
+      rates: [9600, 7300], ceiling: 180_000_00,
+      startedDaysAgo: 75, endsInDays: 110,
+    },
+  },
+  {
+    client: 'terumo-bct', loc: 'Westminster, CO',
+    people: { programme: 'Claire Ashworth', hiring: 'Rohan Desai', hr: 'Lena Fischer', procurement: 'Andre Boateng', ap: 'Gloria Mendes', compliance: 'Hannah Baptiste' },
+    governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15500] },
+    placements: [
+      // Ten months through Computer Systems on top of thirteen through
+      // Vertex. Twenty-three months at an eighteen-month cap, and neither
+      // supplier knows the other's number. This is the wedge.
+      { role: 'SAP BRIM consultant', skills: ['SAP BRIM', 'Convergent Invoicing', 'S/4HANA'], loc: 'Westminster, CO',
+        via: ['terumo-bct', 'computer-systems'], rates: [14800, 10900],
+        person: 'Anders Lund', workAuth: 'GC', startedDaysAgo: 300, endsInDays: 60, state: 'IN_PROGRESS',
+        papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
+      { role: 'SAP FI/CO analyst', skills: ['SAP FICO', 'ECC'], loc: 'Westminster, CO',
+        via: ['terumo-bct', 'vertex-global'], rates: [12600, 9400],
+        person: 'Anders Lund', workAuth: 'GC', startedDaysAgo: 720, endsInDays: -330, state: 'ENDED', papers: 'CLEAR' },
+      { role: 'Computer system validation engineer', skills: ['CSV', 'GAMP 5', '21 CFR Part 11'], loc: 'Westminster, CO',
+        via: ['terumo-bct', 'sundara', 'nimbus'], rates: [12200, 9900, 7700],
+        person: 'Chidi Okafor', workAuth: 'H1B', startedDaysAgo: 90, endsInDays: 275, state: 'IN_PROGRESS',
+        papers: 'CLEAR', weeks: { approved: 3, awaiting: 0 }, invoice: 'PAID' },
+      { role: 'Data platform engineer', skills: ['Databricks', 'Azure', 'Python'], loc: 'Westminster, CO',
+        via: ['terumo-bct', 'vertex-global'], rates: [13000, 9800],
+        person: 'Marta Kowalczyk', workAuth: 'USC', startedDaysAgo: 15, endsInDays: 350, state: 'IN_PROGRESS',
+        papers: 'BGC_EXPIRED', weeks: { approved: 1, awaiting: 1 }, invoice: null },
+      // Forty days out of a ninety-day break. Eligible in fifty.
+      { role: 'Quality systems analyst', skills: ['QMS', 'TrackWise', 'CAPA'], loc: 'Westminster, CO',
+        via: ['terumo-bct', 'computer-systems'], rates: [9700, 7200],
+        person: 'Hiro Sato', workAuth: 'USC', startedDaysAgo: 600, endsInDays: -40, state: 'ENDED', papers: 'CLEAR' },
+      { role: 'Regulatory affairs specialist', skills: ['510(k)', 'EU MDR', 'Technical files'], loc: 'Westminster, CO',
+        via: ['terumo-bct', 'vertex-global'], rates: [11200, 8300],
+        person: 'Beatriz Souza', workAuth: 'GC', startedDaysAgo: -5, endsInDays: 360, state: 'DRAFT', papers: 'NO_I9' },
+    ],
+    open: {
+      title: 'Manufacturing finance analyst', skills: ['SAP CO', 'Product costing', 'Excel'], band: [9500, 11500],
+      to: ['computer-systems', 'vertex-global', 'sundara'],
+      candidates: [
+        { person: 'Noor Rahman', from: 'computer-systems', rate: 11000, status: 'SHORTLISTED',
+          round: { state: 'CONFIRMED', inDays: 2, interviewers: ['Rohan Desai, Manufacturing Finance', 'Kate Morrison, Controller'] } },
+        { person: 'Elias Varga', from: 'vertex-global', rate: 10400, status: 'SUBMITTED' },
+      ],
+    },
+    routed: { title: 'Westminster plant — five QA technicians', skills: ['QA', 'GMP', 'Device assembly'], headcount: 5, billMax: 7500 },
+    cover: { 'computer-systems': { gl: 150, wc: 150 }, 'vertex-global': { gl: 160, wc: 160 }, sundara: { gl: 140, wc: 140 } },
+  },
+]
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+/** "Lucía Fernández" → lucia.fernandez@… — accents folded, never dropped into a dot. */
+const emailOf = (name: string) =>
+  `${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
+
+/**
+ * `hours` across `n` days, the odd hours on the later ones.
+ *
+ * Forty-four over five days is 8, 9, 9, 9, 9 — not four eights and a
+ * twelve, which is a day nobody worked and the anomaly check would be
+ * right to hold.
+ */
+export function spread(hours: number, n: number): number[] {
+  const each = Math.floor(hours / n)
+  const out = Array.from({ length: n }, () => each)
+  for (let i = n - 1, over = hours - each * n; over > 0; i--, over--) out[i] += 1
+  return out
+}
+
+/**
+ * Five working days ending `w` weeks ago. Same shape as the world seed.
+ *
+ * The hours go into `days`, not only into the sheet total: a sheet
+ * whose days and whose total disagree is a figure nobody can stand
+ * behind, and everything that prices a week reads the days.
+ */
+export function week(w: number, hours = 40) {
+  const start = day(-(w * 7 + 4)), end = day(-(w * 7))
+  const days: Record<string, number> = {}
+  const each = spread(hours, 5)
+  for (let d = 0; d < 5; d++) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = each[d]
+  return { start, end, days }
+}
+
+/**
+ * A real calendar week, Monday to Friday, `back` weeks ago.
+ *
+ * The spans above are five days counted back from whenever the seed
+ * ran, so on six days in seven they straddle a weekend. A threshold is
+ * judged Monday to Monday, which reads such a span as two part-weeks —
+ * a forty-five hour one as twenty-seven and eighteen, neither of them
+ * over forty, and nobody is ever asked the question. A week that has to
+ * be over the line has to be a week.
+ */
+export function mondayWeek(back: number, hours: number) {
+  const today = day(0)
+  const start = day(-(((today.getUTCDay() + 6) % 7) + 7 * back))
+  const days: Record<string, number> = {}
+  const each = spread(hours, 5)
+  for (let d = 0; d < 5; d++) {
+    days[new Date(start.getTime() + d * 86_400_000).toISOString().slice(0, 10)] = each[d]
+  }
+  return { start, end: new Date(start.getTime() + 4 * 86_400_000), days }
+}
+
+export async function seedProgrammes(world: World): Promise<{ placements: number; people: number }> {
+  const { firmBySlug, seatBySlug, domain, prefix } = world
+  const people = new Set<string>()
+  let placements = 0
+
+  async function person(name: string) {
+    const email = emailOf(name)
+    people.add(email)
+    return db.person.upsert({ where: { primaryEmail: email }, update: {}, create: { name, primaryEmail: email } })
+  }
+
+  async function trade(a: string, b: string, relationship: string) {
+    const A = firmBySlug.get(a)!.id, B = firmBySlug.get(b)!.id
+    if (!(await db.counterparty.findFirst({ where: { companyId: A, otherCompanyId: B, relationship } }))) {
+      await db.counterparty.create({ data: { companyId: A, otherCompanyId: B, relationship } })
+    }
+  }
+
+  async function agreement(vendorSlug: string, clientSlug: string, title: string) {
+    const vendorId = firmBySlug.get(vendorSlug)!.id, clientId = firmBySlug.get(clientSlug)!.id
+    const msa =
+      (await db.masterAgreement.findFirst({ where: { vendorId, clientId } })) ??
+      (await db.masterAgreement.create({
+        data: { vendorId, clientId, paymentTerms: 45, currency: 'USD', signedAt: day(-400) },
+      }))
+    const eng =
+      (await db.engagement.findFirst({ where: { msaId: msa.id, title } })) ??
+      (await db.engagement.create({ data: { msaId: msa.id, title, invoiceCycle: 'MONTHLY' } }))
+    return { msa, eng }
+  }
+
+  /** A bench listing, which is what makes a submission possible at all. */
+  async function onBench(personId: string, skills: string[], loc: string, workAuth: string, vendorSlug: string) {
+    const profile =
+      (await db.consultantProfile.findFirst({ where: { personId } })) ??
+      (await db.consultantProfile.create({
+        data: { personId, skills, location: loc, visibility: 'VERIFIED', workAuth },
+      }))
+    const vendor = firmBySlug.get(vendorSlug)!
+    if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: vendor.id } }))) {
+      await db.benchListing.create({
+        data: {
+          consultantId: profile.id, companyId: vendor.id, tier: 'RETAINED', state: 'GRANTED',
+          invitedAt: day(-130), respondedAt: day(-128), grantedAt: day(-128),
+        },
+      })
+    }
+    return profile
+  }
+
+  /** Supplier cover: only written where the world seed has not already. */
+  async function cover(vendorSlug: string, gl: number, wc: number, uploadedById: string, verifiedById: string) {
+    const co = firmBySlug.get(vendorSlug)!
+    for (const [type, expires] of [['INSURANCE_GL', gl], ['INSURANCE_WC', wc]] as const) {
+      if (await db.verification.findFirst({ where: { companyId: co.id, type } })) continue
+      await db.verification.create({
+        data: {
+          companyId: co.id, type, status: 'CLEAR', provider: 'Hartford', issuedAt: day(expires - 365),
+          expiresAt: day(expires), uploadedById, verifiedById, verifiedAt: day(-30),
+          result: { outcome: 'CLEAR' },
+        },
+      })
+    }
+  }
+
+  for (const p of PROGRAMMES) {
+    const client = firmBySlug.get(p.client)!
+    const slug = prefix + p.client
+    const office = seatBySlug.get(p.client)!
+
+    // ── The desks ──────────────────────────────────────────────────
+    //
+    // The roles a client starts with on sign-up, so a seeded desk holds
+    // exactly what a real one would — and the AP clerk cannot raise a
+    // requisition, which is the point of having an AP clerk.
+    const roleByName = new Map<string, { id: string }>()
+    // A role that was named in British English before 2026-09-13 is the
+    // same role under its American name. Rename rather than add, so a
+    // seat that already holds it is not left on a duplicate.
+    for (const [was, now] of Object.entries(RENAMED_ROLES)) {
+      await db.role.updateMany({ where: { companyId: client.id, name: was }, data: { name: now } })
+    }
+    for (const r of rolesFor('CLIENT')) {
+      const role =
+        (await db.role.findFirst({ where: { companyId: client.id, name: r.name } })) ??
+        (await db.role.create({
+          data: { companyId: client.id, name: r.name, permissions: r.permissions, isDefault: !!r.isOwner },
+        }))
+      roleByName.set(r.name, role)
+    }
+    const units = await db.orgUnit.findMany({ where: { companyId: client.id }, select: { id: true, name: true } })
+    const unitByName = new Map(units.map((u) => [u.name, u]))
+
+    const desk: Record<Desk['key'], { personId: string; email: string }> = {} as never
+    for (const d of DESKS) {
+      const email = `${slug}-${d.key}@${domain}`
+      const name = p.people[d.key]
+      const who = await db.person.upsert({ where: { primaryEmail: email }, update: { name }, create: { name, primaryEmail: email } })
+      people.add(email)
+      if (!(await db.context.findFirst({ where: { personId: who.id, companyId: client.id } }))) {
+        await db.context.create({
+          data: {
+            personId: who.id, companyId: client.id, roleId: roleByName.get(d.role)!.id, type: 'EMPLOYEE',
+            side: 'BUY', orgUnitId: d.unit ? unitByName.get(d.unit)?.id ?? null : null,
+            grantReason: `Seeded program — ${d.role}`,
+          },
+        })
+      }
+      desk[d.key] = { personId: who.id, email }
+    }
+
+    // ── The standing desks, as rules per business unit ─────────────
+    //
+    // A requisition inherits them: HR decides the ROLE stage, Procurement
+    // the SOURCING stage, when a check misses. Nearest unit wins; these
+    // sit on Technology, so every department under it is covered.
+    const tech = unitByName.get('Technology')
+    if (tech) {
+      for (const [kind, key, name] of [
+        ['HR', 'hr', 'HR — Technology'],
+        ['PROCUREMENT', 'procurement', 'Procurement — Technology'],
+      ] as const) {
+        if (await db.approvalRule.findFirst({ where: { companyId: client.id, kind, orgUnitId: tech.id } })) continue
+        await db.approvalRule.create({
+          data: {
+            companyId: client.id, name, kind, thresholdAmount: null, rank: 1, isActive: true,
+            approverId: desk[key].personId, orgUnitId: tech.id, authoredById: desk.programme.personId,
+          },
+        })
+      }
+    }
+
+    // ── The rules ──────────────────────────────────────────────────
+    //
+    // Without a policy the tenure page has no cap to measure against and
+    // the compliance page is a list with no verdicts. Two BLOCKs where
+    // the law grounds them, one WARN where it does not.
+    const policy =
+      (await db.governancePolicy.findFirst({ where: { companyId: client.id, isActive: true } })) ??
+      (await db.governancePolicy.create({
+        data: {
+          companyId: client.id, name: 'Contingent workforce policy',
+          description: 'Co-employment, cover and rate controls for contract staff.',
+        },
+      }))
+    const rules: { ruleType: string; enforcementMode: string; parameters: object; description: string; ownerTeam: string }[] = [
+      { ruleType: 'TENURE_CAP', enforcementMode: 'BLOCK', parameters: { maxMonths: p.governance.tenureCapMonths },
+        description: `Nobody works here more than ${p.governance.tenureCapMonths} months, across every supplier, without converting.`, ownerTeam: 'HR' },
+      { ruleType: 'BREAK_IN_SERVICE', enforcementMode: 'BLOCK', parameters: { breakDays: p.governance.breakDays },
+        description: `${p.governance.breakDays} days out before coming back on contract.`, ownerTeam: 'HR' },
+      { ruleType: 'RATE_BAND', enforcementMode: 'WARN', parameters: { minRate: p.governance.band[0], maxRate: p.governance.band[1] },
+        description: 'Outside the approved band needs a reason on the record.', ownerTeam: 'PROCUREMENT' },
+      { ruleType: 'INSURANCE_REQUIRED', enforcementMode: 'BLOCK', parameters: {},
+        description: 'A supplier whose general liability or workers\' comp has lapsed places nobody.', ownerTeam: 'PROCUREMENT' },
+    ]
+    for (const r of rules) {
+      if (await db.governanceRule.findFirst({ where: { policyId: policy.id, ruleType: r.ruleType as never } })) continue
+      await db.governanceRule.create({ data: { policyId: policy.id, ...r } as never })
+    }
+
+    // The budget line everything here is coded to.
+    const costCentre = await db.costCenter.findFirst({ where: { companyId: client.id, code: { startsWith: 'APPS-' } } })
+
+    // ── Who supplies them ──────────────────────────────────────────
+    const suppliers = new Set<string>()
+    for (const pl of p.placements) for (const s of pl.via.slice(1)) suppliers.add(s)
+    for (const s of p.open.to) suppliers.add(s)
+    for (const pl of [...p.placements.map((x) => x.via), ...p.open.to.map((s) => [p.client, s])]) {
+      const [c, ...chain] = pl
+      for (let i = 0; i < chain.length; i++) {
+        const above = i === 0 ? c : chain[i - 1]
+        await trade(chain[i], above, i === 0 ? 'CLIENT' : 'PRIME')
+        await trade(above, chain[i], 'SUPPLIER')
+      }
+    }
+    for (const [vendorSlug, c] of Object.entries(p.cover)) {
+      await cover(vendorSlug, c.gl, c.wc, seatBySlug.get(vendorSlug)!.personId, desk.compliance.personId)
+    }
+    // Bench vendors below a prime carry their own cover, as the world
+    // seed gives them; a prime with nobody below it is the employer and
+    // needs its own. Anything not named above is filled in as current.
+    for (const s of suppliers) {
+      if (!p.cover[s]) await cover(s, 200, 200, seatBySlug.get(s)!.personId, desk.compliance.personId)
+    }
+
+    // ── A firm on Procurement's desk ───────────────────────────────
+    // Recommended by the hiring manager four days ago; the department
+    // lead and Procurement have said yes; the firm supplied its side
+    // through its link; it sits with HR, insurance received and the
+    // screening still to run.
+    if (p.recommend && !(await db.supplierRequest.findFirst({ where: { companyId: client.id, name: p.recommend.name } }))) {
+      const at = day(-2).toISOString()
+      const provided = ['TAX_FORM', 'INSURANCE', 'BANK', 'EXPERIENCE', 'REFERENCES', 'PROPOSAL']
+      const lead = await db.context.findFirst({ where: { companyId: client.id, role: { name: 'Approver' } }, select: { personId: true, person: { select: { name: true } } } })
+      await db.supplierRequest.create({
+        data: {
+          companyId: client.id, name: p.recommend.name, domain: p.recommend.contactEmail.split('@')[1],
+          contactEmail: p.recommend.contactEmail, contactName: 'Priya Natarajan', reason: p.recommend.reason,
+          skills: ['Supply chain planning', 'Demand planning', 'Kinaxis'],
+          recommendedById: desk.hiring.personId, state: 'IN_REVIEW', stage: 'HR', createdAt: day(-4), linkSentAt: day(-4),
+          token: newApplyToken(),
+          decisions: [
+            { stage: 'LEAD', outcome: 'APPROVED', byId: lead?.personId ?? desk.programme.personId, byName: lead?.person.name ?? p.people.programme, at: day(-3).toISOString(), note: 'Two planning roles open next quarter and Pinnacle is at capacity.' },
+            { stage: 'PROCUREMENT', outcome: 'APPROVED', byId: desk.procurement.personId, byName: p.people.procurement, at: day(-2).toISOString(), note: 'References confirmed; D&B rating acceptable.' },
+          ] as unknown as object,
+          application: {
+            legalName: 'Veritan Talent LLC', address: '400 SW 6th Ave, Portland, OR 97204', duns: '08-123-4567', website: 'veritantalent.example',
+            experience: 'Twelve years placing supply chain and planning consultants for consumer goods and apparel; 40 consultants on site across four clients.',
+            references: [{ name: 'Alan Reyes', company: 'Ridgeline Outfitters', email: 'areyes@ridgeline.example', phone: '' }, { name: 'Dana Kim', company: 'Ascent Athletic', email: 'dkim@ascentathletic.example', phone: '' }],
+            bank: { bankName: 'Umpqua Bank', accountName: 'Veritan Talent LLC', last4: '4471' },
+            skills: ['Supply chain planning', 'Demand planning', 'Kinaxis'],
+            docs: [{ key: 'TAX_FORM', fileName: 'Vertex-W9-2026.pdf', size: 184000, at }, { key: 'INSURANCE', fileName: 'Vertex-COI-2026.pdf', size: 221000, at }, { key: 'PROPOSAL', fileName: 'Vertex-rate-card.pdf', size: 96000, at }],
+            submittedAt: at,
+          } as unknown as object,
+          checklist: newChecklist().map((i) =>
+            i.desk === 'PROCUREMENT' && i.required ? { ...i, state: 'HELD', at, fileName: i.key === 'REFERENCES' ? '2 references' : null }
+            : i.key === 'PROPOSAL' ? { ...i, state: 'HELD', at, fileName: 'Vertex-rate-card.pdf' }
+            : provided.includes(i.key) ? { ...i, state: 'PROVIDED', at, fileName: i.key === 'TAX_FORM' ? 'Vertex-W9-2026.pdf' : i.key === 'INSURANCE' ? 'Vertex-COI-2026.pdf' : i.key === 'BANK' ? 'Umpqua Bank ····4471' : null }
+            : i
+          ) as unknown as object,
+        },
+      })
+    }
+
+    // ── The placements ─────────────────────────────────────────────
+    for (const pl of p.placements) {
+      const [, ...chain] = pl.via
+      const employerSlug = chain[chain.length - 1]
+      const employer = firmBySlug.get(employerSlug)!
+      const who = await person(pl.person)
+      await onBench(who.id, pl.skills, pl.loc, pl.workAuth, employerSlug)
+
+      // A consultant who can sign in and enter their own hours. The
+      // world seed's people cannot, which made "the worker files a week"
+      // untestable against it.
+      if (!(await db.context.findFirst({ where: { personId: who.id, companyId: employer.id, type: 'CONSULTANT' } }))) {
+        await db.context.create({
+          data: { personId: who.id, companyId: employer.id, type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' },
+        })
+      }
+
+      const start = day(-pl.startedDaysAgo), end = day(pl.endsInDays)
+      const requirement =
+        (await db.requirement.findFirst({ where: { companyId: client.id, title: pl.role } })) ??
+        (await db.requirement.create({
+          data: {
+            companyId: client.id, title: pl.role, skills: pl.skills, location: pl.loc,
+            billMin: pl.rates[0] - 1500, billMax: pl.rates[0] + 500, months: 12, headcount: 1,
+            status: pl.state === 'ENDED' ? 'CLOSED' : 'FILLED', approvalState: 'AUTO_APPROVED', source: 'MANUAL',
+            neededBy: start, raisedById: desk.hiring.personId, hoursPerWeek: 40,
+            costCenterId: costCentre?.id ?? null, orgUnitId: unitByName.get('Apps')?.id ?? null,
+          },
+        }))
+
+      // One contract pair per hop, bottom up, each buying from the rung below.
+      let supplierSellContractId: string | null = null
+      const contracts: { id: string; billRate: number; engagementId: string | null; clientCompanyId: string; companyId: string }[] = []
+      for (let i = chain.length - 1; i >= 0; i--) {
+        const sellerSlug = chain[i]
+        const buyerSlug = i === 0 ? p.client : chain[i - 1]
+        const seller = firmBySlug.get(sellerSlug)!, buyer = firmBySlug.get(buyerSlug)!
+        const existing = await db.sellContract.findFirst({
+          where: { companyId: seller.id, personId: who.id, clientCompanyId: buyer.id, requirementId: requirement.id },
+        })
+        if (existing) {
+          // The seed renames and adds; it never duplicates. A contract
+          // written before this placement carried overtime terms picks
+          // them up on the next run rather than waiting for a fresh
+          // database — the same rule a role added later follows.
+          if ((pl.overtimeAfterHours ?? null) !== existing.overtimeAfterHours) {
+            await db.sellContract.update({
+              where: { id: existing.id },
+              data: { overtimeAfterHours: pl.overtimeAfterHours ?? null },
+            })
+          }
+          supplierSellContractId = existing.id
+          contracts.push(existing)
+          continue
+        }
+
+        const { msa, eng } = await agreement(sellerSlug, buyerSlug, pl.role)
+        const sell = await db.sellContract.create({
+          data: {
+            companyId: seller.id, clientCompanyId: buyer.id, endClientCompanyId: client.id,
+            personId: who.id, requirementId: requirement.id, engagementId: eng.id, msaId: msa.id,
+            hiringManagerId: desk.hiring.personId, orgUnitId: unitByName.get('Apps')?.id ?? null,
+            billRate: pl.rates[i], billCurrency: 'USD', paymentTerms: 45, state: pl.state,
+            startDate: start, endDate: end,
+            // Which hours may be claimed. What they are worth is decided
+            // week by week by whoever signs the week, never here.
+            overtimeAfterHours: pl.overtimeAfterHours ?? null,
+          },
+        })
+        const employs = i === chain.length - 1
+        const buy = await db.buyContract.create({
+          data: {
+            companyId: seller.id,
+            vendorCompanyId: employs ? null : firmBySlug.get(chain[i + 1])!.id,
+            payCurrency: 'USD', contractType: employs ? 'W2' : 'C2C',
+            state: pl.state, startDate: start, endDate: end,
+            supplierSellContractId: employs ? null : supplierSellContractId,
+          },
+        })
+        await db.buyContractCandidate.create({
+          data: { buyContractId: buy.id, personId: who.id, payRate: pl.rates[i + 1], payCurrency: 'USD', startDate: start, endDate: end },
+        })
+        await db.contractLink.create({
+          data: { sellContractId: sell.id, buyContractId: buy.id, effectiveFrom: start, effectiveTo: end },
+        })
+        if (i === 0 && costCentre) {
+          await db.contractCostAllocation.create({
+            data: { sellContractId: sell.id, costCenterId: costCentre.id, shareBps: 10_000 },
+          })
+        }
+        // Due dates for anything still running or about to. A contract
+        // that ended has nothing due.
+        if (pl.state !== 'ENDED') await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys() })
+        supplierSellContractId = sell.id
+        contracts.push(sell)
+      }
+      placements++
+
+      // How they got here.
+      const top = firmBySlug.get(chain[0])!
+      const sub =
+        (await db.submission.findFirst({ where: { requirementId: requirement.id, personId: who.id } })) ??
+        (await db.submission.create({
+          data: {
+            requirementId: requirement.id, personId: who.id,
+            fromCompanyId: top.id, toCompanyId: client.id, kind: chain.length > 1 ? 'NETWORK' : 'BENCH',
+            rate: pl.rates[0], status: 'PLACED', checkState: 'SENT',
+            submittedAt: day(-pl.startedDaysAgo - 21), decidedAt: day(-pl.startedDaysAgo - 6),
+          },
+        }))
+      if (!(await db.interview.findFirst({ where: { submissionId: sub.id } }))) {
+        await db.interview.create({
+          data: {
+            submissionId: sub.id, companyId: client.id, vendorId: top.id,
+            round: 1, stage: 'TECHNICAL', mode: 'VIDEO', state: 'DONE', proposedSlots: [], durationMins: 45,
+            // On a working day, at an hour somebody interviews at.
+            scheduledAt: at(-pl.startedDaysAgo - 12, 16), decidedAt: at(-pl.startedDaysAgo - 12, 17),
+            requestedById: desk.hiring.personId, decidedById: desk.hiring.personId,
+            // They were placed, so the round ended in an offer — not "advance",
+            // which read as a round two nobody had set up.
+            outcome: 'OFFER', feedback: 'Strong. Offer.',
+          },
+        })
+      }
+
+      // ── What is on file ──────────────────────────────────────────
+      const papers: { type: 'I9_EVERIFY' | 'BACKGROUND_CHECK'; expiresAt: Date | null }[] = []
+      if (pl.papers !== 'NO_I9') papers.push({ type: 'I9_EVERIFY', expiresAt: null })
+      if (pl.papers === 'CLEAR' || pl.papers === 'NO_I9') papers.push({ type: 'BACKGROUND_CHECK', expiresAt: day(250) })
+      if (pl.papers === 'BGC_EXPIRED') papers.push({ type: 'BACKGROUND_CHECK', expiresAt: day(-15) })
+      for (const v of papers) {
+        if (await db.verification.findFirst({ where: { personId: who.id, type: v.type } })) continue
+        await db.verification.create({
+          data: {
+            personId: who.id, type: v.type, status: 'CLEAR', provider: v.type === 'I9_EVERIFY' ? 'E-Verify' : 'Sterling',
+            issuedAt: day(-pl.startedDaysAgo - 8), expiresAt: v.expiresAt,
+            uploadedById: seatBySlug.get(employerSlug)!.personId, verifiedById: desk.compliance.personId, verifiedAt: day(-pl.startedDaysAgo - 7),
+            result: { outcome: 'CLEAR' },
+          },
+        })
+      }
+
+      // ── Would take again ─────────────────────────────────────────
+      if (pl.takeAgain) {
+        for (const [targetType, targetId] of [['PERSON', who.id], ['COMPANY', firmBySlug.get(chain[0])!.id]] as const) {
+          await db.favorite.upsert({
+            where: { companyId_targetType_targetId: { companyId: client.id, targetType, targetId } },
+            create: { companyId: client.id, targetType, targetId, byId: desk.hiring.personId },
+            update: {},
+          })
+        }
+      }
+
+      // ── Hours, and what became of them ───────────────────────────
+      if (!pl.weeks) continue
+      const bottom = contracts[0]
+      const signed: { id: string; periodStart: Date; periodEnd: Date }[] = []
+      const total = pl.weeks.approved + pl.weeks.awaiting
+      for (let w = total; w >= 1; w--) {
+        const awaiting = w <= pl.weeks.awaiting
+        // The one week still waiting is the long one, where there is a
+        // long one. A week already signed was signed at the ordinary
+        // hours, and re-pricing history is not what this seed is for.
+        const longHours = awaiting && w === 1 ? pl.exceptionHours ?? null : null
+        const { start: ws, end: we, days } = week(w, longHours ?? 40)
+        const already = await db.timesheet.findFirst({ where: { sellContractId: bottom.id, periodStart: ws } })
+        if (already) { if (!awaiting) signed.push(already); continue }
+        const ts = await db.timesheet.create({
+          data: {
+            sellContractId: bottom.id, personId: who.id, periodStart: ws, periodEnd: we, days,
+            // The total the days add up to. A sheet whose total and
+            // whose days disagree is a figure nobody can stand behind,
+            // and the overtime split reads the days.
+            totalHours: longHours ?? 40,
+            status: awaiting ? 'SUBMITTED' : 'APPROVED', submittedAt: we,
+            ...(awaiting ? {} : {
+              approvedAt: day(-(w * 7 - 2)), approvedById: desk.hiring.personId,
+              clientApprovedAt: day(-(w * 7 - 2)), clientApprovedById: desk.hiring.personId,
+              employerAcceptedAt: day(-(w * 7 - 1)), employerAcceptedById: seatBySlug.get(employerSlug)!.personId,
+            }),
+          },
+        })
+        if (!awaiting) {
+          await db.workAssertion.createMany({
+            data: [
+              { timesheetId: ts.id, companyId: client.id, role: 'CLIENT_APPROVAL', hours: 40, rateCents: pl.rates[0],
+                state: 'LIVE', byId: desk.hiring.personId },
+              { timesheetId: ts.id, companyId: employer.id, role: 'EMPLOYER_ACCEPTANCE', hours: 40,
+                rateCents: pl.rates[pl.rates.length - 1], state: 'LIVE', byId: seatBySlug.get(employerSlug)!.personId },
+            ],
+          })
+          signed.push(ts)
+        }
+      }
+
+      // ── The week nobody has priced yet ───────────────────────────
+      //
+      // Submitted, longer than the contract's ordinary week, and not
+      // signed. Opening it asks the question the whole feature exists
+      // for: the hours over the line are worth the usual rate, a
+      // premium, or time off in the bank, and until somebody says
+      // which, they reach no invoice.
+      //
+      // Its own calendar week, never one of the spans above. A
+      // threshold is judged Monday to Monday, and those spans are five
+      // consecutive days counted back from whenever the seed ran, so on
+      // six days in seven they straddle a weekend — forty-five hours
+      // across one reads as twenty-seven and eighteen, neither over the
+      // line, and the desk is never asked anything.
+      if (pl.overtimeWeekHours) {
+        const overlapping = (from: Date, to: Date) =>
+          db.timesheet.findFirst({
+            where: { sellContractId: bottom.id, periodStart: { lte: to }, periodEnd: { gte: from } },
+          })
+
+        // Clear of every week above, not merely off their start dates.
+        // Two sheets claiming the same Tuesday is a day billed twice and
+        // a figure nobody can reconcile.
+        let back = 1
+        const oldest = day(-(total * 7 + 4)).getTime()
+        while (mondayWeek(back, 40).end.getTime() >= oldest) back += 1
+
+        let slot = mondayWeek(back, pl.overtimeWeekHours)
+        let sitting = await overlapping(slot.start, slot.end)
+        // Anything already signed there stays signed: re-opening a week
+        // an invoice was paid on would leave the payment pointing at
+        // hours nobody had approved.
+        while (sitting && sitting.status !== 'SUBMITTED' && back < 12) {
+          back += 1
+          slot = mondayWeek(back, pl.overtimeWeekHours)
+          sitting = await overlapping(slot.start, slot.end)
+        }
+
+        if (sitting && sitting.status !== 'SUBMITTED') {
+          // Twelve weeks back and every one of them signed. Leave them be.
+        } else if (sitting) {
+          // Ours, from an earlier run. One week to decide, never two —
+          // its length is corrected if an earlier run wrote it shorter,
+          // and no second sheet is made.
+          if (Number(sitting.totalHours) !== pl.overtimeWeekHours) {
+            await db.timesheet.update({
+              where: { id: sitting.id },
+              data: { days: slot.days, totalHours: pl.overtimeWeekHours, periodEnd: slot.end },
+            })
+          }
+        } else {
+          await db.timesheet.create({
+            data: {
+              sellContractId: bottom.id, personId: who.id,
+              periodStart: slot.start, periodEnd: slot.end, days: slot.days,
+              totalHours: pl.overtimeWeekHours, status: 'SUBMITTED', submittedAt: slot.end,
+            },
+          })
+        }
+      }
+
+      // The invoice for the signed weeks, from whoever bills the client,
+      // at that firm's rate. Lower hops bill their own leg the same way
+      // in the world seed; here the point is what reaches the client's
+      // payables desk.
+      if (!pl.invoice || signed.length === 0) continue
+      const topContract = contracts[contracts.length - 1]
+      const number = `IN-${topContract.id.slice(-6).toUpperCase()}-${signed[0].periodStart.toISOString().slice(0, 10).replace(/-/g, '')}`
+      if (await db.invoice.findUnique({ where: { number } })) continue
+      const cents = signed.length * 40 * topContract.billRate
+      const inv = await db.invoice.create({
+        data: {
+          engagementId: topContract.engagementId!, number,
+          periodStart: signed[0].periodStart, periodEnd: signed[signed.length - 1].periodEnd,
+          currency: 'USD', total: cents / 100, paid: pl.invoice === 'PAID' ? cents / 100 : 0,
+          issuedAt: day(-6), submittedAt: day(-5), dueAt: day(-6 + 45),
+          status: pl.invoice,
+          soldToId: client.id, billToId: client.id, payerId: client.id,
+        },
+      })
+      for (const t of signed) {
+        // A week is billed once on a contract, and the database says so.
+        // A run that found last run's timesheets and wrote a fresh
+        // invoice — which is what an off-by-one-week re-seed did — died
+        // here on the unique index and left the world half written.
+        if (await db.invoiceLine.findFirst({ where: { timesheetId: t.id, sellContractId: topContract.id } })) continue
+        await db.invoiceLine.create({
+          data: {
+            invoiceId: inv.id, timesheetId: t.id, sellContractId: topContract.id, personId: who.id,
+            hours: 40, rateCents: topContract.billRate, amountCents: 40 * topContract.billRate,
+            description: `${pl.person} — ${t.periodStart.toISOString().slice(0, 10)} to ${t.periodEnd.toISOString().slice(0, 10)}`,
+          },
+        })
+      }
+      if (pl.invoice === 'PAID') {
+        await db.payment.create({
+          data: {
+            invoiceId: inv.id, payerCompanyId: client.id, receivedByCompanyId: topContract.companyId,
+            amount: cents / 100, currency: 'USD', method: 'ACH', reference: `ACH-${number.slice(-8)}`,
+            receivedAt: day(-2), appliedAt: day(-2),
+          },
+        })
+      }
+    }
+
+    // ── One order, one contractor, no agreement ────────────────────
+    //
+    // The plant needed somebody for a season, sent a purchase order and
+    // that was the whole of the paperwork. There is no MSA between the
+    // two firms, so the engagement has no `msaId`, the order has none
+    // and neither does the line on it.
+    //
+    // It is here because every other placement in this world is papered
+    // the same way and an invoice could always answer "who is this
+    // between" through `engagement.msa`. When that column went optional
+    // the answer became a cascade — the agreement, else the order, else
+    // the lines billed on it — and the two new branches had nothing on
+    // the seeded world to read. Now the order branch has one.
+    //
+    // The contractor is Wrenfield's own W2, so the buy line carries no
+    // order of its own: a firm does not raise a purchase order to its
+    // own employee.
+    if (p.direct) {
+      const d = p.direct
+      const supplier = firmBySlug.get(d.supplier)!
+      const supplierSeat = seatBySlug.get(d.supplier)!
+      const dStart = day(-d.startedDaysAgo), dEnd = day(d.endsInDays)
+
+      // On the register both ways, and its cover on file — a supplier
+      // whose insurance has lapsed places nobody, agreement or no
+      // agreement, and that rule never read the MSA.
+      await trade(d.supplier, p.client, 'CLIENT')
+      await trade(p.client, d.supplier, 'SUPPLIER')
+      await cover(d.supplier, 210, 210, supplierSeat.personId, desk.compliance.personId)
+
+      const dWho = await person(d.person)
+      await onBench(dWho.id, d.skills, p.loc, d.workAuth, d.supplier)
+      if (!(await db.context.findFirst({ where: { personId: dWho.id, companyId: supplier.id, type: 'CONSULTANT' } }))) {
+        await db.context.create({
+          data: { personId: dWho.id, companyId: supplier.id, type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' },
+        })
+      }
+
+      const dRequirement =
+        (await db.requirement.findFirst({ where: { companyId: client.id, title: d.role } })) ??
+        (await db.requirement.create({
+          data: {
+            companyId: client.id, title: d.role, skills: d.skills, location: p.loc,
+            billMin: d.rates[0] - 1000, billMax: d.rates[0] + 400, months: 6, headcount: 1, hoursPerWeek: 40,
+            status: 'FILLED', approvalState: 'AUTO_APPROVED', source: 'MANUAL', neededBy: dStart,
+            raisedById: desk.hiring.personId, costCenterId: costCentre?.id ?? null,
+            orgUnitId: unitByName.get('Apps')?.id ?? null,
+          },
+        }))
+
+      // The engagement with nothing above it. Looked up by title and by
+      // the absence, so a re-seed finds this one rather than papering a
+      // second.
+      const dEng =
+        (await db.engagement.findFirst({ where: { msaId: null, title: d.role } })) ??
+        (await db.engagement.create({ data: { msaId: null, title: d.role, invoiceCycle: 'MONTHLY' } }))
+
+      // The order. The client raised it, the supplier reads it as its
+      // sales order, and the trade calls the whole thing a work order.
+      const orderNumber = `PO-${slug.toUpperCase()}-0001`
+      const dOrder =
+        (await db.workOrder.findFirst({ where: { issuedById: client.id, number: orderNumber } })) ??
+        (await db.workOrder.create({
+          data: {
+            issuedById: client.id, issuedToId: supplier.id, recordedById: client.id,
+            number: orderNumber, title: d.role,
+            engagementId: dEng.id, msaId: null,
+            billToId: client.id, payerId: client.id,
+            amount: d.ceiling / 100, currency: 'USD',
+            billingBasis: 'TIME', billFrequency: 'MONTHLY', billAnchor: 'CALENDAR', billStraddle: 'SPLIT',
+            paymentTerms: 30, status: 'OPEN', startDate: dStart, endDate: dEnd,
+          },
+        }))
+
+      let dSell = await db.sellContract.findFirst({
+        where: { companyId: supplier.id, personId: dWho.id, clientCompanyId: client.id },
+      })
+      if (!dSell) {
+        dSell = await db.sellContract.create({
+          data: {
+            companyId: supplier.id, clientCompanyId: client.id, endClientCompanyId: client.id,
+            personId: dWho.id, requirementId: dRequirement.id,
+            engagementId: dEng.id, msaId: null, workOrderId: dOrder.id,
+            hiringManagerId: desk.hiring.personId, orgUnitId: unitByName.get('Apps')?.id ?? null,
+            billRate: d.rates[0], billCurrency: 'USD', paymentTerms: 30, state: 'IN_PROGRESS',
+            startDate: dStart, endDate: dEnd,
+          },
+        })
+        // No order on the buy line, on purpose: Elsa is Wrenfield's own
+        // employee and a firm raises no purchase order to itself.
+        const dBuy = await db.buyContract.create({
+          data: {
+            companyId: supplier.id, vendorCompanyId: null, workOrderId: null,
+            payCurrency: 'USD', contractType: 'W2', state: 'IN_PROGRESS',
+            startDate: dStart, endDate: dEnd,
+          },
+        })
+        await db.buyContractCandidate.create({
+          data: { buyContractId: dBuy.id, personId: dWho.id, payRate: d.rates[1], payCurrency: 'USD', startDate: dStart, endDate: dEnd },
+        })
+        await db.contractLink.create({
+          data: { sellContractId: dSell.id, buyContractId: dBuy.id, effectiveFrom: dStart, effectiveTo: dEnd },
+        })
+        if (costCentre) {
+          await db.contractCostAllocation.create({
+            data: { sellContractId: dSell.id, costCenterId: costCentre.id, shareBps: 10_000 },
+          })
+        }
+        await writeCyclesFor(db, { sell: dSell, buy: dBuy, packId: 'US_IT', holidays: holidayKeys() })
+      }
+      placements++
+
+      if (!(await db.submission.findFirst({ where: { requirementId: dRequirement.id, personId: dWho.id } }))) {
+        await db.submission.create({
+          data: {
+            requirementId: dRequirement.id, personId: dWho.id,
+            fromCompanyId: supplier.id, toCompanyId: client.id, kind: 'BENCH',
+            rate: d.rates[0], status: 'PLACED', checkState: 'SENT',
+            submittedAt: day(-d.startedDaysAgo - 14), decidedAt: day(-d.startedDaysAgo - 4),
+          },
+        })
+      }
+
+      // Paperwork on the person, so the placement clears the same gate
+      // every other one does.
+      for (const v of [
+        { type: 'I9_EVERIFY' as const, expiresAt: null, provider: 'E-Verify' },
+        { type: 'BACKGROUND_CHECK' as const, expiresAt: day(250), provider: 'Sterling' },
+      ]) {
+        if (await db.verification.findFirst({ where: { personId: dWho.id, type: v.type } })) continue
+        await db.verification.create({
+          data: {
+            personId: dWho.id, type: v.type, status: 'CLEAR', provider: v.provider,
+            issuedAt: day(-d.startedDaysAgo - 8), expiresAt: v.expiresAt,
+            uploadedById: supplierSeat.personId, verifiedById: desk.compliance.personId,
+            verifiedAt: day(-d.startedDaysAgo - 7), result: { outcome: 'CLEAR' },
+          },
+        })
+      }
+
+      // One week, signed by the client and accepted by the employer.
+      const { start: dWs, end: dWe, days: dDays } = week(2)
+      let dSheet = await db.timesheet.findFirst({ where: { sellContractId: dSell.id, periodStart: dWs } })
+      if (!dSheet) {
+        dSheet = await db.timesheet.create({
+          data: {
+            sellContractId: dSell.id, personId: dWho.id, periodStart: dWs, periodEnd: dWe, days: dDays,
+            totalHours: 40, status: 'APPROVED', submittedAt: dWe,
+            approvedAt: day(-12), approvedById: desk.hiring.personId,
+            clientApprovedAt: day(-12), clientApprovedById: desk.hiring.personId,
+            employerAcceptedAt: day(-11), employerAcceptedById: supplierSeat.personId,
+          },
+        })
+        await db.workAssertion.createMany({
+          data: [
+            { timesheetId: dSheet.id, companyId: client.id, role: 'CLIENT_APPROVAL', hours: 40,
+              rateCents: d.rates[0], state: 'LIVE', byId: desk.hiring.personId },
+            { timesheetId: dSheet.id, companyId: supplier.id, role: 'EMPLOYER_ACCEPTANCE', hours: 40,
+              rateCents: d.rates[1], state: 'LIVE', byId: supplierSeat.personId },
+          ],
+        })
+      }
+
+      // And the bill for it, on the order rather than on an agreement.
+      // This is the row the ORDER branch of `partiesOf` reads.
+      const dNumber = `IN-${dSell.id.slice(-6).toUpperCase()}-${dWs.toISOString().slice(0, 10).replace(/-/g, '')}`
+      if (!(await db.invoice.findUnique({ where: { number: dNumber } }))) {
+        const dCents = 40 * d.rates[0]
+        const dInv = await db.invoice.create({
+          data: {
+            engagementId: dEng.id, workOrderId: dOrder.id, number: dNumber,
+            periodStart: dWs, periodEnd: dWe, currency: 'USD',
+            total: dCents / 100, paid: 0,
+            issuedAt: day(-9), submittedAt: day(-8), dueAt: day(21), status: 'SUBMITTED',
+            soldToId: client.id, billToId: client.id, payerId: client.id,
+          },
+        })
+        await db.invoiceLine.create({
+          data: {
+            invoiceId: dInv.id, timesheetId: dSheet.id, sellContractId: dSell.id, personId: dWho.id,
+            hours: 40, rateCents: d.rates[0], amountCents: dCents,
+            description: `${d.person} — ${dWs.toISOString().slice(0, 10)} to ${dWe.toISOString().slice(0, 10)}`,
+          },
+        })
+      }
+    }
+
+    // ── A role being worked ────────────────────────────────────────
+    const open =
+      (await db.requirement.findFirst({ where: { companyId: client.id, title: p.open.title } })) ??
+      (await db.requirement.create({
+        data: {
+          companyId: client.id, title: p.open.title, skills: p.open.skills, location: p.loc,
+          billMin: p.open.band[0], billMax: p.open.band[1], months: 12, headcount: 1, hoursPerWeek: 40,
+          status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', neededBy: day(21),
+          raisedById: desk.hiring.personId, costCenterId: costCentre?.id ?? null, orgUnitId: unitByName.get('Apps')?.id ?? null,
+        },
+      }))
+    if (!(await db.requirementApproval.findFirst({ where: { requirementId: open.id } }))) {
+      await db.requirementApproval.create({
+        data: { requirementId: open.id, approverId: null, rank: 0, outcome: 'AUTO_CLEARED', reason: 'Within plan and under every threshold.', decidedAt: day(-9) },
+      })
+    }
+    for (const vendorSlug of p.open.to) {
+      const v = firmBySlug.get(vendorSlug)!
+      if (await db.requirementInvitation.findFirst({ where: { requirementId: open.id, toCompanyId: v.id } })) continue
+      await db.requirementInvitation.create({
+        data: {
+          requirementId: open.id, fromCompanyId: client.id, toCompanyId: v.id,
+          // Under the ceiling, and not the same for everybody.
+          payMin: p.open.band[0] - 1000, payMax: p.open.band[1] - (vendorSlug === p.open.to[0] ? 0 : 500),
+          expiresAt: day(12), status: 'SENT', createdAt: day(-9),
+        },
+      })
+    }
+    for (const c of p.open.candidates) {
+      const who = await person(c.person)
+      await onBench(who.id, p.open.skills, p.loc, 'USC', c.from)
+      const from = firmBySlug.get(c.from)!
+      const sub =
+        (await db.submission.findFirst({ where: { requirementId: open.id, personId: who.id } })) ??
+        (await db.submission.create({
+          data: {
+            requirementId: open.id, personId: who.id, fromCompanyId: from.id, toCompanyId: client.id, kind: 'BENCH',
+            rate: c.rate, status: c.status, checkState: 'SENT', screenState: 'READY', submittedAt: day(-6),
+          },
+        }))
+      // On their supplier's bench, so they can open their own page and
+      // answer a round. A candidate with no seat anywhere could be
+      // interviewed but never asked.
+      if (!(await db.context.findFirst({ where: { personId: who.id, companyId: from.id, type: 'CONSULTANT' } }))) {
+        await db.context.create({
+          data: { personId: who.id, companyId: from.id, type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' },
+        })
+      }
+      if (!c.round || (await db.interview.findFirst({ where: { submissionId: sub.id } }))) continue
+      // Working days only, three apart when two are offered — a nudge
+      // off a weekend moves a date by at most two, so closer than that
+      // can collapse to the same slot twice.
+      const when = at(c.round.inDays, 16)
+      const later = at(c.round.inDays + 3, 16)
+      const proposed = c.round.state === 'PROPOSED'
+      const done = c.round.state === 'DONE'
+      await db.interview.create({
+        data: {
+          submissionId: sub.id, companyId: client.id, vendorId: from.id,
+          round: 1, stage: done ? 'SCREEN' : 'TECHNICAL', mode: 'VIDEO', state: c.round.state,
+          proposedSlots: proposed
+            ? [{ start: when.toISOString(), end: new Date(when.getTime() + 3_600_000).toISOString() },
+               { start: later.toISOString(), end: new Date(later.getTime() + 3_600_000).toISOString() }]
+            : [],
+          scheduledAt: proposed ? null : when,
+          durationMins: 60, location: 'https://meet.example.invalid/etyme-demo',
+          requestedById: desk.hiring.personId, interviewers: c.round.interviewers,
+          proposedAt: day(done ? c.round.inDays - 4 : -3),
+          clientConfirmedAt: proposed ? null : day(done ? c.round.inDays - 3 : -2),
+          vendorConfirmedAt: proposed ? null : day(done ? c.round.inDays - 3 : -2),
+          // A done round was confirmed by the person and decided by the
+          // manager who ran it. The notes are the client's own.
+          ...(done
+            ? {
+                consultantConfirmedAt: day(c.round.inDays - 3), consultantConfirmedVia: 'SELF',
+                outcome: c.round.outcome ?? 'ADVANCE',
+                feedback: 'Strong on the platform; wants to see them with the integrations team.',
+                decidedAt: day(c.round.inDays), decidedById: desk.hiring.personId,
+              }
+            : {}),
+        },
+      })
+    }
+
+    // ── A role waiting on the VP ───────────────────────────────────
+    //
+    // Over the $250k line the office set for itself, so it routes. It
+    // sits in the VP's queue, and in the hiring manager's as "waiting".
+    const vp = await db.person.findUnique({ where: { primaryEmail: `${slug}-vp@${domain}` } })
+    const routed =
+      (await db.requirement.findFirst({ where: { companyId: client.id, title: p.routed.title } })) ??
+      (await db.requirement.create({
+        data: {
+          companyId: client.id, title: p.routed.title, skills: p.routed.skills, location: p.loc,
+          billMin: p.routed.billMax - 2000, billMax: p.routed.billMax, months: 12, headcount: p.routed.headcount, hoursPerWeek: 40,
+          status: 'DRAFT', approvalState: 'PENDING_APPROVAL', source: 'MANUAL', neededBy: day(45),
+          raisedById: desk.hiring.personId, costCenterId: costCentre?.id ?? null, orgUnitId: unitByName.get('Apps')?.id ?? null,
+        },
+      }))
+    if (vp && !(await db.requirementApproval.findFirst({ where: { requirementId: routed.id } }))) {
+      const annual = Math.round((p.routed.billMax * 160 * 12 * p.routed.headcount) / 100)
+      // Three desks. Over the plan, so HR reads the role; at the going
+      // rate, so Procurement is cleared by rule; over the line, so the VP
+      // and whoever owns Apps' budget give the final word, after HR.
+      const leadId = costCentre?.ownerId && costCentre.ownerId !== vp.id && costCentre.ownerId !== desk.hiring.personId
+        ? costCentre.ownerId : null
+      await db.requirementApproval.createMany({
+        data: [
+          { requirementId: routed.id, approverId: desk.hr.personId, rank: 1, stage: 'ROLE', outcome: 'PENDING',
+            reason: `${p.routed.headcount} heads against Apps' plan — over it. Is this a role the plan meant?` },
+          { requirementId: routed.id, approverId: null, rank: 1, stage: 'SOURCING', outcome: 'AUTO_CLEARED', decidedAt: day(-2),
+            reason: `Within the going rate — $${Math.round(p.routed.billMax / 100)}/hr is in line with what Apps already pays. Procurement not needed.` },
+          { requirementId: routed.id, approverId: vp.id, rank: 2, stage: 'FINAL', outcome: 'PENDING',
+            reason: `Over $250k: about $${annual.toLocaleString('en-US')} a year across ${p.routed.headcount} heads.` },
+          ...(leadId
+            ? [{ requirementId: routed.id, approverId: leadId, rank: 2, stage: 'FINAL' as const, outcome: 'PENDING' as const,
+                 reason: `The final word on Apps' spend — about $${annual.toLocaleString('en-US')} a year.` }]
+            : []),
+        ],
+      })
+    }
+
+    void office
+  }
+
+  return { placements, people: people.size }
+}
+
+/** The programs, for a page that lists them. */
+export const PROGRAMME_SLUGS = PROGRAMMES.map((p) => p.client)

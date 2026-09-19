@@ -1,0 +1,753 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
+import { readJson } from '@/lib/read-response'
+import { CoverChip, SubVendorCover } from '@/components/cover-standing'
+
+/**
+ * One placement, top to bottom.
+ *
+ * The screen the demo did not have. There were sixty lists and four
+ * things you could open, so a vendor could be shown sets of records and
+ * could not follow one person through their working life — where they
+ * came from, who sent them on, who met them, what was agreed on both
+ * sides, whether they are cleared, whether they filed, whether we were
+ * paid, and what we made.
+ *
+ * Every one of those facts already existed. None was reachable from the
+ * others, and a product whose parts do not connect reads as a database
+ * with a menu.
+ *
+ * ── Why it is shaped as a thread ─────────────────────────────────────
+ *
+ * CLAUDE.md distinguishes decision surfaces from working surfaces. A
+ * list of two hundred timesheets is a working surface: dense, sortable,
+ * fast. One placement is the other kind — three to ten things, read in
+ * order, with prose and space. So this is a single column of stations in
+ * the order they actually happen, and the eye can run down it.
+ *
+ * The station that matters most is the chain, because it is the one no
+ * applicant tracking system can draw: a person reaching a client through
+ * two firms, one week of hours, and a margin at each hop that neither
+ * hop can see.
+ */
+
+/**
+ * A line, and the document it is a line of.
+ *
+ * Every string here is written by `lib/order-naming` on the server, so
+ * the client, the supplier and a bystander cannot be shown three
+ * different words by three different screens. `order` is null where the
+ * line is not on one yet — which is every row written before the award
+ * began raising a header, and every W2 buy line, which never has one.
+ */
+interface LineDoc {
+  onOrder: boolean
+  Noun: string | null
+  reference: string | null
+  heading: string
+  name: string
+  does: string
+  says: string
+  order: {
+    id: string; number: string; reference: string; status: string
+    startDate: string; endDate: string | null
+    ceiling: number | null; currency: string
+    drawn: number | null; remaining: number | null
+    consumedPercent: number | null; overdrawn: boolean
+    says: string | null
+  } | null
+}
+
+interface Placement {
+  id: string
+  person: { id: string; name: string; skills: string[]; location: string | null; workAuth: string | null }
+  // `nameWithheld` where this reader is below the rung it pays: the name
+  // is a sentence naming the firm they can actually call.
+  supplier: { id: string; name: string; phrase?: string; nameWithheld?: boolean; suppliedThrough?: string | null }
+  client: { id: string; name: string }
+  endClient: { id: string; name: string } | null
+  hiringManager: { id: string; name: string } | null
+  state: string
+  startDate: string | null
+  endDate: string | null
+  paymentTerms: number | null
+  currency: string
+  // Which side of the trade this reader sits on. The buy-side fields
+  // below arrive empty for anybody but the supplier — they are gated in
+  // the route, not here, because a screen that filters is a screen
+  // somebody reads around with the network tab open.
+  viewer: {
+    side: 'SUPPLIER' | 'PAYER' | 'END_CLIENT' | null
+    isSupplier: boolean; seeBill: boolean; seePay: boolean; seeMargin: boolean
+  }
+  origin: {
+    id: string; title: string; skills: string[]; location: string | null
+    raisedBy: { id: string; name: string }; neededBy: string | null; approvalState: string
+  } | null
+  invitation: { status: string; payMin: number | null; payMax: number | null; message: string | null } | null
+  submission: {
+    id: string; status: string; rate: number | null
+    submittedAt: string | null; forwardedAt: string | null
+    from: { id: string; name: string; phrase?: string }; to: { id: string; name: string } | null
+    checkState: string
+    sentOnBy: { company: { id: string; name: string }; at: string | null; rate: number | null } | null
+  } | null
+  interviews: Array<{
+    id: string; round: number; stage: string; mode: string; state: string
+    scheduledAt: string | null; decidedAt: string | null; feedback: string | null
+  }>
+  contracts: {
+    // A purchase order is a header and its lines. `document` is the
+    // header as this reader names it — purchase order to the client,
+    // sales order to the supplier — and `lines` is everybody on it.
+    sell: {
+      id: string; billRate: number | null; state: string
+      workOrder: { number: string; amount: number | null; currency: string } | null
+      document: LineDoc
+    }
+    buy: {
+      id: string; contractType: string; state: string
+      vendor: { id: string; name: string } | null; payRate: number | null
+      document: LineDoc | null
+    } | null
+    lines: Array<{
+      id: string; position: number; person: string; isThisOne: boolean
+      site: string; state: string; startDate: string; endDate: string | null
+      billed: number | null
+    }>
+    pair: string | null
+    masterContract: { tag: { code: string; name: string } | null; says: string } | null
+  }
+  // `weEmployThem` is null where the reader is not the supplier: the
+  // answer lives on the buy contract, which nobody else is sent.
+  chain: { hopsBelow: number; weEmployThem: boolean | null }
+  compliance: {
+    person: Array<{ type: string; status: string; provider: string | null; expiresAt: string | null }>
+    // The firm below us, where there is one. `standing` is computed for
+    // today and `says` is the sentence that goes with it; the stored
+    // `status` is kept because it is a fact about the record, and is not
+    // what the screen reads.
+    supplierCover: Array<{
+      type: string; status: string
+      validFrom: string | null; expiresAt: string | null
+      standing: string | null; says: string | null
+    }>
+    subVendorCover: { vendor: string; outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null } | null
+  }
+  timesheets: Array<{
+    id: string; periodStart: string; periodEnd: string; hours: number; status: string
+    clientApproved: { hours: number; at: string } | null
+    employerAccepted: { hours: number; at: string } | null
+    billedByUs: boolean
+  }>
+  money: {
+    hoursAccepted: number
+    invoices: Array<{ id: string; number: string; status: string; hours: number; weeks: number; amount: number | null; total: number; paid: number; dueAt: string }>
+    billed: number | null; collected: number | null
+    revenue: number | null; cost: number | null; margin: number | null
+    // Why there is nothing here, where there is nothing here.
+    says: string | null
+  }
+  timeline: {
+    hours: Due[]; pay: Due[]; bill: Due[]
+    next: Due | null
+  }
+  checklist: {
+    outcome: 'PASS' | 'WARN' | 'BLOCK'
+    says: string
+    fix: string | null
+    items: Array<{ key: string; label: string; required: boolean; state: string; note: string; blocks: boolean }>
+    cover: 'PASS' | 'WARN' | 'BLOCK'
+  }
+}
+
+type Due = { kind: string; label: string; dueOn: string; done: boolean; overdue: boolean }
+
+const rate = (n: number | null) => (n == null ? '—' : `$${n.toFixed(0)}/hr`)
+const cash = (n: number | null) => (n == null ? '—' : `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`)
+const day = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+
+/** A word for a state, in the tone it deserves. */
+function tone(status: string): string {
+  const s = status.toUpperCase()
+  if (['CLEAR', 'APPROVED', 'IN_PROGRESS', 'PLACED', 'ACCEPTED', 'PAID', 'DONE'].includes(s)) return 'chip--verified'
+  if (['FLAGGED', 'FAILED', 'EXPIRED', 'REJECTED', 'BLOCKED', 'OVERDUE'].includes(s)) return 'chip--danger'
+  if (['PENDING', 'IN_REVIEW', 'SUBMITTED', 'DRAFT', 'SENT', 'PROPOSED'].includes(s)) return 'chip--attention'
+  return 'chip--passive'
+}
+
+const words = (s: string) => s.replace(/_/g, ' ').toLowerCase()
+
+/**
+ * One document, and this line on it.
+ *
+ * A purchase order is a header and its lines (CLAUDE.md, 2026-09-18).
+ * The placement is one line; this is the paper it hangs on, what it
+ * authorizes, how much of that has been drawn, and who else is on it.
+ *
+ * Every word comes off the server, because what this paper is called
+ * depends on which end of it the reader stands at — a purchase order to
+ * the client who raised it, a sales order to the supplier billing
+ * against it — and three screens deciding that separately is three
+ * screens that will disagree.
+ *
+ * A line with no header says so in a sentence rather than showing a
+ * blank. That is the ordinary case today, not an error: every row
+ * written before the award began raising a header has none, and a buy
+ * line to our own employee never will.
+ */
+function Document({
+  doc, lines,
+}: { doc: LineDoc; lines: Placement['contracts']['lines'] }) {
+  if (!doc.onOrder || !doc.order) {
+    return (
+      <div className="card">
+        <div className="lbl mb-1">{doc.heading}</div>
+        <p className="text-[13px] leading-relaxed text-etyme-muted">{doc.says}</p>
+      </div>
+    )
+  }
+  const o = doc.order
+  const others = lines.filter((l) => !l.isThisOne).length
+  return (
+    <div className="card">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="lbl">{doc.heading}</div>
+        <span className={`chip ${tone(o.status)}`}>{words(o.status)}</span>
+      </div>
+      <p className="mt-1 text-[13px] text-etyme-muted">
+        {doc.name} · {doc.does}
+      </p>
+      {o.ceiling != null ? (
+        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[13px] tabular-nums text-etyme-muted">
+          <span>
+            Authorized <span className="text-etyme-ink">{cash(o.ceiling)}</span>
+          </span>
+          <span>
+            Billed against it <span className="text-etyme-ink">{cash(o.drawn)}</span>
+          </span>
+          <span className={o.overdrawn ? 'text-etyme-attention' : undefined}>
+            Left <span className={o.overdrawn ? '' : 'text-etyme-ink'}>{cash(o.remaining)}</span>
+          </span>
+        </div>
+      ) : (
+        <p className="mt-2 text-[13px] text-etyme-faint">
+          What this document authorizes is money, and this desk does not read money.
+        </p>
+      )}
+      {o.says && o.ceiling != null && (
+        <p className="mt-1 text-[12px] text-etyme-faint">{o.says}</p>
+      )}
+      {lines.length > 0 && (
+        <ul className="mt-3 divide-y divide-etyme-rule border-t border-etyme-rule">
+          {lines.map((l) => (
+            <li
+              key={l.id}
+              className={`flex flex-wrap items-baseline justify-between gap-2 py-1.5 text-[13px] ${
+                l.isThisOne ? 'text-etyme-ink' : 'text-etyme-muted'
+              }`}
+            >
+              <span>
+                <span className="tabular-nums text-etyme-faint">{l.position}</span>{' '}
+                {l.person} — {l.site}
+                {l.isThisOne && <span className="ml-2 chip chip--action">this line</span>}
+              </span>
+              <span className="tabular-nums">
+                {words(l.state)}
+                {l.billed != null && <span className="ml-3 text-etyme-ink">{cash(l.billed)}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {others > 0 && (
+        <p className="mt-2 text-[12px] text-etyme-faint">
+          One document, {lines.length} lines. {others === 1 ? 'The other line is' : `The other ${others} lines are`} billed
+          against the same ceiling.
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** One station on the thread. */
+function Station({
+  n, title, subtitle, children,
+}: { n: number; title: string; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <section className="relative pl-10 pb-8">
+      {/* The thread itself. It is the whole point of the screen, so it is
+          drawn rather than implied by spacing. */}
+      <div className="absolute left-[11px] top-7 bottom-0 w-px bg-etyme-rule" aria-hidden="true" />
+      <div
+        className="absolute left-0 top-1 flex h-6 w-6 items-center justify-center rounded-full
+                   border border-etyme-rule bg-etyme-raised text-[11px] tabular-nums text-etyme-muted"
+        aria-hidden="true"
+      >
+        {n}
+      </div>
+      <h2 className="headline-serif text-[17px] text-etyme-ink">{title}</h2>
+      {subtitle && <p className="mt-1 text-[13px] leading-relaxed text-etyme-muted">{subtitle}</p>}
+      <div className="mt-3">{children}</div>
+    </section>
+  )
+}
+
+function Fact({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div className="lbl">{label}</div>
+      <div className="mt-1 text-[14px] tabular-nums text-etyme-ink">{value}</div>
+    </div>
+  )
+}
+
+export default function PlacementPage() {
+  const params = useParams()
+  const id = String(params?.id ?? '')
+  const [p, setP] = useState<Placement | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let live = true
+    ;(async () => {
+      const res = await fetch(`/api/placements/${id}`)
+      const body = await readJson(res)
+      if (!live) return
+      if (!res.ok) setError(body?.error?.message ?? 'That placement could not be opened.')
+      else setP(body.data)
+    })()
+    return () => { live = false }
+  }, [id])
+
+  if (error) {
+    return (
+      <div className="animate-fade-in">
+        <div className="mb-4">
+          <Link href="/dashboard/contracts" className="text-[12px] text-etyme-action hover:underline">
+            ← Contracts
+          </Link>
+        </div>
+        <div className="panel py-16 text-center">
+          <p className="text-sm text-etyme-danger">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!p) {
+    return (
+      <div className="animate-fade-in">
+        <div className="panel py-16 text-center">
+          <p className="text-body-sm text-etyme-muted">Opening the placement…</p>
+        </div>
+      </div>
+    )
+  }
+
+  const where = p.endClient ?? p.client
+  const chainLine = p.chain.weEmployThem
+    ? `${p.supplier.name} employs ${p.person.name.split(' ')[0]} directly.`
+    : `${p.person.name.split(' ')[0]} reaches ${where.name} through ${p.chain.hopsBelow + 1} firm${p.chain.hopsBelow ? 's' : ''}.`
+
+  return (
+    <div className="animate-fade-in max-w-3xl">
+      <div className="mb-6">
+        <Link href="/dashboard/contracts" className="text-[12px] text-etyme-action hover:underline">
+          ← Contracts
+        </Link>
+      </div>
+
+      {/* ── Who, where, and how it stands ── */}
+      <div className="panel mb-8">
+        <div className="eyebrow mb-2">{where.name}</div>
+        <h1 className="headline-serif text-heading text-etyme-ink">{p.person.name}</h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-etyme-muted">
+          {p.origin?.title ?? 'Placement'}
+          {p.person.location ? ` · ${p.person.location}` : ''}
+          {p.startDate ? ` · started ${day(p.startDate)}` : ''}
+        </p>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          <span className={`chip ${tone(p.state)}`}>{words(p.state)}</span>
+          {p.person.skills.slice(0, 4).map((s) => (
+            <span key={s} className="chip chip--passive">{s}</span>
+          ))}
+        </div>
+
+        {/* What a client is shown, and what it is not.
+            A buyer sees the rate it pays and the hours it approved. What
+            the supplier pays underneath, and what it keeps, is the
+            supplier's business — showing a buyer an empty "Paying" column
+            invites exactly the question the column cannot answer. */}
+        <div className="mt-6 grid grid-cols-1 gap-6 border-t border-etyme-rule pt-5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* A client reading a leg its own supplier arranged does not
+              pay it, and "You pay —" invites the one question the
+              column cannot answer. */}
+          {p.viewer.side === 'END_CLIENT' ? (
+            <Fact label="Arranged by your supplier" value={<span className="text-etyme-faint">not your rate</span>} />
+          ) : (
+            <Fact label={p.viewer.isSupplier ? 'Billing' : 'You pay'} value={rate(p.contracts.sell.billRate)} />
+          )}
+          {p.viewer.isSupplier && <Fact label="Paying" value={rate(p.contracts.buy?.payRate ?? null)} />}
+          <Fact label="Hours accepted" value={p.money.hoursAccepted || '—'} />
+          {p.viewer.isSupplier && (
+            <Fact
+              label="Margin"
+              value={
+                p.money.margin == null
+                  ? <span className="text-etyme-faint">not set</span>
+                  : cash(p.money.margin)
+              }
+            />
+          )}
+        </div>
+      </div>
+
+      {/* ── The thread ── */}
+      <Station
+        n={1}
+        title="Where the work came from"
+        subtitle={
+          p.origin
+            ? `${p.origin.raisedBy.name} needed somebody${p.origin.neededBy ? ` by ${day(p.origin.neededBy)}` : ''}.`
+            : 'No requirement is recorded against this placement.'
+        }
+      >
+        {p.origin && (
+          <div className="card">
+            <Link href={`/dashboard/requirements/${p.origin.id}`} className="text-[14px] text-etyme-action hover:underline">
+              {p.origin.title}
+            </Link>
+            {p.invitation && (
+              <p className="mt-2 text-[13px] text-etyme-muted">
+                You were invited at{' '}
+                <span className="tabular-nums text-etyme-ink">
+                  {p.invitation.payMin != null && p.invitation.payMax != null
+                    ? `$${p.invitation.payMin}–$${p.invitation.payMax}/hr`
+                    : 'no stated band'}
+                </span>
+                . Nobody else can see the band you were given.
+              </p>
+            )}
+          </div>
+        )}
+      </Station>
+
+      <Station
+        n={2}
+        title="How they reached you"
+        subtitle={
+          p.submission?.sentOnBy
+            ? `${p.submission.sentOnBy.company.name} put them forward to you on ${day(p.submission.sentOnBy.at)}.`
+            : p.submission
+              ? `Submitted by ${p.submission.from.phrase ?? p.submission.from.name}${p.submission.to ? ` to ${p.submission.to.name}` : ''}.`
+              : 'This placement has no submission behind it.'
+        }
+      >
+        {p.submission && (
+          <div className="card flex flex-wrap items-center gap-x-8 gap-y-3">
+            <Fact label="Submitted" value={day(p.submission.submittedAt)} />
+            <Fact label="At" value={rate(p.submission.rate)} />
+            {p.submission.sentOnBy && <Fact label="Their price" value={rate(p.submission.sentOnBy.rate)} />}
+            <div>
+              <div className="lbl">Package</div>
+              <span className={`chip ${tone(p.submission.checkState)} mt-1`}>{words(p.submission.checkState)}</span>
+            </div>
+          </div>
+        )}
+      </Station>
+
+      <Station
+        n={3}
+        title="Who met them"
+        subtitle={
+          p.interviews.length
+            ? `${p.interviews.length} round${p.interviews.length === 1 ? '' : 's'}, in order.`
+            : 'Nobody has interviewed them for this role.'
+        }
+      >
+        {p.interviews.length > 0 && (
+          <ol className="space-y-2">
+            {p.interviews.map((i) => (
+              <li key={i.id} className="card flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="text-[14px] text-etyme-ink">
+                    Round {i.round} · {words(i.stage)}
+                  </span>
+                  {/* The separator is a character rather than a margin.
+                      Spacing that exists only in CSS reads back as
+                      "screenphone" to anything that flattens the markup —
+                      a screen reader, a copy-paste, a search index. And
+                      an onsite interview held onsite says it once. */}
+                  {words(i.mode) !== words(i.stage) && (
+                    <span className="text-[13px] text-etyme-muted"> · {words(i.mode)}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[13px] tabular-nums text-etyme-muted">{day(i.scheduledAt)}</span>
+                  <span className={`chip ${tone(i.state)}`}>{words(i.state)}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </Station>
+
+      <Station n={4} title="What was agreed, on both sides" subtitle={chainLine}>
+        {/* The document first, then the two rates on it.
+            A purchase order is a header and its lines: this placement is
+            one line, and showing the rate without the paper it hangs on
+            is how a line comes to read as a document of its own. */}
+        <Document doc={p.contracts.sell.document} lines={p.contracts.lines} />
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="card">
+            <div className="lbl mb-2">
+              {p.viewer.isSupplier
+                ? `You sell to ${p.client.name}`
+                : p.viewer.side === 'END_CLIENT'
+                  ? `Sold to ${p.client.name}, not to you`
+                  : `${p.supplier.name} sells to you`}
+            </div>
+            <div className="stat-value">{rate(p.contracts.sell.billRate)}</div>
+            <p className="mt-2 text-[13px] text-etyme-muted">
+              {p.paymentTerms ? `Net ${p.paymentTerms}` : 'Terms not set'}
+              {' · '}
+              {p.contracts.sell.document.does}
+            </p>
+          </div>
+          {/* The buy side belongs to the supplier and is shown only to
+              them. A client reading "You employ them" about somebody
+              another firm employs is worse than a gap. */}
+          {p.viewer.isSupplier && (
+          <div className="card">
+            <div className="lbl mb-2">
+              {p.contracts.buy?.vendor ? `You buy from ${p.contracts.buy.vendor.name}` : 'You employ them'}
+            </div>
+            <div className="stat-value">{rate(p.contracts.buy?.payRate ?? null)}</div>
+            <p className="mt-2 text-[13px] text-etyme-muted">
+              {p.contracts.buy
+                ? p.contracts.buy.document
+                  ? `${p.contracts.buy.contractType} · ${
+                      p.contracts.buy.document.order
+                        ? p.contracts.buy.document.does
+                        : p.contracts.buy.document.says
+                    }`
+                  : `${p.contracts.buy.contractType} · this side has no paper yet.`
+                : 'Nothing is bought against this line yet, so this placement has a price and no cost.'}
+            </p>
+          </div>
+          )}
+        </div>
+
+        {/* Our own order to the firm below us, where we raised one —
+            the same shape as the client's, read from the other end. */}
+        {p.viewer.isSupplier && p.contracts.buy?.document?.order && (
+          <div className="mt-3">
+            <Document doc={p.contracts.buy.document} lines={[]} />
+          </div>
+        )}
+
+        {(p.contracts.pair || p.contracts.masterContract) && (
+          <p className="mt-3 text-[13px] leading-relaxed text-etyme-muted">
+            {p.contracts.pair}
+            {p.contracts.pair && p.contracts.masterContract ? ' ' : ''}
+            {p.contracts.masterContract?.says}
+          </p>
+        )}
+      </Station>
+
+      <Station
+        n={5}
+        title="Cleared to work"
+        subtitle="Work authorization stops a placement. The rest are worth chasing."
+      >
+        {/* The verdict first, in one sentence, then the pieces. This
+            station used to list only what was on file, so a person with
+            nothing on file showed a blank — which read as "nothing to do"
+            when it meant "everything to do". What is missing is the
+            point of a checklist. */}
+        <p className={`mb-3 text-[13px] leading-relaxed ${
+          p.checklist.outcome === 'BLOCK' ? 'text-etyme-attention' : 'text-etyme-muted'
+        }`}>
+          {p.checklist.says}
+          {p.checklist.fix && <span className="text-etyme-ink"> {p.checklist.fix}</span>}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {p.checklist.items.map((it) => (
+            <span
+              key={it.key}
+              className={`chip ${
+                it.state === 'ALREADY_HELD' ? 'chip--verified'
+                : it.blocks ? 'chip--danger'
+                : it.state === 'EXPIRING' ? 'chip--attention'
+                : it.required ? 'chip--attention'
+                : 'chip--passive'
+              }`}
+              title={it.note}
+            >
+              {it.label.toLowerCase()} · {it.state === 'ALREADY_HELD' ? 'on file' : words(it.state)}
+            </span>
+          ))}
+          {/* The sub-vendor's certificates, in the words the compliance
+              page uses for the same rows. Shown to the supplier only:
+              the firm below us is the buy side, which Station 4 already
+              keeps off a client's screen, and a client reading a verdict
+              about a firm it has no contract with is worse than a gap. */}
+          {p.viewer.isSupplier &&
+            p.compliance.supplierCover.map((v, i) => <CoverChip key={`${v.type}-${i}`} cover={v} />)}
+        </div>
+        {/* Whether the firm below us could put anybody forward today.
+            Computed by the same gate the submission door calls, so this
+            screen cannot read green on cover that refuses a submission an
+            hour later. */}
+        {p.viewer.isSupplier && <SubVendorCover cover={p.compliance.subVendorCover} />}
+      </Station>
+
+      <Station
+        n={6}
+        title="The hours"
+        subtitle="Filed once by the person. Two signatures, from two different companies — the client says the work happened, the employer accepts what it will pay for."
+      >
+        {p.timesheets.length === 0 ? (
+          <p className="text-[13px] text-etyme-muted">No weeks filed yet.</p>
+        ) : (
+          <div className="overflow-scroll-x">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-etyme-rule text-left">
+                  <th className="lbl pb-2">Week</th>
+                  <th className="lbl pb-2 text-right">Hours</th>
+                  <th className="lbl pb-2">Client</th>
+                  <th className="lbl pb-2">Employer</th>
+                  <th className="lbl pb-2">Billed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {p.timesheets.map((t) => (
+                  <tr key={t.id} className="border-b border-etyme-rule/60">
+                    <td className="py-2 tabular-nums text-etyme-ink">{t.periodStart} → {t.periodEnd}</td>
+                    <td className="py-2 text-right tabular-nums text-etyme-ink">{t.hours}</td>
+                    <td className="py-2 text-etyme-muted">
+                      {t.clientApproved ? `${t.clientApproved.hours} approved` : 'not yet'}
+                    </td>
+                    <td className="py-2 text-etyme-muted">
+                      {t.employerAccepted ? `${t.employerAccepted.hours} accepted` : 'not yet'}
+                    </td>
+                    <td className="py-2">
+                      <span className={`chip ${t.billedByUs ? 'chip--verified' : 'chip--passive'}`}>
+                        {t.billedByUs ? 'billed' : 'not billed'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Station>
+
+      <Station
+        n={7}
+        title="The money"
+        subtitle={
+          !p.viewer.isSupplier
+            ? 'What this placement has been invoiced at, and what has been settled.'
+            : p.money.margin == null
+              ? 'Margin stays blank until somebody sets a cost. A number here that nobody agreed would look like good news.'
+              : 'What this placement brought in, what it cost, and what is left.'
+        }
+      >
+        <div className="card mb-3 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Two different numbers, and the label has to match the one
+              shown. Revenue is what the hours are worth; billed is what
+              has actually gone out on an invoice. A buyer reading
+              "invoiced to you" beside the accrued figure is being told
+              they owe more than anybody has asked them for. */}
+          <Fact
+            label={p.viewer.isSupplier ? 'Revenue' : 'Invoiced to you'}
+            value={cash(p.viewer.isSupplier ? p.money.revenue : p.money.billed)}
+          />
+          {p.viewer.isSupplier && <Fact label="Cost" value={cash(p.money.cost)} />}
+          {p.viewer.isSupplier && <Fact label="Margin" value={cash(p.money.margin)} />}
+          <Fact label={p.viewer.isSupplier ? 'Collected' : 'Paid'} value={cash(p.money.collected)} />
+        </div>
+
+        {p.money.says ? (
+          <p className="text-[13px] text-etyme-muted">{p.money.says}</p>
+        ) : p.money.invoices.length === 0 ? (
+          <p className="text-[13px] text-etyme-muted">Nothing invoiced against this placement yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {p.money.invoices.map((inv) => (
+              <li key={inv.id} className="card flex flex-wrap items-center justify-between gap-3">
+                <Link href={`/dashboard/invoices/${inv.id}`} className="text-[14px] text-etyme-action hover:underline">
+                  {inv.number}
+                </Link>
+                <div className="flex items-center gap-4">
+                  <span className="text-[13px] tabular-nums text-etyme-muted">
+                    {inv.hours} hrs{inv.weeks > 1 ? ` · ${inv.weeks} weeks` : ''}
+                  </span>
+                  <span className="text-[14px] tabular-nums text-etyme-ink">{cash(inv.amount)}</span>
+                  <span className="text-[13px] tabular-nums text-etyme-muted">due {inv.dueAt}</span>
+                  <span className={`chip ${tone(inv.status)}`}>{words(inv.status)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Station>
+
+      {/* The contract's timeline. Not a separate screen: the 2017 version
+          was a filterable grid of nineteen internal state names, and
+          nobody filtering a contract's history thinks "show me
+          VendorBillCalculation rows". They think "what have we billed".
+          Three words, next thing first, done things counted. */}
+      <Station
+        n={8}
+        title="What is due"
+        subtitle={
+          p.timeline.next
+            ? `Next: ${p.timeline.next.label.toLowerCase()}, ${day(p.timeline.next.dueOn)}.`
+            : 'Nothing outstanding on this placement.'
+        }
+      >
+        {p.timeline.hours.length + p.timeline.pay.length + p.timeline.bill.length === 0 ? (
+          <p className="text-[13px] text-etyme-muted">No cycles have been generated for this contract.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {([['Hours', p.timeline.hours], ['Pay', p.timeline.pay], ['Bill', p.timeline.bill]] as const).map(
+              ([heading, rows]) => (
+                <div key={heading}>
+                  <div className="lbl mb-2">{heading}</div>
+                  {rows.length === 0 ? (
+                    <p className="text-[12px] text-etyme-faint">—</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {rows.filter((r) => !r.done).slice(0, 4).map((r) => (
+                        <li key={`${r.kind}-${r.dueOn}`} className="flex items-baseline justify-between gap-2 text-[13px]">
+                          <span className={r.overdue ? 'text-etyme-attention' : 'text-etyme-ink'}>{r.label}</span>
+                          <span className="tabular-nums text-etyme-muted">{day(r.dueOn)}</span>
+                        </li>
+                      ))}
+                      {rows.filter((r) => r.done).length > 0 && (
+                        <li className="text-[12px] text-etyme-faint">
+                          {rows.filter((r) => r.done).length} done
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              )
+            )}
+          </div>
+        )}
+      </Station>
+    </div>
+  )
+}

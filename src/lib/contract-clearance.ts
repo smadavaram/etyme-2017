@@ -1,0 +1,901 @@
+/**
+ * Whether a contract may start, on paperwork.
+ *
+ * ── The process this replaces ────────────────────────────────────────
+ *
+ * The 2017 system had a document-signing service: ordered signers,
+ * DocuSign tokens, refresh flows, async callbacks, six document models.
+ * Staffing paperwork is almost never "sign in this exact order". It is
+ * "these are required before the first day, here is which we hold, the
+ * contract cannot go live until the ones the law cares about are in".
+ * That is a checklist, not a workflow engine, and a checklist is what
+ * this is.
+ *
+ * ── What it is built from ────────────────────────────────────────────
+ *
+ * Nothing new. `lib/packets` already knows what starting somebody
+ * requires (CONTRACT_START_W2) and resolves it against what is held so
+ * nothing already on file is asked for twice. `lib/document-stages`
+ * already knows which insurance a supplier must not let lapse. This
+ * joins the two at the one moment that matters — activation — and
+ * gives the placement thread the same answer so what blocks is visible
+ * before anybody presses the button.
+ *
+ * ── BLOCK where legally grounded, WARN elsewhere ─────────────────────
+ *
+ * Work authorization blocks: an I-9, or a right-to-work check, is the
+ * one document a start cannot happen without. A lapsed general
+ * liability or workers' comp certificate blocks, for the same reason it
+ * blocks everywhere else in here — it is insurable exposure, not
+ * preference. A missing background check or NDA warns: they are
+ * contractual, the client may well waive them, and a system that blocks
+ * on a signature page gets worked around by email.
+ *
+ * A professional license blocks, decided 2026-09-17 and argued in full
+ * above `licenseGate` in lib/document-stages. A registered nurse working
+ * on a lapsed state registration is practicing without a license — the
+ * law says the work stops, no client can waive it, and the exposure lands
+ * on the worker before it lands on anybody else. It is the same shape as
+ * lapsed cover and is enforced by the same arithmetic.
+ *
+ * Which keys count as a license is not a list in here. It is every type in
+ * the company's own document dictionary that says it is compliance, that
+ * says it blocks, and that the candidate supplies — so a client whose
+ * trade needs a state contractor registration or a site induction adds one
+ * type and gets the same refusal, with no code change and no migration.
+ *
+ * A warning captures a reason and proceeds. Never silently.
+ */
+
+import {
+  packetByKey,
+  resolveItems,
+  startPacketFor,
+  licenseNaming,
+  type HeldDocument,
+  type ResolvedItem,
+} from '@/lib/packets'
+import {
+  supplierCoverGate,
+  licenseGate,
+  type CoverCertificate,
+  type CoverGate,
+  type DocStanding,
+  type HeldCredential,
+  type LicenseGate,
+} from '@/lib/document-stages'
+import {
+  typesFor,
+  typeByKey,
+  backingFinding,
+  editionFinding,
+  labelFor,
+  type BackingDocument,
+  type BackingFinding,
+  type DefinedType,
+  type Edition,
+  type EditionFinding,
+} from '@/lib/document-type'
+
+export type Outcome = 'PASS' | 'WARN' | 'BLOCK'
+
+/** The person-side items whose absence is legally grounded. */
+export const AUTHORISATION_KEYS = ['I9_EVERIFY', 'RIGHT_TO_WORK'] as const
+
+/**
+ * A held I-9 satisfies the right-to-work item.
+ *
+ * In the United States the I-9 IS the right-to-work document — the packet
+ * lists both because other jurisdictions separate them. Asking for a
+ * "proof of right to work" from somebody whose I-9 and E-Verify are on
+ * file is asking for the same thing twice under a different name.
+ */
+const SATISFIED_BY: Record<string, readonly string[]> = {
+  RIGHT_TO_WORK: ['I9_EVERIFY'],
+}
+
+/**
+ * The shipped license item, which is the one a start packet asks for.
+ *
+ * A company that defines its own blocking credential is enforced by the
+ * same gate (see `credentialKeys`); this names only the item the licensed
+ * start packet lists, because that is the one the occupation table can
+ * put a board's name to.
+ */
+const LICENSE_KEY = 'PROFESSIONAL_LICENSE'
+
+/**
+ * The types this company treats as a license to practice.
+ *
+ * Read off the dictionary rather than listed here, which is the whole
+ * extensibility story: a type is a license if it is COMPLIANCE (it has to
+ * be in date), if it says it blocks (a lapse stops work), and if the
+ * candidate is the one who supplies it (a regulator issued it to the
+ * person, not to the firm). PROFESSIONAL_LICENSE is the shipped default
+ * that satisfies all three; a client that adds STATE_CONTRACTOR_REG or
+ * SITE_INDUCTION with the same three answers is enforced by this same
+ * code on the same day it defines it.
+ *
+ * Work authorization is excluded because it already has its own path and
+ * its own sentence; counting it twice would refuse a start with two
+ * different explanations of the same fact.
+ *
+ * A company that edits its own copy of a type to say it does not block
+ * gets a warning instead. That is the company's call and the system still
+ * never silently permits: the warning takes a reason and records it.
+ */
+export function credentialKeys(documentTypes: DefinedType[] = []): string[] {
+  return typesFor(documentTypes)
+    .filter(
+      (t) =>
+        t.purpose === 'COMPLIANCE' &&
+        t.blocks &&
+        t.suppliedBy === 'CANDIDATE' &&
+        !(AUTHORISATION_KEYS as readonly string[]).includes(t.key)
+    )
+    .map((t) => t.key)
+}
+
+export interface ChecklistItem {
+  key: string
+  label: string
+  required: boolean
+  state: ResolvedItem['state']
+  note: string
+  /**
+   * What the person is actually being asked for, in their words.
+   *
+   * Carried off the packet spec rather than dropped, because the desk
+   * that chases a document and the letter that asks for it must say the
+   * same thing — and until 2026-09-17 the checklist threw the hint away
+   * and the request had to invent one.
+   */
+  hint: string
+  /** True where the state alone would stop the contract starting. */
+  blocks: boolean
+  /**
+   * How this item is named inside a refusal, where that differs from the
+   * label on the checklist.
+   *
+   * Only the license uses it today: "a state nursing license (Wisconsin
+   * Board of Nursing)" rather than "state license", because the label is
+   * the same words for a nurse and a crane operator and the sentence is
+   * not. Absent means the label, lowercased, which is what every other
+   * item wants.
+   */
+  said?: string
+}
+
+export interface Clearance {
+  outcome: Outcome
+  /** What stops it starting today. Empty when outcome is not BLOCK. */
+  blocking: ChecklistItem[]
+  /** Required and outstanding, but not legally grounded — warn and proceed. */
+  chasing: ChecklistItem[]
+  /** Every item on the checklist, held or not, so a screen can show all of it. */
+  items: ChecklistItem[]
+  /** The supplier's own cover, judged the same way it is everywhere else. */
+  cover: CoverGate
+  /**
+   * The licenses this person practices on. A lapsed one, or one that has
+   * not begun, refuses the start; one that runs out inside the assignment
+   * warns with the date named.
+   */
+  license: LicenseGate
+  /**
+   * Forms held with nothing behind them. An I-9 is a record that somebody
+   * looked at a document; a record of looking with no record of what was
+   * looked at is not evidence. Warns rather than blocks — see
+   * UNSUPPORTED_FORM_STOPS_A_START below.
+   */
+  unsupported: BackingFinding[]
+  /**
+   * Forms completed on an edition the issuer had already replaced, or on
+   * no recorded edition at all. An audit finding, not a bar to work.
+   */
+  editions: EditionFinding[]
+  says: string
+  /** What to do about it, where there is one thing to do. */
+  fix: string | null
+}
+
+/**
+ * A Verification row, as this needs it. Kept narrow so the placement
+ * thread and the activate route can both hand rows straight in.
+ */
+export interface VerificationRow {
+  type: string
+  status: string
+  issuedAt?: Date | null
+  /**
+   * The day the document starts covering. Read as a floor since
+   * 2026-09-16: a right-to-work document that comes into force next month
+   * does not authorize somebody who starts this week, and until then
+   * nothing asked.
+   */
+  validFrom?: Date | null
+  expiresAt?: Date | null
+  verifiedAt?: Date | null
+  /** Which edition of a reissued form this is, as printed on it. */
+  formEdition?: string | null
+  /** The day the form was completed, which is what an edition is judged against. */
+  completedAt?: Date | null
+  /** The type keys of the documents recorded as standing behind this one. */
+  backedBy?: BackingDocument[]
+  /** Who ran or issued it — a board of nursing, an insurer, a screener. */
+  provider?: string | null
+  /**
+   * Whatever the check came back with. Read only for the two fields a
+   * license refusal has to name — the number and the state — because
+   * "your license expired" is not something a compliance officer can
+   * check against a register and "RN 154-882, WI expired" is.
+   */
+  result?: unknown
+}
+
+/** The number and the state off a verification's own result, where recorded. */
+export function credentialDetail(row: VerificationRow): { number: string | null; state: string | null } {
+  const r = row.result
+  if (!r || typeof r !== 'object') return { number: null, state: null }
+  const bag = r as Record<string, unknown>
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null)
+  return {
+    number: str(bag.license) ?? str(bag.licenseNumber) ?? str(bag.number) ?? null,
+    state: str(bag.state) ?? str(bag.jurisdiction) ?? null,
+  }
+}
+
+/**
+ * What a person's verifications amount to, as documents held.
+ *
+ * Only a check that actually came back counts. A request still running
+ * is not a document, and saying "on file" of it is how somebody gets
+ * waved through on paperwork that does not exist.
+ */
+export function heldFrom(rows: VerificationRow[]): HeldDocument[] {
+  const out: HeldDocument[] = []
+  for (const r of rows) {
+    const accepted = r.status === 'CLEAR' || r.status === 'CONDITIONAL'
+    const validFrom = r.validFrom ?? r.issuedAt ?? null
+    out.push({ key: r.type, validFrom, expiresAt: r.expiresAt ?? null, accepted })
+    // The alias, so the packet's second name for the same thing resolves.
+    for (const [alias, sources] of Object.entries(SATISFIED_BY)) {
+      if (sources.includes(r.type)) out.push({ key: alias, validFrom, expiresAt: r.expiresAt ?? null, accepted })
+    }
+  }
+  return out
+}
+
+function outstanding(state: ResolvedItem['state']): boolean {
+  // NOT_YET_VALID sits with NEEDED and EXPIRED, not with EXPIRING: a
+  // document whose period starts after the first day is on file and holds
+  // nothing on the first day.
+  return state === 'NEEDED' || state === 'EXPIRED' || state === 'NOT_YET_VALID'
+}
+
+/**
+ * Which outstanding items refuse the start.
+ *
+ * Work authorization always, because the two keys are the floor and a
+ * company cannot edit its way out of a federal form. Everything else by
+ * what the dictionary says: a type whose `blocks` is true stops a start
+ * when it is required and outstanding. Nothing in the shipped W-2 start
+ * packet changes meaning — RIGHT_TO_WORK and I9_EVERIFY blocked before
+ * this and block now; background check, drug screening and the NDA say
+ * they do not block and still do not.
+ */
+function blockingKeysFor(documentTypes: DefinedType[] = []): Set<string> {
+  return new Set<string>([
+    ...AUTHORISATION_KEYS,
+    ...typesFor(documentTypes).filter((t) => t.blocks).map((t) => t.key),
+  ])
+}
+
+function blocksStart(item: ResolvedItem, blockingKeys: Set<string>): boolean {
+  if (!item.required) return false
+  if (!outstanding(item.state)) return false
+  return blockingKeys.has(item.key)
+}
+
+/**
+ * The items this system can actually hold today: every VerificationType,
+ * the right-to-work alias, and whatever a caller hands in as extraHeld.
+ *
+ * A packet may require a signed NDA, and it should. But nothing here
+ * records one yet, so chasing it would put a warning on every activation
+ * until the end of time — and a warning that always fires is a click,
+ * not a warning. An item with no way to be held is listed as needed and
+ * does not move the verdict, until the day something can hold it.
+ */
+const HOLDABLE = new Set<string>([
+  'I9_EVERIFY', 'BACKGROUND_CHECK', 'EDUCATION_EVALUATION', 'DRUG_SCREENING',
+  'INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER',
+  'BUSINESS_PARTNER', 'REFERENCE_CHECK',
+  ...Object.keys(SATISFIED_BY),
+])
+
+function outstandingRequired(item: ResolvedItem, holdable: Set<string>): boolean {
+  if (!item.required) return false
+  if (!outstanding(item.state)) return false
+  return holdable.has(item.key)
+}
+
+/**
+ * The verdict, for one contract.
+ *
+ * `packetKey` defaults to the W-2 start packet, which is the one that
+ * exists. A contract type with its own packet passes it here; the shape
+ * of the answer does not change.
+ */
+export function contractClearance(input: {
+  personName: string
+  personVerifications: VerificationRow[]
+  supplierName: string
+  supplierCertificates: CoverCertificate[]
+  clientName?: string | null
+  on: Date
+  /**
+   * The last day of the assignment, where the caller knows it.
+   *
+   * Only used to say that a license runs out before the work does. Absent
+   * means nothing is claimed about the end — which is right: a warning
+   * about a date nobody supplied would be invented.
+   */
+  through?: Date | null
+  /**
+   * The role, as a person would say it. Picks the start packet: a
+   * licensed role asks for the license, everything else asks for what it
+   * always asked for. Absent means the W-2 packet, unchanged.
+   */
+  role?: string | null
+  packetKey?: string
+  /**
+   * The company's own document dictionary, where it has one. Omitted
+   * means the shipped defaults, which is the answer for most companies.
+   */
+  documentTypes?: DefinedType[]
+  /**
+   * Which edition of each reissued form this company says is current,
+   * keyed by document type. Omitted means nothing can be judged, and
+   * nothing is claimed.
+   */
+  editions?: Record<string, Edition[]>
+  /**
+   * Documents held that are not verifications — a signed NDA, a signed
+   * contract. Verification is a check somebody ran; these are things
+   * somebody signed. Both count.
+   */
+  extraHeld?: HeldDocument[]
+}): Clearance {
+  const credentials = credentialKeys(input.documentTypes ?? [])
+  const spec = packetByKey(input.packetKey ?? startPacketFor(input.role))
+  const held = [...heldFrom(input.personVerifications), ...(input.extraHeld ?? [])]
+  const resolved = spec ? resolveItems(spec, held, input.on) : []
+
+  const blockingKeys = blockingKeysFor(input.documentTypes ?? [])
+
+  // ── Which license, issued by whom ──
+  //
+  // The packet says "State license" because one packet starts a nurse, a
+  // pharmacist and a crane operator. The refusal knows more than that: the
+  // role named the occupation, and the state is on the license already on
+  // file where there is one. So the sentence can say "a state nursing
+  // license (Wisconsin Board of Nursing)" — which names the register a
+  // compliance officer checks — and it says "the state's board of nursing"
+  // where nobody recorded a state, because a refusal that names the wrong
+  // regulator is worse than one that names none.
+  const heldState =
+    input.personVerifications
+      .filter((v) => credentials.includes(v.type))
+      .map((v) => credentialDetail(v).state)
+      .find((st) => !!st) ?? null
+  const naming = licenseNaming(input.role, heldState)
+
+  const items: ChecklistItem[] = resolved.map((r) => ({
+    key: r.key,
+    label: naming && r.key === LICENSE_KEY ? naming.label : r.label,
+    required: r.required,
+    state: r.state,
+    note: r.note,
+    hint: r.hint,
+    blocks: blocksStart(r, blockingKeys),
+    ...(naming && r.key === LICENSE_KEY ? { said: naming.said } : {}),
+  }))
+
+  const blocking = items.filter((i) => i.blocks)
+  const holdable = new Set<string>([
+    ...HOLDABLE,
+    // A license is holdable: `Verification` has recorded one since
+    // PROFESSIONAL_LICENSE existed, so an outstanding one is a real gap
+    // rather than an item with nowhere to live.
+    ...credentials,
+    ...(input.extraHeld ?? []).map((h) => h.key),
+  ])
+  const chasing = items.filter(
+    (i) => !i.blocks && outstandingRequired(resolved.find((r) => r.key === i.key)!, holdable)
+  )
+
+  // ── Composition: a form with nothing behind it ──
+  //
+  // Only judged on documents actually held, and only for types that say
+  // they are not evidence on their own.
+  const unsupported: BackingFinding[] = []
+  const editions: EditionFinding[] = []
+  for (const row of input.personVerifications) {
+    const accepted = row.status === 'CLEAR' || row.status === 'CONDITIONAL'
+    if (!accepted) continue
+    const type = typeByKey(row.type, input.documentTypes ?? [])
+    if (!type) continue
+
+    if (type.requiresBacking) {
+      const finding = backingFinding(type, row.backedBy ?? [], (k) =>
+        labelFor(k, input.documentTypes ?? [])
+      )
+      if (finding.standing === 'UNSUPPORTED' || finding.standing === 'BACKING_NOT_IN_FORCE') {
+        unsupported.push(finding)
+      }
+    }
+
+
+    if (type.reissued) {
+      const finding = editionFinding(
+        type,
+        row.formEdition ?? null,
+        row.completedAt ?? row.issuedAt ?? null,
+        input.editions?.[row.type] ?? []
+      )
+      if (finding.standing === 'SUPERSEDED' || finding.standing === 'UNRECORDED') {
+        editions.push(finding)
+      }
+    }
+  }
+
+  // ── The license the person practices on ──
+  //
+  // Judged on what is held rather than on what a packet asked for, which
+  // is the half that needs no configuration: a nurse whose registration
+  // is on file and lapsed is refused whether or not anybody set this
+  // client up with a licensed-role packet. The packet half catches the
+  // other case — a licensed role with no license on file at all.
+  const license = licenseGate({
+    personName: input.personName,
+    credentials: input.personVerifications
+      .filter((v) => credentials.includes(v.type))
+      .map((v): HeldCredential => {
+        const detail = credentialDetail(v)
+        return {
+          type: v.type,
+          label: labelFor(v.type, input.documentTypes ?? []),
+          status: v.status,
+          issuedAt: v.issuedAt ?? null,
+          validFrom: v.validFrom ?? null,
+          expiresAt: v.expiresAt ?? null,
+          verifiedAt: v.verifiedAt ?? null,
+          number: detail.number,
+          state: detail.state,
+          issuer: v.provider ?? null,
+        }
+      }),
+    keys: credentials,
+    on: input.on,
+    through: input.through ?? null,
+  })
+
+  const rawCover = supplierCoverGate({
+    supplierName: input.supplierName,
+    certificates: input.supplierCertificates,
+    clientName: input.clientName ?? null,
+    on: input.on,
+  })
+  const cover = forActivation(rawCover)
+
+  // ── What moves the verdict, and what only gets said ──
+  //
+  // A form linked to proof that has expired is a real signal: somebody
+  // recorded evidence and the evidence ran out, and that happens to some
+  // placements and not all. It warns.
+  //
+  // A form with nothing recorded behind it at all is reported and does not
+  // move the verdict, for the reason already written above HOLDABLE: until
+  // 2026-09-16 there was nowhere to record what an I-9 was completed from,
+  // so every I-9 in every file is unsupported today. A warning that fires
+  // on every row is a click, not a warning, and it would bury the two that
+  // matter. It appears on the checklist, with its sentence and its fix,
+  // from the first day — and the day a company records backing routinely,
+  // flipping UNSUPPORTED_FORM_STOPS_A_START is the whole change.
+  //
+  // The same line is drawn through the edition check, and for the same
+  // reason: a form completed on an edition the issuer had already replaced
+  // is a known defect and warns. A form nobody recorded an edition for is
+  // an unanswered question — and on the day a company first records its
+  // editions, every form filed before then is unanswered. Report it, give
+  // the fix, and do not make a hundred percent of rows a warning.
+  const paperworkWarns =
+    unsupported.some((u) => u.standing === 'BACKING_NOT_IN_FORCE') ||
+    editions.some((e) => e.standing === 'SUPERSEDED')
+
+  const outcome: Outcome =
+    blocking.length > 0 || cover.outcome === 'BLOCK' || license.outcome === 'BLOCK' ? 'BLOCK'
+    : chasing.length > 0 || cover.outcome === 'WARN' || license.outcome === 'WARN' || paperworkWarns ? 'WARN'
+    : 'PASS'
+
+  return {
+    outcome,
+    blocking,
+    chasing,
+    items,
+    cover,
+    license,
+    unsupported,
+    editions,
+    says: sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions),
+    fix: fixFor(blocking, chasing, cover, license, unsupported, editions),
+  }
+}
+
+/**
+ * Whether an I-9 with nothing behind it refuses the start.
+ *
+ * It does not, and the choice is worth naming because the opposite is
+ * arguable. Work authorization is one of the five Addendum E names as a
+ * block, and an I-9 with no evidence recorded means nobody can show the
+ * authorization was ever verified.
+ *
+ * Against that: nothing in this system has ever recorded what an I-9 was
+ * completed from, because until 2026-09-16 there was nowhere to put it.
+ * Blocking on the absence would refuse every activation on every existing
+ * placement on the day this shipped — a control that fires on a hundred
+ * percent of rows teaches everybody to route around it, which is the
+ * workaround trap Addendum E is explicit about. The block that IS
+ * grounded — no I-9 at all — still fires, unchanged.
+ *
+ * So it warns, loudly, with a sentence and a fix, and it is counted. If
+ * the founder decides otherwise once backing is routinely recorded, this
+ * constant is the one line to change.
+ */
+export const UNSUPPORTED_FORM_STOPS_A_START = false
+
+/**
+ * Lapsed blocks. Missing warns.
+ *
+ * The ratified wording is "lapsed supplier insurance" — a certificate
+ * that ran out. A supplier that has never uploaded one is not lapsed; it
+ * is unknown, and the cover gate treats unknown as blocking because at
+ * submission time that is right: you do not put somebody forward under
+ * cover you cannot show. At activation of a contract somebody is
+ * recording — one that started in August and is being entered in
+ * September — a hard stop on a certificate nobody has asked for yet
+ * changes nothing about the exposure and everything about whether the
+ * firm records the contract at all. So a missing certificate is chased,
+ * with a reason recorded on the way through, and an expired one is not.
+ */
+function forActivation(cover: CoverGate): CoverGate {
+  if (cover.outcome !== 'BLOCK') return cover
+  // Cover that has not begun is treated as lapsed cover, not as missing
+  // cover: the difference that earns a downgrade is "nobody ever asked
+  // for it", and a certificate whose period starts next month was asked
+  // for, was supplied, and still leaves the person uncovered on day one.
+  const lapsed = cover.blocking.filter(
+    (b) => b.standing === 'EXPIRED' || b.standing === 'NOT_YET_VALID'
+  )
+  const neverRecorded = cover.blocking.filter((b) => b.standing === 'MISSING')
+  if (lapsed.length > 0) return cover
+  return {
+    ...cover,
+    outcome: 'WARN',
+    blocking: [],
+    chasing: [...neverRecorded, ...cover.chasing],
+    says: cover.says.replace(/cannot start|is blocked/i, 'has no cover on file'),
+  }
+}
+
+function names(items: { label: string; said?: string }[]): string {
+  // `said` where an item names itself more precisely inside a sentence —
+  // the license does, because a proper noun cannot be lowercased and a
+  // board that is not named is a board nobody can call.
+  const l = items.map((i) => i.said ?? i.label.toLowerCase())
+  if (l.length <= 1) return l.join('')
+  return `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}`
+}
+
+function sayIt(
+  person: string,
+  outcome: Outcome,
+  blocking: ChecklistItem[],
+  chasing: ChecklistItem[],
+  cover: CoverGate,
+  license: LicenseGate,
+  unsupported: BackingFinding[] = [],
+  editions: EditionFinding[] = []
+): string {
+  // What is reported and does not move the verdict still gets said. A
+  // clearance that returns PASS and keeps a finding in an array nobody
+  // renders is a column with nothing reading it, which is the thing this
+  // codebase is least allowed to ship.
+  const said = (f: { says: string; fix: string | null }) =>
+    f.fix ? `${f.says} ${f.fix}` : f.says
+  const reported = [
+    ...unsupported.filter((u) => u.standing === 'UNSUPPORTED').map(said),
+    ...editions.filter((e) => e.standing === 'UNRECORDED').map(said),
+  ]
+  if (outcome === 'PASS') {
+    const cleared = `${person} is cleared to start. Everything required is on file.`
+    return reported.length === 0 ? cleared : `${cleared} ${reported.join(' ')}`
+  }
+  const parts: string[] = []
+  // The license first when it is what refuses. It is the most specific
+  // sentence anybody gets here — it names the number and the state, and
+  // it is the one somebody can act on without asking what was meant.
+  if (license.outcome === 'BLOCK' && license.says) parts.push(license.says)
+  if (blocking.length > 0) parts.push(`${person} cannot start without ${names(blocking)}`)
+  if (cover.outcome === 'BLOCK') parts.push(cover.says)
+  if (outcome === 'BLOCK') return parts.join(' ').replace(/\s+/g, ' ').trim().replace(/([^.])$/, '$1.')
+  if (license.outcome === 'WARN' && license.says) parts.push(license.says)
+  if (chasing.length > 0) parts.push(`still waiting on ${names(chasing)} for ${person}`)
+  if (cover.outcome === 'WARN') parts.push(cover.says)
+  for (const u of unsupported) {
+    if (u.standing === 'BACKING_NOT_IN_FORCE') parts.push(u.says)
+  }
+  for (const e of editions) {
+    if (e.standing === 'SUPERSEDED') parts.push(e.says)
+  }
+  const warned = `${parts.join('; ')}. The contract can start with a reason recorded.`
+  return reported.length === 0 ? warned : `${warned} ${reported.join(' ')}`
+}
+
+function fixFor(
+  blocking: ChecklistItem[],
+  chasing: ChecklistItem[],
+  cover: CoverGate,
+  license: LicenseGate,
+  unsupported: BackingFinding[] = [],
+  editions: EditionFinding[] = []
+): string | null {
+  if (license.outcome === 'BLOCK') return license.fix
+  if (blocking.length > 0) return `Get ${names(blocking)} on file, then activate.`
+  if (cover.outcome === 'BLOCK') return cover.fix
+  if (license.outcome === 'WARN' && license.lapsingInside.length > 0) return license.fix
+  if (chasing.length > 0) return `Chase ${names(chasing)}, or activate with a reason.`
+  if (cover.outcome === 'WARN') return cover.fix
+  if (license.outcome === 'WARN') return license.fix
+  const stale = unsupported.find((u) => u.standing === 'BACKING_NOT_IN_FORCE')
+  if (stale) return stale.fix
+  const superseded = editions.find((e) => e.standing === 'SUPERSEDED')
+  if (superseded) return superseded.fix
+  // Nothing here is wrong, so there is nothing to fix before activating.
+  //
+  // What is merely reported — an I-9 with nothing recorded behind it, a
+  // form nobody wrote an edition on — carries its own sentence and its own
+  // remedy inside `says`. Promoting one of them to `fix` would put
+  // "record the document it was completed from" beside a green verdict on
+  // every placement in the book, where it reads as a condition of
+  // starting. It is not one.
+  return null
+}
+
+/** The cover standings, flattened for a screen that lists everything. */
+export function coverItems(cover: CoverGate): DocStanding[] {
+  return [...cover.blocking, ...cover.chasing]
+}
+
+// ── Before the start, not on it ───────────────────────────────────────
+//
+// `contractClearance` above is the verdict activation runs. Until
+// 2026-09-17 it was run in exactly one place — inside the activate
+// route, at the moment somebody pressed the button — so the first time
+// anybody asked whether a person's paperwork was in order was the moment
+// they tried to start them, and the answer arrived as a refusal to
+// whoever pressed the button rather than as work to the desk that can
+// fix it.
+//
+// The founder walked his own operation and named the gap: the contract
+// manager papers the placement, HR clears the person, and nothing told
+// HR a start was coming. It is the same shape CLAUDE.md records from the
+// client dashboard — the desk that acts is the desk that hears.
+//
+// So the verdict is read twice, from the same function: once ahead of
+// the start, as HR's work, and once at activation, as the refusal. They
+// cannot drift, because `says` and `fix` below are the clearance's own
+// strings passed through untouched rather than rewritten for a screen.
+
+/**
+ * Who has to produce a document.
+ *
+ * PERSON where a regulator issued it to the worker or the worker holds
+ * it — a license, a passport, the I-9 they complete. FIRM where the firm
+ * produces it — its own insurance, the NDA it writes. This is CLAUDE.md's
+ * "who owes it differs, and that decides who is chased", read off the
+ * company's own document dictionary rather than listed here, so a type a
+ * client invents on Tuesday is chased from the right party on Wednesday.
+ */
+export type OwedBy = 'PERSON' | 'FIRM'
+
+const FIRM_SUPPLIES = new Set(['SUPPLIER', 'CLIENT'])
+
+export function owedBy(key: string, documentTypes: DefinedType[] = []): OwedBy {
+  const t = typeByKey(key, documentTypes)
+  if (!t?.suppliedBy) return 'PERSON'
+  return FIRM_SUPPLIES.has(t.suppliedBy) ? 'FIRM' : 'PERSON'
+}
+
+/** One outstanding document, and who is being asked for it. */
+export interface ClearanceAsk {
+  key: string
+  label: string
+  /** What they are actually being asked for, in their words. */
+  hint: string
+  required: boolean
+  owedBy: OwedBy
+  /** The dictionary's own word, for a screen that wants to show it. */
+  suppliedBy: string | null
+  /** BLOCK where the absence is legally grounded; WARN everywhere else. */
+  weight: Outcome
+  state: ResolvedItem['state']
+}
+
+export interface StartPreview {
+  outcome: Outcome
+  /** The clearance's own sentence. Identical to what activation refuses with. */
+  says: string
+  /** The clearance's own remedy. Identical to what activation offers. */
+  fix: string | null
+  /** The whole verdict, where a caller wants the cover and license detail. */
+  clearance: Clearance
+  items: ChecklistItem[]
+  blocking: ChecklistItem[]
+  chasing: ChecklistItem[]
+  /** Outstanding and the worker's to produce — this is what is asked for. */
+  askOfPerson: ClearanceAsk[]
+  /** Outstanding and the firm's own to produce. Nobody emails a firm a link to itself. */
+  askOfFirm: ClearanceAsk[]
+  /** The supplier's own cover, where it is not in order. */
+  coverOutstanding: DocStanding[]
+  /** Negative once the start date has passed. Null where nobody set one. */
+  daysUntilStart: number | null
+  /** The row HR reads, and the title of the notice it gets. */
+  headline: string
+  /** What is still missing, listed. Null where nothing is. */
+  outstanding: string | null
+}
+
+/** "in 9 days" · "tomorrow" · "today" · "9 days ago". */
+export function whenWords(daysUntilStart: number | null): string {
+  if (daysUntilStart === null) return ''
+  if (daysUntilStart < 0) {
+    const n = Math.abs(daysUntilStart)
+    return n === 1 ? 'yesterday' : `${n} days ago`
+  }
+  if (daysUntilStart === 0) return 'today'
+  if (daysUntilStart === 1) return 'tomorrow'
+  return `in ${daysUntilStart} days`
+}
+
+function listed(labels: string[]): string {
+  if (labels.length <= 1) return labels.join('')
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+}
+
+/**
+ * The verdict, read ahead of the first day, for the desk that can fix it.
+ *
+ * Takes everything `contractClearance` takes, plus the start date, and
+ * answers three questions a checklist does not: how long there is, what
+ * is outstanding, and which of the two parties owes each outstanding
+ * thing. `says` and `fix` are passed through rather than rewritten —
+ * that is the whole point of running one function twice.
+ */
+export function startPreview(
+  input: Parameters<typeof contractClearance>[0] & {
+    /** The first day. Null where nobody has set one yet. */
+    startDate?: Date | null
+    /** The client the person is starting at, for the sentence HR reads. */
+    clientName?: string | null
+  }
+): StartPreview {
+  const clearance = contractClearance(input)
+  const types = input.documentTypes ?? []
+
+  const daysUntilStart =
+    input.startDate
+      ? Math.ceil((startOfDay(input.startDate).getTime() - startOfDay(input.on).getTime()) / 86_400_000)
+      : null
+
+  // Required and not in hand: not on file, run out, or not in force yet.
+  // Wider than `chasing`, deliberately — `chasing` drops anything this
+  // system has nowhere to record, and a packet is exactly the place to
+  // record it. An NDA nobody could hold as a verification can be asked
+  // for, received and filed against the item that asked.
+  const asks: ClearanceAsk[] = clearance.items
+    .filter((i) => i.required && outstanding(i.state))
+    .map((i) => ({
+      key: i.key,
+      label: i.label,
+      hint: i.hint,
+      required: i.required,
+      owedBy: owedBy(i.key, types),
+      suppliedBy: typeByKey(i.key, types)?.suppliedBy ?? null,
+      weight: i.blocks ? ('BLOCK' as Outcome) : ('WARN' as Outcome),
+      state: i.state,
+    }))
+
+  const askOfPerson = asks.filter((a) => a.owedBy === 'PERSON')
+  const askOfFirm = asks.filter((a) => a.owedBy === 'FIRM')
+  const coverOutstanding = coverItems(clearance.cover)
+
+  const who = input.personName
+  const where = input.clientName ? ` at ${input.clientName}` : ''
+  const when = whenWords(daysUntilStart)
+  const due = `${who} is due to start${where}${when ? ` ${when}` : ''}`
+
+  const headline =
+    clearance.outcome === 'BLOCK'
+      ? `${due}, and cannot.`
+      : clearance.outcome === 'WARN'
+        ? `${due}, with paperwork still outstanding.`
+        : `${due}, and everything required is on file.`
+
+  const missingLabels = [...asks.map((a) => a.label), ...coverOutstanding.map((c) => c.label)]
+
+  return {
+    outcome: clearance.outcome,
+    says: clearance.says,
+    fix: clearance.fix,
+    clearance,
+    items: clearance.items,
+    blocking: clearance.blocking,
+    chasing: clearance.chasing,
+    askOfPerson,
+    askOfFirm,
+    coverOutstanding,
+    daysUntilStart,
+    headline,
+    outstanding: missingLabels.length > 0 ? `Still needed: ${listed(missingLabels)}.` : null,
+  }
+}
+
+function startOfDay(d: Date): Date {
+  const c = new Date(d)
+  c.setUTCHours(0, 0, 0, 0)
+  return c
+}
+
+/**
+ * What HR is told, and never told.
+ *
+ * Null on PASS. A placement whose paperwork is already in order is not
+ * work, and a notice that fires on every placement is a click rather
+ * than a notice — the same argument this file already makes about a
+ * warning that fires on a hundred percent of rows.
+ *
+ * Everything else says what is missing, what to do about it, and what
+ * has already been asked of whom, so the desk does not chase a document
+ * the worker was emailed a link for ten seconds ago.
+ */
+export function hrNotice(
+  preview: StartPreview,
+  about: {
+    personName: string
+    roleTitle?: string | null
+    /** What was asked of the worker on the way past, by label. */
+    askedOfPerson?: string[]
+  }
+): { title: string; body: string } | null {
+  if (preview.outcome === 'PASS') return null
+
+  const parts: string[] = [preview.says]
+  if (preview.fix) parts.push(preview.fix)
+  if (about.roleTitle) parts.push(`The role is ${about.roleTitle}.`)
+
+  const asked = about.askedOfPerson ?? []
+  if (asked.length > 0) {
+    parts.push(`${about.personName} has been sent a link and asked for ${listed(asked)}.`)
+  }
+  if (preview.askOfFirm.length > 0) {
+    parts.push(`${listed(preview.askOfFirm.map((a) => a.label))} is ours to produce, not theirs.`)
+  }
+  if (preview.coverOutstanding.length > 0) {
+    parts.push(`Our own cover: ${listed(preview.coverOutstanding.map((c) => c.label))}.`)
+  }
+
+  return { title: preview.headline, body: parts.join(' ').replace(/\s+/g, ' ').trim() }
+}

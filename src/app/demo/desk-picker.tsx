@@ -1,0 +1,130 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+export interface Program {
+  slug: string
+  name: string
+  where: string
+  about: string
+}
+
+/**
+ * The desks at a client program, in the words of the person at each.
+ *
+ * What is waiting is stated because it is seeded that way — the point of
+ * a desk is to find your own work on it, not a tour.
+ */
+const DESKS: { desk: string; label: string; waiting: string }[] = [
+  // No desk suffix: the company's own seat, which holds everything. The
+  // founder wanted to try what an admin does — add a person, give them a
+  // role, name them a desk — without a seed doing it for them.
+  { desk: '', label: 'Account owner', waiting: 'People, roles and desks. Add someone, make them HR for a unit, and watch a requisition find them.' },
+  { desk: 'programme', label: 'Program manager', waiting: 'Runs the program. Sets the rules, chooses the suppliers, sees the spend.' },
+  { desk: 'hiring', label: 'Hiring manager', waiting: 'Needs somebody. A week of hours is waiting for your signature.' },
+  { desk: 'hr', label: 'HR partner', waiting: 'A requisition over the headcount plan is waiting for your read of the role.' },
+  { desk: 'procurement', label: 'Procurement lead', waiting: 'A requisition is waiting for you to say which suppliers may see it.' },
+  { desk: 'vp', label: 'Approver', waiting: 'A requisition over the $250k line is in your queue.' },
+  { desk: 'ap', label: 'Accounts payable', waiting: 'An invoice has matched the hours and is waiting to be paid.' },
+  { desk: 'compliance', label: 'Compliance officer', waiting: 'Tenure across every supplier, and whose paperwork is not on file.' },
+]
+
+/**
+ * `supplier` draws one button for the whole firm; `person` draws one for
+ * a seat that is a person rather than a company, and asks the route for
+ * them by name. A candidate has no desks to choose between — they are
+ * the only person at their own seat, which is the whole difference.
+ */
+export function DeskPicker({
+  programs,
+  supplier = false,
+  person = false,
+}: {
+  programs: Program[]
+  supplier?: boolean
+  person?: boolean
+}) {
+  const router = useRouter()
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function sit(slug: string, desk?: string) {
+    const key = `${slug}:${desk ?? ''}`
+    setBusy(key)
+    setError(null)
+    try {
+      const res = await fetch('/api/demo', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(
+          person ? { person: slug } : desk ? { as: slug, desk } : { as: slug }
+        ),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? 'Could not take that seat.')
+      router.push(body.data?.landing ?? '/dashboard')
+    } catch (err: any) {
+      setError(err.message)
+      setBusy(null)
+    }
+  }
+
+  // Two firms in a three-column grid read as two narrow columns of
+  // broken words with a hole beside them. The column count follows the
+  // number of doors.
+  const columns = programs.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'
+
+  return (
+    <div className={`mt-8 grid gap-4 ${columns}`}>
+      {programs.map((p) => (
+        <section key={p.slug} className="panel flex flex-col p-5">
+          <p className="eyebrow">{p.where}</p>
+          <h2 className="mt-1 font-serif text-2xl tracking-[-0.02em]">{p.name}</h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-etyme-muted">{p.about}</p>
+
+          {supplier || person ? (
+            <button
+              onClick={() => sit(p.slug)}
+              disabled={busy !== null}
+              className="btn-primary mt-5 disabled:opacity-50"
+            >
+              {busy === `${p.slug}:`
+                ? 'Taking the seat…'
+                : person
+                  ? `Sit as ${p.name.split(' ')[0]}`
+                  : `Sit at ${p.name}`}
+            </button>
+          ) : (
+            <ul className="mt-5 flex flex-col divide-y divide-etyme-rule border-t border-etyme-rule">
+              {DESKS.map((d) => (
+                <li key={d.desk}>
+                  <button
+                    onClick={() => sit(p.slug, d.desk)}
+                    disabled={busy !== null}
+                    className="group flex w-full flex-col items-start gap-0.5 py-3 text-left transition-colors
+                               hover:text-etyme-action disabled:opacity-50"
+                  >
+                    <span className="text-sm font-medium">
+                      {busy === `${p.slug}:${d.desk}` ? 'Taking the seat…' : d.label}
+                      <span className="ml-1 opacity-0 transition-opacity group-hover:opacity-100">→</span>
+                    </span>
+                    <span className="text-[12px] leading-snug text-etyme-faint group-hover:text-etyme-muted">
+                      {d.waiting}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ))}
+      {error && (
+        <p className="md:col-span-2 lg:col-span-3 text-sm text-etyme-danger">
+          {error}
+          {/seed-world/.test(error) && ' The shared programs have to be seeded once by whoever runs this deployment.'}
+        </p>
+      )}
+    </div>
+  )
+}
