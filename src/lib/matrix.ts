@@ -1119,6 +1119,48 @@ export const MATRIX: L1[] = [
             'The sequencing is already decided: this runs before the first enterprise procurement call, and before SOC 2 begins. It is the one assurance item that can be bought in weeks rather than earned over a year, which is why it goes first \u2014 and a SOC 2 report written over controls no tester has attacked is the wrong order.',
           ] },
       ]},
+      // ── Offers ────────────────────────────────────────────────────────
+      //
+      // What Etyme might sell beyond the record itself. Nothing in this
+      // group is code, and no row here will ever be closed by a commit —
+      // an offer is a decision about what the company does, and its tasks
+      // are what would have to be true before anybody could sell it.
+      //
+      // They are tracked because **a decision not to build is still a
+      // decision the matrix should show.** An offer that lives only in a
+      // chat log is re-proposed every quarter by somebody who never heard
+      // the reason it was set aside, and an offer excluded on principle —
+      // the master-vendor model below — is re-proposed by somebody who
+      // never heard that it was excluded at all.
+      { code: 'L2.7.5', name: 'Offers', domain: 'MARKET', processes: [
+        // No implementedBy, on purpose, and the matrix test rightly
+        // refuses a NONE row that names files. The evidence paths sit
+        // inside the task text instead, where they read as what they are:
+        // what the software already does that a program office does,
+        // rather than a claim that this offer is built.
+        { code: 'L3.7.5.1', name: 'Program office as a service (MSP)', owner: 'Etyme', status: N,
+          tasks: [
+            'Etyme runs a client\u2019s contractor program as a vendor-neutral program office, for the clients too small for Magnit and its peers to want \u2014 five to fifteen suppliers and no VMS \u2014 funded the way an MSP is funded, by a percentage the suppliers pay on their billings.',
+            'DONE: A role is released only to the suppliers Procurement cleared, and a hiring manager cannot choose who sees it \u2014 src/lib/requisition-approval.ts, src/app/api/requisitions/[id]/distribute/route.ts',
+            'DONE: Approval chains clear by rule and by name within plan, so most requisitions publish themselves and only a miss reaches a desk \u2014 src/lib/requisition-approval.ts',
+            'DONE: A supplier is onboarded through four desks in order \u2014 the department lead, Procurement, HR, Finance \u2014 each verifying its own items, and nobody deciding the firm they recommended \u2014 src/lib/supplier-onboarding.ts, src/lib/supplier-desks.ts',
+            'DONE: A supplier\u2019s standing is set from the suppliers page \u2014 probation, approved, preferred \u2014 and read by the rule that stages a release \u2014 src/lib/supplier-tier.ts',
+            'DONE: The three-way match \u2014 the order, the timesheet receipt, the supplier\u2019s invoice \u2014 with what did not match routed to the AP desk as a decision rather than quietly paid \u2014 src/lib/three-way-match.ts',
+            'DONE: Insurance and tenure are watched nightly: a lapsed certificate blocks, and a person\u2019s days on site are counted once across every supplier \u2014 src/lib/contract-clearance.ts, src/lib/tenure-days.ts, src/app/api/cron/watch/route.ts',
+            'DONE: The MSP is already a party with its own desks \u2014 Program Manager, Supplier Manager, Coordinator, AP Clerk, Compliance Officer \u2014 src/lib/company-defaults.ts',
+            'DONE: The program office walks the ten stations from its own desks rather than the client\u2019s, and the drawing says which desk holds each one \u2014 docs/lanes/streams.mjs, docs/lanes/out/3-msp-program-office.pdf',
+            'OPEN, ARCHITECT: The seat. A program office that is not the client acts in a seat the client grants it, the way the client grants one to its own people, under the client\u2019s own rules and with every read logged. `Delegation` is a table with no reader and no writer today, and src/lib/resolve-client-company.ts refuses with what is missing rather than pretending. Nothing in this row can be sold before that seat exists.',
+            'OPEN, FOUNDER: Which desks Etyme staffs \u2014 supplier manager, coordinator, AP \u2014 and which the client keeps. A program office that takes the hiring manager\u2019s decisions is not neutral and is not this.',
+            'OPEN, FOUNDER: The fee model \u2014 supplier-funded, a percentage on billings, disclosed to every supplier at onboarding rather than discovered later. No number exists: the price is set after real clients are using it, and no agent invents one.',
+            'OPEN, FOUNDER: The service agreement \u2014 what Etyme is on the hook for, the service levels behind it, and what happens to the client\u2019s record when the service ends.',
+            'OPEN, FOUNDER: Staffing the desks with people. This is a services business with headcount, margin, cover for absence and a hiring plan \u2014 not software \u2014 and it is priced and run as one.',
+            'OPEN, FOUNDER: SOC 2 and the penetration test first (L3.7.4.1 and L3.7.4.3). A program office holds every supplier\u2019s rates for one client, which is the thing a supplier would most object to Etyme holding, and neither assurance item is started.',
+            'OPEN, MARKET: The words. Never \u201cmaster vendor\u201d \u2014 a staffing firm that runs the program and also fills the roles from its own bench. That model is excluded permanently, because Etyme never runs a bench and never places anybody, and the moment it competes with its own suppliers the network stops growing.',
+            'OPEN, MARKET: The neutrality sentence on the page, said plainly enough that a supplier reading it believes it: the program office Etyme would run places nobody.',
+            'OPEN, MARKET: The MSP as a partner stays true for every client large enough to want one. This offer is for the clients an MSP will not take, and it must not read as competing with the program offices already on the platform.',
+            'The sequencing, decided 2026-09-20: not now. After the first paying client for the record, and only if two or three clients too small for an MSP ask for it unprompted. The record is the product; the program office is a second business built on it, and starting the second before the first is paid for is how the 2017 build reached four thousand commits and stalled on adoption.',
+          ] },
+      ]},
     ],
   },
 ]

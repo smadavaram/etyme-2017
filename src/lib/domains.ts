@@ -247,7 +247,11 @@ export const DOMAINS: Domain[] = [
       'the generated company sites, lead capture and nurture, and the distribution ' +
       'of requirements and bench candidates up and down a chain without breaching ' +
       'an NDA on the way.',
-    l2: ['L2.1.4'],
+    // L2.7.5 is the Offers group: what Etyme might sell beyond the record.
+    // Positioning, the words that may never be used, and the neutrality
+    // that decides which offers are possible at all — the market's, not
+    // regulation's, even though it sits under Govern and protect.
+    l2: ['L2.1.4', 'L2.7.5'],
     owns: [
       'lib/positioning', 'lib/site-voice', 'lib/public-site', 'lib/distribution',
       'app/page', 'app/site', 'app/c', 'app/api/c',
@@ -345,6 +349,8 @@ export const DOMAINS: Domain[] = [
       // app/api — see the cron check in __tests__/invariants/alerts.
       'lib/due-cycle-desks',
       'app/api/cron', 'app/api/import',
+      // Generated from lib/matrix by the regeneration script; edited only by regenerating it.
+      'docs/delivery-matrix.html',
       'components/',
     ],
   },
