@@ -48,9 +48,11 @@ import { join } from 'node:path'
 import {
   check, verdict, copyFrom, gridsWithoutBreakpoint, priceClaims, namedCompanies,
   headlinesFrom, withoutVerb, longSentences, settingTheOfferAside,
+  readsAsAimedAtSuppliers, offersTheProgramOffice, sizesAgainstIncumbents,
   type Copy,
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
+import { CENSUS_COPY } from '@/lib/census-copy'
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
 
@@ -329,6 +331,8 @@ describe('The reader finds words that are actually on the page', () => {
 
 const body = words.slice(12).join(' ')
 const all = words.join(' ')
+/** Everything above the fold, as one string, for the guards that read it. */
+const hero = live.hero.join(' ')
 
 const at = (anchor: string) => PAGE.indexOf(`id="${anchor}"`)
 
@@ -738,40 +742,134 @@ describe('Every line says an outcome, a benefit or a method', () => {
   })
 })
 
-// ── The two ways to use it ───────────────────────────────
+// ── Who sits at the desks, and how quietly it is offered ──────
 //
-// Decided 2026-09-20. Etyme offers to run a client's program itself, as
-// a vendor-neutral program office, and the client chooses in the
-// founder's own two labels. Both stand on one record. The neutrality
-// commitment is now load-bearing in a way it was not before, because a
-// supplier reading this page is being asked to trust a firm that runs
-// its client's program, so the page says what Etyme never does in
-// either way rather than leaving it to the footer.
+// Decided 2026-09-20, and corrected the same day. Etyme offers to run a
+// client's program itself, as a vendor-neutral program office. The page
+// led with that as a choice until the founder read it: "MSP selling
+// should be undercover selling and more as value addition rather than
+// fully pitching for the market. Remove the threat if any to supply
+// chain."
+//
+// So the record is what the page sells, the service is one quiet
+// sentence after the record sentence, and the section that explains it
+// argues with nobody. Three sentences in this file used to pin the page
+// as it was for those few hours — the hero's "You choose how to use
+// it", the section headline, and the sizing sentence against an MSP.
+// They pinned copy the founder has since asked to be taken off, and a
+// test that pins a reversed decision stops the page being corrected. So
+// they are rewritten below into what must stay true: the offer appears
+// once, quietly, never in a headline, and nothing on the page measures
+// Etyme against anybody.
+//
+// The neutrality commitment is load-bearing in a way it was not before,
+// because a supplier reading this page is being asked to trust a firm
+// that runs its client's program. It stays in the section rather than
+// only in the footer.
 
-describe('The client chooses how to use it, and neither way is Etyme supplying anybody', () => {
+describe('The record is the product, and the program office is offered quietly', () => {
 
-  it('offers the choice in the buyer’s two words, VMS software or MSP provider, on one record', () => {
-    // The labels are the buyer's, not ours. A program manager has
-    // already evaluated things called both of those, and inventing a
-    // third word for either one costs the recognition.
+  it('leads with the record and offers the program office in one quiet sentence under it', () => {
+    // The hero says what Etyme holds. The offer is the sentence after
+    // it, in the muted line, and a reader may take it or leave it.
+    expect(all).toContain(
+      'Etyme keeps one record of every contractor across every staffing supplier you use.'
+    )
+    expect(all).toContain(
+      'Your own program office runs it. If you would rather not staff one, Etyme can run it for you on the same record.'
+    )
+    // And the sentence it replaced is gone. "You choose how to use it"
+    // made the choice the thing being sold.
+    expect(all).not.toContain('You choose how to use it')
+  })
+
+  it('mentions the program office service once as a quiet option, never as a headline', () => {
+    // Twice on the whole page: the hero sentence, and the card under
+    // #ways that explains what it means. Anywhere else it has stopped
+    // being a second option and become the pitch.
+    const offers = offersTheProgramOffice(all)
+    expect(offers, offers.join(' | ')).toHaveLength(2)
+    expect(offersTheProgramOffice(hero)).toHaveLength(1)
+    // Never in a headline, and never in the line the founder signed off.
+    for (const heading of headlinesFrom(PAGE)) {
+      expect(offersTheProgramOffice(heading), heading).toEqual([])
+    }
+    expect(offersTheProgramOffice(`${words[1]} ${words[2]}`)).toEqual([])
+  })
+
+  it('does not size Etyme against the incumbents', () => {
+    // "An MSP normally wants a program of hundreds of contractors.
+    // Etyme's program office takes programs with five to fifteen
+    // suppliers." Both halves may be true and together they are a
+    // competitive claim about firms nobody here has spoken to, on
+    // behalf of a service nobody has delivered. It also tells the
+    // reader they are the client the real ones would not take.
+    const sized = sizesAgainstIncumbents(all)
+    expect(sized, sized.join('; ')).toEqual([])
+    expect(all).not.toContain('An MSP normally wants a program of hundreds of contractors')
+    expect(all).not.toContain('five to fifteen suppliers')
+  })
+
+  it('no sentence on the page reads as a threat to a supplier', () => {
+    // The network only works because suppliers put their consultants in
+    // the system. A page that keeps every neutrality promise and still
+    // reads as a tool bought to catch them costs the network. The rate
+    // questions stay on the client's side: what the client itself
+    // cannot answer, never what a supplier is hiding.
+    const aimed = readsAsAimedAtSuppliers(all)
+    expect(aimed, aimed.join('\n')).toEqual([])
+  })
+
+  it('no sentence on the census page reads as a threat to a supplier either', () => {
+    // The census is the door to the program office service, so it is
+    // the page most likely to reach for "find out what your suppliers
+    // are really charging". What it may say is what the client cannot
+    // answer about its own workforce: the lowest rate, the highest
+    // rate and the gap, which is the client's own knowledge of its own
+    // spend. The agreement it links to already promises we never
+    // approach a supplier; the page above it must not undo that.
+    const census = readFileSync(join(process.cwd(), 'src/app/census/page.tsx'), 'utf8')
+    const said = [...copyFrom(census), JSON.stringify(CENSUS_COPY)].join(' ')
+    const aimed = readsAsAimedAtSuppliers(said)
+    expect(aimed, aimed.join('\n')).toEqual([])
+    // And the guard is reading something, rather than passing on an
+    // empty page.
+    expect(said).toContain('across every supplier')
+  })
+
+  it('keeps the two labels the founder named, as sub-headings rather than the headline', () => {
+    // A program manager has already evaluated things called both of
+    // those, and inventing a third word costs the recognition. They
+    // are sub-headings inside #ways now, and the section headline is
+    // about the record.
     expect(PAGE).toContain('const TWO_WAYS')
     const twoWays = PAGE.slice(PAGE.indexOf('const TWO_WAYS'), PAGE.indexOf('const EXPOSURE'))
     const labels = [...twoWays.matchAll(/label: '([^']+)'/g)].map((m) => m[1])
     expect(labels).toEqual(['VMS software', 'MSP provider'])
-    // Drawn, not only held in the data, and each label carries an
-    // outcome, a benefit and a method under it.
     expect(PAGE).toContain('{w.label}')
-    expect(PAGE).toContain('{w.outcome}')
-    expect(PAGE).toContain('{w.benefit}')
-    expect(PAGE).toContain('{w.method}')
-    expect([...twoWays.matchAll(/outcome: '([^']+)'/g)].length).toBe(2)
-    expect([...twoWays.matchAll(/benefit: '([^']+)'/g)].length).toBe(2)
-    expect([...twoWays.matchAll(/method: '([^']+)'/g)].length).toBe(2)
-    // One record, said in the hero where the choice is first offered
-    // and again over the section.
-    expect(all).toContain('You choose how to use it: as VMS software your own')
-    expect(all).toContain('MSP provider running the program for you on the same record')
-    expect(all).toContain('Two ways to use it, and both stand on one record')
+    expect(PAGE).toContain('{line}')
+    // Three plain sentences under each label, drawn from the data.
+    expect([...twoWays.matchAll(/^      '[^']+',$/gm)].length).toBe(6)
+    expect(all).toContain('The record is the product, and your own people run the program on it')
+    for (const heading of headlinesFrom(PAGE)) {
+      expect(heading, heading).not.toContain('MSP')
+    }
+  })
+
+  it('says the program office is the second option and most clients take the first', () => {
+    expect(all).toContain('Most clients staff the program office themselves.')
+    expect(all).toContain('The record is the same either way and it stays yours.')
+  })
+
+  it('says what a client gets from the service in three plain sentences', () => {
+    // Value added, said as outcomes: a program office without the
+    // headcount, seats the client grants and can take back, and the
+    // record left behind if it ends.
+    expect(all).toContain('You get a program office without hiring one.')
+    expect(all).toContain(
+      'Etyme staff sit in seats your company grants them, work to your rules, and every read they make is logged.'
+    )
+    expect(all).toContain('The record stays yours if the service ends.')
   })
 
   it('says what Etyme never does in either way', () => {
@@ -800,38 +898,38 @@ describe('The client chooses how to use it, and neither way is Etyme supplying a
     expect(at('ways')).toBeLessThan(at('exposure'))
   })
 
-  it('names the size of program Etyme’s program office takes', () => {
-    // The answer to "we would just hire an MSP". The clients an MSP
-    // will not take are the clients this is for, and the size is the
-    // one in CLAUDE.md rather than a number invented for the page.
-    expect(body).toContain('An MSP normally wants a program of hundreds of contractors.')
-    expect(body).toContain('program office takes programs with five to fifteen suppliers')
-  })
-
-  it('says how the MSP provider service is paid, without a number', () => {
-    // Supplier-funded, a percentage on billings, disclosed at
-    // onboarding rather than discovered later. The number is the
-    // founder's and does not exist, so there is none here.
-    expect(body).toContain(
-      'The MSP provider service is paid the way program offices are paid, a percentage the suppliers pay on their billings, disclosed to every supplier at onboarding.'
-    )
+  it('says how a program Etyme runs is paid for, once and plainly, without a number', () => {
+    // Supplier-funded, a percentage on billings, disclosed when a
+    // supplier joins rather than discovered later. It is a fact a
+    // supplier will read, so it is said plainly and exactly once. The
+    // number is the founder's and does not exist.
+    const sentence =
+      'Where Etyme runs the program, it is paid the way program offices are paid: a percentage the suppliers pay on their billings, disclosed to every supplier when they join.'
+    expect(body).toContain(sentence)
+    expect(body.split('a percentage the suppliers pay on their billings')).toHaveLength(2)
     const found = priceClaims(all)
     expect(found, found.join('; ')).toEqual([])
     expect(body).toContain('There is no price on this page because we have not settled one')
   })
 
-  it('tells a supplier that a program Etyme runs changes nothing about its rates or its sub-vendors’ names', () => {
-    // The sentence a supplier needs before it will keep using a
-    // platform whose owner now runs its client's program.
+  it('tells a supplier what a program Etyme runs changes for them, in outcomes', () => {
+    // Reassurance first — rates, sub-vendors' names, the client stays
+    // theirs — and then what is actually better for them. Never a
+    // sentence about being watched or compared.
     expect(body).toContain(
-      'A program Etyme runs changes nothing about your rates or your sub-vendors’ names staying private.'
+      'Your rates and the names of your own sub-vendors stay private at every step, in both directions, at any depth.'
+    )
+    expect(body).toContain('Your client stays your client.')
+    expect(body).toContain('Etyme never supplies a person and never runs a bench.')
+    expect(body).toContain(
+      'Where Etyme runs a client’s program, none of that changes. Approvals come back faster, your bills are matched and paid without chasing, and the spreadsheets stop.'
     )
   })
 
   it('opens the census door now that the page exists', () => {
-    // The census is the first step for a client weighing the MSP
-    // service. The constant was off while `src/app/census` was not
-    // built, because a link to a page that is not there costs more
+    // The census is the first step for a client weighing the program
+    // office service. The constant was off while `src/app/census` was
+    // not built, because a link to a page that is not there costs more
     // trust than no link at all. The page shipped on 2026-09-20, so the
     // door is open — and the file is read here as well as the constant,
     // so switching one without the other fails on that commit.

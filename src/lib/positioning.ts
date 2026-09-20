@@ -618,3 +618,157 @@ export function longSentences(text: string, max = 30): string[] {
   }
   return out
 }
+
+// ── Nothing on the page is aimed at a supplier ────────────────────────
+//
+// Added 2026-09-20, on the founder: "MSP selling should be undercover
+// selling and more as value addition rather than fully pitching for the
+// market. Remove the threat if any to supply chain."
+//
+// The neutrality rule above catches the page claiming Etyme supplies
+// people. It cannot catch the other half of the same problem, which is
+// a page that keeps the promise and still reads, to the firm that put
+// its consultants in the system, as a tool bought to catch it. "See
+// what your suppliers are really charging" breaks no rule in this file
+// and costs the network, because a supplier who reads the page as
+// hostile does not join and there is nothing to sell a client.
+//
+// The distinction the guard draws is the one the founder drew: a
+// sentence about the client's own knowledge is fine — "are we paying
+// two suppliers differently for the same work" is a question a CFO
+// asks about their own company — and a sentence about catching
+// somebody is not. So most patterns fire only when a supplier is named
+// in the same sentence, and the few that are hostile on their own
+// (a hidden markup, overcharging, nowhere to hide) fire anywhere.
+//
+// Why sentence by sentence rather than word by word: the live page
+// already says "most companies have never been caught by any of this",
+// which is about the reader's own company and has to stay. A word list
+// would refuse it, somebody would delete the guard, and then nothing
+// guards anything.
+
+const SUPPLIER_WORD =
+  /\b(?:supplier|suppliers|supplier's|vendor|vendors|sub-vendor|sub-vendors|staffing firm|staffing firms|prime|primes)\b/i
+
+const AIMED_AT_SUPPLIERS: { pattern: RegExp; says: string; needsSupplier?: boolean }[] = [
+  { pattern: /\b(?:catch|catches|catching|caught)\b/i, says: 'catching a supplier out', needsSupplier: true },
+  { pattern: /\b(?:expose|exposes|exposing|exposed)\b/i, says: 'exposing a supplier', needsSupplier: true },
+  { pattern: /\b(?:hidden|secret|undisclosed)\s+(?:markup|markups|margin|margins|fee|fees|spread)\b/i,
+    says: 'a hidden markup, which is an accusation' },
+  { pattern: /\bmarkups?\b/i, says: 'the supplier’s markup, named as the thing to find', needsSupplier: true },
+  { pattern: /\bovercharg(?:e|es|ed|ing)\b/i, says: 'overcharging' },
+  { pattern: /\b(?:watch|watches|watching|monitor|monitors|monitoring|police|polices|policing)\s+(?:your\s+|the\s+|their\s+)?(?:supplier|suppliers|vendor|vendors)\b/i,
+    says: 'watching suppliers' },
+  { pattern: /\b(?:compare|compares|comparing|rank|ranks|ranking|score|scores|scoring)\s+(?:your\s+|the\s+|their\s+)?(?:supplier|suppliers|vendor|vendors)\b/i,
+    says: 'comparing suppliers against each other' },
+  { pattern: /\b(?:supplier|suppliers|vendor|vendors)\s+(?:cannot|can\s?not|can’t|can't)\s+hide\b/i,
+    says: 'suppliers cannot hide' },
+  { pattern: /\bnowhere to hide\b/i, says: 'nowhere to hide' },
+  { pattern: /\bcrack(?:ing)? down\b/i, says: 'cracking down' },
+  { pattern: /\b(?:squeeze|squeezing|leverage over|play(?:ing)? (?:them|one)\s+off)\b/i,
+    says: 'using the record against them', needsSupplier: true },
+]
+
+/**
+ * Every sentence a supplier would read as aimed at them.
+ *
+ * Empty is the only acceptable answer on a public page. Each hit is the
+ * sentence and what tripped it, so somebody can rewrite the sentence
+ * rather than hunt the page for it.
+ */
+export function readsAsAimedAtSuppliers(text: string): string[] {
+  const out: string[] = []
+  for (const raw of text.split(/(?<=[.!?])\s+/)) {
+    const sentence = raw.trim()
+    if (!sentence) continue
+    const names = SUPPLIER_WORD.test(sentence)
+    for (const { pattern, says, needsSupplier } of AIMED_AT_SUPPLIERS) {
+      if (needsSupplier && !names) continue
+      const m = sentence.match(pattern)
+      if (m) {
+        out.push(`${says} — "${sentence}"`)
+        break
+      }
+    }
+  }
+  return out
+}
+
+// ── The program office service is sold quietly ────────────────────────
+//
+// Etyme will run a client's program where the client would rather not
+// staff one. It is a service sold on top of the record, and the founder
+// asked for it to read as a value added rather than as the thing being
+// pitched. Two ways that goes wrong, and both are mechanical:
+//
+//   1. the offer creeps into a headline, and the page stops selling the
+//      record and starts selling a managed service
+//   2. the offer is repeated until it is the page's argument, which is
+//      what "fully pitching for the market" means
+//
+// So the offer is counted rather than described. What counts is a
+// sentence saying Etyme would run it *for you* — not the words "program
+// office", which the page needs constantly for the client's own.
+
+const THE_OFFER_SENTENCE = [
+  /\brun(?:s)? it for you\b/i,
+  /\brun(?:s)? the program for you\b/i,
+  /\brun(?:s)? your program\b/i,
+  /\bprogram office without hiring one\b/i,
+  /\bEtyme(?:’s|'s)? (?:own )?program office runs\b/i,
+]
+
+/**
+ * Every sentence on a page that offers to run the client's program.
+ *
+ * The hero carries one, quietly, after the record sentence. The section
+ * that explains the option carries one more. Anywhere else, and in any
+ * headline, it has stopped being a second option and become the pitch.
+ */
+export function offersTheProgramOffice(text: string): string[] {
+  const out: string[] = []
+  for (const raw of text.split(/(?<=[.!?])\s+/)) {
+    const sentence = raw.trim()
+    if (sentence && THE_OFFER_SENTENCE.some((p) => p.test(sentence))) out.push(sentence)
+  }
+  return out
+}
+
+// ── Sizing against the incumbents is a pitch ──────────────────────────
+//
+// The page said "An MSP normally wants a program of hundreds of
+// contractors. Etyme's program office takes programs with five to
+// fifteen suppliers." Both halves are probably true and together they
+// are a competitive claim about firms nobody here has spoken to, on
+// behalf of a service that has never been delivered. It also tells a
+// reader they are the client the real ones would not take, which is a
+// strange thing to say to somebody you are asking to trust you.
+//
+// Describing the buyer is not sizing: "a company with a dozen
+// suppliers" says who this is for without measuring anybody. What is
+// caught is the comparison.
+
+const SIZING: { pattern: RegExp; says: string }[] = [
+  { pattern: /\bMSPs?\b[^.]{0,60}\b(?:normally|usually|typically|only|rarely|will not|won’t|won't|do not|don’t)\b/i,
+    says: 'what an MSP will and will not take' },
+  { pattern: /\bprograms? (?:of|with) (?:hundreds|thousands)\b/i, says: 'the size of program somebody else wants' },
+  { pattern: /\b(?:too small|not big enough|beneath) (?:for|to interest)\b/i, says: 'the reader being too small for somebody else' },
+  { pattern: /\bclients (?:they|the incumbents|nobody else) (?:will not|won’t|won't|would not) take\b/i,
+    says: 'the clients somebody else refuses' },
+  { pattern: /\bunlike (?:an?|the) (?:MSP|VMS|incumbent)/i, says: 'a comparison with an incumbent' },
+  { pattern: /\bnone of (?:them|the incumbents) can\b/i, says: 'a claim about what rivals cannot do' },
+]
+
+/**
+ * Anything on a page that measures Etyme against the incumbents.
+ *
+ * Empty is the only acceptable answer while no program has been run.
+ */
+export function sizesAgainstIncumbents(text: string): string[] {
+  const out: string[] = []
+  for (const { pattern, says } of SIZING) {
+    const m = text.match(pattern)
+    if (m) out.push(`${m[0].trim()} — ${says}`)
+  }
+  return out
+}
