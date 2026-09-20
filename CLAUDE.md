@@ -102,6 +102,33 @@ AI is plain rules, and that is a feature.
   anybody. The moment it competes with its own suppliers the network
   stops growing.
 
+**Show the product, and name the category by comparison. Decided
+2026-09-20, after a real buyer read the page.** The founder gave the home
+page to the CTO of a two-billion-dollar company with forty to fifty IT
+contractors, the exact buyer. He said he did not understand what the app
+does, and that the page looked like an AI app and did not connect. The
+founder said "we are SAP Fieldglass" and it connected at once. Two rules
+follow:
+
+- **Screens before sentences.** A buyer understands a product by seeing it
+  used. The page shows the real product, from the seeded demo: the list of
+  contractors with the supplier, the rate and the time on site beside each;
+  a timesheet being approved; one invoice matched to signed hours; the four
+  questions answered on the dashboard. Dense tables with numbers read as
+  enterprise software. Prose about "a record" reads as a pitch deck.
+- **Name the category, and one comparison.** "A vendor management system
+  for companies with twenty to two hundred contractors. If you know SAP
+  Fieldglass or Beeline, it is the same job, sized for a company with fifty
+  contractors rather than five thousand." Nominative, once, factual, never
+  a claim about them. The guard in `lib/positioning` that refused any named
+  comparison is relaxed to allow exactly that sentence and no other.
+- **Concrete nouns only above the fold**: contractors, suppliers,
+  timesheets, invoices, rates, months on site. "Record" is allowed once
+  the reader has seen the list it refers to.
+- **Say what it does in four numbered steps** a CTO recognizes: post a
+  role to your suppliers; they submit people; approve timesheets; pay one
+  matched invoice per supplier. Everything else is below.
+
 ### Why this is written down
 
 It was agreed in conversation and the landing page went on saying
