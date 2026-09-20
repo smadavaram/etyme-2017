@@ -49,7 +49,6 @@ import {
   check, verdict, copyFrom, gridsWithoutBreakpoint, priceClaims, namedCompanies,
   headlinesFrom, withoutVerb, longSentences, settingTheOfferAside,
   readsAsAimedAtSuppliers, offersTheProgramOffice, sizesAgainstIncumbents,
-  THE_COMPARISON, timesCompared, settingTheComparisonAside,
   type Copy,
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
@@ -971,8 +970,15 @@ describe('The record is the product, and the program office is offered quietly',
 //
 // So these five hold the shape of the answer rather than its wording:
 // a real screen before the argument, every image on disk, a hard limit
-// on the prose above it, four steps a CTO recognizes, and exactly one
-// named comparison.
+// on the prose above it, four steps a CTO recognizes, and a subhead
+// that names the category and the size.
+//
+// The comparison itself lasted one evening. The page said "If you know
+// SAP Fieldglass or Beeline, it is the same job, sized for a company
+// with fifty contractors rather than five thousand" and the founder
+// read it on his phone and struck it: "Invoking SAP Fieldglass and
+// Beeline will trigger more questions than answers." It is a sentence
+// he says in a conversation, where he can answer the next question.
 
 /** Every screenshot the page draws, in source order. */
 const SCREENS = [...PAGE.matchAll(/\/screens\/[\w-]+\.png/g)].map((m) => m[0])
@@ -1100,36 +1106,34 @@ describe('The page shows the product before it describes it', () => {
     expect([...steps.matchAll(/from: '([^']+)'/g)].length).toBe(4)
   })
 
-  it('names the category with one factual comparison, and makes no other claim about anybody', () => {
-    // The guard used to refuse every named company, comparison
-    // included. It cost more than it protected: a buyer learns a
-    // category by comparison, and this one landed with a real buyer in
-    // a sentence. So exactly this sentence is allowed, once.
-    expect(all).toContain(THE_COMPARISON)
-    expect(timesCompared(all), 'said once, never argued').toBe(1)
-    // With that one sentence set aside, the page names nobody at all —
-    // no customer, no logo, and no second comparison.
+  it('names the category and the size, and no company at all', () => {
+    // The subhead named SAP Fieldglass and Beeline for one evening, and
+    // the founder struck it: a rival's name invites "how are you
+    // different" and "who else uses you", and a page cannot finish that
+    // argument. What a reader needs from this line is what kind of
+    // thing it is and what size of company it is built for.
+    const subhead =
+      'A vendor management system for companies with twenty to two hundred ' +
+      'contractors, sized for a company with fifty contractors rather than five thousand.'
+    expect(all).toContain(subhead)
+    // And it is one sentence a reader can hold, not two.
+    expect(longSentences(subhead, 30)).toEqual([])
+    // Nobody is named anywhere, with nothing set aside — no customer,
+    // no logo, no comparison.
     expect(namedCompanies(all)).toEqual([])
-    expect(namedCompanies(settingTheComparisonAside(all))).toEqual([])
-    // The sentence itself does name two, which is how we know the
-    // exception is narrow rather than a hole in the rule.
-    expect(namedCompanies(`We are better than ${THE_COMPARISON.slice(12)}`).length)
-      .toBeGreaterThan(0)
-    // Nothing is claimed about either of them: no rivalry, no sizing,
-    // and the category is named in the buyer's own words first.
+    // The guard is strict again rather than asleep: the sentence that
+    // was allowed for an evening is refused now.
+    expect(namedCompanies(
+      'If you know SAP Fieldglass or Beeline, it is the same job.'
+    ).length).toBeGreaterThan(0)
+    // "Rather than five thousand" is a size, not a rival: it measures
+    // the company reading the page, and nothing else on the page
+    // measures Etyme against anybody.
     const sized = sizesAgainstIncumbents(all)
     expect(sized, sized.join('; ')).toEqual([])
+    expect(sizesAgainstIncumbents(subhead)).toEqual([])
+    // The category is named in the buyer's own words first.
     expect(words[1]).toBe('Vendor management system')
-    expect(all).toContain(
-      'A vendor management system for companies with twenty to two hundred contractors.'
-    )
-    for (const claim of ['better than', 'unlike', 'replaces', 'cheaper than', 'instead of']) {
-      const around = all.slice(Math.max(0, all.indexOf(THE_COMPARISON) - 200), all.indexOf(THE_COMPARISON))
-      expect(around.toLowerCase(), claim).not.toContain(claim)
-    }
-    // A second copy of it is caught as a rule, not a matter of taste.
-    const twice = check({ hero: [THE_COMPARISON], body: [THE_COMPARISON, 'Contractors and suppliers.'] })
-    expect(twice.map((f) => f.rule)).toContain('one-comparison-only')
   })
 
   it('shows the two hardest answers as the screens that give them', () => {

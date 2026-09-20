@@ -42,11 +42,15 @@ import type { Route } from 'next'
  *   a pitch deck. Every image under `public/screens` names in `from`
  *   the desk and the route it came from, so it can be retaken.
  *
- *   One comparison, named, factual, once. "If you know SAP Fieldglass
- *   or Beeline, it is the same job, sized for a company with fifty
- *   contractors rather than five thousand." The guard that refused any
- *   named company allows exactly that sentence and no other, and makes
- *   no claim about either of them.
+ *   The category and the size, and no company. For a few hours that
+ *   evening the subhead named the two incumbents, and the founder read
+ *   it on his phone and struck it: "Invoking SAP Fieldglass and Beeline
+ *   will trigger more questions than answers." So the line says what
+ *   kind of thing this is and what size of company it is built for —
+ *   "A vendor management system for companies with twenty to two
+ *   hundred contractors, sized for a company with fifty contractors
+ *   rather than five thousand" — and `lib/positioning` refuses every
+ *   named company on this page, with no exception.
  *
  * What came out: the worked-example card in the hero — Priya
  * Raghunathan's placement as five rows of invented data. The dashboard
@@ -787,16 +791,20 @@ export default function LandingPage() {
             cost, and how long they have been there. Approve their timesheets. Pay
             one matched invoice per supplier.
           </p>
-          {/* The one named comparison on the whole page. It is here
-              because the founder said "we are SAP Fieldglass" to a buyer
-              who had read three paragraphs without understanding any of
-              them, and it landed at once. Factual, once, and it says
-              nothing about either product — `lib/positioning` allows
-              this sentence and refuses every other named company. */}
+          {/* The category and the size, and no company. This sentence
+              named two incumbents for a few hours on 2026-09-20 and the
+              founder struck it on his phone: "Invoking SAP Fieldglass
+              and Beeline will trigger more questions than answers." A
+              rival's name invites "how are you different", "are you
+              certified like them", "who else uses you" — and a page
+              cannot finish that argument. The comparison stays a
+              sentence he says in a conversation, where he can answer
+              the next question. `lib/positioning` refuses every named
+              company again, with no exception. */}
           <p className="mb-9 max-w-[62ch] text-[16px] leading-relaxed text-etyme-muted">
             A vendor management system for companies with twenty to two hundred
-            contractors. If you know SAP Fieldglass or Beeline, it is the same job,
-            sized for a company with fifty contractors rather than five thousand.
+            contractors, sized for a company with fifty contractors rather than
+            five thousand.
           </p>
 
           <figure className="overflow-hidden rounded-xl border border-etyme-rule
