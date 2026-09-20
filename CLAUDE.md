@@ -275,6 +275,13 @@ hours earlier on the matrix row L3.7.5.1 ("not now; after the first paying
 client"). The row, the home page, the competitive page and the census now
 follow this decision, not that note.
 
+**The client chooses one of two, in the founder's words (2026-09-20): Etyme
+as VMS software, where the client's own program office runs the program on
+Etyme; or Etyme as MSP provider, where Etyme's program office runs it for
+them on the same software.** Both stand on the same record. A screen or a
+page that offers the choice uses those two labels, because a buyer knows
+them; the category sentence still comes first.
+
 What it means, stated so nobody re-derives the old plan:
 
 - **The record stays the product underneath.** Everything in "Who pays"
