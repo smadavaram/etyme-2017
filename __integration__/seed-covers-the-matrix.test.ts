@@ -67,6 +67,17 @@ const RUNTIME: Record<string, string> = {
   dataRequest: 'written when a person actually asks for their data or asks to be forgotten',
   legalHold: 'written when a company places a hold, with a reason and a name on it',
   classificationCall: 'written when a worker classification is actually decided',
+  // ── The census, added 2026-09-20, for the same reason as the four
+  // above ────────────────────────────────────────────────────────────
+  //
+  // A seeded CensusRequest claims a named person at a real-sounding
+  // client sent us their contractor data and was promised in writing
+  // that we would delete it on a day. A seeded CensusFile is worse: it
+  // is a fictional file sitting under that promise, on a demo the
+  // founder walks in front of buyers. An empty census desk is the honest
+  // reading of a world where nobody has asked for one yet.
+  censusRequest: 'written when a client actually asks for a contractor census — a seeded one would claim a client sent us their data and was given a deletion date',
+  censusFile: 'the files a client actually uploaded; a seeded one is a fictional file under a promise we made in writing',
   contractorInvitation: 'an invitation somebody sent; /ready proves the email edge',
   documentShare: 'written when a person shares a document',
   documentShareAccess: 'written when a share link is opened',
