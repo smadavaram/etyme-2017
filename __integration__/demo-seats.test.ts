@@ -2,7 +2,11 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { NextRequest } from 'next/server'
 import { req, json, resetDatabase, prisma, as } from './harness'
 import { DEMO_COOKIE, read as readCookie } from '@/lib/demo-session'
-import { ALL_SEATS, INTEGRATOR_SEATS, CANDIDATE_SEATS, PROGRAM_OFFICE_SEATS } from '@/app/demo/seats'
+import {
+  ALL_SEATS, INTEGRATOR_SEATS, CANDIDATE_SEATS, PROGRAM_OFFICE_SEATS,
+  CLIENT_PROGRAMS, CLIENT_DESKS,
+} from '@/app/demo/seats'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { getNavForKind } from '@/components/shell/sidebar'
 import { seedWorld } from '@/lib/seed-world'
 
@@ -571,4 +575,127 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
       expect(bills.length, `${slug} owes nobody anything`).toBeGreaterThan(0)
     }
   })
+})
+
+/**
+ * What the client doors promise, checked against the world behind them.
+ *
+ * The page now says one true thing about each program above its desks —
+ * a 44-hour week waiting for a signature, cover running out in twelve
+ * days beside a contractor on a purchase order with no agreement, a
+ * consultant twenty-three months on site across two suppliers. Those
+ * are the first sentences a buyer reads on the second page of this
+ * product, and a sentence on a door the world behind it does not hold
+ * is the worst thing the page can do, because the visitor presses it.
+ *
+ * So each one is a query. If a seed changes and the sentence stops
+ * being true, this fails on that commit rather than on a demo.
+ */
+describe('every client door says something true of the seeded world', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  const bySlug = (slug: string) => prisma.company.findFirstOrThrow({ where: { slug } })
+
+  it('every client desk on the page is a door the route actually seats', async () => {
+    for (const program of CLIENT_PROGRAMS) {
+      for (const desk of CLIENT_DESKS) {
+        const r = req('POST', '/api/demo', { as: program.slug, ...(desk.desk ? { desk: desk.desk } : {}) })
+        const res = await demo(r as NextRequest)
+        const body = await res.json()
+        expect(
+          res.status,
+          `${program.name} — ${desk.label}: ${body.error?.message ?? 'no seat'}`
+        ).toBe(200)
+        expect(body.data.landing, `${program.name} — ${desk.label} lands nowhere`).toBeTruthy()
+        // And somebody is actually in the chair.
+        const setCookie = res.headers.get('set-cookie') ?? ''
+        const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(setCookie)
+        expect(await whoIsSitting(m![1]), `${program.name} — ${desk.label} seated nobody`).toBeTruthy()
+      }
+    }
+  }, 120_000)
+
+  it('has the 44-hour week its first door promises, filed and waiting for a signature', async () => {
+    const client = await bySlug('world-nike')
+    const waiting = await prisma.timesheet.findMany({
+      where: { sellContract: { clientCompanyId: client.id }, status: 'SUBMITTED', clientApprovedAt: null },
+    })
+    const long = waiting.filter((w) => Number(w.totalHours) === 44)
+    expect(
+      long.length,
+      `the door says a 44-hour week is waiting; the weeks waiting are ${waiting.map((w) => Number(w.totalHours)).join(', ') || 'none'}`
+    ).toBeGreaterThan(0)
+    expect(CLIENT_PROGRAMS[0].waiting).toContain('44-hour week')
+  }, 60_000)
+
+  it('has somebody starting in ten days with no I-9 on file, as the second door says', async () => {
+    const client = await bySlug('world-corning')
+    const starting = await prisma.sellContract.findMany({
+      where: { clientCompanyId: client.id, startDate: { gt: new Date() } },
+      select: { personId: true, startDate: true, person: { select: { name: true } } },
+    })
+    expect(starting.length, 'nobody at this client is starting at all').toBeGreaterThan(0)
+    const withoutI9: string[] = []
+    for (const line of starting) {
+      const i9 = await prisma.verification.findFirst({
+        where: { personId: line.personId, type: 'I9_EVERIFY' },
+      })
+      if (!i9) withoutI9.push(line.person?.name ?? line.personId)
+    }
+    expect(
+      withoutI9,
+      'the door says somebody starts without an I-9; everybody starting has one'
+    ).not.toHaveLength(0)
+    expect(CLIENT_PROGRAMS[1].waiting).toContain('no I-9 on file')
+  }, 60_000)
+
+  it('has the contractor on a purchase order with no agreement behind it at all', async () => {
+    const client = await bySlug('world-corning')
+    const line = await prisma.sellContract.findFirst({
+      where: { clientCompanyId: client.id, msaId: null, NOT: { workOrderId: null } },
+      include: { workOrder: { select: { number: true, msaId: true } } },
+    })
+    expect(line, 'every line at this client is papered under an agreement').toBeTruthy()
+    expect(line!.workOrder!.msaId, 'the order itself hangs off an agreement').toBeNull()
+    expect(CLIENT_PROGRAMS[1].waiting).toContain('no agreement')
+  }, 60_000)
+
+  it('has the consultant twenty-three months on site across two suppliers, against a cap of eighteen', async () => {
+    const client = await bySlug('world-terumo-bct')
+    const lines = await prisma.sellContract.findMany({
+      where: { clientCompanyId: client.id },
+      select: {
+        personId: true, companyId: true, startDate: true, endDate: true,
+        person: { select: { name: true } },
+      },
+    })
+    const byPerson = new Map<string, { name: string; suppliers: Set<string>; periods: { startDate: Date; endDate: Date | null }[] }>()
+    for (const l of lines) {
+      const key = l.personId
+      const row = byPerson.get(key) ?? { name: l.person?.name ?? key, suppliers: new Set<string>(), periods: [] }
+      row.suppliers.add(l.companyId)
+      row.periods.push({ startDate: l.startDate, endDate: l.endDate })
+      byPerson.set(key, row)
+    }
+    const across = [...byPerson.values()]
+      .filter((p) => p.suppliers.size > 1)
+      .map((p) => ({ ...p, months: monthsOf(daysOnSite(p.periods)) }))
+    const over = across.find((p) => p.months >= 23)
+    expect(
+      over,
+      `nobody at this client is twenty-three months across two suppliers: ${across.map((p) => `${p.name} ${p.months}`).join(', ') || 'nobody across two at all'}`
+    ).toBeTruthy()
+
+    // Counted once per day on site, not once per rung — the union of the
+    // periods, which is the whole reason the ledger exists.
+    expect(over!.months).toBe(23)
+
+    const cap = await prisma.governanceRule.findFirstOrThrow({
+      where: { ruleType: 'TENURE_CAP', policy: { companyId: client.id } },
+    })
+    expect((cap.parameters as any).maxMonths).toBe(18)
+    expect(CLIENT_PROGRAMS[2].waiting).toContain('twenty-three months')
+  }, 60_000)
 })

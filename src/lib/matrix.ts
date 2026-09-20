@@ -376,6 +376,10 @@ export const MATRIX: L1[] = [
             'Every seeded firm keeps a calendar, so a due date is generated against real days off rather than against weekends alone',
             'Every cycle date in a seeded world comes out of the one generator, including the demo consultant’s, so no placement anywhere has dates the calendar setting cannot reach',
             'A match score in the seed comes out of the match engine and carries its factors, basis, confidence and unknowns — never a number written by hand',
+            'The page opens on the client — three programs with a desk per job, every supplying firm quieter under one sub-heading below them, and the people last',
+            'Each client door says one true thing waiting at its desks today, and each of those sentences is a query against the seeded world rather than a claim',
+            'Every desk chip on the page is walked into the route, so a desk that answers a click with an error fails the build instead',
+            'The door the demo has not got — somebody with no firm at all — is said on the page rather than left as a gap the founder finds by clicking',
           ],
           implementedBy: [
             'src/app/demo/seats.ts', 'src/app/demo/page.tsx', 'src/app/demo/desk-picker.tsx',
@@ -387,6 +391,7 @@ export const MATRIX: L1[] = [
           testedBy: [
             '__integration__/demo-seats.test.ts', '__integration__/reseed-gate.test.ts',
             '__integration__/reseed-across-days.test.ts', '__tests__/invariants/demo-names.test.ts',
+            '__tests__/invariants/demo-door.test.ts',
             '__integration__/seed-covers-the-matrix.test.ts',
           ] },
         { code: 'L3.2.2.9', name: 'A counterparty that is not on the system', owner: 'Account manager', status: B,

@@ -25,7 +25,19 @@
  * names coming back, here and in the seeds.
  */
 
-import type { Program } from './desk-picker'
+/**
+ * One door: a firm or a person, with a place and a sentence.
+ *
+ * It lived in the picker, which meant the data imported the component
+ * that drew it. The shape of a door is the seat list's own business and
+ * the drawing is not, so it is here and the picker reads it.
+ */
+export interface Program {
+  slug: string
+  name: string
+  where: string
+  about: string
+}
 
 /**
  * The three enterprise programs, each with a desk per job.
@@ -33,11 +45,26 @@ import type { Program } from './desk-picker'
  * These get the desk list: a client is four or five jobs rather than one
  * seat, and the point of the door is to find your own work on it.
  */
-export const CLIENT_PROGRAMS: Program[] = [
+export interface ClientProgram extends Program {
+  /**
+   * What is on a desk at this program today.
+   *
+   * Not a promise and not a brochure line: every one of these is a row
+   * in the seeded world, and `__integration__/demo-seats.test.ts` goes
+   * and finds it. A sentence on a door that the world behind the door
+   * does not hold is the worst thing this page can do, because the
+   * visitor clicks it.
+   */
+  waiting: string
+}
+
+export const CLIENT_PROGRAMS: ClientProgram[] = [
   {
     slug: 'world-nike',
     name: 'Northbend Athletic',
     where: 'Tualatin, OR',
+    waiting:
+      'A 44-hour week is waiting for a signature — four hours over what the role allows.',
     about:
       'Three suppliers, one of them supplying through a bench vendor it never names. ' +
       'A planning analyst on her second supplier here, fourteen months into an eighteen-month cap.',
@@ -46,18 +73,87 @@ export const CLIENT_PROGRAMS: Program[] = [
     slug: 'world-corning',
     name: 'Cavanaugh Glassworks',
     where: 'Elmira, NY',
+    // What this door said until 2026-09-20 was a supplier whose liability
+    // certificate runs out in twelve days, and it was not true of the
+    // world behind the door: `cover()` in lib/seed-programmes skips a
+    // firm that already holds a certificate, and every firm in the base
+    // world holds one running to next spring. So the per-client `cover`
+    // map is inert for any supplier the world seeded first — the only
+    // cover running out anywhere is Brightmoor's, twenty days off, at
+    // the program above. Said here rather than quietly dropped: the
+    // seed is the fix, and it is not this change's.
+    waiting:
+      'One contractor is on site on a purchase order with no agreement behind it at all, and ' +
+      'somebody starts in ten days with no I-9 on file.',
     about:
-      'A glass plant hiring validation, MES and quality people. A supplier whose liability ' +
-      'certificate runs out in twelve days, and a past contractor who is clear to come back.',
+      'A glass plant hiring validation, MES and quality people. A week of a validation ' +
+      'engineer’s hours is waiting on the plant to sign it, and a past contractor is out long ' +
+      'enough to be asked back.',
   },
   {
     slug: 'world-terumo-bct',
     name: 'Talvern Medical',
     where: 'Westminster, CO',
+    waiting:
+      'One consultant is twenty-three months on site across two suppliers, against a cap of ' +
+      'eighteen — a number neither supplier can produce.',
+    // The tenure number is the line above; repeating it here put the same
+    // sentence twice on one card, which a reader notices before anything
+    // else on it. This says what else is on the desks.
     about:
-      'A medical device maker. One SAP consultant is twenty-three months on site across two ' +
-      'suppliers, against a cap of eighteen — a number neither supplier can see.',
+      'A medical device maker hiring SAP, validation and regulatory people through three ' +
+      'suppliers. A week of hours is filed and waiting, an invoice is out, and somebody ' +
+      'starts in five days with no I-9 on file.',
   },
+]
+
+/**
+ * The desks at a client program, in the words of the person at each.
+ *
+ * A program is not one seat. It is a manager who needs somebody, a lead
+ * who signs for the money, a clerk who pays what matched and an officer
+ * who answers for tenure — and each of them judges a product by sitting
+ * at their own desk and finding their own work waiting. So the door
+ * says which desk, and each lands on its own queue.
+ *
+ * `desk` is the suffix on the seeded address — the company's own slug
+ * with `-ap@` after it is its AP clerk — and it travels as
+ * `POST /api/demo {"as":…,"desk":…}`. The empty one is the first seat,
+ * which holds everything: the founder wanted to try what an account
+ * owner does, add a person and name them a desk, without a seed doing
+ * it first.
+ *
+ * It lives here rather than inside the picker so a test can walk every
+ * chip on the page into the route and find out whether it seats
+ * anybody. It did not, and a desk the route does not know is a chip
+ * that answers a click with an error.
+ */
+export interface ClientDesk {
+  /** The address suffix. British, and staying so — an address is not a word anybody reads. */
+  desk: string
+  /** What the chip says. */
+  label: string
+  /** What is on that desk when they get there. */
+  waiting: string
+}
+
+export const CLIENT_DESKS: ClientDesk[] = [
+  { desk: 'programme', label: 'Program manager',
+    waiting: 'Runs the program. Sets the rules, chooses the suppliers, sees the spend.' },
+  { desk: 'hiring', label: 'Hiring manager',
+    waiting: 'Needs somebody. A week of hours is waiting for your signature.' },
+  { desk: 'hr', label: 'HR partner',
+    waiting: 'A requisition over the headcount plan is waiting for your read of the role.' },
+  { desk: 'procurement', label: 'Procurement lead',
+    waiting: 'A requisition is waiting for you to say which suppliers may see it.' },
+  { desk: 'vp', label: 'Approver',
+    waiting: 'A requisition over the $250k line is in your queue.' },
+  { desk: 'ap', label: 'AP clerk',
+    waiting: 'An invoice has matched the hours and is waiting to be paid.' },
+  { desk: 'compliance', label: 'Compliance officer',
+    waiting: 'Tenure across every supplier, and whose paperwork is not on file.' },
+  { desk: '', label: 'Account owner',
+    waiting: 'People, roles and desks. Add someone, make them HR for a unit, and watch a requisition find them.' },
 ]
 
 /**
@@ -250,3 +346,20 @@ export const ALL_SEATS: Program[] = [
   ...PROGRAM_OFFICE_SEATS,
   ...INTEGRATOR_SEATS,
 ]
+
+/**
+ * The door that is not here, said rather than hidden.
+ *
+ * Every consultant in the seeded world is on somebody's payroll,
+ * somebody's bench, or in a corporation of their own. Nobody is simply
+ * a person with no firm at all — the party the lane drawings call 8B —
+ * so there is no door to open on them, and a page that quietly offered
+ * four consultants as "the person's side" would be claiming a fifth
+ * state it cannot show. Saying it costs a sentence; leaving it out is
+ * the gap the founder finds by clicking.
+ */
+export const MISSING_DOOR =
+  'One door is missing and worth saying so: somebody with no firm at all — nobody employs ' +
+  'them, nobody lists them, they have incorporated nothing — has no seat here, because the ' +
+  'seeded world holds no such person. The nearest to it is Helena Marsh the day before she ' +
+  'granted her listing.'
