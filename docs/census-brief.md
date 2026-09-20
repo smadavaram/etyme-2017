@@ -195,7 +195,8 @@ decision taken, so the build does not rediscover them.
    context refuses any person with no seat before the staff check runs,
    although staff are identified by address by design. The architect adds
    an address-based path for staff-only routes. Until it lands, the
-   census cannot be reviewed by staff, so it is the first thing built.
+   census cannot be reviewed by staff, so it was built 2026-09-20
+   (`lib/api-context`, `staff-without-a-seat.test.ts`).
 6. **There is no nurture sequence, and the shipped decision says there
    should not be one.** The public ask form says: "Not a form that opens a
    sequence. There is no list to be added to and nothing automatic

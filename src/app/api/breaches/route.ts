@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { readBreach, mayWorkBreach, mayClose, type ClockState } from '@/lib/breach'
 import { referenceOfBreach } from '@/lib/data-request'
-import { staffAddresses, tellStaff } from '@/lib/alerts'
+import { tellStaff } from '@/lib/alerts'
 import { breachStaffAlert } from '@/lib/notify/breach'
 import { POPULATIONS } from '@/lib/legal'
 import type { Audience } from '@/lib/notify/letters'
@@ -43,9 +43,16 @@ import type { Audience } from '@/lib/notify/letters'
 const TO_READ = 'governance.read'
 const TO_ACT = 'privacy.manage'
 
-function isStaff(email: string): boolean {
-  return staffAddresses().includes(email.toLowerCase())
-}
+/**
+ * Whether the caller is one of Etyme's own.
+ *
+ * `caller.staff` rather than a second reading of `ETYME_STAFF_EMAILS`.
+ * The copy this replaces compared a lowercased address against the list
+ * as typed, so a deployment whose variable held one capital letter
+ * locked Etyme's own staff out of the breach register — and it was a
+ * second answer to a question `lib/api-context` already answers for
+ * every route. Two copies of who is staff is one copy too many.
+ */
 
 function clocksOf(b: {
   notifyAuthorityBy: Date | null; authorityNotifiedAt: Date | null
@@ -68,7 +75,7 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const staff = isStaff(caller.person.primaryEmail)
+  const staff = !!caller.staff
   const companyId = caller.company?.id ?? null
   const mayRead = mayWorkBreach({
     isStaff: staff,
@@ -144,7 +151,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  const staff = isStaff(caller.person.primaryEmail)
+  const staff = !!caller.staff
   const body = await request.json().catch(() => ({}))
 
   // Only Etyme staff open, set and close one. A customer records that it
