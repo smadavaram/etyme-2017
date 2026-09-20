@@ -167,9 +167,11 @@ export const MATRIX: L1[] = [
             'No real company is named on the page, or on the demo the page hands a visitor to, or in the seeds behind it',
             'The four questions a client cannot answer come before the business case, and tenure is one of them rather than a section of its own (decided 2026-09-17, page rebuilt 2026-09-20)',
             'The record leads; the program office is offered once, quietly, never in a headline; nothing sizes Etyme against an MSP; no sentence reads as aimed at a supplier, and lib/positioning holds guards for all three (decided 2026-09-20, later the same day)',
+            'Screens before sentences: a real screen from the seeded demo sits under the hero and one beside each of the four steps, and every image is a file that exists (decided 2026-09-20, after a real buyer read the page)',
+            'The category is named by one factual comparison, once, and no other company is named anywhere',
           ],
           implementedBy: ['src/lib/positioning.ts', 'src/app/page.tsx',
-            'src/app/demo/seats.ts', 'src/app/demo/page.tsx'],
+            'src/app/demo/seats.ts', 'src/app/demo/page.tsx', 'public/screens'],
           testedBy: ['__tests__/invariants/positioning.test.ts', '__tests__/invariants/demo-names.test.ts'] },
         { code: 'L3.1.4.2', name: 'A requirement going down a chain', owner: 'Account manager', status: B,
           tasks: [
