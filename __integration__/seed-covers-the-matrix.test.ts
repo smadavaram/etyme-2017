@@ -119,7 +119,6 @@ const GAP: Record<string, string> = {
 
   // L1.2 Contract to onboard
   credential: 'nobody has signed in through an identity provider yet. NOT a license on a person — that is a Verification, and the line here said otherwise for as long as it existed',
-  delegation: 'nobody has delegated their approval authority while away, and nothing reads the table yet either',
   companyDomain: 'every seeded firm admits its people through one shared demo domain, and this column is unique platform-wide — a row per firm would either be a lie or make joining behave differently across the demo',
   timeOffEntry: 'nobody has taken a day off. The only thing that writes one is an overtime decision being banked, which is a person deciding',
 }

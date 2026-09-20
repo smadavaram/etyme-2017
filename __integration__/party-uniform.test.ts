@@ -157,7 +157,7 @@ function refusalsAreSentences(grid: Grid) {
 beforeAll(async () => {
     await resetDatabase()
     await seedWorld()
-    for (const slug of ['world-nike', 'world-kestrel', 'world-teleworld', 'world-pinnacle', 'world-brightmoor', 'world-consultis']) {
+    for (const slug of ['world-nike', 'world-corning', 'world-kestrel', 'world-teleworld', 'world-pinnacle', 'world-brightmoor', 'world-consultis']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
 
@@ -536,5 +536,162 @@ describe('10 · the tenure is the person’s, and every read of it leaves a trai
     const stranger = await json(await tenure(req('GET', '/api/tenure')))
     const names = stranger.status === 200 ? (stranger.body.data.people ?? []).map((p: any) => p.name) : []
     expect(names, 'a supplier off the deal read her days at Northbend Athletic').not.toContain('Rhea Saunders')
+  })
+})
+
+/**
+ * ── 11 · a program office that is not the client ─────────────────────
+ *
+ * The one hole in the grid above, and the reason station 1 has a
+ * refusal in it rather than a yes: Kestrel runs a client's program and
+ * places nobody, so no contract ties it to any client and the platform
+ * had no way to let it in. Letting a firm's own register of
+ * counterparties stand in would have let any firm claim any client,
+ * which is worse than the gap (CLAUDE.md, 2026-09-14).
+ *
+ * The answer is a seat: the client grants the office a desk in its own
+ * program office, the office acts at one of the CLIENT'S roles rather
+ * than its own, and every read under it is on the record. Built
+ * 2026-09-20, the morning Etyme itself became a program office provider
+ * and the seat stopped being hypothetical.
+ *
+ * Kestrel is the same firm refused in a sentence at station 1, so these
+ * blocks read as one story: refused with no seat, admitted with one,
+ * refused again the second it is taken back.
+ */
+describe('11 · a program office acts in a seat the client granted, or it does not act at all', () => {
+  const seatRoute = async (method: string, body?: unknown) => {
+    const { GET, POST } = await import('@/app/api/program/seats/route')
+    return json(method === 'GET' ? await GET(req('GET', '/api/program/seats')) : await POST(req('POST', '/api/program/seats', body)))
+  }
+  const revokeRoute = async (id: string, body?: unknown) => {
+    const { DELETE } = await import('@/app/api/program/seats/[id]/route')
+    return json(await DELETE(req('DELETE', `/api/program/seats/${id}`, body), { params: Promise.resolve({ id }) }))
+  }
+
+  const owner = (slug: string) => `${slug}${D}`
+  const NORTHBEND_OWNER = owner('world-nike')
+  const CAVANAUGH_OWNER = owner('world-corning')
+
+  it('a program office with no seat is told what is missing, not shown an empty program', async () => {
+    as(SEAT.MSP)
+    const { body } = await seatRoute('GET')
+    expect(body?.data?.side).toBe('OFFICE')
+    expect(body.data.seats.filter((s: any) => s.live)).toHaveLength(0)
+    // Not an empty table, which reads as "nobody has granted anything".
+    expect(body.data.says).toContain('Kestrel MSP')
+    expect(body.data.says).toMatch(/seat the client grants/)
+    expect(body.data.says).toMatch(/owner or the program manager/)
+  })
+
+  it('a program office cannot grant itself a seat', async () => {
+    as(SEAT.MSP)
+    const own = await prisma.role.findFirstOrThrow({
+      where: { companyId: co['world-kestrel'] }, select: { id: true },
+    })
+    const { status, body } = await seatRoute('POST', {
+      officeCompanyId: co['world-kestrel'],
+      roleId: own.id,
+      reason: 'We would like a desk in Northbend’s program, thank you.',
+    })
+    expect(status).toBe(403)
+    expect(body.error.message).toContain('A program office cannot grant itself a seat')
+  })
+
+  it('only an owner or the program manager at the client may grant a seat — a hiring manager cannot', async () => {
+    const pm = await prisma.role.findFirstOrThrow({
+      where: { companyId: co['world-nike'], name: 'Program Manager' }, select: { id: true },
+    })
+    as(NIKE.hiring)
+    const { status, body } = await seatRoute('POST', {
+      officeCompanyId: co['world-kestrel'],
+      roleId: pm.id,
+      reason: 'I would like Kestrel to help me with my own requisitions.',
+    })
+    expect(status).toBe(403)
+    expect(body.error.message).toContain('Only an owner or the program manager may grant a seat')
+    it_.northbendPm = pm.id
+  })
+
+  it('a client owner grants a program office a seat, and the program office reads the program under the client’s rules', async () => {
+    as(NORTHBEND_OWNER)
+    const granted = await seatRoute('POST', {
+      officeCompanyId: co['world-kestrel'],
+      roleId: it_.northbendPm,
+      reason: 'Kestrel runs our contingent program. They place nobody here and never will.',
+    })
+    expect(granted.body?.error, JSON.stringify(granted.body)).toBeUndefined()
+    expect(granted.status).toBe(201)
+    it_.seat = granted.body.data.id
+
+    // The seat holds Northbend's own Program Manager role, not Kestrel's.
+    const row = await prisma.programSeat.findUniqueOrThrow({
+      where: { id: it_.seat }, include: { role: true },
+    })
+    expect(row.role.companyId).toBe(co['world-nike'])
+
+    // And the same firm that was refused at station 1 now reads the
+    // program — the tenure ledger it is there to answer for.
+    as(SEAT.MSP)
+    const r = await json(await tenure(req('GET', '/api/tenure')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const names = r.body.data.people.map((p: any) => p.name)
+    expect(names, 'the program office read nobody at the client that seated it').toContain('Rhea Saunders')
+  })
+
+  it('every read a program office makes under a seat is logged against the seat', async () => {
+    as(SEAT.MSP)
+    await json(await tenure(req('GET', '/api/tenure')))
+    // The access log is fire-and-forget, like every other one in this
+    // product: the invariant is that the read is recorded, not that the
+    // reader waits for it.
+    await new Promise((r) => setTimeout(r, 300))
+    const trail = await prisma.accessLog.findMany({
+      where: { actorCompanyId: co['world-kestrel'], reason: { contains: it_.seat } },
+      select: { subjectId: true, reason: true, allowed: true },
+    })
+    expect(trail.length, 'a program office read a client’s workforce and left no trail').toBeGreaterThan(0)
+    expect(trail[0].reason).toContain('Kestrel MSP')
+    expect(trail[0].reason).toContain('Program Manager seat')
+    expect(trail[0].reason).toContain('Northbend Athletic granted it')
+    expect(trail.map((t) => t.subjectId)).toContain(it_.worker)
+  })
+
+  it('a seat at one client shows nothing of another client', async () => {
+    as(SEAT.MSP)
+    const { status, body } = await json(
+      await tenure(req('GET', `/api/tenure?clientCompanyId=${co['world-corning']}`))
+    )
+    expect(status).toBeGreaterThanOrEqual(400)
+    expect(body.error.message).toMatch(/[a-z]{3,}\s+[a-z]{2,}/i)
+    // And the other client's own desk never hears of the grant.
+    as(CAVANAUGH_OWNER)
+    const theirs = await seatRoute('GET')
+    expect(theirs.body.data.seats.map((s: any) => s.id)).not.toContain(it_.seat)
+  })
+
+  it('the firm in the seat cannot take its own seat back — a badge is issued at the desk of the building you are visiting', async () => {
+    as(SEAT.MSP)
+    const { status, body } = await revokeRoute(it_.seat, { reason: 'We would rather stay.' })
+    expect(status).toBe(403)
+    expect(body.error.message).toContain('taken back by the client that granted it')
+  })
+
+  it('a revoked seat reads nothing the next second', async () => {
+    as(NORTHBEND_OWNER)
+    const gone = await revokeRoute(it_.seat, { reason: 'The program is coming back in house from October.' })
+    expect(gone.body?.error, JSON.stringify(gone.body)).toBeUndefined()
+
+    as(SEAT.MSP)
+    const after = await json(await tenure(req('GET', '/api/tenure')))
+    expect(after.status).toBeGreaterThanOrEqual(400)
+    expect(after.body.error.message).toMatch(/not tied to a client yet/)
+    expect(after.body.error.message).toContain('Kestrel MSP')
+
+    // The row stays: who was in the program, from when to when, and why
+    // they came out, is the answer somebody may have to give later.
+    const row = await prisma.programSeat.findUniqueOrThrow({ where: { id: it_.seat } })
+    expect(row.revokedAt).not.toBeNull()
+    expect(row.revokeReason).toContain('coming back in house')
   })
 })

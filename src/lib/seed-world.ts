@@ -1019,6 +1019,51 @@ export async function seedWorld(): Promise<{
   // the officer who answers for tenure and paperwork.
   const programs = await seedProgrammes({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
 
+  // ── A program office in a seat, at one of the three programs ───────
+  //
+  // Cavanaugh Glassworks has no contingent workforce office of its own —
+  // a mid-size manufacturer rarely does — so it hands the running of its
+  // program to Aptiva Workforce and gives Aptiva a desk in it. That is
+  // the whole point of the seat: Aptiva places nobody at Cavanaugh and
+  // never will, so no contract will ever tie the two firms together, and
+  // without the client saying so in a row the platform has no way to let
+  // Aptiva in (`lib/program-seat`).
+  //
+  // The desk it sits at is Cavanaugh's OWN Program Manager role, not
+  // Aptiva's. So what Aptiva may do here is exactly what Cavanaugh's
+  // program manager may do, and it narrows the day Cavanaugh narrows it.
+  //
+  // Granted by Cavanaugh's account owner, because a seat is an owner's or
+  // the program manager's to give and nobody else's.
+  const cavanaugh = firmBySlug.get('corning')
+  const aptiva = firmBySlug.get('aptiva')
+  const cavanaughOwner = seatBySlug.get('corning')
+  if (cavanaugh && aptiva && cavanaughOwner) {
+    const pmRole = await db.role.findFirst({
+      where: { companyId: cavanaugh.id, name: 'Program Manager' },
+      select: { id: true },
+    })
+    const already = await db.programSeat.findFirst({
+      where: { clientCompanyId: cavanaugh.id, officeCompanyId: aptiva.id },
+      select: { id: true },
+    })
+    if (pmRole && !already) {
+      await db.programSeat.create({
+        data: {
+          clientCompanyId: cavanaugh.id,
+          officeCompanyId: aptiva.id,
+          roleId: pmRole.id,
+          grantedById: cavanaughOwner.personId,
+          grantedAt: day(-210),
+          validFrom: day(-210),
+          reason:
+            'Aptiva runs our contingent program. We have no workforce office of our own and they ' +
+            'place nobody here, so they sit at our program manager desk under our own rules.',
+        },
+      })
+    }
+  }
+
   // ── The last mile: the doors themselves ────────────────────────────
   //
   // Four people with a seat of their own and something waiting on it,

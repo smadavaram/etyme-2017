@@ -11,9 +11,12 @@
  * query string with no check, so any authenticated user could read any
  * client's tenure ledger by editing the URL.
  *
- * Two legitimate callers:
+ * Three legitimate callers:
  *   1. The client themselves — they are the subject.
- *   2. A vendor/MSP/GSI who actually places people there, proven by a
+ *   2. A program office sitting in a seat the client granted it. It
+ *      places nobody, so no contract can ever prove it belongs there;
+ *      the client saying so is the proof (lib/program-seat, 2026-09-20).
+ *   3. A vendor/MSP/GSI who actually places people there, proven by a
  *      SellContract resolved through endClientFilter.
  * Everyone else is refused.
  */
@@ -64,7 +67,21 @@ const NIKE = { id: 'client-nike', name: 'Northbend Athletic Inc.', slug: 'nike',
 beforeEach(() => {
   vi.mocked(prisma.company.findUnique).mockReset()
   vi.mocked(prisma.sellContract.findFirst).mockReset()
+  // No seat unless a test grants one. Every resolution asks.
+  vi.mocked(prisma.programSeat.findFirst).mockReset()
+  vi.mocked(prisma.programSeat.findFirst).mockResolvedValue(null as never)
 })
+
+/** The shape lib/program-seat selects, for the tests that grant one. */
+const SEAT_AT_NIKE = {
+  id: 'seat-1',
+  orgUnitId: null,
+  grantedAt: new Date('2026-03-01'),
+  reason: 'They run our program and place nobody here.',
+  clientCompany: NIKE,
+  officeCompany: { id: 'msp-kestrel', name: 'Kestrel MSP' },
+  role: { id: 'role-pm', name: 'Program Manager', permissions: ['assignments.read', 'governance.read'] },
+}
 
 // ── The client viewing itself ──────────────────────────
 
@@ -319,6 +336,60 @@ describe('Expense scoping — a client never sees a vendor\'s internal costs', (
 })
 
 // ── The MSP and GSI cases ──────────────────────────────
+
+describe('A program office in a seat the client granted', () => {
+  it('a program office that places nobody still reads the program it was seated in', async () => {
+    vi.mocked(prisma.programSeat.findFirst).mockResolvedValue(SEAT_AT_NIKE as never)
+    vi.mocked(prisma.sellContract.findMany).mockResolvedValue([] as never)
+    const r = await resolveClientCompany(
+      caller({ companyId: 'msp-kestrel', companyName: 'Kestrel MSP', companyKind: 'MSP', permissions: [] }),
+      NIKE.id
+    )
+    expect(r.error).toBeNull()
+    expect(r.client?.id).toBe(NIKE.id)
+  })
+
+  it('the seat is the entitlement, so a program office is not asked for a permission its own firm never gave it', async () => {
+    // The MSP's own coordinator role holds nothing. What they may do
+    // inside is the CLIENT'S role on the seat, not this.
+    vi.mocked(prisma.programSeat.findFirst).mockResolvedValue(SEAT_AT_NIKE as never)
+    vi.mocked(prisma.sellContract.findMany).mockResolvedValue([] as never)
+    const r = await resolveClientCompany(
+      caller({ companyId: 'msp-kestrel', companyKind: 'MSP', permissions: [] }),
+      null
+    )
+    expect(r.error).toBeNull()
+    expect(r.seat?.role.name).toBe('Program Manager')
+  })
+
+  it('a program office with no seat is told what is missing, not shown an empty program', async () => {
+    vi.mocked(prisma.sellContract.findFirst).mockResolvedValue(null as never)
+    const r = await resolveClientCompany(
+      caller({ companyId: 'msp-kestrel', companyName: 'Kestrel MSP', companyKind: 'MSP' }),
+      null
+    )
+    expect(r.client).toBeNull()
+    const body = await r.error!.json()
+    expect(body.error.message).toContain('Kestrel MSP')
+    expect(body.error.message).toMatch(/seat the client grants/)
+    expect(body.error.message).toMatch(/owner or the program manager/)
+  })
+
+  it('a seat at one client is no entitlement at another', async () => {
+    // Asked for Talvern; the seat is at Northbend, so the seat branch
+    // finds nothing and the placement path answers — which it does by
+    // refusing, because this firm places nobody anywhere.
+    vi.mocked(prisma.company.findUnique).mockResolvedValue(TERUMO as never)
+    vi.mocked(prisma.sellContract.findFirst).mockResolvedValue(null as never)
+    const r = await resolveClientCompany(
+      caller({ companyId: 'msp-kestrel', companyName: 'Kestrel MSP', companyKind: 'MSP' }),
+      TERUMO.id
+    )
+    expect(r.client).toBeNull()
+    const body = await r.error!.json()
+    expect(body.error.message).toContain('no placements at Talvern Medical')
+  })
+})
 
 describe('MSP and GSI callers follow the vendor path', () => {
 

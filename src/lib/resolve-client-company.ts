@@ -4,6 +4,7 @@ import { hasPermission } from '@/lib/permissions'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { isConsultantSeat } from '@/lib/seat'
 import { maySeeOutside } from '@/lib/walls'
+import { seatFor, noteSeatRead, noSeatYet, type LiveSeat } from '@/lib/program-seat'
 import type { CallerContext } from '@/lib/api-context'
 
 /**
@@ -15,12 +16,18 @@ import type { CallerContext } from '@/lib/api-context'
  * the query string with no check, so any authenticated user could read
  * any client's tenure ledger by editing the URL.
  *
- * Two legitimate callers:
+ * Three legitimate callers:
  *
  *   1. The client themselves (company.kind === 'CLIENT').
  *      They are the subject. They may not name a different client.
  *
- *   2. A vendor, MSP, or GSI who actually places people there.
+ *   2. A program office sitting in a seat the client granted it
+ *      (`lib/program-seat`, decided 2026-09-14, built 2026-09-20). It
+ *      places nobody, so no contract can prove its entitlement — the
+ *      client saying so is the proof, the client's own role is what it
+ *      may do, and every read under it is logged against the seat.
+ *
+ *   3. A vendor, MSP, or GSI who actually places people there.
  *      Entitlement is proven by a SellContract linking the caller's
  *      company to that end client — resolved through endClientFilter,
  *      so the three-party layer cake (vendor bills MSP, consultant
@@ -40,8 +47,8 @@ export interface ResolvedClientCompany {
 }
 
 type Resolution =
-  | { client: ResolvedClientCompany; error: null }
-  | { client: null; error: NextResponse }
+  | { client: ResolvedClientCompany; seat?: LiveSeat | null; error: null }
+  | { client: null; seat?: null; error: NextResponse }
 
 function forbidden(message: string): Resolution {
   return {
@@ -243,7 +250,28 @@ export async function resolveClientCompany(
     }
   }
 
-  // ── Case 2: vendor / MSP / GSI viewing a client they supply ──
+  // ── Case 2: a seat the client granted ──
+  //
+  // Checked before the placement path and before any permission of the
+  // caller's own, because that is what the seat means: a program office
+  // is entitled by the client having said so, not by a contract it does
+  // not have, and what it may do inside is the CLIENT'S role rather than
+  // its own (`actingInSeat`). Asking for the caller's own
+  // assignments.read first would have refused an MSP coordinator whose
+  // firm never gave its coordinators that permission, on a program the
+  // client had deliberately opened to them.
+  //
+  // The read is on the record before it is served. A seat is a standing
+  // grant to read a whole contingent workforce, and a client asking
+  // afterwards "who looked, and on whose authority" gets the seat by
+  // name out of the access log.
+  const seat = await seatFor(caller, requestedClientId)
+  if (seat) {
+    await noteSeatRead(seat, caller, 'Program read')
+    return { client: seat.clientCompany, seat, error: null }
+  }
+
+  // ── Case 3: vendor / MSP / GSI viewing a client they supply ──
   // Viewing another company's workforce is an assignment-level read.
   if (!hasPermission(caller.permissions, 'assignments.read')) {
     return forbidden('Requires assignments.read permission')
@@ -289,12 +317,10 @@ export async function resolveClientCompany(
     // "No client company found for this caller", which tells somebody
     // running a program office nothing about what to do next — and they
     // are exactly who hits it, because an MSP places nobody itself.
-    return notFound(
-      `${caller.company.name} is not tied to a client yet. A role belongs to the ` +
-        `company that is hiring, so until ${caller.company.name} places somebody — or ` +
-        `somebody at the client's own program office raises it — there is no client ` +
-        `to raise it for.`
-    )
+    //
+    // Since the seat exists (2026-09-20) the sentence names it: what is
+    // missing is a desk the client grants, and who can grant it.
+    return notFound(noSeatYet(caller.company.name))
   }
 
   return { client: fallback, error: null }

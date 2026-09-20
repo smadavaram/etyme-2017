@@ -36,6 +36,17 @@ vi.mock('@/lib/db', () => ({
       findFirst: vi.fn(),
       findMany: vi.fn(),
     },
+    // A desk a client granted a firm that is not the client. Read by
+    // lib/resolve-client-company on every resolution, so a unit test of
+    // the vendor path falls over this one being absent rather than
+    // failing on anything it is about.
+    programSeat: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      count: vi.fn(),
+    },
     accessLog: {
       create: vi.fn(),
     },

@@ -337,6 +337,14 @@ export const DOMAINS: Domain[] = [
       'lib/seed-calendar', 'lib/seed-standing', 'lib/seed-order-to-cash', 'lib/seed-pipeline',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
+      // A desk a client grants a firm that is not the client, so a
+      // program office can act in its program. Here rather than under
+      // demand because it is entitlement: it decides what every domain's
+      // read path resolves to, the way lib/api-context does, and the
+      // client role it holds is company identity. Demand's
+      // lib/resolve-client-company reads it; regulatory's access log
+      // records it; nobody but the architect changes its shape.
+      'lib/program-seat',
       // How much we do unprompted, as a ladder a buyer already knows.
       'lib/autonomy',
       // One order, three names, and the rule for a counterparty that is

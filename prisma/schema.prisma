@@ -30,6 +30,8 @@ model Person {
   contexts               Context[]
   consultant             ConsultantProfile?
   accessedBy             AccessLog[]              @relation("subject")
+  programSeatsGranted    ProgramSeat[]            @relation("seatGrantedBy")
+  programSeatsRevoked    ProgramSeat[]            @relation("seatRevokedBy")
   actions                AccessLog[]              @relation("actor")
   visas                  VisaPetition[]
   submissions            Submission[]
@@ -301,21 +303,78 @@ enum ContextType {
   PLATFORM_ADMIN
 }
 
-// One company acting for another (an MSP running a client programme).
-// Deliberately not a ContextType — it has a validity window and a scope.
-model Delegation {
-  id        String    @id @default(cuid())
-  grantorId String
-  grantor   Company   @relation("grantor", fields: [grantorId], references: [id])
-  granteeId String
-  grantee   Company   @relation("grantee", fields: [granteeId], references: [id])
-  scope     String[] // permission keys the grantee may exercise
+/// A desk a client grants a program office it does not employ.
+///
+/// ── Why a table and not a Context ────────────────────────────────────
+///
+/// Decided 2026-09-14 and made urgent by the strategy of 2026-09-20:
+/// Etyme itself now offers to run a client's program, so the case is no
+/// longer hypothetical. An MSP running a client's program places nobody,
+/// so nothing ties it to that client the way a placement ties a
+/// supplier — and letting a firm's own record of a counterparty stand in
+/// would let any firm claim any client, which is worse than the gap.
+///
+/// The answer is a seat the client grants: the program office acts
+/// inside the client's program, under one of the CLIENT'S OWN roles, and
+/// every read leaves a trail. It is deliberately not a `Context`,
+/// because a context is a person at a company and this is a firm at a
+/// firm — the client grants the office a desk, not each of its staff a
+/// login, and the office's own joiners and leavers are the office's
+/// business.
+///
+/// This was `Delegation`, which carried a bag of permission keys the
+/// grantor typed by hand. A bag of keys is not the client's rules; a
+/// client's own role is. So the seat holds a `Role` belonging to the
+/// client — Program Manager, most often — and what the office may do is
+/// exactly what that desk may do, changing when the client changes it.
+/// Nothing ever read or wrote `Delegation`, so nothing is migrated.
+model ProgramSeat {
+  id String @id @default(cuid())
+
+  /// The client whose program this is. It grants the seat and it alone
+  /// may revoke it.
+  clientCompanyId String
+  clientCompany   Company @relation("seatClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+
+  /// The program office sitting in it — an MSP, or Etyme's own.
+  officeCompanyId String
+  officeCompany   Company @relation("seatOffice", fields: [officeCompanyId], references: [id], onDelete: Cascade)
+
+  /// The client's own role the seat holds. Belongs to clientCompanyId —
+  /// a seat holding the office's own role would be the office writing
+  /// its own permissions, which is the whole thing this prevents.
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  /// Optional: the seat reaches one business unit and everything under
+  /// it. Null is the whole program, which is the ordinary case for a
+  /// program office and a deliberate act rather than an oversight.
+  orgUnitId String?
+  orgUnit   OrgUnit? @relation(fields: [orgUnitId], references: [id])
+
+  /// Who at the client granted it. An owner or the program manager, and
+  /// never somebody at the office itself.
+  grantedById String
+  grantedBy   Person   @relation("seatGrantedBy", fields: [grantedById], references: [id])
+  grantedAt   DateTime @default(now())
+  /// Why, in the client's own words. Not optional: a standing grant to
+  /// read a whole workforce with no reason recorded is the finding.
+  reason      String
+
   validFrom DateTime  @default(now())
   validTo   DateTime?
-  revokedAt DateTime?
 
-  @@index([granteeId, validTo])
-  @@index([grantorId])
+  revokedAt    DateTime?
+  revokedById  String?
+  revokedBy    Person?   @relation("seatRevokedBy", fields: [revokedById], references: [id])
+  revokeReason String?
+
+  @@index([officeCompanyId, revokedAt])
+  @@index([clientCompanyId, revokedAt])
+  @@index([roleId])
+  @@index([orgUnitId])
+  @@index([grantedById])
+  @@index([revokedById])
 }
 
 // Every read of a person's data, including refusals. The subject can see this.
@@ -485,8 +544,8 @@ model Company {
   submissionsIn         Submission[]            @relation("to")
   automationLog         AutomationLog[]
   accessLogs            AccessLog[]
-  delegationsOut        Delegation[]            @relation("grantor")
-  delegationsIn         Delegation[]            @relation("grantee")
+  programSeatsGranted   ProgramSeat[]           @relation("seatClient")
+  programSeatsHeld      ProgramSeat[]           @relation("seatOffice")
   counterparties        Counterparty[]          @relation("counterpartyOwner")
   counterpartyOf        Counterparty[]          @relation("counterpartyOther")
   contacts              CompanyContact[]        @relation("contactOwner")
@@ -1145,6 +1204,7 @@ model OrgUnit {
   costCenters   CostCenter[] // budgets that fund this unit
   requisitions  Requirement[]
   approvalRules ApprovalRule[]
+  programSeats  ProgramSeat[]
 
   internalOrders InternalOrder[]
 
@@ -1155,13 +1215,15 @@ model OrgUnit {
 }
 
 model Role {
-  id          String    @id @default(cuid())
-  companyId   String
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name        String
-  permissions String[] // see PERMISSIONS in BUILD.md
-  isDefault   Boolean   @default(false)
-  contexts    Context[]
+  id           String        @id @default(cuid())
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  permissions  String[] // see PERMISSIONS in BUILD.md
+  isDefault    Boolean       @default(false)
+  contexts     Context[]
+  // A desk this client granted a program office that is not the client.
+  programSeats ProgramSeat[]
 
   @@index([companyId])
 }

@@ -623,8 +623,16 @@ const CLIENT_NAV: NavSection[] = [
       // Who runs the program: approvers, the lead, and who is
       // answerable for each budget. Three facts that were in three
       // places, none of which showed the result as one picture.
-      { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', group: 'Oversight' },
-      { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Oversight' },
+      { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', group: 'Who runs it' },
+      // Who runs the program when it is not this client's own people. A
+      // firm that runs somebody's program places nobody, so nothing ties
+      // it to the client the way a placement ties a supplier — the
+      // client grants it a desk here, at one of its own roles, and takes
+      // it back here too. Gated on the governance read its own route
+      // asks for, which every oversight desk already holds: a standing
+      // grant that only the person who made it can see is not a control.
+      { label: 'Program office', href: '/dashboard/program/seats', icon: '⌂', group: 'Who runs it', needs: ['governance.read'] },
+      { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Who runs it' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight' },
       { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },
       { label: 'Tenure', href: '/dashboard/tenure', icon: '▩', group: 'Oversight' },
