@@ -23,6 +23,16 @@ export type AccessAction =
   | 'RELEASING_SOON_VIEW' // saw somebody listed as coming free before they are
   | 'CLASSIFICATION_CALL' // took a position on whether somebody is employed
   | 'DNR_VIEW'            // read the do-not-return list, which names people and why
+  // ── A file a client entrusted to us before they were a customer ────
+  //
+  // A contractor census is the one read in this product where the
+  // subject never agreed to anything with us and has no account: a
+  // client sends their own file, and the people in it are their
+  // contractors. The census agreement promises in writing that one named
+  // person at Etyme opens it and that every open is recorded, so the
+  // read needs a name of its own rather than being filed under
+  // CONTRACT_VIEW, which is a customer reading their own book.
+  | 'CENSUS_READ'         // opened a client's census file, or the contractors read out of it
   // ── The subject's own record, read for their own sake ──────────────
   //
   // Both of these are reads of somebody's whole file, and both are the
@@ -119,4 +129,42 @@ export function logBulkAccess(
         { personId: params.actorPersonId ?? null, companyId: params.actorCompanyId ?? null }
       )
     })
+}
+
+/**
+ * The same rows, written before the response goes out.
+ *
+ * `logAccess` and `logBulkAccess` are fire-and-forget because the
+ * invariant is that the read is recorded, not that the reader waits for
+ * it, and a bench list of two hundred people should not pay for its own
+ * audit trail.
+ *
+ * A census file is the one read where that trade is the wrong way
+ * round. The client was promised in writing — in the census agreement
+ * they accepted by name — that every open of their file is recorded, and
+ * they are not a customer, have no account, and cannot come and look. On
+ * a serverless host a fire-and-forget write can lose the race with the
+ * function freezing after the response. Once a staff member has opened
+ * one file, waiting for one row is a cost nobody can measure.
+ *
+ * A failure here throws rather than reporting quietly, so the caller can
+ * decide: a route that cannot record a read of somebody's file should
+ * not hand over the file.
+ */
+export async function recordAccess(
+  subjectIds: string[],
+  params: Omit<LogAccessParams, 'subjectId'>
+): Promise<number> {
+  if (subjectIds.length === 0) return 0
+  const written = await prisma.accessLog.createMany({
+    data: subjectIds.map((subjectId) => ({
+      subjectId,
+      actorPersonId: params.actorPersonId ?? null,
+      actorCompanyId: params.actorCompanyId ?? null,
+      action: params.action,
+      allowed: params.allowed ?? true,
+      reason: params.reason ?? null,
+    })),
+  })
+  return written.count
 }
