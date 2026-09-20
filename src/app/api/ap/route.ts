@@ -13,7 +13,8 @@ import {
   type Hop, type Chain, type PurchasePeriod,
 } from '@/lib/ap-delay'
 import { customerOf, loadBook } from '../ar/book'
-import { partiesOf } from '@/lib/money/invoice-parties'
+import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-parties'
+import { supplierInvoicesOwed, type SupplierInvoiceRow } from '@/lib/money/supplier-invoices'
 
 /**
  * GET /api/ap — how long money takes to travel, and who is paying for the wait.
@@ -140,12 +141,54 @@ export async function GET(request: NextRequest) {
   })
 
   if (bills.length === 0) {
+    // ── Nothing keyed in as a bill is not nothing owed ────────────────
+    //
+    // A client read "No supplier bills have been recorded" on this page
+    // with six unpaid invoices from its suppliers one nav entry away.
+    // A supplier issues its invoice and the client receives it, so on
+    // the platform that document is an `Invoice` raised by the supplier
+    // — the same row the supplier reads as its receivable — and a
+    // `VendorBill` is the other case, a bill keyed in from a firm that
+    // is not here. A client whose suppliers are all on the platform has
+    // no `VendorBill` rows at all and never will.
+    //
+    // So before saying nothing is owed, ask the invoices. Only in this
+    // branch: where bills DO exist they are what the float arithmetic
+    // is measured on, and counting a leg twice would be worse than the
+    // gap this closes.
+    const owed = await payableInvoices(companyId, now)
+    if (owed.rows.length > 0) {
+      return NextResponse.json({
+        data: {
+          asOf: now.toISOString(),
+          source: 'SUPPLIER_INVOICES',
+          us: usName,
+          gaps,
+          supplierInvoices: {
+            says: owed.says,
+            openCount: owed.openCount,
+            books: owed.books,
+            rows: owed.rows.map((r) => ({
+              ...r,
+              dueAt: r.dueAt.toISOString(),
+              outstandingMinor: r.totalMinor - r.paidMinor,
+            })),
+          },
+          note:
+            'Days to pay and chain float are measured from bills keyed in against a ' +
+            'supplier contract. Nothing here has been, so this page shows what is owed ' +
+            'and where to pay it rather than a figure with nothing behind it.',
+        },
+      })
+    }
+
     return NextResponse.json({
       data: {
         asOf: now.toISOString(),
         source: 'NONE',
         us: usName,
         gaps,
+        supplierInvoices: { says: owed.says, openCount: 0, books: [], rows: [] },
         note:
           'No supplier bills have been recorded, so there is nothing to measure on the way ' +
           'out. This screen fills as bills from sub-vendors are entered against their ' +
@@ -524,6 +567,61 @@ export async function GET(request: NextRequest) {
         'only laying the hops end to end produces it.',
     },
   })
+}
+
+/**
+ * The invoices this company is the one being asked to pay.
+ *
+ * The same scope and the same cascade the invoice list uses
+ * (`lib/money/invoice-parties`), so the AP page and the Invoices page
+ * cannot disagree about which rows are ours to pay or who raised them.
+ */
+async function payableInvoices(companyId: string, now: Date) {
+  const rows = await prisma.invoice.findMany({
+    where: invoiceBetween(companyId),
+    select: {
+      id: true, number: true, currency: true, total: true, paid: true,
+      dueAt: true, status: true,
+      engagement: {
+        select: {
+          msa: {
+            select: {
+              vendorId: true, clientId: true,
+              vendor: { select: { id: true, name: true } },
+              client: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+      workOrder: {
+        select: {
+          issuedById: true, issuedToId: true, number: true,
+          issuedBy: { select: { id: true, name: true } },
+          issuedTo: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: { dueAt: 'asc' },
+    take: 5_000,
+  })
+
+  const ours: SupplierInvoiceRow[] = []
+  for (const i of rows) {
+    const parties = partiesOf({ agreement: i.engagement.msa, order: i.workOrder })
+    if (directionFrom(parties, companyId) !== 'PAYABLE') continue
+    ours.push({
+      id: i.id,
+      number: i.number,
+      supplierName: parties.vendor?.name ?? null,
+      currency: i.currency,
+      totalMinor: fromPrismaDecimal(i.total, i.currency).minor,
+      paidMinor: fromPrismaDecimal(i.paid, i.currency).minor,
+      dueAt: i.dueAt,
+      status: i.status,
+    })
+  }
+
+  return supplierInvoicesOwed(ours, now)
 }
 
 /**
