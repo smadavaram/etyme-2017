@@ -29,6 +29,7 @@ import {
   type SweepDeps, type SweepRequest, type SweepBreach, type SweepClock,
 } from '@/lib/retention'
 import { executeErasure, footprintFor, planErasure, keptBecause, isTombstone } from '@/lib/erasure'
+import { censusSweep, day, mb, type SweepCensus } from '@/lib/census'
 import { logAccess } from '@/lib/access-log'
 import { notify } from '@/lib/notify'
 import { tellStaff } from '@/lib/alerts'
@@ -905,6 +906,10 @@ export interface SweepOutcome {
   deleted: number
   breachWarnings: number
   breachesWithNoClock: number
+  /** Censuses whose promised day came tonight and whose files are gone. */
+  censusDeleted: number
+  /** Censuses three days out with the page still unsent. */
+  censusWarned: number
 }
 
 /**
@@ -1022,6 +1027,7 @@ export async function runRetentionSweep(now = new Date()): Promise<SweepOutcome>
   const outcome: SweepOutcome = {
     warned: 0, erased: 0, held: 0, deleted: 0,
     breachWarnings: 0, breachesWithNoClock: plan.breachesWithNoClock.length,
+    censusDeleted: 0, censusWarned: 0,
   }
 
   // ── Requests falling due ────────────────────────────────────────────
@@ -1158,7 +1164,220 @@ export async function runRetentionSweep(now = new Date()): Promise<SweepOutcome>
     )
   }
 
+  // ── The censuses whose promised day has come ───────────────────────
+
+  const census = await runCensusSweep(now)
+  outcome.censusDeleted = census.deleted
+  outcome.censusWarned = census.warned
+
   return outcome
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// The census branch
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * What the nightly sweep does with a contractor census.
+ *
+ * A client sent us their own file before they were a customer, and the
+ * agreement they accepted by name says the day it goes. That date is on
+ * their confirmation, on the page we sent them and in this function, and
+ * it is one column — `CensusRequest.deleteBy` — because three places
+ * that each computed it would eventually disagree and the client would
+ * be the one to find out.
+ *
+ * `censusSweep` in `lib/census` decides; this reads the rows and does
+ * what it says. Two things happen and they are different in kind:
+ *
+ *   — a census past its day, with no program started, is **deleted**
+ *     with nobody asked, because a written agreement said the day had
+ *     come. Nothing puts it back.
+ *   — a census three days out whose page has not gone **warns the named
+ *     person**, because data deleted before the client ever saw their
+ *     page is the failure this whole design exists to prevent.
+ *
+ * ── The automation rows this cannot write ────────────────────────────
+ *
+ * `AutomationLog.companyId` is a required foreign key. A census's only
+ * company is the sandbox its rows were imported into — and the deletion
+ * destroys that sandbox, so a row written against it would cascade away
+ * at the exact moment somebody audits whether we deleted on the day we
+ * said. `CENSUS_DELETED` therefore stays in `PLANNED` in `lib/autonomy`
+ * and the record is the `CensusRequest` row itself: `deletedAt`, the
+ * status, and the file count and byte total kept on purpose so that the
+ * day after a deletion we can still say what went. Staff are told in the
+ * same act. `companyId String?` is the one-word fix and is a schema
+ * request for the architect.
+ */
+export interface CensusSweepOutcome {
+  deleted: number
+  warned: number
+}
+
+export async function runCensusSweep(now = new Date()): Promise<CensusSweepOutcome> {
+  const startOfDay = new Date(now.getTime() - 86_400_000)
+
+  const rows = await prisma.censusRequest.findMany({
+    where: { deletedAt: null, status: { notIn: ['DELETED', 'PROGRAM_STARTED'] }, deleteBy: { not: null } },
+    select: {
+      id: true, companyName: true, contactName: true, workEmail: true, status: true,
+      deleteBy: true, deletedAt: true, assignedStaffEmail: true,
+      receivedFileCount: true, receivedBytes: true, sandboxCompanyId: true,
+    },
+    orderBy: { deleteBy: 'asc' },
+  })
+  if (rows.length === 0) return { deleted: 0, warned: 0 }
+
+  // Who was already told tonight. The warning is written as a
+  // notification to the named person, so the notification is both the
+  // telling and the memory of it — "once a day, not once a run".
+  //
+  // Where the assigned address has no `Person` row — staff are an
+  // address and need no seat anywhere — there is nothing to write a
+  // notification against and nothing to read back, so that census warns
+  // once per run rather than once per day. In production the run is
+  // nightly and the two are the same; said out loud because they are not
+  // the same thing. `CensusRequest.lastWarnedAt`, the column `Breach`
+  // already has, would close it.
+  const owners = new Map<string, string>()
+  const addresses = [...new Set(rows.map((r) => r.assignedStaffEmail).filter((a): a is string => !!a))]
+  if (addresses.length > 0) {
+    const people = await prisma.person.findMany({
+      where: { primaryEmail: { in: addresses } },
+      select: { id: true, primaryEmail: true },
+    })
+    for (const p of people) owners.set(p.primaryEmail.toLowerCase(), p.id)
+  }
+
+  const toldTonight = new Set<string>()
+  if (owners.size > 0) {
+    const already = await prisma.notification.findMany({
+      where: {
+        personId: { in: [...owners.values()] },
+        entityId: { in: rows.map((r) => r.id) },
+        createdAt: { gte: startOfDay },
+      },
+      select: { entityId: true },
+    })
+    for (const n of already) if (n.entityId) toldTonight.add(n.entityId)
+  }
+
+  const input: SweepCensus[] = rows.map((r) => ({
+    id: r.id,
+    companyName: r.companyName,
+    status: r.status as SweepCensus['status'],
+    deleteBy: r.deleteBy,
+    deletedAt: r.deletedAt,
+    receivedFileCount: r.receivedFileCount,
+    receivedBytes: r.receivedBytes,
+    assignedStaffEmail: r.assignedStaffEmail,
+    warnedToday: toldTonight.has(r.id),
+  }))
+
+  const plan = censusSweep(now, input)
+  const byId = new Map(rows.map((r) => [r.id, r]))
+
+  // ── Deletions ──────────────────────────────────────────────────────
+
+  for (const d of plan.deletions) {
+    const row = byId.get(d.requestId)!
+    await deleteCensusData(row.id, row.sandboxCompanyId)
+    await prisma.censusRequest.update({
+      where: { id: row.id },
+      data: {
+        status: 'DELETED',
+        deletedAt: now,
+        // Kept deliberately. The row outlives the data because it is the
+        // proof we deleted on the day we said, and a count of zero file
+        // rows cannot say what went.
+        receivedFileCount: row.receivedFileCount,
+        receivedBytes: row.receivedBytes,
+        sandboxCompanyId: null,
+      },
+    })
+    await tellStaff(`Census deleted: ${row.companyName}`, [
+      d.says,
+      `Asked for by ${row.contactName} (${row.workEmail}).`,
+      `What is left is the row: ${d.fileCount} file${d.fileCount === 1 ? '' : 's'}, ${mb(d.bytes)}, ` +
+        `deleted on ${day(now)}.`,
+    ].join('\n\n'))
+  }
+
+  // ── Warnings ───────────────────────────────────────────────────────
+
+  for (const w of plan.warnings) {
+    const row = byId.get(w.requestId)!
+    const ownerId = w.owner ? owners.get(w.owner.toLowerCase()) ?? null : null
+    if (ownerId) {
+      await notify({
+        personId: ownerId,
+        type: 'SYSTEM',
+        title: `${row.companyName}'s census data goes in ${w.daysLeft} day${w.daysLeft === 1 ? '' : 's'}`,
+        body: w.says,
+        entityId: row.id,
+        channel: 'EMAIL',
+      })
+    }
+    // Staff hear either way. A census whose named person has no account
+    // here is the case the notification cannot reach, and it is exactly
+    // the census most likely to be forgotten.
+    await tellStaff(
+      `Census clock: ${row.companyName}, ${w.daysLeft} day${w.daysLeft === 1 ? '' : 's'} left`,
+      w.says
+    )
+  }
+
+  return { deleted: plan.deletions.length, warned: plan.warnings.length }
+}
+
+/**
+ * Tear down everything a census put in the database, in the order
+ * `DELETION_ORDER` in `lib/census` sets out.
+ *
+ * The files first, because they are the client's actual data and the
+ * thing the promise is about. Then the rows `lib/census-import` made
+ * from them — one person per reference number, one seat, one sell
+ * contract, a site per location and a company per supplier name — and
+ * then the sandbox company itself, which held nothing else.
+ *
+ * Read against `lib/census-import` rather than guessed: that file is the
+ * only thing that writes into a sandbox, and this deletes exactly what
+ * it creates. Nothing cascades from `Company` or `Person` onto a
+ * `SellContract`, so the order matters and a shortcut here leaves a
+ * client's rate in the database after we told them it was gone.
+ *
+ * The `AccessLog` rows recording who read those contractors go with the
+ * contractors, because they cascade from the person they are about.
+ * That is the right way round: the trail exists to say who read somebody
+ * and there is no longer a somebody.
+ */
+export async function deleteCensusData(requestId: string, sandboxCompanyId: string | null): Promise<void> {
+  await prisma.censusFile.deleteMany({ where: { requestId } })
+  if (!sandboxCompanyId) return
+
+  const sandbox = await prisma.company.findUnique({
+    where: { id: sandboxCompanyId },
+    select: { id: true, slug: true },
+  })
+  if (!sandbox) return
+
+  const contracts = await prisma.sellContract.findMany({
+    where: { clientCompanyId: sandbox.id },
+    select: { personId: true },
+  })
+  const personIds = [...new Set(contracts.map((c) => c.personId))]
+
+  await prisma.sellContract.deleteMany({ where: { clientCompanyId: sandbox.id } })
+  await prisma.requirement.deleteMany({ where: { companyId: sandbox.id } })
+  await prisma.companyLocation.deleteMany({ where: { companyId: sandbox.id } })
+  if (personIds.length > 0) await prisma.person.deleteMany({ where: { id: { in: personIds } } })
+  // One company per supplier name, slugged under the sandbox's own slug
+  // by the importer, so they are found by the same rule that made them.
+  await prisma.company.deleteMany({
+    where: { isCensusSandbox: true, slug: { startsWith: `${sandbox.slug}-s-` } },
+  })
+  await prisma.company.delete({ where: { id: sandbox.id } })
 }
 
 /** Short and quotable, the same way a data request's reference is. */
