@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 }
 
 export default function TermsPage() {
-  return <LegalDocument doc={TERMS} current="/terms" />
+  return <LegalDocument doc={TERMS} docKey="terms" />
 }

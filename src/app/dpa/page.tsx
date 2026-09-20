@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 }
 
 export default function DpaPage() {
-  return <LegalDocument doc={DPA} current="/dpa" />
+  return <LegalDocument doc={DPA} docKey="dpa" />
 }

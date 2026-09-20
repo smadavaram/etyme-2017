@@ -627,6 +627,13 @@ export interface Section {
   heading: string
   paragraphs: string[]
   bullets?: string[]
+  /**
+   * A section whose facts line up in columns renders one of the two
+   * tables below instead of a list of run-on bullets. The data is the
+   * same `HELD` and `SUB_PROCESSORS` either way — a table is a layout,
+   * never a second copy of a fact.
+   */
+  table?: 'held' | 'sub-processors'
   /** Where in the code this section came from. Rendered small, on purpose. */
   provenBy?: string
   /** A counsel question this section is waiting on. */
@@ -778,12 +785,12 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
       open: 'controller-or-processor',
     },
     {
-      heading: 'What is held',
+      heading: 'What we hold about you',
       paragraphs: [
         'By category, with the model or file that proves each one. Not every field of ' +
           'every record is listed; every category of personal data is.',
       ],
-      bullets: HELD.map((h) => `${h.category} — ${h.examples} (${h.provenBy})`),
+      table: 'held',
     },
     {
       heading: 'Bank details',
@@ -824,20 +831,16 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
       open: 'model-disclosure',
     },
     {
-      heading: 'Who else touches it',
+      heading: 'Who else touches the data',
       paragraphs: [
         'Every service the code actually calls, and what reaches it. A service is on ' +
           'this list because a file calls it, not because it might one day.',
       ],
-      bullets: SUB_PROCESSORS.map(
-        (s) =>
-          `${s.name}${s.always ? '' : ' (only where configured)'} — ${s.purpose} ` +
-          `What reaches it: ${s.reaches} (${s.provenBy})`
-      ),
+      table: 'sub-processors',
       open: 'sub-processor-contracts',
     },
     {
-      heading: 'What is not used, despite appearances',
+      heading: 'What we do not use, despite appearances',
       paragraphs: [
         'A reader checking the configuration will find keys for services nothing calls. ' +
           'Named here so the list above can be trusted.',
@@ -845,7 +848,7 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
       bullets: [...NOT_USED],
     },
     {
-      heading: 'Who inside the platform can see a record',
+      heading: 'Who can see it',
       paragraphs: [...WALLS.paragraphs],
       provenBy: WALLS.provenBy,
     },
@@ -889,13 +892,13 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
       open: 'lawful-basis',
     },
     {
-      heading: 'How long it is kept',
+      heading: 'How long we keep it',
       paragraphs: [RETENTION.headline, ...RETENTION.paragraphs],
       provenBy: RETENTION.provenBy,
       open: 'retention',
     },
     {
-      heading: 'Rights, and how they are honored today',
+      heading: 'Your rights, and how they are honored today',
       paragraphs: [
         'A consultant can see and change their own profile, resumes, availability and ' +
           'rate floor, answer or withdraw a bench listing, answer an interview, and read ' +
@@ -1005,7 +1008,7 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
     {
       heading: 'Categories of personal data',
       paragraphs: ['As set out in the privacy notice, by category and with the model that holds each.'],
-      bullets: HELD.map((h) => `${h.category} — ${h.examples}`),
+      table: 'held',
     },
     {
       heading: 'Data that may be special category',
@@ -1028,7 +1031,7 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
           'appear in the same list on the commit that added it.',
         'The notice period for adding one, and the customer right to object, are open.',
       ],
-      bullets: SUB_PROCESSORS.map((s) => `${s.name} — ${s.purpose} What reaches it: ${s.reaches}`),
+      table: 'sub-processors',
       open: 'sub-processor-contracts',
     },
     {
@@ -1152,6 +1155,324 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
   ],
 }
 
+// ── How the three pages are read ──────────────────────────────────────
+
+export type DocKey = 'terms' | 'privacy' | 'dpa'
+
+/**
+ * A section's address on its page.
+ *
+ * Computed from the heading rather than typed beside it, so a heading
+ * that changes takes its anchor with it and a table of contents cannot
+ * point at a section that has been renamed. Every link in `SUMMARY` and
+ * `CROSS_LINKS` is checked against this by the test.
+ */
+export function sectionId(heading: string): string {
+  return heading
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** Every section of a document, keyed by its address. */
+export function sectionsOf(key: DocKey): Section[] {
+  return key === 'terms' ? TERMS.sections : key === 'privacy' ? PRIVACY.sections : DPA.sections
+}
+
+/**
+ * The six questions a procurement lead asks before they read anything,
+ * answered on every page in that page's own voice.
+ *
+ * ── Why the same six, on all three ───────────────────────────────────
+ *
+ * A reader arrives on whichever of the three a link sent them to, and
+ * the first thing they do is look for the answer to a question the page
+ * they landed on may not be the one that holds it. Six lines, the same
+ * six everywhere, each with a link to wherever the answer actually
+ * lives — on this page or on one of the other two. A page that answers
+ * only what it happens to contain makes the reader hunt.
+ *
+ * Every `href` resolves to a real section: the test computes the
+ * anchors from the headings and fails on one that points nowhere.
+ */
+export interface SummaryLine {
+  /** The question, as a procurement lead would put it. */
+  ask: string
+  /** The answer in one or two sentences, true of the code. */
+  answer: string
+  /** The section that answers it in full. */
+  href: string
+}
+
+/** The asks, in order, identical on all three pages. */
+export const SUMMARY_ASKS = [
+  'What you hold',
+  'About whom',
+  'How long you keep it',
+  'Who can see it',
+  'Your rights',
+  'When something goes wrong',
+] as const
+
+export const SUMMARY: Record<DocKey, SummaryLine[]> = {
+  privacy: [
+    {
+      ask: 'What you hold',
+      answer:
+        'Every category, from a name and a resume to the days somebody stood on a client ' +
+        'site, each named against the model or the file that proves it.',
+      href: '#what-we-hold-about-you',
+    },
+    {
+      ask: 'About whom',
+      answer:
+        'Two populations, and they are not one audience: a business user with a seat ' +
+        'their employer granted, and a candidate with their own account, which travels ' +
+        'with them between suppliers.',
+      href: '#two-populations-two-relationships',
+    },
+    {
+      ask: 'How long you keep it',
+      answer:
+        'A schedule in code, one line per category. Every period stated is a United ' +
+        'States federal minimum with its rule cited, and where none can be cited no ' +
+        'period is stated and nothing is deleted on one.',
+      href: '#how-long-we-keep-it',
+    },
+    {
+      ask: 'Who can see it',
+      answer:
+        'The company whose record it is, filtered in the database query rather than ' +
+        'hidden on the screen, and inside a firm the org unit. Every read of a person ' +
+        'record is logged, refusals included.',
+      href: '#who-can-see-it',
+    },
+    {
+      ask: 'Your rights',
+      answer:
+        'Anybody signed in can ask for everything held about them, or ask to be ' +
+        'forgotten, from their own page. Neither needs anybody permission and neither ' +
+        'goes through a company.',
+      href: '#your-rights-and-how-they-are-honored-today',
+    },
+    {
+      ask: 'When something goes wrong',
+      answer:
+        'A breach is its own record, with a notification deadline per audience and the ' +
+        'name of whoever owns sending each one. There is no severity scale, on purpose.',
+      href: '/dpa#breach-notification',
+    },
+  ],
+  terms: [
+    {
+      ask: 'What you hold',
+      answer:
+        'Nothing a customer or a candidate did not put here. The privacy notice lists ' +
+        'every category against the model that holds it.',
+      href: '/privacy#what-we-hold-about-you',
+    },
+    {
+      ask: 'About whom',
+      answer:
+        'The company that signs, the people who sign in on its behalf, and the workers ' +
+        'and candidates its suppliers put in front of it.',
+      href: '/privacy#two-populations-two-relationships',
+    },
+    {
+      ask: 'How long you keep it',
+      answer:
+        'On the retention schedule rather than in this agreement: a cited federal ' +
+        'minimum per category, or a stated blank where none can be cited.',
+      href: '/privacy#how-long-we-keep-it',
+    },
+    {
+      ask: 'Who can see it',
+      answer:
+        'A customer sees its own data. Reaching another company data, or working around ' +
+        'the walls the privacy notice describes, is what a customer may not do.',
+      href: '#what-a-customer-may-and-may-not-do-with-the-platform',
+    },
+    {
+      ask: 'Your rights',
+      answer:
+        'A seat belongs to the company that granted it and that company can end it. A ' +
+        'consultant account belongs to the person and travels with them.',
+      href: '#accounts-and-seats',
+    },
+    {
+      ask: 'When something goes wrong',
+      answer:
+        'A personal data breach is handled under the data processing addendum: a ' +
+        'deadline per audience, a named owner for each, and no severity scale. This ' +
+        'draft makes no uptime commitment and says so rather than implying one.',
+      href: '/dpa#breach-notification',
+    },
+  ],
+  dpa: [
+    {
+      ask: 'What you hold',
+      answer:
+        'Every category of personal data the privacy notice sets out, listed here again ' +
+        'with the model that holds each.',
+      href: '#categories-of-personal-data',
+    },
+    {
+      ask: 'About whom',
+      answer:
+        'Contingent workers and candidates, employees of a client, employees of a ' +
+        'supplier, named references a supplier supplies, and contacts at counterparty ' +
+        'firms.',
+      href: '#categories-of-data-subject',
+    },
+    {
+      ask: 'How long you keep it',
+      answer:
+        'For as long as the customer has an account, and after it for as long as the ' +
+        'retention schedule says of each category — a statutory minimum measured in ' +
+        'years for several, no stated period at all for a few.',
+      href: '#subject-matter-duration-nature-and-purpose',
+    },
+    {
+      ask: 'Who can see it',
+      answer:
+        'Outside the platform, the sub-processors the code actually calls, each with ' +
+        'what reaches it. Inside it, the walls are set out in the privacy notice.',
+      href: '#sub-processors',
+    },
+    {
+      ask: 'Your rights',
+      answer:
+        'A data subject asks from their own page without going through a customer at ' +
+        'all, and a customer compliance desk can log a request that arrived by email ' +
+        'and answer it from one page.',
+      href: '#assisting-the-customer-with-data-subject-requests',
+    },
+    {
+      ask: 'When something goes wrong',
+      answer:
+        'A breach record carries when somebody here became aware, whose data, which ' +
+        'customers, and a notification deadline each with the person who owns sending ' +
+        'it. There is no severity scale, on purpose.',
+      href: '#breach-notification',
+    },
+  ],
+}
+
+/**
+ * The words these documents use, defined once and not again.
+ *
+ * Every one of them is a restatement of something stated in full
+ * further down; none introduces a fact of its own. A definition that
+ * says something the body does not is how a summary becomes a second,
+ * looser document.
+ */
+export interface Definition {
+  term: string
+  meaning: string
+}
+
+export const DEFINITIONS: Definition[] = [
+  {
+    term: 'Business user',
+    meaning:
+      'Somebody with a seat at a company, signed in through their employer identity ' +
+      'provider or by an emailed link. The seat belongs to the company that granted it.',
+  },
+  {
+    term: 'Candidate, or consultant',
+    meaning:
+      'An individual with their own account and their own email address. The account ' +
+      'belongs to the person, not to whichever supplier signed them up, and it travels ' +
+      'with them.',
+  },
+  {
+    term: 'Sub-processor',
+    meaning:
+      'A service outside Etyme that personal data reaches. A service is on the list ' +
+      'because a file in this repository calls it, not because it might one day.',
+  },
+  {
+    term: 'Attestation',
+    meaning:
+      'A record that a check happened — who ran it, when, its reference and when it ' +
+      'expires. Etyme runs no check itself and states no verdict about a person from one.',
+  },
+  {
+    term: 'Time on site, or tenure',
+    meaning:
+      'The days a person worked at a client, added up across every supplier that ever ' +
+      'supplied them, counted once per day however many firms billed it.',
+  },
+]
+
+/** Where a reader goes from the bottom of each page. */
+export interface CrossLink {
+  href: string
+  label: string
+  note: string
+}
+
+export const CROSS_LINKS: Record<DocKey, CrossLink[]> = {
+  privacy: [
+    {
+      href: '/dashboard/my-data',
+      label: 'Your own data',
+      note:
+        'Signed in, this is everything held about you, a copy of it to download, and ' +
+        'the way to ask to be forgotten. It asks for no permission and goes through no ' +
+        'company.',
+    },
+    {
+      href: '/dpa',
+      label: 'Data processing addendum',
+      note:
+        'What a client security review asks for next: sub-processors, breach ' +
+        'notification, and the controller question left open rather than decided.',
+    },
+    {
+      href: '/terms',
+      label: 'Terms of service',
+      note: 'What the software is, what a customer may do with it, and what fees are set.',
+    },
+  ],
+  terms: [
+    {
+      href: '#fees',
+      label: 'Fees',
+      note:
+        'Etyme is free while it is being tested. No price is stated here, in any ' +
+        'material, or in any conversation, because none has been set.',
+    },
+    {
+      href: '/privacy',
+      label: 'Privacy notice',
+      note: 'What is held, who can see it, how long it is kept, and what a person may ask for.',
+    },
+    {
+      href: '/dpa',
+      label: 'Data processing addendum',
+      note: 'The addendum a client will ask for, with the sub-processor list and the breach clock.',
+    },
+  ],
+  dpa: [
+    {
+      href: '#breach-notification',
+      label: 'Breach notification',
+      note: 'The clock, the named owner for each deadline, and why there is no severity scale.',
+    },
+    {
+      href: '#sub-processors',
+      label: 'Sub-processors',
+      note: 'Every service the code calls, what it is for, and exactly what reaches it.',
+    },
+    {
+      href: '/privacy',
+      label: 'Privacy notice',
+      note: 'The same facts written for a person to read rather than for a contract to carry.',
+    },
+  ],
+}
+
 export const DOCUMENTS = { TERMS, PRIVACY, DPA } as const
 
 /** Every sentence rendered on the three pages, for a test to read. */
@@ -1163,9 +1484,26 @@ export function allProse(): string {
       ...d.sections.flatMap((s) => [s.heading, ...s.paragraphs, ...(s.bullets ?? [])]),
     ].join('\n')
 
+  // The two tables are rendered from `HELD` and `SUB_PROCESSORS` rather
+  // than from bullets, so they are joined in here by hand — otherwise
+  // the test that checks every file named on a page exists would stop
+  // reading the very lines that name the most files.
+  const tables = [
+    ...HELD.map((h) => `${h.category} — ${h.examples} (${h.provenBy})`),
+    ...SUB_PROCESSORS.map(
+      (s) =>
+        `${s.name}${s.always ? '' : ' (only where configured)'} — ${s.purpose} ` +
+        `What reaches it: ${s.reaches} (${s.provenBy})`
+    ),
+  ]
+
   return [
     DRAFT_BANNER.headline,
     DRAFT_BANNER.body,
+    ...tables,
+    ...DEFINITIONS.map((d) => `${d.term}. ${d.meaning}`),
+    ...Object.values(SUMMARY).flatMap((lines) => lines.map((l) => `${l.ask}. ${l.answer}`)),
+    ...Object.values(CROSS_LINKS).flatMap((links) => links.map((l) => `${l.label}. ${l.note}`)),
     ...COUNSEL_QUESTIONS.flatMap((q) => [q.question, q.whatTheCodeDoes, q.whyItIsOpen]),
     doc(TERMS),
     doc(PRIVACY),
