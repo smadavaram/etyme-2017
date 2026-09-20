@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { openingSide, counterpartyOf, counterpartyHeading } from '@/lib/money/invoice-parties'
 
 /**
  * Invoices working surface — the Operate section.
@@ -37,14 +38,26 @@ interface InvoicePayment {
 }
 
 /**
- * The customer's name, or what to say instead.
+ * The other firm on this row, named from the reader's own side.
+ *
+ * This said `clientCompany` on every row, so a client reading its own
+ * payables saw its own name eleven times under a column headed CLIENT —
+ * the invoice is TO the client, and on a client's screen that is
+ * itself. `lib/order-naming`'s rule, one layer along: the reader's side
+ * decides the words. Ours to collect names the client; ours to pay
+ * names the supplier that billed us.
  *
  * An invoice with no agreement, no order and no line behind it cannot
- * name the firm it is addressed to, and a blank in a column is read as a
- * loading state. The sentence from the server says what is missing.
+ * name either firm, and a blank in a column is read as a loading state,
+ * so it says what is missing instead.
  */
-function customerName(inv: { engagement: { clientCompany: { name?: string | null } | null } }): string {
-  return inv.engagement.clientCompany?.name ?? 'Not yet attributed'
+function counterpartyName(inv: Invoice): string {
+  return counterpartyOf(inv.direction, {
+    vendor: inv.engagement.vendorCompany ?? null,
+    client: inv.engagement.clientCompany ?? null,
+    basis: null,
+    says: inv.engagement.between ?? '',
+  }).firm?.name ?? 'Not yet attributed'
 }
 
 interface Invoice {
@@ -519,7 +532,7 @@ function InvoiceDetailDrawer({
           <div>
             <h2 className="text-lg font-semibold font-mono">{invoice.number}</h2>
             <p className="text-[13px] text-etyme-muted mt-0.5">
-              {customerName(invoice)}
+              {counterpartyName(invoice)}
             </p>
           </div>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
@@ -816,8 +829,32 @@ export default function InvoicesPage() {
   const [showGenerate, setShowGenerate] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
-  /** Which side of the ledger the totals describe. Never both at once. */
-  const [side, setSide] = useState<'RECEIVABLE' | 'PAYABLE'>('RECEIVABLE')
+  /**
+   * Which side of the ledger the totals describe. Never both at once.
+   *
+   * Null until somebody chooses, and then it is the reader's own side:
+   * a client opened on "Owed to us" — $0, always, for a company that
+   * never sells — above a table of six invoices it owed, and the cards
+   * and the rows disagreed until somebody pressed the other chip.
+   */
+  const [sideChosen, setSideChosen] = useState<'RECEIVABLE' | 'PAYABLE' | null>(null)
+  const side = sideChosen ?? openingSide(company?.kind)
+  const setSide = setSideChosen
+
+  /**
+   * The rows under the chip that says "Showing".
+   *
+   * The chip used to move the stat cards and leave the table alone, so
+   * a client read $0 owed to it above six invoices it owed. A row
+   * nothing can attribute stays on both sides: it is in no total and
+   * somebody still has to finish it, and dropping it off the list is
+   * how it stays unfinished.
+   */
+  const shown = invoices.filter((i) => i.direction === side || i.direction === 'NEITHER')
+
+  /** "Client" for a firm that sells, "Supplier" for one that buys. */
+  const counterpartyLabel = counterpartyHeading(shown.map((i) => i.direction), side)
+
   const [bookCurrency, setBookCurrency] = useState<string | null>(null)
   const [submittingBulk, setSubmittingBulk] = useState(false)
 
@@ -907,7 +944,7 @@ export default function InvoicesPage() {
     if (rows.length === 0) return
 
     const headers = [
-      'Invoice Number', 'Client', 'Engagement', 'Period Start', 'Period End',
+      'Invoice Number', counterpartyLabel, 'Engagement', 'Period Start', 'Period End',
       'Total', 'Paid', 'Outstanding', 'Status', 'Due Date',
     ]
 
@@ -917,7 +954,7 @@ export default function InvoicesPage() {
       const dueDate = new Date(inv.dueAt).toLocaleDateString('en-US')
       return [
         inv.number,
-        customerName(inv),
+        counterpartyName(inv),
         inv.engagement.title,
         periodStart,
         periodEnd,
@@ -959,8 +996,8 @@ export default function InvoicesPage() {
   const outstandingMinor = book?.outstandingMinor ?? 0
   const overdueMinor = book?.overdueMinor ?? 0
   const bookCcy = book?.currency ?? 'USD'
-  const paidCount = invoices.filter((i) => i.status === 'PAID').length
-  const issuedCount = invoices.filter((i) => ['ISSUED', 'SUBMITTED'].includes(i.status)).length
+  const paidCount = shown.filter((i) => i.status === 'PAID').length
+  const issuedCount = shown.filter((i) => ['ISSUED', 'SUBMITTED'].includes(i.status)).length
 
   // ── Aging bar segments (visual proportion) ────────
   // The same five bands the AR page draws, in the same colors — one
@@ -996,13 +1033,13 @@ export default function InvoicesPage() {
     },
     {
       key: 'client',
-      label: 'Client',
+      label: counterpartyLabel,
       render: (row) => (
         <span className={row.engagement.clientCompany ? 'text-etyme-ink' : 'text-etyme-faint'}>
-          {customerName(row)}
+          {counterpartyName(row)}
         </span>
       ),
-      sortValue: (row) => customerName(row),
+      sortValue: (row) => counterpartyName(row),
       hideOnMobile: true,
     },
     {
@@ -1088,7 +1125,7 @@ export default function InvoicesPage() {
   const searchFilter = (row: Invoice, q: string) =>
     row.number.toLowerCase().includes(q) ||
     row.engagement.title.toLowerCase().includes(q) ||
-    customerName(row).toLowerCase().includes(q) ||
+    counterpartyName(row).toLowerCase().includes(q) ||
     row.status.toLowerCase().includes(q)
 
   // ── Status filter options ─────────────────────────
@@ -1241,13 +1278,17 @@ export default function InvoicesPage() {
       {/* Data table */}
       <ListSurface<Invoice>
         columns={columns}
-        data={invoices}
+        data={shown}
         rowKey={(row) => row.id}
         loading={loading}
         error={error}
         searchFilter={searchFilter}
-        searchPlaceholder="Search by invoice number, engagement, or client…"
-        emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} invoices.` : 'No invoices yet.'}
+        searchPlaceholder={`Search by invoice number, engagement, or ${counterpartyLabel.toLowerCase()}…`}
+        emptyMessage={
+          statusFilter !== 'ALL'
+            ? `No ${statusFilter.toLowerCase()} invoices ${side === 'PAYABLE' ? 'to pay' : 'to collect'}.`
+            : side === 'PAYABLE' ? 'Nothing to pay.' : 'No invoices yet.'
+        }
         emptyDetail={isClient
           ? 'Your suppliers raise invoices from the hours you approve. They appear here once submitted, matched against the timesheets and the purchase order.'
           : 'Invoices are generated from approved timesheets. Approve timesheets first, then generate invoices here.'}
@@ -1284,9 +1325,10 @@ export default function InvoicesPage() {
       />
 
       {/* Footer */}
-      {!loading && invoices.length > 0 && (
+      {!loading && shown.length > 0 && (
         <p className="text-xs text-etyme-faint mt-3 tabular-nums">
-          {invoices.length} invoice{invoices.length !== 1 ? 's' : ''}
+          {shown.length} invoice{shown.length !== 1 ? 's' : ''}
+          {side === 'PAYABLE' ? ' to pay' : ' to collect'}
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase().replace('_', ' ')}`}
         </p>
       )}

@@ -288,3 +288,80 @@ export function invoicesRaisedBy(companyId: string): Record<string, unknown> {
   // which is the safer half of a broken record: a bill nobody can open is
   // a bill settled by email.
 }
+
+// ── The reader's own side of the book ─────────────────────────────────
+//
+// `lib/order-naming` settled the rule for the order layer: one document,
+// and which end of it the reader stands at decides the words. An invoice
+// is the same. The client's invoice list opened on "Owed to us" — always
+// $0 for a company that never sells — with six supplier invoices listed
+// under it, so the stat cards and the table disagreed until somebody
+// clicked "We owe". And the CLIENT column printed the reader's own name
+// on every row, because "the client" is who the invoice is TO, which on
+// a client's own screen is itself.
+//
+// No database and no React in here, so the answer is the same on the
+// page, in the export and in a test.
+
+/** Which half of the book a screen is showing. */
+export type LedgerSide = 'RECEIVABLE' | 'PAYABLE'
+
+/**
+ * The side a reader opens on.
+ *
+ * A client buys and never sells (CLAUDE.md, "Who sells and who buys": the
+ * client's row reads never / everyone below), so its book is what it
+ * owes. Everybody else sells — a prime buys too, and opens on what it is
+ * owed because that is the half it raises itself.
+ *
+ * Unknown opens on RECEIVABLE, which is what the screen did before any
+ * of this and is the safe answer while a session is still loading: it
+ * claims nothing about a company whose kind nobody has read yet.
+ */
+export function openingSide(companyKind: string | null | undefined): LedgerSide {
+  return companyKind === 'CLIENT' ? 'PAYABLE' : 'RECEIVABLE'
+}
+
+/** What to call the other firm on a row, and which firm that is. */
+export interface Counterparty {
+  /** "Client" · "Supplier" · "Counterparty" */
+  heading: string
+  /** The firm on the other end, or null where nothing can name it. */
+  firm: FirmRef | null
+}
+
+/**
+ * The firm on the other end of this invoice, from where the reader sits.
+ *
+ * Ours to collect — the client pays it, and the client is who we name.
+ * Ours to pay — the supplier raised it, and the supplier is who we name.
+ * Neither — we are a bystander, and naming either end as "the client"
+ * would be telling a rung in a chain something about a deal it is not
+ * on. Null rather than a guess, the same rule as `partiesOf`.
+ */
+export function counterpartyOf(direction: Direction, parties: InvoiceParties): Counterparty {
+  if (direction === 'RECEIVABLE') return { heading: 'Client', firm: parties.client }
+  if (direction === 'PAYABLE') return { heading: 'Supplier', firm: parties.vendor }
+  return { heading: 'Counterparty', firm: null }
+}
+
+/**
+ * One heading for a column of rows that may run both ways.
+ *
+ * A staffing firm's list is all clients; a client's list is all
+ * suppliers; a prime's is both, and a column headed with one of the two
+ * words would be wrong on half its rows. An empty list takes the word
+ * from the side the reader opened on, because a heading that changes
+ * when the first row arrives reads as a bug.
+ */
+export function counterpartyHeading(
+  directions: ReadonlyArray<Direction>,
+  opened: LedgerSide
+): string {
+  const sides = new Set(directions.filter((d) => d !== 'NEITHER'))
+  if (sides.size === 1) {
+    return counterpartyOf([...sides][0], NOTHING).heading
+  }
+  if (sides.size === 0) return counterpartyOf(opened, NOTHING).heading
+  return 'Client or supplier'
+}

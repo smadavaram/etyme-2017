@@ -6,6 +6,9 @@ import {
   directionFrom,
   invoiceBetween,
   invoicesRaisedBy,
+  openingSide,
+  counterpartyOf,
+  counterpartyHeading,
 } from '@/lib/money/invoice-parties'
 
 /**
@@ -223,5 +226,79 @@ describe('an invoice with no agreement is still found by the scope that lists it
     expect(json).not.toContain('issuedById')
     expect(json).not.toContain('clientCompanyId')
     expect(json).not.toContain('clientId')
+  })
+})
+
+/**
+ * ── The reader's own side of the book ────────────────────────────────
+ *
+ * A client's invoice list opened on "Owed to us" — which is $0 for a
+ * company that never sells — with six supplier invoices listed under
+ * it, so the stat cards and the table disagreed until somebody clicked
+ * "We owe". And the column headed CLIENT printed the reader's own name
+ * on every row, because "the client" is who the invoice is TO, and on a
+ * client's own screen that is always itself.
+ *
+ * The rule is `lib/order-naming`'s: the reader's side decides the
+ * words. What a client wants named on a bill it owes is the supplier
+ * that billed it.
+ */
+describe("an invoice list is read from the side of the book the reader is on", () => {
+  it('a client opens on what it owes, because a client never sells and is never owed', () => {
+    expect(openingSide('CLIENT')).toBe('PAYABLE')
+  })
+
+  it('a staffing vendor opens on what it is owed', () => {
+    expect(openingSide('VENDOR')).toBe('RECEIVABLE')
+  })
+
+  it('a prime, which both sells and buys, opens on what it is owed', () => {
+    expect(openingSide('PRIME')).toBe('RECEIVABLE')
+  })
+
+  it('a reader whose company kind is not yet loaded opens on what it is owed rather than guessing', () => {
+    expect(openingSide(null)).toBe('RECEIVABLE')
+  })
+
+  it('a bill this company must pay names the supplier that billed it', () => {
+    const p = partiesOf({ agreement: AGREEMENT })
+    const c = counterpartyOf('PAYABLE', p)
+    expect(c.heading).toBe('Supplier')
+    expect(c.firm?.name).toBe('Veritan Talent')
+  })
+
+  it('a bill this company is owed names the client that must pay it', () => {
+    const p = partiesOf({ agreement: AGREEMENT })
+    const c = counterpartyOf('RECEIVABLE', p)
+    expect(c.heading).toBe('Client')
+    expect(c.firm?.name).toBe('Northbend Athletic')
+  })
+
+  it('an invoice between two other firms names neither as ours and says so', () => {
+    const p = partiesOf({ agreement: AGREEMENT })
+    const c = counterpartyOf('NEITHER', p)
+    expect(c.heading).toBe('Counterparty')
+    expect(c.firm).toBeNull()
+  })
+
+  it('an invoice nothing can attribute leaves the name blank rather than inventing a firm', () => {
+    const c = counterpartyOf('PAYABLE', partiesOf({}))
+    expect(c.firm).toBeNull()
+  })
+
+  it('a book of bills to pay heads the column Supplier', () => {
+    expect(counterpartyHeading(['PAYABLE', 'PAYABLE'], 'PAYABLE')).toBe('Supplier')
+  })
+
+  it('a book of bills to collect heads the column Client', () => {
+    expect(counterpartyHeading(['RECEIVABLE', 'RECEIVABLE'], 'RECEIVABLE')).toBe('Client')
+  })
+
+  it("a prime's book with both on it heads the column with both words rather than picking one", () => {
+    expect(counterpartyHeading(['RECEIVABLE', 'PAYABLE'], 'RECEIVABLE')).toBe('Client or supplier')
+  })
+
+  it('an empty list is headed from the side the reader opened on', () => {
+    expect(counterpartyHeading([], 'PAYABLE')).toBe('Supplier')
   })
 })
