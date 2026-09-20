@@ -33,12 +33,16 @@ import { censusSweep, day, mb, type SweepCensus } from '@/lib/census'
 import { logAccess } from '@/lib/access-log'
 import { notify } from '@/lib/notify'
 import { tellStaff } from '@/lib/alerts'
+import { emailSender } from '@/lib/senders'
 import { daysOnSite } from '@/lib/tenure-days'
 import {
   categoriesFor, NOT_IN_AN_EXPORT,
   exportReadyNotice, erasureReceivedNotice, erasureCompleteNotice, erasureHolderNotice,
 } from '@/lib/notify/data-rights'
 import { breachClockWarning } from '@/lib/notify/breach'
+import {
+  censusClockStaffNotice, censusDeletedNotice, type CensusStaffNotice,
+} from '@/lib/notify/census'
 import type { Notice, Audience } from '@/lib/notify/letters'
 
 // ── Who the request is about ──────────────────────────────────────────
@@ -255,11 +259,16 @@ export interface DeskFraming {
  * it to a client and nothing here can tell a real program office from a
  * firm that typed a client's name. CLAUDE.md settled this for
  * requisitions — "the answer is a seat: the client grants the MSP a desk
- * in its program office" — and that seat is not built. `Delegation` is a
- * table with no writer and no reader, which is a column rather than a
- * feature. So the honest answer is to say what is missing, rather than
- * show an empty list that reads as "nobody has asked", and never to
- * invent the seat here.
+ * in its program office" — and that seat landed on 2026-09-20 as
+ * `ProgramSeat`, which `lib/program-seat` both writes and reads. What
+ * this paragraph used to say — that the table had no writer and no
+ * reader, so it was a column rather than a feature — was true when it
+ * was typed and is not any more.
+ *
+ * The framing below is unchanged and still right: a program office
+ * reading this page answers for nobody's workforce until it holds a
+ * seat, so it is told what is missing rather than shown an empty list
+ * that reads as "nobody has asked".
  */
 export function deskFraming(kind: DeskKind | string, companyName: string): DeskFraming {
   switch (kind) {
@@ -1178,6 +1187,161 @@ export async function runRetentionSweep(now = new Date()): Promise<SweepOutcome>
 // ─────────────────────────────────────────────────────────────────────
 
 /**
+ * ── Writing to somebody who has no account here ──────────────────────
+ *
+ * Every other letter in this product is addressed by `notify`, which
+ * needs a `Person`. A census contact is not one and must not become one:
+ * they typed their name into a page with no login behind it, nothing
+ * about them is verified, and creating a person row from an
+ * unauthenticated form is how a database fills up with names somebody
+ * typed. So the letters `lib/notify/census` builds carry their own `to`,
+ * and this is the one place that reads it.
+ *
+ * `emailSender()` is the only route to an address with no account behind
+ * it. Where none is configured the letter does not vanish: it is handed
+ * to staff as an instruction — "Send to dana@…: Your census files
+ * arrived" with the letter under it — which is the pattern the erasure
+ * completion letter already uses for a tombstoned address. A deployment
+ * with no key then produces somebody's job rather than a silent drop,
+ * and the client is still written to by a human.
+ *
+ * The send is awaited rather than fired and forgotten. Elsewhere that is
+ * the right trade — a notification is cheap and a request should not
+ * wait on it — but a census runs at a handful a week and the whole
+ * design is a promise about a file somebody entrusted to us. A serverless
+ * function that froze before an un-awaited promise resolved would drop
+ * the one letter carrying the upload link, and nobody would know.
+ */
+export interface CensusLetterSent {
+  /** The address it was written to, off the census row. */
+  to: string
+  subject: string
+  /** True only where a sender actually took it. Never optimistic. */
+  sent: boolean
+  /** What staff were asked to do instead. Null where it left. */
+  staffInstruction: string | null
+  /** Why it did not leave, in words. Null where it did. */
+  note: string | null
+}
+
+/** Where another census is asked for. The public page, no login behind it. */
+export function censusAskUrl(): string {
+  return `${baseUrl()}/census`
+}
+
+/** The one page somebody at the client accepts by name. */
+export function censusAgreementUrl(): string {
+  return `${baseUrl()}/legal/census-agreement`
+}
+
+/**
+ * Where the files go.
+ *
+ * **The dependency this has on a screen that does not read it yet.**
+ * `app/census` is one page holding the token in its own state and
+ * nothing in it reads `?token=`, which its own comment says out loud:
+ * "the letter carrying the upload link is etyme-conversation's and is
+ * not built." It is built now and this is the address it names, so the
+ * page has to pick the token up and open at the upload step. Until it
+ * does, somebody following this link lands on step one. Reported to
+ * etyme-market rather than fixed here: `app/census` is theirs.
+ */
+export function censusUploadUrl(token: string): string {
+  return `${baseUrl()}/census?token=${encodeURIComponent(token)}`
+}
+
+/**
+ * Where the named person at Etyme works it from.
+ *
+ * The API route, because there is no staff screen for a census yet and a
+ * link to a page that does not exist is worse than a link to JSON a
+ * staff person can actually open. When the screen lands this points at
+ * it and nothing else changes.
+ */
+export function censusReviewUrl(requestId: string): string {
+  return `${baseUrl()}/api/census/review?id=${encodeURIComponent(requestId)}`
+}
+
+/** One letter to a census contact, and an honest answer about it. */
+export async function sendCensusLetter(letter: Notice): Promise<CensusLetterSent> {
+  const to = letter.to
+  if (!to) {
+    // Every client census letter sets `to`, because there is nobody here
+    // to look up. One with none is a bug in the letter, not a send.
+    return {
+      to: '',
+      subject: letter.subject,
+      sent: false,
+      staffInstruction: null,
+      note: 'The letter named no address, so there was nowhere to send it.',
+    }
+  }
+
+  const instruction = `Send to ${to}: ${letter.subject}`
+  const handToStaff = async (why: string): Promise<CensusLetterSent> => {
+    await tellStaff(
+      instruction,
+      `This letter has to go to ${to} and the product could not send it: ${why}\n\n` +
+        'They have no account here — a census is asked for before anybody is a customer — so ' +
+        'there is no other way to reach them.\n\n' +
+        letter.body
+    )
+    return { to, subject: letter.subject, sent: false, staffInstruction: instruction, note: why }
+  }
+
+  const sender = emailSender()
+  if (!sender) {
+    return handToStaff(
+      'no email sender is configured (NOTIFY_FROM_EMAIL with RESEND_API_KEY or SENDGRID_API_KEY).'
+    )
+  }
+
+  try {
+    await sender.send(to, letter.subject, letter.body)
+    return { to, subject: letter.subject, sent: true, staffInstruction: null, note: null }
+  } catch (err) {
+    return handToStaff(`the email sender refused — ${String((err as Error)?.message ?? err).slice(0, 160)}.`)
+  }
+}
+
+/**
+ * One letter to the named person at Etyme, and to the staff channel.
+ *
+ * The notification is the telling *and* the memory: `entityId` carries
+ * the census id, which is what the sweep reads back to warn once a night
+ * rather than once a run. Staff hear as well either way, because a
+ * census whose named person holds no `Person` row — staff are an address
+ * and need no seat anywhere — is exactly the census most likely to be
+ * forgotten.
+ */
+export async function sendCensusStaffLetter(
+  letter: CensusStaffNotice,
+  assignedTo: string | null
+): Promise<{ toldByName: boolean }> {
+  let toldByName = false
+  if (assignedTo) {
+    const person = await prisma.person.findFirst({
+      where: { primaryEmail: assignedTo },
+      select: { id: true },
+    })
+    if (person) {
+      await notify({
+        personId: person.id,
+        type: 'SYSTEM',
+        title: letter.subject,
+        body: letter.body,
+        entityId: letter.entityId,
+        channel: 'EMAIL',
+      })
+      toldByName = true
+    }
+  }
+  await tellStaff(letter.subject, letter.body)
+  return { toldByName }
+}
+
+
+/**
  * What the nightly sweep does with a contractor census.
  *
  * A client sent us their own file before they were a customer, and the
@@ -1197,22 +1361,36 @@ export async function runRetentionSweep(now = new Date()): Promise<SweepOutcome>
  *     person**, because data deleted before the client ever saw their
  *     page is the failure this whole design exists to prevent.
  *
- * ── The automation rows this cannot write ────────────────────────────
+ * ── The automation rows, which can now be written ────────────────────
  *
- * `AutomationLog.companyId` is a required foreign key. A census's only
- * company is the sandbox its rows were imported into — and the deletion
- * destroys that sandbox, so a row written against it would cascade away
- * at the exact moment somebody audits whether we deleted on the day we
- * said. `CENSUS_DELETED` therefore stays in `PLANNED` in `lib/autonomy`
- * and the record is the `CensusRequest` row itself: `deletedAt`, the
- * status, and the file count and byte total kept on purpose so that the
- * day after a deletion we can still say what went. Staff are told in the
- * same act. `companyId String?` is the one-word fix and is a schema
- * request for the architect.
+ * `AutomationLog.companyId` was a required foreign key until
+ * 2026-09-20, and a census's only company is the sandbox its rows were
+ * imported into — which the deletion destroys, so a row written against
+ * it would have cascaded away at the exact moment somebody audits
+ * whether we deleted on the day we said. `companyId String?` landed, so
+ * both acts here write a row with **no company on it**: an act of the
+ * platform, before or outside any tenant, which is what a null company
+ * now means. The row survives the sandbox because it never pointed at
+ * it.
+ *
+ * The `CensusRequest` row is still the primary record — `deletedAt`,
+ * the status, and the file count and byte total kept on purpose so the
+ * day after a deletion we can still say what went. The log row is the
+ * sentence beside it.
+ *
+ * ── And the client is told, on both ──────────────────────────────────
+ *
+ * The deletion letter goes to the address on the row, because "the
+ * client is told the day it ran" is the brief's own line and a promise
+ * kept where nobody can see it is indistinguishable from one broken.
+ * The clock warning goes to the named person here and never to the
+ * client: it is our lateness, not theirs.
  */
 export interface CensusSweepOutcome {
   deleted: number
   warned: number
+  /** One per client letter this run tried to send, said honestly. */
+  letters: CensusLetterSent[]
 }
 
 export async function runCensusSweep(now = new Date()): Promise<CensusSweepOutcome> {
@@ -1224,22 +1402,36 @@ export async function runCensusSweep(now = new Date()): Promise<CensusSweepOutco
       id: true, companyName: true, contactName: true, workEmail: true, status: true,
       deleteBy: true, deletedAt: true, assignedStaffEmail: true,
       receivedFileCount: true, receivedBytes: true, sandboxCompanyId: true,
+      // Read rather than inferred from the status. A census can reach
+      // its day as DELIVERED or as IN_REVIEW, and the deletion letter
+      // says a different last line for each — "your page stays exactly
+      // as it was sent" against "no page was ever sent from it". A
+      // status is a state; whether a page went is a date, and the date
+      // is the only thing that knows.
+      deliveredAt: true,
+      lastWarnedAt: true,
     },
     orderBy: { deleteBy: 'asc' },
   })
-  if (rows.length === 0) return { deleted: 0, warned: 0 }
+  if (rows.length === 0) return { deleted: 0, warned: 0, letters: [] }
 
-  // Who was already told tonight. The warning is written as a
-  // notification to the named person, so the notification is both the
-  // telling and the memory of it — "once a day, not once a run".
+  // Who was already warned tonight — read off `CensusRequest.lastWarnedAt`
+  // and nothing else.
   //
-  // Where the assigned address has no `Person` row — staff are an
-  // address and need no seat anywhere — there is nothing to write a
-  // notification against and nothing to read back, so that census warns
-  // once per run rather than once per day. In production the run is
-  // nightly and the two are the same; said out loud because they are not
-  // the same thing. `CensusRequest.lastWarnedAt`, the column `Breach`
-  // already has, would close it.
+  // This used to count the notifications written against the census id
+  // since the start of the day, and that was wrong in a way nothing
+  // caught until a second letter existed: the named person is now told
+  // when a census *arrives* as well, on the same `entityId`, so an
+  // arrival silenced the clock for the rest of that day. A memory that
+  // remembers the wrong event is worse than none, because it fails quiet
+  // and it fails on the census closest to its date.
+  //
+  // `lastWarnedAt` landed on 2026-09-20, the column `Breach` already
+  // had, and it means exactly one thing: when the clock warning last
+  // went out. It also closes the case the notification never could —
+  // staff are an address and need no seat anywhere, so a census whose
+  // named person holds no `Person` row had nothing to read back at all
+  // and warned once a run rather than once a night.
   const owners = new Map<string, string>()
   const addresses = [...new Set(rows.map((r) => r.assignedStaffEmail).filter((a): a is string => !!a))]
   if (addresses.length > 0) {
@@ -1251,17 +1443,7 @@ export async function runCensusSweep(now = new Date()): Promise<CensusSweepOutco
   }
 
   const toldTonight = new Set<string>()
-  if (owners.size > 0) {
-    const already = await prisma.notification.findMany({
-      where: {
-        personId: { in: [...owners.values()] },
-        entityId: { in: rows.map((r) => r.id) },
-        createdAt: { gte: startOfDay },
-      },
-      select: { entityId: true },
-    })
-    for (const n of already) if (n.entityId) toldTonight.add(n.entityId)
-  }
+  for (const r of rows) if (r.lastWarnedAt && r.lastWarnedAt >= startOfDay) toldTonight.add(r.id)
 
   const input: SweepCensus[] = rows.map((r) => ({
     id: r.id,
@@ -1279,6 +1461,8 @@ export async function runCensusSweep(now = new Date()): Promise<CensusSweepOutco
   const byId = new Map(rows.map((r) => [r.id, r]))
 
   // ── Deletions ──────────────────────────────────────────────────────
+
+  const letters: CensusLetterSent[] = []
 
   for (const d of plan.deletions) {
     const row = byId.get(d.requestId)!
@@ -1302,6 +1486,47 @@ export async function runCensusSweep(now = new Date()): Promise<CensusSweepOutco
       `What is left is the row: ${d.fileCount} file${d.fileCount === 1 ? '' : 's'}, ${mb(d.bytes)}, ` +
         `deleted on ${day(now)}.`,
     ].join('\n\n'))
+
+    await prisma.automationLog.create({
+      data: {
+        companyId: null,
+        action: 'CENSUS_DELETED',
+        summary: d.says,
+        reason:
+          'The day on the agreement the client accepted by name came, and no program started. Nobody ' +
+          'was asked, because the date was agreed in writing before the file was sent. The row carries ' +
+          'no company on purpose: the sandbox their rows sat in has just been destroyed, and a record ' +
+          'of the deletion that went with it would prove nothing.',
+        payload: {
+          requestId: row.id,
+          companyName: row.companyName,
+          fileCount: d.fileCount,
+          bytes: d.bytes,
+          dueOn: row.deleteBy ? row.deleteBy.toISOString() : null,
+          deletedAt: now.toISOString(),
+          pageDelivered: row.deliveredAt !== null,
+        },
+        // Nothing puts a deleted file back, and saying otherwise here
+        // would be the one lie this whole design exists to prevent.
+        reversible: false,
+      },
+    })
+
+    // The client hears on the day, which is the whole of the promise.
+    // Every figure in the letter is the row's own — the count and the
+    // bytes kept precisely so this sentence survives the files, and
+    // `deliveredAt` read rather than guessed from the status, because
+    // whether a page ever went changes what is left to say.
+    letters.push(await sendCensusLetter(censusDeletedNotice({
+      contact: { name: row.contactName, workEmail: row.workEmail },
+      companyName: row.companyName,
+      assignedTo: row.assignedStaffEmail,
+      count: row.receivedFileCount,
+      bytes: row.receivedBytes,
+      deletedAt: now,
+      pageDelivered: row.deliveredAt !== null,
+      askAgainUrl: censusAskUrl(),
+    })))
   }
 
   // ── Warnings ───────────────────────────────────────────────────────
@@ -1309,26 +1534,70 @@ export async function runCensusSweep(now = new Date()): Promise<CensusSweepOutco
   for (const w of plan.warnings) {
     const row = byId.get(w.requestId)!
     const ownerId = w.owner ? owners.get(w.owner.toLowerCase()) ?? null : null
+
+    // `censusSweep` builds its own sentence for the plan and this is the
+    // letter the person reads. Both are built from the same two facts —
+    // the row's `deleteBy` and the days left the plan counted — and
+    // neither computes a date of its own.
+    const letter = censusClockStaffNotice({
+      censusId: row.id,
+      companyName: row.companyName,
+      daysLeft: w.daysLeft,
+      deleteBy: row.deleteBy!,
+      status: row.status === 'RECEIVED' ? 'RECEIVED' : 'IN_REVIEW',
+      assignedTo: row.assignedStaffEmail,
+      reviewUrl: censusReviewUrl(row.id),
+    })
+
     if (ownerId) {
       await notify({
         personId: ownerId,
         type: 'SYSTEM',
-        title: `${row.companyName}'s census data goes in ${w.daysLeft} day${w.daysLeft === 1 ? '' : 's'}`,
-        body: w.says,
-        entityId: row.id,
+        title: letter.subject,
+        body: letter.body,
+        // The memory as well as the telling. Read back at the top of the
+        // next run, so a census warns once a night and not once a run.
+        entityId: letter.entityId,
         channel: 'EMAIL',
       })
     }
     // Staff hear either way. A census whose named person has no account
     // here is the case the notification cannot reach, and it is exactly
     // the census most likely to be forgotten.
-    await tellStaff(
-      `Census clock: ${row.companyName}, ${w.daysLeft} day${w.daysLeft === 1 ? '' : 's'} left`,
-      w.says
-    )
+    await tellStaff(letter.subject, letter.body)
+
+    // The other half of the memory, and the half that works where the
+    // named person holds no account. Stamped after the telling, so a
+    // failure to tell does not leave a census marked as told.
+    await prisma.censusRequest.update({
+      where: { id: row.id },
+      data: { lastWarnedAt: now },
+    })
+
+    await prisma.automationLog.create({
+      data: {
+        companyId: null,
+        action: 'CENSUS_CLOCK_WARNED',
+        summary: w.says,
+        reason:
+          'The date the client holds in writing is close and their page has not gone. It deletes ' +
+          'nothing, sends the client nothing and writes no page — the whole act is telling the person ' +
+          'who owns it, once a night rather than once a run.',
+        payload: {
+          requestId: row.id,
+          companyName: row.companyName,
+          daysLeft: w.daysLeft,
+          deleteBy: row.deleteBy ? row.deleteBy.toISOString() : null,
+          toldByName: ownerId !== null,
+        },
+        // A warning that has gone out cannot be taken back, and nothing
+        // about the census itself moved.
+        reversible: false,
+      },
+    })
   }
 
-  return { deleted: plan.deletions.length, warned: plan.warnings.length }
+  return { deleted: plan.deletions.length, warned: plan.warnings.length, letters }
 }
 
 /**

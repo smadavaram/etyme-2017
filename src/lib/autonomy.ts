@@ -167,6 +167,18 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'A contract ending inside eight weeks gets a rolloff opened for it, ready on somebody’s desk. The desk decides what happens to the person.',
   },
+  CENSUS_CLOCK_WARNED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A census is close to the day its data is deleted, or close to the five working days the client was promised a page in, so the named person at Etyme was told. Once a day, not once a run. It deletes nothing, sends the client nothing, and writes no page.',
+  },
+  CENSUS_DELETED: {
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A client sent us their contractor data, we sent back the page, the days the agreement named passed and no program started — so it was deleted, with nobody asked, on the day they were told in writing it would be. The files are gone; what is left is the row saying how many there were and when they went. Nothing puts this back.',
+  },
   CENSUS_DELETION_CANCELLED: {
     rung: 'L3',
     basis: 'RULE',
@@ -361,6 +373,20 @@ for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 
 // A person pressed the button, but a model may have done the work — and
 // which one it was changes run to run, so the row has to say.
+// The four census acts that are somebody's own, and not ours. A client
+// asks, their legal accepts by name, they upload, and a named person at
+// Etyme sends the page: none of that is automation and all of it has to
+// be on the record, because the whole design is a promise in writing
+// about what happens to a file somebody sent us. `RECORDED` rather than
+// `RULE` because what the row says is read back off what actually
+// happened — which edition was accepted, how many files arrived, how
+// many gaps were named — rather than derived from a rule this file
+// holds.
+ATTRIBUTED.CENSUS_REQUESTED = { basis: 'RECORDED' }
+ATTRIBUTED.CENSUS_AGREED = { basis: 'RECORDED' }
+ATTRIBUTED.CENSUS_FILES_RECEIVED = { basis: 'RECORDED' }
+ATTRIBUTED.CENSUS_DELIVERED = { basis: 'RECORDED' }
+
 ATTRIBUTED.MATCH_RUN = { basis: 'RECORDED' }
 ATTRIBUTED.SITE_WRITTEN = { basis: 'RECORDED' }
 ATTRIBUTED.DATA_IMPORTED = { basis: 'RECORDED' }
@@ -395,22 +421,22 @@ ATTRIBUTED.DATA_IMPORTED = { basis: 'RECORDED' }
 // anonymization below is `reversible: false` on the row that records it,
 // honestly, because nothing puts a deleted record back.
 //
-// The census rows are here for the same reason: `CensusRequest`
-// and `CensusFile` landed on 2026-09-20 and nothing writes to them yet.
-// Six of the seven are still here, and they are stuck rather than
-// unbuilt: `AutomationLog.companyId` is a required foreign key and a
-// census has no company — a client asks for one before they are a
-// customer, and the sandbox its rows are imported into is destroyed by
-// the deletion itself, so a row written there would cascade away at the
-// moment somebody audits it. `companyId String?` frees all six.
-// `CENSUS_DELETION_CANCELLED` moved onto the ladder on 2026-09-20
-// because it is the one census act whose company both exists and
-// survives: the sandbox stays precisely because the deletion did not run.
-// They are worth naming ahead of the code because a census is a promise
-// made in writing to a client's legal counsel about what happens to a
-// file they sent us, and the sentence in the log is the thing that
-// proves we kept it. `CENSUS_DELETED` carries `reversible: false` for
-// the same reason `RETENTION_DELETE` does.
+// **The seven census rows have all left this list, and what held them
+// up is worth keeping.** They were named here on 2026-09-20 and were
+// stuck rather than unbuilt: `AutomationLog.companyId` was a required
+// foreign key and a census has no company — a client asks for one
+// before they are a customer, and the sandbox its rows are imported
+// into is destroyed by the deletion itself, so a row written there
+// would have cascaded away at the moment somebody audits it.
+// `CENSUS_DELETION_CANCELLED` went first, being the one act whose
+// company both exists and survives. `companyId String?` landed the same
+// day and freed the other six, which are now written against no company
+// at all — an act of the platform, before or outside any tenant.
+//
+// That is the shape this list is for. A record designed while the
+// schema under it says no is named, with its rung and its sentence
+// decided by whoever designed it, and moves the day the code can write
+// it. It is not a graveyard: six entries were in it for one day.
 
 export type PlannedAct =
   | { kind: 'UNPROMPTED'; rung: Rung; basis: Basis; says: string; willBeWrittenBy: string }
@@ -437,69 +463,6 @@ export const PLANNED: Record<string, PlannedAct> = {
     willBeWrittenBy: 'etyme-regulatory',
   },
 
-  // ── The clocks ───────────────────────────────────────────────────
-
-  CENSUS_CLOCK_WARNED: {
-    kind: 'UNPROMPTED',
-    rung: 'L0',
-    basis: 'RULE',
-    says:
-      'A census is close to the day its data is deleted, or close to the five working days the client was promised a page in, so the named person at Etyme was told. Once a day, not once a run. It deletes nothing, sends the client nothing, and writes no page.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-
-  // ── What the nightly sweep does with a census ──────────────────────
-
-  CENSUS_DELETED: {
-    kind: 'UNPROMPTED',
-    rung: 'L5',
-    basis: 'RULE',
-    says:
-      'A client sent us their contractor data, we sent back the page, thirty days passed and no program started — so it was deleted, with nobody asked, on the day the agreement they signed said it would be. The files are gone; what is left is the row saying how many there were and when they went. Nothing puts this back.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-
-  // ── A refusal aimed at somebody who asked ──────────────────────────
-
-
-  // ── Acts a person took ─────────────────────────────────────────────
-  //
-  // Four of the seven census rows are somebody's act, not ours, and they
-  // are here rather than on the ladder for the reason the file gives
-  // above: giving a human act a rung would inflate every claim we make.
-  // The client asks, the client's legal accepts, the client uploads, and
-  // a named person at Etyme sends the page. None of that is automation
-  // and all of it has to be on the record, because the whole design is a
-  // promise about what we do with somebody's file.
-
-  CENSUS_REQUESTED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RECORDED',
-    says:
-      'Somebody at a client asked for a contractor census, from a page with no login behind it, and was given their place in the line and the name of the person at Etyme who will run it. Nothing about them is verified at this point and nothing has been sent to us yet.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  CENSUS_AGREED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RECORDED',
-    says:
-      'Somebody at the client accepted the one-page census agreement, by name, and the link they can upload through was created at that moment and not before. This row is the record that they accepted, which edition they accepted, and when.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  CENSUS_FILES_RECEIVED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RECORDED',
-    says:
-      'The client uploaded their census data through their own link, and the row says how many files and how many bytes arrived and the day the whole lot is deleted. The deletion date on their confirmation is read from the same column the nightly sweep reads, so the two cannot disagree.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  CENSUS_DELIVERED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RECORDED',
-    says:
-      'The named person at Etyme reviewed the one page, wrote what could not be seen in the data, and sent it. A person did this: nothing computes a census for a client before somebody here has read their file, and the row says who.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
 
 }
 

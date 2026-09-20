@@ -410,16 +410,16 @@ Recomputed from the module on 2026-09-20:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **145** |
-| Unprompted — the system did it and nobody asked | **21** |
+| Actions named in the automation log | **151** |
+| Unprompted — the system did it and nobody asked | **23** |
 | Enforcement — the system decided what a person was allowed to do | **6** |
-| Attributed — a person did it and the row is the record | **118** |
+| Attributed — a person did it and the row is the record | **122** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung
 would inflate every claim.
 
-Of the twenty-one unprompted actions, **twenty are plain rules** — a date
+Of the twenty-three unprompted actions, **twenty-two are plain rules** — a date
 comparison, a threshold, a count. `cron/end-contracts` is fully
 autonomous and is also `endDate < today`; both are true and the product
 says both. The odd one out is proactive matching, whose basis is read from
@@ -427,13 +427,27 @@ the row rather than asserted, because the match engine falls back to
 arithmetic when no model key is set and a week where the key was
 misconfigured must not read as a week the model got free.
 
-The twenty-first arrived on 2026-09-20 with the contractor census:
-calling off a deletion that a client was promised in writing, because
-they started a program and their rows became the opening balance of it.
-It keeps data rather than destroying it, and it is `reversible: true` —
-the date can be put back on with one change.
+Three arrived on 2026-09-20 with the contractor census, and they are the
+two ends of one clock plus the thing that stops it. Calling off a
+deletion a client was promised in writing, because they started a
+program and their rows became the opening balance of it, keeps data
+rather than destroying it and is `reversible: true` — the date can be
+put back on with one change. Warning the named person three days out,
+while a client's page is still unsent, deletes nothing, sends the client
+nothing and writes no page; the whole act is telling somebody, once a
+night rather than once a run. Deleting on the day is `reversible: false`
+and is the loudest thing in this product: nobody is asked, because the
+date was agreed in writing before the file was sent.
 
-Six of the twenty-one arrived with retention, export, erasure and the breach
+All three carry **no company on the row**. A census is asked for before
+the client is a tenant, and the sandbox its rows are imported into is
+destroyed by the deletion itself — so a record of the deletion written
+against it would cascade away at the moment somebody audits whether we
+deleted on the day we said. `AutomationLog.companyId` became nullable on
+2026-09-20 for exactly this: a null company means an act of the
+platform, outside any tenant, and never "we forgot".
+
+Six of the twenty-three arrived with retention, export, erasure and the breach
 clock on 2026-09-19. Three of those six are `reversible: false` and say
 so on the row: finishing an erasure, and deleting a record whose
 statutory period has run. Nothing puts a deleted record back, so nothing

@@ -6,6 +6,8 @@ import {
   checkBatch, day, deleteByFrom, mayResetDeleteBy, mayUpload, mb, receiptSentence,
   type CensusStatus, type IncomingFile,
 } from '@/lib/census'
+import { censusReceivedNotice } from '@/lib/notify/census'
+import { sendCensusLetter } from '@/lib/data-request'
 
 /**
  * POST /api/census/upload?token=… — the client sends their files.
@@ -54,14 +56,18 @@ import {
  * more weeks of us holding their data, which is the opposite of a
  * promise.
  *
- * ── The automation row this act is owed, and does not get ────────────
+ * ── The automation row, and the letter that carries the date ─────────
  *
- * `CENSUS_FILES_RECEIVED` stays in `PLANNED` in `lib/autonomy` for the
- * reason the request route sets out at length: `AutomationLog.companyId`
- * is a required foreign key and a census has no company until its rows
- * are imported, which happens after this. The record of this act is the
- * `CensusRequest` row — the count, the bytes, the hour they arrived and
- * the day they go — and the `CensusFile` rows themselves.
+ * `CENSUS_FILES_RECEIVED` is written against no company, which
+ * `AutomationLog.companyId` has allowed since 2026-09-20 — a census has
+ * no tenant until its rows are imported, which happens after this. The
+ * primary record is still the `CensusRequest` row: the count, the bytes,
+ * the hour they arrived and the day they go, plus the `CensusFile` rows
+ * themselves.
+ *
+ * The same sentence the screen shows is emailed, from `receiptSentence`
+ * and not rewritten, because the screen goes when the tab closes and the
+ * date is the one thing the client has to be able to go back and read.
  */
 
 /** Only a census that is still somebody's work may be added to. */
@@ -197,6 +203,32 @@ export async function POST(request: NextRequest) {
 
   const says = receiptSentence({ count: batch.accepted.length, bytes: batch.totalBytes, deleteBy })
 
+  await prisma.automationLog.create({
+    data: {
+      companyId: null,
+      action: 'CENSUS_FILES_RECEIVED',
+      summary:
+        `${census.companyName} sent ${batch.accepted.length} file${batch.accepted.length === 1 ? '' : 's'}, ` +
+        `${mb(batch.totalBytes)}. On the census now: ${count}, ${mb(bytes)}. All of it is deleted on ${day(deleteBy)}.`,
+      reason:
+        'The client uploaded through their own link. The deletion date is set once, at receipt, and the ' +
+        'confirmation they were given reads it from the same column the nightly sweep reads — so the two ' +
+        'cannot come to disagree.',
+      payload: {
+        requestId: census.id,
+        acceptedThisTime: batch.accepted.length,
+        refusedThisTime: batch.refused.length,
+        fileCount: count,
+        bytes,
+        deleteBy: deleteBy.toISOString(),
+        deleteByMoved: keep.ok,
+      },
+      // Their file can be deleted before the date; nothing here is
+      // one-way until the sweep runs.
+      reversible: true,
+    },
+  })
+
   void tellStaff(
     `Census files received: ${census.companyName}`,
     [
@@ -214,9 +246,22 @@ export async function POST(request: NextRequest) {
     ].join('\n\n')
   )
 
+  // The confirmation, to the address on the row. The screen says this
+  // same sentence and it goes with the tab; the email is what a client
+  // still has in October when they want to check the date.
+  const wrote = await sendCensusLetter(censusReceivedNotice({
+    contact: { name: census.contactName, workEmail: census.workEmail },
+    companyName: census.companyName,
+    assignedTo: census.assignedStaffEmail,
+    count: batch.accepted.length,
+    bytes: batch.totalBytes,
+    deleteBy,
+  }))
+
   return NextResponse.json({
     data: {
       id: census.id,
+      wrote: { to: wrote.to, subject: wrote.subject, sent: wrote.sent },
       received: batch.accepted.map((f) => ({ name: f.name, size: f.size })),
       refused: batch.refused,
       fileCount: count,

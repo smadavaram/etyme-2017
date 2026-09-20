@@ -1256,10 +1256,17 @@ export const CENSUS_AGREEMENT: { title: string; intro: string; sections: Section
           'of it, and do not use what you sent to sell anything to anybody. Etyme runs no ' +
           'bench and places nobody, so we are not a competitor of your suppliers and have ' +
           'nothing to gain by going near them.',
-        'Asking for a census does not add you to a list either. Nothing automatic happens ' +
-          'next: the person running your census writes to you, by hand, and that is all.',
+        'Asking for a census does not add you to a list either. There is no sequence and no ' +
+          'campaign: nothing is ever sent to you because time passed.',
+        'We write to you at five moments and no others, and every one of them answers ' +
+          'something that has just happened. You ask, and we confirm it and name the person ' +
+          'running it. Somebody at your company accepts the agreement, and we send the link ' +
+          'to upload through. Your files arrive, and we confirm what came and the day it ' +
+          'goes. Your page is ready, and we send it. Your data is deleted, and we say so on ' +
+          'the day. After the page, the person running your census writes to you by hand or ' +
+          'nobody writes at all.',
       ],
-      provenBy: 'src/lib/census.ts, src/app/api/census/request/route.ts',
+      provenBy: 'src/lib/notify/census.ts, src/app/api/census/request/route.ts, src/lib/data-request.ts',
     },
     {
       heading: 'The day we delete it',

@@ -9,7 +9,8 @@ import { GET as readReview, POST as actOnCensus } from '@/app/api/census/review/
 import { POST as importCensus } from '@/app/api/census/import/route'
 import { TEMPLATE_CSV } from '@/lib/census-import'
 import { KEPT_DAYS_AFTER_RECEIPT, UPLOAD_WINDOW_DAYS, day } from '@/lib/census'
-import { runCensusSweep } from '@/lib/data-request'
+import { runCensusSweep, sendCensusLetter } from '@/lib/data-request'
+import { notice } from '@/lib/notify/letters'
 
 /**
  * A client sends us their own contractor data before they are a
@@ -44,6 +45,45 @@ function upload(token: string, files: { name: string; type: string; body: string
 }
 
 const DAY = 86_400_000
+
+/**
+ * A stand-in for the one email sender a deployment has.
+ *
+ * There is no `Person` for a census contact and nothing in `notify` can
+ * reach an address with no account behind it, so the only proof a client
+ * was written to is what left through the sender. This replaces `fetch`
+ * for the duration of one test, records what Resend was asked to send,
+ * and can be told to refuse one address — which is the case where the
+ * letter has to become somebody's job rather than disappear.
+ */
+function captureMail(opts: { refuse?: string } = {}) {
+  const sent: { to: string; subject: string; body: string }[] = []
+  const real = global.fetch
+  process.env.RESEND_API_KEY = 'census-test-key'
+  process.env.NOTIFY_FROM_EMAIL = 'census@etyme.invalid'
+
+  global.fetch = (async (url: unknown, init: { body?: unknown } = {}) => {
+    if (String(url).includes('api.resend.com')) {
+      const mail = JSON.parse(String(init.body)) as { to: string; subject: string; text: string }
+      if (opts.refuse && mail.to === opts.refuse) {
+        return new Response('{}', { status: 422 })
+      }
+      sent.push({ to: mail.to, subject: mail.subject, body: mail.text })
+      return new Response('{}', { status: 200 })
+    }
+    return (real as typeof fetch)(url as string, init as RequestInit)
+  }) as typeof fetch
+
+  return {
+    sent,
+    to: (address: string) => sent.filter((m) => m.to === address),
+    stop: () => {
+      global.fetch = real
+      delete process.env.RESEND_API_KEY
+      delete process.env.NOTIFY_FROM_EMAIL
+    },
+  }
+}
 
 let northbendId = ''
 let northbendToken = ''
@@ -335,9 +375,12 @@ describe('A client asks for a contractor census, and the file goes on the day we
     expect(first.deleted).toBe(0)
 
     const ruth = await prisma.person.findFirstOrThrow({ where: { primaryEmail: STAFF } })
-    const told = await prisma.notification.findMany({ where: { personId: ruth.id, entityId: cavanaughId } })
+    // She heard when it arrived as well, so the clock warning is picked
+    // out by what it says rather than by the census it is about.
+    const told = (await prisma.notification.findMany({
+      where: { personId: ruth.id, entityId: cavanaughId },
+    })).filter((n) => n.body.includes('has not been sent'))
     expect(told).toHaveLength(1)
-    expect(told[0].body).toContain('has not been sent')
 
     // Run it again the same night and nobody is told twice.
     const second = await runCensusSweep(new Date())
@@ -415,5 +458,254 @@ describe('A client asks for a contractor census, and the file goes on the day we
     const res = await json(await actOnCensus(req('POST', '/api/census/review', { id: northbendId, act: 'REVIEW' })))
     expect(res.status).toBe(409)
     expect(res.body.error.message).toContain('deleted on the day')
+  })
+
+  // ── What the client actually hears ──────────────────────────────────
+  //
+  // A census contact has no account here by design, so nothing in the
+  // product can address them the usual way: `notify` needs a `Person`
+  // and there is not one. The letters carry their own address and go
+  // through whichever email sender the deployment has. These three walk
+  // that, with a sender standing in for one.
+
+  it('the client is written to at each of the five moments, and the letter’s date is the row’s', async () => {
+    const post = captureMail()
+    try {
+      const contact = 'imogen.ruiz@halloway.invalid'
+
+      // 1. Asked.
+      const asked = await json(await askForCensus(req('POST', '/api/census/request', {
+        companyName: 'Halloway Foods',
+        contactName: 'Imogen Ruiz',
+        workEmail: contact,
+        desk: 'PROGRAM',
+        supplierCount: 4,
+        option: 'TEMPLATE',
+      })))
+      expect(asked.status).toBe(200)
+      const id = asked.body.data.id
+      expect(asked.body.data.wrote).toEqual({
+        to: contact, subject: 'Your contractor census for Halloway Foods', sent: true,
+      })
+      const one = post.to(contact)[0]
+      expect(one.body).toContain('accepts the one-page census agreement by name')
+      // No date anywhere in it, because at this moment the row holds none.
+      expect(one.body).not.toMatch(/\d{1,2} [A-Z][a-z]+ 20\d\d/)
+
+      // 2. Agreed — and the letter carries the link and the row's expiry.
+      const agreed = await json(await acceptAgreement(req('POST', '/api/census/agree', {
+        id, acceptedBy: 'Yusuf Bello, Counsel',
+      })))
+      expect(agreed.status).toBe(200)
+      const agreedRow = await prisma.censusRequest.findUniqueOrThrow({ where: { id } })
+      const two = post.to(contact)[1]
+      expect(two.subject).toContain('was accepted — here is where to send your files')
+      expect(two.body).toContain(agreedRow.uploadToken!)
+      expect(two.body).toContain(day(agreedRow.uploadExpires!))
+
+      // 3. Received — the same sentence the screen showed, same date.
+      const sent = await json(await uploadFiles(upload(agreedRow.uploadToken!, [
+        { name: 'halloway.csv', type: 'text/csv', body: FILLED },
+      ])))
+      expect(sent.status).toBe(200)
+      const receivedRow = await prisma.censusRequest.findUniqueOrThrow({ where: { id } })
+      const three = post.to(contact)[2]
+      expect(three.subject).toBe('Your census files arrived — Halloway Foods')
+      expect(three.body).toContain(sent.body.data.says)
+      expect(three.body).toContain(day(receivedRow.deleteBy!))
+
+      // 4. Delivered — the page, its six sections, and the same date again.
+      as(STAFF)
+      await importCensus(req('POST', '/api/census/import', { requestId: id }))
+      const delivered = await json(await actOnCensus(req('POST', '/api/census/review', {
+        id, act: 'DELIVER',
+      })))
+      expect(delivered.status).toBe(200)
+      const four = post.to(contact)[3]
+      expect(four.subject).toBe('Your contractor census: Halloway Foods')
+      expect(four.body).toContain('What we could not see')
+      expect(four.body).toContain(day(receivedRow.deleteBy!))
+      // The third way forward is on the same list as the other two.
+      expect(four.body).toContain('Or do nothing, and the data is deleted on')
+
+      // 5. Deleted — on the day, and the letter says the day it ran.
+      const theDay = new Date(receivedRow.deleteBy!.getTime() + 60_000)
+      const swept = await runCensusSweep(theDay)
+      expect(swept.deleted).toBe(1)
+      expect(swept.letters.map((l) => l.to)).toContain(contact)
+      const deletedRow = await prisma.censusRequest.findUniqueOrThrow({ where: { id } })
+      const five = post.to(contact)[4]
+      expect(five.subject).toBe('Your census data for Halloway Foods has been deleted')
+      expect(five.body).toContain(day(deletedRow.deletedAt!))
+      expect(five.body).toContain('Your page stays exactly as it was sent to you.')
+
+      // Five, and not one more. No letter is sent because time passed.
+      expect(post.to(contact)).toHaveLength(5)
+    } finally {
+      post.stop()
+    }
+  })
+
+  it('a client who lost the tab gets the upload link again by pressing accept, and the same link, not a second one', async () => {
+    const post = captureMail()
+    try {
+      const contact = 'theo.marsden@pellroan.invalid'
+      const asked = await json(await askForCensus(req('POST', '/api/census/request', {
+        companyName: 'Pell & Roan',
+        contactName: 'Theo Marsden',
+        workEmail: contact,
+        desk: 'PROCUREMENT',
+      })))
+      const id = asked.body.data.id
+
+      const first = await json(await acceptAgreement(req('POST', '/api/census/agree', {
+        id, acceptedBy: 'Theo Marsden',
+      })))
+      expect(first.status).toBe(200)
+
+      // The four steps live in one page's own state, so somebody who
+      // closes the tab here has no way back in. Pressing accept again is
+      // how they ask for the link, and it is answered with the letter.
+      const again = await json(await acceptAgreement(req('POST', '/api/census/agree', {
+        id, acceptedBy: 'Theo Marsden',
+      })))
+      expect(again.status).toBe(200)
+      expect(again.body.data.uploadToken).toBe(first.body.data.uploadToken)
+      expect(again.body.data.says).toContain('does not make a second one')
+      expect(again.body.data.wrote.sent).toBe(true)
+
+      const letters = post.to(contact).filter((m) => m.subject.includes('here is where to send your files'))
+      expect(letters).toHaveLength(2)
+      expect(letters[0].body).toContain(first.body.data.uploadToken)
+      expect(letters[1].body).toContain(first.body.data.uploadToken)
+    } finally {
+      post.stop()
+    }
+  })
+
+  it('a file opened before any import leaves a record that outlives the file', async () => {
+    const asked = await json(await askForCensus(req('POST', '/api/census/request', {
+      companyName: 'Quillane Rail',
+      contactName: 'Bryn Ostrow',
+      workEmail: 'bryn.ostrow@quillane.invalid',
+      desk: 'OTHER',
+    })))
+    const id = asked.body.data.id
+    const agreed = await json(await acceptAgreement(req('POST', '/api/census/agree', {
+      id, acceptedBy: 'Bryn Ostrow',
+    })))
+    await uploadFiles(upload(agreed.body.data.uploadToken, [
+      { name: 'quillane-timesheets.pdf', type: 'application/pdf', body: '%PDF-1.4 hours' },
+    ]))
+    const file = await prisma.censusFile.findFirstOrThrow({ where: { requestId: id } })
+
+    // Nothing is imported, so there is no person in the database for an
+    // AccessLog row to be about — which is the gap CensusRead closes.
+    as(OTHER_STAFF)
+    const refused = await json(await readReview(req('GET', `/api/census/review?fileId=${file.id}`)))
+    expect(refused.status).toBe(403)
+
+    as(STAFF)
+    const opened = await readReview(req('GET', `/api/census/review?fileId=${file.id}`))
+    expect(opened.status).toBe(200)
+
+    const trail = await prisma.censusRead.findMany({ where: { requestId: id }, orderBy: { at: 'asc' } })
+    expect(trail.map((r) => r.action)).toEqual(['REFUSED', 'OPENED'])
+    expect(trail[0].allowed).toBe(false)
+    expect(trail[0].readerEmail).toBe(OTHER_STAFF)
+    expect(trail[1].readerEmail).toBe(STAFF)
+    for (const r of trail) expect(r.fileName).toBe('quillane-timesheets.pdf')
+
+    // The day comes, the file goes, and the line naming it stays — which
+    // is the only reason the file's name is a column here and not a key.
+    const row = await prisma.censusRequest.findUniqueOrThrow({ where: { id } })
+    const swept = await runCensusSweep(new Date(row.deleteBy!.getTime() + 60_000))
+    expect(swept.deleted).toBe(1)
+    expect(await prisma.censusFile.count({ where: { requestId: id } })).toBe(0)
+
+    const after = await prisma.censusRead.findMany({ where: { requestId: id } })
+    expect(after).toHaveLength(2)
+    expect(after.every((r) => r.fileName === 'quillane-timesheets.pdf')).toBe(true)
+  })
+
+  it('with no email sender configured, the letter becomes an instruction to staff rather than a silent drop', async () => {
+    // Nothing is configured in this suite, which is the ordinary state
+    // of a fresh deployment.
+    const letter = notice({
+      audience: 'business',
+      to: 'nadia.okonjo@halloway.invalid',
+      subject: 'Your census files arrived — Halloway Foods',
+      body: 'Received, 1 file, 0.1 MB.',
+    })
+    const dropped = await sendCensusLetter(letter)
+    expect(dropped.sent).toBe(false)
+    expect(dropped.staffInstruction).toBe(
+      'Send to nadia.okonjo@halloway.invalid: Your census files arrived — Halloway Foods'
+    )
+    expect(dropped.note).toContain('NOTIFY_FROM_EMAIL')
+
+    // And where a sender exists but refuses the address, the same
+    // instruction reaches the staff channel carrying the whole letter,
+    // so somebody sends it by hand instead of nobody sending it at all.
+    const post = captureMail({ refuse: 'nadia.okonjo@halloway.invalid' })
+    try {
+      const handed = await sendCensusLetter(letter)
+      expect(handed.sent).toBe(false)
+      expect(handed.note).toContain('refused')
+      const toStaff = post.to(STAFF)
+      expect(toStaff).toHaveLength(1)
+      expect(toStaff[0].subject).toBe(
+        'Send to nadia.okonjo@halloway.invalid: Your census files arrived — Halloway Foods'
+      )
+      expect(toStaff[0].body).toContain('Received, 1 file, 0.1 MB.')
+      expect(toStaff[0].body).toContain('They have no account here')
+    } finally {
+      post.stop()
+    }
+  })
+
+  it('the staff warning is sent once a night, keyed on the census', async () => {
+    const asked = await json(await askForCensus(req('POST', '/api/census/request', {
+      companyName: 'Lowmarsh Cabling',
+      contactName: 'Ada Krall',
+      workEmail: 'ada.krall@lowmarsh.invalid',
+      desk: 'PROGRAM',
+    })))
+    const id = asked.body.data.id
+    const agreed = await json(await acceptAgreement(req('POST', '/api/census/agree', {
+      id, acceptedBy: 'Ada Krall',
+    })))
+    await uploadFiles(upload(agreed.body.data.uploadToken, [
+      { name: 'lowmarsh.csv', type: 'text/csv', body: FILLED },
+    ]))
+    await prisma.censusRequest.update({
+      where: { id },
+      data: { status: 'IN_REVIEW', deleteBy: new Date(Date.now() + 2 * DAY) },
+    })
+
+    const first = await runCensusSweep(new Date())
+    expect(first.warned).toBe(1)
+
+    // The notification carries the census, which is what the next run
+    // reads back — and the row is stamped as well, which is what covers
+    // a named person who holds no account here.
+    const ruth = await prisma.person.findFirstOrThrow({ where: { primaryEmail: STAFF } })
+    const told = (await prisma.notification.findMany({
+      where: { personId: ruth.id, entityId: id },
+    })).filter((n) => n.title.includes('goes in'))
+    expect(told).toHaveLength(1)
+    expect(told[0].title).toContain('Lowmarsh Cabling')
+    expect((await prisma.censusRequest.findUniqueOrThrow({ where: { id } })).lastWarnedAt).not.toBeNull()
+
+    expect((await runCensusSweep(new Date())).warned).toBe(0)
+
+    // A census whose named person has no account here warns once a night
+    // too, because the row remembers even where no notification can.
+    await prisma.censusRequest.update({
+      where: { id },
+      data: { assignedStaffEmail: 'nobody.here@etyme.invalid', lastWarnedAt: null },
+    })
+    expect((await runCensusSweep(new Date())).warned).toBe(1)
+    expect((await runCensusSweep(new Date())).warned).toBe(0)
   })
 })

@@ -8,6 +8,8 @@ import {
   assignmentSays, day, deletionSentence, mayOpenFile, mayReviewCensus, mb,
   type CensusStatus,
 } from '@/lib/census'
+import { censusDeliveredNotice } from '@/lib/notify/census'
+import { sendCensusLetter } from '@/lib/data-request'
 
 /**
  * GET/POST /api/census/review — the desk the named person at Etyme works
@@ -38,16 +40,21 @@ import {
  * moves too, but the counter is for the screen — the record is the
  * `AccessLog` rows.
  *
- * **What is honestly missing.** `AccessLog.subjectId` is a required
- * foreign key to `Person`, and a census has no people in the database
- * until its rows are imported — before that the contractors are lines in
- * a file nobody has parsed, and the client's own contact has no account
- * by design. So a file opened before the import is recorded by the
- * counter and by the staff channel, and not by an `AccessLog` row. After
- * the import, one row per contractor is written on every open and on
- * every refusal. The fix is `subjectId String?` with the census request
- * named instead, and it is a schema request for the architect, written
- * up with this work rather than worked around here.
+ * **Two tables, because they answer two questions.** `AccessLog` says
+ * who read *a person*, and a census has no people in the database until
+ * its rows are imported — before that the contractors are lines in a
+ * file nobody has parsed, and the client's own contact has no account by
+ * design. So every open before the import wrote nothing at all, which
+ * was the gap.
+ *
+ * `CensusRead` closes it. One row per open and per refusal, from the
+ * first file to the last, keyed on the census rather than on a person:
+ * the reader's address, the file's id and **its name as a plain column**
+ * — no foreign key, on purpose, so the line still says "Q3 Veritan
+ * invoices.pdf" a year after the file it names was deleted. The
+ * per-person `AccessLog` rows stay exactly as they were after the
+ * import, because they answer the other question and they go when the
+ * person does.
  *
  * ── The automation rows, and the one that can be written ─────────────
  *
@@ -81,6 +88,39 @@ async function subjectsOf(sandboxCompanyId: string | null): Promise<string[]> {
     distinct: ['personId'],
   })
   return rows.map((r) => r.personId)
+}
+
+/**
+ * One line in the census's own read trail, written whether or not the
+ * reader was allowed.
+ *
+ * A refusal is recorded the same way an open is — that is the half of
+ * the invariant most systems skip and the half an audit asks for — and
+ * this is the only record that exists before the rows are imported, so
+ * it is awaited and never fired and forgotten.
+ */
+async function recordCensusRead(input: {
+  requestId: string
+  readerEmail: string
+  actorPersonId: string | null
+  action: 'OPENED' | 'REFUSED' | 'DELIVERED'
+  allowed: boolean
+  reason: string
+  fileId?: string | null
+  fileName?: string | null
+}): Promise<void> {
+  await prisma.censusRead.create({
+    data: {
+      requestId: input.requestId,
+      fileId: input.fileId ?? null,
+      fileName: input.fileName ?? null,
+      readerEmail: input.readerEmail,
+      actorPersonId: input.actorPersonId,
+      action: input.action,
+      allowed: input.allowed,
+      reason: input.reason,
+    },
+  })
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -171,8 +211,19 @@ export async function GET(request: NextRequest) {
 
   if (!open.ok) {
     // A refusal is the interesting one, and the agreement says it is
-    // recorded the same way. Where the rows are not imported yet there
-    // is no Person to be the subject of it — see the note at the top.
+    // recorded the same way. The census's own trail first, because it
+    // is the one that exists before the rows are imported and after the
+    // file is deleted.
+    await recordCensusRead({
+      requestId: census.id,
+      readerEmail: reader.email,
+      actorPersonId: realPersonId(caller) ?? null,
+      action: 'REFUSED',
+      allowed: false,
+      reason: `${reader.email} was refused ${meta.fileName} on ${census.companyName}'s census: ${open.says}`,
+      fileId,
+      fileName: meta.fileName,
+    })
     try {
       await recordAccess(subjects, {
         actorPersonId: realPersonId(caller) ?? undefined,
@@ -193,7 +244,20 @@ export async function GET(request: NextRequest) {
 
   // Recorded before it is handed over, not after. If this throws, the
   // file does not go out: an unrecorded read of a client's census is the
-  // exact thing the agreement they accepted says cannot happen.
+  // exact thing the agreement they accepted says cannot happen. This one
+  // is not wrapped, for that reason — it is the record that outlives the
+  // file, and a failure to write it stops the file.
+  await recordCensusRead({
+    requestId: census.id,
+    readerEmail: reader.email,
+    actorPersonId: realPersonId(caller) ?? null,
+    action: 'OPENED',
+    allowed: true,
+    reason: `${reader.email} opened ${file.fileName} on ${census.companyName}'s census`,
+    fileId,
+    fileName: file.fileName,
+  })
+
   try {
     await recordAccess(subjects, {
       actorPersonId: realPersonId(caller) ?? undefined,
@@ -338,6 +402,44 @@ export async function POST(request: NextRequest) {
       data: { status: 'DELIVERED', deliveredAt: now, pageHtml: page.html, gapsNote },
     })
 
+    // Against no company, the way every other census act is. The sandbox
+    // exists at this point and is still the wrong thing to point at: the
+    // deletion destroys it, and a row saying we sent somebody their page
+    // that vanishes with the data is worth nothing to the audit that
+    // asks whether we did.
+    await prisma.automationLog.create({
+      data: {
+        companyId: null,
+        action: 'CENSUS_DELIVERED',
+        summary:
+          `${reader.email} sent ${census.companyName} their contractor census, ` +
+          `with ${page.gaps.length} gap${page.gaps.length === 1 ? '' : 's'} named on it.`,
+        reason:
+          'A person did this. Nothing computes a census for a client before somebody here has read ' +
+          'their file, and the page is stored as it was sent rather than recomputed — the numbers ' +
+          'behind it are deleted on the day the agreement named and what they were told stays.',
+        payload: {
+          requestId: census.id,
+          by: reader.email,
+          gaps: page.gaps.length,
+          deleteBy: census.deleteBy ? census.deleteBy.toISOString() : null,
+        },
+        // A page that has left cannot be recalled.
+        reversible: false,
+      },
+    })
+
+    // A read of the whole census, with no file named: the page carries
+    // every row in it out of the building at once.
+    await recordCensusRead({
+      requestId: census.id,
+      readerEmail: reader.email,
+      actorPersonId: realPersonId(caller) ?? null,
+      action: 'DELIVERED',
+      allowed: true,
+      reason: `${reader.email} delivered the census page for ${census.companyName}`,
+    })
+
     // Every contractor whose details went onto a page that left the
     // building. The page is the output; the read is still a read.
     try {
@@ -350,11 +452,29 @@ export async function POST(request: NextRequest) {
       void reportError('census/review', err)
     }
 
+    // The page itself, to the address on the row.
+    //
+    // There is no PDF pipeline on Vercel and `pageHtml` is stored rather
+    // than attached, so `attached` is false and the letter names where
+    // the page is read instead. The deletion date it quotes is the row's
+    // own, and the third way forward — do nothing, and it is deleted on
+    // the day — is on the same list as the other two, because a page
+    // that hides it has turned a deletion date into a deadline.
+    const wrote = await sendCensusLetter(censusDeliveredNotice({
+      contact: { name: census.contactName, workEmail: census.workEmail },
+      companyName: census.companyName,
+      assignedTo: census.assignedStaffEmail,
+      attached: false,
+      pageUrl: null,
+      deleteBy: census.deleteBy,
+    }))
+
     return NextResponse.json({
       data: {
         id, status: 'DELIVERED', deliveredAt: now,
         gaps: page.gaps.length,
         gapsNote,
+        wrote: { to: wrote.to, subject: wrote.subject, sent: wrote.sent },
         says:
           `Delivered. ${deletionSentence(census.deleteBy)} ` +
           (census.deleteBy

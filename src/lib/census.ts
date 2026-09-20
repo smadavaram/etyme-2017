@@ -283,12 +283,46 @@ export function assignStaff(addresses: string[]): string | null {
   return first ? first.toLowerCase() : null
 }
 
+/**
+ * What **staff** read about who is running a census.
+ *
+ * The unassigned sentence names an environment variable, which is the
+ * right thing to say to whoever can set it and the wrong thing entirely
+ * to say to a client. Use `assignedSaysToClient` for anything a client
+ * sees; this one goes to `tellStaff` and to the review screen.
+ */
 export function assignmentSays(assigned: string | null): string {
   if (!assigned) {
     return (
       'Nobody at Etyme is assigned to this census yet. Set ETYME_STAFF_EMAILS on this ' +
       'deployment — it is the same list that hears when something breaks — and whoever is ' +
       'first on it runs the next one.'
+    )
+  }
+  return `${assigned} runs this one, and every time they open one of your files it is recorded against them.`
+}
+
+/**
+ * The same fact, said to the client.
+ *
+ * `POST /api/census/request` returned `assignmentSays` straight to the
+ * person who had just filled the form, so a deployment with no
+ * `ETYME_STAFF_EMAILS` told a prospective client to set an environment
+ * variable. The census page worked around it by withholding the
+ * sentence, which left the client reading nothing about the one promise
+ * the brief makes loudest — "a named person runs it. Not a bot."
+ *
+ * So there are two sentences about one fact and they differ in exactly
+ * the way a configuration problem should: ours to fix, theirs to be told
+ * the truth about. Nobody assigned is not a lie to the client — a person
+ * really does pick it up — and it is not their business which list the
+ * name comes off.
+ */
+export function assignedSaysToClient(assigned: string | null): string {
+  if (!assigned) {
+    return (
+      'A person at Etyme picks this up and writes to you by name. Every time one of your ' +
+      'files is opened it is recorded against them.'
     )
   }
   return `${assigned} runs this one, and every time they open one of your files it is recorded against them.`

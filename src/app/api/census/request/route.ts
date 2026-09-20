@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { staffAddresses, tellStaff } from '@/lib/alerts'
+import { staffAddresses } from '@/lib/alerts'
 import {
-  AGREEMENT_VERSION, assignStaff, assignmentSays, checkAsk, queuePosition, queueSays,
+  AGREEMENT_VERSION, assignStaff, assignedSaysToClient, assignmentSays, checkAsk,
+  queuePosition, queueSays,
 } from '@/lib/census'
+import { censusArrivedStaffNotice, censusAskedNotice } from '@/lib/notify/census'
+import {
+  censusAgreementUrl, censusReviewUrl, sendCensusLetter, sendCensusStaffLetter,
+} from '@/lib/data-request'
 
 /**
  * POST /api/census/request — somebody at a client asks for a contractor
@@ -77,43 +82,84 @@ export async function POST(request: NextRequest) {
     select: { id: true, companyName: true, contactName: true, workEmail: true, queuePosition: true },
   })
 
-  // ── The automation row this act is owed, and does not get ──────────
+  // ── The automation row ─────────────────────────────────────────────
   //
-  // Every other act in this product writes an `AutomationLog` row. This
-  // one cannot: `AutomationLog.companyId` is a required foreign key to
-  // `Company`, and a census asked for by a firm that is not on the
-  // platform has no company at all — the sandbox that will hold their
-  // rows is created later, at import.
+  // `AutomationLog.companyId` was a required foreign key to `Company`
+  // until 2026-09-20, and a census asked for by a firm that is not on
+  // the platform has no company at all — the sandbox that will hold
+  // their rows is created later, at import. Every way round it was
+  // worse than the gap: creating a company from an unauthenticated form
+  // fills the database with names somebody typed; attaching it to a
+  // `Company` that happens to share the domain would put "somebody here
+  // asked Etyme for a census" into a tenant's own log where anybody at
+  // that firm reads it, and this is a private conversation with one
+  // person until they decide otherwise.
   //
-  // The three ways out were each worse than the gap. Creating a company
-  // from an unauthenticated form is a way to fill the database with
-  // names somebody typed. Attaching it to a `Company` that happens to
-  // share the domain would put "somebody here asked Etyme for a census"
-  // into a tenant's own automation log, where anybody at that firm reads
-  // it — and this is a private conversation with one person until they
-  // decide otherwise. Writing it against a platform company would invent
-  // a tenant that does not exist.
-  //
-  // So the record of this act is the `CensusRequest` row, which holds
-  // everything the log row would have said — who asked, when, their
-  // place in the line, who it was assigned to — and `CENSUS_REQUESTED`
-  // stays in `PLANNED` in `lib/autonomy` rather than being claimed. The
-  // fix is one word with etyme-architect: `companyId String?`.
+  // `companyId String?` landed, so the row is written against no
+  // company — an act of the platform, before any tenant, which is what
+  // a null company now means. Nothing about the client is in the
+  // payload beyond what they typed on a form addressed to us.
+  await prisma.automationLog.create({
+    data: {
+      companyId: null,
+      action: 'CENSUS_REQUESTED',
+      summary:
+        `${row.contactName} at ${row.companyName} asked for a contractor census, ` +
+        `${position === 1 ? 'first in the line' : `number ${position} in the line`}.`,
+      reason:
+        'Somebody at a client asked from a page with no login behind it. Nothing about them is ' +
+        'verified at this point and nothing has been sent to us: the record exists because the ' +
+        'census is a promise made in writing about a file they have not sent yet.',
+      payload: {
+        requestId: row.id,
+        option: ask.fields.option,
+        desk: ask.fields.desk,
+        queuePosition: position,
+        assignedStaffEmail: assigned,
+      },
+      // Nothing is held and nothing has been sent, so walking away costs
+      // the client nothing — which is what reversible means here.
+      reversible: true,
+    },
+  })
 
   // The person who will run it hears now, not when somebody next looks
-  // at a screen. `tellStaff` is a no-op on a deployment with no sender
-  // configured and says which variable is missing.
-  void tellStaff(
-    `Census asked for: ${row.companyName}`,
-    [
-      `${row.contactName} (${row.workEmail}) at ${row.companyName} has asked for a contractor census.`,
-      `Desk: ${ask.fields.desk}. Sending: ${ask.fields.option === 'TEMPLATE' ? 'the template' : 'their own files'}.` +
-        (ask.fields.supplierCount != null ? ` They think they buy from ${ask.fields.supplierCount} suppliers.` : ''),
-      `Place in the line: ${position}.`,
-      assignmentSays(assigned),
-      'Nothing has been sent yet. Their legal accepts the one-page agreement first, and the upload link is created at that moment.',
-    ].join('\n\n')
+  // at a screen. Both go out before the response: a census runs at a
+  // handful a week, and an un-awaited promise in a serverless function
+  // is a letter that may never leave.
+  const staffLetter = censusArrivedStaffNotice({
+    censusId: row.id,
+    companyName: row.companyName,
+    contact: { name: row.contactName, workEmail: row.workEmail },
+    desk: ask.fields.desk,
+    option: ask.fields.option,
+    supplierCount: ask.fields.supplierCount,
+    queuePosition: position,
+    assignedTo: assigned,
+    reviewUrl: censusReviewUrl(row.id),
+  })
+  // The staff sentence about an unassigned census names an environment
+  // variable, which is ours to fix and not the client's to read. It goes
+  // here and nowhere near the letter below.
+  await sendCensusStaffLetter(
+    {
+      ...staffLetter,
+      body: `${staffLetter.body}\n\n${assignmentSays(assigned)}`,
+    },
+    assigned
   )
+
+  // The only thing the person who asked keeps. They close the tab and
+  // the confirmation on the screen goes with it.
+  const wrote = await sendCensusLetter(censusAskedNotice({
+    contact: { name: row.contactName, workEmail: row.workEmail },
+    companyName: row.companyName,
+    assignedTo: assigned,
+    option: ask.fields.option,
+    queuePosition: position,
+    agreementVersion: AGREEMENT_VERSION,
+    agreementUrl: censusAgreementUrl(),
+  }))
 
   return NextResponse.json({
     data: {
@@ -121,8 +167,16 @@ export async function POST(request: NextRequest) {
       queuePosition: position,
       queueSays: queueSays(position),
       assignedTo: assigned,
-      assignedSays: assignmentSays(assigned),
+      // The client's sentence, never the staff one. `assignmentSays`
+      // tells whoever can fix it to set ETYME_STAFF_EMAILS; a client
+      // reading that learns about our configuration instead of about
+      // the promise, and the page had to withhold the sentence
+      // altogether to avoid it.
+      assignedSays: assignedSaysToClient(assigned),
       agreement: { version: AGREEMENT_VERSION, href: '/legal/census-agreement' },
+      // What was written to them, so the screen can say "we have emailed
+      // dana@…" rather than leaving them to wonder.
+      wrote: { to: wrote.to, subject: wrote.subject, sent: wrote.sent },
       says:
         `Asked for. ${queueSays(position)} ` +
         'Nothing moves until somebody at your company accepts the one-page census ' +
