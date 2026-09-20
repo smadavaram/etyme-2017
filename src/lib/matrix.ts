@@ -166,6 +166,7 @@ export const MATRIX: L1[] = [
             'The terms, the privacy notice and the DPA are reachable from the footer, and no price is on the page',
             'No real company is named on the page, or on the demo the page hands a visitor to, or in the seeds behind it',
             'The four questions a client cannot answer come before the business case, and tenure is one of them rather than a section of its own (decided 2026-09-17, page rebuilt 2026-09-20)',
+            'The client chooses in the buyer\u2019s two labels \u2014 Etyme as VMS software, or Etyme as MSP provider \u2014 on one record, and the page says what Etyme never does in either way (decided 2026-09-20)',
           ],
           implementedBy: ['src/lib/positioning.ts', 'src/app/page.tsx',
             'src/app/demo/seats.ts', 'src/app/demo/page.tsx'],
@@ -1114,7 +1115,7 @@ export const MATRIX: L1[] = [
             'DONE: both doors are in every menu, not the client\u2019s alone \u2014 the compliance desk reads Data requests under a Privacy heading in Governance for a vendor, an integrator, a program office and a client, gated on the governance read its own three routes ask for; Your data is on every seat\u2019s menu including an AP clerk\u2019s, and once rather than twice for somebody who already reads it under You',
             'DONE: the behavior itself is every party\u2019s, not the client\u2019s \u2014 a supplier\u2019s compliance desk logs, holds and answers for the people it employs or lists and is refused on a stranger; an integrator\u2019s own W2 is a worker and a seat at once and reads both halves of what is held about him, where the audience used to be one question answered off a seat and substituted for the other; a firm\u2019s own staffer asking for themselves gets the seat category in the file, which the export had never carried; the employer whose record changed is written to where the only thing tying them together is a seat, which nothing did; a signature on an executed agreement keeps its title, its date and its wording and stops carrying a name; and the desk\u2019s own page says whose requests these are off the company kind rather than describing a client program to everybody',
             'DONE: the compliance desk\u2019s three routes and its page agree on one envelope \u2014 `{ data: ... }`, which is what every neighbouring route in this domain already sent and what the page had always read. The routes sent the payload at the top level, so a 200 with a full queue in it read as nothing, the page\u2019s \u201cnone of the three answered\u201d branch fired, and a compliance officer holding the governance read was told on their own page that they did not hold it \u2014 over three empty tables. The refusal is now the route\u2019s own sentence rather than a second copy written on the page, and it only speaks when both lists every desk has were refused: an incidents route refusing a company that was in no incident is the ordinary case and blanks nothing.',
-            'OPEN: an MSP\u2019s compliance desk still cannot read the program it runs. The refusal now says what is missing \u2014 a desk the client grants, the way it grants one to its own people \u2014 rather than showing an empty list that reads as \u201cnobody has asked\u201d. `Delegation` is a table with no writer and no reader, and the seat is the architect\u2019s to build.',
+            'DONE: an MSP\u2019s compliance desk reads the program it runs, in a seat the client granted it. `Delegation` \u2014 a table with no writer and no reader \u2014 is now `ProgramSeat`: the client names the firm, one of the CLIENT\u2019s own roles, who granted it and why, and it bites the second it is revoked. The refusal when there is no seat still says what is missing rather than showing an empty list. src/lib/program-seat.ts, src/app/api/program/seats.',
             'OPEN: no supplier in the seeded world holds a compliance officer or any seat but its owner, so a supplier\u2019s compliance desk is unreachable on the demo and the integration walk seats one itself out of the product\u2019s own role set. Seeding the desk is the architect\u2019s.',
             'OPEN: no state retention minimum is implemented, only federal ones, and several states run longer. Counsel\u2019s, and the schedule says so in every basis.',
             'OPEN: a customer export at the end of a contract is refused in words, because nobody has decided which of the joint records travel with it',
@@ -1123,7 +1124,8 @@ export const MATRIX: L1[] = [
             'prisma/schema.prisma', 'src/lib/autonomy.ts', 'src/lib/domains.ts',
             'src/lib/retention.ts', 'src/lib/erasure.ts', 'src/lib/data-request.ts',
             'src/lib/legal-hold.ts', 'src/lib/breach.ts', 'src/lib/legal.ts',
-            'src/lib/access-log.ts', 'src/lib/permissions.ts',
+            'src/lib/access-log.ts', 'src/lib/permissions.ts', 'src/lib/program-seat.ts',
+            'src/app/api/program/seats/route.ts',
             'src/app/api/me/data/route.ts', 'src/app/api/data-requests/route.ts',
             'src/app/api/data-requests/[id]/withdraw/route.ts',
             'src/app/api/legal-holds/route.ts', 'src/app/api/breaches/route.ts',
@@ -1135,7 +1137,8 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/retention.test.ts', '__tests__/invariants/erasure.test.ts',
             '__tests__/invariants/legal-hold.test.ts', '__tests__/invariants/data-rights.test.ts',
             '__tests__/invariants/legal-pages.test.ts', '__tests__/invariants/autonomy.test.ts',
-            '__tests__/invariants/sidebar-nav.test.ts',
+            '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/program-seat.test.ts',
+            '__integration__/party-uniform.test.ts',
             '__integration__/data-rights.test.ts',
             '__integration__/data-rights-everyone.test.ts',
             '__integration__/every-nightly-job-runs.test.ts'] },
@@ -1239,12 +1242,19 @@ export const MATRIX: L1[] = [
       // the master-vendor model below — is re-proposed by somebody who
       // never heard that it was excluded at all.
       { code: 'L2.7.5', name: 'Offers', domain: 'MARKET', processes: [
-        // No implementedBy, on purpose, and the matrix test rightly
-        // refuses a NONE row that names files. The evidence paths sit
-        // inside the task text instead, where they read as what they are:
-        // what the software already does that a program office does,
-        // rather than a claim that this offer is built.
-        { code: 'L3.7.5.1', name: 'Program office as a service (MSP)', owner: 'Etyme', status: N,
+        // It had no implementedBy while it was NONE, on purpose, and the
+        // matrix test rightly refuses a NONE row that names files: the
+        // evidence paths sat inside the task text, where they read as
+        // what they were — what the software already does that a program
+        // office does, rather than a claim that the offer was built.
+        //
+        // PARTIAL since 2026-09-20, and it names only the seat. The seat
+        // is the one thing in this row that is code; everything else open
+        // above is the founder's, the market's, or a services business
+        // with headcount. A row that claimed the rest because the offer
+        // is now the strategy would be exactly the thing this matrix
+        // exists to catch.
+        { code: 'L3.7.5.1', name: 'Program office as a service (MSP)', owner: 'Etyme', status: P,
           tasks: [
             'Etyme runs a client\u2019s contractor program as a vendor-neutral program office, for the clients too small for Magnit and its peers to want \u2014 five to fifteen suppliers and no VMS \u2014 funded the way an MSP is funded, by a percentage the suppliers pay on their billings.',
             'DONE: A role is released only to the suppliers Procurement cleared, and a hiring manager cannot choose who sees it \u2014 src/lib/requisition-approval.ts, src/app/api/requisitions/[id]/distribute/route.ts',
@@ -1255,16 +1265,33 @@ export const MATRIX: L1[] = [
             'DONE: Insurance and tenure are watched nightly: a lapsed certificate blocks, and a person\u2019s days on site are counted once across every supplier \u2014 src/lib/contract-clearance.ts, src/lib/tenure-days.ts, src/app/api/cron/watch/route.ts',
             'DONE: The MSP is already a party with its own desks \u2014 Program Manager, Supplier Manager, Coordinator, AP Clerk, Compliance Officer \u2014 src/lib/company-defaults.ts',
             'DONE: The program office walks the ten stations from its own desks rather than the client\u2019s, and the drawing says which desk holds each one \u2014 docs/lanes/streams.mjs, docs/lanes/out/3-msp-program-office.pdf',
-            'OPEN, ARCHITECT: The seat. A program office that is not the client acts in a seat the client grants it, the way the client grants one to its own people, under the client\u2019s own rules and with every read logged. `Delegation` is a table with no reader and no writer today, and src/lib/resolve-client-company.ts refuses with what is missing rather than pretending. Nothing in this row can be sold before that seat exists.',
+            'DONE: The seat. A program office that is not the client acts in a seat the client grants it, the way the client grants one to its own people, under the client\u2019s own rules and with every read logged. `Delegation` \u2014 a table with no reader and no writer \u2014 became `ProgramSeat`, which holds one of the CLIENT\u2019s own roles rather than a bag of permission keys somebody typed, so the office may do exactly what that desk may do and narrows when the client narrows it. Granted only by an owner or the program manager, never by the office about itself, never without a reason; revoked by the client alone and refused the next second. Every read under it is logged against the seat by name. src/lib/program-seat.ts, src/app/api/program/seats, src/app/dashboard/program/seats, and the seat branch in src/lib/resolve-client-company.ts.',
             'OPEN, FOUNDER: Which desks Etyme staffs \u2014 supplier manager, coordinator, AP \u2014 and which the client keeps. A program office that takes the hiring manager\u2019s decisions is not neutral and is not this.',
             'OPEN, FOUNDER: The fee model \u2014 supplier-funded, a percentage on billings, disclosed to every supplier at onboarding rather than discovered later. No number exists: the price is set after real clients are using it, and no agent invents one.',
             'OPEN, FOUNDER: The service agreement \u2014 what Etyme is on the hook for, the service levels behind it, and what happens to the client\u2019s record when the service ends.',
             'OPEN, FOUNDER: Staffing the desks with people. This is a services business with headcount, margin, cover for absence and a hiring plan \u2014 not software \u2014 and it is priced and run as one.',
             'OPEN, FOUNDER: SOC 2 and the penetration test first (L3.7.4.1 and L3.7.4.3). A program office holds every supplier\u2019s rates for one client, which is the thing a supplier would most object to Etyme holding, and neither assurance item is started.',
-            'OPEN, MARKET: The words. Never \u201cmaster vendor\u201d \u2014 a staffing firm that runs the program and also fills the roles from its own bench. That model is excluded permanently, because Etyme never runs a bench and never places anybody, and the moment it competes with its own suppliers the network stops growing.',
-            'OPEN, MARKET: The neutrality sentence on the page, said plainly enough that a supplier reading it believes it: the program office Etyme would run places nobody.',
-            'OPEN, MARKET: The MSP as a partner stays true for every client large enough to want one. This offer is for the clients an MSP will not take, and it must not read as competing with the program offices already on the platform.',
-            'The sequencing, decided 2026-09-20: not now. After the first paying client for the record, and only if two or three clients too small for an MSP ask for it unprompted. The record is the product; the program office is a second business built on it, and starting the second before the first is paid for is how the 2017 build reached four thousand commits and stalled on adoption.',
+            'DONE, MARKET: The words. Never \u201cmaster vendor\u201d \u2014 a staffing firm that runs the program and also fills the roles from its own bench. That model is excluded permanently, because Etyme never runs a bench and never places anybody, and the moment it competes with its own suppliers the network stops growing.',
+            'DONE, MARKET: The neutrality sentence is on the page, said plainly enough that a supplier reading it believes it \u2014 the program office Etyme runs places nobody, and the page says what Etyme never does under either label. src/app/page.tsx (#ways and the supplier paragraph), src/lib/positioning.ts.',
+            'REWRITTEN 2026-09-20: this said the incumbents\u2019 MSPs stay partners and the offer is only for the clients they will not take. The founder\u2019s decision replaces that: the incumbents\u2019 program offices are the firms Etyme is measured against, and the claim is the one they cannot make \u2014 the same firm runs the program and keeps the record neutral. What stays true, and is the other half of the decision, is that the client may take the software alone: Etyme as VMS software, with the client\u2019s own program office running it, is the first of the two labels and not a lesser one.',
+            'The sequencing, decided 2026-09-20 and reversed the same day by the founder, whose call it is: Etyme is a program office provider, and this row is the offer rather than a note about one. CLAUDE.md carries the decision \u2014 \u201cThe client chooses one of two, in the founder\u2019s words (2026-09-20): Etyme as VMS software, where the client\u2019s own program office runs the program on Etyme; or Etyme as MSP provider, where Etyme\u2019s program office runs it for them on the same software.\u201d Both stand on the same record, a screen offering the choice uses those two labels because a buyer knows them, and the category sentence still comes first. The earlier note on this row said \u201cnot now; after the first paying client\u201d and it is superseded, not softened \u2014 kept here only so nobody re-derives it from a chat log.',
+          ],
+          // A PARTIAL row names what does exist, so the gap is visible.
+          // Only the seat is built here: the desks, the fee, the service
+          // agreement and the assurance work are all still the founder's
+          // and are open above. Naming more than the seat would be the
+          // thing this matrix exists to catch.
+          implementedBy: [
+            'prisma/schema.prisma', 'src/lib/program-seat.ts',
+            'src/app/api/program/seats/route.ts', 'src/app/api/program/seats/[id]/route.ts',
+            'src/app/dashboard/program/seats/page.tsx',
+            'src/lib/resolve-client-company.ts', 'src/lib/seed-world.ts',
+            'src/components/shell/sidebar.tsx',
+          ],
+          testedBy: [
+            '__tests__/invariants/program-seat.test.ts',
+            '__tests__/invariants/sidebar-nav.test.ts',
+            '__integration__/party-uniform.test.ts',
           ] },
       ]},
     ],
