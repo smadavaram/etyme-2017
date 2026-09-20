@@ -189,3 +189,83 @@ describe('Paying early for a discount', () => {
     }
   })
 })
+
+describe('The contractor census — somewhere honest to put a client’s own rows', () => {
+
+  it('a census is asked for by somebody who has no account, so nothing about them is a foreign key', () => {
+    // Nobody at the client has signed in when this row is written. The
+    // company name does not match a Company, and the address is not a
+    // Person — treating either as though it were would invent a tenant
+    // out of a string typed on a public page.
+    for (const f of ['companyName', 'contactName', 'workEmail', 'desk']) {
+      expect(field('CensusRequest', f).type, f).toBe('String')
+      expect(field('CensusRequest', f).isRequired, f).toBe(true)
+    }
+    const fks = model('CensusRequest').fields.filter((f) => f.kind === 'object').map((f) => f.name)
+    expect(fks.sort()).toEqual(['files', 'sandboxCompany'])
+  })
+
+  it('the named person at Etyme is an address, because staff hold no seat', () => {
+    // Staff are identified by ETYME_STAFF_EMAILS throughout, and a staff
+    // member may belong to no company at all. A Person foreign key here
+    // would quietly require one.
+    expect(field('CensusRequest', 'assignedStaffEmail').type).toBe('String')
+    expect(field('CensusRequest', 'assignedStaffEmail').isRequired).toBe(false)
+  })
+
+  it('nothing can be uploaded before somebody has accepted the agreement by name', () => {
+    // The token is the only way in and it is null until the agreement is
+    // accepted, so "nothing moves until somebody has accepted" is a
+    // property of the data rather than a check in a route.
+    expect(field('CensusRequest', 'agreementAcceptedBy').isRequired).toBe(false)
+    expect(field('CensusRequest', 'agreementAcceptedAt').isRequired).toBe(false)
+    expect(field('CensusRequest', 'uploadToken').isRequired).toBe(false)
+    expect(schema.match(/model CensusRequest \{([\s\S]*?)^\}/m)![1]).toMatch(/uploadToken\s+String\?\s+@unique/)
+  })
+
+  it('the upload link expires, the way a document packet does and unlike a supplier’s', () => {
+    // The supplier-apply token never expires. A census upload has to be
+    // revocable the hour legal changes its mind, which a stateless signed
+    // link cannot be.
+    expect(field('CensusRequest', 'uploadExpires').type).toBe('DateTime')
+  })
+
+  it('which edition of the agreement was accepted is on the row, not just that one was', () => {
+    expect(field('CensusRequest', 'agreementVersion').type).toBe('String')
+  })
+
+  it('the deletion date has exactly one place to be read from, so three readers cannot disagree', () => {
+    // The confirmation email, the page and the nightly sweep all quote
+    // the same column.
+    expect(field('CensusRequest', 'deleteBy').type).toBe('DateTime')
+    expect(field('CensusRequest', 'deletedAt').type).toBe('DateTime')
+    expect(field('CensusRequest', 'deletionCancelledBecause').type).toBe('String')
+  })
+
+  it('the nightly sweep can find what is due without reading every census ever run', () => {
+    const body = schema.match(/model CensusRequest \{([\s\S]*?)^\}/m)![1]
+    expect(body).toMatch(/@@index\(\[status,\s*deleteBy\]\)/)
+  })
+
+  it('what was deleted can still be described after the files are gone', () => {
+    // On the 21st we still have to be able to say what went on the 20th,
+    // and a count of zero rows cannot say it.
+    expect(field('CensusRequest', 'receivedFileCount').isRequired).toBe(true)
+    expect(field('CensusRequest', 'receivedBytes').isRequired).toBe(true)
+  })
+
+  it('a census file holds its bytes, so deleting the row deletes the data', () => {
+    expect(field('CensusFile', 'bytes').type).toBe('Bytes')
+    expect(field('CensusFile', 'bytes').isRequired).toBe(true)
+    const body = schema.match(/model CensusFile \{([\s\S]*?)^\}/m)![1]
+    expect(body).toMatch(/onDelete:\s*Cascade/)
+  })
+
+  it('a census sandbox is never mistaken for a demo, and never shared between two clients', () => {
+    // A demo is synthetic and demoExpiresAt deletes nothing. A sandbox
+    // holds a real client's rows under a date we promised in writing.
+    expect(field('Company', 'isCensusSandbox').type).toBe('Boolean')
+    expect(field('Company', 'isCensusSandbox').default).toBe(false)
+    expect(schema.match(/model CensusRequest \{([\s\S]*?)^\}/m)![1]).toMatch(/sandboxCompanyId\s+String\?\s+@unique/)
+  })
+})

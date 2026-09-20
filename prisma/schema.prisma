@@ -565,6 +565,28 @@ model Company {
   isDemo        Boolean   @default(false)
   demoExpiresAt DateTime?
 
+  /// A company row created to hold one client's own contractor rows for
+  /// a contractor census, rather than a firm that signed up.
+  ///
+  /// Not `isDemo`, and the difference is the whole reason for a second
+  /// flag. A demo is synthetic, belongs to nobody, and `demoExpiresAt`
+  /// is read by nothing that deletes — a reaping that was designed and
+  /// never written. A census sandbox holds a real client's real rows
+  /// under a date we promised them in writing, and the thing that
+  /// deletes on that date is `CensusRequest.deleteBy`. Marking it as a
+  /// demo would file a customer's data under the one flag that means
+  /// "safe to throw away and nobody is watching".
+  ///
+  /// A column rather than a join back from `CensusRequest`, for the
+  /// reason `isDemo` is one: every read path that has to keep a sandbox
+  /// out of the network, the market and anybody else's book asks this
+  /// question on the hot path, and "looks like census data" is exactly
+  /// the judgement nobody should be making about a real book.
+  ///
+  /// It is a marker, never the authority on deletion. What gets deleted
+  /// and when is on the request.
+  isCensusSandbox Boolean @default(false)
+
   // ── Companies that did not put themselves here ─────────────────────
   //
   // A client arrives with twelve suppliers already. Making each of them
@@ -651,6 +673,11 @@ model Company {
   legalHoldsPlaced  LegalHold[]     @relation("legalHoldPlacingCompany")
   legalHoldsAbout   LegalHold[]     @relation("legalHoldSubjectCompany")
   breachNotices     BreachCompany[]
+
+  /// The census this company was created to hold, where that is what it
+  /// is. One row at most: a sandbox is made for one client's census and
+  /// is never reused for a second.
+  censusSandboxFor CensusRequest? @relation("censusSandbox")
 
   @@index([listedById])
 }
@@ -6742,4 +6769,256 @@ model BreachCompany {
   @@index([breachId])
   @@index([companyId])
   @@index([notifyBy])
+}
+
+// ── The contractor census ────────────────────────────────────────────
+
+/// A client sends us what they already have about their contractors, and
+/// within five working days gets back one page: how many contractors they
+/// have, what they spend by supplier, whether two suppliers are paid
+/// differently for one skill, and who has been on site longest counting
+/// every supplier.
+///
+/// It is free, it needs no login, and it is the first step of the funnel
+/// because it produces the number the client's own systems cannot.
+/// `docs/census-brief.md` is the whole design; this row is its spine.
+///
+/// ── Why it is a row of its own and not a Lead ────────────────────────
+///
+/// A lead is an address that asked to hear from us. This is a file of a
+/// client's own contractor data sitting on our disk under a deletion
+/// date we promised four people in writing — a program manager, a CFO,
+/// procurement and legal. The lifecycle is the product: an agreement
+/// accepted by name before anything moves, a link that expires, a named
+/// person at Etyme whose reads are logged, a page delivered, and a day
+/// the data goes. None of that fits beside an email address.
+///
+/// ── Why the client is not a Company here, and the sandbox is ─────────
+///
+/// Nobody at the client has signed in. There is no tenant, no seat and
+/// no domain verified from an OAuth tenant, so `companyName` and
+/// `workEmail` are plain strings typed on a public page and are trusted
+/// exactly as far as that. The `Company` row that appears later is the
+/// sandbox we create to hold their rows, marked `isCensusSandbox`, and
+/// it is ours until they start a program.
+model CensusRequest {
+  id String @id @default(cuid())
+
+  // ── Who asked, in their own words ──────────────────────────────────
+  //
+  // Typed on a page with no login behind it. Nothing here is verified
+  // and nothing downstream may treat it as though it were: the company
+  // name does not match a `Company`, and the address is not a `Person`.
+
+  /// The client's name as they typed it. Never matched against a Company
+  /// row — two firms called Northbend are two firms.
+  companyName String
+  contactName String
+  /// A work address. The only personal data Option A ever produces, and
+  /// the reason the brief says so out loud: the template asks for no
+  /// names and a reference number is enough.
+  workEmail   String
+
+  /// Which desk they sit at: PROGRAM · FINANCE · PROCUREMENT · OTHER.
+  ///
+  /// A string rather than an enum for the reason `lib/document-type`
+  /// gives: the four we ship are the four we have heard of, and the
+  /// fifth desk a real client names must not need a migration. OTHER
+  /// exists so nobody is forced to lie.
+  desk String
+
+  /// How many suppliers they think they buy from. Their own estimate,
+  /// before we have seen anything — and worth keeping precisely because
+  /// the page often disagrees with it, which is itself the finding.
+  /// Nullable: a program manager who does not know is the buyer.
+  supplierCount Int?
+
+  /// TEMPLATE · FILES. Which of the two the brief offers, and the
+  /// lighter one is the default: a filled CSV with one row per
+  /// contractor has almost no personal data in it, and that is the
+  /// point. FILES is raw supplier invoices and timesheets, for a client
+  /// with nothing tidier.
+  option String @default("TEMPLATE")
+
+  /// REQUESTED · AGREED · RECEIVED · IN_REVIEW · DELIVERED ·
+  /// PROGRAM_STARTED · DELETED.
+  ///
+  /// The order is the flow in the brief and the transitions are
+  /// `lib/census`'s to enforce, not this column's. Two of the seven are
+  /// terminal and they are different in kind: PROGRAM_STARTED means the
+  /// data stays because they became a client, DELETED means it is gone
+  /// and the row is what is left to prove we did it on the day we said.
+  status String @default("REQUESTED")
+
+  /// Where they are in the line, at the moment they asked.
+  ///
+  /// The only true scarcity is that we run a small number of censuses
+  /// well at once, and the brief forbids inventing any other. Stored
+  /// rather than computed so the number on their confirmation is the
+  /// number they were told, not one that moves under them.
+  queuePosition Int?
+
+  /// The named person at Etyme who runs it. "Not a bot. The client knows
+  /// who is reading their file."
+  ///
+  /// An address, not a `Person` foreign key, because staff are
+  /// identified by address throughout — `ETYME_STAFF_EMAILS`,
+  /// `lib/staff`, and `caller.staff` — and a staff member need hold no
+  /// seat anywhere. A foreign key here would quietly require one.
+  assignedStaffEmail String?
+
+  // ── The agreement, which comes before anything moves ───────────────
+
+  /// Who at the client accepted the one-page census agreement, by name,
+  /// and when. Nothing moves until both are set: no upload token is
+  /// minted, so there is nowhere to send a file to.
+  agreementAcceptedBy String?
+  agreementAcceptedAt DateTime?
+  /// Which edition of the agreement they accepted.
+  ///
+  /// CLAUDE.md's paperwork section: "the form itself has an edition",
+  /// and which edition somebody signed is the finding in an audit. We
+  /// will reword this page; a row that says only "accepted" cannot say
+  /// what was accepted.
+  agreementVersion    String?
+
+  // ── The link they upload through ───────────────────────────────────
+  //
+  // The `DocumentPacket` pattern — a token on the row with an expiry on
+  // the row — rather than the stateless signed link or the
+  // supplier-apply token, which never expires. A census upload has to be
+  // revocable the moment legal changes its mind, and a stateless
+  // signature cannot be taken back.
+
+  /// Long and random; the only credential. Null until the agreement is
+  /// accepted, deliberately: a token that exists before the agreement is
+  /// a way around the agreement.
+  uploadToken   String?   @unique
+  /// Always set when the token is. A request with no end is a link that
+  /// outlives the reason it was sent.
+  uploadExpires DateTime?
+
+  // ── What arrived ───────────────────────────────────────────────────
+
+  /// When the client finished uploading. What the confirmation counts
+  /// from, and what the brief's "Received, 4 files, 2.1 MB" is dated by.
+  filesReceivedAt   DateTime?
+  /// How many files and how many bytes arrived.
+  ///
+  /// Kept on the request as well as derivable from `files`, because the
+  /// files are deleted and this sentence must survive them: on the 21st
+  /// of October we still have to be able to say what was deleted on the
+  /// 20th, and a count of zero rows cannot say it.
+  receivedFileCount Int       @default(0)
+  receivedBytes     Int       @default(0)
+
+  // ── The sandbox their rows are loaded into ─────────────────────────
+
+  /// A real `Company` row marked `isCensusSandbox`, created plainly
+  /// rather than through `POST /api/demo`.
+  ///
+  /// The demo route seeds a synthetic fixture and has no way to ingest
+  /// external data, and its `demoExpiresAt` is read by nothing that
+  /// deletes — so reusing it would file a client's real rows under a
+  /// flag that means the opposite of what is promised here.
+  ///
+  /// Unique: one sandbox belongs to one census and is never reused for a
+  /// second client, which is the same wall `accountWalls` draws
+  /// everywhere else.
+  sandboxCompanyId String?  @unique
+  sandboxCompany   Company? @relation("censusSandbox", fields: [sandboxCompanyId], references: [id])
+
+  // ── The page that goes back ────────────────────────────────────────
+
+  deliveredAt DateTime?
+  /// The one page, as rendered HTML, kept as it was sent.
+  ///
+  /// Not regenerated on read. The numbers are computed from the sandbox
+  /// and the sandbox is deleted thirty days later, so a page that
+  /// re-derived itself would be blank exactly when somebody goes back to
+  /// check what they were told. There is no PDF pipeline on Vercel: the
+  /// named staff person prints this page and emails it, which is the
+  /// flow anyway.
+  pageHtml    String?
+  /// "What we could not see", in the staff person's own words — rows
+  /// with no end date, invoices with no hours, suppliers with no rates.
+  ///
+  /// A column of its own because the brief says this section "is never
+  /// empty and never hidden. It is what makes the other four numbers
+  /// believable." A gap kept inside the rendered page could not be read
+  /// back, counted, or checked for emptiness.
+  gapsNote    String?
+
+  // ── The deletion, which is a date and not a promise ────────────────
+
+  /// The day the census data goes, unless a program starts.
+  ///
+  /// One column, read by all three places the brief says must agree —
+  /// the confirmation email, the page itself and the nightly retention
+  /// sweep. They cannot disagree because there is nowhere else to read
+  /// it from. Whoever sets it owns the sentence the client was given,
+  /// and moving it later without telling them would break the one
+  /// promise this whole design is built on.
+  deleteBy                 DateTime?
+  /// When the nightly job actually ran it. The row outlives the data on
+  /// purpose: it is the proof we deleted on the day we said.
+  deletedAt                DateTime?
+  /// Why the deletion was called off — set only when a program starts,
+  /// in plain English, never blank. "A census that becomes a program
+  /// keeps its data and the deletion is cancelled with a reason."
+  deletionCancelledBecause String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  files CensusFile[]
+
+  /// What the nightly sweep asks, and the only compound index here: give
+  /// me the censuses past their deletion date that are not already
+  /// deleted. Without it that is a table scan every night, on a table
+  /// whose whole point is that something happens on a date.
+  @@index([status, deleteBy])
+  @@index([workEmail])
+  @@index([assignedStaffEmail])
+  @@index([status, createdAt])
+}
+
+/// One file a client uploaded for their census.
+///
+/// Stored like a `Resume` — bytes in the database — because that is what
+/// this codebase already does with a file somebody uploaded and it keeps
+/// the deletion honest: deleting the row deletes the data, with no bucket
+/// to sweep separately and no object left behind after the date we
+/// promised.
+///
+/// Deleted outright by the nightly sweep rather than blanked. The count
+/// and the byte total live on `CensusRequest`, so the request can still
+/// say what went and when after every row here is gone.
+model CensusFile {
+  id        String        @id @default(cuid())
+  requestId String
+  request   CensusRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  /// The client's own file name, kept as they sent it. It is often the
+  /// only clue what a file is — "Q3 Veritan invoices.pdf".
+  fileName    String
+  contentType String
+  sizeBytes   Int
+  /// The file itself. Required: a row here exists because bytes arrived,
+  /// and a file row with nothing in it is a record of something we
+  /// cannot produce.
+  bytes       Bytes
+
+  uploadedAt DateTime @default(now())
+
+  /// How many times somebody at Etyme has opened it.
+  ///
+  /// A counter for the screen, never the record. The record is an
+  /// `AccessLog` row per read, including refusals, which is what
+  /// CLAUDE.md requires of every read of another person's data and what
+  /// the census agreement tells the client we do.
+  readCount Int @default(0)
+
+  @@index([requestId])
+  @@index([requestId, uploadedAt])
 }
