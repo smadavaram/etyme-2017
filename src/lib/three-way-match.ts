@@ -74,6 +74,54 @@ export const OVERRIDABLE: Record<MatchCode, boolean> = {
   PO_BALANCE: true,    // PO being topped up
 }
 
+/**
+ * What each check is called, for the person reading it.
+ *
+ * CLAUDE.md: *explain in a sentence, not a code.* The invoice screen
+ * kept its own list of pretty names beside the codes, two codes were
+ * missing from it, and an AP clerk opening a failed match read
+ * `CONTRACT_PERIOD` as the heading of the exception. A list of names
+ * that lives away from the checks goes stale the next time a check is
+ * added, so the name belongs to the check.
+ *
+ * The code stays in the payload. It is what the override route, the
+ * waivability table and the exception queue are keyed on — for the
+ * machine, never on a screen.
+ */
+export const CHECK_NAME: Record<MatchCode, string> = {
+  RECEIPT: 'Every line has a signed timesheet behind it',
+  QUANTITY: 'The hours billed are the hours signed',
+  PRICE: 'The rates billed are the rates agreed',
+  EXTENSION: 'Every line multiplies out',
+  DUPLICATE: 'Nothing here has been billed before',
+  PERIOD: 'The work was done in the period being billed',
+  CONTRACT_PERIOD: "The bill's dates sit inside the contract's billing period",
+  HEADER_TOTAL: 'The total is the sum of the lines',
+  PO_REQUIRED: 'There is a purchase order to bill against',
+  PO_STATUS: 'The purchase order is open and covers the work',
+  PO_BALANCE: 'The order has money left',
+}
+
+/**
+ * The same thing said in three or four words, for a summary line, a
+ * queue row or a chip — where the full name would not fit and a code
+ * would be reached for instead. Written as what is wrong, because that
+ * is what a person is reading a summary to find out.
+ */
+export const CHECK_PHRASE: Record<MatchCode, string> = {
+  RECEIPT: 'hours nobody signed for',
+  QUANTITY: 'hours that are not the hours signed',
+  PRICE: 'a rate nobody agreed',
+  EXTENSION: 'a line that does not multiply out',
+  DUPLICATE: 'work billed twice',
+  PERIOD: 'work done outside the period billed',
+  CONTRACT_PERIOD: 'dates crossing two billing periods',
+  HEADER_TOTAL: 'a total that is not the sum of the lines',
+  PO_REQUIRED: 'no purchase order',
+  PO_STATUS: 'a purchase order closed or out of date',
+  PO_BALANCE: 'a purchase order with no room left',
+}
+
 export interface MatchOverride {
   code: MatchCode
   reason: string
@@ -83,6 +131,12 @@ export interface MatchOverride {
 
 export interface MatchCheck {
   code: MatchCode
+  /**
+   * What a person calls this check. Filled by the engine from
+   * `CHECK_NAME` on every check it returns, so a screen never has to
+   * keep a second list and never falls back to the code.
+   */
+  name?: string
   outcome: 'PASS' | 'FAIL' | 'OVERRIDDEN'
   /** Whether a human may wave this failure through at all. */
   overridable?: boolean
@@ -241,6 +295,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
       cleanMatch: false,
       checks: [{
         code: 'RECEIPT',
+        name: CHECK_NAME.RECEIPT,
         outcome: 'FAIL',
         overridable: false,
         reason: 'This invoice has no lines, so there is nothing to match against',
@@ -358,21 +413,49 @@ export function threeWayMatch(input: MatchInput): MatchResult {
   // A contract that bills monthly bills for the month. How the hours
   // arrived is the consultant's business and the approver's; it changes
   // nothing about what is billed or when.
+  //
+  // **Inside, not identical.** This asked for the invoice's dates to
+  // EQUAL the contract's period, and no bill raised from the weeks
+  // somebody actually signed ever does: three signed weeks inside one
+  // August run the 8th to the 26th, and every invoice on a seeded
+  // client's book failed on this check and on nothing else. A bill for
+  // the weeks signed so far, or for the days a placement was live in
+  // its first or last month, is a PART-PERIOD bill — the ordinary
+  // thing, and SAP's shape, where the receipt is what a bill is matched
+  // to and the receipt here is the signed week.
+  //
+  // What is genuinely wrong is a bill whose dates CROSS a boundary.
+  // Four weekly sheets producing "28 July to 24 August" is a period in
+  // no contract, matching no purchase order window and reconciling
+  // against nothing the client holds. That is what this check is for,
+  // and it still fails — in a sentence naming the period it spilled
+  // out of, so somebody can split the bill rather than guess.
   const cp = invoice.contractPeriod
   if (cp) {
-    const right =
+    const startsBefore = day(invoice.periodStart) < day(cp.start)
+    const endsAfter = day(invoice.periodEnd) > day(cp.end)
+    const whole =
       day(cp.start) === day(invoice.periodStart) && day(cp.end) === day(invoice.periodEnd)
 
-    checks.push(right
+    const spills =
+      startsBefore && endsAfter
+        ? `It starts before ${cp.label} begins on ${day(cp.start)} and runs past the end of it on ${day(cp.end)}`
+        : startsBefore
+          ? `It starts before ${cp.label} begins on ${day(cp.start)}`
+          : `It runs past the end of ${cp.label}, which ends ${day(cp.end)}`
+
+    checks.push(!startsBefore && !endsAfter
       ? {
           code: 'CONTRACT_PERIOD',
           outcome: 'PASS',
-          reason: `Bills ${cp.label}, which is what the contract bills`,
+          reason: whole
+            ? `Bills ${cp.label}, which is what the contract bills`
+            : `Bills ${day(invoice.periodStart)} to ${day(invoice.periodEnd)}, part of ${cp.label} — the period the contract bills. Part of a period is a part-period bill, not a period the contract does not have.`,
         }
       : {
           code: 'CONTRACT_PERIOD',
           outcome: 'FAIL',
-          reason: `Bills ${day(invoice.periodStart)} to ${day(invoice.periodEnd)}. The contract bills ${cp.label} — ${day(cp.start)} to ${day(cp.end)}.`,
+          reason: `Bills ${day(invoice.periodStart)} to ${day(invoice.periodEnd)}. ${spills}, so this bill covers more than one billing period. Bill each period on its own.`,
         })
   }
 
@@ -532,6 +615,9 @@ export function threeWayMatch(input: MatchInput): MatchResult {
   // here too — warn, capture a reason, proceed, but never silently permit.
   const overrides = input.overrides ?? []
   for (const check of checks) {
+    // The name goes on every check the engine returns, passing or
+    // failing, so no screen keeps a second list of them.
+    check.name = CHECK_NAME[check.code]
     check.overridable = OVERRIDABLE[check.code]
     if (check.outcome !== 'FAIL') continue
     const waiver = overrides.find(o => o.code === check.code)
@@ -555,7 +641,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     summary: failures.length === 0
       ? waived.length === 0
         ? `Matched — ${lines.length} line(s), ${money(invoice.totalCents)}, every hour approved`
-        : `Matched with ${waived.length} exception(s) — ${waived.map(w => w.code.toLowerCase().replace(/_/g, ' ')).join(', ')}`
+        : `Matched with ${waived.length} exception(s) — ${waived.map(w => CHECK_PHRASE[w.code]).join(', ')}`
       : failures.length === 1
         ? failures[0].reason
         : `${failures.length} checks failed — ${failures[0].reason}`,
@@ -812,6 +898,9 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
   // ── Exceptions, on exactly the same terms as the sell side ──
   const overrides = input.overrides ?? []
   for (const check of checks) {
+    // The name goes on every check the engine returns, passing or
+    // failing, so no screen keeps a second list of them.
+    check.name = CHECK_NAME[check.code]
     check.overridable = OVERRIDABLE[check.code]
     if (check.outcome !== 'FAIL') continue
     const waiver = overrides.find((o) => o.code === check.code)
@@ -832,7 +921,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
       failures.length === 0
         ? waived.length === 0
           ? `Matched — ${bill.number}, ${money(bill.totalCents)}, every hour accepted here`
-          : `Matched with ${waived.length} exception(s) — ${waived.map((w) => w.code.toLowerCase().replace(/_/g, ' ')).join(', ')}`
+          : `Matched with ${waived.length} exception(s) — ${waived.map((w) => CHECK_PHRASE[w.code]).join(', ')}`
         : failures.length === 1
           ? failures[0].reason
           : `${failures.length} checks failed — ${failures[0].reason}`,
@@ -901,8 +990,8 @@ export function exceptionQueue(
         waivableFailures: soft,
         says:
           hard.length > 0
-            ? `${i.result.summary} Nobody can wave this through — ` +
-              `${hard.map((c) => c.toLowerCase().replace(/_/g, ' ')).join(' and ')} ` +
+            ? `${i.result.summary} Nobody can wave this through: ` +
+              `${hard.map((c) => CHECK_PHRASE[c]).join(' and ')} ` +
               `${hard.length === 1 ? 'is' : 'are'} not a judgment call.`
             : `${i.result.summary} Somebody with authority may record an exception and say why.`,
       }

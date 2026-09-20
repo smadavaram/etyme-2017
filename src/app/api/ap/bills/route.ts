@@ -12,7 +12,7 @@ import {
 import { decimalsFor } from '@/lib/money'
 import { canAttachPoToBuyContract, overBillCheck } from '@/lib/purchase-order'
 import {
-  matchVendorBill, exceptionQueue,
+  matchVendorBill, exceptionQueue, CHECK_PHRASE,
   type AcceptedWork, type PurchaseOrderFacts,
 } from '@/lib/three-way-match'
 
@@ -441,8 +441,8 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'MATCH_FAILED',
           message:
-            `${unwaivable[0].reason}. Nobody can wave this through — ` +
-            `${unwaivable.map((c) => c.code.toLowerCase().replace(/_/g, ' ')).join(' and ')} ` +
+            `${unwaivable[0].reason}. Nobody can wave this through: ` +
+            `${unwaivable.map((c) => CHECK_PHRASE[c.code]).join(' and ')} ` +
             `${unwaivable.length === 1 ? 'is' : 'are'} not a judgment call.`,
           checks: match.checks,
         },

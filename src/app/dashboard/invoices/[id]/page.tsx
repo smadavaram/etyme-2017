@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { amount } from '@/lib/money-display'
+import { CHECK_NAME, type MatchCode } from '@/lib/three-way-match'
 
 /** This endpoint returns whole currency units, not minor ones. */
 const amountFromUnits = (n: number) => amount(Math.round(n * 100))
@@ -24,6 +25,8 @@ const amountFromUnits = (n: number) => amount(Math.round(n * 100))
 
 interface Check {
   code: string
+  /** The engine's own reader's name for this check. */
+  name?: string
   outcome: 'PASS' | 'FAIL' | 'OVERRIDDEN'
   reason: string
   overridable: boolean
@@ -102,17 +105,21 @@ function Chip({ children, tone = 'passive' }: {
 }
 
 
-/** Plain-language names. An AP clerk reads these, not the codes. */
-const LABEL: Record<string, string> = {
-  RECEIPT: 'Approved timesheet behind every line',
-  DUPLICATE: 'Nothing billed twice',
-  QUANTITY: 'Hours billed match hours approved',
-  PRICE: 'Rates match the contract',
-  EXTENSION: 'Lines multiply out',
-  HEADER_TOTAL: 'Total matches the lines',
-  PO_REQUIRED: 'Purchase order present',
-  PO_STATUS: 'Purchase order open and in date',
-  PO_BALANCE: 'Purchase order has room',
+/**
+ * What this row is called.
+ *
+ * The engine names every check it returns (`CHECK_NAME` in
+ * lib/three-way-match). This screen used to keep its own list beside
+ * the codes, and two codes were missing from it — so an AP clerk
+ * opening a failed match on a client's invoice read `CONTRACT_PERIOD`
+ * as the heading, and another row was headed `PERIOD`. One list, owned
+ * by the engine, cannot go out of step with the checks.
+ *
+ * The code is still what the waive and withdraw buttons post; it is
+ * for the machine and appears nowhere on the screen.
+ */
+function checkTitle(c: Check): string {
+  return c.name ?? CHECK_NAME[c.code as MatchCode] ?? c.code
 }
 
 function CheckRow({ c, onWaive, onWithdraw }: {
@@ -130,7 +137,7 @@ function CheckRow({ c, onWaive, onWithdraw }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={`text-sm ${failed ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-              {LABEL[c.code] ?? c.code}
+              {checkTitle(c)}
             </span>
             {waived && <Chip tone="action">exception</Chip>}
           </div>

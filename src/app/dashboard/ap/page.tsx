@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { compact, amount } from '@/lib/money-display'
+import { CHECK_NAME, CHECK_PHRASE, type MatchCode } from '@/lib/three-way-match'
 
 /**
  * Accounts payable.
@@ -117,9 +118,16 @@ export default function ApPage() {
         </div>
       )}
 
+      {!loading && !error && !denied && data?.source === 'SUPPLIER_INVOICES' && (
+        <SupplierInvoices owed={data.supplierInvoices} note={data.note} />
+      )}
+
       {!loading && !error && !denied && data?.source === 'NONE' && (
         <div className="panel">
-          <p className="text-[13px] text-etyme-muted">{data.note}</p>
+          <p className="text-[13px] text-etyme-ink">
+            {data.supplierInvoices?.says ?? data.note}
+          </p>
+          <p className="mt-2 text-[13px] text-etyme-muted">{data.note}</p>
         </div>
       )}
 
@@ -189,6 +197,122 @@ export default function ApPage() {
         </>
       )}
     </div>
+  )
+}
+
+/**
+ * What a client owes, when nothing it owes is a `VendorBill`.
+ *
+ * This page said "No supplier bills have been recorded" to a client
+ * with six unpaid supplier invoices one nav entry away. A supplier
+ * issues its invoice and the client receives it, so the document lives
+ * as an `Invoice` raised by the supplier — the row the supplier reads
+ * as its receivable — and a client whose suppliers are all on the
+ * platform never has a `VendorBill` at all.
+ *
+ * So the rows are here, the sentence says what they are, and every one
+ * opens where it can be matched and paid. Days-to-pay and chain float
+ * are not claimed: they are measured from bills keyed in against a
+ * supplier contract, and there are none.
+ */
+function SupplierInvoices({ owed, note }: { owed: any; note: string }) {
+  const rows = owed?.rows ?? []
+
+  const columns: Column<any>[] = [
+    {
+      key: 'number',
+      label: 'Invoice',
+      render: (r) => (
+        <a href={`/dashboard/invoices/${r.id}`} className="font-mono text-[12px] text-etyme-action">
+          {r.number}
+        </a>
+      ),
+      sortValue: (r) => r.number,
+    },
+    {
+      key: 'supplier',
+      label: 'Supplier',
+      render: (r) => (
+        <span className={r.supplierName ? 'text-etyme-ink' : 'text-etyme-faint'}>
+          {r.supplierName ?? 'Not yet attributed'}
+        </span>
+      ),
+      sortValue: (r) => r.supplierName ?? '',
+    },
+    {
+      key: 'outstanding',
+      label: 'Outstanding',
+      align: 'right' as const,
+      render: (r) => (
+        <span className="tabular-nums">{amount(r.outstandingMinor, r.currency)}</span>
+      ),
+      sortValue: (r) => r.outstandingMinor,
+    },
+    {
+      key: 'dueAt',
+      label: 'Due',
+      align: 'right' as const,
+      render: (r) => (
+        <span className="tabular-nums text-[12px]">
+          {new Date(r.dueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+        </span>
+      ),
+      sortValue: (r) => new Date(r.dueAt).getTime(),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (r) => (
+        <span className="chip chip--passive">
+          {r.status.charAt(0) + r.status.slice(1).toLowerCase().replace('_', ' ')}
+        </span>
+      ),
+      sortValue: (r) => r.status,
+    },
+  ]
+
+  return (
+    <section className="space-y-4">
+      <div className="panel">
+        <p className="text-[13px] text-etyme-ink">{owed?.says}</p>
+        <p className="mt-2 text-[13px] text-etyme-muted">{note}</p>
+        <a href="/dashboard/invoices" className="mt-3 inline-block text-[13px] text-etyme-action">
+          Open Invoices, under &ldquo;We owe&rdquo; →
+        </a>
+      </div>
+
+      {owed?.books?.length > 0 && (
+        <div className="flex flex-wrap items-baseline gap-8">
+          {owed.books.map((b: any) => (
+            <div key={b.currency}>
+              <p className="stat-label">We owe · {b.currency}</p>
+              <p className="stat-value tabular-nums">{compact(b.owedMinor, b.currency)}</p>
+              <p className="mt-0.5 text-[11px] text-etyme-faint">
+                {b.openCount} invoice{b.openCount === 1 ? '' : 's'} · {compact(b.overdueMinor, b.currency)} past due
+              </p>
+            </div>
+          ))}
+          {owed.books.length > 1 && (
+            <span className="text-[11px] text-etyme-faint">
+              Never added together — one book per currency.
+            </span>
+          )}
+        </div>
+      )}
+
+      <ListSurface<any>
+        columns={columns}
+        data={rows}
+        rowKey={(r) => r.id}
+        searchFilter={(r, q) =>
+          r.number.toLowerCase().includes(q) || (r.supplierName ?? '').toLowerCase().includes(q)
+        }
+        searchPlaceholder="Search by invoice number or supplier…"
+        emptyMessage="Nothing to pay."
+        exportName="supplier-invoices"
+        defaultPageSize={20}
+      />
+    </section>
   )
 }
 
@@ -541,19 +665,16 @@ function Clause({ data }: { data: any; book: any }) {
 // a timesheet is accepted late, and a stored verdict is a claim about
 // facts that have since changed.
 
-const CHECK_WORD: Record<string, string> = {
-  RECEIPT: 'nobody accepted the hours',
-  DUPLICATE: 'billed twice',
-  QUANTITY: 'hours disagree',
-  PRICE: 'rate disagrees',
-  EXTENSION: 'the arithmetic',
-  PERIOD: 'wrong period',
-  CONTRACT_PERIOD: 'not a period the contract bills',
-  HEADER_TOTAL: 'header against lines',
-  PO_REQUIRED: 'no purchase order',
-  PO_STATUS: 'purchase order closed or expired',
-  PO_BALANCE: 'past the ceiling',
-}
+/**
+ * A chip says what is wrong in words, and the line under it says which
+ * check found it. Both come from the engine (`CHECK_PHRASE` and
+ * `CHECK_NAME` in lib/three-way-match) rather than from a second list
+ * kept here, which is how the invoice screen came to print
+ * `CONTRACT_PERIOD` as a heading.
+ */
+const word = (code: string) => CHECK_PHRASE[code as MatchCode] ?? code
+const title = (c: { code: string; name?: string }) =>
+  c.name ?? CHECK_NAME[c.code as MatchCode] ?? c.code
 
 function Exceptions() {
   const [data, setData] = useState<any>(null)
@@ -616,12 +737,12 @@ function Exceptions() {
             <div className="flex items-center gap-2">
               {e.hardFailures.map((c: string) => (
                 <span key={c} className="chip chip--attention">
-                  {CHECK_WORD[c] ?? c}
+                  {word(c)}
                 </span>
               ))}
               {e.waivableFailures.map((c: string) => (
                 <span key={c} className="chip chip--passive">
-                  {CHECK_WORD[c] ?? c}
+                  {word(c)}
                 </span>
               ))}
               <span className="chip chip--passive tabular-nums">
@@ -637,7 +758,7 @@ function Exceptions() {
               .filter((c: any) => c.outcome !== 'PASS')
               .map((c: any) => (
                 <li key={c.code} className="text-[11px] text-etyme-muted">
-                  <span className="text-etyme-ink">{CHECK_WORD[c.code] ?? c.code}</span> — {c.reason}
+                  <span className="text-etyme-ink">{title(c)}</span> — {c.reason}
                 </li>
               ))}
           </ul>
