@@ -8,7 +8,6 @@ import {
   PROGRAM_OFFICE_SEATS,
   INTEGRATOR_SEATS,
   CANDIDATE_SEATS,
-  MISSING_DOOR,
 } from '@/app/demo/seats'
 
 /**
@@ -45,10 +44,10 @@ describe('the demo door opens on the client', () => {
     }
   })
 
-  it('offers three programs, six supplying firms and four people — nine company doors in all', () => {
+  it('offers three programs, six supplying firms and five people — nine company doors in all', () => {
     expect(CLIENT_PROGRAMS).toHaveLength(3)
     expect([...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]).toHaveLength(6)
-    expect(CANDIDATE_SEATS).toHaveLength(4)
+    expect(CANDIDATE_SEATS).toHaveLength(5)
   })
 
   it('says what is waiting at each client program today, as a finished sentence rather than a label', () => {
@@ -103,18 +102,47 @@ describe('the desks on a client door', () => {
   })
 })
 
-describe('the door that is not there', () => {
-  it('says the independent candidate has no door, on the page, rather than hiding the gap', () => {
-    expect(page).toContain('MISSING_DOOR')
-    expect(MISSING_DOOR.trim().endsWith('.')).toBe(true)
-    expect(MISSING_DOOR).toMatch(/no seat here|no door/)
+/**
+ * The door that was not there until 2026-09-20.
+ *
+ * This block used to check that the page *said* the independent
+ * candidate had no door: every seeded person was on a payroll, on a
+ * bench or in a corporation of their own, so the honest thing was a
+ * paragraph admitting the gap rather than four doors quietly offered as
+ * "the person's side".
+ *
+ * Saying it was right and leaving it was not. Party 8B is not an exotic
+ * case — it is the state `POST /api/onboarding` puts every
+ * consumer-email sign-in in on day one, which makes it the first screen
+ * a real consultant ever sees. The paragraph is a door now, and these
+ * sentences hold the door open.
+ */
+describe('the door for somebody with no firm at all', () => {
+  const door = CANDIDATE_SEATS.find((c) => c.slug === 'marisol-quintero')
+
+  it('gives the independent candidate a door, and says they have no bench and no employer yet', () => {
+    expect(door, 'party 8B has no door on the demo page').toBeTruthy()
+    expect(door!.about.trim().endsWith('.')).toBe(true)
+    expect(
+      door!.about,
+      'the door has to say what is missing, because what is missing is the whole state'
+    ).toMatch(/[Nn]obody employs you|no bench|nobody lists you/)
+    expect(door!.about).toMatch(/[Nn]obody lists you|no employer|incorporated nothing/)
   })
 
-  it('is honest about why: every person the demo can be walked as is on a payroll, a bench or their own corporation', () => {
-    // If somebody seeds an independent candidate and adds the door, this
-    // sentence is the thing that has to change with it.
-    expect(CANDIDATE_SEATS).toHaveLength(4)
-    expect(MISSING_DOOR).toMatch(/nobody employs|nobody lists/)
+  it('no longer tells the reader a paragraph where a door should be', () => {
+    expect(page).not.toContain('MISSING_DOOR')
+    expect(
+      page,
+      'the page still says a door is missing, and it is not'
+    ).not.toMatch(/no seat here|One door is missing/)
+  })
+
+  it('promises that door nothing the seeded person does not have — no placement, no week, no supplier', () => {
+    // The temptation on a door this empty is to fill it. Filling it
+    // makes her party 8A and deletes the state the door exists to show,
+    // so the sentence may not promise work of any kind.
+    expect(door!.about).not.toMatch(/\bplacement\b|\bhours\b|\binvoice\b|\btimesheet\b/i)
   })
 })
 

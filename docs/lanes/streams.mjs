@@ -519,8 +519,7 @@ export const parties = [
   {
     key: 'candB', n: '8B', name: 'Candidate — independent', file: '8b-candidate-independent',
     tagline: 'No bench, no employer — yet. A page of your own, and a choice to make.',
-    kind: 'CONSULTANT', doors: [],
-    noDoor: 'No demo door yet. The seeded world has no independent candidate — every seeded person is on a bench, employed, or owns a corporation. The nearest thing to this party is Helena Marsh the day before she granted her listing. A door is a small seed change and worth making.',
+    kind: 'CONSULTANT', doors: ['marisol-quintero'],
     desks: ['You'],
     position: 'You are the person and nothing else — no firm holds a listing for you, no firm employs you. Etyme places nobody, so from here two things can happen and both are yours to decide: a firm invites you to its bench and you grant it a listing (you become 8A), or you incorporate and sell yourself (you become party 7). Until one of those, the streams below are not yet yours.',
     about: 'This is a state, not a flow, and it is drawn to say so. What is yours here is the page — the one case where turning it on is the point, because it is your shop window — and the invitation that arrives because somebody read it. Everything from the contract onward begins the day you choose who represents you. What Etyme guarantees before that day: nobody markets you without your consent, nothing about you is public until you turn it on, and a firm that has never put you forward cannot open your file.',

@@ -7,7 +7,6 @@ import {
   PROGRAM_OFFICE_SEATS,
   INTEGRATOR_SEATS,
   CANDIDATE_SEATS,
-  MISSING_DOOR,
 } from './seats'
 
 /**
@@ -105,19 +104,17 @@ export default function DemoPage() {
             See it as the person, not the firm
           </h2>
           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
-            Four consultants in four industries on four kinds of paper: an integrator&rsquo;s own
-            employee, a bench listing sold on through a prime, an H1B two rungs down a chain,
-            and a travel nurse paid corp to corp through the company she owns. Each door opens
-            on that person&rsquo;s own work — their hours, their placement, what has been asked of
-            them — and never on a company&rsquo;s book.
+            Five consultants in five industries on five kinds of paper: an integrator&rsquo;s own
+            employee, a bench listing sold on through a prime, an H1B two rungs down a chain, a
+            travel nurse paid corp to corp through the company she owns — and somebody with no
+            bench and no employer yet, which is what this product leaves a consultant holding on
+            the day they sign in. Each door opens on that person&rsquo;s own work — their hours,
+            their placement, what has been asked of them, or the sentence that says there is
+            none of it yet — and never on a company&rsquo;s book.
           </p>
           <div className="mt-6">
             <PersonDoors people={CANDIDATE_SEATS} />
           </div>
-          <p className="mt-5 max-w-2xl rounded-panel border border-dashed border-etyme-rule p-4
-                        text-[13px] leading-relaxed text-etyme-muted">
-            {MISSING_DOOR}
-          </p>
         </section>
       </main>
     </div>

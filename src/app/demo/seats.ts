@@ -258,7 +258,7 @@ export const INTEGRATOR_SEATS: Program[] = [
 ]
 
 /**
- * The four people, each a door of their own.
+ * The five people, each a door of their own.
  *
  * ── Why a person is a door ───────────────────────────────────────────
  *
@@ -270,19 +270,29 @@ export const INTEGRATOR_SEATS: Program[] = [
  * third side of this market could not be shown against the same
  * placement the client and the supplier were looking at.
  *
- * These four are people the world already holds, in four industries, on
- * four different kinds of paper:
+ * These five are people the world already holds, in five industries, on
+ * five different kinds of paper:
  *
  *   employed by an integrator (W2) · listed on a bench through a prime ·
- *   two rungs down a chain on an H1B · corp to corp through a limited
- *   company she owns
+ *   two rungs down a chain on an H1B · nothing at all, yet · corp to corp
+ *   through a limited company she owns
  *
- * The fourth is the one that proves the horizontal claim. A travel nurse
+ * The travel nurse is the one that proves the horizontal claim. A nurse
  * is not IT staffing, and CLAUDE.md has said since the beginning that
  * nothing in the core may assume it — while every seeded person in this
  * world wrote software. She works three twelve-hour shifts, invoices
  * through her own company, and the document her assignment rests on is a
  * license from a state board that runs out inside the month.
+ *
+ * The fourth is the one that was missing until 2026-09-20, and this
+ * page said so in a paragraph where a door should have been. Party 8B
+ * in the lane drawings: a person with a profile, a page of their own
+ * and nothing else — no bench listing, no employer, no corporation, no
+ * submission anywhere. It is not an exotic case. It is what `POST
+ * /api/onboarding` leaves every consumer-email sign-in holding on day
+ * one, which makes it the first screen a real consultant ever sees, and
+ * the only one the demo could not open. Her door is deliberately the
+ * emptiest on the page; filling it would make her somebody else.
  *
  * Each lands on `/dashboard/my-work`, which is that person's own page and
  * not any company's. `email` is the seeded address the door sits at;
@@ -327,6 +337,18 @@ export const CANDIDATE_SEATS: CandidateSeat[] = [
       'you for a site access and data integrity attestation nobody else can sign for you.',
   },
   {
+    slug: 'marisol-quintero',
+    name: 'Marisol Quintero',
+    where: 'Industrial automation · PLC and SCADA commissioning',
+    email: 'marisol.quintero@seed.etyme.invalid',
+    about:
+      'Nobody employs you, nobody lists you, you have incorporated nothing, and not one ' +
+      'submission anywhere carries your name — which is what this product leaves a consultant ' +
+      'holding on the day they sign in. What you have is a page you turned on yourself and a ' +
+      'choice: grant a firm a bench listing and let it market you, or incorporate and sell ' +
+      'yourself. Etyme places nobody, so nothing here happens until you make it.',
+  },
+  {
     slug: 'colleen-byrne',
     name: 'Colleen Byrne',
     where: 'Healthcare · ICU travel nurse',
@@ -346,20 +368,3 @@ export const ALL_SEATS: Program[] = [
   ...PROGRAM_OFFICE_SEATS,
   ...INTEGRATOR_SEATS,
 ]
-
-/**
- * The door that is not here, said rather than hidden.
- *
- * Every consultant in the seeded world is on somebody's payroll,
- * somebody's bench, or in a corporation of their own. Nobody is simply
- * a person with no firm at all — the party the lane drawings call 8B —
- * so there is no door to open on them, and a page that quietly offered
- * four consultants as "the person's side" would be claiming a fifth
- * state it cannot show. Saying it costs a sentence; leaving it out is
- * the gap the founder finds by clicking.
- */
-export const MISSING_DOOR =
-  'One door is missing and worth saying so: somebody with no firm at all — nobody employs ' +
-  'them, nobody lists them, they have incorporated nothing — has no seat here, because the ' +
-  'seeded world holds no such person. The nearest to it is Helena Marsh the day before she ' +
-  'granted her listing.'

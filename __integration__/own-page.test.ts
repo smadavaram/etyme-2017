@@ -25,6 +25,8 @@ import { portfolioOf } from '@/lib/portfolio-data'
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
 const RUBEN = 'ruben.ortega@seed.etyme.invalid'
 const HELENA = 'helena.marsh@seed.etyme.invalid'
+/** The fifth demo door: a profile, a page, and nothing else at all. */
+const MARISOL = 'marisol.quintero@seed.etyme.invalid'
 
 async function page(email: string) {
   as(email)
@@ -191,6 +193,57 @@ describe('a prime’s own employee has a page of their own', () => {
     )
     expect(theirs.status).toBe(403)
     expect(theirs.body.error.message).toContain('the firm that employs them')
+  })
+
+  /**
+   * The person with a page and nothing behind it.
+   *
+   * Marisol Quintero is party 8B in the lane drawings and the fifth
+   * demo door: a profile, a page she turned on herself, and not one
+   * other fact — no bench listing, no employer, no submission, nobody
+   * paying her. `ownPage` gained OWN_MAKING for her; these two walk it
+   * through the routes she would actually open, on the seeded world she
+   * was added to.
+   *
+   * Left out of the verdict's own commit on purpose: the seed that
+   * writes her had not landed, and a test that seeds nothing to assert
+   * against is a test that passes for the wrong reason.
+   */
+  it('Marisol Quintero, with a profile and nothing else, opens her work and is not told it is on the record', async () => {
+    as(MARISOL)
+    const work = await json(await myWork(req('GET', '/api/me/work')))
+
+    expect(work.status).toBe(200)
+    expect(work.body.data.standing.because).toBe('OWN_MAKING')
+
+    // Nothing, and nothing is the answer. The sentence PLACED would
+    // have given her opens on her work being on the record, and there
+    // is none.
+    expect(work.body.data.placements, 'she has a placement, so she is no longer party 8B').toHaveLength(0)
+    expect(work.body.data.timesheets).toHaveLength(0)
+    expect(work.body.data.standing.says).not.toMatch(/on the record/i)
+    expect(work.body.data.standing.says).toMatch(/nobody has put you forward/i)
+  })
+
+  it('is offered her page and her data, and nothing Etyme cannot honor', async () => {
+    as(MARISOL)
+    const work = await json(await myWork(req('GET', '/api/me/work')))
+    const says: string = work.body.data.standing.says
+
+    // The two moves that are real, both hers, and said as hers.
+    expect(says).toMatch(/invites you onto its bench|grant it a listing/i)
+    expect(says).toMatch(/company of your own|sell yourself/i)
+
+    // And nothing that would need Etyme to place somebody, which it
+    // never does. She is the one reader who cannot tell the difference
+    // between a button that works and one with nothing behind it.
+    expect(says).not.toMatch(/we (will |'ll )?(find|place|submit)|apply now|get placed/i)
+
+    // Her page is hers to read and hers to edit, which is the thing she
+    // actually has today.
+    const res = await page(MARISOL)
+    expect(res.status).toBe(200)
+    expect(res.body.data.yours).toBe(true)
   })
 
   it('a client’s own approver, who does no contract work, is told what the page is for', async () => {

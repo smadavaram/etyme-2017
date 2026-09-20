@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { NextRequest } from 'next/server'
 import { req, json, resetDatabase, prisma, as } from './harness'
 import { DEMO_COOKIE, read as readCookie } from '@/lib/demo-session'
@@ -53,7 +55,7 @@ async function sit(slug: string, cookie?: string) {
   return { body, cookie: m?.[1] ?? cookie }
 }
 
-/** POST /api/demo asking to sit as one of the four people. */
+/** POST /api/demo asking to sit as one of the five people. */
 async function sitAs(handle: string, cookie?: string) {
   const r = req('POST', '/api/demo', { person: handle }, cookie ? { cookie: `${DEMO_COOKIE}=${cookie}` } : {})
   const res = await demo(r as NextRequest)
@@ -162,9 +164,9 @@ describe('every seat on the demo page opens', () => {
     await seedWorld()
   }, 600_000)
 
-  it('offers nine company doors and four people — three programs, three suppliers, a program office, two integrators', () => {
+  it('offers nine company doors and five people — three programs, three suppliers, a program office, two integrators', () => {
     expect(ALL_SEATS).toHaveLength(9)
-    expect(CANDIDATE_SEATS).toHaveLength(4)
+    expect(CANDIDATE_SEATS).toHaveLength(5)
   })
 
   it('names a company the seed actually builds, for every one of the seven', async () => {
@@ -241,7 +243,7 @@ describe('every seat on the demo page opens', () => {
 })
 
 /**
- * The four people, and the two firms whose door led to an empty book.
+ * The five people, and the two firms whose door led to an empty book.
  *
  * ── Why a person is a door at all ────────────────────────────────────
  *
@@ -258,7 +260,7 @@ describe('every seat on the demo page opens', () => {
  * kind sells to its client and buys below it, including from itself when
  * the person on the seat is its own employee.
  */
-describe('the four people the demo can be walked as', () => {
+describe('the five people the demo can be walked as', () => {
   beforeAll(async () => {
     await seedWorld()
   }, 600_000)
@@ -284,10 +286,10 @@ describe('the four people the demo can be walked as', () => {
     }[]
   }
 
-  it('offers four people, in four industries, and not one of them a company', () => {
-    expect(CANDIDATE_SEATS).toHaveLength(4)
+  it('offers five people, in five industries, and not one of them a company', () => {
+    expect(CANDIDATE_SEATS).toHaveLength(5)
     const trades = new Set(CANDIDATE_SEATS.map((c) => c.where.split('·')[0].trim()))
-    expect(trades.size, [...trades].join(', ')).toBe(4)
+    expect(trades.size, [...trades].join(', ')).toBe(5)
     for (const c of CANDIDATE_SEATS) {
       expect(c.email, c.name).toMatch(/@seed\.etyme\.invalid$/)
       expect(c.about.trim().endsWith('.'), `${c.name}: ${c.about}`).toBe(true)
@@ -314,8 +316,22 @@ describe('the four people the demo can be walked as', () => {
     }
   }, 60_000)
 
-  it('opens that page on something real for all four — a placement, a week of hours, or a paper somebody has asked them for', async () => {
-    for (const c of CANDIDATE_SEATS) {
+  /**
+   * The one door with nothing behind it, and why that is not a bug.
+   *
+   * Four of the five open on work. The fifth is party 8B — a person
+   * with a profile, a page of her own and nothing else — and the whole
+   * point of her door is that the page is empty. So the sentence that
+   * used to cover all four is split: one for the four who have work,
+   * one for the one who does not, because a single assertion over five
+   * rows can only be satisfied by giving her work she must not have.
+   */
+  const WITH_WORK = CANDIDATE_SEATS.filter((c) => c.slug !== 'marisol-quintero')
+  const INDEPENDENT = CANDIDATE_SEATS.find((c) => c.slug === 'marisol-quintero')!
+
+  it('the four who have work open their page on something real — a placement, a week, or a paper asked of them', async () => {
+    expect(WITH_WORK).toHaveLength(4)
+    for (const c of WITH_WORK) {
       const work = await ownWork(c.email)
       const papers = await ownPapers(c.email)
       const found = work.placements.length + work.timesheets.length + papers.length
@@ -325,6 +341,67 @@ describe('the four people the demo can be walked as', () => {
           `${work.timesheets.length} weeks, ${papers.length} papers`
       ).toBeGreaterThan(0)
     }
+  }, 60_000)
+
+  it('the one who has no work yet opens their page on a sentence that says so, and on no button Etyme cannot honor', async () => {
+    const work = await ownWork(INDEPENDENT.email)
+    const papers = await ownPapers(INDEPENDENT.email)
+
+    // Nothing, and every kind of nothing named, because the value of
+    // this door is exactly what is absent.
+    expect(work.placements, 'she has a placement, so she is no longer party 8B').toHaveLength(0)
+    expect(work.timesheets, 'she has a week of hours, so somebody placed her').toHaveLength(0)
+    expect(papers, 'somebody has asked her for a document, and nobody has any standing to').toHaveLength(0)
+
+    // And the page says so rather than drawing four zeros. The standing
+    // is what the screen reads to decide that (`ownPage` in
+    // lib/consultant-portfolio, asked once in /api/me/work so the page,
+    // the shell and her own page cannot disagree), and for her it is
+    // OWN_MAKING: she made the page, nobody has put her forward.
+    expect(
+      work.standing?.because,
+      `she is told she is ${work.standing?.because ?? 'nothing at all'}, which is a sentence ` +
+        'about somebody else'
+    ).toBe('OWN_MAKING')
+    expect(work.standing.says.trim().endsWith('.')).toBe(true)
+    expect(work.standing.says.split(/\s+/).length, 'a label rather than a sentence').toBeGreaterThan(20)
+    expect(
+      work.standing.says,
+      'the sentence has to say what is missing, because what is missing is the whole state'
+    ).toMatch(/nobody has put you forward|no firm markets you/i)
+
+    // Etyme places nobody, so nothing here may offer to. The screen
+    // behind the door is read for the same promise: a button with
+    // nothing behind it is worse on this page than on any other,
+    // because she is the one party who cannot tell.
+    const screen = readFileSync(join(process.cwd(), 'src/app/dashboard/my-work/page.tsx'), 'utf8')
+    expect(screen, 'my-work draws no empty state, so party 8B opens on blank panels').toMatch(
+      /OWN_MAKING/
+    )
+    for (const source of [screen, work.standing.says]) {
+      expect(source, 'offers her work Etyme has no way to find').not.toMatch(
+        /find you work|apply now|get placed|we\u2019ll place you|we will place you/i
+      )
+    }
+
+    // The profile and the seat are real, which is what makes the door
+    // openable at all: one CONSULTANT context, no company, no listing.
+    const profile = await prisma.consultantProfile.findFirstOrThrow({
+      where: { person: { primaryEmail: INDEPENDENT.email } },
+      include: { listings: true, person: { select: { contexts: true } } },
+    })
+    expect(profile.listings, 'a bench listing makes her party 8A').toHaveLength(0)
+    expect(profile.ownCompanyId, 'a corporation of her own makes her party 7').toBeNull()
+    expect(profile.slug, 'no address, so no page').not.toBeNull()
+    expect(profile.pageLiveAt, 'the page is off, and the page is the only thing she has').not.toBeNull()
+    expect(profile.person.contexts).toHaveLength(1)
+    expect(profile.person.contexts[0].type).toBe('CONSULTANT')
+    expect(profile.person.contexts[0].companyId, 'a company seat, so somebody employs her').toBeNull()
+
+    const submissions = await prisma.submission.count({
+      where: { person: { primaryEmail: INDEPENDENT.email } },
+    })
+    expect(submissions, 'somebody has put her forward, which nobody may have').toBe(0)
   }, 60_000)
 
   it('refuses a name that is not one of the four, rather than seating a stranger off the wire', async () => {

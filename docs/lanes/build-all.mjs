@@ -216,7 +216,7 @@ const head = (title, description) => `<!doctype html><html lang="en"><head><meta
 <style>${CSS}</style></head><body><main>`
 const foot = `</main></body></html>`
 
-const DOORS = { 'world-nike': 'Northbend Athletic', 'world-corning': 'Cavanaugh Glassworks', 'world-terumo-bct': 'Talvern Medical', 'world-computer-systems': 'Computer Systems Inc', 'world-vertex-global': 'Vertex Global', 'world-cloudepa': 'CloudEPA', 'world-aptiva': 'Aptiva Workforce', 'world-teleworld': 'Teleworld Solutions', 'world-sundara': 'Sundara Systems', 'karthik-menon': 'Karthik Menon', 'helena-marsh': 'Helena Marsh', 'chidi-okafor': 'Chidi Okafor', 'colleen-byrne': 'Colleen Byrne — Byrne Critical Care LLC' }
+const DOORS = { 'world-nike': 'Northbend Athletic', 'world-corning': 'Cavanaugh Glassworks', 'world-terumo-bct': 'Talvern Medical', 'world-computer-systems': 'Computer Systems Inc', 'world-vertex-global': 'Vertex Global', 'world-cloudepa': 'CloudEPA', 'world-aptiva': 'Aptiva Workforce', 'world-teleworld': 'Teleworld Solutions', 'world-sundara': 'Sundara Systems', 'karthik-menon': 'Karthik Menon', 'helena-marsh': 'Helena Marsh', 'chidi-okafor': 'Chidi Okafor', 'marisol-quintero': 'Marisol Quintero — no bench, no employer yet', 'colleen-byrne': 'Colleen Byrne — Byrne Critical Care LLC' }
 
 function scriptsFor(party, streamId) {
   const files = TESTS[party.key]?.[streamId]

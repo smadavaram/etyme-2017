@@ -644,6 +644,81 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // the door names her.
   if (await db.person.findUnique({ where: { primaryEmail: emailOf('Helena Marsh') } })) people++
 
+  // ── The independent candidate, on her first day ──────────────────────
+  //
+  // Party 8B in the lane drawings, and until now the one party with no
+  // door: a person and nothing else. No firm employs her, no firm holds
+  // a listing for her, she has incorporated nothing, nobody has
+  // submitted her anywhere and no contract anywhere names her. That is
+  // not an edge case — it is the exact state `POST /api/onboarding`
+  // leaves every consumer-email sign-in in on day one, so it is the
+  // first screen a real consultant ever sees, and the demo could not
+  // show it.
+  //
+  // Written to match that route rather than to look like the other four:
+  // a `Person`, one `Context { type: 'CONSULTANT' }` with no company and
+  // no role, and a `ConsultantProfile`. Onboarding creates the profile
+  // empty; hers is filled in, because somebody who has typed nothing has
+  // nothing to be walked through, and every field here is one she could
+  // have typed herself on her own page.
+  //
+  // Nothing else about her exists anywhere in this world, and that is
+  // the point of the door. Adding a listing, a submission or a contract
+  // to make her page busier would turn her into party 8A and delete the
+  // state being shown.
+  //
+  // Her address sits on `seed.etyme.invalid` like the other four people
+  // rather than on a consumer domain. In production this person arrives
+  // on a Gmail or a Yahoo address — that is how `lib/company-domains`
+  // decides she is a candidate rather than a company admin — but a demo
+  // cookie may only ever name `@demo.etyme.local` or
+  // `@seed.etyme.invalid` (`lib/demo-session`), and widening that for a
+  // seeded person would widen it for every signature this deployment
+  // ever mints.
+  const independent = await person('Marisol Quintero')
+  people++
+  if (!(await db.context.findFirst({ where: { personId: independent.id, revokedAt: null } }))) {
+    await db.context.create({
+      // Exactly what onboarding writes for a consumer-email sign-in:
+      // type and person, no company, no role. A seat at a company here
+      // would be the thing this door exists to not have.
+      data: { personId: independent.id, type: 'CONSULTANT' },
+    })
+  }
+  if (!(await db.consultantProfile.findFirst({ where: { personId: independent.id } }))) {
+    await db.consultantProfile.create({
+      data: {
+        personId: independent.id,
+        headline: 'Controls engineer — PLC and SCADA commissioning',
+        skills: ['PLC programming', 'SCADA', 'Allen-Bradley', 'Ignition', 'Commissioning'],
+        location: 'Toledo, OH',
+        workAuth: 'USC',
+        // Free now, and saying so is the most useful line on her page.
+        availableFrom: day(-9),
+        // Her page is on, and `visibility` is not what turns it on.
+        // `pageIsLive` reads the address and the day she switched it on,
+        // deliberately, because visibility is whether an agency may show
+        // somebody inside the platform and is usually set by the agency —
+        // it was never consent to be named on the open internet. She has
+        // no agency, so she set both herself.
+        //
+        // FEED rather than VERIFIED: nobody has checked anything about
+        // her, and every other seeded consultant reads VERIFIED because a
+        // firm vouched for them. Hers is the honest value on day one.
+        visibility: 'FEED',
+        slug: 'marisol-quintero',
+        pageLiveAt: day(-5),
+        bioHeadline: 'Controls engineer — PLC and SCADA commissioning',
+        bioIntro:
+          'Eleven years on plant floors, the last six on Allen-Bradley and Ignition. ' +
+          'First contract search.',
+        // 'PERSON' is what api/me/portfolio writes when somebody types their
+        // own words, which is what she did.
+        bioWrittenBy: 'PERSON',
+      },
+    })
+  }
+
   // ── Aptiva Workforce, an MSP that sells and buys ─────────────────────
   //
   // It ran Harlow Health's program and held no contract of any kind,
