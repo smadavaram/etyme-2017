@@ -270,7 +270,12 @@ describe('a person asks to be forgotten', () => {
     expect(rows.length).toBeGreaterThan(0)
     for (const r of rows) expect(r.reversible, 'nothing puts a tombstone back').toBe(false)
 
-    const told = rows.map((r) => r.company.name)
+    // `companyId` went nullable on 2026-09-20 so the census — which
+    // happens before a client is a tenant — has somewhere to write. An
+    // erasure always happens inside a firm's books, so the name is
+    // always there; the optional read is the type telling the truth
+    // about the column rather than about this row.
+    const told = rows.map((r) => r.company?.name)
     for (const firm of helenaHolders) expect(told, `${firm} held her and was not told`).toContain(firm)
 
     const letters = await prisma.notification.findMany({

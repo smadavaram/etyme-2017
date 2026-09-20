@@ -91,6 +91,7 @@ const RUNTIME: Record<string, string> = {
   import: 'a real file somebody imported; /ready proves this edge',
   importRow: 'the rows of a real import',
   incident: 'written when something actually breaks',
+  censusRead: 'written when somebody at Etyme opens a census file a client sent, and when one of them is refused',
   intercompanyPosition: 'written when an intercompany entry posts',
   jobRun: 'written by the nightly job when it runs',
   masterAgreementVersion: 'written when an agreement is amended',

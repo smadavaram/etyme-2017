@@ -11,7 +11,7 @@ import { runRetentionSweep } from '@/lib/data-request'
  * moved only when a person happened to open a screen. A deadline that
  * is read when somebody looks is not a deadline.
  *
- * Four things happen here, and each of them is somebody's legal
+ * Five things happen here, and each of them is somebody's legal
  * exposure rather than housekeeping:
  *
  *   — a request whose answer is falling due is warned about, once a day
@@ -21,7 +21,9 @@ import { runRetentionSweep } from '@/lib/data-request'
  *   — evidence whose statutory period has run is deleted, and what a
  *     minimum obliges us to keep is held instead, with the reason;
  *   — a breach deadline that is close, or that has been missed, is said
- *     out loud to staff.
+ *     out loud to staff;
+ *   — a census whose promised day is tonight is deleted, and one three
+ *     days out with the page still unsent is warned about.
  *
  * It runs after `end-contracts` in the daily fan-out, on purpose: the
  * I-9 floor is counted from `employmentEndedAt`, so a contract ended
@@ -52,6 +54,13 @@ export async function GET(request: NextRequest) {
     if (outcome.deleted) did.push(`${outcome.deleted} record${outcome.deleted === 1 ? '' : 's'} deleted at the end of their period`)
     if (outcome.breachWarnings) did.push(`${outcome.breachWarnings} breach deadline${outcome.breachWarnings === 1 ? '' : 's'} close or missed`)
     if (outcome.breachesWithNoClock) did.push(`${outcome.breachesWithNoClock} open breach${outcome.breachesWithNoClock === 1 ? '' : 'es'} with no deadline decided`)
+    // The census counts, which the sweep has returned since the census
+    // landed and this sentence did not carry. A client was promised in
+    // writing that their file goes on a named day; a deletion that
+    // happens and is not in the morning report is a promise kept where
+    // nobody can see it, which is indistinguishable from one broken.
+    if (outcome.censusDeleted) did.push(`${outcome.censusDeleted} census${outcome.censusDeleted === 1 ? '' : 'es'} deleted on the day we said`)
+    if (outcome.censusWarned) did.push(`${outcome.censusWarned} census${outcome.censusWarned === 1 ? '' : 'es'} three days from deletion with the page still unsent`)
 
     return NextResponse.json({
       ok: true,

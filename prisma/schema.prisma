@@ -32,6 +32,7 @@ model Person {
   accessedBy             AccessLog[]              @relation("subject")
   programSeatsGranted    ProgramSeat[]            @relation("seatGrantedBy")
   programSeatsRevoked    ProgramSeat[]            @relation("seatRevokedBy")
+  censusReads            CensusRead[]             @relation("censusReader")
   actions                AccessLog[]              @relation("actor")
   visas                  VisaPetition[]
   submissions            Submission[]
@@ -4926,9 +4927,25 @@ model Incident {
 }
 
 model AutomationLog {
-  id         String    @id @default(cuid())
-  companyId  String
-  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
+
+  /// Whose books the act was done in — null where there are none.
+  ///
+  /// Required until 2026-09-20, and the census is what broke it. A
+  /// client sends us a file before they are a tenant: there is no
+  /// company to point at, and the sandbox their rows are loaded into is
+  /// created at import and destroyed by the deletion itself, so a row
+  /// written against it cascades away at the exact moment somebody
+  /// audits the deletion. Six of the census's seven automation actions
+  /// stayed PLANNED for that reason alone.
+  ///
+  /// So a null company means: an act of the platform, before or outside
+  /// any tenant. Not "we forgot". Anything acting inside a customer's
+  /// books still names them, and the automation screen still scopes by
+  /// company — a platform act belongs on nobody's screen and in
+  /// everybody's audit.
+  companyId  String?
+  company    Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   action     String
   summary    String
   reason     String // the rule it followed, in words
@@ -7030,10 +7047,20 @@ model CensusRequest {
   /// keeps its data and the deletion is cancelled with a reason."
   deletionCancelledBecause String?
 
+  /// When the clock warning last went out, so it goes once a day rather
+  /// than once a run.
+  ///
+  /// The same column `Breach` already has, for the same reason: the
+  /// nightly fan-out can run more than once, and a warning that repeats
+  /// per run is a warning people filter. Set when the warning is sent,
+  /// read as "not today" on the next pass.
+  lastWarnedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   files CensusFile[]
+  reads CensusRead[]
 
   /// What the nightly sweep asks, and the only compound index here: give
   /// me the censuses past their deletion date that are not already
@@ -7083,4 +7110,82 @@ model CensusFile {
 
   @@index([requestId])
   @@index([requestId, uploadedAt])
+}
+
+/// Somebody at Etyme opened a client's census, and it is on the record.
+///
+/// ── Why this is not an AccessLog row ─────────────────────────────────
+///
+/// It nearly was, and the alternative asked for was `AccessLog.subjectId`
+/// made nullable. That would have been the wrong trade. `AccessLog` says
+/// one thing — somebody read a named person's data — and CLAUDE.md's
+/// invariant is checkable precisely because every row has a subject. A
+/// nullable subject makes it "an access log row that names nobody", and
+/// the first such row is the beginning of a table that means two things.
+///
+/// The census is genuinely a different read. Before the file is imported
+/// there is no `Person` in it at all — the template asks for no names and
+/// a reference number is enough — so there is nobody to be the subject.
+/// What is being read is a **file a firm entrusted to us before it was a
+/// tenant**, and the promise being kept is the census agreement's own:
+/// one named person opens it, and every open is recorded. That is a
+/// different promise from the person-data invariant, made to a different
+/// party, and it gets its own row.
+///
+/// Both still happen. Once rows are imported, a read of the contractors
+/// is an `AccessLog` row per person exactly as before — `lib/census`
+/// already writes them. This table is what catches the reads that leave
+/// no such row: the file opened before import, and the refusal.
+///
+/// ── The trail outlives what it records ───────────────────────────────
+///
+/// `fileId` and `fileName` are plain columns with no foreign key, on
+/// purpose. The files are deleted outright on the day we promised, and a
+/// cascade would take the evidence with them — leaving us unable to say
+/// on the 21st who opened what on the 20th, which is the one question the
+/// agreement promises an answer to. The request row survives deletion for
+/// the same reason, so the link to it is a real key.
+model CensusRead {
+  id        String        @id @default(cuid())
+  requestId String
+  request   CensusRequest @relation(fields: [requestId], references: [id])
+
+  /// The file opened, if it was a file. Null for a read of the whole
+  /// census — delivering the page, or opening the review screen.
+  /// Deliberately not a relation: see above.
+  fileId   String?
+  /// The client's own name for it, kept because the file will not be
+  /// here to ask. "Q3 Veritan invoices.pdf" is the only thing that makes
+  /// a line in this table mean anything a year later.
+  fileName String?
+
+  /// Who read it, by address. Staff are identified by address throughout
+  /// — `ETYME_STAFF_EMAILS`, `lib/staff`, `caller.staff` — and a staff
+  /// member need hold no seat anywhere, so a foreign key here would
+  /// quietly require one. `actorPersonId` is set as well where they have
+  /// a Person row, which is the ordinary case.
+  readerEmail   String
+  actorPersonId String?
+  actorPerson   Person? @relation("censusReader", fields: [actorPersonId], references: [id])
+
+  /// OPENED · REFUSED · DELIVERED · IMPORTED. A string rather than an
+  /// enum for the reason `lib/document-type` gives: the fifth thing
+  /// somebody does with a census must not need a migration.
+  action String
+
+  /// False where it was refused. A refusal is recorded the same way a
+  /// read is — that is the half of the invariant most systems skip, and
+  /// it is the half an audit asks for.
+  allowed Boolean @default(true)
+
+  /// What happened, in a sentence: who opened what, on whose census, or
+  /// why they were turned away.
+  reason String
+
+  at DateTime @default(now())
+
+  @@index([requestId, at])
+  @@index([fileId])
+  @@index([readerEmail, at])
+  @@index([actorPersonId])
 }

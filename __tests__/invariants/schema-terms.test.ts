@@ -201,8 +201,42 @@ describe('The contractor census — somewhere honest to put a client’s own row
       expect(field('CensusRequest', f).type, f).toBe('String')
       expect(field('CensusRequest', f).isRequired, f).toBe(true)
     }
+    // The only relations it has are to things we made ourselves: the
+    // files that arrived, the reads of them, and the sandbox their rows
+    // were loaded into. Nothing about the person who asked.
     const fks = model('CensusRequest').fields.filter((f) => f.kind === 'object').map((f) => f.name)
-    expect(fks.sort()).toEqual(['files', 'sandboxCompany'])
+    expect(fks.sort()).toEqual(['files', 'reads', 'sandboxCompany'])
+  })
+
+  it('a read of a census file is recorded where it will outlive the file', () => {
+    // The files are deleted outright on the day we promised, so the
+    // trail cannot hang off them: on the 21st we still have to say who
+    // opened what on the 20th. `fileId` and `fileName` are therefore
+    // plain columns with no foreign key behind them.
+    expect(field('CensusRead', 'fileId').kind).toBe('scalar')
+    expect(field('CensusRead', 'fileName').kind).toBe('scalar')
+    expect(model('CensusRead').fields.map((f) => f.name)).not.toContain('file')
+    // And the reader is an address, for the same reason the assigned
+    // staff person is: staff hold no seat anywhere.
+    expect(field('CensusRead', 'readerEmail').type).toBe('String')
+    expect(field('CensusRead', 'readerEmail').isRequired).toBe(true)
+    // A refusal is recorded the same way a read is.
+    expect(field('CensusRead', 'allowed').type).toBe('Boolean')
+    expect(field('CensusRead', 'reason').isRequired).toBe(true)
+  })
+
+  it('an act of the platform has no tenant to be done in, and the column says so', () => {
+    // A census happens before a client is a tenant, and the sandbox its
+    // rows sit in is destroyed by the very deletion somebody audits. A
+    // required companyId meant six of the census's seven automation
+    // actions could never be written at all.
+    expect(field('AutomationLog', 'companyId').isRequired).toBe(false)
+    // Everything else about the row stays required: an act with no
+    // reason and no honest reversible flag is the thing this table
+    // exists to prevent.
+    for (const f of ['action', 'summary', 'reason', 'payload', 'reversible']) {
+      expect(field('AutomationLog', f).isRequired, f).toBe(true)
+    }
   })
 
   it('the named person at Etyme is an address, because staff hold no seat', () => {
