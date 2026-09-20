@@ -162,3 +162,54 @@ census upload path the day it exists.
 No self-serve computation before a human has read the file. No public
 benchmark numbers across clients. No price. No AI claim anywhere on the
 census page.
+
+## Corrections after the scout read the code (2026-09-20)
+
+The first draft above undersold six things. Each is stated here with the
+decision taken, so the build does not rediscover them.
+
+1. **The demo sandbox cannot take the client's rows.** `POST /api/demo`
+   seeds a synthetic fixture and has no way to ingest external data, and
+   its `demoExpiresAt` is read by nothing that deletes. So the census
+   gets its own importer and its own lifecycle on `CensusRequest`. The
+   sandbox company is created plainly as a real company row marked as a
+   census sandbox, not through the demo route.
+2. **The template is CSV, not XLSX.** No spreadsheet library exists in
+   the product and none is added for this. The template downloads as
+   CSV with a header row and one example row; the page says "open in
+   Excel, fill it, save as CSV." If a client stumbles on that, add XLSX
+   then, not before.
+3. **The four numbers are not all in one place, and not all Money's.**
+   On-site count and spend are computed inline in the program dashboard
+   route (Demand). Rate variance exists only by manager, not by supplier,
+   so supplier rate spread is new arithmetic. Tenure is pure and reusable
+   (`lib/tenure-days`, Regulatory). Money builds `lib/census-page` by
+   importing those functions and adding the supplier rate spread; it
+   owns nothing it did not write.
+4. **There is no PDF pipeline on Vercel.** The one page is a print-styled
+   HTML page, one sheet, `@media print`. The named staff person opens it,
+   reviews it, prints it to PDF and emails it. This matches the flow, in
+   which a human sends the page anyway. A PDF library is added only when
+   the census volume makes the print step a cost.
+5. **Staff cannot yet reach a company they have no seat in.** The caller
+   context refuses any person with no seat before the staff check runs,
+   although staff are identified by address by design. The architect adds
+   an address-based path for staff-only routes. Until it lands, the
+   census cannot be reviewed by staff, so it is the first thing built.
+6. **There is no nurture sequence, and the shipped decision says there
+   should not be one.** The public ask form says: "Not a form that opens a
+   sequence. There is no list to be added to and nothing automatic
+   happens next." The census keeps that promise. After the page is
+   delivered, the named staff person writes one follow-up by hand. If the
+   founder wants an automatic three-email sequence for census clients, that
+   is a reversal of a shipped decision and is his to make; it is not
+   built here.
+
+Also: the upload link copies the document-packet pattern (a token with an
+expiry on the row), not the stateless signed link or the supplier-apply
+token, which never expires. Census files are stored like resumes, bytes in
+the database, with their own accepted types and size limit. The nightly
+deletion needs a new branch in the retention sweep, which is written per
+category. Ownership is carved per subpath: the page under Market, the
+request lifecycle under Regulatory, the importer and the one page under
+Money, the emails under Conversation.
