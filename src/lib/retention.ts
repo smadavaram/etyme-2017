@@ -338,6 +338,22 @@ export const SCHEDULE: ScheduleLine[] = [
       'protect, so no period is offered and none is wanted.',
   },
   {
+    category: 'A contractor census',
+    fate: 'KEPT_ANONYMIZED',
+    anchor: 'NONE',
+    months: null,
+    basis:
+      'The files themselves are not on this schedule at all: they are deleted forty-five ' +
+      'days after they arrive, by a date written on the census row when it was received ' +
+      'and read by the nightly sweep, because that is what the client was promised in ' +
+      'writing before they sent anything. It is a promise rather than a statutory minimum, ' +
+      'and there is no federal rule requiring us to keep any of it — so no period is stated ' +
+      'here and none is needed. What this line covers is the row that outlives the files: ' +
+      'how many there were, how many bytes, and the day they went. That is kept, because it ' +
+      'is the proof we deleted on the day we said, and it stops naming anybody when the ' +
+      'person who asked for the census asks to be forgotten.',
+  },
+  {
     category: 'Company and supplier records',
     fate: 'KEPT_IN_FULL',
     anchor: 'NONE',

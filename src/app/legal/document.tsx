@@ -50,11 +50,34 @@ import { scheduleFor, type Anchor, type ScheduleLine } from '@/lib/retention'
  * it to break at.
  */
 
-const PAGES: { key: DocKey; href: string; label: string }[] = [
+interface Page {
+  key: DocKey
+  href: string
+  label: string
+}
+
+const PAGES: Page[] = [
   { key: 'terms', href: '/terms', label: 'Terms' },
   { key: 'privacy', href: '/privacy', label: 'Privacy' },
   { key: 'dpa', href: '/dpa', label: 'Data processing' },
 ]
+
+/**
+ * The fourth document, which is not one of the three public pages.
+ *
+ * The census agreement is drawn by this same component — a lawyer
+ * reading it should recognize it as one of our documents rather than as
+ * a form — but it is not in the nav of the other three. It is read by
+ * somebody who was sent to it, about a census they are about to accept,
+ * and a visitor browsing the terms has no census and nothing to accept.
+ * Standing on it, the other three are still one click away, because the
+ * next question a procurement lead asks is about sub-processors.
+ */
+const CENSUS_PAGE: Page = {
+  key: 'census',
+  href: '/legal/census-agreement',
+  label: 'Census agreement',
+}
 
 /** Long machine paths break anywhere rather than widening the page. */
 const WRAP = 'break-words [overflow-wrap:anywhere]'
@@ -392,7 +415,8 @@ export function LegalDocument({
   doc: { title: string; intro: string; sections: Section[] }
   docKey: DocKey
 }) {
-  const current = PAGES.find((p) => p.key === docKey)!
+  const current = [...PAGES, CENSUS_PAGE].find((p) => p.key === docKey)!
+  const nav = docKey === 'census' ? [CENSUS_PAGE, ...PAGES] : PAGES
   const summary = SUMMARY[docKey]
 
   return (
@@ -403,7 +427,7 @@ export function LegalDocument({
         </a>
 
         <nav className="mt-6 flex flex-wrap gap-4" aria-label="Legal documents">
-          {PAGES.map((p) => (
+          {nav.map((p) => (
             <a
               key={p.href}
               href={p.href}

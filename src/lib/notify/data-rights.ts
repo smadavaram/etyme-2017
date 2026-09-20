@@ -192,6 +192,23 @@ export const FATES: CategoryFate[] = [
     until: 'as long as the records it is evidence about',
   },
   {
+    // Cross-boundary, and said out loud for the same reason the seat
+    // entry above is: this file is etyme-conversation's, and
+    // `data-rights-notices.test.ts` fails the moment `HELD` in
+    // `lib/legal` names a category with no fate beside it. One entry,
+    // written with the category it belongs to, rather than a red build
+    // between two commits.
+    category: 'A contractor census',
+    fate: 'UNDER_A_MARKER',
+    why:
+      'If you asked us for a contractor census, the files you sent are deleted on the day ' +
+      'the agreement you accepted named, whether or not you ask. The row saying how many ' +
+      'files there were and the day they went stays, because it is our proof that we ' +
+      'deleted them when we said we would — and your name and your work address come off ' +
+      'it.',
+    until: null,
+  },
+  {
     category: 'Company and supplier records',
     fate: 'KEPT',
     why: 'A company\'s own legal and trading records are the company\'s, not a person\'s, and are not erased by a person\'s request.',

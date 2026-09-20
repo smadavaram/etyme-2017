@@ -405,6 +405,19 @@ export const HELD: HeldCategory[] = [
     provenBy: 'Blacklist, DoNotSubmit, Favorite in prisma/schema.prisma',
   },
   {
+    category: 'A contractor census',
+    examples:
+      'What a client sent us before they were a customer, so we could give them one page ' +
+      'of numbers about their own contingent workforce: the company name, the contact name ' +
+      'and work address typed on a page with no login behind it, the desk they sit at, who ' +
+      'accepted the one-page census agreement and which edition, and the files themselves — ' +
+      'a filled template or their own supplier invoices and timesheets. The files are ' +
+      'deleted on a day fixed when they arrived; the row saying how many there were and ' +
+      'when they went outlives them, because it is the proof we did it on the day we said.',
+    about: 'Business users',
+    provenBy: 'CensusRequest, CensusFile in prisma/schema.prisma, src/lib/census.ts',
+  },
+  {
     category: 'Company and supplier records',
     examples:
       'Legal name, addresses, tax registration, org units, cost centers, roles, ' +
@@ -1155,9 +1168,150 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
   ],
 }
 
+// ── The fourth document: the one page a census client's legal reads ───
+
+/**
+ * The census agreement.
+ *
+ * Not a contract and not an addendum: one page, six headings, read by a
+ * procurement lead or a lawyer in the two minutes before they say yes to
+ * a company they had not heard of last week. `docs/census-brief.md`:
+ * "Legal reads one page, not a contract."
+ *
+ * It is the fourth document beside the terms, the privacy notice and the
+ * DPA, and it is the only one anybody **accepts by name** — the other
+ * three are read. `CensusRequest.agreementAcceptedBy`, `-At` and
+ * `-Version` hold that acceptance, and `lib/census`'s
+ * `AGREEMENT_VERSION` is the edition written into the row, because which
+ * edition somebody accepted is the finding in an audit.
+ *
+ * Every sentence below is true of the code today or it does not belong
+ * here. The three that matter most — the day we delete it, that we never
+ * approach their suppliers or their contractors, and that a named person
+ * reads it — are each held by a test, because a promise in prose that
+ * nothing checks is the one that quietly stops being true.
+ */
+export const CENSUS_AGREEMENT: { title: string; intro: string; sections: Section[] } = {
+  title: 'Census agreement',
+  intro:
+    'You are about to send us data about your own contingent workforce so that we can ' +
+    'give you one page of numbers back. This is the whole of what we undertake about ' +
+    'that data. It is one page on purpose: six things get asked before a file moves, and ' +
+    'they are the six headings below.',
+  sections: [
+    {
+      heading: 'What we receive',
+      paragraphs: [
+        'Whatever you choose to send, and nothing we go and get. There are two ways to ' +
+          'send it and the lighter one is the default: a filled template with one row per ' +
+          'contractor — supplier, role, site, start date, end date, rate, hours a week — or ' +
+          'your own supplier invoices and timesheets where you have nothing tidier.',
+        'The template asks for no names. A reference number of your own is enough, and a ' +
+          'census sent that way holds no personal data at all beyond the work address of ' +
+          'whoever asked for it. That is the point of offering it first.',
+        'We accept a CSV, a PDF, an Excel file or a Word file, up to five megabytes each ' +
+          'and fifty megabytes for the census. Nothing else is taken, because a file ' +
+          'nobody here can open is a file we would have to ask you for again.',
+      ],
+      provenBy: 'src/lib/census.ts, src/app/api/census/upload/route.ts',
+    },
+    {
+      heading: 'Who at Etyme can see it',
+      paragraphs: [
+        'One named person. You are told who runs your census when you ask for it, and ' +
+          'only that person can open your files — not our staff generally, and nobody at ' +
+          'any other company on this platform, ever.',
+        'Every time one of your files is opened it is counted on the file and recorded ' +
+          'against the person who opened it, with the day and the hour. A refusal is ' +
+          'recorded the same way, because a refusal is the interesting one. You can ask ' +
+          'for that record at any time and we will send it.',
+        'Nothing computes your census before a person has read your file. There is no ' +
+          'self-serve path through this and no model is asked to decide anything about ' +
+          'your workforce.',
+      ],
+      provenBy: 'src/app/api/census/review/route.ts, src/lib/access-log.ts',
+    },
+    {
+      heading: 'Where it sits',
+      paragraphs: [
+        'In our own database, in the United States, inside the same system every other ' +
+          'record in this product lives in. The files are held as bytes in the database ' +
+          'rather than in a bucket somewhere else — which is also what makes the deletion ' +
+          'below honest, because deleting the row deletes the data and there is no object ' +
+          'left behind for somebody to sweep later.',
+        'Your rows are loaded into a private company of your own, created for this census ' +
+          'and used for nothing else. It is not shared, not pooled, and no number from it ' +
+          'appears in anything we publish or show another client. We run no benchmark ' +
+          'across clients and none is planned.',
+        'The services this product depends on are listed in full in the data processing ' +
+          'addendum, with what reaches each one. Nothing new is introduced for a census.',
+      ],
+      provenBy: 'prisma/schema.prisma, src/lib/census.ts',
+    },
+    {
+      heading: 'We never approach your suppliers or your contractors',
+      paragraphs: [
+        'Your census names your suppliers and it may name people working for you. We do ' +
+          'not write to any of them, do not invite them to this platform on the strength ' +
+          'of it, and do not use what you sent to sell anything to anybody. Etyme runs no ' +
+          'bench and places nobody, so we are not a competitor of your suppliers and have ' +
+          'nothing to gain by going near them.',
+        'Asking for a census does not add you to a list either. Nothing automatic happens ' +
+          'next: the person running your census writes to you, by hand, and that is all.',
+      ],
+      provenBy: 'src/lib/census.ts, src/app/api/census/request/route.ts',
+    },
+    {
+      heading: 'The day we delete it',
+      paragraphs: [
+        'Forty-five days after your files arrive. You are given that exact date when we ' +
+          'confirm receipt, it is printed on the page we send you, and it is the same date ' +
+          'the nightly job reads — there is one date, in one place, so the three cannot ' +
+          'disagree.',
+        'It does not move. It is not recalculated when we send your page and it is not ' +
+          'extended because somebody is busy. Forty-five days covers the five working days ' +
+          'we take to produce your page and thirty days with it in your hands, which is ' +
+          'what we said we would give you.',
+        'On that day the files themselves go, the rows loaded from them go, and the ' +
+          'private company they sat in goes. What is left is one row saying how many files ' +
+          'there were, how many bytes, and the day they were deleted — kept deliberately, ' +
+          'because it is the proof that we did it when we said we would. Nothing puts the ' +
+          'data back.',
+      ],
+      provenBy: 'src/lib/census.ts, src/lib/data-request.ts, src/lib/retention.ts',
+    },
+    {
+      heading: 'What happens if you start a program',
+      paragraphs: [
+        'If you decide to run contingent workforce on Etyme, the deletion is cancelled and ' +
+          'your data stays — it becomes the opening balance of your own program rather ' +
+          'than something we throw away and ask you to send again. The cancellation is ' +
+          'recorded with a reason and the date it was called off, and it is the only thing ' +
+          'that changes the date above.',
+        'If you do not, the date stands, and you do not have to do anything or ask anybody ' +
+          'for it to happen.',
+        'There is no price on a census and none on anything else yet. Etyme is free while ' +
+          'it is being tested and no price has been set, so nothing here is conditional on ' +
+          'your buying anything.',
+      ],
+      provenBy: 'src/lib/census.ts, src/app/api/census/review/route.ts',
+    },
+  ],
+}
+
 // ── How the three pages are read ──────────────────────────────────────
 
-export type DocKey = 'terms' | 'privacy' | 'dpa'
+/**
+ * The four documents, and the fourth is not like the other three.
+ *
+ * Terms, privacy and the DPA are public pages a reader arrives at. The
+ * census agreement is accepted, by name, by somebody at a client before
+ * a file moves — so it carries an edition, it is recorded against the
+ * census it was accepted for, and it is rendered through the same
+ * component as the other three precisely so a lawyer reading it
+ * recognizes it as one of our documents rather than a form.
+ */
+export type DocKey = 'terms' | 'privacy' | 'dpa' | 'census'
 
 /**
  * A section's address on its page.
@@ -1176,7 +1330,10 @@ export function sectionId(heading: string): string {
 
 /** Every section of a document, keyed by its address. */
 export function sectionsOf(key: DocKey): Section[] {
-  return key === 'terms' ? TERMS.sections : key === 'privacy' ? PRIVACY.sections : DPA.sections
+  if (key === 'terms') return TERMS.sections
+  if (key === 'privacy') return PRIVACY.sections
+  if (key === 'census') return CENSUS_AGREEMENT.sections
+  return DPA.sections
 }
 
 /**
@@ -1215,6 +1372,63 @@ export const SUMMARY_ASKS = [
 ] as const
 
 export const SUMMARY: Record<DocKey, SummaryLine[]> = {
+  /**
+   * The census agreement answers six different questions, and they are
+   * the six a procurement lead asks before a file moves rather than the
+   * six a reader of a privacy notice asks. Same box, same shape, and no
+   * pretense that "your rights" is what somebody sending a spreadsheet
+   * of contractor rates is worried about at that moment.
+   */
+  census: [
+    {
+      ask: 'What you receive',
+      answer:
+        'Whatever you send and nothing we go and get: a filled template with one row per ' +
+        'contractor, or your own supplier invoices and timesheets. The template asks for no ' +
+        'names, and a census sent that way holds no personal data at all.',
+      href: '#what-we-receive',
+    },
+    {
+      ask: 'Who can see it',
+      answer:
+        'One named person at Etyme, told to you when you ask. Every open of one of your ' +
+        'files is counted and recorded against them, refusals included, and nobody at any ' +
+        'other company ever sees it.',
+      href: '#who-at-etyme-can-see-it',
+    },
+    {
+      ask: 'Where it sits',
+      answer:
+        'In our own database in the United States, as bytes rather than in a bucket ' +
+        'somewhere else, inside a private company created for your census and used for ' +
+        'nothing else. No number from it goes into a benchmark.',
+      href: '#where-it-sits',
+    },
+    {
+      ask: 'Whether you approach our suppliers',
+      answer:
+        'We do not write to your suppliers or your contractors, do not invite them here on ' +
+        'the strength of your file, and sell nothing to anybody from it. Etyme runs no bench ' +
+        'and places nobody, so there is nothing to be gained by going near them.',
+      href: '#we-never-approach-your-suppliers-or-your-contractors',
+    },
+    {
+      ask: 'The day you delete it',
+      answer:
+        'Forty-five days after your files arrive. You are given the exact date on the ' +
+        'confirmation, it is printed on the page we send you, and the nightly job reads the ' +
+        'same date. It does not move.',
+      href: '#the-day-we-delete-it',
+    },
+    {
+      ask: 'If we start a program',
+      answer:
+        'The deletion is cancelled with a reason recorded and your data becomes the opening ' +
+        'balance of your own program. That is the only thing that changes the date, and if ' +
+        'you do nothing the date stands.',
+      href: '#what-happens-if-you-start-a-program',
+    },
+  ],
   privacy: [
     {
       ask: 'What you hold',
@@ -1413,6 +1627,29 @@ export interface CrossLink {
 }
 
 export const CROSS_LINKS: Record<DocKey, CrossLink[]> = {
+  census: [
+    {
+      href: '#the-day-we-delete-it',
+      label: 'The day we delete it',
+      note:
+        'Forty-five days after your files arrive, on one date read by the confirmation, the ' +
+        'page and the nightly job alike. The clause a security review reads first.',
+    },
+    {
+      href: '/privacy',
+      label: 'Privacy notice',
+      note:
+        'Everything else this product holds, about whom, for how long, and what a person ' +
+        'may ask for. A census is one category in it, named there too.',
+    },
+    {
+      href: '/dpa',
+      label: 'Data processing addendum',
+      note:
+        'The sub-processor list and the breach clock, for the part of your review that is ' +
+        'about us rather than about this file. Nothing new is introduced for a census.',
+    },
+  ],
   privacy: [
     {
       href: '/dashboard/my-data',
@@ -1473,7 +1710,7 @@ export const CROSS_LINKS: Record<DocKey, CrossLink[]> = {
   ],
 }
 
-export const DOCUMENTS = { TERMS, PRIVACY, DPA } as const
+export const DOCUMENTS = { TERMS, PRIVACY, DPA, CENSUS_AGREEMENT } as const
 
 /** Every sentence rendered on the three pages, for a test to read. */
 export function allProse(): string {
@@ -1508,5 +1745,6 @@ export function allProse(): string {
     doc(TERMS),
     doc(PRIVACY),
     doc(DPA),
+    doc(CENSUS_AGREEMENT),
   ].join('\n')
 }

@@ -573,6 +573,11 @@ const PAGE_OF: Record<DocKey, string> = {
   terms: '/terms',
   privacy: '/privacy',
   dpa: '/dpa',
+  // The fourth document is not one of the three public pages and is not
+  // in `DOC_KEYS` below, so nothing in this file walks it. It is here
+  // because the map is keyed by every `DocKey`, and the census
+  // agreement's own promises are held by `census-agreement.test.ts`.
+  census: '/legal/census-agreement',
 }
 /** Anchors the shared component draws on every page, section or not. */
 const STANDING_ANCHORS = ['asked-first', 'words-used-here', 'for-counsel', 'where-to-go-next']

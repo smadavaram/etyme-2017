@@ -347,7 +347,7 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
     classifications, exempts, sells, buys, timesheets, expenses,
     invoiceLines, messages, accessLogs, blacklists, doNotSubmits, favorites,
     seats, approvals, raised, signedWeeks, overtimeCalls, classedOthers,
-    supplierDecisions, holdsPlaced, breachesOpened, signatures,
+    supplierDecisions, holdsPlaced, breachesOpened, censuses, signatures,
   ] = await Promise.all([
     prisma.credential.findMany({ where: { personId }, select: { provider: true, email: true, lastUsedAt: true, createdAt: true } }),
     prisma.consultantProfile.findUnique({ where: { personId }, select: { headline: true, skills: true, location: true, workAuth: true, rateFloor: true, slug: true, mobile: true, availableFrom: true, visibility: true } }),
@@ -430,6 +430,18 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
       where: { openedById: personId },
       select: { summary: true, discoveredAt: true, closedAt: true },
     }),
+    prisma.censusRequest.findMany({
+      where: { workEmail: person.primaryEmail },
+      select: {
+        companyName: true, contactName: true, desk: true, option: true, status: true,
+        createdAt: true, queuePosition: true, assignedStaffEmail: true,
+        agreementAcceptedBy: true, agreementAcceptedAt: true, agreementVersion: true,
+        filesReceivedAt: true, receivedFileCount: true, receivedBytes: true,
+        deliveredAt: true, gapsNote: true,
+        deleteBy: true, deletedAt: true, deletionCancelledBecause: true,
+        files: { select: { fileName: true, contentType: true, sizeBytes: true, uploadedAt: true, readCount: true } },
+      },
+    }),
     prisma.agreementSignature.findMany({
       where: { OR: [{ attestedById: personId }, { signerEmail: person.primaryEmail }] },
       select: {
@@ -506,6 +518,14 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
         incidentsOpened: breachesOpened,
         agreementsSigned: signatures,
       },
+      'A contractor census': censuses.map((c) => ({
+        ...c,
+        note:
+          'What you sent us before you were a customer, and what we did with it. The files ' +
+          'are named rather than pasted in. They are deleted on the date shown, whether or ' +
+          'not you ask; what stays after that is the count and the day, which is how we ' +
+          'prove we deleted them when we said we would.',
+      })),
       'Messages': messages,
       'Logs': accessLogs,
     },

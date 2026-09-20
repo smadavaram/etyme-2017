@@ -225,7 +225,7 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
   const [
     credentials, profile, resumes, visas, verifications, packets,
     classifications, exempts, sells, buys, timesheets, messages,
-    accessLogs, blacklists, doNotSubmits, favorites,
+    accessLogs, blacklists, doNotSubmits, favorites, censuses,
     seats, approvals, requisitions, signedWeeks, deskDecisions,
   ] = await Promise.all([
     prisma.credential.count({ where: { personId } }),
@@ -244,6 +244,11 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
     prisma.blacklist.count({ where: { targetType: 'PERSON', targetId: personId } }),
     prisma.doNotSubmit.count({ where: { personId } }),
     prisma.favorite.count({ where: { targetType: 'PERSON', targetId: personId } }),
+    // A census somebody asked for from a page with no login behind it.
+    // Found by their work address, because that is the only thing
+    // joining a census to a person here: nobody at the client had an
+    // account when they asked, so there is no foreign key to follow.
+    prisma.censusRequest.count({ where: { workEmail: person.primaryEmail } }),
     // The business-user side of the same person. Everybody who signs in
     // holds a seat, and a seat that decided things is the company's own
     // record of its own decisions — so it is counted, and the letter
@@ -273,6 +278,7 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
     'Money about a person': sells + buys + timesheets,
     'Time on site': sells,
     'Bars and preferences': blacklists + doNotSubmits + favorites,
+    'A contractor census': censuses,
     // Both of these are about a company, not about a person, and the
     // schema says so on `Company.erasedAt`: a firm's own legal and
     // trading records are the firm's and are not erased by a person's
@@ -493,6 +499,30 @@ export async function executeErasure(
       await tx.agreementSignature.updateMany({
         where: { id: { in: signed.map((r) => r.id) } },
         data: { signerName: tombstone.name, signerEmail: null },
+      })
+    }
+
+    // 4c. A census carries a name and a work address as **text**, for
+    //     the same reason a signature does: nobody at the client had an
+    //     account when they asked for it, so there is no link from the
+    //     row to this person for a tombstone to reach. The row itself
+    //     stays — it is the proof we deleted their files on the day we
+    //     said — and the name, the address and whoever accepted the
+    //     agreement become the marker. The files are not touched here:
+    //     they go on their own date, which is sooner than any of this.
+    const censuses = await tx.censusRequest.findMany({
+      where: { workEmail: was.primaryEmail },
+      select: { id: true, agreementAcceptedBy: true },
+    })
+    for (const c of censuses) {
+      await tx.censusRequest.update({
+        where: { id: c.id },
+        data: {
+          contactName: tombstone.name,
+          workEmail: tombstone.primaryEmail,
+          assignedStaffEmail: undefined,
+          ...(c.agreementAcceptedBy ? { agreementAcceptedBy: tombstone.name } : {}),
+        },
       })
     }
 
