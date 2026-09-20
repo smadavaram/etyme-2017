@@ -213,9 +213,11 @@ describe('The contractor census — somewhere honest to put a client’s own row
     // trail cannot hang off them: on the 21st we still have to say who
     // opened what on the 20th. `fileId` and `fileName` are therefore
     // plain columns with no foreign key behind them.
-    expect(field('CensusRead', 'fileId').kind).toBe('scalar')
-    expect(field('CensusRead', 'fileName').kind).toBe('scalar')
-    expect(model('CensusRead').fields.map((f) => f.name)).not.toContain('file')
+    const shape = model('CensusRead').fields
+    for (const f of ['fileId', 'fileName']) {
+      expect(shape.find((x) => x.name === f)?.kind, f).toBe('scalar')
+    }
+    expect(shape.map((f) => f.name)).not.toContain('file')
     // And the reader is an address, for the same reason the assigned
     // staff person is: staff hold no seat anywhere.
     expect(field('CensusRead', 'readerEmail').type).toBe('String')
