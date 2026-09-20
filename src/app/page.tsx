@@ -1192,8 +1192,8 @@ export default function LandingPage() {
                 Most of what runs without being asked is a rule, not a model
               </h2>
               <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
-                Twenty-one things in here happen without anybody asking for them.
-                Twenty of the twenty-one are a date, a threshold or a count: a
+                Twenty-three things in here happen without anybody asking for
+                them. Twenty-two of the twenty-three are a date, a threshold or a count: a
                 permit running out, an agreement past its term, a retention
                 period that has ended. The one that is left scores a person
                 against a role, and it falls back to arithmetic when there is no

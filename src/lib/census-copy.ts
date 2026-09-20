@@ -269,6 +269,31 @@ export const CENSUS_COPY = {
     failed: 'That did not send. Try again, or write to us and a person picks it up.',
   },
 
+  /**
+   * What somebody reads when they arrive on the link from the letter.
+   *
+   * The agreed letter carries `/census?token=…` (`censusUploadUrl`), so
+   * the person opening it did the first two steps in another session,
+   * possibly days ago and possibly not on this device. They are not
+   * asking for a census — they are sending files into one that exists.
+   * So the page says which of those two it thinks is happening, rather
+   * than dropping them at an upload box with no explanation of why the
+   * form they filled in has gone.
+   *
+   * The second sentence exists because the address bar visibly changes
+   * under them. The token is the one thing here worth stealing and it
+   * is taken out of the URL as soon as it is read, so the page says
+   * that instead of letting it look like a bug.
+   */
+  arrival: {
+    says:
+      'You are here from the link in your census letter. Your agreement is accepted, so this ' +
+      'is the step it left you on.',
+    tokenSays:
+      'The link is used once from this page and taken out of the address bar, because it is ' +
+      'what lets files into your census.',
+  },
+
   desks: [
     { value: 'PROGRAM', label: 'Program office' },
     { value: 'FINANCE', label: 'Finance' },
@@ -333,9 +358,22 @@ export interface FlowState {
   uploadToken: string | null
   /** The receipt sentence, once files have arrived. */
   receiptSays: string | null
+  /**
+   * True where the token came from the letter rather than from this
+   * session, which is a different person at a different moment.
+   *
+   * It changes what is drawn and nothing else: somebody who arrived on
+   * the link is not shown the two steps they completed days ago,
+   * written as they are in the instruction tense. It never decides
+   * whether a step is offered — `currentStep` does that off the token,
+   * because only acceptance mints one.
+   */
+  arrivedByLink: boolean
 }
 
-export const NOTHING_YET: FlowState = { requestId: null, uploadToken: null, receiptSays: null }
+export const NOTHING_YET: FlowState = {
+  requestId: null, uploadToken: null, receiptSays: null, arrivedByLink: false,
+}
 
 /**
  * Which step somebody is on.
@@ -347,10 +385,18 @@ export const NOTHING_YET: FlowState = { requestId: null, uploadToken: null, rece
  * no receipt sentence has had no file arrive.
  */
 export function currentStep(state: FlowState): StepKey {
-  if (!state.requestId) return 'ASK'
-  if (!state.uploadToken) return 'AGREE'
-  if (!state.receiptSays) return 'UPLOAD'
-  return 'DONE'
+  // Read backwards, from the furthest thing that has happened. It used
+  // to read forwards from the request id, which was the same answer for
+  // every state this page could reach on its own — and the wrong answer
+  // for the one it could not: somebody arriving on the link from the
+  // agreed letter holds a token and no request id, and was sent back to
+  // the form to ask for a census they had already asked for. A token
+  // exists because acceptance minted one and for no other reason, so a
+  // token is proof the first two steps happened.
+  if (state.receiptSays) return 'DONE'
+  if (state.uploadToken) return 'UPLOAD'
+  if (state.requestId) return 'AGREE'
+  return 'ASK'
 }
 
 /**
@@ -365,7 +411,15 @@ export function currentStep(state: FlowState): StepKey {
 export function stepsSoFar(state: FlowState): Step[] {
   const here = currentStep(state)
   const upTo = STEPS.findIndex((s) => s.key === here)
-  return STEPS.slice(0, upTo + 1).map((step, i) => (i === upTo ? step : { ...step, button: null }))
+  // Somebody who came in on the link is not shown the asking and the
+  // accepting. They did both, in another session, and the headings are
+  // written in the tense of something about to happen — "Read the
+  // census agreement and type the name of whoever is accepting it"
+  // reads like a step still owed. `arrival.says` stands in their place
+  // and says what the page thinks happened.
+  const from = state.arrivedByLink ? STEPS.findIndex((s) => s.key === 'UPLOAD') : 0
+  return STEPS.slice(from, upTo + 1)
+    .map((step) => (step.key === here ? step : { ...step, button: null }))
 }
 
 /**
@@ -419,6 +473,8 @@ export function everySentence(): string[] {
     CENSUS_COPY.promise.standfirst,
     CENSUS_COPY.promise.agreementLabel,
     CENSUS_COPY.promise.versionSays,
+    CENSUS_COPY.arrival.says,
+    CENSUS_COPY.arrival.tokenSays,
     kindsSentence(),
     limitsSentence(),
     ...deletionPromise(),

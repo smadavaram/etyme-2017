@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   CENSUS_COPY,
@@ -28,13 +28,25 @@ import { ACCEPTED, checkWorkEmail } from '@/lib/census'
  * What survives a closed tab is the census row and the person running
  * it, who writes back by hand.
  *
- * **The gap that leaves, said out loud:** somebody who closes this tab
- * between accepting the agreement and uploading has no way back in
- * today. The letter that carries the upload link exists as a function —
- * `etyme-conversation` wrote the five letters on 2026-09-20 — and no
- * route sends it yet, because sending is regulatory's. Until one does,
- * the only way back is writing to the person running the census, which
- * is true and is not a substitute for the link.
+ * ── The one thing that does arrive in the address bar ────────────────
+ *
+ * Closed above with the letter, on 2026-09-20. Somebody who closes this
+ * tab between accepting the agreement and uploading used to have no way
+ * back in; the agreed letter now carries `/census?token=…`
+ * (`censusUploadUrl`), and this page reads it.
+ *
+ * It is read **once**, on arrival, and then taken straight back out
+ * with `history.replaceState`. The paragraph above is the reason and
+ * nothing about it has softened: the token is the one thing here worth
+ * stealing, and a URL is copied into chat windows, read by proxies and
+ * kept in a history that outlives the tab. So the arrival URL is the
+ * only place it is ever written, the page tells the reader it has gone,
+ * and what is left in the address bar is `/census`.
+ *
+ * The token is proof the first two steps happened — acceptance mints
+ * one and nothing else does — so `currentStep` opens at the upload
+ * step, and the asking and the accepting are not redrawn at somebody
+ * who did them days ago.
  *
  * ── A step not yet reached is not drawn ──────────────────────────────
  *
@@ -77,6 +89,48 @@ const NOBODY_ASSIGNED_YET =
 export function CensusFlow() {
   const [state, setState] = useState<FlowState>(NOTHING_YET)
   const [busy, setBusy] = useState<Busy>(null)
+
+  /**
+   * The link from the agreed letter, read once and taken back out.
+   *
+   * In an effect rather than in the initial state on purpose: this
+   * component is rendered on the server too, where there is no address
+   * bar, and a first client render that disagreed with the server's
+   * would be a hydration error. So the page paints, the token is read,
+   * and the state moves to the upload step in the same tick.
+   *
+   * `replaceState` rather than `push`, so Back goes where the reader
+   * came from rather than back onto a URL carrying the token. The
+   * search is rebuilt without it and any other parameter is left alone.
+   */
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const token = url.searchParams.get('token')
+    if (!token) return
+    setState({ requestId: null, uploadToken: token, receiptSays: null, arrivedByLink: true })
+    url.searchParams.delete('token')
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  }, [])
+
+  /**
+   * And put the step in front of them.
+   *
+   * Everything above this component — what a census gives back, what to
+   * send, the six promises — is written for somebody deciding whether
+   * to ask for one. This reader decided days ago and clicked a link
+   * that said send your files. Landing four screens above the only
+   * thing they came to do is the same bug as landing on step one, one
+   * scroll further down.
+   *
+   * A second effect because the panel does not exist until the state
+   * set above has drawn it, and it runs once: after an upload
+   * `receiptSays` is set and this stops moving the page under somebody
+   * reading their own receipt.
+   */
+  useEffect(() => {
+    if (!state.arrivedByLink || state.receiptSays) return
+    document.getElementById('census-arrived')?.scrollIntoView({ block: 'start' })
+  }, [state.arrivedByLink, state.receiptSays])
 
   // The form
   const [contactName, setContactName] = useState('')
@@ -218,6 +272,26 @@ export function CensusFlow() {
 
   return (
     <div className="space-y-8">
+      {/* Where the reader came from, and where the link went. Drawn
+          only for an arrival, because it is the only case in which the
+          page skips two steps and rewrites the address bar under
+          somebody. Both sentences are in `census-copy` with every other
+          thing a visitor reads, so they are inside the length rule and
+          the price rule. */}
+      {state.arrivedByLink && (
+        <section
+          id="census-arrived"
+          className="rounded-xl border border-etyme-rule bg-etyme-surface p-5 sm:p-6"
+        >
+          <p className="max-w-[60ch] text-[15px] leading-relaxed text-etyme-ink">
+            {CENSUS_COPY.arrival.says}
+          </p>
+          <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-etyme-muted">
+            {CENSUS_COPY.arrival.tokenSays}
+          </p>
+        </section>
+      )}
+
       {steps.map((step) => (
         <section
           key={step.key}

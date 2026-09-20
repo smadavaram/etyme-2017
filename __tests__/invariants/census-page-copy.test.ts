@@ -305,6 +305,55 @@ describe('The census page says what the software does, in the software’s own w
     expect(queueSays(1)).toContain('Yours is next')
   })
 
+  it('a client arriving from the agreed letter lands on the upload step, not on the form', () => {
+    // The letter carries `/census?token=…` (`censusUploadUrl`), and
+    // whoever opens it asked for the census and accepted the agreement
+    // already — in another session, possibly on another device. A
+    // token exists because acceptance minted one and for no other
+    // reason, so holding one is proof both steps happened.
+    const arrived = {
+      ...NOTHING_YET, uploadToken: 'from-the-letter', arrivedByLink: true,
+    }
+    expect(currentStep(arrived)).toBe('UPLOAD')
+    expect(offered(arrived).map((s) => s.key)).toEqual(['UPLOAD'])
+    // And the two steps they finished days ago are not redrawn at them
+    // in the tense of something still owed.
+    expect(stepsSoFar(arrived).map((s) => s.key)).toEqual(['UPLOAD'])
+    // The receipt follows the upload on the same arrival, so somebody
+    // who came in on the link still reads the deletion date.
+    const received = { ...arrived, receiptSays: 'Received, 1 file, 166 bytes.' }
+    expect(currentStep(received)).toBe('DONE')
+    expect(stepsSoFar(received).map((s) => s.key)).toEqual(['UPLOAD', 'DONE'])
+    expect(offered(received)).toEqual([])
+    // The page reads the URL rather than waiting for somebody to paste
+    // the token into a box.
+    expect(FLOW_CODE).toContain("searchParams.get('token')")
+    expect(FLOW_CODE).toContain('arrivedByLink: true')
+    // And it says which of the two things it thinks is happening.
+    expect(CENSUS_COPY.arrival.says).toContain('from the link in your census letter')
+    expect(CENSUS_COPY.arrival.says).toContain('Your agreement is accepted')
+  })
+
+  it('the token is read once and taken out of the address bar', () => {
+    // A credential in a URL is a credential in a browser history, in a
+    // corporate proxy log and in whatever the reader pastes into their
+    // own chat. The arrival URL is the only place this one is ever
+    // written: it is read on mount and replaced away in the same tick.
+    expect(FLOW_CODE).toContain("searchParams.delete('token')")
+    expect(FLOW_CODE).toContain('window.history.replaceState')
+    // Never pushed, because Back would then land on the token again.
+    expect(FLOW_CODE).not.toContain('history.pushState')
+    // Nothing writes it back afterwards: the only place `token` reaches
+    // the address bar is the arrival read, and the only other place it
+    // travels is the body of the upload request.
+    expect(FLOW_CODE).not.toMatch(/\?token=/)
+    expect(FLOW_CODE).toContain("form.append('token'")
+    // And the reader is told, because the address bar visibly changes
+    // under them and an unexplained change reads as a bug.
+    expect(CENSUS_COPY.arrival.tokenSays).toContain('taken out of the address bar')
+    expect(all).toContain(CENSUS_COPY.arrival.tokenSays)
+  })
+
   it('every grid on the page stacks on a phone', () => {
     // The founder reads this on a phone. An unprefixed column count
     // applies from zero up, which is a layout that never stacks.
