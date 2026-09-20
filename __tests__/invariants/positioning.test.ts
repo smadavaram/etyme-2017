@@ -49,6 +49,7 @@ import {
   check, verdict, copyFrom, gridsWithoutBreakpoint, priceClaims, namedCompanies,
   headlinesFrom, withoutVerb, longSentences, settingTheOfferAside,
   readsAsAimedAtSuppliers, offersTheProgramOffice, sizesAgainstIncumbents,
+  THE_COMPARISON, timesCompared, settingTheComparisonAside,
   type Copy,
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
@@ -641,19 +642,24 @@ describe('Below the hero, the page says what the business is', () => {
     expect(all).not.toContain('within an hour')
   })
 
-  it('keeps the eyebrow and headline the founder said were fine', () => {
-    // The subhead is not pinned word for word — it was rewritten once
-    // already, in plainer English on the founder's own instruction, and
-    // pinning prose expected to keep getting plainer is how a test
-    // starts fighting the person it exists to serve.
-    expect(words[1]).toBe('Contingent workforce management')
+  it('names the category in the words the buyer uses, then the line the founder signed off', () => {
+    // "Contingent workforce management" is what we call it. "Vendor
+    // management system" is what a CTO with fifty contractors calls it,
+    // and he is the one reading. Changed 2026-09-20, after a real buyer
+    // read the page and could not tell what the product was.
+    expect(words[1]).toBe('Vendor management system')
     expect(words[2]).toBe('Every contractor. Every supplier. One record.')
   })
 
-  it('says the hero subhead in plain, spoken English — short sentences, no jargon', () => {
+  it('says the hero subhead in concrete nouns a reader can picture', () => {
+    // Contractors, suppliers, timesheets, invoices. The subhead used to
+    // describe an absence — "nobody has one record" — which is true and
+    // is not a thing anybody can see. This names what is on the screens
+    // underneath it, in the order the steps come in.
     const sub = words[3]
-    expect(sub).toContain('You hire contractors through staffing firms')
-    expect(sub).toContain('Nobody has one record')
+    for (const noun of ['contractor', 'supplier', 'timesheets', 'invoice']) {
+      expect(sub, noun).toContain(noun)
+    }
     // Plain means short sentences. A subhead built from one 44-word
     // sentence is not what "bring it down to earth" asked for.
     const longestSentence = Math.max(...sub.split(/[.!?]/).map((s: string) => s.trim().split(/\s+/).filter(Boolean).length))
@@ -945,6 +951,170 @@ describe('The record is the product, and the program office is offered quietly',
     // to tell it apart from a page about engineers.
     expect(all).toContain('VMS software')
     expect(check(live).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
+  })
+})
+
+// ── Screens before sentences ─────────────────────────────────────────
+//
+// Added 2026-09-20. The founder gave this page to the CTO of a
+// two-billion-dollar company with forty to fifty IT contractors bought
+// through staffing firms — the exact buyer. He said he did not
+// understand what the app does, and that it looked like an AI app.
+// "We are SAP Fieldglass" connected at once.
+//
+// Nothing in this file could have caught that. The page named the
+// category, kept AI out of the hero, placed nobody and stayed
+// horizontal, and a buyer still could not tell what it was. What was
+// missing was the product: a dense screen with numbers on it reads as
+// enterprise software, and three paragraphs about a record read as a
+// pitch deck.
+//
+// So these five hold the shape of the answer rather than its wording:
+// a real screen before the argument, every image on disk, a hard limit
+// on the prose above it, four steps a CTO recognizes, and exactly one
+// named comparison.
+
+/** Every screenshot the page draws, in source order. */
+const SCREENS = [...PAGE.matchAll(/\/screens\/[\w-]+\.png/g)].map((m) => m[0])
+
+describe('The page shows the product before it describes it', () => {
+
+  it('shows the product before it describes it: a real screen sits under the hero', () => {
+    // The first thing under the headline and the five sentences is a
+    // photograph of the thing, taken from the seeded demo, and it comes
+    // before the argument starts at #gap.
+    const firstImage = PAGE.indexOf('<img')
+    const headline = PAGE.indexOf('Every contractor. Every supplier. One record.')
+    expect(firstImage, 'there is a screenshot on the page at all').toBeGreaterThan(0)
+    expect(firstImage, 'the screen sits under the hero headline').toBeGreaterThan(headline)
+    expect(firstImage, 'and before the page starts arguing').toBeLessThan(at('gap'))
+    // And it is the client's own dashboard, which is the screen that
+    // answers "what is this" in one look. Read off the rendered tag
+    // rather than off the data, because the step images are declared at
+    // the top of the file and drawn further down.
+    const firstDrawn = /src="(\/screens\/[\w-]+\.png)"/.exec(PAGE)?.[1]
+    expect(firstDrawn).toBe('/screens/program-dashboard.png')
+    expect(
+      existsSync(join(process.cwd(), 'public/screens/program-dashboard.png')),
+      'public/screens/program-dashboard.png'
+    ).toBe(true)
+  })
+
+  it('every screenshot on the page is a file that exists under public/screens', () => {
+    // A marketing page with a broken image is worse than a page with no
+    // image. These are checked in as files, not hotlinked, and a
+    // rename that misses one fails here rather than in front of a buyer.
+    expect(SCREENS.length, 'the page draws screenshots').toBeGreaterThanOrEqual(5)
+    for (const src of SCREENS) {
+      const file = join(process.cwd(), 'public', src)
+      expect(existsSync(file), `${src} is not in public/screens`).toBe(true)
+    }
+    // Every one carries alternative text and a caption, because the
+    // screenshot is the argument and a reader who cannot see it is owed
+    // the same argument in words.
+    const tags = PAGE.split('<img').slice(1).map((t) => t.slice(0, 700))
+    expect(tags.length, 'an img tag per place a screen is drawn').toBeGreaterThanOrEqual(3)
+    for (const tag of tags) expect(tag.slice(0, 200), tag.slice(0, 80)).toMatch(/alt=/)
+    expect((PAGE.match(/<figcaption/g) ?? []).length).toBe(tags.length)
+    // And each image declares a width and a height, so nothing on the
+    // page jumps while the screenshots load.
+    for (const tag of tags) expect(tag, tag.slice(0, 80)).toMatch(/width=\{1440\}/)
+  })
+
+  it('the top of the page has at most six sentences before the first screen', () => {
+    // Six is the refusal line, not the target. The eyebrow is two words
+    // and the headline is the line the founder signed off — neither is
+    // prose — so what is counted is everything a reader actually reads
+    // between the headline and the first screenshot.
+    const headline = 'Every contractor. Every supplier. One record.'
+    const top = PAGE.slice(PAGE.indexOf(headline), PAGE.indexOf('<img'))
+    const prose = copyFrom(top).filter((t) => t !== headline)
+    const sentences = prose
+      .join(' ')
+      .split(/(?<=[.!?])\s+/)
+      .map((x) => x.trim())
+      .filter((x) => /[a-zA-Z]/.test(x))
+    expect(sentences.length, sentences.join('\n')).toBeLessThanOrEqual(6)
+    // And it is really reading the page, rather than passing on nothing.
+    expect(sentences.length).toBeGreaterThan(2)
+  })
+
+  it('says what it does in four numbered steps a CTO recognizes', () => {
+    // Post a role, choose somebody, approve the week, pay the bill.
+    // Four is what a buyer can hold; the ten stations of a placement
+    // are further down, where somebody who wants them will look.
+    expect(PAGE).toContain('const STEPS')
+    const steps = PAGE.slice(PAGE.indexOf('const STEPS'), PAGE.indexOf('const ANSWERS'))
+    const numbers = [...steps.matchAll(/n: '(\d\d)'/g)].map((m) => m[1])
+    expect(numbers).toEqual(['01', '02', '03', '04'])
+    // Each step is two sentences and one screen, and the screen is a
+    // file somebody can open.
+    const shots = [...steps.matchAll(/img: '([^']+)'/g)].map((m) => m[1])
+    expect(shots.length).toBe(4)
+    for (const shot of shots) {
+      expect(existsSync(join(process.cwd(), 'public', shot)), shot).toBe(true)
+    }
+    // The four verbs, in the order the work happens in.
+    const said = copyFrom(steps).join(' ')
+    expect(said).toContain('Post a role to the suppliers you cleared')
+    expect(said).toContain('Interview, choose, and the paperwork is written')
+    expect(said).toContain('Contractors file their weeks and your manager approves them')
+    expect(said).toContain('Each supplier bills, and you pay what matched')
+    // And the section is on the page, before the argument.
+    expect(at('steps')).toBeGreaterThan(0)
+    expect(at('steps')).toBeLessThan(at('gap'))
+    expect(body).toContain('A role goes out, a person starts, a week is signed, a bill is paid')
+    // Every image says where it was taken, so it can be retaken after a
+    // redesign rather than quietly going stale.
+    expect([...steps.matchAll(/from: '([^']+)'/g)].length).toBe(4)
+  })
+
+  it('names the category with one factual comparison, and makes no other claim about anybody', () => {
+    // The guard used to refuse every named company, comparison
+    // included. It cost more than it protected: a buyer learns a
+    // category by comparison, and this one landed with a real buyer in
+    // a sentence. So exactly this sentence is allowed, once.
+    expect(all).toContain(THE_COMPARISON)
+    expect(timesCompared(all), 'said once, never argued').toBe(1)
+    // With that one sentence set aside, the page names nobody at all —
+    // no customer, no logo, and no second comparison.
+    expect(namedCompanies(all)).toEqual([])
+    expect(namedCompanies(settingTheComparisonAside(all))).toEqual([])
+    // The sentence itself does name two, which is how we know the
+    // exception is narrow rather than a hole in the rule.
+    expect(namedCompanies(`We are better than ${THE_COMPARISON.slice(12)}`).length)
+      .toBeGreaterThan(0)
+    // Nothing is claimed about either of them: no rivalry, no sizing,
+    // and the category is named in the buyer's own words first.
+    const sized = sizesAgainstIncumbents(all)
+    expect(sized, sized.join('; ')).toEqual([])
+    expect(words[1]).toBe('Vendor management system')
+    expect(all).toContain(
+      'A vendor management system for companies with twenty to two hundred contractors.'
+    )
+    for (const claim of ['better than', 'unlike', 'replaces', 'cheaper than', 'instead of']) {
+      const around = all.slice(Math.max(0, all.indexOf(THE_COMPARISON) - 200), all.indexOf(THE_COMPARISON))
+      expect(around.toLowerCase(), claim).not.toContain(claim)
+    }
+    // A second copy of it is caught as a rule, not a matter of taste.
+    const twice = check({ hero: [THE_COMPARISON], body: [THE_COMPARISON, 'Contractors and suppliers.'] })
+    expect(twice.map((f) => f.rule)).toContain('one-comparison-only')
+  })
+
+  it('shows the two hardest answers as the screens that give them', () => {
+    // Every contractor across every supplier, and one person's months
+    // on site added up across all of them. Both are claims a reader has
+    // no reason to believe from prose.
+    expect(PAGE).toContain('const ANSWERS')
+    const answers = PAGE.slice(PAGE.indexOf('const ANSWERS'), PAGE.indexOf('const TWO_WAYS'))
+    const shots = [...answers.matchAll(/img: '([^']+)'/g)].map((m) => m[1])
+    expect(shots).toEqual(['/screens/contractors.png', '/screens/tenure.png'])
+    for (const shot of shots) {
+      expect(existsSync(join(process.cwd(), 'public', shot)), shot).toBe(true)
+    }
+    // They sit with the four questions, which is what they answer.
+    expect(PAGE.indexOf('ANSWERS.map')).toBeGreaterThan(at('gap'))
+    expect(PAGE.indexOf('ANSWERS.map')).toBeLessThan(at('ways'))
   })
 })
 
@@ -1263,7 +1433,7 @@ describe('The footer is where a company keeps its papers', () => {
 describe('The public page still says the four things it may not stop saying', () => {
 
   it('the home page names what Etyme is before it names anything it does', () => {
-    expect(words[1]).toBe('Contingent workforce management')
+    expect(words[1]).toBe('Vendor management system')
     expect(check(live).map((f) => f.rule)).not.toContain('category-first')
     expect(check(live).map((f) => f.rule)).not.toContain('module-not-category')
   })

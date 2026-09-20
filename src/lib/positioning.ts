@@ -174,6 +174,25 @@ const THE_OFFER = [
  * a sentence about electric vehicles is not. Nothing shorter than four
  * letters is listed, because "GE" and "SAP" appear inside ordinary words
  * and a guard that cries wolf gets deleted.
+ *
+ * ── One exception, added 2026-09-20 ──────────────────────────────────
+ *
+ * The founder gave the home page to the CTO of a two-billion-dollar
+ * company with forty to fifty contractors — the exact buyer. He said he
+ * did not understand what the app does. The founder said "we are SAP
+ * Fieldglass" and it connected at once.
+ *
+ * A category is learned by comparison, and refusing to name the two
+ * systems a buyer already knows cost more than it protected. So exactly
+ * one sentence may name them, `THE_COMPARISON` below, and it is checked
+ * as a literal rather than as a pattern: the words are fixed, the names
+ * appear once, and nothing is claimed about either product. Every other
+ * named company, anywhere, including a second copy of this sentence, is
+ * still refused.
+ *
+ * The rule that was really being protected is intact: we may not say a
+ * company is a customer, and we may not say a rival's product is worse.
+ * "It is the same job, sized for a smaller company" is neither.
  */
 const TRADEMARKED = [
   // On this page, until today.
@@ -191,6 +210,34 @@ const TRADEMARKED = [
   'randstad', 'adecco', 'manpower', 'aerotek', 'robert half',
   'insight global', 'kelly services', 'allegis',
 ]
+
+/**
+ * The one named comparison the page is allowed to make.
+ *
+ * Checked as a literal, so a rewrite of it is a new sentence nobody has
+ * agreed to and fails here. Two names, one sentence, no claim about
+ * either of them — what they are is what a buyer recognizes, and what
+ * Etyme is differs in the size of company it is built for, which is a
+ * fact about us rather than about them.
+ */
+export const THE_COMPARISON =
+  'If you know SAP Fieldglass or Beeline, it is the same job, sized for a ' +
+  'company with fifty contractors rather than five thousand.'
+
+/** How many times a piece of copy makes that comparison. One, or none. */
+export function timesCompared(text: string): number {
+  return text.split(THE_COMPARISON).length - 1
+}
+
+/**
+ * The text with the one allowed comparison taken out.
+ *
+ * Exported so the test can show the two readings side by side: the page
+ * with the sentence names nobody, and the sentence itself names two.
+ */
+export function settingTheComparisonAside(text: string): string {
+  return text.split(THE_COMPARISON).join(' ')
+}
 
 function hits(text: string, words: string[]): string[] {
   const raw = text.toLowerCase()
@@ -224,7 +271,9 @@ export function settingTheOfferAside(text: string): string {
  * reading the whole page looking for the sentence.
  */
 export function namedCompanies(text: string): string[] {
-  const found = hits(text, TRADEMARKED)
+  // The one allowed comparison is set aside first, so the two systems it
+  // names are not reported and a second copy of it is.
+  const found = hits(settingTheComparisonAside(text), TRADEMARKED)
   // "Terumo BCT" also matches "terumo"; report the longest form only, so
   // the message names the company the way the page did.
   return found.filter((name) => !found.some((other) => other !== name && other.includes(name)))
@@ -321,6 +370,24 @@ export function check(copy: Copy): Finding[] {
         'around it says — "sit at a running program" made three seeded demo tenants read ' +
         'as three live programs. Use an invented firm, or describe the company instead ' +
         'of naming it.',
+    })
+  }
+
+  // ── One comparison, and only one ────────────────────────────────────
+  //
+  // Naming the two systems a buyer knows is what made the category land
+  // with a real buyer. Saying it twice is a page arguing with them,
+  // which is a claim about somebody else's product that nobody here has
+  // tested.
+  if (timesCompared(all) > 1) {
+    findings.push({
+      rule: 'one-comparison-only',
+      severity: 'WRONG',
+      found: THE_COMPARISON,
+      says:
+        'The page makes the named comparison more than once. One sentence naming ' +
+        'SAP Fieldglass and Beeline is how a buyer learns the category; repeating it ' +
+        'is an argument about their products, and nobody here has tested either.',
     })
   }
 

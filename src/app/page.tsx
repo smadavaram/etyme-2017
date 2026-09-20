@@ -13,16 +13,45 @@ import type { Route } from 'next'
  *
  * ── What it argues, in order ─────────────────────────────────────────
  *
- *   1. what is this        the hero — the category, then the span
- *   2. why do I care       #gap — four questions nobody can answer
- *   3. who runs it         #ways — your own program office, or Etyme’s
- *   4. what does it cost   #exposure — the business case, never first
- *   5. is that real        #lifecycle — one hire, from every desk
- *   6. what changes        #monday — four screens that answer the four
- *   7. does it replace     #alongside — your ATS, your VMS, your suppliers
- *   8. who else is on it   #who — the chain, and the suppliers on it
- *   9. the AI honesty      #compliance
- *  10. what it costs       #why — not settled, and says so
+ *   1. what is this        the hero — the category, one comparison, a screen
+ *   2. what does it do     #steps — four steps, each one a real screen
+ *   3. why do I care       #gap — four questions nobody can answer
+ *   4. who runs it         #ways — your own program office, or Etyme’s
+ *   5. what does it cost   #exposure — the business case, never first
+ *   6. is that real        #lifecycle — one hire, from every desk
+ *   7. what changes        #monday — four screens that answer the four
+ *   8. does it replace     #alongside — your ATS, your VMS, your suppliers
+ *   9. who else is on it   #who — the chain, and the suppliers on it
+ *  10. the AI honesty      #compliance
+ *  11. what it costs       #why — not settled, and says so
+ *
+ * ── A real buyer read it. Rewritten 2026-09-20 ───────────────────────
+ *
+ * The founder gave this page to the CTO of a two-billion-dollar company
+ * with forty to fifty IT contractors bought through staffing firms —
+ * the exact buyer. He said he did not understand what the app does, and
+ * that it looked like an AI app. The founder said "we are SAP
+ * Fieldglass" and it connected at once.
+ *
+ * Two things follow, and both are now guarded in `lib/positioning`.
+ *
+ *   Screens before sentences. The top of the page is at most six
+ *   sentences and then a real screen from the seeded demo, taken at
+ *   Northbend Athletic's own desks. A dense table with numbers in it
+ *   reads as enterprise software; a paragraph about "a record" reads as
+ *   a pitch deck. Every image under `public/screens` names in `from`
+ *   the desk and the route it came from, so it can be retaken.
+ *
+ *   One comparison, named, factual, once. "If you know SAP Fieldglass
+ *   or Beeline, it is the same job, sized for a company with fifty
+ *   contractors rather than five thousand." The guard that refused any
+ *   named company allows exactly that sentence and no other, and makes
+ *   no claim about either of them.
+ *
+ * What came out: the worked-example card in the hero — Priya
+ * Raghunathan's placement as five rows of invented data. The dashboard
+ * screenshot says the same thing with numbers the product actually
+ * produced, which is the difference the CTO was pointing at.
  *
  * ── Outcomes, benefits and methods. Rewritten 2026-09-20 ─────────────
  *
@@ -136,6 +165,7 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
   {
     label: 'Products',
     items: [
+      { t: 'What it does, in four steps', d: 'A role goes out, a person starts, a week is signed, a bill is paid.', href: '#steps' },
       { t: 'Your contractors', d: 'Every contractor on site, across every supplier, one row each.', href: '#monday' },
       { t: 'Requisitions & suppliers', d: 'Raised, approved, released to the suppliers you cleared.', href: '#lifecycle' },
       { t: 'Hours, invoices & bills', d: 'Signed hours, and bills matched to the order behind them.', href: '#lifecycle' },
@@ -174,21 +204,68 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
 ]
 
 /**
- * One contractor, end to end.
+ * What it does, in four steps, each one a real screen.
  *
- * The point of a system of record is that it holds the parts nobody
- * else joins up: the submission, the interview, the order, the hours
- * and the bill, for one person, through the firm that supplied her.
+ * This replaced the worked example that sat in the hero: one
+ * contractor's placement as five rows of invented data. It was true to
+ * the product and it was still a drawing, and the buyer who read this
+ * page said he could not tell what the app does.
  *
- * A shortlist sat in this slot once and made the whole page read as a
- * hiring tool, which is what a shortlist is.
+ * Each step is two sentences and one screenshot from the seeded demo.
+ * `from` is the desk and the route the image came from, so anybody can
+ * retake it after a redesign: seat at Northbend Athletic with
+ * `POST /api/demo {"as":"world-nike","desk":"..."}` and screenshot the
+ * route at 1440×900.
+ *
+ * Nothing in a caption is a claim the image does not show. The numbers
+ * in them are read off the screenshots themselves, which is the only
+ * kind of number this page is allowed to carry.
  */
-const RECORD = [
-  { when: 'Submitted', what: '2 Sep', detail: '$78/hr · screened and cleared' },
-  { when: 'Interviewed', what: '9 Sep', detail: 'two rounds · offer made' },
-  { when: 'Started', what: '1 Oct', detail: 'PO NW-40118 · cost center EA-4100' },
-  { when: 'Hours', what: '152', detail: '4 weeks signed by the plant' },
-  { when: 'Billed', what: '$11,856', detail: '45 day terms · matched to the order' },
+const STEPS: {
+  n: string
+  t: string
+  says: string
+  img: string
+  alt: string
+  caption: string
+  from: string
+}[] = [
+  {
+    n: '01',
+    t: 'Post a role to the suppliers you cleared',
+    says: 'You open a role and release it to the suppliers procurement has cleared. Every supplier submits against the same role, and each person arrives on one screen with the firm that sent them and the rate it asked.',
+    img: '/screens/submissions.png',
+    alt: 'A Candidates screen: nine people from three suppliers, each row naming the consultant, the role, the supplier, the rate and the stage.',
+    caption: 'The hiring manager at Northbend Athletic. Nine people from three suppliers, each row carrying the firm that sent them, the rate it asked and where the person has got to.',
+    from: '/dashboard/submissions as the hiring manager',
+  },
+  {
+    n: '02',
+    t: 'Interview, choose, and the paperwork is written',
+    says: 'Interview rounds are arranged on the record, and the supplier and the candidate are told on their own channels. The award writes the contract with the person, the rate and the dates on it, against the order that holds the ceiling.',
+    img: '/screens/purchase-orders.png',
+    alt: 'An orders screen: one order per supplier, what is left of what was authorized, and a line naming the person and their rate.',
+    caption: 'What Northbend Athletic has authorized. One order per supplier, a line for each person at their own rate, and how much of the ceiling is left to bill against.',
+    from: '/dashboard/purchase-orders as the program manager',
+  },
+  {
+    n: '03',
+    t: 'Contractors file their weeks and your manager approves them',
+    says: 'The contractor files their own week and nobody else may file it for them. The manager who owns the work signs it, and a week over the hours on the role is flagged before anybody signs.',
+    img: '/screens/timesheets.png',
+    alt: 'A timesheets screen: twelve weeks waiting, each row naming the person, the period, the hours, the bill rate and what the week is worth.',
+    caption: 'The hiring manager at Northbend Athletic. Twelve weeks waiting on a signature, with the hours, the bill rate and what each week is worth, and one week over the hours on the role.',
+    from: '/dashboard/timesheets as the hiring manager',
+  },
+  {
+    n: '04',
+    t: 'Each supplier bills, and you pay what matched',
+    says: 'Every supplier bills on the same screen, against hours your own manager has already signed. A bill with no signed week behind it, or no room left on the order, is not paid.',
+    img: '/screens/invoices.png',
+    alt: 'An invoices screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
+    caption: 'The accounts payable clerk at Northbend Athletic. Six supplier invoices open, five paid this period, $104,400 outstanding and none of it overdue.',
+    from: '/dashboard/invoices, what we owe, as the AP clerk',
+  },
 ]
 
 /**
@@ -230,6 +307,34 @@ const CANNOT_ANSWER: { q: string; today: string; etyme: string; detail?: string 
     detail:
       'One person worked 14 months through supplier A, 3 through B, 2 through C. ' +
       'That is 19 months on your site. None of the three suppliers can see the other two.',
+  },
+]
+
+/**
+ * Two of those four questions, answered on the screen that answers them.
+ *
+ * The four questions above are the hook. A reader who has just been
+ * told what they cannot answer is entitled to see the answer rather
+ * than read a promise of one, so the two that are hardest to believe —
+ * every contractor across every supplier, and one person's months on
+ * site counted across all of them — are shown as the screens.
+ *
+ * `from` is where each image was taken, so it can be retaken.
+ */
+const ANSWERS: { q: string; img: string; alt: string; caption: string; from: string }[] = [
+  {
+    q: 'How many contractors are on our sites, and whose are they?',
+    img: '/screens/contractors.png',
+    alt: 'A contractors table: one row per person, with the supplier that sent them, their status, where they are and their months on site.',
+    caption: 'Eight people at Northbend Athletic, each from one supplier, with the months each has been on site and the date they were last engaged.',
+    from: '/dashboard/people, table view, as the program manager',
+  },
+  {
+    q: 'Who has been here longest?',
+    img: '/screens/tenure.png',
+    alt: 'A tenure table: four people, the vendors each worked through, the months counted across all of them, and the standing against an 18 month cap.',
+    caption: 'The same people counted across suppliers. Fourteen months through two firms against an eighteen month cap, and one person in a break until 20 October.',
+    from: '/dashboard/tenure as the program manager',
   },
 ]
 
@@ -636,127 +741,182 @@ export default function LandingPage() {
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       {/* Category first, the way Concur says travel and expense before
-          it says anything clever. The eyebrow is the category, the
-          headline is the record the founder signed off, and the
-          sentence under it says what that means in plain words. The
-          span is named once, so no single station reads as the product. */}
+          it says anything clever — and then the product itself, before
+          another sentence about it.
+
+          Rebuilt 2026-09-20 after the CTO of a two-billion-dollar
+          company with forty to fifty contractors read the old one and
+          said he could not tell what the app does. Five sentences and
+          then a screen: the eyebrow is the category in the words a
+          buyer already uses, the headline is the line the founder
+          signed off, the subhead is concrete nouns only, and the
+          comparison names the two systems he would recognize, once,
+          factually, with no claim about either.
+
+          The screenshot under it is the program dashboard at Northbend
+          Athletic, an invented company the seed builds, taken from
+          /dashboard/program as the program manager. The worked-example
+          card that stood beside the headline is gone: it said the same
+          thing in invented rows, and invented rows are what a pitch
+          deck is made of. */}
       <section className="border-b border-etyme-rule">
-        <div className="mx-auto max-w-6xl px-4 pb-16 pt-12 sm:px-6 md:pb-24 md:pt-20">
-          <div className="grid items-start gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+        <div className="mx-auto max-w-6xl px-4 pb-14 pt-12 sm:px-6 md:pb-20 md:pt-16">
+          <p className="eyebrow mb-4">
+            Vendor management system
+          </p>
+          <h1 className="mb-6 max-w-[18ch] text-balance font-serif text-[40px] font-normal
+                         leading-[1.03] tracking-[-0.02em] text-etyme-ink md:text-[60px]">
+            Every contractor. Every supplier. One record.
+          </h1>
+          <p className="mb-5 max-w-[62ch] text-[19px] leading-relaxed text-etyme-ink md:text-[21px]">
+            See every contractor on your sites, which supplier sent them, what they
+            cost, and how long they have been there. Approve their timesheets. Pay
+            one matched invoice per supplier.
+          </p>
+          {/* The one named comparison on the whole page. It is here
+              because the founder said "we are SAP Fieldglass" to a buyer
+              who had read three paragraphs without understanding any of
+              them, and it landed at once. Factual, once, and it says
+              nothing about either product — `lib/positioning` allows
+              this sentence and refuses every other named company. */}
+          <p className="mb-9 max-w-[62ch] text-[16px] leading-relaxed text-etyme-muted">
+            A vendor management system for companies with twenty to two hundred
+            contractors. If you know SAP Fieldglass or Beeline, it is the same job,
+            sized for a company with fifty contractors rather than five thousand.
+          </p>
+
+          <figure className="overflow-hidden rounded-xl border border-etyme-rule
+                             bg-etyme-raised shadow-sm">
+            <img
+              src="/screens/program-dashboard.png"
+              alt="The program dashboard: a sentence saying whether anything needs the reader today, then six numbers — on site, suppliers, this month, ending soon, the tenure cap and requirements — over a list of who is starting soon and which suppliers are on site."
+              width={1440}
+              height={900}
+              className="block h-auto w-full border-b border-etyme-rule"
+            />
+            <figcaption className="px-5 py-3.5 text-[13px] leading-relaxed text-etyme-muted">
+              The program manager’s desk at Northbend Athletic, an invented company in
+              the example program. Three contractors on site through three suppliers,
+              $60,000 this month, one person near the cap.
+            </figcaption>
+          </figure>
+
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            {/* One door for companies, not two. Demand and supply are
+                positions on a deal, not properties of a firm — a prime
+                is demand toward its sub and supply toward its client on
+                the same placement — so a page that forked on it asked a
+                question a third of the market cannot answer. */}
+            <TryDemo
+              side="HIRING"
+              asks
+              label="Open an example program →"
+              className="rounded-lg bg-etyme-action px-6 py-3.5 text-sm font-semibold text-white
+                         shadow-sm transition-opacity hover:opacity-90"
+            />
+            <a
+              href="#steps"
+              className="px-2 py-3.5 text-sm font-medium text-etyme-muted underline
+                         underline-offset-4 transition-colors hover:text-etyme-ink"
+            >
+              What it does, in four steps →
+            </a>
+          </div>
+          {/* The primary door is a client desk and everything else is a
+              text link, because this page is written to the company
+              hiring. The contractor's own door stays reachable all the
+              same — a person who is the work is not an audience to drop,
+              and `__tests__/invariants/demo-candidate.test.ts` holds it
+              here and at the close. */}
+          <p className="mt-5 max-w-[52ch] font-mono text-[12px] leading-relaxed text-etyme-muted">
+            No card, no sign-up. You land at a program manager’s desk in an invented
+            company with a full month of data in it.{' '}
+            <TryDemo
+              side="CANDIDATE"
+              label="See it as a candidate →"
+              className="text-etyme-muted underline underline-offset-2 hover:text-etyme-ink"
+            />
+          </p>
+
+          {/* Now that the list has been shown, the page may use the word
+              for it. The offer to run the program is the quiet sentence
+              under it, once, and a reader may take it or leave it —
+              "MSP selling should be undercover selling and more as value
+              addition rather than fully pitching for the market." */}
+          <div className="mt-10 grid gap-8 border-t border-etyme-rule pt-8 md:grid-cols-2">
             <div>
-              <p className="eyebrow mb-4">
-                Contingent workforce management
-              </p>
-              <h1 className="mb-6 max-w-[16ch] text-balance font-serif text-[40px] font-normal
-                             leading-[1.03] tracking-[-0.02em] text-etyme-ink md:text-[60px]">
-                Every contractor. Every supplier. One record.
-              </h1>
-              <p className="mb-5 max-w-[46ch] text-[19px] leading-relaxed text-etyme-muted md:text-[21px]">
-                You hire contractors through staffing firms. Nobody has one record
-                of a contractor from the job posting to the paid bill, across every
-                firm you use.
-              </p>
-              {/* The record sentence, and then one quiet line about who
-                  sits at the desks. It was a two-label choice until
-                  2026-09-20, when the founder asked for the service to be
-                  sold quietly and as a value added: “MSP selling should
-                  be undercover selling and more as value addition rather
-                  than fully pitching for the market.” So the record
-                  leads, and the offer is one sentence a reader can take
-                  or leave. #ways says what it means. */}
-              <p className="mb-4 max-w-[48ch] text-[17px] leading-relaxed text-etyme-ink md:text-[19px]">
+              <p className="text-[17px] leading-relaxed text-etyme-ink md:text-[19px]">
                 Etyme keeps one record of every contractor across every staffing
                 supplier you use.
               </p>
-              <p className="mb-6 max-w-[48ch] text-[16px] leading-relaxed text-etyme-muted">
+              <p className="mt-3 text-[16px] leading-relaxed text-etyme-muted">
                 Your own program office runs it. If you would rather not staff one,
                 Etyme can run it for you on the same record.
               </p>
-              <p className="mb-9 max-w-[48ch] border-l-2 border-etyme-rule pl-4 text-[15px]
-                            leading-relaxed text-etyme-ink">
-                Requisition, suppliers, submissions, screening, interviews,
-                onboarding, timesheets, invoices, compliance. One record holds all
-                of it, and each desk opens the part that is its own.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3">
-                {/* One door for companies, not two. Demand and supply are
-                    positions on a deal, not properties of a firm — a prime
-                    is demand toward its sub and supply toward its client on
-                    the same placement — so a page that forked on it asked a
-                    question a third of the market cannot answer. */}
-                <TryDemo
-                  side="HIRING"
-                  asks
-                  label="Open an example program →"
-                  className="rounded-lg bg-etyme-action px-6 py-3.5 text-sm font-semibold text-white
-                             shadow-sm transition-opacity hover:opacity-90"
-                />
-                <a
-                  href="#gap"
-                  className="px-2 py-3.5 text-sm font-medium text-etyme-muted underline
-                             underline-offset-4 transition-colors hover:text-etyme-ink"
-                >
-                  What it answers →
-                </a>
-              </div>
-              {/* The primary door is a client desk and everything else is
-                  a text link, because this page is written to the company
-                  hiring. The contractor's own door stays reachable all the
-                  same — a person who is the work is not an audience to
-                  drop, and `__tests__/invariants/demo-candidate.test.ts`
-                  holds it here and at the close. */}
-              <p className="mt-5 max-w-[44ch] font-mono text-[12px] leading-relaxed text-etyme-muted">
-                No card, no sign-up. You land at a program manager’s desk in an
-                invented company with a full month of data in it.{' '}
-                <TryDemo
-                  side="CANDIDATE"
-                  label="See it as a candidate →"
-                  className="text-etyme-muted underline underline-offset-2 hover:text-etyme-ink"
-                />
-              </p>
             </div>
-
-            {/* One contractor, end to end. A system of record looks like
-                this; a shortlist in this slot made the whole page read as
-                a hiring tool, which is what a shortlist is. */}
-            <div className="overflow-hidden rounded-xl border border-etyme-rule bg-etyme-surface shadow-sm">
-              <div className="border-b border-etyme-rule bg-etyme-canvas px-5 py-3.5">
-                <p className="stat-label">Worked example · one contractor, end to end</p>
-                <p className="mt-1.5 text-[15px] font-semibold text-etyme-ink">Priya Raghunathan</p>
-                <p className="font-mono text-[11px] text-etyme-faint">
-                  Brightmoor Talent → Calder Manufacturing · quality validation
-                </p>
-              </div>
-
-              {RECORD.map((r) => (
-                <div
-                  key={r.when}
-                  className="flex items-baseline gap-3 border-b border-etyme-rule px-5 py-3"
-                >
-                  <span className="w-[94px] shrink-0 font-mono text-[10.5px] uppercase
-                                   tracking-[0.06em] text-etyme-faint">
-                    {r.when}
-                  </span>
-                  <span className="w-[64px] shrink-0 text-[13px] font-semibold tabular-nums
-                                   text-etyme-ink">
-                    {r.what}
-                  </span>
-                  <span className="font-mono text-[11px] leading-snug text-etyme-muted">
-                    {r.detail}
-                  </span>
-                </div>
-              ))}
-
-              <div className="bg-etyme-canvas px-5 py-4">
-                <p className="stat-label">What no single system records today</p>
-                <p className="mt-1.5 max-w-[42ch] text-[13px] leading-relaxed text-etyme-ink">
-                  The job posting, the person, the signed hours and the paid bill
-                  sit on one row, through the supplier that placed her.
-                </p>
-              </div>
-            </div>
+            <p className="border-l-2 border-etyme-rule pl-4 text-[15px] leading-relaxed
+                          text-etyme-ink">
+              Requisition, suppliers, submissions, screening, interviews, onboarding,
+              timesheets, invoices, compliance. One record holds all of it, and each
+              desk opens the part that is its own.
+            </p>
           </div>
+        </div>
+      </section>
+
+      {/* ── What it does, in four steps ───────────────────────────── */}
+      {/* The answer to "I do not understand what the app does", and it
+          is four screens rather than four claims. Each step is two
+          sentences and one image from the seeded demo, and nothing in a
+          caption is a number the image does not show.
+
+          Why four and not ten: a CTO recognizes post, choose, approve,
+          pay. The ten stations of a placement are in #lifecycle below,
+          where somebody who wants them will look. */}
+      <section id="steps" className="border-b border-etyme-rule bg-etyme-surface scroll-mt-6">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
+          <p className="eyebrow mb-3">What it does, in four steps</p>
+          <h2 className="max-w-[30ch] text-balance font-serif text-3xl leading-tight
+                         tracking-[-0.02em] text-etyme-ink md:text-[42px]">
+            A role goes out, a person starts, a week is signed, a bill is paid
+          </h2>
+          <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
+            Every screen below is the example program as it stands today. You can open
+            all four and change anything in them.
+          </p>
+
+          <ol className="mt-12 space-y-16">
+            {STEPS.map((s) => (
+              <li
+                key={s.n}
+                className="grid gap-6 md:grid-cols-[0.8fr_1.2fr] md:items-start md:gap-10"
+              >
+                <div>
+                  <span className="block font-mono text-[11px] tabular-nums text-etyme-faint">
+                    {s.n}
+                  </span>
+                  <h3 className="mt-2 text-balance font-serif text-[23px] leading-snug text-etyme-ink">
+                    {s.t}
+                  </h3>
+                  <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">{s.says}</p>
+                </div>
+                <figure className="overflow-hidden rounded-xl border border-etyme-rule
+                                   bg-etyme-raised shadow-sm">
+                  <img
+                    src={s.img}
+                    alt={s.alt}
+                    width={1440}
+                    height={900}
+                    loading="lazy"
+                    className="block h-auto w-full border-b border-etyme-rule"
+                  />
+                  <figcaption className="px-5 py-3.5 text-[13px] leading-relaxed text-etyme-muted">
+                    {s.caption}
+                  </figcaption>
+                </figure>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
@@ -831,6 +991,39 @@ export default function LandingPage() {
                 </li>
               ))}
             </ul>
+          </div>
+
+          {/* Two of the four, answered by the screen that answers them.
+              A reader who has just been told what they cannot answer is
+              entitled to see the answer rather than a promise of one. */}
+          <div className="mt-14 border-t border-etyme-rule pt-10">
+            <p className="max-w-[54ch] text-[17px] leading-relaxed text-etyme-ink">
+              Here are two of those answers, on the screens that give them.
+            </p>
+            <div className="mt-6 grid gap-8 md:grid-cols-2">
+              {ANSWERS.map((a) => (
+                <figure
+                  key={a.img}
+                  className="overflow-hidden rounded-xl border border-etyme-rule
+                             bg-etyme-raised shadow-sm"
+                >
+                  <img
+                    src={a.img}
+                    alt={a.alt}
+                    width={1440}
+                    height={900}
+                    loading="lazy"
+                    className="block h-auto w-full border-b border-etyme-rule"
+                  />
+                  <figcaption className="px-5 py-3.5">
+                    <span className="block text-[13px] font-semibold text-etyme-ink">{a.q}</span>
+                    <span className="mt-1 block text-[13px] leading-relaxed text-etyme-muted">
+                      {a.caption}
+                    </span>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
         </div>
       </section>
