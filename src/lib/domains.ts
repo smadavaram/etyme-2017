@@ -95,6 +95,25 @@ export const DOMAINS: Domain[] = [
       'lib/retention', 'lib/data-request', 'lib/erasure', 'lib/legal-hold', 'lib/breach',
       'app/api/data-requests', 'app/api/legal-holds', 'app/api/breaches',
       'app/dashboard/privacy',
+      // ── The contractor census, carved four ways ────────────────────
+      //
+      // A client sends us its own contractor data and gets back one
+      // page. Four domains build parts of it, so the paths are carved by
+      // subpath rather than by feature — see `docs/census-brief.md`.
+      // Regulatory holds the part that decides what may happen to a
+      // file somebody entrusted to us: the state machine from asked to
+      // deleted, accepting the agreement by name, minting and expiring
+      // the upload link, the retention wiring, and logging every staff
+      // read. The census agreement itself is already here, inside
+      // `lib/legal`.
+      //
+      // Note that `app/api/census` itself is claimed by nobody, on
+      // purpose. A route landing directly there has no owner and fails
+      // the ownership test on its own commit, which is the moment to
+      // decide whose it is rather than the month afterwards.
+      'lib/census',
+      'app/api/census/request', 'app/api/census/agree',
+      'app/api/census/upload', 'app/api/census/review',
       // The subject's own door to their own data. Carved out of supply's
       // `app/api/me` and `app/dashboard/my-*` by the longest-match rule,
       // the same way `app/api/me/papers` already is: a bench is supply's
@@ -144,6 +163,24 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/expenses', 'app/dashboard/purchase-orders', 'app/dashboard/loose-ends',
       'app/api/profitability', 'app/api/invoices', 'app/api/payroll', 'app/api/expenses',
       'app/api/purchase-orders', 'app/api/loose-ends', 'app/api/cycles',
+      // The census arithmetic: the CSV template and its importer, one
+      // row per contractor into contracts and placements in the
+      // sandbox with every gap recorded, and the one page itself.
+      //
+      // `lib/census-page` owns nothing it did not write. Three of the
+      // four numbers already exist elsewhere — the on-site count and
+      // the spend in the program dashboard, tenure in
+      // `lib/tenure-days` — and it imports them so the page and the
+      // dashboard cannot disagree. Only the supplier rate spread is
+      // new, because rate variance exists today by manager and not by
+      // supplier.
+      //
+      // 'lib/census-import' and 'lib/census-page' do not fall under
+      // regulatory's 'lib/census': a needle matches a whole path
+      // segment, so `lib/census-import.ts` is its own file and not a
+      // child of `lib/census`.
+      'lib/census-import', 'lib/census-page',
+      'app/api/census/import', 'app/api/census/page',
     ],
   },
   {
@@ -159,6 +196,12 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/conversations', 'app/dashboard/texts',
       'app/api/conversations', 'app/api/texts', 'app/api/events',
       'app/answer', 'app/claim',
+      // Every letter, the census's five included: asked, agreed, files
+      // received with the deletion date on it, page delivered, deleted —
+      // and the one to the named staff person when a census arrives or a
+      // deadline is near. They sit under `lib/notify` like every other
+      // letter rather than beside the census, because how something is
+      // said is one craft wherever it is said.
       'lib/notify', 'lib/notification-delivery', 'lib/texts', 'lib/messages',
       // Demand opens, supply answers: who may start a thread across a deal, who hears.
       'lib/threads', 'lib/thread-notices',
@@ -255,6 +298,13 @@ export const DOMAINS: Domain[] = [
     owns: [
       'lib/positioning', 'lib/site-voice', 'lib/public-site', 'lib/distribution',
       'app/page', 'app/site', 'app/c', 'app/api/c',
+      // The census as a door: what you get, what you send, the template
+      // to download, the agreement to read, the form, and the
+      // confirmation. The words on it are the market's by the same rule
+      // the home page is — this is the first thing a client who has
+      // never heard of Etyme reads, and the brief forbids a price, an AI
+      // claim and any invented urgency on it.
+      'app/census', 'lib/census-copy',
       'app/dashboard/market', 'app/api/market', 'app/api/site',
     ],
   },
