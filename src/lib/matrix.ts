@@ -207,6 +207,34 @@ export const MATRIX: L1[] = [
             'src/app/page.tsx',
           ],
           testedBy: ['__tests__/invariants/marketing-leads.test.ts'] },
+        // The contractor census. Designed 2026-09-20 in
+        // `docs/census-brief.md`, schema landed the same day, nothing
+        // built. Four domains build parts of it and the task says which,
+        // because "market owns the census" would be wrong in three
+        // places — the agreement is regulatory's, the arithmetic is
+        // money's, the letters are conversation's, and the staff path
+        // under it is the platform's.
+        { code: 'L3.1.4.6', name: 'The contractor census', owner: 'Etyme', status: N,
+          tasks: [
+            'Platform — a staff member with no seat can open the review, and gains no permission inside any company',
+            'Market — /census says what you get and what you send, with no price, no AI claim and no invented urgency',
+            'Market — the template downloads as CSV with a header row and one example row, because there is no spreadsheet library and none is added for this',
+            'Regulatory — the one-page census agreement in lib/legal, with the six things a procurement lead asks',
+            'A client can ask for a census without creating an account',
+            'Nothing moves until somebody at the client has accepted the agreement by name',
+            'Regulatory — the upload link expires on the row, and is minted only once the agreement is accepted',
+            'The template asks for no names, and a census from the template holds no personal data beyond a work email',
+            'A census file is opened only by the staff person assigned, and every read is logged',
+            'Money — one row per contractor imported into a sandbox company as contracts and placements, every gap recorded',
+            'The four numbers on the page equal what the client dashboard shows in the sandbox',
+            'Money — the one page is print-styled HTML on one sheet; the named person prints it and sends it, because there is no PDF pipeline on Vercel',
+            'The page never hides a gap: a row with no end date appears in "what we could not see"',
+            'The deletion date is on the confirmation, on the page, and in the nightly job, and they agree',
+            'Thirty days after delivery, with no program started, the census is deleted and the client is told',
+            'A census that becomes a program keeps its data and the deletion is cancelled with a reason',
+            'Conversation — five letters: asked, agreed, files received, page delivered, deleted; and one to the named staff person when a census arrives or a deadline is near',
+            'No email invents a deadline, and there is no nurture sequence — the shipped promise is that nothing automatic happens next',
+          ] },
       ]},
       { code: 'L2.1.3', name: 'Evaluation', domain: 'DEMAND', processes: [
         { code: 'L3.1.3.1', name: 'Screening loop', owner: 'Client screener', status: B,
