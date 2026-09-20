@@ -406,12 +406,12 @@ Named with SAP's autonomy ladder, because that is the vocabulary every
 enterprise buyer is currently being taught, and recorded per action in
 `src/lib/autonomy.ts`.
 
-Recomputed from the module on 2026-09-19:
+Recomputed from the module on 2026-09-20:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **144** |
-| Unprompted — the system did it and nobody asked | **20** |
+| Actions named in the automation log | **145** |
+| Unprompted — the system did it and nobody asked | **21** |
 | Enforcement — the system decided what a person was allowed to do | **6** |
 | Attributed — a person did it and the row is the record | **118** |
 
@@ -419,15 +419,21 @@ Recomputed from the module on 2026-09-19:
 is an audit trail of human acts, not automation. Giving those a rung
 would inflate every claim.
 
-Of the twenty unprompted actions, **nineteen are plain rules** — a date
+Of the twenty-one unprompted actions, **twenty are plain rules** — a date
 comparison, a threshold, a count. `cron/end-contracts` is fully
 autonomous and is also `endDate < today`; both are true and the product
-says both. The twentieth is proactive matching, whose basis is read from
+says both. The odd one out is proactive matching, whose basis is read from
 the row rather than asserted, because the match engine falls back to
 arithmetic when no model key is set and a week where the key was
 misconfigured must not read as a week the model got free.
 
-Six of the twenty arrived with retention, export, erasure and the breach
+The twenty-first arrived on 2026-09-20 with the contractor census:
+calling off a deletion that a client was promised in writing, because
+they started a program and their rows became the opening balance of it.
+It keeps data rather than destroying it, and it is `reversible: true` —
+the date can be put back on with one change.
+
+Six of the twenty-one arrived with retention, export, erasure and the breach
 clock on 2026-09-19. Three of those six are `reversible: false` and say
 so on the row: finishing an erasure, and deleting a record whose
 statutory period has run. Nothing puts a deleted record back, so nothing

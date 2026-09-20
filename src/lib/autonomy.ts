@@ -167,6 +167,12 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'A contract ending inside eight weeks gets a rolloff opened for it, ready on somebody’s desk. The desk decides what happens to the person.',
   },
+  CENSUS_DELETION_CANCELLED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'A census became a program, so the deletion due on it was called off and the reason recorded. It keeps data rather than destroying it, and the date can be put back on with one change — which is why it is not beside the deletion at the top of the ladder even though it is the same clock.',
+  },
   REQUISITION_ROUTED: {
     rung: 'L2',
     basis: 'RULE',
@@ -389,8 +395,17 @@ ATTRIBUTED.DATA_IMPORTED = { basis: 'RECORDED' }
 // anonymization below is `reversible: false` on the row that records it,
 // honestly, because nothing puts a deleted record back.
 //
-// The seven census rows are here for the same reason: `CensusRequest`
+// The census rows are here for the same reason: `CensusRequest`
 // and `CensusFile` landed on 2026-09-20 and nothing writes to them yet.
+// Six of the seven are still here, and they are stuck rather than
+// unbuilt: `AutomationLog.companyId` is a required foreign key and a
+// census has no company — a client asks for one before they are a
+// customer, and the sandbox its rows are imported into is destroyed by
+// the deletion itself, so a row written there would cascade away at the
+// moment somebody audits it. `companyId String?` frees all six.
+// `CENSUS_DELETION_CANCELLED` moved onto the ladder on 2026-09-20
+// because it is the one census act whose company both exists and
+// survives: the sandbox stays precisely because the deletion did not run.
 // They are worth naming ahead of the code because a census is a promise
 // made in writing to a client's legal counsel about what happens to a
 // file they sent us, and the sentence in the log is the thing that
@@ -441,14 +456,6 @@ export const PLANNED: Record<string, PlannedAct> = {
     basis: 'RULE',
     says:
       'A client sent us their contractor data, we sent back the page, thirty days passed and no program started — so it was deleted, with nobody asked, on the day the agreement they signed said it would be. The files are gone; what is left is the row saying how many there were and when they went. Nothing puts this back.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  CENSUS_DELETION_CANCELLED: {
-    kind: 'UNPROMPTED',
-    rung: 'L3',
-    basis: 'RULE',
-    says:
-      'A census became a program, so the deletion due on it was called off and the reason recorded. It keeps data rather than destroying it, and the date can be put back on with one change — which is why it is not beside the deletion at the top of the ladder even though it is the same clock.',
     willBeWrittenBy: 'etyme-regulatory',
   },
 
