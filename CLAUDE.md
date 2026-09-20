@@ -266,6 +266,46 @@ The founder cannot read code. This is the compensating discipline.
 
 ---
 
+## Etyme runs the program — decided 2026-09-20
+
+**Etyme is a program office provider.** The founder changed the strategy on
+2026-09-20: Etyme offers to run a client's contractor program itself, as a
+vendor-neutral MSP, on its own record. This reverses the note written two
+hours earlier on the matrix row L3.7.5.1 ("not now; after the first paying
+client"). The row, the home page, the competitive page and the census now
+follow this decision, not that note.
+
+What it means, stated so nobody re-derives the old plan:
+
+- **The record stays the product underneath.** Everything in "Who pays"
+  below still holds: the client is the customer, every supplier's
+  contractors on one record. The program office is the service sold on top
+  of it, to clients too small for Magnit, Beeline or Fieldglass to want.
+- **Vendor-neutral only. Neutrality is still absolute.** Etyme places
+  nobody and runs no bench. A program office decides who may supply and at
+  what band, releases roles, coordinates rounds, matches bills and watches
+  paperwork. It never fills a role itself. The master-vendor model, where
+  the firm running the program also supplies people, is excluded
+  permanently.
+- **The seat comes first.** A program office that is not the client acts
+  in a seat the client grants, under the client's rules, every read logged
+  (the 2026-09-14 decision). That seat is a table with no reader and no
+  writer today. Etyme cannot run anybody's program until it exists, so it
+  is the first build after the census.
+- **The census is the door to the service.** A client sends what it has,
+  gets one page back, and the same named Etyme person who wrote the page
+  is the one offering to run the program.
+- **Pricing is unchanged.** Supplier-funded, a percentage on billings, the
+  way MSPs are paid, and no number until the founder sets one. Free while
+  testing still holds for the record.
+- **The competitive page changes.** The incumbents' MSPs stop being
+  partners and become the firms we are measured against. The claim is the
+  one the incumbents cannot make: the same firm runs the program and keeps
+  the record neutral, for clients they will not take.
+- **The MSP desks are Etyme's own.** Program Manager, Supplier Manager,
+  Coordinator, AP Clerk, Compliance Officer already exist as a company
+  kind. Etyme staff hold them in each client's program through the seat.
+
 ## Who pays — decided 2026-09-10
 
 **The client is the customer.** An enterprise with a dozen suppliers pays
