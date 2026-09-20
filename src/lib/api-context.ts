@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { looksLikeKey, hashKey, keyMatches, checkKey } from '@/lib/service-accounts'
 import { cookies } from 'next/headers'
 import { DEMO_COOKIE, read as readDemo } from '@/lib/demo-session'
+import { staffAddresses } from '@/lib/alerts'
 
 /**
  * Caller context — resolved once per request, used by every endpoint
@@ -65,6 +66,22 @@ export interface CallerContext {
    * anything writing a foreign key must use realPersonId() instead.
    */
   isService?: boolean
+  /**
+   * True when the caller's address is on `ETYME_STAFF_EMAILS` — one of
+   * Etyme's own people rather than a customer's.
+   *
+   * Read off the address on purpose. Staff is not a seat, not a role and
+   * not a permission, because a customer role that could grant it would
+   * let a customer open a breach or read another customer's census. No
+   * company grants it and no company can revoke it.
+   *
+   * It is not a permission either, and grants none: a staff caller with
+   * no seat carries `company: null` and `permissions: []`, so every
+   * ordinary route — which asks `hasPermission(caller.permissions, ...)`
+   * and scopes by `caller.company.id` — refuses them exactly as before.
+   * Only a route that asks for `caller.staff` by name lets them in.
+   */
+  staff?: boolean
 }
 
 /**
@@ -76,6 +93,143 @@ export interface CallerContext {
  */
 export function realPersonId(caller: CallerContext): string | null {
   return caller.isService ? null : caller.person.id
+}
+
+/**
+ * Whether an address is one of Etyme's own.
+ *
+ * Fails closed: with `ETYME_STAFF_EMAILS` unset the list is empty and
+ * nobody is staff, which is the same variable `/ready` already asks for.
+ *
+ * Case-insensitive, because an address is not case sensitive in the half
+ * that matters and nobody types their own mailbox the same way twice.
+ */
+export function isStaffAddress(
+  email: string | null | undefined,
+  list: string[] = staffAddresses()
+): boolean {
+  if (!email) return false
+  const want = email.trim().toLowerCase()
+  return list.some((a) => a.trim().toLowerCase() === want)
+}
+
+/**
+ * The context a staff member has when they hold no seat anywhere.
+ *
+ * ── Why this exists ──────────────────────────────────────────────────
+ *
+ * Staff are identified by address, by design. `getCallerContext` refused
+ * anybody with no active `Context` before any staff check could run, so
+ * "staff by address" was true of the design and false of the code: an
+ * Etyme person who is not an employee of any customer could not open the
+ * breach register they are the only people allowed to open. It was
+ * reported four times — once from the breach route, once from the census
+ * review, and twice as a wrong sentence shown to a consultant.
+ *
+ * ── What it is, and what it is carefully not ─────────────────────────
+ *
+ * It says who they are and nothing about what they may do. No company —
+ * because they are in none — and `permissions: []`, because a permission
+ * is a customer's grant and this is not one. A route that scopes by
+ * `caller.company.id` finds null and refuses. A route that asks
+ * `hasPermission(caller.permissions, ...)` finds nothing and refuses.
+ * The only door this opens is a route that checks `caller.staff`, and
+ * those are Etyme's own: the breach register, and the census review.
+ *
+ * The person is real. Unlike a service account, whose id is not a Person
+ * row, a staff member signed in through OAuth has one — so
+ * `realPersonId()` keeps returning it and `openedById` on a breach is a
+ * real foreign key. Somebody on the staff list with no Person row at all
+ * still gets the ordinary 404: they have not finished signing in, which
+ * is a different problem from having no seat.
+ */
+export function staffCaller(person: CallerContext['person']): CallerContext {
+  return {
+    person,
+    // Shaped like a context so no route has to special-case it, and
+    // labeled honestly. It is not a row: nothing may write this id into
+    // a column that references one.
+    context: { id: `staff:${person.id}`, type: 'STAFF', companyId: null, roleId: null },
+    company: null,
+    permissions: [],
+    orgUnitId: null,
+    staff: true,
+  }
+}
+
+/** What a person with no usable seat gets: the staff door, or a sentence. */
+export type NoSeat =
+  | { staff: true }
+  | { staff: false; status: number; code: string; says: string }
+
+/**
+ * Nobody has given this person a seat. Decide what they are told.
+ *
+ * Pure, so the four cases can be read as sentences without a database.
+ *
+ * ── The order, and why ───────────────────────────────────────────────
+ *
+ * Staff first. Being staff is not granted by any company, so no company
+ * can take it away — including by suspending a seat somebody happens to
+ * hold there. That suspension still bites: the staff context carries no
+ * company and no permission, so nothing at that company is reachable
+ * through it. What is lost is the helpful "your access is paused"
+ * sentence, for the rare person who is both Etyme staff and a suspended
+ * employee of a customer, and that is the cheaper of the two mistakes.
+ *
+ * Then paused, then ended, then nobody. The last three used to be one
+ * sentence — "No active context. You must belong to a company." — which
+ * was wrong three different ways at once. It reads as a fault, so
+ * somebody files a ticket instead of asking their manager. It tells a
+ * consultant to join a company, which is the one thing a consultant has
+ * no business doing and the product exists to say is not required of
+ * them. And it says the same thing to somebody whose seat was deliberately
+ * removed as to somebody who never had one, which is the difference
+ * between "that was on purpose" and "you are early".
+ */
+export function whenThereIsNoSeat(args: {
+  email: string
+  isStaff: boolean
+  /** A seat that exists and is paused, if there is one. */
+  paused: { companyName: string | null; reason: string | null } | null
+  /** A seat that was taken away, if there was one. */
+  ended: { companyName: string | null } | null
+}): NoSeat {
+  if (args.isStaff) return { staff: true }
+
+  if (args.paused) {
+    return {
+      staff: false,
+      status: 403,
+      code: 'SUSPENDED',
+      says:
+        `Your access at ${args.paused.companyName ?? 'this company'} is paused` +
+        `${args.paused.reason ? `: ${args.paused.reason}` : ''}. Somebody there can lift it.`,
+    }
+  }
+
+  if (args.ended) {
+    return {
+      staff: false,
+      status: 403,
+      code: 'ACCESS_ENDED',
+      says:
+        `Your seat at ${args.ended.companyName ?? 'the company you were at'} was removed, so ` +
+        `there is nothing here for you to open now. If that was not meant, an owner or ` +
+        `administrator there can grant it again.`,
+    }
+  }
+
+  return {
+    staff: false,
+    status: 403,
+    code: 'NO_SEAT',
+    says:
+      `You are signed in as ${args.email}, and nobody has given you a seat yet. If a company ` +
+      `invited you, open the link in that invitation — it is what puts the seat here. If you ` +
+      `are here as a consultant, finish setting up your own profile and your work is under ` +
+      `your own pages; you do not need to belong to a company.`,
+  }
 }
 
 /**
@@ -200,34 +354,45 @@ export async function getCallerContext(
       })
 
   if (!context) {
-    // Tell a suspended person that they are suspended. "No active context"
-    // reads as a fault, and somebody who thinks the product is broken
-    // files a ticket rather than asking their manager.
-    const paused = await prisma.context.findFirst({
-      where: { personId: person.id, revokedAt: null, suspendedAt: { not: null } },
-      select: { suspendReason: true, company: { select: { name: true } } },
+    // Why they have no seat decides what they are told, and one of the
+    // four answers is not a refusal at all — see whenThereIsNoSeat.
+    //
+    // Both lookups only happen on this path, which is the rare one: a
+    // request from somebody holding a seat never reaches here.
+    const staff = isStaffAddress(person.primaryEmail)
+
+    const paused = staff
+      ? null
+      : await prisma.context.findFirst({
+          where: { personId: person.id, revokedAt: null, suspendedAt: { not: null } },
+          select: { suspendReason: true, company: { select: { name: true } } },
+        })
+
+    const ended =
+      staff || paused
+        ? null
+        : await prisma.context.findFirst({
+            where: { personId: person.id, revokedAt: { not: null } },
+            select: { company: { select: { name: true } } },
+            orderBy: { revokedAt: 'desc' },
+          })
+
+    const verdict = whenThereIsNoSeat({
+      email: person.primaryEmail,
+      isStaff: staff,
+      paused: paused
+        ? { companyName: paused.company?.name ?? null, reason: paused.suspendReason }
+        : null,
+      ended: ended ? { companyName: ended.company?.name ?? null } : null,
     })
 
-    if (paused) {
-      return {
-        caller: null,
-        error: NextResponse.json(
-          {
-            error: {
-              code: 'SUSPENDED',
-              message: `Your access at ${paused.company?.name ?? 'this company'} is paused${paused.suspendReason ? `: ${paused.suspendReason}` : ''}. Somebody there can lift it.`,
-            },
-          },
-          { status: 403 }
-        ),
-      }
-    }
+    if (verdict.staff) return { caller: staffCaller(person), error: null }
 
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_CONTEXT', message: 'No active context. You must belong to a company.' } },
-        { status: 403 }
+        { error: { code: verdict.code, message: verdict.says } },
+        { status: verdict.status }
       ),
     }
   }
@@ -273,6 +438,10 @@ export async function getCallerContext(
       // Where they sit in the firm. Null is firm-wide, and that absence is
       // the deliberate act rather than an oversight.
       orgUnitId: context.orgUnitId,
+      // Staff who do hold a seat somewhere are still staff. Read the same
+      // way whether or not they have one, so a route asking `caller.staff`
+      // gets one answer rather than two.
+      staff: isStaffAddress(person.primaryEmail),
     },
     error: null,
   }
@@ -361,6 +530,10 @@ async function callerFromApiKey(
       company: account.company,
       permissions: account.permissions,
       isService: true,
+      // A key is never staff. Staff is an address on a list of people,
+      // and an integration holding a customer's key must not become one
+      // by being pointed at a staff mailbox.
+      staff: false,
     },
     error: null,
   }
