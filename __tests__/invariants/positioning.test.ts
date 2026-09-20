@@ -9,6 +9,19 @@
  * Every other class of mistake here gets caught by an invariant. This is
  * the one that did not, and it is the most expensive kind: a product that
  * works and is understood as something smaller than it is.
+ *
+ * ── Rewritten 2026-09-20, with the page ──────────────────────────────
+ *
+ * Two sentences in this file pinned the positioning as it stood before
+ * 2026-09-17 — "makes the tenure argument once, in a section of its own"
+ * and "argues tenure before it describes how anything works". CLAUDE.md
+ * reversed that: tenure is the moat, not the wedge, and "tenure is
+ * nobody's problem — only you expect it to be solved". A test that pins
+ * a decision the founder has reversed is worse than no test, because it
+ * stops the page being corrected. Both are retired below and replaced by
+ * the three that hold now: the four questions come first, tenure is one
+ * of them rather than a section, and the exposure is the business case
+ * that follows the hook.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -30,9 +43,7 @@ describe('The live home page still says what we agreed it says', () => {
 
   it('reads as the category, not as one of its modules', () => {
     const v = verdict(live)
-    // A RISKY finding is allowed here — the hero panel shows one worked
-    // example, "Senior Java Developer, Dallas", and an example naming a
-    // role is not the same as a headline claiming a market.
+    // A RISKY finding is allowed here — a worked example may name a role.
     expect(v.findings.filter((f) => f.severity === 'WRONG')).toEqual([])
     expect(v.ok).toBe(true)
   })
@@ -127,6 +138,14 @@ describe('Horizontal, never vertical', () => {
     expect(v.ok).toBe(true)
     expect(v.findings.map((f) => f.severity)).toEqual(['RISKY'])
   })
+
+  it('keeps the live page clear even of the warning, because its example is a role anybody has', () => {
+    // The hero's worked example was a Java developer, which was allowed
+    // and made the one page that has to read horizontal read as IT
+    // staffing to anybody skimming it. Quality validation is a job in a
+    // plant, a hospital and a lab.
+    expect(check(live).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
+  })
 })
 
 describe('Neutrality is absolute and the page must not blur it', () => {
@@ -176,11 +195,11 @@ describe('A real company on a public page is caught by its name', () => {
   })
 
   it('leaves the invented firms in the worked examples alone', () => {
-    // Cloudepa Systems, Brightmoor Talent, Vertex Group and Calder
-    // Manufacturing are inventions and have to stay — the ledger is the
-    // whole tenure argument and it needs three supplier names.
+    // Brightmoor Talent, Calder Manufacturing, Northbend Athletic and
+    // the rest are inventions and have to stay — the door names three of
+    // them and the seed builds all three.
     expect(namedCompanies(
-      'Cloudepa Systems, Brightmoor Talent and Vertex Group supplied Calder Manufacturing.'
+      'Brightmoor Talent supplied Calder Manufacturing, and Northbend Athletic runs a program.'
     )).toEqual([])
   })
 
@@ -242,24 +261,122 @@ describe('The reader finds words that are actually on the page', () => {
 
 // ── What the page says the business is ──────────────────────────────
 //
-// The founder read the live page on a phone and said the hero was fine
-// and everything below it was not. He was right for a specific reason:
-// every section below the fold addressed a client with eleven
-// suppliers, and Phase 1 ships to paying staffing firms. The page sold
-// to the people who are not the customers yet, in front of the people
-// who are — and nowhere said who pays, what it costs, what it sits
-// beside, or what anybody does differently on Monday.
-//
-// These are the things that were agreed about the page below the hero.
-// A rewrite that quietly drops one of them fails here rather than in a
-// week.
+// The order of the argument is the thing that keeps going wrong, and it
+// is not visible in any single sentence. So these read the page's own
+// section anchors as well as its words: what comes before what is a
+// decision somebody made, and a rewrite that quietly reorders it fails
+// here rather than in a week.
 
 const body = words.slice(12).join(' ')
 const all = words.join(' ')
 
+const at = (anchor: string) => PAGE.indexOf(`id="${anchor}"`)
+
 describe('Below the hero, the page says what the business is', () => {
 
-  it('is written to the company hiring, with the chain read over its shoulder', () => {
+  it('names the whole span once, so that no single station reads as the product', () => {
+    // Naming one station makes the whole product read as that station,
+    // which is how a screening headline made this a hiring tool. The
+    // span is named in the hero, in the trade's order, once.
+    expect(all).toContain(
+      'Requisition, suppliers, submissions, screening, interviews, ' +
+      'onboarding, timesheets, invoices, compliance'
+    )
+  })
+
+  it('asks the four questions before it argues anything', () => {
+    // The hook is the not-knowing, and it is section two. Everything
+    // that follows — what it costs, how a hire moves, which screens
+    // answer them — is an answer to a question the reader has already
+    // been asked.
+    expect(PAGE).toContain('const CANNOT_ANSWER')
+    for (const q of [
+      'How many contractors are on our sites right now?',
+      'What are we spending on them this quarter, and with whom?',
+      'Are we paying two suppliers different money for the same work?',
+      'Who has been here longest?',
+    ]) {
+      expect(PAGE, q).toContain(q)
+    }
+    expect(at('gap')).toBeGreaterThan(0)
+    for (const later of ['exposure', 'lifecycle', 'monday', 'alongside', 'who', 'why']) {
+      expect(at('gap'), `#gap should come before #${later}`).toBeLessThan(at(later))
+    }
+  })
+
+  it('keeps tenure to one question, not a section', () => {
+    // Corrected 2026-09-17: "Tenure is nobody's problem — only you
+    // expect it to be solved." It is the moat, not the wedge — nobody
+    // wakes up worried about month nineteen, and every agent who read
+    // "the sharpest wedge is tenure" built toward it. So the ledger
+    // stays as one question of four, with the arithmetic in one line,
+    // and it no longer has a section of its own above the product.
+    expect(PAGE).not.toContain('id="tenure"')
+    expect(body).toContain(
+      'Fourteen months, then three, then two — nineteen on your site, ' +
+      'and none of the three firms can see the other two.'
+    )
+    // It is still in the picture: one screen of four, named on the page,
+    // and the word is used sparingly rather than argued.
+    expect(PAGE).toContain("screen: 'Tenure'")
+    const mentions = (all.toLowerCase().match(/tenure/g) ?? []).length
+    expect(mentions, `the word "tenure" is on the page ${mentions} times`).toBeLessThanOrEqual(5)
+  })
+
+  it('puts the business case after the hook and never as the opening', () => {
+    // Two sentences doing two jobs: the hook is the not-knowing, the
+    // business case is what it costs when somebody finally asks. A page
+    // that opens on the penalty sells a fear the buyer does not hold.
+    expect(at('gap')).toBeLessThan(at('exposure'))
+    expect(body).toContain('Nobody is fined on the day a contractor passes eighteen months')
+    expect(body.toLowerCase()).toContain('co-employment')
+    const hookAt = body.indexOf('Every contractor on your sites')
+    const exposureAt = body.indexOf('Nobody is fined on the day')
+    expect(hookAt).toBeGreaterThanOrEqual(0)
+    expect(hookAt).toBeLessThan(exposureAt)
+  })
+
+  it('names the three things the exposure actually is, rather than gesturing at compliance', () => {
+    expect(PAGE).toContain('const EXPOSURE')
+    expect(body).toContain('Co-employment, on a number you never had')
+    expect(body).toContain('A supplier whose cover lapsed in March')
+    expect(body).toContain('A bill paid with no signed week behind it')
+  })
+
+  it('does not lead with a penalty, because nobody is fined at month nineteen', () => {
+    // The page used to argue tenure as "an exposure rather than a
+    // saving". A compliance pitch loses to "we have never been caught",
+    // which is worse than losing to "we are managing fine" because it
+    // is true.
+    expect(body).not.toContain('exposure rather than a saving')
+    expect(body).not.toContain('usually finds out about it from a lawyer')
+  })
+
+  it('says what the not-knowing costs today — three weeks and a number nobody trusts', () => {
+    expect(body).toContain('let me come back to you')
+    expect(body).toContain('three weeks')
+    expect(body).toContain('nobody fully trusts')
+  })
+
+  it('says why no supplier can answer, which is why the record sits above them', () => {
+    // A VMS sees inside one program. A supplier sees its own slice.
+    // Neither can add them up, and the client cannot get it by asking.
+    expect(body).toContain('No supplier can add that up')
+    expect(body).toContain('A VMS sees inside')
+    expect(body).toContain('nobody you could ask is holding all')
+  })
+
+  it('is written to the client’s desks by name — program manager, CFO, procurement', () => {
+    // The client is the customer, decided 2026-09-10. Writing to "a
+    // company" is writing to nobody; these are the three people in the
+    // room when the question gets asked and the three who open the
+    // screens that answer it.
+    for (const desk of ['program manager', 'CFO', 'procurement']) {
+      expect(body, desk).toContain(desk)
+    }
+  })
+
+  it('is written to the client, with the chain read over its shoulder', () => {
     // Addressing hiring companies, primes, subs and bench operators as
     // four equals is the plan from before the client became the customer
     // on 2026-09-10. A hiring manager who reads "primes, subs, bench
@@ -272,10 +389,11 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('writes to the client before it writes to anybody who supplies the client', () => {
     // The order on the page, not only the words: the client's own case
-    // — the question they cannot answer, the tenure ledger, their four
-    // screens — comes before the section about the chain.
-    expect(PAGE.indexOf('id="gap"')).toBeLessThan(PAGE.indexOf('id="who"'))
-    expect(PAGE.indexOf('id="monday"')).toBeLessThan(PAGE.indexOf('id="who"'))
+    // — the questions, what they cost, how a hire moves, the screens —
+    // all come before the section about the chain.
+    for (const first of ['gap', 'exposure', 'lifecycle', 'monday']) {
+      expect(at(first), `#${first} should come before #who`).toBeLessThan(at('who'))
+    }
   })
 
   it('says prime, sub and bench are positions on a deal rather than kinds of company', () => {
@@ -285,101 +403,7 @@ describe('Below the hero, the page says what the business is', () => {
     expect(body).toContain('positions on a deal, not kinds of company')
   })
 
-  it('gives keeping your ATS, your VMS and your suppliers a headline rather than a footnote', () => {
-    // It was the most useful sentence on the page and it was 13px gray
-    // text under an arrow diagram.
-    const headline = words.find((w) => /Keep your ATS/.test(w))
-    expect(headline).toBeDefined()
-    expect(body).toContain('sits in front of')
-  })
-
-  it('tells a supplier firm what changes on Monday rather than listing features', () => {
-    expect(body).toContain('What changes on Monday')
-    // Four questions somebody answers today with a phone call and a guess.
-    expect(body).toContain('phone call, a spreadsheet and a guess')
-  })
-
-  it('asks the four questions a client cannot answer, not the four a staffing firm asks', () => {
-    // These were Leads, Bench, Profitability and Payables — a staffing
-    // firm's questions, on a page whose customer is the company hiring.
-    for (const screen of ['Program', 'Workforce', 'Tenure', 'Rates']) {
-      expect(PAGE, screen).toContain(`screen: '${screen}'`)
-    }
-    expect(body).toContain('How many contractors do we have, and whose are they?')
-    expect(body).toContain('Who has been here longest?')
-    expect(body).toContain('Are we paying two suppliers differently for the same work?')
-  })
-
-  it('names four screens that a reader can go and open', () => {
-    // A page describing a screen nobody built is the exact failure this
-    // file was written to stop. The route is written beside the label
-    // so this reads the page's own answer rather than guessing it from
-    // the words.
-    const routes = [...PAGE.matchAll(/route: '([a-z-]+)',/g)].map((m) => m[1])
-    expect(routes.length).toBe(4)
-    for (const route of routes) {
-      expect(
-        existsSync(join(process.cwd(), 'src/app/dashboard', route, 'page.tsx')),
-        `src/app/dashboard/${route}/page.tsx`
-      ).toBe(true)
-    }
-  })
-
-  it('makes the tenure argument once, in a section of its own', () => {
-    // It was the second of three bullets in a grid. It is the sharpest
-    // wedge in the product.
-    expect(body).toContain('Nobody can tell you how long a contractor has actually been on site')
-  })
-
-  it('argues tenure before it describes how anything works', () => {
-    // The worked example — nineteen months across three suppliers — is
-    // the whole argument, and it was in section seven of nine. Almost
-    // nobody reads that far.
-    expect(PAGE.indexOf('id="tenure"')).toBeLessThan(PAGE.indexOf('id="lifecycle"'))
-    expect(PAGE.indexOf('id="tenure"')).toBeLessThan(PAGE.indexOf('id="monday"'))
-  })
-
-  it('shows how a placement moves as the handful of milestones a person acts on', () => {
-    // Eighteen numbered stages is the internal lifecycle printed on a
-    // marketing page, and it breaks the product's own rule: three words,
-    // not nineteen states. The 2017 timeline made that mistake on users
-    // who had signed up; this was making it on strangers.
-    expect(PAGE).toContain('const LIFECYCLE')
-    // Scoped to the array itself: the header nav's Products/Compliance
-    // menus carry `{ t: ..., d: ... }` items in the same shape for the
-    // same reason (a label and a one-line description), and a bare
-    // whole-file match would count those too.
-    const arrayText = PAGE.slice(PAGE.indexOf('const LIFECYCLE'), PAGE.indexOf('const MONDAY'))
-    const stageCount = (arrayText.match(/\{ t: '[^']+', d: '[^']+'/g) ?? []).length
-    expect(stageCount).toBe(6)
-    expect(body).toContain('Six milestones, one record the whole way through')
-  })
-
-  it('says out loud that there are more states inside and nobody has to learn them', () => {
-    expect(body).toContain('Nobody using it has to learn any of them')
-  })
-
-  it('marks exactly the three gates — a milestone that can stop the deal, not only record it', () => {
-    // Matched only inside an actual LIFECYCLE row, not the doc comment
-    // above it that also says the words "gate: true" while explaining
-    // what the field means — and not any other array with the same
-    // `{ t, d }` shape, such as the header nav's menu items.
-    const arrayText = PAGE.slice(PAGE.indexOf('const LIFECYCLE'), PAGE.indexOf('const MONDAY'))
-    const gateCount = (arrayText.match(/\{ t: '[^']+', d: '[^']+', gate: true \}/g) ?? []).length
-    expect(gateCount).toBe(3)
-    expect(body).toContain('The three in clay can stop the deal')
-  })
-
-  it('renders the lifecycle as a grid element, not a bulleted list of text', () => {
-    expect(PAGE).toContain('LIFECYCLE.map')
-    expect(PAGE).toMatch(/grid grid-cols-1[^"]*sm:grid-cols-2/)
-  })
-
   it('gives the supply side a line each, never a column each beside the client', () => {
-    // There were four cards of three lines each, one per audience, with
-    // the company hiring as one of four. The client is the customer; a
-    // supplier is on it because its client is. So: three short lines,
-    // inside a section written to the client.
     expect(PAGE).toContain('const SUPPLY')
     expect(PAGE).toContain('SUPPLY.map')
     for (const who of ['A prime', 'A sub', 'A bench operator']) {
@@ -395,67 +419,87 @@ describe('Below the hero, the page says what the business is', () => {
     expect(body).toContain('Supplying into a program like this?')
     expect(body).toContain('nothing about it competes with you')
     // And it arrives after the client's own case, never beside it.
-    const clientCase = Math.max(PAGE.indexOf('id="monday"'), PAGE.indexOf('id="alongside"'))
-    expect(PAGE.indexOf('const SUPPLY')).toBeGreaterThan(0)
-    expect(PAGE.indexOf('SUPPLY.map')).toBeGreaterThan(clientCase)
+    expect(PAGE.indexOf('SUPPLY.map')).toBeGreaterThan(at('monday'))
   })
 
   it('says what the chain costs the client, not what it costs the supplier', () => {
-    // "Who this is for" listed each party's pain in its own words. This
-    // section is one reader's: the name that traveled further than the
-    // agreement, the same person arriving three times, a rate you cannot
-    // read because the chain is in the way.
     expect(body).toContain('Your role goes further down than you think. So does your name.')
     expect(body).toContain('past the agreement that said they wouldn’t')
     expect(body).toContain('reaches you three times from three firms')
   })
 
-  it('does not lead with a penalty, because nobody is fined at month nineteen', () => {
-    // The page used to argue tenure as "an exposure rather than a
-    // saving". A compliance pitch loses to "we have never been caught",
-    // which is worse than losing to "we are managing fine" because it
-    // is true. Corrected in CLAUDE.md on 2026-09-15.
-    expect(body).not.toContain('exposure rather than a saving')
-    expect(body).not.toContain('usually finds out about it from a lawyer')
+  it('says where the guarantee stops, because a hop off the platform is a hop into an email client', () => {
+    expect(body).toContain('Where a hop leaves the platform the record says so')
   })
 
-  it('argues tenure as the number nobody can produce, which is what makes it defensible', () => {
-    // A VMS sees inside one program. A supplier sees its own slice.
-    // Neither can add them up, and the client cannot get it by asking.
-    expect(body).toContain('No supplier can add that up')
-    expect(body).toContain('A VMS sees inside')
-    expect(body).toContain('nobody you could ask is holding all')
+  it('shows how a placement moves as the handful of milestones a person acts on', () => {
+    // Eighteen numbered stages is the internal lifecycle printed on a
+    // marketing page, and it breaks the product's own rule: three words,
+    // not nineteen states.
+    expect(PAGE).toContain('const LIFECYCLE')
+    // Scoped to the array itself: the header nav's menus carry
+    // `{ t: ..., d: ... }` items in the same shape for the same reason.
+    const arrayText = PAGE.slice(PAGE.indexOf('const LIFECYCLE'), PAGE.indexOf('const MONDAY'))
+    const stageCount = (arrayText.match(/\{ t: '[^']+', d: '[^']+'/g) ?? []).length
+    expect(stageCount).toBe(6)
+    expect(body).toContain('Six milestones, one record the whole way through')
   })
 
-  it('opens the argument on the question a client cannot answer about its own workforce', () => {
-    // The hook is the not-knowing. It happens monthly; the penalty is
-    // hypothetical. So this is section two and the exposure is not.
-    expect(body).toContain('Every contractor on your sites. Including the ones you didn’t hire.')
-    expect(PAGE).toContain('const CANNOT_ANSWER')
-    for (const q of [
-      'How many contractors are on our sites right now?',
-      'What are we spending on them this quarter?',
-      'Who has been here longest?',
-    ]) {
-      expect(PAGE, q).toContain(q)
+  it('walks the hire from every desk, so no one desk reads as the whole product', () => {
+    expect(body).toContain('The hiring manager raises it, HR reads the role, procurement audits')
+    expect(body).toContain('Nobody signs their own')
+  })
+
+  it('marks exactly the three gates — a milestone that can stop the deal, not only record it', () => {
+    const arrayText = PAGE.slice(PAGE.indexOf('const LIFECYCLE'), PAGE.indexOf('const MONDAY'))
+    const gateCount = (arrayText.match(/\{ t: '[^']+', d: '[^']+', gate: true \}/g) ?? []).length
+    expect(gateCount).toBe(3)
+    expect(body).toContain('The three in clay can stop the deal')
+  })
+
+  it('says the three gates in the words a refusal actually uses', () => {
+    // A refusal says what is missing and what to do — never a code —
+    // and a buyer who has only read a dashboard does not believe
+    // software refuses anything until it is written down.
+    expect(PAGE).toContain('const GATES')
+    expect(body).toContain('No I-9, no start.')
+    expect(body).toContain('Cover that lapsed in March stops the work in March.')
+    expect(body).toContain('A bill with no signed week behind it is not paid.')
+  })
+
+  it('renders the lifecycle as a grid element, not a bulleted list of text', () => {
+    expect(PAGE).toContain('LIFECYCLE.map')
+    expect(PAGE).toMatch(/grid grid-cols-1[^"]*sm:grid-cols-2/)
+  })
+
+  it('says out loud that there are more states inside and nobody has to learn them', () => {
+    expect(body).toContain('Nobody using it has to learn any of them')
+  })
+
+  it('answers the four questions with four screens a reader can go and open', () => {
+    // A page describing a screen nobody built is the exact failure this
+    // file was written to stop. The route is written beside the label so
+    // this reads the page's own answer rather than guessing it.
+    for (const screen of ['Program', 'Workforce', 'Tenure', 'Rates']) {
+      expect(PAGE, screen).toContain(`screen: '${screen}'`)
     }
+    const routes = [...PAGE.matchAll(/route: '([a-z-]+)',/g)].map((m) => m[1])
+    expect(routes.length).toBe(4)
+    for (const route of routes) {
+      expect(
+        existsSync(join(process.cwd(), 'src/app/dashboard', route, 'page.tsx')),
+        `src/app/dashboard/${route}/page.tsx`
+      ).toBe(true)
+    }
+    expect(body).toContain('phone call, a spreadsheet and a guess')
   })
 
-  it('says what the not-knowing costs today — three weeks and a number nobody trusts', () => {
-    expect(body).toContain('let me come back to you')
-    expect(body).toContain('three weeks')
-    expect(body).toContain('nobody fully trusts')
-  })
-
-  it('keeps the exposure as the business case, after the hook and never as the opening', () => {
-    // Two sentences doing two jobs: the hook is the not-knowing, the
-    // business case is what it costs when somebody finally asks.
-    expect(body).toContain('Nobody is fined on the day a contractor passes eighteen months')
-    expect(body).toContain('co-employment claim')
-    const hookAt = body.indexOf('Every contractor on your sites')
-    const exposureAt = body.indexOf('Nobody is fined on the day')
-    expect(hookAt).toBeGreaterThanOrEqual(0)
-    expect(hookAt).toBeLessThan(exposureAt)
+  it('gives keeping your ATS, your VMS and your suppliers a headline rather than a footnote', () => {
+    // It was the most useful sentence on the page and it was 13px gray
+    // text under an arrow diagram.
+    const headline = words.find((w) => /Keep your ATS/.test(w))
+    expect(headline).toBeDefined()
+    expect(body).toContain('sits in front of')
   })
 
   it('says the enforcement blocks where the law is behind it and warns everywhere else', () => {
@@ -476,16 +520,19 @@ describe('Below the hero, the page says what the business is', () => {
   })
 
   it('no longer heads a section with one module describing itself', () => {
-    // "Stop reading bad submissions" was demoted from the hero to a
-    // section heading, where it was still the weakest thing on the page.
     expect(all).not.toContain('Stop reading bad submissions')
   })
 
-  it('promises no export nobody has built', () => {
-    // Eighteen lists export to CSV. "Your data exports in full, any
-    // time" is a different and larger promise, and nothing stands
-    // behind it.
+  it('promises only the export that exists — every list to CSV, and a person’s own copy', () => {
+    // "Your data exports in full, any time" was a promise nothing stood
+    // behind. What is built: every list on the shared table exports to
+    // CSV, and `/dashboard/my-data` gives a person a copy of what is
+    // held about them or a way to ask to be forgotten. So the sentence
+    // is what is true rather than nothing at all.
     expect(all).not.toContain('exports in full')
+    expect(body).toContain('exports to CSV from the screen it is on')
+    expect(body).toContain('ask for a copy of it')
+    expect(existsSync(join(process.cwd(), 'src/app/dashboard/my-data/page.tsx'))).toBe(true)
   })
 
   it('claims no set-up time nobody has measured', () => {
@@ -494,20 +541,15 @@ describe('Below the hero, the page says what the business is', () => {
   })
 
   it('keeps the eyebrow and headline the founder said were fine', () => {
-    // The subhead under the headline is not pinned word for word — it
-    // was rewritten once already, in plainer English on the founder's
-    // own instruction, and pinning prose that is expected to keep
-    // getting plainer is how a test starts fighting the person it
-    // exists to serve. The eyebrow and the headline are the two lines
-    // that were explicitly signed off and are pinned exactly.
+    // The subhead is not pinned word for word — it was rewritten once
+    // already, in plainer English on the founder's own instruction, and
+    // pinning prose expected to keep getting plainer is how a test
+    // starts fighting the person it exists to serve.
     expect(words[1]).toBe('Contingent workforce management')
     expect(words[2]).toBe('Every contractor. Every supplier. One record.')
   })
 
   it('says the hero subhead in plain, spoken English — short sentences, no jargon', () => {
-    // "the system of record for the people you employ through somebody
-    // else" was the Oxford-professor version. This is the plain one:
-    // short sentences, the reader addressed as "you", no throat-clearing.
     const sub = words[3]
     expect(sub).toContain('You hire contractors through staffing firms')
     expect(sub).toContain('Nobody has one record')
@@ -522,6 +564,57 @@ describe('Below the hero, the page says what the business is', () => {
   })
 })
 
+// ── The door ──────────────────────────────────────────────────────────
+//
+// The page hands a visitor to the demo, and until 2026-09-17 the demo
+// behind the button was headed with three real enterprises. A name
+// stripped off the page and left one click behind it is not stripped off
+// anything, which is why the door is read here and not only the copy.
+
+describe('The door is a client desk, in a company nobody can sue us over', () => {
+
+  it('offers the demo seated at a client desk, with invented names only', () => {
+    expect(PAGE).toContain('const PROGRAMS')
+    expect(PAGE).toContain('href="/demo"')
+    expect(PAGE).toContain('Pick a client desk')
+    // The three named here are inventions, and the page says they are
+    // inventions rather than leaving them to read as a customer list.
+    for (const name of ['Northbend Athletic', 'Cavanaugh Glassworks', 'Talvern Medical']) {
+      expect(body, name).toContain(name)
+    }
+    expect(body).toContain('The companies are invented')
+    expect(namedCompanies(all)).toEqual([])
+  })
+
+  it('names the three programs the seed actually builds, so no door opens on nothing', () => {
+    const seats = readFileSync(join(process.cwd(), 'src/app/demo/seats.ts'), 'utf8')
+    const clientBlock = seats.slice(
+      seats.indexOf('CLIENT_PROGRAMS'),
+      seats.indexOf('SUPPLIER_SEATS')
+    )
+    const seeded = [...clientBlock.matchAll(/name: '([^']+)'/g)].map((m) => m[1])
+    const onPage = [...PAGE.slice(PAGE.indexOf('const PROGRAMS')).matchAll(/name: '([^']+)'/g)]
+      .map((m) => m[1]).slice(0, seeded.length)
+    expect(onPage).toEqual(seeded)
+  })
+
+  it('keeps the contractor’s own door on the page, quieter than both company doors', () => {
+    // A person who is the work is not an audience to drop off a page
+    // written to the company hiring. It stays a text link in both places
+    // the company doors are, never a button beside them, and
+    // `__tests__/invariants/demo-candidate.test.ts` counts it too.
+    expect((PAGE.match(/side="CANDIDATE"/g) ?? []).length).toBe(2)
+    expect(PAGE).not.toMatch(/side="CANDIDATE"[\s\S]{0,240}bg-etyme-action/)
+  })
+
+  it('keeps the supplier door second and quieter than the client one', () => {
+    // A supplier is welcome and is not who this page is written to.
+    expect(PAGE).toContain('Supplying into one instead?')
+    expect(PAGE).toContain('side="BENCH"')
+    expect(PAGE.indexOf('Pick a client desk')).toBeLessThan(PAGE.indexOf('Supplying into one instead?'))
+  })
+})
+
 // ── The number under the AI honesty ───────────────────────────────────
 //
 // The page said "About half of what looks like AI here is not." Nobody
@@ -529,10 +622,6 @@ describe('Below the hero, the page says what the business is', () => {
 // system takes and says of each whether a rule or a model decided it, so
 // the page can say a number with its denominator attached — and this can
 // recompute it rather than trust the words.
-//
-// If somebody adds a fourteenth unprompted action, this fails and the
-// sentence on the page is one edit away from true again. That is the
-// cheapest moment it will ever be to fix.
 
 describe('The claim about how much of this is a model is computed, not asserted', () => {
 
@@ -562,9 +651,6 @@ describe('The claim about how much of this is a model is computed, not asserted'
   })
 
   it('says what the one that is not a rule does, rather than leaving it to the imagination', () => {
-    // The single unprompted action decided by anything other than a rule
-    // scores people against an open role nobody has matched yet — and
-    // falls back to arithmetic when there is no model to call.
     const notARule = unprompted.filter((a) => a.basis !== 'RULE')
     expect(notARule.length).toBe(1)
     expect(notARule[0].says.toLowerCase()).toContain('scored people against an open role')
@@ -573,9 +659,6 @@ describe('The claim about how much of this is a model is computed, not asserted'
   })
 
   it('states the denominator, because it is the automation log and not the whole product', () => {
-    // "About half of what looks like AI here is not" was a claim about
-    // the product with nothing behind it. This is a claim about the
-    // things the system does on its own, which is a thing we count.
     expect(body).toContain('without anybody asking for them')
     expect(body).not.toContain('About half of what looks like AI')
   })
@@ -587,11 +670,6 @@ describe('The claim about how much of this is a model is computed, not asserted'
 })
 
 // ── The header ────────────────────────────────────────────────────────
-//
-// "Organized by products, industries, compliance and why etyme" — a
-// founder instruction, not a guess. The header used to be a flat list of
-// six module names with nothing organizing them; a company evaluating a
-// system of record expects the shape below.
 
 describe('The header reads as an enterprise product, not a job board', () => {
 
@@ -611,15 +689,12 @@ describe('The header reads as an enterprise product, not a job board', () => {
     expect(PAGE).not.toContain('I have a bench')
   })
 
-  it('lets a visitor pick a seat in the chain rather than announce a job to fill', () => {
-    // A TryDemo `label` prop, not JSX text — invisible to copyFrom, which
-    // only reads text nodes and single-quoted string literals. Checked
-    // against the raw source instead.
+  it('opens one door into an example program rather than asking a visitor to classify itself', () => {
     // One company door, not a company door and a supplier door. The
     // split forked the front page on demand-vs-supply, which is a
-    // position on a deal and not a property of a firm; the five seats
-    // now sit behind one button. A supplier is a company.
-    expect(PAGE).toContain('See it as a company')
+    // position on a deal and not a property of a firm; the seats sit
+    // behind one button.
+    expect(PAGE).toContain('Open an example program')
     expect(PAGE).not.toContain('See it as the supplier')
     expect(PAGE).not.toContain('See it as the company')
   })
@@ -636,17 +711,16 @@ describe('The header reads as an enterprise product, not a job board', () => {
   })
 
   it('names industries as one product used across them, never a vertical feature', () => {
-    // CLAUDE.md: "Horizontal, never vertical." Listing industries is fine
-    // as an illustration of breadth; it would be wrong as a claim that a
+    // "Horizontal, never vertical." Listing industries is fine as an
+    // illustration of breadth; it would be wrong as a claim that a
     // different product exists per industry, so the menu says so itself.
     expect(PAGE).toContain('One product. No industry-specific version to buy.')
   })
 
-  it('does not let the new header text shift the pinned hero words', () => {
-    // Every header/menu label above is rendered through {expr}, never as
-    // literal JSX text, specifically so it stays invisible to copyFrom's
-    // tag-text scan and the hero stays where it was pinned. This is the
-    // regression that scan would show: "Sign in" stops being first.
+  it('does not let the header text shift the pinned hero words', () => {
+    // Every header label renders through {expr}, never as literal JSX
+    // text, specifically so it stays invisible to copyFrom's tag-text
+    // scan and the hero stays where it was pinned.
     expect(words[0]).toBe('Sign in')
   })
 })
@@ -666,6 +740,16 @@ describe('The home page is read on a phone', () => {
       bad,
       `these apply at every width, phone included — add a sm:/md:/lg: prefix:\n  ${bad.join('\n  ')}`
     ).toEqual([])
+  })
+
+  it('leaves a 16px gutter at the edge of a phone screen', () => {
+    // px-4 from zero, px-6 once there is room. A max-width container with
+    // no padding puts the first letter of every line against the glass.
+    const containers = [...PAGE.matchAll(/mx-auto max-w-[\w[\]-]+ ([^"]*)/g)].map((m) => m[1])
+    expect(containers.length).toBeGreaterThan(5)
+    for (const c of containers) {
+      expect(c, `a container with no phone gutter: ${c}`).toMatch(/px-4|px-6/)
+    }
   })
 
   it('catches two columns declared with no breakpoint at all', () => {
@@ -688,13 +772,38 @@ describe('The home page is read on a phone', () => {
   })
 })
 
+// ── The palette ───────────────────────────────────────────────────────
+//
+// The home page is outside the chart-colors sweep, which reads
+// src/app/dashboard and src/components. It is the one page a stranger
+// sees, so it is held to the same bar here: the warm canvas, the ink,
+// one blue and clay for attention, and nothing from Tailwind's own
+// palette.
+
+describe('The home page is drawn in the brand’s own colors', () => {
+
+  it('reaches for no Tailwind color anywhere on it', () => {
+    const offBrand = [...PAGE.matchAll(/\b(?:bg|text|border)-(red|blue|green|yellow|orange|purple|pink|indigo|teal|cyan|amber|lime|emerald|violet|fuchsia|rose|sky)-\d{2,3}\b/g)]
+      .map((m) => m[0])
+    expect(offBrand, offBrand.join(', ')).toEqual([])
+  })
+
+  it('uses only the design tokens where it names a color by hand', () => {
+    const hexes = [...PAGE.matchAll(/#[0-9A-Fa-f]{6}\b/g)].map((m) => m[0].toUpperCase())
+    const TOKENS = [
+      '#F0EEE6', '#FBFAF7', '#FFFFFF', '#1F1E1D', '#6B6862',
+      '#9C9891', '#E3DFD5', '#2B47E5', '#C0622E', '#4F6F52', '#B83A3A',
+    ]
+    for (const hex of hexes) expect(TOKENS, `${hex} is not a design token`).toContain(hex)
+  })
+})
+
 // ── The footer ────────────────────────────────────────────────────────
 //
 // Three legal pages shipped and the home page had no link to any of
 // them, so they were live and invisible — which, to the client security
 // reviewer who goes looking in the footer, is the same as not having
-// written them. The footer was a logo and a tagline: the end of a page
-// rather than a company.
+// written them.
 
 const FOOTER_SRC = PAGE.slice(PAGE.indexOf('const FOOTER'), PAGE.indexOf('export default function'))
 const FOOTER_LINKS = [...FOOTER_SRC.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
@@ -710,7 +819,7 @@ describe('The footer is where a company keeps its papers', () => {
     expect(PAGE).toContain('FOOTER.map')
   })
 
-  it('offers the data processing addendum too, because that is the document a buyer\u2019s counsel asks for', () => {
+  it('offers the data processing addendum too, because that is the document a buyer’s counsel asks for', () => {
     expect(FOOTER_LINKS).toContain('/dpa')
   })
 
@@ -742,8 +851,6 @@ describe('The footer is where a company keeps its papers', () => {
   })
 
   it('invents no support mailbox, no office and no social account', () => {
-    // A footer full of links to things that do not exist costs more
-    // trust than a short one. Nothing here may be furniture.
     expect(FOOTER_SRC).not.toMatch(/mailto:/)
     expect(FOOTER_SRC.toLowerCase()).not.toMatch(/linkedin|twitter|x\.com|facebook|status\.|careers|\babout us\b/)
   })
@@ -770,9 +877,6 @@ describe('The footer is where a company keeps its papers', () => {
 describe('The public page still says the four things it may not stop saying', () => {
 
   it('the home page names what Etyme is before it names anything it does', () => {
-    // The eyebrow is the category and it sits above the headline. A
-    // visitor knows what kind of thing this is before they know what is
-    // good about it — the Concur move.
     expect(words[1]).toBe('Contingent workforce management')
     expect(check(live).map((f) => f.rule)).not.toContain('category-first')
     expect(check(live).map((f) => f.rule)).not.toContain('module-not-category')
@@ -793,9 +897,6 @@ describe('The public page still says the four things it may not stop saying', ()
   })
 
   it('claims no paying customers, because there are none yet', () => {
-    // "they are why firms keep paying after month one" was on the page
-    // under four screens, three sections above a section explaining that
-    // Etyme is free and nobody has been charged anything.
     expect(all).not.toContain('keep paying')
     expect(all).not.toMatch(/\bcustomers (?:say|trust|love)\b/)
   })
@@ -818,8 +919,8 @@ describe('A price on a page is caught by its unit, not by its dollar sign', () =
     expect(priceClaims('Contact us for pricing.').length).toBeGreaterThan(0)
   })
 
-  it('lets the worked example carry a contractor rate and an invoice, which are the product, not the bill', () => {
-    expect(priceClaims('Submitted 2 Sep · $78/hr · screened. Invoiced $11,856 on 45 day terms.'))
+  it('lets the worked example carry a contractor rate and a bill, which are the product, not our price', () => {
+    expect(priceClaims('Submitted 2 Sep · $78/hr · screened. Billed $11,856 on 45 day terms.'))
       .toEqual([])
   })
 
