@@ -309,6 +309,22 @@ What it means, stated so nobody re-derives the old plan:
   partners and become the firms we are measured against. The claim is the
   one the incumbents cannot make: the same firm runs the program and keeps
   the record neutral, for clients they will not take.
+- **Sell it quietly, as value added. Decided 2026-09-20, later the same day.**
+  The founder: "MSP selling should be undercover selling and more as value
+  addition rather than fully pitching for the market. Remove the threat if
+  any to supply chain." So: the record is what the page sells. The MSP
+  provider option appears once, as a quiet second way to use the record
+  ("if you would rather not staff a program office, Etyme can run it for
+  you on the same record"), never as a headline, never sized against the
+  incumbents, never as a new category. The competitive page does not
+  declare rivalry with MSPs; it describes the record and mentions the
+  service once. Nothing on any page, letter or screen reads as a threat to
+  a supplier: a supplier's rates and its sub-vendors' names stay private,
+  its client stays its client, Etyme never supplies a person, and a
+  program Etyme runs is said to make a supplier's life easier (faster
+  approvals, bills matched and paid, fewer spreadsheets), not to watch it.
+  A sentence that a supplier would read as "this is aimed at you" is
+  removed, and `lib/positioning` holds a guard for it.
 - **The MSP desks are Etyme's own.** Program Manager, Supplier Manager,
   Coordinator, AP Clerk, Compliance Officer already exist as a company
   kind. Etyme staff hold them in each client's program through the seat.
