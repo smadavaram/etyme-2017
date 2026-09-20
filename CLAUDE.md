@@ -305,10 +305,14 @@ What it means, stated so nobody re-derives the old plan:
 - **Pricing is unchanged.** Supplier-funded, a percentage on billings, the
   way MSPs are paid, and no number until the founder sets one. Free while
   testing still holds for the record.
-- **The competitive page changes.** The incumbents' MSPs stop being
-  partners and become the firms we are measured against. The claim is the
-  one the incumbents cannot make: the same firm runs the program and keeps
-  the record neutral, for clients they will not take.
+- **The competitive page changes, but does not declare a rival.**
+  Superseded the same day by the bullet below: the first version of this
+  line said the incumbents' MSPs "become the firms we are measured
+  against", and that framing was removed from the pages within hours. What
+  stands: the incumbents are no longer called partners; the page describes
+  the record, mentions the service once, and makes no rivalry claim, because
+  Etyme has run no programs yet and a claim it cannot stand behind is worth
+  less than silence.
 - **Sell it quietly, as value added. Decided 2026-09-20, later the same day.**
   The founder: "MSP selling should be undercover selling and more as value
   addition rather than fully pitching for the market. Remove the threat if
