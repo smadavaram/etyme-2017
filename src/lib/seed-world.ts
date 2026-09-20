@@ -43,6 +43,22 @@ import { seedStanding } from '@/lib/seed-standing'
 import { seedOrderToCash } from '@/lib/seed-order-to-cash'
 import { seedPipeline } from '@/lib/seed-pipeline'
 import { rolesFor } from '@/lib/company-defaults'
+// A seeded bill is shaped by the two doors a real one is: `periodFor`
+// under the terms of the document the line is on, and `dueOn` under what
+// those terms count from.
+import { periodFor, iso, type Period } from '@/lib/periods'
+import { periodTermsFor, termsFor } from '@/lib/money/order-terms'
+import { dueOn } from '@/lib/billing-cascade'
+
+/** `n` days after a UTC midnight, still at UTC midnight. */
+function plusDays(d: Date, n: number): Date {
+  return new Date(d.getTime() + n * 86_400_000)
+}
+
+/** The earlier of two days. Keeps a seeded date out of the future. */
+function earlierOf(a: Date, b: Date): Date {
+  return a.getTime() <= b.getTime() ? a : b
+}
 
 const DOMAIN = 'demo.etyme.local'          // the domain the signed demo cookie accepts
 const PREFIX = 'world-'                    // marks a company as part of this world
@@ -111,7 +127,7 @@ interface Placement {
   routedBy?: string; via: string[]; rates: number[]
 }
 const PLACEMENTS: Placement[] = [
-  { role: 'SAP FICO consultant',        skills: ['SAP FICO', 'S/4HANA'],       loc: 'San Jose, CA',
+  { role: 'ERP finance consultant',     skills: ['ERP finance', 'General ledger'], loc: 'San Jose, CA',
     routedBy: 'aptiva',  via: ['harlow-health', 'computer-systems', 'cloudepa'], rates: [13800, 11200, 8600] },
   { role: 'Epic Ambulatory analyst',    skills: ['Epic', 'Ambulatory'],        loc: 'Madison, WI',
     via: ['harlow-health', 'computer-systems'],                                  rates: [11500, 8400] },
@@ -119,13 +135,13 @@ const PLACEMENTS: Placement[] = [
     via: ['meridian-bank', 'vertex-global', 'sahasra'],                          rates: [12600, 10200, 7900] },
   { role: 'Avionics test engineer',     skills: ['DO-178C', 'Embedded C'],     loc: 'Wichita, KS',
     via: ['corveldt', 'teleworld', 'nimbus'],                                    rates: [14200, 11600, 9100] },
-  { role: 'Oracle Retail consultant',   skills: ['Oracle Retail', 'PL/SQL'],   loc: 'Columbus, OH',
+  { role: 'Retail systems consultant',  skills: ['Retail merchandising', 'PL/SQL'], loc: 'Columbus, OH',
     routedBy: 'kestrel', via: ['nordway', 'brightmoor', 'consultis'],            rates: [12900, 10400, 8100] },
   { role: 'Murex support analyst',      skills: ['Murex', 'FX'],               loc: 'Jersey City, NJ',
     via: ['meridian-bank', 'halcyon'],                                           rates: [13400, 9800] },
   { role: 'PLM systems engineer',       skills: ['Teamcenter', 'PLM'],         loc: 'Everett, WA',
     via: ['corveldt', 'sundara', 'orchid'],                                      rates: [13100, 10700, 8300] },
-  { role: 'Workday integrations lead',  skills: ['Workday', 'Studio'],         loc: 'Minneapolis, MN',
+  { role: 'HCM integration lead',       skills: ['HCM integration', 'Payroll interfaces'], loc: 'Minneapolis, MN',
     via: ['nordway', 'pinnacle', 'bluecrest'],                                   rates: [14500, 11800, 9200] },
 ]
 
@@ -552,42 +568,85 @@ export async function seedWorld(): Promise<{
 
   // Each hop bills its own leg for the same weeks — one week of work,
   // one invoice line per contract, which is what the chain actually does.
+  //
+  // One bill per billing period, the way `POST /api/invoices/generate`
+  // raises them. The period used to be the span of whichever weeks were
+  // unbilled — first sheet's start to last sheet's end — which is a
+  // period belonging to no contract and matching no order, and on three
+  // consecutive weeks it crosses a month boundary roughly a third of
+  // the time. Which third depends on the day the world was seeded,
+  // which is the worst way for a seeded figure to be wrong.
   for (const sell of contracts) {
-    const unbilled: any[] = []
+    const billTerms = periodTermsFor('SELL', sell)
+    const billed = termsFor('SELL', sell)
+
+    const byPeriod = new Map<string, { period: Period; weeks: any[] }>()
     for (const t of sheets.slice(0, 3)) {
-      if (await db.invoiceLine.findFirst({ where: { timesheetId: t.id, sellContractId: sell.id } })) continue
-      unbilled.push(t)
+      const period = periodFor(t.periodStart, billTerms)
+      const bucket = byPeriod.get(iso(period.start)) ?? { period, weeks: [] }
+      bucket.weeks.push(t)
+      byPeriod.set(iso(period.start), bucket)
     }
-    if (unbilled.length === 0) continue
-    const cents = unbilled.length * 40 * sell.billRate
-    const inv = await db.invoice.create({
-      data: {
-        engagementId: sell.engagementId, // Per contract AND per period. Keyed on the contract alone, a
-          // later run covering a new week collided with the first run's
-          // invoice on Invoice.number, which is unique.
-          number: `IN-${sell.id.slice(-6).toUpperCase()}-${unbilled[0].periodStart
-            .toISOString()
-            .slice(0, 10)
-            .replace(/-/g, '')}`,
-        periodStart: unbilled[0].periodStart, periodEnd: unbilled[unbilled.length - 1].periodEnd,
-        currency: 'USD', total: cents / 100, paid: cents / 100,
-        dueAt: day(20), issuedAt: day(-10), status: 'PAID',
-      },
-    })
-    for (const t of unbilled) {
-      await db.invoiceLine.create({
-        data: {
-          invoiceId: inv.id, timesheetId: t.id, sellContractId: sell.id, personId: person.id,
-          hours: 40, rateCents: sell.billRate, amountCents: 40 * sell.billRate,
-        },
+
+    for (const { period, weeks } of [...byPeriod.values()].sort(
+      (a, b) => a.period.start.getTime() - b.period.start.getTime()
+    )) {
+      // Asked before the header is written, so a run that finds every
+      // week already billed writes no invoice at all rather than an
+      // empty one carrying a total.
+      const unbilled: any[] = []
+      for (const t of weeks) {
+        if (await db.invoiceLine.findFirst({ where: { timesheetId: t.id, sellContractId: sell.id } })) continue
+        unbilled.push(t)
+      }
+      if (unbilled.length === 0) continue
+
+      const cents = weeks.length * 40 * sell.billRate
+      // Per contract AND per period. Keyed on the contract alone, a
+      // later run covering a new week collided with the first run's
+      // invoice on Invoice.number, which is unique.
+      const number = `IN-${sell.id.slice(-6).toUpperCase()}-${iso(period.start).replace(/-/g, '')}`
+      const issuedAt = earlierOf(plusDays(period.end, 2), day(-1))
+      // The one due date, counted the way the contract says to count it,
+      // rather than a hand-written day(20) that agreed with nothing.
+      const due = dueOn({
+        anchor: billed.paymentTermsFrom ?? 'PERIOD_END',
+        days: billed.paymentTermsDays ?? 30,
+        periodEnd: period.end,
+        issuedAt,
+        receivedAt: null,
+        approvedAt: null,
       })
+
+      const inv =
+        (await db.invoice.findUnique({ where: { number } })) ??
+        (await db.invoice.create({
+          data: {
+            engagementId: sell.engagementId, number,
+            periodStart: period.start, periodEnd: period.end,
+            currency: 'USD', total: cents / 100, paid: cents / 100,
+            dueAt: due.dueAt, issuedAt, status: 'PAID',
+          },
+        }))
+      for (const t of unbilled) {
+        await db.invoiceLine.create({
+          data: {
+            invoiceId: inv.id, timesheetId: t.id, sellContractId: sell.id, personId: person.id,
+            hours: 40, rateCents: sell.billRate, amountCents: 40 * sell.billRate,
+          },
+        })
+      }
+      if (!(await db.payment.findFirst({ where: { invoiceId: inv.id } }))) {
+        await db.payment.create({
+          data: {
+            invoiceId: inv.id, payerCompanyId: sell.clientCompanyId, receivedByCompanyId: sell.companyId,
+            amount: cents / 100, currency: 'USD', method: 'ACH',
+            receivedAt: earlierOf(plusDays(issuedAt, 20), day(-1)),
+            appliedAt: earlierOf(plusDays(issuedAt, 20), day(-1)),
+          },
+        })
+      }
     }
-    await db.payment.create({
-      data: {
-        invoiceId: inv.id, payerCompanyId: sell.clientCompanyId, receivedByCompanyId: sell.companyId,
-        amount: cents / 100, currency: 'USD', method: 'ACH', receivedAt: day(-4), appliedAt: day(-4),
-      },
-    })
   }
 
   return { person, requirement }
@@ -918,13 +977,13 @@ export async function seedWorld(): Promise<{
     { slug: 'teleworld', team: [
       { name: 'Karthik Menon',   discipline: 'Validation Engineer',   practice: 'Delivery — avionics software assurance practice' },
       { name: 'Amara Nwosu',     discipline: 'Data Engineer',         practice: 'Delivery — data platform practice' },
-      { name: 'Felix Brenner',   discipline: 'SAP Consultant',        practice: 'Delivery — SAP S/4HANA finance practice' },
+      { name: 'Felix Brenner',   discipline: 'ERP Finance Consultant', practice: 'Delivery — ERP finance practice' },
       { name: 'Deepa Varma',     discipline: 'Integration Architect', practice: 'Delivery — integration practice' },
     ]},
     { slug: 'sundara', team: [
       { name: 'Aditi Ramaswamy', discipline: 'Validation Engineer',   practice: 'Delivery — safety-critical software practice' },
       { name: 'Olivier Renard',  discipline: 'Data Engineer',         practice: 'Delivery — manufacturing data practice' },
-      { name: 'Harish Pillai',   discipline: 'SAP Consultant',        practice: 'Delivery — SAP plant maintenance practice' },
+      { name: 'Harish Pillai',   discipline: 'ERP Finance Consultant', practice: 'Delivery — plant maintenance practice' },
       { name: 'Beatriz Salgado', discipline: 'PLM Systems Engineer',  practice: 'Delivery — Teamcenter practice' },
     ]},
   ]
