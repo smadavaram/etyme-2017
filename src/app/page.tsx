@@ -465,13 +465,13 @@ const DECIDED = [
  * named person sends back a single page saying who is on its sites,
  * what it is spending, and what could not be seen.
  *
- * `src/app/census` does not exist yet — `lib/census-copy` and the two
- * API routes behind it are built and the page is not — so this is
- * false and the paragraph does not render. A link to a page that is not
- * there costs more trust than no link at all. Turn it on in the same
- * change that ships `src/app/census/page.tsx`, and not before.
+ * It was false until 2026-09-20, because a link to a page that is not
+ * there costs more trust than no link at all. `src/app/census/page.tsx`
+ * now exists, with the four steps behind it, so the door is open. The
+ * positioning test reads both the constant and the page file, so the
+ * two cannot disagree again.
  */
-const CENSUS_IS_OPEN = false
+const CENSUS_IS_OPEN = true
 
 /**
  * The three seeded programs named at the door.

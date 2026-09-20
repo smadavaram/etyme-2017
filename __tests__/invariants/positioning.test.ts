@@ -828,15 +828,17 @@ describe('The client chooses how to use it, and neither way is Etyme supplying a
     )
   })
 
-  it('keeps the census door shut until the page behind it exists', () => {
+  it('opens the census door now that the page exists', () => {
     // The census is the first step for a client weighing the MSP
-    // service, and `src/app/census` is not built. A link to a page that
-    // is not there costs more trust than no link at all, so the words
-    // are written and the constant is off.
-    expect(PAGE).toContain('const CENSUS_IS_OPEN = false')
+    // service. The constant was off while `src/app/census` was not
+    // built, because a link to a page that is not there costs more
+    // trust than no link at all. The page shipped on 2026-09-20, so the
+    // door is open — and the file is read here as well as the constant,
+    // so switching one without the other fails on that commit.
+    expect(PAGE).toContain('const CENSUS_IS_OPEN = true')
     expect(PAGE).toContain('{CENSUS_IS_OPEN && (')
     expect(PAGE).toContain('If you are considering Etyme as your MSP provider')
-    expect(existsSync(join(process.cwd(), 'src/app/census/page.tsx'))).toBe(false)
+    expect(existsSync(join(process.cwd(), 'src/app/census/page.tsx'))).toBe(true)
   })
 
   it('says VMS software without the page reading as software staffing', () => {
