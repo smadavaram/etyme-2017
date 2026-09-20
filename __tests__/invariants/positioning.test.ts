@@ -47,7 +47,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   check, verdict, copyFrom, gridsWithoutBreakpoint, priceClaims, namedCompanies,
-  headlinesFrom, withoutVerb, longSentences,
+  headlinesFrom, withoutVerb, longSentences, settingTheOfferAside,
   type Copy,
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
@@ -180,6 +180,47 @@ describe('Neutrality is absolute and the page must not blur it', () => {
     const f = check(copy(['We place contractors fast']))
     expect(f.find((x) => x.rule === 'neutrality')!.says)
       .toContain('the network stops growing')
+  })
+
+  it('reads running a client’s program as neutral and supplying contractors as not', () => {
+    // Widened 2026-09-20, when Etyme began offering to run the program.
+    // The two sentences differ by one verb and the rule has to tell them
+    // apart, or it either refuses the offer or lets the master-vendor
+    // model through. Running a program means deciding who may supply and
+    // at what band. Supplying people means having a bench.
+    const runs = copy(
+      ['Contingent workforce management'],
+      ['Etyme’s program office runs the program for you, on the same record.'],
+    )
+    expect(check(runs).map((f) => f.rule)).not.toContain('neutrality')
+
+    const supplies = copy(
+      ['Contingent workforce management'],
+      ['Etyme runs the program, and we supply the contractors on it.'],
+    )
+    expect(check(supplies).map((f) => f.rule)).toContain('neutrality')
+  })
+
+  it('does not let the offer’s own words hide a supply claim beside them', () => {
+    // The strip is a phrase list, not a licence. A page that says both
+    // things is still refused, and the refusal names the words.
+    const f = check(copy(
+      ['Contingent workforce management'],
+      ['As your MSP provider we place contractors from our bench.'],
+    ))
+    const neutrality = f.find((x) => x.rule === 'neutrality')
+    expect(neutrality).toBeDefined()
+    expect(neutrality!.found).toContain('we place')
+  })
+
+  it('leaves the two labels a buyer knows readable as what they are', () => {
+    // "VMS software" carries the word software and the vertical rule is
+    // looking for software staffing — a page about developers and
+    // engineers. A product category a buyer names is not a claim about
+    // which industry this serves.
+    const aside = settingTheOfferAside('You choose VMS software or an MSP provider.')
+    expect(aside).not.toContain('software')
+    expect(settingTheOfferAside('We staff software engineers')).toContain('software engineers')
   })
 })
 
@@ -694,6 +735,116 @@ describe('Every line says an outcome, a benefit or a method', () => {
     ]) {
       expect(all, metaphor).not.toContain(metaphor)
     }
+  })
+})
+
+// ── The two ways to use it ───────────────────────────────
+//
+// Decided 2026-09-20. Etyme offers to run a client's program itself, as
+// a vendor-neutral program office, and the client chooses in the
+// founder's own two labels. Both stand on one record. The neutrality
+// commitment is now load-bearing in a way it was not before, because a
+// supplier reading this page is being asked to trust a firm that runs
+// its client's program, so the page says what Etyme never does in
+// either way rather than leaving it to the footer.
+
+describe('The client chooses how to use it, and neither way is Etyme supplying anybody', () => {
+
+  it('offers the choice in the buyer’s two words, VMS software or MSP provider, on one record', () => {
+    // The labels are the buyer's, not ours. A program manager has
+    // already evaluated things called both of those, and inventing a
+    // third word for either one costs the recognition.
+    expect(PAGE).toContain('const TWO_WAYS')
+    const twoWays = PAGE.slice(PAGE.indexOf('const TWO_WAYS'), PAGE.indexOf('const EXPOSURE'))
+    const labels = [...twoWays.matchAll(/label: '([^']+)'/g)].map((m) => m[1])
+    expect(labels).toEqual(['VMS software', 'MSP provider'])
+    // Drawn, not only held in the data, and each label carries an
+    // outcome, a benefit and a method under it.
+    expect(PAGE).toContain('{w.label}')
+    expect(PAGE).toContain('{w.outcome}')
+    expect(PAGE).toContain('{w.benefit}')
+    expect(PAGE).toContain('{w.method}')
+    expect([...twoWays.matchAll(/outcome: '([^']+)'/g)].length).toBe(2)
+    expect([...twoWays.matchAll(/benefit: '([^']+)'/g)].length).toBe(2)
+    expect([...twoWays.matchAll(/method: '([^']+)'/g)].length).toBe(2)
+    // One record, said in the hero where the choice is first offered
+    // and again over the section.
+    expect(all).toContain('You choose how to use it: as VMS software your own')
+    expect(all).toContain('MSP provider running the program for you on the same record')
+    expect(all).toContain('Two ways to use it, and both stand on one record')
+  })
+
+  it('says what Etyme never does in either way', () => {
+    // Neutrality is absolute and this is the place a reader is weighing
+    // whether to hand Etyme the program, so it is said here and not
+    // only in the footer.
+    expect(all).toContain('What Etyme never does in either way')
+    expect(all).toContain(
+      'It never supplies a contractor and never runs a bench, so it has no reason to favor one supplier.'
+    )
+    expect(check(live).map((f) => f.rule)).not.toContain('neutrality')
+  })
+
+  it('leaves the client the decisions that are the client’s', () => {
+    // A program office that takes the hiring manager's decisions is not
+    // neutral and is not this.
+    expect(all).toContain(
+      'Your people keep the decisions that are yours: which roles to open, who to hire, and what to approve.'
+    )
+  })
+
+  it('puts the choice after the four questions and before the business case', () => {
+    // A reader who has just been shown what they cannot answer asks who
+    // is going to do something about it. The penalty still never leads.
+    expect(at('ways')).toBeGreaterThan(at('gap'))
+    expect(at('ways')).toBeLessThan(at('exposure'))
+  })
+
+  it('names the size of program Etyme’s program office takes', () => {
+    // The answer to "we would just hire an MSP". The clients an MSP
+    // will not take are the clients this is for, and the size is the
+    // one in CLAUDE.md rather than a number invented for the page.
+    expect(body).toContain('An MSP normally wants a program of hundreds of contractors.')
+    expect(body).toContain('program office takes programs with five to fifteen suppliers')
+  })
+
+  it('says how the MSP provider service is paid, without a number', () => {
+    // Supplier-funded, a percentage on billings, disclosed at
+    // onboarding rather than discovered later. The number is the
+    // founder's and does not exist, so there is none here.
+    expect(body).toContain(
+      'The MSP provider service is paid the way program offices are paid, a percentage the suppliers pay on their billings, disclosed to every supplier at onboarding.'
+    )
+    const found = priceClaims(all)
+    expect(found, found.join('; ')).toEqual([])
+    expect(body).toContain('There is no price on this page because we have not settled one')
+  })
+
+  it('tells a supplier that a program Etyme runs changes nothing about its rates or its sub-vendors’ names', () => {
+    // The sentence a supplier needs before it will keep using a
+    // platform whose owner now runs its client's program.
+    expect(body).toContain(
+      'A program Etyme runs changes nothing about your rates or your sub-vendors’ names staying private.'
+    )
+  })
+
+  it('keeps the census door shut until the page behind it exists', () => {
+    // The census is the first step for a client weighing the MSP
+    // service, and `src/app/census` is not built. A link to a page that
+    // is not there costs more trust than no link at all, so the words
+    // are written and the constant is off.
+    expect(PAGE).toContain('const CENSUS_IS_OPEN = false')
+    expect(PAGE).toContain('{CENSUS_IS_OPEN && (')
+    expect(PAGE).toContain('If you are considering Etyme as your MSP provider')
+    expect(existsSync(join(process.cwd(), 'src/app/census/page.tsx'))).toBe(false)
+  })
+
+  it('says VMS software without the page reading as software staffing', () => {
+    // Horizontal, never vertical. The label is a product category a
+    // buyer names, and the rule that guards the industry assumption has
+    // to tell it apart from a page about engineers.
+    expect(all).toContain('VMS software')
+    expect(check(live).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
   })
 })
 

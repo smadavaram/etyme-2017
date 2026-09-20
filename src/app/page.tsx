@@ -15,13 +15,14 @@ import type { Route } from 'next'
  *
  *   1. what is this        the hero — the category, then the span
  *   2. why do I care       #gap — four questions nobody can answer
- *   3. what does it cost   #exposure — the business case, never first
- *   4. is that real        #lifecycle — one hire, from every desk
- *   5. what changes        #monday — four screens that answer the four
- *   6. does it replace     #alongside — your ATS, your VMS, your suppliers
- *   7. who else is on it   #who — the chain, and the suppliers on it
- *   8. the AI honesty      #compliance
- *   9. what it costs       #why — not settled, and says so
+ *   3. how do I use it     #ways — VMS software, or Etyme as MSP provider
+ *   4. what does it cost   #exposure — the business case, never first
+ *   5. is that real        #lifecycle — one hire, from every desk
+ *   6. what changes        #monday — four screens that answer the four
+ *   7. does it replace     #alongside — your ATS, your VMS, your suppliers
+ *   8. who else is on it   #who — the chain, and the suppliers on it
+ *   9. the AI honesty      #compliance
+ *  10. what it costs       #why — not settled, and says so
  *
  * ── Outcomes, benefits and methods. Rewritten 2026-09-20 ─────────────
  *
@@ -68,6 +69,19 @@ import type { Route } from 'next'
  * produce — and a bad wedge. So the ledger stays, as one question of
  * four, with the arithmetic beside it. It no longer has a section, and
  * it is no longer above the product.
+ *
+ * ── Two ways to use it. Decided 2026-09-20 ────────────────────
+ *
+ * Etyme now offers to run a client’s program itself, as a vendor-neutral
+ * program office. The client chooses in the founder’s own two labels:
+ * Etyme as VMS software, where the client’s own program office runs the
+ * program, or Etyme as MSP provider, where Etyme’s does. Both stand on
+ * one record, and #ways says so before the business case.
+ *
+ * Neutrality is unchanged and is said in that section rather than only
+ * in the footer: Etyme supplies nobody and runs no bench in either way.
+ * A supplier reading this page has to believe that, or it does not put
+ * its consultants in the system and there is no network.
  *
  * ── The hook is the not-knowing; the business case is the exposure ───
  *
@@ -138,6 +152,7 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
   {
     label: 'Why Etyme',
     items: [
+      { t: 'Two ways to use it: VMS software or MSP provider', href: '#ways' },
       { t: 'Never runs a bench, never places anybody', href: '#why' },
       { t: 'Governance is never a paid tier', href: '#why' },
       { t: 'Rules first, a model only on what is left', href: '#compliance' },
@@ -203,6 +218,40 @@ const CANNOT_ANSWER: { q: string; today: string; etyme: string; detail?: string 
     detail:
       'One person worked 14 months through supplier A, 3 through B, 2 through C. ' +
       'That is 19 months on your site. None of the three suppliers can see the other two.',
+  },
+]
+
+/**
+ * The two ways to use the same record, in the buyer’s own two labels.
+ *
+ * Decided 2026-09-20: a client chooses Etyme as VMS software, where its
+ * own program office runs the program, or Etyme as MSP provider, where
+ * Etyme’s program office runs it for them. Both stand on one record,
+ * and the labels are the buyer’s rather than ours because a program
+ * manager has already evaluated things called both of those.
+ *
+ * Three lines each, in the order the founder asked the whole page to be
+ * written in: an outcome, then the benefit, then the method. The labels
+ * render from this data rather than as literal headings, which is the
+ * same convention the exposures and the four screens use.
+ *
+ * What is deliberately not here: any suggestion that Etyme supplies the
+ * people in either one. The paragraph under both says so, because a
+ * supplier reading this page has to believe it before it will put its
+ * consultants in the system.
+ */
+const TWO_WAYS: { label: string; outcome: string; benefit: string; method: string }[] = [
+  {
+    label: 'VMS software',
+    outcome: 'Your own program office runs the program on Etyme.',
+    benefit: 'You keep the desks you already staff, and you pay nobody to run them.',
+    method: 'Your people hold the program seats. Etyme holds the record, the rules and the trail behind every decision.',
+  },
+  {
+    label: 'MSP provider',
+    outcome: 'Etyme’s program office runs the program for you, on the same record.',
+    benefit: 'You get a program office without hiring one, and the record stays yours if the service ends.',
+    method: 'Etyme staff sit in seats your company grants them, work to your rules, and every read they make is logged.',
   },
 ]
 
@@ -409,6 +458,22 @@ const DECIDED = [
 ]
 
 /**
+ * Whether the census door is open.
+ *
+ * The census is the first step for a client weighing the MSP provider
+ * service: it sends what it already has on its contractors, and one
+ * named person sends back a single page saying who is on its sites,
+ * what it is spending, and what could not be seen.
+ *
+ * `src/app/census` does not exist yet — `lib/census-copy` and the two
+ * API routes behind it are built and the page is not — so this is
+ * false and the paragraph does not render. A link to a page that is not
+ * there costs more trust than no link at all. Turn it on in the same
+ * change that ships `src/app/census/page.tsx`, and not before.
+ */
+const CENSUS_IS_OPEN = false
+
+/**
  * The three seeded programs named at the door.
  *
  * Invented companies, and the page says so where it names them. Three
@@ -452,6 +517,7 @@ const FOOTER: { heading: string; links: { label: string; href: string }[]; note?
     heading: 'The product',
     links: [
       { label: 'Four questions you cannot answer', href: '#gap' },
+      { label: 'Two ways to use it', href: '#ways' },
       { label: 'What it costs when nobody can answer', href: '#exposure' },
       { label: 'One hire, from every desk', href: '#lifecycle' },
       { label: 'What changes on Monday', href: '#monday' },
@@ -566,10 +632,21 @@ export default function LandingPage() {
                              leading-[1.03] tracking-[-0.02em] text-etyme-ink md:text-[60px]">
                 Every contractor. Every supplier. One record.
               </h1>
-              <p className="mb-6 max-w-[46ch] text-[19px] leading-relaxed text-etyme-muted md:text-[21px]">
+              <p className="mb-5 max-w-[46ch] text-[19px] leading-relaxed text-etyme-muted md:text-[21px]">
                 You hire contractors through staffing firms. Nobody has one record
                 of a contractor from the job posting to the paid bill, across every
-                firm you use. Etyme keeps that record.
+                firm you use.
+              </p>
+              {/* The choice, in the buyer’s own two labels, decided
+                  2026-09-20. It sits in the hero because it changes what
+                  the reader thinks they are being sold: the same record,
+                  and a choice about who sits at the desks. The section
+                  under #ways says what each one means. */}
+              <p className="mb-6 max-w-[48ch] text-[17px] leading-relaxed text-etyme-ink md:text-[19px]">
+                Etyme keeps one record of every contractor across every staffing
+                supplier you use. You choose how to use it: as VMS software your own
+                program office runs, or with Etyme as your MSP provider running the
+                program for you on the same record.
               </p>
               <p className="mb-9 max-w-[48ch] border-l-2 border-etyme-rule pl-4 text-[15px]
                             leading-relaxed text-etyme-ink">
@@ -734,6 +811,58 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Two ways to use it ──────────────────────── */}
+      {/* It comes after the four questions and before the business case,
+          because a reader who has just been shown what they cannot
+          answer asks who is going to do something about it. The two
+          labels are the buyer’s own. The paragraph under both is the
+          neutrality commitment said in the one place a reader is
+          weighing whether to hand Etyme the program. */}
+      <section id="ways" className="border-b border-etyme-rule scroll-mt-6">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
+          <p className="eyebrow mb-3">How you use it</p>
+          <h2 className="max-w-[28ch] text-balance font-serif text-3xl leading-tight
+                         tracking-[-0.02em] text-etyme-ink md:text-[42px]">
+            Two ways to use it, and both stand on one record
+          </h2>
+          <p className="mt-5 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
+            The record is the same either way. What changes is who sits at the
+            program office desks and does the work of running the program.
+          </p>
+
+          <div className="mt-10 grid gap-px overflow-hidden rounded-xl border border-etyme-rule
+                          bg-etyme-rule md:grid-cols-2">
+            {TWO_WAYS.map((w) => (
+              <div key={w.label} className="bg-etyme-raised p-6 md:p-7">
+                <h3 className="font-serif text-[24px] leading-tight tracking-[-0.02em] text-etyme-ink">
+                  {w.label}
+                </h3>
+                <p className="mt-3 text-[16px] leading-relaxed text-etyme-ink">{w.outcome}</p>
+                <p className="mt-2.5 text-[15px] leading-relaxed text-etyme-muted">{w.benefit}</p>
+                <p className="mt-2.5 border-t border-etyme-rule pt-2.5 text-[14px]
+                              leading-relaxed text-etyme-muted">
+                  {w.method}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 max-w-[62ch] border-t border-etyme-rule pt-6">
+            <h3 className="text-[17px] font-semibold text-etyme-ink">
+              What Etyme never does in either way
+            </h3>
+            <p className="mt-2 text-[16px] leading-relaxed text-etyme-ink">
+              It never supplies a contractor and never runs a bench, so it has no
+              reason to favor one supplier.
+            </p>
+            <p className="mt-2 text-[16px] leading-relaxed text-etyme-muted">
+              Your people keep the decisions that are yours: which roles to open, who
+              to hire, and what to approve.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ── The business case, after the hook ────────────────────── */}
       {/* Two sentences doing two jobs. The hook is the not-knowing; this
           is what it costs when nobody can answer, and it is what goes on
@@ -760,6 +889,14 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+
+          {/* The answer to “we would just hire an MSP”, said plainly
+              where the reader is doing the finance arithmetic. The size
+              is the one in CLAUDE.md: the clients an MSP will not take. */}
+          <p className="mt-10 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
+            An MSP normally wants a program of hundreds of contractors. Etyme’s
+            program office takes programs with five to fifteen suppliers.
+          </p>
 
           <p className="mt-10 max-w-[58ch] border-t border-etyme-rule pt-6 text-[15px]
                         leading-relaxed text-etyme-muted">
@@ -991,7 +1128,8 @@ export default function LandingPage() {
           <p className="mt-6 max-w-[58ch] border-t border-etyme-rule pt-4 text-[14px]
                         leading-relaxed text-etyme-muted">
             Your rates and the names of your own sub-vendors stay private at every
-            step, in both directions, at any depth.
+            step, in both directions, at any depth. A program Etyme runs changes
+            nothing about your rates or your sub-vendors’ names staying private.
           </p>
         </div>
       </section>
@@ -1016,8 +1154,8 @@ export default function LandingPage() {
                 Most of what runs without being asked is a rule, not a model
               </h2>
               <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
-                Twenty things in here happen without anybody asking for them.
-                Nineteen of the twenty are a date, a threshold or a count: a
+                Twenty-one things in here happen without anybody asking for them.
+                Twenty of the twenty-one are a date, a threshold or a count: a
                 permit running out, an agreement past its term, a retention
                 period that has ended. The one that is left scores a person
                 against a role, and it falls back to arithmetic when there is no
@@ -1067,6 +1205,17 @@ export default function LandingPage() {
             they start. We will not put a number on this page that we would have
             to take back later.
           </p>
+          {/* The shape of the MSP fee, with no number in it. A program
+              office is paid by the suppliers as a percentage of what
+              they bill, and the only thing that matters on a public
+              page is that a supplier reads it here rather than
+              discovering it at onboarding. The number is the
+              founder’s and does not exist yet. */}
+          <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
+            The MSP provider service is paid the way program offices are paid, a
+            percentage the suppliers pay on their billings, disclosed to every
+            supplier at onboarding.
+          </p>
           <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
             Three things about the money are settled already, because they would
             be expensive to change later.
@@ -1096,6 +1245,29 @@ export default function LandingPage() {
                          tracking-[-0.02em] text-etyme-ink md:text-[42px]">
             Sit at the program office desk and ask it the four questions
           </h2>
+
+          {/* The first step for a client considering the MSP provider
+              service, and the first thing it gets back is a page rather
+              than a call. Behind CENSUS_IS_OPEN until /census exists. */}
+          {CENSUS_IS_OPEN && (
+            <p className="mt-6 max-w-[56ch] rounded-xl border border-etyme-rule bg-etyme-raised
+                          p-5 text-[15px] leading-relaxed text-etyme-muted">
+              <span className="font-semibold text-etyme-ink">
+                If you are considering Etyme as your MSP provider
+              </span>{' '}
+              start with a census. You send what you already hold on your
+              contractors, and a named person sends back one page. It names who is
+              on your sites, what you are spending, and what your own files could
+              not answer.{' '}
+              <Link
+                href={'/census' as Route}
+                className="text-etyme-action underline underline-offset-4 hover:opacity-80"
+              >
+                Start with a census →
+              </Link>
+            </p>
+          )}
+
           <p className="mt-5 max-w-[56ch] text-[17px] leading-relaxed text-etyme-muted">
             You land at a program manager’s desk in an invented company with a
             full month of data in it. Each program has several suppliers, a history

@@ -85,10 +85,62 @@ const VERTICAL = [
  * Claims that break neutrality. Etyme never runs a bench and never
  * places anybody — the moment it competes with its own suppliers the
  * network stops growing.
+ *
+ * ── Widened 2026-09-20, when Etyme began offering to run the program ──
+ *
+ * The founder decided Etyme will run a client's contractor program
+ * itself, as a vendor-neutral program office. That put a new sentence on
+ * the page — "Etyme's program office runs the program for you" — and the
+ * old list would have let through the sentence that actually breaks the
+ * rule: "we supply the contractors". So the list now names the supply
+ * verbs with a person as their object, and `RUNS_THE_PROGRAM` below says
+ * in code what the difference is, rather than leaving it to whoever
+ * widens the list next.
+ *
+ * Running a program means deciding who may supply and at what band,
+ * releasing roles, chasing paperwork and matching bills. Supplying
+ * people means having a bench and putting somebody on it in front of a
+ * client. The first is the offer. The second is the master-vendor model
+ * and is excluded permanently.
  */
 const NEUTRALITY = [
   'we place', 'we source', 'our consultants', 'our bench', 'our recruiters',
   'we find you', 'we hire', 'our talent pool', 'we recruit',
+  // The supply claim the program office offer could reach for, which the
+  // list above would have missed entirely.
+  'we supply', 'we staff', 'we fill', 'we provide contractors', 'we provide talent',
+  'our contractors', 'our candidates', 'our workers', 'our talent', 'our own people',
+  'etyme supplies', 'etyme places', 'etyme sources', 'etyme recruits',
+  'master vendor',
+]
+
+/**
+ * The offer's own words, which two rules would otherwise misread.
+ *
+ * These phrases are taken out of the text before the neutrality words
+ * and the vertical words are looked for, so neither rule can be read as
+ * refusing the offer itself. Two different misreadings are being
+ * prevented, and both are real:
+ *
+ *   neutrality  "runs the program" is not a claim to supply people.
+ *               Running a program means deciding who may supply and at
+ *               what band, releasing roles, chasing paperwork and
+ *               matching bills. Supplying people means having a bench.
+ *
+ *   vertical    "VMS software" carries the word software, and the
+ *               vertical list is looking for software *staffing* — a
+ *               page about developers and engineers. A buyer's name for
+ *               a product category is not a claim about which industry
+ *               this serves, and the page has to be free to use the two
+ *               labels the buyer already knows.
+ *
+ * It is the place to look when somebody widens either list and
+ * accidentally catches the product.
+ */
+const THE_OFFER = [
+  'runs the program', 'run the program', 'runs your program', 'run your program',
+  'runs it for you', 'run it for you', 'program office', 'msp provider',
+  'vms software', 'runs the program office',
 ]
 
 /**
@@ -149,6 +201,19 @@ function hits(text: string, words: string[]): string[] {
   return words.filter((w) =>
     w.includes('.') ? raw.includes(w) : lower.includes(` ${w} `)
   )
+}
+
+/**
+ * The text with the offer's own words taken out.
+ *
+ * Exported so the test can show the two readings side by side: a page
+ * that says Etyme runs a client's program passes, and a page that says
+ * Etyme supplies the contractors does not.
+ */
+export function settingTheOfferAside(text: string): string {
+  let out = text.toLowerCase()
+  for (const phrase of THE_OFFER) out = out.split(phrase).join(' ')
+  return out
 }
 
 /**
@@ -224,7 +289,10 @@ export function check(copy: Copy): Finding[] {
   }
 
   // ── Horizontal, never vertical ──────────────────────────────────────
-  const vertical = hits(all, VERTICAL)
+  // Read with the offer's own words set aside, so "VMS software" — the
+  // label a buyer uses for the category — is not read as a page about
+  // software staffing. "Software engineers" still trips it.
+  const vertical = hits(settingTheOfferAside(all), VERTICAL)
   if (vertical.length > 0) {
     findings.push({
       rule: 'horizontal-not-vertical',
@@ -257,7 +325,10 @@ export function check(copy: Copy): Finding[] {
   }
 
   // ── Neutrality is absolute ──────────────────────────────────────────
-  const claims = hits(all, NEUTRALITY)
+  //
+  // Read against the text with the program-office sentences taken out,
+  // because running somebody's program is not supplying them people.
+  const claims = hits(settingTheOfferAside(all), NEUTRALITY)
   if (claims.length > 0) {
     findings.push({
       rule: 'neutrality',
