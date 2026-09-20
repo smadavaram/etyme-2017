@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { ownPageFor } from '@/lib/portfolio-data'
 
 /**
  * GET /api/me/work
@@ -22,6 +23,14 @@ export async function GET(request: NextRequest) {
 
   const personId = caller.person.id
   const now = new Date()
+
+  // Why this page is theirs at all, in their own situation's words.
+  //
+  // The same answer their own page and the shell already use
+  // (`ownPage`), asked once here rather than decided a second way in the
+  // browser — two answers to one question drift, and this one decides
+  // what somebody with no work yet is told instead of four zeros.
+  const standing = await ownPageFor(personId)
 
   const contracts = await prisma.sellContract.findMany({
     where: { personId },
@@ -114,6 +123,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       person: { id: caller.person.id, name: caller.person.name },
+      standing: { ok: standing.ok, because: standing.because, says: standing.says },
       placements: contracts.map(c => ({
         id: c.id,
         payer: c.company.name,

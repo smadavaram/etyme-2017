@@ -596,6 +596,88 @@ function YourPapers() {
   )
 }
 
+/**
+ * What this page says to somebody who has a page because they made one.
+ *
+ * The independent candidate — party 8B in the lane drawings, and the
+ * state every consumer-email sign-in is in on their first day: a
+ * profile, and not one other fact. No bench listing, no employer, no
+ * submission, nobody paying them.
+ *
+ * Four zeros and "No placements yet" is technically true and reads as a
+ * broken screen. Worse, the standing sentence above them used to say
+ * "your work is on the record here", which is the one thing that is not
+ * true about this person.
+ *
+ * So this is a decision surface rather than a working one: prose, the
+ * two things that can happen next, and no button Etyme cannot honor.
+ * **There is no "submit yourself" and no "find a role", because Etyme
+ * places nobody** — the invitation comes from a firm that read their
+ * page, which is why the page is the only thing worth doing today. The
+ * two links go to what is actually theirs.
+ */
+function NothingYet({ says }: { says: string }) {
+  return (
+    <div className="max-w-2xl">
+      <div className="mb-8">
+        <Lbl>You</Lbl>
+        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Your work</h1>
+      </div>
+
+      <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-6">
+        <h2 className="font-serif text-xl text-etyme-ink tracking-[-0.02em]">
+          There is no work here yet.
+        </h2>
+
+        {/* Their standing, from the one place that decides it. */}
+        <p className="text-[15px] text-etyme-ink mt-3 max-w-prose leading-relaxed">{says}</p>
+
+        <p className="text-[15px] text-etyme-muted mt-4 max-w-prose leading-relaxed">
+          The day somebody places you, this is where it lives: where you work and who
+          pays you, the weeks you file, what has been approved, and what you are owed.
+          Until then it is empty rather than filled with zeros.
+        </p>
+
+        <p className="text-[15px] text-etyme-muted mt-4 max-w-prose leading-relaxed">
+          Etyme places nobody. We do not submit you anywhere and we do not send your
+          name to a firm that has not asked for it — an invitation arrives because a
+          firm read your page. So the page is the thing worth doing now.
+        </p>
+
+        <ul className="mt-5 space-y-2 text-[14px] text-etyme-muted max-w-prose leading-relaxed">
+          <li>
+            <span className="text-etyme-ink">Turn your page on.</span> Nothing about you
+            is public until you do, and a firm cannot read what it cannot see.
+          </li>
+          <li>
+            <span className="text-etyme-ink">Keep it current.</span> What you have done,
+            what you can do, and when you are free — the line a CV never has.
+          </li>
+        </ul>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <a href="/dashboard/my-page"
+            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+            Your page
+          </a>
+          <a href="/dashboard/my-data"
+            className="px-4 py-2 border border-etyme-rule rounded text-sm font-medium text-etyme-ink hover:bg-etyme-rule/30">
+            Your data
+          </a>
+        </div>
+      </div>
+
+      {/* Still theirs, and still worth having ready: anything somebody
+          has asked them to sign, and the CV a firm would be sent. Both
+          draw nothing at all when there is nothing. */}
+      <div className="mt-8">
+        <YourPapers />
+        <YourCV />
+      </div>
+    </div>
+  )
+}
+
 export default function MyWorkPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -634,6 +716,12 @@ export default function MyWorkPage() {
     </div>
   )
   if (!data) return null
+
+  // Nobody has put them forward, and nobody employs them here. A page of
+  // zeros would be the wrong answer to a state that is not a failure.
+  if (data.standing?.because === 'OWN_MAKING') {
+    return <NothingYet says={data.standing.says} />
+  }
 
   const s = data.summary
   const open = data.timesheets.filter((t: Timesheet) => t.status === 'OPEN')

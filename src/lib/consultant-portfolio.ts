@@ -292,6 +292,17 @@ export type PageBecause =
   | 'EMPLOYED'
   /** The work is on the record with no agency and no employer behind it. */
   | 'PLACED'
+  /**
+   * They made the page themselves and nobody has put them forward yet.
+   *
+   * The state every consumer-email sign-in is in on their first day: a
+   * profile, and not one other fact. It used to fall through to `PLACED`
+   * and be told "your work is on the record here", which is the one
+   * thing that is not true about them — and a sentence somebody reads
+   * about themselves on day one, knowing it is wrong, is worse than a
+   * blank page.
+   */
+  | 'OWN_MAKING'
   /** Nothing here is about them as somebody who does the work. */
   | 'NOBODY'
 
@@ -373,6 +384,29 @@ export function ownPage(life: WorkingLife): PageVerdict {
         'and can staff you directly, so you are on no agency’s bench and need no listing ' +
         'to work. This page is still yours, it goes with you, and nothing on it is public ' +
         'until you turn it on.',
+    }
+  }
+
+  // Somebody whose only fact is a profile row they made themselves.
+  //
+  // Asked before PLACED rather than after, because PLACED's sentence
+  // opens on work being on the record and there is none: no placement,
+  // no submission, nobody paying them. Party 8B in the lane drawings —
+  // a state rather than a flow, and the honest thing to say about it is
+  // that the next move is theirs, both ways.
+  const onTheRecord =
+    life.placements > 0 || life.submissions > 0 || life.paidEngagements > 0
+
+  if (!onTheRecord) {
+    return {
+      ok: true,
+      because: 'OWN_MAKING',
+      says:
+        'You made this page yourself, and nobody has put you forward yet. No firm markets ' +
+        'you, no firm employs you here, and nothing on it is public until you turn it on. ' +
+        'Two things can happen from here and both are yours to decide: a firm invites you ' +
+        'onto its bench and you grant it a listing, or you set up a company of your own and ' +
+        'sell yourself.',
     }
   }
 

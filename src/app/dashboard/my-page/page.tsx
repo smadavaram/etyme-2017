@@ -39,7 +39,7 @@ interface Preview {
 interface MyPage {
   /** Whether this page is theirs to have, and why, in a sentence. */
   yours: boolean
-  because: 'BENCH' | 'EMPLOYED' | 'PLACED' | 'NOBODY'
+  because: 'BENCH' | 'EMPLOYED' | 'PLACED' | 'OWN_MAKING' | 'NOBODY'
   standing: string
   address: string | null
   url: string | null
