@@ -1021,6 +1021,37 @@ describe('The page shows the product before it describes it', () => {
     for (const tag of tags) expect(tag, tag.slice(0, 80)).toMatch(/width=\{1440\}/)
   })
 
+  it('every screenshot was captured after the town and title renames', () => {
+    // The seeded world is renamed from time to time — a town on
+    // 2026-09-17, four job titles and a handful of skill chips on
+    // 2026-09-20 — and a screenshot taken before a rename goes on
+    // showing a name that exists nowhere else in the product. Nothing
+    // can catch that by reading the file: a PNG is opaque to a test,
+    // and the founder is the only reader who would notice "Beaverton"
+    // on a page that says Tualatin everywhere else.
+    //
+    // So each shot carries the date it was taken, beside the desk it
+    // was taken from, and the date has to be later than the last
+    // rename. Retaking a screen means restamping it, which is the one
+    // moment somebody is looking at the image anyway.
+    const RENAMES_DONE = Date.parse('2026-09-20T22:00:00Z')
+
+    const stamps = [
+      ...[...PAGE.matchAll(/capturedAt: '([^']+)'/g)].map((m) => m[1]),
+      ...[...PAGE.matchAll(/data-captured-at="([^"]+)"/g)].map((m) => m[1]),
+    ]
+
+    // One stamp per screen the page draws, hero included.
+    const drawn = [...new Set(SCREENS)]
+    expect(stamps.length, 'a capture date for every screenshot on the page').toBe(drawn.length)
+
+    for (const stamp of stamps) {
+      const when = Date.parse(stamp)
+      expect(Number.isNaN(when), `${stamp} is not a date`).toBe(false)
+      expect(when, `${stamp} is older than the last rename of the demo world`).toBeGreaterThan(RENAMES_DONE)
+    }
+  })
+
   it('the top of the page has at most six sentences before the first screen', () => {
     // Six is the refusal line, not the target. The eyebrow is two words
     // and the headline is the line the founder signed off — neither is

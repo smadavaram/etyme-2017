@@ -229,6 +229,14 @@ const STEPS: {
   alt: string
   caption: string
   from: string
+  /**
+   * When the image was taken, UTC. Pinned because the seeded world it
+   * was photographed from is renamed from time to time — a town, a job
+   * title — and a PNG cannot be read by a test. A shot taken before the
+   * rename shows a name that no longer exists anywhere else, and the
+   * only thing that can catch it is the date beside `from`.
+   */
+  capturedAt: string
 }[] = [
   {
     n: '01',
@@ -238,6 +246,7 @@ const STEPS: {
     alt: 'A Candidates screen: nine people from three suppliers, each row naming the consultant, the role, the supplier, the rate and the stage.',
     caption: 'The hiring manager at Northbend Athletic. Nine people from three suppliers, each row carrying the firm that sent them, the rate it asked and where the person has got to.',
     from: '/dashboard/submissions as the hiring manager',
+    capturedAt: '2026-09-20T22:19:07Z',
   },
   {
     n: '02',
@@ -247,15 +256,17 @@ const STEPS: {
     alt: 'An orders screen: one order per supplier, what is left of what was authorized, and a line naming the person and their rate.',
     caption: 'What Northbend Athletic has authorized. One order per supplier, a line for each person at their own rate, and how much of the ceiling is left to bill against.',
     from: '/dashboard/purchase-orders as the program manager',
+    capturedAt: '2026-09-20T22:19:12Z',
   },
   {
     n: '03',
     t: 'Contractors file their weeks and your manager approves them',
     says: 'The contractor files their own week and nobody else may file it for them. The manager who owns the work signs it, and a week over the hours on the role is flagged before anybody signs.',
     img: '/screens/timesheets.png',
-    alt: 'A timesheets screen: twelve weeks waiting, each row naming the person, the period, the hours, the bill rate and what the week is worth.',
-    caption: 'The hiring manager at Northbend Athletic. Twelve weeks waiting on a signature, with the hours, the bill rate and what each week is worth, and one week over the hours on the role.',
+    alt: 'A timesheets screen: three weeks waiting on a signature, each row naming the person, the period, the hours, the bill rate and what the week is worth.',
+    caption: 'The hiring manager at Northbend Athletic. Three weeks waiting on a signature, with the hours, the bill rate and what each week is worth. One of them is over the hours on the role.',
     from: '/dashboard/timesheets as the hiring manager',
+    capturedAt: '2026-09-20T22:19:39Z',
   },
   {
     n: '04',
@@ -263,8 +274,9 @@ const STEPS: {
     says: 'Every supplier bills on the same screen, against hours your own manager has already signed. A bill with no signed week behind it, or no room left on the order, is not paid.',
     img: '/screens/invoices.png',
     alt: 'An invoices screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
-    caption: 'The accounts payable clerk at Northbend Athletic. Six supplier invoices open, five paid this period, $104,400 outstanding and none of it overdue.',
+    caption: 'The accounts payable clerk at Northbend Athletic. Two supplier invoices open, one paid this period, $17,400 outstanding and none of it overdue.',
     from: '/dashboard/invoices, what we owe, as the AP clerk',
+    capturedAt: '2026-09-20T22:19:45Z',
   },
 ]
 
@@ -321,20 +333,22 @@ const CANNOT_ANSWER: { q: string; today: string; etyme: string; detail?: string 
  *
  * `from` is where each image was taken, so it can be retaken.
  */
-const ANSWERS: { q: string; img: string; alt: string; caption: string; from: string }[] = [
+const ANSWERS: { q: string; img: string; alt: string; caption: string; from: string; capturedAt: string }[] = [
   {
     q: 'How many contractors are on our sites, and whose are they?',
     img: '/screens/contractors.png',
     alt: 'A contractors table: one row per person, with the supplier that sent them, their status, where they are and their months on site.',
-    caption: 'Eight people at Northbend Athletic, each from one supplier, with the months each has been on site and the date they were last engaged.',
+    caption: 'Eight people at Northbend Athletic, with the supplier that put each of them forward, the months each has been on site and the date they were last engaged.',
     from: '/dashboard/people, table view, as the program manager',
+    capturedAt: '2026-09-20T22:21:34Z',
   },
   {
     q: 'Who has been here longest?',
     img: '/screens/tenure.png',
     alt: 'A tenure table: four people, the vendors each worked through, the months counted across all of them, and the standing against an 18 month cap.',
-    caption: 'The same people counted across suppliers. Fourteen months through two firms against an eighteen month cap, and one person in a break until 20 October.',
+    caption: 'The same people counted across suppliers. Fourteen months through two firms against an eighteen month cap, and one person in a break until 30 October.',
     from: '/dashboard/tenure as the program manager',
+    capturedAt: '2026-09-20T22:20:18Z',
   },
 ]
 
@@ -787,8 +801,14 @@ export default function LandingPage() {
 
           <figure className="overflow-hidden rounded-xl border border-etyme-rule
                              bg-etyme-raised shadow-sm">
+            {/* Taken from the seeded demo world on the date stamped on the
+                image below, UTC — the same stamp the step screens carry
+                beside `from`. A test cannot read a PNG, so the date is
+                the only thing that can tell a shot taken before a rename
+                in the demo world from one taken after it. */}
             <img
               src="/screens/program-dashboard.png"
+              data-captured-at="2026-09-20T22:18:50Z"
               alt="The program dashboard: a sentence saying whether anything needs the reader today, then six numbers — on site, suppliers, this month, ending soon, the tenure cap and requirements — over a list of who is starting soon and which suppliers are on site."
               width={1440}
               height={900}
