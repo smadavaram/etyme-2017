@@ -1061,7 +1061,7 @@ export const MATRIX: L1[] = [
             'DONE: Everything the system does unprompted sits on a declared ladder from L0 to L5, and a new automated action with no level fails the build on the commit that adds it \u2014 src/lib/autonomy.ts',
             'DONE: A deploy is a reviewed replay onto the production branch through two gates \u2014 the replay must be byte-identical to the reviewed work across the app, and nothing from the legacy tree may ride along \u2014 docs/deploying.md',
             'DONE: The DPA says what exists and what does not, rather than claiming a control nobody has \u2014 src/lib/legal.ts',
-            'OPEN, FOUNDER: A third-party penetration test, and its report',
+            'OPEN, FOUNDER: A third-party penetration test, and its report \u2014 scoped, sequenced and evidenced at L3.7.4.3, which runs first and is not repeated here',
             'OPEN, FOUNDER: A written policy set \u2014 information security, acceptable use, access control, incident response, business continuity, vendor management, secure development',
             'OPEN, FOUNDER: Staff controls \u2014 background checks, security training, onboarding and offboarding checklists, quarterly access reviews',
             'OPEN, FOUNDER: Infrastructure evidence \u2014 Vercel\u2019s and the database provider\u2019s own SOC 2 reports held as sub-processors, encryption at rest and in transit documented, backups tested by restoring one, MFA on every admin console',
@@ -1084,6 +1084,39 @@ export const MATRIX: L1[] = [
             'OPEN, FOUNDER: Stage 2 audit \u2014 the operation of it',
             'OPEN, FOUNDER: The certificate, then an annual surveillance audit for as long as it is held',
             'This matters mostly to European and Asian buyers, and it reuses most of SOC 2\u2019s evidence rather than needing its own. US mid-market procurement asks for SOC 2 first, so this follows it rather than competing with it for the same year.',
+          ] },
+        // No implementedBy on purpose. Nothing here is code — a pen test is
+        // a firm engaged, a report received and a retest passed, and the
+        // matrix test rightly refuses a NONE row that names files. The
+        // evidence paths are inside the task text instead, where they
+        // read as what they are: what a tester will find already
+        // answered, rather than a claim that this row is built.
+        { code: 'L3.7.4.3', name: 'Penetration test', owner: 'Etyme', status: N,
+          tasks: [
+            'DONE: Every cron route refuses a request whose bearer is missing or wrong, and a deployment with no secret set refuses everybody outside development \u2014 including the literal "Bearer undefined" that eleven routes accepted until 2026-09-13 \u2014 src/lib/cron-auth.ts, __tests__/invariants/alerts.test.ts',
+            'DONE: A caller with no company of their own is refused rather than handed every company\u2019s list, and a URL edited to name somebody else\u2019s client is refused rather than served \u2014 src/lib/api-context.ts, src/lib/resolve-client-company.ts, src/lib/walls.ts, __integration__/url-tampering.test.ts',
+            'DONE: The wrong desk is refused in a sentence rather than let through, and being signed in is never the same as being allowed \u2014 __tests__/invariants/the-wrong-desk-is-refused.test.ts, __tests__/invariants/authenticated-is-not-authorised.test.ts',
+            'DONE: Every read of another person\u2019s data writes a log row, refusals included, so a tester\u2019s own probing leaves the same trail anybody else\u2019s would \u2014 src/lib/access-log.ts',
+            'DONE: The seed route compares its secret in constant time and refuses to run at all with none set outside development, so a deployment that forgot the variable cannot be reseeded by a stranger \u2014 src/app/api/seed-world/route.ts',
+            'DONE: An erased person\u2019s address is rewritten onto a domain nothing routes and nobody can register \u2014 erased-<id>@erased.invalid, reserved by RFC 2606 \u2014 src/lib/erasure.ts',
+            'DONE: The demo door seats a visitor only inside fictional tenants on reserved domains, so no seat it grants is ever a seat at a real customer \u2014 __tests__/invariants/demo-names.test.ts',
+            'DONE: Etyme\u2019s own staff are identified by address against ETYME_STAFF_EMAILS, never by a seat somebody could be granted, and with the list unset nobody is staff \u2014 src/lib/staff.ts',
+            'OPEN, FOUNDER: Scope \u2014 the production deployment and a test tenant created for the engagement, never a customer\u2019s',
+            'OPEN, FOUNDER: Scope \u2014 the demo door and every seat it grants',
+            'OPEN, FOUNDER: Scope \u2014 every API route behind a company wall, and the two rules that decide what a rung of a chain may see: the client reads the contract it pays and nothing below it (src/lib/chain-top.ts), and a rate band lives on the invitation, so a sub-vendor\u2019s name and rate must not leak upward or downward',
+            'OPEN, FOUNDER: Scope \u2014 the bearer authentication on the cron routes and the seed route',
+            'OPEN, FOUNDER: Scope \u2014 the signed links a supplier or a candidate opens without signing in at all: src/app/apply/[token], src/app/packet/[token], and the reply, claim, answer, welcome and bench-invite doors beside them',
+            'OPEN, FOUNDER: Scope \u2014 resume and paper uploads, whose bytes are stored in the database rather than in object storage',
+            'OPEN, FOUNDER: Scope \u2014 the export download and the erasure path (src/app/api/data-requests, src/lib/data-request.ts, src/lib/erasure.ts)',
+            'OPEN, FOUNDER: Scope \u2014 OAuth sign-in, once Microsoft and Google are configured on the deployment',
+            'OPEN, FOUNDER: Scope \u2014 the Vercel and database configuration: response headers, TLS, and where the secrets live',
+            'OPEN, FOUNDER: Choose a firm, and agree the scope and the rules of engagement in writing before anybody touches anything',
+            'OPEN, FOUNDER: A two-to-three-week test',
+            'OPEN, FOUNDER: The report, with a severity against each finding',
+            'OPEN, FOUNDER: A fix window, with every fix landing as a test sentence first, so the thing that was found stays found',
+            'OPEN, FOUNDER: A retest, and the letter of attestation procurement will ask for',
+            'OPEN, FOUNDER: Repeat it annually, and after any change to authentication or to the walls',
+            'The sequencing is already decided: this runs before the first enterprise procurement call, and before SOC 2 begins. It is the one assurance item that can be bought in weeks rather than earned over a year, which is why it goes first \u2014 and a SOC 2 report written over controls no tester has attacked is the wrong order.',
           ] },
       ]},
     ],
