@@ -12,7 +12,7 @@
         -if !current_company.locations.present?
           %li
             Please setup your company locations by
-            = link_to 'clicking here ' , company_path(current_company) , target: '_blank'
+            = link_to 'clicking here ' , locations_path , target: '_blank'
         -if !current_company.roles.present?
           %li
             Please setup some roles & permissions by

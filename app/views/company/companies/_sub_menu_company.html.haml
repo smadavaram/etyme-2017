@@ -4,6 +4,9 @@
       %li.nav-item{:class => ("active" if params[:controller]=="company/companies")}
         = link_to company_path(current_company), class:"nav-link" do
           Company Info
+      %li.nav-item{:class => ("active" if params[:controller]=="company/locations")}
+        = link_to locations_path, class:"nav-link" do
+          Locations
       %li.nav-item{:class => ("active" if params[:controller]=="company/departments")}
         = link_to departments_path, class:"nav-link" do
           Department

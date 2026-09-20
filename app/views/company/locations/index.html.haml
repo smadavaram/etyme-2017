@@ -1,0 +1,70 @@
+.content-box
+  .element-wrapper
+    .element-box
+      = render partial: 'company/companies/sub_menu_company'
+
+      .content-i
+      .content-box
+        .row
+          .col-sm-12
+            .element-wrapper
+              .element-box-tp
+                .controls-above-table
+                  .row.mr-1.ml-1
+                    .col-sm-6
+                      = link_to 'New', new_location_path, remote: true, class: 'button btn btn-primary'
+                    .col-sm-6
+                      .form-inline.justify-content-sm-end
+                        %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'company_location_dataTable_search'}
+                - if @locations.present?
+                  = render partial: 'company/companies/partials/location_show_form', locals: { locations: @locations }
+                - else
+                  .text-center.p-4
+                    %h6.mb-2 You have not added any company locations yet.
+                    %p.text-muted.mb-3 Locations are your company's offices or work sites. Add at least one to finish setting up your company.
+                    = link_to 'Add your first location', new_location_path, remote: true, class: 'btn btn-primary'
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+
+- content_for :scripts do
+  :javascript
+    function onSelectCountry()
+    {
+        var country = $('#country').val();
+        var states_of_country = $('#state');
+        var cities_of_state = $('#city');
+        cities_of_state.empty().append('<option value="">Select City ...</option>');
+        $.getJSON('/states/' + country, function(data) {
+            states_of_country.empty();
+            states_of_country.append('<option value="">Select State ...</option>');
+            $.each(data, function(key, value) {
+                states_of_country.append('<option value="' + key + '">' + value + '</option>');
+            });
+        });
+    }
+
+    function onSelectState() {
+        var country = $('#country').val();
+        var state = $('#state').val();
+        var cities_of_state = $('#city');
+        $.getJSON('/cities/' + state + '/' + country, function(data) {
+            cities_of_state.empty();
+            cities_of_state.append('<option value="">Select City ...</option>');
+            $.each(data, function(key, value) {
+                cities_of_state.append('<option value="' + value + '">' + value + '</option>');
+            });
+        });
+    }
+
+    $(document).ready(function() {
+      $('#company_location_dataTable_search').on('keyup search', function() {
+        var term = $(this).val().toLowerCase();
+        $('#company_location_dataTable tbody tr').each(function() {
+          $(this).toggle($(this).text().toLowerCase().indexOf(term) > -1);
+        });
+      });
+    });

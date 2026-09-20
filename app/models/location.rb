@@ -13,7 +13,7 @@
 #  updated_at :datetime         not null
 #
 class Location < ApplicationRecord
-  # validates :name , presence: true
+  validates :name, presence: true
 
   belongs_to  :company, optional: true
   # has_many    :jobs
