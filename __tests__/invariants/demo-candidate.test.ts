@@ -36,9 +36,18 @@ describe('the candidate demo is a real third door, not just the other two relabe
     expect(ROUTE).toMatch(/side === 'CANDIDATE' \? '\/dashboard\/my-work'/)
   })
 
-  it('is reachable from the home page, in both places the other two doors are', () => {
-    const count = (PAGE.match(/side="CANDIDATE"/g) ?? []).length
-    expect(count).toBe(2)
+  it('is reachable from the home page, as a quiet link wherever the company doors are', () => {
+    // This used to pin exactly two candidate doors, which described a
+    // hero with two company doors beside each other. The hero now has
+    // one company door, so counting is describing a layout rather than
+    // holding a promise. The promise is that the door exists at all and
+    // that it never competes with the company one: a primary door is
+    // marked `bg-etyme-action` on this page, and a candidate's is a text
+    // link.
+    const doors = PAGE.match(/<TryDemo[\s\S]*?\/>/g) ?? []
+    const candidateDoors = doors.filter((d) => /side="CANDIDATE"/.test(d))
+    expect(candidateDoors.length).toBeGreaterThanOrEqual(1)
+    for (const door of candidateDoors) expect(door).not.toContain('bg-etyme-action')
     expect(PAGE).toContain('See it as a candidate')
   })
 })
