@@ -791,6 +791,7 @@ function kindNav(kind: CompanyKind): NavSection[] {
 export function Sidebar({
   companyKind,
   companyName,
+  personName,
   companyLabel,
   isConsultant = false,
   worker = false,
@@ -803,6 +804,8 @@ export function Sidebar({
   /** Absent for a consultant, who has no company. */
   companyKind?: CompanyKind | null
   companyName?: string
+  /** Whose workspace this is when there is no company to name. */
+  personName?: string
   companyLabel?: string
   /** True when this person is on a bench rather than of the company. */
   isConsultant?: boolean
@@ -936,7 +939,12 @@ export function Sidebar({
         ) : (
           <>
             <div className="text-[11px] font-medium text-etyme-ink truncate">
-              {companyName ?? 'Cloudepa Inc.'}
+              {/* A company, or the person themselves. This said
+                  "Cloudepa Inc." for anybody with no firm — a design
+                  placeholder that survived into production and named a
+                  bench vendor from the seeded world under the page of a
+                  consultant who has never heard of it. */}
+              {companyName ?? personName ?? 'Your workspace'}
             </div>
             <div className="text-[10px] text-etyme-faint">
               {companyLabel ?? (companyKind === 'CLIENT' ? 'Client · Enterprise' : 'Vendor · US IT')}

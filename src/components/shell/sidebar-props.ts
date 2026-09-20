@@ -28,11 +28,25 @@ export type SidebarIdentity = {
   permissions?: readonly string[] | null
   companyName?: string
   companyLabel?: string
+  /**
+   * Whose workspace this is when it is not a company's.
+   *
+   * A consultant with no firm — nobody employs them, nobody lists them
+   * — has a company of null, and the rail used to fall back to a
+   * hard-coded design placeholder, so Marisol Quintero's own page named
+   * a bench vendor in the seeded world she has never met. A fabricated
+   * firm printed under somebody's own name is worse than a blank.
+   */
+  personName?: string
   pending: boolean
 }
 
 export function sidebarPropsFrom(
-  session: Pick<SessionState, 'company' | 'contextType' | 'loading' | 'isWorker' | 'permissions'>
+  session: Pick<SessionState, 'company' | 'contextType' | 'loading' | 'isWorker' | 'permissions'> &
+    // Optional, so a fixture that describes a seat without naming the
+    // person still type-checks. Only ever read where there is no
+    // company to name.
+    Partial<Pick<SessionState, 'person'>>
 ): SidebarIdentity {
   // While the session loads, the frame without nav items — rather than
   // flashing the wrong company's navigation.
@@ -62,6 +76,8 @@ export function sidebarPropsFrom(
     // seat, and calling him a consultant would be the mirror image of
     // the bug this fixes.
     companyName: session.company?.name,
+    // Theirs, for the case where there is no firm to name.
+    personName: session.person?.name,
     companyLabel: isConsultant ? 'Consultant' : kind ? (KIND_LABEL[kind] ?? 'Vendor') : 'Consultant',
     permissions: session.permissions,
     pending: false,
