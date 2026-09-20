@@ -214,7 +214,24 @@ export const MATRIX: L1[] = [
         // places — the agreement is regulatory's, the arithmetic is
         // money's, the letters are conversation's, and the staff path
         // under it is the platform's.
-        { code: 'L3.1.4.6', name: 'The contractor census', owner: 'Etyme', status: N,
+        // 2026-09-20, etyme-money: the importer, the one page and the two
+        // staff routes are built and walked; the market page, the
+        // agreement, the request lifecycle and the letters are not. So
+        // PARTIAL, naming only what exists — the row is shared by four
+        // domains and each adds its own files as it lands.
+        { code: 'L3.1.4.6', name: 'The contractor census', owner: 'Etyme', status: P,
+          implementedBy: [
+            'src/lib/census-import.ts',
+            'src/lib/census-page.ts',
+            'src/app/api/census/import/route.ts',
+            'src/app/api/census/page/route.ts',
+            'public/census-template.csv',
+          ],
+          testedBy: [
+            '__tests__/invariants/census-import.test.ts',
+            '__tests__/invariants/census-page.test.ts',
+            '__integration__/census-page.test.ts',
+          ],
           tasks: [
             'Platform — a staff member with no seat can open the review, and gains no permission inside any company',
             'Market — /census says what you get and what you send, with no price, no AI claim and no invented urgency',
@@ -225,10 +242,15 @@ export const MATRIX: L1[] = [
             'Regulatory — the upload link expires on the row, and is minted only once the agreement is accepted',
             'The template asks for no names, and a census from the template holds no personal data beyond a work email',
             'A census file is opened only by the staff person assigned, and every read is logged',
-            'Money — one row per contractor imported into a sandbox company as contracts and placements, every gap recorded',
-            'The four numbers on the page equal what the client dashboard shows in the sandbox',
-            'Money — the one page is print-styled HTML on one sheet; the named person prints it and sends it, because there is no PDF pipeline on Vercel',
-            'The page never hides a gap: a row with no end date appears in "what we could not see"',
+            'Money ✓ — one row per contractor imported into a sandbox company as contracts and placements, every gap recorded against the line it was on',
+            'Money ✓ — the head count and the supplier head counts on the page are the numbers the client dashboard shows in the same sandbox',
+            'Money ✓ — the days on site on the page are the tenure ledger\'s own, the union of the periods and never their sum',
+            'Money ✓ — two suppliers for one role show the lowest, the highest and the gap; a role one supplier fills says so instead',
+            'Money ✓ — one placement with no rate blanks the quarter for the whole book, and the page says how many rows and why',
+            'Money ✓ — the one page is print-styled HTML on one sheet; the named person prints it and sends it, because there is no PDF pipeline on Vercel',
+            'Money ✓ — the page never hides a gap: a row with no end date appears in "what we could not see", and a clean file says so out loud',
+            'Money — the quarter\'s spend uses the hours a week the client sent, not the dashboard\'s 160-hour month, and says so; making the two one function needs the program route\'s arithmetic extracted into lib/ by whoever owns it',
+            'Money — a placement whose rate the client never sent is stored as a zero because SellContract.billRate is not nullable, so the sandbox dashboard prices that person at nothing while the page blanks the book; a nullable column is the fix',
             'The deletion date is on the confirmation, on the page, and in the nightly job, and they agree',
             'Thirty days after delivery, with no program started, the census is deleted and the client is told',
             'A census that becomes a program keeps its data and the deletion is cancelled with a reason',
