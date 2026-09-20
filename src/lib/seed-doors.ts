@@ -29,7 +29,7 @@
  *                    the person with no bench listing anywhere, whom
  *                    nobody's consent is asked about because the
  *                    employment contract already said it.
- *   Helena Marsh     apparel, SAP S/4 finance. On a bench listing
+ *   Helena Marsh     apparel, ERP finance. On a bench listing
  *                    through a prime, on site at a client who cannot see
  *                    the firm below the one it pays.
  *   Chidi Okafor     medical device, CSV and 21 CFR Part 11. H1B,

@@ -65,7 +65,7 @@ describe('each integrator has a delivery team on its own payroll', () => {
       .map((p: any) => p.role)
     expect(disciplines).toContain('Validation Engineer')
     expect(disciplines).toContain('Data Engineer')
-    expect(disciplines).toContain('SAP Consultant')
+    expect(disciplines).toContain('ERP Finance Consultant')
   })
 
   it('counts them in what the seed reports back, so the reseed page can say how many', () => {

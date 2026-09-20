@@ -33,17 +33,17 @@ import { defaultPostureFor } from '@/lib/walls'
 export const DEMO_DAYS = 14
 
 const CONSULTANTS = [
-  { name: 'Anita Desai', headline: 'SAP FICO Lead', skills: ['SAP FICO', 'S/4HANA', 'ABAP'], rate: 11000, location: 'Denver, CO', auth: 'US_CITIZEN' },
-  { name: 'Ravi Patel', headline: 'Senior SAP BRIM Consultant', skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA'], rate: 12500, location: 'Remote', auth: 'H1B' },
-  { name: 'Meera Krishnan', headline: 'Data Engineer', skills: ['Snowflake', 'Python', 'Databricks'], rate: 9500, location: 'Austin, TX', auth: 'GC' },
+  { name: 'Anita Desai', headline: 'ERP Finance Lead', skills: ['ERP finance', 'General ledger', 'ABAP'], rate: 11000, location: 'Denver, CO', auth: 'US_CITIZEN' },
+  { name: 'Ravi Patel', headline: 'Senior Billing Systems Consultant', skills: ['Convergent invoicing', 'Revenue Accounting', 'Billing systems'], rate: 12500, location: 'Remote', auth: 'H1B' },
+  { name: 'Meera Krishnan', headline: 'Data Engineer', skills: ['Cloud data warehouse', 'Python', 'Databricks'], rate: 9500, location: 'Austin, TX', auth: 'GC' },
   { name: 'David Chen', headline: 'DevOps / SRE', skills: ['Kubernetes', 'Terraform', 'AWS'], rate: 10500, location: 'Remote', auth: 'US_CITIZEN' },
   { name: 'Priya Sharma', headline: 'Azure Cloud Architect', skills: ['Azure', 'Terraform', '.NET'], rate: 13000, location: 'Dallas, TX', auth: 'US_CITIZEN' },
-  { name: 'John Martinez', headline: 'Workday Integrations', skills: ['Workday', 'Integrations'], rate: 9000, location: 'Denver, CO', auth: 'GC' },
+  { name: 'John Martinez', headline: 'HCM Integrations', skills: ['HCM integration', 'Integrations'], rate: 9000, location: 'Denver, CO', auth: 'GC' },
 ]
 
 const ROLES = [
-  { title: 'Senior SAP FICO Consultant', skills: ['SAP FICO', 'S/4HANA'], location: 'Denver, CO', min: 11000, max: 14000 },
-  { title: 'Data Engineer — Snowflake', skills: ['Snowflake', 'Python'], location: 'Austin, TX', min: 9000, max: 12000 },
+  { title: 'Senior ERP Finance Consultant', skills: ['ERP finance', 'General ledger'], location: 'Denver, CO', min: 11000, max: 14000 },
+  { title: 'Data Engineer — Cloud Warehouse', skills: ['Cloud data warehouse', 'Python'], location: 'Austin, TX', min: 9000, max: 12000 },
   { title: 'Kubernetes Platform Engineer', skills: ['Kubernetes', 'Terraform'], location: 'Remote', min: 10000, max: 13500 },
 ]
 
@@ -325,7 +325,7 @@ export async function seedDemoCompany(input: {
   })
 
   const engagement = await prisma.engagement.create({
-    data: { msaId: msa.id, title: 'SAP Program — Northwind', invoiceCycle: 'MONTHLY' },
+    data: { msaId: msa.id, title: 'ERP Finance Program — Northwind', invoiceCycle: 'MONTHLY' },
   })
 
   const po = await prisma.workOrder.create({

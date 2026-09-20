@@ -148,9 +148,9 @@ describe('The demo names no real company, on any surface a visitor reaches', () 
   }
 
   it('runs the home page own real-company guard over the two demo surfaces, which are one click from it', () => {
-    // Only the two a visitor actually reads. The seeds name skills —
-    // Workday Studio, Oracle Retail, Salesforce Commerce — and a skill
-    // on a consultant's profile is not a claim about a customer.
+    // Only the two a visitor actually reads. The company guard below is
+    // about customers; the product-name guard further down is about
+    // vendors, and the seeds answer to both now.
     //
     // The slugs come out first. `world-nike` is the address `POST
     // /api/demo` answers to and stays by decision; the guard is about
@@ -169,6 +169,98 @@ describe('The demo names no real company, on any surface a visitor reaches', () 
     // And the guard itself still bites: the old page, put back, fails.
     expect(stillNames('    name: \'Nike\',', 'Nike')).toHaveLength(1)
     expect(stillNames("    slug: 'world-nike',", 'Nike')).toEqual([])
+  })
+})
+
+/**
+ * And no product's name either, in anything the seeds put on a screen.
+ *
+ * ── Why a screenshot is what made this a test ─────────────────────────
+ *
+ * Decided 2026-09-20, after the home page was rebuilt to show real
+ * screens from the seeded demo under the hero and beside each of the
+ * four steps. Four of the seven images carried a vendor's product on
+ * them — "SAP S/4 finance lead", "Workday HCM integration lead",
+ * "Kinaxis consultants", a skill chip reading Splunk — because that is
+ * what the seeded titles said.
+ *
+ * `lib/positioning` reads words and cannot see inside a PNG. So the
+ * guard has to sit where the words are written, which is the seed, one
+ * step before the screen and two before the image.
+ *
+ * ── Why these ten and no attempt at more ──────────────────────────────
+ *
+ * The same reasoning as the sheet above: there is no way to tell a
+ * trademark from an invented word by looking at a string, and a rule
+ * that tried would refuse "Etyme". These ten are the ones that were
+ * actually on the seeded screens, plus the two VMS products Etyme is
+ * measured against, which belong on the competitive page and nowhere
+ * near a consultant's skill chip.
+ *
+ * Naming a customer and naming a product are different wrongs. A
+ * customer has not agreed to appear; a product has not agreed to be
+ * implied as a specialism of a firm that does not exist. Both read, to
+ * a buyer looking at a screenshot, as a claim.
+ *
+ * The home page's one factual comparison is the single place two of
+ * these may appear, and it is not a seed.
+ */
+
+const PRODUCTS = [
+  'SAP', 'Workday', 'Oracle', 'Kinaxis', 'Splunk',
+  'Snowflake', 'Salesforce', 'ServiceNow', 'Fieldglass', 'Beeline',
+  // Not a word boundary case: "S/4HANA" contains no standalone "SAP",
+  // and it was on three seeded roles.
+  'S/4HANA',
+]
+
+/** Every file that writes a seeded row a visitor can end up looking at. */
+const SEEDS = [
+  'src/lib/seed-world.ts',
+  'src/lib/seed-programmes.ts',
+  'src/lib/seed-doors.ts',
+  'src/lib/seed-pipeline.ts',
+  'src/lib/seed-calendar.ts',
+  'src/lib/seed-standing.ts',
+  'src/lib/seed-order-to-cash.ts',
+  'src/lib/demo-seed.ts',
+  'src/lib/demo-seed-client.ts',
+  'src/lib/demo-seed-consultant.ts',
+  // The two doors, which name each seeded program in a sentence.
+  'src/app/demo/seats.ts',
+  'src/app/demo/page.tsx',
+]
+
+describe('No seeded job title, skill or sentence names a real product', () => {
+  it('reads every seed file it claims to read, rather than passing on a path that moved', () => {
+    for (const file of SEEDS) expect(read(file).length, file).toBeGreaterThan(500)
+  })
+
+  for (const product of PRODUCTS) {
+    it(`no seeded role, skill or sentence says ${product}, because a screenshot of one is a claim nothing can retract`, () => {
+      const pattern =
+        product === 'S/4HANA' ? /S\/4HANA/ : new RegExp(`\\b${product}\\b`)
+      const left: string[] = []
+      for (const file of SEEDS) {
+        read(file)
+          .split('\n')
+          .forEach((line, i) => {
+            if (pattern.test(line)) left.push(`${file} line ${i + 1}: ${line.trim()}`)
+          })
+      }
+      expect(
+        left,
+        `"${product}" is written into a seed. The home page shows real screens from the ` +
+          'seeded demo, `lib/positioning` cannot read a PNG, and a buyer looking at the image ' +
+          'reads a vendor name as a claim about what Etyme is for. Use the trade\'s own words ' +
+          'instead — ERP finance, HCM integration, log analytics, cloud data warehouse.'
+      ).toEqual([])
+    })
+  }
+
+  it('still bites: a seeded role written the old way is found', () => {
+    expect(/\bSAP\b/.test("{ role: 'SAP S/4 finance lead', skills: ['SAP FICO'] }")).toBe(true)
+    expect(/\bSAP\b/.test("{ role: 'ERP finance lead', skills: ['ERP finance'] }")).toBe(false)
   })
 })
 

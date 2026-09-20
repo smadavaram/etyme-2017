@@ -252,7 +252,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
       slug: 'cloudepa',
       seats: [
         {
-          title: 'SAP FICO consultant', skills: ['SAP FICO', 'S/4HANA'], loc: 'San Jose, CA',
+          title: 'ERP finance consultant', skills: ['ERP finance', 'General ledger'], loc: 'San Jose, CA',
           inferred: 'a health system, Bay Area', status: 'LIVE', lastSeen: -2,
           adverts: [
             { source: 'DICE', postedBy: 'Confidential', rate: 13_000, strength: 'SAME', because: ['same title', 'same city', 'rate within $5/hr'] },
@@ -269,7 +269,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
         {
           // Nobody has advertised it in seven weeks. The COLD job ages a
           // seat at forty-five days, and until now it had nothing to age.
-          title: 'Oracle Retail consultant', skills: ['Oracle Retail', 'PL/SQL'], loc: 'Columbus, OH',
+          title: 'Retail systems consultant', skills: ['Retail merchandising', 'PL/SQL'], loc: 'Columbus, OH',
           inferred: 'a national retailer, Midwest', status: 'LIVE', lastSeen: -49,
           adverts: [
             { source: 'VMS', postedBy: 'Brightmoor Staffing', rate: 12_000, strength: 'LIKELY', because: ['same skills', 'city 40 miles apart'] },
@@ -378,8 +378,8 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
         description: 'For consultants whose delivery work is changing. What to hand over, what to check, and how to say what you did.',
       },
       {
-        title: 'S/4HANA migration: what actually changes', category: 'TECH', duration: 20, isPublic: false,
-        description: 'For FICO consultants moving off ECC. Universal journal, new asset accounting, and the conversions that go wrong.',
+        title: 'ERP finance migration: what actually changes', category: 'TECH', duration: 20, isPublic: false,
+        description: 'For finance consultants moving off a legacy ledger. The universal journal, new asset accounting, and the conversions that go wrong.',
       },
       {
         title: 'Client-site conduct and confidentiality', category: 'COMPLIANCE', duration: 2, isPublic: false,

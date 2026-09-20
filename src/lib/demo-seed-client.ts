@@ -42,7 +42,7 @@ import { DEMO_DAYS, type Seeded } from '@/lib/demo-seed'
  *
  * `bandOfMax` is where their ceiling sits inside the role's own budget,
  * not a fixed number of dollars. A flat $85 ceiling was being handed out
- * on a $140/hr SAP role, which made three honest submissions read as
+ * on a $140/hr ERP finance role, which made three honest submissions read as
  * over-band on the scorecard — a demo teaching the opposite of the
  * thing it is demonstrating.
  */
@@ -94,15 +94,15 @@ const JAVA_PILE: Candidate[] = [
   { name: 'Sade Aluko', skills: ['Java', 'AWS'], location: 'Dallas, TX', auth: null, vendor: 'Veritan Talent', rate: 8400, score: 79, problem: 'NO_PERMIT' },
 ]
 
-const SAP_PILE: Candidate[] = [
-  { name: 'Anita Desai', skills: ['SAP FICO', 'S/4HANA'], location: 'Denver, CO', auth: 'US_CITIZEN', vendor: 'Cloudepa Systems', rate: 12500, score: null, problem: null },
-  { name: 'Ravi Patel', skills: ['SAP FICO', 'SAP BRIM'], location: 'Remote', auth: 'H1B', vendor: 'Veritan Talent', rate: 15500, score: null, problem: 'OVER_BAND' },
-  { name: 'Grace Lindqvist', skills: ['SAP FICO'], location: 'Denver, CO', auth: 'GC', vendor: 'Brightmoor Staffing', rate: 12000, score: null, problem: null },
+const ERP_FINANCE_PILE: Candidate[] = [
+  { name: 'Anita Desai', skills: ['ERP finance', 'General ledger'], location: 'Denver, CO', auth: 'US_CITIZEN', vendor: 'Cloudepa Systems', rate: 12500, score: null, problem: null },
+  { name: 'Ravi Patel', skills: ['ERP finance', 'Convergent invoicing'], location: 'Remote', auth: 'H1B', vendor: 'Veritan Talent', rate: 15500, score: null, problem: 'OVER_BAND' },
+  { name: 'Grace Lindqvist', skills: ['ERP finance'], location: 'Denver, CO', auth: 'GC', vendor: 'Brightmoor Staffing', rate: 12000, score: null, problem: null },
 ]
 
 const DATA_PILE: Candidate[] = [
-  { name: 'Meera Krishnan', skills: ['Snowflake', 'Python'], location: 'Austin, TX', auth: 'GC', vendor: 'Cloudepa Systems', rate: 9800, score: null, problem: null },
-  { name: 'Owen Trevelyan', skills: ['Snowflake', 'dbt'], location: 'Remote', auth: 'US_CITIZEN', vendor: 'Brightmoor Staffing', rate: 10200, score: null, problem: 'TOO_LATE' },
+  { name: 'Meera Krishnan', skills: ['Cloud data warehouse', 'Python'], location: 'Austin, TX', auth: 'GC', vendor: 'Cloudepa Systems', rate: 9800, score: null, problem: null },
+  { name: 'Owen Trevelyan', skills: ['Cloud data warehouse', 'dbt'], location: 'Remote', auth: 'US_CITIZEN', vendor: 'Brightmoor Staffing', rate: 10200, score: null, problem: 'TOO_LATE' },
 ]
 
 /**
@@ -274,19 +274,19 @@ export async function seedDemoClientCompany(input: {
       pile: JAVA_PILE,
     },
     {
-      title: 'SAP FICO Consultant',
-      skills: ['SAP FICO', 'S/4HANA'],
+      title: 'ERP Finance Consultant',
+      skills: ['ERP finance', 'General ledger'],
       location: 'Denver, CO',
       min: 11000,
       max: 14000,
       auth: null,
       startsIn: 30,
       openedDaysAgo: 5,
-      pile: SAP_PILE,
+      pile: ERP_FINANCE_PILE,
     },
     {
-      title: 'Data Engineer — Snowflake',
-      skills: ['Snowflake', 'Python'],
+      title: 'Data Engineer — Cloud Warehouse',
+      skills: ['Cloud data warehouse', 'Python'],
       location: 'Austin, TX',
       min: 9000,
       max: 12000,
@@ -501,7 +501,7 @@ export async function seedDemoClientCompany(input: {
     known,
     {
       name: 'Helena Vaz',
-      skills: ['SAP FICO', 'S/4HANA'],
+      skills: ['ERP finance', 'General ledger'],
       location: 'Denver, CO',
       auth: 'US_CITIZEN',
       vendor: 'Cloudepa Systems',

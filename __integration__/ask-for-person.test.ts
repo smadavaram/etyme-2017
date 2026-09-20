@@ -133,10 +133,10 @@ describe('asking for a person you were shown', () => {
       // Somebody on a bench Northbend Athletic has never bought from and was never
       // offered: no contract, no submission, no deal of any kind.
       const stranger = await prisma.person.create({ data: { name: 'Anselm Roche', primaryEmail: 'anselm.roche@seed.etyme.invalid' }, select: { id: true } })
-      const profile = await prisma.consultantProfile.create({ data: { personId: stranger.id, skills: ['Workday'], location: 'Beaverton, OR', visibility: 'VERIFIED', workAuth: 'USC' }, select: { id: true } })
+      const profile = await prisma.consultantProfile.create({ data: { personId: stranger.id, skills: ['HCM integration'], location: 'Beaverton, OR', visibility: 'VERIFIED', workAuth: 'USC' }, select: { id: true } })
       await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: it_.sub, tier: 'RETAINED', state: 'GRANTED' } })
       it_.stranger = stranger.id
-      it_.openRole = (await prisma.requirement.findFirstOrThrow({ where: { companyId: it_.nike, title: 'Workday HCM integration lead' }, select: { id: true } })).id
+      it_.openRole = (await prisma.requirement.findFirstOrThrow({ where: { companyId: it_.nike, title: 'HCM integration lead' }, select: { id: true } })).id
     }, 120_000)
 
     it('the bench listing that would be submitted against belongs to the firm below the one Northbend Athletic pays', async () => {

@@ -47,7 +47,7 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
     nike = { id: n.id, pmPersonId: pm.id }
 
     const r = await prisma.requirement.findFirstOrThrow({
-      where: { companyId: nike.id, title: 'Workday HCM integration lead' },
+      where: { companyId: nike.id, title: 'HCM integration lead' },
       select: { id: true, title: true, invitations: { select: { toCompanyId: true } } },
     })
     role = { id: r.id, title: r.title }

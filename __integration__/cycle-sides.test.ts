@@ -29,7 +29,7 @@ describe('cycles land on the side of the trade they describe', () => {
     const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' } })
     cloudepa = { id: co.id, seat: 'world-cloudepa@demo.etyme.local' }
 
-    // CloudEPA employs the SAP FICO consultant on W-2 and sells them up
+    // CloudEPA employs the ERP finance consultant on W-2 and sells them up
     // the chain. Its buy contract has no vendor below — it IS the employer.
     const s = await prisma.sellContract.findFirstOrThrow({
       where: { companyId: co.id },

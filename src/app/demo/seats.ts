@@ -101,7 +101,7 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
     // sentence twice on one card, which a reader notices before anything
     // else on it. This says what else is on the desks.
     about:
-      'A medical device maker hiring SAP, validation and regulatory people through three ' +
+      'A medical device maker hiring finance, validation and regulatory people through three ' +
       'suppliers. A week of hours is filed and waiting, an invoice is out, and somebody ' +
       'starts in five days with no I-9 on file.',
   },
@@ -319,7 +319,7 @@ export const CANDIDATE_SEATS: CandidateSeat[] = [
   {
     slug: 'helena-marsh',
     name: 'Helena Marsh',
-    where: 'Apparel · SAP S/4 finance lead',
+    where: 'Apparel · ERP finance lead',
     email: 'helena.marsh@seed.etyme.invalid',
     about:
       'Listed on a bench vendor’s books and sold on to a sportswear company by the prime above ' +

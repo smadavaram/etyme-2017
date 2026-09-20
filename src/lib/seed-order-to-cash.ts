@@ -646,7 +646,7 @@ export async function seedOrderToCash(ctx: SeedContext): Promise<OrderToCash> {
         data: {
           contractType: 'SELL', contractId: oldest.id,
           rate: Math.round(oldest.billRate * 1.05), rateType: 'HOURLY',
-          fromDate: day(30), reason: 'Asked for at extension — market has moved and they have the S/4HANA work.',
+          fromDate: day(30), reason: 'Asked for at extension — market has moved and they have the ledger migration work.',
           changedById: seat.personId,
           previousRate: oldest.billRate,
           approvalState: 'PROPOSED',
