@@ -388,6 +388,14 @@ ATTRIBUTED.DATA_IMPORTED = { basis: 'RECORDED' }
 // etyme-regulatory's next piece of work. Every deletion and every
 // anonymization below is `reversible: false` on the row that records it,
 // honestly, because nothing puts a deleted record back.
+//
+// The seven census rows are here for the same reason: `CensusRequest`
+// and `CensusFile` landed on 2026-09-20 and nothing writes to them yet.
+// They are worth naming ahead of the code because a census is a promise
+// made in writing to a client's legal counsel about what happens to a
+// file they sent us, and the sentence in the log is the thing that
+// proves we kept it. `CENSUS_DELETED` carries `reversible: false` for
+// the same reason `RETENTION_DELETE` does.
 
 export type PlannedAct =
   | { kind: 'UNPROMPTED'; rung: Rung; basis: Basis; says: string; willBeWrittenBy: string }
@@ -416,11 +424,75 @@ export const PLANNED: Record<string, PlannedAct> = {
 
   // ── The clocks ───────────────────────────────────────────────────
 
+  CENSUS_CLOCK_WARNED: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A census is close to the day its data is deleted, or close to the five working days the client was promised a page in, so the named person at Etyme was told. Once a day, not once a run. It deletes nothing, sends the client nothing, and writes no page.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+
+  // ── What the nightly sweep does with a census ──────────────────────
+
+  CENSUS_DELETED: {
+    kind: 'UNPROMPTED',
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A client sent us their contractor data, we sent back the page, thirty days passed and no program started — so it was deleted, with nobody asked, on the day the agreement they signed said it would be. The files are gone; what is left is the row saying how many there were and when they went. Nothing puts this back.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  CENSUS_DELETION_CANCELLED: {
+    kind: 'UNPROMPTED',
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'A census became a program, so the deletion due on it was called off and the reason recorded. It keeps data rather than destroying it, and the date can be put back on with one change — which is why it is not beside the deletion at the top of the ladder even though it is the same clock.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
 
   // ── A refusal aimed at somebody who asked ──────────────────────────
 
 
   // ── Acts a person took ─────────────────────────────────────────────
+  //
+  // Four of the seven census rows are somebody's act, not ours, and they
+  // are here rather than on the ladder for the reason the file gives
+  // above: giving a human act a rung would inflate every claim we make.
+  // The client asks, the client's legal accepts, the client uploads, and
+  // a named person at Etyme sends the page. None of that is automation
+  // and all of it has to be on the record, because the whole design is a
+  // promise about what we do with somebody's file.
+
+  CENSUS_REQUESTED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RECORDED',
+    says:
+      'Somebody at a client asked for a contractor census, from a page with no login behind it, and was given their place in the line and the name of the person at Etyme who will run it. Nothing about them is verified at this point and nothing has been sent to us yet.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  CENSUS_AGREED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RECORDED',
+    says:
+      'Somebody at the client accepted the one-page census agreement, by name, and the link they can upload through was created at that moment and not before. This row is the record that they accepted, which edition they accepted, and when.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  CENSUS_FILES_RECEIVED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RECORDED',
+    says:
+      'The client uploaded their census data through their own link, and the row says how many files and how many bytes arrived and the day the whole lot is deleted. The deletion date on their confirmation is read from the same column the nightly sweep reads, so the two cannot disagree.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  CENSUS_DELIVERED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RECORDED',
+    says:
+      'The named person at Etyme reviewed the one page, wrote what could not be seen in the data, and sent it. A person did this: nothing computes a census for a client before somebody here has read their file, and the row says who.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
 
 }
 
