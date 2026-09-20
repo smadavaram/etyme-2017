@@ -116,12 +116,20 @@ follow:
   a timesheet being approved; one invoice matched to signed hours; the four
   questions answered on the dashboard. Dense tables with numbers read as
   enterprise software. Prose about "a record" reads as a pitch deck.
-- **Name the category, and one comparison.** "A vendor management system
-  for companies with twenty to two hundred contractors. If you know SAP
-  Fieldglass or Beeline, it is the same job, sized for a company with fifty
-  contractors rather than five thousand." Nominative, once, factual, never
-  a claim about them. The guard in `lib/positioning` that refused any named
-  comparison is relaxed to allow exactly that sentence and no other.
+- **Name the category and the size, and no company. Corrected the same
+  evening.** The page briefly said "If you know SAP Fieldglass or Beeline,
+  it is the same job, sized for a company with fifty contractors rather
+  than five thousand." The founder read it on his phone and struck it:
+  "Invoking SAP Fieldglass and Beeline will trigger more questions than
+  answers." A competitor's name on a page invites "how are you different",
+  "are you certified like them", "who else uses you", and the page cannot
+  finish that argument. So the page says the category and the size: "A
+  vendor management system for companies with twenty to two hundred
+  contractors, sized for a company with fifty contractors rather than five
+  thousand." The comparison to Fieldglass stays a sentence the founder
+  says in a conversation, where he can answer the next question. The guard
+  in `lib/positioning` refuses any named company on the page again, with
+  no exception.
 - **Concrete nouns only above the fold**: contractors, suppliers,
   timesheets, invoices, rates, months on site. "Record" is allowed once
   the reader has seen the list it refers to.
