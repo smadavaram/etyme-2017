@@ -83,7 +83,7 @@ const STREAM = [
   ['l11', /\b(requisition|requirement|release|distribut|invit|submit|submission|shortlist|interview|award|match|sourc|bench|listing|consent|represent|lead|opening|forward|rung|chain|role\b|seat|panel|band|puts? (her|him|them) forward)\b/i],
 ]
 const L17 = /\b(tenure|co-?employment|classif|governance|segregat|access log|trail|logged|wall|autonomy|unprompted|automation log|do-not-return|dnr|blacklist|barred|disclos|whose rate|withh(e|o)ld|leak|tamper|cannot see|unable to see|never (sees|learns)|does not let)\b/i
-const STREAM_KEYS = ['l11', 'l12', 'l13', 'l14', 'l15', 'l16', 'l17', 'other']
+const STREAM_KEYS = ['l11', 'l12', 'l13', 'l14', 'l15', 'expense', 'l16', 'l17', 'other']
 const STREAM_NAME = Object.fromEntries(streams.map((s) => [s.id, `${s.code} ${s.name}`]))
 STREAM_NAME.other = 'Across the streams'
 
@@ -97,7 +97,8 @@ function classify() {
     if (meta.p[0] === 'x') { (platform[row.file] ??= []).push(row); continue }
     const text = `${row.describe ?? ''} · ${row.it}`
     let stream = meta.s
-    if (stream === 'steps') {
+    if (/\bexpens/i.test(text)) stream = 'expense'
+    else if (stream === 'steps') {
       stream = 'other'
       if (L17.test(text)) stream = 'l17'
       else for (const [k, re] of STREAM) if (re.test(text)) { stream = k; break }
@@ -290,18 +291,19 @@ function clientFlowSections(party) {
 }
 
 function partyDoc(party) {
-  const title = `${party.name} — seven streams and the scripts that prove them`
-  let html = head(title, `Etyme’s seven value streams drawn from ${party.name.toLowerCase()}’s own desks, with every counterparty faded but present, and the integration test scripts that walk this party’s flows.`)
+  const title = `${party.name} — seven streams, the expense flow, and the scripts that prove them`
+  let html = head(title, `Etyme’s seven value streams and the expense flow, drawn from ${party.name.toLowerCase()}’s own desks, with every counterparty faded but present, and the integration test scripts that walk this party’s flows.`)
   html += `<section class="cover"><p class="eyebrow">Etyme · the operating model, from one desk · ${party.n} of 10</p><p class="n">${party.n}</p><h1>${esc(party.name)}</h1><p class="lede">${esc(party.tagline)}</p>
   <div class="facts">
     <div><p class="eyebrow">Position on a deal</p>${esc(party.position)}</div>
     <div><p class="eyebrow">Desks</p>${party.desks.map(esc).join(' · ')}</div>
     <div><p class="eyebrow">Demo doors</p>${party.doors.length ? party.doors.map((d) => `${esc(DOORS[d] ?? d)} <span class="mono muted">/demo · ${esc(d)}</span>`).join('<br>') : `<span style="color:var(--attention)">${esc(party.noDoor ?? 'None.')}</span>`}</div>
-    <div><p class="eyebrow">How to read the drawings</p>${party.key === 'client' ? 'First, one hire walked end to end from every one of the client’s desks, in three panels on the same ten lanes — budget & planning through accounts payable, with the supplier and the contractor drawn solid in their shaded lanes so what crosses to them can be read; a desk can be followed across the pages. Then the seven streams, one at a time. ' : ''}This party’s own desks are blue-edged and solid. Every other lane is shaded and faded but still drawn, because the stream is the same for everyone — only the vantage point moves. The scripts under each drawing are the integration tests that walk this party’s stations; every one of them is green on the branch this was built from.</div>
+    <div><p class="eyebrow">How to read the drawings</p>${party.key === 'client' ? 'First, one hire walked end to end from every one of the client’s desks, in three panels on the same ten lanes — budget & planning through accounts payable, with the supplier and the contractor drawn solid in their shaded lanes so what crosses to them can be read; a desk can be followed across the pages. Then the seven streams, one at a time. ' : 'The seven value streams, then the expense flow — the second kind of receipt — as this party sees it. '}This party’s own desks are blue-edged and solid. Every other lane is shaded and faded but still drawn, because the stream is the same for everyone — only the vantage point moves. The scripts under each drawing are the integration tests that walk this party’s stations; every one of them is green on the branch this was built from.</div>
   </div>
   <div class="prose"><p>${esc(party.about)}</p></div>${KEY}</section>`
   if (party.key === 'client') html += clientFlowSections(party)
   for (const s of streams) {
+    if (s.id === 'expense' && party.key === 'client') continue // panel 4 of the client’s own flow
     const view = viewFor(party, s)
     const id = `${party.key}-${s.id}`
     const ownCount = view.steps.filter((x) => !x.faded).length
