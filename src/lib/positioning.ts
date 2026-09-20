@@ -441,3 +441,109 @@ export function priceClaims(text: string): string[] {
   }
   return out
 }
+
+// ── Outcomes, benefits and methods — not metaphors ────────────────────
+//
+// Added 2026-09-20, on the founder reading the rebuilt page: "The home
+// page is filled with metaphors rather than outcomes, benefits and
+// methods."
+//
+// He is right, and the four rules above could not see it. A page can
+// name the category, keep AI out of the hero, place nobody and stay
+// horizontal, and still say "that's the gap" and "the bill comes the
+// week somebody stops accepting the caveat" — sentences a program
+// manager reading English as a second language parses twice and still
+// cannot act on.
+//
+// Three of the failures are mechanical enough to check, so they are
+// checked here rather than left to whoever reads the page next:
+//
+//   1. a headline with no verb in it is a slogan, and a slogan is a
+//      claim nobody can agree or disagree with
+//   2. a sentence over thirty words is two sentences somebody has not
+//      split yet
+//   3. a gate quoted on a marketing page has to be the sentence the
+//      software actually says, which the test proves against the source
+//      rather than against the page's word for it
+//
+// What this still cannot tell you is whether the writing is good. It
+// can tell you the page has gone back to being clever.
+
+/**
+ * Every headline written as literal text in the page source.
+ *
+ * Headlines rendered from data — the four questions, the three
+ * exposures, the four screens — are deliberately not here: they are
+ * checked as the data they come from, where the shape of the row says
+ * what each field is for. This is the prose a writer types straight
+ * into a heading, which is where a slogan goes.
+ */
+export function headlinesFrom(source: string): string[] {
+  const out: string[] = []
+  for (const m of source.matchAll(/<h[1-3][^>]*>([^<>{}]+?)<\/h[1-3]>/g)) {
+    const t = m[1].replace(/\s+/g, ' ').trim()
+    if (t && /[a-zA-Z]/.test(t)) out.push(t)
+  }
+  return out
+}
+
+/**
+ * The verbs a plain sentence about this product is built from.
+ *
+ * Finite forms only. A participle is what a slogan uses to sound like a
+ * sentence without being one — "Four questions, answered before lunch"
+ * has no subject and nothing to disagree with — so "answered" is not in
+ * here and "answer" is.
+ */
+const VERBS = [
+  'is', 'are', 'was', 'were', 'be', 'can', 'cannot', 'may', 'will', 'do', 'does', 'have', 'has',
+  'add', 'adds', 'answer', 'answers', 'arrive', 'arrives', 'ask', 'asks', 'block', 'blocks',
+  'buy', 'buys', 'call', 'calls', 'change', 'changes', 'charge', 'charges', 'check', 'checks',
+  'come', 'comes', 'cost', 'costs', 'count', 'counts', 'cover', 'covers', 'end', 'ends',
+  'file', 'files', 'find', 'finds', 'fix', 'fixes', 'get', 'gets', 'give', 'gives', 'go', 'goes',
+  'hire', 'hires', 'hold', 'holds', 'keep', 'keeps', 'know', 'knows', 'land', 'lands',
+  'leave', 'leaves', 'list', 'lists', 'look', 'looks', 'make', 'makes', 'match', 'matches',
+  'move', 'moves', 'name', 'names', 'need', 'needs', 'open', 'opens', 'pay', 'pays',
+  'put', 'puts', 'read', 'reads', 'record', 'records', 'replace', 'replaces', 'run', 'runs',
+  'say', 'says', 'see', 'sees', 'send', 'sends', 'settle', 'settled', 'show', 'shows',
+  'sign', 'signs', 'sit', 'sits', 'spend', 'spends', 'stay', 'stays', 'stop', 'stops',
+  'take', 'takes', 'tell', 'tells', 'travel', 'travels', 'use', 'uses', 'watch', 'watches',
+  'work', 'works', 'write', 'writes',
+]
+
+/**
+ * The headlines with no verb in them.
+ *
+ * Empty is the only acceptable answer, with one exception the caller
+ * passes in: the hero line the founder signed off, "Every contractor.
+ * Every supplier. One record." It is three noun phrases and it stays,
+ * because it is the one line on the page a reader is meant to remember
+ * rather than act on. Everything under it says what it means.
+ */
+export function withoutVerb(headings: string[], allowed: string[] = []): string[] {
+  return headings.filter((h) => {
+    if (allowed.includes(h)) return false
+    const words = h.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
+    return !words.some((w) => VERBS.includes(w))
+  })
+}
+
+/**
+ * Sentences longer than a reader can hold.
+ *
+ * Thirty words is the refusal line, not the target — the target is
+ * about twenty, and an agent asked for twenty writes twenty-eight. A
+ * sentence over thirty is two sentences with the full stop missing, and
+ * it is read by somebody whose first language is not English.
+ *
+ * Returns the offenders with their length, so the message names the
+ * sentence to split rather than the page to reread.
+ */
+export function longSentences(text: string, max = 30): string[] {
+  const out: string[] = []
+  for (const raw of text.split(/(?<=[.!?])\s+/)) {
+    const words = raw.trim().split(/\s+/).filter((w) => /[a-zA-Z0-9]/.test(w))
+    if (words.length > max) out.push(`${words.length} words: ${raw.trim()}`)
+  }
+  return out
+}
