@@ -177,7 +177,15 @@ describe('2 · the program office sends it to suppliers, and a supplier answers'
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.summary.sent).toBe(1)
-    expect(JSON.stringify(r.body)).not.toContain('3800')
+    // The band goes on the invitation and comes back to nobody. Asserted
+    // against the numbers rather than against the whole body as a string:
+    // a cuid is base36 and one in a few hundred contains "3800", so the
+    // substring form failed on a Tuesday for a reason nobody could read.
+    for (const n of [3200, 3800]) {
+      for (const row of r.body.data.results) expect(Object.values(row)).not.toContain(n)
+      expect(JSON.stringify(r.body.data.summary)).not.toContain(String(n))
+    }
+    expect(JSON.stringify(r.body).replace(/"[A-Za-z0-9_-]{20,}"/g, '""')).not.toContain('3800')
   })
 
   it('Pinnacle puts Tariq forward', async () => {
