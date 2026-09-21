@@ -406,14 +406,14 @@ Named with SAP's autonomy ladder, because that is the vocabulary every
 enterprise buyer is currently being taught, and recorded per action in
 `src/lib/autonomy.ts`.
 
-Recomputed from the module on 2026-09-20:
+Recomputed from the module on 2026-09-21:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **151** |
+| Actions named in the automation log | **155** |
 | Unprompted — the system did it and nobody asked | **23** |
-| Enforcement — the system decided what a person was allowed to do | **6** |
-| Attributed — a person did it and the row is the record | **122** |
+| Enforcement — the system decided what a person was allowed to do | **8** |
+| Attributed — a person did it and the row is the record | **124** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung
