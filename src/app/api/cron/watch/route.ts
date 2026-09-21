@@ -17,6 +17,7 @@ import {
 import { packetByKey, resolveItems, itemsToAsk, type HeldDocument } from '@/lib/packets'
 import { coverGaps } from '@/lib/cover-gap'
 import { documentFindings } from '@/lib/document-request'
+import { everyDocumentLetter, sendDocumentLapses } from '@/lib/notify/documents'
 import {
   lookAtCredentials,
   askForRenewal,
@@ -59,6 +60,15 @@ export async function GET(request: NextRequest) {
   // is what makes the rows themselves honest.
   const holdsFreed = dry ? 0 : await sweepExpired(undefined, undefined, now)
 
+  // The document loop's letters: a paper running out, or one a line
+  // requires and nobody ever filed, told to the party that owes it and to
+  // every party the lapse costs, once per milestone, through the name
+  // wall. Before the early return below, because a document nobody filed
+  // is not a finding and must still be told.
+  const lapseLetters = dry
+    ? 0
+    : (await sendDocumentLapses((await everyDocumentLetter(now)).letters, now)).letters.length
+
   const findings = ordered([
     ...(await lookAtVerifications(now)),
     ...(await lookAtCoverGaps(now)),
@@ -77,7 +87,7 @@ export async function GET(request: NextRequest) {
   if (findings.length === 0) {
     return NextResponse.json({
       data: {
-        found: 0, acted: 0, told: 0, holdsFreed,
+        found: 0, acted: 0, told: 0, holdsFreed, lapseLetters,
         summary: holdsFreed > 0
           ? `${holdsFreed} representation ${holdsFreed === 1 ? 'hold' : 'holds'} went back. Nothing else worth anybody’s attention.`
           : 'Nothing worth anybody’s attention.',
@@ -119,6 +129,7 @@ export async function GET(request: NextRequest) {
       blocking: findings.filter((f) => f.urgency === 'BLOCKING').length,
       acted,
       told,
+      lapseLetters,
       actions,
       couldNotAct,
       summary: digest(findings),
