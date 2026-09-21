@@ -22,6 +22,7 @@ import {
   type RequiredItem,
   type HeldKeyRecord,
 } from '@/lib/document-request'
+import { supplierCoverGate, nameCredential } from '@/lib/document-stages'
 
 const TODAY = new Date('2026-09-21T00:00:00Z')
 
@@ -203,5 +204,96 @@ describe('a document type nobody defined is still said in words, never in the ke
 
   it('never invents a definition — an unknown key gets its own words and nothing more', () => {
     expect(humanKey('DRUG_SCREEN_10_PANEL')).toBe('drug screen 10 panel')
+  })
+})
+
+// ── Two certificates, two different things wrong ──────────────────────
+//
+// Added 2026-09-21, the hour the submit door started passing the
+// client's own required set. A firm can now be refused over a
+// certificate that ran out and one that was never filed at once, and
+// the two sentences that existed were each wrong for half of it.
+
+describe('a refusal that names several certificates says what is true of each', () => {
+  const on = new Date('2026-09-21T00:00:00Z')
+
+  it('names the one that ran out and the one that is not on file in the same sentence, because one instruction cannot cover both', () => {
+    const gate = supplierCoverGate({
+      supplierName: 'Teleworld Solutions',
+      certificates: [
+        { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: new Date('2025-03-03T00:00:00Z'), expiresAt: new Date('2026-03-03T00:00:00Z'), verifiedAt: on },
+        { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-01-01T00:00:00Z'), verifiedAt: on },
+      ],
+      requiredTypes: ['GOOD_STANDING'],
+      on,
+    })
+    expect(gate.outcome).toBe('BLOCK')
+    expect(gate.says).toBe(
+      'Nobody can be submitted through Teleworld Solutions: its certificate of general liability insurance ' +
+        'ran out on March 3 and its certificate of good standing is not on file.'
+    )
+  })
+
+  it('never tells a firm to renew a certificate it has never had, because there is nothing to renew', () => {
+    const gate = supplierCoverGate({
+      supplierName: 'Teleworld Solutions',
+      certificates: [
+        { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: new Date('2025-03-03T00:00:00Z'), expiresAt: new Date('2026-03-03T00:00:00Z'), verifiedAt: on },
+        { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-01-01T00:00:00Z'), verifiedAt: on },
+      ],
+      requiredTypes: ['GOOD_STANDING'],
+      on,
+    })
+    expect(gate.says).not.toContain('until they are renewed')
+    expect(gate.fix).toContain('has to be collected before anybody starts')
+  })
+
+  it('says a policy that has not begun does not start until the day it starts, beside whatever else is wrong', () => {
+    const gate = supplierCoverGate({
+      supplierName: 'Teleworld Solutions',
+      certificates: [
+        { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: on, validFrom: new Date('2026-10-12T00:00:00Z'), expiresAt: new Date('2027-10-12T00:00:00Z'), verifiedAt: on },
+        { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-01-01T00:00:00Z'), verifiedAt: on },
+      ],
+      requiredTypes: ['GOOD_STANDING'],
+      on,
+    })
+    expect(gate.says).toContain('does not start until October 12')
+    expect(gate.says).toContain('certificate of good standing is not on file')
+  })
+
+  it('keeps the sentence it already had where every certificate has the same thing wrong with it', () => {
+    const gate = supplierCoverGate({
+      supplierName: 'Teleworld Solutions',
+      certificates: [
+        { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: on, validFrom: new Date('2026-10-12T00:00:00Z'), expiresAt: new Date('2027-10-12T00:00:00Z'), verifiedAt: on },
+        { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, validFrom: new Date('2026-10-12T00:00:00Z'), expiresAt: new Date('2027-10-12T00:00:00Z'), verifiedAt: on },
+      ],
+      on,
+    })
+    expect(gate.says).toContain('until they begin')
+  })
+})
+
+describe('a license says which state once', () => {
+  it('does not say the state twice where the label a company typed already carries it', () => {
+    expect(
+      nameCredential({ label: 'professional license (RN 154-882, WI)', type: 'PROFESSIONAL_LICENSE', state: 'WI' })
+      // The label is lowercased for the sentence it sits in, as it always
+      // was. What changed is that "(WI)" is not appended to a label that
+      // already ends in it.
+    ).toBe('professional license (rn 154-882, wi)')
+  })
+
+  it('adds the state where the label does not carry it, because a board that is not named is a board nobody can call', () => {
+    expect(nameCredential({ label: 'Professional license', type: 'PROFESSIONAL_LICENSE', state: 'WI' })).toBe(
+      'professional license (WI)'
+    )
+  })
+
+  it('adds the number and the state where the label carries neither, which is what somebody types into a renewal page', () => {
+    expect(
+      nameCredential({ label: 'Professional license', type: 'PROFESSIONAL_LICENSE', number: 'RN 154-882', state: 'WI' })
+    ).toBe('professional license (RN 154-882, WI)')
   })
 })

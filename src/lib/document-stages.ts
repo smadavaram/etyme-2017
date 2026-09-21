@@ -738,19 +738,28 @@ export const COVER_ASKED_OF_EVERYBODY = ['INSURANCE_GL', 'INSURANCE_WC'] as cons
  *
  * This paragraph used to say that a required certificate never filed
  * "blocks at submission the way required cover does", and a release walk
- * found that nothing in the app behaved that way. Both halves of the
- * claim were wrong, in different places, which is why the words are now
- * the decision rather than a description:
+ * found that nothing in the app behaved that way. The words are now the
+ * decision rather than a description, and both doors say it:
  *
- *   at submission   `supplierCoverGate` does block on a required type
- *                   with nothing filed — and the submit door passes no
- *                   `requiredTypes`, so the branch has never fired on a
- *                   real submission. Passing the line's set in is
- *                   `etyme-demand`'s half and is not done here.
+ *   at submission   `POST /api/submissions` passes the client's own
+ *                   required set in as `requiredTypes`, then splits what
+ *                   comes back on `standing === 'MISSING'` rather than
+ *                   recomputing anything. Cover that ran out or has not
+ *                   begun refuses the submission (409 COVER_LAPSED); a
+ *                   required certificate nobody ever filed lets it
+ *                   through with the sentence naming what is owed and
+ *                   the reason on the record. Because the door reads
+ *                   this gate's own findings, the day this function
+ *                   changes its mind the door follows with no edit.
  *   at activation   `forActivation` in `lib/contract-clearance`
- *                   deliberately downgrades a never-filed certificate
- *                   from BLOCK to WARN, records the reason, and lets the
- *                   start through.
+ *                   downgrades a never-filed certificate from BLOCK to
+ *                   WARN, records the reason, and lets the start
+ *                   through.
+ *
+ * `supplierCoverGate` itself still returns BLOCK for a required type
+ * with nothing filed, and that is on purpose: the gate reports the
+ * standing, and what a door does about it is the door's decision. Both
+ * doors decide the same thing.
  *
  * The downgrade stays, and it is the ratified reading rather than a
  * convenience. Addendum E names "lapsed supplier insurance" among the
@@ -761,7 +770,8 @@ export const COVER_ASKED_OF_EVERYBODY = ['INSURANCE_GL', 'INSURANCE_WC'] as cons
  * rules down, which is the workaround trap Addendum E is explicit
  * about. So: **lapsed blocks, and never filed warns, records the reason
  * and proceeds** — never silently permits. This is the founder's to
- * overrule, and `forActivation` is the one function to change.
+ * overrule, and there are two lines to change: `forActivation` here, and
+ * the MISSING split in the submit door.
  */
 export const COVER_THAT_STOPS_WORK = [...COVER_ASKED_OF_EVERYBODY, 'GOOD_STANDING'] as const
 
@@ -846,6 +856,11 @@ export function supplierCoverGate(input: {
 
   const blocking: DocStanding[] = []
   const chasing: DocStanding[] = []
+  // The two dates behind each verdict, kept so a refusal naming several
+  // certificates can say what is true of each one. `DocStanding` carries
+  // the sentence and not the dates, and re-deriving them below would be
+  // a second arithmetic that can disagree with the first.
+  const dates = new Map<string, { floor: Date | null; expiresAt: Date | null }>()
 
   for (const kind of kinds) {
     const label = coverLabel(kind)
@@ -920,6 +935,11 @@ export function supplierCoverGate(input: {
         standing.standing === 'NOT_YET_VALID' ||
         (standing.standing === 'MISSING' && required.includes(kind)))
 
+    dates.set(kind, {
+      floor: best ? (best.validFrom ?? best.issuedAt ?? null) : null,
+      expiresAt: best?.expiresAt ?? null,
+    })
+
     if (stops) blocking.push(standing)
     else if (standing.standing !== 'VALID' || standing.unverified) chasing.push(standing)
   }
@@ -934,17 +954,57 @@ export function supplierCoverGate(input: {
   // those are the two things to say.
   const onlyEarly =
     blocking.length > 0 && blocking.every((b) => b.standing === 'NOT_YET_VALID')
+  // ── Several certificates, and not the same thing wrong with them ──
+  //
+  // Found on 2026-09-21, the hour the submit door started passing the
+  // client's own required set (`api/submissions`). A firm can now be
+  // refused over two certificates at once where one ran out and the
+  // other was never filed, and the two homogeneous sentences below are
+  // both wrong for it: "until they are renewed" asks somebody to renew a
+  // document that does not exist, and "until they begin" says a policy
+  // starts when nobody ever bought one. Neither is an instruction a
+  // broker can act on, and a refusal nobody can act on is the workaround
+  // trap Addendum E names.
+  //
+  // So where the blocking certificates do not all have the same thing
+  // wrong with them, each is named in its own half of one sentence.
+  // `onlyEarly` keeps the case it was written for, unchanged.
+  const mixed = blocking.length > 1 && new Set(blocking.map((b) => b.standing)).size > 1
+
+  /** What is wrong with one certificate, as half of a sentence. */
+  function clause(b: DocStanding): string {
+    const label = inSentence(b.label)
+    const d = dates.get(b.key)
+    if (b.standing === 'EXPIRED') {
+      return d?.expiresAt
+        ? `its ${label} ran out on ${onDay(d.expiresAt)}`
+        : `its ${label} has run out`
+    }
+    if (b.standing === 'NOT_YET_VALID') {
+      return d?.floor
+        ? `its ${label} does not start until ${onDay(d.floor)}`
+        : `its ${label} does not cover today`
+    }
+    return `its ${label} is not on file`
+  }
+
   const fix =
     outcome === 'PASS'
       ? null
-      : onlyEarly
+      : mixed
+        ? `${input.supplierName}'s broker can reissue what has run out, usually the same day, naming ` +
+          `${holder} as certificate holder. What is not on file has to be collected before anybody starts — ` +
+          `there is nothing to renew.`
+        : onlyEarly
         ? `Either ${input.supplierName}'s broker moves the policy start forward and issues the certificate ` +
           `naming ${holder} as certificate holder, or nobody starts before the cover does.`
         : `${input.supplierName}'s broker can issue a replacement certificate, usually the same day, ` +
           `naming ${holder} as certificate holder. Upload it and the submission goes through.`
 
   let says: string
-  if (outcome === 'BLOCK') {
+  if (outcome === 'BLOCK' && mixed) {
+    says = `Nobody can be submitted through ${input.supplierName}: ${listed(blocking.map(clause))}.`
+  } else if (outcome === 'BLOCK') {
     // Cover that has not begun is refused for the same reason as cover
     // that ran out, and it is not the same sentence. "Back in date" and
     // "renew it" are instructions somebody cannot follow about a policy
@@ -967,6 +1027,17 @@ export function supplierCoverGate(input: {
   }
 
   return { outcome, blocking, chasing, says, fix }
+}
+
+/** A day a person reads, in American English: "March 3". */
+function onDay(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })
+}
+
+/** "a, b and c" — the halves of a refusal that names several documents. */
+function listed(parts: string[]): string {
+  if (parts.length <= 1) return parts.join('')
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
 /** "Certificate of X expired" → "certificate of X expired", inside a sentence. */
@@ -1067,10 +1138,27 @@ function sayKey(key: string): string {
  * "PROFESSIONAL_LICENSE". The number and the state are what somebody
  * types into a board's renewal page, and they are the two things a
  * compliance officer checks against the register.
+ *
+ * ── A license says which state once ──────────────────────────────────
+ *
+ * A company's own dictionary can already name the state inside the
+ * label — "professional license (RN 154-882, WI)" is a label somebody
+ * typed — and appending it again produced the sentence a release walk
+ * read in a real chase letter on 2026-09-21: "Colleen Byrne's
+ * professional license (RN 154-882, WI) (WI) runs out in 22 days." A
+ * detail repeated is a detail a reader stops trusting. Anything the
+ * label already carries is left out rather than said twice.
  */
 export function nameCredential(c: { label?: string | null; type: string; number?: string | null; state?: string | null }): string {
   const base = (c.label ?? sayKey(c.type)).toLowerCase()
-  const inside = [c.number, c.state].filter((x): x is string => !!x && !!x.trim())
+  // Matched on a whole word, so a label ending "(RN 154-882, WI)" is not
+  // said to already carry the state "I", and "Wisconsin" in a label does
+  // not swallow a state code of "WI" that belongs beside it.
+  const already = (x: string): boolean =>
+    new RegExp(`(^|[^A-Za-z0-9])${x.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^A-Za-z0-9]|$)`, 'i').test(base)
+  const inside = [c.number, c.state]
+    .filter((x): x is string => !!x && !!x.trim())
+    .filter((x) => !already(x))
   return inside.length > 0 ? `${base} (${inside.join(', ')})` : base
 }
 

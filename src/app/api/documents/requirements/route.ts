@@ -133,6 +133,19 @@ type Standing =
   | { ok: true; seat: LiveSeat | null }
   | { ok: false; response: NextResponse }
 
+/**
+ * A sentence starts with a capital letter.
+ *
+ * `target.says` and a document's label are both written to sit INSIDE a
+ * sentence — "waived on the line for Samuel Adeyinka", "asks for a hot
+ * floor induction" — and several replies put one of them at the front
+ * of one, so a client read "the line for Samuel Adeyinka now asks for…"
+ * beginning mid-sentence. Names keep their own capitals either way.
+ */
+function upper(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+}
+
 function refuse(message: string, status = 403, code = 'FORBIDDEN'): NextResponse {
   return NextResponse.json({ error: { code, message } }, { status })
 }
@@ -424,14 +437,14 @@ export async function POST(request: NextRequest) {
       caller,
       target,
       seat: standing.seat,
-      summary: `${label} is no longer asked for on ${target.says}`,
+      summary: `${upper(label)} is no longer asked for on ${target.says}`,
       reason,
       key,
     })
     return NextResponse.json({
       data: {
         removed: true,
-        says: `${label} is no longer asked for on ${target.says}. Your reason is on the record with your name.`,
+        says: `${upper(label)} is no longer asked for on ${target.says}. Your reason is on the record with your name.`,
       },
     })
   }
@@ -477,8 +490,8 @@ export async function POST(request: NextRequest) {
     target,
     seat: standing.seat,
     summary: waiving
-      ? `${label} waived on ${target.says}`
-      : `${target.says} asks for ${label}`,
+      ? `${upper(label)} waived on ${target.says}`
+      : `${upper(target.says)} asks for ${label}`,
     reason: waiving
       ? body.waivedReason!.trim()
       : (body.note?.trim() ||
@@ -491,9 +504,9 @@ export async function POST(request: NextRequest) {
     data: {
       id: row.id,
       says: waiving
-        ? `${label} is waived on ${target.says}, with your reason and your name on the record. It stays on the ` +
+        ? `${upper(label)} is waived on ${target.says}, with your reason and your name on the record. It stays on the ` +
           `checklist, marked waived, rather than disappearing from it.`
-        : `${target.says} now asks for ${label}. The next start under it asks for it.${undefinedTypeSays}`,
+        : `${upper(target.says)} now asks for ${label}. The next start under it asks for it.${undefinedTypeSays}`,
       /** False where the type is not in anybody's dictionary. */
       typeDefined: said.known,
     },
