@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, withOrderedItems, deskForPurpose, wantsDates, STAGE_VERB, type Decision, type OrderedItem } from '@/lib/supplier-onboarding'
+import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, withOrderedItems, deskForPurpose, wantsDates, STAGE_VERB, type Decision, type OrderedItem, type ChecklistItem, CHECKLIST } from '@/lib/supplier-onboarding'
 import { verificationFromChecklistItem, verificationsFromChecklist } from '@/lib/onboarding-evidence'
 import { builtInType } from '@/lib/document-type'
 import { linkLetter, applyUrl } from '@/lib/supplier-link'
@@ -306,5 +306,90 @@ describe('a verdict at onboarding reaches the compliance record', () => {
     expect(standing?.needsDates).toBe(true)
     // The screening is a desk's own check and was never going to be a row.
     expect(out.skipped.find((sk) => sk.key === 'VENDOR_SCREENING')?.needsDates).toBe(false)
+  })
+})
+
+/**
+ * A checklist is JSON written the day a firm was recommended, and the
+ * code that decides what it asks for is newer than the row every time.
+ * The release walk of 2026-09-21 found what that costs: HR marked a
+ * certificate of insurance verified with no dates and no compliance row,
+ * on a stored item written before `answers` existed, and read the same
+ * certificate asked for three times on one list.
+ */
+describe('a checklist written before the code changed', () => {
+  const now = new Date('2026-09-21T09:00:00Z')
+
+  /** The row as it was stored: no `answers`, an old label, marked received. */
+  function storedBeforeAnswers(): ChecklistItem[] {
+    return newChecklist().map((i) =>
+      i.key === 'INSURANCE'
+        ? { ...i, label: 'Certificate of insurance', answers: undefined, state: 'PROVIDED' as const, fileName: 'Veritan-COI-2026.pdf' }
+        : i
+    )
+  }
+
+  it('a certificate of insurance stored before the checklist knew what it answers still asks the desk for its two dates', () => {
+    const stale = storedBeforeAnswers().find((i) => i.key === 'INSURANCE')!
+    expect(wantsDates(stale)).toBe(false)
+
+    const read = withOrderedItems(storedBeforeAnswers(), [], 'Northbend Athletic').find((i) => i.key === 'INSURANCE')!
+    expect(wantsDates(read)).toBe(true)
+  })
+
+  it('a desk cannot mark that certificate verified with no start and no expiry', () => {
+    const read = withOrderedItems(storedBeforeAnswers(), [], 'Northbend Athletic')
+    const marked = (markItem(read, 'INSURANCE', 'HELD', null, now) as { checklist: ChecklistItem[] }).checklist
+    const verdict = verificationFromChecklistItem(marked.find((i) => i.key === 'INSURANCE')!, 'veritan', { at: now })
+    expect(verdict.ok).toBe(false)
+    expect(verdict.needsDates).toBe(true)
+  })
+
+  it('what a desk already recorded survives the row being read back against the code', () => {
+    const read = withOrderedItems(storedBeforeAnswers(), [], 'Northbend Athletic').find((i) => i.key === 'INSURANCE')!
+    expect(read.state).toBe('PROVIDED')
+    expect(read.fileName).toBe('Veritan-COI-2026.pdf')
+    expect(read.label).toBe(CHECKLIST.find((c) => c.key === 'INSURANCE')!.label)
+  })
+
+  it('an order asking for general liability cover annotates the certificate of insurance the walk already asks for rather than adding a second row', () => {
+    const out = withOrderedItems(
+      storedBeforeAnswers(),
+      [
+        { key: 'INSURANCE_GL', label: 'Certificate of general liability insurance', purpose: 'COMPLIANCE', required: true },
+        { key: 'INSURANCE_WC', label: "Certificate of workers' compensation", purpose: 'COMPLIANCE', required: true },
+      ],
+      'Northbend Athletic'
+    )
+    expect(out.filter((i) => i.key.startsWith('INSURANCE')).length).toBe(1)
+    expect(out.find((i) => i.key === 'INSURANCE')!.says).toBe('Required by Northbend Athletic’s orders.')
+  })
+
+  it('an order row already written down as a second certificate of insurance is taken off the list once the walk answers it', () => {
+    const withDuplicates: ChecklistItem[] = [
+      ...storedBeforeAnswers(),
+      { key: 'INSURANCE_GL', label: 'Certificate of general liability insurance', required: true, by: 'VENDOR', desk: 'HR', state: 'MISSING', note: null, at: null, answers: ['INSURANCE_GL'], says: 'Required by Northbend Athletic’s orders.' },
+    ]
+    const out = withOrderedItems(withDuplicates, [], 'Northbend Athletic')
+    expect(out.some((i) => i.key === 'INSURANCE_GL')).toBe(false)
+    expect(out.some((i) => i.key === 'INSURANCE')).toBe(true)
+  })
+
+  it('a duplicate a desk already waived stays on the list, because nothing anybody decided is quietly removed', () => {
+    const withDuplicates: ChecklistItem[] = [
+      ...storedBeforeAnswers(),
+      { key: 'INSURANCE_GL', label: 'Certificate of general liability insurance', required: true, by: 'VENDOR', desk: 'HR', state: 'WAIVED', note: 'Self-insured, confirmed by the broker.', at: now.toISOString(), answers: ['INSURANCE_GL'] },
+    ]
+    const out = withOrderedItems(withDuplicates, [], 'Northbend Athletic')
+    expect(out.find((i) => i.key === 'INSURANCE_GL')?.state).toBe('WAIVED')
+  })
+
+  it('a document a client invented and stored with no answers still answers for itself', () => {
+    const invented: ChecklistItem[] = [
+      ...newChecklist(),
+      { key: 'FURNACE_SAFETY_INDUCTION', label: 'Furnace safety induction', required: true, by: 'VENDOR', desk: 'HR', state: 'MISSING', note: null, at: null },
+    ]
+    const out = withOrderedItems(invented, [{ key: 'FURNACE_SAFETY_INDUCTION', label: 'Furnace safety induction', purpose: 'COMPLIANCE', required: true }], 'Cavanaugh Glassworks')
+    expect(out.filter((i) => i.key === 'FURNACE_SAFETY_INDUCTION').length).toBe(1)
   })
 })

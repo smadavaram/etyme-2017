@@ -164,6 +164,62 @@ export function wantsDates(item: Pick<ChecklistItem, 'key' | 'label' | 'answers'
   ).needsDates
 }
 
+/**
+ * A stored checklist, read back against the definition the code ships.
+ *
+ * ── Why a row cannot be trusted about what it asks ───────────────────
+ *
+ * The checklist is JSON on `SupplierRequest`, written the day the firm
+ * was recommended and never rewritten. So a row carries the definition
+ * that shipped on that day, forever — and on 2026-09-21 the release walk
+ * found what that costs: the certificate of insurance on a firm already
+ * on HR's desk had no `answers` on it, because `answers` was added to
+ * `CHECKLIST` after that row was written. Two things followed, both
+ * silent:
+ *
+ *   - `wantsDates` asked `lib/onboarding-evidence` about an item with no
+ *     answers, got "this is the desk's own check, nothing expires", and
+ *     let HR mark a certificate of insurance verified with no start and
+ *     no expiry. No `Verification` was written, and the compliance page
+ *     went on saying the firm had no cover — the exact crack the two
+ *     dates exist to close, reopened by a stale row.
+ *   - `withOrderedItems` folds an order's INSURANCE_GL onto whichever
+ *     item already answers it. With no `answers` nothing answered it, so
+ *     the order's two insurance items were pushed as new rows — and HR
+ *     read one green certificate of insurance and two red ones on the
+ *     same list, under a footer saying the cover was missing.
+ *
+ * What a row is actually the record of is its **state**: verified,
+ * waived, provided, by whom, when, against which file, with which dates.
+ * What it *asks for* — the label, the desk, whether it is required, and
+ * which document types it answers — is the code's, and the code is newer
+ * than the row every time. So the definition is taken from `CHECKLIST`
+ * on every read and the state is taken from the row.
+ *
+ * Items the walk does not ship — the ones a client's orders added — keep
+ * everything they have, and get `answers` defaulted to their own key,
+ * which is what `withOrderedItems` writes today and what an order-derived
+ * item has always meant.
+ *
+ * Runs on every read and every mark through `withOrderedItems`, so a row
+ * corrects itself the next time anybody opens it, with no migration.
+ */
+export function refreshed(checklist: ChecklistItem[]): ChecklistItem[] {
+  const shipped = new Map(CHECKLIST.map((c) => [c.key, c]))
+  return checklist.map((i) => {
+    const c = shipped.get(i.key)
+    if (!c) return i.answers?.length ? i : { ...i, answers: [i.key] }
+    return {
+      ...i,
+      label: c.label,
+      required: c.required,
+      by: c.by,
+      desk: c.desk,
+      answers: c.answers,
+    }
+  })
+}
+
 // ── What the client's own orders ask of a supplier ────────────────────
 
 /**
@@ -228,10 +284,33 @@ export function withOrderedItems(
   ordered: readonly OrderedItem[],
   clientName: string
 ): ChecklistItem[] {
-  if (ordered.length === 0) return checklist
-  const says = `Required by ${clientName}’s orders.`
+  const fresh = refreshed(checklist)
+  // A duplicate already written down is taken off the list.
+  //
+  // A row written before `answers` existed had nothing to fold onto, so
+  // the order's INSURANCE_GL and INSURANCE_WC were pushed as rows of
+  // their own and saved — and `refreshed` above cannot unsay that,
+  // because a saved item is not one of the twelve the walk ships. HR
+  // then read one certificate of insurance verified and two more
+  // missing, on one list, for one PDF.
+  //
+  // Only an untouched one goes. A duplicate a desk verified or waived is
+  // a decision somebody made in their own name, and dropping it would
+  // throw away the record of it; that one stays, and the desk can undo
+  // it. Nothing anybody did is ever quietly removed.
+  const shipped = new Set(CHECKLIST.map((c) => c.key))
+  const answersOf = (i: ChecklistItem) => i.answers ?? []
+  const out = fresh
+    .filter(
+      (i) =>
+        shipped.has(i.key) ||
+        i.state !== 'MISSING' ||
+        !fresh.some((other) => other.key !== i.key && answersOf(other).includes(i.key))
+    )
+    .map((i) => ({ ...i }))
 
-  const out = checklist.map((i) => ({ ...i }))
+  if (ordered.length === 0) return out
+  const says = `Required by ${clientName}’s orders.`
   const answeredBy = (key: string): ChecklistItem | undefined =>
     out.find((i) => i.key === key || (i.answers ?? []).includes(key))
 
