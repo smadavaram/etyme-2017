@@ -205,8 +205,18 @@ export default function TenurePage() {
       <div className="page-head">
         <p className="eyebrow">Governance</p>
         <h1>Tenure tracking</h1>
+        {/* ── The sentence waits for the name ──
+            It read "Cross-vendor tenure at … ." until the fetch
+            returned, which is a screen asserting a fact about a company
+            it cannot yet name. An ellipsis in the middle of a sentence
+            is not a loading state; it is a sentence with a hole in it.
+            The half that does not depend on the name is said straight
+            away, because it is true of every client. */}
         <p>
-          Cross-vendor tenure at {data?.client.name ?? '…'}. Aggregated across all vendors — twelve months via one
+          {data?.client.name
+            ? `Cross-vendor tenure at ${data.client.name}. `
+            : ''}
+          Aggregated across all vendors — twelve months via one
           plus twelve via another is twenty-four months of exposure.
           {capMonths != null && ` Cap: ${capMonths} months.`}
           {data?.breakDays != null && ` Break: ${data.breakDays} days.`}

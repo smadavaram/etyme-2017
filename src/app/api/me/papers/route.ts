@@ -12,7 +12,7 @@ import {
   type SentDocument,
 } from '@/lib/document-request'
 import { requirementsFor } from '@/lib/document-requirements'
-import { labelFor, typeByKey } from '@/lib/document-type'
+import { humanKey, labelFor, typeByKey } from '@/lib/document-type'
 
 /**
  * GET /api/me/papers — the documents asked of me, by whom, and what each needs.
@@ -303,6 +303,25 @@ type SignedPaperRow = {
  * is confirmed when nobody has confirmed it is the 2017 bug wearing a
  * friendlier face.
  */
+/**
+ * The names a paper can be recognized by.
+ *
+ * An item for a type nobody defined arrives labeled with its own key —
+ * SITE_RESPIRATOR_FIT_TEST — and the request opened for it was named
+ * from the humanized label, "Site respirator fit test". So the two never
+ * matched, and a document she had just sent went on reading "Not on
+ * file" the moment she reloaded. Found on the walk, 2026-09-21.
+ *
+ * Both names, so the match is exact either way and still never a guess.
+ */
+function namesOf(items: { key: string; label: string }[]): { key: string; label: string }[] {
+  return items.flatMap((i) =>
+    i.label === i.key
+      ? [i, { key: i.key, label: humanKey(i.key) }]
+      : [i]
+  )
+}
+
 function papersAsHeld(
   papers: SignedPaperRow[],
   items: { key: string; label: string }[]
@@ -316,7 +335,7 @@ function papersAsHeld(
     // Guessing from a word in a title put one uploaded paper on two
     // rows of a worker's file, one of them reporting a document that
     // does not exist.
-    const key = typeKeyForTemplate(r.template.name, items, { guess: false })
+    const key = typeKeyForTemplate(r.template.name, namesOf(items), { guess: false })
     if (!key) continue
     const signed =
       r.countersignedAt && r.signedAt
@@ -590,7 +609,7 @@ async function lineOwing(
       // called — `mayAct` is what says "it is already on file", and it
       // has to say it about the row that actually holds the file.
       const forThis = papers.filter(
-        (r) => typeKeyForTemplate(r.template.name, set.items, { guess: false }) === key
+        (r) => typeKeyForTemplate(r.template.name, namesOf(set.items), { guess: false }) === key
       )
       const answered = forThis.find((r) => r.status === 'SIGNED' || r.status === 'UPLOADED')
       const open = forThis.find((r) => r.status !== 'SIGNED' && r.status !== 'UPLOADED')

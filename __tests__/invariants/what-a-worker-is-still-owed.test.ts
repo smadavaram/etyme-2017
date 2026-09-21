@@ -20,7 +20,11 @@ import {
   type RequiredItem,
   type HeldKeyRecord,
   typeKeyForTemplate,
+  checkDocumentUpload,
+  MAX_DOCUMENT_BYTES,
 } from '@/lib/document-request'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { readJson } from '@/lib/read-response'
 import { mayWaive } from '@/lib/document-requirements'
 import { supplierCoverGate, nameCredential } from '@/lib/document-stages'
@@ -696,5 +700,157 @@ describe('a sentence about a firm the client may not name still says something t
     })
     expect(gate.fix).toContain('a broker for the firm supplied through Vertex Global')
     expect(gate.fix).not.toContain("Vertex Global's broker")
+  })
+})
+
+// ── A file, rather than a link to one ─────────────────────────────────
+//
+// Nothing in this codebase stored a document's bytes: `DocInstance`
+// carried a URL and a file name and no file. So a contractor standing in
+// a corridor with a photograph of her I-9 on her phone had nowhere to
+// put it, and the only way to answer a chase was to host the thing
+// somewhere first — which is a thing a firm does and a person does not.
+
+describe('a document too large or of a kind nobody can open is refused in words, before anything is recorded', () => {
+  const file = (over: Partial<{ name: string; type: string; size: number }> = {}) => ({
+    name: 'i9.pdf',
+    type: 'application/pdf',
+    size: 240_000,
+    ...over,
+  })
+
+  it('takes the photograph she already has, because that is what a compliance document usually is', () => {
+    const v = checkDocumentUpload(file({ name: 'IMG_4417.HEIC', type: 'image/heic', size: 3_100_000 }))
+    expect(v.ok).toBe(true)
+    expect(v.says).toBe('photo, 3MB.')
+  })
+
+  it('takes a PDF, and says what it took so she can see it arrived as itself', () => {
+    expect(checkDocumentUpload(file())).toEqual({ ok: true, says: 'PDF, 234KB.' })
+  })
+
+  it('refuses a file nobody at the other end could open, and says why that matters', () => {
+    const v = checkDocumentUpload(file({ name: 'scan.pages', type: 'application/x-iwork-pages-sffpages' }))
+    expect(v.ok).toBe(false)
+    expect(v.says).toContain('has to be able to open it')
+  })
+
+  it('refuses an empty file rather than recording that a document arrived', () => {
+    const v = checkDocumentUpload(file({ size: 0 }))
+    expect(v.ok).toBe(false)
+    expect(v.says).toContain('empty')
+  })
+
+  it('refuses one over ten megabytes and tells her what to do about it, not what the rule is called', () => {
+    const v = checkDocumentUpload(file({ name: 'passport.jpg', type: 'image/jpeg', size: 14_600_000 }))
+    expect(v.ok).toBe(false)
+    expect(v.says).toContain('13.9MB')
+    expect(v.says).toContain('photograph the page on its own')
+  })
+
+  it('reads the kind off the name where the phone sent no content type at all', () => {
+    expect(checkDocumentUpload(file({ name: 'ead-card.PNG', type: '' })).ok).toBe(true)
+  })
+
+  it('allows more than the CV door does, because a CV is typed and an I-9 is photographed', () => {
+    expect(checkDocumentUpload(file({ name: 'a.jpg', type: 'image/jpeg' })).ok).toBe(true)
+    expect(MAX_DOCUMENT_BYTES).toBeGreaterThan(5 * 1024 * 1024)
+  })
+})
+
+describe('a worker can send the file itself, and it is kept as the file', () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+
+  it('takes a form with a file on it, not only a JSON body naming an address somewhere else', () => {
+    const act = read('src/app/api/documents/[id]/act.ts')
+    expect(act).toContain("includes('multipart/form-data')")
+    expect(act).toContain('request.formData()')
+    expect(act).toContain('picked instanceof File')
+  })
+
+  it('keeps the bytes, so what is on the record is the document and not a link to it', () => {
+    const act = read('src/app/api/documents/[id]/act.ts')
+    expect(act).toContain('Buffer.from(await picked.arrayBuffer())')
+    expect(act).toContain('tx.docFile.upsert')
+  })
+
+  it('moves the request and keeps the file in one go, so neither can exist without the other', () => {
+    expect(read('src/app/api/documents/[id]/act.ts')).toContain('prisma.$transaction')
+  })
+
+  it('refuses the file before anything is recorded, so a refusal never leaves a request saying a document arrived', () => {
+    const act = read('src/app/api/documents/[id]/act.ts')
+    // The check and the refusal both sit in `whatArrived`, which runs
+    // before the row is read, let alone written.
+    const check = act.indexOf('checkDocumentUpload')
+    const write = act.indexOf('docInstance.update')
+    expect(check).toBeGreaterThan(-1)
+    expect(check).toBeLessThan(write)
+  })
+
+  it('checks the size again on what actually arrived, because a body can be larger than the header claimed', () => {
+    expect(read('src/app/api/documents/[id]/act.ts')).toContain('bytes.byteLength > MAX_DOCUMENT_BYTES')
+  })
+
+  it('a link is still a way to answer, because a firm sending one is not a contractor with a photo', () => {
+    const act = read('src/app/api/documents/[id]/act.ts')
+    expect(act).toContain("body.fileUrl === 'string'")
+    const file = read('src/app/api/documents/[id]/file/route.ts')
+    expect(file).toContain('NextResponse.redirect(doc.signedFileUrl)')
+  })
+
+  it('logs every read of the file against the person it is about, and logs a refusal too', () => {
+    const file = read('src/app/api/documents/[id]/file/route.ts')
+    expect(file).toContain("action: 'DOCUMENT_FILE_READ'")
+    expect(file).toContain('allowed,')
+    // Written before the verdict is acted on, so an attempt on a
+    // stranger's papers leaves the trail an audit is looking for.
+    expect(file.indexOf('accessLog')).toBeLessThan(file.indexOf('if (!allowed) return missing'))
+  })
+
+  it('tells a stranger the document is not here, rather than that they may not read it', () => {
+    const file = read('src/app/api/documents/[id]/file/route.ts')
+    expect(file).toContain('if (!allowed) return missing')
+    expect(file).toContain("message: 'That document is not here.'")
+  })
+})
+
+describe('a page withholds a sentence about a company until it knows the company’s name, rather than printing a placeholder in its place', () => {
+  it('never prints an ellipsis where a client’s name belongs on the tenure page', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/tenure/page.tsx'), 'utf8')
+    expect(page).not.toContain("client.name ?? '…'")
+    expect(page).toContain('data?.client.name')
+  })
+
+  it('still says the half that is true of every client while the name is on its way', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/tenure/page.tsx'), 'utf8')
+    expect(page).toContain('Aggregated across all vendors')
+  })
+})
+
+describe('a document a client invented is recognized by either of its names', () => {
+  it('matches a request opened under the humanized label to the item that still carries the raw key', () => {
+    // The item for a type nobody defined is labelled with its own key.
+    // The request opened for it was named from the humanized label. So
+    // the two never matched, and a document she had just sent read "Not
+    // on file" the moment she reloaded. Found on the walk.
+    const items = [{ key: 'SITE_RESPIRATOR_FIT_TEST', label: 'SITE_RESPIRATOR_FIT_TEST' }]
+    const both = items.flatMap((i) =>
+      i.label === i.key ? [i, { key: i.key, label: humanKey(i.key) }] : [i]
+    )
+    expect(typeKeyForTemplate('Site respirator fit test', items, { guess: false })).toBeNull()
+    expect(typeKeyForTemplate('Site respirator fit test', both, { guess: false })).toBe('SITE_RESPIRATOR_FIT_TEST')
+  })
+
+  it('still matches the key itself, for a request opened before anybody humanized anything', () => {
+    expect(
+      typeKeyForTemplate('SITE_RESPIRATOR_FIT_TEST', [{ key: 'SITE_RESPIRATOR_FIT_TEST', label: 'x' }], { guess: false })
+    ).toBe('SITE_RESPIRATOR_FIT_TEST')
+  })
+
+  it('keeps both names in one place, so the page and the send door cannot recognize different papers', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/me/papers/route.ts'), 'utf8')
+    expect(route).toContain('function namesOf(')
+    expect(route.match(/namesOf\(/g)?.length).toBeGreaterThanOrEqual(3)
   })
 })

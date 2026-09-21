@@ -103,6 +103,111 @@ export function mayAct(
   return { ok: true, next: 'SIGNED', says: `Signed copy of ${name} recorded.` }
 }
 
+// ── A file, rather than a link to one ─────────────────────────────────
+//
+// Supply built the picker on the worker's page and found that nothing in
+// this codebase stored a document's bytes: `DocInstance` carried a URL
+// and a file name and no file. So a contractor standing in a corridor
+// with a photograph of her I-9 on her phone had nowhere to put it, and
+// the only way to answer a chase was to host the thing somewhere first —
+// which is a thing a firm does and a person does not.
+//
+// The rules below are this document's and not a CV's, and the difference
+// is the whole point: a CV is a document somebody typed and a compliance
+// document is usually a photograph of a piece of paper. Images are
+// first-class here and are refused on the resume door for good reasons
+// that do not apply.
+
+/**
+ * How large a document may be.
+ *
+ * Ten megabytes rather than the CV door's five. A phone photograph of a
+ * passport page at full resolution is commonly six to eight, and
+ * refusing the picture somebody already has in order to keep a number
+ * round is refusing the answer to get the limit tidy.
+ */
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
+
+/**
+ * What a compliance desk can actually open.
+ *
+ * Photographs are in, and they are the common case. Anything a desk
+ * would have to install software to read is out — a refusal now is
+ * cheaper than a document sitting on a file nobody opens until an
+ * auditor asks.
+ */
+export const ACCEPTED_DOCUMENTS: Record<string, string> = {
+  'application/pdf': 'PDF',
+  'image/jpeg': 'photo',
+  'image/png': 'image',
+  'image/heic': 'photo',
+  'image/heif': 'photo',
+  'image/webp': 'image',
+  'image/tiff': 'scan',
+  'application/msword': 'Word document',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word document',
+  'text/plain': 'text file',
+  'application/rtf': 'document',
+  'text/rtf': 'document',
+}
+
+const ACCEPTED_EXTENSIONS: Record<string, string> = {
+  pdf: 'PDF', jpg: 'photo', jpeg: 'photo', png: 'image', heic: 'photo', heif: 'photo',
+  webp: 'image', tif: 'scan', tiff: 'scan', doc: 'Word document', docx: 'Word document',
+  txt: 'text file', rtf: 'document',
+}
+
+export interface UploadVerdict {
+  ok: boolean
+  /** What it is, where it is acceptable — "photo, 2.1MB". */
+  says: string
+}
+
+/**
+ * Whether this file may be recorded against a document request.
+ *
+ * Pure, and checked BEFORE anything is written. A file refused after the
+ * row has moved leaves a request that says a document arrived and a
+ * record with nothing in it, which is the state this whole file exists
+ * to prevent.
+ *
+ * The refusal says what is wrong and what to do, never a code.
+ */
+export function checkDocumentUpload(file: { name: string; type: string; size: number }): UploadVerdict {
+  if (!file.size) {
+    return { ok: false, says: 'That file is empty. Pick it again — a photograph that did not finish saving often is.' }
+  }
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    const mb = Math.round((file.size / 1024 / 1024) * 10) / 10
+    return {
+      ok: false,
+      says:
+        `That is ${mb}MB and ten is the limit. If it is a photograph, your phone can send a smaller ` +
+        `one — or photograph the page on its own rather than the whole document.`,
+    }
+  }
+  const kind = ACCEPTED_DOCUMENTS[file.type.toLowerCase()] ?? ACCEPTED_EXTENSIONS[extensionOf(file.name)]
+  if (!kind) {
+    return {
+      ok: false,
+      says:
+        'A PDF, a photograph or a Word document. Whoever checks this has to be able to open it, ' +
+        'and a file they cannot open sits on your record as though it answered something.',
+    }
+  }
+  return { ok: true, says: `${kind}, ${sizeSaid(file.size)}.` }
+}
+
+function extensionOf(name: string): string {
+  return (name.toLowerCase().split('.').pop() ?? '').trim()
+}
+
+/** A size somebody reads, not a byte count. */
+export function sizeSaid(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${Math.round((bytes / 1024 / 1024) * 10) / 10}MB`
+  return `${Math.max(1, Math.round(bytes / 1024))}KB`
+}
+
 /** What the person is told when it is asked for. */
 export function askNotice(doc: DocFacts): { title: string; body: string } {
   return {
