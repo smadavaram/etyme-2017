@@ -395,6 +395,12 @@ export const DOMAINS: Domain[] = [
       // reads it before it pays, and none of them may change its shape
       // alone. It is the schema's vocabulary again, one layer up.
       'lib/document-requirements', 'lib/seed-document-requirements',
+      // What a desk verified on the way in, turned into the row the
+      // compliance record reads. Here rather than with the supplier walk
+      // because it is the join between two of the four document models,
+      // and because the dates it insists on are the schema's own rule
+      // about what a Verification means.
+      'lib/onboarding-evidence',
       // Whose names a company may read in the directory, and who may put
       // a firm on the register at all. Company identity, and the one
       // page where a leak is a lead list.
