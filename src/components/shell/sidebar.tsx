@@ -243,7 +243,10 @@ const PRIVACY: NavItem[] = [
 /** Done once, by one person, and never on a Friday afternoon. */
 const ADMIN: NavItem[] = [
   { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
-  { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin' },
+  // The page is the company's own setup — its roles and what each may
+  // do, its wall, its calendar, its cost centers — and the route asks
+  // settings.manage for the read as well as the write since 2026-09-21.
+  { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin', needs: ['settings.manage'] },
   { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Admin' },
   // The journal out to their books, and the statement back against ours.
   { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
@@ -715,7 +718,7 @@ const CLIENT_NAV: NavSection[] = [
       // menu at all, and "Your data" was the consultant's alone.
       ...PRIVACY,
       { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Setup' },
-      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup' },
+      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup', needs: ['settings.manage'] },
       { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup' },
     ],
   },

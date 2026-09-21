@@ -15,8 +15,22 @@ import { SHIFT_CATEGORIES, SHIFT_WORDS, isShiftDirection, policyFrom } from '@/l
  * once and six round trips to render one page is how a settings section
  * ends up feeling slow enough that nobody opens it.
  *
- * Reading is open to anyone in the company: knowing your own company's
- * holiday calendar is not privileged. Writing needs settings.manage.
+ * Both need `settings.manage`.
+ *
+ * Reading used to be open to anybody in the company, on the reasoning
+ * that a holiday calendar is not privileged — and that was true of the
+ * calendar and false of the page it sits on. The browser walk of
+ * 2026-09-21 signed in as a Validation Engineer holding
+ * `assignments.read` and `timesheets.read`, and this route answered him
+ * 200 with every role at his employer and the permission list attached
+ * to each, who can see the outside market, the cost centers and whether
+ * a Teams channel is configured. That is the company's access
+ * architecture, which is exactly the thing an engineer should have to
+ * ask an owner for.
+ *
+ * So the gate is the desk the page is named for, and the Settings link
+ * carries the same permission in the menu (`components/shell/sidebar`) —
+ * a seat that cannot open it is not shown it.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -28,6 +42,21 @@ export async function GET(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json(
       { error: { code: 'NO_COMPANY', message: 'These are a company’s settings' } },
+      { status: 403 }
+    )
+  }
+
+  if (!hasPermission(caller.permissions, 'settings.manage')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            `How ${caller.company.name} is set up — its roles, who may see outside it, its ` +
+            `calendar and its cost centers — is the owner's or an admin's to read. ` +
+            `Ask whoever runs your access here.`,
+        },
+      },
       { status: 403 }
     )
   }
