@@ -4,8 +4,50 @@ import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
 import { assessGrant, reviewAccess, sensitivityOf } from '@/lib/access-grant'
+
+/**
+ * Who may read the access register.
+ *
+ * ── Why this gate exists ─────────────────────────────────────────────
+ *
+ * It did not, until a release walk signed the demo cookie for a
+ * Validation Engineer at a systems integrator — a seat holding exactly
+ * `assignments.read` and `timesheets.read`, somebody who files a
+ * timesheet and reads the contract they are on — and asked for this
+ * route. It answered 200 with the firm's whole staff list: every
+ * colleague by name and work email, the role each holds, and the
+ * sensitivity of that role. The same seat was correctly refused by
+ * `/api/consultants`, `/api/invoices`, `/api/purchase-orders` and
+ * `/api/profitability`. POST here has asked for `settings.manage` since
+ * the day it was written. Only the read was open, which is the shape
+ * `etyme-money` found across nine AR and AP routes and `desks.ts` found
+ * on the do-not-return list: a gate written on the write and never on
+ * the read beside it.
+ *
+ * ── Why `governance.read` and not `settings.manage` ──────────────────
+ *
+ * Because a list exists to be read by more people than may change it,
+ * and because who holds what IS the governance picture — it is the only
+ * screen in the product that shows a segregation-of-duties problem
+ * before it becomes one. Gating the read on `settings.manage` would
+ * leave the Compliance Officer, whose whole job is to be able to answer
+ * "who could have done this", locked out of the one page that says so;
+ * at a client it would leave the Program Manager, who runs the program,
+ * unable to see who is waiting for a seat in it.
+ *
+ * `governance.read` is held by the desks that audit rather than
+ * administer: HR and the Compliance Officer at a supplier; the Program
+ * Manager, the Approver, HR and Procurement at a client. Granting stays
+ * where it was, on `settings.manage`, which only the Owner and the
+ * Admin hold. Read the register, ask somebody else to change it.
+ *
+ * Named as a constant rather than spelled inline so that the nav item
+ * pointing here can be checked against it — `__tests__/invariants/
+ * sidebar-nav.test.ts` reads the gate back out of this handler.
+ */
+const TO_READ: Permission = 'governance.read'
 
 /**
  * GET  /api/access — who has what here, and what is worth attention
@@ -27,6 +69,23 @@ export async function GET(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json(
       { error: { code: 'NO_COMPANY', message: 'Access belongs to a company' } },
+      { status: 403 }
+    )
+  }
+
+  if (!hasPermission(caller.permissions, TO_READ)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reading who holds which seat here',
+            needs: TO_READ,
+            kind: caller.company.kind,
+            companyName: caller.company.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -81,6 +140,33 @@ export async function GET(request: NextRequest) {
       // Only what needs a decision. A review that lists everybody is a
       // review nobody reads.
       review,
+      // What this reader may actually do here, so the screen does not
+      // offer a form the route will refuse. Reading opened up on
+      // governance.read; granting and inviting did not move.
+      canGrant: hasPermission(caller.permissions, 'settings.manage'),
+      canInvite: hasPermission(caller.permissions, 'team.manage'),
+      whyNotGrant: hasPermission(caller.permissions, 'settings.manage') ? null : askTheDesk({
+        doing: 'Giving somebody a seat here',
+        needs: 'settings.manage',
+        kind: caller.company.kind,
+        companyName: caller.company.name,
+      }),
+      whyNotInvite: hasPermission(caller.permissions, 'team.manage') ? null : askTheDesk({
+        doing: 'Inviting a colleague',
+        needs: 'team.manage',
+        kind: caller.company.kind,
+        companyName: caller.company.name,
+      }),
+      // `/api/why` asks for the same permission, and says why somebody
+      // else cannot see something — their role, their account, their
+      // company's settings. Its own sentence, because "inviting a
+      // colleague" is not what the reader was trying to do.
+      whyNotExplain: hasPermission(caller.permissions, 'team.manage') ? null : askTheDesk({
+        doing: 'Working out why a colleague cannot see something',
+        needs: 'team.manage',
+        kind: caller.company.kind,
+        companyName: caller.company.name,
+      }),
       summary: {
         waiting: waiting.length,
         withAccess: contexts.filter(c => c.role).length,
@@ -104,7 +190,17 @@ export async function POST(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'settings.manage')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Only somebody who manages settings can grant access' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Giving somebody a seat here',
+            needs: 'settings.manage',
+            kind: caller.company.kind,
+            companyName: caller.company.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

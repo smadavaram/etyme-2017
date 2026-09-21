@@ -353,7 +353,16 @@ export default function OutboundPackPage() {
                     placeholder="procurement@client.com"
                     className="rounded border border-etyme-rule bg-etyme-raised px-2 py-1.5 text-[13px]"
                   />
-                  <button className="btn-primary" disabled={busy} onClick={() => send(p.key)}>
+                  {/* A button the route will refuse is a button that
+                      lies. This one posted an empty box and came back
+                      422 "An email address to send this to". The
+                      overtime reason box beside it has always been
+                      right; this is the same shape. */}
+                  <button
+                    className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={busy || !email.trim()}
+                    onClick={() => send(p.key)}
+                  >
                     {busy ? 'Sending…' : 'Send'}
                   </button>
                   <button className="btn-secondary" onClick={() => setSendingKey(null)}>Cancel</button>
@@ -364,8 +373,9 @@ export default function OutboundPackPage() {
                 </button>
               )
             ) : (
-              <span className="ml-auto text-[12px] text-etyme-faint">
-                Sending our own documents out needs settings.manage
+              <span className="ml-auto max-w-[420px] text-[12px] text-etyme-faint">
+                {data?.cannotSend ??
+                  'Sending this firm’s own documents out is somebody else’s desk here.'}
               </span>
             )}
           </div>

@@ -8,6 +8,7 @@ import {
   CANNOT_READ, NO_COMPANY, cannotBar, cannotLift,
   type Target,
 } from './desks'
+import { peopleKnownTo, firmsKnownTo, notKnownHere } from './known'
 
 /** Every refusal on this route says what is missing and what to do. */
 function refuse(message: string) {
@@ -66,6 +67,37 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
+  // ── Names, not ids ───────────────────────────────────────────────
+  //
+  // The rows carry `targetId` and `blockedById` and nothing else, and
+  // the screen printed them truncated — `cm8k3p…9x2f` — under a column
+  // headed "Subject". A do-not-return list whose subject nobody can
+  // read is a list nobody can check, which is worse than not having
+  // one: it is a compliance record about a named person that does not
+  // name them.
+  const [people, companies] = await Promise.all([
+    prisma.person.findMany({
+      where: {
+        id: {
+          in: [
+            ...entries.filter((e) => e.targetType === 'PERSON').map((e) => e.targetId),
+            ...entries.map((e) => e.blockedById),
+            ...entries.map((e) => e.liftedById).filter((x): x is string => Boolean(x)),
+          ],
+        },
+      },
+      select: { id: true, name: true },
+    }),
+    prisma.company.findMany({
+      where: { id: { in: entries.filter((e) => e.targetType === 'COMPANY').map((e) => e.targetId) } },
+      select: { id: true, name: true },
+    }),
+  ])
+  const nameOf = new Map<string, string>([
+    ...people.map((p) => [p.id, p.name] as const),
+    ...companies.map((c) => [c.id, c.name] as const),
+  ])
+
   // Every read of another person's data leaves a trail, refusals
   // included. A refused request above names nobody, so there is nobody
   // to log it against; this one hands back a page of named people and
@@ -89,8 +121,15 @@ export async function GET(request: NextRequest) {
         id: e.id,
         targetType: e.targetType,
         targetId: e.targetId,
+        // Null rather than the id where the row has been deleted since:
+        // "a number nobody can stand behind" applies to a name too, and
+        // a screen saying "no longer on Etyme" is honest where an id is
+        // merely unreadable.
+        targetName: nameOf.get(e.targetId) ?? null,
         reason: e.reason,
         blockedById: e.blockedById,
+        blockedByName: nameOf.get(e.blockedById) ?? null,
+        liftedByName: e.liftedById ? nameOf.get(e.liftedById) ?? null : null,
         blockedAt: e.blockedAt.toISOString(),
         expiresAt: e.expiresAt?.toISOString() ?? null,
         liftedAt: e.liftedAt?.toISOString() ?? null,
@@ -133,7 +172,7 @@ export async function POST(request: NextRequest) {
     return handleLift(body, caller)
   } else {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'action must be ADD or LIFT' } },
+      { error: { code: 'VALIDATION', message: 'Say whether you are adding somebody to the do-not-return list or lifting a bar.' } },
       { status: 422 }
     )
   }
@@ -146,14 +185,21 @@ async function handleAdd(body: any, caller: any) {
 
   if (!targetType || !targetId || !reason) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'targetType (PERSON|COMPANY), targetId, and reason are required' } },
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'Pick the person or the firm, and say why. The reason is what somebody reading ' +
+            'this in a year has to go on.',
+          field: !targetId ? 'targetId' : 'reason',
+        },
+      },
       { status: 422 }
     )
   }
 
   if (!['PERSON', 'COMPANY'].includes(targetType.toUpperCase())) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'targetType must be PERSON or COMPANY' } },
+      { error: { code: 'VALIDATION', message: 'A bar is against a person or against a firm. Choose one.', field: 'targetType' } },
       { status: 422 }
     )
   }
@@ -165,29 +211,61 @@ async function handleAdd(body: any, caller: any) {
   // firm off the supplier panel is procurement's act, not theirs.
   if (!mayBar(caller.permissions, target)) return refuse(cannotBar(target))
 
-  // Validate target exists
-  if (target === 'PERSON') {
-    const person = await prisma.person.findUnique({ where: { id: targetId } })
-    if (!person) {
+  // ── Somebody this company has actually dealt with ─────────────────
+  //
+  // This checked only that the row existed somewhere on Etyme, which
+  // meant any company could write a permanent compliance record naming
+  // any person or any firm on the platform — including people it had
+  // never met. See `./known` for why that is not a filing mistake.
+  const known = target === 'PERSON'
+    ? await peopleKnownTo(caller.company.id)
+    : await firmsKnownTo(caller.company.id)
+  const match = known.find((k) => k.id === targetId)
+
+  if (!match) {
+    const row = target === 'PERSON'
+      ? await prisma.person.findUnique({ where: { id: targetId }, select: { name: true } })
+      : await prisma.company.findUnique({ where: { id: targetId }, select: { name: true } })
+
+    if (!row) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Person not found' } },
+        {
+          error: {
+            code: 'NOT_FOUND',
+            message: target === 'PERSON'
+              ? 'There is nobody on Etyme by that name. Pick somebody from the list — it holds ' +
+                'everybody this company has dealt with.'
+              : 'There is no such firm on Etyme. Pick one from the list — it holds every firm ' +
+                'this company has traded with.',
+            field: 'targetId',
+          },
+        },
         { status: 404 }
       )
     }
-  } else {
-    const company = await prisma.company.findUnique({ where: { id: targetId } })
-    if (!company) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Company not found' } },
-        { status: 404 }
-      )
-    }
+
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_OURS',
+          message: notKnownHere(target, row.name, caller.company.name),
+          field: 'targetId',
+        },
+      },
+      { status: 403 }
+    )
   }
 
   // Cannot blacklist your own company
   if (target === 'COMPANY' && targetId === caller.company?.id) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Cannot blacklist your own company' } },
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'You cannot put your own company on its own do-not-return list.',
+          field: 'targetId',
+        },
+      },
       { status: 422 }
     )
   }
@@ -206,7 +284,14 @@ async function handleAdd(body: any, caller: any) {
 
   if (existing && !existing.liftedAt) {
     return NextResponse.json(
-      { error: { code: 'DUPLICATE', message: 'This target is already blacklisted' } },
+      {
+        error: {
+          code: 'DUPLICATE',
+          message: `${match.name} is already on the do-not-return list at ${caller.company.name}. ` +
+            'Lift the existing bar first if the reason has changed.',
+          field: 'targetId',
+        },
+      },
       { status: 409 }
     )
   }
@@ -232,7 +317,7 @@ async function handleAdd(body: any, caller: any) {
     data: {
       companyId: caller.company?.id ?? targetId,
       action: 'BLACKLIST_ADD',
-      summary: `${target} ${targetId} blacklisted: ${reason}`,
+      summary: `${match.name} added to the do-not-return list at ${caller.company.name}: ${reason}`,
       reason: `Blacklist entry created via API`,
       reversible: true,
       payload: { blacklistId: entry.id, targetType: target, targetId },
@@ -261,7 +346,14 @@ async function handleLift(body: any, caller: any) {
 
   if (!blacklistId || !liftReason) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'blacklistId and liftReason are required' } },
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'Say which bar you are lifting and why. Letting somebody back is a decision ' +
+            'somebody will ask about.',
+          field: !blacklistId ? 'blacklistId' : 'liftReason',
+        },
+      },
       { status: 422 }
     )
   }
@@ -275,7 +367,7 @@ async function handleLift(body: any, caller: any) {
 
   if (!entry) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Blacklist entry not found' } },
+      { error: { code: 'NOT_FOUND', message: 'There is no such bar on this company’s do-not-return list.' } },
       { status: 404 }
     )
   }
@@ -283,9 +375,16 @@ async function handleLift(body: any, caller: any) {
   const target = entry.targetType.toUpperCase() as Target
   if (!mayBar(caller.permissions, target)) return refuse(cannotLift(target))
 
+  // The trail says who was let back in, by name. An id in an automation
+  // log is a row nobody can audit without a second query.
+  const subject = target === 'PERSON'
+    ? await prisma.person.findUnique({ where: { id: entry.targetId }, select: { name: true } })
+    : await prisma.company.findUnique({ where: { id: entry.targetId }, select: { name: true } })
+  const subjectName = subject?.name ?? null
+
   if (entry.liftedAt) {
     return NextResponse.json(
-      { error: { code: 'ALREADY_LIFTED', message: 'This blacklist entry has already been lifted' } },
+      { error: { code: 'ALREADY_LIFTED', message: 'That bar has already been lifted. Nobody is being kept out by it.' } },
       { status: 409 }
     )
   }
@@ -304,7 +403,7 @@ async function handleLift(body: any, caller: any) {
     data: {
       companyId: caller.company?.id ?? entry.targetId,
       action: 'BLACKLIST_LIFT',
-      summary: `Blacklist lifted for ${entry.targetType} ${entry.targetId}: ${liftReason}`,
+      summary: `${subjectName ?? entry.targetId} taken off the do-not-return list at ${caller.company.name}: ${liftReason}`,
       reason: `Blacklist entry lifted via API`,
       reversible: false,
       payload: { blacklistId: entry.id, targetType: entry.targetType, targetId: entry.targetId },

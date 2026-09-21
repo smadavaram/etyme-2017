@@ -252,3 +252,183 @@ export function filterAssignmentFields<T extends Record<string, unknown>>(
 
   return filtered
 }
+
+// ── Saying no without handing somebody a key ───────────────────
+//
+// Found by walking 1,181 screens as 38 seats. Three refusals, verbatim:
+//
+//   "Approving hours needs the timesheets.approve permission."
+//   "Extending a placement needs the assignments.write permission.
+//    Ask whoever runs your company's access."
+//   "You need consultants.read permission"
+//
+// All three are the same fault CLAUDE.md names under Zero training:
+// "Explain in a sentence, not a code. A refusal says what is missing and
+// what to do — never `DOCUMENTS_BLOCK`. The code is for the machine; the
+// sentence is the product." A permission key IS a code. `timesheets.approve`
+// is not a thing anybody at a hospital or a staffing firm has heard of,
+// it is not searchable in their own product, and — worst of the three —
+// it does not answer the only question the reader actually has, which is
+// *who do I go to*.
+//
+// The answer to that question is already in the product and nobody was
+// reading it. `lib/company-defaults` says, per kind of company, which
+// named desk holds which permission: at a client the Hiring Manager and
+// the Program Manager hold `timesheets.approve`, at a staffing supplier
+// it is AP & Payroll and Finance. So the sentence a person should read
+// is computable, per company, from data that already exists — and it
+// changes on its own when somebody edits the role set, which a
+// hand-written sentence would not.
+//
+// One deliberate omission: Owner and Admin hold everything by
+// construction, so naming them in every refusal would make every
+// sentence read "ask the owner" and teach the reader nothing. They are
+// named only when they are genuinely the only desks that hold it, which
+// is itself the useful answer.
+
+import { rolesFor, type CompanyKind } from '@/lib/company-defaults'
+
+/** Held by construction, so naming them says nothing. */
+const HOLDS_EVERYTHING = new Set(['Owner', 'Admin'])
+
+/** Beyond this many named desks a sentence stops being a sentence. */
+const AT_MOST = 3
+
+const KINDS: readonly CompanyKind[] = ['VENDOR', 'CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP']
+
+function asKind(kind: string | null | undefined): CompanyKind {
+  const k = (kind ?? '').toUpperCase() as CompanyKind
+  return KINDS.includes(k) ? k : 'VENDOR'
+}
+
+/**
+ * Which named desks at this kind of company hold one of these
+ * permissions, in the company's own words.
+ *
+ * Read off the shipped role set rather than a second table, so a role
+ * that gains a permission gains the sentence in the same commit.
+ */
+export function desksHolding(
+  needs: Permission | readonly Permission[],
+  kind: string | null | undefined
+): string[] {
+  const wanted: readonly Permission[] = Array.isArray(needs)
+    ? (needs as readonly Permission[])
+    : [needs as Permission]
+
+  const holders = rolesFor(asKind(kind)).filter((r) =>
+    wanted.some((p) => (r.permissions as readonly string[]).includes(p))
+  )
+
+  const named = holders.filter((r) => !HOLDS_EVERYTHING.has(r.name)).map((r) => r.name)
+  // Only when nobody but the owner and the admin hold it — which is the
+  // honest answer for settings.manage and team.manage.
+  return named.length ? named : holders.map((r) => r.name)
+}
+
+/** "the Hiring Manager’s or the Program Manager’s" */
+function possessives(desks: readonly string[]): string {
+  const shown = desks.slice(0, AT_MOST).map((d) => `the ${d}’s`)
+  if (shown.length === 1) return shown[0]
+  return shown.slice(0, -1).join(', ') + ' or ' + shown[shown.length - 1]
+}
+
+/**
+ * The refusal a person reads when their desk does not do this.
+ *
+ * `doing` is the act, as a gerund phrase and in the reader's words —
+ * "Approving hours", "Extending a placement", "Reading who holds what
+ * here". Never the route, never the permission.
+ *
+ * Two shapes, because there are two honest answers:
+ *
+ *   Somebody here does do it → name them, and say the two ways forward
+ *   (ask them, or be seated there). A reader who knows the Program
+ *   Manager signs hours can go and ask, which is the whole point.
+ *
+ *   Nobody here does → say so plainly rather than invent a desk. This
+ *   is what a company that has edited its roles down to nothing gets,
+ *   and pretending otherwise would send somebody to a person who cannot
+ *   help either.
+ */
+export function askTheDesk(args: {
+  doing: string
+  needs: Permission | readonly Permission[]
+  kind?: string | null
+  companyName?: string | null
+}): string {
+  const desks = desksHolding(args.needs, args.kind)
+  const where = args.companyName?.trim() ? args.companyName.trim().replace(/\.$/, '') : 'your company'
+
+  if (desks.length === 0) {
+    return (
+      `${args.doing} is not something this desk does, and no desk at ${where} is set up for it ` +
+      `either. Ask whoever manages roles at ${where}.`
+    )
+  }
+
+  const among = desks.length > AT_MOST ? ', among other desks there' : ''
+  const ask = desks.length === 1 ? 'Ask them' : 'Ask one of them'
+  return (
+    `${args.doing} is ${possessives(desks)} at ${where}${among}. ${ask}, or ask ` +
+    `whoever manages roles there to widen your desk.`
+  )
+}
+
+/**
+ * What each permission lets somebody do, in the words of the trade.
+ *
+ * Here because a refusal that lists keys — "Account Manager carries
+ * things you do not have yourself: consultants.cost, margin.read" — is
+ * the same fault as a refusal that names one, multiplied. The reader
+ * has to be told what they would be handing over, and `consultants.cost`
+ * does not tell them.
+ *
+ * Each phrase completes "they can …", lower case, no full stop, so the
+ * phrases join into a list inside somebody else's sentence.
+ */
+export const PERMISSION_WORDS: Record<Permission, string> = {
+  'consultants.read': 'see the people this firm has on its books',
+  'consultants.write': 'add and edit those people',
+  'consultants.cost': 'see what each of them costs',
+  'requirements.read': 'read open roles',
+  'requirements.write': 'write and change roles',
+  'requirements.distribute': 'decide which suppliers see a role',
+  'submissions.read': 'read who has been put forward',
+  'submissions.create': 'put somebody forward',
+  'submissions.rate': 'set the rate somebody is offered at',
+  'assignments.read': 'read placements',
+  'assignments.write': 'write and extend placements',
+  'assignments.terminate': 'end a placement',
+  'timesheets.read': 'read hours',
+  'timesheets.approve': 'sign hours off',
+  'invoices.read': 'read bills and invoices',
+  'invoices.issue': 'issue a bill to a customer',
+  'rates.read': 'read agreed rates',
+  'rates.write': 'set and change agreed rates',
+  'payments.record': 'record money received',
+  'payroll.read': 'read payroll',
+  'payroll.run': 'run payroll',
+  'payroll.approve': 'approve a payroll run',
+  'vendors.read': 'see the suppliers this firm uses',
+  'vendors.manage': 'add and remove suppliers',
+  'network.read': 'look outside this firm at the wider market',
+  'utilization.read': 'see how fully people are booked',
+  'margin.read': 'see the margin on a placement',
+  'pnl.read': 'see profit and loss',
+  'team.manage': 'invite colleagues',
+  'settings.manage': 'change company settings and hand out seats',
+  'governance.read': 'read the approval rules and who holds what',
+  'governance.write': 'change the approval rules',
+  'privacy.manage': 'act on somebody else’s data rights',
+}
+
+/** "see what each of them costs and see the margin on a placement" */
+export function inWords(permissions: readonly string[]): string {
+  const said = permissions
+    .map((p) => PERMISSION_WORDS[p as Permission])
+    .filter((w): w is string => Boolean(w))
+  if (said.length === 0) return 'do things this seat does not'
+  if (said.length === 1) return said[0]
+  return said.slice(0, -1).join(', ') + ' and ' + said[said.length - 1]
+}

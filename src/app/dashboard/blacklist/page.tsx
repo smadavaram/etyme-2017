@@ -24,6 +24,9 @@ interface BlacklistEntry {
   id: string
   targetType: 'PERSON' | 'COMPANY'
   targetId: string
+  /** Null only where the row has been deleted from Etyme since. */
+  targetName: string | null
+  blockedByName: string | null
   reason: string
   blockedById: string
   blockedAt: string
@@ -46,9 +49,128 @@ function formatDate(iso: string): string {
   })
 }
 
-function truncateId(id: string): string {
-  if (id.length <= 12) return id
-  return id.slice(0, 6) + '…' + id.slice(-4)
+/**
+ * What to print where a name is missing.
+ *
+ * Only reachable when the person or the firm has been deleted from Etyme
+ * since the bar was written. A truncated cuid told the reader nothing;
+ * this at least tells them why they are not reading a name.
+ */
+function noName(type: 'PERSON' | 'COMPANY'): string {
+  return type === 'PERSON' ? 'No longer on Etyme' : 'Firm no longer on Etyme'
+}
+
+interface Subject {
+  id: string
+  name: string
+  note: string
+}
+
+/**
+ * The picker that replaced a box marked "Subject ID".
+ *
+ * Three letters of a name, against the people and the firms this company
+ * has actually dealt with — which is also the set the route will accept,
+ * so the form cannot offer something the POST refuses.
+ */
+function SubjectPicker({
+  targetType, chosen, onChoose,
+}: {
+  targetType: 'PERSON' | 'COMPANY'
+  chosen: Subject | null
+  onChoose: (s: Subject | null) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [knownAtAll, setKnownAtAll] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [refusal, setRefusal] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/blacklist/subjects?type=${targetType}&q=${encodeURIComponent(query)}`
+        )
+        const body = await res.json().catch(() => ({}) as any)
+        if (cancelled) return
+        if (!res.ok) {
+          setRefusal(body.error?.message ?? 'That list could not be read.')
+          setSubjects([])
+          return
+        }
+        setRefusal(null)
+        setSubjects(body.data?.subjects ?? [])
+        setKnownAtAll(body.data?.knownAtAll ?? 0)
+      } catch {
+        if (!cancelled) setRefusal('That list could not be read just now.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }, 200)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [targetType, query])
+
+  if (chosen) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-etyme-rule bg-etyme-canvas px-3 py-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-etyme-ink truncate">{chosen.name}</p>
+          <p className="text-[11px] text-etyme-muted truncate">{chosen.note}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onChoose(null)}
+          className="text-[11px] text-etyme-action hover:underline shrink-0"
+        >
+          Change
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={targetType === 'PERSON' ? 'Start typing a name…' : 'Start typing a firm…'}
+        className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                   focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+        autoComplete="off"
+      />
+      <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-etyme-rule divide-y divide-etyme-rule">
+        {refusal && <p className="px-3 py-3 text-[12px] text-etyme-attention">{refusal}</p>}
+        {!refusal && loading && subjects.length === 0 && (
+          <p className="px-3 py-3 text-[12px] text-etyme-muted">Looking…</p>
+        )}
+        {!refusal && !loading && subjects.length === 0 && (
+          <p className="px-3 py-3 text-[12px] text-etyme-muted">
+            {knownAtAll === 0
+              ? targetType === 'PERSON'
+                ? 'Nobody has been put in front of this company yet, and nobody works here, so there is ' +
+                  'nobody to bar. The list fills itself from submissions and placements.'
+                : 'This company has not traded with anybody yet, so there is no firm to bar.'
+              : 'Nobody by that name among the people this company has dealt with.'}
+          </p>
+        )}
+        {subjects.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onChoose(s)}
+            className="w-full text-left px-3 py-2 hover:bg-etyme-canvas"
+          >
+            <p className="text-sm text-etyme-ink">{s.name}</p>
+            <p className="text-[11px] text-etyme-muted">{s.note}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // ── Add to Blacklist Modal ──────────────────────────
@@ -61,7 +183,7 @@ function AddBlacklistModal({
   onCreated: (msg: string) => void
 }) {
   const [targetType, setTargetType] = useState<'PERSON' | 'COMPANY'>('PERSON')
-  const [targetId, setTargetId] = useState('')
+  const [chosen, setChosen] = useState<Subject | null>(null)
   const [reason, setReason] = useState('')
   const [expiresAt, setExpiresAt] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -70,14 +192,9 @@ function AddBlacklistModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!targetId.trim()) {
-      setError('Subject ID is required.')
-      return
-    }
-    if (!reason.trim()) {
-      setError('Reason is required.')
-      return
-    }
+    // The button is disabled until both are there, so this is the
+    // belt-and-braces half rather than the one a person meets.
+    if (!chosen || !reason.trim()) return
 
     setSubmitting(true)
     setError(null)
@@ -89,7 +206,7 @@ function AddBlacklistModal({
         body: JSON.stringify({
           action: 'ADD',
           targetType,
-          targetId: targetId.trim(),
+          targetId: chosen.id,
           reason: reason.trim(),
           expiresAt: expiresAt || undefined,
         }),
@@ -101,7 +218,7 @@ function AddBlacklistModal({
         return
       }
 
-      onCreated(`${targetType === 'PERSON' ? 'Person' : 'Company'} added to the do-not-return list.`)
+      onCreated(`${chosen.name} is on the do-not-return list.`)
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -134,7 +251,7 @@ function AddBlacklistModal({
             <label className="block text-xs font-semibold text-etyme-muted mb-1">Subject type *</label>
             <select
               value={targetType}
-              onChange={(e) => setTargetType(e.target.value as 'PERSON' | 'COMPANY')}
+              onChange={(e) => { setTargetType(e.target.value as 'PERSON' | 'COMPANY'); setChosen(null); setError(null) }}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
             >
@@ -143,17 +260,15 @@ function AddBlacklistModal({
             </select>
           </div>
 
-          {/* Subject ID */}
+          {/* Who */}
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Subject ID *</label>
-            <input
-              type="text"
-              value={targetId}
-              onChange={(e) => { setTargetId(e.target.value); setError(null) }}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-              placeholder={targetType === 'PERSON' ? 'Person ID' : 'Company ID'}
-              autoComplete="off"
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">
+              {targetType === 'PERSON' ? 'Who *' : 'Which firm *'}
+            </label>
+            <SubjectPicker
+              targetType={targetType}
+              chosen={chosen}
+              onChoose={(s) => { setChosen(s); setError(null) }}
             />
           </div>
 
@@ -189,7 +304,14 @@ function AddBlacklistModal({
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+            {/* A button the route will refuse is a button that lies. It
+                stays off until there is somebody to bar and a reason to
+                bar them, which is exactly what the route asks for. */}
+            <button
+              type="submit"
+              disabled={submitting || !chosen || !reason.trim()}
+              className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               {submitting ? 'Adding…' : 'Add to the list'}
             </button>
           </div>
@@ -288,14 +410,14 @@ export default function BlacklistPage() {
               {row.targetType === 'PERSON' ? '⊘' : '⊘'}
             </div>
             <div className="min-w-0">
-              <p className="font-medium text-etyme-ink truncate font-mono text-[12px]" title={row.targetId}>
-                {truncateId(row.targetId)}
+              <p className="font-medium text-etyme-ink truncate text-[13px]">
+                {row.targetName ?? noName(row.targetType)}
               </p>
             </div>
           </div>
         </div>
       ),
-      sortValue: (row) => row.targetId,
+      sortValue: (row) => row.targetName ?? '',
       width: 'min-w-[180px]',
     },
     {
@@ -325,11 +447,11 @@ export default function BlacklistPage() {
       key: 'blockedById',
       label: 'Added By',
       render: (row) => (
-        <span className="text-[12px] text-etyme-muted font-mono" title={row.blockedById}>
-          {truncateId(row.blockedById)}
+        <span className="text-[12px] text-etyme-muted">
+          {row.blockedByName ?? 'No longer on Etyme'}
         </span>
       ),
-      sortValue: (row) => row.blockedById,
+      sortValue: (row) => row.blockedByName ?? '',
       hideOnMobile: true,
     },
     {
@@ -428,11 +550,11 @@ export default function BlacklistPage() {
         loading={loading}
         error={error}
         searchFilter={(row, q) =>
-          row.targetId.toLowerCase().includes(q) ||
+          (row.targetName ?? '').toLowerCase().includes(q) ||
           row.reason.toLowerCase().includes(q) ||
           row.targetType.toLowerCase().includes(q)
         }
-        searchPlaceholder="Search by subject, reason…"
+        searchPlaceholder="Search by name, reason…"
         emptyMessage="Nobody is on the do-not-return list."
         emptyDetail="No candidates or companies have been blocked. Use the button above to add an entry."
         exportName="etyme-blacklist"

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import {
   OUTBOUND_PACKS,
@@ -153,6 +153,17 @@ export async function GET(request: NextRequest) {
         itemCount: p.items.length,
       })),
       canSend: maySend(caller.permissions),
+      // The same sentence the POST would answer with, said before the
+      // click rather than after it, so the screen and the route cannot
+      // disagree about who this desk is.
+      cannotSend: maySend(caller.permissions)
+        ? null
+        : askTheDesk({
+            doing: 'Sending this firm’s own tax, insurance and registration documents out',
+            needs: ['settings.manage', 'vendors.manage'],
+            kind: caller.company.kind,
+            companyName: caller.company.name,
+          }),
     },
   })
 }
@@ -171,8 +182,12 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message:
-            'Sending our own tax, insurance and registration documents out needs settings.manage or vendors.manage.',
+          message: askTheDesk({
+            doing: 'Sending this firm’s own tax, insurance and registration documents out',
+            needs: ['settings.manage', 'vendors.manage'],
+            kind: caller.company.kind,
+            companyName: caller.company.name,
+          }),
         },
       },
       { status: 403 }
@@ -198,7 +213,16 @@ export async function POST(request: NextRequest) {
   const recipientEmail = String(body.recipientEmail ?? '').trim().toLowerCase()
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipientEmail)) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'An email address to send this to', field: 'recipientEmail' } },
+      {
+        error: {
+          code: 'VALIDATION',
+          message: recipientEmail
+            ? `“${body.recipientEmail}” is not an email address. This pack goes to a person at the ` +
+              'firm that asked for it, so it needs somewhere to arrive.'
+            : 'This pack goes to whoever asked for it. Type their email address first.',
+          field: 'recipientEmail',
+        },
+      },
       { status: 422 }
     )
   }

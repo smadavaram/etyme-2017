@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import {
@@ -44,7 +44,17 @@ export async function POST(
   }
   if (!hasPermission(caller.permissions, 'team.manage')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Changing somebody’s access needs team.manage' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Changing somebody’s access here',
+            needs: 'team.manage',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -225,7 +235,17 @@ export async function DELETE(
   if (error) return error
   if (!caller.company || !hasPermission(caller.permissions, 'team.manage')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Removing somebody needs team.manage' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Taking somebody’s seat away',
+            needs: 'team.manage',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, inWords } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { checkInvite } from '@/lib/account-lifecycle'
@@ -106,7 +106,14 @@ export async function POST(request: NextRequest) {
         {
           error: {
             code: 'BEYOND_YOU',
-            message: `${role.name} carries things you do not have yourself: ${beyond.join(', ')}`,
+            // What they would be handing over, said rather than keyed.
+            // "consultants.cost, margin.read" is a list of codes; the
+            // reader has to know it means somebody's pay and the
+            // margin on a placement before they can judge it.
+            message:
+              `Somebody on ${role.name} can ${inWords(beyond)} — and you cannot, so you ` +
+              `cannot hand it out. Pick a role inside your own, or ask the account owner ` +
+              `to seat them.`,
             field: 'roleId',
           },
         },

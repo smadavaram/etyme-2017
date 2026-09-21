@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { progressOf } from '@/lib/packets'
 
@@ -34,7 +34,17 @@ export async function POST(
     hasPermission(caller.permissions, 'consultants.write')
   if (!mayReview) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Reviewing documents needs vendors.manage or consultants.write' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reviewing the documents somebody sent back',
+            needs: ['vendors.manage', 'consultants.write'],
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

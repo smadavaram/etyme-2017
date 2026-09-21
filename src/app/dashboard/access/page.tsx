@@ -81,7 +81,26 @@ function until(iso: string | null): string {
  * change — or that there is nothing to change, which is just as often the
  * answer and is worth saying out loud.
  */
-function CanTheySee({ people }: { people: Person[] }) {
+/**
+ * Answering "why can they not see this" reads `/api/why`, which asks for
+ * the same permission inviting does — it names somebody else's role,
+ * their account and their company's settings, which is not a thing to
+ * hand to a stranger. A reader who does not hold it is told whose desk
+ * it is rather than being given a picker and a 403.
+ */
+function CanTheySee({ people, mayAsk, whyNot }: { people: Person[]; mayAsk: boolean; whyNot: string | null }) {
+  if (!mayAsk) {
+    return (
+      <section className="mb-10 pb-10 border-b border-etyme-rule">
+        <h2 className="font-serif text-xl text-etyme-ink tracking-[-0.02em]">Can they see it?</h2>
+        <p className="text-[13px] text-etyme-muted mt-1 max-w-prose">{whyNot}</p>
+      </section>
+    )
+  }
+  return <CanTheySeeForm people={people} />
+}
+
+function CanTheySeeForm({ people }: { people: Person[] }) {
   const [personId, setPersonId] = useState('')
   const [ref, setRef] = useState('')
   const [answer, setAnswer] = useState<any>(null)
@@ -213,6 +232,9 @@ export default function AccessPage() {
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A refusal is not an error. It has no "Try again" — trying again
+  // gives the same answer — and it is the route's own sentence.
+  const [refused, setRefused] = useState<string | null>(null)
   const [granting, setGranting] = useState<string | null>(null)
   const [form, setForm] = useState({ roleId: '', days: '', reason: '' })
   const [invite, setInvite] = useState({ name: '', email: '', roleId: '' })
@@ -242,13 +264,16 @@ export default function AccessPage() {
   }
 
   const load = useCallback(async () => {
-    setLoading(true); setError(null)
+    setLoading(true); setError(null); setRefused(null)
     try {
-      const [a, r] = await Promise.all([
-        fetch('/api/access').then(x => x.json()),
-        fetch('/api/roles').then(x => x.json()).catch(() => ({})),
+      const [ar, rr] = await Promise.all([
+        fetch('/api/access'),
+        fetch('/api/roles'),
       ])
+      const a = await ar.json().catch(() => ({} as any))
+      if (ar.status === 403) { setRefused(a.error?.message ?? 'This desk does not read the access register.'); return }
       if (a.error) throw new Error(a.error.message)
+      const r = rr.ok ? await rr.json().catch(() => ({} as any)) : {}
       setData(a.data)
       setRoles(r?.data?.roles ?? [])
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
@@ -284,6 +309,14 @@ export default function AccessPage() {
   }
 
   if (loading) return <div className="text-etyme-muted py-12 text-center">Loading…</div>
+  if (refused) return (
+    <div className="max-w-2xl">
+      <h1 className="font-serif text-2xl text-etyme-ink mb-1">Users &amp; permissions</h1>
+      <div className="mt-4 border border-etyme-rule bg-etyme-surface rounded-lg p-6">
+        <p className="text-[13px] text-etyme-ink">{refused}</p>
+      </div>
+    </div>
+  )
   if (error) return (
     <div className="max-w-2xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
       <div className="text-etyme-attention font-medium">{error}</div>
@@ -329,9 +362,18 @@ export default function AccessPage() {
       </div>
 
       {/* Somebody sitting unable to work beats a tidy list of everybody else. */}
-      {/* ── Invite a teammate ── */}
+      {/* ── Invite a teammate ──
+          Reading who holds what opened to the desks that audit it; the
+          two acts on this page did not. A form the route will refuse is
+          the button-that-lies one layer in, so a reader who cannot
+          invite is told whose desk it is instead of being handed three
+          boxes and a 403. */}
       <section className="mb-8 border border-etyme-rule rounded-lg bg-etyme-surface p-5">
         <h2 className="font-serif text-lg text-etyme-ink mb-1">Invite a teammate</h2>
+        {data.canInvite === false ? (
+          <p className="text-sm text-etyme-muted">{data.whyNotInvite}</p>
+        ) : (
+        <>
         <p className="text-sm text-etyme-muted mb-3">
           Name, email, and what they do here. They are emailed, and the seat is theirs the moment they sign in.
         </p>
@@ -348,6 +390,8 @@ export default function AccessPage() {
           </button>
         </div>
         {invited && <p className={`mt-2 text-sm ${invited.tone === 'ok' ? 'text-etyme-verified' : 'text-etyme-attention'}`}>{invited.text}</p>}
+        </>
+        )}
       </section>
 
       {data.waitingForAccess.length > 0 && (
@@ -363,11 +407,15 @@ export default function AccessPage() {
                       {w.person.primaryEmail} · joined {w.waitingDays === 0 ? 'today' : `${w.waitingDays} days ago`}
                     </div>
                   </div>
-                  <button
-                    onClick={() => setGranting(granting === w.contextId ? null : w.contextId)}
-                    className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
-                    {granting === w.contextId ? 'Cancel' : 'Give them access'}
-                  </button>
+                  {data.canGrant === false ? (
+                    <span className="max-w-[380px] text-xs text-etyme-muted shrink-0">{data.whyNotGrant}</span>
+                  ) : (
+                    <button
+                      onClick={() => setGranting(granting === w.contextId ? null : w.contextId)}
+                      className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
+                      {granting === w.contextId ? 'Cancel' : 'Give them access'}
+                    </button>
+                  )}
                 </div>
 
                 {granting === w.contextId && (
@@ -445,7 +493,11 @@ export default function AccessPage() {
         </section>
       )}
 
-      <CanTheySee people={data.people} />
+      <CanTheySee
+        people={data.people}
+        mayAsk={data.canInvite !== false}
+        whyNot={data.whyNotExplain}
+      />
 
       <section>
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Everyone with access</h2>

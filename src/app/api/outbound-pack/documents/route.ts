@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { standingOf } from '@/lib/document-stages'
 import { OWN_DOCUMENT_KINDS, kindByKey, loadOwnDocuments, libraryPacket } from '../own-documents'
 
@@ -75,7 +75,17 @@ export async function POST(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'settings.manage')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: "Recording the company's own compliance documents needs settings.manage" } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Recording this firm’s own compliance documents',
+            needs: 'settings.manage',
+            kind: caller.company.kind,
+            companyName: caller.company.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

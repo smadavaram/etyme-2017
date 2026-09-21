@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import {
@@ -131,7 +131,17 @@ export async function POST(request: NextRequest) {
     hasPermission(caller.permissions, 'consultants.write')
   if (!mayAsk) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Asking a partner for documents needs vendors.manage or consultants.write' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Asking a supplier or a contractor for their documents',
+            needs: ['vendors.manage', 'consultants.write'],
+            kind: caller.company.kind,
+            companyName: caller.company.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -207,7 +217,15 @@ export async function POST(request: NextRequest) {
   const recipientEmail = String(body.recipientEmail ?? '').trim().toLowerCase()
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(recipientEmail)) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'An email address to send this to', field: 'recipientEmail' } },
+      {
+        error: {
+          code: 'VALIDATION',
+          message: recipientEmail
+            ? `“${body.recipientEmail}” is not an email address. The request needs somewhere to arrive.`
+            : 'The request goes to the person who has to answer it. Type their email address first.',
+          field: 'recipientEmail',
+        },
+      },
       { status: 422 }
     )
   }
