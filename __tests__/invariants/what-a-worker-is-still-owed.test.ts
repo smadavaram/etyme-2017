@@ -647,3 +647,54 @@ describe('a waiver the law refuses is refused on the screen, in the route’s ow
     expect(verdict.says).not.toContain('CANNOT_BE_WAIVED')
   })
 })
+
+// ── A masked firm needs its own possessive ────────────────────────────
+//
+// A sub-vendor's name is the prime's to keep, so the client's page is
+// given a phrase rather than a name. An apostrophe-s on the end of a
+// phrase lands on the wrong firm.
+
+describe('a sentence about a firm the client may not name still says something true about the right firm', () => {
+  const on = new Date('2026-09-21T00:00:00Z')
+  const MASKED = 'the firm supplied through Vertex Global'
+
+  it('never says the cover of the firm it comes through when it means the firm itself', () => {
+    const gate = supplierCoverGate({
+      supplierName: MASKED,
+      certificates: [
+        { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-06-01T00:00:00Z'), verifiedAt: on },
+        { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-06-01T00:00:00Z'), verifiedAt: on },
+      ],
+      on,
+    })
+    expect(gate.outcome).toBe('PASS')
+    expect(gate.says).toBe('The cover of the firm supplied through Vertex Global is on file and in date.')
+    expect(gate.says).not.toContain("Vertex Global's cover")
+  })
+
+  it('keeps the plain possessive where the firm is named, because that is the ordinary case', () => {
+    const gate = supplierCoverGate({
+      supplierName: 'Veritan Talent',
+      certificates: [
+        { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-06-01T00:00:00Z'), verifiedAt: on },
+        { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-06-01T00:00:00Z'), verifiedAt: on },
+      ],
+      on,
+    })
+    expect(gate.says).toBe("Veritan Talent's cover is on file and in date.")
+  })
+
+  it('tells a masked firm’s customer to ask a broker, without inventing a possessive nobody can parse', () => {
+    const gate = supplierCoverGate({
+      supplierName: MASKED,
+      certificates: [
+        { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: new Date('2025-01-01T00:00:00Z'), expiresAt: new Date('2026-01-01T00:00:00Z'), verifiedAt: on },
+        { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-06-01T00:00:00Z'), verifiedAt: on },
+      ],
+      clientName: 'Cavanaugh Glassworks',
+      on,
+    })
+    expect(gate.fix).toContain('a broker for the firm supplied through Vertex Global')
+    expect(gate.fix).not.toContain("Vertex Global's broker")
+  })
+})

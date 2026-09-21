@@ -39,6 +39,8 @@ interface Item {
   waivedSays: string | null
   waiverRefused: boolean
   note: string | null
+  /** False where neither the company's dictionary nor ours names the type. */
+  typeDefined?: boolean
 }
 
 interface Answer {
@@ -168,8 +170,17 @@ function Inner() {
       key: 'label',
       label: 'Document',
       render: (r) => (
-        <span className="font-medium text-etyme-ink">
-          {r.label.charAt(0).toUpperCase() + r.label.slice(1)}
+        <span>
+          <span className="font-medium text-etyme-ink">
+            {r.label.charAt(0).toUpperCase() + r.label.slice(1)}
+          </span>
+          {r.typeDefined === false && (
+            // A real thing to know about a type: nothing watches an
+            // undefined one for expiry, because nothing knows it has one.
+            <span className="block text-[11px] text-etyme-muted">
+              Nobody has defined this type, so nothing watches it for expiry
+            </span>
+          )}
         </span>
       ),
     },
@@ -214,26 +225,74 @@ function Inner() {
       key: 'act',
       label: '',
       sortable: false,
-      render: (r) => (
-        <div className="flex gap-2 justify-end">
-          {!r.waived && (
-            <button
-              className="text-xs text-etyme-action hover:underline"
-              onClick={() => setWaiving({ item: r, reason: '', remove: false })}
-            >
-              Waive
-            </button>
-          )}
-          {r.from !== 'DEFAULT' && (
-            <button
-              className="text-xs text-etyme-action hover:underline"
-              onClick={() => setWaiving({ item: r, reason: '', remove: true })}
-            >
-              Stop asking
-            </button>
-          )}
-        </div>
-      ),
+      // ── The form opens beside the row it was clicked on ──
+      //
+      // It used to open at the bottom of the page, so on a set of twelve
+      // the reader clicked "Waive" and nothing appeared to happen — the
+      // form was below the fold, about a row they could no longer see.
+      // A working surface acts where the hand already is.
+      render: (r) =>
+        waiving?.item.key === r.key ? (
+          <div className="min-w-[280px] text-left">
+            <p className="text-[12px] text-etyme-ink">
+              {waiving.remove ? 'Stop asking for' : 'Waive'}{' '}
+              {waiving.item.label} — say why. Your name and your reason go on the record.
+            </p>
+            <div className="flex gap-2 mt-2 flex-wrap">
+              <input
+                autoFocus
+                className="flex-1 min-w-[160px] border border-etyme-rule rounded px-2 py-1 text-[13px] bg-etyme-raised"
+                placeholder="The reason, in your own words"
+                value={waiving.reason}
+                onChange={(e) => setWaiving({ ...waiving, reason: e.target.value })}
+              />
+              <button
+                className="px-3 py-1 bg-etyme-action text-white rounded text-[12px] font-medium disabled:opacity-50"
+                disabled={!waiving.reason.trim()}
+                onClick={async () => {
+                  const ok = await post({
+                    documentTypeKey: waiving.item.key,
+                    waivedReason: waiving.reason.trim(),
+                    ...(waiving.remove ? { remove: true } : {}),
+                  })
+                  if (ok) setWaiving(null)
+                }}
+              >
+                {waiving.remove ? 'Stop asking' : 'Waive it'}
+              </button>
+              <button className="text-[12px] text-etyme-muted" onClick={() => setWaiving(null)}>
+                Never mind
+              </button>
+            </div>
+            {/* The refusal, on the row it is about. Work authorization is
+                the one thing here the law rather than a preference
+                refuses, and it has to be read where it happened. */}
+            {error && (
+              <p className="text-[12px] text-etyme-attention mt-2" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="flex gap-2 justify-end">
+            {!r.waived && (
+              <button
+                className="text-xs text-etyme-action hover:underline"
+                onClick={() => { setError(null); setWaiving({ item: r, reason: '', remove: false }) }}
+              >
+                Waive
+              </button>
+            )}
+            {r.from !== 'DEFAULT' && (
+              <button
+                className="text-xs text-etyme-action hover:underline"
+                onClick={() => { setError(null); setWaiving({ item: r, reason: '', remove: true }) }}
+              >
+                Stop asking
+              </button>
+            )}
+          </div>
+        ),
     },
   ]
 
@@ -315,53 +374,6 @@ function Inner() {
         </div>
       </div>
 
-      {/* ── Waiving, or taking it off ── */}
-      {waiving && (
-        <div className="panel p-4">
-          <h2 className="text-sm font-semibold text-etyme-ink">
-            {waiving.remove ? 'Stop asking for' : 'Waive'} {waiving.item.label}
-          </h2>
-          <p className="text-[12px] text-etyme-muted mt-0.5">
-            Say why. The reason goes on the record with your name, and whoever audits this will
-            read it. A waived item stays on the checklist, marked, rather than disappearing from
-            it.
-          </p>
-          {/* The refusal again, where the reader is actually looking. A
-              sentence at the top of a page somebody has scrolled past is
-              a sentence nobody reads, and this is the one refusal in the
-              loop that the law rather than a preference is making. */}
-          {error && (
-            <p className="text-[13px] text-etyme-attention mt-2" role="alert">
-              {error}
-            </p>
-          )}
-          <div className="flex gap-2 mt-3 flex-wrap">
-            <input
-              className="flex-1 min-w-[240px] border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised"
-              placeholder="The reason, in your own words"
-              value={waiving.reason}
-              onChange={(e) => setWaiving({ ...waiving, reason: e.target.value })}
-            />
-            <button
-              className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50"
-              disabled={!waiving.reason.trim()}
-              onClick={async () => {
-                const ok = await post({
-                  documentTypeKey: waiving.item.key,
-                  waivedReason: waiving.reason.trim(),
-                  ...(waiving.remove ? { remove: true } : {}),
-                })
-                if (ok) setWaiving(null)
-              }}
-            >
-              {waiving.remove ? 'Stop asking' : 'Waive it'}
-            </button>
-            <button className="px-4 py-2 border border-etyme-rule rounded text-sm text-etyme-muted hover:text-etyme-ink" onClick={() => setWaiving(null)}>
-              Never mind
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

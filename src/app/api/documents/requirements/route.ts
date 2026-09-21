@@ -11,7 +11,7 @@ import {
   type LineRequirements,
   type OwedBy,
 } from '@/lib/document-requirements'
-import { labelFor, sayType } from '@/lib/document-type'
+import { labelFor, sayType, type DefinedType } from '@/lib/document-type'
 
 /**
  * What this order asks for on paper, and who may change it.
@@ -248,7 +248,32 @@ export async function GET(request: NextRequest) {
     : await requirementsFor(sellContractId ? { sellContractId } : { buyContractId: buyContractId! })
   if (!set) return refuse('There is nothing with that id.', 404, 'NOT_FOUND')
 
-  return NextResponse.json({ data: set })
+  return NextResponse.json({ data: { ...set, items: await inWords(set.items, target.buyerCompanyId) } })
+}
+
+/**
+ * Every item said in words, and whether anybody has defined it.
+ *
+ * `effectiveRequirements` falls back to the key when no dictionary names
+ * the type, and every other surface in the loop — the POST reply, the
+ * chase letter, the worker's own page, the placement checklist — now
+ * humanizes that. This table did not, so the one screen built for
+ * MANAGING the set was the last place reading SITE_RESPIRATOR_FIT_TEST
+ * at somebody. One door, `sayType`, and the row also says that nobody
+ * has defined it — which is a real thing to know about a type, because
+ * nothing watches an undefined one for expiry.
+ */
+async function inWords(items: { key: string; label: string }[], companyId: string) {
+  const defined = (await dictionary(companyId)) as DefinedType[]
+  return items.map((i) => {
+    const said = sayType(i.key, defined)
+    return {
+      ...i,
+      label: i.label === i.key ? said.label : i.label,
+      /** False where neither this company's dictionary nor ours names it. */
+      typeDefined: said.known,
+    }
+  })
 }
 
 /**

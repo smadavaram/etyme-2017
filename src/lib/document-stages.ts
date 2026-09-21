@@ -948,6 +948,22 @@ export function supplierCoverGate(input: {
     blocking.length > 0 ? 'BLOCK' : chasing.length > 0 ? 'WARN' : 'PASS'
 
   const holder = input.clientName ?? 'the client'
+
+  // ── A masked firm needs its own possessive ──
+  //
+  // A sub-vendor's name is the prime's to keep, so the caller passes a
+  // PHRASE rather than a name — "the firm supplied through Vertex
+  // Global" — and an apostrophe-s on the end of it lands on the wrong
+  // firm: "the firm supplied through Vertex Global's cover is on file"
+  // says something about Vertex Global's cover, which is not what was
+  // checked and is not what the client acts on. A phrase takes "the X
+  // of Y" instead.
+  const phrase = /^(the|a) /.test(input.supplierName)
+  const whose = (noun: string): string =>
+    phrase ? `the ${noun} of ${input.supplierName}` : `${input.supplierName}'s ${noun}`
+  const aBroker = phrase
+    ? `a broker for ${input.supplierName}`
+    : `${input.supplierName}'s broker`
   // A supplier whose only trouble is that its cover starts later cannot
   // act on "ask your broker for a replacement" — it has the certificate.
   // Either the policy is brought forward or the start date moves, and
@@ -992,13 +1008,13 @@ export function supplierCoverGate(input: {
     outcome === 'PASS'
       ? null
       : mixed
-        ? `${input.supplierName}'s broker can reissue what has run out, usually the same day, naming ` +
+        ? `${aBroker} can reissue what has run out, usually the same day, naming ` +
           `${holder} as certificate holder. What is not on file has to be collected before anybody starts — ` +
           `there is nothing to renew.`
         : onlyEarly
-        ? `Either ${input.supplierName}'s broker moves the policy start forward and issues the certificate ` +
+        ? `Either ${aBroker} moves the policy start forward and issues the certificate ` +
           `naming ${holder} as certificate holder, or nobody starts before the cover does.`
-        : `${input.supplierName}'s broker can issue a replacement certificate, usually the same day, ` +
+        : `${aBroker} can issue a replacement certificate, usually the same day, ` +
           `naming ${holder} as certificate holder. Upload it and the submission goes through.`
 
   let says: string
@@ -1023,7 +1039,7 @@ export function supplierCoverGate(input: {
         ? `${input.supplierName}: ${lowerFirst(chasing[0].says)}`
         : `${input.supplierName} has ${chasing.length} certificates worth chasing — the ${chasing[0].label} among them.`
   } else {
-    says = `${input.supplierName}'s cover is on file and in date.`
+    says = `${upperFirst(whose('cover'))} is on file and in date.`
   }
 
   return { outcome, blocking, chasing, says, fix }
@@ -1038,6 +1054,11 @@ function onDay(d: Date): string {
 function listed(parts: string[]): string {
   if (parts.length <= 1) return parts.join('')
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
+/** A sentence starts with a capital, whatever phrase it starts with. */
+function upperFirst(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 }
 
 /** "Certificate of X expired" → "certificate of X expired", inside a sentence. */
