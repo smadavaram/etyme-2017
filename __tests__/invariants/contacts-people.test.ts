@@ -12,17 +12,23 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 describe('the people at the firms you trade with', () => {
   it('a seat at the other firm sorts into the same chips as a contact typed by hand', () => {
+    // Four of these changed on 2026-09-21, after the browser walk read
+    // Cavanaugh Glassworks' desks back with five of six filed wrong. An
+    // HR desk is HR rather than Delivery; a firm that bills us is
+    // Billing and a firm that pays us is Accounts payable, which one
+    // chip could not be at once. The kind of firm is an argument now —
+    // see lib/contacts — and these are the supplier defaults.
     expect(kindOfRole('Recruiter')).toBe('RECRUITING')
-    expect(kindOfRole('Accountant')).toBe('AP')
+    expect(kindOfRole('Accountant')).toBe('BILLING')
     expect(kindOfRole('Owner')).toBe('EXECUTIVE')
     expect(kindOfRole('Resource Manager')).toBe('DELIVERY')
     expect(kindOfRole('Hiring Manager')).toBe('HIRING_MANAGER')
     expect(kindOfRole('Procurement Lead')).toBe('PROCUREMENT')
     expect(kindOfRole('Account Manager')).toBe('EXECUTIVE')
     expect(kindOfRole('Contract Manager')).toBe('PROCUREMENT')
-    expect(kindOfRole('HR')).toBe('DELIVERY')
-    expect(kindOfRole('Finance')).toBe('AP')
-    expect(kindOfRole('Accounts Receivable')).toBe('AP')
+    expect(kindOfRole('HR')).toBe('HR')
+    expect(kindOfRole('Finance')).toBe('BILLING')
+    expect(kindOfRole('Accounts Receivable')).toBe('BILLING')
     expect(kindOfRole('AP & Payroll')).toBe('AP')
     expect(kindOfRole(null)).toBe('OTHER')
   })

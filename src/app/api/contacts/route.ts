@@ -94,13 +94,17 @@ async function peopleAtYourFirms(companyId: string, kind: string, at: string | n
   const buyer = kind === 'CLIENT' || kind === 'MSP'
   const rows: Row[] = []
   const seen = new Set<string>()
-  const push = (personId: string, name: string, email: string | null, roleName: string | null, company: { id: string; name: string }, via: string) => {
+  const push = (personId: string, name: string, email: string | null, roleName: string | null, company: { id: string; name: string; kind?: string | null }, via: string) => {
     const key = `${personId}:${company.id}`
     if (seen.has(key)) return
     if (at && company.id !== at) return
     if (q && ![name, email ?? '', roleName ?? '', company.name].some((x) => x.toLowerCase().includes(q.toLowerCase()))) return
     seen.add(key)
-    const k = kindOfRole(roleName)
+    // The chip is read off the role AND the kind of firm they hold it
+    // at: "HR" at a client reads the role, "HR" at a supplier keeps its
+    // own people's paperwork, and one regular expression filed both
+    // under Delivery.
+    const k = kindOfRole(roleName, company.kind ?? null)
     rows.push({ id: `seat:${personId}:${company.id}`, name, email, phone: null, title: roleName, kind: k, kindLabel: KINDS[k].label, callAbout: KINDS[k].callAbout, at: company, joined: true, notes: null, via })
   }
 
@@ -115,7 +119,7 @@ async function peopleAtYourFirms(companyId: string, kind: string, at: string | n
     if (firms.length === 0) return rows
     const seats = await prisma.context.findMany({
       where: { companyId: { in: firms }, revokedAt: null, NOT: { roleId: null }, type: { in: ['EMPLOYEE', 'PARTNER'] } },
-      select: { personId: true, person: { select: { name: true, primaryEmail: true } }, role: { select: { name: true } }, company: { select: { id: true, name: true } } },
+      select: { personId: true, person: { select: { name: true, primaryEmail: true } }, role: { select: { name: true } }, company: { select: { id: true, name: true, kind: true } } },
       orderBy: { grantedAt: 'asc' },
     })
     for (const s of seats) if (s.company) push(s.personId, s.person.name, s.person.primaryEmail, s.role?.name ?? null, s.company, `${s.role?.name ?? 'Staff'} at ${s.company.name}`)
@@ -124,7 +128,7 @@ async function peopleAtYourFirms(companyId: string, kind: string, at: string | n
 
   // A supplier sees the people at a client it has dealt with, and nobody else there.
   const [invited, sold, signed, threads] = await Promise.all([
-    prisma.requirementInvitation.findMany({ where: { toCompanyId: companyId }, select: { requirement: { select: { raisedById: true, ownerId: true, title: true, company: { select: { id: true, name: true } } } } }, take: 500 }),
+    prisma.requirementInvitation.findMany({ where: { toCompanyId: companyId }, select: { requirement: { select: { raisedById: true, ownerId: true, title: true, company: { select: { id: true, name: true, kind: true } } } } }, take: 500 }),
     prisma.sellContract.findMany({ where: { companyId, hiringManagerId: { not: null } }, select: { hiringManagerId: true, clientCompany: { select: { id: true, name: true } }, person: { select: { name: true } } }, take: 500 }),
     prisma.timesheet.findMany({ where: { sellContract: { companyId }, clientApprovedById: { not: null } }, select: { clientApprovedById: true, sellContract: { select: { clientCompany: { select: { id: true, name: true } } } } }, take: 500 }),
     prisma.conversation.findMany({ where: { OR: [{ companyId }, { withCompanyId: companyId }], NOT: { withCompanyId: null } }, select: { companyId: true, withCompanyId: true, messages: { select: { authorId: true }, take: 50 } }, take: 200 }),
@@ -138,7 +142,7 @@ async function peopleAtYourFirms(companyId: string, kind: string, at: string | n
   if (wanted.size === 0) return rows
   const seats = await prisma.context.findMany({
     where: { OR: [...wanted.keys()].map((k) => { const [personId, firmId] = k.split(':'); return { personId, companyId: firmId } }), revokedAt: null },
-    select: { personId: true, person: { select: { name: true, primaryEmail: true } }, role: { select: { name: true } }, company: { select: { id: true, name: true } } },
+    select: { personId: true, person: { select: { name: true, primaryEmail: true } }, role: { select: { name: true } }, company: { select: { id: true, name: true, kind: true } } },
   })
   for (const s of seats) if (s.company) push(s.personId, s.person.name, s.person.primaryEmail, s.role?.name ?? null, s.company, wanted.get(`${s.personId}:${s.company.id}`)?.via ?? '')
   return rows

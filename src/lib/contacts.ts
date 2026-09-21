@@ -28,9 +28,13 @@ export type ContactKind =
   | 'HIRING_MANAGER'
   | 'PROCUREMENT'
   | 'AP'
+  | 'BILLING'
   | 'RECRUITING'
   | 'EXECUTIVE'
   | 'DELIVERY'
+  | 'PROGRAM'
+  | 'HR'
+  | 'COMPLIANCE'
   | 'OTHER'
 
 /**
@@ -42,11 +46,15 @@ export type ContactKind =
  */
 export const KINDS: Record<ContactKind, { label: string; callAbout: string }> = {
   HIRING_MANAGER: { label: 'Hiring manager', callAbout: 'open roles, interview feedback, extensions' },
+  PROGRAM: { label: 'Program office', callAbout: 'the program itself — who may supply, which roles go out, the rules' },
   PROCUREMENT: { label: 'Procurement', callAbout: 'agreements, rate cards, onboarding as a supplier' },
-  AP: { label: 'Accounts payable', callAbout: 'unpaid invoices and remittance' },
+  AP: { label: 'Accounts payable', callAbout: 'unpaid invoices and remittance — they pay' },
+  BILLING: { label: 'Billing', callAbout: 'the invoices they send and what is still unpaid — they bill' },
   RECRUITING: { label: 'Recruiting', callAbout: 'submissions and candidate logistics' },
   EXECUTIVE: { label: 'Executive', callAbout: 'the relationship itself, and escalations' },
   DELIVERY: { label: 'Delivery', callAbout: 'the work on the ground, rolloffs, replacements' },
+  HR: { label: 'HR', callAbout: 'whether a role is in the plan, and a firm’s own people’s paperwork' },
+  COMPLIANCE: { label: 'Compliance', callAbout: 'insurance, work authorization, background checks, tenure' },
   OTHER: { label: 'Contact', callAbout: 'whatever they were saved for — add a note' },
 }
 
@@ -187,19 +195,121 @@ export function claimMatches(
 }
 
 /**
- * The kind a seat at the other firm is, read off the role they hold
- * there — a recruiter is Recruiting, an accountant is Accounts payable,
- * an owner is Executive — so the people at a vendor sort into the same
- * chips as the ones typed in by hand.
+ * The chip a seat at the other firm gets, read off the role they hold
+ * there and the kind of firm it is.
+ *
+ * ── Why the company kind is an argument ──────────────────────────────
+ *
+ * It was one set of regular expressions for every firm, and it misfiled
+ * five of Cavanaugh Glassworks' six desks on the walk of 2026-09-21: the
+ * **Compliance Officer** and the **HR Partner** were chipped "Delivery"
+ * (the pattern that catches a delivery manager also caught "compliance"
+ * and "hr"), the **Owner** was chipped "Hiring manager", and the
+ * **Approver** and the **Program Manager** were both chipped
+ * "Executive". CLAUDE.md already records this class of bug once — "the
+ * mapping that filed an account manager under Accounts payable" — in a
+ * different place.
+ *
+ * The same word means different desks at different firms. "HR" at a
+ * client reads the role and says whether it is in the plan; "HR" at a
+ * supplier keeps its own people's paperwork. "Accounts Receivable"
+ * bills us and "AP Clerk" pays us, and one chip called Accounts payable
+ * cannot be both. So the mapping is a table per kind of firm, named off
+ * `lib/company-defaults`' own role names, and the regular expressions
+ * survive only as the fallback for a title somebody typed by hand.
  */
-export function kindOfRole(roleName: string | null | undefined): ContactKind {
-  const r = (roleName ?? '').toLowerCase()
-  if (/hiring/.test(r)) return 'HIRING_MANAGER'
-  // An account manager owns the relationship; "account" alone is the money desk.
-  if (/account manager|owner|admin|program manager|approver|\bvp\b|executive|director|team lead/.test(r)) return 'EXECUTIVE'
-  if (/procure|supplier manager|vendor|contract manager/.test(r)) return 'PROCUREMENT'
-  if (/account|ap clerk|payable|receivable|payroll|finance/.test(r)) return 'AP'
-  if (/deliver|resource|coordinator|compliance|\bhr\b|human resources/.test(r)) return 'DELIVERY'
-  if (/recruit|sourc|contractor desk/.test(r)) return 'RECRUITING'
+
+/** The desks a client seats, from CLIENT_ROLES. */
+const CLIENT_DESKS: Record<string, ContactKind> = {
+  'owner': 'EXECUTIVE',
+  'program manager': 'PROGRAM',
+  'hiring manager': 'HIRING_MANAGER',
+  // The desk that signs the money, and the one a supplier escalates to.
+  'approver': 'EXECUTIVE',
+  'hr partner': 'HR',
+  'procurement lead': 'PROCUREMENT',
+  'ap clerk': 'AP',
+  'compliance officer': 'COMPLIANCE',
+  'viewer': 'OTHER',
+}
+
+/** The desks a program office seats, from MSP_ROLES. */
+const MSP_DESKS: Record<string, ContactKind> = {
+  'owner': 'EXECUTIVE',
+  'program manager': 'PROGRAM',
+  'supplier manager': 'PROCUREMENT',
+  'coordinator': 'RECRUITING',
+  'ap clerk': 'AP',
+  'compliance officer': 'COMPLIANCE',
+}
+
+/** The desks a supplier or an integrator seats, from SUPPLIER_ROLES. */
+const SUPPLIER_DESKS: Record<string, ContactKind> = {
+  'owner': 'EXECUTIVE',
+  'admin': 'EXECUTIVE',
+  // Owns the client relationship — roles, rates, submissions, what was
+  // billed. The person a client calls first, which is what Executive
+  // means on a rolodex. Filed under Accounts payable once; never again.
+  'account manager': 'EXECUTIVE',
+  'recruiter': 'RECRUITING',
+  'resource manager': 'DELIVERY',
+  'delivery manager': 'DELIVERY',
+  'project manager': 'DELIVERY',
+  'team lead': 'DELIVERY',
+  'contractor desk': 'RECRUITING',
+  'supplier manager': 'PROCUREMENT',
+  'contract manager': 'PROCUREMENT',
+  'hr': 'HR',
+  // They bill us.
+  'accounts receivable': 'BILLING',
+  'finance': 'BILLING',
+  // The old name for Finance, kept because a company formed before the
+  // rename still holds the role under it (RENAMED_ROLES).
+  'accountant': 'BILLING',
+  // They pay us.
+  'ap & payroll': 'AP',
+  'compliance officer': 'COMPLIANCE',
+}
+
+function desksOf(companyKind: string | null | undefined): Record<string, ContactKind> {
+  switch (companyKind) {
+    case 'CLIENT': return CLIENT_DESKS
+    case 'MSP': return MSP_DESKS
+    // A one-person corporation seats one Owner, and an integrator seats
+    // the supplier desks plus four of its own.
+    default: return SUPPLIER_DESKS
+  }
+}
+
+/**
+ * The fallback, for a title typed into the rolodex by hand rather than
+ * held as a seat. Ordered most specific first, and compliance and HR
+ * come before delivery now — that ordering is what chipped a compliance
+ * officer "Delivery".
+ */
+function kindOfTitle(title: string): ContactKind {
+  const r = title
+  if (/compliance|i-9|screening/.test(r)) return 'COMPLIANCE'
+  if (/\bhr\b|human resources|people team/.test(r)) return 'HR'
+  if (/hiring|talent acquisition/.test(r)) return 'HIRING_MANAGER'
+  if (/program manager|program office|\bpmo\b/.test(r)) return 'PROGRAM'
+  if (/procure|supplier manager|vendor manager|contract manager|sourcing manager/.test(r)) return 'PROCUREMENT'
+  if (/receivable|billing|\bar\b/.test(r)) return 'BILLING'
+  if (/payable|\bap\b|payroll|remittance/.test(r)) return 'AP'
+  if (/account manager|owner|admin|\bvp\b|executive|director|chief|president|approver/.test(r)) return 'EXECUTIVE'
+  if (/finance|accountant|controller/.test(r)) return 'BILLING'
+  if (/deliver|resource|coordinator|practice|team lead|project manager/.test(r)) return 'DELIVERY'
+  if (/recruit|sourc|contractor desk|bench/.test(r)) return 'RECRUITING'
   return 'OTHER'
+}
+
+export function kindOfRole(
+  roleName: string | null | undefined,
+  companyKind?: string | null
+): ContactKind {
+  const r = (roleName ?? '').trim().toLowerCase()
+  if (!r) return 'OTHER'
+  const seated = desksOf(companyKind)[r]
+  if (seated) return seated
+  return kindOfTitle(r)
 }
