@@ -95,9 +95,11 @@ describe('the screens', () => {
     }
   })
   it('the person answers from their own page: a link to upload, their word to sign', () => {
-    const work = read('src/app/dashboard/my-work/page.tsx')
+    // The section lives in its own component since 2026-09-21, so that
+    // the page a chase letter names can be opened on its own.
+    const work = read('src/app/dashboard/my-work/papers.tsx')
     expect(work).toContain("fetch('/api/me/papers')")
-    expect(work).toContain("p.todo === 'sign' ? { attests: true } : { fileUrl: fileUrl[p.id] ?? '' }")
+    expect(work).toContain("r.todo === 'sign' ? { attests: true } : { fileUrl: fileUrl[r.id] ?? '' }")
     expect(work).toContain('Sign as myself')
   })
   it('a candidate is asked by email; somebody with a seat, in the app', () => {

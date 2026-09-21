@@ -1,0 +1,242 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { readJson } from '@/lib/read-response'
+import {
+  paperRows, outstanding, paperworkHeadline, NO_DOOR_YET,
+  type PaperRow,
+} from './paperwork-rows'
+
+/**
+ * Your paperwork — the page every chase letter names.
+ *
+ * ── The crack this closes ──
+ *
+ * The letters say "Upload it from your Paperwork page." There was no
+ * such page, and the section that existed listed the three documents
+ * Helena Marsh already holds under a subtitle promising "…and what is
+ * still being asked of you". So the one thing a worker is chased for was
+ * the one thing her own page could not show her.
+ *
+ * It is now a page of its own at `/dashboard/my-work/paperwork`, so a
+ * letter can name it and land her on it in one click, and the same
+ * section still sits on her work page under `id="paperwork"` with a link
+ * through. Both doors, one component, so they cannot disagree.
+ *
+ * ── Four kinds of row ──
+ *
+ * Something she owes reads as something to act on, with what happens if
+ * it does not arrive said in words. Something on file reads as on file,
+ * with the day it runs out. Something waived is marked, stays on the
+ * list, and is not counted against her. Nothing here is a status code.
+ *
+ * ── Two kinds of ask are answered in different places ──
+ *
+ * A document sent for signature is answered here, through
+ * `/api/documents/:id/:todo`. An ask that came in a packet is answered
+ * at the packet's own link — its id is a packet item and there is no
+ * document row behind it, so posting here would post to nothing. And a
+ * requirement nobody has opened a request against has no door at all
+ * yet; that row says so rather than offering a box that goes nowhere.
+ */
+
+function Chip({ children, tone = 'passive' }: {
+  children: React.ReactNode
+  tone?: 'attention' | 'verified' | 'action' | 'passive'
+}) {
+  const tones = {
+    attention: 'bg-etyme-attention/10 text-etyme-attention',
+    verified: 'bg-etyme-verified/10 text-etyme-verified',
+    action: 'bg-etyme-action/10 text-etyme-action',
+    passive: 'bg-etyme-rule/50 text-etyme-muted',
+  }
+  return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
+}
+
+function toneFor(r: PaperRow): 'attention' | 'verified' | 'action' | 'passive' {
+  if (r.kind === 'OWED') return r.waived ? 'passive' : (r.stopsWork ? 'attention' : 'action')
+  if (r.kind === 'HELD') return /Ran out|Runs out/.test(r.word) ? 'attention' : 'verified'
+  return r.todo ? 'action' : 'passive'
+}
+
+const GROUPS: { kind: PaperRow['kind']; title: string; blurb: string }[] = [
+  { kind: 'OWED', title: 'Still needed from you', blurb: 'Documents your placements require that are not on your file yet.' },
+  { kind: 'DOCUMENT', title: 'Sent to you to sign', blurb: 'Papers somebody sent you. You answer these here.' },
+  { kind: 'REQUEST', title: 'Asked for', blurb: 'Somebody has opened a request. You answer these at the link it came with.' },
+  { kind: 'HELD', title: 'On your file', blurb: 'What we already hold about you, and the day each one runs out.' },
+]
+
+export function YourPapers({ standalone = false }: { standalone?: boolean }) {
+  const [rows, setRows] = useState<PaperRow[] | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [fileUrl, setFileUrl] = useState<Record<string, string>>({})
+  const [said, setSaid] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setFailed(null)
+    try {
+      const j = await readJson(await fetch('/api/me/papers'))
+      setRows(paperRows(j?.data ?? {}))
+    } catch (e: any) {
+      // A page that cannot read its own file says so. An empty list here
+      // would tell somebody she owes nothing, which is the one wrong
+      // answer that costs her a start.
+      setRows(null)
+      setFailed(e?.message || 'Your paperwork could not be loaded just now. Try again in a moment.')
+    }
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  async function answer(r: PaperRow) {
+    const id = r.askId ?? r.id
+    setBusy(r.id)
+    setSaid(null)
+    try {
+      const body = r.todo === 'sign' ? { attests: true } : { fileUrl: fileUrl[r.id] ?? '' }
+      const res = await fetch(`/api/documents/${id}/${r.todo}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const j = await readJson(res)
+      setSaid(j?.data?.says ?? 'Done. It is on your file.')
+      await load()
+    } catch (e: any) {
+      setSaid(e?.message || 'That did not go through.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const Wrapper = standalone ? 'div' : 'section'
+
+  // ── Loading ───────────────────────────────────────────────────────
+  if (rows === null && !failed) {
+    return (
+      <Wrapper id="paperwork" className="mb-8">
+        <h2 className="font-serif text-lg text-etyme-ink mb-1">Your paperwork</h2>
+        <p className="text-sm text-etyme-muted">Reading your file…</p>
+      </Wrapper>
+    )
+  }
+
+  // ── Error ─────────────────────────────────────────────────────────
+  if (failed) {
+    return (
+      <Wrapper id="paperwork" className="mb-8">
+        <h2 className="font-serif text-lg text-etyme-ink mb-1">Your paperwork</h2>
+        <p className="text-sm text-etyme-attention mb-3">{failed}</p>
+        <button onClick={load} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium">
+          Try again
+        </button>
+      </Wrapper>
+    )
+  }
+
+  const all = rows ?? []
+  const todo = outstanding(all)
+  const headline = paperworkHeadline(all)
+
+  return (
+    <Wrapper id="paperwork" className="mb-8">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+        {/* On its own page the h1 above already says it; a second
+            heading with the same words reads as two sections. */}
+        {!standalone && <h2 className="font-serif text-lg text-etyme-ink">Your paperwork</h2>}
+        {!standalone && (
+          <a href="/dashboard/my-work/paperwork" className="text-sm text-etyme-action hover:underline">
+            Open your paperwork
+          </a>
+        )}
+      </div>
+      <p className="text-sm text-etyme-muted mb-2">
+        Everything on your file, with the day each one runs out, and what is still being asked of you.
+      </p>
+      {/* The sentence that was missing: she is told where she stands
+          before she reads a single row. */}
+      <p className={`text-sm mb-3 ${todo.length ? 'text-etyme-attention' : 'text-etyme-muted'}`}>{headline}</p>
+
+      {said && <p className="mb-2 text-sm text-etyme-verified">{said}</p>}
+
+      {/* ── Empty ───────────────────────────────────────────────────
+          Nothing on file and nothing owed. Said, not shown as a blank
+          list under a promise. */}
+      {all.length === 0 && (
+        <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 text-sm text-etyme-muted">
+          Nothing has been asked of you and nothing is on your file yet. When a placement needs a
+          document from you, it appears here and you will be told.
+        </div>
+      )}
+
+      {GROUPS.map((g) => {
+        const group = all.filter((r) => r.kind === g.kind)
+        if (group.length === 0) return null
+        return (
+          <div key={g.kind} className="mb-5">
+            <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">{g.title}</div>
+            <p className="text-xs text-etyme-muted mb-2">
+              {g.blurb}
+              {/* Said once for the group rather than on every row: there
+                  is no route that receives a file against a requirement,
+                  so the honest thing is where to send it. */}
+              {g.kind === 'OWED' && group.some((r) => !r.waived && !r.todo) && ` ${NO_DOOR_YET}`}
+            </p>
+            <div className={`bg-etyme-surface border rounded-lg divide-y divide-etyme-rule ${
+              g.kind === 'OWED' && group.some((r) => !r.waived) ? 'border-etyme-attention/30' : 'border-etyme-rule'
+            }`}>
+              {group.map((r) => (
+                <div key={`${r.kind}:${r.id}`} className="p-4 flex flex-wrap items-start gap-3">
+                  <div className="flex-1 min-w-[220px]">
+                    <div className="text-etyme-ink flex items-center gap-2">
+                      {r.name}
+                      <Chip tone={toneFor(r)}>{r.word}</Chip>
+                    </div>
+                    {/* Who asked for it, in their own words. A worker who
+                        does not know who wants a document cannot send it
+                        to anybody. */}
+                    {r.from && <div className="text-xs text-etyme-muted mt-1">{r.from}</div>}
+                    {!r.from && r.askedBy && <div className="text-xs text-etyme-muted mt-1">{r.askedBy}</div>}
+                    {/* What happens if it does not arrive, in a sentence. */}
+                    {r.consequence && (
+                      <div className={`text-xs mt-1 ${r.stopsWork && !r.waived ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+                        {r.consequence}
+                      </div>
+                    )}
+                  </div>
+
+                  {r.todo === 'open' && r.link && (
+                    <a href={r.link}
+                      className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+                      Answer it
+                    </a>
+                  )}
+                  {r.todo === 'upload' && (
+                    <>
+                      <input
+                        value={fileUrl[r.id] ?? ''}
+                        onChange={(e) => setFileUrl({ ...fileUrl, [r.id]: e.target.value })}
+                        placeholder="Link to the file"
+                        className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised min-w-[200px]"
+                      />
+                      <button onClick={() => answer(r)} disabled={busy === r.id || !(fileUrl[r.id] ?? '').trim()}
+                        className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                        Upload
+                      </button>
+                    </>
+                  )}
+                  {r.todo === 'sign' && (
+                    <button onClick={() => answer(r)} disabled={busy === r.id}
+                      className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                      Sign as myself
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </Wrapper>
+  )
+}

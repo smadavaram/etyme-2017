@@ -21,7 +21,15 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { myPapers, type AskedPacket, type HeldRecord, type SentDocument } from '@/lib/document-request'
 
-const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/my-work/page.tsx'), 'utf8')
+/**
+ * The section moved out of `page.tsx` into `papers.tsx` on 2026-09-21,
+ * so that it could also be a page of its own at
+ * `/dashboard/my-work/paperwork` — the page every chase letter names
+ * and nobody could open. One component, two doors. The row variable
+ * went from `p` to `r` in the move; nothing else about these behaviors
+ * changed.
+ */
+const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/my-work/papers.tsx'), 'utf8')
 
 const HERS = 'colleen.byrne@example.invalid'
 
@@ -75,8 +83,8 @@ describe('Answering an ask from the consultant’s own page', () => {
 
     // And what the page does with it: the row's own link, rendered as an
     // anchor in the words a person would use.
-    expect(PAGE).toMatch(/\{p\.todo && p\.link && \(/)
-    expect(PAGE).toMatch(/<a\s+href=\{p\.link\}/)
+    expect(PAGE).toMatch(/\{r\.todo === 'open' && r\.link && \(/)
+    expect(PAGE).toMatch(/<a\s+href=\{r\.link\}/)
     expect(PAGE).toContain('Answer it')
   })
 
@@ -90,14 +98,17 @@ describe('Answering an ask from the consultant’s own page', () => {
 
     expect(PAGE).toContain('Sign as myself')
     expect(PAGE).toMatch(/>\s*Upload\s*<\/button>/)
-    expect(PAGE).toContain('/api/documents/${p.id}/${p.todo}')
+    expect(PAGE).toContain('/api/documents/${id}/${r.todo}')
   })
 
   it('a packet ask is never posted to the documents route, because there is no document behind it', () => {
     // Both button branches are held shut by the presence of a link, so the
     // only row that can reach `answer()` is one answered on this page.
-    expect(PAGE).toMatch(/\{!p\.link && p\.todo === 'upload' && \(/)
-    expect(PAGE).toMatch(/\{!p\.link && p\.todo === 'sign' && \(/)
+    expect(PAGE).toMatch(/\{r\.todo === 'upload' && \(/)
+    expect(PAGE).toMatch(/\{r\.todo === 'sign' && \(/)
+    // A packet row is the only one that carries a link, and its branch
+    // is a plain anchor with no call to answer().
+    expect(PAGE).toMatch(/\{r\.todo === 'open' && r\.link && \(/)
   })
 
   it('an ask with nothing left to do on it offers nothing to press', () => {
@@ -105,7 +116,7 @@ describe('Answering an ask from the consultant’s own page', () => {
     expect(done.todo).toBeNull()
     // The link branch asks for `p.todo` first, so a row on file is a row
     // with a word on it and nothing to tap.
-    expect(PAGE).toMatch(/\{p\.todo && p\.link && \(/)
+    expect(PAGE).toMatch(/\{r\.todo === 'open' && r\.link && \(/)
   })
 
   it('an ask sent to somebody else’s address gives the reader no way in, even where it is about them', () => {
@@ -121,7 +132,7 @@ describe('Answering an ask from the consultant’s own page', () => {
   })
 
   it('the link a person is given wears the same blue as the buttons beside it', () => {
-    const link = PAGE.slice(PAGE.indexOf('{p.todo && p.link && ('), PAGE.indexOf('Answer it'))
+    const link = PAGE.slice(PAGE.indexOf("{r.todo === 'open' && r.link && ("), PAGE.indexOf('Answer it'))
     expect(link).toContain('bg-etyme-action text-white')
     expect(link).toContain('px-4 py-2')
   })
@@ -145,7 +156,9 @@ describe('The heading over a worker’s own paperwork', () => {
   })
 
   it('the sentence under the heading says the list is her whole file, the day each runs out, and what is still being asked of her', () => {
-    const sub = PAGE.slice(PAGE.indexOf('>Your paperwork</h2>'), PAGE.indexOf('>Your paperwork</h2>') + 400)
+    // The heading appears three times — loading, error and the list
+    // itself — and it is the last one that carries the sentence.
+    const sub = PAGE.slice(PAGE.lastIndexOf('>Your paperwork</h2>'), PAGE.lastIndexOf('>Your paperwork</h2>') + 600)
     expect(sub).toContain('Everything on your file')
     expect(sub).toContain('the day each one runs out')
     expect(sub).toContain('what is still being asked of you')
@@ -159,8 +172,8 @@ describe('The heading over a worker’s own paperwork', () => {
     expect(held.runsOutOn).toBe('2026-10-09T00:00:00.000Z')
     // And the row the page draws reads the same three fields for every
     // kind, so a held row needs no second renderer.
-    expect(PAGE).toContain('{p.name}')
-    expect(PAGE).toContain('{p.askedBy} · {p.word}')
+    expect(PAGE).toContain('{r.name}')
+    expect(PAGE).toContain('{r.word}')
   })
 
   it('a document on file with no expiry recorded says so rather than reading as permanent', () => {

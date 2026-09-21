@@ -4,6 +4,7 @@ import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
 import { compact, rate as fmtRate } from '@/lib/money-display'
+import { YourPapers } from './papers'
 
 /**
  * A consultant's own page.
@@ -499,115 +500,13 @@ function YourCV() {
 }
 
 /**
- * Your paperwork.
+ * Your paperwork, on the work page.
  *
- * A W-9 for the agency, an NDA a client wants signed, and — since the
- * route learned a third kind — the license, I-9, background check and
- * visa already on her file, each with the day it runs out. Each row says
- * who asked or who issued it and what to do; uploading is a link to the
- * file, signing is your word that it is you. Nothing else about the
- * request is shown, because nothing else is yours.
- *
- * The heading was “Papers asked of you” and stopped being true the day
- * `/api/me/papers` started returning `HELD` rows. Nobody asked her for a
- * license she has held for four years; what she cannot get anywhere else
- * is the day it lapses, and a heading that calls it an ask invites her to
- * go looking for who wants it.
- *
- * Two kinds of ask arrive here and they are answered in different
- * places, and a `HELD` row is neither — it carries no `todo`, so it
- * offers nothing to press and is read rather than answered. A document
- * sent for signature is answered on this page,
- * through `/api/documents/:id/:todo`. An ask that came in a packet is
- * answered at the packet's own link, because its id is a packet item
- * and there is no document row behind it — posting one here would post
- * to nothing, and the row would sit there unanswerable. So where
- * `myPapers` gives a row a `link`, the link is what the person gets.
+ * The section moved into `./papers` on 2026-09-21 so that it could also
+ * be a page of its own at `/dashboard/my-work/paperwork` — the page
+ * every chase letter names and nobody could open. One component, two
+ * doors, so the letter and the screen cannot describe different things.
  */
-function YourPapers() {
-  const [papers, setPapers] = useState<any[]>([])
-  const [busy, setBusy] = useState<string | null>(null)
-  const [fileUrl, setFileUrl] = useState<Record<string, string>>({})
-  const [said, setSaid] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    try {
-      const j = await readJson(await fetch('/api/me/papers'))
-      setPapers(j?.data?.papers ?? [])
-    } catch {
-      setPapers([])
-    }
-  }, [])
-  useEffect(() => { load() }, [load])
-
-  async function answer(p: any) {
-    setBusy(p.id)
-    setSaid(null)
-    try {
-      const body = p.todo === 'sign' ? { attests: true } : { fileUrl: fileUrl[p.id] ?? '' }
-      const res = await fetch(`/api/documents/${p.id}/${p.todo}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-      const j = await readJson(res)
-      setSaid(j?.data?.says ?? 'Done.')
-      await load()
-    } catch (e: any) {
-      setSaid(e.message)
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  const todo = papers.filter((p) => p.todo)
-  if (papers.length === 0) return null
-
-  return (
-    <section className="mb-8">
-      <h2 className="font-serif text-lg text-etyme-ink mb-1">Your paperwork</h2>
-      <p className="text-sm text-etyme-muted mb-3">
-        Everything on your file, with the day each one runs out, and what is still being asked of you.
-      </p>
-      {said && <p className="mb-2 text-sm text-etyme-verified">{said}</p>}
-      <div className={`bg-etyme-surface border rounded-lg divide-y divide-etyme-rule ${todo.length ? 'border-etyme-attention/30' : 'border-etyme-rule'}`}>
-        {papers.map((p) => (
-          <div key={p.id} className="p-4 flex flex-wrap items-center gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <div className="text-etyme-ink">{p.name}</div>
-              <div className="text-xs text-etyme-muted">{p.askedBy} · {p.word}</div>
-            </div>
-            {/* Answered somewhere else. The only thing to do is go there. */}
-            {p.todo && p.link && (
-              <a
-                href={p.link}
-                className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90"
-              >
-                Answer it
-              </a>
-            )}
-            {!p.link && p.todo === 'upload' && (
-              <>
-                <input
-                  value={fileUrl[p.id] ?? ''}
-                  onChange={(e) => setFileUrl({ ...fileUrl, [p.id]: e.target.value })}
-                  placeholder="Link to the file"
-                  className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised min-w-[200px]"
-                />
-                <button onClick={() => answer(p)} disabled={busy === p.id || !(fileUrl[p.id] ?? '').trim()}
-                  className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                  Upload
-                </button>
-              </>
-            )}
-            {!p.link && p.todo === 'sign' && (
-              <button onClick={() => answer(p)} disabled={busy === p.id}
-                className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                Sign as myself
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
 
 /**
  * What this page says to somebody who has a page because they made one.
