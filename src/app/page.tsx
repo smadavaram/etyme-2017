@@ -191,7 +191,7 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
     items: [
       { t: 'Work authorization', d: 'Blocked, not warned, where the law is behind it.', href: '#lifecycle' },
       { t: 'Tenure & co-employment', d: 'Counted per person across suppliers, not per assignment.', href: '#exposure' },
-      { t: 'Insurance & good standing', d: 'A lapsed insurance certificate stops a start. Good standing is read beside it on the Compliance screen.', href: '#exposure' },
+      { t: 'Insurance & good standing', d: 'A lapsed certificate of insurance or good standing stops a submission and a start.', href: '#exposure' },
       { t: 'Governance & approvals', d: 'Every override keeps the name of whoever gave it.', href: '#exposure' },
     ],
   },

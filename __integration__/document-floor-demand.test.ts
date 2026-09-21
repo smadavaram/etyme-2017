@@ -3,6 +3,8 @@ import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 import { GET as programDesk } from '@/app/api/program/route'
+import { POST as submitCandidates } from '@/app/api/submissions/route'
+import { GET as complianceView } from '@/app/api/compliance/route'
 
 /**
  * The same certificate, read at the button and at the preview of it.
@@ -238,4 +240,144 @@ describe('cover that has not begun refuses a start, and the preview of it says t
     const live = await prisma.sellContract.findUniqueOrThrow({ where: { id: ctx.contractId } })
     expect(live.state).toBe('IN_PROGRESS')
   })
+})
+
+/**
+ * The same certificate of good standing, read at the submit button and on
+ * the compliance page.
+ *
+ * `COVER_THAT_STOPS_WORK` has named the certificate of good standing
+ * beside general liability and workers' comp since 2026-09-21 — a firm
+ * whose registration the state has suspended may not lawfully contract
+ * there. Every reader that selected rows whose key begins INSURANCE_ went
+ * on reading past it, and `POST /api/submissions` was one of them. So the
+ * client's compliance officer read "Nobody can be submitted through
+ * CloudEPA" and CloudEPA's recruiter pressed submit and was let through,
+ * about the same firm on the same day.
+ */
+describe('the submit button and the compliance page agree about a firm\u2019s standing', () => {
+  const ctx2: Record<string, any> = {}
+
+  beforeAll(async () => {
+    // Cover is current by now — the tests above end with a policy that
+    // began ten days ago — so good standing is the only thing either desk
+    // can be answering about.
+    await prisma.verification.deleteMany({ where: { companyId: ctx.supplierId, type: 'GOOD_STANDING' } })
+    await prisma.verification.create({
+      data: {
+        companyId: ctx.supplierId,
+        type: 'GOOD_STANDING',
+        status: 'CLEAR',
+        issuedAt: at(-400),
+        validFrom: at(-400),
+        // Filed last year, run out last month. The state no longer says
+        // this firm may trade.
+        expiresAt: at(-35),
+        uploadedById: ctx.uploaderId,
+        verifiedById: ctx.uploaderId,
+        verifiedAt: at(-400),
+      },
+    })
+
+    const person = await prisma.person.findFirstOrThrow({
+      where: { primaryEmail: 'nora.standing@seed.etyme.invalid' },
+      select: { id: true },
+    })
+    ctx2.personId = person.id
+
+    const role = await prisma.requirement.findFirstOrThrow({
+      where: { companyId: ctx.clientId, status: 'OPEN', approvalState: { not: 'PENDING_APPROVAL' } },
+      select: { id: true },
+    })
+    ctx2.requirementId = role.id
+    // Invited, so the refusal cannot be "you were not shown this role".
+    await prisma.requirementInvitation.upsert({
+      where: { requirementId_toCompanyId: { requirementId: role.id, toCompanyId: ctx.supplierId } },
+      create: {
+        requirement: { connect: { id: role.id } },
+        toCompany: { connect: { id: ctx.supplierId } },
+        fromCompany: { connect: { id: ctx.clientId } },
+        status: 'SENT',
+        expiresAt: at(14),
+      },
+      update: {},
+    })
+  }, 120_000)
+
+  it('a supplier whose good standing has lapsed is refused at the submit button in the same words the compliance page uses', async () => {
+    as(ctx.clientEmail)
+    const page = await json(await complianceView(req('GET', '/api/compliance')))
+    expect(page.status, JSON.stringify(page.body)).toBe(200)
+    const row = page.body.data.verifications.companies.find((c: any) => c.companyId === ctx.supplierId)
+    expect(row, 'the supplier is not on the compliance page at all').toBeTruthy()
+    expect(row.cover.outcome).toBe('BLOCK')
+    expect(row.cover.says).toMatch(/good standing/i)
+
+    as(ctx.supplierEmail)
+    const pressed = await json(
+      await submitCandidates(
+        req('POST', '/api/submissions', {
+          requirementId: ctx2.requirementId,
+          personIds: [ctx2.personId],
+          rate: 9000,
+          fromCompanyId: ctx.supplierId,
+        })
+      )
+    )
+    expect(pressed.status, JSON.stringify(pressed.body)).toBe(409)
+    expect(pressed.body.error.code).toBe('COVER_LAPSED')
+    expect(pressed.body.error.message).toMatch(/good standing/i)
+
+    // The same sentence, not a second one written for the button. The one
+    // difference is the name, and it is the right difference: CloudEPA is
+    // a sub-vendor, so the client reads "the firm supplied through
+    // Computer Systems Inc" and CloudEPA reads its own name on its own
+    // refusal. `lib/chain-names` holds at both doors.
+    const firmIn = (line: string) => line.slice(0, line.indexOf(':'))
+    const masked = firmIn(row.cover.says)
+    const own = firmIn(pressed.body.error.message)
+    expect(own).toBe('CloudEPA')
+    expect(masked).not.toContain('CloudEPA')
+    expect(pressed.body.error.message.split(own).join(masked)).toBe(row.cover.says)
+  }, 60_000)
+
+  it('and the moment the certificate is back in date, the same submission is not refused for standing', async () => {
+    await prisma.verification.updateMany({
+      where: { companyId: ctx.supplierId, type: 'GOOD_STANDING' },
+      data: { validFrom: at(-30), expiresAt: at(335) },
+    })
+    as(ctx.supplierEmail)
+    const pressed = await json(
+      await submitCandidates(
+        req('POST', '/api/submissions', {
+          requirementId: ctx2.requirementId,
+          personIds: [ctx2.personId],
+          rate: 9000,
+          fromCompanyId: ctx.supplierId,
+        })
+      )
+    )
+    // Whatever else this person's paperwork says, the firm's standing is
+    // no longer the reason.
+    expect(pressed.body?.error?.code).not.toBe('COVER_LAPSED')
+  }, 60_000)
+
+  it('a firm nobody ever asked for a certificate of good standing is not refused for not having one', async () => {
+    // The control that fires on a hundred percent of rows teaches
+    // everybody to route around it. A document a firm has never been
+    // asked to file is not a lapse.
+    await prisma.verification.deleteMany({ where: { companyId: ctx.supplierId, type: 'GOOD_STANDING' } })
+    as(ctx.supplierEmail)
+    const pressed = await json(
+      await submitCandidates(
+        req('POST', '/api/submissions', {
+          requirementId: ctx2.requirementId,
+          personIds: [ctx2.personId],
+          rate: 9000,
+          fromCompanyId: ctx.supplierId,
+        })
+      )
+    )
+    expect(pressed.body?.error?.code).not.toBe('COVER_LAPSED')
+  }, 60_000)
 })

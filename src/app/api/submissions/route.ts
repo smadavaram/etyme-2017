@@ -333,7 +333,20 @@ export async function POST(request: NextRequest) {
   const cover = supplierCoverGate({
     supplierName: vendorName,
     clientName,
-    certificates: certRows.filter((v) => v.type.startsWith('INSURANCE_')),
+    // The firm's WHOLE standing, not the rows whose key happens to begin
+    // INSURANCE_. `COVER_THAT_STOPS_WORK` has named the certificate of
+    // good standing beside the two cover kinds since 2026-09-21, and this
+    // filter did not know it — so a supplier whose registration the state
+    // had suspended was refused on the compliance page, in those words,
+    // and accepted by this button. The door and the page disagreed about
+    // the same firm on the same day.
+    //
+    // Nothing else is needed to make them agree: the gate decides which
+    // kinds it has an opinion about, and a kind nobody filed and nobody
+    // required says nothing at all — so handing it every company-level
+    // row widens what it can see without inventing a finding. Filtering
+    // here is what went stale; not filtering cannot.
+    certificates: certRows,
     on: new Date(),
   })
 

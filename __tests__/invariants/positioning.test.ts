@@ -778,47 +778,61 @@ describe('Every claim about a screen is a thing that screen does', () => {
     // file and out of date is a BLOCK rather than a green row.
     expect([...COVER_THAT_STOPS_WORK]).toContain('GOOD_STANDING')
 
-    // And the page may say only as much as the doors do. The two doors
-    // that actually stop somebody — the activate button and the submit
-    // route — still read a firm's file as the keys beginning INSURANCE_,
-    // so a lapsed certificate of good standing reaches neither gate.
-    // The page therefore says insurance stops a start, and sends good
-    // standing to the compliance screen, which does read it.
+    // And the page may say only as much as the doors do. Both doors
+    // that actually stop somebody read the firm's whole file now — the
+    // start since money passed `lineExtras` into the clearance, the
+    // submission since demand stopped narrowing what it hands the gate
+    // to the keys beginning INSURANCE_. For one day they did not, and
+    // the page said the narrower true thing: insurance stops a start,
+    // good standing is read on the compliance screen. This is the
+    // equivalence rather than the assertion, so the sentence and the
+    // doors cannot drift apart in either direction — a door that goes
+    // back to reading insurance alone fails here with the sentence
+    // still on the page, which is the same bug facing the other way.
     //
-    // The day a door reads the whole of a firm's standing this fails,
-    // and the sentence is owed an update on that commit — which is the
-    // cheapest moment it will ever be to write.
-    const doorReadsStanding = (file: string): boolean =>
-      /GOOD_STANDING|COVER_THAT_STOPS_WORK|FIRM_STANDING|lineExtras/.test(
-        readFileSync(join(process.cwd(), file), 'utf8')
-      )
-    const doors = [
-      'src/app/api/contracts/[id]/activate/route.ts',
-      'src/app/api/submissions/route.ts',
-    ]
+    // The two doors are built differently, so what proves each is
+    // different, and a single keyword would pass on a comment:
+    //
+    //   the start      spreads `lineExtras`, which returns the whole
+    //                  FIRM_STANDING set, good standing included
+    //   the submission passes the rows it read, unfiltered, so what
+    //                  proves it is the absence of the narrowing that
+    //                  went stale
+    const START = 'src/app/api/contracts/[id]/activate/route.ts'
+    const SUBMISSION = 'src/app/api/submissions/route.ts'
+    /** The code, with the comments about the code taken out. */
+    const code = (file: string): string =>
+      readFileSync(join(process.cwd(), file), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/\/\/[^\n]*/g, ' ')
+    const startReadsStanding = /lineExtras\(/.test(code(START))
+    const submissionReadsStanding = !/startsWith\('INSURANCE_'\)/.test(code(SUBMISSION))
+    const doorsReadStanding = startReadsStanding && submissionReadsStanding
 
     const menu = PAGE.slice(PAGE.indexOf("t: 'Insurance & good standing'")).slice(0, 300)
     // Sentence by sentence, because the claim is only a claim when the
     // standing and the refusal are in the same one: "a lapsed insurance
-    // certificate stops a start" sits beside "good standing is read on
-    // the Compliance screen" and says nothing about good standing
-    // stopping anything.
+    // certificate stops a start" beside "good standing is read on the
+    // compliance screen" says nothing about good standing stopping
+    // anything, and read as one string it would look as though it did.
     const said = /d: '([^']+)'/.exec(menu)?.[1] ?? ''
     const saysStandingStopsWork = said
       .split(/(?<=[.!?])\s+/)
       .some((sentence) => /good standing/i.test(sentence) && /\bstops?\b/i.test(sentence))
     expect(
       saysStandingStopsWork,
-      'the page says a lapsed good standing stops work; the doors that stop work do not read it'
-    ).toBe(doors.every(doorReadsStanding))
+      startReadsStanding && submissionReadsStanding
+        ? 'both doors refuse a lapsed good standing; the page owes that sentence'
+        : 'the page says a lapsed good standing stops work; a door that stops work does not read it'
+    ).toBe(doorsReadStanding)
 
-    // What the page says instead, and the screen that does it.
-    expect(menu).toContain('Compliance screen')
-    // The insurance half of the same sentence is a door that does
-    // refuse: the start reads the certificates by name.
-    expect(
-      readFileSync(join(process.cwd(), doors[0]), 'utf8')
-    ).toContain("'INSURANCE_GL'")
+    // And it says which two stations, because those are the two that
+    // refuse: `supplierCoverGate` at the submission, the same gate
+    // through `contractClearance` at the start.
+    if (saysStandingStopsWork) {
+      expect(said).toMatch(/\bsubmission\b/i)
+      expect(said).toMatch(/\bstart\b/i)
+    }
   })
 
   it('says the program dashboard shows this month from rates, and names the invoices screen for what was billed', () => {
