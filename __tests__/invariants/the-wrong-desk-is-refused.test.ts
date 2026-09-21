@@ -164,12 +164,17 @@ describe('a route that acts asks which desk is calling, not only which company',
   })
 
   it('a route a program office may reach resolves the seat before it gates, never after', () => {
-    // The order is the fix. `resolveProgram` hands back the client, the
-    // seat and the caller as they act inside it; the gate then reads
-    // `acting`. A route that gated first would refuse the office at its
-    // own firm's desk and never reach the client's.
+    // The order is the fix. `whoIsHiring` hands back the company the role
+    // belongs to, the seat and the caller as they act inside it; the gate
+    // then reads `acting`. A route that gated first would refuse the
+    // office at its own firm's desk and never reach the client's.
+    //
+    // It was `resolveProgram` until 2026-09-21, which answered "which
+    // client's program may you read" — and for a prime with no seat that
+    // answered "the first client you place somebody at", so an
+    // integrator's own role was written onto its customer's record.
     const gate = REQUISITIONS.indexOf("hasPermission(acting.permissions, 'requirements.write')")
-    const resolve = REQUISITIONS.indexOf('await resolveProgram(caller, null)')
+    const resolve = REQUISITIONS.indexOf('await whoIsHiring(caller, null)')
     expect(resolve).toBeGreaterThan(-1)
     expect(gate).toBeGreaterThan(resolve)
   })

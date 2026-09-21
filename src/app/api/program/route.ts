@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { chainTop } from '@/lib/chain-top'
+import { chainTop, viaPhrase } from '@/lib/chain-top'
 import { rateSpread, type Placement } from '@/lib/census-page'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 import { contractClearance } from '@/lib/contract-clearance'
@@ -225,6 +225,10 @@ export async function GET(request: NextRequest) {
       id: c.id,
       name: seen.name,
       phrase: seen.phrase,
+      // What follows the word "through" on a screen. The phrase carries
+      // "supplied through" inside it, so a row that writes "through
+      // {name}" said it twice (`viaPhrase`).
+      via: viaPhrase(seen),
       nameWithheld: seen.masked,
       suppliedThrough: seen.through,
     }
@@ -281,6 +285,10 @@ export async function GET(request: NextRequest) {
     // and the census page so four screens cannot drift into four answers.
     totalMonthlySpend: programMonthlySpend(v.contracts.map((c) => ({ rateMinorPerHour: c.billRate ?? null }))).totalMinor,
     standing: tierWord(tierOf.get(v.id), agreed.has(v.id)),
+    // Somebody on your site through a firm you have signed nothing with
+    // is a purchase order and nothing behind it. The flag was already
+    // computed here for the standing word and said nothing on its own.
+    agreement: agreed.has(v.id),
   }))
 
   // ── Same role, two suppliers, two prices ────────────────────────────
@@ -403,7 +411,7 @@ export async function GET(request: NextRequest) {
   const today = [
     ...signedToday.map((t) => ({ id: `t-${t.id}`, what: 'Hours signed', who: `${t.person.name}, ${Number(t.totalHours)}h`, at: t.clientApprovedAt!.toISOString() })),
     ...claimsToday.map((e) => ({ id: `e-${e.id}`, what: 'Expense approved', who: `${e.person.name}, $${Number(e.total).toFixed(2)}`, at: e.approvedAt!.toISOString() })),
-    ...onSite.filter((c) => c.startDate >= dayStart).map((c) => ({ id: `s-${c.id}`, what: 'Started', who: `${c.person.name} through ${shown(c.company.id, c.company.name).phrase}`, at: c.startDate.toISOString() })),
+    ...onSite.filter((c) => c.startDate >= dayStart).map((c) => ({ id: `s-${c.id}`, what: 'Started', who: `${c.person.name} through ${viaPhrase(shown(c.company.id, c.company.name))}`, at: c.startDate.toISOString() })),
     ...awardedToday.map((a) => ({ id: `a-${a.id}`, what: 'Awarded', who: `${a.person.name} — ${a.requirement.title}`, at: a.decidedAt!.toISOString() })),
     ...asksToday.map((m) => { const md = (m.metadata ?? {}) as Record<string, string>; return { id: `k-${m.id}`, what: 'Asked for', who: `${md.personName ?? 'somebody'} through ${md.supplierName ?? 'a supplier'} — ${md.roleTitle ?? ''}`, at: m.createdAt.toISOString() } }),
   ].sort((a, b) => b.at.localeCompare(a.at))

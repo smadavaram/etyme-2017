@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
-import { says as overtimeTerms } from '@/lib/overtime'
+import { DecideOvertime, type PendingWeek } from './decide-overtime'
 
 /**
  * Timesheets working surface — the Operate section.
@@ -67,6 +67,18 @@ interface Timesheet {
   mayApproveWhyNot: string | null
   /** Whether this seat may file or send these hours. */
   maySubmit: boolean
+  /**
+   * A week carries two signatures and stays SUBMITTED until both are in.
+   * Without this the client that signed on Monday read SUBMITTED on
+   * Tuesday, was offered the tick again and was told "Already approved."
+   */
+  signature?: {
+    youSigned: boolean
+    youSignedAt: string | null
+    waitingOnYou: boolean
+    waitingOn: string | null
+    says: string | null
+  }
   overtime?: OvertimeState | null
 }
 
@@ -79,12 +91,6 @@ interface Timesheet {
  * The list carries the question so a row can say it holds one, rather
  * than the reader finding out by pressing Approve and being refused.
  */
-interface PendingWeek {
-  weekOf: string
-  workedHours: number
-  overtimeHours: number
-}
-
 interface OvertimeState {
   afterHours: number | null
   multiplierBps: number
@@ -104,6 +110,9 @@ interface OvertimeState {
 }
 
 type StatusFilter = 'ALL' | 'OPEN' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
+
+/** The tabs, and the only values `?status=` is allowed to name. */
+const STATUS_FILTERS: StatusFilter[] = ['ALL', 'OPEN', 'SUBMITTED', 'APPROVED', 'REJECTED']
 
 /**
  * What this week is worth to the person reading it, or nothing.
@@ -480,246 +489,6 @@ function CreateTimesheetModal({
   )
 }
 
-// ── Deciding what happens to a week's overtime ───────
-
-/** "Monday, September 7" — the way somebody says which week they mean. */
-function weekLabel(iso: string): string {
-  return new Date(`${iso}T00:00:00.000Z`).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  })
-}
-
-const MULTIPLIERS = [
-  { bps: 12_500, label: 'A quarter more (1.25×)' },
-  { bps: 15_000, label: 'Time and a half (1.5×)' },
-  { bps: 20_000, label: 'Double time (2×)' },
-]
-
-type Answer = { treatment: 'SAME_RATE' | 'PREMIUM' | 'TIME_OFF' | null; multiplierBps: number; reason: string }
-
-/**
- * The question a client is asked before they sign a week that went over.
- *
- * Nobody is trained on this product, and everybody using it has signed
- * a hundred timesheets. So the three answers are the three answers the
- * trade already gives — pay it, pay extra for it, or give the time back
- * — each with the money spelled out, and never the enum behind them.
- *
- * One question per week, because overtime is a weekly fact: a
- * semi-monthly sheet holding two heavy weeks asks twice, and says why
- * so that asking twice does not read as a bug.
- */
-function DecideOvertimeModal({
-  row,
-  weeks,
-  lead,
-  onClose,
-  onDecided,
-}: {
-  row: Timesheet
-  weeks: PendingWeek[]
-  lead: string
-  onClose: () => void
-  onDecided: (message: string) => void
-}) {
-  const contractBps = row.overtime?.multiplierBps ?? 15_000
-  const afterHours = row.overtime?.afterHours ?? 40
-  const rateCents = row.overtime?.rateCents ?? row.rate.cents ?? 0
-
-  const [answers, setAnswers] = useState<Record<string, Answer>>(() =>
-    Object.fromEntries(
-      weeks.map((w) => [w.weekOf, { treatment: null, multiplierBps: contractBps, reason: '' }])
-    )
-  )
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const set = (weekOf: string, patch: Partial<Answer>) =>
-    setAnswers((prev) => ({ ...prev, [weekOf]: { ...prev[weekOf], ...patch } }))
-
-  /** A reason is asked for where the answer costs somebody something they did not sign for. */
-  const needsReason = (w: PendingWeek) => {
-    const a = answers[w.weekOf]
-    if (!a?.treatment) return false
-    if (a.treatment === 'TIME_OFF') return true
-    return a.treatment === 'PREMIUM' && a.multiplierBps !== contractBps
-  }
-
-  const complete = weeks.every((w) => {
-    const a = answers[w.weekOf]
-    return !!a?.treatment && (!needsReason(w) || a.reason.trim().length > 0)
-  })
-
-  async function submit() {
-    setSaving(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/timesheets/${row.id}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          overtime: weeks.map((w) => ({
-            weekOf: w.weekOf,
-            treatment: answers[w.weekOf].treatment,
-            multiplierBps:
-              answers[w.weekOf].treatment === 'PREMIUM' ? answers[w.weekOf].multiplierBps : undefined,
-            reason: answers[w.weekOf].reason.trim() || undefined,
-          })),
-        }),
-      })
-      const body = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(body.error?.message ?? 'That could not be saved.')
-        return
-      }
-      onDecided(body.data?.message ?? 'Approved.')
-    } catch {
-      setError('The network dropped that. Try again.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
-      <div
-        className="card w-full max-w-2xl max-h-[88vh] overflow-y-auto animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="page-head mb-4">
-          <p className="eyebrow">Before you approve</p>
-          <h1 className="text-xl">What happens to the overtime?</h1>
-          <p>{lead}</p>
-        </div>
-
-        {/* What the contract actually offers, in the same words on every
-            screen that mentions overtime. */}
-        <p className="text-[12px] text-etyme-muted mb-3">
-          {overtimeTerms({ afterHours, multiplierBps: contractBps })}
-        </p>
-
-        {weeks.length > 1 && (
-          <p className="text-[12px] text-etyme-muted mb-4">
-            Overtime is a weekly fact, so each week is its own answer. Two heavy weeks on one
-            timesheet are two questions.
-          </p>
-        )}
-
-        <div className="space-y-4">
-          {weeks.map((w) => {
-            const a = answers[w.weekOf]
-            const flat = Math.round(w.overtimeHours * rateCents)
-            const premium = Math.round(w.overtimeHours * rateCents * (a.multiplierBps / 10_000))
-            const options: { key: Answer['treatment']; title: string; detail: string }[] = [
-              {
-                key: 'SAME_RATE',
-                title: 'Pay them at the usual rate',
-                detail: `${w.overtimeHours}h × ${compact(rateCents)} = ${amount(flat)} on the invoice.`,
-              },
-              {
-                key: 'PREMIUM',
-                title: 'Pay them at a premium',
-                detail: `${w.overtimeHours}h at the higher rate = ${amount(premium)} on the invoice.`,
-              },
-              {
-                key: 'TIME_OFF',
-                title: 'Give the time back instead',
-                detail: `Nothing extra billed. ${w.overtimeHours}h goes into ${row.person.name.split(' ')[0]}’s time-off bank, to be taken as paid leave later.`,
-              },
-            ]
-
-            return (
-              <div key={w.weekOf} className="panel">
-                <p className="stat-label">Week of {weekLabel(w.weekOf)}</p>
-                <p className="text-[13px] text-etyme-ink mt-1 mb-3 tabular-nums">
-                  {w.workedHours}h worked — {w.overtimeHours}h over the {afterHours} on this contract.
-                </p>
-
-                <div className="space-y-2">
-                  {options.map((opt) => {
-                    const on = a.treatment === opt.key
-                    return (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        onClick={() => set(w.weekOf, { treatment: opt.key })}
-                        className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
-                          on
-                            ? 'border-etyme-action bg-etyme-action/5'
-                            : 'border-etyme-rule hover:bg-etyme-canvas'
-                        }`}
-                      >
-                        <p className="text-[13px] font-medium text-etyme-ink">{opt.title}</p>
-                        <p className="text-[12px] text-etyme-muted tabular-nums">{opt.detail}</p>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {a.treatment === 'PREMIUM' && (
-                  <div className="mt-3">
-                    <label className="stat-label block mb-1">How much more</label>
-                    <select
-                      value={a.multiplierBps}
-                      onChange={(e) => set(w.weekOf, { multiplierBps: Number(e.target.value) })}
-                      className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white"
-                    >
-                      {MULTIPLIERS.map((m) => (
-                        <option key={m.bps} value={m.bps}>
-                          {m.label}
-                          {m.bps === contractBps ? ' — what the contract offers' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {needsReason(w) && (
-                  <div className="mt-3">
-                    <label className="stat-label block mb-1">
-                      {a.treatment === 'TIME_OFF'
-                        ? 'Why the hours are being banked rather than paid'
-                        : 'Why this week is different from the contract'}
-                    </label>
-                    <textarea
-                      value={a.reason}
-                      onChange={(e) => set(w.weekOf, { reason: e.target.value })}
-                      rows={2}
-                      placeholder={
-                        a.treatment === 'TIME_OFF'
-                          ? 'e.g. Agreed with the supplier — taken back in October'
-                          : 'e.g. Go-live weekend, agreed with the account manager'
-                      }
-                      className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg resize-none
-                                 focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                    />
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {error && (
-          <p className="mt-4 text-[13px] text-etyme-attention">{error}</p>
-        )}
-
-        <div className="flex justify-end gap-3 mt-5">
-          <button onClick={onClose} className="btn-secondary">
-            Not now
-          </button>
-          <button onClick={submit} disabled={!complete || saving} className="btn-primary disabled:opacity-50">
-            {saving ? 'Approving…' : 'Approve the week'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Page ─────────────────────────────────────────────
 
 export default function TimesheetsPage() {
@@ -728,7 +497,6 @@ export default function TimesheetsPage() {
 
   const { company } = useSession()
   const isClient = company?.kind === 'CLIENT'
-  const framing = pageFraming(company?.kind ?? 'VENDOR', 'timesheets')
 
   const [timesheets, setTimesheets] = useState<Timesheet[]>([])
   const [loading, setLoading] = useState(true)
@@ -738,18 +506,54 @@ export default function TimesheetsPage() {
   const [acting, setActing] = useState<string | null>(null)  // ID of the timesheet being acted on
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  // Whether this reader files a week at all, as the server sees it. A
+  // seated program office is on the buying side and never does, and the
+  // session alone cannot tell — its company is an MSP.
+  const [filing, setFiling] = useState<{ may: boolean; says: string | null } | null>(null)
+  // Whose weeks the server answered about. A program office in a seat is
+  // reading the client's, and the page heads itself accordingly.
+  const [atDesk, setAtDesk] = useState<{ companyName: string | null; says: string | null } | null>(null)
+
+  const framing = pageFraming(
+    company?.kind ?? 'VENDOR',
+    'timesheets',
+    atDesk ? { seated: true, companyName: atDesk.companyName } : null
+  )
   const [rejectTarget, setRejectTarget] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   // The week that went over the line, and the sentence that asks about it.
   const [deciding, setDeciding] = useState<{ row: Timesheet; weeks: PendingWeek[]; lead: string } | null>(null)
 
-  // Open modal from ?new=1 link
+  /**
+   * One week, because somebody was sent here about one week.
+   *
+   * A link from another screen — money's missing-paperwork list, an
+   * email, a queue row — knows exactly which week it means, and this
+   * page used to throw that away and show all fifty. `?id=` narrows the
+   * list to that row and says so in a line with a way back out; `?status=`
+   * picks the tab. Both are read once, on arrival, and then the reader is
+   * in charge: clearing the filter clears the URL with it, so a refresh
+   * does not undo what they just did.
+   */
+  const [onlyId, setOnlyId] = useState<string | null>(null)
+
   useEffect(() => {
     if (searchParams.get('new') === '1') {
       setShowCreate(true)
       router.replace('/dashboard/timesheets')
+      return
     }
+    const id = searchParams.get('id')
+    if (id) setOnlyId(id)
+    const asked = (searchParams.get('status') ?? '').toUpperCase()
+    if (STATUS_FILTERS.includes(asked as StatusFilter)) setStatusFilter(asked as StatusFilter)
   }, [searchParams, router])
+
+  /** Stop narrowing, and take the parameter out of the URL with it. */
+  const showEveryWeek = useCallback(() => {
+    setOnlyId(null)
+    router.replace('/dashboard/timesheets')
+  }, [router])
 
   const fetchTimesheets = useCallback(async () => {
     setLoading(true)
@@ -766,6 +570,8 @@ export default function TimesheetsPage() {
 
       const body = await res.json()
       setTimesheets(body.data?.timesheets ?? [])
+      setFiling(body.data?.filing ?? null)
+      setAtDesk(body.data?.desk?.seated ? body.data.desk : null)
     } catch (err: any) {
       setError(err.message)
       setTimesheets([])
@@ -780,7 +586,11 @@ export default function TimesheetsPage() {
 
   // ── Stats ──────────────────────────────────────────
   const totalHours = timesheets.reduce((sum, t) => sum + t.totalHours, 0)
-  const pendingApproval = timesheets.filter((t) => t.status === 'SUBMITTED').length
+  // Waiting on this reader — not "submitted", which counts the weeks
+  // they have already signed and are waiting on the other firm for.
+  const pendingApproval = timesheets.filter((t) =>
+    t.signature ? t.signature.waitingOnYou : t.status === 'SUBMITTED'
+  ).length
   const anomalies = timesheets.filter((t) => t.anomalyScore != null && t.anomalyScore > 0).length
   // What has been approved, valued at the rate this reader is billed —
   // which in a chain is the client's own contract and not its
@@ -942,9 +752,14 @@ export default function TimesheetsPage() {
   }
 
   // ── Filter ─────────────────────────────────────────
-  const filtered = statusFilter === 'ALL'
+  const byStatus = statusFilter === 'ALL'
     ? timesheets
     : timesheets.filter((t) => t.status === statusFilter)
+  // A link that named one week shows that week. Where the named week is
+  // not on this reader's list at all — another company's, or a page
+  // further back — the list is not silently emptied; it says so.
+  const named = onlyId ? timesheets.find((t) => t.id === onlyId) ?? null : null
+  const filtered = onlyId && named ? [named] : byStatus
 
   // ── Column definitions ─────────────────────────────
   const columns: Column<Timesheet>[] = [
@@ -1049,7 +864,16 @@ export default function TimesheetsPage() {
       label: 'Status',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <span className={`chip ${statusChipClass(row.status)}`}>{row.status}</span>
+          {/* A week this side has signed reads as signed, whatever the
+              row's status says — the status waits on both firms. */}
+          <span className={`chip ${row.signature?.youSigned && row.status === 'SUBMITTED' ? 'chip--verified' : statusChipClass(row.status)}`}>
+            {row.signature?.youSigned && row.status === 'SUBMITTED' ? 'SIGNED' : row.status}
+          </span>
+          {row.signature?.youSigned && row.status === 'SUBMITTED' && row.signature.waitingOn && (
+            <span className="text-[11px] text-etyme-muted" title={row.signature.says ?? ''}>
+              waiting on {row.signature.waitingOn}
+            </span>
+          )}
           {(row.overtime?.weeks?.length ?? 0) > 0 && (
             <button
               onClick={(e) => {
@@ -1078,7 +902,7 @@ export default function TimesheetsPage() {
           {/* A button the server would refuse is not a button. The
               commonest case is the person whose week it is: their hours,
               somebody else's signature. */}
-          {row.status === 'SUBMITTED' && !row.mayApprove && row.mayApproveWhyNot && (
+          {row.status === 'SUBMITTED' && !row.mayApprove && !row.signature?.youSigned && row.mayApproveWhyNot && (
             <span className="text-[11px] text-etyme-faint">{row.mayApproveWhyNot}</span>
           )}
           {row.status === 'SUBMITTED' && row.mayApprove && (
@@ -1130,10 +954,12 @@ export default function TimesheetsPage() {
           <h1>{framing.title}</h1>
           <p>{framing.subtitle}</p>
         </div>
-        {/* A client approves hours; the consultant's vendor raises them. */}
-        {!isClient && (
+        {/* A client approves hours; the consultant's vendor raises them.
+            A program office at a client's desk is on the client's side of
+            that sentence, which the session alone cannot see. */}
+        {(filing ? filing.may : !isClient) && framing.create && (
           <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
-            + New
+            + {framing.create}
           </button>
         )}
       </div>
@@ -1195,6 +1021,20 @@ export default function TimesheetsPage() {
           </button>
         ))}
       </div>
+
+      {/* Somebody was sent here about one week. */}
+      {onlyId && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3">
+          <p className="flex-1 text-[13px] text-etyme-ink">
+            {named
+              ? `Showing one week — ${named.person.name}, ${formatPeriod(named.periodStart, named.periodEnd)}.`
+              : 'That week is not on this list. It may belong to another company, or it may have moved on already.'}
+          </p>
+          <button onClick={showEveryWeek} className="text-[12px] text-etyme-action hover:underline">
+            Show every week
+          </button>
+        </div>
+      )}
 
       {/* Data table */}
       <ListSurface<Timesheet>
@@ -1290,12 +1130,18 @@ export default function TimesheetsPage() {
 
       {/* What happens to a week that went over the line */}
       {deciding && (
-        <DecideOvertimeModal
-          row={deciding.row}
+        <DecideOvertime
+          timesheetId={deciding.row.id}
+          personName={deciding.row.person.name}
           weeks={deciding.weeks}
           lead={deciding.lead}
+          terms={{
+            afterHours: deciding.row.overtime?.afterHours,
+            multiplierBps: deciding.row.overtime?.multiplierBps,
+            rateCents: deciding.row.overtime?.rateCents ?? deciding.row.rate.cents,
+          }}
           onClose={() => setDeciding(null)}
-          onDecided={(message) => {
+          onDecided={(message: string) => {
             setDeciding(null)
             setToast({ message, type: 'success' })
             setTimeout(() => setToast(null), 5000)

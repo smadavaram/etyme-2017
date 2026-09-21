@@ -226,7 +226,7 @@ describe('the grid itself', () => {
 })
 
 describe('1 · a role is posted', () => {
-  it('a client opens a role on its own cost center; a supplier raises one for a client it already places at; the consultant, who buys nobody, cannot', async () => {
+  it('a role belongs to the company hiring: a client opens one on its own cost center, a prime or a bench vendor opens its own, and the consultant, who buys nobody, cannot', async () => {
     const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
     const grid = await eachParty(async (party) =>
       json(await raiseRequisition(req('POST', '/api/requisitions', {
@@ -240,26 +240,63 @@ describe('1 · a role is posted', () => {
     expect(grid.CLIENT.ok, `Northbend Athletic could not open its own role: ${grid.CLIENT.says}`).toBe(true)
     // A person with no seat has no company to open a role for.
     expect(grid.CANDIDATE.ok).toBe(false)
-    // A supplier already placing somebody raises it for that client.
-    for (const party of ['GSI', 'PRIME', 'SUB', 'BENCH_VENDOR'] as Party[]) {
+    // A prime, a GSI, a sub, a bench vendor and a one-person corporation
+    // all buy as well as sell (CLAUDE.md, "Who sells and who buys"), so
+    // each opens its own role. The program office is the one that does
+    // not — see the sentence below.
+    for (const party of ['GSI', 'PRIME', 'SUB', 'BENCH_VENDOR', 'SOLOPRENEUR'] as Party[]) {
       expect(grid[party].ok, `${FIRM[party]}: ${grid[party].says}`).toBe(true)
     }
     refusalsAreSentences(grid)
+
+    // And it lands on their own record, never on their customer's. This
+    // used to resolve "the first client you place somebody at" and wrote
+    // a supplier's role — its approval chain, its cost center and all —
+    // onto that client's company.
+    for (const party of ['GSI', 'PRIME', 'SUB', 'BENCH_VENDOR', 'SOLOPRENEUR'] as Party[]) {
+      const theirs = await prisma.requirement.findFirstOrThrow({
+        where: { title: `Sustainability data analyst — ${FIRM[party]}` },
+        select: { companyId: true, company: { select: { name: true } } },
+      })
+      expect(
+        theirs.company.name,
+        `${FIRM[party]}'s role was written onto ${theirs.company.name}'s record`
+      ).toBe(FIRM[party])
+    }
     it_.turnedAway = grid
     it_.requisition = (await prisma.requirement.findFirstOrThrow({
       where: { companyId: co['world-nike'], title: 'Sustainability data analyst — Northbend Athletic' },
     })).id
   })
 
-  it('a firm the platform cannot tie to a client is turned away in a sentence that says why, never in a code', async () => {
-    // The program office and the one-person corporation are the two
-    // that hit this: neither places anybody itself, so neither has a
-    // client the platform can infer. What they read used to be "No
-    // client company found for this caller".
-    for (const party of ['MSP', 'SOLOPRENEUR'] as Party[]) {
-      expect(it_.turnedAway[party].says, `${FIRM[party]} was refused in a code`).toContain(FIRM[party])
-      expect(it_.turnedAway[party].says).toMatch(/not tied to a client yet/)
-    }
+  it('a one-person corporation opens its own role, and it is never written onto a client’s record', async () => {
+    // The one it used to be written onto was whichever client the firm
+    // happened to place somebody at first — the role, its approval chain
+    // and its cost center, all on somebody else's company.
+    expect(it_.turnedAway.SOLOPRENEUR.ok, it_.turnedAway.SOLOPRENEUR.says).toBe(true)
+    const theirs = await prisma.requirement.findFirstOrThrow({
+      where: { title: `Sustainability data analyst — ${FIRM.SOLOPRENEUR}` },
+      select: { company: { select: { name: true, kind: true } } },
+    })
+    expect(theirs.company.name).toBe(FIRM.SOLOPRENEUR)
+    expect(theirs.company.kind).not.toBe('CLIENT')
+  })
+
+  it('a program office opens no role of its own, because it places nobody — it opens the client’s, from the desk it was granted', async () => {
+    // Kestrel is seated at Talvern Medical's Compliance Officer desk
+    // (`lib/seed-world`), and a compliance desk does not raise roles. So
+    // the refusal names the client whose desk it is sitting at, which is
+    // the true answer: not "you have no client", but "not from here".
+    const said = it_.turnedAway.MSP
+    expect(said.ok, said.says).toBe(false)
+    expect(said.says).toMatch(/[a-z]{3,}\s+[a-z]{2,}/i)
+    expect(said.says).toMatch(/hiring manager or the program office|seat in their program office/)
+
+    // And nothing was written under its name, or under anybody else's.
+    const none = await prisma.requirement.findFirst({
+      where: { title: `Sustainability data analyst — ${FIRM.MSP}` },
+    })
+    expect(none, 'a program office wrote a role nobody asked it for').toBeNull()
   })
 })
 
@@ -573,15 +610,20 @@ describe('11 · a program office acts in a seat the client granted, or it does n
   const NORTHBEND_OWNER = owner('world-nike')
   const CAVANAUGH_OWNER = owner('world-corning')
 
-  it('a program office with no seat is told what is missing, not shown an empty program', async () => {
+  it('a program office reads the seats it holds, and no seat at Northbend until Northbend grants one', async () => {
+    // This used to assert Kestrel held no live seat at all and read the
+    // sentence that says what is missing. `lib/seed-world` now seats
+    // Kestrel at Talvern Medical's Compliance Officer desk, so "no seat"
+    // is no longer true of the firm — only of this client, which is the
+    // fact the block is about.
     as(SEAT.MSP)
     const { body } = await seatRoute('GET')
     expect(body?.data?.side).toBe('OFFICE')
-    expect(body.data.seats.filter((s: any) => s.live)).toHaveLength(0)
-    // Not an empty table, which reads as "nobody has granted anything".
-    expect(body.data.says).toContain('Kestrel MSP')
-    expect(body.data.says).toMatch(/seat the client grants/)
-    expect(body.data.says).toMatch(/owner or the program manager/)
+    const live = body.data.seats.filter((s: any) => s.live)
+    expect(
+      live.map((s: any) => s.clientCompany?.id ?? s.clientCompanyId),
+      'Kestrel held a seat at Northbend before Northbend granted one'
+    ).not.toContain(co['world-nike'])
   })
 
   it('a program office cannot grant itself a seat', async () => {
@@ -682,11 +724,18 @@ describe('11 · a program office acts in a seat the client granted, or it does n
     const gone = await revokeRoute(it_.seat, { reason: 'The program is coming back in house from October.' })
     expect(gone.body?.error, JSON.stringify(gone.body)).toBeUndefined()
 
+    // Kestrel also holds a seeded compliance seat at Talvern Medical
+    // (`lib/seed-world`), so "reads nothing" was never quite the claim:
+    // what it reads is whatever seats it still holds, and Northbend is
+    // no longer one of them. The ledger it lost is the one that matters.
     as(SEAT.MSP)
     const after = await json(await tenure(req('GET', '/api/tenure')))
-    expect(after.status).toBeGreaterThanOrEqual(400)
-    expect(after.body.error.message).toMatch(/not tied to a client yet/)
-    expect(after.body.error.message).toContain('Kestrel MSP')
+    const stillReading = after.body?.data?.client?.id ?? null
+    expect(stillReading, 'a revoked seat still read the client that took it back').not.toBe(co['world-nike'])
+    if (after.status >= 400) {
+      expect(after.body.error.message).toMatch(/not tied to a client yet/)
+      expect(after.body.error.message).toContain('Kestrel MSP')
+    }
 
     // The row stays: who was in the program, from when to when, and why
     // they came out, is the answer somebody may have to give later.

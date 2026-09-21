@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { DecideOvertime, type PendingWeek } from '../timesheets/decide-overtime'
 import Link from 'next/link'
 
 /**
@@ -116,6 +117,12 @@ export default function DecisionsPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [acting, setActing] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  // The week that went over the line, and the sentence that asks about it.
+  // The supplier answers on its own leg: what it pays for those hours is
+  // its agreement with the person, not the client's with it.
+  const [deciding, setDeciding] = useState<
+    { timesheetId: string; personName: string; weeks: PendingWeek[]; lead: string } | null
+  >(null)
 
   const fetchDecisions = useCallback(async () => {
     setLoading(true)
@@ -145,10 +152,12 @@ export default function DecisionsPage() {
 
   function showToast(message: string, type: 'success' | 'error' = 'success') {
     setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+    // A refusal is a sentence somebody has to read and act on, and three
+    // seconds is not long enough to read one. Good news can go quietly.
+    setTimeout(() => setToast(null), type === 'success' ? 3000 : 6000)
   }
 
-  async function handleApproveTimesheet(entityId: string, e: React.MouseEvent) {
+  async function handleApproveTimesheet(entityId: string, e: React.MouseEvent, title: string) {
     e.preventDefault()
     e.stopPropagation()
     setActing(entityId)
@@ -156,6 +165,18 @@ export default function DecisionsPage() {
       const res = await fetch(`/api/timesheets/${entityId}/approve`, { method: 'POST' })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
+        // Over the weekly line is a question, not a failure. Shown as a
+        // red toast it read as "something went wrong" and left the week
+        // unsignable; asked, it takes ten seconds and decides the money.
+        if (body.error?.code === 'OVERTIME_UNDECIDED') {
+          setDeciding({
+            timesheetId: entityId,
+            personName: title.replace(/^(Approve|Review) (timesheet|expense) — /, ''),
+            weeks: (body.error.weeks ?? []) as PendingWeek[],
+            lead: body.error.message as string,
+          })
+          return
+        }
         throw new Error(body.error?.message ?? 'Approval failed')
       }
       showToast('Timesheet approved')
@@ -339,7 +360,7 @@ export default function DecisionsPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   {d.type === 'TIMESHEET_APPROVAL' && (
                     <button
-                      onClick={(e) => handleApproveTimesheet(d.entityId, e)}
+                      onClick={(e) => handleApproveTimesheet(d.entityId, e, d.title)}
                       disabled={acting === d.entityId}
                       className="px-3 py-1.5 text-[11px] font-medium rounded-md
                                  bg-etyme-verified text-white hover:bg-etyme-verified/90
@@ -384,6 +405,23 @@ export default function DecisionsPage() {
           {filtered.length} decision{filtered.length !== 1 ? 's' : ''}
           {typeFilter !== 'all' && ` · ${typeLabel(typeFilter).toLowerCase()}`}
         </p>
+      )}
+
+      {/* What happens to a week that went over the line */}
+      {deciding && (
+        <DecideOvertime
+          timesheetId={deciding.timesheetId}
+          personName={deciding.personName}
+          weeks={deciding.weeks}
+          lead={deciding.lead}
+          onClose={() => setDeciding(null)}
+          onDecided={(message: string) => {
+            const signed = deciding.timesheetId
+            setDeciding(null)
+            showToast(message)
+            setDecisions((prev) => prev.filter((d) => !(d.entityType === 'TIMESHEET' && d.entityId === signed)))
+          }}
+        />
       )}
 
       {/* Toast notification */}

@@ -124,21 +124,40 @@ describe('A client company reading its own workforce', () => {
   })
 })
 
-// ── The vendor viewing a client they supply ────────────
+// ── A supplier is not handed the buyer's book ──────────
+//
+// Until 2026-09-21 placing somebody at a client was itself the
+// entitlement to read that client's whole program. Two suppliers
+// competing to staff Corveldt Aerospace, and a validation engineer at
+// one of them, each opened Corveldt's own dashboard: how many
+// contractors were on site, what the month cost, and which other firms
+// it bought from.
 
-describe('A vendor reading a client where they place people', () => {
+describe('A supplier reading the client it supplies', () => {
 
-  it('a vendor with a placement at the named client is allowed', async () => {
+  it('a supplier is not handed a client\u2019s program because it has a contract there', async () => {
     vi.mocked(prisma.company.findUnique).mockResolvedValue(TERUMO as any)
     vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({ id: 'contract-1' } as any)
 
     const result = await resolveClientCompany(caller({}), TERUMO.id)
 
-    expect(result.error).toBeNull()
-    expect(result.client?.id).toBe(TERUMO.id)
+    expect(result.client).toBeNull()
+    expect(result.error?.status).toBe(403)
   })
 
-  it('a vendor with no placement at the named client is refused', async () => {
+  it('the refusal names what would open the program, and never promises a placement will', async () => {
+    vi.mocked(prisma.company.findUnique).mockResolvedValue(TERUMO as any)
+    vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({ id: 'contract-1' } as any)
+
+    const result = await resolveClientCompany(caller({ companyName: 'Teleworld' }), TERUMO.id)
+    const body = await result.error!.json()
+
+    expect(body.error.message).toContain('Talvern Medical')
+    expect(body.error.message).toMatch(/seat in their program office/)
+    expect(body.error.message).toMatch(/own placements, contracts, weeks and bills/)
+  })
+
+  it('a supplier with no placement at the named client is refused', async () => {
     vi.mocked(prisma.company.findUnique).mockResolvedValue(NIKE as any)
     vi.mocked(prisma.sellContract.findFirst).mockResolvedValue(null)
 
@@ -148,22 +167,17 @@ describe('A vendor reading a client where they place people', () => {
     expect(result.error?.status).toBe(403)
   })
 
-  it('naming a client that does not exist returns not found', async () => {
+  it('naming a client that is not on the platform is refused in the same words, so nobody can probe for our customers', async () => {
     vi.mocked(prisma.company.findUnique).mockResolvedValue(null)
 
-    const result = await resolveClientCompany(caller({}), 'client-does-not-exist')
+    const a = await resolveClientCompany(caller({}), 'client-does-not-exist')
+    vi.mocked(prisma.company.findUnique).mockResolvedValue(NIKE as any)
+    const b = await resolveClientCompany(caller({}), NIKE.id)
 
-    expect(result.client).toBeNull()
-    expect(result.error?.status).toBe(404)
-  })
-
-  it('a vendor without assignments.read permission is refused', async () => {
-    const result = await resolveClientCompany(
-      caller({ permissions: ['consultants.read'] }),
-      TERUMO.id
-    )
-    expect(result.client).toBeNull()
-    expect(result.error?.status).toBe(403)
+    expect(a.error?.status).toBe(403)
+    expect(b.error?.status).toBe(403)
+    const said = await a.error!.json()
+    expect(said.error.message).not.toMatch(/not found|does not exist/i)
   })
 
   it('a caller with no company context is refused', async () => {
@@ -173,54 +187,51 @@ describe('A vendor reading a client where they place people', () => {
   })
 })
 
-// ── Falling back when no client is named ───────────────
+// ── No client named is no longer a licence to pick one ─
 
-describe('A vendor who does not name a client', () => {
+describe('A supplier that names no client at all', () => {
 
-  it('falls back to a client the vendor actually places at', async () => {
+  it('a supplier with a contract somewhere reads its own workforce, not that client\u2019s', async () => {
     vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({
       clientCompany: TERUMO,
       endClientCompany: null,
     } as any)
 
-    const result = await resolveClientCompany(caller({}), null)
+    const result = await resolveClientCompany(caller({ companyId: 'vendor-brightmoor' }), null)
 
     expect(result.error).toBeNull()
-    expect(result.client?.id).toBe(TERUMO.id)
+    expect(result.client?.id).toBe('vendor-brightmoor')
+    expect(result.client?.id).not.toBe(TERUMO.id)
   })
 
-  it('prefers the end client over the paying customer in the fallback', async () => {
-    // Three-party: vendor bills the MSP, consultant works at Talvern Medical
+  it('a supplier in a chain is not handed the end client\u2019s program either', async () => {
     vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({
       clientCompany: { id: 'msp-globalstaff', name: 'GlobalStaff MSP', slug: 'globalstaff', kind: 'MSP' },
       endClientCompany: TERUMO,
     } as any)
 
-    const result = await resolveClientCompany(caller({}), null)
+    const result = await resolveClientCompany(caller({ companyId: 'vendor-brightmoor' }), null)
 
-    expect(result.client?.id).toBe(TERUMO.id)
-    expect(result.client?.name).toBe('Talvern Medical')
+    expect(result.client?.id).toBe('vendor-brightmoor')
   })
 
-  it('a vendor with no contracts at all gets not found', async () => {
-    vi.mocked(prisma.sellContract.findFirst).mockResolvedValue(null)
-
-    const result = await resolveClientCompany(caller({}), null)
-
+  it('a program office, which places nobody, is told what is missing rather than shown its own empty program', async () => {
+    vi.mocked(prisma.programSeat.findFirst).mockResolvedValue(null as never)
+    const result = await resolveClientCompany(
+      caller({ companyId: 'msp-kestrel', companyName: 'Kestrel MSP', companyKind: 'MSP' }),
+      null
+    )
     expect(result.client).toBeNull()
-    expect(result.error?.status).toBe(404)
+    const body = await result.error!.json()
+    expect(body.error.message).toMatch(/not tied to a client yet/)
   })
 
-  it('the fallback is deterministic so two clients never silently swap', async () => {
-    vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({
-      clientCompany: TERUMO,
-      endClientCompany: null,
-    } as any)
+  it('no contract is read at all, because a contract is no longer the question', async () => {
+    vi.mocked(prisma.sellContract.findFirst).mockClear()
 
     await resolveClientCompany(caller({}), null)
 
-    const call = vi.mocked(prisma.sellContract.findFirst).mock.calls[0][0] as any
-    expect(call.orderBy).toBeDefined()
+    expect(vi.mocked(prisma.sellContract.findFirst)).not.toHaveBeenCalled()
   })
 })
 
@@ -371,14 +382,14 @@ describe('A program office in a seat the client granted', () => {
     expect(r.client).toBeNull()
     const body = await r.error!.json()
     expect(body.error.message).toContain('Kestrel MSP')
-    expect(body.error.message).toMatch(/seat the client grants/)
+    expect(body.error.message).toMatch(/seat in their program office/)
     expect(body.error.message).toMatch(/owner or the program manager/)
   })
 
   it('a seat at one client is no entitlement at another', async () => {
     // Asked for Talvern; the seat is at Northbend, so the seat branch
-    // finds nothing and the placement path answers — which it does by
-    // refusing, because this firm places nobody anywhere.
+    // finds nothing and there is nothing else to find — an office that
+    // runs one client's program is a stranger to the next one.
     vi.mocked(prisma.company.findUnique).mockResolvedValue(TERUMO as never)
     vi.mocked(prisma.sellContract.findFirst).mockResolvedValue(null as never)
     const r = await resolveClientCompany(
@@ -387,13 +398,14 @@ describe('A program office in a seat the client granted', () => {
     )
     expect(r.client).toBeNull()
     const body = await r.error!.json()
-    expect(body.error.message).toContain('no placements at Talvern Medical')
+    expect(body.error.message).toContain('Talvern Medical')
+    expect(body.error.message).toContain('Kestrel MSP')
   })
 })
 
-describe('MSP and GSI callers follow the vendor path', () => {
+describe('MSP and GSI callers are refused the same way a staffing vendor is', () => {
 
-  it('an MSP with a placement at the client is allowed', async () => {
+  it('an MSP that supplies people to a client still cannot read that client\u2019s program', async () => {
     vi.mocked(prisma.company.findUnique).mockResolvedValue(TERUMO as any)
     vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({ id: 'contract-1' } as any)
 
@@ -401,8 +413,20 @@ describe('MSP and GSI callers follow the vendor path', () => {
       caller({ companyKind: 'MSP', companyName: 'GlobalStaff MSP' }),
       TERUMO.id
     )
-    expect(result.error).toBeNull()
-    expect(result.client?.id).toBe(TERUMO.id)
+    expect(result.client).toBeNull()
+    expect(result.error?.status).toBe(403)
+  })
+
+  it('a systems integrator staffing a client cannot read its headcount and spend', async () => {
+    vi.mocked(prisma.company.findUnique).mockResolvedValue(TERUMO as any)
+    vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({ id: 'contract-1' } as any)
+
+    const result = await resolveClientCompany(
+      caller({ companyKind: 'GSI', companyName: 'Teleworld' }),
+      TERUMO.id
+    )
+    expect(result.client).toBeNull()
+    expect(result.error?.status).toBe(403)
   })
 
   it('a GSI without a placement at the client is refused', async () => {

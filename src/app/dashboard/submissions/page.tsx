@@ -851,7 +851,6 @@ export default function SubmissionsPage() {
   // raises a requisition. The AP clerk is a party and is not the one
   // interviewing; the route refuses them, so the button is not offered.
   const mayInterview = isClient && hasPermission(permissions, 'requirements.write')
-  const framing = pageFraming(company?.kind ?? 'VENDOR', 'submissions')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [submissions, setSubmissions] = useState<Submission[]>([])
@@ -877,6 +876,20 @@ export default function SubmissionsPage() {
   const [converting, setConverting] = useState(false)
 
   const [companyId, setCompanyId] = useState<string | null>(null)
+  // Whose pipeline the server answered about. Null until the first read.
+  // A program office in a seat is reading its client's submissions, and
+  // the page says so rather than letting nine of somebody else's rows
+  // look like nine of its own.
+  const [atDesk, setAtDesk] = useState<{ companyName: string | null; says: string | null } | null>(null)
+
+  // The words on the page follow the book being read, not the firm the
+  // reader is employed by: a program office at a client's desk reads the
+  // client's page, headed the way the client would head it.
+  const framing = pageFraming(
+    company?.kind ?? 'VENDOR',
+    'submissions',
+    atDesk ? { seated: true, companyName: atDesk.companyName } : null
+  )
 
   // Read filters from URL params
   const urlRequirementId = searchParams.get('requirementId')
@@ -951,6 +964,7 @@ export default function SubmissionsPage() {
 
       const body = await res.json()
       setSubmissions(body.data?.submissions ?? [])
+      setAtDesk(body.data?.desk?.seated ? body.data.desk : null)
     } catch (err: any) {
       setError(err.message)
       setSubmissions([])
@@ -1247,10 +1261,14 @@ export default function SubmissionsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 md:mt-3 md:shrink-0">
-          {/* Submit button — a client receives candidates, never submits them */}
-          {!isClient && (
+          {/* Submit button — a client receives candidates, never submits
+              them, and neither does a program office at a client's desk.
+              The label and whether there is one at all come from the same
+              framing as the heading (`lib/page-framing`), so the button
+              cannot say "Submit" over a page headed "Candidates". */}
+          {framing.create && (
             <button onClick={() => setShowSubmitModal(true)} className="btn-primary">
-              + Submit
+              + {framing.create}
             </button>
           )}
 
@@ -1279,6 +1297,13 @@ export default function SubmissionsPage() {
           </div>
         </div>
       </div>
+
+      {/* Whose desk this is, where it is not the reader's own firm. */}
+      {atDesk?.says && (
+        <div className="mb-5 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3">
+          <p className="text-[13px] text-etyme-ink">{atDesk.says}</p>
+        </div>
+      )}
 
       {/* Stats row — prototype Stat component pattern */}
       <div className="flex gap-3 mb-6 flex-wrap">

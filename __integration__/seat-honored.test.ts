@@ -12,6 +12,7 @@ import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route
 import { GET as requirements } from '@/app/api/requirements/route'
 import { GET as suppliers } from '@/app/api/suppliers/route'
 import { GET as people } from '@/app/api/people/route'
+import { GET as submissions } from '@/app/api/submissions/route'
 import { GET as onePerson } from '@/app/api/people/[id]/route'
 import { GET as timesheets } from '@/app/api/timesheets/route'
 import { POST as approveTimesheet } from '@/app/api/timesheets/[id]/approve/route'
@@ -236,6 +237,32 @@ describe('a program office acts at the client’s desk', () => {
     const org = await json(await orgView(req('GET', '/api/program/org')))
     expect(org.body?.error, JSON.stringify(org.body)).toBeUndefined()
     expect(org.body.data.summary.headcount).toBeGreaterThan(0)
+  })
+
+  it('a seated program office reads the people put in front of the client, not its own empty pipeline', async () => {
+    as(APTIVA_ANALYST)
+    const { status, body } = await json(
+      await submissions(req('GET', `/api/submissions?direction=received&companyId=${co['world-aptiva']}`))
+    )
+    expect(body?.error, JSON.stringify(body)).toBeUndefined()
+    expect(status).toBe(200)
+    // Cavanaugh has candidates against its roles; Aptiva, which places
+    // nobody, has none of its own. Reading its own is how the page came
+    // to say "0 submissions" beside nine of the client's roles.
+    expect(body.data.submissions.length).toBeGreaterThan(0)
+    for (const row of body.data.submissions) {
+      expect(row.toCompany.id).toBe(co['world-corning'])
+    }
+  })
+
+  it('the submissions list says whose desk it answered from, so nine of the client’s rows never read as nine of the office’s', async () => {
+    as(APTIVA_ANALYST)
+    const { body } = await json(
+      await submissions(req('GET', `/api/submissions?direction=received&companyId=${co['world-aptiva']}`))
+    )
+    expect(body.data.desk.seated).toBe(true)
+    expect(body.data.desk.companyName).toBe('Cavanaugh Glassworks')
+    expect(body.data.desk.says).toContain('Cavanaugh Glassworks')
   })
 
   it('a seated program office adds a business unit to the client’s org chart, not to its own', async () => {
@@ -487,6 +514,17 @@ describe('a revoked seat is refused the next second', () => {
     expect(panel.body.data.suppliers, 'a revoked office still read the client’s supplier panel').toHaveLength(0)
   })
 
+  it('a revoked seat reads its own submissions, never the client’s', async () => {
+    as(APTIVA_ANALYST)
+    const { body } = await json(
+      await submissions(req('GET', `/api/submissions?direction=received&companyId=${co['world-aptiva']}`))
+    )
+    expect(body.data.desk.seated).toBe(false)
+    for (const row of body.data.submissions ?? []) {
+      expect(row.toCompany.id).not.toBe(co['world-corning'])
+    }
+  })
+
   it('a revoked seat cannot open one person’s page at the client', async () => {
     as(APTIVA_ANALYST)
     const { status } = await call(
@@ -618,12 +656,20 @@ describe('what two suppliers charge for one role', () => {
     expect(body.data.rateSpread.basis).toContain('is itself billed on')
   })
 
-  it('a supplier reading a client’s program is shown no spread at all, because what a client pays its competitors is not its business', async () => {
+  it('a supplier cannot open its client’s program at all, so there is no spread to withhold', async () => {
+    // This used to admit Halcyon to Cavanaugh's dashboard and check that
+    // the rate spread came back empty. Withholding one panel was the
+    // wrong answer to the wrong question: the rest of the page is the
+    // client's headcount, its monthly spend and the names of the other
+    // firms it buys from, and Halcyon is one of those firms. Supplying
+    // somebody is not a claim on the buyer's book (2026-09-21).
     as(`world-halcyon${D}`)
-    const { body } = await json(
+    const { status, body } = await json(
       await program(req('GET', `/api/program?clientCompanyId=${co['world-corning']}`))
     )
-    expect(body?.error, JSON.stringify(body)).toBeUndefined()
-    expect(body.data.rateSpread.roles).toHaveLength(0)
+    expect(status).toBe(403)
+    expect(body.error.message).toContain('Cavanaugh Glassworks')
+    expect(body.error.message).toContain('Halcyon Talent')
+    expect(body.error.message).toMatch(/seat in their program office/)
   })
 })

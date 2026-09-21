@@ -35,7 +35,8 @@ describe('what the client desk is told', () => {
     // `client-facing-names` on 2026-09-17 and routed through the one rule
     // that decides whose name a client may read.
     expect(decisions).toContain("import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'")
-    expect(decisions).toContain("seenNames.get(sc.companyId)?.phrase ?? 'a supplier on this site'")
+    expect(decisions).toContain('const seenName = seenNames.get(sc.companyId)')
+    expect(decisions).toContain(": 'a supplier on this site'")
   })
 
   it('the queue a client approves from prices a week at the contract that client is billed on', () => {
@@ -43,7 +44,7 @@ describe('what the client desk is told', () => {
     // firms below the reader. Priced there it was blank for the client
     // and, before that, its supplier's supplier's rate. Walked up, Northbend Athletic
     // reads its own $145.
-    expect(decisions).toContain("import { payerRung } from '@/lib/chain-top'")
+    expect(decisions).toContain("import { payerRung, viaPhrase } from '@/lib/chain-top'")
     expect(decisions).toContain('const filed = rungs.find((r) => r.id === sc.id)')
     expect(decisions).toContain('payerRung(filed, rungs)')
     expect(decisions).toContain('paying && (!asClient || paying.clientCompanyId === companyId)')
@@ -113,6 +114,83 @@ describe('what the client desk is told', () => {
     expect(program).toContain('standing: tierWord(tierOf.get(v.id), agreed.has(v.id))')
     expect(page).toContain("const quiet = r.status === 'OPEN' && r.submissions === 0 && r.openDays >= 5")
     expect(page).toContain('Widen the release or ask the suppliers.')
+  })
+
+  it('a firm with a contractor on site is on the supplier register, agreement or no agreement', () => {
+    // Cavanaugh's dashboard named four suppliers and its Suppliers page
+    // listed three: Wrenfield Technical had somebody on site and no
+    // agreement on file, so the register — built from agreements and
+    // invitations only — did not know it existed.
+    const suppliers = read('src/app/api/suppliers/route.ts')
+    expect(suppliers).toContain('for (const c of engagements) {')
+    expect(suppliers).toContain('if (byCompany.has(c.companyId)) continue')
+    // And an agreement found later enriches that row rather than wiping
+    // the contacts and the invitation off it.
+    expect(suppliers).toContain('const had = byCompany.get(a.vendorId)')
+  })
+
+  it('a firm with somebody on site and no agreement behind them says so, on the register and on the dashboard', () => {
+    // The flag was already on every row of `/api/suppliers` and was read
+    // for nothing but the wording of a dropdown option; the dashboard
+    // said "Not rated", which is the standing word and not this fact.
+    const register = read('src/app/dashboard/suppliers/page.tsx')
+    expect(register).toContain('const noAgreement = (s: Supplier): string =>')
+    expect(register).toContain('with no agreement on file')
+    expect(register).toContain('No agreement')
+    expect(program).toContain('agreement: agreed.has(v.id)')
+    expect(page).toContain('on site with no agreement on file. Get one signed.')
+  })
+
+  it('the all-clear on tenure counts what tenure counts — everybody who has worked here, not everybody on site', () => {
+    // "All 5 people on site are inside the cap" sat beside "ON SITE 4".
+    // Both numbers were right. One of the five had left, served a break
+    // and was clear to return: not on site, and not inside the cap.
+    expect(page).toContain('function capSentence(')
+    expect(page).toContain('people who have worked here')
+    expect(page).toContain('served a break')
+    expect(page).not.toContain('people on site are inside the cap')
+  })
+
+  it('the contractors tab counts people working today, and says separately how many have not started', () => {
+    expect(page).toContain("const onSite = contractors.filter((c) => c.state === 'IN_PROGRESS').length")
+    expect(page).toContain('const toStart = contractors.length - onSite')
+    expect(page).not.toContain('active contractor{contractors.length !== 1')
+  })
+
+  it('a masked supplier reads like English after the word "through", not like the word twice', () => {
+    // "45h · through the firm supplied through Computer Systems Inc" was
+    // correct masking and nobody's sentence.
+    const chain = read('src/lib/chain-top.ts')
+    expect(chain).toContain('export function viaPhrase(')
+    expect(chain).toContain('`a firm ${seen.through} arranged`')
+    expect(decisions).toContain('viaPhrase(seenName)')
+    expect(program).toContain('viaPhrase(shown(c.company.id, c.company.name))')
+    expect(program).not.toContain('through ${shown(c.company.id, c.company.name).phrase}')
+  })
+
+  it('a week this client has already signed reads as signed, offers no second tick, and leaves the count', () => {
+    const list = read('src/app/api/timesheets/route.ts')
+    const screen = read('src/app/dashboard/timesheets/page.tsx')
+    expect(list).toContain("import { maySign, type Sheet } from '@/lib/timesheet-signatures'")
+    expect(list).toContain('function waitingSentence(')
+    expect(list).toContain('waitingOnYou: entitled.ok && signable.ok')
+    expect(screen).toContain('t.signature ? t.signature.waitingOnYou : t.status === \'SUBMITTED\'')
+    expect(screen).not.toContain("const pendingApproval = timesheets.filter((t) => t.status === 'SUBMITTED').length")
+  })
+
+  it('a week over the weekly hours asks what happens to them from every desk that signs a week', () => {
+    // The route refused with OVERTIME_UNDECIDED and a good sentence, and
+    // only the Timesheets list had ever been taught to ask. On the
+    // program dashboard and the supplier's Decisions page the row sprang
+    // back: a dead end with no words on it.
+    const modal = read('src/app/dashboard/timesheets/decide-overtime.tsx')
+    const queue = read('src/app/dashboard/decisions/page.tsx')
+    expect(modal).toContain('export function DecideOvertime(')
+    for (const screen of [page, queue]) {
+      expect(screen).toContain("from '../timesheets/decide-overtime'")
+      expect(screen).toContain("=== 'OVERTIME_UNDECIDED'")
+      expect(screen).toContain('<DecideOvertime')
+    }
   })
 
   it('a client with nothing on it yet is told what to do first, not shown six zeros', () => {

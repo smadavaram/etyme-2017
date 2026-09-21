@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { isConsultantSeat } from '@/lib/seat'
 import { maySeeOutside } from '@/lib/walls'
-import { seatFor, actingInSeat, noteSeatRead, noSeatYet, type LiveSeat } from '@/lib/program-seat'
+import { seatFor, actingInSeat, noteSeatRead, type LiveSeat } from '@/lib/program-seat'
 import { descendants } from '@/lib/org-tree'
 import type { CallerContext } from '@/lib/api-context'
 
@@ -17,7 +16,7 @@ import type { CallerContext } from '@/lib/api-context'
  * the query string with no check, so any authenticated user could read
  * any client's tenure ledger by editing the URL.
  *
- * Three legitimate callers:
+ * Two legitimate callers, and there is no third:
  *
  *   1. The client themselves (company.kind === 'CLIENT').
  *      They are the subject. They may not name a different client.
@@ -28,14 +27,18 @@ import type { CallerContext } from '@/lib/api-context'
  *      client saying so is the proof, the client's own role is what it
  *      may do, and every read under it is logged against the seat.
  *
- *   3. A vendor, MSP, or GSI who actually places people there.
- *      Entitlement is proven by a SellContract linking the caller's
- *      company to that end client — resolved through endClientFilter,
- *      so the three-party layer cake (vendor bills MSP, consultant
- *      works at the enterprise) still grants access to the enterprise.
+ * There was a third until 2026-09-21: a vendor, MSP or GSI that placed
+ * somebody at the client. It is gone, and the reason is written where
+ * it used to be. Supplying people to a client is not a claim on the
+ * client's own book, and a supplier holding one reads what its
+ * competitors charge.
  *
- * Anyone else gets 403. A caller with no contract relationship to the
- * named client gets 403 even if the client exists.
+ * What replaces it is not a refusal but a narrower answer: a firm that
+ * names nobody reads **its own** contingent workforce, because a prime
+ * and a GSI buy as well as sell. A program office is the one kind that
+ * has none of its own, and is told what is missing instead.
+ *
+ * Naming somebody else's company gets 403, whether or not it exists.
  *
  * CLAUDE.md: "Every read path filters by context from the first commit."
  */
@@ -59,34 +62,6 @@ function forbidden(message: string): Resolution {
       { status: 403 }
     ),
   }
-}
-
-function notFound(message: string): Resolution {
-  return {
-    client: null,
-    error: NextResponse.json(
-      { error: { code: 'NOT_FOUND', message } },
-      { status: 404 }
-    ),
-  }
-}
-
-/**
- * Does the caller's company have any contract placing a person at this
- * end client? This is the entitlement proof for a vendor-side caller.
- */
-async function hasPlacementRelationship(
-  vendorCompanyId: string,
-  endClientId: string
-): Promise<boolean> {
-  const contract = await prisma.sellContract.findFirst({
-    where: {
-      companyId: vendorCompanyId,
-      ...endClientFilter(endClientId),
-    },
-    select: { id: true },
-  })
-  return contract !== null
 }
 
 /**
@@ -272,59 +247,97 @@ export async function resolveClientCompany(
     return { client: seat.clientCompany, seat, error: null }
   }
 
-  // ── Case 3: vendor / MSP / GSI viewing a client they supply ──
-  // Viewing another company's workforce is an assignment-level read.
-  if (!hasPermission(caller.permissions, 'assignments.read')) {
-    return forbidden('Requires assignments.read permission')
-  }
-
-  const vendorCompanyId = caller.company.id
-
-  if (requestedClientId) {
+  // ── There is no case 3 ──────────────────────────────────────────────
+  //
+  // There used to be: a vendor, MSP or GSI that placed somebody at a
+  // client was handed that client's program, and where no client was
+  // named the helper picked one off the caller's first contract. On
+  // 2026-09-21 that put Corveldt Aerospace's own dashboard — "2
+  // contractors on site through 2 suppliers, $43,680 this month" — in
+  // front of two of the suppliers competing to staff it, and in front of
+  // a validation engineer at one of them who holds two read
+  // permissions.
+  //
+  // Supplying somebody is not a claim on the buyer's book. What a client
+  // spends, how many contractors it has and which other firms it buys
+  // from is the client's own picture, and a supplier that can read it
+  // knows what its competitors charge — which is the same leak
+  // `lib/chain-top` exists to stop one rung down, pointed sideways.
+  //
+  // A supplier is not shut out of anything it is a party to. Its own
+  // placements, its own contracts, its own weeks and its own bills are
+  // scoped by `payerScope`, `buyContractScope` and the rest of this
+  // file, and none of them goes through here. What goes through here is
+  // a whole client program, and that has exactly two readers: the client
+  // itself, and a firm holding a seat the client granted it.
+  if (requestedClientId && requestedClientId !== caller.company.id) {
     const client = await prisma.company.findUnique({
       where: { id: requestedClientId },
-      select: { id: true, name: true, slug: true, kind: true },
+      select: { id: true, name: true },
     })
-
-    if (!client) {
-      return notFound('Client company not found')
-    }
-
-    const entitled = await hasPlacementRelationship(vendorCompanyId, client.id)
-    if (!entitled) {
-      return forbidden(
-        `${caller.company.name} has no placements at ${client.name}.`
-      )
-    }
-
-    return { client, error: null }
+    // Whether that id exists is not answered. Saying "no such client" to
+    // one id and "you have no seat there" to another is a way of asking
+    // which of our customers is on the platform.
+    return forbidden(notYourProgram(caller.company.name, client?.name ?? null))
   }
 
-  // No client named — fall back to a client this caller actually places at.
-  // Deterministic (ordered by name) so two clients never silently swap.
-  const contract = await prisma.sellContract.findFirst({
-    where: { companyId: vendorCompanyId },
-    select: {
-      clientCompany: { select: { id: true, name: true, slug: true, kind: true } },
-      endClientCompany: { select: { id: true, name: true, slug: true, kind: true } },
+  // ── Nobody else's, so their own ─────────────────────────────────────
+  //
+  // A prime, a GSI, a sub and a one-person corporation all buy as well
+  // as sell (CLAUDE.md, "Who sells and who buys"). They have a
+  // contingent workforce of their own — the people they engage, the
+  // subs below them, those firms' insurance and those people's tenure at
+  // *their* site — and these routes are how it is read. Computer Systems
+  // reading CloudEPA's certificate is Computer Systems reading its own
+  // supply chain, and that is a different question from Computer Systems
+  // reading Auralis's.
+  //
+  // A program office is the exception, and it is the kind's whole
+  // meaning: an MSP places nobody, so "the program" is never its own —
+  // it is a client's, or it is nothing. Shown its own it would read an
+  // empty page, which the 2026-09-14 decision names as the wrong answer:
+  // "told what is missing, not shown an empty program."
+  if (caller.company.kind === 'MSP') {
+    return forbidden(notYourProgram(caller.company.name, null))
+  }
+
+  return {
+    client: {
+      id: caller.company.id,
+      name: caller.company.name,
+      slug: caller.company.slug,
+      kind: caller.company.kind,
     },
-    orderBy: [{ clientCompanyId: 'asc' }, { id: 'asc' }],
-  })
-
-  const fallback = contract?.endClientCompany ?? contract?.clientCompany ?? null
-
-  if (!fallback) {
-    // A code is for the machine; the sentence is the product. This said
-    // "No client company found for this caller", which tells somebody
-    // running a program office nothing about what to do next — and they
-    // are exactly who hits it, because an MSP places nobody itself.
-    //
-    // Since the seat exists (2026-09-20) the sentence names it: what is
-    // missing is a desk the client grants, and who can grant it.
-    return notFound(noSeatYet(caller.company.name))
+    error: null,
   }
+}
 
-  return { client: fallback, error: null }
+/**
+ * Why a firm that is not the client cannot read the client's program.
+ *
+ * Says what is missing and what opens it, in the words a program office
+ * would use — never "FORBIDDEN", and never the old sentence, which told
+ * a supplier it would be let in once it placed somebody.
+ */
+function notYourProgram(callerName: string, clientName: string | null): string {
+  if (!clientName) {
+    // Nobody was named, so the sentence cannot name anybody either. It
+    // says what is missing — a seat — rather than "no client company
+    // found for this caller", which is a machine talking to itself.
+    return (
+      `${callerName} is not tied to a client yet. A client's program — its headcount, its spend ` +
+      `and the other firms it buys from — is read by the client itself and by a firm holding a ` +
+      `seat the client granted. Supplying people there does not open it. Ask an owner or the ` +
+      `program manager at that client to grant ${callerName} a seat in their program office.`
+    )
+  }
+  return (
+    `${clientName}'s program belongs to ${clientName}. Supplying people there does not open it — ` +
+    `what a client spends and which other firms it buys from is its own picture. ` +
+    `${callerName} reads its own placements, contracts, weeks and bills wherever they are. ` +
+    `If ${callerName} runs this program rather than supplying people, ask an owner or the program ` +
+    `manager at ${clientName} to grant ${callerName} a seat in their program office.`
+  )
 }
 
 /**

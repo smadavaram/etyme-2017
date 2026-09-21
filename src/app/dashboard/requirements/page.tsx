@@ -374,7 +374,6 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
 export default function RequirementsPage() {
   const { company } = useSession()
   const isClient = company?.kind === 'CLIENT'
-  const framing = pageFraming(company?.kind ?? 'VENDOR', 'requirements')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [requirements, setRequirements] = useState<Requirement[]>([])
@@ -382,6 +381,15 @@ export default function RequirementsPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [showNew, setShowNew] = useState(false)
+  // Whose roles the server answered about. A program office in a seat is
+  // reading the client's, and the page heads itself accordingly.
+  const [atDesk, setAtDesk] = useState<{ companyName: string | null; says: string | null } | null>(null)
+
+  const framing = pageFraming(
+    company?.kind ?? 'VENDOR',
+    'requirements',
+    atDesk ? { seated: true, companyName: atDesk.companyName } : null
+  )
 
   // Open the new modal when navigated with ?new=1
   useEffect(() => {
@@ -412,6 +420,7 @@ export default function RequirementsPage() {
         matches: r.counts?.matches ?? r.matches ?? 0,
       }))
       setRequirements(reqs)
+      setAtDesk(body.data?.desk?.seated ? body.data.desk : null)
     } catch (err: any) {
       setError(err.message)
       setRequirements([])

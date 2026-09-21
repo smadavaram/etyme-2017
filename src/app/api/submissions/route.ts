@@ -11,7 +11,7 @@ import { tellThem } from '@/lib/representation'
 import { consentText, mayMessage } from '@/lib/texts'
 import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
-import { submissionScope } from '@/lib/resolve-client-company'
+import { submissionScope, seatedDesk } from '@/lib/resolve-client-company'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { submissionKind, tellEmployee, blockedSays } from './kind'
@@ -909,9 +909,23 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
+  // ── Whose pipeline this is ──────────────────────────────────────────
+  //
+  // A program office in a seat is reading the client's submissions —
+  // shortlisting is most of what running a program is. Read as its own
+  // it opened on "0 submissions" beside a Requisitions page showing the
+  // client's nine roles, with nothing on the screen to say the two lists
+  // were about different companies. Silence is the worst of the three
+  // possible answers; a refusal would at least have been true.
+  const desk = await seatedDesk(caller)
+  const deskId = desk?.companyId ?? caller.company?.id ?? null
+
   const url = request.nextUrl
   const direction = url.searchParams.get('direction') ?? 'sent'
-  const companyId = url.searchParams.get('companyId')
+  // Under a seat the desk decides, not the query string. The page asks
+  // for the caller's own company because that is what `/api/me` told it,
+  // and the seat is the later fact.
+  const companyId = desk?.seat ? deskId : url.searchParams.get('companyId')
   const filterPersonId = url.searchParams.get('personId')
   const filterRequirementId = url.searchParams.get('requirementId')
   const status = url.searchParams.get('status')
@@ -934,7 +948,9 @@ export async function GET(request: NextRequest) {
   //
   // Prisma ANDs top-level keys, so the scope's OR binds the caller into
   // every query below rather than replacing what was asked for.
-  const scope = submissionScope(caller)
+  const scope = desk?.seat
+    ? { OR: [{ fromCompanyId: deskId }, { toCompanyId: deskId }] }
+    : submissionScope(caller)
   if (!scope) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'No company context' } },
@@ -1001,7 +1017,7 @@ export async function GET(request: NextRequest) {
           // keeps the panel off it: a supplier learns who is in the room
           // when a round is proposed to it, not before.
           interviewers:
-            s.requirement.companyId === caller.company?.id ? s.requirement.interviewers : null,
+            s.requirement.companyId === deskId ? s.requirement.interviewers : null,
         },
         fromCompany: s.fromCompany,
         toCompany: s.toCompany,
@@ -1026,6 +1042,17 @@ export async function GET(request: NextRequest) {
         })),
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      // Whose book was read. Said out loud so the screen can say it too:
+      // a program office reading nine submissions should never have to
+      // work out whether they are its own or the client's.
+      desk: {
+        companyId: deskId,
+        companyName: desk?.companyName ?? caller.company?.name ?? null,
+        seated: !!desk?.seat,
+        says: desk?.seat
+          ? `You are at ${desk.companyName}'s desk. These are the people put in front of ${desk.companyName}, not ${caller.company?.name ?? 'your firm'}.`
+          : null,
+      },
     },
   })
 }

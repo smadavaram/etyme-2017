@@ -994,11 +994,30 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
     expect(JSON.stringify(alumni.body)).not.toContain('CloudEPA')
   })
 
-  it('leaves Computer Systems reading its own supply chain by name, because it is its own', async () => {
+  it('refuses Computer Systems the client\u2019s compliance page, because it is the client\u2019s and not its own', async () => {
+    // This used to be admitted and the sentence beside it read "leaves
+    // Computer Systems reading its own supply chain by name". It was not
+    // reading its own: `?clientCompanyId=` resolved to Auralis and served
+    // Auralis's page — Auralis's governance rules, and every other
+    // supplier at Auralis standing on them. A prime's real need is the
+    // certificate of the sub it pays, which is its own book and is
+    // reached without naming anybody.
+    //
+    // Its own page is thin today and this test says so rather than
+    // pretending otherwise: `/api/compliance` scopes by
+    // `endClientFilter`, which asks who works at *this* site, and
+    // CloudEPA's people work at Auralis's. Scoping a supplier's own page
+    // by the contracts it pays for is `etyme-regulatory`'s to do; it is
+    // reported, not papered over.
     as(PRIME)
-    const r = await json(await complianceView(req('GET', `/api/compliance?clientCompanyId=${co.adobe}`)))
-    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect(r.body.data.verifications.companies.map((c: any) => c.name)).toContain('CloudEPA')
+    const named = await json(await complianceView(req('GET', `/api/compliance?clientCompanyId=${co.adobe}`)))
+    expect(named.status).toBe(403)
+    expect(named.body.error.message).toContain('Auralis Software')
+    expect(named.body.error.message).toMatch(/seat in their program office/)
+
+    const own = await json(await complianceView(req('GET', '/api/compliance')))
+    expect(own.body?.error, JSON.stringify(own.body)).toBeUndefined()
+    expect(JSON.stringify(own.body), 'a supplier read a client\u2019s book off its own page').not.toContain('Auralis Software')
   })
 
   it('records the disclosure term as an amendment, in the words a contract manager would use', async () => {
@@ -1282,7 +1301,9 @@ describe('Step 15a — the week waiting on Auralis’s desk, and whose name is o
 
     const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
     expect(week, 'the client desk is told a week is waiting').toBeTruthy()
-    expect(week.subtitle).toContain('through the firm supplied through Computer Systems')
+    // Not "through the firm supplied through Computer Systems", which
+    // was correct masking and nobody's English (`viaPhrase`).
+    expect(week.subtitle).toContain('through a firm Computer Systems arranged')
     expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
   })
 

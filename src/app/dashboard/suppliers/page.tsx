@@ -315,6 +315,21 @@ export default function SuppliersPage() {
 
   const needFirm = rows?.filter((r) => !r.company).length ?? 0
 
+  /**
+   * What "no agreement" means to the person reading it.
+   *
+   * Sharper where somebody is on site: a contractor working at your
+   * building under a purchase order and nothing else is the exposure the
+   * whole record exists to show, and "No agreement" on its own reads as
+   * a missing field rather than as a risk.
+   */
+  const noAgreement = (s: Supplier): string =>
+    s.onSiteCount > 0
+      ? `${s.onSiteCount} ${s.onSiteCount === 1 ? 'person is' : 'people are'} on site through ` +
+        `${s.name} with no agreement on file — a purchase order and nothing behind it. ` +
+        'Get one signed.'
+      : `No agreement with ${s.name} on file. One is signed before the first person starts.`
+
   const standingSelect = (s: Supplier) => (
     <select
       aria-label={`Standing of ${s.name}`}
@@ -342,6 +357,13 @@ export default function SuppliersPage() {
     { key: 'onSiteCount', label: 'On site', align: 'right', render: (s) => <span className="tabular-nums">{s.onSiteCount}</span> },
     { key: 'lastEngagement', label: 'Last engagement', render: (s) => <span className="tabular-nums text-etyme-muted">{when(s.lastEngagement)}</span>, sortValue: (s) => s.lastEngagement ?? '', hideOnMobile: true },
     { key: 'location', label: 'Location', render: (s) => <span className="text-etyme-muted">{s.location ?? '—'}</span>, hideOnMobile: true },
+    {
+      key: 'agreement', label: 'Agreement',
+      render: (s) => (s.pending ? <span className="text-[12px] text-etyme-faint">—</span>
+        : s.agreement ? <span className="text-[12px] text-etyme-muted">On file</span>
+        : <span className="chip chip--attention" title={noAgreement(s)}>No agreement</span>),
+      sortValue: (s) => (s.agreement ? 1 : 0),
+    },
     { key: 'joined', label: 'Here', render: (s) => <span className={`chip ${s.pending ? 'chip--attention' : s.joined ? 'chip--verified' : 'chip--passive'}`}>{s.pending ? `Pending · ${s.pending.stageWord}` : s.joined ? 'Signed in' : 'Listed'}</span>, sortValue: (s) => (s.pending ? -1 : s.joined ? 1 : 0) },
     {
       key: 'favorite', label: 'First call', align: 'center', sortValue: (s) => (s.favorite ? 1 : 0),
@@ -723,6 +745,12 @@ export default function SuppliersPage() {
                         an agreement on file counts as approved until you say
                         otherwise. */}
                     {standingSelect(s)}
+                    {/* A firm with somebody on site and no agreement
+                        behind them is the exposure this page exists to
+                        show. It was already known here — `agreement`
+                        came back on every row — and was used for
+                        nothing but the wording of a dropdown option. */}
+                    {!s.agreement && <span className="chip chip--attention">No agreement</span>}
                     <span className={`chip ${s.joined ? 'chip--verified' : 'chip--passive'}`}>
                       {s.joined ? 'Signed in' : 'Listed'}
                     </span>
@@ -735,6 +763,9 @@ export default function SuppliersPage() {
               {s.lastEngagement ? `Last engagement ${when(s.lastEngagement)}. ` : ''}
               {s.where}
             </p>
+            {!s.pending && !s.agreement && (
+              <p className="mt-1 text-[12px] text-etyme-attention">{noAgreement(s)}</p>
+            )}
             {s.blocked && (
               <p className="mt-1 text-[12px] text-etyme-attention">Blocked{s.blockedReason ? ` — ${s.blockedReason}` : ''}. Nothing is sent to them.</p>
             )}

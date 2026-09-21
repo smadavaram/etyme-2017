@@ -281,3 +281,42 @@ export function askGoesTo(facts: AskFacts): AskRoute {
 
   return { toCompanyIds: [], reason: 'NO_SUPPLIER_OF_YOUR_OWN', throughAPrime: false }
 }
+
+// ── Saying "through" without saying it twice ──────────────────────────
+
+/**
+ * The words that follow "through" on a client's own screen.
+ *
+ * `lib/chain-names` mints three strings for one firm — the cell, the
+ * sentence and the phrase — and the phrase is built to sit inside
+ * somebody else's sentence: "the firm supplied through Computer Systems
+ * Inc has no current certificate." Dropped after the word *through* it
+ * said the word twice, and Northbend's approvals queue read "45h ·
+ * through the firm supplied through Computer Systems Inc · Aug 24 – 28".
+ * The masking was right and the English was not, which is worse than
+ * either being wrong on its own: a sentence nobody would write is a
+ * sentence nobody trusts.
+ *
+ * So this is the one answer for that slot, and the three cases are the
+ * three the chain actually has:
+ *
+ *   named        the firm the client pays, or a sub its agreement says
+ *                may be named → its own name
+ *   withheld     a sub below a prime the client does pay → the prime,
+ *                as the firm the client can actually call about it
+ *   unreadable   the rung above is not on file → said plainly, because
+ *                naming a guess here is how a client ends up calling
+ *                the wrong desk
+ *
+ * The caller writes "through " itself. Returning the preposition too
+ * would make the next reader wonder which half of the phrase is theirs.
+ */
+export function viaPhrase(seen: {
+  name: string
+  masked: boolean
+  through: string | null
+}): string {
+  if (!seen.masked) return seen.name
+  if (seen.through) return `a firm ${seen.through} arranged`
+  return 'a firm below one of your suppliers'
+}

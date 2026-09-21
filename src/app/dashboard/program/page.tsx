@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { DecideOvertime, type PendingWeek } from '../timesheets/decide-overtime'
 
 import { useEffect, useState } from 'react'
 import { compact } from '@/lib/money-display'
@@ -51,6 +52,8 @@ interface ProgramData {
     avgRate: number
     totalMonthlySpend: number // cents
     standing: string
+    /** Whether an agreement with this firm is on file at all. */
+    agreement?: boolean
   }[]
   /** Same role, two suppliers, two prices — at the rung this client pays. */
   rateSpread: {
@@ -90,7 +93,8 @@ interface ProgramData {
   startingSoon: {
     contractId: string
     person: { id: string; name: string }
-    vendor: { id: string; name: string }
+    /** `via` is what follows the word "through"; `name` is the cell. */
+    vendor: { id: string; name: string; via?: string }
     startDate: string
     daysUntil: number
     paperwork: { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null }
@@ -158,6 +162,39 @@ function ago(iso: string): string {
   return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days`
 }
 
+/**
+ * The all-clear sentence under "Tenure to watch".
+ *
+ * It used to say all five of them were on site and inside the cap,
+ * beside a headline that said four were here. Both numbers were right and the
+ * sentence was wrong: tenure is counted for everybody who has ever held
+ * a contract here, because the whole point of it is that a person who
+ * left and came back through a different supplier is the same person.
+ * One of Cavanaugh's five had left, served a break and was clear to
+ * return — not on site, and not "inside the cap" either.
+ *
+ * So the sentence says what tenure actually counts, and names the two
+ * groups separately rather than adding them up into a number that
+ * describes neither.
+ */
+function capSentence(s: { totalTracked: number; ok: number; eligible: number }): string {
+  if (s.eligible === 0) {
+    return `All ${s.totalTracked} ${s.totalTracked === 1 ? 'person' : 'people'} who have worked here ${
+      s.totalTracked === 1 ? 'is' : 'are'
+    } inside the cap, counted across every supplier.`
+  }
+  return (
+    `Nobody is near the cap. Of the ${s.totalTracked} people who have worked here, ` +
+    `${s.ok} ${s.ok === 1 ? 'is' : 'are'} inside it and ${s.eligible} ` +
+    `${s.eligible === 1 ? 'has' : 'have'} served a break and ${s.eligible === 1 ? 'is' : 'are'} clear to return.`
+  )
+}
+
+/** The person a queue row is about. The title is "Approve timesheet — Omar Haddad". */
+function whoIn(title: string): string {
+  return title.replace(/^(Approve|Review) (timesheet|expense) — /, '')
+}
+
 const TENURE_WORD: Record<string, string> = {
   BREAK_REQUIRED: 'Over the cap',
   WARNING: 'Near the cap',
@@ -186,6 +223,10 @@ export default function ProgramPage() {
   const [tab, setTab] = useState<Tab>('overview')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  // The week that went over the line, and the sentence that asks about it.
+  const [deciding, setDeciding] = useState<
+    { timesheetId: string; personName: string; weeks: PendingWeek[]; lead: string; note: string | null } | null
+  >(null)
 
   async function loadData() {
     try {
@@ -221,14 +262,35 @@ export default function ProgramPage() {
       if (d.type === 'TIMESHEET_APPROVAL') {
         // A flagged week is approved anyway with the reason written on
         // the signature — WARN, capture a reason, proceed. Never silently.
-        await readJson(await fetch(`/api/timesheets/${d.entityId}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(note ? { note } : {}) }))
+        const res = await fetch(`/api/timesheets/${d.entityId}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(note ? { note } : {}) })
+        if (!res.ok) {
+          const failed = await res.json().catch(() => ({}))
+          // Hours over the weekly line are not a refusal to explain away
+          // — they are a decision nobody has made, and it is worth money.
+          // The reason box beside this row asks a different question, and
+          // typing into it left the week unsignable from every desk in
+          // the product with nothing said. So the question opens here.
+          if (failed.error?.code === 'OVERTIME_UNDECIDED') {
+            setDeciding({
+              timesheetId: d.entityId,
+              personName: whoIn(d.title),
+              weeks: (failed.error.weeks ?? []) as PendingWeek[],
+              lead: failed.error.message as string,
+              // Whatever they typed into "Approve anyway" rides with the
+              // signature once the overtime question is answered.
+              note: note ?? null,
+            })
+            return
+          }
+          throw new Error(failed.error?.message ?? 'That week could not be approved.')
+        }
       } else {
         await readJson(await fetch('/api/expenses/actions', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'approve', expenseIds: [d.entityId] }),
         }))
       }
-      say(`Approved — ${d.title.replace(/^(Approve|Review) (timesheet|expense) — /, '')}`)
+      say(`Approved — ${whoIn(d.title)}`)
       setDecisions((cur) => (cur ?? []).filter((x) => x.entityId !== d.entityId))
       // The same week sits on the Approvals tab; both queues move together.
       setData((cur) => cur && cur.approvalQueue.some((a) => a.id === d.entityId)
@@ -394,6 +456,27 @@ export default function ProgramPage() {
       {tab === 'vendors' && <VendorsTab vendors={data.vendors} spread={data.rateSpread} />}
       {tab === 'roles' && <RolesTab roles={data.openRoles} />}
 
+      {/* What happens to a week that went over the line */}
+      {deciding && (
+        <DecideOvertime
+          timesheetId={deciding.timesheetId}
+          personName={deciding.personName}
+          weeks={deciding.weeks}
+          lead={deciding.lead}
+          note={deciding.note}
+          onClose={() => setDeciding(null)}
+          onDecided={(message: string) => {
+            const signed = deciding.timesheetId
+            setDeciding(null)
+            say(message)
+            setDecisions((cur) => (cur ?? []).filter((x) => x.entityId !== signed))
+            setData((cur) => cur && cur.approvalQueue.some((a) => a.id === signed)
+              ? { ...cur, approvalQueue: cur.approvalQueue.filter((a) => a.id !== signed), summary: { ...cur.summary, pendingApprovals: Math.max(0, cur.summary.pendingApprovals - 1) } }
+              : cur)
+          }}
+        />
+      )}
+
       {toast && (
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${toast.type === 'success' ? 'bg-etyme-verified text-white' : 'bg-etyme-attention text-white'}`}>
           {toast.message}
@@ -507,7 +590,7 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
           )}
           {queue.slice(0, 8).map((d) => {
             const inline = d.type === 'TIMESHEET_APPROVAL' || d.type === 'EXPENSE_APPROVAL'
-            const who = d.title.replace(/^(Approve|Review) (timesheet|expense) — /, '')
+            const who = whoIn(d.title)
             const asking = reasonFor === d.entityId
             return (
               <div key={`${d.type}-${d.entityId}`} className={`p-4 ${d.flag ? 'bg-etyme-attention/[0.04]' : ''}`}>
@@ -602,7 +685,7 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
                 {data.startingSoon.map((c) => (
                   <div key={c.contractId} className="p-4 flex flex-wrap items-start gap-3">
                     <div className="flex-1 min-w-[200px]">
-                      <p className="text-sm text-etyme-ink">{c.person.name} <span className="text-etyme-muted">through {c.vendor.name}</span></p>
+                      <p className="text-sm text-etyme-ink">{c.person.name} <span className="text-etyme-muted">through {c.vendor.via ?? c.vendor.name}</span></p>
                       <p className={`text-xs mt-1 ${c.paperwork.outcome === 'BLOCK' ? 'text-etyme-attention' : c.paperwork.outcome === 'WARN' ? 'text-etyme-muted' : 'text-etyme-verified'}`}>
                         {c.paperwork.outcome === 'PASS' ? 'Paperwork complete. Nothing stops the start.' : c.paperwork.says}
                         {c.paperwork.outcome !== 'PASS' && c.paperwork.fix && <span className="text-etyme-muted"> {c.paperwork.fix}</span>}
@@ -629,8 +712,8 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
               {tenure !== null && watchList.length === 0 && (
                 <p className="p-4 text-sm text-etyme-muted">
                   {tenure.summary.totalTracked === 0
-                    ? 'Nobody on site yet, so nobody to count.'
-                    : `All ${tenure.summary.totalTracked} people on site are inside the cap, counted across every supplier.`}
+                    ? 'Nobody has worked here yet, so nobody to count.'
+                    : capSentence(tenure.summary)}
                 </p>
               )}
               {watchList.map((p) => (
@@ -700,6 +783,14 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
                     <div className="w-full h-1.5 bg-etyme-canvas rounded-full">
                       <div className="h-1.5 bg-etyme-action rounded-full" style={{ width: `${pct}%` }} />
                     </div>
+                    {/* A purchase order and nothing behind it. "Not
+                        rated" said this in the dropdown's words and not
+                        in anybody else's. */}
+                    {v.agreement === false && (
+                      <p className="mt-1 text-[11px] text-etyme-attention">
+                        {v.headcount === 1 ? '1 person is' : `${v.headcount} people are`} on site with no agreement on file. Get one signed.
+                      </p>
+                    )}
                   </div>
                 )
               })}
@@ -916,13 +1007,20 @@ const CONTRACTOR_COLUMNS: Column<Contractor>[] = [
 ]
 
 function ContractorsTab({ contractors }: { contractors: ProgramData['contractors'] }) {
+  // The same two numbers the headline uses, counted the same way. "5
+  // active contractors" over a dashboard reading "ON SITE 4" was one
+  // list counting a contract that starts next week as somebody working
+  // today (`lib/chain-top`: on site means IN_PROGRESS).
+  const onSite = contractors.filter((c) => c.state === 'IN_PROGRESS').length
+  const toStart = contractors.length - onSite
   return (
     <div>
       <h2 className="text-lg font-serif font-semibold mb-1">
-        {contractors.length} active contractor{contractors.length !== 1 ? 's' : ''}
+        {onSite} on site{toStart > 0 ? `, ${toStart} yet to start` : ''}
       </h2>
       <p className="text-sm text-etyme-muted mb-6">
         Everyone placed here, their vendor, rate, and contract status.
+        {toStart > 0 && ' Somebody who has not started counts on this list and not in the headline.'}
       </p>
       <ListSurface
         columns={CONTRACTOR_COLUMNS}

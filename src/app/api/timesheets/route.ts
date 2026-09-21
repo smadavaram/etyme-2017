@@ -6,6 +6,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
 import { isConsultantSeat } from '@/lib/seat'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
+import { maySign, type Sheet } from '@/lib/timesheet-signatures'
 import {
   policyOf, splitWeeks, valueOf, weeksAwaitingDecision, saysAwaiting, treatmentSays,
   type Decision, type Treatment,
@@ -98,6 +99,10 @@ export async function GET(request: NextRequest) {
             billCurrency: true,
             overtimeAfterHours: true,
             overtimeMultiplierBps: true,
+            // The employer, by name. A week is SUBMITTED until both
+            // sides have signed, and a row that says "waiting on the
+            // other party" is not a sentence anybody can act on.
+            company: { select: { id: true, name: true } },
             clientCompany: { select: { id: true, name: true } },
             endClientCompany: { select: { id: true, name: true } },
             engagement: { select: { id: true, title: true } },
@@ -127,6 +132,10 @@ export async function GET(request: NextRequest) {
     personId: caller.person.id,
     companyId: asClient && buyerCompanyId ? buyerCompanyId : caller.company?.id,
     permissions: acting.permissions,
+    // Only for the refusal: which desks sign hours depends on the kind
+    // of firm, and under a seat the desk is the client's.
+    companyKind: asClient ? 'CLIENT' : caller.company?.kind ?? null,
+    companyName: desk?.companyName ?? caller.company?.name ?? null,
   }
 
   return NextResponse.json({
@@ -144,10 +153,65 @@ export async function GET(request: NextRequest) {
         // refuse. A consultant opening their own week is the case this
         // was drawn for: the hours are theirs and the decision is not.
         const own = approvingOwnHours(actor, parties)
-        const approve = own
+        const entitled = own
           ? { ok: false, reason: 'Nobody approves their own hours.' }
           : mayApprove(actor, parties)
         const enter = mayEnter(actor, parties)
+
+        // ── Which signature is still missing, and whose ─────────────
+        //
+        // A week carries two: the client approving that the work
+        // happened, and the employer accepting what it will pay for. It
+        // stays SUBMITTED until both are in — by design — and nothing on
+        // the screen said so. A client that had signed on Monday opened
+        // the list on Tuesday, read SUBMITTED, was offered the tick
+        // again, was counted in "3 need review", pressed it and got
+        // "Already approved." in a red toast. The status model is right;
+        // the row was not saying what it knew.
+        const employerId = t.sellContract.companyId
+        const clientId = t.sellContract.endClientCompanyId ?? t.sellContract.clientCompanyId
+        const isClientSide = actor.companyId === clientId
+        const isEmployerSide = actor.companyId === employerId
+        const sheet: Sheet = {
+          totalHours: Number(t.totalHours),
+          clientApproved: t.clientApprovedAt
+            ? { at: t.clientApprovedAt, byId: t.clientApprovedById! }
+            : null,
+          employerAccepted: t.employerAcceptedAt
+            ? { at: t.employerAcceptedAt, byId: t.employerAcceptedById! }
+            : null,
+          acceptedHours: t.acceptedHours ? Number(t.acceptedHours) : null,
+          acceptedNote: t.acceptedNote,
+          direct: employerId === clientId,
+        }
+        // The same choice the approve route makes, so the screen and the
+        // server cannot disagree about which signature this press is.
+        const asParty = isClientSide ? 'CLIENT' : 'EMPLOYER'
+        const signable = maySign(asParty, sheet, isClientSide, isEmployerSide)
+        const otherParty = isClientSide
+          ? t.sellContract.company?.name ?? 'the supplier'
+          : seen.clientCompany.name
+        const mine = isClientSide ? sheet.clientApproved : isEmployerSide ? sheet.employerAccepted : null
+        // A tick this side has already given is not offered again, and
+        // the row says who it is now waiting on in their own name.
+        const approve =
+          entitled.ok && !signable.ok && mine
+            ? { ok: false, reason: waitingSentence(isClientSide, otherParty) }
+            : entitled
+        const signature = {
+          youSigned: mine != null,
+          youSignedAt: mine?.at.toISOString() ?? null,
+          waitingOnYou: entitled.ok && signable.ok && t.status === 'SUBMITTED',
+          waitingOn: mine != null && t.status === 'SUBMITTED' ? otherParty : null,
+          says:
+            mine == null
+              ? null
+              : t.status === 'SUBMITTED'
+                ? waitingSentence(isClientSide, otherParty)
+                : isClientSide
+                  ? 'Approved, and the supplier has accepted it.'
+                  : 'Accepted, and the client has approved it.',
+        }
 
         return {
           id: t.id,
@@ -171,12 +235,53 @@ export async function GET(request: NextRequest) {
           mayApprove: approve.ok,
           mayApproveWhyNot: approve.ok ? null : approve.reason,
           maySubmit: enter.ok,
+          signature,
           overtime: overtimeOf(t, seen),
         }
       }),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      // ── Whether this reader files a week at all ─────────────────
+      //
+      // A button the route will refuse is a button that lies — the nav
+      // rule, one layer down. "+ New" was hidden from a client and shown
+      // to everybody else, so a program office seated at a client's desk
+      // was offered it and refused on press: `mayEnter` admits the
+      // person whose hours they are and the agency that employs them,
+      // and an office that places nobody is neither.
+      // Whose book was read. A program office at a client's desk is
+      // reading the client's weeks, and the page heads itself the way
+      // the client would head it (`lib/page-framing`).
+      desk: {
+        companyId: buyerCompanyId,
+        companyName: desk?.companyName ?? caller.company?.name ?? null,
+        seated: !!desk?.seat,
+        says: desk?.seat
+          ? `You are at ${desk.companyName}'s desk. These are the weeks worked at ${desk.companyName}'s sites, not ${caller.company?.name ?? 'your firm'}'s.`
+          : null,
+      },
+      filing: {
+        may: !asClient,
+        says: asClient
+          ? `Hours are filed by the person who worked them, or by the agency that employs them. ` +
+            `${desk?.companyName ?? caller.company?.name ?? 'This desk'} buys the work and signs for it.`
+          : null,
+      },
     },
   })
+}
+
+/**
+ * What a row says to the side that has already signed it.
+ *
+ * Their word for what they did — a client approves that the work
+ * happened, an employer accepts what it will pay — and the other firm by
+ * name, because "waiting on the other party" is not a sentence anybody
+ * can act on.
+ */
+function waitingSentence(isClientSide: boolean, other: string): string {
+  return isClientSide
+    ? `You approved this week. Waiting on ${other} to accept what it pays.`
+    : `You accepted this week for pay. Waiting on ${other} to approve it for billing.`
 }
 
 /**

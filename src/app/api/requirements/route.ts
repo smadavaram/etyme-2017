@@ -71,7 +71,21 @@ export async function GET(request: NextRequest) {
   const scope = requirementScope(caller, desk?.seat ?? null)
   if (!scope) {
     return NextResponse.json({
-      data: { requirements: [], pagination: { page, limit, total: 0, totalPages: 0 } },
+      data: {
+        requirements: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+      // Whose roles were read. A program office in a seat is reading the
+      // client's, and the page heads itself the way the client would
+      // (`lib/page-framing`) instead of implying they are its own.
+      desk: {
+        companyId: desk?.companyId ?? caller.company?.id ?? null,
+        companyName: desk?.companyName ?? caller.company?.name ?? null,
+        seated: !!desk?.seat,
+        says: desk?.seat
+          ? `You are at ${desk.companyName}'s desk. These are ${desk.companyName}'s roles, not ${caller.company?.name ?? 'your firm'}'s.`
+          : null,
+      },
+      },
     })
   }
 
@@ -159,6 +173,17 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+      },
+      // Whose roles were read. A program office in a seat is reading the
+      // client's, and the page heads itself the way the client would
+      // (`lib/page-framing`) instead of implying they are its own.
+      desk: {
+        companyId: desk?.companyId ?? caller.company?.id ?? null,
+        companyName: desk?.companyName ?? caller.company?.name ?? null,
+        seated: !!desk?.seat,
+        says: desk?.seat
+          ? `You are at ${desk.companyName}'s desk. These are ${desk.companyName}'s roles, not ${caller.company?.name ?? 'your firm'}'s.`
+          : null,
       },
     },
   })

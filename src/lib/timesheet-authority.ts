@@ -22,6 +22,8 @@
  *   which is the whole point of the control, so a vendor approving their
  *   own timesheet would be marking their own homework.
  */
+import { askTheDesk } from '@/lib/permissions'
+
 
 export interface Parties {
   /** The person the timesheet belongs to. */
@@ -38,6 +40,15 @@ export interface Actor {
   personId: string
   companyId: string | null | undefined
   permissions: readonly string[]
+  /**
+   * Only for the refusal, and both optional: a caller that does not pass
+   * them gets the same sentence with "your company" in it rather than a
+   * blank or a key. Which desks sign hours depends on what kind of firm
+   * it is — a client's hiring manager, a supplier's account manager —
+   * and `askTheDesk` needs the kind to say so.
+   */
+  companyKind?: string | null
+  companyName?: string | null
 }
 
 export interface Verdict {
@@ -75,7 +86,18 @@ export function mayEnter(a: Actor, t: Parties): Verdict {
  */
 export function mayApprove(a: Actor, t: Parties): Verdict {
   if (!holds(a, 'timesheets.approve')) {
-    return { ok: false, reason: 'Approving hours needs the timesheets.approve permission.' }
+    // Not "needs the timesheets.approve permission". A key is a thing
+    // nobody can grant themselves and it says nothing about what to do;
+    // `askTheDesk` names the desks at this kind of firm that sign hours.
+    return {
+      ok: false,
+      reason: askTheDesk({
+        doing: 'Signing hours off',
+        needs: 'timesheets.approve',
+        kind: a.companyKind ?? null,
+        companyName: a.companyName ?? null,
+      }),
+    }
   }
 
   const buyerSide =

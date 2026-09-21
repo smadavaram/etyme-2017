@@ -312,7 +312,7 @@ describe('Who is interviewing', () => {
 
   it('a supplier reading its own submission is not shown the client’s panel', () => {
     expect(code(SUBMISSIONS_ROUTE)).toContain(
-      's.requirement.companyId === caller.company?.id ? s.requirement.interviewers : null'
+      's.requirement.companyId === deskId ? s.requirement.interviewers : null'
     )
   })
 })

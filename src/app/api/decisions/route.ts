@@ -4,7 +4,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasAnyPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { payerRung } from '@/lib/chain-top'
+import { payerRung, viaPhrase } from '@/lib/chain-top'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
 import { desksFor } from '@/lib/supplier-desks'
@@ -154,12 +154,16 @@ export async function GET(request: NextRequest) {
       const asClient = sc.companyId !== companyId
       // Inside a sentence, so the phrase and not the cell: "through
       // Computer Systems" where the name is this reader's to read, and
-      // "through the firm supplied through Computer Systems" where it is
-      // not. Never the employer's own name, which is what a blank walk
-      // used to fall through to.
+      // "through a firm Computer Systems arranged" where it is not
+      // (`viaPhrase`, which stops the word appearing twice). Never the
+      // employer's own name, which is what a blank walk used to fall
+      // through to.
+      const seenName = seenNames.get(sc.companyId)
       const supplier = !asClient
         ? sc.company.name
-        : seenNames.get(sc.companyId)?.phrase ?? 'a supplier on this site'
+        : seenName
+          ? viaPhrase(seenName)
+          : 'a supplier on this site'
       // A client sees the hours. The rate on this sheet is what the
       // employer charges the rung above it, which is the client's own
       // rate only on a direct placement. Where the reader is further up

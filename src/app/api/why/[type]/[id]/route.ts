@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { unitsVisibleTo } from '@/lib/walls'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { mayNameSubVendors, nameForClient } from '@/lib/chain-names'
@@ -87,7 +87,14 @@ export async function GET(
         {
           error: {
             code: 'FORBIDDEN',
-            message: 'Asking why somebody else can or cannot see something needs team.manage.',
+            // The key was for the machine. A person is told which desk
+            // at their own firm answers this, and who can widen theirs.
+            message: askTheDesk({
+              doing: 'Asking why somebody else can or cannot see something',
+              needs: 'team.manage',
+              kind: caller.company?.kind ?? null,
+              companyName: caller.company?.name ?? null,
+            }),
           },
         },
         { status: 403 }

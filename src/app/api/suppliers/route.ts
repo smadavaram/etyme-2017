@@ -77,7 +77,10 @@ export async function GET(request: NextRequest) {
     // contracts this client pays, by supplier.
     prisma.sellContract.findMany({
       where: { clientCompanyId: companyId },
-      select: { companyId: true, state: true, startDate: true, endDate: true },
+      select: {
+        companyId: true, state: true, startDate: true, endDate: true,
+        company: { select: { id: true, name: true, claimedAt: true } },
+      },
     }),
     prisma.favorite.findMany({ where: { companyId, targetType: 'COMPANY' }, select: { targetId: true } }),
     prisma.blacklist.findMany({
@@ -105,16 +108,48 @@ export async function GET(request: NextRequest) {
   // One row per firm, however many contacts were listed there.
   const byCompany = new Map<string, any>()
 
+  // ── A firm with somebody on site is a supplier ──────────────────────
+  //
+  // This list was built from agreements and invitations only, so a firm
+  // that arrived some other way — imported with the contracts, listed by
+  // a hiring manager, papered offline — was missing from the register
+  // while its contractor stood on the site every day. On Cavanaugh
+  // Glassworks that was Wrenfield Technical: four suppliers named on the
+  // dashboard, three on the page the register is supposed to be, and
+  // nothing on either screen to say which was right.
+  //
+  // The dashboard was right, and this is the same question asked once:
+  // whoever the client holds a contract with is a supplier of the
+  // client's, whether or not there is an agreement on file. A firm with
+  // no agreement is shown with none — that is a real gap somebody should
+  // close — rather than shown nowhere.
+  for (const c of engagements) {
+    if (byCompany.has(c.companyId)) continue
+    byCompany.set(c.companyId, {
+      companyId: c.companyId,
+      tier: tierOf.get(c.companyId) ?? null,
+      name: c.company.name,
+      joined: c.company.claimedAt != null,
+      agreement: false,
+      signedAt: null,
+      contacts: [],
+      invitedAt: null,
+      where: '',
+    })
+  }
+
   for (const a of agreements) {
+    const had = byCompany.get(a.vendorId)
     byCompany.set(a.vendorId, {
+      ...(had ?? {}),
       companyId: a.vendorId,
       tier: tierOf.get(a.vendorId) ?? null,
       name: a.vendor.name,
       joined: a.vendor.claimedAt != null,
       agreement: true,
       signedAt: a.signedAt?.toISOString() ?? null,
-      contacts: [],
-      invitedAt: null,
+      contacts: had?.contacts ?? [],
+      invitedAt: had?.invitedAt ?? null,
       where: a.vendor.claimedAt ? 'Working with you here.' : 'Listed by you. Not signed in yet.',
     })
   }
