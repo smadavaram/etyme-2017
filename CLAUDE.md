@@ -137,6 +137,42 @@ follow:
   role to your suppliers; they submit people; approve timesheets; pay one
   matched invoice per supplier. Everything else is below.
 
+**The future being sold, in the founder's words — decided 2026-09-21.**
+Asked what future Etyme sells, the way Tesla and Anthropic sell one, the
+founder answered:
+
+> If the future is more outsourcing work of speciality skills than getting
+> it done in-house because we enable it, then we need to sell that without
+> fear of losing employees and budgets, and we need to help, push and
+> enable suppliers towards that path.
+
+So the future is this: **a company buys most of its specialist work from
+outside, and governs all of it as one workforce.** Employment becomes one
+way of sourcing work among several, and the record does not care which.
+Three rules follow, and none of them changes the page:
+
+- **The client is sold control, never outsourcing.** A CTO with fifty
+  contractors has already outsourced. The fear is losing control of the
+  spend and the decision. The record answers it with more control: within
+  plan a role publishes itself, an order carries a ceiling nothing bills
+  past, and contingent spend is shown, not moved. Once a company can see
+  what it buys from outside, buying a specialist for six months stops
+  being a risk and becomes a line. The behavior follows the visibility;
+  nobody argues for it.
+- **Suppliers are enabled by the record and never pushed by Etyme.**
+  Neutrality is absolute, so the push comes from what the record makes
+  visible: the commodity work taken off the recruiter (the BRD's first
+  thesis), the rate spread that exposes arbitrage and leaves expertise
+  alone, and — still to build — a supplier's expertise margin made
+  visible to the client beside its rate (Addendum D's margin class:
+  certifications held, tenure of its people, outcomes on prior
+  placements). The word "push" appears nowhere a supplier reads; every
+  line about them says what the record takes off their plate.
+- **The page still sells the category.** This future is the sentence for
+  the room, like the Fieldglass comparison, and never with the word AI in
+  front of it. The future is the record; what runs on it is the least
+  defensible part.
+
 ### Why this is written down
 
 It was agreed in conversation and the landing page went on saying
