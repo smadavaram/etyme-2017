@@ -1464,15 +1464,11 @@ export default function ContractsPage() {
           <h1>{framing.title}</h1>
           <p>{framing.subtitle}</p>
         </div>
-        {/* A client does not raise contracts here — their vendors do.
-            The word on it comes from the framing, so a reader in a
-            client's seat is offered the act in the client's language
-            rather than a supplier's. Visibility is deliberately still
-            `isClient` and not `framing.create`: page-framing gives a
-            client "Record a contractor" here, which disagrees with this
-            guard, and picking one of the two is etyme-conversation's
-            call rather than something to settle silently. */}
-        {!isClient && framing.create && (
+        {/* A client does not raise contracts here — the award writes
+            both sides — and neither does a program office reading a
+            client's book. The framing says so now, and the word on the
+            button is the reader's own. */}
+        {framing.create && (
           <button onClick={() => setShowCreate(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
             + {framing.create}
           </button>
