@@ -77,17 +77,25 @@ describe('what is due, on the thread', () => {
     expect(t.next.dueOn).toBe(earliest)
   })
 
-  it('the checklist is on the thread, with a verdict a person can read', async () => {
+  it('the checklist is on the thread, reads what the order asked for, and warns in words on a certificate never filed', async () => {
     const r = await open(cloudepa)
     const c = r.body.data.checklist
     expect(['PASS', 'WARN', 'BLOCK']).toContain(c.outcome)
     expect(typeof c.says).toBe('string')
     expect(c.items.length).toBeGreaterThan(0)
     // The seeded person has an I-9 and a background check, the supplier's
-    // cover is on file and checked. The NDA is listed as needed but nothing
-    // here can hold one yet, so it does not move the verdict.
-    expect(c.outcome).toBe('PASS')
+    // cover is on file and checked. Since 2026-09-21 the thread reads the
+    // line's own required set: this placement's order asks CloudEPA for a
+    // certificate of good standing that was never filed, so the honest
+    // verdict is a warning naming it, never a silent pass. The NDA is the
+    // shipped default nobody wrote on an order, so it is listed and moves
+    // nothing — the line between "somebody asked" and "a default".
+    expect(c.outcome).toBe('WARN')
+    expect(c.says).toMatch(/good standing/i)
     expect(c.items.find((i: { key: string }) => i.key === 'I9_EVERIFY')?.state).toBe('ALREADY_HELD')
-    expect(c.items.find((i: { key: string }) => i.key === 'NDA')?.state).toBe('NEEDED')
+    const nda = c.items.find((i: { key: string }) => i.key === 'NDA')
+    expect(nda?.state).toBe('NEEDED')
+    expect(nda?.from).toBe('DEFAULT')
+    expect(c.items.find((i: { key: string }) => i.key === 'MSA')?.from).toBe('ORDER')
   })
 })

@@ -7,7 +7,7 @@ import { contractSide } from '@/lib/resolve-client-company'
 import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { categoryOf, labelOf } from '@/lib/cycle-kinds'
-import { contractClearance } from '@/lib/contract-clearance'
+import { contractClearance, lineExtras } from '@/lib/contract-clearance'
 import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
@@ -744,6 +744,10 @@ export async function GET(
     // a license in date today runs out inside the assignment.
     role: placement.requirement?.title ?? null,
     through: placement.endDate,
+    // The line's own required set, spread last: it supersedes the cover
+    // list with one that includes good standing and the dictionary with
+    // both firms', so the thread reads what this client's order asked for.
+    ...(await lineExtras({ sellContractId: placement.id })),
   })
 
   // The firm below us, read the same way we read the firm above. Null

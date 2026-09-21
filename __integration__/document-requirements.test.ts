@@ -51,8 +51,11 @@ describe('what every order asks for on paper', () => {
       where: { slug: 'world-corning' },
       select: { id: true, name: true },
     })
+    // An order that has a line on it: Cavanaugh has five and one carries
+    // none, and with no ordering the row that came back was a coin flip.
     const order = await prisma.workOrder.findFirst({
-      where: { issuedById: cavanaugh!.id },
+      where: { issuedById: cavanaugh!.id, sellContracts: { some: {} } },
+      orderBy: { number: 'asc' },
       select: { id: true, documentRequirements: { select: { documentTypeKey: true, owedBy: true } } },
     })
     const induction = order!.documentRequirements.find((r) => r.documentTypeKey === 'HOT_FLOOR_INDUCTION')

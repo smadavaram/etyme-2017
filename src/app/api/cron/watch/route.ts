@@ -16,6 +16,7 @@ import {
 } from '@/lib/watch'
 import { packetByKey, resolveItems, itemsToAsk, type HeldDocument } from '@/lib/packets'
 import { coverGaps } from '@/lib/cover-gap'
+import { documentFindings } from '@/lib/document-request'
 import {
   lookAtCredentials,
   askForRenewal,
@@ -65,6 +66,10 @@ export async function GET(request: NextRequest) {
     ...(await lookAtPurchaseOrders(now)),
     ...(await lookAtAccess(now)),
     ...(await lookAtPackets(now)),
+    // Signed papers and checks running out, grouped by the party that owes
+    // them, off the line's own required set. Every row is NOTIFY_ONLY:
+    // nothing is reopened and no letter is sent from here.
+    ...(await documentFindings(now)),
   ])
 
   // Nothing at all is the ordinary outcome and is reported as silence

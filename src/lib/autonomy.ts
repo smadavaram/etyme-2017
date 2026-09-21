@@ -173,6 +173,12 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     says:
       'A census is close to the day its data is deleted, or close to the five working days the client was promised a page in, so the named person at Etyme was told. Once a day, not once a run. It deletes nothing, sends the client nothing, and writes no page.',
   },
+  DOCUMENT_LAPSE_TOLD: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A document a line depends on ran out, or is about to, and every party the lapse actually costs was told — the firm that owes it, the firm that is exposed by it, and nobody else. It changed nothing and stopped nothing; it is the letter that goes before the block.',
+  },
   CENSUS_DELETED: {
     rung: 'L5',
     basis: 'RULE',
@@ -491,14 +497,6 @@ export const PLANNED: Record<string, PlannedAct> = {
   // decided here, with the record, so neither agent invents a level on a
   // Friday afternoon.
 
-  DOCUMENT_LAPSE_TOLD: {
-    kind: 'UNPROMPTED',
-    rung: 'L0',
-    basis: 'RULE',
-    says:
-      'A document a line depends on ran out, or is about to, and every party the lapse actually costs was told — the firm that owes it, the firm that is exposed by it, and nobody else. It changed nothing and stopped nothing; it is the letter that goes before the block.',
-    willBeWrittenBy: 'etyme-conversation',
-  },
 
 
 }
