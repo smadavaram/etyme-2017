@@ -42,6 +42,7 @@ import { seedCalendar, holidayKeys } from '@/lib/seed-calendar'
 import { seedStanding } from '@/lib/seed-standing'
 import { seedOrderToCash } from '@/lib/seed-order-to-cash'
 import { seedPipeline } from '@/lib/seed-pipeline'
+import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
 import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
 // A seeded bill is shaped by the two doors a real one is: `periodFor`
 // under the terms of the document the line is on, and `dueOn` under what
@@ -167,6 +168,9 @@ export async function seedWorld(): Promise<{
   orders: number
   postings: number
   journalEntries: number
+  /// Orders carrying a required set of documents, and the rows on them.
+  documentRequirementOrders: number
+  documentRequirements: number
   petitions: number
   backings: number
   resumes: number
@@ -1290,6 +1294,9 @@ export async function seedWorld(): Promise<{
   const standing = await seedStanding(ctx)
   const cash = await seedOrderToCash(ctx)
   const pipeline = await seedPipeline(ctx)
+  // What each order asks for on paper. Last of all, because it hangs off
+  // the orders `seedOrderToCash` raised a moment ago.
+  const paperwork = await seedDocumentRequirements(ctx)
 
   return {
     firms: FIRMS.length,
@@ -1306,6 +1313,9 @@ export async function seedWorld(): Promise<{
     orders: cash.orders,
     postings: cash.postings,
     journalEntries: cash.journalEntries,
+    /// Orders carrying a required set of documents, and the rows on them.
+    documentRequirementOrders: paperwork.orders,
+    documentRequirements: paperwork.items,
     /// Petitions walked, backings recorded, CVs and threads on file.
     petitions: standing.petitions,
     backings: standing.backings,

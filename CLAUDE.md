@@ -1379,14 +1379,37 @@ the duplication this whole section exists to end. What moves to the
 line is the **requirement and the verdict** — which documents this line
 needs, from whom, and whether it is green. `DocInstance` already hangs
 off both `SellContract.docs` and `BuyContract.docs`, so signed papers
-have a home. **Nothing yet says what a line requires**: there is no
-per-line required set anywhere in the schema, and
-`lib/contract-clearance` reads the person and the company rather than
-the line. That is the next schema request to `etyme-architect` — a
-required set on the buy line, inherited from the header, declared in
-`lib/document-type`'s purposes — and the rewiring of clearance to read
-it is `etyme-regulatory`'s, sequenced after the header-and-lines pieces
-land.
+have a home.
+
+**What a line requires now exists. Landed 2026-09-21**, on the
+founder's instruction: *"Ensure the loop of documents never cracks
+between parties."* `DocumentRequirement` carries one row per document
+per owner, and the owner is exactly one of three — the order (the
+buyer's default set, inherited by every line under it), a sell line, or
+a buy line. A line with none of its own reads its order's; a line on no
+order at all falls back to the default for its shape, computed from
+`lib/document-type` for a W2, a corp-to-corp and a sub-vendor. The
+default set is a **floor** rather than a starting point: an order adds
+to it, and nobody orders their way out of a federal form. A line may
+override one item and the override says who and why; a waived item
+stays on the list, marked, with the reason and the name, because
+Addendum E says WARN, capture a reason, proceed and never silently
+permit — and work authorization cannot be waived at all, a waiver
+against one being refused rather than honored quietly. `owedBy` is a
+party role — WORKER, SUPPLIER, CUSTOMER, US — and never a `personId`,
+so a line whose subject is not a person still carries a set. One door,
+`lib/document-requirements`, and it materializes nothing: a required
+set frozen into rows on the day a line was created is a set that cannot
+learn. `DocInstance` gained dates, an edition and a countersignature in
+the same change, so an NDA can be watched the way a certificate is, and
+a certificate of good standing now blocks the way lapsed cover does.
+What is **still owed** is the rewiring: `lib/contract-clearance`,
+`lib/packets`, `lib/outbound-pack` and `lib/supplier-onboarding` each
+still carry their own list and must read this one instead, which is
+`etyme-regulatory`'s next piece of work; the lapse letters, per party,
+are `etyme-conversation`'s. Until that lands the table is written by the
+seed and read by its own door, and nothing that computes a verdict today
+has changed meaning.
 
 **Four models overlap here and none is a superset:** `Verification` and
 `VerificationDoc` (the person's compliance evidence, expiry watched by
