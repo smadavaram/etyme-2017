@@ -66,6 +66,8 @@ model Person {
   packetsCreated         DocumentPacket[]         @relation("packetCreator")
   packetsAbout           DocumentPacket[]         @relation("packetSubjectPerson")
   packetItemsReviewed    PacketItem[]             @relation("packetItemReviewer")
+  /// Required documents this person waived on a line, each with a reason.
+  documentWaivers        DocumentRequirement[]    @relation("documentWaiver")
   serviceAccountsCreated ServiceAccount[]         @relation("serviceAccountCreator")
   customDomainsAdded     CustomDomain[]           @relation("customDomainAdder")
   representations        Representation[]
@@ -941,6 +943,9 @@ model WorkOrder {
   vendorBills           VendorBill[]
   /// Overrides the agreement's rungs for this order's spend.
   earlyPaymentDiscounts EarlyPaymentDiscount[]
+  /// The paperwork every line under this order needs — the buyer's own
+  /// rules, inherited by each line and overridable on one.
+  documentRequirements  DocumentRequirement[]
 
   @@unique([issuedById, number])
   @@index([issuedToId, status])
@@ -2805,18 +2810,21 @@ model SellContract {
   approverPersonId String?
   approver         Person? @relation("contractApprover", fields: [approverPersonId], references: [id])
 
-  buyLinks          ContractLink[] // linked buy contracts (for profitability)
+  buyLinks             ContractLink[] // linked buy contracts (for profitability)
   /// Buy contracts, at whichever firm is above us, that this contract is
   /// the supply side of. One hop up the ladder.
-  suppliesBuys      BuyContract[]      @relation("suppliedBy")
-  timesheets        Timesheet[]
-  invoiceLines      InvoiceLine[]
-  sellCycles        Cycle[]            @relation("sellCycles")
-  rolloff           RolloffEvent?
-  overtimeDecisions OvertimeDecision[]
-  timeOffEntries    TimeOffEntry[]
-  docs              DocInstance[]      @relation("sellDocs")
-  expenses          Expense[]
+  suppliesBuys         BuyContract[]         @relation("suppliedBy")
+  timesheets           Timesheet[]
+  invoiceLines         InvoiceLine[]
+  sellCycles           Cycle[]               @relation("sellCycles")
+  rolloff              RolloffEvent?
+  overtimeDecisions    OvertimeDecision[]
+  timeOffEntries       TimeOffEntry[]
+  docs                 DocInstance[]         @relation("sellDocs")
+  /// What this line needs on paper: the customer's own, inherited from
+  /// the order or set here. See `lib/document-requirements`.
+  documentRequirements DocumentRequirement[]
+  expenses             Expense[]
   // ── What a period is, on this contract ─────────────────────────────
   //
   // The contract says what a period is; the timesheet does not. Invoice
@@ -3004,9 +3012,12 @@ model BuyContract {
   internalOrderId String?
   internalOrder   InternalOrder? @relation(fields: [internalOrderId], references: [id])
 
-  sellLinks ContractLink[] // linked sell contracts (for profitability)
-  buyCycles Cycle[]        @relation("buyCycles")
-  docs      DocInstance[]  @relation("buyDocs")
+  sellLinks            ContractLink[] // linked sell contracts (for profitability)
+  buyCycles            Cycle[]               @relation("buyCycles")
+  docs                 DocInstance[]         @relation("buyDocs")
+  /// What this line needs on paper about the party it pays — the worker
+  /// where the firm employs them, the sub-vendor where it does not.
+  documentRequirements DocumentRequirement[]
   // ── What a period is, on this contract ─────────────────────────────
   //
   // The contract says what a period is; the timesheet does not. Payroll
@@ -5488,10 +5499,195 @@ model DocInstance {
   fileName       String?
   note           String?
 
+  // ── Dates, editions and the second signature ───────────────────────
+  //
+  // Added 2026-09-21, for "ensure the loop of documents never cracks
+  // between parties". A signed paper had no dates at all, so an NDA or a
+  // client's own agreement could be asked for, signed, and never watched
+  // again — nothing could say it had run out, nothing could chase the
+  // replacement, and a lapse moved no verdict anywhere. `Verification`
+  // has been watched by `cron/watch` since it was written; this is the
+  // same three facts on the other cluster, and CLAUDE.md's five
+  // properties name them: validity is three shapes, a signature can need
+  // two sides, and the form itself has an edition.
+  //
+  // `MasterAgreement` keeps its own signing and countersigning fields and
+  // stays the agreement layer — the legal umbrella between two firms.
+  // These columns are for the papers that hang off a line: an NDA, an
+  // NCA, an employment agreement, a client's own code of conduct.
+  //
+  // All nullable, nothing backfilled: a row with no dates means nobody
+  // recorded any, which is the truth about every instance written before
+  // today and must not read as "never expires".
+
+  /// The day it starts covering anybody. Null = no floor recorded.
+  validFrom         DateTime?
+  /// The day it stops counting. Null = nothing on file says.
+  expiresAt         DateTime?
+  /// The instance this one replaces, where a paper was reissued. A chain
+  /// rather than an overwrite, because which edition somebody signed on
+  /// the day they signed it is the fact an auditor asks for.
+  reissueOf         String?
+  reissued          DocInstance?  @relation("reissue", fields: [reissueOf], references: [id])
+  replacedBy        DocInstance[] @relation("reissue")
+  /// The edition of the form that was signed — the government's own
+  /// revision date on an I-9, a template version on ours.
+  edition           String?
+  /// The second signature. An agreement is not executed until both firms
+  /// have signed, and the date that matters is the later of the two.
+  countersignedAt   DateTime?
+  countersignedById String?
+
   @@index([subjectType, subjectId, status])
   @@index([templateId])
   @@index([sellContractId])
   @@index([buyContractId])
+  @@index([reissueOf])
+  @@index([expiresAt])
+}
+
+/// ─────────────────────────────────────────────────────────────────────
+/// What a line requires on paper, and who owes it.
+///
+/// "Ensure the loop of documents never cracks between parties."
+/// — the founder, 2026-09-21. This table is the crack he meant.
+///
+/// ── Why it exists ────────────────────────────────────────────────────
+///
+/// Until today three desks each decided what a placement needed, their
+/// own way and in three separate hardcoded lists: `lib/contract-clearance`
+/// read the person and the role's start packet, `lib/supplier-onboarding`
+/// carried its own CHECKLIST, `lib/outbound-pack` carried its own
+/// OUTBOUND_PACKS. Nothing anywhere said what THIS line requires. So a
+/// client could not say "this role needs a site induction" and have it
+/// reach the placement, and a prime could not pass a client's required
+/// set one rung down to the sub-vendor actually employing the person.
+/// A hospital line and a warehouse line under one agreement demanded the
+/// same paperwork, because there was nowhere else to put the difference.
+///
+/// CLAUDE.md, "Where a document lives — on the line, on the side it
+/// protects", decided 2026-09-18, already said where it goes. This is
+/// that, as a row.
+///
+/// ── The header's set, and the line's own ─────────────────────────────
+///
+/// Exactly one of `workOrderId`, `sellContractId`, `buyContractId` is
+/// set, and which one it is says what the row means:
+///
+///   on the order   the buyer's default set — the client's rules, for
+///                  every line under its order
+///   on a line      this line's own answer, which either adds an item
+///                  the order never asked for, or overrides one it did
+///                  (`inheritedFromId` points at the header row it
+///                  came from, so the screen can say what was changed)
+///
+/// A line with no rows of its own inherits the header's. A line on no
+/// order at all — a W2 nobody raises a purchase order to — falls back to
+/// the defaults computed from `lib/document-type` for its shape.
+/// Nothing is materialized on creation: `lib/document-requirements` is
+/// the one door, and `seedDefaultsFor` returns the computed set without
+/// writing a row, so a default that changes is not frozen into ten
+/// thousand rows written on a Tuesday.
+///
+/// ── The party that owes it is a role, never a person ─────────────────
+///
+/// `owedBy` is WORKER · SUPPLIER · CUSTOMER · US. It is never a
+/// `personId`, and that is deliberate rather than lazy: the founder
+/// asked on 2026-09-21 whether a robot or an AI agent could one day be a
+/// line paid by the hour with a required set of its own. The answer is
+/// later, and this table should not have to change for it — a line whose
+/// subject is not a person still carries a set, and the door resolves a
+/// name beside the role only where the line has one.
+///
+/// ── Waiving one ──────────────────────────────────────────────────────
+///
+/// Addendum E: BLOCK where legally grounded, WARN-capture-proceed
+/// everywhere else, never silently permit. A waived item is not deleted
+/// — it stays on the list, marked, with the reason and the name of
+/// whoever waived it. Work authorization cannot be waived at all, and
+/// `lib/document-requirements` refuses to honor one that somehow reached
+/// the row.
+model DocumentRequirement {
+  id String @id @default(cuid())
+
+  /// The header's default set. The buyer's own rules, inherited by every
+  /// line under the order.
+  workOrderId    String?
+  workOrder      WorkOrder?    @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  /// The line that bills a customer: the customer's paper this firm signs
+  /// as its supplier.
+  sellContractId String?
+  sellContract   SellContract? @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
+  /// The line that pays a supplier or runs payroll: everything about the
+  /// party being paid, which is what stops the money when it lapses.
+  buyContractId  String?
+  buyContract    BuyContract?  @relation(fields: [buyContractId], references: [id], onDelete: Cascade)
+
+  /// The key in `lib/document-type` — one of the shipped defaults, or a
+  /// type this company invented. A free string on purpose: a fixed enum
+  /// of document kinds is wrong the first week a client asks for a drug
+  /// screen, a security clearance or a works council notification.
+  documentTypeKey String
+  /// False means "asked for, not insisted on" — it is listed and its
+  /// absence never blocks.
+  required        Boolean        @default(true)
+  /// Which party owes it, and therefore who gets chased for it.
+  owedBy          DocumentOwedBy
+  /// Whether a missing or lapsed one stops the work. Null = whatever the
+  /// type itself says, which is the answer almost every row wants; a
+  /// value here is a client insisting on more, or accepting less, than
+  /// the default for this one line.
+  blocks          Boolean?
+
+  /// The header row this line row came from, where it overrides one.
+  /// Null on a header row, and on a line row the order never asked for.
+  inheritedFromId String?
+  inheritedFrom   DocumentRequirement?  @relation("inheritedFrom", fields: [inheritedFromId], references: [id])
+  overriddenBy    DocumentRequirement[] @relation("inheritedFrom")
+
+  /// Why this line needs it, in the words of whoever asked. Shown beside
+  /// the item rather than a code.
+  note String?
+
+  // ── Waived, on the record ──────────────────────────────────────────
+
+  /// Plain English, always. A waiver with no reason is a silent permit.
+  waivedReason String?
+  waivedById   String?
+  waivedBy     Person?   @relation("documentWaiver", fields: [waivedById], references: [id])
+  waivedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One row per type per owner. Two rows asking for the same document on
+  /// one line is two answers to one question.
+  @@unique([workOrderId, documentTypeKey])
+  @@unique([sellContractId, documentTypeKey])
+  @@unique([buyContractId, documentTypeKey])
+  @@index([documentTypeKey])
+  @@index([inheritedFromId])
+  @@index([waivedById])
+}
+
+/// Who owes a document — a position in the trade, never a person.
+///
+/// The same four positions as the table in CLAUDE.md's "Who sells and who
+/// buys", and it maps onto `SuppliedBy` in `lib/document-type`:
+/// CANDIDATE, EMPLOYEE and GOVERNMENT-issued paper is the WORKER's to
+/// produce, SUPPLIER is SUPPLIER, CLIENT is CUSTOMER, and anything the
+/// firm running the line owes itself is US.
+enum DocumentOwedBy {
+  /// The person doing the work — or whatever else is on the line. Their
+  /// I-9, their license, the visa a government issued them.
+  WORKER
+  /// The firm being paid: its insurance, its good standing, its W-9.
+  SUPPLIER
+  /// The firm being billed: its agreement, its own NDA, its site rules.
+  CUSTOMER
+  /// Ours to produce or to run — a vendor screening, a reference check
+  /// somebody here makes, the employer's half of a form.
+  US
 }
 
 // ─────────────────────────────────────────────

@@ -260,6 +260,22 @@ export const BUILT_IN: DocumentTypeSpec[] = [
     validMonths: 12,
     suppliedBy: 'SUPPLIER',
   }),
+  // A firm not in good standing with the state that registered it is a
+  // firm that may not lawfully contract there — its registration is
+  // suspended, usually for an unfiled report or unpaid franchise tax. It
+  // sits beside insurance in CLAUDE.md's table for that reason, and it
+  // `blocks` for the same reason cover does: it is the firm's standing to
+  // trade at all, not a preference a client is expressing.
+  //
+  // `blocks: true` was added 2026-09-21. Until then this shipped as a
+  // type with no consequence, so a supplier whose good standing lapsed was
+  // invisible unless a client had thought to define the type itself with
+  // `blocks` set — a crack in the loop that only the most diligent client
+  // would have closed. No shipped packet asks for one, so it changes no
+  // verdict on the day it lands; what it changes is that a line requiring
+  // it (`lib/document-requirements`) now stops the money when it lapses,
+  // and `blockingKeysFor` in contract-clearance picks it up with no
+  // further change the day a packet does ask.
   spec({
     key: 'GOOD_STANDING',
     label: 'Certificate of good standing',
@@ -268,6 +284,7 @@ export const BUILT_IN: DocumentTypeSpec[] = [
     validityShape: 'START_AND_END',
     validMonths: 12,
     suppliedBy: 'SUPPLIER',
+    blocks: true,
   }),
   // The one document a licensed worker cannot work without, and the
   // first thing in this dictionary that is not IT staffing. A state RN

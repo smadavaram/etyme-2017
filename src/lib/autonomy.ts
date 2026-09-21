@@ -463,6 +463,47 @@ export const PLANNED: Record<string, PlannedAct> = {
     willBeWrittenBy: 'etyme-regulatory',
   },
 
+  // ── The loop of documents, 2026-09-21 ──────────────────────────────
+  //
+  // "Ensure the loop of documents never cracks between parties." The
+  // table a line's required set lives on landed today; what reads it —
+  // the chase, the refusal and the letters — is regulatory's and
+  // conversation's next piece of work. The rungs and the sentences are
+  // decided here, with the record, so neither agent invents a level on a
+  // Friday afternoon.
+
+  DOCUMENT_LAPSE_TOLD: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A document a line depends on ran out, or is about to, and every party the lapse actually costs was told — the firm that owes it, the firm that is exposed by it, and nobody else. It changed nothing and stopped nothing; it is the letter that goes before the block.',
+    willBeWrittenBy: 'etyme-conversation',
+  },
+  DOCUMENT_REQUIREMENT_WAIVED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RECORDED',
+    says:
+      'A named person decided this line does not need a document its order asked for, gave a reason in their own words, and both are on the record beside the item — which stays on the list, marked waived, rather than disappearing from it. Work authorization cannot be waived and a waiver against one is refused rather than recorded.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  GOOD_STANDING_LAPSED: {
+    kind: 'ENFORCEMENT',
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says:
+      'A supplier’s certificate of good standing has expired, so the state that registered it no longer says it may trade — nobody starts through it and no new line is raised against it until it is renewed. The same shape as lapsed cover, and for the same reason: it is the firm’s standing to contract at all, not a preference a client is expressing.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  NDA_UNSIGNED_WARNED: {
+    kind: 'ENFORCEMENT',
+    outcome: 'WARN',
+    basis: 'RULE',
+    says:
+      'A non-disclosure agreement this line requires is still unsigned, and the start proceeds with the reason captured and whoever owes the signature told. It warns rather than blocks because a signature page is contractual rather than legally grounded, and a system that stops work over one gets worked around by email.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+
 
 }
 

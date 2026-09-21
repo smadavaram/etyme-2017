@@ -388,6 +388,13 @@ export const DOMAINS: Domain[] = [
       // compliance, money and demand all read the same answer, and because
       // it is the schema's vocabulary made extensible.
       'lib/document-type', 'app/api/document-types', 'app/dashboard/settings/documents',
+      // What a LINE requires on paper, and which party owes it — the
+      // header's set, the line's override, and the defaults under both.
+      // Here for the same reason `lib/document-type` is: compliance reads
+      // it to clear a start, demand reads it to onboard a supplier, money
+      // reads it before it pays, and none of them may change its shape
+      // alone. It is the schema's vocabulary again, one layer up.
+      'lib/document-requirements', 'lib/seed-document-requirements',
       // Whose names a company may read in the directory, and who may put
       // a firm on the register at all. Company identity, and the one
       // page where a leak is a lead list.
