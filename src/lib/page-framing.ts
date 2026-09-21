@@ -206,12 +206,18 @@ const CLIENT: Record<PageKey, Words> = {
   'contracts.sell': {
     title: 'Contracts',
     subtitle: 'Everyone working at your sites, across every vendor. Rates, end dates, and where they sit.',
-    create: 'Record a contractor',
+    // A client raises no contract by hand: the award writes both sides
+    // and their due dates (station 4 of the client program), and the
+    // rows on this page are its vendors' lines. The contracts page had
+    // this right before the framing did — it hid the button from a
+    // client with "A client does not raise contracts here — their
+    // vendors do" — and briefly the two disagreed. The page was right.
+    create: null,
   },
   'contracts.buy': {
     title: 'Contracts',
     subtitle: 'Everyone working at your sites, across every vendor.',
-    create: 'Record a contractor',
+    create: null,
   },
   requirements: {
     title: 'Open roles',

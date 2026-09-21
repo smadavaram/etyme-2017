@@ -366,6 +366,22 @@ describe('a program office reading a client\'s book is framed in the client\'s w
     expect(pageFraming('MSP', 'invoices', AT_CAVANAUGH).create).toBeNull()
     expect(pageFraming('MSP', 'timesheets').create).toBe('New')
   })
+
+  it('nobody records a contract by hand on a client\'s book — the award writes both sides', () => {
+    // The contracts page hid this button from a client before the
+    // framing existed ("A client does not raise contracts here — their
+    // vendors do") and the framing came along offering "Record a
+    // contractor", so for one commit the page and the words disagreed.
+    // The page was right: station 4 of the client program is that the
+    // award writes both contracts and their due dates.
+    for (const page of ['contracts.sell', 'contracts.buy'] as PageKey[]) {
+      expect(pageFraming('CLIENT', page).create, page).toBeNull()
+      expect(pageFraming('MSP', page, AT_CAVANAUGH).create, page).toBeNull()
+    }
+    // And a supplier, which does record a placement it is already
+    // running, still can.
+    expect(pageFraming('VENDOR', 'contracts.sell').create).toBe('Record a placement')
+  })
 })
 
 describe('the framing names whose book it is when it is not the reader\'s own', () => {
