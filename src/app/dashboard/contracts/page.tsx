@@ -13,6 +13,7 @@ import {
   MASTER_CONTRACT_WORD,
   type OrderParties,
 } from '@/lib/order-naming'
+import { orderReferenceLabel } from '@/lib/money/order-reference'
 
 /**
  * The documents, and their lines.
@@ -170,7 +171,13 @@ function lineOf(row: Contract, viewerId: string | null) {
   })
 }
 
-/** "PO PO-2026-4471" · "Not yet on an order". */
+/**
+ * "PO-2026-4471" · "PO 4471" · "Not yet on an order".
+ *
+ * The reader's own word goes in front of the number only where the
+ * number does not already carry it. This printed "PO PO-2026-K6KU1"
+ * and "SO SO-F8L1U" until 2026-09-21.
+ */
 function DocumentChip({ row, viewerId }: { row: Contract; viewerId: string | null }) {
   if (!row.document) {
     return (
@@ -183,9 +190,14 @@ function DocumentChip({ row, viewerId }: { row: Contract; viewerId: string | nul
   const ref = viewerId === row.document.issuedToId && row.document.sellerNumber
     ? row.document.sellerNumber
     : row.document.number
+  const label = orderReferenceLabel(ref, noun.short)
+  if (!label) {
+    return <span className="text-[12px] text-etyme-faint">Not yet on an order</span>
+  }
   return (
     <span className="font-mono text-[12px] text-etyme-ink">
-      <span className="text-etyme-faint mr-1.5">{noun.short}</span>{ref}
+      {label.prefix && <span className="text-etyme-faint mr-1.5">{label.prefix}</span>}
+      {label.reference}
     </span>
   )
 }

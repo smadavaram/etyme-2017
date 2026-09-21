@@ -695,12 +695,21 @@ export function dso(
     totalRevenue > 0 ? Math.round((receivableMinor / totalRevenue) * totalDays) : null
 
   if (receivableMinor <= 0) {
+    // Nothing outstanding is not a fast collection. It is no
+    // collection to time, and a zero here was read off the screen as
+    // a measurement: "we are paid in 0 days and we pay in 30, so our
+    // suppliers fund 30 days of it" — a conclusion drawn from an
+    // absence. The number is null and the sentence says why; `mirror`
+    // already declines to compare against a null, so the conclusion
+    // stops with it.
     return {
-      days: 0,
+      days: null,
       method: 'COUNTBACK',
       naiveDays,
       periodsUsed: 0,
-      says: 'Nothing is outstanding, so nothing is taking any time to arrive.',
+      says:
+        'Nothing is outstanding, so there is no time to measure. A firm with nothing ' +
+        'to collect does not collect fast — it has no days to count.',
     }
   }
 

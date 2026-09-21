@@ -225,8 +225,18 @@ describe('How long the money actually takes to arrive', () => {
     expect(without.days).toBe(30)
   })
 
-  it('nothing outstanding is nought days, not a division by zero', () => {
-    expect(dso(0, [month('2026-08', 100_000_00)]).days).toBe(0)
+  it('with nothing outstanding there is no days-to-get-paid, only a sentence saying why', () => {
+    // A zero here was read as a measurement on the AP page and a
+    // financing conclusion was drawn from it. A firm with nothing to
+    // collect does not collect fast; it has nothing to time.
+    const d = dso(0, [month('2026-08', 100_000_00)])
+    expect(d.days).toBeNull()
+    expect(d.says).toContain('no time to measure')
+  })
+
+  it('an empty receivable is still never a division by zero', () => {
+    expect(() => dso(0, [month('2026-08', 0)])).not.toThrow()
+    expect(dso(0, [month('2026-08', 0)]).naiveDays).toBeNull()
   })
 })
 

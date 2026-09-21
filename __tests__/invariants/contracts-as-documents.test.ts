@@ -154,3 +154,20 @@ describe('payroll is how a buy line is settled, not a thing to create', () => {
     expect(src).toContain('purchase order to their own employee')
   })
 })
+
+describe('no screen prints a prefix onto a number that already has one', () => {
+  // Four rows read "POPO-2026-K6KU1" and one "SOSO-F8L1U". Three
+  // screens composed the label by hand; all three ask one function now.
+  for (const screen of [SCREEN, PO_SCREEN]) {
+    it(`${screen} decides the word in front of an order number through the one helper`, () => {
+      const src = read(screen)
+      expect(src).toContain("from '@/lib/money/order-reference'")
+      expect(src).toContain('orderReferenceLabel')
+    })
+
+    it(`${screen} never pastes the short word straight onto the number`, () => {
+      const src = read(screen)
+      expect(src).not.toMatch(/\{(?:po|noun)\.short\}\s*<\/span>\s*\{(?:po\.reference|ref)\}/)
+    })
+  }
+})

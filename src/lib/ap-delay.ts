@@ -305,6 +305,17 @@ export interface ChainStep {
   observed: boolean
   /** True where the payee is a person rather than a company. */
   payeeIsAPerson: boolean
+  /**
+   * Whether the payee on this hop is on the platform — joined, not
+   * merely on somebody's register.
+   *
+   * Only the last hop's answer changes anything a reader sees, and it
+   * changes the one sentence that matters: whether the firm at the
+   * bottom is the end of the chain or only the end of what we can see.
+   * Undefined means nobody asked, and an unasked question is answered
+   * as "we do not know" rather than as "they are here".
+   */
+  payeeOnPlatform?: boolean
 }
 
 export interface Chain {
@@ -501,7 +512,25 @@ function partySays(
   outStep: ChainStep | null
 ): string {
   if (inStep == null) return `${name} is the source of the money. Nobody funds them here.`
-  if (outStep == null) return `${name} is the end of the chain. They pass nothing on.`
+  if (outStep == null) {
+    // The bottom of the chain, and there are two different facts that
+    // look identical from here. A firm that is on the platform and
+    // pays nobody onwards genuinely ends the chain. A firm that never
+    // joined — on somebody's register, never on the system — has no
+    // onward hop *on record*, which is not the same as having none,
+    // and saying "they pass nothing on" about them is a claim about a
+    // company we cannot see. The panel said exactly that beside a
+    // paragraph saying the opposite.
+    // A person at the bottom really is the end: wages are where the
+    // money stops, and a consultant pays no sub-vendor.
+    if (inStep.payeeIsAPerson || inStep.payeeOnPlatform === true) {
+      return `${name} is the end of the chain. They pass nothing on.`
+    }
+    return (
+      `${name} is the last party we can see. They are not on the platform, so whether ` +
+      `they pass any of this on, and when, is unknown rather than nothing.`
+    )
+  }
   if (direction === 'UNKNOWN' || days == null) {
     return `${name} cannot be placed until both sides of their hop have settled.`
   }
@@ -775,12 +804,19 @@ export function dpo(payableMinor: number, periods: PurchasePeriod[]): Dpo {
     totalPurchases > 0 ? Math.round((payableMinor / totalPurchases) * totalDays) : null
 
   if (payableMinor <= 0) {
+    // The same shape as `dso`'s empty book, and wrong for the same
+    // reason: owing nobody anything is not paying in nought days, it
+    // is having no payment to time. A zero here would be compared
+    // against a real DSO and produce a financing claim out of an
+    // absence.
     return {
-      days: 0,
+      days: null,
       method: 'COUNTBACK',
       naiveDays,
       periodsUsed: 0,
-      says: 'Nothing is owed to suppliers, so nothing is being held from them.',
+      says:
+        'Nothing is owed to suppliers, so there is no time to measure. Nothing is being ' +
+        'held from anybody and there are no days to count.',
     }
   }
 
@@ -846,19 +882,42 @@ export interface Mirror {
  * are doing to our suppliers exactly what our clients are doing to us,
  * and somebody should decide that on purpose rather than by default.
  */
-export function mirror(dsoDays: number | null, dpoDays: number | null): Mirror {
+export function mirror(
+  dsoDays: number | null,
+  dpoDays: number | null,
+  /**
+   * Why a side is missing, where the caller knows. An empty book and a
+   * history too short to count back through are both nulls and they are
+   * not the same news: one is "there is nothing to measure" and the
+   * other is "we could not measure it". Saying "could not be counted"
+   * about a firm that simply owes nobody anything is its own small
+   * fabrication.
+   */
+  empty: { receivable?: boolean; payable?: boolean } = {}
+): Mirror {
   if (dsoDays == null || dpoDays == null) {
+    const bothEmpty = empty.receivable === true && empty.payable === true
+    const missingSide = (side: 'receivable' | 'payable') =>
+      empty[side] === true
+        ? side === 'receivable'
+          ? 'Nothing is outstanding to us, so there is no days-to-get-paid to set against how long we take to pay.'
+          : 'Nothing is owed to suppliers, so there is no days-to-pay to set against how long we wait to be paid.'
+        : side === 'receivable'
+          ? 'How long we take to be paid could not be counted, so the comparison is not shown.'
+          : 'How long we take to pay could not be counted, so the comparison is not shown.'
+
     return {
       dsoDays,
       dpoDays,
       gapDays: null,
       direction: 'UNKNOWN',
-      says:
-        dsoDays == null && dpoDays == null
+      says: bothEmpty
+        ? 'Nothing is outstanding either way, so there is no float to compare.'
+        : dsoDays == null && dpoDays == null
           ? 'Neither side can be counted yet, so there is nothing to compare.'
           : dsoDays == null
-            ? 'How long we take to be paid could not be counted, so the comparison is not shown.'
-            : 'How long we take to pay could not be counted, so the comparison is not shown.',
+            ? missingSide('receivable')
+            : missingSide('payable'),
     }
   }
 

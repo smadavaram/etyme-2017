@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { lineName, lineDoes, type LineSide, type OrderSide } from '@/lib/order-naming'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
+import { orderReferenceLabel } from '@/lib/money/order-reference'
 
 /**
  * What has been authorized, and how much of it is left.
@@ -299,13 +300,39 @@ export default function PurchaseOrdersPage() {
 }
 
 
+/**
+ * An order number with the reader's own word in front of it — and not
+ * a second time where the number already opens with it. "PO
+ * PO-2026-K6KU1" is nobody's writing.
+ */
+function OrderRef({
+  reference,
+  short,
+  sizeClass = '',
+}: {
+  reference: string
+  short: string
+  sizeClass?: string
+}) {
+  const label = orderReferenceLabel(reference, short)
+  if (!label) return null
+  return (
+    <>
+      {label.prefix && (
+        <span className={`text-etyme-faint mr-1.5 ${sizeClass}`}>{label.prefix}</span>
+      )}
+      {label.reference}
+    </>
+  )
+}
+
 const PO_COLUMNS: Column<PO>[] = [
   // A client reads its own purchase orders; a supplier reads the same
   // rows as its sales orders. One list, and each row says which it is —
   // a GSI has both in the same week.
   { key: 'number', label: 'Reference', render: (po) => (
     <span className="font-mono text-etyme-ink">
-      <span className="text-etyme-faint mr-1.5">{po.short}</span>{po.reference}
+      <OrderRef reference={po.reference} short={po.short} />
     </span>
   ), sortValue: (po) => po.reference },
   { key: 'counterparty', label: 'With', render: (po) => <span className="text-etyme-muted">{po.direction === 'issued' ? 'to' : 'from'} {po.counterparty.name}</span>, sortValue: (po) => po.counterparty.name },
@@ -381,7 +408,7 @@ function Row({ po }: { po: PO }) {
       <div className="flex items-baseline justify-between gap-4 mb-2">
         <div>
           <span className="text-[14px] font-mono text-etyme-ink">
-            <span className="text-etyme-faint mr-1.5 text-[12px]">{po.short}</span>{po.reference}
+            <OrderRef reference={po.reference} short={po.short} sizeClass="text-[12px]" />
           </span>
           <span className="ml-3 text-[13px] text-etyme-muted">
             {po.direction === 'issued' ? 'to' : 'from'} {po.counterparty.name}

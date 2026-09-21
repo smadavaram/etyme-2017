@@ -214,6 +214,57 @@ describe('Chain float — the number nobody has', () => {
     expect(f.parties[f.parties.length - 1].direction).toBe('EVEN')
   })
 
+  it('a firm that never joined is the last party we can see, and is never called the end of the chain', () => {
+    // Bluecrest Staffing is on Pinnacle's register and not on the
+    // system. The hop panel said "they pass nothing on" directly above
+    // a paragraph saying whoever they pay next is outside anything we
+    // hold. Both cannot be true.
+    const shell = theChain([
+      undefined as any, undefined as any, undefined as any,
+      { payeeName: 'Bluecrest Staffing', payeeIsAPerson: false, payeeOnPlatform: false },
+    ])
+    const f = chainFloat(shell)
+    const last = f.parties[f.parties.length - 1]
+    expect(last.partyName).toBe('Bluecrest Staffing')
+    expect(last.says).not.toContain('end of the chain')
+    expect(last.says).toContain('last party we can see')
+  })
+
+  it('the chain past a firm that is not on the platform is called unknown rather than nothing', () => {
+    const shell = theChain([
+      undefined as any, undefined as any, undefined as any,
+      { payeeName: 'Bluecrest Staffing', payeeIsAPerson: false, payeeOnPlatform: false },
+    ])
+    const last = chainFloat(shell).parties.slice(-1)[0]
+    expect(last.says).toContain('unknown rather than nothing')
+  })
+
+  it('a firm nobody asked about is treated as unknown rather than as present', () => {
+    // No flag at all is an unasked question, and an unasked question is
+    // not a yes.
+    const shell = theChain([
+      undefined as any, undefined as any, undefined as any,
+      { payeeName: 'Bluecrest Staffing', payeeIsAPerson: false },
+    ])
+    expect(chainFloat(shell).parties.slice(-1)[0].says).toContain('last party we can see')
+  })
+
+  it('a firm that is on the platform and pays nobody onwards is the end of the chain', () => {
+    const joined = theChain([
+      undefined as any, undefined as any, undefined as any,
+      { payeeName: 'Brightmoor Staffing', payeeIsAPerson: false, payeeOnPlatform: true },
+    ])
+    expect(chainFloat(joined).parties.slice(-1)[0].says).toBe(
+      'Brightmoor Staffing is the end of the chain. They pass nothing on.'
+    )
+  })
+
+  it('a consultant at the bottom of the chain is the end of it, because wages are where money stops', () => {
+    const last = chainFloat(theChain()).parties.slice(-1)[0]
+    expect(last.partyName).toBe('Priya')
+    expect(last.says).toContain('end of the chain')
+  })
+
   it('the financing party furthest from the client is named as an inference, not a measurement of size', () => {
     const f = chainFloat(theChain())
     expect(f.deepestFinancier?.partyName).toBe('Bench vendor')
@@ -360,8 +411,14 @@ describe('Days payable outstanding, computed the way days sales outstanding is',
     expect(d.says).toContain('history problem, not a payment figure')
   })
 
-  it('owing suppliers nothing is nought days, not a missing figure', () => {
-    expect(dpo(0, PURCHASES).days).toBe(0)
+  it('with nothing owed to suppliers there is no days-to-pay, because an empty book is not a fast one', () => {
+    // This read `toBe(0)` until 2026-09-21, and the zero was then put
+    // beside a real days-to-get-paid and turned into a financing
+    // claim. Owing nobody anything is an absence of a measurement, not
+    // a measurement of nought.
+    const d = dpo(0, PURCHASES)
+    expect(d.days).toBeNull()
+    expect(d.says).toContain('no time to measure')
   })
 })
 
@@ -385,6 +442,28 @@ describe('Our days payable beside our days to get paid', () => {
     expect(mirror(null, 30).direction).toBe('UNKNOWN')
     expect(mirror(68, null).direction).toBe('UNKNOWN')
     expect(mirror(null, 30).gapDays).toBeNull()
+  })
+
+  it('no conclusion is drawn from a days-to-get-paid that is only an absence', () => {
+    // The AP page read "We are paid in 0 days and we pay in 30, so our
+    // suppliers fund 30 days of it" off a firm with nothing
+    // outstanding. Nobody funded anything.
+    const m = mirror(null, 30, { receivable: true })
+    expect(m.direction).toBe('UNKNOWN')
+    expect(m.gapDays).toBeNull()
+    expect(m.says).not.toContain('fund')
+    expect(m.says).toContain('Nothing is outstanding to us')
+  })
+
+  it('an empty book on both sides says there is no float to compare, not that it is flat', () => {
+    const m = mirror(null, null, { receivable: true, payable: true })
+    expect(m.direction).toBe('UNKNOWN')
+    expect(m.says).toContain('no float to compare')
+  })
+
+  it('a side that could not be counted is still told apart from a side with nothing on it', () => {
+    expect(mirror(null, 30).says).toContain('could not be counted')
+    expect(mirror(null, 30, { receivable: true }).says).not.toContain('could not be counted')
   })
 })
 

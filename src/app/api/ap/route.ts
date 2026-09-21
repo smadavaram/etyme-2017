@@ -370,7 +370,12 @@ export async function GET(request: NextRequest) {
       // "we are owed nothing" is a worse answer than "not shown here".
       receivableMinor: bothSides ? cb?.outstandingMinor ?? null : null,
       dso: bothSides ? ourDso : null,
-      mirror: bothSides ? mirror(ourDso?.days ?? null, ourDpo.days) : null,
+      mirror: bothSides
+        ? mirror(ourDso?.days ?? null, ourDpo.days, {
+            receivable: cb != null && cb.outstandingMinor <= 0,
+            payable: payableMinor <= 0,
+          })
+        : null,
       in: bothSides ? summarizeHops(theirDelays, 'IN') : null,
     }
   })
@@ -490,6 +495,10 @@ export async function GET(request: NextRequest) {
             payWhenPaid: b.payWhenPaid,
             observed: true,
             payeeIsAPerson: false,
+            // The bottom of the chain, and the same fact `beyond` is
+            // built from. Both sentences are on the same panel, so
+            // both read it from here rather than one of them guessing.
+            payeeOnPlatform: b.vendorCompany.claimedAt != null,
           },
         ],
       }
