@@ -37,6 +37,15 @@ export interface Program {
   name: string
   where: string
   about: string
+  /**
+   * The desks at this firm, where it seats more than one person.
+   *
+   * A client program has always drawn a row of desks; a supplier drew
+   * one button, because a supplier seated one person. Brightmoor
+   * Staffing seats nine now, so the door for a firm carries the same
+   * row when there is one to carry.
+   */
+  desks?: ClientDesk[]
 }
 
 /**
@@ -166,7 +175,54 @@ export const CLIENT_DESKS: ClientDesk[] = [
  * for; the half nobody sells it is the one where it is the customer —
  * the leg below, the bill from it, the paperwork it is chasing.
  */
+/**
+ * The desks a supplier runs on, in its own words.
+ *
+ * A staffing firm is not one seat either. It has somebody who owns the
+ * client relationship, somebody who finds people, somebody who owns the
+ * bench, somebody who papers the deal, somebody who bills, somebody who
+ * pays and somebody who chases the certificates — and each of those is
+ * a different morning. All nine existed as roles in
+ * `lib/company-defaults`, every one of them was held by nobody in the
+ * seeded world, and so none could be opened from this page at all
+ * (the browser walk, 2026-09-21). Brightmoor Staffing seats them now.
+ */
+export const SUPPLIER_DESKS: ClientDesk[] = [
+  { desk: 'account', label: 'Account manager',
+    waiting: 'Owns the client. Roles, rates, submissions, and what was billed — never payroll.' },
+  { desk: 'recruiter', label: 'Recruiter',
+    waiting: 'Finds and submits people. Cannot see what anybody costs.' },
+  { desk: 'resourcing', label: 'Resource manager',
+    waiting: 'Owns the bench and who goes where.' },
+  { desk: 'contracts', label: 'Contract manager',
+    waiting: 'Agreements, orders, extensions and rate changes. Neither submits nor pays.' },
+  { desk: 'hr', label: 'HR',
+    waiting: 'The firm’s own people’s paperwork and work authorization. Sees no money.' },
+  { desk: 'ar', label: 'Accounts receivable',
+    waiting: 'Bills the client and records what came in. Never runs payroll.' },
+  { desk: 'payroll', label: 'AP & payroll',
+    waiting: 'Pays the consultant and the sub-vendor. Never issues a client invoice.' },
+  { desk: 'finance', label: 'Finance',
+    waiting: 'Bills, pays and closes the month — the whole desk at a small firm.' },
+  { desk: 'compliance', label: 'Compliance officer',
+    waiting: 'Whose cover is running out, and whose paperwork is not on file.' },
+  { desk: '', label: 'Owner',
+    waiting: 'The whole book, including what a placement earns.' },
+]
+
 export const SUPPLIER_SEATS: Program[] = [
+  {
+    slug: 'world-brightmoor',
+    name: 'Brightmoor Staffing',
+    where: 'Prime supplier, every desk seated',
+    about:
+      'Sells two contractors into Northbend Athletic off its own payroll and an engineer into a ' +
+      'retailer through a bench vendor it buys from. Its liability cover runs out in twenty days, ' +
+      'which is the compliance officer’s morning. The only firm here with a person at each of its ' +
+      'nine desks: the account manager owns the client, the recruiter cannot see what anybody ' +
+      'costs, and AR bills while AP & payroll pays. Sit at any of them.',
+    desks: SUPPLIER_DESKS,
+  },
   {
     slug: 'world-computer-systems',
     name: 'Computer Systems Inc',
@@ -211,6 +267,22 @@ export const SUPPLIER_SEATS: Program[] = [
  * inventing one nobody asked for.
  */
 export const PROGRAM_OFFICE_SEATS: Program[] = [
+  {
+    slug: 'world-kestrel',
+    name: 'Kestrel MSP',
+    where: 'Program office, at the client’s compliance desk',
+    about:
+      'Answers for compliance across Talvern Medical’s suppliers without placing anybody there — ' +
+      'so no contract ties the two firms and Talvern says it instead, granting Kestrel its own ' +
+      'compliance officer desk. Tenure across every supplier, whose cover is current, and what is ' +
+      'held about a person, read by a firm that is not the client, with every read logged against it.',
+    desks: [
+      { desk: 'compliance', label: 'Compliance officer',
+        waiting: 'Talvern Medical’s tenure ledger and paperwork, from the desk Talvern granted.' },
+      { desk: '', label: 'Owner',
+        waiting: 'The office’s own book, and the programs it runs.' },
+    ],
+  },
   {
     slug: 'world-aptiva',
     name: 'Aptiva Workforce',

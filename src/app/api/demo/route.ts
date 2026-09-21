@@ -66,23 +66,68 @@ const BUYERS = [
 type Held = Seat | 'CANDIDATE'
 
 /**
- * The desks at a seeded client program, by the suffix on their address.
- * `world-nike-ap@demo.etyme.local` is the AP clerk at Northbend Athletic; the roster
- * is in lib/seed-programmes and the words here are what a visitor reads.
+ * The desks a seeded firm seats, by the role each holds.
+ *
+ * The roster is in lib/seed-programmes for a client and lib/seed-world
+ * for a supplier; the words here are what a visitor reads. The address
+ * still carries the desk in it — `world-nike-ap@` is the AP clerk — but
+ * nothing looks a seat up that way any more: a role is the fact and an
+ * address is a handle.
  */
-const DEMO_DOMAIN = 'demo.etyme.local'
-const DESKS = ['programme', 'hiring', 'hr', 'procurement', 'vp', 'ap', 'compliance'] as const
+// The client program desks first, then the desks a supplier runs on.
+// Those nine existed as roles at every firm in the world and were held
+// by nobody until 2026-09-21, so not one of them could be opened here.
+const DESKS = [
+  'programme', 'hiring', 'hr', 'procurement', 'vp', 'ap', 'compliance',
+  'account', 'recruiter', 'resourcing', 'contracts', 'ar', 'payroll', 'finance',
+] as const
 type Desk = (typeof DESKS)[number]
 const DESK_NAMES: Record<Desk, string> = {
   programme: 'program manager',
   hiring: 'hiring manager',
-  hr: 'HR partner',
+  hr: 'HR',
   procurement: 'procurement lead',
   vp: 'approver',
   ap: 'accounts payable',
   compliance: 'compliance officer',
+  account: 'account manager',
+  recruiter: 'recruiter',
+  resourcing: 'resource manager',
+  contracts: 'contract manager',
+  ar: 'accounts receivable',
+  payroll: 'AP & payroll',
+  finance: 'finance',
 }
-const DESK_LANDING: Record<Desk, string> = {
+
+/**
+ * Which seat a desk is, by the role it holds.
+ *
+ * It used to be the suffix on the address — `world-nike-ap@` was the AP
+ * clerk — which worked exactly as long as every desk in the world was
+ * addressed that way. A role is the fact; the address is a handle. Two
+ * names where a word means different desks at different firms: "HR
+ * Partner" reads a role at a client and "HR" keeps a supplier's own
+ * people's paperwork, and the door says "HR" to both.
+ */
+const DESK_ROLES: Record<Desk, string[]> = {
+  programme: ['Program Manager'],
+  hiring: ['Hiring Manager'],
+  hr: ['HR Partner', 'HR'],
+  procurement: ['Procurement Lead'],
+  vp: ['Approver'],
+  ap: ['AP Clerk'],
+  compliance: ['Compliance Officer'],
+  account: ['Account Manager'],
+  recruiter: ['Recruiter'],
+  resourcing: ['Resource Manager'],
+  contracts: ['Contract Manager'],
+  ar: ['Accounts Receivable'],
+  payroll: ['AP & Payroll'],
+  finance: ['Finance'],
+}
+
+/** Where a desk's own work is, at a client. */
+const CLIENT_LANDING: Partial<Record<Desk, string>> = {
   programme: '/dashboard/program',
   hiring: '/dashboard/requisitions',
   hr: '/dashboard/requisitions',
@@ -90,6 +135,24 @@ const DESK_LANDING: Record<Desk, string> = {
   vp: '/dashboard/requisitions',
   ap: '/dashboard/invoices',
   compliance: '/dashboard/compliance',
+}
+
+/** And at a firm that sells: the same question, a different morning. */
+const SUPPLIER_LANDING: Partial<Record<Desk, string>> = {
+  account: '/dashboard/requirements',
+  recruiter: '/dashboard/submissions',
+  resourcing: '/dashboard/bench',
+  hr: '/dashboard/documents',
+  contracts: '/dashboard/contracts',
+  ar: '/dashboard/ar',
+  payroll: '/dashboard/payroll',
+  finance: '/dashboard/invoices',
+  compliance: '/dashboard/compliance',
+}
+
+function deskLanding(desk: Desk, kind: string): string {
+  const map = kind === 'CLIENT' ? CLIENT_LANDING : SUPPLIER_LANDING
+  return map[desk] ?? CLIENT_LANDING[desk] ?? SUPPLIER_LANDING[desk] ?? '/dashboard'
 }
 
 /**
@@ -297,8 +360,10 @@ export async function POST(request: NextRequest) {
         contexts: {
           where: {
             revokedAt: null, NOT: { roleId: null },
-            // The desk's own address, or the company's first seat.
-            ...(desk ? { person: { primaryEmail: `${asWorld}-${desk}@${DEMO_DOMAIN}` } } : {}),
+            // The desk's own role, or the company's first seat. Read
+            // off the role rather than off the address, so a firm whose
+            // desks were seeded under any other handle still opens.
+            ...(desk ? { role: { name: { in: DESK_ROLES[desk] } } } : {}),
           },
           select: { person: { select: { primaryEmail: true } }, role: { select: { name: true } } },
           orderBy: { grantedAt: 'asc' },
@@ -351,6 +416,11 @@ export async function POST(request: NextRequest) {
         companyId: company.id, companyName: company.name, kind: company.kind,
         world: asWorld,
         desk, role: company.contexts[0]?.role?.name ?? null,
+        // The client whose desk this firm sits at, if a client granted
+        // it one. It decides which console this seat opens on, and a
+        // caller that has to guess would guess wrong for exactly the
+        // firm this is about.
+        seatedAt,
         // Where this seat belongs. /dashboard is the vendor's Today view
         // and /dashboard/program is the client's program overview —
         // two pages for two company types, not two versions of one. A
@@ -373,7 +443,7 @@ export async function POST(request: NextRequest) {
         // end the integrator had: a page with no way back into its own
         // work.
         landing:
-          desk ? DESK_LANDING[desk]
+          desk ? deskLanding(desk, company.kind)
           // An integrator lands on Submissions rather than on its own
           // Today: putting somebody off its own payroll in front of a
           // client is the one thing that seat exists to demonstrate,

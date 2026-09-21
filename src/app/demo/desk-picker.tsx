@@ -125,14 +125,39 @@ export function FirmDoors({ firms }: { firms: Program[] }) {
             <p className="eyebrow">{f.where}</p>
             <h3 className="mt-1 font-serif text-[19px] leading-tight tracking-[-0.02em]">{f.name}</h3>
             <p className="mt-2 flex-1 text-[12.5px] leading-relaxed text-etyme-muted">{f.about}</p>
-            <button
-              onClick={() => sit(f.slug, { as: f.slug })}
-              disabled={busy !== null}
-              className="mt-4 self-start text-[13px] font-medium text-etyme-action
-                         transition-opacity hover:opacity-70 disabled:opacity-50"
-            >
-              {busy === f.slug ? 'Taking the seat…' : `Sit at ${f.name} →`}
-            </button>
+            {/* A firm that seats more than one person gets the same row
+                of desks a client program does. Most suppliers in this
+                world seat one, and one button is the honest door for
+                them. */}
+            {f.desks ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {f.desks.map((d) => {
+                  const key = `${f.slug}:${d.desk}`
+                  return (
+                    <button
+                      key={d.label}
+                      onClick={() => sit(key, { as: f.slug, ...(d.desk ? { desk: d.desk } : {}) })}
+                      disabled={busy !== null}
+                      title={d.waiting}
+                      className="rounded-md border border-etyme-rule bg-etyme-raised px-3 py-1.5 text-[12px]
+                                 font-medium transition-colors hover:border-etyme-action
+                                 hover:text-etyme-action disabled:opacity-50"
+                    >
+                      {busy === key ? 'Taking the seat…' : d.label}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <button
+                onClick={() => sit(f.slug, { as: f.slug })}
+                disabled={busy !== null}
+                className="mt-4 self-start text-[13px] font-medium text-etyme-action
+                           transition-opacity hover:opacity-70 disabled:opacity-50"
+              >
+                {busy === f.slug ? 'Taking the seat…' : `Sit at ${f.name} →`}
+              </button>
+            )}
           </section>
         ))}
       </div>

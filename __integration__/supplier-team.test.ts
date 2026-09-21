@@ -61,10 +61,18 @@ describe('a supplier brings its team in', () => {
     const at = r.body.data.contacts.filter((c: any) => c.at.name === 'Brightmoor Staffing')
     const byName = Object.fromEntries(at.map((c: any) => [c.name, c]))
     expect(byName['Priya Sethi']?.kind).toBe('EXECUTIVE')
-    expect(byName['Tom Adeyemi']?.kind).toBe('DELIVERY')
-    expect(byName['Karl Bennett']?.kind).toBe('AP')
+    // HR is HR, and Finance bills. Both moved on 2026-09-21, after the
+    // walk read Cavanaugh's compliance officer and HR partner filed
+    // under "Delivery": the chip is read off the role and the kind of
+    // firm now, and a firm that bills us is not the desk that pays us.
+    expect(byName['Tom Adeyemi']?.kind).toBe('HR')
+    expect(byName['Karl Bennett']?.kind).toBe('BILLING')
     expect(byName['Ines Farah']?.kind).toBe('PROCUREMENT')
     expect(byName['Ines Farah']?.title).toBe('Contract Manager')
-    expect(byName['Karl Bennett']?.email).toBe('karl@brightmoor.demo.etyme.local')
+    // And no address, because `brightmoor.demo.etyme.local` can never
+    // receive mail — a rolodex row that prints an unreachable address is
+    // promising something the domain cannot keep. A real supplier's
+    // people are on a real domain and are still shown.
+    expect(byName['Karl Bennett']?.email).toBeNull()
   })
 })

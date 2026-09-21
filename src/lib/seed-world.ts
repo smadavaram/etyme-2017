@@ -42,7 +42,7 @@ import { seedCalendar, holidayKeys } from '@/lib/seed-calendar'
 import { seedStanding } from '@/lib/seed-standing'
 import { seedOrderToCash } from '@/lib/seed-order-to-cash'
 import { seedPipeline } from '@/lib/seed-pipeline'
-import { rolesFor } from '@/lib/company-defaults'
+import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
 // A seeded bill is shaped by the two doors a real one is: `periodFor`
 // under the terms of the document the line is on, and `dueOn` under what
 // those terms count from.
@@ -156,6 +156,9 @@ export async function seedWorld(): Promise<{
   firms: number; placements: number; consultants: number
   /// The integrators' own employees — a live EMPLOYEE seat, no bench listing.
   onPayroll: number
+  /// One seat per job at a supplier and at a program office, so every
+  /// desk a staffing firm actually runs on can be opened from /demo.
+  supplierDesks: number
   /// Chains still mid-flight — open requirements with rounds not yet held.
   live: number
   /// Days off on every firm's calendar, so a due date can be shifted.
@@ -1123,6 +1126,144 @@ export async function seedWorld(): Promise<{
     }
   }
 
+  // ── A supplier's own desks ─────────────────────────────────────────
+  //
+  // Every supplier in this world seated exactly one person, its owner,
+  // so the eight roles a staffing firm actually runs on — Account
+  // Manager, Recruiter, Resource Manager, HR, Contract Manager,
+  // Accounts Receivable, AP & Payroll, Finance and Compliance Officer —
+  // existed as roles and were held by nobody. None of them could be
+  // opened from /demo at all (the browser walk, 2026-09-21), which is
+  // how a role with a permission set nobody has ever sat behind stays
+  // wrong without anybody noticing.
+  //
+  // Brightmoor Staffing gets the full set, because it has the richest
+  // story in the world — it sells into two programs, buys from a bench
+  // vendor below, and its liability cover runs out in twenty days. One
+  // firm rather than six: the point is that each desk can be walked,
+  // and six copies of the same eight people would be noise in every
+  // list that counts people.
+  //
+  // Each holds the role's own permissions from `lib/company-defaults`,
+  // so the AR desk cannot run payroll and the recruiter cannot see what
+  // anybody costs — which is the whole reason for seating them.
+  const SUPPLIER_TEAM: { desk: string; role: string; name: string }[] = [
+    { desk: 'account',    role: 'Account Manager',     name: 'Marisa Delacroix' },
+    { desk: 'recruiter',  role: 'Recruiter',           name: 'Tobias Ferrand' },
+    { desk: 'resourcing', role: 'Resource Manager',    name: 'Nadia Oyelowo' },
+    { desk: 'hr',         role: 'HR',                  name: 'Petra Kalnins' },
+    { desk: 'contracts',  role: 'Contract Manager',    name: 'Geoffrey Alderton' },
+    { desk: 'ar',         role: 'Accounts Receivable', name: 'Imelda Santoro' },
+    { desk: 'payroll',    role: 'AP & Payroll',        name: 'Desmond Achebe' },
+    { desk: 'finance',    role: 'Finance',             name: 'Rosalind Tay' },
+    { desk: 'compliance', role: 'Compliance Officer',  name: 'Anneke Roosevelt' },
+  ]
+  let supplierDesks = 0
+  const brightmoor = firmBySlug.get('brightmoor')
+  if (brightmoor) {
+    for (const [was, now] of Object.entries(RENAMED_ROLES)) {
+      await db.role.updateMany({ where: { companyId: brightmoor.id, name: was }, data: { name: now } })
+    }
+    for (const seed of rolesFor('VENDOR')) {
+      const existing = await db.role.findFirst({ where: { companyId: brightmoor.id, name: seed.name } })
+      if (!existing) {
+        await db.role.create({
+          data: {
+            companyId: brightmoor.id, name: seed.name,
+            permissions: seed.permissions, isDefault: !!seed.isOwner,
+          },
+        })
+      }
+    }
+    for (const d of SUPPLIER_TEAM) {
+      const role = await db.role.findFirst({ where: { companyId: brightmoor.id, name: d.role }, select: { id: true } })
+      if (!role) continue
+      // The same address shape the client desks use: the firm's slug
+      // with the desk after it. Nobody reads it — it is a sign-in
+      // handle, and no screen prints one (lib/contacts).
+      const email = `${PREFIX}brightmoor-${d.desk}@${DOMAIN}`
+      const who = await db.person.upsert({
+        where: { primaryEmail: email }, update: { name: d.name }, create: { name: d.name, primaryEmail: email },
+      })
+      if (!(await db.context.findFirst({ where: { personId: who.id, companyId: brightmoor.id } }))) {
+        await db.context.create({
+          data: {
+            personId: who.id, companyId: brightmoor.id, roleId: role.id, type: 'EMPLOYEE',
+            grantReason: `Seeded supplier desk — ${d.role}`,
+          },
+        })
+      }
+      supplierDesks++
+    }
+  }
+
+  // ── A compliance desk a program office sits at ─────────────────────
+  //
+  // The second seat, and a different role from Aptiva's above on
+  // purpose. Talvern Medical keeps its own program office and hands the
+  // compliance of it — tenure across every supplier, work
+  // authorization, whose insurance is current, and what is held about a
+  // person — to Kestrel MSP, at Talvern's OWN Compliance Officer desk.
+  //
+  // It is the one seat where the privacy queue and the tenure ledger
+  // are read by a firm that is not the client, which is exactly the
+  // read a client would most want accounted for afterwards — and until
+  // this existed there was nowhere on the demo to walk it.
+  const talvern = firmBySlug.get('terumo-bct')
+  const kestrel = firmBySlug.get('kestrel')
+  const talvernOwner = seatBySlug.get('terumo-bct')
+  if (talvern && kestrel && talvernOwner) {
+    const coRole = await db.role.findFirst({
+      where: { companyId: talvern.id, name: 'Compliance Officer' },
+      select: { id: true },
+    })
+    const already = await db.programSeat.findFirst({
+      where: { clientCompanyId: talvern.id, officeCompanyId: kestrel.id },
+      select: { id: true },
+    })
+    if (coRole && !already) {
+      await db.programSeat.create({
+        data: {
+          clientCompanyId: talvern.id,
+          officeCompanyId: kestrel.id,
+          roleId: coRole.id,
+          grantedById: talvernOwner.personId,
+          grantedAt: day(-150),
+          validFrom: day(-150),
+          reason:
+            'Kestrel answers for compliance across our suppliers — tenure, work authorization and ' +
+            'cover — so they sit at our own compliance desk under our rules, and every read of a ' +
+            'contractor’s record is logged against them.',
+        },
+      })
+    }
+    // And somebody at Kestrel to sit in it. A program office with one
+    // owner and nobody else cannot show a desk doing a desk's job.
+    const kestrelRole =
+      (await db.role.findFirst({ where: { companyId: kestrel.id, name: 'Compliance Officer' } })) ??
+      (await db.role.create({
+        data: {
+          companyId: kestrel.id, name: 'Compliance Officer', isDefault: false,
+          permissions: rolesFor('MSP').find((r) => r.name === 'Compliance Officer')!.permissions,
+        },
+      }))
+    const email = `${PREFIX}kestrel-compliance@${DOMAIN}`
+    const who = await db.person.upsert({
+      where: { primaryEmail: email },
+      update: { name: 'Yvonne Achterberg' },
+      create: { name: 'Yvonne Achterberg', primaryEmail: email },
+    })
+    if (!(await db.context.findFirst({ where: { personId: who.id, companyId: kestrel.id } }))) {
+      await db.context.create({
+        data: {
+          personId: who.id, companyId: kestrel.id, roleId: kestrelRole.id, type: 'EMPLOYEE',
+          grantReason: 'Seeded program office desk — Compliance Officer',
+        },
+      })
+    }
+    supplierDesks++
+  }
+
   // ── The last mile: the doors themselves ────────────────────────────
   //
   // Four people with a seat of their own and something waiting on it,
@@ -1155,6 +1296,8 @@ export async function seedWorld(): Promise<{
     placements: placed.length + programs.placements + doors.placements,
     /// Employees of the two integrators, on payroll and on nobody's bench.
     onPayroll,
+    /// Desks seated at a supplier and at a program office, one per job.
+    supplierDesks,
     consultants: NAMES.length + LIVE.length + programs.people + doors.people,
     live: LIVE.length,
     /// Days off on every firm's calendar, so a due date can be shifted.

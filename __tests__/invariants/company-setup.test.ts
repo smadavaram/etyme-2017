@@ -32,9 +32,13 @@ describe('a company’s own setup is read by the desk that runs it', () => {
     expect(GET).toContain("hasPermission(caller.permissions, 'settings.manage')")
   })
 
-  it('the refusal says what is missing and who to ask, not a permission string', () => {
+  it('the refusal names the desk that does read it, rather than a permission string', () => {
+    // `askTheDesk` in lib/permissions turns the key into the desks that
+    // hold it at this company — "Reading a company's own setup is the
+    // Owner's and the Admin's at Sundara Systems."
     const refusal = GET.slice(GET.indexOf("'settings.manage'"), GET.indexOf('const companyId'))
-    expect(refusal).toContain('Ask whoever runs your access here')
+    expect(refusal).toContain('askTheDesk')
+    expect(refusal).toContain('its roles, who may see outside it')
     expect(refusal).not.toContain('needs settings.manage')
   })
 

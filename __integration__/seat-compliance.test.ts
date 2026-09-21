@@ -138,10 +138,19 @@ beforeAll(async () => {
   // Talvern Medical seats Kestrel at its own Compliance Officer desk —
   // the desk that holds `privacy.manage`, and therefore the privacy
   // books as well as the program.
-  it_.talvernSeat = await grantSeat(
-    co.talvern, co.kestrel, 'Compliance Officer',
-    'Kestrel answers for tenure, work authorization and supplier cover here. They place nobody at Talvern.'
-  )
+  //
+  // The world seed grants it since 2026-09-21, so that the one seat
+  // where a firm that is not the client reads a tenure ledger can be
+  // opened from `/demo` rather than only from here. This reads what
+  // ships, the way the Aptiva seat below does; creating a second one
+  // meant two live seats for one office and a revocation that revoked
+  // the wrong one.
+  it_.talvernSeat = (
+    await prisma.programSeat.findFirstOrThrow({
+      where: { clientCompanyId: co.talvern, officeCompanyId: co.kestrel, revokedAt: null },
+      select: { id: true },
+    })
+  ).id
 
   // Aptiva's seat at Cavanaugh is the world seed's own, at the Program
   // Manager desk. Nothing here creates it: this reads what ships.

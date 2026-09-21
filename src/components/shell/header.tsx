@@ -625,20 +625,29 @@ export function Header({ title }: HeaderProps) {
                 )}
               </div>
 
-              <button
-                onClick={() => { setAccountOpen(false); router.push('/dashboard/settings') }}
-                className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-ink
-                           hover:bg-etyme-canvas transition-colors"
-              >
-                Settings
-              </button>
-              <button
-                onClick={() => { setAccountOpen(false); router.push('/dashboard/access') }}
-                className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-ink
-                           hover:bg-etyme-canvas transition-colors"
-              >
-                Users & permissions
-              </button>
+              {/* The third door onto the same two pages, and it was the
+                  one that refused nobody: the menu and ⌘K both filter on
+                  what a seat can open and this pushed anybody who
+                  clicked their own name. `mayOpen` reads the permission
+                  off the page's own route, so all three agree. */}
+              {mayOpen('/dashboard/settings', permissions) && (
+                <button
+                  onClick={() => { setAccountOpen(false); router.push('/dashboard/settings') }}
+                  className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-ink
+                             hover:bg-etyme-canvas transition-colors"
+                >
+                  Settings
+                </button>
+              )}
+              {mayOpen('/dashboard/access', permissions) && (
+                <button
+                  onClick={() => { setAccountOpen(false); router.push('/dashboard/access') }}
+                  className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-ink
+                             hover:bg-etyme-canvas transition-colors"
+                >
+                  Users &amp; permissions
+                </button>
+              )}
 
               <button
                 onClick={() => { setAccountOpen(false); void signOutEverywhere() }}

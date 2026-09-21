@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { askTheDesk, hasPermission } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { getTemplatePack, TEMPLATE_PACKS } from '@/lib/template-packs'
 import { SHIFT_CATEGORIES, SHIFT_WORDS, isShiftDirection, policyFrom } from '@/lib/cycle-shift'
@@ -53,8 +53,13 @@ export async function GET(request: NextRequest) {
           code: 'FORBIDDEN',
           message:
             `How ${caller.company.name} is set up — its roles, who may see outside it, its ` +
-            `calendar and its cost centers — is the owner's or an admin's to read. ` +
-            `Ask whoever runs your access here.`,
+            `calendar and its cost centers — is not something this desk reads. ` +
+            askTheDesk({
+              doing: 'Reading a company’s own setup',
+              needs: 'settings.manage',
+              kind: caller.company.kind,
+              companyName: caller.company.name,
+            }),
         },
       },
       { status: 403 }
@@ -197,7 +202,20 @@ export async function PATCH(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'settings.manage')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Changing company settings needs settings.manage' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          // The desk, not the key. A person reading "needs
+          // settings.manage" has been handed the machine's word for
+          // the thing they are not allowed to do.
+          message: askTheDesk({
+            doing: 'Changing how this company is set up',
+            needs: 'settings.manage',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

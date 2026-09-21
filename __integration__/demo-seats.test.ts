@@ -46,8 +46,12 @@ async function enter(seat: string, cookie?: string) {
 }
 
 /** POST /api/demo asking for a named seat in the seeded world. */
-async function sit(slug: string, cookie?: string) {
-  const r = req('POST', '/api/demo', { as: slug }, cookie ? { cookie: `${DEMO_COOKIE}=${cookie}` } : {})
+async function sit(slug: string, desk?: string, cookie?: string) {
+  const r = req(
+    'POST', '/api/demo',
+    { as: slug, ...(desk ? { desk } : {}) },
+    cookie ? { cookie: `${DEMO_COOKIE}=${cookie}` } : {}
+  )
   const res = await demo(r as NextRequest)
   const body = (await res.json()).data
   const setCookie = res.headers.get('set-cookie') ?? ''
@@ -164,8 +168,11 @@ describe('every seat on the demo page opens', () => {
     await seedWorld()
   }, 600_000)
 
-  it('offers nine company doors and five people — three programs, three suppliers, a program office, two integrators', () => {
-    expect(ALL_SEATS).toHaveLength(9)
+  it('offers eleven company doors and five people — three programs, four suppliers, two program offices, two integrators', () => {
+    // Eleven since 2026-09-21: Brightmoor Staffing, the one firm whose
+    // nine supplier desks are seated, and Kestrel MSP, which sits at a
+    // client's compliance desk rather than its program manager's.
+    expect(ALL_SEATS).toHaveLength(11)
     expect(CANDIDATE_SEATS).toHaveLength(5)
   })
 
@@ -569,13 +576,23 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
   const aptiva = () => prisma.company.findFirstOrThrow({ where: { slug: 'world-aptiva' } })
 
   it('offers a door for the program office and one for the sub-vendor, beside the primes and the integrators', () => {
-    expect(PROGRAM_OFFICE_SEATS).toHaveLength(1)
+    // Two offices now: one that runs a program from the program
+    // manager's desk, and one that answers for compliance from the
+    // client's compliance desk.
+    expect(PROGRAM_OFFICE_SEATS).toHaveLength(2)
     expect(ALL_SEATS.map((s) => s.slug)).toContain('world-aptiva')
     expect(ALL_SEATS.map((s) => s.slug)).toContain('world-cloudepa')
   })
 
   it('names something waiting on both sides of every supplying firm’s book, not only on the side it sells from', () => {
-    for (const s of [...ALL_SEATS].filter((x) => !x.slug.startsWith('world-nike') && !x.slug.startsWith('world-corning') && !x.slug.startsWith('world-terumo'))) {
+    // Kestrel is the exception and it is the honest one: it holds a
+    // client's compliance desk, places nobody and holds no contract in
+    // either direction, so naming a sell side or a buy side would be a
+    // sentence the world behind the door does not hold.
+    for (const s of [...ALL_SEATS].filter((x) =>
+      !x.slug.startsWith('world-nike') && !x.slug.startsWith('world-corning') &&
+      !x.slug.startsWith('world-terumo') && x.slug !== 'world-kestrel'
+    )) {
       const says = s.about.toLowerCase()
       expect(/sell|sells/.test(says), `${s.name} never says what it sells`).toBe(true)
       expect(/buy|buys|employs/.test(says), `${s.name} never says what it buys`).toBe(true)
@@ -621,11 +638,26 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
     expect(billable.length, 'nothing on the sell side of the desk').toBeGreaterThan(0)
   })
 
-  it('lands the MSP on a page its own navigation offers, which is now its own and not the vendor’s', async () => {
+  it('lands the MSP on a page the menu it actually reads offers', async () => {
+    // Its own menu when it holds no desk anywhere, and the client's
+    // menu when a client has granted it one — which Cavanaugh
+    // Glassworks has. A program office at somebody else's desk reads
+    // that client's book on every page (lib/money/seated-books) and
+    // reads that client's sections above it (components/shell/sidebar),
+    // so the landing has to be checked against the menu it will
+    // actually see rather than against the one it would see unseated.
     const { body } = await sit('world-aptiva')
     expect(body.kind).toBe('MSP')
-    const hrefs = getNavForKind('MSP', false).flatMap((s) => s.items.map((i) => i.href))
+    expect(body.seatedAt, 'the world no longer grants this office a desk').toBeTruthy()
+    const hrefs = getNavForKind('MSP', false, { seatedAtClient: body.seatedAt })
+      .flatMap((s) => s.items.map((i) => i.href))
     expect(hrefs, `landed on ${body.landing}`).toContain(body.landing)
+  }, 30_000)
+
+  it('lands a program office holding a client’s compliance desk on that desk’s own work', async () => {
+    const { body } = await sit('world-kestrel', 'compliance')
+    expect(body.seatedAt, 'Talvern no longer grants Kestrel a desk').toBeTruthy()
+    expect(body.landing).toBe('/dashboard/compliance')
   }, 30_000)
 
   it('gives the sub-vendor a prime above it and its own consultant below, and never the prime’s client', async () => {

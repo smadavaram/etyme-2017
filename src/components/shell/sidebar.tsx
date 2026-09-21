@@ -242,7 +242,10 @@ const PRIVACY: NavItem[] = [
 
 /** Done once, by one person, and never on a Friday afternoon. */
 const ADMIN: NavItem[] = [
-  { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
+  // Who is seated here and what each desk may do. `/api/access` gates
+  // its read on governance.read since 2026-09-21, so an AP clerk is no
+  // longer shown a link that answers them with a refusal.
+  { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Admin', needs: ['governance.read'] },
   // The page is the company's own setup — its roles and what each may
   // do, its wall, its calendar, its cost centers — and the route asks
   // settings.manage for the read as well as the write since 2026-09-21.
@@ -717,7 +720,7 @@ const CLIENT_NAV: NavSection[] = [
       // them, and neither had a door: the desk's queue was in nobody's
       // menu at all, and "Your data" was the consultant's alone.
       ...PRIVACY,
-      { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Setup' },
+      { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Setup', needs: ['governance.read'] },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup', needs: ['settings.manage'] },
       { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup' },
     ],

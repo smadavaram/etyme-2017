@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import {
   CLIENT_PROGRAMS,
   CLIENT_DESKS,
+  SUPPLIER_DESKS,
   SUPPLIER_SEATS,
   PROGRAM_OFFICE_SEATS,
   INTEGRATOR_SEATS,
@@ -44,9 +45,13 @@ describe('the demo door opens on the client', () => {
     }
   })
 
-  it('offers three programs, six supplying firms and five people — nine company doors in all', () => {
+  it('offers three programs, eight supplying firms and five people', () => {
+    // Eight since 2026-09-21: Brightmoor Staffing, whose nine desks are
+    // the only place a supplier's own roles can be walked, and Kestrel
+    // MSP, which sits at a client's compliance desk rather than its
+    // program manager's.
     expect(CLIENT_PROGRAMS).toHaveLength(3)
-    expect([...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]).toHaveLength(6)
+    expect([...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]).toHaveLength(8)
     expect(CANDIDATE_SEATS).toHaveLength(5)
   })
 
@@ -86,9 +91,43 @@ describe('the desks on a client door', () => {
   })
 
   it('names every desk the route knows, so no seeded desk is unreachable by clicking', () => {
-    const onThePage = new Set(CLIENT_DESKS.map((d) => d.desk))
+    // Both rows of chips: a client program's desks, and the nine a
+    // supplier runs on, which Brightmoor Staffing seats since
+    // 2026-09-21. A desk the route answers to and no door opens is a
+    // seat nobody can find.
+    const onThePage = new Set([
+      ...CLIENT_DESKS.map((d) => d.desk),
+      ...SUPPLIER_DESKS.map((d) => d.desk),
+    ])
     for (const desk of known) {
       expect(onThePage, `the route seats a "${desk}" desk that no chip on the page opens`).toContain(desk)
+    }
+  })
+
+  it('every desk a supplier door offers is one the route seats', () => {
+    for (const desk of SUPPLIER_DESKS.map((d) => d.desk).filter(Boolean)) {
+      expect(known, `the page offers a "${desk}" desk and the route does not know it`).toContain(desk)
+    }
+    // And the owner's own seat, taken by naming no desk at all.
+    expect(SUPPLIER_DESKS.map((d) => d.desk)).toContain('')
+  })
+
+  it('names a supplier desk in the trade’s words, not a role key', () => {
+    const labels = SUPPLIER_DESKS.map((d) => d.label)
+    expect(new Set(labels).size).toBe(labels.length)
+    expect(labels).toContain('Account manager')
+    expect(labels).toContain('Accounts receivable')
+    expect(labels).toContain('AP & payroll')
+  })
+
+  it('sends every desk somewhere its own work is', () => {
+    // A desk that lands on somebody else's page is the bug the client
+    // desks were given landings to fix, and the supplier desks are nine
+    // more chances to make it.
+    const landings = /const SUPPLIER_LANDING: Partial<Record<Desk, string>> = \{([^}]*)\}/.exec(route)
+    expect(landings, 'the route no longer says where a supplier desk lands').toBeTruthy()
+    for (const desk of SUPPLIER_DESKS.map((d) => d.desk).filter(Boolean)) {
+      expect(landings![1], `${desk} lands nowhere`).toContain(`${desk}:`)
     }
   })
 
