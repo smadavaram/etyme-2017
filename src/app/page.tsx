@@ -191,7 +191,7 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
     items: [
       { t: 'Work authorization', d: 'Blocked, not warned, where the law is behind it.', href: '#lifecycle' },
       { t: 'Tenure & co-employment', d: 'Counted per person across suppliers, not per assignment.', href: '#exposure' },
-      { t: 'Insurance & good standing', d: 'A lapsed certificate stops a start until it is renewed.', href: '#exposure' },
+      { t: 'Insurance & good standing', d: 'A lapsed insurance certificate stops a start. Good standing is read beside it on the Compliance screen.', href: '#exposure' },
       { t: 'Governance & approvals', d: 'Every override keeps the name of whoever gave it.', href: '#exposure' },
     ],
   },
@@ -250,7 +250,7 @@ const STEPS: {
     alt: 'A Candidates screen: nine people from three suppliers, each row naming the consultant, the role, the supplier, the rate and the stage.',
     caption: 'The hiring manager at Northbend Athletic. Nine people from three suppliers, each row carrying the firm that sent them, the rate it asked and where the person has got to.',
     from: '/dashboard/submissions as the hiring manager',
-    capturedAt: '2026-09-20T22:19:07Z',
+    capturedAt: '2026-09-21T15:15:10Z',
   },
   {
     n: '02',
@@ -260,17 +260,17 @@ const STEPS: {
     alt: 'An orders screen: one order per supplier, what is left of what was authorized, and a line naming the person and their rate.',
     caption: 'What Northbend Athletic has authorized. One order per supplier, a line for each person at their own rate, and how much of the ceiling is left to bill against.',
     from: '/dashboard/purchase-orders as the program manager',
-    capturedAt: '2026-09-20T22:19:12Z',
+    capturedAt: '2026-09-21T15:15:16Z',
   },
   {
     n: '03',
     t: 'Contractors file their weeks and your manager approves them',
     says: 'The contractor files their own week and nobody else may file it for them. The manager who owns the work signs it, and a week over the hours on the role is flagged before anybody signs.',
     img: '/screens/timesheets.png',
-    alt: 'A timesheets screen: three weeks waiting on a signature, each row naming the person, the period, the hours, the bill rate and what the week is worth.',
-    caption: 'The hiring manager at Northbend Athletic. Three weeks waiting on a signature, with the hours, the bill rate and what each week is worth. One of them is over the hours on the role.',
+    alt: 'A timesheets screen: one week flagged at 168 hours with an overtime decision on it. The approved weeks sit under it, each row naming the person, the period, the hours, the bill rate and what the week is worth.',
+    caption: 'The hiring manager at Northbend Athletic. One week is flagged at 168 hours, with 128 of them waiting on a decision. Under it, weeks already approved at their bill rates, and a signed 44 hour week waiting on the supplier to accept it.',
     from: '/dashboard/timesheets as the hiring manager',
-    capturedAt: '2026-09-20T22:19:39Z',
+    capturedAt: '2026-09-21T15:15:22Z',
   },
   {
     n: '04',
@@ -280,7 +280,7 @@ const STEPS: {
     alt: 'An invoices screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
     caption: 'The accounts payable clerk at Northbend Athletic. Two supplier invoices open, one paid this period, $17,400 outstanding and none of it overdue.',
     from: '/dashboard/invoices, what we owe, as the AP clerk',
-    capturedAt: '2026-09-20T22:19:45Z',
+    capturedAt: '2026-09-21T15:15:28Z',
   },
 ]
 
@@ -309,12 +309,12 @@ const CANNOT_ANSWER: { q: string; today: string; etyme: string; detail?: string 
   {
     q: 'What are we spending on them this quarter, and with whom?',
     today: 'Bills arrive on different dates into different inboxes. The quarter ends before the number is assembled.',
-    etyme: 'The Program screen shows the quarter by supplier, from bills that matched a signed timesheet and an order.',
+    etyme: 'The Program screen shows this month by supplier, at the rates on the contracts. The Invoices screen shows what each supplier billed and what is still open.',
   },
   {
     q: 'Are we paying two suppliers different money for the same work?',
     today: 'Rates sit on invitations and in email. Putting them side by side means asking each supplier what it charges.',
-    etyme: 'The Rates screen puts every supplier’s rate for the same skill on one screen, with the date each was agreed.',
+    etyme: 'The Program screen puts two suppliers’ rates for the same role side by side. The Rates screen keeps every rate change and who agreed it.',
   },
   {
     q: 'Who has been here longest?',
@@ -344,7 +344,7 @@ const ANSWERS: { q: string; img: string; alt: string; caption: string; from: str
     alt: 'A contractors table: one row per person, with the supplier that sent them, their status, where they are and their months on site.',
     caption: 'Eight people at Northbend Athletic, with the supplier that put each of them forward, the months each has been on site and the date they were last engaged.',
     from: '/dashboard/people, table view, as the program manager',
-    capturedAt: '2026-09-20T22:21:34Z',
+    capturedAt: '2026-09-21T15:17:41Z',
   },
   {
     q: 'Who has been here longest?',
@@ -352,7 +352,7 @@ const ANSWERS: { q: string; img: string; alt: string; caption: string; from: str
     alt: 'A tenure table: four people, the vendors each worked through, the months counted across all of them, and the standing against an 18 month cap.',
     caption: 'The same people counted across suppliers. Fourteen months through two firms against an eighteen month cap, and one person in a break until 30 October.',
     from: '/dashboard/tenure as the program manager',
-    capturedAt: '2026-09-20T22:20:18Z',
+    capturedAt: '2026-09-21T15:15:38Z',
   },
 ]
 
@@ -411,7 +411,7 @@ const EXPOSURE: { t: string; p: string }[] = [
     p:
       'One contractor can work two years on your site through two suppliers. ' +
       'The claim lands on you, not on the supplier that billed the first year. ' +
-      'Etyme counts days per person across suppliers and blocks a new submission at your limit.',
+      'Etyme counts days per person across suppliers and blocks the award at your limit.',
   },
   {
     t: 'A supplier whose insurance lapsed keeps working',
@@ -470,7 +470,7 @@ const MONDAY = [
     a:
       'It opens on one sentence: what needs you today, and how much of it is urgent. ' +
       'Under that: on site now, suppliers, this month, ending soon. ' +
-      'Every number is a link to the rows behind it.',
+      'Each count opens the rows behind it.',
   },
   {
     screen: 'Workforce',
@@ -488,9 +488,9 @@ const MONDAY = [
     desk: 'The procurement lead',
     q: 'Are we paying two suppliers differently for the same work?',
     a:
-      'Every rate, the date it changed and who agreed it. The spread across suppliers ' +
-      'for one skill is a number no single supplier can show you, because each one ' +
-      'knows only its own.',
+      'Every rate, the date it changed and who agreed it. Two suppliers’ rates for the ' +
+      'same role sit side by side on the Program screen, which is a comparison no single ' +
+      'supplier can show you, because each one knows only its own.',
   },
   {
     screen: 'Tenure',
@@ -816,7 +816,7 @@ export default function LandingPage() {
                 in the demo world from one taken after it. */}
             <img
               src="/screens/program-dashboard.png"
-              data-captured-at="2026-09-20T22:18:50Z"
+              data-captured-at="2026-09-21T15:15:03Z"
               alt="The program dashboard: a sentence saying whether anything needs the reader today, then six numbers — on site, suppliers, this month, ending soon, the tenure cap and requirements — over a list of who is starting soon and which suppliers are on site."
               width={1440}
               height={900}
@@ -960,9 +960,23 @@ export default function LandingPage() {
           <p className="eyebrow mb-3">Why this matters</p>
           <h2 className="max-w-[32ch] text-balance font-serif text-3xl leading-tight
                          tracking-[-0.02em] text-etyme-ink md:text-[42px]">
-            Etyme shows every contractor on your sites, including contractors your
-            suppliers’ subcontractors placed
+            Etyme shows every contractor on your sites, whoever placed them
           </h2>
+          {/* What the client sees, and where it stops. The headline said
+              "including contractors your suppliers’ subcontractors
+              placed" until 2026-09-21, and to a prime reading the page
+              that is a promise to show its client the firm it buys
+              from — the exact NDA fear CLAUDE.md's "a sub-vendor's name
+              is the prime's to keep" exists to remove. The record's
+              rule is narrower and is what this says: the person, and
+              the standing of whoever employs them, because that is the
+              client's own exposure and no agreement changes it.
+              `readsAsAimedAtSuppliers` refuses the old sentence now. */}
+          <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
+            You see the person, and whether the firm that employs them is insured
+            and authorized. What your supplier arranges below that stays its own,
+            unless your agreement with it says otherwise.
+          </p>
 
           <div className="mt-8 grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
             <div>
@@ -1413,8 +1427,8 @@ export default function LandingPage() {
                 Most of what runs without being asked is a rule, not a model
               </h2>
               <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
-                Twenty-three things in here happen without anybody asking for
-                them. Twenty-two of the twenty-three are a date, a threshold or a count: a
+                Twenty-four things in here happen without anybody asking for
+                them. Twenty-three of the twenty-four are a date, a threshold or a count: a
                 permit running out, an agreement past its term, a retention
                 period that has ended. The one that is left scores a person
                 against a role, and it falls back to arithmetic when there is no

@@ -683,6 +683,26 @@ const AIMED_AT_SUPPLIERS: { pattern: RegExp; says: string; needsSupplier?: boole
   { pattern: /\b(?:supplier|suppliers|vendor|vendors)\s+(?:cannot|can\s?not|can’t|can't)\s+hide\b/i,
     says: 'suppliers cannot hide' },
   { pattern: /\bnowhere to hide\b/i, says: 'nowhere to hide' },
+  // ── The one this guard missed for a day, 2026-09-21 ────────────────
+  //
+  // The page's own headline read "Etyme shows every contractor on your
+  // sites, including contractors your suppliers' subcontractors
+  // placed". Every rule above passed it: no markup, no catching, no
+  // watching. And to a prime it says the client will be shown the firm
+  // the prime buys from, which is the whole of the NDA between them and
+  // the reason "a sub-vendor's name is the prime's to keep" is a
+  // ratified decision rather than a preference.
+  //
+  // What the record actually does is narrower, and the difference is
+  // the product: the client sees the person and the standing of
+  // whoever employs them — insured or not, authorized or not, which is
+  // the client's own exposure — and sees the sub by name only where its
+  // own agreement with the prime requires it. A page that promises more
+  // than that costs the supply side, which is where the people are.
+  { pattern: /\b(?:your|their)\s+suppliers?[’']?s?\s+sub-?\s?contractors?\b/i,
+    says: 'the client being promised its suppliers’ own subcontractors' },
+  { pattern: /\bsub-?\s?contractors?\s+(?:placed|put forward|supplied|sent|billed)\b/i,
+    says: 'the subcontractors behind a supplier, named as something the client is shown' },
   { pattern: /\bcrack(?:ing)? down\b/i, says: 'cracking down' },
   { pattern: /\b(?:squeeze|squeezing|leverage over|play(?:ing)? (?:them|one)\s+off)\b/i,
     says: 'using the record against them', needsSupplier: true },

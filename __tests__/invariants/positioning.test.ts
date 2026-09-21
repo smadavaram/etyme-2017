@@ -53,6 +53,9 @@ import {
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
 import { CENSUS_COPY } from '@/lib/census-copy'
+// Read rather than described: the page may say a certificate stops work
+// only while this list holds the key it is talking about.
+import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
 
@@ -744,6 +747,156 @@ describe('Every line says an outcome, a benefit or a method', () => {
     ]) {
       expect(all, metaphor).not.toContain(metaphor)
     }
+  })
+})
+
+// ── A claim about a screen names the screen that does it ─────────────
+//
+// Added 2026-09-21, on the founder: "Fix the two sentences."
+//
+// Both sentences were true of the product and wrong about the screen.
+// One said a lapsed certificate stops a start, on a day when the
+// arithmetic had just learned to refuse a lapsed certificate of good
+// standing and the two doors that stop somebody had not. The other said
+// the Program screen shows the quarter from bills that matched a signed
+// timesheet, when what that screen shows is a forward estimate at the
+// rates on the contracts, and the matched bills are on the Invoices
+// screen.
+//
+// Neither is the kind of mistake the four rules above can see. A page
+// can name the category, keep AI out of the hero, place nobody and stay
+// horizontal, and still tell a buyer that a screen does something it
+// does not — which is the one claim a buyer checks on the first day and
+// the one that costs the deal. So each is read against the code that
+// would have to be true.
+
+describe('Every claim about a screen is a thing that screen does', () => {
+
+  it('the page claims good standing blocks only while the code blocks on it', () => {
+    // The arithmetic refuses it. `GOOD_STANDING` joined the two
+    // insurances in what stops work on 2026-09-21, so a certificate on
+    // file and out of date is a BLOCK rather than a green row.
+    expect([...COVER_THAT_STOPS_WORK]).toContain('GOOD_STANDING')
+
+    // And the page may say only as much as the doors do. The two doors
+    // that actually stop somebody — the activate button and the submit
+    // route — still read a firm's file as the keys beginning INSURANCE_,
+    // so a lapsed certificate of good standing reaches neither gate.
+    // The page therefore says insurance stops a start, and sends good
+    // standing to the compliance screen, which does read it.
+    //
+    // The day a door reads the whole of a firm's standing this fails,
+    // and the sentence is owed an update on that commit — which is the
+    // cheapest moment it will ever be to write.
+    const doorReadsStanding = (file: string): boolean =>
+      /GOOD_STANDING|COVER_THAT_STOPS_WORK|FIRM_STANDING|lineExtras/.test(
+        readFileSync(join(process.cwd(), file), 'utf8')
+      )
+    const doors = [
+      'src/app/api/contracts/[id]/activate/route.ts',
+      'src/app/api/submissions/route.ts',
+    ]
+
+    const menu = PAGE.slice(PAGE.indexOf("t: 'Insurance & good standing'")).slice(0, 300)
+    // Sentence by sentence, because the claim is only a claim when the
+    // standing and the refusal are in the same one: "a lapsed insurance
+    // certificate stops a start" sits beside "good standing is read on
+    // the Compliance screen" and says nothing about good standing
+    // stopping anything.
+    const said = /d: '([^']+)'/.exec(menu)?.[1] ?? ''
+    const saysStandingStopsWork = said
+      .split(/(?<=[.!?])\s+/)
+      .some((sentence) => /good standing/i.test(sentence) && /\bstops?\b/i.test(sentence))
+    expect(
+      saysStandingStopsWork,
+      'the page says a lapsed good standing stops work; the doors that stop work do not read it'
+    ).toBe(doors.every(doorReadsStanding))
+
+    // What the page says instead, and the screen that does it.
+    expect(menu).toContain('Compliance screen')
+    // The insurance half of the same sentence is a door that does
+    // refuse: the start reads the certificates by name.
+    expect(
+      readFileSync(join(process.cwd(), doors[0]), 'utf8')
+    ).toContain("'INSURANCE_GL'")
+  })
+
+  it('says the program dashboard shows this month from rates, and names the invoices screen for what was billed', () => {
+    // The dashboard's spend is a forward estimate — a bill rate times a
+    // flat 160-hour month — and `lib/program-spend` says so out loud
+    // beside the number. A page claiming that figure came off matched
+    // bills is a page a buyer disproves by opening the screen.
+    const spend = readFileSync(join(process.cwd(), 'src/lib/program-spend.ts'), 'utf8')
+    expect(spend).toContain('It is an estimate, not signed time.')
+
+    const answers = PAGE.slice(PAGE.indexOf('const CANNOT_ANSWER'), PAGE.indexOf('const EXPOSURE'))
+    const spendAnswer = [...answers.matchAll(/\n    etyme: '([^']+)'/g)]
+      .map((m) => m[1])
+      .find((line) => /spend|month|billed/i.test(line))
+    expect(spendAnswer, 'the page answers the spend question').toBeTruthy()
+    expect(spendAnswer).toContain('Program screen')
+    expect(spendAnswer).toContain('Invoices screen')
+    // And it does not put the match behind the dashboard's figure.
+    expect(spendAnswer, 'the dashboard figure is not from matched bills').not.toMatch(/matched/i)
+  })
+
+  it('sends the comparison of two suppliers to the screen that draws it', () => {
+    // "Same role, two suppliers" is a panel on the Program screen's
+    // suppliers tab, computed from the contracts the client itself is
+    // billed on. The Rates screen is the history of what a rate was and
+    // who agreed it, one contract at a time — it has never put two
+    // suppliers side by side, and the page said it did.
+    const dashboard = readFileSync(
+      join(process.cwd(), 'src/app/dashboard/program/page.tsx'), 'utf8'
+    )
+    expect(dashboard).toContain('Same role, two suppliers')
+    const answers = PAGE.slice(PAGE.indexOf('const CANNOT_ANSWER'), PAGE.indexOf('const EXPOSURE'))
+    const rateAnswer = [...answers.matchAll(/\n    etyme: '([^']+)'/g)]
+      .map((m) => m[1])
+      .find((line) => /rate/i.test(line))
+    expect(rateAnswer).toContain('Program screen')
+  })
+
+  it('the page never tells a client it will see a supplier’s subcontractors by name', () => {
+    // 2026-09-21. The #gap headline read "Etyme shows every contractor
+    // on your sites, including contractors your suppliers' subcontractors
+    // placed", and every guard in the file passed it. To a prime that
+    // sentence is a promise to show its client the firm it buys from,
+    // which is the NDA between them and the reason "a sub-vendor's name
+    // is the prime's to keep" is a ratified decision.
+    //
+    // What the record does is narrower and is what the page says now:
+    // the person, and whether whoever employs them is insured and
+    // authorized, because that is the client's own exposure. The name
+    // below follows the client's own agreement, never the page.
+    const gap = PAGE.slice(at('gap'), at('ways'))
+    expect(gap).toContain('Etyme shows every contractor on your sites, whoever placed them')
+    expect(gap).toContain('whether the firm that employs them is insured')
+    expect(gap).not.toContain('subcontractors placed')
+
+    // And the guard refuses the sentence that shipped, so it cannot
+    // come back by another route.
+    const caught = readsAsAimedAtSuppliers(
+      'Etyme shows every contractor on your sites, including contractors your ' +
+      'suppliers’ subcontractors placed.'
+    )
+    expect(caught, 'the old headline is refused now').not.toEqual([])
+    expect(caught.join(' ')).toContain('subcontractor')
+    // The live page, read whole, still says nothing aimed at a supplier.
+    expect(readsAsAimedAtSuppliers(all)).toEqual([])
+  })
+
+  it('stops the award where the ledger stops it, rather than the submission', () => {
+    // A tenure cap is evaluated at the award and at the start, and the
+    // award is where a BLOCK is never overridable. Nothing refuses a
+    // submission on tenure, and the page said it did.
+    const award = readFileSync(
+      join(process.cwd(), 'src/lib/award.ts'), 'utf8'
+    )
+    expect(award).toContain('f.governance.blocks.length > 0')
+    const exposure = PAGE.slice(PAGE.indexOf('const EXPOSURE'), PAGE.indexOf('const LIFECYCLE'))
+    expect(exposure).toContain('blocks the award at your limit')
+    expect(exposure).not.toContain('blocks a new submission')
   })
 })
 
