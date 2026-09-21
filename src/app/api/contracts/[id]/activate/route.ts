@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { evaluateGovernance } from '@/lib/governance'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
-import { contractClearance } from '@/lib/contract-clearance'
+import { contractClearance, lineExtras } from '@/lib/contract-clearance'
 import { contractSide } from '@/lib/resolve-client-company'
 import { hasPermission, type Permission } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
@@ -201,6 +201,22 @@ export async function POST(
       // whether a license in date today runs out inside the assignment.
       role: contract.requirement?.title ?? null,
       through: contract.endDate,
+      // ── What this line itself asks for ──────────────────────────────
+      //
+      // Spread last, and it must be: it supersedes `supplierCertificates`
+      // above with a superset that also carries the certificate of good
+      // standing — every caller here selected keys beginning INSURANCE_,
+      // so a supplier whose registration had been suspended read as
+      // fully covered — and it supersedes nothing else that is set, while
+      // adding the line's own required set, the papers signed against it
+      // and both firms' document dictionaries.
+      //
+      // Until this was passed, a start was refused on the old fixed list
+      // and a client's own order could ask for a drug screen, a clearance
+      // or a code of conduct and nothing at activation would read it. A
+      // requirement a client typed and nobody enforces is worse than one
+      // it was never offered.
+      ...(await lineExtras({ sellContractId: contract.id })),
     })
 
     if (papers.outcome === 'BLOCK') {

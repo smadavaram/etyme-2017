@@ -151,4 +151,117 @@ describe('activating a contract on paperwork', () => {
     expect(r.body.error.code).toBe('DOCUMENTS_BLOCK')
     expect(r.body.error.cover).toBe('BLOCK')
   })
+
+  it('a start refuses on an item the client\'s order asked for, and says whose order asked', async () => {
+    // The gate ran off one fixed list — the shipped packet, the person's
+    // file, the supplier's insurance — and read nothing the line itself
+    // required. So a client could write a site induction, a drug screen
+    // or a security clearance onto its own order, in its own words, and
+    // nothing at activation would ever look. A requirement a client typed
+    // and nobody enforces is worse than one it was never offered.
+    //
+    // Cavanaugh Glassworks buys Wrenfield Technical's contractor on a
+    // purchase order with no agreement behind it, which is the line in
+    // the seeded world that carries an order at all.
+    const cavanaugh = await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })
+    const wrenfield = await prisma.company.findFirstOrThrow({ where: { slug: 'world-wrenfield' } })
+    // The line first, then the order it sits on — the order the LINE
+    // carries is the one the clearance will read, and a firm can be on
+    // more than one.
+    const onOrder = await prisma.sellContract.findFirstOrThrow({
+      where: { companyId: wrenfield.id, workOrderId: { not: null } },
+    })
+    const order = await prisma.workOrder.findUniqueOrThrow({
+      where: { id: onOrder.workOrderId! },
+      select: { id: true, number: true, issuedBy: { select: { name: true } } },
+    })
+    expect(order.issuedBy.name).toBe('Cavanaugh Glassworks')
+
+    // The client's own word for it, in the client's own dictionary.
+    await prisma.documentType.upsert({
+      where: { companyId_key: { companyId: cavanaugh.id, key: 'SITE_SAFETY_INDUCTION' } },
+      create: {
+        companyId: cavanaugh.id,
+        key: 'SITE_SAFETY_INDUCTION',
+        label: 'Site safety induction',
+        hint: 'The hour every contractor sits through before going on the floor.',
+        purpose: 'COMPLIANCE',
+        validityShape: 'END_ONLY',
+        suppliedBy: 'CANDIDATE',
+        blocks: true,
+      },
+      update: { blocks: true },
+    })
+    await prisma.documentRequirement.create({
+      data: {
+        workOrderId: order.id,
+        documentTypeKey: 'SITE_SAFETY_INDUCTION',
+        required: true,
+        owedBy: 'WORKER',
+        blocks: true,
+        note: 'Nobody on the floor without it.',
+      },
+    })
+
+    // Somebody whose federal paperwork is complete, so the induction is
+    // the only thing missing and the refusal can only be about it.
+    const wrenfieldSeat = await prisma.person.findFirstOrThrow({
+      where: { primaryEmail: 'world-wrenfield@demo.etyme.local' },
+    })
+    const person = await prisma.person.create({
+      data: { name: 'Marguerite Ashby', primaryEmail: 'marguerite.ashby@seed.etyme.invalid' },
+    })
+    for (const type of ['I9_EVERIFY', 'BACKGROUND_CHECK'] as const) {
+      await prisma.verification.create({
+        data: {
+          personId: person.id, type, status: 'CLEAR', provider: 'Sterling',
+          issuedAt: new Date(),
+          expiresAt: type === 'BACKGROUND_CHECK' ? new Date(Date.now() + 300 * 86_400_000) : null,
+          uploadedById: wrenfieldSeat.id, verifiedById: wrenfieldSeat.id, verifiedAt: new Date(),
+        },
+      })
+    }
+
+    const draft = await prisma.sellContract.create({
+      data: {
+        companyId: onOrder.companyId,
+        clientCompanyId: onOrder.clientCompanyId,
+        endClientCompanyId: onOrder.endClientCompanyId,
+        personId: person.id,
+        requirementId: onOrder.requirementId,
+        engagementId: onOrder.engagementId,
+        msaId: onOrder.msaId,
+        workOrderId: order.id,
+        billRate: onOrder.billRate,
+        billCurrency: onOrder.billCurrency,
+        paymentTerms: onOrder.paymentTerms,
+        state: 'DRAFT',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 180 * 86_400_000),
+      },
+    })
+
+    as('world-wrenfield@demo.etyme.local')
+    const r = await json(
+      await activate(
+        req('POST', `/api/contracts/${draft.id}/activate`, { action: 'activate' }),
+        { params: Promise.resolve({ id: draft.id }) }
+      )
+    )
+
+    expect(r.status, JSON.stringify(r.body)).toBe(403)
+    expect(r.body.error.code).toBe('DOCUMENTS_BLOCK')
+
+    const blocked = r.body.error.blocking.find((b: { key: string }) => b.key === 'SITE_SAFETY_INDUCTION')
+    expect(blocked, `blocked on ${r.body.error.blocking.map((b: any) => b.key).join(', ')}`).toBeTruthy()
+
+    // Whose order asked — by the buyer's name and the order's number, so
+    // the supplier reading the refusal knows who to go back to.
+    expect(blocked.asked).toContain('Cavanaugh Glassworks')
+    expect(blocked.asked).toContain(order.number)
+    expect(blocked.label).toBe('Site safety induction')
+
+    const still = await prisma.sellContract.findUniqueOrThrow({ where: { id: draft.id } })
+    expect(still.state).toBe('DRAFT')
+  })
 })
