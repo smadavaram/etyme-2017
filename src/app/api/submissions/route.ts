@@ -12,6 +12,7 @@ import { consentText, mayMessage } from '@/lib/texts'
 import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
 import { submissionScope, seatedDesk } from '@/lib/resolve-client-company'
+import { orderedOfSupplier } from '@/lib/supplier-desks'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { submissionKind, tellEmployee, blockedSays } from './kind'
@@ -348,14 +349,67 @@ export async function POST(request: NextRequest) {
     // here is what went stale; not filtering cannot.
     certificates: certRows,
     on: new Date(),
+    // ── What this client's own orders ask of the firm ──────────────
+    //
+    // Until 2026-09-21 this door passed no required set at all, so a
+    // certificate a client writes on every purchase order — a
+    // certificate of good standing, a site induction, cyber cover —
+    // said nothing here. Activation refused the same firm on the same
+    // paperwork weeks later, by which time the client had read a CV,
+    // run interviews and made an offer. One list, read from the one
+    // door (`lib/document-requirements` through `orderedOfSupplier`),
+    // so the submit button and the placement checklist cannot name
+    // different documents about the same firm on the same day.
+    //
+    // A waived item is not passed as required: the waiver is this
+    // client accepting its absence, in somebody's name, with a reason.
+    requiredTypes: (await orderedOfSupplier(clientCompanyId, fromCompanyId))
+      .filter((i) => i.required && i.purpose === 'COMPLIANCE')
+      .map((i) => i.key),
   })
 
-  if (cover.outcome === 'BLOCK') {
+  // ── A lapse refuses; a document nobody has filed is chased ────────
+  //
+  // Two different facts wear the same word on the gate. Cover that ran
+  // out, or has not begun, is a fact about a firm that is trading
+  // today with nothing behind it — Addendum E names it a BLOCK and it
+  // is refused here, as it always was. A required certificate nobody
+  // ever filed is a chase: the firm has not been asked for it yet, or
+  // was asked last week and its broker is slow, and refusing every
+  // submission in the meantime is governance slower than the
+  // workaround. It warns, in the client's own words, and the reason is
+  // written down rather than swallowed — never silently permitted.
+  //
+  // The gate does the arithmetic and this reads its findings; nothing
+  // here recomputes a standing. `lib/document-stages` is
+  // etyme-regulatory's, and the day it decides a never-filed required
+  // item blocks instead, this door follows it without a change —
+  // `blocking` is simply no longer only MISSING.
+  const lapsed = cover.blocking.filter((b) => b.standing !== 'MISSING')
+  const neverFiled = cover.blocking.filter((b) => b.standing === 'MISSING')
+
+  if (lapsed.length > 0) {
     return NextResponse.json(
       { error: { code: 'COVER_LAPSED', message: cover.says, fix: cover.fix } },
       { status: 409 }
     )
   }
+
+  const coverWarning =
+    neverFiled.length > 0
+      ? `${vendorName} has never filed ${neverFiled.length === 1 ? neverFiled[0].label : `${neverFiled.length} documents`} that ${clientName}'s orders require. ` +
+        `The submission goes through; it will not clear a start.`
+      : null
+
+  // The reason is not written to the automation log yet, and that is a
+  // gap rather than a decision: every action written there needs a rung
+  // on the ladder in `lib/autonomy`, which is the architect's file, and
+  // `SUBMISSION_COVER_WARNED` has no rung. Until it has one the sentence
+  // rides out with the submission and with every person in the batch, so
+  // nothing is silently permitted — but nobody can query it later, which
+  // is the half that is missing. The ask is with etyme-architect:
+  // ENFORCEMENT, WARN, RULE, beside SUBMISSION_OFF_BAND, which is the
+  // same shape — somebody was warned, went ahead, and it was recorded.
 
   const results: any[] = []
 
@@ -783,6 +837,11 @@ export async function POST(request: NextRequest) {
       // The band is advisory, so the submission stands and the warning
       // travels with it — the client sees why it is off-band rather than
       // never seeing the candidate at all.
+      // The firm owes this client a document its orders require. It
+      // travels with every person in the batch, because the refusal it
+      // becomes at activation is about the person who is starting.
+      if (coverWarning) item.coverWarning = coverWarning
+
       const warning = bandWarning(rate)
       if (warning) {
         item.warning = warning
@@ -907,6 +966,10 @@ export async function POST(request: NextRequest) {
         held.length > 0 ? `${held.length} already represented elsewhere` : null,
         `${errors.length} errors`,
       ].filter(Boolean).join(', '),
+      // Said on the way out, not swallowed. The submission stood; the
+      // firm still owes the client a document its orders require, and
+      // the sentence names it while somebody is looking at the screen.
+      coverWarning,
     },
   })
 }
