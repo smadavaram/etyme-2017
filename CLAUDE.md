@@ -784,10 +784,13 @@ and "Operate" that make sense for a staffing vendor. A client company
 (Northbend Athletic, Talvern Medical) sees the same data under different
 section labels — "Workforce" instead of "Sell". The eyebrow, nav section and
 page subtitle adapt to the viewer's company type; the underlying data and
-pages are shared, the framing is not. `lib/page-framing` still frames a
-supplier's contracts page under "Sell" and "Procure" and its consultants page
-under "Talent", which are no longer sections of anybody's menu — the client's
-eyebrows are pinned to its nav by a test and the supplier's are not yet.
+pages are shared, the framing is not. `lib/page-framing` derives every
+eyebrow from the same nav table the sidebar draws, so a supplier's contracts
+and hours read "Operate" and a client's read "Workforce", and
+`__tests__/invariants/page-framing.test.ts` fails on an eyebrow that names a
+section the reader's menu does not have. Since 2026-09-21 the framing also
+takes the seat: a program office at a client's desk reads the client's words
+over the client's book, with one clause saying whose book it is.
 
 ### Eight things to build before features (from UX Stress Test)
 

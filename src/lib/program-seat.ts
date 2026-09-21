@@ -361,10 +361,9 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
  */
 export function noSeatYet(officeName: string): string {
   return (
-    `${officeName} is not tied to a client yet. A role belongs to the company that is hiring, so until ` +
-    `${officeName} places somebody there is no client to raise it for. And if ${officeName} runs a ` +
-    `client's program rather than supplying people, it places nobody by design — it acts in a seat the ` +
-    `client grants it, under the client's own rules and with every read logged. Ask an owner or the ` +
-    `program manager at that client to grant ${officeName} a seat in their program office.`
+    `${officeName} is not tied to a client yet. A role belongs to the company that is hiring, and a ` +
+    `program office runs a client's program rather than supplying people — it places nobody by design, ` +
+    `and it acts in a seat the client grants it, under the client's own rules and with every read logged. ` +
+    `Ask an owner or the program manager at that client to grant ${officeName} a seat in their program office.`
   )
 }
