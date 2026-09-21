@@ -140,7 +140,7 @@ export function statusWord(status: string): string {
 // who asked, what it is, by when, and how to answer it — and nothing
 // else about the request, because nothing else is theirs.
 
-export type PaperKind = 'DOCUMENT' | 'REQUEST' | 'HELD'
+export type PaperKind = 'DOCUMENT' | 'REQUEST' | 'HELD' | 'OUTSTANDING'
 
 /** A document sent to somebody for signature or upload. */
 export interface SentDocument {
@@ -245,6 +245,13 @@ export interface Paper {
    * said as such on the row.
    */
   runsOutOn?: string | null
+  /**
+   * True where work stops until this is on file. Only ever set on an
+   * outstanding row: a document already held stops nothing by being held.
+   */
+  stopsWork?: boolean
+  /** True where somebody accepted its absence, on the record, by name. */
+  waived?: boolean
 }
 
 /** The word a packet item shows. Received and accepted are not the same. */
@@ -292,6 +299,220 @@ function asRow(label: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
+/** The same, for a sentence somebody reads rather than a row. */
+function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+}
+
+
+// ── What a line requires and nobody has filed ─────────────────────────
+//
+// "Ensure the loop of documents never cracks between parties."
+// — the founder, 2026-09-21.
+//
+// The crack the release walk found: every chase letter ends "upload it
+// from your Paperwork page", and the page read three tables — documents
+// sent, packets raised, checks already on file — and never the one that
+// says what this line actually requires. So Helena Marsh read three held
+// documents and nothing outstanding, under a subtitle promising "and
+// what is still being asked of you", while the client's own dashboard
+// said her start was blocked on a document she could not see.
+//
+// This is the arithmetic that closes it, and it is pure on purpose: the
+// SAME function answers the worker's page and the supplier's own
+// compliance page, so the list a worker reads and the list clearance
+// reads are the same items rather than two lists that agree by
+// coincidence.
+
+/** One item of a line's effective set, reduced to what this file needs. */
+export interface RequiredItem {
+  key: string
+  label: string
+  required: boolean
+  /** WORKER · SUPPLIER · CUSTOMER · US. A position in the trade, never a person. */
+  owedBy: string
+  /** The firm or person behind the role, where the line names one. */
+  owedByName: string | null
+  /** True where a lapse or an absence stops the work. */
+  blocks: boolean
+  waived: boolean
+  waivedSays: string | null
+  /** Where it came from — "required by Cavanaugh Glassworks’s order PO-2026-2". */
+  says: string
+}
+
+/** A document already on file, as the arithmetic needs it. */
+export interface HeldKeyRecord {
+  key: string
+  validFrom: Date | null
+  expiresAt: Date | null
+  /** False where the check is still running, so it counts as nothing held. */
+  accepted: boolean
+}
+
+/**
+ * Where an item stands on a line.
+ *
+ * WAIVED is a state and not an absence: Addendum E says WARN, capture a
+ * reason, proceed and never silently permit, so a waived item stays on
+ * the list, marked, with the reason and the name on it.
+ */
+export type OutstandingState = 'MISSING' | 'LAPSED' | 'NOT_YET_VALID' | 'WAIVED'
+
+export interface OutstandingItem {
+  key: string
+  label: string
+  owedBy: string
+  owedByName: string | null
+  /** True where the work stops until it is on file. */
+  stopsWork: boolean
+  state: OutstandingState
+  /** What the row says, in words a person uses. Never the state name. */
+  word: string
+  /** Who asked for it, in their own words. */
+  asked: string
+  /** The day the one on file ran out, where there was one. */
+  ranOutOn: Date | null
+  waivedSays: string | null
+}
+
+function inDate(h: HeldKeyRecord, on: Date): boolean {
+  if (h.validFrom && h.validFrom.getTime() > on.getTime()) return false
+  if (h.expiresAt && h.expiresAt.getTime() < on.getTime()) return false
+  return true
+}
+
+/**
+ * Everything a set requires that is not on file today.
+ *
+ * Pure: the caller reads the line's effective set and whatever is held,
+ * and this decides what is still owed and what each row says.
+ *
+ * Four states, not two, and the fourth is the one that caused the 2017
+ * bug — on file with no expiry recorded on a kind that expires — which
+ * `heldWord` already says of a held row and which arrives here as a row
+ * that counts, because a document with no end date is not an expired
+ * one. What this adds is the state the old build had no word for at
+ * all: required, never filed, and therefore invisible.
+ */
+export function outstandingItems(input: {
+  items: RequiredItem[]
+  /** What is already on file about whoever owes it. */
+  held?: HeldKeyRecord[]
+  /** Narrow to one party's items — WORKER on a person's own page. */
+  owedBy?: string[]
+  on?: Date
+}): OutstandingItem[] {
+  const on = input.on ?? new Date()
+  const held = (input.held ?? []).filter((h) => h.accepted)
+  const out: OutstandingItem[] = []
+
+  for (const item of input.items) {
+    if (!item.required) continue
+    if (input.owedBy && !input.owedBy.includes(item.owedBy)) continue
+
+    const mine = held.filter((h) => h.key === item.key)
+    const current = mine.find((h) => inDate(h, on))
+
+    if (item.waived) {
+      out.push({
+        key: item.key,
+        label: item.label,
+        owedBy: item.owedBy,
+        owedByName: item.owedByName,
+        stopsWork: false,
+        state: 'WAIVED',
+        word: 'Waived — on the list, not expected',
+        asked: item.says,
+        ranOutOn: null,
+        waivedSays: item.waivedSays,
+      })
+      continue
+    }
+
+    // On file and in date. Nobody is waiting on anybody, so it is not
+    // outstanding — the page shows it under what is held.
+    if (current) continue
+
+    // A certificate whose period has not begun is not a missing one: it
+    // was asked for and supplied, and the person is still uncovered on
+    // day one. Named apart so the sentence can say the true thing.
+    const early = mine.find((h) => h.validFrom && h.validFrom.getTime() > on.getTime())
+    const lapsed = mine
+      .filter((h) => h.expiresAt && h.expiresAt.getTime() < on.getTime())
+      .sort((a, b) => b.expiresAt!.getTime() - a.expiresAt!.getTime())[0]
+
+    const state: OutstandingState = lapsed ? 'LAPSED' : early ? 'NOT_YET_VALID' : 'MISSING'
+    const word =
+      state === 'LAPSED'
+        ? heldWord(lapsed!.expiresAt, on, item.blocks)
+        : state === 'NOT_YET_VALID'
+          ? `On file, but not in force until ${early!.validFrom!.toISOString().slice(0, 10)}`
+          : item.blocks
+            ? 'Not on file — work cannot start without it'
+            : 'Not on file'
+
+    out.push({
+      key: item.key,
+      label: item.label,
+      owedBy: item.owedBy,
+      owedByName: item.owedByName,
+      stopsWork: item.blocks,
+      state,
+      word,
+      asked: item.says,
+      ranOutOn: lapsed?.expiresAt ?? null,
+      waivedSays: null,
+    })
+  }
+
+  // What stops the work first, then what somebody already filed and let
+  // run out, then the rest by name.
+  const rank: Record<OutstandingState, number> = { LAPSED: 0, NOT_YET_VALID: 1, MISSING: 2, WAIVED: 3 }
+  return out.sort(
+    (a, b) =>
+      Number(b.stopsWork) - Number(a.stopsWork) ||
+      rank[a.state] - rank[b.state] ||
+      a.label.localeCompare(b.label)
+  )
+}
+
+/**
+ * A document type nobody defined, said in words rather than in the key
+ * somebody typed.
+ *
+ * `labelFor` falls through to the key when neither the shipped
+ * dictionary nor the company's own names it, so a client that added
+ * FURNACE_SAFETY_INDUCTION to its order read exactly that back — on the
+ * confirmation, on the placement checklist, and in a refusal a hiring
+ * manager was meant to act on. The key is for the machine; the sentence
+ * is the product.
+ *
+ * It does not invent a definition. It renders the key as the words
+ * inside it, and the caller says once that nobody has defined the type.
+ */
+export function humanKey(key: string): string {
+  const words = key.trim().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').toLowerCase()
+  return words || key
+}
+
+/**
+ * What to call a document type on a screen.
+ *
+ * The dictionary first — the company's own, then the shipped defaults —
+ * and the humanized key where neither knows it. `defined` is whatever
+ * `labelFor` was going to be given; `known` is false where the answer is
+ * the key humanized, so a caller can say so once and not once per row.
+ */
+export function sayType(
+  key: string,
+  labelOf: (k: string) => string
+): { label: string; known: boolean } {
+  const said = labelOf(key)
+  if (said && said !== key) return { label: said, known: true }
+  return { label: humanKey(key), known: false }
+}
+
 /**
  * Everything asked of one person, in one list.
  *
@@ -307,6 +528,16 @@ export function myPapers(input: {
   packets: AskedPacket[]
   /** What is already on file about them, and when each stops counting. */
   held?: HeldRecord[]
+  /**
+   * What the lines they are on require of them and nobody has filed.
+   *
+   * The half that was missing until 2026-09-21: every chase letter told
+   * her to upload it from this page and this page did not know the
+   * document existed. `outstandingItems` computes it from the line's own
+   * effective set, so what she is asked for here and what the refusal at
+   * activation names are the same items.
+   */
+  owed?: OutstandingItem[]
   /** The day it is read on. Only used to say how long is left. */
   on?: Date
 }): Paper[] {
@@ -397,9 +628,43 @@ export function myPapers(input: {
     })
   }
 
+  // ── What is still owed, and nobody has asked for yet ───────────────
+  //
+  // An item can be required on a line with no packet and no document
+  // ever sent for it — which is most of them, because a set is a rule
+  // and an ask is an act. She is told what it is, who asked, and whether
+  // work stops without it, so the letter she was sent and the page it
+  // sends her to say the same thing.
+  for (const o of input.owed ?? []) {
+    papers.push({
+      id: `owed:${o.key}`,
+      kind: 'OUTSTANDING',
+      name: asRow(o.label),
+      partOf: null,
+      askedBy: o.owedByName ?? 'Your placement',
+      why: o.waivedSays ?? capitalize(o.asked),
+      needsSignature: false,
+      status: o.state,
+      word: o.word,
+      askedAt: null,
+      doneAt: null,
+      dueOn: null,
+      runsOutOn: o.ranOutOn?.toISOString() ?? null,
+      // Nothing was sent, so there is no link and no signature page. The
+      // upload on her own page is the answer, and a waived item asks her
+      // for nothing at all.
+      todo: o.state === 'WAIVED' ? null : 'upload',
+      link: null,
+      stopsWork: o.stopsWork,
+      waived: o.state === 'WAIVED',
+    })
+  }
+
   // What still needs doing first, then the most recent ask. A page that
   // opens on what is finished makes somebody scroll to find their work.
   return papers.sort((a, b) => {
+    // What stops her working comes first, whoever asked and whenever.
+    if (!!a.stopsWork !== !!b.stopsWork) return a.stopsWork ? -1 : 1
     if (!!a.todo !== !!b.todo) return a.todo ? -1 : 1
     return (b.askedAt ?? '').localeCompare(a.askedAt ?? '')
   })

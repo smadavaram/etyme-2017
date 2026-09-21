@@ -731,9 +731,37 @@ export const COVER_ASKED_OF_EVERYBODY = ['INSURANCE_GL', 'INSURANCE_WC'] as cons
  * never been asked to file, and treating its absence as a lapse would
  * have put a warning on every supplier in the world on the day this
  * shipped — a control that fires on a hundred percent of rows teaches
- * everybody to route around it. So a lapsed one blocks, a required one
- * that was never filed blocks at submission the way required cover does,
- * and one nobody asked for says nothing at all.
+ * everybody to route around it. So one nobody asked for says nothing at
+ * all, and a lapsed one blocks.
+ *
+ * ── Lapsed blocks. Never filed does not. Decided 2026-09-21 ──────────
+ *
+ * This paragraph used to say that a required certificate never filed
+ * "blocks at submission the way required cover does", and a release walk
+ * found that nothing in the app behaved that way. Both halves of the
+ * claim were wrong, in different places, which is why the words are now
+ * the decision rather than a description:
+ *
+ *   at submission   `supplierCoverGate` does block on a required type
+ *                   with nothing filed — and the submit door passes no
+ *                   `requiredTypes`, so the branch has never fired on a
+ *                   real submission. Passing the line's set in is
+ *                   `etyme-demand`'s half and is not done here.
+ *   at activation   `forActivation` in `lib/contract-clearance`
+ *                   deliberately downgrades a never-filed certificate
+ *                   from BLOCK to WARN, records the reason, and lets the
+ *                   start through.
+ *
+ * The downgrade stays, and it is the ratified reading rather than a
+ * convenience. Addendum E names "lapsed supplier insurance" among the
+ * five that BLOCK, and lapsed is the operative word: an expired
+ * certificate is a fact — somebody filed it and it ran out — while a
+ * certificate nobody ever asked for is a chase. Blocking on a chase
+ * would refuse every placement recorded before the client wrote its
+ * rules down, which is the workaround trap Addendum E is explicit
+ * about. So: **lapsed blocks, and never filed warns, records the reason
+ * and proceeds** — never silently permits. This is the founder's to
+ * overrule, and `forActivation` is the one function to change.
  */
 export const COVER_THAT_STOPS_WORK = [...COVER_ASKED_OF_EVERYBODY, 'GOOD_STANDING'] as const
 

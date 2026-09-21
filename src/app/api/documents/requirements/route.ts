@@ -5,11 +5,14 @@ import { hasPermission } from '@/lib/permissions'
 import { seatFor, seatTrail, type LiveSeat } from '@/lib/program-seat'
 import {
   requirementsFor,
+  effectiveRequirements,
   mayWaive,
   CANNOT_BE_WAIVED,
+  type LineRequirements,
   type OwedBy,
 } from '@/lib/document-requirements'
 import { labelFor } from '@/lib/document-type'
+import { sayType } from '@/lib/document-request'
 
 /**
  * What this order asks for on paper, and who may change it.
@@ -187,11 +190,14 @@ async function standingOn(caller: CallerContext, target: Target, write: boolean)
 // ── Reading the set ───────────────────────────────────────────────────
 
 /**
- * GET /api/documents/requirements?sellContractId=… | buyContractId=…
+ * GET /api/documents/requirements?workOrderId=… | sellContractId=… | buyContractId=…
  *
  * Every item this line requires, where each came from, who owes it, and
  * what any waiver on it said. The same answer the refusal at activation
  * is built from — one door, so a screen and a gate cannot disagree.
+ *
+ * An order answers too, since 2026-09-21: its own set, the rows the
+ * buyer wrote, which every line under it inherits.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -200,28 +206,104 @@ export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams
   const sellContractId = q.get('sellContractId') ?? undefined
   const buyContractId = q.get('buyContractId') ?? undefined
-  if (!sellContractId && !buyContractId) {
+  const workOrderId = q.get('workOrderId') ?? undefined
+  if (!sellContractId && !buyContractId && !workOrderId) {
     return refuse(
-      'Name the line whose paperwork you are asking about — a sell line or a buy line, not both.',
+      'Name what you are asking about: an order, or one line on it. ' +
+        'An item belongs to exactly one of them.',
       400,
-      'NO_LINE'
+      'NO_TARGET'
     )
   }
 
-  const target = await targetOf({ sellContractId, buyContractId })
-  if (!target) return refuse('There is no line with that id.', 404, 'NOT_FOUND')
+  const target = await targetOf({ sellContractId, buyContractId, workOrderId })
+  if (!target) return refuse('There is nothing with that id.', 404, 'NOT_FOUND')
 
   // A supplier reads what its customer requires of it — it has to, or it
   // cannot comply. Only changing it is the buyer's.
   const isParty = await partyTo(caller, target)
   if (!isParty.ok) return isParty.response
 
-  const set = await requirementsFor(
-    sellContractId ? { sellContractId } : { buyContractId: buyContractId! }
-  )
-  if (!set) return refuse('There is no line with that id.', 404, 'NOT_FOUND')
+  // ── An order's own set, readable ────────────────────────────────────
+  //
+  // POST has written an order's set since the table landed and GET
+  // refused to read one back — 400 NO_LINE — so a client could add the
+  // induction its own plant needs to a purchase order and had no way to
+  // see what that order asked for. A rule you can write and not read is
+  // a rule nobody can check.
+  const set = workOrderId
+    ? await orderRequirements(target)
+    : await requirementsFor(sellContractId ? { sellContractId } : { buyContractId: buyContractId! })
+  if (!set) return refuse('There is nothing with that id.', 404, 'NOT_FOUND')
 
   return NextResponse.json({ data: set })
+}
+
+/**
+ * What an order asks for, on every line under it.
+ *
+ * Only the rows somebody actually wrote on the order. A line's defaults
+ * belong to the line — they are computed from its shape, and an order
+ * covering a W2 and a sub-vendor has two different floors under it — so
+ * showing a floor here would claim the order said something it did not.
+ * The screen says as much, and the line's own set is one click away.
+ */
+async function orderRequirements(target: Target): Promise<LineRequirements | null> {
+  const order = await prisma.workOrder.findUnique({
+    where: { id: target.id },
+    select: { id: true, number: true, issuedBy: { select: { id: true, name: true } } },
+  })
+  if (!order) return null
+
+  const rows = await prisma.documentRequirement.findMany({
+    where: { workOrderId: order.id },
+    select: {
+      id: true, documentTypeKey: true, required: true, owedBy: true, blocks: true,
+      inheritedFromId: true, note: true, waivedReason: true, waivedById: true, waivedAt: true,
+    },
+  })
+
+  const waiverIds = rows.map((r) => r.waivedById).filter((v): v is string => !!v)
+  const waiverNames: Record<string, string> = {}
+  if (waiverIds.length) {
+    for (const p of await prisma.person.findMany({
+      where: { id: { in: waiverIds } },
+      select: { id: true, name: true },
+    })) {
+      waiverNames[p.id] = p.name
+    }
+  }
+
+  const defined = await dictionary(order.issuedBy.id)
+  const items = effectiveRequirements({
+    // An order has no shape of its own. Read through the buy-side lens,
+    // because an order is raised BY the buyer AT a supplier — so an
+    // agreement on it is the supplier's to sign, which is the same
+    // answer `inferOwedBy` falls back to when POST writes a row.
+    shape: 'SUB_VENDOR',
+    orderRows: rows,
+    orderSays: `required by ${order.issuedBy.name}\u2019s order ${order.number}`,
+    waiverNames,
+    documentTypes: defined,
+  }).filter((i) => i.from === 'ORDER')
+
+  const lines = await prisma.sellContract.count({ where: { workOrderId: order.id } })
+  const blocks = items.filter((i) => i.blocks).length
+
+  return {
+    side: 'BUY',
+    shape: 'SUB_VENDOR',
+    order: { id: order.id, number: order.number, issuedBy: order.issuedBy.name },
+    items,
+    says:
+      items.length === 0
+        ? `${order.issuedBy.name}\u2019s order ${order.number} adds nothing to what a start already requires. ` +
+          `Every line under it asks for the floor for its own shape, which is on the line.`
+        : `${items.length === 1 ? 'One document' : `${items.length} documents`} asked for by ` +
+          `${order.issuedBy.name}\u2019s order ${order.number}, on top of the floor every line already carries` +
+          `${blocks > 0 ? `; ${blocks === 1 ? 'one of them stops' : `${blocks} of them stop`} work when it lapses` : ''}. ` +
+          `${lines === 1 ? 'One line' : `${lines} lines`} inherit${lines === 1 ? 's' : ''} it.`,
+  }
 }
 
 /** Reading is wider than writing: both sides of a line may read its set. */
@@ -288,7 +370,22 @@ export async function POST(request: NextRequest) {
   const standing = await standingOn(caller, target, true)
   if (!standing.ok) return standing.response
 
-  const label = labelFor(key, await dictionary(target.buyerCompanyId))
+  // ── A type nobody defined is still said in words ──
+  //
+  // `labelFor` falls through to the key, so a client that added
+  // FURNACE_SAFETY_INDUCTION to its order read exactly that back — here,
+  // on the placement checklist, and in a refusal a hiring manager was
+  // meant to act on. The key is for the machine; the sentence is the
+  // product. It is humanized and the reply says once that nobody here
+  // has defined it, rather than pretending it is a known type.
+  const defined = await dictionary(target.buyerCompanyId)
+  const said = sayType(key, (k) => labelFor(k, defined))
+  const label = said.label
+  const undefinedTypeSays = said.known
+    ? ''
+    : ` Nobody here has defined ${label} as a document type yet, so it is asked for by that name and ` +
+      `nothing watches it for expiry. Define it under Settings → Documents to give it a validity period ` +
+      `and the party that owes it.`
   const where =
     target.kind === 'ORDER'
       ? { workOrderId_documentTypeKey: { workOrderId: target.id, documentTypeKey: key } }
@@ -342,7 +439,7 @@ export async function POST(request: NextRequest) {
   // ── Waiving it ──
   const waiving = typeof body.waivedReason === 'string' && body.waivedReason.trim().length > 0
   if (waiving) {
-    const verdict = mayWaive(key, body.waivedReason!, (k) => labelFor(k))
+    const verdict = mayWaive(key, body.waivedReason!, () => label)
     if (!verdict.ok) return refuse(verdict.says, 422, 'CANNOT_BE_WAIVED')
   }
 
@@ -396,7 +493,9 @@ export async function POST(request: NextRequest) {
       says: waiving
         ? `${label} is waived on ${target.says}, with your reason and your name on the record. It stays on the ` +
           `checklist, marked waived, rather than disappearing from it.`
-        : `${target.says} now asks for ${label}. The next start under it asks for it.`,
+        : `${target.says} now asks for ${label}. The next start under it asks for it.${undefinedTypeSays}`,
+      /** False where the type is not in anybody's dictionary. */
+      typeDefined: said.known,
     },
   })
 }

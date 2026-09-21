@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { myPapers, type AskedPacket, type HeldRecord, type SentDocument } from '@/lib/document-request'
+import {
+  myPapers,
+  outstandingItems,
+  type AskedPacket,
+  type HeldKeyRecord,
+  type HeldRecord,
+  type OutstandingItem,
+  type SentDocument,
+} from '@/lib/document-request'
+import { requirementsFor } from '@/lib/document-requirements'
 import { labelFor, typeByKey } from '@/lib/document-type'
 
 /**
@@ -125,6 +134,18 @@ export async function GET(request: NextRequest) {
     stopsWork: typeByKey(v.type)?.blocks ?? false,
   }))
 
+  // ── What the lines she is on require of her ────────────────────────
+  //
+  // The crack the release walk found on 2026-09-21: every chase letter
+  // ends "upload it from your Paperwork page" and this route read three
+  // tables, none of which is the one that says what a line requires. So
+  // the document she was being chased for was not on her page at all.
+  //
+  // Read through the one door, `lib/document-requirements`, so the items
+  // she is shown and the items the refusal at activation is built from
+  // are the same items rather than two lists that agree by coincidence.
+  const owed = await whatSheOwes(me, held, new Date())
+
   return NextResponse.json({
     data: {
       papers: myPapers({
@@ -132,7 +153,77 @@ export async function GET(request: NextRequest) {
         documents,
         packets: asked,
         held: onFile,
+        owed,
       }),
     },
   })
+}
+
+/** A check that actually came back. Anything still running holds nothing. */
+const CAME_BACK = ['CLEAR', 'CONDITIONAL']
+
+/**
+ * Every document this person owes on every line she is live on.
+ *
+ * Only `owedBy: 'WORKER'` — the firm's insurance and the customer's
+ * agreement are on the same set and are not hers to produce, and putting
+ * them on her page would ask her for somebody else's paperwork.
+ *
+ * Deduplicated by type: two placements that both want a background check
+ * want one background check, and listing it twice reads as two chases.
+ */
+async function whatSheOwes(
+  personId: string,
+  held: { type: string; status: string; issuedAt: Date | null; validFrom: Date | null; expiresAt: Date | null }[],
+  on: Date
+): Promise<OutstandingItem[]> {
+  // Anything not finished. Said as what it is not, because the two
+  // enums differ — a buy line has BENCH_PAID, INTERNAL and TRAINING and
+  // a sell line has none of them — and a list of the live ones would go
+  // stale on the next state somebody adds.
+  const live = { notIn: ['ENDED', 'CANCELLED'] as never[] }
+
+  const [sellLines, buyCandidates] = await Promise.all([
+    prisma.sellContract.findMany({
+      where: { personId, state: live },
+      select: { id: true },
+      take: 20,
+    }),
+    prisma.buyContractCandidate.findMany({
+      where: { personId, state: 'ACTIVE', buyContract: { state: live } },
+      select: { buyContractId: true },
+      take: 20,
+    }),
+  ])
+
+  const onFile: HeldKeyRecord[] = held.map((v) => ({
+    key: v.type,
+    validFrom: v.validFrom ?? v.issuedAt ?? null,
+    expiresAt: v.expiresAt ?? null,
+    accepted: CAME_BACK.includes(v.status),
+  }))
+
+  const sets = await Promise.all([
+    ...sellLines.map((l) => requirementsFor({ sellContractId: l.id })),
+    ...buyCandidates.map((c) => requirementsFor({ buyContractId: c.buyContractId })),
+  ])
+
+  const byKey = new Map<string, OutstandingItem>()
+  for (const set of sets) {
+    if (!set) continue
+    const items = outstandingItems({
+      items: set.items,
+      held: onFile,
+      owedBy: ['WORKER'],
+      on,
+    })
+    for (const item of items) {
+      const already = byKey.get(item.key)
+      // Two lines can ask for the same document and disagree about
+      // whether its absence stops the work. The stricter line wins: a
+      // start that is blocked is blocked whatever the other order says.
+      if (!already || (item.stopsWork && !already.stopsWork)) byKey.set(item.key, item)
+    }
+  }
+  return [...byKey.values()]
 }

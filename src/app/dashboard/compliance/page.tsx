@@ -31,7 +31,8 @@ interface ComplianceData {
     pending: number
     flagged: number
     expired: number
-    clearPercentage: number
+    /** Null where nothing is on file. A rate over no checks is not 100%. */
+    clearPercentage: number | null
   }
   evaluationSummary: {
     total: number
@@ -42,6 +43,24 @@ interface ComplianceData {
   }
   /** Suppliers who cannot submit anybody today because cover has lapsed. */
   lapsed: LapsedSupplier[]
+  /** What this firm owes on the lines it is paid on. */
+  owes?: OwedDocument[]
+}
+
+/** One document this firm, or somebody it placed, still owes. */
+interface OwedDocument {
+  lineId: string
+  key: string
+  label: string
+  owedBy: string
+  owedByName: string | null
+  toName: string | null
+  aboutName: string | null
+  stopsWork: boolean
+  state: string
+  word: string
+  asked: string
+  waivedSays: string | null
 }
 
 interface LapsedSupplier {
@@ -333,9 +352,10 @@ export default function CompliancePage() {
 
   if (!data && !loading && !error) return null
 
-  const health = data?.health ?? { totalChecks: 0, clear: 0, pending: 0, flagged: 0, expired: 0, clearPercentage: 100 }
+  const health = data?.health ?? { totalChecks: 0, clear: 0, pending: 0, flagged: 0, expired: 0, clearPercentage: null }
   const evalSummary = data?.evaluationSummary ?? { total: 0, pass: 0, warn: 0, block: 0, overridden: 0 }
   const lapsed = data?.lapsed ?? []
+  const owes = data?.owes ?? []
   const needsReview = calls?.review.stale ?? []
 
   return (
@@ -380,16 +400,72 @@ export default function CompliancePage() {
         </div>
       )}
 
+      {/* ── What this firm owes ──
+          Wrenfield Technical read "clear rate 100%, total checks 0" here
+          while owing its customer an agreement and its contractor an
+          induction. The page answered a different question from the one
+          its reader had. */}
+      {owes.length > 0 && (
+        <div className="panel mb-6 p-0 overflow-hidden">
+          <div className="px-4 py-3 border-b border-etyme-rule">
+            <h3 className="text-sm font-semibold text-etyme-ink">
+              {owes.length === 1
+                ? 'One document is still owed on the lines this firm is paid on'
+                : `${owes.length} documents are still owed on the lines this firm is paid on`}
+            </h3>
+            <p className="text-[12px] text-etyme-muted mt-0.5">
+              Read from the same set the refusal at activation is built from, so what is listed
+              here and what stops a start are the same items.
+            </p>
+          </div>
+          <div className="divide-y divide-etyme-rule">
+            {owes.map(o => (
+              <div key={`${o.key}-${o.toName ?? ''}-${o.aboutName ?? ''}`} className="px-4 py-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`chip ${o.state === 'WAIVED' ? 'chip--passive' : o.stopsWork ? 'chip--danger' : 'chip--attention'}`}>
+                    {o.state === 'WAIVED' ? 'Waived' : o.stopsWork ? 'Stops work' : 'Owed'}
+                  </span>
+                  <span className="font-medium text-etyme-ink text-[13px]">{o.label}</span>
+                  <span className="text-[12px] text-etyme-muted">{o.word}</span>
+                </div>
+                <p className="text-[12px] text-etyme-muted mt-1">
+                  {o.aboutName ? `${o.aboutName}’s to produce. ` : o.owedByName ? `${o.owedByName}’s to produce. ` : ''}
+                  {o.asked}
+                  {o.toName ? ` — on the line billing ${o.toName}.` : '.'}
+                </p>
+                {o.waivedSays && <p className="text-[12px] text-etyme-muted mt-1">{o.waivedSays}</p>}
+                <a
+                  className="text-[12px] text-etyme-action hover:underline"
+                  href={`/dashboard/documents/requirements?sellContractId=${o.lineId}`}
+                >
+                  See everything this line asks for
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Health stats */}
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[100px]">
           <p className="stat-label">Clear rate</p>
-          <p className={`stat-value ${
-            health.clearPercentage >= 90 ? 'text-etyme-verified' :
-            health.clearPercentage >= 70 ? 'text-etyme-attention' : 'text-etyme-danger'
-          }`}>
-            {health.clearPercentage}%
-          </p>
+          {/* A percentage of an empty set is not good news — it is the
+              absence of news. This page read 100% over zero checks for a
+              firm that owed its customer an agreement. */}
+          {health.clearPercentage === null ? (
+            <>
+              <p className="stat-value text-etyme-muted">—</p>
+              <p className="text-[10px] text-etyme-faint mt-0.5">Nothing on file yet</p>
+            </>
+          ) : (
+            <p className={`stat-value ${
+              health.clearPercentage >= 90 ? 'text-etyme-verified' :
+              health.clearPercentage >= 70 ? 'text-etyme-attention' : 'text-etyme-danger'
+            }`}>
+              {health.clearPercentage}%
+            </p>
+          )}
         </div>
         <div className="panel flex-1 min-w-[100px]">
           <p className="stat-label">Total checks</p>

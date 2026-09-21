@@ -70,7 +70,7 @@ import {
 } from '@/lib/document-stages'
 import { prisma } from '@/lib/db'
 import { requirementsFor } from '@/lib/document-requirements'
-import { heldFromDocInstances } from '@/lib/document-request'
+import { heldFromDocInstances, humanKey } from '@/lib/document-request'
 import {
   typesFor,
   typeByKey,
@@ -476,7 +476,17 @@ export function contractClearance(input: {
 
   // The line's set, split into the part a person's file answers and the
   // part the firm's file answers.
-  const required = input.requirements ?? []
+  // ── A type nobody defined is still said in words ──
+  //
+  // An item's label falls through to the key where neither the shipped
+  // dictionary nor the company's own names it, so a client that added
+  // FURNACE_SAFETY_INDUCTION to its order read exactly that back on a
+  // placement checklist and inside a refusal a hiring manager was meant
+  // to act on. The key is for the machine; the sentence is the product.
+  // Nothing is invented — the words inside the key are all we know.
+  const required = (input.requirements ?? []).map((r) =>
+    r.label === r.key ? { ...r, label: humanKey(r.key) } : r
+  )
   const standing = required.filter(isSupplierStanding)
   const personSide = required.filter((r) => !isSupplierStanding(r))
   const byKey = new Map(personSide.map((r) => [r.key, r]))

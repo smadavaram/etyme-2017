@@ -10,6 +10,14 @@ import { logBulkAccess } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
 import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
 import { labelFor } from '@/lib/document-type'
+import { requirementsFor } from '@/lib/document-requirements'
+import {
+  outstandingItems,
+  heldFromDocInstances,
+  humanKey,
+  type HeldKeyRecord,
+  type OutstandingItem,
+} from '@/lib/document-request'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -431,6 +439,9 @@ export async function GET(request: NextRequest) {
     coverByCompany.set(companyId, { outcome: gate.outcome, says: gate.says, fix: gate.fix })
   }
 
+  // What this firm owes, on the lines it is paid on.
+  const owes = await whatThisFirmOwes(clientCompany.id, now)
+
   // Compute compliance health
   const allVerifications = [...personVerifications, ...companyVerifications]
   const totalChecks = allVerifications.length
@@ -528,8 +539,21 @@ export async function GET(request: NextRequest) {
         pending,
         flagged,
         expired,
-        clearPercentage: totalChecks > 0 ? Math.round((clear / totalChecks) * 100) : 100,
+        // ── A rate over no checks is not a hundred percent ──
+        //
+        // Wrenfield Technical opened its own compliance page on
+        // 2026-09-21 and read CLEAR RATE 100% over TOTAL CHECKS 0, while
+        // owing its customer an agreement and its contractor an
+        // induction. A percentage of an empty set is not good news, it
+        // is the absence of news, and the page that most invites a false
+        // green is the one that had one. Null, and the screen says
+        // "nothing on file".
+        clearPercentage: totalChecks > 0 ? Math.round((clear / totalChecks) * 100) : null,
       },
+      // What this firm owes on the lines it is paid on, read through the
+      // one door — so a supplier's own page and its customer's dashboard
+      // name the same documents.
+      owes,
       evaluationSummary: {
         total: evalTotal,
         pass: evalPass,
@@ -539,4 +563,163 @@ export async function GET(request: NextRequest) {
       },
     },
   })
+}
+
+// ── What this firm owes ───────────────────────────────────────────────
+//
+// Found by a release walk on 2026-09-21. Wrenfield Technical's own
+// compliance page read "CLEAR RATE 100% · TOTAL CHECKS 0 · No governance
+// policies configured" while Cavanaugh Glassworks' dashboard said
+// Wrenfield owed it a master agreement and Wrenfield's contractor owed a
+// hot floor induction. Nothing was wrong with either number; the page
+// was answering a different question from the one its reader had.
+//
+// A firm's own compliance page answers the reader's question: what is
+// outstanding on the lines I am paid on. Read through
+// `lib/document-requirements`, the same door the refusal at activation
+// reads, so the list here and the block there are the same items.
+
+/** One thing this firm owes, and to whom. */
+interface Owed {
+  /** The line it is outstanding on, so the reader can open its set. */
+  lineId: string
+  key: string
+  label: string
+  /** WORKER · SUPPLIER · CUSTOMER · US. */
+  owedBy: string
+  /** The firm or person that owes it, where the line names one. */
+  owedByName: string | null
+  /** The customer who asked, where the line names one. */
+  toName: string | null
+  /** The person the line is for, where it is for one. */
+  aboutName: string | null
+  stopsWork: boolean
+  state: string
+  word: string
+  asked: string
+  waivedSays: string | null
+}
+
+/** A check that actually came back. Anything still running holds nothing. */
+const CAME_BACK = ['CLEAR', 'CONDITIONAL']
+
+async function whatThisFirmOwes(companyId: string, on: Date): Promise<Owed[]> {
+  // The lines this firm bills from. A buy line's supplier items are what
+  // somebody owes THIS firm, which is the suppliers table above, not this
+  // list — the reader is asking what is outstanding on them.
+  const lines = await prisma.sellContract.findMany({
+    where: { companyId, state: { notIn: ['ENDED', 'CANCELLED'] } },
+    select: {
+      id: true,
+      personId: true,
+      person: { select: { name: true } },
+      clientCompanyId: true,
+      clientCompany: { select: { name: true } },
+    },
+    take: 60,
+  })
+  if (lines.length === 0) return []
+
+  const personIds = [...new Set(lines.map((l) => l.personId).filter((v): v is string => !!v))]
+  const clientIds = [...new Set(lines.map((l) => l.clientCompanyId).filter((v): v is string => !!v))]
+
+  const [checks, papers, agreements] = await Promise.all([
+    prisma.verification.findMany({
+      where: {
+        OR: [
+          { companyId },
+          ...(personIds.length ? [{ personId: { in: personIds } }] : []),
+        ],
+      },
+      select: {
+        type: true, status: true, personId: true, companyId: true,
+        issuedAt: true, validFrom: true, expiresAt: true,
+      },
+    }),
+    prisma.docInstance.findMany({
+      where: { sellContractId: { in: lines.map((l) => l.id) } },
+      select: {
+        id: true, status: true, validFrom: true, expiresAt: true, signedAt: true,
+        countersignedAt: true, sellContractId: true, template: { select: { name: true } },
+      },
+    }),
+    clientIds.length
+      ? prisma.masterAgreement.findMany({
+          where: { vendorId: companyId, clientId: { in: clientIds } },
+          select: { clientId: true, status: true, effectiveDate: true, signedAt: true, expiresAt: true },
+        })
+      : Promise.resolve([]),
+  ])
+
+  const asHeld = (v: (typeof checks)[number]): HeldKeyRecord => ({
+    key: v.type,
+    validFrom: v.validFrom ?? v.issuedAt ?? null,
+    expiresAt: v.expiresAt ?? null,
+    accepted: CAME_BACK.includes(v.status),
+  })
+  const firmHeld = checks.filter((v) => v.companyId === companyId && !v.personId).map(asHeld)
+
+  const out: Owed[] = []
+  const seen = new Set<string>()
+
+  for (const line of lines) {
+    const set = await requirementsFor({ sellContractId: line.id })
+    if (!set) continue
+
+    const held: HeldKeyRecord[] = [
+      ...firmHeld,
+      ...checks.filter((v) => v.personId && v.personId === line.personId).map(asHeld),
+      ...heldFromDocInstances(
+        papers.filter((d) => d.sellContractId === line.id),
+        set.items.map((i) => ({ key: i.key, label: i.label }))
+      ),
+      // An MSA is its own row with its own term, never a `DocInstance`,
+      // so a set that asks for one is answered from there rather than
+      // reported missing forever.
+      ...agreements
+        .filter((a) => a.clientId === line.clientCompanyId && ['ACTIVE', 'EXPIRING'].includes(a.status))
+        .map((a) => ({
+          key: 'MSA',
+          validFrom: a.effectiveDate ?? a.signedAt ?? null,
+          expiresAt: a.expiresAt ?? null,
+          accepted: true,
+        })),
+    ]
+
+    const items: OutstandingItem[] = outstandingItems({
+      items: set.items,
+      held,
+      // On a sell line SUPPLIER and US are both this firm, and WORKER is
+      // the person it placed. The customer's own paperwork is on the
+      // same set and is not this firm's to chase.
+      owedBy: ['SUPPLIER', 'US', 'WORKER'],
+      on,
+    })
+
+    for (const item of items) {
+      // One document per customer per person. Six consultants at one
+      // client wanting one agreement is one row, not six.
+      const id = `${item.key}:${line.clientCompanyId ?? ''}:${item.owedBy === 'WORKER' ? (line.personId ?? '') : ''}`
+      if (seen.has(id)) continue
+      seen.add(id)
+      out.push({
+        lineId: line.id,
+        key: item.key,
+        label: item.label === item.key ? humanKey(item.key) : item.label,
+        owedBy: item.owedBy,
+        owedByName: item.owedByName,
+        toName: line.clientCompany?.name ?? null,
+        aboutName: item.owedBy === 'WORKER' ? (line.person?.name ?? null) : null,
+        stopsWork: item.stopsWork,
+        state: item.state,
+        word: item.word,
+        asked: item.asked,
+        waivedSays: item.waivedSays,
+      })
+    }
+  }
+
+  return out.sort(
+    (a, b) => Number(b.stopsWork) - Number(a.stopsWork) || a.label.localeCompare(b.label)
+  )
 }
