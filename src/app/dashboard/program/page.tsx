@@ -8,6 +8,7 @@ import { compact } from '@/lib/money-display'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { deskCounts, deskHeadline } from './needs-you'
 
 /**
  * Client Program Overview
@@ -366,7 +367,13 @@ export default function ProgramPage() {
   const s = data.summary
   const queue = decisions ?? []
   const urgent = queue.filter((d) => d.urgency === 'HIGH').length
-  const exceptions = queue.filter((d) => d.flag || d.type === 'BILL_DISPUTED').length
+  // The headline counts everything the page shows needs somebody — the
+  // queue, a start paperwork will refuse, a supplier with people on site
+  // and no agreement — rather than the queue alone, which read "Nothing
+  // needs you today." over both of the other two.
+  const counts = deskCounts({ decisions: queue, startingSoon: data.startingSoon, vendors: data.vendors })
+  const said = deskHeadline(counts)
+  const exceptions = counts.exceptions
   const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
@@ -384,16 +391,7 @@ export default function ProgramPage() {
         <div className="max-w-2xl">
           <p className="eyebrow">Workforce · {data.client.name}</p>
           <h1 className="mt-1 font-serif text-3xl md:text-4xl leading-tight tracking-[-0.02em]" style={{ textWrap: 'balance' }}>
-            {decisions === null
-              ? 'Reading your desk…'
-              : queue.length === 0
-                ? 'Nothing needs you today.'
-                : (
-                  <>
-                    {queue.length} thing{queue.length === 1 ? '' : 's'} need{queue.length === 1 ? 's' : ''} you.
-                    {exceptions > 0 && <span className="text-etyme-attention"> {exceptions} {exceptions === 1 ? 'has an exception' : 'have exceptions'}.</span>}
-                  </>
-                )}
+            {decisions === null ? 'Reading your desk…' : said.says}
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">
             {plural(s.activeContractors, 'contractor')} on site through {plural(s.vendors, 'supplier')}.

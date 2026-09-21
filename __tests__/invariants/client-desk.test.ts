@@ -15,6 +15,7 @@ describe('what the client desk is told', () => {
   const decisions = read('src/app/api/decisions/route.ts')
   const program = read('src/app/api/program/route.ts')
   const page = read('src/app/dashboard/program/page.tsx')
+  const needsYou = read('src/app/dashboard/program/needs-you.ts')
   const volume = read('src/lib/demo-volume.ts')
   const seed = read('src/lib/seed-programmes.ts')
 
@@ -80,8 +81,11 @@ describe('what the client desk is told', () => {
   })
 
   it('the headline is a sentence about the reader, not a label', () => {
-    expect(page).toContain("'Nothing needs you today.'")
-    expect(page).toMatch(/need\{queue\.length === 1 \? 's' : ''\} you\./)
+    // The sentence moved into `needs-you.ts` on 2026-09-21, because the
+    // page was counting the approval queue and calling that the desk.
+    expect(needsYou).toContain("'Nothing needs you today.'")
+    expect(needsYou).toContain("'thing needs', 'things need'")
+    expect(page).toContain('said.says')
   })
 
   it('a week that does not fit its contract is flagged in a sentence before anybody signs it', () => {
@@ -91,8 +95,9 @@ describe('what the client desk is told', () => {
   })
 
   it('the headline counts exceptions; a flagged week is approved anyway only with a reason, and the reason goes on the signature', () => {
-    expect(page).toContain("const exceptions = queue.filter((d) => d.flag || d.type === 'BILL_DISPUTED').length")
-    expect(page).toContain("{exceptions === 1 ? 'has an exception' : 'have exceptions'}")
+    expect(needsYou).toContain("input.decisions.filter((d) => d.flag || d.type === 'BILL_DISPUTED').length")
+    expect(needsYou).toContain("c.exceptions === 1 ? 'has an exception' : 'have exceptions'")
+    expect(page).toContain('const exceptions = counts.exceptions')
     expect(page).toContain('Approve anyway')
     expect(page).toContain("if (reason.trim()) { onApprove(d, reason.trim()); setReasonFor(null) }")
     expect(page).toContain('body: JSON.stringify(note ? { note } : {})')
