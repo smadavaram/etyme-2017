@@ -110,6 +110,21 @@ describe('what the client desk is told', () => {
     expect(page).toContain("'Paperwork complete. Nothing stops the start.'")
   })
 
+  it('the week-early paperwork verdict on the dashboard reads what the client\u2019s own order asked for', () => {
+    // Spread last, so the line's own set beats the role's default packet
+    // and the four insurance kinds the query above it selects. Cavanaugh
+    // Glassworks' order to Wrenfield Technical requires a master service
+    // agreement nobody ever signed; before this the desk read the default
+    // packet for the role and saw nothing until the start date.
+    expect(program).toContain("import { contractClearance, lineExtras } from '@/lib/contract-clearance'")
+    expect(program).toContain('...(await lineExtras({ sellContractId: c.id })),')
+    // Last inside the call, not first: the order's answer must not be
+    // overwritten by the shape it was merged into.
+    const call = program.slice(program.indexOf('const papers = contractClearance({'))
+    expect(call.indexOf('lineExtras')).toBeLessThan(call.indexOf('})'))
+    expect(call.indexOf('through: c.endDate')).toBeLessThan(call.indexOf('lineExtras'))
+  })
+
   it('each supplier carries the standing this client gave it, and a published role with nobody in five days says so', () => {
     expect(program).toContain('standing: tierWord(tierOf.get(v.id), agreed.has(v.id))')
     expect(page).toContain("const quiet = r.status === 'OPEN' && r.submissions === 0 && r.openDays >= 5")

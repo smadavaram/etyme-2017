@@ -19,6 +19,7 @@ import { POST as pay } from '@/app/api/invoices/[id]/payments/route'
 import { GET as tenure } from '@/app/api/tenure/route'
 import { GET as alumni } from '@/app/api/alumni/route'
 import { GET as compliance } from '@/app/api/compliance/route'
+import { GET as programDesk } from '@/app/api/program/route'
 
 /**
  * A client's month, from its own desks.
@@ -451,5 +452,57 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     const officer = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE.compliance } })
     const n = await prisma.accessLog.count({ where: { actorPersonId: officer.id, action: 'TENURE_VIEW' } })
     expect(n).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * The paperwork verdict a week early, read against the client's own order.
+ *
+ * The dashboard has shown somebody starting soon and whether the
+ * paperwork lets them since 2026-09-13, and it ran the default packet for
+ * the role. So a client whose own purchase order asked for something the
+ * packet never heard of — a hot floor induction, or the master service
+ * agreement nobody ever signed — read "nothing stops the start" until the
+ * day of the start.
+ */
+describe('the week-early verdict reads the client\u2019s own order', () => {
+  const CAVANAUGH_PM = 'world-corning-programme@demo.etyme.local'
+
+  it('the week-early paperwork verdict on the dashboard reads what the client\u2019s own order asked for', async () => {
+    // Cavanaugh Glassworks sent Wrenfield Technical one purchase order
+    // for one season and nobody papered an agreement. Elsa Thornquist is
+    // already on site in the seeded world, so the line is read a week
+    // before a start here and put back exactly as it was.
+    const line = await prisma.sellContract.findFirstOrThrow({
+      where: { clientCompany: { slug: 'world-corning' }, company: { slug: 'world-wrenfield' } },
+      select: { id: true, state: true, startDate: true, workOrder: { select: { number: true, msaId: true } } },
+    })
+    expect(line.workOrder?.msaId, 'the order with no agreement behind it').toBeNull()
+
+    await prisma.sellContract.update({
+      where: { id: line.id },
+      data: { state: 'VERIFIED', startDate: new Date(Date.now() + 8 * 86_400_000) },
+    })
+    try {
+      as(CAVANAUGH_PM)
+      const r = await json(await programDesk(req('GET', '/api/program')))
+      expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+      const soon = r.body.data.startingSoon.find((s: any) => s.person.name === 'Elsa Thornquist')
+      expect(soon, 'Elsa reads as starting soon').toBeTruthy()
+
+      // Both items the order asked for, each naming the order that asked.
+      expect(soon.paperwork.says).toContain('Master service agreement is required by Cavanaugh Glassworks\u2019s order PO-WORLD-CORNING-0001')
+      expect(soon.paperwork.says).toContain('Hot floor induction is required by Cavanaugh Glassworks\u2019s order PO-WORLD-CORNING-0001')
+      // A site induction nobody has is the law of the plant, not a
+      // preference, so it stops the start; the unsigned agreement is a
+      // commercial fact and is said rather than enforced.
+      expect(soon.paperwork.outcome).toBe('BLOCK')
+      expect(soon.paperwork.fix).toContain('hot floor induction')
+    } finally {
+      await prisma.sellContract.update({
+        where: { id: line.id },
+        data: { state: line.state, startDate: line.startDate },
+      })
+    }
   })
 })

@@ -1003,12 +1003,13 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
     // certificate of the sub it pays, which is its own book and is
     // reached without naming anybody.
     //
-    // Its own page is thin today and this test says so rather than
-    // pretending otherwise: `/api/compliance` scopes by
-    // `endClientFilter`, which asks who works at *this* site, and
-    // CloudEPA's people work at Auralis's. Scoping a supplier's own page
-    // by the contracts it pays for is `etyme-regulatory`'s to do; it is
-    // reported, not papered over.
+    // Its own page was thin when this was written, and the comment here
+    // said so rather than pretending otherwise. `etyme-regulatory` closed
+    // it on 2026-09-21: `/api/compliance` now asks both halves — who
+    // works at this company's own sites, and who it pays for one rung
+    // down — so a prime reads the cover of the sub it pays and the people
+    // that sub has on its client's site. What it still may not read is
+    // the client's page, which is what the refusal below is about.
     as(PRIME)
     const named = await json(await complianceView(req('GET', `/api/compliance?clientCompanyId=${co.adobe}`)))
     expect(named.status).toBe(403)

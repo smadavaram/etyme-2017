@@ -5,7 +5,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop, viaPhrase } from '@/lib/chain-top'
 import { rateSpread, type Placement } from '@/lib/census-page'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
-import { contractClearance } from '@/lib/contract-clearance'
+import { contractClearance, lineExtras } from '@/lib/contract-clearance'
 import { tierWord } from '@/lib/supplier-tier'
 import { resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
@@ -369,6 +369,17 @@ export async function GET(request: NextRequest) {
         // last day says whether the license outlives the assignment.
         role: c.requirement?.title ?? null,
         through: c.endDate,
+        // What THIS client's own order asked for on this line, last, so
+        // it beats the shape above it. Without it the preview ran the
+        // default packet for the role and the client's own paper was
+        // invisible a week early: Cavanaugh Glassworks sent Wrenfield
+        // Technical a purchase order requiring a master service
+        // agreement, nobody ever signed one, and the desk read "nothing
+        // stops the start" until the day of the start. The spread also
+        // widens the firm's standing from the four insurance kinds above
+        // to everything the line asks about it — a suspended registration
+        // included.
+        ...(await lineExtras({ sellContractId: c.id })),
       })
       return {
         contractId: c.id,
