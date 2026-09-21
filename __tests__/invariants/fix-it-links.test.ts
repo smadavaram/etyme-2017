@@ -124,8 +124,8 @@ describe('Every Fix it link on Missing paperwork opens a page that exists', () =
     expect(looseEnd('NO_BUY_CONTRACT', bare, NOW).href).toBe('/dashboard/contracts?side=sell')
   })
 
-  it('sends hours the client approved and nobody accepted to the list they are accepted on', () => {
-    expect(looseEnd('APPROVED_NEVER_ACCEPTED', full, NOW).href).toBe('/dashboard/timesheets')
+  it('sends hours the client approved and nobody accepted to that week', () => {
+    expect(looseEnd('APPROVED_NEVER_ACCEPTED', full, NOW).href).toBe('/dashboard/timesheets?id=rec_1')
   })
 
   it('sends an award with no contract behind it to the submissions for that role', () => {

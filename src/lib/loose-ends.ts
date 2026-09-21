@@ -186,13 +186,11 @@ const RULES: Record<
     says: (s) =>
       `${s.label} — the client approved these hours and the employer never accepted them, so they are billed and not costed.`,
     fix: 'Accept the hours for pay, or say why they are not being paid.',
-    // The list, not the week. Accepting hours for pay happens on the
-    // timesheets list and nowhere else, and that page reads no filter
-    // out of its URL today — so there is no honest way to land on the
-    // row. The sentence above names the person and the dates, which is
-    // what somebody scans for. Asked of etyme-demand: a `?id=` or
-    // `?status=` the list honors, and this link points at the row.
-    href: () => '/dashboard/timesheets',
+    // The week itself. Accepting hours for pay happens on the timesheets
+    // list and nowhere else, so this is the list narrowed to the one row
+    // — `?id=` is honored there since dd3e1a17, and clearing the filter
+    // clears the parameter with it.
+    href: (s) => `/dashboard/timesheets?id=${s.id}`,
   },
   AWARDED_NO_CONTRACT: {
     severity: 'BREAKS_REPORTING',
