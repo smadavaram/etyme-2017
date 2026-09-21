@@ -304,6 +304,18 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
     says:
       'Somebody asked for a person’s data or for them to be forgotten and was refused — they are not the person, or not the company that holds the record. A refusal aimed at somebody who asked carries no autonomy level, and it is logged as carefully as a grant.',
   },
+  GOOD_STANDING_LAPSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says:
+      'A supplier’s certificate of good standing has expired, so the state that registered it no longer says it may trade — nobody starts through it and no new line is raised against it until it is renewed. The same shape as lapsed cover, and for the same reason: it is the firm’s standing to contract at all, not a preference a client is expressing.',
+  },
+  NDA_UNSIGNED_WARNED: {
+    outcome: 'WARN',
+    basis: 'RULE',
+    says:
+      'A non-disclosure agreement this line requires is still unsigned, and the start proceeds with the reason captured and whoever owes the signature told. It warns rather than blocks because a signature page is contractual rather than legally grounded, and a system that stops work over one gets worked around by email.',
+  },
 }
 
 // ── The things a person did ─────────────────────────
@@ -331,43 +343,41 @@ const RULE_ATTRIBUTED = [
   'ACCESS_SUSPENDED', 'ADDRESS_CHANGED', 'AGREEMENT_AMENDED',
   'AGREEMENT_ENDED', 'AGREEMENT_SIGNED', 'ALUMNI_ASK_BACK',
   'API_KEY_ISSUED', 'API_KEY_REVOKED', 'APPROVAL_RULE_CREATED',
-  'APPROVAL_RULE_DEACTIVATED', 'BENCH_CONSENT_DECLINED',
-  'BENCH_CONSENT_GIVEN', 'BENCH_LISTING_GRANTED',
-  'BENCH_LISTING_REQUESTED', 'BENCH_LISTING_REVOKED', 'BLACKLIST_ADD',
-  'BLACKLIST_LIFT', 'BREACH_CLOSED', 'BREACH_NOTICE_SENT', 'BREACH_OPENED',
-  'CANDIDATE_AWARDED', 'CLIENT_LISTED', 'COLLECTIONS_FACTORED',
-  'COLLECTIONS_OWNER_ASSIGNED', 'COLLECTIONS_PROMISE_MADE',
-  'COLLECTIONS_STOP_WORK_ADVISED', 'COLLECTIONS_WRITTEN_OFF',
+  'APPROVAL_RULE_DEACTIVATED', 'BENCH_CONSENT_DECLINED', 'BENCH_CONSENT_GIVEN',
+  'BENCH_LISTING_GRANTED', 'BENCH_LISTING_REQUESTED', 'BENCH_LISTING_REVOKED',
+  'BLACKLIST_ADD', 'BLACKLIST_LIFT', 'BREACH_CLOSED',
+  'BREACH_NOTICE_SENT', 'BREACH_OPENED', 'CANDIDATE_AWARDED',
+  'CLIENT_LISTED', 'COLLECTIONS_FACTORED', 'COLLECTIONS_OWNER_ASSIGNED',
+  'COLLECTIONS_PROMISE_MADE', 'COLLECTIONS_STOP_WORK_ADVISED', 'COLLECTIONS_WRITTEN_OFF',
   'COMMISSION_RUN', 'COMPANY_CREATED', 'COMPANY_SETTINGS_CHANGED',
   'CONSULTANT_CREATED', 'CONTRACT_ACTIVATED', 'CONTRACT_CANCELLED',
   'CONTRACT_COMPLETED', 'CONTRACT_CREATED', 'CONTRACT_EXTENDED',
   'CONTRACT_PAUSED', 'CONTRACT_RESUMED', 'CONTRACT_VERIFICATION_REQUESTED',
   'CREDIT_LIMIT_CHANGED', 'CREDIT_LIMIT_SET', 'CUSTOM_DOMAIN_ADDED',
-  'CUSTOM_DOMAIN_REMOVED', 'DATA_ERASURE_REQUESTED',
-  'DATA_EXPORT_REQUESTED', 'DATA_REQUEST_ANSWERED', 'DOCUMENTS_SHARED',
-  'DOCUMENT_SHARE_REVOKED', 'DOMAIN_CLAIMED', 'DUNNING_SENT',
-  'EXPENSE_APPROVED', 'EXPENSE_REJECTED', 'EXPENSE_SUBMITTED',
-  'HOLIDAYS_ADDED', 'HOLIDAY_REMOVED', 'IMPORT_COMMITTED',
-  'INTERVIEW_ACCEPTED', 'INTERVIEW_DECLINED', 'INVITATION_ACCEPTED',
-  'INVITATION_DECLINED', 'INVITATION_WITHDRAWN', 'INVOICE_GENERATED',
-  'INVOICE_MATCH_OVERRIDDEN', 'INVOICE_MATCH_OVERRIDE_WITHDRAWN',
+  'CUSTOM_DOMAIN_REMOVED', 'DATA_ERASURE_REQUESTED', 'DATA_EXPORT_REQUESTED',
+  'DATA_REQUEST_ANSWERED', 'DOCUMENTS_SHARED',
+  'DOCUMENT_SHARE_REVOKED', 'DOMAIN_CLAIMED',
+  'DUNNING_SENT', 'EXPENSE_APPROVED', 'EXPENSE_REJECTED',
+  'EXPENSE_SUBMITTED', 'HOLIDAYS_ADDED', 'HOLIDAY_REMOVED',
+  'IMPORT_COMMITTED', 'INTERVIEW_ACCEPTED', 'INTERVIEW_DECLINED',
+  'INVITATION_ACCEPTED', 'INVITATION_DECLINED', 'INVITATION_WITHDRAWN',
+  'INVOICE_GENERATED', 'INVOICE_MATCH_OVERRIDDEN', 'INVOICE_MATCH_OVERRIDE_WITHDRAWN',
   'INVOICE_SUBMITTED', 'LEADS_READ', 'LEAD_KEPT_APART_BY_PERSON',
   'LEAD_MERGED_BY_PERSON', 'LEGAL_HOLD_LIFTED', 'LEGAL_HOLD_PLACED',
-  'OPENING_WRITTEN_UP', 'ORDER_LOCKED', 'ORDER_SETTLED', 'ORDER_UNLOCKED',
-  'OUTBOUND_PACK_SENT', 'OWN_DOCUMENT_RECORDED', 'PACKET_REQUESTED',
-  'PAYMENT_RECORDED', 'PAYROLL_OFF_CYCLE', 'PAYROLL_RUN', 'PERSON_INVITED',
-  'PLACEMENT_CONVERTED', 'PLACEMENT_REPLACED', 'PURCHASE_ORDER_CHANGED',
-  'PURCHASE_ORDER_RAISED', 'RATE_AMENDMENT_APPROVED',
-  'RATE_AMENDMENT_REJECTED', 'REMIT_TO_ADDED', 'REMIT_TO_CHANGED',
-  'REQUIREMENT_STATUS_CHANGED', 'REQUISITION_APPROVED',
-  'REQUISITION_CANCELLED', 'REQUISITION_CHANGED',
-  'REQUISITION_CHANGES_REQUESTED', 'REQUISITION_DISTRIBUTED',
-  'REQUISITION_REJECTED', 'RESERVE_FORFEIT', 'RESERVE_PAY_OUT', 'REVERSAL',
-  'ROLE_PERMISSIONS_CHANGED', 'ROLLOFF_CLAIMED', 'ROLLOFF_INITIATED',
-  'ROLLOFF_RESOLVED', 'SUBMISSION_STATUS_CHANGED', 'SUPPLIER_APPROVED',
-  'SUPPLIER_DECLINED', 'SUPPLIER_ITEM_MARKED', 'TEMPLATE_PACK_APPLIED',
-  'TIMESHEET_APPROVED', 'TIMESHEET_REJECTED', 'WEBHOOK_ADDED',
-  'WORK_ORDER_RECORDED'
+  'OPENING_WRITTEN_UP', 'ORDER_LOCKED', 'ORDER_SETTLED',
+  'ORDER_UNLOCKED', 'OUTBOUND_PACK_SENT', 'OWN_DOCUMENT_RECORDED',
+  'PACKET_REQUESTED', 'PAYMENT_RECORDED', 'PAYROLL_OFF_CYCLE',
+  'PAYROLL_RUN', 'PERSON_INVITED', 'PLACEMENT_CONVERTED',
+  'PLACEMENT_REPLACED', 'PURCHASE_ORDER_CHANGED', 'PURCHASE_ORDER_RAISED',
+  'RATE_AMENDMENT_APPROVED', 'RATE_AMENDMENT_REJECTED', 'REMIT_TO_ADDED',
+  'REMIT_TO_CHANGED', 'REQUIREMENT_STATUS_CHANGED', 'REQUISITION_APPROVED',
+  'REQUISITION_CANCELLED', 'REQUISITION_CHANGED', 'REQUISITION_CHANGES_REQUESTED',
+  'REQUISITION_DISTRIBUTED', 'REQUISITION_REJECTED', 'RESERVE_FORFEIT',
+  'RESERVE_PAY_OUT', 'REVERSAL', 'ROLE_PERMISSIONS_CHANGED',
+  'ROLLOFF_CLAIMED', 'ROLLOFF_INITIATED', 'ROLLOFF_RESOLVED',
+  'SUBMISSION_STATUS_CHANGED', 'SUPPLIER_APPROVED', 'SUPPLIER_DECLINED',
+  'SUPPLIER_ITEM_MARKED', 'TEMPLATE_PACK_APPLIED', 'TIMESHEET_APPROVED',
+  'TIMESHEET_REJECTED', 'WEBHOOK_ADDED', 'WORK_ORDER_RECORDED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 
@@ -386,6 +396,15 @@ ATTRIBUTED.CENSUS_REQUESTED = { basis: 'RECORDED' }
 ATTRIBUTED.CENSUS_AGREED = { basis: 'RECORDED' }
 ATTRIBUTED.CENSUS_FILES_RECEIVED = { basis: 'RECORDED' }
 ATTRIBUTED.CENSUS_DELIVERED = { basis: 'RECORDED' }
+
+// A client changing what its own order asks for on paper, and a named
+// person waiving one item with a reason. `RECORDED` because the row says
+// which document, whose order, and the reason in the person's own words,
+// read back off what they did rather than off a rule here. Work
+// authorization cannot be waived and a waiver against it is refused
+// rather than recorded, so no row of that kind exists.
+ATTRIBUTED.DOCUMENT_REQUIREMENT_SET = { basis: 'RECORDED' }
+ATTRIBUTED.DOCUMENT_REQUIREMENT_WAIVED = { basis: 'RECORDED' }
 
 ATTRIBUTED.MATCH_RUN = { basis: 'RECORDED' }
 ATTRIBUTED.SITE_WRITTEN = { basis: 'RECORDED' }
@@ -479,29 +498,6 @@ export const PLANNED: Record<string, PlannedAct> = {
     says:
       'A document a line depends on ran out, or is about to, and every party the lapse actually costs was told — the firm that owes it, the firm that is exposed by it, and nobody else. It changed nothing and stopped nothing; it is the letter that goes before the block.',
     willBeWrittenBy: 'etyme-conversation',
-  },
-  DOCUMENT_REQUIREMENT_WAIVED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RECORDED',
-    says:
-      'A named person decided this line does not need a document its order asked for, gave a reason in their own words, and both are on the record beside the item — which stays on the list, marked waived, rather than disappearing from it. Work authorization cannot be waived and a waiver against one is refused rather than recorded.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  GOOD_STANDING_LAPSED: {
-    kind: 'ENFORCEMENT',
-    outcome: 'BLOCK',
-    basis: 'RULE',
-    says:
-      'A supplier’s certificate of good standing has expired, so the state that registered it no longer says it may trade — nobody starts through it and no new line is raised against it until it is renewed. The same shape as lapsed cover, and for the same reason: it is the firm’s standing to contract at all, not a preference a client is expressing.',
-    willBeWrittenBy: 'etyme-regulatory',
-  },
-  NDA_UNSIGNED_WARNED: {
-    kind: 'ENFORCEMENT',
-    outcome: 'WARN',
-    basis: 'RULE',
-    says:
-      'A non-disclosure agreement this line requires is still unsigned, and the start proceeds with the reason captured and whoever owes the signature told. It warns rather than blocks because a signature page is contractual rather than legally grounded, and a system that stops work over one gets worked around by email.',
-    willBeWrittenBy: 'etyme-regulatory',
   },
 
 
