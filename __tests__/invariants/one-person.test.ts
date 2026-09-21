@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  merge, rateSpread, order, summarize, WORTH_MENTIONING,
+  merge, rateSpread, order, summarize, firmsNamedOnRow, WORTH_MENTIONING,
   type Person, type Offer, type Merged,
 } from '@/lib/one-person'
 
@@ -393,6 +393,60 @@ describe('the line above the register', () => {
 
   it('says nothing clever about an empty register', () => {
     expect(summarize([])).toBe('Nobody has been put in front of you yet.')
+  })
+
+  /**
+   * Harlow Health's register, 2026-09-21: "5 people, each from one
+   * supplier." printed directly above a row reading "Computer Systems
+   * Inc (and one firm below them)". The header counted suppliers with a
+   * live submission; the rows counted the firms the client pays, folded
+   * by `firmsOnARow`. Two answers to two questions, printed as one.
+   */
+  const chainRow = (over: Partial<Merged> = {}) =>
+    ({ ...m(over), firms: { parts: ['Computer Systems Inc (and one firm below them)'], withheld: 1 } })
+
+  it('the sentence over the register counts the firms the client pays, the same way the rows do', () => {
+    expect(summarize([chainRow(), m({}), m({}), m({}), m({})])).toBe(
+      '5 people, each from one supplier. One of them reaches you through a firm below the one you pay.'
+    )
+  })
+
+  it('a person bought through a prime and its sub-vendor is one supplier on the register, not two', () => {
+    expect(firmsNamedOnRow(chainRow()).named).toBe(1)
+    expect(firmsNamedOnRow(chainRow()).withheld).toBe(1)
+  })
+
+  it('a register with no chain under it says nothing about chains', () => {
+    const plain = { ...m({}), firms: { parts: ['Brightmoor Staffing'], withheld: 0 } }
+    expect(summarize([plain, plain])).toBe('2 people, each from one supplier.')
+  })
+
+  it('two people reaching the client through a chain are counted and named as two', () => {
+    expect(summarize([chainRow(), chainRow(), m({})])).toBe(
+      '3 people, each from one supplier. 2 of them reach you through a firm below the one you pay.'
+    )
+  })
+
+  it('a person the client pays two firms for is two suppliers however the rows are folded', () => {
+    const two = { ...m({}), firms: { parts: ['Computer Systems Inc', 'Brightmoor Staffing'], withheld: 0 } }
+    expect(summarize([two, m({})])).toBe(
+      '2 people. 1 is being sold by more than one supplier.'
+    )
+  })
+
+  it('the chain clause rides along with the duplication sentence rather than replacing it', () => {
+    const two = { ...m({}), firms: { parts: ['Computer Systems Inc', 'Brightmoor Staffing'], withheld: 2 } }
+    expect(summarize([two, m({})])).toBe(
+      '2 people. 1 is being sold by more than one supplier. One of them reaches you through a firm below the one you pay.'
+    )
+  })
+
+  it('one person on the register is not told they are each from one supplier', () => {
+    expect(summarize([m({})])).toBe('1 person, from one supplier.')
+  })
+
+  it('somebody put forward by two suppliers and placed by neither still counts as two', () => {
+    expect(firmsNamedOnRow({ ...m({ vendors: 2 }), firms: { parts: [], withheld: 0 } }).named).toBe(2)
   })
 })
 

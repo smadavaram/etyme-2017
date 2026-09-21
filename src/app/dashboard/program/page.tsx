@@ -830,7 +830,14 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
               {data.openRoles.length > 6 && (
                 <Link href={{ pathname: '/dashboard/requisitions' }} className="block p-3 text-center text-xs text-etyme-action hover:underline">and {data.openRoles.length - 6} more</Link>
               )}
-              {firstGood?.says && data.openRoles.length > 0 && (
+              {/* The number's sentence, under the list it is about.
+                  It is only printed where the two agree about there
+                  being roles at all: a first-run line over a list of
+                  two requirements is the bug this guard closes, and the
+                  route's own `openNow` is counted off the same
+                  population the list is. */}
+              {firstGood?.says && data.openRoles.length > 0 &&
+                (firstGood.roles > 0 || firstGood.openNow > 0) && (
                 <p className="p-3 text-xs text-etyme-faint">{firstGood.says}</p>
               )}
             </div>

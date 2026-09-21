@@ -4,6 +4,7 @@ import { seedWorld } from '@/lib/seed-world'
 import { hasPermission } from '@/lib/permissions'
 
 import { GET as program } from '@/app/api/program/route'
+import { GET as firstGood } from '@/app/api/first-good/route'
 import { GET as orgView } from '@/app/api/program/org/route'
 import { POST as addUnit } from '@/app/api/program/units/route'
 import { GET as agreements } from '@/app/api/program/agreements/route'
@@ -211,6 +212,33 @@ describe('a program office acts at the client’s desk', () => {
     expect(body.data.client.name).toBe('Cavanaugh Glassworks')
     expect(body.data.summary.activeContractors).toBeGreaterThan(0)
     expect(body.data.vendors.length).toBeGreaterThan(0)
+  })
+
+  /**
+   * Aptiva Workforce, seated at Cavanaugh Glassworks, 2026-09-21: the
+   * Requirements panel listed two of Cavanaugh's requirements, one of
+   * them published with two candidates on it, and the sentence under
+   * that list read "No roles open yet. The number starts with the first
+   * one." The number was counted over Aptiva's own company. Two
+   * companies, one panel.
+   */
+  it('the number under the client’s roles is counted over the client’s roles, not the office reading them', async () => {
+    as(APTIVA_ANALYST)
+    const { status, body } = await json(await firstGood(req('GET', '/api/first-good')))
+    expect(body?.error, JSON.stringify(body)).toBeUndefined()
+    expect(status).toBe(200)
+
+    const panel = await json(await program(req('GET', '/api/program')))
+    expect(body.data.openNow).toBe(panel.body.data.openRoles.length)
+  })
+
+  it('a first-run sentence is only shown where the list it is about is actually empty', async () => {
+    as(APTIVA_ANALYST)
+    const { body } = await json(await firstGood(req('GET', '/api/first-good')))
+    const panel = await json(await program(req('GET', '/api/program')))
+    if (panel.body.data.openRoles.length > 0) {
+      expect(body.data.says).not.toContain('No roles open yet')
+    }
   })
 
   it('a seated program office reads the client’s register of people, its suppliers, its roles and its agreements — not its own empty ones', async () => {

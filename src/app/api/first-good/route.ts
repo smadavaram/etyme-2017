@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { resolveProgram } from '@/lib/resolve-client-company'
 import { theNumber, reading, trend, seatMap, TARGET_HOURS, plain, type Role } from '@/lib/first-good'
 
 /**
@@ -25,7 +26,20 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'The number')
   if (notStaff) return notStaff
 
-  const companyId = caller.company!.id
+  // Whose roles this number is about: the client whose program the
+  // reader is looking at, resolved the way `/api/program` resolves it.
+  // It read `caller.company` until 2026-09-21, and a program office in a
+  // seat at a client is not that client — Aptiva Workforce, seated at
+  // Cavanaugh Glassworks, was handed a number counted over Aptiva's own
+  // requirements and printed under a list of Cavanaugh's. Two companies,
+  // one panel. The page has one client on it and so must this.
+  const { client, error: clientError } = await resolveProgram(
+    caller,
+    request.nextUrl.searchParams.get('clientCompanyId')
+  )
+  if (clientError) return clientError
+
+  const companyId = client.id
   const now = new Date()
   const since = new Date(now.getTime() - WINDOW_DAYS * 86_400_000)
   const before = new Date(now.getTime() - WINDOW_DAYS * 2 * 86_400_000)
@@ -104,8 +118,27 @@ export async function GET(request: NextRequest) {
     .filter((r) => r.createdAt < since && r.createdAt >= before && counts(r))
     .map(asRole)
 
-  const number = theNumber(thisWindow, now)
-  const was = theNumber(lastWindow, since)
+  // What the list beside this number shows: every role this client has
+  // open or drafted right now, whatever its age. `/api/program` counts
+  // it this way, and the dashboard prints this sentence under that list
+  // — so the empty state has to be read off the same population or it
+  // claims "No roles open yet" over two requirements. It is not a
+  // different number; it is what the silence means.
+  const openNow = await prisma.requirement.count({
+    where: {
+      status: { in: ['OPEN', 'DRAFT'] },
+      OR: [
+        { companyId },
+        { payerCompanyId: companyId },
+        { msa: { clientId: companyId } },
+      ],
+      mirroredFromId: null,
+    },
+  })
+  const scope = { openNow, windowDays: WINDOW_DAYS }
+
+  const number = theNumber(thisWindow, now, scope)
+  const was = theNumber(lastWindow, since, scope)
 
   return NextResponse.json({
     data: {
@@ -122,6 +155,9 @@ export async function GET(request: NextRequest) {
       reading: reading(thisWindow),
       windowDays: WINDOW_DAYS,
       roles: thisWindow.length,
+      // The list's count, so a page never has to guess whether this
+      // number's silence is a first run or a quiet month.
+      openNow,
     },
   })
 }

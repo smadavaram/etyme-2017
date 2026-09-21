@@ -168,7 +168,43 @@ describe('the number across roles', () => {
 
   it('says plainly when roles are open and nothing good has landed', () => {
     expect(theNumber([role(), role({ requirementId: 'r2' })], NOW).says).toBe(
-      'Nothing worth reading has arrived on any of the 2 open roles yet.'
+      'Nothing worth reading has arrived yet on the 2 roles open.'
+    )
+  })
+
+  /**
+   * Aptiva's dashboard at Cavanaugh, 2026-09-21: the Requirements panel
+   * listed two requirements, one of them published with two candidates
+   * on it, and this sentence underneath read "No roles open yet. The
+   * number starts with the first one." The number reads a thirty-day
+   * window and the list reads everything open; a first-run sentence was
+   * being printed over a list that was not empty.
+   */
+  it('a first-run sentence is only shown where the list it is about is actually empty', () => {
+    expect(theNumber([], NOW, { openNow: 2, windowDays: 30 }).says).not.toContain('No roles open yet')
+    expect(theNumber([], NOW, { openNow: 0, windowDays: 30 }).says).toBe(
+      'No roles open yet. The number starts with the first one.'
+    )
+  })
+
+  it('says roles are open but not yet inside the window the number reads', () => {
+    expect(theNumber([], NOW, { openNow: 2, windowDays: 30 }).says).toBe(
+      '2 roles open, and none of them are in the number yet. It reads roles published in the last 30 days.'
+    )
+  })
+
+  it('one role waiting is one role, not "1 open roles"', () => {
+    expect(theNumber([], NOW, { openNow: 1, windowDays: 30 }).says).toBe(
+      '1 role open, and it is not in the number yet. It reads roles published in the last 30 days.'
+    )
+    expect(theNumber([role()], NOW, { openNow: 1, windowDays: 30 }).says).toBe(
+      'Nothing worth reading has arrived yet on the 1 role opened in the last 30 days.'
+    )
+  })
+
+  it('the number names its own window rather than a count the list beside it disagrees with', () => {
+    expect(theNumber([role(), role({ requirementId: 'r2' })], NOW, { openNow: 7, windowDays: 30 }).says).toBe(
+      'Nothing worth reading has arrived yet on the 2 roles opened in the last 30 days.'
     )
   })
 })

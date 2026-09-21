@@ -401,7 +401,10 @@ export async function GET(request: NextRequest) {
   })
 
   return NextResponse.json({
-    data: { people, pending, summary: summarize(rows), capMonths },
+    // Summarized from the rows as the page draws them — with the firms
+    // cell on each — so the sentence over the register counts the firms
+    // this client pays, exactly the way the rows do.
+    data: { people, pending, summary: summarize(people), capMonths },
   })
 }
 

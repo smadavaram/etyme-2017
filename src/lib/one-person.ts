@@ -359,20 +359,78 @@ export function order(rows: Merged[]): Merged[] {
   })
 }
 
+/**
+ * What a register row says about the firms on it.
+ *
+ * The shape of `firmsOnARow` (lib/chain-names), taken as a parameter
+ * rather than imported as a dependency: the fold is the names domain's
+ * rule and this file only needs its answer.
+ */
+export interface RowFirms {
+  /** Firms this client pays for this person, named on the row. */
+  parts: string[]
+  /** Rungs below those firms that the client may not name. */
+  withheld: number
+}
+
+/** A register row as the page draws it: the merge, plus its firms cell. */
+export type RegisterRow = Merged & { firms?: RowFirms }
+
+/**
+ * How many firms a row names, and how many rungs it folds away.
+ *
+ * The one function the header and the rows both answer from. The header
+ * used to count `vendors` — suppliers with a live submission — while the
+ * rows counted firms the client pays, so Harlow Health read "5 people,
+ * each from one supplier." directly above "Computer Systems Inc (and one
+ * firm below them)". Neither number was wrong; they were answers to two
+ * different questions printed as one.
+ *
+ * A person bought through a prime and its sub-vendor is **one supplier**
+ * here, because one firm bills the client and the rung below it is the
+ * prime's to keep (CLAUDE.md, 2026-09-17). What the client needs told
+ * instead is that a chain is there at all, and that is `withheld`.
+ */
+export function firmsNamedOnRow(row: RegisterRow): { named: number; withheld: number } {
+  return {
+    // Falls back to the suppliers selling them where the row has no
+    // contract yet: somebody put forward twice and placed by nobody has
+    // no firm the client pays, and two firms on the row all the same.
+    named: row.firms && row.firms.parts.length > 0 ? row.firms.parts.length : row.vendors,
+    withheld: row.firms?.withheld ?? 0,
+  }
+}
+
 /** The line above the register. */
-export function summarize(rows: Merged[]): string {
+export function summarize(rows: RegisterRow[]): string {
   if (rows.length === 0) return 'Nobody has been put in front of you yet.'
 
-  const shared = rows.filter((r) => r.vendors > 1).length
+  const counted = rows.map(firmsNamedOnRow)
+  const shared = counted.filter((c) => c.named > 1).length
+  const chained = counted.filter((c) => c.withheld > 0).length
   const spreads = rows.filter((r) => r.spread?.says).length
 
+  // The exception the count itself cannot carry: a person the client
+  // pays one firm for, who reaches it through another firm below that
+  // one. Said out loud, never counted as a second supplier.
+  const chain = chained === 0
+    ? ''
+    : chained === 1
+      ? ' One of them reaches you through a firm below the one you pay.'
+      : ` ${chained} of them reach you through a firm below the one you pay.`
+
   if (shared === 0) {
-    return `${rows.length} ${rows.length === 1 ? 'person' : 'people'}, each from one supplier.`
+    return (
+      (rows.length === 1
+        ? '1 person, from one supplier.'
+        : `${rows.length} people, each from one supplier.`) + chain
+    )
   }
 
   return (
     `${rows.length} people. ${shared} ${shared === 1 ? 'is' : 'are'} being sold by more than one supplier` +
-    (spreads > 0 ? `, and ${spreads} at prices worth asking about.` : '.')
+    (spreads > 0 ? `, and ${spreads} at prices worth asking about.` : '.') +
+    chain
   )
 }
 

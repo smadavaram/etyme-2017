@@ -159,7 +159,31 @@ function roleSays(
  * meaning anything, and the median is what a hiring manager's experience
  * actually feels like.
  */
-export function theNumber(roles: Role[], now: Date): Number_ {
+/**
+ * What the number cannot see, so its empty state cannot contradict the
+ * list beside it.
+ *
+ * The register of open roles on the client dashboard is every role open
+ * today, whatever its age and including drafts. The number is roles that
+ * opened inside its window, mirrors excluded. Those are two different
+ * populations on purpose, and for a week the number printed "No roles
+ * open yet. The number starts with the first one." — a first-run
+ * sentence — directly under a list of two requirements, one of them
+ * published with two candidates on it.
+ *
+ * A first-run sentence is only ever true on a first run. So the caller
+ * says how many roles are actually open, and an empty number that is
+ * empty because nothing opened lately says that instead of claiming the
+ * client has never opened anything.
+ */
+export interface Scope {
+  /** Roles open right now, whatever their age — what the list shows. */
+  openNow: number
+  /** How many days back the number reads. */
+  windowDays: number
+}
+
+export function theNumber(roles: Role[], now: Date, scope?: Scope): Number_ {
   const times = roles.map((r) => roleTime(r, now))
   const got = times.filter((t) => t.hours != null)
   const stuck = times
@@ -172,10 +196,7 @@ export function theNumber(roles: Role[], now: Date): Number_ {
       of: 0,
       waiting: stuck.length,
       hit: false,
-      says:
-        roles.length === 0
-          ? 'No roles open yet. The number starts with the first one.'
-          : `Nothing worth reading has arrived on any of the ${roles.length} open roles yet.`,
+      says: nothingYet(roles.length, scope),
       stuck,
     }
   }
@@ -191,6 +212,42 @@ export function theNumber(roles: Role[], now: Date): Number_ {
     says: numberSays(median, got.length, stuck.length, hit),
     stuck,
   }
+}
+
+/**
+ * The sentence when the median has nothing in it.
+ *
+ * Three different silences, and they are not the same thing: a client
+ * that has never opened a role, a client whose roles all predate the
+ * window, and a client with roles inside the window that nobody good has
+ * answered. Only the first is a first run.
+ *
+ * The count quoted is always the number's own — roles it measured, or
+ * roles open now — and the sentence names which, so it cannot be read as
+ * a contradiction of a list counted a different way.
+ */
+function nothingYet(measured: number, scope?: Scope): string {
+  if (measured > 0) {
+    const window = scope ? ` opened in the last ${scope.windowDays} days` : ' open'
+    return (
+      `Nothing worth reading has arrived yet on the ${measured} ` +
+      `role${measured === 1 ? '' : 's'}${window}.`
+    )
+  }
+
+  // Open, but not inside the number. Which is not always age — a draft
+  // nobody can submit to is on the list and is not a published role —
+  // so the sentence names the window rather than asserting a reason it
+  // cannot know from here.
+  if (scope && scope.openNow > 0) {
+    return (
+      `${scope.openNow} role${scope.openNow === 1 ? '' : 's'} open, ` +
+      `${scope.openNow === 1 ? 'and it is not' : 'and none of them are'} in the number yet. ` +
+      `It reads roles published in the last ${scope.windowDays} days.`
+    )
+  }
+
+  return 'No roles open yet. The number starts with the first one.'
 }
 
 function numberSays(median: number, of: number, waiting: number, hit: boolean): string {
