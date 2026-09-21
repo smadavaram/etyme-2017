@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
   // Read through the one door, `lib/document-requirements`, so the items
   // she is shown and the items the refusal at activation is built from
   // are the same items rather than two lists that agree by coincidence.
-  const owed = await whatSheOwes(me, held, new Date())
+  const owed = await whatSheOwes(me, held, instances, new Date())
 
   // Where a request has already been opened for one of them, the row is
   // that request's — it has an id, and the page answers it at
@@ -156,11 +156,22 @@ export async function GET(request: NextRequest) {
   // client invented rather than to nothing. A paper nobody can identify
   // satisfies nothing and gets chased forever, which is the failure this
   // avoids rather than the one it causes.
+  //
+  // An answered request is still THE request for that document. Skipping
+  // a SIGNED or UPLOADED one put the row back on `owed:<KEY>` the moment
+  // she answered it, so the next press opened a second request for the
+  // same paper — one document sent twice on a seeded walk. A request
+  // that is still open is preferred over one already answered, because
+  // that is the one there is anything left to do about.
   const asksByKey: Record<string, string> = {}
   const named = owed.map((o) => ({ key: o.key, label: o.label }))
-  for (const r of instances) {
-    const key = typeKeyForTemplate(r.template.name, named)
-    if (key && !asksByKey[key] && r.status !== 'SIGNED' && r.status !== 'UPLOADED') asksByKey[key] = r.id
+  const answered = ['SIGNED', 'UPLOADED']
+  for (const takeAnswered of [false, true]) {
+    for (const r of instances) {
+      if (answered.includes(r.status) !== takeAnswered) continue
+      const key = typeKeyForTemplate(r.template.name, named)
+      if (key && !asksByKey[key]) asksByKey[key] = r.id
+    }
   }
 
   return NextResponse.json({
@@ -196,6 +207,7 @@ const WITH_THEM = ['PENDING', 'IN_PROGRESS']
 async function whatSheOwes(
   personId: string,
   held: { type: string; status: string; issuedAt: Date | null; validFrom: Date | null; expiresAt: Date | null }[],
+  papers: SignedPaperRow[],
   on: Date
 ): Promise<OutstandingItem[]> {
   // Anything not finished. Said as what it is not, because the two
@@ -238,7 +250,15 @@ async function whatSheOwes(
     if (!set) continue
     const items = outstandingItems({
       items: set.items,
-      held: onFile,
+      // Both halves of the paperwork, not one. A `Verification` is a
+      // check somebody ran; a `DocInstance` is a paper somebody sent,
+      // and a document she uploaded last night lives only in the second.
+      // Reading the first alone is what asked her again this morning for
+      // the file she had already sent — the exact failure the sent state
+      // was built to prevent, arriving because nothing ever reached it.
+      // The line's own set is the dictionary, so a paper filed against
+      // "Hot floor induction" reads back to the type that asked for it.
+      held: [...onFile, ...papersAsHeld(papers, set.items)],
       owedBy: ['WORKER'],
       on,
     })
@@ -251,6 +271,62 @@ async function whatSheOwes(
     }
   }
   return [...byKey.values()]
+}
+
+/** A `DocInstance` row, as the arithmetic needs it. */
+type SignedPaperRow = {
+  id: string
+  status: string
+  validFrom: Date | null
+  expiresAt: Date | null
+  signedAt: Date | null
+  countersignedAt: Date | null
+  template: { name: string }
+}
+
+/**
+ * What papers already sent amount to against a line's required set.
+ *
+ * Two statuses and they are not the same fact, which is why this is not
+ * `heldFromDocInstances`:
+ *
+ *   SIGNED     she attested to it. There is nothing further for anybody
+ *              to do, so it counts as held.
+ *   UPLOADED   a file arrived and nobody has looked at it. It holds
+ *              nothing — a document nobody has checked is not a document
+ *              on file — and it is no longer HER move, which is the
+ *              whole of the sent state.
+ *
+ * `lib/contract-clearance` counts both as held when it builds a verdict,
+ * so nothing here blocks a start that was not blocked before: the
+ * difference is what SHE is told about her own file, and telling her it
+ * is confirmed when nobody has confirmed it is the 2017 bug wearing a
+ * friendlier face.
+ */
+function papersAsHeld(
+  papers: SignedPaperRow[],
+  items: { key: string; label: string }[]
+): HeldKeyRecord[] {
+  const out: HeldKeyRecord[] = []
+  for (const r of papers) {
+    if (r.status !== 'SIGNED' && r.status !== 'UPLOADED') continue
+    const key = typeKeyForTemplate(r.template.name, items)
+    if (!key) continue
+    const signed =
+      r.countersignedAt && r.signedAt
+        ? r.countersignedAt > r.signedAt
+          ? r.countersignedAt
+          : r.signedAt
+        : (r.countersignedAt ?? r.signedAt ?? null)
+    out.push({
+      key,
+      validFrom: r.validFrom ?? signed ?? null,
+      expiresAt: r.expiresAt ?? null,
+      accepted: r.status === 'SIGNED',
+      received: r.status === 'UPLOADED',
+    })
+  }
+  return out
 }
 
 // ── Sending the document she is being chased for ──────────────────────
@@ -293,12 +369,30 @@ export async function POST(request: NextRequest) {
     return refuse('Say which document you are sending. Every item on your list names one.', 400, 'NO_TYPE')
   }
 
-  const checks = await prisma.verification.findMany({
-    where: { personId: me },
-    select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true },
-  })
+  const [checks, papers] = await Promise.all([
+    prisma.verification.findMany({
+      where: { personId: me },
+      select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true },
+    }),
+    // Read for the same reason the page reads them: a paper she sent is
+    // a paper she has sent, and a door that cannot see it offers to open
+    // a request for something already answered.
+    prisma.docInstance.findMany({
+      where: {
+        OR: [
+          { subjectType: 'PERSON', subjectId: me },
+          { sellContract: { personId: me } },
+          { buyContract: { candidates: { some: { personId: me, state: 'ACTIVE' } } } },
+        ],
+      },
+      select: {
+        id: true, status: true, validFrom: true, expiresAt: true, signedAt: true,
+        countersignedAt: true, template: { select: { name: true } },
+      },
+    }),
+  ])
 
-  const found = await lineOwing(me, key, checks, new Date())
+  const found = await lineOwing(me, key, checks, papers, new Date())
   if (!found) {
     return refuse(
       `Nobody is asking you for that. Your paperwork page lists what is still owed on the work you are ` +
@@ -308,18 +402,70 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Already answered, and still in date. There is nothing to open: the
+  // paper is with them and the request that holds it is the request for
+  // this document. Returning it rather than refusing her means a second
+  // press lands on the row she already sent, where `mayAct` tells her it
+  // is on file — which is the true thing to say.
+  if (found.answeredBy && found.state === 'AWAITING_REVIEW') {
+    return NextResponse.json({
+      data: {
+        askId: found.answeredBy,
+        uploadTo: `/api/documents/${found.answeredBy}/upload`,
+        says:
+          `${found.label.charAt(0).toUpperCase() + found.label.slice(1)} is already with ` +
+          `${found.companyName}. They have it and nobody has checked it yet — there is nothing ` +
+          `further for you to do about it today.`,
+      },
+    })
+  }
+
+  // Already asked and not yet answered: that request is the one. Found
+  // by type rather than by template, because a template renamed between
+  // two presses left one document asked for twice on the walk that found
+  // this, and a worker chased twice for one paper stops reading the
+  // chases.
+  if (found.openAsk) {
+    return NextResponse.json({
+      data: {
+        askId: found.openAsk,
+        uploadTo: `/api/documents/${found.openAsk}/upload`,
+        says:
+          `${found.label.charAt(0).toUpperCase() + found.label.slice(1)} is open for you to send to ` +
+          `${found.companyName}. Attach the file and they will be told it has arrived. ` +
+          `They record whether it is accepted — sending it is not the same as it being checked.`,
+      },
+    })
+  }
+
   // One request per document per line. A second press is the same
   // request rather than a second one, so a worker who taps twice is not
   // chased twice for the paper she already sent.
   const template = await templateFor(found.companyId, found.label)
+  const mine = {
+    templateId: template.id,
+    subjectType: 'PERSON',
+    subjectId: me,
+    ...(found.side === 'SELL' ? { sellContractId: found.lineId } : { buyContractId: found.lineId }),
+  }
+
+  // An answered request is still the request for that document. This
+  // used to exclude SIGNED and UPLOADED, so a second press after an
+  // upload opened a second request for the same paper — one document
+  // sent twice on a seeded walk. Pressing send twice is one request;
+  // `mayAct` is what says "it is already on file", and it says it about
+  // the request that actually holds the file.
+  //
+  // The exception is a renewal. Where the paper on file has run out or
+  // has not begun, the next one is a NEW paper — reusing the old request
+  // would refuse her with "already on file" about a certificate that
+  // expired in March, which is a refusal nobody can act on.
+  const renewing = found.state === 'LAPSED' || found.state === 'NOT_YET_VALID'
   const existing = await prisma.docInstance.findFirst({
-    where: {
-      templateId: template.id,
-      subjectType: 'PERSON',
-      subjectId: me,
-      ...(found.side === 'SELL' ? { sellContractId: found.lineId } : { buyContractId: found.lineId }),
-      status: { notIn: ['SIGNED', 'UPLOADED'] },
-    },
+    where: renewing ? { ...mine, status: { notIn: ['SIGNED', 'UPLOADED'] } } : mine,
+    // Whatever is still open first; an answered one only where there is
+    // nothing open, so a reopened chase does not resolve to a closed row.
+    orderBy: [{ status: 'asc' }, { sentAt: 'desc' }],
     select: { id: true },
   })
 
@@ -365,8 +511,30 @@ async function lineOwing(
   personId: string,
   key: string,
   checks: { type: string; status: string; issuedAt: Date | null; validFrom: Date | null; expiresAt: Date | null }[],
+  papers: SignedPaperRow[],
   on: Date
-): Promise<{ side: 'SELL' | 'BUY'; lineId: string; companyId: string; companyName: string; label: string; asked: string } | null> {
+): Promise<{
+  side: 'SELL' | 'BUY'
+  lineId: string
+  companyId: string
+  companyName: string
+  label: string
+  asked: string
+  /** Where the item stands, so a renewal is not answered with "already on file". */
+  state: string
+  /**
+   * The request that already holds a paper for this item, where one
+   * does. Matched on the type rather than on the template, so a
+   * template somebody renamed does not become a second request.
+   */
+  answeredBy: string | null
+  /**
+   * A request already open for this item and not yet answered. Matched
+   * on the type for the same reason: a template renamed between two
+   * presses left one document asked for twice on the walk that found it.
+   */
+  openAsk: string | null
+} | null> {
   const live = { notIn: ['ENDED', 'CANCELLED'] as never[] }
   const [sellLines, buyCandidates] = await Promise.all([
     prisma.sellContract.findMany({
@@ -402,10 +570,31 @@ async function lineOwing(
   for (const c of candidates) {
     const set = await requirementsFor(c.side === 'SELL' ? { sellContractId: c.lineId } : { buyContractId: c.lineId })
     if (!set) continue
-    const item = outstandingItems({ items: set.items, held: onFile, owedBy: ['WORKER'], on }).find(
+    const item = outstandingItems({
+      items: set.items,
+      held: [...onFile, ...papersAsHeld(papers, set.items)],
+      owedBy: ['WORKER'],
+      on,
+    }).find(
       (i) => i.key === key && i.state !== 'WAIVED'
     )
-    if (item) return { ...c, label: item.label, asked: item.asked }
+    if (item) {
+      // What already answers it, by type. A second press is that
+      // request and not a new one, whatever the template ended up
+      // called — `mayAct` is what says "it is already on file", and it
+      // has to say it about the row that actually holds the file.
+      const forThis = papers.filter((r) => typeKeyForTemplate(r.template.name, set.items) === key)
+      const answered = forThis.find((r) => r.status === 'SIGNED' || r.status === 'UPLOADED')
+      const open = forThis.find((r) => r.status !== 'SIGNED' && r.status !== 'UPLOADED')
+      return {
+        ...c,
+        label: item.label,
+        asked: item.asked,
+        state: item.state,
+        answeredBy: answered?.id ?? null,
+        openAsk: open?.id ?? null,
+      }
+    }
   }
   return null
 }

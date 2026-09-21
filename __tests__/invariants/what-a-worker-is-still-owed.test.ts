@@ -442,3 +442,97 @@ describe('a document already proved is not asked for again', () => {
     expect(out[0].state).toBe('LAPSED')
   })
 })
+
+// ── The paper she sent is a paper she has sent ────────────────────────
+//
+// Supply wired the button on 2026-09-21 and clicked it as two workers.
+// A document she uploaded lives on `DocInstance`; this list was built
+// from `Verification` alone, so the row stayed MISSING and she was asked
+// again the next morning for the file she had sent the night before —
+// the exact failure the sent state exists to prevent, arriving because
+// nothing ever reached it.
+
+describe('a paper on file against a requirement counts as held, whoever recorded it', () => {
+  it('a document she sent last night is not asked for again this morning', () => {
+    const out = outstandingItems({
+      items: [required({ key: 'HOT_FLOOR_INDUCTION', label: 'hot floor induction', blocks: true })],
+      // What an uploaded paper amounts to: with them, and unchecked.
+      held: [held({ key: 'HOT_FLOOR_INDUCTION', accepted: false, received: true })],
+      on: TODAY,
+    })
+    expect(out[0].state).toBe('AWAITING_REVIEW')
+    expect(out[0].word).toBe('Sent — waiting for somebody to check it')
+  })
+
+  it('asks her for nothing about it and offers her nowhere to send it twice', () => {
+    const papers = myPapers({
+      myEmail: null,
+      documents: [],
+      packets: [],
+      owed: outstandingItems({
+        items: [required({ key: 'HOT_FLOOR_INDUCTION', label: 'hot floor induction' })],
+        held: [held({ key: 'HOT_FLOOR_INDUCTION', accepted: false, received: true })],
+        on: TODAY,
+      }),
+    })
+    expect(papers[0].todo).toBeNull()
+    expect(papers[0].openAskAt).toBeNull()
+  })
+
+  it('takes a paper she signed as held outright, because there is nothing further for anybody to do about it', () => {
+    const out = outstandingItems({
+      items: [required({ key: 'NDA', label: 'non-disclosure agreement' })],
+      held: [held({ key: 'NDA', accepted: true })],
+      on: TODAY,
+    })
+    expect(out).toEqual([])
+  })
+
+  it('goes on asking where the paper that answered it has run out, because a renewal is a new paper', () => {
+    const out = outstandingItems({
+      items: [required({ key: 'HOT_FLOOR_INDUCTION', label: 'hot floor induction' })],
+      held: [held({ key: 'HOT_FLOOR_INDUCTION', accepted: false, received: true, expiresAt: new Date('2026-09-01T00:00:00Z') })],
+      on: TODAY,
+    })
+    expect(out[0].state).toBe('LAPSED')
+    expect(out[0].word).toBe('Ran out 20 days ago')
+  })
+})
+
+describe('pressing send twice is one request, because an answered request is still the request for that document', () => {
+  it('keeps the row on the request she already answered, rather than putting it back on an item with no id', () => {
+    const papers = myPapers({
+      myEmail: null,
+      documents: [],
+      packets: [],
+      owed: outstandingItems({
+        items: [required({ key: 'HOT_FLOOR_INDUCTION', label: 'hot floor induction' })],
+        held: [held({ key: 'HOT_FLOOR_INDUCTION', accepted: false, received: true })],
+        on: TODAY,
+      }),
+      asksByKey: { HOT_FLOOR_INDUCTION: 'doc-77' },
+    })
+    expect(papers[0].id).toBe('doc-77')
+    expect(papers[0].id).not.toContain('owed:')
+  })
+})
+
+describe('what a worker reads on a document type her client invented', () => {
+  it('says it in words on her own page, never in the key somebody typed into an order', () => {
+    const out = outstandingItems({
+      // What `effectiveRequirements` hands over for a type nobody has
+      // defined: the key, standing in for a label.
+      items: [required({ key: 'FURNACE_SAFETY_INDUCTION', label: 'FURNACE_SAFETY_INDUCTION' })],
+      on: TODAY,
+    })
+    expect(out[0].label).toBe('furnace safety induction')
+  })
+
+  it('keeps a label somebody did define, because a company’s own word beats ours', () => {
+    const out = outstandingItems({
+      items: [required({ key: 'FURNACE_SAFETY_INDUCTION', label: 'Hot floor induction' })],
+      on: TODAY,
+    })
+    expect(out[0].label).toBe('Hot floor induction')
+  })
+})

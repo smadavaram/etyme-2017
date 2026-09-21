@@ -19,6 +19,8 @@
  * Pure, so every refusal is a sentence tested by name.
  */
 
+import { humanKey } from '@/lib/document-type'
+
 export type DocStatus = 'PENDING' | 'SENT' | 'SIGNED' | 'UPLOADED'
 export type DocAction = 'send' | 'upload' | 'sign'
 
@@ -483,15 +485,27 @@ export function outstandingItems(input: {
   const held = all.filter((h) => h.accepted)
   const out: OutstandingItem[] = []
 
-  for (const item of input.items) {
-    if (!item.required) continue
-    if (input.owedBy && !input.owedBy.includes(item.owedBy)) continue
+  for (const raw of input.items) {
+    if (!raw.required) continue
+    if (input.owedBy && !input.owedBy.includes(raw.owedBy)) continue
+
+    // A type nobody defined arrives with its own key as its label,
+    // because that is what `effectiveRequirements` falls back to. Helena
+    // Marsh read "FURNACE_SAFETY_INDUCTION" on her own paperwork page on
+    // the walk that found this. The key is for the machine; the sentence
+    // is the product — and it is done here, once, so every reader of a
+    // set gets it rather than each humanizing its own copy.
+    const item = raw.label === raw.key ? { ...raw, label: humanKey(raw.key) } : raw
 
     // What she holds that answers this item: the type itself, and
     // anything that proves it outright.
     const answers = [item.key, ...(SATISFIED_BY[item.key] ?? [])]
-    const mine = held.filter((h) => answers.includes(h.key))
-    const current = mine.find((h) => inDate(h, on))
+    // Everything that answers this item and actually arrived: what came
+    // back as a check, and what was sent as a paper. A check still
+    // running arrived as nothing and is not here, so it can never be
+    // read as a document that has run out.
+    const mine = all.filter((h) => answers.includes(h.key) && (h.accepted || h.received))
+    const current = mine.find((h) => h.accepted && inDate(h, on))
 
     if (item.waived) {
       out.push({
@@ -515,7 +529,12 @@ export function outstandingItems(input: {
 
     // Sent, and with whoever asked. Still on her list, because it is not
     // done; no longer her move, because it is not hers.
-    const sent = all.find((h) => answers.includes(h.key) && !h.accepted && h.received)
+    //
+    // Only where it would cover today. A paper that arrived and has
+    // already run out is a lapse and not a pending review — telling her
+    // to wait for somebody to check a certificate that expired in March
+    // is telling her to wait for nothing.
+    const sent = mine.find((h) => !h.accepted && h.received && inDate(h, on))
     if (sent) {
       out.push({
         key: item.key,
