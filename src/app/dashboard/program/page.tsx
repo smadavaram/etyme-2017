@@ -52,6 +52,23 @@ interface ProgramData {
     totalMonthlySpend: number // cents
     standing: string
   }[]
+  /** Same role, two suppliers, two prices — at the rung this client pays. */
+  rateSpread: {
+    roles: {
+      role: string
+      currency: string
+      lowMinor: number
+      highMinor: number
+      gapMinor: number
+      lowSupplier: string
+      highSupplier: string
+      suppliers: number
+      caveat: string | null
+    }[]
+    oneSupplierOnly: string[]
+    refused: { role: string; why: string }[]
+    basis: string
+  }
   approvalQueue: {
     id: string
     kind: 'timesheet' | 'expense'
@@ -374,7 +391,7 @@ export default function ProgramPage() {
       )}
       {tab === 'approvals' && <ApprovalsTab items={data.approvalQueue} onApprove={handleApproveItem} />}
       {tab === 'contractors' && <ContractorsTab contractors={data.contractors} />}
-      {tab === 'vendors' && <VendorsTab vendors={data.vendors} />}
+      {tab === 'vendors' && <VendorsTab vendors={data.vendors} spread={data.rateSpread} />}
       {tab === 'roles' && <RolesTab roles={data.openRoles} />}
 
       {toast && (
@@ -928,13 +945,96 @@ function ContractorsTab({ contractors }: { contractors: ProgramData['contractors
   )
 }
 
+
+// ── Same role, two suppliers, two prices ──────────────────────────────
+//
+// A list and not a chart, deliberately. Eight roles each filled by two
+// suppliers is eight bars of length one, and the honest form of that is
+// the list (CLAUDE.md, 2026-09-13: "where nothing varies, the list is
+// the honest form and no bar is drawn"). What the reader wants is the
+// two numbers and the two names, which a row says and a bar does not.
+
+function RateSpread({ spread }: { spread: ProgramData['rateSpread'] | undefined }) {
+  const [open, setOpen] = useState(false)
+  if (!spread) return null
+
+  const { roles, oneSupplierOnly, refused } = spread
+  const nothingToSay = roles.length === 0 && oneSupplierOnly.length === 0 && refused.length === 0
+  if (nothingToSay) return null
+
+  return (
+    <div className="card mb-6">
+      <h3 className="text-sm font-serif font-semibold text-etyme-ink mb-0.5">
+        Same role, two suppliers
+      </h3>
+      <p className="text-xs text-etyme-muted mb-4">{spread.basis}</p>
+
+      {roles.length === 0 ? (
+        <p className="text-sm text-etyme-muted">
+          Every role on site today is filled by one supplier, so there is no second price to compare.
+        </p>
+      ) : (
+        <div className="divide-y divide-etyme-rule">
+          {roles.map((r) => (
+            <div key={r.role} className="py-3 first:pt-0">
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="text-sm font-medium text-etyme-ink">{r.role}</p>
+                <p className="text-sm tabular-nums font-semibold text-etyme-attention">
+                  {compact(r.gapMinor)}/hr apart
+                </p>
+              </div>
+              <p className="text-xs text-etyme-muted mt-1 tabular-nums">
+                {r.lowSupplier} at {compact(r.lowMinor)}/hr · {r.highSupplier} at{' '}
+                {compact(r.highMinor)}/hr · {r.suppliers} suppliers
+              </p>
+              {r.caveat && <p className="text-xs text-etyme-attention mt-1">{r.caveat}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(oneSupplierOnly.length > 0 || refused.length > 0) && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="mt-3 text-xs text-etyme-action hover:underline"
+        >
+          {open ? 'Hide' : `What is not compared (${oneSupplierOnly.length + refused.length})`}
+        </button>
+      )}
+
+      {open && (
+        <div className="mt-3 space-y-1">
+          {oneSupplierOnly.map((line) => (
+            <p key={line} className="text-xs text-etyme-muted">
+              {line}
+            </p>
+          ))}
+          {refused.map((r) => (
+            <p key={r.role} className="text-xs text-etyme-muted">
+              {r.why}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Vendors tab ───────────────────────────────────────────
 
-function VendorsTab({ vendors }: { vendors: ProgramData['vendors'] }) {
+function VendorsTab({
+  vendors,
+  spread,
+}: {
+  vendors: ProgramData['vendors']
+  spread: ProgramData['rateSpread'] | undefined
+}) {
   const totalHeadcount = vendors.reduce((s, v) => s + v.headcount, 0)
 
   return (
     <div>
+      <RateSpread spread={spread} />
       <h2 className="text-lg font-serif font-semibold mb-1">
         {vendors.length} active vendor{vendors.length !== 1 ? 's' : ''}
       </h2>
