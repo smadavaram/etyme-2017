@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { namedCompanies } from '@/lib/positioning'
+import { writableEmail } from '@/lib/contacts'
+import { reservedAddress } from '@/lib/demo-session'
 
 /**
  * No real company's name, anywhere a visitor can reach.
@@ -409,5 +411,52 @@ describe('No seeded company holds a domain somebody could really sign in from', 
       }
     }
     expect(wrong).toEqual([])
+  })
+})
+
+/**
+ * ── And no seeded address is read out on a screen ────────────────────
+ *
+ * The rule above keeps a seeded address unreachable. This one keeps it
+ * out of sight, and it is a different failure: the browser walk of
+ * 2026-09-21 opened Contacts as Vertex Global and read
+ * `world-corning-procurement@demo.etyme.local`,
+ * `world-terumo-bct-hr@demo.etyme.local` and
+ * `world-corning-programme@…` printed in blue as three people's email
+ * addresses. Two retired company names and a British spelling, on a
+ * screen, inside a string nobody was supposed to read.
+ *
+ * The slugs stay — CLAUDE.md is explicit that an address is not a word
+ * anybody reads, and every integration test signs in with one. What
+ * changes is that a screen does not print an address at a domain that
+ * can never receive mail.
+ */
+describe('a seeded sign-in handle is never printed as somebody’s email', () => {
+  it('shows no address for a seeded client desk', () => {
+    expect(writableEmail('world-corning-procurement@demo.etyme.local')).toBeNull()
+    expect(writableEmail('world-terumo-bct-hr@demo.etyme.local')).toBeNull()
+  })
+
+  it('shows no address for a seeded consultant either', () => {
+    expect(writableEmail('helena.marsh@seed.etyme.invalid')).toBeNull()
+  })
+
+  it('shows the address of somebody a person could actually write to', () => {
+    expect(writableEmail('dana@northbend.com')).toBe('dana@northbend.com')
+  })
+
+  it('a domain that merely contains a reserved word is still a real domain', () => {
+    // `example.com` can be bought. `.example` cannot.
+    expect(reservedAddress('somebody@example.com')).toBe(false)
+    expect(reservedAddress('somebody@northbend-athletic.example')).toBe(true)
+  })
+
+  it('the rolodex suppresses it at the edge, after the merge has used it', () => {
+    // The address tells one person from two before it is dropped —
+    // otherwise a contact typed in by hand and the same person's seat
+    // would show as two rows.
+    const route = read('src/app/api/contacts/route.ts')
+    expect(route.indexOf('known.has(p.email.toLowerCase())'))
+      .toBeLessThan(route.indexOf('writableEmail(c.email)'))
   })
 })

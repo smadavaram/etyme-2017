@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { problems, alreadyOnFile, KINDS, kindOfRole, type ContactKind } from '@/lib/contacts'
+import { problems, alreadyOnFile, KINDS, kindOfRole, writableEmail, type ContactKind } from '@/lib/contacts'
 
 /**
  * GET  /api/contacts — the people at the firms you trade with, filterable by company and kind
@@ -78,7 +78,11 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: {
-      contacts: merged,
+      // Last, after the merge above has used the address to tell one
+      // person from two: an address at a domain nobody can register is
+      // a sign-in handle, not somewhere mail arrives, and a rolodex row
+      // that prints one is making a promise the domain cannot keep.
+      contacts: merged.map((c) => ({ ...c, email: writableEmail(c.email) })),
       kinds: Object.entries(KINDS).map(([key, v]) => ({ key, ...v })),
     },
   })

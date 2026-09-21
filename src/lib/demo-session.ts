@@ -61,17 +61,42 @@ export function read(value: string | undefined | null): string | null {
   // Only ever a seeded address. A valid signature over a real customer's
   // email would otherwise be a way in.
   //
-  // Two domains, both unregistrable. `demo.etyme.local` is where every
-  // seeded company seat lives; `seed.etyme.invalid` is where the seeded
-  // world's consultants live, and a consultant is a person rather than a
-  // company seat, so the candidate doors on /demo sit at one of those.
-  // `.local` is mDNS and `.invalid` is reserved by RFC 2606 — neither can
-  // be bought, so no signature minted here can ever name a real inbox.
-  return ALLOWED.some((d) => email.endsWith(d)) ? email : null
+  // The property this rests on is that the domain cannot be bought.
+  // `.invalid` and `.example` are reserved by RFC 2606 and can never be
+  // delegated; `.local` is mDNS and can never be registered either. So
+  // no signature minted here can name a real inbox, whatever is in
+  // front of the @.
+  //
+  // It used to be two literal domains — `demo.etyme.local` for every
+  // seeded company seat and `seed.etyme.invalid` for the seeded world's
+  // consultants — and the cost of that was on the screen rather than
+  // here: every seeded seat had to be addressed
+  // `world-corning-procurement@demo.etyme.local`, and Contacts printed
+  // exactly that as a person's email, with a retired company name and a
+  // British spelling inside it (the browser walk, 2026-09-21). Widening
+  // the rule from two names to the reserved suffixes those two names
+  // are instances of lets a seeded person be addressed like a person —
+  // `eleanor.vance@cavanaugh-glassworks.example` — and takes nothing
+  // away from the guarantee, because the guarantee was never about the
+  // second label.
+  return reservedAddress(email) ? email : null
 }
 
-/** The two domains a signed demo cookie may name. Nobody can register either. */
-const ALLOWED = ['@demo.etyme.local', '@seed.etyme.invalid']
+/**
+ * Whether this address is at a domain nobody can register.
+ *
+ * Checked on the last label so that `somebody@example.com` — a real,
+ * buyable domain whose name merely contains the word — is refused. It
+ * ends in `.com`.
+ */
+export function reservedAddress(email: string): boolean {
+  const domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase()
+  if (!email.includes('@') || domain.length === 0) return false
+  return RESERVED_SUFFIXES.some((suffix) => domain.endsWith(suffix))
+}
+
+/** The suffixes a signed demo cookie may name. None of them can be bought. */
+const RESERVED_SUFFIXES = ['.invalid', '.example', '.local']
 
 /** The address a demo person is given. */
 export function addressFor(handle: string): string {
