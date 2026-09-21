@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma } from './harness'
+import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { shellNotice, isShell } from '@/lib/off-system'
+import { GET as ap } from '@/app/api/ap/route'
 
 /**
  * A firm with a seat is on Etyme.
@@ -50,6 +51,43 @@ describe('a firm on the register and a firm on the system', () => {
       expect(firm!._count.contexts, `${slug} has somebody seated at it`).toBeGreaterThan(0)
       expect(shellNotice({ id: firm!.id, name: firm!.name, claimedAt: firm!.claimedAt })).toBeNull()
     }
+  })
+
+  it('a sub-vendor a prime pays that never joined stays a shell, and the demo has exactly one', async () => {
+    // A world where every firm is here can demonstrate none of the three
+    // answers that turn on the difference, so one firm in it is
+    // deliberately outside the sweep: Pinnacle buys an HCM integration
+    // lead from Bluecrest and pays it, and nobody at Bluecrest has ever
+    // signed in.
+    const shells = await prisma.company.findMany({
+      where: { slug: { startsWith: 'world-' }, claimedAt: null },
+      select: { slug: true, name: true },
+    })
+    expect(shells.map((s) => s.slug)).toEqual(['world-bluecrest'])
+
+    const bluecrest = await prisma.company.findFirstOrThrow({ where: { slug: 'world-bluecrest' } })
+    expect(shellNotice(bluecrest)).toContain('is not on Etyme')
+    // On the register and traded with, which is the whole point of the
+    // row: it is somebody's record of a firm, not an empty name.
+    const paid = await prisma.buyContract.count({ where: { vendorCompanyId: bluecrest.id } })
+    expect(paid, 'a shell nobody pays proves nothing about a chain').toBeGreaterThan(0)
+    // And nobody's consent is granted to a firm nobody has joined.
+    expect(await prisma.benchListing.count({ where: { companyId: bluecrest.id } })).toBe(0)
+  })
+
+  it('accounts payable tells the prime that the firm it pays is not here, so the float is carried where nobody can see it', async () => {
+    as('world-pinnacle@demo.etyme.local')
+    const { status, body } = await json(await ap(req('GET', '/api/ap')))
+    expect(status).toBe(200)
+
+    const gaps: string[] = body.data.gaps ?? []
+    const offPlatform = gaps.find((g) => g.includes('not on the platform'))
+    expect(offPlatform, 'the one sentence the seeded world could not reach').toBeTruthy()
+    expect(offPlatform).toContain('Bluecrest Staffing')
+
+    // And the chain below it stops rather than pretending to continue.
+    const blind = (body.data.chains ?? []).filter((c: any) => c.beyond?.blind)
+    for (const c of blind) expect(c.beyond.lastPartyName).toBe('Bluecrest Staffing')
   })
 
   it('a firm somebody listed and nobody has joined is still a shell, which is what the column is for', async () => {

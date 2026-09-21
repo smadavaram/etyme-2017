@@ -71,7 +71,19 @@ const PREFIX = 'world-'                    // marks a company as part of this wo
 // hold in your head and wide enough that every seat has somebody above
 // and below it.
 type Kind = 'CLIENT' | 'MSP' | 'GSI' | 'VENDOR'
-interface Firm { slug: string; name: string; kind: Kind; seat: string; who: string }
+interface Firm {
+  slug: string; name: string; kind: Kind; seat: string; who: string
+  /**
+   * A firm on the register that nobody at it has joined.
+   *
+   * `Company.claimedAt` stays null and no seat is created, which is what
+   * a shell actually is: it can be traded with and recorded against, it
+   * cannot sign in, and every screen says so. Exactly one firm in this
+   * world is one, because three real answers turn on the difference and
+   * a world where every firm is here can demonstrate none of them.
+   */
+  seatless?: true
+}
 /** The VP who owns the money at each client, by name. */
 const VP_NAMES: Record<string, string> = {'harlow-health': 'Marianne Cole', 'meridian-bank': 'Theo Lindsay', 'corveldt': 'Helga Brandt', 'nordway': 'Sigrid Hansen', 'nike': 'Dana Whitfield', 'corning': 'Robert Ashby', 'terumo-bct': 'Elena Vasquez'}
 
@@ -107,7 +119,14 @@ const FIRMS: Firm[] = [
   { slug: 'nimbus',           name: 'Nimbus Talent',        kind: 'VENDOR',  seat: 'Bench sales', who: 'Kofi Asante' },
   { slug: 'sahasra',          name: 'Sahasra Infotech',     kind: 'VENDOR',  seat: 'Bench sales', who: 'Anjali Deshmukh' },
   { slug: 'orchid',           name: 'Orchid Systems',       kind: 'VENDOR',  seat: 'Bench sales', who: 'Yusuf Demir' },
-  { slug: 'bluecrest',        name: 'Bluecrest Staffing',   kind: 'VENDOR',  seat: 'Bench sales', who: 'Hollis Grant' },
+  // The one firm here that is not here. Pinnacle buys an HCM integration
+  // lead from Bluecrest and pays it; Bluecrest never joined, so the
+  // chain below Pinnacle stops, accounts payable says the float is
+  // carried somewhere it cannot see, and the register shows what a firm
+  // looks like before it takes possession of itself. Every other seeded
+  // firm has somebody seated at it and is claimed by the sweep at the
+  // end of this file; this one is deliberately outside it.
+  { slug: 'bluecrest',        name: 'Bluecrest Staffing',   kind: 'VENDOR',  seat: 'Bench sales', who: 'Hollis Grant', seatless: true },
 
   // The one firm in this world with no agreement behind it. Cavanaugh
   // Glassworks sent it a purchase order and one contractor started; nobody
@@ -221,6 +240,16 @@ export async function seedWorld(): Promise<{
       isDemo: false,
     },
   })
+  // A firm nobody has joined gets no owner, no seat and no door. The
+  // register knows it, the money knows it, and it stays a shell until
+  // somebody at it takes possession through the claim path — which is
+  // the only thing in the product that writes `claimedAt`, apart from
+  // the sweep at the end of this file that reads a seat as possession.
+  if (f.seatless) {
+    firmBySlug.set(f.slug, c)
+    return
+  }
+
   const role =
     (await db.role.findFirst({ where: { companyId: c.id, name: 'Owner' } })) ??
     (await db.role.create({ data: { companyId: c.id, name: 'Owner', permissions: ['*'], isDefault: true } }))
@@ -419,7 +448,11 @@ export async function seedWorld(): Promise<{
       },
     }))
   const employer = firmBySlug.get(employerSlug)!
-  if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: employer.id } }))) {
+  // The same rule as the bench rotation below: a firm nobody has joined
+  // holds nobody's consent. This person is employed by it — there is a
+  // buy contract saying so — and being employed is not being marketed.
+  const employerIsHere = seatBySlug.has(employerSlug)
+  if (employerIsHere && !(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: employer.id } }))) {
     await db.benchListing.create({
       data: {
         consultantId: profile.id, companyId: employer.id, tier: 'RETAINED', state: 'GRANTED',
@@ -523,7 +556,13 @@ export async function seedWorld(): Promise<{
   }
 
   // Cleared to work.
-  const employerSeat = seatBySlug.get(employerSlug)!.personId
+  // Whoever at the employing firm files its paperwork — or, where that
+  // firm never joined, the firm above it, which is who actually holds
+  // the certificate it was handed. A seatless firm files nothing itself
+  // because there is nobody at it to file anything.
+  const employerSeat =
+    seatBySlug.get(employerSlug)?.personId ??
+    seatBySlug.get(suppliers[suppliers.length - 2] ?? clientSlug)!.personId
   // Two on the person — the one that blocks and the one that warns — and
   // the supplier's cover, which is what lets it place anybody at all.
   const clearances: {
@@ -697,7 +736,11 @@ export async function seedWorld(): Promise<{
 
   // Bench nobody has placed yet, so a bench vendor's list is not just the
   // one person who is already out.
-  const benchVendors = ['cloudepa', 'consultis', 'nimbus', 'sahasra', 'orchid', 'bluecrest']
+  // Bluecrest is not on this list and must not be: a bench listing is a
+  // consultant's consent granted to a firm, and a firm nobody has joined
+  // has nobody to grant it to. Halcyon takes the sixth slot so the
+  // rotation is the same length and everybody else lands where they did.
+  const benchVendors = ['cloudepa', 'consultis', 'nimbus', 'sahasra', 'orchid', 'halcyon']
   for (const [i, name] of NAMES.slice(PLACEMENTS.length).entries()) {
     const co = firmBySlug.get(benchVendors[i % benchVendors.length])!
     const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
