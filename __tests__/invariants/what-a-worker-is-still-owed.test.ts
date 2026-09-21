@@ -297,3 +297,127 @@ describe('a license says which state once', () => {
     ).toBe('professional license (RN 154-882, WI)')
   })
 })
+
+// ── The loop closes: she can send what she is chased for ──────────────
+//
+// Supply landed the worker's page against this list on 2026-09-21 and it
+// exposed the last gap: there was no door that received a file against a
+// requirement, because a requirement is a rule and a request is an act,
+// and nobody had performed the act. A letter that says "upload it from
+// your Paperwork page" and a page that cannot take the file is not a
+// closed loop.
+
+describe('a worker can send the document she is being chased for from the page the letter sends her to', () => {
+  const owed = outstandingItems({
+    items: [required({ key: 'HOT_FLOOR_INDUCTION', label: 'hot floor induction', blocks: true })],
+    on: TODAY,
+  })
+
+  it('names the document type on the row, because an item nobody has asked for has no id of its own to act on', () => {
+    const papers = myPapers({ myEmail: null, documents: [], packets: [], owed })
+    expect(papers[0].documentTypeKey).toBe('HOT_FLOOR_INDUCTION')
+  })
+
+  it('says where to open a request for it, so the button on the row has somewhere to go', () => {
+    const papers = myPapers({ myEmail: null, documents: [], packets: [], owed })
+    expect(papers[0].openAskAt).toBe('/api/me/papers')
+    expect(papers[0].todo).toBe('upload')
+  })
+
+  it('becomes that request once one is open, so a second press is the same request rather than a second one', () => {
+    const papers = myPapers({
+      myEmail: null,
+      documents: [],
+      packets: [],
+      owed,
+      asksByKey: { HOT_FLOOR_INDUCTION: 'doc-99' },
+    })
+    expect(papers[0].id).toBe('doc-99')
+  })
+
+  it('offers to open nothing against a waived item, because nobody is asking her for it', () => {
+    const waived = outstandingItems({
+      items: [required({ waived: true, waivedSays: 'Waived by Dana Whitfield on September 18.' })],
+      on: TODAY,
+    })
+    const papers = myPapers({ myEmail: null, documents: [], packets: [], owed: waived })
+    expect(papers[0].openAskAt).toBeNull()
+  })
+
+  it('never says she asked herself for it — nobody has asked, and the row says whose order requires it instead', () => {
+    const papers = myPapers({ myEmail: null, documents: [], packets: [], owed })
+    expect(papers[0].askedBy).toBeNull()
+    expect(papers[0].why).toContain('Cavanaugh Glassworks')
+  })
+})
+
+describe('a document she has already sent is not asked for again the next morning', () => {
+  it('reads as sent and waiting rather than as missing, because it is no longer her move', () => {
+    const out = outstandingItems({
+      items: [required()],
+      held: [held({ accepted: false, received: true })],
+      on: TODAY,
+    })
+    expect(out[0].state).toBe('AWAITING_REVIEW')
+    expect(out[0].word).toBe('Sent — waiting for somebody to check it')
+  })
+
+  it('still counts as nothing held, because a check still running is not a document on file', () => {
+    const out = outstandingItems({
+      items: [required()],
+      held: [held({ accepted: false, received: true })],
+      on: TODAY,
+    })
+    expect(out).toHaveLength(1)
+  })
+
+  it('asks her to do nothing about it, and offers her nowhere to send it twice', () => {
+    const papers = myPapers({
+      myEmail: null,
+      documents: [],
+      packets: [],
+      owed: outstandingItems({ items: [required()], held: [held({ accepted: false, received: true })], on: TODAY }),
+    })
+    expect(papers[0].todo).toBeNull()
+    expect(papers[0].openAskAt).toBeNull()
+  })
+})
+
+describe('a document already proved is not asked for again', () => {
+  it('does not chase a permanent resident for proof of her right to work, because her green card is that proof', () => {
+    const out = outstandingItems({
+      items: [required({ key: 'RIGHT_TO_WORK', label: 'proof of right to work', blocks: true })],
+      held: [held({ key: 'GREEN_CARD' })],
+      on: TODAY,
+    })
+    expect(out).toEqual([])
+  })
+
+  it('takes a completed I-9 as proof of the right to work, because it is the form recording that somebody checked one', () => {
+    const out = outstandingItems({
+      items: [required({ key: 'RIGHT_TO_WORK', label: 'proof of right to work', blocks: true })],
+      held: [held({ key: 'I9_EVERIFY' })],
+      on: TODAY,
+    })
+    expect(out).toEqual([])
+  })
+
+  it('does not take a passport as proof of the right to work, because a foreign passport proves identity and nothing more', () => {
+    const out = outstandingItems({
+      items: [required({ key: 'RIGHT_TO_WORK', label: 'proof of right to work', blocks: true })],
+      held: [held({ key: 'PASSPORT' })],
+      on: TODAY,
+    })
+    expect(out).toHaveLength(1)
+    expect(out[0].state).toBe('MISSING')
+  })
+
+  it('still asks for the right to work where the green card that proved it has run out', () => {
+    const out = outstandingItems({
+      items: [required({ key: 'RIGHT_TO_WORK', label: 'proof of right to work', blocks: true })],
+      held: [held({ key: 'GREEN_CARD', expiresAt: new Date('2026-09-01T00:00:00Z') })],
+      on: TODAY,
+    })
+    expect(out[0].state).toBe('LAPSED')
+  })
+})

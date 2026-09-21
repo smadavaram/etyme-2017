@@ -223,8 +223,15 @@ export interface Paper {
   name: string
   /** The ask it came in, where it came in a list of several. */
   partOf: string | null
-  /** Who asked. */
-  askedBy: string
+  /**
+   * Who asked. Null where nobody has — an item a line requires that no
+   * company has yet opened a request for. It read as the worker's own
+   * name before 2026-09-21, because the row's `owedByName` is the party
+   * that OWES it, and a page saying "Helena Marsh asked for Helena
+   * Marsh's I-9" reads as though she asked herself. `why` carries whose
+   * order requires it, so a row with no asker is never mute.
+   */
+  askedBy: string | null
   /** Why, in their own words. Never a code. */
   why: string | null
   needsSignature: boolean
@@ -252,6 +259,19 @@ export interface Paper {
   stopsWork?: boolean
   /** True where somebody accepted its absence, on the record, by name. */
   waived?: boolean
+  /**
+   * The type key, on an outstanding row. What a page posts to open an
+   * ask for it — the document has no request behind it yet, so it has no
+   * id of its own to act on.
+   */
+  documentTypeKey?: string
+  /**
+   * Where to open a request so a file can be sent against this item.
+   * Null on every other kind, because those already have somewhere to
+   * answer: a document is answered at /api/documents/:id, a packet at
+   * the link it came with.
+   */
+  openAskAt?: string | null
 }
 
 /** The word a packet item shows. Received and accepted are not the same. */
@@ -348,6 +368,13 @@ export interface HeldKeyRecord {
   expiresAt: Date | null
   /** False where the check is still running, so it counts as nothing held. */
   accepted: boolean
+  /**
+   * True where the file is with whoever asked and nobody has checked it.
+   * Holds nothing — that is what `accepted` is for — and says whose move
+   * it is, so a worker who has sent a document is not asked for it
+   * again the next morning.
+   */
+  received?: boolean
 }
 
 /**
@@ -357,7 +384,18 @@ export interface HeldKeyRecord {
  * reason, proceed and never silently permit, so a waived item stays on
  * the list, marked, with the reason and the name on it.
  */
-export type OutstandingState = 'MISSING' | 'LAPSED' | 'NOT_YET_VALID' | 'WAIVED'
+export type OutstandingState =
+  | 'MISSING'
+  | 'LAPSED'
+  | 'NOT_YET_VALID'
+  /**
+   * She sent it and nobody has checked it yet. Not held — a check still
+   * running holds nothing — and not still owed by her either, because
+   * asking again for what is sitting in somebody's queue is how a worker
+   * learns the page is not worth reading.
+   */
+  | 'AWAITING_REVIEW'
+  | 'WAIVED'
 
 export interface OutstandingItem {
   key: string
@@ -374,6 +412,40 @@ export interface OutstandingItem {
   /** The day the one on file ran out, where there was one. */
   ranOutOn: Date | null
   waivedSays: string | null
+}
+
+/**
+ * What already proves a document, where a different document proves it.
+ *
+ * CLAUDE.md's fourth property of paperwork: a document can require other
+ * documents. This is that relation read the other way — the one the
+ * release walk found on 2026-09-21, when Helena Marsh was chased for
+ * proof of her right to work while holding a current I-9, an E-Verify
+ * result and a permanent resident card. The matcher is keyed on the type
+ * key, so nothing she held could satisfy an item asking for another key,
+ * and she was asked to produce again what she had already produced.
+ *
+ * Asking a lawful permanent resident to re-prove her right to work is
+ * not a harmless duplicate — re-verification of somebody whose status
+ * does not expire is one of the named forms of document abuse this
+ * file's own header exists to prevent.
+ *
+ * **The list is deliberately short, and a passport is not on it.** A
+ * foreign passport proves identity and not the right to work; a US
+ * passport does and we do not record which it is. Guessing the other
+ * way would clear an item the law did not clear. An employment
+ * authorization document and a permanent resident card each prove it on
+ * their own, and a completed I-9 is the form recording that somebody
+ * checked one.
+ *
+ * It lives here rather than on `RIGHT_TO_WORK.backedByAnyOf` in
+ * `lib/document-type` because that file is `etyme-architect`'s, and
+ * because `backedByAnyOf` means "what must stand behind this" rather
+ * than "what stands in for this". The two readings are close enough that
+ * merging them is the architect's call, not this file's.
+ */
+export const SATISFIED_BY: Record<string, readonly string[]> = {
+  RIGHT_TO_WORK: ['GREEN_CARD', 'WORK_PERMIT', 'I9_EVERIFY'],
 }
 
 function inDate(h: HeldKeyRecord, on: Date): boolean {
@@ -404,14 +476,21 @@ export function outstandingItems(input: {
   on?: Date
 }): OutstandingItem[] {
   const on = input.on ?? new Date()
-  const held = (input.held ?? []).filter((h) => h.accepted)
+  const all = input.held ?? []
+  // Only what actually came back counts as held. What was merely sent is
+  // read further down, where it changes whose move it is and not whether
+  // anything is on file.
+  const held = all.filter((h) => h.accepted)
   const out: OutstandingItem[] = []
 
   for (const item of input.items) {
     if (!item.required) continue
     if (input.owedBy && !input.owedBy.includes(item.owedBy)) continue
 
-    const mine = held.filter((h) => h.key === item.key)
+    // What she holds that answers this item: the type itself, and
+    // anything that proves it outright.
+    const answers = [item.key, ...(SATISFIED_BY[item.key] ?? [])]
+    const mine = held.filter((h) => answers.includes(h.key))
     const current = mine.find((h) => inDate(h, on))
 
     if (item.waived) {
@@ -433,6 +512,25 @@ export function outstandingItems(input: {
     // On file and in date. Nobody is waiting on anybody, so it is not
     // outstanding — the page shows it under what is held.
     if (current) continue
+
+    // Sent, and with whoever asked. Still on her list, because it is not
+    // done; no longer her move, because it is not hers.
+    const sent = all.find((h) => answers.includes(h.key) && !h.accepted && h.received)
+    if (sent) {
+      out.push({
+        key: item.key,
+        label: item.label,
+        owedBy: item.owedBy,
+        owedByName: item.owedByName,
+        stopsWork: item.blocks,
+        state: 'AWAITING_REVIEW',
+        word: 'Sent — waiting for somebody to check it',
+        asked: item.says,
+        ranOutOn: null,
+        waivedSays: null,
+      })
+      continue
+    }
 
     // A certificate whose period has not begun is not a missing one: it
     // was asked for and supplied, and the person is still uncovered on
@@ -468,7 +566,7 @@ export function outstandingItems(input: {
 
   // What stops the work first, then what somebody already filed and let
   // run out, then the rest by name.
-  const rank: Record<OutstandingState, number> = { LAPSED: 0, NOT_YET_VALID: 1, MISSING: 2, WAIVED: 3 }
+  const rank: Record<OutstandingState, number> = { LAPSED: 0, NOT_YET_VALID: 1, MISSING: 2, AWAITING_REVIEW: 3, WAIVED: 4 }
   return out.sort(
     (a, b) =>
       Number(b.stopsWork) - Number(a.stopsWork) ||
@@ -538,6 +636,11 @@ export function myPapers(input: {
    * activation names are the same items.
    */
   owed?: OutstandingItem[]
+  /**
+   * The `DocInstance` already open for a type key, where one is. A
+   * second press is the same request rather than a second one.
+   */
+  asksByKey?: Record<string, string>
   /** The day it is read on. Only used to say how long is left. */
   on?: Date
 }): Paper[] {
@@ -636,12 +739,18 @@ export function myPapers(input: {
   // work stops without it, so the letter she was sent and the page it
   // sends her to say the same thing.
   for (const o of input.owed ?? []) {
+    // Where a request has already been opened for this item, the row is
+    // that request's — it has an id, a status and somewhere to answer.
+    const ask = input.asksByKey?.[o.key] ?? null
     papers.push({
-      id: `owed:${o.key}`,
+      id: ask ?? `owed:${o.key}`,
       kind: 'OUTSTANDING',
       name: asRow(o.label),
       partOf: null,
-      askedBy: o.owedByName ?? 'Your placement',
+      // Nobody has asked yet. `owedByName` is the party that OWES it,
+      // which on her own page is her, and "Helena Marsh asked for Helena
+      // Marsh's I-9" reads as though she asked herself.
+      askedBy: null,
       why: o.waivedSays ?? capitalize(o.asked),
       needsSignature: false,
       status: o.state,
@@ -653,10 +762,15 @@ export function myPapers(input: {
       // Nothing was sent, so there is no link and no signature page. The
       // upload on her own page is the answer, and a waived item asks her
       // for nothing at all.
-      todo: o.state === 'WAIVED' ? null : 'upload',
+      todo: o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : 'upload',
       link: null,
       stopsWork: o.stopsWork,
       waived: o.state === 'WAIVED',
+      documentTypeKey: o.key,
+      // Nothing to post against until a request exists, so the page asks
+      // for one here and then answers it at /api/documents/:id/upload —
+      // the same door, and the same rule, as every other paper.
+      openAskAt: o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : '/api/me/papers',
     })
   }
 

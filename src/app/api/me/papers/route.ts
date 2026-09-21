@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import {
   myPapers,
   outstandingItems,
+  typeKeyForTemplate,
   type AskedPacket,
   type HeldKeyRecord,
   type HeldRecord,
@@ -146,6 +147,22 @@ export async function GET(request: NextRequest) {
   // are the same items rather than two lists that agree by coincidence.
   const owed = await whatSheOwes(me, held, new Date())
 
+  // Where a request has already been opened for one of them, the row is
+  // that request's — it has an id, and the page answers it at
+  // /api/documents/:id/upload like every other paper.
+  //
+  // The items she owes are handed to the matcher as the dictionary, so a
+  // request opened for "Hot floor induction" reads back to the type the
+  // client invented rather than to nothing. A paper nobody can identify
+  // satisfies nothing and gets chased forever, which is the failure this
+  // avoids rather than the one it causes.
+  const asksByKey: Record<string, string> = {}
+  const named = owed.map((o) => ({ key: o.key, label: o.label }))
+  for (const r of instances) {
+    const key = typeKeyForTemplate(r.template.name, named)
+    if (key && !asksByKey[key] && r.status !== 'SIGNED' && r.status !== 'UPLOADED') asksByKey[key] = r.id
+  }
+
   return NextResponse.json({
     data: {
       papers: myPapers({
@@ -154,6 +171,7 @@ export async function GET(request: NextRequest) {
         packets: asked,
         held: onFile,
         owed,
+        asksByKey,
       }),
     },
   })
@@ -161,6 +179,9 @@ export async function GET(request: NextRequest) {
 
 /** A check that actually came back. Anything still running holds nothing. */
 const CAME_BACK = ['CLEAR', 'CONDITIONAL']
+
+/** Sent, and nobody has looked at it yet. */
+const WITH_THEM = ['PENDING', 'IN_PROGRESS']
 
 /**
  * Every document this person owes on every line she is live on.
@@ -201,6 +222,10 @@ async function whatSheOwes(
     validFrom: v.validFrom ?? v.issuedAt ?? null,
     expiresAt: v.expiresAt ?? null,
     accepted: CAME_BACK.includes(v.status),
+    // Sent and with whoever asked. It holds nothing, and it is no longer
+    // her move — asking her again for what is sitting in somebody's
+    // queue is how a worker learns the page is not worth reading.
+    received: WITH_THEM.includes(v.status),
   }))
 
   const sets = await Promise.all([
@@ -226,4 +251,182 @@ async function whatSheOwes(
     }
   }
   return [...byKey.values()]
+}
+
+// ── Sending the document she is being chased for ──────────────────────
+//
+// Found on 2026-09-21, after supply landed the worker's page against the
+// outstanding list this route computes. Every chase letter ends "upload
+// it from your Paperwork page", the page now names the document — and
+// there was no door that received a file against a `DocumentRequirement`
+// at all. `/api/documents/:id/upload` wants a `DocInstance`, and an
+// outstanding row has no id of its own because nobody has asked yet.
+//
+// A requirement is a RULE and a request is an ACT, and the gap between
+// them is the whole crack: the rule says the line needs a hot floor
+// induction, and until some company opens a request nobody has asked
+// anybody for anything. So this opens the request, on her own say-so,
+// against the firm the line makes responsible for chasing her — and
+// then the file goes to `/api/documents/:id/upload`, the same door and
+// the same rule as every other paper. Nothing here records a file and
+// nothing here verifies one: a worker attests, a desk verifies, and a
+// route that did both would be the judgment this system does not make.
+
+/**
+ * POST /api/me/papers — open a request for a document I am being asked
+ * for, so I have somewhere to send it.
+ *
+ * Body: `{ documentTypeKey }`. Returns `{ askId, uploadTo, says }`.
+ *
+ * Only a type she actually owes on a line she is actually on. A person
+ * who could open a request for anything could put a document on her own
+ * file that nobody asked for, against a firm she does not work for.
+ */
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const me = caller.person.id
+
+  const body = (await request.json().catch(() => ({}))) as { documentTypeKey?: string }
+  const key = (body.documentTypeKey ?? '').trim()
+  if (!key) {
+    return refuse('Say which document you are sending. Every item on your list names one.', 400, 'NO_TYPE')
+  }
+
+  const checks = await prisma.verification.findMany({
+    where: { personId: me },
+    select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true },
+  })
+
+  const found = await lineOwing(me, key, checks, new Date())
+  if (!found) {
+    return refuse(
+      `Nobody is asking you for that. Your paperwork page lists what is still owed on the work you are ` +
+        `on — if something is missing from it, whoever placed you is the one to tell.`,
+      404,
+      'NOT_ASKED'
+    )
+  }
+
+  // One request per document per line. A second press is the same
+  // request rather than a second one, so a worker who taps twice is not
+  // chased twice for the paper she already sent.
+  const template = await templateFor(found.companyId, found.label)
+  const existing = await prisma.docInstance.findFirst({
+    where: {
+      templateId: template.id,
+      subjectType: 'PERSON',
+      subjectId: me,
+      ...(found.side === 'SELL' ? { sellContractId: found.lineId } : { buyContractId: found.lineId }),
+      status: { notIn: ['SIGNED', 'UPLOADED'] },
+    },
+    select: { id: true },
+  })
+
+  const ask =
+    existing ??
+    (await prisma.docInstance.create({
+      data: {
+        templateId: template.id,
+        subjectType: 'PERSON',
+        subjectId: me,
+        ...(found.side === 'SELL' ? { sellContractId: found.lineId } : { buyContractId: found.lineId }),
+        status: 'SENT',
+        sentAt: new Date(),
+        note: `Opened by ${caller.person.name} from their own paperwork page, against ${found.asked}.`,
+      },
+      select: { id: true },
+    }))
+
+  return NextResponse.json({
+    data: {
+      askId: ask.id,
+      uploadTo: `/api/documents/${ask.id}/upload`,
+      says:
+        `${found.label.charAt(0).toUpperCase() + found.label.slice(1)} is open for you to send to ` +
+        `${found.companyName}. Attach the file and they will be told it has arrived. ` +
+        `They record whether it is accepted — sending it is not the same as it being checked.`,
+    },
+  })
+}
+
+function refuse(message: string, status: number, code: string) {
+  return NextResponse.json({ error: { code, message } }, { status })
+}
+
+/**
+ * The line that asks this person for this document, where one does.
+ *
+ * Read through `lib/document-requirements` and `outstandingItems` — the
+ * same two the page is drawn from — so a document she can send is
+ * exactly a document she is shown, and neither can drift.
+ */
+async function lineOwing(
+  personId: string,
+  key: string,
+  checks: { type: string; status: string; issuedAt: Date | null; validFrom: Date | null; expiresAt: Date | null }[],
+  on: Date
+): Promise<{ side: 'SELL' | 'BUY'; lineId: string; companyId: string; companyName: string; label: string; asked: string } | null> {
+  const live = { notIn: ['ENDED', 'CANCELLED'] as never[] }
+  const [sellLines, buyCandidates] = await Promise.all([
+    prisma.sellContract.findMany({
+      where: { personId, state: live },
+      select: { id: true, companyId: true, company: { select: { name: true } } },
+      take: 20,
+    }),
+    prisma.buyContractCandidate.findMany({
+      where: { personId, state: 'ACTIVE', buyContract: { state: live } },
+      select: { buyContractId: true, buyContract: { select: { companyId: true, company: { select: { name: true } } } } },
+      take: 20,
+    }),
+  ])
+
+  const onFile: HeldKeyRecord[] = checks.map((v) => ({
+    key: v.type,
+    validFrom: v.validFrom ?? v.issuedAt ?? null,
+    expiresAt: v.expiresAt ?? null,
+    accepted: CAME_BACK.includes(v.status),
+    received: WITH_THEM.includes(v.status),
+  }))
+
+  const candidates: { side: 'SELL' | 'BUY'; lineId: string; companyId: string; companyName: string }[] = [
+    ...sellLines.map((l) => ({ side: 'SELL' as const, lineId: l.id, companyId: l.companyId, companyName: l.company?.name ?? 'the firm that placed you' })),
+    ...buyCandidates.map((c) => ({
+      side: 'BUY' as const,
+      lineId: c.buyContractId,
+      companyId: c.buyContract.companyId,
+      companyName: c.buyContract.company?.name ?? 'the firm that pays you',
+    })),
+  ]
+
+  for (const c of candidates) {
+    const set = await requirementsFor(c.side === 'SELL' ? { sellContractId: c.lineId } : { buyContractId: c.lineId })
+    if (!set) continue
+    const item = outstandingItems({ items: set.items, held: onFile, owedBy: ['WORKER'], on }).find(
+      (i) => i.key === key && i.state !== 'WAIVED'
+    )
+    if (item) return { ...c, label: item.label, asked: item.asked }
+  }
+  return null
+}
+
+/**
+ * The template a request for this document hangs off.
+ *
+ * Named exactly as the document is — "hot floor induction", not "Form
+ * 7" — because `typeKeyForTemplate` reads a signed paper back to its
+ * type off its own name, and a paper nobody can identify satisfies
+ * nothing and gets chased forever.
+ */
+async function templateFor(companyId: string, label: string) {
+  const name = label.charAt(0).toUpperCase() + label.slice(1)
+  const found = await prisma.docTemplate.findFirst({
+    where: { companyId, name },
+    select: { id: true },
+  })
+  if (found) return found
+  return prisma.docTemplate.create({
+    data: { companyId, name, audience: 'CANDIDATE', needsSignature: false },
+    select: { id: true },
+  })
 }
