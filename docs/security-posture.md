@@ -410,8 +410,8 @@ Recomputed from the module on 2026-09-21:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **155** |
-| Unprompted — the system did it and nobody asked | **23** |
+| Actions named in the automation log | **156** |
+| Unprompted — the system did it and nobody asked | **24** |
 | Enforcement — the system decided what a person was allowed to do | **8** |
 | Attributed — a person did it and the row is the record | **124** |
 
