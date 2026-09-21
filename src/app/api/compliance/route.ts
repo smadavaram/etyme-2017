@@ -7,7 +7,7 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
-import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, type HeldCredential } from '@/lib/document-stages'
+import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
 import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
 import { labelFor } from '@/lib/document-type'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
@@ -353,10 +353,19 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // The firm's standing, which is its cover AND its standing to trade.
+  // Until 2026-09-21 this said `startsWith('INSURANCE_')`, so a supplier
+  // whose certificate of good standing had lapsed — the state that
+  // registered it saying it may not contract there — showed a green
+  // compliance row, because the one document beside insurance in
+  // CLAUDE.md's own table was the one this page never looked at.
+  const firmStanding = (type: string): boolean =>
+    type.startsWith('INSURANCE_') || (COVER_THAT_STOPS_WORK as readonly string[]).includes(type)
+
   for (const v of companyVerifications) {
     if (!v.companyId || !v.company) continue
     const existing = companyVerifMap.get(v.companyId)
-    const isCover = v.type.startsWith('INSURANCE_')
+    const isCover = firmStanding(v.type)
     const computed = isCover
       ? standingOf(
           { key: v.type, label: coverLabel(v.type), issuedAt: v.issuedAt, validFrom: v.validFrom, expiresAt: v.expiresAt, verifiedAt: v.verifiedAt },
@@ -387,13 +396,19 @@ export async function GET(request: NextRequest) {
   // refusal cannot drift apart — a compliance page that says one thing
   // while the submit button says another is worse than no page.
   //
-  // No `requiredTypes` yet: nothing in the data model carries a client's
-  // own list of mandatory cover, so the two defaults apply and a missing
-  // certificate chases rather than blocks. Noted rather than invented.
+  // No `requiredTypes` here on purpose, even though a line's own set can
+  // now carry one. This page is a firm-level answer — one row per
+  // supplier, not one per placement — and a client's orders may require
+  // different cover of the same firm on different lines. Reading one
+  // line's set onto the firm's row would print a requirement the other
+  // lines never made. What this row does say, since 2026-09-21, is
+  // whether the standing the firm HAS is in date, good standing
+  // included: a lapse is a fact about the firm and needs nobody's order
+  // to be true.
   const coverByCompany = new Map<string, { outcome: string; says: string; fix: string | null }>()
   for (const [companyId, data] of companyVerifMap) {
     const rows = companyVerifications.filter(
-      v => v.companyId === companyId && v.type.startsWith('INSURANCE_')
+      v => v.companyId === companyId && firmStanding(v.type)
     )
     const gate = supplierCoverGate({
       // The sentence a client reads about a lapse names the firm it can

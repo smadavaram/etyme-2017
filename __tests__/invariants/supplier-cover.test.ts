@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { supplierCoverGate, COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
+import { supplierCoverGate, COVER_ASKED_OF_EVERYBODY, COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 
 const ON = new Date('2026-08-29T00:00:00Z')
 const d = (s: string) => new Date(`${s}T00:00:00Z`)
@@ -193,7 +193,43 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
     expect(gate.fix).toContain('replacement certificate')
   })
 
-  it('the two that stop work by default are general liability and workers’ compensation', () => {
-    expect([...COVER_THAT_STOPS_WORK]).toEqual(['INSURANCE_GL', 'INSURANCE_WC'])
+  it('the two asked of every supplier are general liability and workers’ compensation', () => {
+    expect([...COVER_ASKED_OF_EVERYBODY]).toEqual(['INSURANCE_GL', 'INSURANCE_WC'])
+  })
+
+  it('a firm’s standing to trade at all stops work beside its cover, and is never asked of a firm nobody asked', () => {
+    // 2026-09-21. A certificate of good standing shipped saying it
+    // blocks and nothing refused on it. It now sits beside the two
+    // insurances in what stops work — and deliberately not beside them
+    // in what every supplier is asked for, because an absence nobody
+    // asked for is not a lapse.
+    expect([...COVER_THAT_STOPS_WORK]).toContain('GOOD_STANDING')
+    expect([...COVER_ASKED_OF_EVERYBODY]).not.toContain('GOOD_STANDING')
+
+    const silent = supplierCoverGate({
+      supplierName: 'Veritan Talent',
+      certificates: [
+        { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: d('2026-01-01'), validFrom: d('2026-01-01'), expiresAt: d('2027-01-01'), verifiedAt: d('2026-01-01') },
+        { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: d('2026-01-01'), validFrom: d('2026-01-01'), expiresAt: d('2027-01-01'), verifiedAt: d('2026-01-01') },
+      ],
+      on: ON,
+    })
+    expect(silent.outcome).toBe('PASS')
+    expect(silent.says).not.toMatch(/good standing/i)
+  })
+
+  it('a supplier whose good standing has lapsed cannot put anybody forward', () => {
+    const gate = supplierCoverGate({
+      supplierName: 'Wrenfield Technical',
+      certificates: [
+        { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: d('2026-01-01'), validFrom: d('2026-01-01'), expiresAt: d('2027-01-01'), verifiedAt: d('2026-01-01') },
+        { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: d('2026-01-01'), validFrom: d('2026-01-01'), expiresAt: d('2027-01-01'), verifiedAt: d('2026-01-01') },
+        { type: 'GOOD_STANDING', status: 'CLEAR', issuedAt: d('2025-01-01'), validFrom: d('2025-01-01'), expiresAt: d('2026-02-01'), verifiedAt: d('2025-01-01') },
+      ],
+      on: ON,
+    })
+    expect(gate.outcome).toBe('BLOCK')
+    expect(gate.says).toMatch(/good standing/i)
+    expect(gate.says).toContain('Wrenfield Technical')
   })
 })

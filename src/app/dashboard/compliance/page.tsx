@@ -361,7 +361,8 @@ export default function CompliancePage() {
                 : `${lapsed.length} suppliers cannot submit anybody today`}
             </h3>
             <p className="text-[12px] text-etyme-muted mt-0.5">
-              Lapsed insurance is one of the few things that blocks rather than warns.
+              Lapsed cover, and a firm the state no longer says may trade, are among the few things
+              that block rather than warn.
             </p>
           </div>
           <div className="divide-y divide-etyme-rule">
@@ -850,7 +851,10 @@ function VerificationsTab({
                   <tr>
                     <th>Vendor</th>
                     <th>Can submit today</th>
-                    <th>Checks</th>
+                    {/* Cover and good standing sit in the same column, because
+                        they answer the same question about a firm and a client
+                        reading one without the other has half the answer. */}
+                    <th>Cover and standing</th>
                   </tr>
                 </thead>
                 <tbody>

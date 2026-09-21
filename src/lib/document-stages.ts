@@ -704,8 +704,38 @@ export function clearance(
 // because those are the two that answer when somebody is hurt on a site.
 // Errors and omissions and cyber lapse into a chase unless asked for.
 
-/** Cover whose lapse stops a placement wherever a client has said nothing. */
-export const COVER_THAT_STOPS_WORK = ['INSURANCE_GL', 'INSURANCE_WC'] as const
+/**
+ * What every supplier is asked for, whatever a client has said.
+ *
+ * The two that answer when somebody is hurt on a site. A client that
+ * wants more says so through its order's required set, which arrives
+ * here as `requiredTypes`.
+ */
+export const COVER_ASKED_OF_EVERYBODY = ['INSURANCE_GL', 'INSURANCE_WC'] as const
+
+/**
+ * The firm's standing whose lapse stops a placement.
+ *
+ * `GOOD_STANDING` joined the two insurances on 2026-09-21, for the
+ * founder's "ensure the loop of documents never cracks between parties".
+ * A firm not in good standing with the state that registered it may not
+ * lawfully contract there — the registration is suspended, usually for
+ * an unfiled report or unpaid franchise tax — and that is the firm's
+ * standing to trade at all rather than a preference a client is
+ * expressing. It shipped as a type saying `blocks: true` with nothing
+ * anywhere refusing on it.
+ *
+ * It is NOT in `COVER_ASKED_OF_EVERYBODY`, and the difference is the
+ * whole of the care taken here. A certificate of good standing that
+ * nobody ever asked for is not a lapse: it is a document this firm has
+ * never been asked to file, and treating its absence as a lapse would
+ * have put a warning on every supplier in the world on the day this
+ * shipped — a control that fires on a hundred percent of rows teaches
+ * everybody to route around it. So a lapsed one blocks, a required one
+ * that was never filed blocks at submission the way required cover does,
+ * and one nobody asked for says nothing at all.
+ */
+export const COVER_THAT_STOPS_WORK = [...COVER_ASKED_OF_EVERYBODY, 'GOOD_STANDING'] as const
 
 /** How long a certificate of insurance counts for. Brokers issue annually. */
 const COVER_VALID_MONTHS = 12
@@ -715,6 +745,7 @@ const COVER_LABEL: Record<string, string> = {
   INSURANCE_WC: "certificate of workers' compensation",
   INSURANCE_EO: 'errors and omissions cover',
   INSURANCE_CYBER: 'cyber liability cover',
+  GOOD_STANDING: 'certificate of good standing',
 }
 
 export function coverLabel(type: string): string {
@@ -769,15 +800,19 @@ export function supplierCoverGate(input: {
   const required = input.requiredTypes ?? []
   const mustNotLapse = new Set<string>([...COVER_THAT_STOPS_WORK, ...required])
 
-  // Every kind we have an opinion about: the two defaults, whatever the
-  // client added, and anything the supplier has actually filed. A
-  // certificate on file that nobody asked for is still worth reporting
-  // when it runs out.
+  // Every kind we have an opinion about: the two asked of everybody,
+  // whatever the client added, and anything the supplier has actually
+  // filed. A certificate on file that nobody asked for is still worth
+  // reporting when it runs out — and a certificate of good standing
+  // nobody asked for and nobody filed is not mentioned at all, because
+  // there is nothing to say about it.
   const kinds = [
     ...new Set([
-      ...COVER_THAT_STOPS_WORK,
+      ...COVER_ASKED_OF_EVERYBODY,
       ...required,
-      ...input.certificates.map((c) => c.type).filter((t) => t.startsWith('INSURANCE_')),
+      ...input.certificates
+        .map((c) => c.type)
+        .filter((t) => t.startsWith('INSURANCE_') || (COVER_THAT_STOPS_WORK as readonly string[]).includes(t)),
     ]),
   ]
 
