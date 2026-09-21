@@ -1,0 +1,69 @@
+import { describe, it, expect, beforeAll } from 'vitest'
+import { resetDatabase, prisma } from './harness'
+import { seedWorld } from '@/lib/seed-world'
+import { shellNotice, isShell } from '@/lib/off-system'
+
+/**
+ * A firm with a seat is on Etyme.
+ *
+ * `Company.claimedAt` is null for a shell — a firm on the register that
+ * nobody at it has taken possession of — and nothing in the seed ever
+ * wrote the column. So every seeded firm was a shell, and
+ * `/dashboard/purchase-orders` told Northbend Athletic that "Pinnacle
+ * Resourcing is not on Etyme. You listed them, so this is your record of
+ * them — they cannot see it" about a firm that submits candidates to it
+ * and answers its threads in the same seeded world. It reached a
+ * front-page screenshot.
+ *
+ * The rule is one sentence: a seat is possession.
+ */
+describe('a firm on the register and a firm on the system', () => {
+  beforeAll(async () => {
+    await resetDatabase()
+    await seedWorld()
+  }, 600_000)
+
+  it('a firm that holds a seat on Etyme is never described as off it', async () => {
+    const firms = await prisma.company.findMany({
+      where: { slug: { startsWith: 'world-' }, contexts: { some: {} } },
+      select: { id: true, name: true, slug: true, claimedAt: true, listedById: true },
+    })
+
+    expect(firms.length).toBeGreaterThan(20)
+    const called = firms.filter((f) => shellNotice(f) !== null)
+    expect(
+      called.map((f) => f.slug),
+      'these firms have people signed in at them and a screen still calls them off Etyme'
+    ).toEqual([])
+    for (const f of firms) expect(isShell(f), f.slug).toBe(false)
+  })
+
+  it('the three suppliers on the purchase orders screen are the ones that answer its threads', async () => {
+    // The exact firms in the screenshot, checked by name rather than by
+    // count, so the sentence keeps meaning something if the world grows.
+    for (const slug of ['world-pinnacle', 'world-halcyon', 'world-arcadia']) {
+      const firm = await prisma.company.findFirst({
+        where: { slug },
+        select: { id: true, name: true, claimedAt: true, _count: { select: { contexts: true } } },
+      })
+      expect(firm, slug).toBeTruthy()
+      expect(firm!._count.contexts, `${slug} has somebody seated at it`).toBeGreaterThan(0)
+      expect(shellNotice({ id: firm!.id, name: firm!.name, claimedAt: firm!.claimedAt })).toBeNull()
+    }
+  })
+
+  it('a firm somebody listed and nobody has joined is still a shell, which is what the column is for', async () => {
+    // The sweep claims a firm because somebody holds a seat at it, not
+    // because it is seeded. A recommended supplier with no seat yet must
+    // still read as off Etyme, or the notice stops meaning anything.
+    const listed = await prisma.company.create({
+      data: { slug: 'world-not-joined-yet', name: 'Marbridge Staffing', kind: 'VENDOR', currency: 'USD' },
+    })
+    expect(isShell(listed)).toBe(true)
+    expect(shellNotice(listed)).toContain('is not on Etyme')
+
+    await seedWorld()
+    const after = await prisma.company.findUnique({ where: { id: listed.id }, select: { claimedAt: true } })
+    expect(after!.claimedAt, 'a second seeding does not take possession on nobody’s behalf').toBeNull()
+  }, 600_000)
+})

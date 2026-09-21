@@ -79,6 +79,10 @@ export async function seedDemoCompany(input: {
       outsideAccess: defaultPostureFor('VENDOR'),
       isDemo: true,
       demoExpiresAt: daysAhead(DEMO_DAYS),
+      // Somebody is signing in to this one right now — it is theirs, not
+      // a shell somebody listed. A firm with a seat is never described
+      // as being off Etyme.
+      claimedAt: new Date(),
     },
   })
 

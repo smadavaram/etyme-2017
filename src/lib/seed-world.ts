@@ -168,6 +168,8 @@ export async function seedWorld(): Promise<{
   orders: number
   postings: number
   journalEntries: number
+  /// Firms that hold a seat and were still on the register as shells.
+  claimed: number
   /// Orders carrying a required set of documents, and the rows on them.
   documentRequirementOrders: number
   documentRequirements: number
@@ -1298,6 +1300,34 @@ export async function seedWorld(): Promise<{
   // the orders `seedOrderToCash` raised a moment ago.
   const paperwork = await seedDocumentRequirements(ctx)
 
+  // ── A firm with a seat took possession of itself ───────────────────
+  //
+  // `Company.claimedAt` is null for a shell — a firm on the register
+  // that nobody at it has taken possession of. Every seeded firm was one
+  // of those, because nothing here ever wrote the column, and yet every
+  // one of them has a seat somebody signs in on, submits candidates and
+  // answers threads from. So `/dashboard/purchase-orders` told Northbend
+  // Athletic that "Pinnacle Resourcing is not on Etyme — they cannot see
+  // this" about a firm that had answered its thread that morning, and it
+  // reached a front-page screenshot.
+  //
+  // The rule, stated once here rather than at each of the twenty places
+  // a company is written: a seat is possession. Somebody holds a context
+  // at this firm, so somebody at this firm is here. A firm with no seat
+  // — one a client recommended and nobody has joined yet — stays a
+  // shell, which is what the column is actually for.
+  //
+  // Not the upsert above, because clients, program offices and doors are
+  // written by three other files, and a sweep at the end catches all of
+  // them and is a no-op on the second run.
+  const unclaimed = await db.company.findMany({
+    where: { slug: { startsWith: PREFIX }, claimedAt: null, contexts: { some: {} } },
+    select: { id: true, createdAt: true },
+  })
+  for (const c of unclaimed) {
+    await db.company.update({ where: { id: c.id }, data: { claimedAt: c.createdAt } })
+  }
+
   return {
     firms: FIRMS.length,
     placements: placed.length + programs.placements + doors.placements,
@@ -1313,6 +1343,8 @@ export async function seedWorld(): Promise<{
     orders: cash.orders,
     postings: cash.postings,
     journalEntries: cash.journalEntries,
+    /// Firms that hold a seat and were still on the register as shells.
+    claimed: unclaimed.length,
     /// Orders carrying a required set of documents, and the rows on them.
     documentRequirementOrders: paperwork.orders,
     documentRequirements: paperwork.items,
