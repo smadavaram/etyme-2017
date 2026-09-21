@@ -4,7 +4,7 @@ import { join } from 'path'
 import {
   paperRows, outstanding, countedAgainst, paperworkHeadline,
   owedWord, owedConsequence, owedTodo, owedFrom, awaitingReview, isAwaiting,
-  sectionOf, rowsInSection, SECTIONS, FILE_NOT_TAKEN_YET,
+  sectionOf, rowsInSection, SECTIONS,
 } from '@/app/dashboard/my-work/paperwork-rows'
 import { myPapers, outstandingItems } from '@/lib/document-request'
 
@@ -252,10 +252,35 @@ describe('A worker sees what is being asked of her', () => {
     expect(SECTION).toContain('Or paste a link to it')
     // Either one is enough to press the button; neither is required.
     expect(SECTION).toContain("disabled={busy === r.id || (!picked[r.id] && !(fileUrl[r.id] ?? '').trim())}")
-    // And where the door will not take bytes yet, she reads the true
-    // thing rather than a control that fails in silence.
-    expect(FILE_NOT_TAKEN_YET).toContain('not switched on yet')
-    expect(SECTION).toContain('setRefused({ id: r.id, says: FILE_NOT_TAKEN_YET })')
+  })
+
+  it('a worker sends the photograph she has and the page tells her it was kept, in the route\u2019s own words', () => {
+    // For a day the picker could only be refused: nothing stored the
+    // bytes of a document, so the page said so and pointed at the link
+    // box. The door takes the file now, and the sentence that stood in
+    // for it is gone — a page that still apologised would be telling
+    // her something untrue in the other direction.
+    const ROWS = read('src/app/dashboard/my-work/paperwork-rows.ts')
+    expect(SECTION + ROWS).not.toContain('FILE_NOT_TAKEN_YET')
+    expect(SECTION + ROWS).not.toContain('not switched on yet')
+
+    // The file goes as the file, as itself, to the same door.
+    expect(SECTION).toContain("form.append('file', file)")
+    expect(SECTION).toContain("await fetch(to, { method: 'POST', body: form })")
+
+    // And what she reads is the route's own sentence — "…is on file.
+    // Thank you. Kept as image, 1KB." — never a cheerier one this page
+    // wrote for itself, because only the route knows what was kept.
+    expect(SECTION).toContain("setSaid(sent?.data?.says")
+    // The picked file is let go once it has gone, so a second press
+    // cannot send yesterday's photograph again.
+    expect(SECTION).toContain("setPicked(Object.fromEntries(Object.entries(picked).filter(([k]) => k !== r.id)))")
+
+    // A file too big, or of a kind nobody can open, comes back with its
+    // own sentence and lands beside the row it is about. Nothing is
+    // written on a refusal, so there is nothing for the page to undo.
+    expect(SECTION).toContain('setRefused({ id: r.id, says:')
+    expect(SECTION).toMatch(/refused\?\.id === r\.id/)
   })
 
   it('asking for a document nobody wants is refused in words, on her own page', () => {

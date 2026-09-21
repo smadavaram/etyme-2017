@@ -425,26 +425,6 @@ export function rowsInSection(rows: PaperRow[], section: PaperSection): PaperRow
 }
 
 /**
- * What the page says when the file itself could not be sent.
- *
- * A contractor on a phone has a photograph of her certificate, not a
- * URL, so the picker is the first way to answer a chase and the link is
- * the second. But nothing in this codebase stores the bytes of a
- * document yet: `DocInstance` carries `signedFileUrl` and a file name,
- * and `/api/documents/:id/upload` reads JSON. So the picker attempts
- * the file, and where the door will not take it she is told the true
- * thing with the link right beside her — rather than a control that
- * fails in silence or a text box demanding a URL as the only way.
- *
- * What deletes this sentence: bytes on the document (the architect's,
- * modeled on `CensusFile`) and multipart on the upload route
- * (regulatory's).
- */
-export const FILE_NOT_TAKEN_YET =
-  'Sending the file itself is not switched on yet. Put it somewhere they can open — ' +
-  'your own drive, or an email to whoever asked — and paste the link here.'
-
-/**
  * What she actually has to do something about.
  *
  * Neither a waiver nor a document already sent is one. Both stay on the

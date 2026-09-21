@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { readJson } from '@/lib/read-response'
 import {
   paperRows, outstanding, paperworkHeadline, rowsInSection, SECTIONS,
-  FILE_NOT_TAKEN_YET,
   type PaperRow,
 } from './paperwork-rows'
 
@@ -119,23 +118,24 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
 
       const to = `/api/documents/${id}/${r.todo === 'sign' ? 'sign' : 'upload'}`
 
-      // She chose a file. Try the file itself first — a photograph of a
-      // certificate is what somebody actually has — and where the door
-      // will not take bytes yet, say the true thing rather than fail
-      // quietly. The link beside it still works.
+      // She chose a file. It goes as the file — a photograph of a
+      // certificate is what somebody standing in a corridor actually
+      // has, and for a day this could only be a link to one. The route
+      // keeps the bytes and says what it kept, so the page repeats its
+      // sentence rather than writing a cheerier one of its own: "Site
+      // respirator fit test is on file. Thank you. Kept as image, 1KB."
+      //
+      // A file too big or of a kind nobody can open comes back 422 or
+      // 413 with its own sentence, and `readJson` throws it to the
+      // catch below, where it lands beside this row. Nothing is written
+      // on either, so there is nothing to undo.
       const file = picked[r.id]
       if (file && r.todo !== 'sign') {
         const form = new FormData()
         form.append('file', file)
-        form.append('fileName', file.name)
-        const res = await fetch(to, { method: 'POST', body: form })
-        if (!res.ok) {
-          setRefused({ id: r.id, says: FILE_NOT_TAKEN_YET })
-          return
-        }
-        const sent = await readJson(res)
+        const sent = await readJson(await fetch(to, { method: 'POST', body: form }))
         setSaid(sent?.data?.says ?? 'Sent. They will be told it has arrived.')
-        setPicked({ ...picked, [r.id]: undefined as unknown as File })
+        setPicked(Object.fromEntries(Object.entries(picked).filter(([k]) => k !== r.id)))
         await load()
         return
       }
@@ -264,7 +264,7 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
                           a hospital corridor actually has: the photo on
                           her phone. */}
                       <label className="text-xs text-etyme-muted">
-                        Take a photo or choose a file
+                        Take a photo or choose a file — up to 10MB
                         <input
                           type="file"
                           accept="image/*,application/pdf,.doc,.docx"
