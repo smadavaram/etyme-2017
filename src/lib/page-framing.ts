@@ -168,7 +168,13 @@ const SUPPLIER: Record<PageKey, Words> = {
   requirements: {
     title: 'Requirements',
     subtitle: 'Open demand. Match consultants, distribute to your network, and track submissions.',
-    create: null,
+    // Every desk that reads this page can raise one: `POST
+    // /api/requirements` has always existed and the button above the
+    // list has never been gated. This said null for a commit, which
+    // would have taken a working control off the screen — the opposite
+    // failure to the contracts button, and the same rule settles both:
+    // the framing says what the route actually does.
+    create: 'New requirement',
   },
   submissions: {
     title: 'Submissions',
@@ -222,7 +228,12 @@ const CLIENT: Record<PageKey, Words> = {
   requirements: {
     title: 'Open roles',
     subtitle: 'Roles you have opened to your vendors. Track how many candidates each has drawn.',
-    create: null,
+    // A client opens roles to its vendors, so the button stands here
+    // too, and a seated program office inherits it. The word is the
+    // page's own — if a client's desk should read "New role" to match
+    // "Open roles" above it, that is a change to make on purpose rather
+    // than while fixing a missing button.
+    create: 'New requirement',
   },
   submissions: {
     title: 'Candidates',

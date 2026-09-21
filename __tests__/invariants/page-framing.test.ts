@@ -462,6 +462,19 @@ describe('a supplier reading its own book is framed exactly as before', () => {
     }
   })
 
+  it('a requirement can be raised from every desk that reads the page, and the button says so', () => {
+    // `POST /api/requirements` exists and works, and the button above
+    // the list has never been gated on anything — a supplier, a client
+    // and an office in a client's seat all raise roles from this page.
+    // The framing said null for a commit, which would have taken a
+    // working control off the screen.
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as CompanyKind[]) {
+      expect(pageFraming(kind, 'requirements').create, kind).toBe('New requirement')
+    }
+    expect(pageFraming('MSP', 'requirements', { inASeat: true, company: 'Cavanaugh Glassworks' }).create)
+      .toBe('New requirement')
+  })
+
   it('the "+" on a supplier\'s page still offers what it offered', () => {
     expect(pageFraming('VENDOR', 'contracts.sell').create).toBe('Record a placement')
     expect(pageFraming('VENDOR', 'timesheets').create).toBe('New')
