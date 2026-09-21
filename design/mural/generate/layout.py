@@ -129,11 +129,11 @@ def type_block(x, y, w, h, ink, field, head_sets, sub, cta):
     return "".join(o), bool(mark)
 
 
-def compose(w, h, cwname, mode="split", uid=0, nudge=0.5):
+def compose(w, h, cwname, mode="split", uid=0, nudge=0.5, kind=None):
     C = COLORWAYS[cwname]; ink, field = C["ink"], C["field"]
     if mode == "art":
-        return svg(w, h, place_art(pick_art(w, h), 0, 0, w, h, ink, field, uid, nudge),
-                   field, "Etyme")
+        return svg(w, h, place_art(kind or pick_art(w, h), 0, 0, w, h, ink, field,
+                                   uid, nudge), field, "Etyme")
 
     a = w / float(h)
     t = clamp(min(w, h)*0.0055, 1.0, 5.0)

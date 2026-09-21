@@ -14,7 +14,8 @@ SPECS = [
   ("mural-master-column",     1000, 2000, "art"),
   ("home-hero",               1920, 1080, "art"),
   ("home-hero-strip",         2560, 720,  "art"),
-  ("section-divider",         2400, 440,  "art"),
+  ("section-divider",         2400, 360,  "art", "strip"),
+  ("section-divider-narrow",  900,  360,  "art", "strip-narrow"),
 
   ("og-share",                1200, 630,  "split"),
 
@@ -46,11 +47,13 @@ SPECS = [
 def main():
     sd = os.path.join(OUT, "svg"); os.makedirs(sd, exist_ok=True)
     made, uid = [], 0
-    for name, w, h, mode in SPECS:
+    for spec in SPECS:
+        name, w, h, mode = spec[:4]
+        kind = spec[4] if len(spec) > 4 else None
         for cw in ("navy", "night"):
             uid += 1
             fn = f"etyme-{name}-{cw}.svg"
-            open(os.path.join(sd, fn), "w").write(compose(w, h, cw, mode, uid))
+            open(os.path.join(sd, fn), "w").write(compose(w, h, cw, mode, uid, kind=kind))
             made.append((fn, w, h))
     for cw in ("navy", "night"):
         for fn, body, size in ((f"etyme-pattern-tile-{cw}.svg", pattern(400, cw), 400),

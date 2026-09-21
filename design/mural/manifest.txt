@@ -8,8 +8,10 @@ etyme-home-hero-navy.svg	1920	1080
 etyme-home-hero-night.svg	1920	1080
 etyme-home-hero-strip-navy.svg	2560	720
 etyme-home-hero-strip-night.svg	2560	720
-etyme-section-divider-navy.svg	2400	440
-etyme-section-divider-night.svg	2400	440
+etyme-section-divider-navy.svg	2400	360
+etyme-section-divider-night.svg	2400	360
+etyme-section-divider-narrow-navy.svg	900	360
+etyme-section-divider-narrow-night.svg	900	360
 etyme-og-share-navy.svg	1200	630
 etyme-og-share-night.svg	1200	630
 etyme-meta-feed-square-navy.svg	1080	1080

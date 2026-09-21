@@ -91,7 +91,8 @@ artwork instead, so every asset carries attribution.
 |---|---|---|
 | `etyme-home-hero-*.svg` | 1920×1080 | hero background, **no text baked in** — set the headline in HTML over it |
 | `etyme-home-hero-strip-*.svg` | 2560×720 | short hero band |
-| `etyme-section-divider-*.svg` | 2400×440 | between sections, in place of a plain rule |
+| `etyme-section-divider-*.svg` | 2400×360 | between sections, in place of a plain rule |
+| `etyme-section-divider-narrow-*.svg` | 900×360 | the same band for phone widths |
 | `etyme-mural-master-band-*.svg` | 2400×800 | the full mural |
 | `etyme-mural-master-block-*.svg` | 1600×1600 | square crop, for a split hero |
 | `etyme-mural-master-column-*.svg` | 1000×2000 | tall crop, for the mobile hero |
@@ -145,8 +146,8 @@ locally. Without them the SVGs are still correct and export from any design tool
 
 ```
 design/mural/
-  svg/   58 source files  (2 colourways × 29 placements)
-  png/   58 exports       (pixel-exact, type baked in)
+  svg/   60 source files  (2 colourways × 30 placements)
+  png/   60 exports       (pixel-exact, type baked in)
   generate/
     mural.py    tokens, the measured logo, and the product's own motifs
     scenes.py   the three compositions (band / block / column)

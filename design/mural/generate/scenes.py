@@ -105,7 +105,39 @@ def art_column(ink, field):
     return "".join(o)
 
 
+
+# ==========================================================================
+# THE STRIP - a short band for dividing sections. Drawn for the slot rather
+# than cropped out of the tall band, so no shape is ever cut in half.
+# ==========================================================================
+def _strip(ink, field, wide=True):
+    CY = 180
+    o = []
+    if wide:
+        o.append(scatter(90, 112, 5, 3, 44, 8, ink, 1))
+        o.append(slash(404, CY, 268, 14, ink))
+        o.append(chain(624, CY, 296, ink, field, 5))
+        o.append(record(1000, 64, 758, 232, ink, field, rows=3))
+        o.append(tiles(1822, 96, 2, 148, 92, 18, ink, field, (0.34, 0.50)))
+        o.append(figure(2206, 294, 118, ink))
+        o.append(climb(2264, 294, 3, 24, 10, 58, 128, ink))
+    else:
+        o.append(scatter(56, 122, 3, 3, 40, 8, ink, 1))
+        o.append(slash(258, CY, 176, 13, ink))
+        o.append(record(380, 72, 400, 216, ink, field, rows=3))
+        o.append(figure(830, 288, 104, ink))
+    return "".join(o)
+
+def art_strip(ink, field):
+    return _strip(ink, field, True)
+
+def art_strip_narrow(ink, field):
+    return _strip(ink, field, False)
+
+
 ART = {"band": (2400, 800, art_band),
+       "strip": (2400, 360, art_strip),
+       "strip-narrow": (900, 360, art_strip_narrow),
        "block": (1200, 1200, art_block),
        "column": (800, 1600, art_column)}
 
