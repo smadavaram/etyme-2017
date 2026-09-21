@@ -125,6 +125,12 @@ export interface OwedItem {
   /** A packet link, where the ask came as one. */
   link?: string | null
   needsSignature?: boolean
+  /**
+   * The route says a paper for THIS row arrived and nobody has checked
+   * it. Never inferred — see `isAwaiting`.
+   */
+  received?: boolean
+  status?: string
   /** The type to name when opening a request. */
   documentTypeKey?: string | null
   /**
@@ -155,6 +161,8 @@ interface LoosePaper {
   runsOutOn?: string | null
   dueOn?: string | null
   key?: string
+  status?: string
+  received?: boolean
   documentTypeKey?: string | null
   openAskAt?: string | null
 }
@@ -187,14 +195,19 @@ export function owedWord(item: OwedItem): string {
 /**
  * Sent, and with somebody else.
  *
- * Read off the two fields rather than off a status word: a row that
- * wants nothing done and offers nowhere to send anything is a row
- * already answered. `etyme-regulatory` writes exactly that shape for
- * AWAITING_REVIEW, and reading the shape rather than the enum keeps a
- * state name off this screen.
+ * Said by the route, never inferred by this screen.
+ *
+ * For one day this read the ABSENCE of somewhere to send it as proof
+ * that it had been sent — `!link && !askId && !openAskAt` — so "nobody
+ * can send this" and "this has been sent" were the same shape. On the
+ * re-walk an NDA nobody had ever touched read "Sent — waiting for
+ * somebody to check it. Nothing more is needed from you", which is a
+ * compliance fact this screen invented. Two states that mean opposite
+ * things must not share a signal, and a screen must not decide a fact
+ * the route did not send it.
  */
 export function isAwaiting(item: OwedItem): boolean {
-  return !item.waived && !item.link && !item.askId && !item.openAskAt
+  return item.received === true || item.status === 'AWAITING_REVIEW'
 }
 
 /**
@@ -242,6 +255,9 @@ export function owedFrom(item: OwedItem): string | null {
  */
 export function owedTodo(item: OwedItem): 'sign' | 'upload' | 'open' | null {
   if (item.waived) return null
+  // Already with them. Offering to send it again is how one upload
+  // becomes two and a worker stops believing the page.
+  if (isAwaiting(item)) return null
   if (item.link) return 'open'
   if (item.askId) return item.needsSignature ? 'sign' : 'upload'
   if (item.openAskAt) return 'upload'
@@ -293,6 +309,8 @@ function rowFromPaper(p: LoosePaper): PaperRow {
       stopsWork: p.stopsWork,
       waived: p.waived,
       waivedSays: p.waivedSays ?? null,
+      received: p.received,
+      status: p.status,
       askId: requirementOnly ? null : (p.askId ?? p.id ?? null),
       link: p.link ?? null,
       needsSignature: p.needsSignature,
@@ -363,6 +381,26 @@ export function paperRows(payload: { papers?: unknown; owed?: unknown } | null |
     .sort((a, b) => (order[a.r.kind] - order[b.r.kind]) || (a.i - b.i))
     .map((x) => x.r)
 }
+
+/**
+ * What the page says when the file itself could not be sent.
+ *
+ * A contractor on a phone has a photograph of her certificate, not a
+ * URL, so the picker is the first way to answer a chase and the link is
+ * the second. But nothing in this codebase stores the bytes of a
+ * document yet: `DocInstance` carries `signedFileUrl` and a file name,
+ * and `/api/documents/:id/upload` reads JSON. So the picker attempts
+ * the file, and where the door will not take it she is told the true
+ * thing with the link right beside her — rather than a control that
+ * fails in silence or a text box demanding a URL as the only way.
+ *
+ * What deletes this sentence: bytes on the document (the architect's,
+ * modeled on `CensusFile`) and multipart on the upload route
+ * (regulatory's).
+ */
+export const FILE_NOT_TAKEN_YET =
+  'Sending the file itself is not switched on yet. Put it somewhere they can open — ' +
+  'your own drive, or an email to whoever asked — and paste the link here.'
 
 /**
  * What she actually has to do something about.

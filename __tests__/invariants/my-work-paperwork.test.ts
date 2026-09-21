@@ -3,7 +3,8 @@ import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import {
   paperRows, outstanding, countedAgainst, paperworkHeadline,
-  owedWord, owedConsequence, owedTodo, owedFrom, awaitingReview,
+  owedWord, owedConsequence, owedTodo, owedFrom, awaitingReview, isAwaiting,
+  FILE_NOT_TAKEN_YET,
 } from '@/app/dashboard/my-work/paperwork-rows'
 import { myPapers, outstandingItems } from '@/lib/document-request'
 
@@ -141,10 +142,9 @@ describe('A worker sees what is being asked of her', () => {
   })
 
   it('a document she has sent says somebody is checking it, and never asks her for it again', () => {
-    // AWAITING_REVIEW arrives as a row that wants nothing and offers
-    // nowhere to send anything. It stays visible, because it is still
-    // not on file, and it asks her for nothing.
-    const sent = owedItem({ key: 'BACKGROUND_CHECK', label: 'background check', openAskAt: null, askId: null })
+    // The route says so, on the row: `received: true`. It stays visible,
+    // because it is still not on file, and it asks her for nothing.
+    const sent = owedItem({ key: 'BACKGROUND_CHECK', label: 'background check', received: true, openAskAt: null, askId: null })
     const rows = paperRows({ owed: [sent] })
     expect(rows[0].awaiting).toBe(true)
     expect(rows[0].todo).toBeNull()
@@ -157,6 +157,72 @@ describe('A worker sees what is being asked of her', () => {
     expect(awaitingReview(rows)).toHaveLength(1)
     expect(paperworkHeadline(rows))
       .toBe('Nothing is being asked of you. One document is with them, waiting to be checked.')
+  })
+
+  it('the page says a document was sent only where the route says one was, and never because it could not find a way to send it', () => {
+    // For one day this screen read the ABSENCE of somewhere to send a
+    // document as proof that it had been sent, so an NDA nobody had
+    // ever touched read "Sent — waiting for somebody to check it".
+    // Two states that mean opposite things must not share a signal.
+    const nobodyCanSend = owedItem({ key: 'NDA', label: 'NDA', openAskAt: null, askId: null, link: null })
+    expect(isAwaiting(nobodyCanSend)).toBe(false)
+    expect(owedWord(nobodyCanSend)).toBe('Still needed')
+    expect(paperRows({ owed: [nobodyCanSend] })[0].awaiting).toBe(false)
+
+    // Only the route's own word, either spelling of it.
+    expect(isAwaiting(owedItem({ received: true }))).toBe(true)
+    expect(isAwaiting(owedItem({ status: 'AWAITING_REVIEW' }))).toBe(true)
+
+    // And a row the route says is with them offers nothing to press,
+    // whatever else is on it.
+    expect(owedTodo(owedItem({ received: true, openAskAt: '/api/me/papers' }))).toBeNull()
+  })
+
+  it('one document sent leaves every other row on her page exactly as it was', () => {
+    // The re-walk found one upload showing as two: the row she sent
+    // still offered "Send it in", and a different row she had never
+    // touched read as sent. Every row is answered from its own fields
+    // and from no other row's.
+    const before = paperRows({
+      owed: [
+        owedItem({ key: 'PRODUCT_CONFIDENTIALITY', label: 'product confidentiality undertaking', blocks: false }),
+        owedItem({ key: 'NDA', label: 'NDA', blocks: false }),
+      ],
+    })
+    const after = paperRows({
+      owed: [
+        owedItem({ key: 'PRODUCT_CONFIDENTIALITY', label: 'product confidentiality undertaking', blocks: false, received: true, openAskAt: null }),
+        owedItem({ key: 'NDA', label: 'NDA', blocks: false }),
+      ],
+    })
+    const nda = (rows: typeof before) => rows.find((r) => r.name === 'NDA')!
+    expect(nda(after)).toEqual(nda(before))
+    expect(nda(after).awaiting).toBe(false)
+    expect(nda(after).todo).toBe('upload')
+    expect(nda(after).word).toBe('Still needed')
+
+    // And the one she sent moved, on its own.
+    const sent = after.find((r) => r.name === 'Product confidentiality undertaking')!
+    expect(sent.awaiting).toBe(true)
+    expect(sent.todo).toBeNull()
+    expect(outstanding(after).map((r) => r.name)).toEqual(['NDA'])
+  })
+
+  it('a worker with a photograph of her certificate can send the photograph, not a link to one', () => {
+    // A contractor in a hospital corridor has a photo on her phone. A
+    // text box demanding a URL is not an answer to a chase.
+    expect(SECTION).toContain('Take a photo or choose a file')
+    expect(SECTION).toContain('type="file"')
+    expect(SECTION).toContain('accept="image/*,application/pdf,.doc,.docx"')
+    expect(SECTION).toContain("form.append('file', file)")
+    // The link stays as the second way, named as the second way.
+    expect(SECTION).toContain('Or paste a link to it')
+    // Either one is enough to press the button; neither is required.
+    expect(SECTION).toContain("disabled={busy === r.id || (!picked[r.id] && !(fileUrl[r.id] ?? '').trim())}")
+    // And where the door will not take bytes yet, she reads the true
+    // thing rather than a control that fails in silence.
+    expect(FILE_NOT_TAKEN_YET).toContain('not switched on yet')
+    expect(SECTION).toContain('setRefused({ id: r.id, says: FILE_NOT_TAKEN_YET })')
   })
 
   it('asking for a document nobody wants is refused in words, on her own page', () => {

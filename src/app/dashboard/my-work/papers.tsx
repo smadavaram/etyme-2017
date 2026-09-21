@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { readJson } from '@/lib/read-response'
 import {
-  paperRows, outstanding, paperworkHeadline,
+  paperRows, outstanding, paperworkHeadline, FILE_NOT_TAKEN_YET,
   type PaperRow,
 } from './paperwork-rows'
 
@@ -81,6 +81,7 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
   const [fileUrl, setFileUrl] = useState<Record<string, string>>({})
   const [said, setSaid] = useState<string | null>(null)
   const [refused, setRefused] = useState<{ id: string; says: string } | null>(null)
+  const [picked, setPicked] = useState<Record<string, File>>({})
 
   const load = useCallback(async () => {
     setFailed(null)
@@ -122,8 +123,33 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
       }
       if (!id) throw new Error('There is nowhere to send this one yet.')
 
-      const body = r.todo === 'sign' ? { attests: true } : { fileUrl: fileUrl[r.id] ?? '' }
-      const j = await readJson(await post(`/api/documents/${id}/${r.todo === 'sign' ? 'sign' : 'upload'}`, body))
+      const to = `/api/documents/${id}/${r.todo === 'sign' ? 'sign' : 'upload'}`
+
+      // She chose a file. Try the file itself first — a photograph of a
+      // certificate is what somebody actually has — and where the door
+      // will not take bytes yet, say the true thing rather than fail
+      // quietly. The link beside it still works.
+      const file = picked[r.id]
+      if (file && r.todo !== 'sign') {
+        const form = new FormData()
+        form.append('file', file)
+        form.append('fileName', file.name)
+        const res = await fetch(to, { method: 'POST', body: form })
+        if (!res.ok) {
+          setRefused({ id: r.id, says: FILE_NOT_TAKEN_YET })
+          return
+        }
+        const sent = await readJson(res)
+        setSaid(sent?.data?.says ?? 'Sent. They will be told it has arrived.')
+        setPicked({ ...picked, [r.id]: undefined as unknown as File })
+        await load()
+        return
+      }
+
+      const body = r.todo === 'sign'
+        ? { attests: true }
+        : { fileUrl: fileUrl[r.id] ?? '', fileName: file?.name ?? undefined }
+      const j = await readJson(await post(to, body))
       setSaid(j?.data?.says ?? 'Sent. They will be told it has arrived.')
       setFileUrl({ ...fileUrl, [r.id]: '' })
       await load()
@@ -236,18 +262,38 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
                     </a>
                   )}
                   {r.todo === 'upload' && (
-                    <>
-                      <input
-                        value={fileUrl[r.id] ?? ''}
-                        onChange={(e) => setFileUrl({ ...fileUrl, [r.id]: e.target.value })}
-                        placeholder="Link to the file"
-                        className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised min-w-[200px]"
-                      />
-                      <button onClick={() => answer(r)} disabled={busy === r.id || !(fileUrl[r.id] ?? '').trim()}
+                    <div className="flex flex-col gap-2 min-w-[260px]">
+                      {/* The first way, and the one somebody standing in
+                          a hospital corridor actually has: the photo on
+                          her phone. */}
+                      <label className="text-xs text-etyme-muted">
+                        Take a photo or choose a file
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf,.doc,.docx"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0]
+                            if (f) setPicked({ ...picked, [r.id]: f })
+                          }}
+                          className="mt-1 block w-full text-sm text-etyme-ink file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:text-sm file:font-medium file:bg-etyme-action file:text-white"
+                        />
+                      </label>
+                      {/* The second way, and the one that works today. */}
+                      <label className="text-xs text-etyme-muted">
+                        Or paste a link to it
+                        <input
+                          value={fileUrl[r.id] ?? ''}
+                          onChange={(e) => setFileUrl({ ...fileUrl, [r.id]: e.target.value })}
+                          placeholder="https://…"
+                          className="mt-1 block w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised"
+                        />
+                      </label>
+                      <button onClick={() => answer(r)}
+                        disabled={busy === r.id || (!picked[r.id] && !(fileUrl[r.id] ?? '').trim())}
                         className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
                         {busy === r.id ? 'Sending…' : 'Send it in'}
                       </button>
-                    </>
+                    </div>
                   )}
                   {r.todo === 'sign' && (
                     <button onClick={() => answer(r)} disabled={busy === r.id}

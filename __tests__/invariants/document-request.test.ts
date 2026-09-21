@@ -99,7 +99,11 @@ describe('the screens', () => {
     // the page a chase letter names can be opened on its own.
     const work = read('src/app/dashboard/my-work/papers.tsx')
     expect(work).toContain("fetch('/api/me/papers')")
-    expect(work).toContain("r.todo === 'sign' ? { attests: true } : { fileUrl: fileUrl[r.id] ?? '' }")
+    // A file she picked goes as the file; a link goes as a link; a
+    // signature is her word. The body says which.
+    expect(work).toContain("form.append('file', file)")
+    expect(work).toContain("{ attests: true }")
+    expect(work).toContain("{ fileUrl: fileUrl[r.id] ?? '', fileName: file?.name ?? undefined }")
     expect(work).toContain('Sign as myself')
   })
   it('a candidate is asked by email; somebody with a seat, in the app', () => {
