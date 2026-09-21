@@ -97,24 +97,28 @@ def slash(cx, cy, length, w, c, ang=SLASH_ANGLE):
     dx, dy = math.cos(a)*length/2.0, math.sin(a)*length/2.0
     return poly([(cx - dx, cy - dy), (cx + dx, cy + dy)], w, c)
 
-def tee(x, baseline, L, ink, cross):
+def tee(cx, cy, s, c, cross=None):
     """
-    A lowercase 't' with no crossbar of its own, plus the rising slash that
-    replaces it. Proportions measured off Inter 700 at -0.04em tracking:
-    stem 0.085-0.225 em from the glyph's left edge, crossbar band
-    0.470-0.555 em above the baseline, foot turning right at 0.075 em.
+    The mark's letterform, ported unit for unit from EtymeMark in
+    src/components/logo.tsx, which draws it in a 40-unit box:
+
+        stem      rect x=18 y=8  w=4  h=24 rx=2
+        crossbar  rect x=11 y=17 w=18 h=4  rx=2, rotate(-25 20 19)
+
+    Two straight bars with rounded ends. There is no foot and no curve —
+    an earlier version of this file invented one, which is why the mark
+    read as a hooked stick rather than a 't'.
     """
-    sx = x + L*0.155                       # stem centre
-    return (pill(sx - L*0.070, baseline - L*0.675, L*0.140, L*0.660, ink) +
-            poly([(sx, baseline - L*0.058), (sx + L*0.095, baseline - L*0.018)],
-                 L*0.118, ink) +
-            slash(sx + L*0.030, baseline - L*0.512, L*0.46, L*0.100, cross))
+    u = s/40.0
+    cross = cross if cross is not None else c
+    return (rect(cx - 2*u, cy - 12*u, 4*u, 24*u, c, 2*u) +
+            f'<rect x="{f(cx - 9*u)}" y="{f(cy - 3*u)}" width="{f(18*u)}" '
+            f'height="{f(4*u)}" rx="{f(2*u)}" fill="{cross}" '
+            f'transform="rotate(-25 {f(cx)} {f(cy - u)})"/>')
 
 def tmark(cx, cy, s, ink, field):
-    """The standalone mark: that 't' knocked out of a disc."""
-    L = s*0.66
-    return (dot(cx, cy, s/2.0, ink) +
-            tee(cx - L*0.175, cy + L*0.338, L, field, field))
+    """The mark: that letterform knocked out of the navy disc."""
+    return dot(cx, cy, s/2.0, ink) + tee(cx, cy, s, field)
 
 # --------------------------------------------------------------------------
 # PRODUCT MOTIFS - the shapes the software actually makes
@@ -300,7 +304,7 @@ def wordmark(x, baseline, size, ink, field, anchor="start"):
     return (text("etyme", x0, baseline, S, ink, SANS, "start", -0.04, "700") +
             rect(tx, baseline - 0.575*S, 0.090*S, 0.118*S, field) +
             rect(tx + 0.221*S, baseline - 0.575*S, 0.140*S, 0.118*S, field) +
-            slash(tx + 0.178*S, baseline - 0.512*S, 0.44*S, max(2.5, 0.090*S), ink))
+            slash(tx + 0.208*S, baseline - 0.512*S, 0.46*S, max(2.5, 0.080*S), ink))
 
 def lockup(x, baseline, size, ink, field, anchor="start"):
     """Mark plus wordmark."""
