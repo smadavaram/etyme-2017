@@ -62,6 +62,7 @@ import { day, type Audience } from '@/lib/notify/letters'
 import { hasPermission, type Permission } from '@/lib/permissions'
 import { mayNameSubVendors, nameForClient, type ChainRung, type SeenName } from '@/lib/chain-names'
 import { documentsToChase, type DocumentWatch, type LapsingDocument } from '@/lib/document-request'
+import { baseUrl } from '@/lib/signed-link'
 import { contractClearance, lineExtras } from '@/lib/contract-clearance'
 import type { OwedBy } from '@/lib/document-requirements'
 
@@ -305,6 +306,36 @@ export function article(label: string): string {
   return vowel ? 'an' : 'a'
 }
 
+/**
+ * The worker's own paperwork page, as an address rather than the name
+ * of a screen.
+ *
+ * Three of these letters ended by naming a Paperwork page for a week
+ * before the page existed, and a chase that names a screen a reader
+ * cannot find is a chase nobody can act on. It exists now, so the
+ * letter carries the link.
+ *
+ * **"your own"**, deliberately. A one-person corporation's owner reads
+ * her firm's menu as well as her own, and her firm already has a
+ * Paperwork page under Governance — the certificates and agreements the
+ * company owes. She is the person *and* the firm, so naming the page
+ * without the word "own" would point a solo contractor at the wrong one
+ * of her own two pages. Every worker reads the same sentence, because a
+ * letter that reads differently depending on how somebody is
+ * incorporated is a letter that has to know how, and this one does not.
+ *
+ * Where nothing says where this deployment lives the words stand alone
+ * and no link is offered, which is the rule `choicesBlock` already
+ * keeps: a message with a link that goes nowhere is worse than one with
+ * no link at all.
+ */
+export const WORKER_PAPERWORK_PATH = '/dashboard/my-work/paperwork'
+
+export function ownPaperworkPage(base: string = baseUrl()): string {
+  const page = 'your own paperwork page'
+  return base ? `${page}: ${base}${WORKER_PAPERWORK_PATH}` : page
+}
+
 /** "the person this line is about" — never an invented name. */
 const NO_PERSON = 'the person this line is about'
 /** "the firm that owes it" — never an invented name. */
@@ -346,7 +377,7 @@ export function chaseLetter(d: OwedDocument, cast: Cast): { title: string; body:
           (d.stopsWork
             ? `Nobody can be on site without it. `
             : `${WARNS} `) +
-          `Upload it from your Paperwork page.`,
+          `Upload it from ${ownPaperworkPage()}.`,
       }
     }
     if (d.lapsed) {
@@ -357,7 +388,7 @@ export function chaseLetter(d: OwedDocument, cast: Cast): { title: string; body:
           (d.stopsWork
             ? `You cannot be on site ${site ? `at ${site} ` : ''}until a current one is on file. `
             : `${WARNS} `) +
-          `Upload the renewal from your Paperwork page.`,
+          `Upload the renewal from ${ownPaperworkPage()}.`,
       }
     }
     return {
@@ -367,7 +398,7 @@ export function chaseLetter(d: OwedDocument, cast: Cast): { title: string; body:
         (d.stopsWork
           ? `${site ?? 'Nobody'} cannot keep you on site past that day without a current one. `
           : `${WARNS} `) +
-        `Upload the renewal from your Paperwork page.`,
+        `Upload the renewal from ${ownPaperworkPage()}.`,
     }
   }
 

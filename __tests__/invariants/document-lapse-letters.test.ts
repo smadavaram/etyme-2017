@@ -11,9 +11,13 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { existsSync } from 'fs'
+import { join } from 'path'
 import {
   chaseLetter,
   noticeLetter,
+  ownPaperworkPage,
+  WORKER_PAPERWORK_PATH,
   employerLetter,
   oneLetterPerPartyPerFact,
   lettersFor,
@@ -108,7 +112,7 @@ describe('a document running out is told to every party it costs, and to nobody 
     const told = letters.find((l) => l.side === 'EXPOSED')!
 
     expect(ask.body).toContain('Your nursing license')
-    expect(ask.body).toContain('Upload the renewal from your Paperwork page')
+    expect(ask.body).toContain('Upload the renewal from your own paperwork page')
     // The party that owes it is never told to go and ask somebody else.
     expect(ask.body).not.toContain('Ask ')
 
@@ -116,7 +120,7 @@ describe('a document running out is told to every party it costs, and to nobody 
     expect(told.body).toContain('Ask Byrne Critical Care for it')
     // And the firm that is not the one that owes it is never handed the
     // worker's own upload page, which it cannot use.
-    expect(told.body).not.toContain('your Paperwork page')
+    expect(told.body).not.toContain('your own paperwork page')
   })
 
   it('a worker reads their own license by name and where to upload the renewal', () => {
@@ -124,7 +128,7 @@ describe('a document running out is told to every party it costs, and to nobody 
     expect(letter.title).toBe('Your nursing license runs out on October 3, 2026')
     expect(letter.body).toBe(
       'Your nursing license runs out on October 3, 2026. Cavanaugh Glassworks cannot keep you on site ' +
-        'past that day without a current one. Upload the renewal from your Paperwork page.'
+        'past that day without a current one. Upload the renewal from your own paperwork page.'
     )
   })
 
@@ -449,6 +453,30 @@ describe('a document running out is told to every party it costs, and to nobody 
     expect(told.body).not.toContain('Byrne Critical Care')
     expect(told.body).toContain('Computer Systems Inc')
     expect(readsAsAimedAtSuppliers(`${told.title}. ${told.body}`)).toEqual([])
+  })
+
+
+  it('the page a chase letter names is a page she can open, and it is hers rather than her firm\u2019s', () => {
+    // The page supply built, by the path the letter points at. A chase
+    // that names a screen nobody can find is a chase nobody can act on,
+    // and these letters named one for a week before it existed.
+    expect(existsSync(join(process.cwd(), 'src/app', `${WORKER_PAPERWORK_PATH}/page.tsx`))).toBe(true)
+
+    // Her own, not her firm's. A one-person corporation's owner reads
+    // her company's Paperwork page under Governance as well as this
+    // one, and she is the person and the firm both.
+    const linked = ownPaperworkPage('https://etyme.example')
+    expect(linked).toBe(`your own paperwork page: https://etyme.example${WORKER_PAPERWORK_PATH}`)
+    expect(linked).toContain('my-work')
+
+    for (const d of [doc(), doc({ lapsed: true, daysLeft: -2, expiresAt: SEP_30 }), doc({ neverFiled: true, expiresAt: null, daysLeft: null })]) {
+      expect(chaseLetter(d, cast())!.body).toContain('your own paperwork page')
+    }
+
+    // Nothing says where this deployment lives: the words stand and no
+    // link is offered, because a link that goes nowhere is worse than
+    // none at all.
+    expect(ownPaperworkPage('')).toBe('your own paperwork page')
   })
 
   it('a document that is not inside the window is told to nobody at all', () => {

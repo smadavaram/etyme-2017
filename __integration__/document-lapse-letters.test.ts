@@ -126,7 +126,7 @@ describe('when a document a line depends on runs out, every party it costs is to
     for (const c of chases.filter((l) => l.data.owedBy === 'WORKER')) {
       expect(c.audience).toBe('candidate')
       expect(c.channel).toBe('EMAIL')
-      expect(c.body).toContain('your Paperwork page')
+      expect(c.body).toContain('your own paperwork page')
     }
     for (const n of notices) {
       expect(n.audience).toBe('business')
