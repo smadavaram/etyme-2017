@@ -23,6 +23,8 @@
  * Deriving instead of duplicating means the two can never disagree.
  */
 
+import { hasPermission } from '@/lib/permissions'
+
 export type Relationship = 'CLIENT' | 'SUPPLIER' | 'PRIME' | 'MSP'
 export type Status = 'PROSPECT' | 'ACTIVE' | 'DORMANT' | 'BLOCKED'
 
@@ -236,7 +238,10 @@ export function mayAddCompany(ask: AddAsk): AddVerdict {
     }
   }
 
-  if (!ask.permissions.includes('*') && !ask.permissions.includes('vendors.manage')) {
+  // `hasPermission`, not a raw includes: an owner holds everything as
+  // the single wildcard `*` and never as a list, so comparing strings
+  // here would refuse exactly the people who can do the most.
+  if (!hasPermission(ask.permissions, 'vendors.manage')) {
     return {
       ok: false,
       ownsIt: false,

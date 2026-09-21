@@ -328,7 +328,7 @@ const VENDOR_NAV: NavSection[] = [
       // Rate progression is how trust is carried where markup is not
       // disclosed (Addendum D), so it reads as analysis rather than as
       // an audit trail, and sits with the rest of the analysis.
-      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻' },
+      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', needs: ['rates.read'] },
       // A scorecard the supplier cannot see is a blacklist with better
       // manners. It decides who gets the next role, so it is not a
       // secret from the firm it is about.
@@ -383,7 +383,7 @@ const GSI_NAV: NavSection[] = [
     items: [
       { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
-      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻' },
+      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', needs: ['rates.read'] },
       { label: 'Your scorecard', href: '/dashboard/my-standing', icon: '◈' },
     ],
   },
@@ -450,7 +450,7 @@ const MSP_NAV: NavSection[] = [
     items: [
       { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
-      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻' },
+      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', needs: ['rates.read'] },
     ],
   },
   governanceSection(),
