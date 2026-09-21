@@ -708,6 +708,10 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
       // page existed for a week with nothing anywhere pointing at it,
       // which is a right nobody can find.
       '/dashboard/my-data',
+      // And what is still being asked of him. Every chase letter names
+      // this page; until it was on a menu the letter was the only way
+      // back to it.
+      '/dashboard/my-work/paperwork',
     ])
   })
 

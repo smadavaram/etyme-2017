@@ -137,12 +137,60 @@ const NO_CHAIN_ABOVE =
   'so the supplier cannot be named without guessing.'
 const NO_CHAIN_PHRASE = 'the firm below one of your suppliers'
 
+const NO_CHAIN_BELOW_PHRASE = 'the firm above one of your customers'
+const NO_CHAIN_BELOW =
+  'Sold through another firm on this deal — the rung below this one is not on file, ' +
+  'so the customer cannot be named without guessing.'
+
 /**
- * What a client may read for one rung of one person's chain.
+ * Whether one rung sits above another in the same person's chain.
+ *
+ * Walked rather than assumed, through the same `parentOf` the downward
+ * read uses, so a chain with a hole in it answers "no" instead of
+ * guessing — and a reader who cannot be shown to sit below a firm is
+ * never told it is above them.
+ */
+function isAbove<T extends ChainRung>(target: T, from: T, all: T[]): boolean {
+  const seen = new Set<string>([from.id])
+  let current: T | null = from
+  while (current) {
+    const parent: T | null = parentOf(current, all)
+    if (!parent || seen.has(parent.id)) return false
+    if (parent.id === target.id) return true
+    seen.add(parent.id)
+    current = parent
+  }
+  return false
+}
+
+/**
+ * What one firm may read for one rung of one person's chain.
+ *
+ * ── Both directions, corrected 2026-09-21 ────────────────────────────
+ *
+ * This was written for a client reading downwards and was being asked
+ * to answer upwards as well, which it did by falling off the end of the
+ * upward walk: six of one night's letters, about a document a CUSTOMER
+ * owes, told a sub-vendor the paper was owed by *"the firm below one of
+ * your suppliers"* — a firm that is above the reader, not below it. No
+ * name leaked and the wall held; the sentence described the wrong
+ * geometry, which is its own kind of wrong answer.
+ *
+ * The rule is one sentence and it points both ways: **a firm is told the
+ * counterparty above it by name, and never a rung beyond it.** The firm
+ * you sell to is your own counterparty — you invoice it, you chase it,
+ * you signed something with it — and withholding its name would withhold
+ * a fact the reader already has on paper. What is not yours is the rung
+ * beyond your counterparty: who your customer sells to is your
+ * customer's business, exactly as who your supplier buys from is your
+ * supplier's. The same wall, read from the other side.
  *
  * `mayName` is asked about the prime, never about the sub: the term lives
  * on the client's agreement with the firm it pays, and a sub the client
- * has no paper with cannot consent to its own disclosure.
+ * has no paper with cannot consent to its own disclosure. It is asked on
+ * the downward read only — a disclosure term is a buyer's to demand of
+ * its supplier, and nothing in it says a supplier may read past its own
+ * customer.
  */
 export function nameForClient<T extends ChainRung>(
   rung: T,
@@ -159,9 +207,45 @@ export function nameForClient<T extends ChainRung>(
     says: rung.companyName,
   }
 
-  // The rung the client pays. Its name is the client's own counterparty
+  // The reader's own rung. A firm reading its own name off a chain is
+  // not a disclosure, and the answer here used to fall all the way
+  // through the upward walk and come back as "the firm below one of your
+  // suppliers" — the reader, described as a stranger beneath itself.
+  if (rung.companyId === clientCompanyId) return own
+
+  // The rung the reader pays. Its name is the reader's own counterparty
   // and was never anybody's to withhold.
   if (rung.clientCompanyId === clientCompanyId) return own
+
+  // The rung the reader SELLS to, which is the same fact facing the
+  // other way: this firm is the reader's customer, it is on the reader's
+  // own invoices, and reading its name off a chain gives away nothing it
+  // did not already have.
+  if (all.some((r) => r.personId === rung.personId && r.companyId === clientCompanyId && r.clientCompanyId === rung.companyId)) {
+    return own
+  }
+
+  // Above the reader's own customer, then: the reader's work reaches this
+  // firm through the customer it sells to, and who that customer sells
+  // to onward is the customer's business. Named the way the downward
+  // answer names a supplier — the counterparty, and a direction.
+  const mine = all.find((r) => r.personId === rung.personId && r.companyId === clientCompanyId)
+  if (mine && isAbove(rung, mine, all)) {
+    const customer = parentOf(mine, all)
+    const through = customer?.companyName ?? null
+    if (!through) {
+      return { ...own, name: NO_CHAIN_BELOW, masked: true, through: null, phrase: NO_CHAIN_BELOW_PHRASE, says: NO_CHAIN_BELOW }
+    }
+    const withheld = `Sold through ${through}.`
+    return {
+      companyId: rung.companyId,
+      name: withheld,
+      masked: true,
+      through,
+      phrase: `the firm above ${through}`,
+      says: withheld,
+    }
+  }
 
   // Walk up to the rung the client pays, so the sentence names the firm
   // the client can actually call about this person. A three-deep chain

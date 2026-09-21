@@ -980,7 +980,51 @@ export function backingFinding(
   }
 }
 
-/** Labels for the built-in keys, so a refusal reads in words. */
+/**
+ * The key as the words inside it, for a type nobody has defined.
+ *
+ * It invents no definition. FURNACE_SAFETY_INDUCTION becomes "furnace
+ * safety induction", which is what the person who typed the key meant,
+ * and a caller that needs to say nobody has defined the type asks
+ * `knowsType` rather than comparing the label to the key.
+ */
+export function humanKey(key: string): string {
+  const words = key.trim().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').toLowerCase()
+  return words || key
+}
+
+/** True where the dictionary — the company's own, or ours — names it. */
+export function knowsType(key: string, defined: DefinedType[] = []): boolean {
+  return typeByKey(key, defined) != null
+}
+
+/**
+ * What to call a document type on a screen.
+ *
+ * The dictionary first — the company's own over the shipped defaults —
+ * and the humanized key where neither knows it. A client that put
+ * FURNACE_SAFETY_INDUCTION on its own order used to read exactly that
+ * back, in capitals with underscores, on the confirmation, on the
+ * placement checklist and inside a refusal a hiring manager was meant to
+ * act on. CLAUDE.md: the code is for the machine; the sentence is the
+ * product.
+ *
+ * The fallback lives here rather than at the call sites because there
+ * were two of them within a day of the first, and two copies of a
+ * formatting rule is one that will drift.
+ */
 export function labelFor(key: string, defined: DefinedType[] = []): string {
-  return typeByKey(key, defined)?.label ?? key
+  return typeByKey(key, defined)?.label ?? humanKey(key)
+}
+
+/**
+ * The label and whether anybody has actually defined the type.
+ *
+ * One door, so a caller does not have to know that an undefined type is
+ * detected by the label coming back equal to the key — which stopped
+ * being true the moment the fallback above landed.
+ */
+export function sayType(key: string, defined: DefinedType[] = []): { label: string; known: boolean } {
+  const known = knowsType(key, defined)
+  return { label: known ? labelFor(key, defined) : humanKey(key), known }
 }

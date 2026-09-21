@@ -514,7 +514,13 @@ const SOLO_NAV: NavSection[] = [
       // Her own standing as a supplier: insurance, license, the
       // certificate somebody will ask for before she starts.
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
-      { label: 'Paperwork', href: '/dashboard/documents', icon: '▪' },
+      // "Company paperwork" on this menu alone, because on this menu
+      // alone the firm and the person are the same human. Every other
+      // party reads "Paperwork" under a heading that already says whose
+      // it is; a one-person corporation reading "Paperwork" beside
+      // "Your paperwork" is being asked to guess which of her two hats
+      // a link belongs to.
+      { label: 'Company paperwork', href: '/dashboard/documents', icon: '▪' },
       // Filtered out of here and shown under "You" for a reader who is
       // also a worker, which she always is. See getNavForKind.
       { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' },
@@ -562,6 +568,18 @@ const YOURS: NavItem[] = [
   // it on purpose: the route behind it asks for none, because it
   // answers this person about this person.
   { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' },
+  // What is still being asked of her, with the day each runs out. Every
+  // chase letter names this page and until now the only way to it was
+  // the letter itself, which makes a reminder a dead end for anybody
+  // who read it on Tuesday and came looking on Thursday. No permission
+  // beside it, for the same reason as "Your data": /api/me/papers asks
+  // for nothing except being the person it is about.
+  //
+  // "Your paperwork", never "Paperwork" — a firm's own documents live
+  // under Compliance or Governance and a reader who is both a worker
+  // and staff at a firm sees both menus at once. Two entries reading
+  // the same word is the bug the nav table exists to catch.
+  { label: 'Your paperwork', href: '/dashboard/my-work/paperwork', icon: '▫' },
 ]
 
 const CONSULTANT_NAV: NavSection[] = [

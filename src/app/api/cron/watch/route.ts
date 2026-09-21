@@ -512,11 +512,88 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
 }
 
 /**
+ * The rungs a standing fact is worth saying at.
+ *
+ * Descending, and a finding is said once at the first rung it is inside.
+ * A certificate expiring in twenty-five days is said at thirty and not
+ * again until fourteen, so the desk hears four times over a month rather
+ * than thirty.
+ */
+const RUNGS = [30, 14, 7, 3, 1, 0]
+
+/**
+ * Which rung this finding is at, or null where it has no clock.
+ *
+ * Three answers, and the third is the one that decides the cadence of
+ * everything already broken:
+ *
+ *   ONCE       the fact has no date — a link nobody used, a credential
+ *              with no expiry recorded. It is said once and then it is
+ *              said; saying it again tells nobody anything new.
+ *   IN_n       it bites in n days or fewer. One letter per rung.
+ *   OVERDUE_w  it already bit, w weeks ago. Once a week while it stays
+ *              broken, because a blocking fact nobody has fixed does
+ *              deserve a nudge — and nightly is not a nudge, it is the
+ *              thing people build a mail rule to ignore.
+ */
+function milestoneOf(daysUntil: number | null): string {
+  if (daysUntil == null) return 'ONCE'
+  if (daysUntil < 0) return `OVERDUE_${Math.floor(-daysUntil / 7)}`
+  return `IN_${RUNGS.find((r) => daysUntil <= r) ?? RUNGS[0]}`
+}
+
+/** One fact, one reader, one rung. The same shape the lapse letters use. */
+function saidKeyFor(f: Finding, personId: string): string {
+  return `${f.kind}:${f.subjectId}:${milestoneOf(f.daysUntil)}:${personId}`
+}
+
+/**
+ * What has already been said to these people about these subjects.
+ *
+ * Read off the notifications themselves rather than a table of its own,
+ * exactly as `lib/notify/documents` does: the record that somebody was
+ * told is the thing that was sent to them, and a second table would be a
+ * second thing to keep in step.
+ */
+async function alreadySaid(subjectIds: string[]): Promise<Set<string>> {
+  if (subjectIds.length === 0) return new Set()
+  const rows = await prisma.notification.findMany({
+    where: { type: 'SYSTEM', entityId: { in: [...new Set(subjectIds)] } },
+    select: { data: true },
+  })
+  const out = new Set<string>()
+  for (const r of rows) {
+    const d = r.data as { saidKey?: string; alsoSaid?: unknown } | null
+    if (typeof d?.saidKey === 'string') out.add(d.saidKey)
+    // The keys of the findings this one letter stood in for, so a fact
+    // folded into somebody else's "Also:" line is not sent on its own
+    // tomorrow.
+    if (Array.isArray(d?.alsoSaid)) for (const k of d.alsoSaid) if (typeof k === 'string') out.add(k)
+  }
+  return out
+}
+
+/**
  * Tell the people who can act.
  *
  * Not everybody — a compliance warning sent to a recruiter is noise, and
  * noise is how a system trains people to ignore it. Each kind of finding
  * goes to whoever holds the permission that lets them do something.
+ *
+ * ── Once per rung, not once per night ────────────────────────────────
+ *
+ * Corrected 2026-09-21, after the release walk found this job writing
+ * the same two rows every run forever. A certificate that expired in
+ * March told the same compliance officer the same sentence every night
+ * since, which is the failure CLAUDE.md names: a warning that always
+ * fires is a click, not a warning. The lapse letters beside this were
+ * fixed the same day and this is the same treatment, deliberately in
+ * the same shape — a key per fact per reader per rung, read back off
+ * the notifications that carry it.
+ *
+ * A **new** finding still goes out the night it appears, even where the
+ * reader was told about something else yesterday: the keys are per fact,
+ * so nothing is suppressed for having a noisy neighbour.
  */
 async function tell(findings: Finding[], now: Date): Promise<number> {
   const NEEDS: Record<string, string> = {
@@ -550,6 +627,7 @@ async function tell(findings: Finding[], now: Date): Promise<number> {
   }
 
   const notifications: NotifyParams[] = []
+  const said = await alreadySaid(findings.map((f) => f.subjectId))
 
   for (const [companyId, theirs] of byCompany) {
     const people = await prisma.context.findMany({
@@ -559,13 +637,20 @@ async function tell(findings: Finding[], now: Date): Promise<number> {
 
     for (const person of people) {
       const perms = person.role?.permissions ?? []
-      const mine = theirs.filter((f) => {
+      const theirsToAct = theirs.filter((f) => {
         const needed = NEEDS[f.kind]
         return needed ? hasPermission(perms, needed as any) : false
       })
+      // Everything at a rung this person has already been told about
+      // drops out here. What is left is either new or has moved a rung
+      // closer since the last time anybody said anything.
+      const mine = theirsToAct.filter((f) => !said.has(saidKeyFor(f, person.personId)))
       if (mine.length === 0) continue
 
       const worst = mine[0]
+      const keys = mine.map((f) => saidKeyFor(f, person.personId))
+      for (const k of keys) said.add(k)
+
       notifications.push({
         personId: person.personId,
         companyId,
@@ -578,7 +663,16 @@ async function tell(findings: Finding[], now: Date): Promise<number> {
         entityId: worst.subjectId,
         // Something already stopping work is worth leaving the app for.
         channel: worst.urgency === 'BLOCKING' ? 'EMAIL' : 'IN_APP',
-        data: { kinds: mine.map((f) => f.kind), count: mine.length },
+        data: {
+          kinds: mine.map((f) => f.kind),
+          count: mine.length,
+          saidKey: keys[0],
+          // The facts this one letter stood in for. Without them the
+          // second and third findings in the "Also:" line would each be
+          // sent on their own tomorrow, which is the same repeat wearing
+          // a different sentence.
+          alsoSaid: keys.slice(1),
+        },
       })
     }
   }

@@ -145,6 +145,85 @@ describe('whose name a client may read in a chain', () => {
   })
 })
 
+describe('reading the chain upward, from a firm that sells into it', () => {
+  /**
+   * Six of one night's letters, about a document a CUSTOMER owes, told
+   * a sub-vendor the paper was owed by "the firm below one of your
+   * suppliers" — a firm that is above the reader, not below it. No name
+   * leaked and the wall held; the geometry was backwards, which is its
+   * own kind of wrong answer.
+   */
+
+  // Northbend buys Helena from Computer Systems, who buys her from
+  // CloudEPA, who buys her from a bench firm below that.
+  const DEEP = [
+    rung('bottom', 'helena', 'bench-co', 'Bench Co', 'cloudepa'),
+    rung('sub', 'helena', 'cloudepa', 'CloudEPA', 'computer-systems'),
+    rung('top', 'helena', 'computer-systems', 'Computer Systems Inc', 'nike'),
+  ]
+
+  it('a firm is told the counterparty above it by name, and never a rung beyond it, in the same words either direction', () => {
+    // CloudEPA reading Computer Systems, the firm it sells to: its own
+    // counterparty, on its own invoices, never anybody's to withhold.
+    const customer = nameForClient(DEEP[2], DEEP, 'cloudepa', never)
+    expect(customer.name).toBe('Computer Systems Inc')
+    expect(customer.masked).toBe(false)
+
+    // And Northbend, one rung beyond it: withheld, and the sentence says
+    // which of CloudEPA's own counterparties it sits above.
+    const beyond = nameForClient(
+      rung('client', 'helena', 'nike', 'Northbend Athletic', 'nobody'),
+      [...DEEP, rung('client', 'helena', 'nike', 'Northbend Athletic', 'nobody')],
+      'cloudepa',
+      never
+    )
+    expect(beyond.name).not.toContain('Northbend')
+    expect(beyond.masked).toBe(true)
+    expect(beyond.phrase).toBe('the firm above Computer Systems Inc')
+
+    // The same shape as the downward answer, which is the point: one
+    // rule, read from either end.
+    const downward = nameForClient(DEEP[0], DEEP, 'computer-systems', never)
+    expect(downward.phrase).toBe('the firm supplied through CloudEPA')
+  })
+
+  it('nothing above a reader is ever described as below it', () => {
+    for (const r of DEEP) {
+      const seen = nameForClient(r, DEEP, 'cloudepa', never)
+      if (!seen.masked) continue
+      expect(seen.phrase, `${r.companyName} is not below CloudEPA`).not.toContain('below one of your suppliers')
+    }
+  })
+
+  it('a firm reads its own name, rather than being described as a stranger beneath itself', () => {
+    // The same fall-through as the letters: CloudEPA asking about
+    // CloudEPA walked off the end of the upward read and came back
+    // masked, which is how a firm was told to ask itself for its own
+    // consultant's paper.
+    const self = nameForClient(DEEP[1], DEEP, 'cloudepa', never)
+    expect(self.name).toBe('CloudEPA')
+    expect(self.masked).toBe(false)
+  })
+
+  it('a reader with no rung of its own in this chain still reads it the old way', () => {
+    // A client reading its own book is the case this file was written
+    // for, and it is untouched: Northbend sees the firm it pays and a
+    // sentence about anything under it.
+    expect(nameForClient(DEEP[2], DEEP, 'nike', never).name).toBe('Computer Systems Inc')
+    expect(nameForClient(DEEP[1], DEEP, 'nike', never).name).toBe('Supplied through Computer Systems Inc.')
+  })
+
+  it('a chain with a hole above the reader says so rather than naming a direction it cannot prove', () => {
+    const orphan = [
+      rung('mine', 'helena', 'cloudepa', 'CloudEPA', 'somebody-not-on-file'),
+      rung('far', 'helena', 'nike', 'Northbend Athletic', 'nobody'),
+    ]
+    const seen = nameForClient(orphan[1], orphan, 'cloudepa', never)
+    expect(seen.masked).toBe(true)
+    expect(seen.name).not.toContain('Northbend')
+  })
+})
+
 describe('the firms behind one person, on one line', () => {
   /**
    * The tenure table joined a person's firms with commas and printed

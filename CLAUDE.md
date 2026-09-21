@@ -784,6 +784,16 @@ a bench, a pipeline or a recruiter's commission: a screen offering to
 add another consultant is a screen asking her about herself in the third
 person.
 
+**And her two hats are named apart on her one menu.** Every other party
+reads "Paperwork" under a heading that already says whose it is — a
+firm's own documents, under Compliance or Governance. She is the firm
+*and* the worker, so that menu says **"Company paperwork"** for the
+firm's and **"Your paperwork"** for her own, which is the rule the rest
+of the "You" section already follows: your work, your page, your data.
+Two entries reading the same word on one menu is the duplicate class the
+founder has reported three times, and a heading cannot disambiguate it
+for somebody who is both things at once.
+
 **A person who is also a worker keeps their firm's sections and gains "You"
 at the end.** Decided 2026-09-17, on the founder opening Karthik Menon's
 demo door and saying "Candidate Karthik is all buggy". He is a systems

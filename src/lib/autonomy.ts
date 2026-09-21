@@ -496,9 +496,18 @@ export const PLANNED: Record<string, PlannedAct> = {
   // conversation's next piece of work. The rungs and the sentences are
   // decided here, with the record, so neither agent invents a level on a
   // Friday afternoon.
+  //
+  // Three of the four have already left for the ladder above, which is
+  // what this list is for.
 
-
-
+  SUBMISSION_COVER_WARNED: {
+    kind: 'ENFORCEMENT',
+    outcome: 'WARN',
+    basis: 'RULE',
+    says:
+      'Somebody put a person forward through a firm whose client requires a certificate it has never filed. The submission went through, the reason was captured and whoever is hiring was told — a document nobody ever filed is a chase, not a fact, and refusing every placement recorded before a client wrote its rules down is the workaround this warns instead of causing.',
+    willBeWrittenBy: 'etyme-demand',
+  },
 }
 
 export const ALL_PLANNED: string[] = Object.keys(PLANNED).sort()
