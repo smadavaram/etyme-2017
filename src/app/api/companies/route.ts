@@ -4,8 +4,10 @@ import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { isExcludedDomain } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { defaultPostureFor, maySeeOutside } from '@/lib/walls'
+import { defaultPostureFor } from '@/lib/walls'
+import { directoryScope, directoryCopy, type Reader } from '@/lib/directory-scope'
 import { mayRegisterWithEmail, rolesFor } from '@/lib/company-defaults'
+import { mayAddCompany } from '@/lib/counterparty'
 
 /**
  * POST /api/companies
@@ -190,6 +192,27 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // ── Founding a firm, or writing down one you trade with ──────────
+  //
+  // One button, two acts, and they were the same act until the walk of
+  // 2026-09-21 found an integrator's W2 create a company from inside
+  // his employer's app and be silently re-seated into it as Owner. The
+  // rule is `mayAddCompany` in lib/counterparty; this route enforces it.
+  const { caller: seatedCaller } = await getCallerContext(request)
+  const adding = mayAddCompany({
+    seatedAt: seatedCaller?.company
+      ? { id: seatedCaller.company.id, name: seatedCaller.company.name }
+      : null,
+    permissions: seatedCaller?.permissions ?? [],
+    relationship: body?.relationship ?? null,
+  })
+  if (!adding.ok) {
+    return NextResponse.json(
+      { error: { code: 'NOT_YOURS_TO_ADD', message: adding.says } },
+      { status: 403 }
+    )
+  }
+
   const baseSlug = slugify(name)
 
   if (RESERVED_SLUGS.has(baseSlug)) {
@@ -266,15 +289,22 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // 4. Create owner Context — grants Owner role on this company
-      const context = await tx.context.create({
-        data: {
-          personId: person.id,
-          type: 'EMPLOYEE',
-          companyId: company.id,
-          roleId: ownerRole.id,
-        },
-      })
+      // 4. Owner Context — only where this is somebody registering a
+      //    firm of their own. Recording a counterparty seats nobody:
+      //    a client of ours is not a company we own, and granting the
+      //    creator `*` on it moved their whole identity off their
+      //    employer, because contexts are read most-recently-granted
+      //    first.
+      const context = adding.ownsIt
+        ? await tx.context.create({
+            data: {
+              personId: person.id,
+              type: 'EMPLOYEE',
+              companyId: company.id,
+              roleId: ownerRole.id,
+            },
+          })
+        : null
 
       // 5. The owner of a consultant corporation IS its consultant.
       //
@@ -284,7 +314,11 @@ export async function POST(request: NextRequest) {
       // consultant from a company marketing them without consent, and
       // consenting to your own one-person company is what registering it
       // means.
-      if (kind === 'CONSULTANT_CORP') {
+      // The owner of a consultant corporation IS its consultant — but
+      // only where they registered it themselves. A recruiter writing
+      // down a contractor's own limited company is not consenting to be
+      // marketed on anybody's bench.
+      if (kind === 'CONSULTANT_CORP' && adding.ownsIt) {
         const profile = await tx.consultantProfile.upsert({
           where: { personId: person.id },
           update: { ownCompanyId: company.id },
@@ -308,7 +342,9 @@ export async function POST(request: NextRequest) {
           companyId: company.id,
           action: 'COMPANY_CREATED',
           summary: `Company "${company.name}" created at ${slug}.etyme.com with ${roles.length} role${roles.length === 1 ? '' : 's'}`,
-          reason: 'User registered a new company via the onboarding flow',
+          reason: adding.ownsIt
+            ? 'User registered a new company of their own and was seated as its owner'
+            : `Recorded on ${seatedCaller?.company?.name ?? 'the caller'}'s register as a counterparty; nobody was seated there`,
           payload: {
             personId: person.id,
             email,
@@ -330,9 +366,12 @@ export async function POST(request: NextRequest) {
     // said what the new firm is to them (CLIENT, SUPPLIER, PRIME, MSP),
     // the register row is written here, in the same request, because a
     // relationship recorded later is a relationship usually not recorded.
+    // Required, not optional, where the caller is seated: `mayAddCompany`
+    // refused above without it, because a company on the register with
+    // no relationship on it is a name nothing can point at.
     const relationship = String(body?.relationship ?? '')
     if (['CLIENT', 'SUPPLIER', 'PRIME', 'MSP'].includes(relationship)) {
-      const { caller } = await getCallerContext(request)
+      const caller = seatedCaller
       const ownCompanyId = caller?.company?.id
       if (ownCompanyId && ownCompanyId !== result.company.id) {
         await prisma.counterparty.upsert({
@@ -371,12 +410,15 @@ export async function POST(request: NextRequest) {
           name: r.name,
           permissionCount: r.permissions.length,
         })),
-        context: {
-          id: result.context.id,
-          type: result.context.type,
-          role: 'Owner',
-        },
-        message: `${result.company.name} created at ${result.company.slug}.etyme.com`,
+        context: result.context
+          ? { id: result.context.id, type: result.context.type, role: 'Owner' }
+          : null,
+        // What just happened, in the words the rule used, so the screen
+        // does not have to guess whether the creator is now its owner.
+        says: adding.says,
+        message: adding.ownsIt
+          ? `${result.company.name} created at ${result.company.slug}.etyme.com`
+          : `${result.company.name} is on your register.`,
       },
     })
   } catch (err: any) {
@@ -440,21 +482,24 @@ export async function GET(request: NextRequest) {
 
   // ── List companies ──────────────────────────────────
   //
-  // This handed every authenticated caller the whole platform directory —
-  // every company, its domain, its type. Harmless-looking and not: a
-  // consultant on somebody's bench got the client list, and a walled
-  // delivery firm's engineers got the supplier list, which is precisely
-  // what the outside-access setting exists to stop.
+  // The register of who this caller trades with — never the platform.
   //
-  // Three answers now, by who is asking:
-  //
-  //   a consultant   — the benches they are on, and nothing else
-  //   a walled firm  — their own company
-  //   a vendor       — the directory, which is their market
+  // This handed every authenticated caller the whole directory: every
+  // company, its slug, its domain. The walk of 2026-09-21 read all
+  // twenty-seven to Northbend Athletic's program manager, to CloudEPA's
+  // owner two rungs down somebody else's chain, and to a one-person
+  // nursing corporation. The rule and the reasoning are in
+  // `lib/directory-scope`; what is gathered here is the evidence for it.
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const visible = await directoryScope(caller)
+  const reader = readerFor(caller)
+  const verdict = directoryScope(reader)
+
+  const visible =
+    verdict.reach === 'ALL'
+      ? undefined
+      : { id: { in: [...(await dealingsOf(caller, verdict.includesOwn))] } }
 
   const companies = await prisma.company.findMany({
     // Demo and real are separate universes.
@@ -483,6 +528,14 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: {
+      // What this list is, for the reader in front of it. The page was
+      // headed "Manage vendor, client, MSP, and GSI companies on the
+      // platform" for everybody, which is a platform administrator's
+      // sentence shown to a nurse's own corporation.
+      scope: {
+        says: verdict.says,
+        ...directoryCopy(caller.company?.kind as any ?? null),
+      },
       companies: companies.map((c) => ({
         id: c.id,
         name: c.name,
@@ -500,19 +553,36 @@ export async function GET(request: NextRequest) {
   })
 }
 
+/** Which kind of reader is asking, in `lib/directory-scope`'s words. */
+function readerFor(caller: import('@/lib/api-context').CallerContext): Reader {
+  if (caller.staff) return { as: 'STAFF' }
+  if (isConsultantSeat(caller)) return { as: 'CONSULTANT' }
+  if (!caller.company) return { as: 'NOBODY' }
+  return {
+    as: 'COMPANY',
+    kind: caller.company.kind as any,
+    isDemo: Boolean(caller.company.isDemo),
+  }
+}
+
 /**
- * Which companies this caller may see in the directory.
+ * Every company this caller has dealings with.
  *
- * A consultant sees the benches they have joined and the places they are
- * placed — the companies they already have dealings with. Not the market.
- * They are in it, they do not shop it.
+ * Six ways a relationship exists, and a name is readable if any one of
+ * them does: the caller's own register, an agreement either way, a sell
+ * contract either way, a buy contract either way, a requirement
+ * invitation either way, and a program-office desk held or granted.
  *
- * A firm whose outside access is shut sees itself. Everybody else sees the
- * directory, because for a staffing vendor that directory IS the business.
+ * A consultant is the seventh case and a different question — the
+ * benches that list them and the places they are placed — because a
+ * person has no register.
  */
-async function directoryScope(
-  caller: import('@/lib/api-context').CallerContext
-): Promise<Record<string, unknown> | undefined> {
+async function dealingsOf(
+  caller: import('@/lib/api-context').CallerContext,
+  includesOwn: boolean
+): Promise<Set<string>> {
+  const ids = new Set<string>()
+
   if (isConsultantSeat(caller)) {
     const [benches, placements] = await Promise.all([
       prisma.benchListing.findMany({
@@ -524,47 +594,61 @@ async function directoryScope(
         select: { companyId: true, clientCompanyId: true, endClientCompanyId: true },
       }),
     ])
-
-    const ids = new Set<string>()
     for (const b of benches) ids.add(b.companyId)
     for (const c of placements) {
       ids.add(c.companyId)
       ids.add(c.clientCompanyId)
       if (c.endClientCompanyId) ids.add(c.endClientCompanyId)
     }
-
-    return { id: { in: [...ids] } }
+    return ids
   }
 
-  if (!caller.company) return { id: { in: [] } }
+  const me = caller.company?.id
+  if (!me) return ids
+  if (includesOwn) ids.add(me)
 
-  // A demo sees its own sandbox and nothing else.
-  //
-  // Demo and real are separate universes — a visitor must never see a
-  // customer's name and a customer must never see a stranger's sandbox —
-  // and one visitor has no business seeing another's either. Somebody
-  // looking around should find their own company and the client they bill,
-  // not seven copies of a demo client belonging to strangers.
-  if (caller.company.isDemo) {
-    const dealings = await prisma.sellContract.findMany({
-      where: { companyId: caller.company.id },
-      select: { clientCompanyId: true, endClientCompanyId: true },
-    })
+  const [register, agreements, sells, buys, invitations, seats] = await Promise.all([
+    prisma.counterparty.findMany({
+      where: { companyId: me },
+      select: { otherCompanyId: true },
+    }),
+    prisma.masterAgreement.findMany({
+      where: { OR: [{ clientId: me }, { vendorId: me }] },
+      select: { clientId: true, vendorId: true },
+    }),
+    prisma.sellContract.findMany({
+      where: { OR: [{ companyId: me }, { clientCompanyId: me }, { endClientCompanyId: me }] },
+      select: { companyId: true, clientCompanyId: true, endClientCompanyId: true },
+    }),
+    prisma.buyContract.findMany({
+      where: { OR: [{ companyId: me }, { vendorCompanyId: me }] },
+      select: { companyId: true, vendorCompanyId: true },
+    }),
+    prisma.requirementInvitation.findMany({
+      where: { OR: [{ fromCompanyId: me }, { toCompanyId: me }] },
+      select: { fromCompanyId: true, toCompanyId: true },
+    }),
+    prisma.programSeat.findMany({
+      where: { OR: [{ officeCompanyId: me }, { clientCompanyId: me }] },
+      select: { officeCompanyId: true, clientCompanyId: true },
+    }),
+  ])
 
-    const mine = new Set<string>([caller.company.id])
-    for (const c of dealings) {
-      mine.add(c.clientCompanyId)
-      if (c.endClientCompanyId) mine.add(c.endClientCompanyId)
-    }
-
-    return { id: { in: [...mine] } }
+  for (const r of register) ids.add(r.otherCompanyId)
+  for (const a of agreements) { ids.add(a.clientId); ids.add(a.vendorId) }
+  for (const c of sells) {
+    ids.add(c.companyId)
+    ids.add(c.clientCompanyId)
+    if (c.endClientCompanyId) ids.add(c.endClientCompanyId)
   }
+  for (const c of buys) { ids.add(c.companyId); if (c.vendorCompanyId) ids.add(c.vendorCompanyId) }
+  for (const i of invitations) { ids.add(i.fromCompanyId); ids.add(i.toCompanyId) }
+  for (const s of seats) { ids.add(s.officeCompanyId); ids.add(s.clientCompanyId) }
 
-  const outside = maySeeOutside({
-    posture: caller.company.outsideAccess,
-    permissions: caller.permissions,
-  })
-
-  // A real company never sees a sandbox, however open its posture.
-  return outside.ok ? { isDemo: false } : { id: caller.company.id }
+  // A sandbox and a real book are separate universes, whatever else is
+  // true: a visitor must never read a customer's name and a customer
+  // must never read a stranger's sandbox. Dealings never cross the line
+  // today; this is the belt on top of the braces.
+  if (!includesOwn) ids.delete(me)
+  return ids
 }

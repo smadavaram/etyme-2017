@@ -97,6 +97,12 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [form, setForm] = useState({
     name: '',
     kind: 'VENDOR' as Company['kind'],
+    // What they are to us. Required: the route refuses a company with
+    // no relationship on it, because a name on the register that
+    // nothing can point at is the "logo in a list" this page used to
+    // produce — and because adding one is recording a counterparty, not
+    // founding a firm.
+    relationship: 'SUPPLIER',
     entityType: '',
     domain: '',
     slug: '',
@@ -121,6 +127,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
         body: JSON.stringify({
           name: form.name,
           kind: form.kind,
+          relationship: form.relationship,
         }),
       })
 
@@ -135,7 +142,10 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
       const body = await res.json()
       const companyName = body.data?.company?.name ?? form.name
-      onCreated(`${companyName} created successfully`)
+      // The route says what just happened — on your register, or a firm
+      // of your own with you as its owner. Two different acts, and the
+      // screen used to say "created successfully" for both.
+      onCreated(body.data?.says ? `${companyName} — ${body.data.says}` : `${companyName} added`)
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -190,6 +200,20 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <option value="MSP">MSP</option>
                 <option value="GSI">GSI</option>
                 <option value="CONSULTANT_CORP">My own consulting corporation — one person</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">What are they to you? *</label>
+              <select
+                value={form.relationship}
+                onChange={(e) => setForm({ ...form, relationship: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              >
+                <option value="SUPPLIER">A supplier — we buy from them</option>
+                <option value="CLIENT">A client — they buy from us</option>
+                <option value="PRIME">A prime — our work flows through them</option>
+                <option value="MSP">A program office — they run the program we work in</option>
               </select>
             </div>
             <div>
@@ -499,6 +523,8 @@ export default function CompaniesPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [companies, setCompanies] = useState<Company[]>([])
+  /** What this list is, in the route's own words. See lib/directory-scope. */
+  const [scope, setScope] = useState<{ says: string; title: string; subtitle: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
@@ -526,6 +552,9 @@ export default function CompaniesPage() {
 
       const body = await res.json()
       setCompanies(body.data?.companies ?? [])
+      // What this list is, said by the route that scoped it, so the
+      // heading and the rows cannot describe different things.
+      setScope(body.data?.scope ?? null)
     } catch (err: any) {
       setError(err.message)
       setCompanies([])
@@ -648,8 +677,11 @@ export default function CompaniesPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
           <p className="eyebrow">Operate</p>
-          <h1>Companies</h1>
-          <p>Manage vendor, client, MSP, and GSI companies on the platform.</p>
+          <h1>{scope?.title ?? 'Companies'}</h1>
+          {/* Not "companies on the platform". This list is the firms
+              this company trades with, and it said otherwise to a
+              one-person nursing corporation. */}
+          <p>{scope?.subtitle ?? 'The firms you have dealings with.'}</p>
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
           Add company

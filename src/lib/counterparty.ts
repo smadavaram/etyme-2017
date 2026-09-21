@@ -173,3 +173,97 @@ export function riskJudgement(level: string, reviewBy: Date | null, on: Date): R
   }
   return { ok: true, says: `${level}, to be looked at again by ${reviewBy.toISOString().slice(0, 10)}.` }
 }
+
+// ── Who may put a firm on the register, and what it makes them ────────
+
+export interface AddAsk {
+  /** Does the caller already hold a seat at a company? */
+  seatedAt: { id: string; name: string } | null
+  /** What that seat holds. Empty for somebody with no seat. */
+  permissions: readonly string[]
+  /** What the new firm is to the caller's firm, if they said. */
+  relationship?: string | null
+}
+
+export interface AddVerdict {
+  ok: boolean
+  /**
+   * Whether creating it seats the creator as its Owner.
+   *
+   * True only at the sign-up door — somebody with no seat anywhere
+   * registering their own firm. A record of a firm you trade with never
+   * makes you its owner, whatever else it does.
+   */
+  ownsIt: boolean
+  says: string
+}
+
+/**
+ * Whether this caller may create a company, and what it makes them.
+ *
+ * ── The walk that produced this ──────────────────────────────────────
+ *
+ * 2026-09-21, signed in as Karthik Menon — an integrator's own W2
+ * holding two read permissions. "Add company" worked: a real company
+ * (`isDemo: false`), with Karthik granted **Owner, permissions `*`**.
+ * Because a person's contexts are read most-recently-granted first,
+ * that seat then outranked his employer's, and every page he opened
+ * read "Walk test — functional review" instead of Teleworld Solutions.
+ * No confirmation, no refusal, no "you already work at Teleworld".
+ *
+ * Two different acts wear one button:
+ *
+ *   · **Founding a firm** — the sign-up door. Somebody with no seat
+ *     anywhere, including a consultant registering their own one-person
+ *     corporation, becomes its Owner. That is what registering means.
+ *   · **Recording a counterparty** — somebody already seated writing
+ *     down a firm they trade with, so a contract, an invitation or an
+ *     invoice has something to point at. That is the register
+ *     (`Counterparty`), it needs the permission that manages the
+ *     register, and it makes the creator nothing at all at the new firm.
+ *     A client of ours is not a company we own.
+ *
+ * The permission is `vendors.manage`, the one that already governs the
+ * supplier register, rather than a new key: who a firm trades with is
+ * one desk's job whichever direction the trade runs.
+ */
+export function mayAddCompany(ask: AddAsk): AddVerdict {
+  if (!ask.seatedAt) {
+    return {
+      ok: true,
+      ownsIt: true,
+      says: 'Registering a firm of your own makes you its owner. That is what registering means.',
+    }
+  }
+
+  if (!ask.permissions.includes('*') && !ask.permissions.includes('vendors.manage')) {
+    return {
+      ok: false,
+      ownsIt: false,
+      says:
+        `Adding a firm to ${ask.seatedAt.name}'s register is the desk that manages who you ` +
+        `trade with. Ask whoever runs your suppliers and clients to add it, or ask them for ` +
+        `that access.`,
+    }
+  }
+
+  const relationship = String(ask.relationship ?? '')
+  if (!(relationship in RELATIONSHIPS)) {
+    return {
+      ok: false,
+      ownsIt: false,
+      says:
+        `Say what this firm is to ${ask.seatedAt.name} — a client, a supplier, a prime or a ` +
+        `program office. A company on the register with no relationship on it is a name ` +
+        `nothing can point at.`,
+    }
+  }
+
+  return {
+    ok: true,
+    ownsIt: false,
+    says:
+      `Recorded on ${ask.seatedAt.name}'s register as a ${RELATIONSHIPS[relationship as Relationship].label.toLowerCase()}. ` +
+      `You are not seated there: a firm you trade with is not a firm you own.`,
+  }
+}

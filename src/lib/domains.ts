@@ -388,6 +388,10 @@ export const DOMAINS: Domain[] = [
       // compliance, money and demand all read the same answer, and because
       // it is the schema's vocabulary made extensible.
       'lib/document-type', 'app/api/document-types', 'app/dashboard/settings/documents',
+      // Whose names a company may read in the directory, and who may put
+      // a firm on the register at all. Company identity, and the one
+      // page where a leak is a lead list.
+      'lib/directory-scope',
       'lib/contacts', 'lib/counterparty', 'lib/party-onboarding', 'lib/reconciliation',
       'app/dashboard/onboarding', 'app/dashboard/integrations',
       'app/api/contacts', 'app/api/counterparties', 'app/dashboard/contacts',
