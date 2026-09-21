@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   byCalendar,
+  lapseNotices,
   milestoneNow,
   milestoneSays,
   renewedExpiry,
+  saidKeyFor,
 } from '@/lib/agreement-term'
 import { reportError } from '@/lib/alerts'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
-import { hasPermission } from '@/lib/permissions'
 
 /**
  * GET /api/cron/agreement-terms
@@ -63,6 +64,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         vendorId: true,
+        clientId: true,
         status: true,
         effectiveDate: true,
         expiresAt: true,
@@ -144,65 +146,37 @@ export async function GET(request: NextRequest) {
     })
     const alreadySaid = new Set(
       said
-        .map((n) => n.data as { agreementId?: string; milestone?: number } | null)
-        .filter((d): d is { agreementId: string; milestone: number } =>
+        .map((n) => n.data as { agreementId?: string; milestone?: number; side?: string } | null)
+        .filter((d): d is { agreementId: string; milestone: number; side?: string } =>
           Boolean(d?.agreementId && typeof d?.milestone === 'number')
         )
-        .map((d) => `${d.agreementId}:${d.milestone}`)
+        // The supplier's key is the one this watch has always written, so
+        // nothing already told is told again the night the client side ships.
+        .map((d) => saidKeyFor(d.agreementId, d.milestone, d.side === 'CLIENT' ? 'CLIENT' : 'VENDOR'))
     )
-
-    // The contracting desk at each vendor, resolved once per company
-    // rather than once per agreement.
-    const deskByCompany = new Map<string, string[]>()
-    async function deskAt(companyId: string): Promise<string[]> {
-      const cached = deskByCompany.get(companyId)
-      if (cached) return cached
-      const seats = await prisma.context.findMany({
-        where: { companyId, revokedAt: null },
-        select: { personId: true, role: { select: { permissions: true } } },
-      })
-      // Through `hasPermission`, never a raw includes: an owner's role is
-      // stored as the wildcard `*`, and a direct string comparison would
-      // quietly tell nobody at all at every firm run by its founder.
-      const desk = seats
-        .filter((s) => {
-          const perms = (s.role?.permissions ?? []) as string[]
-          return hasPermission(perms, 'rates.write') || hasPermission(perms, 'settings.manage')
-        })
-        .map((s) => s.personId)
-      const unique = [...new Set(desk)]
-      deskByCompany.set(companyId, unique)
-      return unique
-    }
 
     for (const a of agreements) {
       const milestone = milestoneNow(a, now)
       if (milestone == null) continue
-      if (alreadySaid.has(`${a.id}:${milestone}`)) continue
 
       const line = milestoneSays(a.client.name, a, now)
       if (!line) continue
 
-      const desk = await deskAt(a.vendorId)
-      if (desk.length === 0) continue
-
-      // Awaited, unlike most callers of notify. This job's entire output
+      // Both signers hear, each in its own words: the supplier reads a
+      // renewal to start, the client reads how many people are on its
+      // sites under the paper that is running out. `lapseNotices` resolves
+      // each firm's desk by what it may do, skips a side already told this
+      // milestone, and never lets a sub-vendor's name reach a client.
+      // Awaited, unlike most callers of notify: this job's entire output
       // is that somebody was told, and the count in the response would be
       // a claim rather than a fact if the writes were still in flight.
-      for (const personId of desk) {
-        await notify({
-          personId,
-          companyId: a.vendorId,
-          type: 'CONTRACT',
-          title: line.title,
-          body: line.body,
-          entityId: a.id,
-          channel: 'EMAIL',
-          data: { agreementId: a.id, milestone, counterparty: a.client.name },
-        })
+      const notices = await lapseNotices(prisma, a, now, alreadySaid)
+      if (notices.length === 0) continue
+      for (const n of notices) {
+        await notify(n)
+        alreadySaid.add(n.saidKey)
       }
 
-      alreadySaid.add(`${a.id}:${milestone}`)
       told.push({ agreementId: a.id, counterparty: a.client.name, milestone })
     }
 
