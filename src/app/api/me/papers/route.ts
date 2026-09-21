@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { myPapers, type AskedPacket, type SentDocument } from '@/lib/document-request'
+import { myPapers, type AskedPacket, type HeldRecord, type SentDocument } from '@/lib/document-request'
+import { labelFor, typeByKey } from '@/lib/document-type'
 
 /**
  * GET /api/me/papers — the documents asked of me, by whom, and what each needs.
@@ -13,7 +14,7 @@ import { myPapers, type AskedPacket, type SentDocument } from '@/lib/document-re
  * with /api/documents/:id/upload and /sign; a packet is answered at the
  * link it came with.
  *
- * ── Two tables, because two things ask ──
+ * ── Three tables, because two things ask and one thing already holds ──
  *
  * This read `DocInstance` only, and the nightly license chase raises a
  * `DocumentPacket` against the person — so an ICU nurse asked by email
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   const me = caller.person.id
 
-  const [instances, packets] = await Promise.all([
+  const [instances, packets, held] = await Promise.all([
     prisma.docInstance.findMany({
       where: {
         OR: [
@@ -56,6 +57,23 @@ export async function GET(request: NextRequest) {
         items: true,
       },
       orderBy: { createdAt: 'desc' },
+    }),
+    // ── What is already on file about them ──
+    //
+    // The same per-person query the client's compliance desk runs, read
+    // from the other end. Until today a worker could see what somebody
+    // had asked her for and never what she already held, so the day her
+    // license runs out — the one fact about her own file she cannot get
+    // anywhere else, and the one she is the only person who can fix —
+    // was on a screen at the agency and on no screen of hers. The chase
+    // does not fire until sixty days out; she can see it now.
+    prisma.verification.findMany({
+      where: { personId: me },
+      select: {
+        id: true, type: true, status: true, provider: true,
+        issuedAt: true, validFrom: true, expiresAt: true,
+      },
+      orderBy: { type: 'asc' },
     }),
   ])
 
@@ -92,7 +110,29 @@ export async function GET(request: NextRequest) {
     })),
   }))
 
+  // The type dictionary decides what a row is called and whether a lapse
+  // stops the work — the same door clearance reads, so the worker's page
+  // and the refusal at activation cannot name the same document two
+  // different things.
+  const onFile: HeldRecord[] = held.map((v) => ({
+    id: v.id,
+    key: v.type,
+    label: labelFor(v.type),
+    status: v.status,
+    provider: v.provider,
+    validFrom: v.validFrom ?? v.issuedAt,
+    expiresAt: v.expiresAt,
+    stopsWork: typeByKey(v.type)?.blocks ?? false,
+  }))
+
   return NextResponse.json({
-    data: { papers: myPapers({ myEmail: caller.person.primaryEmail ?? null, documents, packets: asked }) },
+    data: {
+      papers: myPapers({
+        myEmail: caller.person.primaryEmail ?? null,
+        documents,
+        packets: asked,
+        held: onFile,
+      }),
+    },
   })
 }
