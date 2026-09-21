@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { resetDatabase, prisma, as, req, json } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { contractClearance, lineExtras } from '@/lib/contract-clearance'
-import { lookAtDocInstances, checksToRedo } from '@/lib/document-request'
+import { lookAtDocInstances, checksToRedo, documentFindings } from '@/lib/document-request'
 import { GET as compliance } from '@/app/api/compliance/route'
 import { GET as myPapersRoute } from '@/app/api/me/papers/route'
 import { POST as setRequirement, GET as readRequirements } from '@/app/api/documents/requirements/route'
@@ -357,6 +357,14 @@ describe('the loop of documents, between the parties', () => {
     // day two domains are deciding who hears what.
     const letters = await prisma.notification.count({ where: { createdAt: { gte: before } } })
     expect(letters, 'the watch tells nobody — it answers').toBe(0)
+
+    // And the nightly watcher reads it in the shape it already reads six
+    // others in, so wiring it is one line rather than a second pipeline.
+    const findings = await documentFindings(new Date())
+    const mine = findings.find((f) => f.subjectId === found!.id)
+    expect(mine, 'the firm holding the line hears about it').toBeTruthy()
+    expect(mine!.action).toBe('NOTIFY_ONLY')
+    expect(mine!.companyId).toBe(line.companyId)
   })
 
   it('a background check that ages out on somebody still on site is chased rather than quietly going green', async () => {

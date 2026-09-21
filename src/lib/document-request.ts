@@ -549,6 +549,15 @@ export interface LapsingDocument {
   personId: string | null
   /** The firm the document is about, where it is about one. */
   companyId: string | null
+  /**
+   * The firm that should hear about it: whoever holds the line.
+   *
+   * Not always the party that owes the document — an NDA a worker owes
+   * is chased by the firm that placed them — which is why `owedBy` and
+   * this are two fields. The sentence names who owes it; this decides
+   * whose desk reads it.
+   */
+  tellCompanyId: string | null
   expiresAt: Date
   /** Negative where it has already run out. */
   daysLeft: number
@@ -618,6 +627,8 @@ export async function lookAtDocInstances(
     select: {
       id: true, subjectType: true, subjectId: true, expiresAt: true,
       sellContractId: true, buyContractId: true,
+      sellContract: { select: { companyId: true } },
+      buyContract: { select: { companyId: true } },
       template: { select: { name: true } },
     },
   })
@@ -644,6 +655,7 @@ export async function lookAtDocInstances(
       owedByName: item?.owedByName ?? null,
       personId: r.subjectType === 'PERSON' ? r.subjectId : null,
       companyId: r.subjectType === 'COMPANY' ? r.subjectId : null,
+      tellCompanyId: r.sellContract?.companyId ?? r.buyContract?.companyId ?? null,
       expiresAt: r.expiresAt,
       daysLeft,
       lapsed: daysLeft < 0,
@@ -689,7 +701,16 @@ export async function checksToRedo(
     },
     select: {
       id: true, type: true, expiresAt: true, personId: true,
-      person: { select: { name: true } },
+      person: {
+        select: {
+          name: true,
+          sellContracts: {
+            where: { state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+            select: { companyId: true },
+            take: 1,
+          },
+        },
+      },
     },
   })
 
@@ -708,6 +729,9 @@ export async function checksToRedo(
         owedByName: r.person?.name ?? null,
         personId: r.personId,
         companyId: null,
+        // The firm they are placed through does the chasing: a screening
+        // is the employer's to re-run, not the worker's to go and buy.
+        tellCompanyId: r.person?.sellContracts[0]?.companyId ?? null,
         expiresAt: r.expiresAt!,
         daysLeft,
         lapsed: daysLeft < 0,
@@ -758,4 +782,59 @@ function assembleWatch(on: Date, windowDays: number, found: LapsingDocument[]): 
     lapsed: sorted.filter((f) => f.lapsed),
     byParty: [...byParty.values()],
   }
+}
+
+/**
+ * The same answer in the nightly watcher's own shape.
+ *
+ * `api/cron/watch` already reads six of these and knows how to route a
+ * finding to the desk that can act on it, digest them and send one note
+ * per company. It is `etyme-platform`'s file, so this is the one line it
+ * adds, beside the six it already has:
+ *
+ *     ...(await documentFindings(now)),
+ *
+ * Nothing is sent from here and nothing is reopened: `NOTIFY_ONLY` on
+ * every row, because what a lapsing agreement needs is a letter to the
+ * party that owes it and that letter is `etyme-conversation`'s to write.
+ */
+export function asFindings(watch: DocumentWatch): {
+  kind: string
+  urgency: 'BLOCKING' | 'SOON' | 'WORTH_KNOWING'
+  companyId: string
+  subjectType: string
+  subjectId: string
+  headline: string
+  detail: string
+  action: 'NOTIFY_ONLY'
+  daysUntil: number | null
+}[] {
+  const rows = [...watch.lapsed, ...watch.lapsing]
+  return rows
+    // A finding with no company has no desk to arrive at. Reported as a
+    // gap in the return rather than sent to everybody.
+    .filter((r) => !!r.tellCompanyId)
+    .map((r) => ({
+      kind: r.kind === 'CHECK' ? 'CHECK_DUE_AGAIN' : 'DOCUMENT_LAPSING',
+      urgency: r.lapsed && r.stopsWork ? 'BLOCKING' : r.daysLeft <= 14 ? 'SOON' : 'WORTH_KNOWING',
+      companyId: r.tellCompanyId!,
+      subjectType: r.kind === 'CHECK' ? 'Verification' : 'DocInstance',
+      subjectId: r.id,
+      headline: r.says,
+      detail:
+        (r.owedByName ? `${r.owedByName} owes it. ` : '') +
+        (r.stopsWork
+          ? 'Work stops on this line while it is out of date.'
+          : 'It stops nothing on its own, and it is still owed.'),
+      action: 'NOTIFY_ONLY' as const,
+      daysUntil: r.daysLeft,
+    }))
+}
+
+/** Everything running out tonight, in the watcher's shape. One line. */
+export async function documentFindings(
+  now: Date = new Date(),
+  opts: { windowDays?: number; db?: Db } = {}
+) {
+  return asFindings(await documentsToChase(now, opts))
 }
