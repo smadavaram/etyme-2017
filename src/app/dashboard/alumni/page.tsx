@@ -8,7 +8,8 @@ import { ListSurface, type Column } from '@/components/list-surface'
  *
  * BRD + Addendum D: Alumni re-engagement is the strongest demand-side
  * feature in the platform. The page shows every person who has ever
- * had a contract at this client, aggregated across all vendors.
+ * had a contract at this client, aggregated across all suppliers —
+ * and in a chain, named at the rung this client pays and no lower.
  *
  * Addendum E §E.2.3: "Ask them back" checks the tenure ledger
  * before the action is offered. Inside a break period, show the
@@ -40,8 +41,14 @@ interface AlumniPerson {
   extensions: number
   state: 'placed' | 'available' | 'ended'
   detail: string
-  currentVendor: { id: string; name: string } | null
-  vendors: { id: string; name: string }[]
+  currentVendor: { id: string | null; name: string } | null
+  /**
+   * The firms behind this person, folded so a chain reads as one firm
+   * and a count rather than as the same name twice. `parts` is one
+   * label per firm the reader may name; `withheld` is how many firms
+   * below them it may not.
+   */
+  firms: { parts: string[]; says: string; withheld: number }
   canReengage: boolean
   reengageBlockReason: string | null
   eligibleDate: string | null
@@ -65,12 +72,29 @@ const COLUMNS: Column<AlumniPerson>[] = [
       <div>
         <div className="font-medium text-etyme-ink">{row.name}</div>
         {row.skill && <div className="text-[11px] text-etyme-muted mt-0.5">{row.skill}</div>}
-        {row.vendors.length > 1 && (
-          <span className="chip chip--action mt-1">{row.vendors.length} vendors</span>
+        {/* Two suppliers means two firms this client pays, both billing
+            for one person — not two rungs of one chain, where the client
+            pays one firm and the prime pays the rest. Keyed off the
+            firms it may name for that reason. */}
+        {row.firms.parts.length > 1 && (
+          <span className="chip chip--action mt-1">{row.firms.parts.length} suppliers</span>
         )}
       </div>
     ),
     sortValue: (row) => row.name,
+  },
+  {
+    key: 'firms',
+    label: 'Supplier(s)',
+    // One label per firm this client pays, and a chain folded into the
+    // firm at the top of it: "Computer Systems Inc (and one firm below
+    // them)". Never a raw list of rungs, which is how the same name
+    // came to be printed twice on one row.
+    render: (row) => (
+      <span className="text-etyme-muted">{row.firms.parts.join(', ')}</span>
+    ),
+    sortValue: (row) => row.firms.says,
+    hideOnMobile: true,
   },
   {
     key: 'department',
@@ -260,7 +284,7 @@ export default function AlumniPage() {
           row.name.toLowerCase().includes(q) ||
           (row.skill?.toLowerCase().includes(q) ?? false) ||
           (row.department?.toLowerCase().includes(q) ?? false) ||
-          row.vendors.some(v => v.name.toLowerCase().includes(q)) ||
+          row.firms.says.toLowerCase().includes(q) ||
           row.detail.toLowerCase().includes(q)
         }
         emptyMessage={filter === 'all' ? 'No alumni records found.' : `No ${filter} alumni.`}

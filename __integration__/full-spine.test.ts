@@ -996,7 +996,11 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
     expect(alumni.body?.error, JSON.stringify(alumni.body)).toBeUndefined()
 
     const priya = alumni.body.data.alumni.find((a: any) => a.personId === who.priya)
-    expect(priya.vendors.map((v: any) => v.name)).toContain('Supplied through Computer Systems.')
+    // Folded the way the tenure row above is: the firm Auralis pays,
+    // named once, with the firm below it counted and never named.
+    expect(priya.firms.parts.length, 'one firm the client pays').toBe(1)
+    expect(priya.firms.says).toContain('Computer Systems')
+    expect(priya.firms.withheld, 'and one below it, counted').toBe(1)
     expect(JSON.stringify(alumni.body)).not.toContain('CloudEPA')
   })
 
@@ -1056,7 +1060,7 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
     expect(inTenure.firms.withheld, 'nothing is withheld once the term discloses it').toBe(0)
 
     const inAlumni = alumni.body.data.alumni.find((a: any) => a.personId === who.priya)
-    expect(inAlumni.vendors.map((v: any) => v.name)).toContain('CloudEPA')
+    expect(inAlumni.firms.parts).toContain('CloudEPA')
   })
 
   it('closes again the moment the term comes back off, leaving the standing where it was', async () => {

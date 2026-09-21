@@ -462,6 +462,33 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     expect(page).not.toContain('row.vendors.length > 1')
   })
 
+  it('an alumnus bought through a chain shows the firm the client pays once, with the count of firms below it and never their names', async () => {
+    as(NIKE.hiring)
+    const r = await json(await alumni(req('GET', '/api/alumni')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const helena = r.body.data.alumni.find((a: any) => a.name === 'Helena Marsh')
+    expect(helena, 'Helena worked here, so she is on the alumni list').toBeTruthy()
+
+    // Northbend Athletic ← Computer Systems ← CloudEPA. The list named
+    // the firm it pays and, beside it, the withheld firm below — whose
+    // name IS the prime's — so the row read "Computer Systems Inc,
+    // Supplied through Computer Systems Inc": one firm, apparently
+    // entered twice.
+    expect(helena.firms.parts, 'one firm named, not the same one twice').toHaveLength(1)
+    expect(helena.firms.parts[0]).toMatch(/Computer Systems/)
+    expect(helena.firms.parts[0], 'the count is said out loud').toContain('and one firm below them')
+    expect(helena.firms.withheld).toBe(1)
+    expect(helena.firms.says).not.toMatch(/Computer Systems[^()]*,\s*Supplied through Computer Systems/)
+    expect(JSON.stringify(helena), 'the firm below the rung Northbend pays is never named').not.toContain('CloudEPA')
+
+    // And no list of rungs beside it for the next screen to comma-join.
+    expect(helena.vendors, 'the raw per-rung array is gone').toBeUndefined()
+
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/alumni/page.tsx'), 'utf8')
+    expect(page, 'the page reads the folded firms').toContain("row.firms.parts.join(', ')")
+    expect(page).not.toContain('row.vendors.length > 1')
+  })
+
   it('asking somebody back is a date inside the break, and a button after it', async () => {
     as(NIKE.hiring)
     const r = await json(await alumni(req('GET', '/api/alumni')))

@@ -11,7 +11,7 @@ import { daysOnSite } from '@/lib/tenure-days'
 // otherwise, and one rule landing in three routes at once is a rule, not
 // three changes. Nothing else in this file was touched — who is eligible,
 // and from when, is unchanged.
-import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
+import { mayNameSubVendors, namesForClient, firmsOnARow, type SeenName } from '@/lib/chain-names'
 
 /**
  * GET /api/alumni
@@ -229,7 +229,11 @@ export async function GET(request: NextRequest) {
     // Classify state
     let state: 'placed' | 'available' | 'ended' = 'ended'
     let detail = ''
-    let currentVendor: { id: string; name: string } | null = null
+    // The firm holding them on its bench, as this reader may know it.
+    // The id goes with the name: a withheld firm handed over as an id is
+    // a name the next screen can look up, which is the same leak wearing
+    // a different column.
+    let currentVendor: { id: string | null; name: string } | null = null
 
     if (data.hasActive) {
       state = 'placed'
@@ -240,7 +244,7 @@ export async function GET(request: NextRequest) {
         state = 'available'
         const seen = shown(benchVendor.id, benchVendor.name)
         detail = `Available now · ${seen.name}`
-        currentVendor = { id: benchVendor.id, name: seen.name }
+        currentVendor = { id: seen.masked ? null : benchVendor.id, name: seen.name }
       } else {
         state = 'ended'
         const endStr = data.lastEndDate
@@ -290,12 +294,23 @@ export async function GET(request: NextRequest) {
       state,
       detail,
       currentVendor,
-      vendors: Array.from(data.vendors.entries()).map(([id, name]) => ({
-        id,
-        name: shown(id, name).name,
-        nameWithheld: shown(id, name).masked,
-        suppliedThrough: shown(id, name).through,
-      })),
+      // ── The firms on this person's row ──
+      //
+      // Folded, not listed. A person bought through a chain has a rung
+      // per firm, and a withheld sub-vendor's name IS the name of the
+      // prime it comes through — so the row read "Computer Systems Inc,
+      // Supplied through Computer Systems Inc", which looks like one
+      // firm entered twice and is two rungs of one chain.
+      //
+      // `firmsOnARow` names the firm the client pays once and says how
+      // many firms sit below it. Nothing newly hidden and nothing newly
+      // disclosed: the count is the client's own exposure, the name
+      // below is the prime's to keep. The raw per-rung array is gone
+      // rather than kept beside it, because a list of answers is a list
+      // the next screen comma-joins — which is exactly how this read
+      // "Computer Systems Inc, Supplied through Computer Systems Inc"
+      // in the first place.
+      firms: firmsOnARow(Array.from(data.vendors.entries()).map(([id, name]) => shown(id, name))),
       canReengage,
       reengageBlockReason,
       eligibleDate,
