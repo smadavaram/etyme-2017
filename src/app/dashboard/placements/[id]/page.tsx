@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { inSentence } from '@/lib/document-stages'
 import { readJson } from '@/lib/read-response'
 import { CoverChip, SubVendorCover } from '@/components/cover-standing'
 
@@ -591,7 +592,7 @@ export default function PlacementPage() {
               }`}
               title={it.note}
             >
-              {it.label.toLowerCase()} · {it.state === 'ALREADY_HELD' ? 'on file' : words(it.state)}
+              {inSentence(it.label)} · {it.state === 'ALREADY_HELD' ? 'on file' : words(it.state)}
             </span>
           ))}
           {/* The sub-vendor's certificates, in the words the compliance
@@ -713,7 +714,7 @@ export default function PlacementPage() {
         title="What is due"
         subtitle={
           p.timeline.next
-            ? `Next: ${p.timeline.next.label.toLowerCase()}, ${day(p.timeline.next.dueOn)}.`
+            ? `Next: ${inSentence(p.timeline.next.label)}, ${day(p.timeline.next.dueOn)}.`
             : 'Nothing outstanding on this placement.'
         }
       >

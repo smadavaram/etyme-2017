@@ -4,6 +4,8 @@ import { DashboardShell } from './shell'
 import { SessionProvider, type SessionSeat } from '@/components/session-provider'
 import { DemoBanner } from '@/components/demo-banner'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
+import { deniedFor, type Denied } from '@/lib/denied'
+import { DeniedScreen } from '@/components/denied'
 import { ownPageFor } from '@/lib/portfolio-data'
 import { seatFor } from '@/lib/program-seat'
 import { prisma } from '@/lib/db'
@@ -92,11 +94,56 @@ async function deskHeldAtAClient(): Promise<SessionSeat | null> {
   }
 }
 
+/**
+ * Can the app seat whoever is reading this at all?
+ *
+ * Asked once, here, rather than thirty times in thirty pages. Every
+ * dashboard page is inside this layout, so a caller with no seat is
+ * refused before a sidebar, a heading or a button is drawn.
+ *
+ * Before this, nothing asked. The layout drew the whole shell for
+ * anybody, each page fetched, each fetch came back 401, and the result
+ * was the app rendered around a hole: a consultant's menu, "Cross-vendor
+ * tenure at …." with a literal ellipsis, five stats at zero, an "Add
+ * consultant" button, and "Not authenticated" in the table body. Four
+ * wrongs, and none of them fixable in one page, because every page had
+ * the same one.
+ *
+ * `getCallerContext` is the one door — it is what every API route asks,
+ * and it already writes the sentence for each way a seat can be missing.
+ * Reading its refusal body rather than answering the question a second
+ * way is the point: the page and the route cannot then disagree about
+ * who is seated.
+ *
+ * Never throws. If the lookup itself fails — the database is down — the
+ * shell is drawn as it was and the pages surface their own errors, which
+ * is an outage, not a refusal, and must not be dressed as one.
+ */
+async function whyNotSeated(): Promise<Denied | null> {
+  try {
+    const { caller, error } = await getCallerContext()
+    if (caller) return null
+    const body = await error.json().catch(() => ({}) as any)
+    return deniedFor({
+      code: String(body?.error?.code ?? 'DENIED'),
+      message: String(body?.error?.message ?? ''),
+    })
+  } catch {
+    return null
+  }
+}
+
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // Asked before the other two, and alone: a caller the app cannot seat
+  // gets one sentence and nothing else, so there is no menu to decide
+  // the shape of and no company name to fail to resolve.
+  const denied = await whyNotSeated()
+  if (denied) return <DeniedScreen denied={denied} />
+
   const [worker, seat] = await Promise.all([readerIsAWorker(), deskHeldAtAClient()])
 
   return (

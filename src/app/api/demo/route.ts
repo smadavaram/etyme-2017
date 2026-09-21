@@ -399,13 +399,46 @@ export async function POST(request: NextRequest) {
 
     const email = company?.contexts[0]?.person.primaryEmail
     if (!company || !email) {
+      // Which desks this firm DOES have.
+      //
+      // A door that 404s says the seat is not here; it used to stop
+      // there, and a visitor asking for a desk one letter wrong, or a
+      // desk this firm has no reason to hold, was told only that
+      // something was missing and left on a dashboard URL with no
+      // session behind it. The desks a firm has are a cheap read and
+      // they are the whole answer, so the refusal names them — the same
+      // rule as every other refusal here: say what is missing and what
+      // to do, never just that it is missing.
+      //
+      // Only asked on this path, which is the failing one. A door that
+      // opens never reaches it.
+      const held = company
+        ? await prisma.context.findMany({
+            where: { companyId: company.id, revokedAt: null, NOT: { roleId: null } },
+            select: { role: { select: { name: true } } },
+          })
+        : []
+      const roleNames = new Set(held.map((c) => c.role?.name).filter(Boolean) as string[])
+      const open = DESKS.filter((d) => DESK_ROLES[d].some((r) => roleNames.has(r)))
+
+      const message = !company
+        ? `There is no ${asWorld} in this deployment's world. POST /api/seed-world to build it first.`
+        : desk
+          ? open.length > 0
+            ? `${company.name} has nobody at the ${DESK_NAMES[desk]} desk. The desks it does ` +
+              `have are ${open.map((d) => DESK_NAMES[d]).join(', ')} — ask for one of those.`
+            : `${company.name} is in this world but nobody is seated at any desk there yet. ` +
+              `POST /api/seed-world to build it.`
+          : `Nobody is seated at ${company.name} yet. POST /api/seed-world to build it first.`
+
       return NextResponse.json(
         {
           error: {
             code: 'NOT_SEEDED',
-            message: desk
-              ? `No ${DESK_NAMES[desk]} desk at ${asWorld}. POST /api/seed-world to build it first.`
-              : `No seat at ${asWorld}. POST /api/seed-world to build it first.`,
+            message,
+            // The machine's list, so a caller can retry without parsing
+            // the sentence it was handed.
+            desks: open,
           },
         },
         { status: 404 }

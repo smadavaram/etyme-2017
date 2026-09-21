@@ -1076,7 +1076,27 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
 
       // The order. The client raised it, the supplier reads it as its
       // sales order, and the trade calls the whole thing a work order.
-      const orderNumber = `PO-${slug.toUpperCase()}-0001`
+      // The number a counterparty reads as its own purchase order, so it
+      // is in the shape the product writes one — `PO-<year>-<5>`, the
+      // same shape `lib/seed-order-to-cash` uses — and never the demo
+      // slug. `world-nike` is an address and nobody reads an address;
+      // `PO-WORLD-CORNING-0001` was printed on a supplier's compliance
+      // page as a commercial document number, which somebody does read.
+      //
+      // Keyed on the client's own id, which a re-seed finds rather than
+      // mints, so the number is stable across seedings. A world seeded
+      // under the old slug shape is renamed in place rather than given a
+      // second order: `reseed-across-days` requires a second seeding to
+      // be a true no-op, and two orders where there was one is not one.
+      const orderNumber = `PO-${day(0).getUTCFullYear()}-${client.id.slice(-5).toUpperCase()}`
+      const legacyNumber = `PO-${slug.toUpperCase()}-0001`
+      const legacy =
+        orderNumber === legacyNumber
+          ? null
+          : await db.workOrder.findFirst({ where: { issuedById: client.id, number: legacyNumber } })
+      if (legacy) {
+        await db.workOrder.update({ where: { id: legacy.id }, data: { number: orderNumber } })
+      }
       const dOrder =
         (await db.workOrder.findFirst({ where: { issuedById: client.id, number: orderNumber } })) ??
         (await db.workOrder.create({

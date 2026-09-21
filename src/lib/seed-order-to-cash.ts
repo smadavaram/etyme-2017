@@ -170,7 +170,27 @@ export async function seedOrderToCash(ctx: SeedContext): Promise<OrderToCash> {
     // Deterministic from the two ids, so a second seeding finds the order
     // it wrote the first time rather than raising a duplicate against the
     // unique on (issuedById, number).
-    const number = `PO-${day(0).getUTCFullYear()}-${p.sellerId.slice(-5).toUpperCase()}`
+    //
+    // From BOTH ids, which the comment above claimed and the code did
+    // not: keyed on the seller alone, three different clients buying
+    // from one supplier each raised a purchase order carrying the same
+    // number, and the supplier read three of its clients' orders under
+    // one reference. A purchase order number is the buyer's own
+    // document, so the buyer leads it and the counterparty distinguishes
+    // it. Same five-character shape, so nothing that reads a number
+    // changes.
+    const number =
+      `PO-${day(0).getUTCFullYear()}-` +
+      `${p.buyerId.slice(-3)}${p.sellerId.slice(-2)}`.toUpperCase()
+    // A world seeded under the seller-only shape is renamed in place
+    // rather than given a second order, so a re-seed stays a no-op.
+    const legacyNumber = `PO-${day(0).getUTCFullYear()}-${p.sellerId.slice(-5).toUpperCase()}`
+    if (legacyNumber !== number) {
+      const legacy = await db.workOrder.findFirst({
+        where: { issuedById: p.buyerId, number: legacyNumber }, select: { id: true },
+      })
+      if (legacy) await db.workOrder.update({ where: { id: legacy.id }, data: { number } })
+    }
     const already = await db.workOrder.findFirst({
       where: { issuedById: p.buyerId, number }, select: { id: true },
     })

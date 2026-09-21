@@ -5538,12 +5538,87 @@ model DocInstance {
   countersignedAt   DateTime?
   countersignedById String?
 
+  /// The file itself, where somebody sent one rather than a link. A
+  /// separate row on purpose — see the docblock on `DocFile`.
+  file DocFile?
+
   @@index([subjectType, subjectId, status])
   @@index([templateId])
   @@index([sellContractId])
   @@index([buyContractId])
   @@index([reissueOf])
   @@index([expiresAt])
+}
+
+/// The bytes of a document somebody actually sent.
+///
+/// ── Why this exists ──────────────────────────────────────────────────
+///
+/// Nothing in this codebase stored the bytes of a document.
+/// `DocInstance` carried `signedFileUrl` and `fileName` and no file, so
+/// the worker's page could only say: "Sending the file itself is not
+/// switched on yet. Put it somewhere they can open — your own drive, or
+/// an email to whoever asked — and paste the link here."
+///
+/// That is honest and it is not a compliance record. The actual case is
+/// a contractor standing on a site with a photograph of her certificate
+/// on her phone, and a link to somebody's personal drive is worse than
+/// the file in three ways an auditor cares about: it can be revoked by
+/// the person being audited, it can be changed after it was accepted,
+/// and it stops resolving the day they leave. A document kept as a link
+/// is a document we cannot produce.
+///
+/// ── Why a row of its own, and not four columns on DocInstance ────────
+///
+/// Because `Bytes` on `DocInstance` is bytes on every read of it. Nine
+/// places read `DocInstance`, and several — `lib/document-request`,
+/// `lib/contract-clearance`, `api/compliance` — do a `findMany` with no
+/// `select`, so a compliance page listing forty papers would pull forty
+/// files out of the database to print forty file names. Prisma will not
+/// warn about it and the page will merely get slower until somebody
+/// profiles it.
+///
+/// A row of its own means the bytes are loaded exactly when somebody
+/// asked for the bytes, which is also the only moment an `AccessLog` row
+/// is owed for reading them. `CensusFile` and `Resume` are the same
+/// shape and the same four columns; this is a known pattern, not a new
+/// decision.
+///
+/// One file per instance. A reissued paper is a new `DocInstance` with
+/// `reissueOf` set and its own file, so the edition somebody signed on
+/// the day they signed it keeps the bytes they signed — which is the
+/// fact an auditor asks for, and the reason `reissueOf` is a chain
+/// rather than an overwrite.
+///
+/// `DocInstance.signedFileUrl` keeps working and is not deprecated: a
+/// firm sending a link to its own document management system is a real
+/// case, and an instance may have a link, a file, or both. An instance
+/// with neither has been asked for and not answered.
+model DocFile {
+  id String @id @default(cuid())
+
+  /// The instance this is the file for. One file per instance, so the
+  /// unique is the relation itself.
+  docInstanceId String      @unique
+  docInstance   DocInstance @relation(fields: [docInstanceId], references: [id], onDelete: Cascade)
+
+  /// Their own name for it, kept as they sent it. It is often the only
+  /// clue what a file is — "cert scan 3.jpg".
+  fileName    String
+  contentType String
+  sizeBytes   Int
+  /// The file itself. Required: a row here exists because bytes arrived,
+  /// and a file row with nothing in it is a record of something we
+  /// cannot produce.
+  bytes       Bytes
+
+  /// Who sent it, and when. The person, not the company: a document is
+  /// owed by a party role and answered by a human being.
+  uploadedAt   DateTime @default(now())
+  uploadedById String?
+
+  // No @@index on docInstanceId: @unique already builds one, and a
+  // second index on the same column is dead weight on every write.
 }
 
 /// ─────────────────────────────────────────────────────────────────────

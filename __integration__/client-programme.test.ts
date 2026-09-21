@@ -554,8 +554,19 @@ describe('the week-early verdict reads the client\u2019s own order', () => {
       expect(soon, 'Elsa reads as starting soon').toBeTruthy()
 
       // Both items the order asked for, each naming the order that asked.
-      expect(soon.paperwork.says).toContain('Master service agreement is required by Cavanaugh Glassworks\u2019s order PO-WORLD-CORNING-0001')
-      expect(soon.paperwork.says).toContain('Hot floor induction is required by Cavanaugh Glassworks\u2019s order PO-WORLD-CORNING-0001')
+      //
+      // The number is read off the record rather than written in here.
+      // It used to be pinned as `PO-WORLD-CORNING-0001`, which is a demo
+      // slug printed on a supplier's own compliance page as a commercial
+      // document number — a counterparty reads that as its own purchase
+      // order, so the seed now mints it in the shape the product writes
+      // (`PO-<year>-<5>`). Pinning the new literal would only move the
+      // problem: the suffix is derived per world, so the assertion has
+      // to ask the order what it is called.
+      const ordered = line.workOrder?.number
+      expect(ordered, 'the order carries a number').toMatch(/^PO-\d{4}-/)
+      expect(soon.paperwork.says).toContain(`Master service agreement is required by Cavanaugh Glassworks\u2019s order ${ordered}`)
+      expect(soon.paperwork.says).toContain(`Hot floor induction is required by Cavanaugh Glassworks\u2019s order ${ordered}`)
       // A site induction nobody has is the law of the plant, not a
       // preference, so it stops the start; the unsigned agreement is a
       // commercial fact and is said rather than enforced.

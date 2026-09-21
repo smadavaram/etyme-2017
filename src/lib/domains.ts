@@ -428,6 +428,13 @@ export const DOMAINS: Domain[] = [
       'lib/readiness', 'lib/readiness-facts', 'app/api/ready', 'app/ready', 'components/reseed-button',
       // Somebody is told when it breaks: the diary, the reporter, the boundaries.
       'lib/alerts', 'lib/staff', 'lib/cron-auth', 'app/api/incidents', 'app/error', 'app/global-error',
+      // The fifth state. Loading, empty, error and partial each belong to
+      // the screen showing them; denied does not, because it is the same
+      // refusal on every screen and it is decided before any of them
+      // render. It reads the identity door's own verdict and turns it
+      // into a heading, a sentence and the doors that are actually open,
+      // so no page writes a second answer to "who is this".
+      'lib/denied', 'components/denied',
       // Which desk a due date is put in front of. Pure, and here rather
       // than beside the cron because only a route.ts belongs under
       // app/api — see the cron check in __tests__/invariants/alerts.

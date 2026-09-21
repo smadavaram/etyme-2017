@@ -162,22 +162,27 @@ async function whoChases(personId: string): Promise<{ id: string; name: string }
 
 /** Said to the desk, in the third person. `chase.says` is said to the person. */
 function detailFor(personName: string, chase: CredentialChase): string {
-  const where = chase.state ? ` (${chase.state})` : ''
+  // `chase.named` already carries the state — regulatory's half builds
+  // "professional license (RN 154-882, WI)" and returns it exactly once.
+  // Appending a second ` (${chase.state})` here printed
+  // "(RN 154-882, WI) (WI)" in every letter this function writes. Two
+  // places naming one fact is one of them wrong, and the half holding
+  // the license number is the half that keeps it.
   if (chase.daysLeft === null) {
     return (
-      `${personName}'s ${chase.named}${where} is on file with no expiry date against it, and a license ` +
+      `${personName}'s ${chase.named} is on file with no expiry date against it, and a license ` +
       `expires. Until the date is recorded nobody can say whether ${personName} is licensed today.`
     )
   }
   if (chase.daysLeft < 0) {
     const ago = Math.abs(chase.daysLeft)
     return (
-      `${personName}'s ${chase.named}${where} lapsed ${ago} day${ago === 1 ? '' : 's'} ago. Working on a ` +
+      `${personName}'s ${chase.named} lapsed ${ago} day${ago === 1 ? '' : 's'} ago. Working on a ` +
       `lapsed license is unlicensed practice, so nobody can be started on it until the board renews it.`
     )
   }
   return (
-    `${personName}'s ${chase.named}${where} runs out in ${chase.daysLeft} day${chase.daysLeft === 1 ? '' : 's'}. ` +
+    `${personName}'s ${chase.named} runs out in ${chase.daysLeft} day${chase.daysLeft === 1 ? '' : 's'}. ` +
     `A board takes weeks, so this is the window where the renewal still lands before the work has to stop.`
   )
 }
