@@ -19,8 +19,16 @@ import {
   termSays,
   termsOn,
   whatChanged,
+  LAPSE_DESK,
+  WORK_STARTED_STATES,
+  lapseLetter,
+  lapseNotices,
+  saidKeyFor,
   type Term,
 } from '@/lib/agreement-term'
+import { WORK_STARTED_STATES as VERDICT_WORK_STARTED } from '@/app/api/program/agreements/verdict'
+import { rolesFor } from '@/lib/company-defaults'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * A master agreement is the answer to "are we allowed to trade at all",
@@ -344,5 +352,192 @@ describe('Somebody is told before the agreement above their placements runs out'
     expect(isRenewalKind('EVERGREEN')).toBe(true)
     expect(isRenewalKind('AUTO_RENEW')).toBe(true)
     expect(isRenewalKind('PERPETUAL')).toBe(false)
+  })
+})
+
+
+// ── Both signers hear ─────────────────────────────────────────────────
+
+describe('an agreement running out is told to the two firms that signed it', () => {
+  const running = term({ expiresAt: new Date('2026-10-10T12:00:00.000Z') })
+  const lapsed = term({ expiresAt: new Date('2026-09-01T12:00:00.000Z') })
+
+  /**
+   * A reader the notices can be handed to, in place of Prisma. Only three
+   * tables are read, and each answer is stated in the test rather than
+   * seeded, so a sentence here fails for one reason.
+   */
+  const reader = (over: {
+    seats?: Record<string, { personId: string; permissions: string[] }[]>
+    lines?: { personId: string; state: string }[]
+  } = {}) => ({
+    company: {
+      findMany: async () => [
+        { id: 'brightmoor', name: 'Brightmoor Staffing' },
+        { id: 'northbend', name: 'Northbend Athletic' },
+        { id: 'wrenfield', name: 'Wrenfield Technical' },
+      ],
+    },
+    context: {
+      findMany: async (args: any) =>
+        (over.seats?.[args.where.companyId] ?? []).map((s) => ({
+          personId: s.personId,
+          role: { permissions: s.permissions },
+        })),
+    },
+    sellContract: { findMany: async () => over.lines ?? [] },
+  })
+
+  const deal = { id: 'msa1', vendorId: 'brightmoor', clientId: 'northbend', ...running }
+  const bothDesks = {
+    brightmoor: [{ personId: 'contract-manager', permissions: ['rates.write'] }],
+    northbend: [
+      { personId: 'program-manager', permissions: ['governance.write'] },
+      { personId: 'ap-clerk', permissions: ['payments.record', 'invoices.read'] },
+    ],
+  }
+
+  it('an agreement running out is told to both firms that signed it, each in its own words', async () => {
+    const out = await lapseNotices(reader({ seats: bothDesks, lines: [{ personId: 'p1', state: 'IN_PROGRESS' }] }) as any, deal, NOW)
+    expect(out.map((n) => n.personId).sort()).toEqual(['contract-manager', 'program-manager'])
+
+    const supplier = out.find((n) => n.data.side === 'VENDOR')!
+    expect(supplier.companyId).toBe('brightmoor')
+    expect(supplier.title).toBe('Your agreement with Northbend Athletic runs out in 24 days')
+    expect(supplier.body).toContain('Start the renewal now')
+
+    const client = out.find((n) => n.data.side === 'CLIENT')!
+    expect(client.companyId).toBe('northbend')
+    expect(client.title).toBe('Your agreement with Brightmoor Staffing runs out in 24 days')
+    expect(client.body).toContain('Ask Brightmoor Staffing for the renewal')
+  })
+
+  it('a client is told how many people are on its sites under the agreement that is running out', async () => {
+    const lines = [
+      { personId: 'helena', state: 'IN_PROGRESS' },
+      { personId: 'aisha', state: 'PAUSED' },
+      { personId: 'helena', state: 'IN_PROGRESS' },
+      { personId: 'gone', state: 'ENDED' },
+    ]
+    const out = await lapseNotices(reader({ seats: bothDesks, lines }) as any, deal, NOW)
+    const client = out.find((n) => n.data.side === 'CLIENT')!
+    expect(client.body).toContain('2 people are on your sites under it')
+    expect(client.data.peopleOnSite).toBe(2)
+    // The supplier's letter is a commercial one and carries no head count.
+    expect(out.find((n) => n.data.side === 'VENDOR')!.body).not.toContain('on your sites')
+  })
+
+  it('one person on one contract reads as a person, not as 1 people', async () => {
+    const out = await lapseNotices(reader({ seats: bothDesks, lines: [{ personId: 'helena', state: 'IN_PROGRESS' }] }) as any, deal, NOW)
+    expect(out.find((n) => n.data.side === 'CLIENT')!.body).toContain('1 person is on your sites under it')
+  })
+
+  it('where nothing links anybody to the agreement the client is told no count at all, rather than told nobody is there', async () => {
+    const out = await lapseNotices(reader({ seats: bothDesks, lines: [] }) as any, deal, NOW)
+    const client = out.find((n) => n.data.side === 'CLIENT')!
+    expect(client.data.peopleOnSite).toBeNull()
+    expect(client.body).not.toContain('on your sites')
+    expect(client.body).not.toContain('nobody')
+
+    // And where contracts are linked and none is live, nobody is the answer.
+    const none = await lapseNotices(reader({ seats: bothDesks, lines: [{ personId: 'x', state: 'ENDED' }] }) as any, deal, NOW)
+    expect(none.find((n) => n.data.side === 'CLIENT')!.body).toContain('nobody is on your sites under it today')
+  })
+
+  it('a sub-vendor\u2019s agreement with its prime is told to those two firms and never to the client', async () => {
+    // Wrenfield sells to Brightmoor, who sells to Northbend. The paper
+    // between the two suppliers is theirs, and the client is not on it.
+    const chain = { id: 'msa2', vendorId: 'wrenfield', clientId: 'brightmoor', ...running }
+    const out = await lapseNotices(
+      reader({
+        seats: {
+          wrenfield: [{ personId: 'wrenfield-owner', permissions: ['*'] }],
+          brightmoor: [{ personId: 'brightmoor-compliance', permissions: ['privacy.manage'] }],
+          northbend: [{ personId: 'program-manager', permissions: ['governance.write'] }],
+        },
+        lines: [{ personId: 'p', state: 'IN_PROGRESS' }],
+      }) as any,
+      chain,
+      NOW
+    )
+    expect(out.map((n) => n.companyId).sort()).toEqual(['brightmoor', 'wrenfield'])
+    expect(out.map((n) => n.personId)).not.toContain('program-manager')
+    for (const n of out) expect(JSON.stringify(n)).not.toContain('Northbend')
+  })
+
+  it('the desk that hears at each firm is read from what it may do, never from what its role is called', () => {
+    expect(LAPSE_DESK.VENDOR).toEqual(['rates.write', 'settings.manage'])
+    expect(LAPSE_DESK.CLIENT).toEqual(['governance.write', 'privacy.manage'])
+
+    const clientRoles = rolesFor('CLIENT')
+    const hears = (name: string) =>
+      LAPSE_DESK.CLIENT.some((p) => hasPermission(clientRoles.find((r) => r.name === name)!.permissions, p))
+    expect(hears('Program Manager')).toBe(true)
+    expect(hears('Compliance Officer')).toBe(true)
+    expect(hears('Owner')).toBe(true)
+    // Not the desks that cannot renew a thing.
+    expect(hears('AP Clerk')).toBe(false)
+    expect(hears('Hiring Manager')).toBe(false)
+    expect(hears('Viewer')).toBe(false)
+  })
+
+  it('an owner whose role is the wildcard hears, because a permission is asked for rather than matched as a string', async () => {
+    const out = await lapseNotices(
+      reader({ seats: { brightmoor: [{ personId: 'founder', permissions: ['*'] }], northbend: [{ personId: 'pm', permissions: ['*'] }] } }) as any,
+      deal,
+      NOW
+    )
+    expect(out.map((n) => n.personId).sort()).toEqual(['founder', 'pm'])
+  })
+
+  it('an agreement that has already run out tells both sides it has, not that it is about to', async () => {
+    const out = await lapseNotices(
+      reader({ seats: bothDesks, lines: [{ personId: 'helena', state: 'IN_PROGRESS' }] }) as any,
+      { id: 'msa3', vendorId: 'brightmoor', clientId: 'northbend', ...lapsed },
+      NOW
+    )
+    expect(out).toHaveLength(2)
+    for (const n of out) {
+      expect(n.title).toContain('has run out')
+      expect(n.data.milestone).toBe(0)
+      expect(n.body).toContain('lapsed paper')
+    }
+    expect(out.find((n) => n.data.side === 'CLIENT')!.body).toContain('1 person is on your sites under it')
+  })
+
+  it('a side already told this milestone is not told again, and the supplier\u2019s key is the one the watch has always written', async () => {
+    expect(saidKeyFor('msa1', 30, 'VENDOR')).toBe('msa1:30')
+    expect(saidKeyFor('msa1', 30, 'CLIENT')).toBe('msa1:30:CLIENT')
+    const told = new Set(['msa1:30'])
+    const out = await lapseNotices(reader({ seats: bothDesks }) as any, { id: 'msa1', vendorId: 'brightmoor', clientId: 'northbend', ...term({ expiresAt: new Date('2026-10-10T12:00:00.000Z') }) }, NOW, told)
+    expect(out.every((n) => n.data.side === 'CLIENT')).toBe(true)
+  })
+
+  it('an agreement nowhere near its end tells nobody anything', async () => {
+    const out = await lapseNotices(
+      reader({ seats: bothDesks }) as any,
+      { id: 'msa4', vendorId: 'brightmoor', clientId: 'northbend', ...term({ expiresAt: new Date('2028-01-01') }) },
+      NOW
+    )
+    expect(out).toEqual([])
+  })
+
+  it('a firm with nobody on a desk that could renew it is not mailed somebody who would only forward it', async () => {
+    const out = await lapseNotices(
+      reader({ seats: { brightmoor: [{ personId: 'recruiter', permissions: ['submissions.create'] }], northbend: [{ personId: 'pm', permissions: ['governance.write'] }] } }) as any,
+      deal,
+      NOW
+    )
+    expect(out.map((n) => n.personId)).toEqual(['pm'])
+  })
+
+  it('who counts as on site is the same two states the rest of the agreement screen counts', () => {
+    expect([...WORK_STARTED_STATES]).toEqual([...VERDICT_WORK_STARTED])
+  })
+
+  it('the supplier\u2019s letter and the milestone line are the same words, so the two sides cannot drift', () => {
+    expect(milestoneSays('Northbend Athletic', running, NOW)).toEqual(
+      lapseLetter({ side: 'VENDOR', counterpartyName: 'Northbend Athletic', term: running, now: NOW })
+    )
   })
 })

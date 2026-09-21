@@ -7,6 +7,8 @@ import { POST as sign } from '@/app/api/program/agreements/[id]/sign/route'
 import { POST as end } from '@/app/api/program/agreements/[id]/end/route'
 import { GET as history } from '@/app/api/program/agreements/[id]/history/route'
 import { GET as termWatch } from '@/app/api/cron/agreement-terms/route'
+import { lapseNotices, saidKeyFor } from '@/lib/agreement-term'
+import { notify } from '@/lib/notify'
 
 /**
  * A master agreement, from the day it is recorded to the day somebody
@@ -494,5 +496,163 @@ describe('a master agreement gets a term, a signature and a trail', () => {
     const shown = r.body.data.agreements.find((a: any) => a.id === drafted.id)
     expect(shown.statusSays).toContain('Nobody has papered it')
     expect(shown.findings.map((f: any) => f.code)).toContain('MSA_NO_TERM')
+  })
+})
+
+
+/**
+ * "Ensure the loop of documents never cracks between parties."
+ *
+ * The nightly watch told the supplier's contracting desk at ninety, sixty
+ * and thirty days and on the day the agreement lapsed, and told the
+ * client — the other signer, the firm with the people standing on its own
+ * sites — nothing at any of the four. These are the letters both sides
+ * read, computed off the seeded world through `lib/agreement-term`.
+ */
+describe('both firms that signed an agreement hear that it is running out', () => {
+  const at = (slug: string) => prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true, name: true } })
+
+  const facts = async (id: string) =>
+    prisma.masterAgreement.findUniqueOrThrow({
+      where: { id },
+      select: {
+        id: true, vendorId: true, clientId: true, status: true, effectiveDate: true,
+        expiresAt: true, renewalKind: true, renewalMonths: true, noticeDays: true,
+      },
+    })
+
+  /** Brightmoor Staffing sells to Northbend Athletic, with one person on site under it. */
+  const theDeal = async () => {
+    const vendor = await at('world-brightmoor')
+    const client = await at('world-nike')
+    const msa = await prisma.masterAgreement.findFirstOrThrow({
+      where: { vendorId: vendor.id, clientId: client.id },
+      select: { id: true },
+    })
+    await prisma.masterAgreement.update({ where: { id: msa.id }, data: { expiresAt: day(40), status: 'ACTIVE' } })
+    return { vendor, client, id: msa.id }
+  }
+
+  it('an agreement running out is told to both firms that signed it, each in its own words', async () => {
+    const { vendor, client, id } = await theDeal()
+    const out = await lapseNotices(prisma as any, await facts(id), new Date())
+    expect(out.length).toBeGreaterThan(1)
+    expect([...new Set(out.map((n) => n.data.side))].sort()).toEqual(['CLIENT', 'VENDOR'])
+
+    const supplier = out.find((n) => n.data.side === 'VENDOR')!
+    expect(supplier.companyId).toBe(vendor.id)
+    expect(supplier.title).toContain(`Your agreement with ${client.name}`)
+    expect(supplier.body).toContain('Start the renewal now')
+
+    const buyer = out.find((n) => n.data.side === 'CLIENT')!
+    expect(buyer.companyId).toBe(client.id)
+    expect(buyer.title).toContain(`Your agreement with ${vendor.name}`)
+    expect(buyer.body).toContain(`Ask ${vendor.name} for the renewal`)
+
+    // Nobody reads their own firm's name as the counterparty.
+    expect(supplier.title).not.toContain(vendor.name)
+    expect(buyer.title).not.toContain(client.name)
+  })
+
+  it('the desks that hear at the client are the ones that can act on it, read from what they may do', async () => {
+    const { id } = await theDeal()
+    const out = await lapseNotices(prisma as any, await facts(id), new Date())
+    const told = await prisma.person.findMany({
+      where: { id: { in: out.filter((n) => n.data.side === 'CLIENT').map((n) => n.personId) } },
+      select: { primaryEmail: true },
+    })
+    const emails = told.map((p) => p.primaryEmail)
+    expect(emails).toContain('world-nike-programme@demo.etyme.local')
+    expect(emails).toContain('world-nike-compliance@demo.etyme.local')
+    // Not the desks that could only forward it.
+    expect(emails).not.toContain(NIKE_AP)
+    expect(emails).not.toContain('world-nike-hiring@demo.etyme.local')
+  })
+
+  it('a client is told how many people are on its sites under the agreement that is running out', async () => {
+    const { id } = await theDeal()
+    const live = await prisma.sellContract.findMany({
+      where: { msaId: id, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+      select: { personId: true },
+    })
+    const heads = new Set(live.map((c) => c.personId)).size
+    expect(heads).toBeGreaterThan(0)
+
+    const out = await lapseNotices(prisma as any, await facts(id), new Date())
+    const buyer = out.find((n) => n.data.side === 'CLIENT')!
+    expect(buyer.data.peopleOnSite).toBe(heads)
+    expect(buyer.body).toContain(`${heads} ${heads === 1 ? 'person is' : 'people are'} on your sites under it`)
+    // The supplier reads a commercial problem, not a head count.
+    expect(out.find((n) => n.data.side === 'VENDOR')!.body).not.toContain('on your sites')
+  })
+
+  it('where nothing links anybody to the agreement the client is told no count at all, rather than told nobody is there', async () => {
+    const vendor = await at('world-pinnacle')
+    const client = await at('world-nike')
+    // The seeded world holds three Pinnacle agreements with Northbend and
+    // two of them carry no contracts at all. An agreement with nothing
+    // hanging off it may mean nobody is working under it or may mean
+    // nothing was ever linked, and the two are opposite facts.
+    const bare = await prisma.masterAgreement.findFirstOrThrow({
+      where: { vendorId: vendor.id, clientId: client.id, sellContracts: { none: {} } },
+      select: { id: true },
+    })
+    await prisma.masterAgreement.update({ where: { id: bare.id }, data: { expiresAt: day(40), status: 'ACTIVE' } })
+    const out = await lapseNotices(prisma as any, await facts(bare.id), new Date())
+    const buyer = out.find((n) => n.data.side === 'CLIENT')!
+    expect(buyer.data.peopleOnSite).toBeNull()
+    expect(buyer.body).not.toContain('on your sites')
+    expect(buyer.body).not.toContain('nobody')
+  })
+
+  it('a sub-vendor\u2019s agreement with its prime is told to those two firms and never to the client', async () => {
+    const wrenfield = await at('world-wrenfield')
+    const brightmoor = await at('world-brightmoor')
+    const nike = await at('world-nike')
+    const chain = await prisma.masterAgreement.create({
+      data: { vendorId: wrenfield.id, clientId: brightmoor.id, paymentTerms: 30, expiresAt: day(20), status: 'ACTIVE' },
+      select: { id: true },
+    })
+    const out = await lapseNotices(prisma as any, await facts(chain.id), new Date())
+    expect(out.length).toBeGreaterThan(0)
+    expect([...new Set(out.map((n) => n.companyId))].sort()).toEqual([brightmoor.id, wrenfield.id].sort())
+    for (const n of out) {
+      expect(n.companyId).not.toBe(nike.id)
+      expect(JSON.stringify(n)).not.toContain(nike.name)
+    }
+    await prisma.masterAgreement.delete({ where: { id: chain.id } })
+  })
+
+  it('each side is told once: a milestone already announced to the supplier is still news to the client', async () => {
+    const { id } = await theDeal()
+    const f = await facts(id)
+    const all = await lapseNotices(prisma as any, f, new Date())
+    const milestone = all[0].data.milestone
+
+    const afterVendor = await lapseNotices(prisma as any, f, new Date(), new Set([saidKeyFor(f.id, milestone, 'VENDOR')]))
+    expect(afterVendor.length).toBeGreaterThan(0)
+    expect(afterVendor.every((n) => n.data.side === 'CLIENT')).toBe(true)
+
+    const both = new Set([saidKeyFor(f.id, milestone, 'VENDOR'), saidKeyFor(f.id, milestone, 'CLIENT')])
+    expect(await lapseNotices(prisma as any, f, new Date(), both)).toEqual([])
+  })
+
+  it('the letter the watch would send is one a notification can be written from, unchanged', async () => {
+    const { client, id } = await theDeal()
+    const out = await lapseNotices(prisma as any, await facts(id), new Date())
+    const buyer = out.find((n) => n.data.side === 'CLIENT')!
+    // The one line the nightly route needs: hand the notice straight to
+    // `notify`. If this stops compiling, the route's change has drifted.
+    await notify(buyer)
+    let row = null
+    for (let i = 0; i < 20 && !row; i++) {
+      row = await prisma.notification.findFirst({
+        where: { personId: buyer.personId, entityId: buyer.entityId, companyId: client.id },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (!row) await new Promise((res) => setTimeout(res, 100))
+    }
+    expect(row?.title).toBe(buyer.title)
+    expect((row?.data as any)?.side).toBe('CLIENT')
   })
 })

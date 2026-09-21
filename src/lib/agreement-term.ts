@@ -15,9 +15,12 @@
  *     on 3 March" — the only question that matters in a dispute — had no
  *     answer at all.
  *
- * This file is the arithmetic for the first two. It has no database in
- * it: every function takes the row's fields and a clock and returns a
- * verdict or a sentence. The routes do the writing.
+ * This file is the arithmetic for the first two. It imports no database
+ * client: every function takes the row's fields and a clock and returns a
+ * verdict or a sentence. The one reader here — `lapseNotices`, which has
+ * to resolve two desks and count who is on site — takes the caller's own
+ * Prisma client as an argument, because a client page reaches this file
+ * and may not bundle `@/lib/db`. The routes do the writing.
  *
  * ── Why the term warns and never blocks ──────────────────────────────
  *
@@ -37,6 +40,8 @@
  * Owned with `app/api/program/agreements`. Tested by
  * `__tests__/invariants/agreement-term.test.ts`.
  */
+
+import { hasPermission, type Permission } from '@/lib/permissions'
 
 // ── The words ─────────────────────────────────────────────────────────
 
@@ -560,29 +565,298 @@ export function milestoneNow(term: Term, now: Date): number | null {
   return Math.min(...crossed)
 }
 
-/** The line that goes in the notification. */
+/**
+ * The line that goes in the notification, as the supplier reads it.
+ *
+ * Kept as the vendor side of `lapseLetter` rather than as a second set of
+ * words, so the two sides cannot drift into saying different things about
+ * the same date.
+ */
 export function milestoneSays(
   counterpartyName: string,
   term: Term,
   now: Date
 ): { title: string; body: string } | null {
-  const milestone = milestoneNow(term, now)
-  if (milestone == null) return null
-  const days = daysUntilExpiry(term.expiresAt, now)!
+  if (milestoneNow(term, now) == null) return null
+  return lapseLetter({ side: 'VENDOR', counterpartyName, term, now })
+}
 
-  if (days <= 0) {
+// ── Both signers hear, each in its own words ──────────────────────────
+
+/**
+ * Which end of the agreement a reader is standing at.
+ *
+ * `MasterAgreement.vendorId` is the firm that sells under it and
+ * `clientId` is the firm that buys. In a chain the buyer is a prime, not
+ * an end client — which is exactly why nothing here ever reaches past
+ * these two. An agreement between a prime and its sub-vendor is told to
+ * those two firms and to nobody above them: the NDA between them is what
+ * stops the sub being named to the client, and a lapse notice naming a
+ * sub-vendor to a client it has no deal with would break it as surely as
+ * a screen would.
+ */
+export type AgreementSide = 'VENDOR' | 'CLIENT'
+
+/**
+ * The desk that can do something about the paper, at each end, named by
+ * what it may do rather than by what its role is called.
+ *
+ * A role name is a label a company may rename; a permission is what the
+ * seat can actually act on, and `lib/company-defaults` grants these to
+ * exactly the desks that own this problem:
+ *
+ *   VENDOR   `rates.write` is the contracting desk — Contract Manager,
+ *            Account Manager, Owner. `settings.manage` catches the
+ *            one-person firm whose only seat is its founder.
+ *   CLIENT   `governance.write` is the program manager who runs the
+ *            program and sets its rules; `privacy.manage` is the
+ *            compliance officer, the one desk answerable by name for what
+ *            is held about the people on the site.
+ *
+ * Not the AP clerk, not the hiring manager: the desk that acts is the
+ * desk that hears, and an agreement nobody at that desk can renew is a
+ * mail to somebody who forwards it.
+ */
+export const LAPSE_DESK: Record<AgreementSide, readonly Permission[]> = {
+  VENDOR: ['rates.write', 'settings.manage'],
+  CLIENT: ['governance.write', 'privacy.manage'],
+}
+
+/**
+ * The contract states where somebody has actually walked in.
+ *
+ * The same two as `workHasStarted` in `app/api/program/agreements/verdict`,
+ * declared here rather than imported so this file — which a client page
+ * reaches through `dashboard/program/agreements/standing` — pulls in no
+ * route code. `agreement-term.test.ts` fails if the two ever differ.
+ */
+export const WORK_STARTED_STATES: readonly string[] = ['IN_PROGRESS', 'PAUSED']
+
+/**
+ * What one signer is told, in its own words.
+ *
+ * The two sides are not the same letter with a name swapped. A supplier
+ * reads a commercial problem — renew it or lose the right to bill. A
+ * client reads an exposure — these people are on my sites under paper
+ * that is running out — and the count is what makes it one, so it is in
+ * the sentence rather than in a dashboard the reader will not open.
+ *
+ * `peopleOnSite` is null where nobody could count, and the clause is
+ * omitted rather than written as none: "nobody is on your sites" and
+ * "nothing here links anybody to this agreement" are opposite facts, and
+ * the second dressed as the first is how a client stops renewing paper
+ * that is carrying people.
+ */
+export function lapseLetter(input: {
+  side: AgreementSide
+  /** The firm at the other end. Never a third firm, on either side. */
+  counterpartyName: string
+  term: Term
+  now: Date
+  peopleOnSite?: number | null
+}): { title: string; body: string } | null {
+  const { term, now } = input
+  if (!term.expiresAt) return null
+  const days = daysUntilExpiry(term.expiresAt, now)!
+  const ran = onDay(term.expiresAt)
+  const gone = days <= 0
+
+  const title = gone
+    ? `Your agreement with ${input.counterpartyName} has run out`
+    : `Your agreement with ${input.counterpartyName} runs out in ${plural(days, 'day', 'days')}`
+
+  if (input.side === 'VENDOR') {
     return {
-      title: `The agreement with ${counterpartyName} has run out`,
-      body:
-        `It ran out on ${onDay(term.expiresAt!)}. Anything written under it now is ` +
-        `written under lapsed paper. Renew it, or end it and record what replaces it.`,
+      title,
+      body: gone
+        ? `It ran out on ${ran}. Anything written under it now is written under lapsed ` +
+          `paper. Renew it, or end it and record what replaces it.`
+        : `It runs to ${ran}. Start the renewal now, or record the agreement that ` +
+          `replaces it, so nothing is written under lapsed paper.`,
     }
   }
 
+  const n = input.peopleOnSite
+  const under =
+    n == null
+      ? ''
+      : n === 0
+        ? ', and nobody is on your sites under it today'
+        : `, and ${plural(n, 'person is', 'people are')} on your sites under it`
+
   return {
-    title: `The agreement with ${counterpartyName} runs out in ${plural(days, 'day', 'days')}`,
-    body:
-      `It runs to ${onDay(term.expiresAt!)}. Start the renewal now, or record the ` +
-      `agreement that replaces it, so nothing is written under lapsed paper.`,
+    title,
+    body: gone
+      ? `It ran out on ${ran}${under}. Anything written under it now is written under ` +
+        `lapsed paper. Ask ${input.counterpartyName} for the renewal, or record the ` +
+        `agreement that replaces it.`
+      : `It runs to ${ran}${under}. Ask ${input.counterpartyName} for the renewal now, ` +
+        `or record the agreement that replaces it, so nothing is written under lapsed paper.`,
   }
+}
+
+/** The agreement, as the nightly watch already reads it. */
+export interface AgreementFacts extends Term {
+  id: string
+  vendorId: string
+  clientId: string
+}
+
+/** One notification, shaped for `lib/notify`, with where it came from on it. */
+export interface LapseNotice {
+  personId: string
+  companyId: string
+  type: 'CONTRACT'
+  title: string
+  body: string
+  entityId: string
+  channel: 'EMAIL'
+  data: {
+    agreementId: string
+    milestone: number
+    counterparty: string
+    side: AgreementSide
+    peopleOnSite: number | null
+  }
+  /**
+   * The key that says this milestone has been announced to this side.
+   * The vendor's is the key the watch has always written, so nothing
+   * already told is told again the night this ships.
+   */
+  saidKey: string
+}
+
+/**
+ * Just enough of the Prisma client to read three tables.
+ *
+ * Structural and loose on purpose: this file is reached from a client
+ * page through `dashboard/program/agreements/standing`, so it may not
+ * import `@/lib/db`. The caller hands its own client in.
+ */
+export interface AgreementReader {
+  company: { findMany: (args: any) => Promise<any[]> }
+  context: { findMany: (args: any) => Promise<any[]> }
+  sellContract: { findMany: (args: any) => Promise<any[]> }
+}
+
+export function saidKeyFor(agreementId: string, milestone: number, side: AgreementSide): string {
+  // The vendor key is bare, exactly as the watch has written it since the
+  // job existed. Adding a suffix to it would make every agreement already
+  // warned at sixty days warn again on the first night after this ships.
+  return side === 'VENDOR' ? `${agreementId}:${milestone}` : `${agreementId}:${milestone}:CLIENT`
+}
+
+/**
+ * Everybody who should hear that this agreement is running out, on both
+ * sides, with the letter each of them reads.
+ *
+ * ── The crack this closes ────────────────────────────────────────────
+ *
+ * The nightly watch resolved the desk at `vendorId` and stopped. So the
+ * supplier heard at ninety, sixty and thirty days and on the day it
+ * lapsed, and the client — the other signer, the firm with the people on
+ * its own sites, the one that will be asked in an audit under what paper
+ * they were there — heard nothing at any of the four. A loop with one end
+ * notified is not a loop.
+ *
+ * Returns an empty list where there is nothing to say, where both sides
+ * have already been told, or where neither firm has anybody on a desk
+ * that could act — never a notification to somebody who can only forward
+ * it.
+ */
+export async function lapseNotices(
+  db: AgreementReader,
+  agreement: AgreementFacts,
+  now: Date,
+  alreadySaid: ReadonlySet<string> = new Set()
+): Promise<LapseNotice[]> {
+  const milestone = milestoneNow(agreement, now)
+  if (milestone == null) return []
+
+  const sides: AgreementSide[] = (['VENDOR', 'CLIENT'] as AgreementSide[]).filter(
+    (side) => !alreadySaid.has(saidKeyFor(agreement.id, milestone, side))
+  )
+  if (sides.length === 0) return []
+
+  const firms: { id: string; name: string }[] = await db.company.findMany({
+    where: { id: { in: [agreement.vendorId, agreement.clientId] } },
+    select: { id: true, name: true },
+  })
+  const nameOf = new Map(firms.map((f) => [f.id, f.name]))
+  const vendorName = nameOf.get(agreement.vendorId) ?? 'the supplier'
+  const clientName = nameOf.get(agreement.clientId) ?? 'the client'
+
+  const peopleOnSite = sides.includes('CLIENT') ? await countOnSite(db, agreement.id) : null
+
+  const out: LapseNotice[] = []
+  for (const side of sides) {
+    const companyId = side === 'VENDOR' ? agreement.vendorId : agreement.clientId
+    const counterparty = side === 'VENDOR' ? clientName : vendorName
+    const letter = lapseLetter({ side, counterpartyName: counterparty, term: agreement, now, peopleOnSite: side === 'CLIENT' ? peopleOnSite : undefined })
+    if (!letter) continue
+    const desk = await deskAt(db, companyId, LAPSE_DESK[side])
+    for (const personId of desk) {
+      out.push({
+        personId,
+        companyId,
+        type: 'CONTRACT',
+        title: letter.title,
+        body: letter.body,
+        entityId: agreement.id,
+        channel: 'EMAIL',
+        data: {
+          agreementId: agreement.id,
+          milestone,
+          counterparty,
+          side,
+          peopleOnSite: side === 'CLIENT' ? peopleOnSite : null,
+        },
+        saidKey: saidKeyFor(agreement.id, milestone, side),
+      })
+    }
+  }
+  return out
+}
+
+/**
+ * Whoever at this firm holds one of these permissions.
+ *
+ * Through `hasPermission` rather than a raw `includes`, because an
+ * owner's role is stored as the wildcard `*` and a string comparison
+ * quietly tells nobody at all at every firm run by its founder. The rule
+ * is imported rather than restated: `lib/permissions` is the one answer
+ * to "may this seat do this".
+ */
+async function deskAt(db: AgreementReader, companyId: string, permissions: readonly Permission[]): Promise<string[]> {
+  const seats: { personId: string; role: { permissions: string[] } | null }[] = await db.context.findMany({
+    where: { companyId, revokedAt: null },
+    select: { personId: true, role: { select: { permissions: true } } },
+  })
+  const ids = seats
+    .filter((s) => {
+      const held = (s.role?.permissions ?? []) as string[]
+      return permissions.some((p) => hasPermission(held, p))
+    })
+    .map((s) => s.personId)
+  return [...new Set(ids)]
+}
+
+/**
+ * How many people are standing on the client's sites under this
+ * agreement, counted once each.
+ *
+ * Null, not zero, where no contract of any state is linked to the
+ * agreement. `SellContract.msaId` is a denormalized pointer and is
+ * nullable, so an agreement with nothing hanging off it may mean nobody
+ * is working under it or may mean nothing was ever linked — and reporting
+ * "nobody is on your sites" of the second is the plausible wrong number
+ * that stops a client renewing paper that is carrying twelve people.
+ */
+async function countOnSite(db: AgreementReader, agreementId: string): Promise<number | null> {
+  const lines: { personId: string; state: string }[] = await db.sellContract.findMany({
+    where: { msaId: agreementId },
+    select: { personId: true, state: true },
+  })
+  if (lines.length === 0) return null
+  return new Set(lines.filter((l) => WORK_STARTED_STATES.includes(l.state)).map((l) => l.personId)).size
 }
