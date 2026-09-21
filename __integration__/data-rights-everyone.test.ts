@@ -27,9 +27,11 @@ import { isTombstone } from '@/lib/erasure'
  *   Teleworld · Karthik an integrator and its own W2 — the person the
  *                       work is about who also holds a seat at the firm
  *                       that employs him.
- *   Aptiva Workforce    a program office that places nobody and holds no
- *                       seat in anybody's program. It is told what is
- *                       missing rather than shown an empty list.
+ *   Aptiva Workforce    a program office that places nobody and holds a
+ *                       desk at Cavanaugh Glassworks. Told where that
+ *                       client's requests are answered.
+ *   Kestrel MSP         a program office seated nowhere at all. Told a
+ *                       desk is the client's to grant.
  *   Northbend Athletic  its AP clerk and its hiring manager, asking for
  *                       themselves from a seat and nothing else.
  *
@@ -55,6 +57,7 @@ const STAFF = 'ops@etyme.example'
 const CLOUDEPA_COMPLIANCE = 'compliance.cloudepa@seed.etyme.invalid'
 const CLOUDEPA_ACCOUNTS = 'accounts.cloudepa@seed.etyme.invalid'
 const APTIVA_COMPLIANCE = 'compliance.aptiva@seed.etyme.invalid'
+const KESTREL_COMPLIANCE = 'compliance.kestrel@seed.etyme.invalid'
 const CLOUDEPA_OWNER = `world-cloudepa${D}`
 const HARLOW_OWNER = `world-harlow-health${D}`
 const NORTHBEND_AP = `world-nike-ap${D}`
@@ -62,7 +65,7 @@ const NORTHBEND_HIRING = `world-nike-hiring${D}`
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
 const ANDERS = 'anders.lund@seed.etyme.invalid'
 
-const co = { cloudepa: '', teleworld: '', aptiva: '', northbend: '', harlow: '' }
+const co = { cloudepa: '', teleworld: '', aptiva: '', kestrel: '', northbend: '', harlow: '' }
 const who = { karthik: '', anders: '', cloudepaConsultant: '', ap: '', hiring: '', cloudepaOwner: '' }
 let cloudepaConsultantName = ''
 
@@ -122,7 +125,8 @@ beforeAll(async () => {
 
   for (const [key, slug] of [
     ['cloudepa', 'world-cloudepa'], ['teleworld', 'world-teleworld'],
-    ['aptiva', 'world-aptiva'], ['northbend', 'world-nike'], ['harlow', 'world-harlow-health'],
+    ['aptiva', 'world-aptiva'], ['kestrel', 'world-kestrel'],
+    ['northbend', 'world-nike'], ['harlow', 'world-harlow-health'],
   ] as const) {
     co[key] = (await prisma.company.findFirstOrThrow({ where: { slug } })).id
   }
@@ -130,6 +134,10 @@ beforeAll(async () => {
   await seat(co.cloudepa, 'VENDOR', 'Compliance Officer', 'Nadia Farrell', CLOUDEPA_COMPLIANCE)
   await seat(co.cloudepa, 'VENDOR', 'Account Manager', 'Ronan Deeley', CLOUDEPA_ACCOUNTS)
   await seat(co.aptiva, 'MSP', 'Compliance Officer', 'Imani Sackey', APTIVA_COMPLIANCE)
+  // Kestrel is the office nobody has seated. Aptiva holds a desk at
+  // Cavanaugh Glassworks from the world seed, so it can no longer stand
+  // for "seated nowhere" — the two sentences need two firms.
+  await seat(co.kestrel, 'MSP', 'Compliance Officer', 'Delphine Aubert', KESTREL_COMPLIANCE)
 
   who.karthik = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK } })).id
   who.anders = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: ANDERS } })).id
@@ -312,14 +320,41 @@ describe('an integrator’s own employee is both a worker and a seat', () => {
 // ── A program office that is not the client ─────────────────────────
 
 describe('a program office is told what it is missing, rather than shown an empty list', () => {
-  it('an MSP’s compliance officer reads its own desk and is told in a sentence that a client’s requests need a desk the client grants', async () => {
+  // Two sentences, and which one is true depends on whether a client has
+  // seated this office. Aptiva Workforce IS seated — the world seed gives
+  // it a desk at Cavanaugh Glassworks' program manager — and for a week
+  // it was told on its own page that the seat "is not built yet", because
+  // the framing read the company kind and nothing else. Kestrel MSP is
+  // seated nowhere, and the old sentence is right for it once the clause
+  // describing the product as it was a week ago comes out.
+  //
+  // `__integration__/seat-compliance.test.ts` walks what a seated office
+  // then reads. This holds the two sentences apart.
+  it('an MSP seated in a client’s program is told where that client’s requests are answered, not that the seat does not exist', async () => {
     as(APTIVA_COMPLIANCE)
     const { status, body } = await json(await deskQueue(req('GET', '/api/data-requests')))
     expect(status).toBe(200)
+    // Its own book, which is still empty — the client's is the client's.
     expect(body.data.requests).toEqual([])
     expect(body.data.desk.missing).toContain('Aptiva Workforce')
+    expect(body.data.desk.missing).toContain('Cavanaugh Glassworks')
+    // Cavanaugh seated it at its Program Manager desk, which does not
+    // read data requests, so the sentence says which desk would.
+    expect(body.data.desk.missing).toContain('Program Manager')
+    expect(body.data.desk.missing).not.toContain('not built yet')
+    expect(body.data.desk.missing).not.toMatch(/[A-Z]{3,}_[A-Z]/)
+  })
+
+  it('an MSP nobody has seated is told a desk is the client’s to grant, and who at the client can grant it', async () => {
+    as(KESTREL_COMPLIANCE)
+    const { status, body } = await json(await deskQueue(req('GET', '/api/data-requests')))
+    expect(status).toBe(200)
+    expect(body.data.requests).toEqual([])
+    expect(body.data.desk.missing).toContain('Kestrel MSP')
     expect(body.data.desk.missing).toContain('program office')
-    expect(body.data.desk.missing).toContain('not built yet')
+    expect(body.data.desk.missing).toContain('granted by the client')
+    expect(body.data.desk.missing).toContain('owner or the')
+    expect(body.data.desk.missing).not.toContain('not built yet')
     expect(body.data.desk.missing).not.toMatch(/[A-Z]{3,}_[A-Z]/)
   })
 

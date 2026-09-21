@@ -3,6 +3,9 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { seatUnits } from '@/lib/account-walls'
+import { seatTrail } from '@/lib/program-seat'
+import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, type HeldCredential } from '@/lib/document-stages'
 import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
@@ -37,13 +40,37 @@ export async function GET(request: NextRequest) {
 
   const url = request.nextUrl
 
-  // Entitlement-checked: the caller is either this client, or a vendor
-  // with a real placement there. An unverified ?clientCompanyId= is a 403.
-  const { client: clientCompany, error: clientError } = await resolveClientCompany(
+  // Entitlement-checked: the caller is either this client, a program
+  // office in a seat the client granted, or a vendor with a real
+  // placement there. An unverified ?clientCompanyId= is a 403.
+  const { client: clientCompany, seat, error: clientError } = await resolveClientCompany(
     caller,
     url.searchParams.get('clientCompanyId')
   )
   if (clientError) return clientError
+
+  // ── What a seated office may read here ──────────────────────────────
+  //
+  // This page is the client's own rules and who is failing them, which
+  // is `governance.read` at a CLIENT — the program manager, the
+  // approvers, HR, procurement and the compliance officer all hold it,
+  // and the AP clerk does not. Asked against the seat's role, so what
+  // the office may read is exactly what the desk the client chose may
+  // read, and narrows the day the client narrows it.
+  if (seat) {
+    const verdict = seatMayRead(seat, 'governance.read', 'the compliance page')
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: verdict.says } },
+        { status: 403 }
+      )
+    }
+  }
+
+  // A seat narrowed to one business unit reaches that unit and
+  // everything under it. Null for every reader who is not in a narrowed
+  // seat, which is every reader there was before.
+  const units = await seatUnits(seat ?? null)
 
   const now = new Date()
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
@@ -87,6 +114,7 @@ export async function GET(request: NextRequest) {
   const activeContracts = await prisma.sellContract.findMany({
     where: {
       ...endClientFilter(clientCompany.id),
+      ...seatScope(units),
       state: { in: ['IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
     },
     select: {
@@ -149,11 +177,17 @@ export async function GET(request: NextRequest) {
     }
 
   // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
+  //
+  // Under a seat the row names the seat: which firm read this, at which
+  // of the client's own desks, granted by whom. `Compliance view at
+  // Cavanaugh Glassworks` was true and named nobody.
   logBulkAccess(contractPersonIds, {
     actorPersonId: caller.person.id,
     actorCompanyId: caller.company?.id,
-    action: 'COMPLIANCE_CHECK',
-    reason: `Compliance view at ${clientCompany.name}`,
+    action: seat ? 'PROGRAM_READ' : 'COMPLIANCE_CHECK',
+    reason: seat
+      ? seatTrail(seat, 'Compliance page read')
+      : `Compliance view at ${clientCompany.name}`,
   })
 
   // Person-level verifications

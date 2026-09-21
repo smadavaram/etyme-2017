@@ -3,6 +3,9 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { seatUnits } from '@/lib/account-walls'
+import { seatTrail } from '@/lib/program-seat'
+import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
@@ -32,13 +35,42 @@ export async function GET(request: NextRequest) {
 
   const url = request.nextUrl
 
-  // Entitlement-checked: the caller is either this client, or a vendor
-  // with a real placement there. An unverified ?clientCompanyId= is a 403.
-  const { client: clientCompany, error: clientError } = await resolveClientCompany(
+  // Entitlement-checked: the caller is either this client, a program
+  // office in a seat the client granted, or a vendor with a real
+  // placement there. An unverified ?clientCompanyId= is a 403.
+  const { client: clientCompany, seat, error: clientError } = await resolveClientCompany(
     caller,
     url.searchParams.get('clientCompanyId')
   )
   if (clientError) return clientError
+
+  // ── What a seated office may read here ──────────────────────────────
+  //
+  // Tenure is the client's own exposure and the desk that answers for it
+  // is the compliance officer's — but a program manager answers for it
+  // too, and both hold `assignments.read` at a CLIENT
+  // (`lib/company-defaults`). So the gate is the permission rather than
+  // the role name: a client that seats an office at a desk holding it
+  // has decided the office may read who is on its sites and for how
+  // long, and a client that seats it at its AP clerk's desk has not.
+  //
+  // Asked against the SEAT'S role, never the office's own. An MSP
+  // coordinator whose own firm never granted its coordinators
+  // `assignments.read` is the client's program manager inside this seat.
+  if (seat) {
+    const verdict = seatMayRead(seat, 'assignments.read', 'the tenure ledger')
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: verdict.says } },
+        { status: 403 }
+      )
+    }
+  }
+
+  // A seat narrowed to one business unit reaches that unit and
+  // everything under it, and no further. Null for an unnarrowed seat and
+  // for every unseated reader, which is every reader there was before.
+  const units = await seatUnits(seat ?? null)
 
   const now = new Date()
 
@@ -48,6 +80,7 @@ export async function GET(request: NextRequest) {
   const contracts = await prisma.sellContract.findMany({
     where: {
       ...endClientFilter(clientCompany.id),
+      ...seatScope(units),
       state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
     },
     include: {
@@ -232,13 +265,21 @@ export async function GET(request: NextRequest) {
   })
 
   // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
+  //
+  // A read made from a seat is filed under its own action and carries
+  // the seat in its reason, so the question a client asks afterwards —
+  // who looked at my workforce, and on whose authority — is one query
+  // rather than a grep. `Tenure view at Cavanaugh Glassworks` named
+  // neither the office nor the desk it sat at.
   const personIds = people.map((p) => p.personId)
   if (personIds.length > 0) {
     logBulkAccess(personIds, {
       actorPersonId: caller.person.id,
       actorCompanyId: caller.company?.id ?? undefined,
-      action: 'TENURE_VIEW',
-      reason: `Tenure view at ${clientCompany.name}`,
+      action: seat ? 'PROGRAM_READ' : 'TENURE_VIEW',
+      reason: seat
+        ? seatTrail(seat, 'Tenure ledger read')
+        : `Tenure view at ${clientCompany.name}`,
     })
   }
 

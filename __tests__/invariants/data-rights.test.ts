@@ -113,12 +113,41 @@ describe('the compliance desk is one page and four kinds of firm open it', () =>
     expect(deskFraming('GSI', 'Teleworld Solutions').says).toContain('employs or places')
   })
 
-  it('a program office is told what it is missing, and the sentence never invents the seat it lacks', () => {
+  it('a program office with no seat anywhere is told a desk is the client’s to grant, and who can grant it', () => {
     const msp = deskFraming('MSP', 'Aptiva Workforce')
     expect(msp.missing).not.toBeNull()
     expect(msp.missing!).toContain('program office')
     expect(msp.missing!).toContain('granted by the client')
-    expect(msp.missing!).toContain('not built yet')
+    expect(msp.missing!).toContain('owner or the')
+    // The seat was built on 2026-09-20 and this sentence went on saying
+    // it was not, because the framing read the company kind and nothing
+    // else. A sentence that describes the product as it was a week ago
+    // is worse than no sentence.
+    expect(msp.missing!).not.toContain('not built yet')
+  })
+
+  it('a program office that holds a compliance desk at a client is told where that client’s queue is', () => {
+    const msp = deskFraming('MSP', 'Aptiva Workforce', {
+      clientName: 'Cavanaugh Glassworks',
+      roleName: 'Compliance Officer',
+      permissions: ['governance.read', 'privacy.manage'],
+    })
+    expect(msp.missing).not.toBeNull()
+    expect(msp.missing!).toContain('Cavanaugh Glassworks')
+    expect(msp.missing!).toContain('Compliance Officer')
+    expect(msp.missing!).toContain('name that program')
+    expect(msp.missing!).not.toContain('not built yet')
+  })
+
+  it('a program office seated at a desk that does not read data requests is told which desk would', () => {
+    const msp = deskFraming('MSP', 'Aptiva Workforce', {
+      clientName: 'Cavanaugh Glassworks',
+      roleName: 'Program Manager',
+      permissions: ['governance.read', 'governance.write'],
+    })
+    expect(msp.missing!).toContain('Program Manager')
+    expect(msp.missing!).toContain('does not read data requests')
+    expect(msp.missing!).toContain('owner or the program manager there')
   })
 
   it('a desk that could read either of its two lists is never told it cannot read the desk', () => {
@@ -330,12 +359,34 @@ describe('acting on somebody else’s record asks for the privacy permission', (
     expect(LEGAL_HOLDS).toContain('an owner or ')
   })
 
-  it('reading the queue needs only the governance read the desk already has', () => {
+  it('reading a company’s own queue needs only the governance read the desk already has', () => {
     expect(readGate(DATA_REQUESTS)).toContain("hasPermission(caller.permissions, TO_READ)")
     expect(DATA_REQUESTS).toContain("const TO_READ = 'governance.read'")
     expect(readGate(DATA_REQUESTS)).not.toContain('TO_ACT')
     expect(readGate(LEGAL_HOLDS)).toContain("hasPermission(caller.permissions, TO_READ)")
-    expect(readGate(BREACHES)).toContain("hasPermission(caller.permissions, TO_READ)")
+    expect(readGate(BREACHES)).toContain('caller.permissions')
+  })
+
+  it('reading a client’s queue from a seat asks the seat’s own role, never the office’s', () => {
+    // The whole point of a seat is that the office acts under the
+    // client's rules. A route that asked `caller.permissions` and then
+    // read the client's book would be letting a firm grade its own
+    // homework, which is the thing `lib/program-seat` exists to stop.
+    for (const [name, src] of [
+      ['data requests', DATA_REQUESTS], ['legal holds', LEGAL_HOLDS], ['breaches', BREACHES],
+    ] as const) {
+      expect(readGate(src), name).toContain('privacyDesk(')
+    }
+    expect(readGate(BREACHES)).toContain('seat.role.permissions')
+    // And the two routes that take the whole answer from privacyDesk
+    // only fall back to their own gate when there is no seat at all.
+    expect(readGate(DATA_REQUESTS)).toContain('if (!desk.seat) {')
+    expect(readGate(LEGAL_HOLDS)).toContain('!desk.seat &&')
+  })
+
+  it('a seat is asked for the privacy permission before a client’s privacy book opens', () => {
+    const lib = readFileSync(join(process.cwd(), 'src/lib/data-request.ts'), 'utf8')
+    expect(lib).toContain("seatMayRead(seat, 'privacy.manage'")
   })
 
   it('logging or answering a request about somebody else needs the privacy permission', () => {

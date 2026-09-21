@@ -4,9 +4,9 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import {
   oneSubject, mayAsk, raiseRequest, produceExport, completeErasure,
-  reference, coolingEndsAtFor, deskFraming,
+  reference, coolingEndsAtFor, deskFraming, privacyDesk, seatHeldAnywhere, seatTrail,
 } from '@/lib/data-request'
-import { logAccess } from '@/lib/access-log'
+import { logAccess, logBulkAccess } from '@/lib/access-log'
 
 /**
  * The compliance desk's queue: requests that arrived by email, logged
@@ -75,10 +75,38 @@ export async function GET(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json({ error: 'This page belongs to a company’s compliance desk.' }, { status: 403 })
   }
-  if (!hasPermission(caller.permissions, TO_READ)) return readRefusal()
+
+  // ── Whose queue ─────────────────────────────────────────────────────
+  //
+  // The caller's own, unless they name a client they hold a seat at. A
+  // program office has two books and silently swapping its own staff's
+  // requests for a client's would lose the first one; naming the client
+  // is the deliberate act that opens the second. See `privacyDesk`.
+  const desk = await privacyDesk(
+    caller,
+    request.nextUrl.searchParams.get('clientCompanyId'),
+    'data requests'
+  )
+  if (!desk.ok) return NextResponse.json({ error: desk.says }, { status: desk.status })
+
+  // Gated on the seat's role where there is a seat, and on the caller's
+  // own where there is not. `privacyDesk` has already asked the seat for
+  // `privacy.manage`; this is the unseated desk's own gate, unchanged —
+  // written as its own statement rather than folded into one condition,
+  // because `sidebar-nav`'s scanner reads the gate a page's link
+  // promises straight out of this handler and a menu entry that
+  // promises something the route does not ask for is an entry that lies.
+  if (!desk.seat) {
+    if (!hasPermission(caller.permissions, TO_READ)) return readRefusal()
+  }
+
+  // Only for the sentence on an office's own page: does this firm hold a
+  // desk anywhere, so the framing can say where the client's queue is
+  // rather than that the seat is not built.
+  const heldSeat = desk.seat ? null : await seatHeldAnywhere(caller)
 
   const rows = await prisma.dataRequest.findMany({
-    where: { requestedByCompanyId: caller.company.id },
+    where: { requestedByCompanyId: desk.companyId },
     // Soonest due first: a queue ordered any other way is a queue that
     // misses the one that mattered.
     orderBy: [{ status: 'asc' }, { dueAt: 'asc' }],
@@ -90,13 +118,29 @@ export async function GET(request: NextRequest) {
     },
   })
 
+  // The read is on the record either way, and a read made from a seat
+  // says so: which firm, at which of the client's own desks, granted by
+  // whom. The people named in the queue are subjects of it too — a
+  // program office reading a client's data requests is reading the
+  // people who made them.
   logAccess({
     subjectId: caller.person.id,
     actorPersonId: caller.person.id,
     actorCompanyId: caller.company.id,
-    action: 'DATA_EXPORT',
-    reason: `Read the compliance desk’s queue of ${rows.length} data requests.`,
+    action: desk.seat ? 'PROGRAM_READ' : 'DATA_EXPORT',
+    reason: desk.seat
+      ? seatTrail(desk.seat, `Queue of ${rows.length} data requests read`)
+      : `Read the compliance desk’s queue of ${rows.length} data requests.`,
   })
+  if (desk.seat) {
+    const named = [...new Set(rows.map((r) => r.subjectPerson?.id).filter((id): id is string => Boolean(id)))]
+    logBulkAccess(named, {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company.id,
+      action: 'PROGRAM_READ',
+      reason: seatTrail(desk.seat, 'Their data request read in the queue'),
+    })
+  }
 
   // ── The envelope ────────────────────────────────────────────────────
   //
@@ -115,7 +159,26 @@ export async function GET(request: NextRequest) {
       // program", and an MSP that places nobody is told what it is
       // missing rather than shown an empty list that reads as "nobody
       // has asked".
-      desk: deskFraming(caller.company.kind, caller.company.name),
+      desk: desk.seat
+        ? {
+            says:
+              `Requests from the people on ${desk.companyName}’s sites and from its own staff, the ` +
+              `records that program has asked to keep, and any incident its records were in. ` +
+              `${caller.company.name} is reading them from the ${desk.seat.role.name} desk ` +
+              `${desk.companyName} granted it, and every read here is logged against that seat.`,
+            missing: null,
+          }
+        : deskFraming(
+            caller.company.kind,
+            caller.company.name,
+            heldSeat
+              ? {
+                  clientName: heldSeat.clientCompany.name,
+                  roleName: heldSeat.role.name,
+                  permissions: heldSeat.role.permissions,
+                }
+              : null
+          ),
       requests: rows.map((r) => ({
         id: r.id,
         reference: reference(r.id),

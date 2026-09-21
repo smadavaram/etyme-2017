@@ -3,7 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { readBreach, mayWorkBreach, mayClose, type ClockState } from '@/lib/breach'
-import { referenceOfBreach } from '@/lib/data-request'
+import { referenceOfBreach, privacyDesk, seatTrail } from '@/lib/data-request'
+import { logAccess } from '@/lib/access-log'
 import { tellStaff } from '@/lib/alerts'
 import { breachStaffAlert } from '@/lib/notify/breach'
 import { POPULATIONS } from '@/lib/legal'
@@ -76,10 +77,27 @@ export async function GET(request: NextRequest) {
   if (error) return error
 
   const staff = !!caller.staff
-  const companyId = caller.company?.id ?? null
+
+  // Whose register: the caller's own company's, unless they name a
+  // client they hold a seat at. A breach register is the most sensitive
+  // list in the product, so a seat reads it only from a desk holding
+  // `privacy.manage` — the client's compliance officer's, not its
+  // program manager's. `privacyDesk` asks and says so if not.
+  const desk = caller.company
+    ? await privacyDesk(caller, request.nextUrl.searchParams.get('clientCompanyId'), 'the breach register')
+    : null
+  if (desk && !desk.ok) return NextResponse.json({ error: desk.says }, { status: desk.status })
+
+  const companyId = desk?.ok ? desk.companyId : null
+  const seat = desk?.ok ? desk.seat : null
   const mayRead = mayWorkBreach({
     isStaff: staff,
-    hasCompliancePermission: hasPermission(caller.permissions, TO_READ),
+    // The seat's role where there is a seat: an office reading a
+    // client's register does it at the client's desk, never its own.
+    hasCompliancePermission: hasPermission(
+      seat ? seat.role.permissions : caller.permissions,
+      TO_READ
+    ),
     companyIsAffected: companyId
       ? (await prisma.breachCompany.count({ where: { companyId } })) > 0
       : false,
@@ -104,6 +122,22 @@ export async function GET(request: NextRequest) {
       },
     },
   })
+
+  // A read made from a seat is on the record. The subjects of a breach
+  // are not enumerable from the row — a breach names populations and
+  // categories, never people — so the row is written against the reader
+  // themselves, with the seat in its reason. That is the honest shape:
+  // it records who opened a client's register and on whose authority,
+  // and claims nothing about whose records were in it.
+  if (seat) {
+    logAccess({
+      subjectId: caller.person.id,
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company!.id,
+      action: 'PROGRAM_READ',
+      reason: seatTrail(seat, `Breach register read — ${rows.length} incidents`),
+    })
+  }
 
   const now = new Date()
   // `{ data: ... }`, as above. A refusal stays `{ error: <sentence> }`

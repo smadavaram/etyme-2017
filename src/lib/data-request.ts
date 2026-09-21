@@ -30,7 +30,11 @@ import {
 } from '@/lib/retention'
 import { executeErasure, footprintFor, planErasure, keptBecause, isTombstone } from '@/lib/erasure'
 import { censusSweep, day, mb, type SweepCensus } from '@/lib/census'
+import { hasPermission } from '@/lib/permissions'
 import { logAccess } from '@/lib/access-log'
+import { seatFor, seatTrail, noSeatYet, type LiveSeat } from '@/lib/program-seat'
+import { seatMayRead } from '@/lib/walls'
+import type { CallerContext } from '@/lib/api-context'
 import { notify } from '@/lib/notify'
 import { tellStaff } from '@/lib/alerts'
 import { emailSender } from '@/lib/senders'
@@ -270,7 +274,27 @@ export interface DeskFraming {
  * seat, so it is told what is missing rather than shown an empty list
  * that reads as "nobody has asked".
  */
-export function deskFraming(kind: DeskKind | string, companyName: string): DeskFraming {
+export function deskFraming(
+  kind: DeskKind | string,
+  companyName: string,
+  /**
+   * The desk this firm holds in somebody else's program, if any.
+   *
+   * Only an MSP's sentence changes on it, and it changes completely: the
+   * office used to be told the seat "is not built yet", which stopped
+   * being true on 2026-09-20 and went on being printed because the
+   * framing was picked off the company kind and nothing else. A seated
+   * office is told where the client's own queue is instead; an unseated
+   * one is told who can grant it one.
+   */
+  seated?: { clientName: string; roleName: string; permissions: readonly string[] } | null
+): DeskFraming {
+  // Whether that desk would open the client's queue is decided here
+  // rather than by the caller, so the sentence and the gate read the
+  // same permission through the same function. An owner's `["*"]` is
+  // invisible to a raw `includes`, which is how ten of these were wrong
+  // before `owner-permissions` started failing the build on them.
+  const mayReadQueue = seated ? hasPermission(seated.permissions, 'privacy.manage') : false
   switch (kind) {
     case 'CLIENT':
       return {
@@ -298,13 +322,25 @@ export function deskFraming(kind: DeskKind | string, companyName: string): DeskF
         says:
           `Requests ${companyName} has logged itself, the records it has asked to keep, ` +
           'and any incident its records were in.',
-        missing:
-          `${companyName} runs somebody else's program and places nobody, so nothing here ` +
-          'ties it to a client. A request from one of a client’s contractors is answered ' +
-          `by that client’s own compliance desk, and reading one from here needs a desk in ` +
-          `the client’s program office — granted by the client, the way it grants one to ` +
-          'its own people. That seat is not built yet, so this page shows ' +
-          `${companyName}’s own and says so rather than showing an empty list.`,
+        missing: seated
+          ? mayReadQueue
+            ? `This page is ${companyName}’s own. ${seated.clientName} has also seated ` +
+              `${companyName} at its ${seated.roleName} desk, and a request from one of ` +
+              `${seated.clientName}’s contractors belongs to ${seated.clientName}’s queue rather ` +
+              `than this one — name that program to open it, and every read there is logged ` +
+              'against the seat.'
+            : `This page is ${companyName}’s own. ${seated.clientName} has seated ${companyName} ` +
+              `at its ${seated.roleName} desk, and that desk does not read data requests — a ` +
+              `request from one of ${seated.clientName}’s contractors is answered from ` +
+              `${seated.clientName}’s own compliance desk. An owner or the program manager there ` +
+              `can seat ${companyName} at a desk that reads it.`
+          : `${companyName} runs somebody else's program and places nobody, so nothing here ` +
+            'ties it to a client. A request from one of a client’s contractors is answered ' +
+            `by that client’s own compliance desk, and reading one from here needs a desk in ` +
+            `the client’s program office — granted by the client, the way it grants one to ` +
+            `its own people. No client has granted ${companyName} one yet: ask an owner or the ` +
+            'program manager at that client. So this page shows ' +
+            `${companyName}’s own and says so rather than showing an empty list.`,
       }
     case 'CONSULTANT_CORP':
       return {
@@ -1694,3 +1730,108 @@ export function coolingEndsAtFor(receivedAt: Date): Date {
 }
 
 export { COOLING_DAYS }
+
+// ── The privacy desk, opened from a seat a client granted ─────────────
+//
+// The three compliance routes — the queue of data requests, the legal
+// holds, the breach register — are all "this company's own book", scoped
+// to `caller.company.id`. A program office that runs a client's program
+// has two books, not one: its own staff's requests, and the requests of
+// the client's contractors, which belong to the client.
+//
+// So the seat is asked for explicitly here rather than assumed. Naming
+// no client reads the caller's own desk, exactly as before, because an
+// office's own staff still have their own rights and silently swapping
+// their queue for a client's would lose them. Naming a client opens that
+// client's book, and only from a seat the client granted.
+//
+// ── Why the gate is the privacy permission and not the governance read ─
+//
+// For a company's own staff, reading the queue asks only for
+// `governance.read`, because refusing the very desk the page is named
+// for is worse than a refusal (CLAUDE.md). That reasoning does not carry
+// across a company boundary. A program office reading this book is
+// reading requests made by people who are not its own, about records it
+// does not hold, at a company it is a guest of — which is the narrow act
+// `privacy.manage` exists to name. A client that wants its office to do
+// that seats it at its Compliance Officer desk, which holds the
+// permission; a client that seats it at Program Manager has decided it
+// should not, and the refusal says so in the client's own terms.
+
+export type PrivacyDesk =
+  | {
+      ok: true
+      /** Whose book is being read — the caller's own, or the client's. */
+      companyId: string
+      companyName: string
+      /** Null when the caller is reading their own company's book. */
+      seat: LiveSeat | null
+      /** The caller as they act inside the seat, or unchanged. */
+      acting: CallerContext
+    }
+  | { ok: false; status: number; says: string }
+
+/**
+ * Which compliance book this caller may open, and what they are told
+ * when the answer is none.
+ *
+ * `what` is the book in the reader's own words — "data requests", "legal
+ * holds", "the breach register" — so the refusal names what was refused.
+ */
+export async function privacyDesk(
+  caller: CallerContext,
+  requestedClientId: string | null,
+  what: string
+): Promise<PrivacyDesk> {
+  const company = caller.company
+  if (!company) {
+    return {
+      ok: false,
+      status: 403,
+      says: 'A compliance desk belongs to a company, and this seat has none.',
+    }
+  }
+
+  // Nobody named, or the caller's own company named: their own book,
+  // unchanged. A client is never in a seat at itself.
+  if (!requestedClientId || requestedClientId === company.id || company.kind === 'CLIENT') {
+    if (requestedClientId && requestedClientId !== company.id) {
+      return {
+        ok: false,
+        status: 403,
+        says:
+          `${company.name} runs its own program from its own desks, so this page is its own book. ` +
+          'A seat is for a firm that is not the client.',
+      }
+    }
+    return { ok: true, companyId: company.id, companyName: company.name, seat: null, acting: caller }
+  }
+
+  const seat = await seatFor(caller, requestedClientId)
+  if (!seat) return { ok: false, status: 403, says: noSeatYet(company.name) }
+
+  const verdict = seatMayRead(seat, 'privacy.manage', what)
+  if (!verdict.ok) return { ok: false, status: 403, says: verdict.says! }
+
+  return {
+    ok: true,
+    companyId: seat.clientCompany.id,
+    companyName: seat.clientCompany.name,
+    seat,
+    acting: { ...caller, permissions: seat.role.permissions, orgUnitId: seat.orgUnitId },
+  }
+}
+
+/**
+ * The seat a firm holds somewhere, for the sentence on its own desk.
+ *
+ * Read with no client named, so it answers "do you hold one at all" —
+ * which is the only thing the framing sentence needs to know.
+ */
+export async function seatHeldAnywhere(caller: CallerContext): Promise<LiveSeat | null> {
+  if (!caller.company || caller.company.kind === 'CLIENT') return null
+  return seatFor(caller, null)
+}
+
+/** Re-exported so the three routes have one import for the whole subject. */
+export { seatTrail }

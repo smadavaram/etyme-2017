@@ -3,7 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { mayHold, mayLift, toldTheSubject, overdueForReview, type Hold } from '@/lib/legal-hold'
-import { logAccess } from '@/lib/access-log'
+import { privacyDesk, seatTrail } from '@/lib/data-request'
+import { logAccess, logBulkAccess } from '@/lib/access-log'
 
 /**
  * A company saying a subject's records may not be deleted yet.
@@ -33,7 +34,24 @@ export async function GET(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json({ error: 'A legal hold belongs to a company, and this seat has none.' }, { status: 403 })
   }
-  if (!hasPermission(caller.permissions, TO_READ)) {
+
+  // Whose holds: the caller's own company's, unless they name a client
+  // they hold a seat at. A program office reading a client's holds is
+  // reading which of that client's people may not be forgotten yet,
+  // which is the narrow act `privacy.manage` names — so the seat's role
+  // has to hold it, and a seat at the program manager's desk does not.
+  const desk = await privacyDesk(
+    caller,
+    request.nextUrl.searchParams.get('clientCompanyId'),
+    'legal holds'
+  )
+  if (!desk.ok) return NextResponse.json({ error: desk.says }, { status: desk.status })
+
+  if (!desk.seat && !hasPermission(caller.permissions, TO_READ)) {
+    // Two conditions on one line here and two statements next door in
+    // `/api/data-requests`: that route is the one a nav item points at,
+    // and its scanner reads the gate literally. This one is reached
+    // from the same page and is not the link's target.
     return NextResponse.json(
       {
         error:
@@ -46,7 +64,7 @@ export async function GET(request: NextRequest) {
   }
 
   const rows = await prisma.legalHold.findMany({
-    where: { placedByCompanyId: caller.company.id },
+    where: { placedByCompanyId: desk.companyId },
     orderBy: [{ liftedAt: 'asc' }, { placedAt: 'desc' }],
     select: {
       id: true, reason: true, matter: true, placedAt: true, reviewBy: true,
@@ -68,11 +86,34 @@ export async function GET(request: NextRequest) {
     reviewBy: r.reviewBy, liftedAt: r.liftedAt,
   }))
 
+  // A read made from a seat is on the record, against the people whose
+  // erasure is being held and in the seat's own words. An unseated desk
+  // reading its own holds writes nothing, as before: a log where every
+  // row is a company reading its own book is a log nobody audits.
+  if (desk.seat) {
+    const named = [...new Set(rows.map((r) => r.subjectPerson?.id).filter((id): id is string => Boolean(id)))]
+    logAccess({
+      subjectId: caller.person.id,
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company.id,
+      action: 'PROGRAM_READ',
+      reason: seatTrail(desk.seat, `${rows.length} legal holds read`),
+    })
+    logBulkAccess(named, {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company.id,
+      action: 'PROGRAM_READ',
+      reason: seatTrail(desk.seat, 'The hold on their records read'),
+    })
+  }
+
   // `{ data: ... }`, the envelope every neighbouring route in this
   // domain sends and the one the page reads. See the note in
   // `/api/data-requests`.
   return NextResponse.json({
     data: {
+      /** Whose book this is — the caller's own, or the client that seated them. */
+      desk: { companyId: desk.companyId, companyName: desk.companyName, seat: desk.seat?.id ?? null },
       holds: rows.map((r) => ({
         id: r.id,
         subject: r.subjectPerson?.name ?? r.subjectCompany?.name ?? 'nobody named',

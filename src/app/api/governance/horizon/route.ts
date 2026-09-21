@@ -3,6 +3,10 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { seatUnits } from '@/lib/account-walls'
+import { seatTrail } from '@/lib/program-seat'
+import { seatMayRead, seatScope } from '@/lib/walls'
+import { logBulkAccess } from '@/lib/access-log'
 import {
   projectTenure, projectBreakInService, projectExpiry, projectContractEnd,
   sortHorizon, byTeam, type HorizonItem,
@@ -26,11 +30,28 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const { client, error: clientError } = await resolveClientCompany(
+  const { client, seat, error: clientError } = await resolveClientCompany(
     caller,
     request.nextUrl.searchParams.get('clientCompanyId')
   )
   if (clientError) return clientError
+
+  // What a seated office may read here: the same gate as the compliance
+  // page, because this is the same question asked forward. A client that
+  // seated an office at a desk holding `governance.read` has decided it
+  // may see what is about to go wrong; one that seated it at its AP
+  // clerk's desk has not, and is told so in its own terms.
+  if (seat) {
+    const verdict = seatMayRead(seat, 'governance.read', 'what is about to go wrong')
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: verdict.says } },
+        { status: 403 }
+      )
+    }
+  }
+
+  const units = await seatUnits(seat ?? null)
 
   const windowDays = Math.min(
     365,
@@ -51,7 +72,7 @@ export async function GET(request: NextRequest) {
 
   // ── Tenure, aggregated per person across every vendor ──
   const contracts = await prisma.sellContract.findMany({
-    where: endClientFilter(client.id),
+    where: { ...endClientFilter(client.id), ...seatScope(units) },
     select: {
       id: true, startDate: true, endDate: true, state: true,
       person: { select: { id: true, name: true } },
@@ -112,7 +133,7 @@ export async function GET(request: NextRequest) {
   // the number that turns an administrative expiry into a decision.
   const liveByVendor = new Map<string, number>()
   const liveContracts = await prisma.sellContract.findMany({
-    where: { ...endClientFilter(client.id), state: { in: ['IN_PROGRESS', 'VERIFIED'] } },
+    where: { ...endClientFilter(client.id), ...seatScope(units), state: { in: ['IN_PROGRESS', 'VERIFIED'] } },
     select: { companyId: true, personId: true },
   })
   for (const c of liveContracts) {
@@ -150,6 +171,7 @@ export async function GET(request: NextRequest) {
   const ending = await prisma.sellContract.findMany({
     where: {
       ...endClientFilter(client.id),
+      ...seatScope(units),
       state: { in: ['IN_PROGRESS', 'VERIFIED'] },
       endDate: { not: null, lte: horizonEnd, gte: now },
     },
@@ -174,6 +196,31 @@ export async function GET(request: NextRequest) {
       now, windowDays
     )
     if (item) items.push(item)
+  }
+
+  // CLAUDE.md: "Every read of another person's data writes an AccessLog
+  // row, including refusals."
+  //
+  // This page names people — who is at nineteen months, whose visa runs
+  // out in March — and wrote no row at all, for anybody, since it was
+  // built. Found while wiring the seat through it. An unseated reader's
+  // row reads the same as the tenure page's, because it is the same
+  // read asked forward; a seated one carries the seat.
+  // People only. A horizon item can be about a vendor's lapsed cover,
+  // and an AccessLog row is about a person — filing a company id in the
+  // subject column would be a foreign key that points at nobody.
+  const named = [
+    ...new Set(items.filter((i) => i.subject.kind === 'PERSON').map((i) => i.subject.id)),
+  ]
+  if (named.length > 0) {
+    logBulkAccess(named, {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: seat ? 'PROGRAM_READ' : 'TENURE_VIEW',
+      reason: seat
+        ? seatTrail(seat, 'What is about to go wrong, read')
+        : `Governance horizon at ${client.name}`,
+    })
   }
 
   const teamFilter = request.nextUrl.searchParams.get('team')
