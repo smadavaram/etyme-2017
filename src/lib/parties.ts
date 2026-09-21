@@ -150,3 +150,50 @@ export const suppliers = (): readonly Position[] => PARTIES.filter((p) => p.supp
 export function positionsOpenTo(kind: CompanyKind): Party[] {
   return PARTIES.filter((p) => p.kind === kind).map((p) => p.party)
 }
+
+/**
+ * What a person calls this kind of firm, on a screen.
+ *
+ * `CompanyKind` is a machine word and three screens printed it raw: the
+ * settings page told Byrne Critical Care LLC its type was
+ * **CONSULTANT_CORP**, and the sidebar's own label had no entry for the
+ * kind at all and fell back to "Vendor", so a nurse's own corporation
+ * was labeled a staffing agency. Seen on the browser walk, 2026-09-21.
+ *
+ * Two forms, because two screens ask different questions. `kindWord` is
+ * the noun — what it is. `kindLabel` is the noun with what it does after
+ * it, which is what a rail under somebody's company name has room for.
+ *
+ * A VENDOR is deliberately "Supplier" rather than one of PRIME, SUB or
+ * BENCH_VENDOR: which of those it is is a position on a deal and not a
+ * property of the firm, which is the whole point of this file.
+ */
+const KIND_WORDS: Record<CompanyKind, { word: string; label: string }> = {
+  VENDOR: { word: 'Supplier', label: 'Supplier · Staffing' },
+  CLIENT: { word: 'Client', label: 'Client · Enterprise' },
+  MSP: { word: 'Program office', label: 'Program office · MSP' },
+  GSI: { word: 'Integrator', label: 'Integrator · Delivery' },
+  CONSULTANT_CORP: { word: 'Own company', label: 'Own company · One person' },
+}
+
+export function kindWord(kind: CompanyKind | null | undefined): string {
+  return kind ? KIND_WORDS[kind].word : 'Consultant'
+}
+
+export function kindLabel(kind: CompanyKind | null | undefined): string {
+  return kind ? KIND_WORDS[kind].label : 'Consultant'
+}
+
+/**
+ * How a supplier sells, in the trade's words rather than the column's.
+ *
+ * `Company.supplierPosture` is PRIME or BENCH and the settings page
+ * printed it raw beside the kind — "VENDOR · BENCH" — which is two
+ * machine words in a row on the one screen a firm opens to check we
+ * know who they are.
+ */
+export function postureWord(posture: string | null | undefined): string | null {
+  if (posture === 'PRIME') return 'sells to clients directly'
+  if (posture === 'BENCH') return 'sells through other suppliers'
+  return null
+}

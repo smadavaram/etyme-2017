@@ -9,6 +9,8 @@ import { seedDemoConsultant } from '@/lib/demo-seed-consultant'
 import { addVolume } from '@/lib/demo-volume'
 import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor } from '@/lib/demo-session'
 import { CANDIDATE_SEATS } from '@/app/demo/seats'
+import { consoleHome } from '@/lib/console-home'
+import { seatsHeldBy } from '@/lib/program-seat'
 
 /**
  * POST /api/demo — give this visitor their own seeded workspace
@@ -320,6 +322,16 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       )
     }
+    // Does this firm hold a desk in somebody's program office? Only a
+    // program office ever does, and it decides which console it opens
+    // on: with a seat, the client's program; without one, its own book.
+    // Guessing from a trading relationship instead is what sent two
+    // integrators into a buyer's program overview.
+    const seatedAt =
+      company && company.kind === 'MSP'
+        ? ((await seatsHeldBy(company.id))[0]?.clientCompany.name ?? null)
+        : null
+
     const email = company?.contexts[0]?.person.primaryEmail
     if (!company || !email) {
       return NextResponse.json(
@@ -362,9 +374,15 @@ export async function POST(request: NextRequest) {
         // work.
         landing:
           desk ? DESK_LANDING[desk]
+          // An integrator lands on Submissions rather than on its own
+          // Today: putting somebody off its own payroll in front of a
+          // client is the one thing that seat exists to demonstrate,
+          // and it starts there.
           : company.kind === 'GSI' ? '/dashboard/submissions'
-          : company.kind === 'CLIENT' ? '/dashboard/program'
-          : '/dashboard',
+          // Everybody else lands on their own front door, decided once
+          // in lib/console-home and read by /dashboard's own redirect
+          // and the sidebar's Dashboard link as well.
+          : consoleHome({ kind: company.kind as any, seated: seatedAt !== null }).href,
       },
     })
     res.cookies.set(DEMO_COOKIE, sign(email), {

@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
+import { consoleHome } from '@/lib/console-home'
 /**
  * Sidebar navigation — from CLAUDE.md design system.
  *
@@ -452,6 +453,70 @@ const MSP_NAV: NavSection[] = [
   governanceSection(),
 ]
 
+/**
+ * A company of one: Today → Operate → Governance (→ You).
+ *
+ * Colleen Byrne is an ICU travel nurse paid corp-to-corp through Byrne
+ * Critical Care LLC, and she was handed a staffing agency's
+ * forty-nine-link menu — Leads, Bench, Consultants, Bench check-ins,
+ * Training, Rolloff, Payroll commissions, Profitability — because
+ * CONSULTANT_CORP fell through to VENDOR. Seen on the browser walk of
+ * 2026-09-21; it is the "Candidate Karthik is all buggy" bug wearing a
+ * different hat, and the fix is the same one: read the menu off what
+ * the person actually does.
+ *
+ * She is the person **and** the firm, so she gets both halves and
+ * neither is padded out:
+ *
+ *   · the firm's week — the contracts she is on, the order behind one,
+ *     the hours, what she billed and what came back. Every one of those
+ *     is a real row in her book.
+ *   · her own record under "You", appended by `getNavForKind` the way
+ *     it is for any other worker, because a solo corporation's owner is
+ *     always somebody the work is about.
+ *
+ * Nothing about a bench, a pipeline or a recruiter's commission. She
+ * has one consultant, herself, and a screen offering to add another is
+ * a screen asking her about herself in the third person.
+ */
+const SOLO_NAV: NavSection[] = [
+  {
+    label: 'Today',
+    // No Dashboard link: `/dashboard` sends a company of one to their
+    // own work (`lib/console-home`), which "Your work" under You
+    // already names. Two doors onto one page is a question the reader
+    // has to answer before they can click.
+    items: TODAY.filter((i) => i.href !== '/dashboard'),
+  },
+  {
+    label: 'Operate',
+    items: [
+      { label: 'Contracts', href: '/dashboard/contracts', icon: '▤' },
+      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', needs: ['invoices.read'] },
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', needs: ['invoices.read'] },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', needs: ['invoices.read'] },
+      // What came back and what is late. For somebody invoicing one or
+      // two firms this is the whole of finance, and chasing it is the
+      // thing an independent actually spends their Friday on.
+      { label: 'AR', href: '/dashboard/ar', icon: '◧' },
+    ],
+  },
+  {
+    label: 'Governance',
+    items: [
+      // Her own standing as a supplier: insurance, license, the
+      // certificate somebody will ask for before she starts.
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
+      { label: 'Paperwork', href: '/dashboard/documents', icon: '▪' },
+      // Filtered out of here and shown under "You" for a reader who is
+      // also a worker, which she always is. See getNavForKind.
+      { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' },
+      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', needs: ['settings.manage'] },
+    ],
+  },
+]
+
 // A consultant is a person, not a company. CLAUDE.md gives them
 // "You → Grow" — their own work first, then what they could become.
 //
@@ -680,6 +745,23 @@ export type SeatFacts = {
    * moment before /api/me answers.
    */
   permissions?: readonly string[] | null
+  /**
+   * The client whose program office this firm holds a desk in
+   * (`seatFor` in lib/program-seat), if any.
+   *
+   * A program office with a live seat reads the client's book on every
+   * page it opens — `lib/money/seated-books` made sure of that — and was
+   * still reading its own menu over it: Aptiva Workforce sat at
+   * Cavanaugh Glassworks' desk under the headings "Demand" and "Supply",
+   * above seven of Cavanaugh's buy-side contracts. A menu that names a
+   * different job from the book underneath it is the same lie a wrong
+   * eyebrow is, one layer up.
+   *
+   * The permissions above come from the seat too, and they are the
+   * client's role's, not the office's — which is what makes this safe:
+   * the office is shown exactly the desk it was granted.
+   */
+  seatedAtClient?: string | null
 }
 
 /**
@@ -718,7 +800,7 @@ export function mayReach(item: NavItem, permissions: readonly string[] | null | 
 export function mayOpen(href: string, permissions: readonly string[] | null | undefined): boolean {
   if (permissions == null) return true
   const path = href.split('?')[0]
-  for (const nav of [VENDOR_NAV, GSI_NAV, MSP_NAV, CLIENT_NAV]) {
+  for (const nav of [VENDOR_NAV, GSI_NAV, MSP_NAV, CLIENT_NAV, SOLO_NAV]) {
     for (const section of nav) {
       for (const item of section.items) {
         if (item.href.split('?')[0] === path && item.needs) return mayReach(item, permissions)
@@ -738,7 +820,13 @@ export function getNavForKind(
   // the company would show them their agency's payroll and buy contracts.
   const base = (isConsultant || !kind)
     ? CONSULTANT_NAV
-    : kindNav(kind)
+    // A firm acting at a client's desk reads the client's menu, because
+    // it is reading the client's book. Its own menu comes back the
+    // moment the seat is revoked, because this is read off the seat and
+    // never stored.
+    : seat.seatedAtClient
+      ? CLIENT_NAV
+      : kindNav(kind)
 
   // ── Both, never one or the other ──────────────────────────────────
   //
@@ -787,10 +875,11 @@ function kindNav(kind: CompanyKind): NavSection[] {
     // existed, which is how a seat that sells and buys ended up with
     // "Leads" and no way to reach the supplier base it manages.
     case 'MSP': return MSP_NAV
-    // A company of one is a vendor with one person on the bench. It
-    // sells, so it gets the seller's nav rather than a fifth shell
-    // nobody asked for.
-    case 'CONSULTANT_CORP':
+    // A company of one is one person, and reads a menu of what one
+    // person's firm actually has: her contracts, her hours, her
+    // invoices, her paperwork. She used to fall through to the vendor's
+    // and be offered a bench, a pipeline and a commission run.
+    case 'CONSULTANT_CORP': return SOLO_NAV
     case 'VENDOR':
     default:       return VENDOR_NAV
   }
@@ -804,6 +893,7 @@ export function Sidebar({
   isConsultant = false,
   worker = false,
   permissions,
+  seatedAtClient = null,
   pending = false,
   sheet = false,
   onDismiss,
@@ -824,6 +914,8 @@ export function Sidebar({
   /** What this seat holds. Undefined while the session loads, which
    *  shows the menu unfiltered rather than flashing a short one. */
   permissions?: readonly string[] | null
+  /** The client whose desk this firm is acting at, if any. */
+  seatedAtClient?: string | null
   /** Session still loading — render the frame without nav items so the
    *  wrong company's navigation never flashes on screen. */
   pending?: boolean
@@ -839,12 +931,18 @@ export function Sidebar({
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const sections = pending ? [] : getNavForKind(companyKind, isConsultant, { worker, permissions })
+  const sections = pending
+    ? []
+    : getNavForKind(companyKind, isConsultant, { worker, permissions, seatedAtClient })
 
-  // For client view, the "dashboard" link is /dashboard/program
-  const dashboardHref = isConsultant
-    ? '/dashboard/my-work'
-    : companyKind === 'CLIENT' ? '/dashboard/program' : '/dashboard'
+  // Where this seat's own front door is. One answer, in lib/console-home,
+  // shared with /dashboard's own redirect and the demo door — three
+  // places used to decide it and all three had it wrong for somebody.
+  const dashboardHref = consoleHome({
+    kind: companyKind ?? null,
+    isConsultant,
+    seated: Boolean(seatedAtClient),
+  }).href
 
   return (
     <aside

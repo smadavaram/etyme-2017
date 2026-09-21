@@ -28,6 +28,23 @@ export interface SessionCompany {
  *  a company but is not of it — the type says so, the company does not. */
 export type ContextType = 'CONSULTANT' | 'EMPLOYEE' | 'PARTNER' | 'CLIENT_CONTACT' | 'PLATFORM_ADMIN'
 
+/**
+ * A desk somebody else's program office holds in a client's program.
+ *
+ * Answered on the server, in the dashboard layout, for the same reason
+ * `isWorker` is: it is a database read (`seatFor` in lib/program-seat)
+ * and the shell draws a menu before any fetch has come back. Null for
+ * everybody who is not a program office, which is almost everybody.
+ */
+export interface SessionSeat {
+  /** The client whose program this seat is in. */
+  clientId: string
+  clientName: string
+  /** The client's own role the office holds — its permissions are the client's. */
+  roleName: string | null
+  permissions: readonly string[]
+}
+
 export interface SessionState {
   contextType: ContextType | null
   person: { id: string | null; name: string; email: string } | null
@@ -49,6 +66,13 @@ export interface SessionState {
    * question is a database read and the shell renders before any fetch.
    */
   isWorker: boolean
+  /**
+   * The client's desk this firm is acting at, if any. A program office
+   * with a live seat reads the client's book (`lib/money/seated-books`),
+   * so it must read the client's menu too — it was being shown Demand
+   * and Supply over somebody else's workforce.
+   */
+  seat: SessionSeat | null
   loading: boolean
   error: string | null
 }
@@ -60,6 +84,7 @@ const EMPTY: SessionState = {
   roleName: null,
   permissions: [],
   isWorker: false,
+  seat: null,
   loading: true,
   error: null,
 }
@@ -80,6 +105,7 @@ function normalizeKind(kind: string | undefined): CompanyKind {
 export function SessionProvider({
   children,
   worker = false,
+  seat = null,
 }: {
   children: ReactNode
   /**
@@ -88,8 +114,10 @@ export function SessionProvider({
    * that appears one fetch late is a menu that flickers.
    */
   worker?: boolean
+  /** The client desk this firm holds, read on the server for the same reason. */
+  seat?: SessionSeat | null
 }) {
-  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker })
+  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat })
 
   useEffect(() => {
     let cancelled = false
@@ -129,6 +157,7 @@ export function SessionProvider({
           roleName: active?.role?.name ?? null,
           permissions: active?.role?.permissions ?? [],
           isWorker: worker,
+          seat,
           loading: false,
           error: null,
         })
@@ -136,7 +165,7 @@ export function SessionProvider({
         if (cancelled) return
         // A failed session read must not blank the app — fall back to the
         // vendor shell and let the individual pages surface their own errors.
-        setState({ ...EMPTY, isWorker: worker, loading: false, error: err.message })
+        setState({ ...EMPTY, isWorker: worker, seat, loading: false, error: err.message })
       }
     }
 
@@ -144,6 +173,11 @@ export function SessionProvider({
     return () => {
       cancelled = true
     }
+    // `seat` is deliberately not a dependency: it arrives from the
+    // server layout and a fresh object each render would re-fetch the
+    // session forever. A seat granted or revoked mid-session is picked
+    // up on the next page load, which is how the client granted it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worker])
 
   return <SessionContext.Provider value={state}>{children}</SessionContext.Provider>

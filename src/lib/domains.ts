@@ -351,6 +351,11 @@ export const DOMAINS: Domain[] = [
       'lib/program-seat',
       // How much we do unprompted, as a ladder a buyer already knows.
       'lib/autonomy',
+      // Which of the three consoles a seat opens on. Read by
+      // /dashboard's own redirect, the sidebar's Dashboard link and the
+      // demo door — three doors onto one question that had three
+      // answers, one of which sent two suppliers into a buyer's program.
+      'lib/console-home',
       // One order, three names, and the rule for a counterparty that is
       // not on the system. Both are read by money, demand and the
       // platform's own routes at once, so they queue here with the

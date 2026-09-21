@@ -1,10 +1,11 @@
 import { Suspense } from 'react'
 import { Header } from '@/components/shell/header'
 import { DashboardShell } from './shell'
-import { SessionProvider } from '@/components/session-provider'
+import { SessionProvider, type SessionSeat } from '@/components/session-provider'
 import { DemoBanner } from '@/components/demo-banner'
-import { getSessionEmail } from '@/lib/api-context'
+import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { ownPageFor } from '@/lib/portfolio-data'
+import { seatFor } from '@/lib/program-seat'
 import { prisma } from '@/lib/db'
 
 /**
@@ -59,15 +60,47 @@ async function readerIsAWorker(): Promise<boolean> {
   }
 }
 
+/**
+ * The client desk this firm is acting at, if any.
+ *
+ * Asked here for the same reason `readerIsAWorker` is: the shell draws a
+ * menu before any fetch comes back, and this is a database read. A
+ * program office holding a live seat reads the client's book on every
+ * money page (`lib/money/seated-books`) and was still being shown its
+ * own menu over it — Demand and Supply above somebody else's workforce.
+ *
+ * Never throws. No seat means the menu is the firm's own, which is the
+ * shell as it was yesterday rather than a blank app.
+ */
+async function deskHeldAtAClient(): Promise<SessionSeat | null> {
+  try {
+    const { caller } = await getCallerContext()
+    if (!caller?.company) return null
+    const seat = await seatFor(caller, null)
+    if (!seat) return null
+    return {
+      clientId: seat.clientCompany.id,
+      clientName: seat.clientCompany.name,
+      roleName: seat.role?.name ?? null,
+      // The client's own role decides what the office may do, so the
+      // menu is filtered by the client's permissions and never by the
+      // office's. A seat is exactly the desk it was granted.
+      permissions: seat.role?.permissions ?? [],
+    }
+  } catch {
+    return null
+  }
+}
+
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const worker = await readerIsAWorker()
+  const [worker, seat] = await Promise.all([readerIsAWorker(), deskHeldAtAClient()])
 
   return (
-    <SessionProvider worker={worker}>
+    <SessionProvider worker={worker} seat={seat}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* Sidebar — the rail, from md up. Below that the same navigation
             slides in from the ☰ in the header (components/shell/mobile-nav). */}

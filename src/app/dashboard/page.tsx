@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useSession } from '@/components/session-provider'
+import { consoleHome } from '@/lib/console-home'
 
 /**
  * Vendor Dashboard — the "Today" view.
@@ -205,30 +207,41 @@ function TheBar() {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const session = useSession()
   // Whose dashboard this is.
   //
-  // /dashboard is the vendor's Today view; /dashboard/program is the
-  // client's program overview. Two pages for two company types, and
-  // this one rendered vendor content for whoever arrived — so a client
-  // following a stale link, or typing the bare URL, got somebody else's
-  // product with their own data in it and nothing said so.
+  // This page is the seller's own book — pipeline, bench, what is
+  // ending. Three kinds of reader have no business on it and each was
+  // getting it, found on the browser walk of 2026-09-21:
+  //
+  //   · an **integrator** was redirected to /dashboard/program, which
+  //     then resolved a client for it, so Teleworld Solutions, Sundara
+  //     Systems and a Sundara engineer holding two read permissions
+  //     each read Corveldt Aerospace's own program — its headcount
+  //     across both suppliers and its monthly spend. A GSI sells. It
+  //     holds no seat and has no program to open.
+  //   · a **consultant** typing the bare URL got the vendor console,
+  //     "PIPELINE $0K · ON BENCH 0", and four refusals behind it.
+  //   · a **one-person corporation** got the same console, offering a
+  //     bench of strangers to somebody whose only consultant is herself.
+  //
+  // The answer is `lib/console-home`, which the sidebar's own Dashboard
+  // link and the demo door read too, so the three doors cannot disagree.
   const [sendingOn, setSendingOn] = useState(true)
 
   useEffect(() => {
-    let live = true
-    ;(async () => {
-      const res = await fetch('/api/me/context')
-      const body = await res.json().catch(() => null)
-      if (!live) return
-      const kind = body?.data?.contexts?.[0]?.company?.kind
-      if (kind === 'CLIENT' || kind === 'MSP' || kind === 'GSI') {
-        router.replace('/dashboard/program')
-        return
-      }
-      setSendingOn(false)
-    })()
-    return () => { live = false }
-  }, [router])
+    if (session.loading) return
+    const home = consoleHome({
+      kind: session.company?.kind ?? null,
+      isConsultant: session.contextType === 'CONSULTANT',
+      seated: Boolean(session.seat),
+    })
+    if (home.href !== '/dashboard') {
+      router.replace(home.href as any)
+      return
+    }
+    setSendingOn(false)
+  }, [router, session.loading, session.company?.kind, session.contextType, session.seat])
 
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)

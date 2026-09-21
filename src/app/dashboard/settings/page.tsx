@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { kindWord, postureWord } from '@/lib/parties'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -382,9 +383,13 @@ function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: 
           </div>
           <div>
             <Lbl>Type</Lbl>
+            {/* Words, not the column. This printed "CONSULTANT_CORP" at
+                a nurse's own corporation and "VENDOR · BENCH" at a
+                bench firm — the register's vocabulary on the one screen
+                a firm opens to check we know who they are. */}
             <p className="mt-1 text-sm text-etyme-ink">
-              {c.kind}
-              {c.supplierPosture ? ` · ${c.supplierPosture}` : ''}
+              {kindWord(c.kind as any)}
+              {postureWord(c.supplierPosture) ? ` · ${postureWord(c.supplierPosture)}` : ''}
             </p>
           </div>
         </div>

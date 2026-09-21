@@ -40,12 +40,29 @@ function sectionsOf(kind: CompanyKind): string[] {
   return getNavForKind(kind, false).map((s) => s.label)
 }
 
+/**
+ * The shared pages this party's own menu actually names.
+ *
+ * Every party used to reach all nine, because a CONSULTANT_CORP read the
+ * vendor's menu. It reads its own since 2026-09-21 — a company of one
+ * has no requirements to raise, nobody to submit, no bench to roll off
+ * and no consultants but herself — so four of the nine are pages she
+ * cannot click. `page-framing` already says what to do there: "Null
+ * rather than a guess: a heading that names a section the reader has no
+ * way to click is what this file is here to stop, and a blank is honest
+ * where a word would not be." So the invariant is asked of the pages a
+ * reader can reach, and the blank is asserted for the rest, below.
+ */
+function pagesOnTheMenu(kind: CompanyKind): PageKey[] {
+  return ALL_PAGES.filter((page) => sectionFor(kind, page) !== null)
+}
+
 describe('the heading on a page names the section the reader\'s own menu puts it under', () => {
 
   it('is true of every shared page for every party', () => {
     for (const kind of ALL_KINDS) {
       const sections = sectionsOf(kind)
-      for (const page of ALL_PAGES) {
+      for (const page of pagesOnTheMenu(kind)) {
         const { eyebrow } = pageFraming(kind, page)
         expect(
           sections,
@@ -60,11 +77,28 @@ describe('the heading on a page names the section the reader\'s own menu puts it
     // came from and stayed on a page for a week, naming nothing.
     const everySectionAnywhere = new Set(ALL_KINDS.flatMap(sectionsOf))
     for (const kind of ALL_KINDS) {
-      for (const page of ALL_PAGES) {
+      for (const page of pagesOnTheMenu(kind)) {
         const { eyebrow } = pageFraming(kind, page)
         expect(eyebrow, `${kind}/${page} has no section over it`).toBeTruthy()
         expect([...everySectionAnywhere], `"${eyebrow}" is nobody's section`).toContain(eyebrow)
       }
+    }
+  })
+
+  it('a page a company of one cannot reach is headed by no section, rather than by a staffing agency\'s', () => {
+    // She is one nurse and her own LLC. Requirements, submissions, the
+    // rolloff queue and a consultant list are four pages her menu does
+    // not name, and heading them "Sell" — the vendor menu she used to
+    // fall through to — would name a section she has no way to click.
+    for (const page of ['requirements', 'submissions', 'rolloff', 'consultants'] as PageKey[]) {
+      expect(pageFraming('CONSULTANT_CORP', page).eyebrow, page).toBe('')
+    }
+  })
+
+  it('the pages a company of one does work in are headed by her own sections', () => {
+    for (const page of ['contracts.sell', 'timesheets', 'invoices', 'expenses'] as PageKey[]) {
+      expect(sectionsOf('CONSULTANT_CORP'), page)
+        .toContain(pageFraming('CONSULTANT_CORP', page).eyebrow)
     }
   })
 
@@ -217,7 +251,7 @@ describe('every page is framed for every company type', () => {
 
   it('no page is missing a title, eyebrow, or subtitle', () => {
     for (const kind of ALL_KINDS) {
-      for (const page of ALL_PAGES) {
+      for (const page of pagesOnTheMenu(kind)) {
         const f = pageFraming(kind, page)
         expect(f.eyebrow, `${kind}/${page} eyebrow`).toBeTruthy()
         expect(f.title, `${kind}/${page} title`).toBeTruthy()

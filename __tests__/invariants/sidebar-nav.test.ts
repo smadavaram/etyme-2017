@@ -349,6 +349,7 @@ const MENUS = {
   'an integrator': getNavForKind('GSI', false),
   'a program office': getNavForKind('MSP', false),
   'a client': getNavForKind('CLIENT', false),
+  'a one-person corporation': getNavForKind('CONSULTANT_CORP', false),
   'a consultant': getNavForKind(null, true),
 } as const
 
@@ -395,16 +396,17 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
     GSI: getNavForKind('GSI', false).map((s) => s.label),
     MSP: getNavForKind('MSP', false).map((s) => s.label),
     Client: getNavForKind('CLIENT', false).map((s) => s.label),
+    Solo: getNavForKind('CONSULTANT_CORP', false).map((s) => s.label),
     Consultant: getNavForKind(null, true).map((s) => s.label),
   }
 
-  it('names all five parties in the table, and nobody else', () => {
+  it('names all six parties in the table, and nobody else', () => {
     expect([...documented.keys()].sort()).toEqual(
-      ['Client', 'Consultant', 'GSI', 'MSP', 'Vendor']
+      ['Client', 'Consultant', 'GSI', 'MSP', 'Solo', 'Vendor']
     )
   })
 
-  for (const party of ['Vendor', 'GSI', 'MSP', 'Client', 'Consultant']) {
+  for (const party of ['Vendor', 'GSI', 'MSP', 'Client', 'Solo', 'Consultant']) {
     it(`shows ${party} exactly the sections the table names, in that order`, () => {
       expect(CODE[party]).toEqual(documented.get(party))
     })
@@ -421,9 +423,10 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
     ).toContain('A person who is also a worker keeps their firm\'s sections and gains "You"\nat the end.')
   })
 
-  for (const party of ['Vendor', 'GSI', 'MSP', 'Client'] as const) {
+  for (const party of ['Vendor', 'GSI', 'MSP', 'Client', 'Solo'] as const) {
     it(`gives ${party} its own sections and then "You" when the reader is also a worker`, () => {
-      const kind = party === 'Vendor' ? 'VENDOR' : party.toUpperCase()
+      const kind =
+        party === 'Vendor' ? 'VENDOR' : party === 'Solo' ? 'CONSULTANT_CORP' : party.toUpperCase()
       expect(getNavForKind(kind as any, false, { worker: true }).map((s) => s.label))
         .toEqual([...documented.get(party)!, 'You'])
     })
@@ -731,7 +734,10 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
     })
     expect(props).toMatchObject({
       companyKind: 'GSI', isConsultant: false, worker: true,
-      companyName: 'Teleworld Solutions', companyLabel: 'GSI · Delivery',
+      // The label is a word, not an acronym off the register: the same
+      // table in lib/parties that stopped Settings printing
+      // CONSULTANT_CORP at a nurse's own corporation.
+      companyName: 'Teleworld Solutions', companyLabel: 'Integrator · Delivery',
     })
   })
 

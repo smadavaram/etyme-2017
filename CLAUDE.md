@@ -722,6 +722,7 @@ attention. What changes is density and voice.
 | GSI (integrator) | Today → Deliver → Supply → Operate → Grow → Governance |
 | MSP (program office) | Today → Demand → Supply → Operate → Grow → Governance |
 | Client (enterprise) | Workforce → Governance |
+| Solo corporation (one person) | Today → Operate → Governance |
 | Consultant | You |
 
 Every section is either short enough to read as a list — seven links at the
@@ -732,6 +733,20 @@ counterparties has a **Network** group naming the firms it trades with and the
 people at them. `__tests__/invariants/sidebar-nav.test.ts` reads this table
 and fails when the code and it disagree, so a section renamed in one and not
 the other breaks the build rather than the founder's walk.
+
+**A one-person corporation reads its own short menu. Decided
+2026-09-21.** A `CONSULTANT_CORP` had no row here and fell through to
+Vendor, so an ICU travel nurse paid corp-to-corp through her own LLC was
+handed a staffing agency's forty-nine links — Leads, Bench, Consultants,
+Bench check-ins, Training, Rolloff, Payroll commissions, Profitability —
+for a firm whose only consultant is herself. She is the person **and**
+the firm, so she gets the firm's week (her contracts, the order behind
+one, her hours, what she billed and what came back) and her own record
+under "You", which the worker rule above appends because a solo
+corporation's owner is always somebody the work is about. Nothing about
+a bench, a pipeline or a recruiter's commission: a screen offering to
+add another consultant is a screen asking her about herself in the third
+person.
 
 **A person who is also a worker keeps their firm's sections and gains "You"
 at the end.** Decided 2026-09-17, on the founder opening Karthik Menon's
