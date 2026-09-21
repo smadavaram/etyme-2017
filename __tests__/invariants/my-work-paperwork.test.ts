@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import {
   paperRows, outstanding, countedAgainst, paperworkHeadline,
-  owedWord, owedConsequence, owedTodo, owedFrom, NO_DOOR_YET,
+  owedWord, owedConsequence, owedTodo, owedFrom, awaitingReview,
 } from '@/app/dashboard/my-work/paperwork-rows'
 import { myPapers, outstandingItems } from '@/lib/document-request'
 
@@ -31,6 +31,10 @@ const owedItem = (over: Record<string, unknown> = {}) => ({
   says: "Required by Talvern Medical's order PO-2026-4.",
   owedByName: 'Helena Marsh',
   blocks: true,
+  // What the route sends on anything still wanted from her: somewhere
+  // to ask for a request, and the type to name when asking.
+  openAskAt: '/api/me/papers',
+  documentTypeKey: 'RN_LICENSE',
   ...over,
 })
 
@@ -113,15 +117,56 @@ describe('A worker sees what is being asked of her', () => {
     expect(PAGE).toContain('<YourPapers />')
   })
 
-  it('a document with no request open against it says where to send it, rather than offering a box that posts nowhere', () => {
-    // A requirement is not a request. There is no endpoint that receives
-    // a file against a DocumentRequirement, so the row says so.
-    expect(owedTodo(owedItem({ askId: null, link: null }))).toBeNull()
+  it('a worker can send the document she is being chased for from the page the letter sends her to', () => {
+    // Nobody has opened a request for it, and for one day that meant
+    // there was nowhere to post it and the page said so. The row now
+    // carries the route that opens one.
+    const row = paperRows({ owed: [owedItem({ openAskAt: '/api/me/papers', documentTypeKey: 'RN_LICENSE' })] })[0]
+    expect(row.todo).toBe('upload')
+    expect(row.openAskAt).toBe('/api/me/papers')
+    expect(row.documentTypeKey).toBe('RN_LICENSE')
+
+    // One press, two calls: ask for somewhere to send it, then send it
+    // there. Nothing is posted until an id comes back.
+    expect(SECTION).toContain("post(r.openAskAt, { documentTypeKey: r.documentTypeKey })")
+    expect(SECTION).toContain("id = opened?.data?.askId ?? null")
+    expect(SECTION).toContain("/api/documents/${id}/${r.todo === 'sign' ? 'sign' : 'upload'}")
+    expect(SECTION).toContain("{busy === r.id ? 'Sending…' : 'Send it in'}")
+
+    // And where a request already exists the row's own id is the one to
+    // post against, with nothing asked for twice.
     expect(owedTodo(owedItem({ askId: 'doc-1' }))).toBe('upload')
     expect(owedTodo(owedItem({ askId: 'doc-1', needsSignature: true }))).toBe('sign')
     expect(owedTodo(owedItem({ link: '/packet/abc' }))).toBe('open')
-    expect(NO_DOOR_YET).toContain('nowhere to upload them here')
-    expect(SECTION).toContain('NO_DOOR_YET')
+  })
+
+  it('a document she has sent says somebody is checking it, and never asks her for it again', () => {
+    // AWAITING_REVIEW arrives as a row that wants nothing and offers
+    // nowhere to send anything. It stays visible, because it is still
+    // not on file, and it asks her for nothing.
+    const sent = owedItem({ key: 'BACKGROUND_CHECK', label: 'background check', openAskAt: null, askId: null })
+    const rows = paperRows({ owed: [sent] })
+    expect(rows[0].awaiting).toBe(true)
+    expect(rows[0].todo).toBeNull()
+    expect(owedWord(sent)).toBe('Sent — waiting for somebody to check it')
+    expect(owedConsequence(sent))
+      .toBe('It is with them now. Nothing more is needed from you until they have looked at it.')
+    // Not counted against her, and said in the headline so she knows it
+    // landed rather than wondering whether to send it again.
+    expect(outstanding(rows)).toHaveLength(0)
+    expect(awaitingReview(rows)).toHaveLength(1)
+    expect(paperworkHeadline(rows))
+      .toBe('Nothing is being asked of you. One document is with them, waiting to be checked.')
+  })
+
+  it('asking for a document nobody wants is refused in words, on her own page', () => {
+    // The route answers 404 NOT_ASKED with a sentence. It lands beside
+    // the row it is about, never as a green line at the top pretending
+    // something worked, and no file is sent after it.
+    expect(SECTION).toContain('setRefused({ id: r.id, says:')
+    expect(SECTION).toContain('{refused.says}')
+    expect(SECTION).toMatch(/refused\?\.id === r\.id/)
+    expect(SECTION).toContain('text-etyme-attention')
   })
 
   it('an ask that came in a packet is answered at its own link and never posted to the documents route', () => {
@@ -201,11 +246,14 @@ describe('A worker sees what is being asked of her', () => {
     expect(rows[0].name).toBe('State registered nurse license (WI)')
     expect(rows[0].stopsWork).toBe(true)
     expect(rows[0].from).toContain('Talvern Medical')
-    // The route asks for an upload button; there is no route that
-    // receives a file against a requirement, so the screen says where to
-    // send it instead of drawing a button that posts to a 404.
+    // And the button the route asks for is the button she gets, because
+    // the row carries somewhere to open a request and something to name
+    // when opening it.
     expect(papers[0].todo).toBe('upload')
-    expect(rows[0].todo).toBeNull()
+    expect(papers[0].openAskAt).toBe('/api/me/papers')
+    expect(rows[0].todo).toBe('upload')
+    expect(rows[0].openAskAt).toBe('/api/me/papers')
+    expect(rows[0].documentTypeKey).toBe('RN_LICENSE')
     // And it still counts against her.
     expect(countedAgainst(rows)).toBe(1)
   })

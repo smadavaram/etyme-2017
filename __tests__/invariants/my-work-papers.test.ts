@@ -97,8 +97,11 @@ describe('Answering an ask from the consultant’s own page', () => {
     expect(upload.todo).toBe('upload')
 
     expect(PAGE).toContain('Sign as myself')
-    expect(PAGE).toMatch(/>\s*Upload\s*<\/button>/)
-    expect(PAGE).toContain('/api/documents/${id}/${r.todo}')
+    // The button reads "Send it in" since the receive door landed: she
+    // is sending a document to whoever asked, not uploading a file to a
+    // system. Both branches still post to the documents route.
+    expect(PAGE).toContain("{busy === r.id ? 'Sending…' : 'Send it in'}")
+    expect(PAGE).toContain("/api/documents/${id}/${r.todo === 'sign' ? 'sign' : 'upload'}")
   })
 
   it('a packet ask is never posted to the documents route, because there is no document behind it', () => {

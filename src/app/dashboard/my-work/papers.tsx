@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { readJson } from '@/lib/read-response'
 import {
-  paperRows, outstanding, paperworkHeadline, NO_DOOR_YET,
+  paperRows, outstanding, paperworkHeadline,
   type PaperRow,
 } from './paperwork-rows'
 
@@ -35,9 +35,17 @@ import {
  * A document sent for signature is answered here, through
  * `/api/documents/:id/:todo`. An ask that came in a packet is answered
  * at the packet's own link — its id is a packet item and there is no
- * document row behind it, so posting here would post to nothing. And a
- * requirement nobody has opened a request against has no door at all
- * yet; that row says so rather than offering a box that goes nowhere.
+ * document row behind it, so posting here would post to nothing.
+ *
+ * ── And the one the letters are actually about ──
+ *
+ * A requirement nobody has opened a request against had nowhere to post
+ * to for a day, and this page said so rather than drawing a button that
+ * would 404. `etyme-regulatory` built the door: the row carries
+ * `openAskAt` and `documentTypeKey`, and one press asks for a request
+ * and then sends the file to it. Two calls, one button, and she is told
+ * what happened in the route's own sentence — including the refusal,
+ * where she names a document nobody wants.
  */
 
 function Chip({ children, tone = 'passive' }: {
@@ -60,7 +68,7 @@ function toneFor(r: PaperRow): 'attention' | 'verified' | 'action' | 'passive' {
 }
 
 const GROUPS: { kind: PaperRow['kind']; title: string; blurb: string }[] = [
-  { kind: 'OWED', title: 'Still needed from you', blurb: 'Documents your placements require that are not on your file yet.' },
+  { kind: 'OWED', title: 'Still needed from you', blurb: 'Documents your placements require that are not on your file yet. Send one in and whoever asked for it is told; they record whether it is accepted.' },
   { kind: 'DOCUMENT', title: 'Sent to you to sign', blurb: 'Papers somebody sent you. You answer these here.' },
   { kind: 'REQUEST', title: 'Asked for', blurb: 'Somebody has opened a request. You answer these at the link it came with.' },
   { kind: 'HELD', title: 'On your file', blurb: 'What we already hold about you, and the day each one runs out.' },
@@ -72,6 +80,7 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [fileUrl, setFileUrl] = useState<Record<string, string>>({})
   const [said, setSaid] = useState<string | null>(null)
+  const [refused, setRefused] = useState<{ id: string; says: string } | null>(null)
 
   const load = useCallback(async () => {
     setFailed(null)
@@ -88,22 +97,40 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
   }, [])
   useEffect(() => { load() }, [load])
 
+  const post = (url: string, body: unknown) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
   async function answer(r: PaperRow) {
-    const id = r.askId ?? r.id
     setBusy(r.id)
     setSaid(null)
+    setRefused(null)
     try {
+      // Nobody has opened a request for this one, so the first press
+      // opens it and the second half of the same press sends the file.
+      // A refusal here — a document nobody is asking her for — lands on
+      // the page as the route's own sentence and stops before any file
+      // is sent anywhere.
+      let id = r.askId ?? (r.id.startsWith('owed:') ? null : r.id)
+      if (!id && r.openAskAt && r.documentTypeKey) {
+        const opened = await readJson(await post(r.openAskAt, { documentTypeKey: r.documentTypeKey }))
+        id = opened?.data?.askId ?? null
+        if (!id) throw new Error('Nothing came back to send it to. Try again in a moment.')
+      }
+      if (!id) throw new Error('There is nowhere to send this one yet.')
+
       const body = r.todo === 'sign' ? { attests: true } : { fileUrl: fileUrl[r.id] ?? '' }
-      const res = await fetch(`/api/documents/${id}/${r.todo}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const j = await readJson(res)
-      setSaid(j?.data?.says ?? 'Done. It is on your file.')
+      const j = await readJson(await post(`/api/documents/${id}/${r.todo === 'sign' ? 'sign' : 'upload'}`, body))
+      setSaid(j?.data?.says ?? 'Sent. They will be told it has arrived.')
+      setFileUrl({ ...fileUrl, [r.id]: '' })
       await load()
     } catch (e: any) {
-      setSaid(e?.message || 'That did not go through.')
+      // A refusal is a sentence about this row, beside this row, and not
+      // a green line at the top of the page pretending something worked.
+      setRefused({ id: r.id, says: e?.message || 'That did not go through.' })
     } finally {
       setBusy(null)
     }
@@ -175,13 +202,7 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
         return (
           <div key={g.kind} className="mb-5">
             <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">{g.title}</div>
-            <p className="text-xs text-etyme-muted mb-2">
-              {g.blurb}
-              {/* Said once for the group rather than on every row: there
-                  is no route that receives a file against a requirement,
-                  so the honest thing is where to send it. */}
-              {g.kind === 'OWED' && group.some((r) => !r.waived && !r.todo) && ` ${NO_DOOR_YET}`}
-            </p>
+            <p className="text-xs text-etyme-muted mb-2">{g.blurb}</p>
             <div className={`bg-etyme-surface border rounded-lg divide-y divide-etyme-rule ${
               g.kind === 'OWED' && group.some((r) => !r.waived) ? 'border-etyme-attention/30' : 'border-etyme-rule'
             }`}>
@@ -199,9 +220,12 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
                     {!r.from && r.askedBy && <div className="text-xs text-etyme-muted mt-1">{r.askedBy}</div>}
                     {/* What happens if it does not arrive, in a sentence. */}
                     {r.consequence && (
-                      <div className={`text-xs mt-1 ${r.stopsWork && !r.waived ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+                      <div className={`text-xs mt-1 ${r.stopsWork && !r.waived && !r.awaiting ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
                         {r.consequence}
                       </div>
+                    )}
+                    {refused?.id === r.id && (
+                      <div className="text-xs text-etyme-attention mt-1">{refused.says}</div>
                     )}
                   </div>
 
@@ -221,7 +245,7 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
                       />
                       <button onClick={() => answer(r)} disabled={busy === r.id || !(fileUrl[r.id] ?? '').trim()}
                         className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                        Upload
+                        {busy === r.id ? 'Sending…' : 'Send it in'}
                       </button>
                     </>
                   )}

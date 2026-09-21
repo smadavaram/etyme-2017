@@ -69,12 +69,29 @@ export interface PaperRow {
   link: string | null
   /** The id the answer is posted against, where a request exists. */
   askId: string | null
+  /** What to name when asking for a request to be opened. */
+  documentTypeKey: string | null
+  /**
+   * Where to ask for somewhere to send it, when nobody has asked yet.
+   * Null on a waived row and on one she has already sent — neither
+   * wants anything from her.
+   */
+  openAskAt: string | null
   needsSignature: boolean
   /** True where a lapse or an absence stops the work. */
   stopsWork: boolean
   waived: boolean
   /** Why it was waived and by whom. Never a bare "waived". */
   waivedSays: string | null
+  /**
+   * She has sent it and nobody has checked it yet.
+   *
+   * Not on file — a check still running holds nothing — and not owed by
+   * her either. Asking a worker again the next morning for the paper
+   * sitting in somebody's queue is how she learns the page is not worth
+   * reading.
+   */
+  awaiting: boolean
   runsOutOn: string | null
 }
 
@@ -108,6 +125,13 @@ export interface OwedItem {
   /** A packet link, where the ask came as one. */
   link?: string | null
   needsSignature?: boolean
+  /** The type to name when opening a request. */
+  documentTypeKey?: string | null
+  /**
+   * The route that opens a request for it, where one can be opened —
+   * `/api/me/papers`. Null where nothing is wanted from her.
+   */
+  openAskAt?: string | null
 }
 
 /** Anything `myPapers` returns. Read loosely on purpose — it is not ours. */
@@ -131,6 +155,8 @@ interface LoosePaper {
   runsOutOn?: string | null
   dueOn?: string | null
   key?: string
+  documentTypeKey?: string | null
+  openAskAt?: string | null
 }
 
 /** A key read on a screen is a bug. A label with no label is not one. */
@@ -154,7 +180,21 @@ function readable(item: { label?: string | null; key?: string }): string {
  */
 export function owedWord(item: OwedItem): string {
   if (item.waived) return 'Waived — not needed from you'
+  if (isAwaiting(item)) return 'Sent — waiting for somebody to check it'
   return 'Still needed'
+}
+
+/**
+ * Sent, and with somebody else.
+ *
+ * Read off the two fields rather than off a status word: a row that
+ * wants nothing done and offers nowhere to send anything is a row
+ * already answered. `etyme-regulatory` writes exactly that shape for
+ * AWAITING_REVIEW, and reading the shape rather than the enum keeps a
+ * state name off this screen.
+ */
+export function isAwaiting(item: OwedItem): boolean {
+  return !item.waived && !item.link && !item.askId && !item.openAskAt
 }
 
 /**
@@ -165,6 +205,9 @@ export function owedWord(item: OwedItem): string {
  * person, before anybody is refused anything.
  */
 export function owedConsequence(item: OwedItem): string | null {
+  if (isAwaiting(item)) {
+    return 'It is with them now. Nothing more is needed from you until they have looked at it.'
+  }
   if (item.waived) {
     return item.waivedSays?.trim()
       ? item.waivedSays.trim()
@@ -185,28 +228,25 @@ export function owedFrom(item: OwedItem): string | null {
 /**
  * Where a worker answers an outstanding item.
  *
- * Three honest answers and no fourth. Where a packet carries it, the
- * link. Where a document was sent for signature or upload, this page.
- * Where a requirement exists and nobody has opened a request against it,
- * there is nothing to post to — and offering an upload box that posts
- * into the air would be worse than saying so.
+ * For a day this returned null on everything nobody had opened a
+ * request for, because there was no route that received a file against
+ * a requirement and a button that posts to a 404 is worse than a
+ * sentence. `etyme-regulatory` built the door the same evening, so the
+ * answer is now yes on every row that wants anything: a packet has its
+ * own link; a request already opened has an id to post against; and a
+ * requirement with nobody asking yet has `openAskAt`, which opens one
+ * and hands back the id. Two requests, one press.
+ *
+ * Null survives for the two rows that want nothing from her — waived,
+ * and sent and waiting for somebody to check it.
  */
 export function owedTodo(item: OwedItem): 'sign' | 'upload' | 'open' | null {
   if (item.waived) return null
   if (item.link) return 'open'
   if (item.askId) return item.needsSignature ? 'sign' : 'upload'
+  if (item.openAskAt) return 'upload'
   return null
 }
-
-/**
- * The sentence over a group nobody can act on yet.
- *
- * Said once for the group rather than under every row: repeated on each
- * line it reads as three separate problems when it is one missing door.
- */
-export const NO_DOOR_YET =
-  'No one has opened a request for these yet, so there is nowhere to upload them here — ' +
-  'send each to whoever asked for it and it will appear on this page once they record it.'
 
 function rowFromOwed(item: OwedItem): PaperRow {
   const todo = owedTodo(item)
@@ -214,13 +254,19 @@ function rowFromOwed(item: OwedItem): PaperRow {
     id: item.askId ?? `owed:${item.key}`,
     kind: 'OWED',
     name: readable(item),
-    askedBy: (item.owedByName ?? '').trim() || 'You',
+    // The route sends null here on purpose — the party that owes it on
+    // her own page is her, and "Helena Marsh asked for Helena Marsh's
+    // I-9" reads as though she asked herself.
+    askedBy: (item.owedByName ?? '').trim(),
     from: owedFrom(item),
     word: owedWord(item),
     consequence: owedConsequence(item),
     todo,
     link: item.link ?? null,
     askId: item.askId ?? null,
+    awaiting: isAwaiting(item),
+    documentTypeKey: (item.documentTypeKey ?? item.key) || null,
+    openAskAt: item.openAskAt ?? null,
     needsSignature: !!item.needsSignature,
     stopsWork: !!(item.blocks ?? item.stopsWork),
     waived: !!item.waived,
@@ -250,6 +296,8 @@ function rowFromPaper(p: LoosePaper): PaperRow {
       askId: requirementOnly ? null : (p.askId ?? p.id ?? null),
       link: p.link ?? null,
       needsSignature: p.needsSignature,
+      documentTypeKey: p.documentTypeKey ?? null,
+      openAskAt: p.openAskAt ?? null,
     })
     // The route's own word for the row, where it sent one. It knows
     // whether the one on file ran out or was never filed at all, and
@@ -271,10 +319,13 @@ function rowFromPaper(p: LoosePaper): PaperRow {
     todo: p.todo ?? null,
     link: p.link ?? null,
     askId: null,
+    documentTypeKey: null,
+    openAskAt: null,
     needsSignature: !!p.needsSignature,
     stopsWork: !!p.stopsWork,
     waived: false,
     waivedSays: null,
+    awaiting: false,
     runsOutOn: p.runsOutOn ?? null,
   }
 }
@@ -313,9 +364,23 @@ export function paperRows(payload: { papers?: unknown; owed?: unknown } | null |
     .map((x) => x.r)
 }
 
-/** What she actually has to do something about. A waiver is not one. */
+/**
+ * What she actually has to do something about.
+ *
+ * Neither a waiver nor a document already sent is one. Both stay on the
+ * list and neither is counted against her: one because somebody
+ * accepted its absence by name, the other because it is in a queue she
+ * does not control.
+ */
 export function outstanding(rows: PaperRow[]): PaperRow[] {
-  return rows.filter((r) => (r.kind === 'OWED' && !r.waived) || (r.kind !== 'HELD' && !!r.todo))
+  return rows.filter(
+    (r) => (r.kind === 'OWED' && !r.waived && !r.awaiting) || (r.kind !== 'HELD' && !!r.todo)
+  )
+}
+
+/** Sent, and waiting on somebody else. */
+export function awaitingReview(rows: PaperRow[]): PaperRow[] {
+  return rows.filter((r) => r.awaiting)
 }
 
 /**
@@ -327,17 +392,27 @@ export function outstanding(rows: PaperRow[]): PaperRow[] {
  */
 export function paperworkHeadline(rows: PaperRow[]): string {
   const todo = outstanding(rows)
+  const sent = awaitingReview(rows)
+  // Said whenever there is one, because a worker who sent something
+  // yesterday opens this page to find out whether it landed.
+  const withThem = sent.length
+    ? ` ${sent.length === 1 ? 'One more is' : `${sent.length} more are`} with them, waiting to be checked.`
+    : ''
   if (todo.length === 0) {
     if (rows.length === 0) return 'Nothing is on your file yet, and nobody is asking you for anything.'
+    if (sent.length) {
+      return `Nothing is being asked of you. ${sent.length === 1 ? 'One document is' : `${sent.length} documents are`} ` +
+        'with them, waiting to be checked.'
+    }
     return 'Nothing is being asked of you. Everything below is on file.'
   }
   const blocking = todo.filter((r) => r.stopsWork).length
   const n = `${todo.length} ${todo.length === 1 ? 'document is' : 'documents are'} still needed from you`
-  if (blocking === 0) return `${n}.`
+  if (blocking === 0) return `${n}.${withThem}`
   if (blocking === todo.length) {
-    return `${n}, and ${todo.length === 1 ? 'it stops' : 'they stop'} you working until ${todo.length === 1 ? 'it arrives' : 'they arrive'}.`
+    return `${n}, and ${todo.length === 1 ? 'it stops' : 'they stop'} you working until ${todo.length === 1 ? 'it arrives' : 'they arrive'}.${withThem}`
   }
-  return `${n}. ${blocking} of them ${blocking === 1 ? 'stops' : 'stop'} you working until ${blocking === 1 ? 'it arrives' : 'they arrive'}.`
+  return `${n}. ${blocking} of them ${blocking === 1 ? 'stops' : 'stop'} you working until ${blocking === 1 ? 'it arrives' : 'they arrive'}.${withThem}`
 }
 
 /** How many count against her. A waived item never does. */
