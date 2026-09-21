@@ -19,7 +19,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { myPapers, type AskedPacket, type SentDocument } from '@/lib/document-request'
+import { myPapers, type AskedPacket, type HeldRecord, type SentDocument } from '@/lib/document-request'
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/my-work/page.tsx'), 'utf8')
 
@@ -52,6 +52,18 @@ const ndaToSign = (over: Partial<SentDocument> = {}): SentDocument => ({
 
 const papers = (over: Partial<Parameters<typeof myPapers>[0]> = {}) =>
   myPapers({ myEmail: HERS, documents: [], packets: [], ...over })
+
+const licenseOnFile = (over: Partial<HeldRecord> = {}): HeldRecord => ({
+  id: 'ver-1',
+  key: 'PROFESSIONAL_LICENSE',
+  label: 'professional license (RN 154-882, WI)',
+  status: 'CLEAR',
+  provider: 'Wisconsin DSPS',
+  validFrom: new Date('2024-10-01T00:00:00Z'),
+  expiresAt: new Date('2026-10-09T00:00:00Z'),
+  stopsWork: true,
+  ...over,
+})
 
 describe('Answering an ask from the consultant’s own page', () => {
 
@@ -112,5 +124,53 @@ describe('Answering an ask from the consultant’s own page', () => {
     const link = PAGE.slice(PAGE.indexOf('{p.todo && p.link && ('), PAGE.indexOf('Answer it'))
     expect(link).toContain('bg-etyme-action text-white')
     expect(link).toContain('px-4 py-2')
+  })
+})
+
+/**
+ * What the section is called, now that it holds two different things.
+ *
+ * `/api/me/papers` returns a third kind, `HELD` — her own license, I-9,
+ * background check and visa, with the day each runs out. Nobody asked her
+ * for any of them, so a section headed "Papers asked of you" was naming
+ * half its own contents wrongly: it invites her to go looking for who
+ * wants a license she has held for four years, and buries the one fact
+ * she is the only person who can act on.
+ */
+describe('The heading over a worker’s own paperwork', () => {
+
+  it('a worker’s own page is headed as her paperwork, because it now holds what is on file as well as what is asked', () => {
+    expect(PAGE).toContain('>Your paperwork</h2>')
+    expect(PAGE).not.toContain('Papers asked of you</h2>')
+  })
+
+  it('the sentence under the heading says the list is her whole file, the day each runs out, and what is still being asked of her', () => {
+    const sub = PAGE.slice(PAGE.indexOf('>Your paperwork</h2>'), PAGE.indexOf('>Your paperwork</h2>') + 400)
+    expect(sub).toContain('Everything on your file')
+    expect(sub).toContain('the day each one runs out')
+    expect(sub).toContain('what is still being asked of you')
+  })
+
+  it('a license on file is shown with the day it runs out and nothing to press, because it is not an ask', () => {
+    const [held] = papers({ held: [licenseOnFile()] })
+    expect(held.kind).toBe('HELD')
+    expect(held.todo).toBeNull()
+    expect(held.link).toBeNull()
+    expect(held.runsOutOn).toBe('2026-10-09T00:00:00.000Z')
+    // And the row the page draws reads the same three fields for every
+    // kind, so a held row needs no second renderer.
+    expect(PAGE).toContain('{p.name}')
+    expect(PAGE).toContain('{p.askedBy} · {p.word}')
+  })
+
+  it('a document on file with no expiry recorded says so rather than reading as permanent', () => {
+    const [held] = papers({ held: [licenseOnFile({ expiresAt: null })] })
+    expect(held.word).toBe('On file — no expiry recorded')
+    expect(held.runsOutOn).toBeNull()
+  })
+
+  it('a license that lapsed says how long ago, on the same row as one still in date', () => {
+    const [gone] = papers({ held: [licenseOnFile({ expiresAt: new Date(Date.now() - 3 * 86_400_000) })] })
+    expect(gone.word).toBe('Ran out 3 days ago')
   })
 })

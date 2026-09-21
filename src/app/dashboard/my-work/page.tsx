@@ -499,15 +499,25 @@ function YourCV() {
 }
 
 /**
- * Papers asked of you.
+ * Your paperwork.
  *
- * A W-9 for the agency, an NDA a client wants signed. Each one says who
- * asked and what to do; uploading is a link to the file, signing is
- * your word that it is you. Nothing else about the request is shown,
- * because nothing else is yours.
+ * A W-9 for the agency, an NDA a client wants signed, and — since the
+ * route learned a third kind — the license, I-9, background check and
+ * visa already on her file, each with the day it runs out. Each row says
+ * who asked or who issued it and what to do; uploading is a link to the
+ * file, signing is your word that it is you. Nothing else about the
+ * request is shown, because nothing else is yours.
+ *
+ * The heading was “Papers asked of you” and stopped being true the day
+ * `/api/me/papers` started returning `HELD` rows. Nobody asked her for a
+ * license she has held for four years; what she cannot get anywhere else
+ * is the day it lapses, and a heading that calls it an ask invites her to
+ * go looking for who wants it.
  *
  * Two kinds of ask arrive here and they are answered in different
- * places. A document sent for signature is answered on this page,
+ * places, and a `HELD` row is neither — it carries no `todo`, so it
+ * offers nothing to press and is read rather than answered. A document
+ * sent for signature is answered on this page,
  * through `/api/documents/:id/:todo`. An ask that came in a packet is
  * answered at the packet's own link, because its id is a packet item
  * and there is no document row behind it — posting one here would post
@@ -551,7 +561,10 @@ function YourPapers() {
 
   return (
     <section className="mb-8">
-      <h2 className="font-serif text-lg text-etyme-ink mb-3">Papers asked of you</h2>
+      <h2 className="font-serif text-lg text-etyme-ink mb-1">Your paperwork</h2>
+      <p className="text-sm text-etyme-muted mb-3">
+        Everything on your file, with the day each one runs out, and what is still being asked of you.
+      </p>
       {said && <p className="mb-2 text-sm text-etyme-verified">{said}</p>}
       <div className={`bg-etyme-surface border rounded-lg divide-y divide-etyme-rule ${todo.length ? 'border-etyme-attention/30' : 'border-etyme-rule'}`}>
         {papers.map((p) => (
