@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mayNameSubVendors, nameForClient, namesForClient } from '@/lib/chain-names'
+import { firmsOnARow, mayNameSubVendors, nameForClient, namesForClient, type SeenName } from '@/lib/chain-names'
 
 /**
  * Whose name a client may read, in a chain.
@@ -142,5 +142,86 @@ describe('whose name a client may read in a chain', () => {
     const hidden = nameForClient(CHAIN[0], CHAIN, 'nike', never)
     expect(seen.companyId).toBe('cloudepa')
     expect(hidden.companyId).toBe('cloudepa')
+  })
+})
+
+describe('the firms behind one person, on one line', () => {
+  /**
+   * The tenure table joined a person's firms with commas and printed
+   * "Computer Systems Inc, Supplied through Computer Systems Inc",
+   * which reads as one firm entered twice. It is the prime the client
+   * pays and a withheld sub below it, and every chained person on every
+   * list of firms read that way.
+   */
+  const named = (companyId: string, name: string): SeenName => ({
+    companyId, name, masked: false, through: null, phrase: name, says: name,
+  })
+  const withheldThrough = (companyId: string, through: string): SeenName => ({
+    companyId,
+    name: `Supplied through ${through}.`,
+    masked: true,
+    through,
+    phrase: `the firm supplied through ${through}`,
+    says: `Supplied through ${through}.`,
+  })
+
+  it('a firm the client pays directly is named once, never as supplied through itself', () => {
+    const row = firmsOnARow([
+      named('cs', 'Computer Systems Inc'),
+      withheldThrough('cloudepa', 'Computer Systems Inc'),
+    ])
+    expect(row.says).toBe('Computer Systems Inc (and one firm below them)')
+    expect(row.says.match(/Computer Systems Inc/g)).toHaveLength(1)
+    expect(row.withheld).toBe(1)
+  })
+
+  it('two firms the client pays are both named, and each carries its own count of what is below it', () => {
+    const row = firmsOnARow([
+      named('cs', 'Computer Systems Inc'),
+      named('vx', 'Vertex Global'),
+      withheldThrough('cloudepa', 'Computer Systems Inc'),
+      withheldThrough('nimbus', 'Computer Systems Inc'),
+      withheldThrough('orchid', 'Vertex Global'),
+    ])
+    expect(row.parts).toEqual([
+      'Computer Systems Inc (and 2 firms below them)',
+      'Vertex Global (and one firm below them)',
+    ])
+    expect(row.withheld).toBe(3)
+  })
+
+  it('a withheld firm whose prime is not on this row still says who it comes through', () => {
+    // The prime may be a firm this client pays for somebody else, so a
+    // row about this person names nobody it could be folded into.
+    const row = firmsOnARow([withheldThrough('cloudepa', 'Computer Systems Inc')])
+    expect(row.says).toBe('one firm supplied through Computer Systems Inc')
+    expect(row.withheld).toBe(1)
+  })
+
+  it('a withheld firm with no chain on file says so rather than being quietly dropped', () => {
+    const row = firmsOnARow([
+      named('cs', 'Computer Systems Inc'),
+      { companyId: 'x', name: 'Supplied through another firm on this site', masked: true, through: null, phrase: 'the firm below one of your suppliers', says: 'x' },
+    ])
+    expect(row.parts[0]).toBe('Computer Systems Inc')
+    expect(row.parts[1]).toContain('the rung above is not on file')
+    expect(row.withheld).toBe(1)
+  })
+
+  it('a row of firms the client pays reads exactly as it always did', () => {
+    const row = firmsOnARow([named('cs', 'Computer Systems Inc'), named('vx', 'Vertex Global')])
+    expect(row.says).toBe('Computer Systems Inc, Vertex Global')
+    expect(row.withheld).toBe(0)
+  })
+
+  it('no firm’s own name is printed for a firm whose name is withheld', () => {
+    // The whole point of the file: folding must never disclose. The
+    // sub's name never appears, only a count.
+    const row = firmsOnARow([
+      named('cs', 'Computer Systems Inc'),
+      { ...withheldThrough('cloudepa', 'Computer Systems Inc') },
+    ])
+    expect(row.says).not.toContain('CloudEPA')
+    expect(row.says).toContain('one firm below them')
   })
 })

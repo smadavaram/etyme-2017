@@ -211,6 +211,88 @@ export function nameForClient<T extends ChainRung>(
 }
 
 /**
+ * The firms behind one person, as one line a client reads.
+ *
+ * ── The duplicate this exists to stop ────────────────────────────────
+ *
+ * `namesForClient` answers per firm, and a withheld name reads
+ * "Supplied through Computer Systems Inc." — which is right on a row of
+ * its own and wrong in a list that already names Computer Systems beside
+ * it. The tenure table joined the names of a person's firms with commas
+ * and printed
+ *
+ *     Helena Marsh — Computer Systems Inc, Supplied through Computer Systems Inc
+ *
+ * which reads as one firm entered twice. It is not: it is the prime the
+ * client pays and a sub-vendor below it whose name is withheld. Every
+ * chained person on every list of firms read that way.
+ *
+ * So a list folds a withheld firm into the firm it comes through, where
+ * that firm is named in the same list: **a firm the client pays is named
+ * once, never as supplied through itself.** Nothing is hidden that was
+ * not already hidden and nothing new is disclosed — the count of firms
+ * below is said out loud, because "one more firm in this chain" is a
+ * fact the client is entitled to and the sub's name is not.
+ *
+ * Pure, and it takes the answers rather than the rungs, so any caller
+ * that already holds a `SeenName` per firm can use it without a second
+ * query.
+ */
+export interface FirmsOnARow {
+  /** One label per firm the reader may name, in the order given. */
+  parts: string[]
+  /** The whole of it, comma-joined, for a cell with one line. */
+  says: string
+  /** How many firms on this row the reader may not name. */
+  withheld: number
+}
+
+function firms(n: number): string {
+  return n === 1 ? 'one firm' : `${n} firms`
+}
+
+export function firmsOnARow(seen: SeenName[]): FirmsOnARow {
+  const named: { companyId: string; name: string; below: number }[] = []
+  const byName = new Map<string, number>()
+  /** Withheld firms whose prime is not named on this row, by prime. */
+  const elsewhere = new Map<string, number>()
+  let unplaced = 0
+  let withheld = 0
+
+  for (const s of seen) {
+    if (s.masked) continue
+    if (byName.has(s.name)) continue
+    byName.set(s.name, named.length)
+    named.push({ companyId: s.companyId, name: s.name, below: 0 })
+  }
+
+  for (const s of seen) {
+    if (!s.masked) continue
+    withheld++
+    const at = s.through != null ? byName.get(s.through) : undefined
+    if (at != null) {
+      named[at].below++
+      continue
+    }
+    if (s.through) elsewhere.set(s.through, (elsewhere.get(s.through) ?? 0) + 1)
+    else unplaced++
+  }
+
+  const parts = named.map((f) =>
+    f.below === 0 ? f.name : `${f.name} (and ${firms(f.below)} below them)`
+  )
+  for (const [through, n] of elsewhere) parts.push(`${firms(n)} supplied through ${through}`)
+  if (unplaced > 0) {
+    parts.push(
+      `${firms(unplaced)} below one of your suppliers — the rung above is not on file, ` +
+        `so it cannot be named without guessing`
+    )
+  }
+
+  return { parts, says: parts.join(', '), withheld }
+}
+
+/**
  * The same answer per firm rather than per rung, for a page that lists
  * companies once.
  *
