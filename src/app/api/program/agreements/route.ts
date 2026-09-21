@@ -8,6 +8,8 @@ import {
 } from '@/lib/agreement-term'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { seatedDesk } from '@/lib/resolve-client-company'
+import { seatTrail } from '@/lib/program-seat'
 import {
   agreementFindings,
   findingsFor,
@@ -47,13 +49,22 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const companyId = caller.company?.id
-  if (!companyId) {
+  // Whose book this is. A program office in a seat keeps the client's
+  // book, not its own — read as the office's, this screen showed an MSP
+  // running three programs an empty page and let it conclude that none
+  // of its clients had papered anybody.
+  //
+  // The margin floor stays hidden either way: it is filtered in
+  // `findingsFor` by whether the reader is the *seller* on the
+  // agreement, and a client's desk — borrowed or its own — never is.
+  const desk = await seatedDesk(caller)
+  if (!desk) {
     return NextResponse.json(
       { error: { code: 'NO_COMPANY', message: 'You must belong to a company to see its agreements.' } },
       { status: 403 }
     )
   }
+  const companyId = desk.companyId
 
   // One clock for the whole answer. Reading `new Date()` inside each row
   // would let two agreements on the same screen be judged a millisecond
@@ -278,9 +289,11 @@ export async function GET(request: NextRequest) {
   ]
   logBulkAccess(subjects, {
     actorPersonId: realPersonId(caller) ?? undefined,
-    actorCompanyId: companyId,
+    actorCompanyId: caller.company?.id,
     action: 'CONTRACT_VIEW',
-    reason: 'Read the agreements screen, which names the people working under each agreement.',
+    reason: desk.seat
+      ? seatTrail(desk.seat, 'Read the agreements screen, which names the people working under each agreement')
+      : 'Read the agreements screen, which names the people working under each agreement.',
   })
 
   return NextResponse.json({

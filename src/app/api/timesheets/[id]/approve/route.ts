@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
+import { seatFor, actingInSeat } from '@/lib/program-seat'
 import { completeCycle } from '@/lib/cycle-complete'
 import { gates, maySign, acceptWith, type Sheet } from '@/lib/timesheet-signatures'
 import { emit } from '@/lib/events'
@@ -83,6 +84,42 @@ export async function POST(
     endClientCompanyId: timesheet.sellContract.endClientCompanyId,
   }
 
+  // ── The desk this signature is made from ────────────────────────────
+  //
+  // Resolve the seat before either gate. A client can hand the running
+  // of its program to an office, and signing for the week is most of
+  // what that office does all day — so the office signs at the client's
+  // desk, holding the client's permissions, as the client's side of the
+  // paper. Asked the other way round it was refused twice over: its own
+  // roles rarely carry `timesheets.approve`, and its own company is
+  // neither the payer nor the site, so `mayApprove` called it a
+  // stranger.
+  //
+  // The person on the signature stays the real person at the office.
+  // "Nobody approves their own hours" is answered against a person and
+  // must stay that way, and a client asking later who signed a week is
+  // entitled to a name rather than to its own.
+  const buyerSideId = parties.endClientCompanyId ?? parties.clientCompanyId
+  const seat = await seatFor(caller, buyerSideId)
+  const acting = seat ? actingInSeat(caller, seat) : caller
+  const signingAs = {
+    personId: caller.person.id,
+    companyId: seat ? seat.clientCompany.id : caller.company?.id,
+    permissions: acting.permissions,
+  }
+  /**
+   * The company this signature is made *on behalf of*, for everything
+   * written below it: which leg is being answered, who the overtime
+   * decision belongs to, whose row the work assertion lands on.
+   *
+   * Under a seat that is the client, and it has to be. Written as the
+   * office's, a seated approval would file the client's acceptance and
+   * the client's overtime decision under a firm that is not a party to
+   * the contract — which is the same class of error as putting a
+   * sub-vendor's rate on a client's screen, pointing sideways.
+   */
+  const onBehalfOf = (seat ? seat.clientCompany.id : caller.company?.id) as string
+
   if (approvingOwnHours({ personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions }, parties)) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Nobody approves their own hours.' } },
@@ -90,10 +127,7 @@ export async function POST(
     )
   }
 
-  const allowed = mayApprove(
-    { personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions },
-    parties
-  )
+  const allowed = mayApprove(signingAs, parties)
   if (!allowed.ok) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: allowed.reason } },
@@ -120,8 +154,8 @@ export async function POST(
   const body = await request.json().catch(() => ({}))
   const employer = timesheet.sellContract.companyId
   const client = timesheet.sellContract.endClientCompanyId ?? timesheet.sellContract.clientCompanyId
-  const isEmployer = caller.company?.id === employer
-  const isClient = caller.company?.id === client
+  const isEmployer = signingAs.companyId === employer
+  const isClient = signingAs.companyId === client
   const direct = employer === client
 
   const sheet: Sheet = {
@@ -186,7 +220,7 @@ export async function POST(
     endClientCompanyId: timesheet.sellContract.endClientCompanyId,
     supplierSellContractId: null,
   })
-  const leg = decidingLeg(caller.company?.id, rungs.map((r) => r.rung), timesheet.sellContractId)
+  const leg = decidingLeg(onBehalfOf, rungs.map((r) => r.rung), timesheet.sellContractId)
 
   // The terms, the rate and the names of the leg being answered. On a
   // direct placement — and for the employer in any chain — this is the
@@ -291,7 +325,7 @@ export async function POST(
     }
 
     const may = mayDecide(
-      { personId: caller.person.id, companyId: caller.company?.id },
+      { personId: caller.person.id, companyId: onBehalfOf },
       {
         personId: timesheet.personId,
         // The parties to the leg being answered, which in a chain is not
@@ -385,7 +419,7 @@ export async function POST(
   // client's and filing it under the supplier would put the client's
   // rate on the supplier's page — the same leak as showing a sub's rate
   // to a client, pointing the other way.
-  const moneyCompanyId = leg.onHoursLeg ? timesheet.sellContract.companyId : caller.company!.id
+  const moneyCompanyId = leg.onHoursLeg ? timesheet.sellContract.companyId : onBehalfOf
 
   // On a direct placement the two parties are one company, so one press
   // signs both — and the record still carries two signatures, which is
@@ -434,7 +468,7 @@ export async function POST(
   const assertion = await prisma.workAssertion.create({
     data: {
       timesheetId: id,
-      companyId: caller.company!.id,
+      companyId: onBehalfOf,
       role: direct
         ? asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE'
         : asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE',
@@ -462,7 +496,7 @@ export async function POST(
     await prisma.workAssertion.create({
       data: {
         timesheetId: id,
-        companyId: caller.company!.id,
+        companyId: onBehalfOf,
         role: 'EMPLOYER_ACCEPTANCE',
         hours: accepted.hours ?? hours,
         rateCents: deciding.billRate,
@@ -612,7 +646,7 @@ export async function POST(
           appliedBps: w.appliedBps,
           accrualBps: w.accrualBps,
           decidedById: person.id,
-          decidedByCompanyId: caller.company!.id,
+          decidedByCompanyId: onBehalfOf,
           decidedAt: now,
           reason: w.reason,
         }

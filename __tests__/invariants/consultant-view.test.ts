@@ -20,11 +20,21 @@ const list = read('src/app/dashboard/people/page.tsx')
 describe('one person, as this client knows them', () => {
   it('only somebody put in front of this company can be opened, and the refusal leaves a trail', () => {
     expect(api).toContain('if (subs.length === 0 && everyRung.length === 0) {')
-    expect(api).toContain("allowed: false, reason: 'Not on this company’s register'")
+    // The reason is composed rather than written inline since the seat
+    // landed (2026-09-21): a program office reading this page under a
+    // client's desk has to be named in the trail, and "Register at
+    // Aptiva Workforce" accounts for nothing the client can read back.
+    // Both branches still leave a row, which is what this holds.
+    expect(api).toContain("allowed: false, reason: registerSays(false)")
+    expect(api).toContain("'Not on this company’s register'")
     expect(api).toContain('That person has not been put in front of you, so there is nothing here to read.')
   })
   it('every read of the page writes an access log row', () => {
-    expect(api).toContain("action: 'PROFILE_VIEW', reason: `Register at ${caller.company!.name}`")
+    expect(api).toContain("action: 'PROFILE_VIEW', reason: registerSays(true)")
+    expect(api).toContain('`Register at ${desk?.companyName ?? caller.company!.name}`')
+    // And under a seat the row names the seat, the office and the client
+    // that granted it, which is `seatTrail`.
+    expect(api).toContain("seatTrail(desk.seat, allowed ? 'Read one person’s register page'")
   })
   it('time here is counted across every supplier, once per day on site, against the cap', () => {
     expect(api).toContain('const days = daysOnSite(served, now)')

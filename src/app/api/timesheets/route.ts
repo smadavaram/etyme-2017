@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { payerScope } from '@/lib/resolve-client-company'
+import { payerScope, seatedDesk } from '@/lib/resolve-client-company'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
 import { isConsultantSeat } from '@/lib/seat'
@@ -50,13 +50,25 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
 
   const onBench = isConsultantSeat(caller)
-  const asClient = !onBench && caller.company?.kind === 'CLIENT'
+
+  // Resolve the desk before anything is scoped or gated.
+  //
+  // A seated coordinator is reading the client's weeks, not its own
+  // firm's: the office employs nobody on the site, so `payerScope` on
+  // its own company returned nothing and the page read as "no hours
+  // have been filed" on a program with fourteen people on it.
+  const desk = onBench ? null : await seatedDesk(caller)
+  const acting = desk?.acting ?? caller
+  const asClient = !onBench && (desk?.seat != null || caller.company?.kind === 'CLIENT')
+  // The company whose site these hours were worked at, when this reader
+  // is on the buying side of them.
+  const buyerCompanyId = desk?.companyId ?? caller.company?.id ?? null
 
   // Which rows. A client signs the hours of everybody on its sites,
   // whoever employs them, so the rows are the end-client's — and only
   // the rows. What each one costs is settled below, at the rung this
   // client pays, never at the rung underneath it.
-  const scope = asClient ? endClientFilter(caller.company!.id) : payerScope(caller)
+  const scope = asClient && buyerCompanyId ? endClientFilter(buyerCompanyId) : payerScope(caller)
   if (!scope) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'No company context' } },
@@ -104,12 +116,17 @@ export async function GET(request: NextRequest) {
     prisma.timesheet.count({ where }),
   ])
 
-  const priced = await priceFor(caller, timesheets, { asClient, onBench })
+  const priced = await priceFor(caller, timesheets, { asClient, onBench, buyerCompanyId })
 
+  // Who this reader is, for the purpose of "may you approve this week".
+  // Under a seat that is the client's company holding the client's
+  // permissions — which is precisely what the seat is — and the person
+  // is still the real person at the office, because nobody approves
+  // their own hours and that is answered against a person.
   const actor = {
     personId: caller.person.id,
-    companyId: caller.company?.id,
-    permissions: caller.permissions,
+    companyId: asClient && buyerCompanyId ? buyerCompanyId : caller.company?.id,
+    permissions: acting.permissions,
   }
 
   return NextResponse.json({
@@ -203,7 +220,7 @@ type Row = {
 async function priceFor(
   caller: NonNullable<Awaited<ReturnType<typeof getCallerContext>>['caller']>,
   rows: Row[],
-  seat: { asClient: boolean; onBench: boolean }
+  seat: { asClient: boolean; onBench: boolean; buyerCompanyId: string | null }
 ): Promise<Map<string, Seen>> {
   const out = new Map<string, Seen>()
   if (rows.length === 0) return out
@@ -255,7 +272,7 @@ async function priceFor(
     return out
   }
 
-  if (!seat.asClient) {
+  if (!seat.asClient || !seat.buyerCompanyId) {
     for (const r of rows) out.set(r.id, asIs(r))
     return out
   }
@@ -266,7 +283,7 @@ async function priceFor(
   // each row can be walked up to the contract this client is billed on.
   const rungs = await prisma.sellContract.findMany({
     where: {
-      ...endClientFilter(caller.company!.id),
+      ...endClientFilter(seat.buyerCompanyId),
       personId: { in: [...new Set(rows.map((r) => r.sellContract.personId))] },
     },
     select: {

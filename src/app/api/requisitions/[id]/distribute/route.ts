@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { descendants } from '@/lib/org-tree'
 import { emit } from '@/lib/events'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { mayDistribute } from '@/lib/requisition-approval'
 import { hasPermission } from '@/lib/permissions'
+import { seatFor, actingInSeat } from '@/lib/program-seat'
 
 /**
  * POST /api/requisitions/:id/distribute
@@ -65,19 +67,52 @@ export async function POST(
     )
   }
 
-  // The company that raised it is the only one that may put it to market.
-  if (caller.company?.id !== requisition.companyId) {
+  // The company that raised it is the only one that may put it to
+  // market — or a program office sitting in a seat that company granted,
+  // which is the same company's desk held by another firm.
+  //
+  // Resolved before either gate. Choosing which suppliers see a role is
+  // the program office's job by name (`lib/company-defaults` gives
+  // `requirements.distribute` to the Program Manager and to Procurement
+  // and to nobody else), so an outsourced program office that could not
+  // do it could not run the program at all.
+  const seat = await seatFor(caller, requisition.companyId)
+  const acting = seat ? actingInSeat(caller, seat) : caller
+
+  if (!seat && caller.company?.id !== requisition.companyId) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Only the raising company may distribute this requisition' } },
       { status: 403 }
     )
   }
 
+  // A seat over one business unit distributes that unit's roles only.
+  if (seat?.orgUnitId && requisition.orgUnitId !== seat.orgUnitId) {
+    const units = await prisma.orgUnit.findMany({
+      where: { companyId: requisition.companyId },
+      select: { id: true, parentId: true },
+    })
+    const reach = [seat.orgUnitId, ...descendants(units, seat.orgUnitId)]
+    if (!requisition.orgUnitId || !reach.includes(requisition.orgUnitId)) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'OUTSIDE_YOUR_SEAT',
+            message:
+              `${caller.company!.name}'s desk at ${requisition.company.name} covers one part of the program, ` +
+              'and this role sits outside it.',
+          },
+        },
+        { status: 403 }
+      )
+    }
+  }
+
   // And within it, only the desk that owns the supplier panel. A hiring
   // manager raises the role and deliberately does not choose who sees
   // it — that is the control that stops work being routed to a friend
   // (lib/company-defaults). The role said so; the route did not ask.
-  if (!hasPermission(caller.permissions, 'requirements.distribute')) {
+  if (!hasPermission(acting.permissions, 'requirements.distribute')) {
     return NextResponse.json(
       {
         error: {

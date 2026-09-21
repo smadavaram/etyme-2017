@@ -56,7 +56,15 @@ describe('what the client desk is told', () => {
   })
 
   it('monthly spend is in cents like every other figure, so the page formats it once', () => {
-    expect(program).toContain('onSite.reduce((sum, c) => sum + (c.billRate ?? 0) * 160, 0)')
+    // The 160-hour month moved into `api/program/spend` on 2026-09-21,
+    // so the dashboard, the org view and the census page share one
+    // answer instead of writing the same assumption out four times. What
+    // this test holds is unchanged: minor units all the way to the
+    // screen, and the division by a hundred happens once, in the
+    // formatter. (The client desk once divided by a hundred twice and
+    // reported $972 of a $60,000 month.)
+    expect(program).toContain('programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))')
+    expect(program).toContain("from './spend'")
     expect(program).not.toContain('/ 100, // cents to dollars')
     expect(page).toContain('compact(s.monthlySpend)')
   })

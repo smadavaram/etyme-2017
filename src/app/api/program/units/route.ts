@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
+import { seatedDesk } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/program/units   { name, kind, parentId? }
@@ -19,9 +20,22 @@ export async function POST(request: NextRequest) {
   if (error) return error
   const notStaff = staffOnly(caller, 'The organization')
   if (notStaff) return notStaff
-  if (!hasPermission(caller.permissions, 'settings.manage') && !hasPermission(caller.permissions, 'governance.write')) {
+
+  // Resolve the desk first, then gate on it. A program office running a
+  // client's program is exactly who adds the unit a new team sits in,
+  // and it does so under the client's own role — so the permission asked
+  // for is the seat's, and the unit is created at the client rather than
+  // in the office's own org chart.
+  const desk = await seatedDesk(caller)
+  if (!desk) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: `Adding a unit is for whoever runs the program at ${caller.company!.name}.` } },
+      { error: { code: 'FORBIDDEN', message: 'No company context.' } },
+      { status: 403 }
+    )
+  }
+  if (!hasPermission(desk.acting.permissions, 'settings.manage') && !hasPermission(desk.acting.permissions, 'governance.write')) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: `Adding a unit is for whoever runs the program at ${desk.companyName}.` } },
       { status: 403 }
     )
   }
@@ -36,7 +50,7 @@ export async function POST(request: NextRequest) {
       { status: 422 }
     )
   }
-  const companyId = caller.company!.id
+  const companyId = desk.companyId
   if (parentId) {
     const parent = await prisma.orgUnit.findFirst({ where: { id: parentId, companyId }, select: { id: true } })
     if (!parent) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That parent unit is not yours.' } }, { status: 404 })

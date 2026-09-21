@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
+import { seatTrail } from '@/lib/program-seat'
 import { asPayer } from '@/lib/chain-top'
 import { logBulkAccess } from '@/lib/access-log'
+import { HOURS_PER_MONTH, annualSpendMinor } from '../spend'
 
 /**
  * GET /api/program/org
@@ -28,9 +30,10 @@ import { logBulkAccess } from '@/lib/access-log'
  * once and acted on, so it returns findings rather than rows.
  */
 
-/** Hours per month used to annualise an hourly bill rate. */
-const HOURS_PER_MONTH = 160
-const MONTHS_PER_YEAR = 12
+// The 160-hour month, and the sentence that owns it, live in
+// `../spend` — shared with the program dashboard and the census page,
+// because three screens computing the same assumption three times is
+// three chances for them to disagree on a CFO's desk.
 
 function median(values: number[]): number {
   if (values.length === 0) return 0
@@ -41,9 +44,13 @@ function median(values: number[]): number {
     : sorted[mid]
 }
 
-/** Annual cost of one contractor at an hourly rate in cents. */
+/**
+ * Annual cost of one contractor at an hourly rate in cents, **in whole
+ * currency**. Every figure on this screen is annualized dollars rather
+ * than cents, which is why the division is here and not in `spend`.
+ */
 function annualCost(rateCents: number): number {
-  return (rateCents * HOURS_PER_MONTH * MONTHS_PER_YEAR) / 100
+  return (annualSpendMinor(rateCents) ?? 0) / 100
 }
 
 export async function GET(request: NextRequest) {
@@ -52,11 +59,18 @@ export async function GET(request: NextRequest) {
 
   const url = request.nextUrl
 
-  const { client: clientCompany, error: clientError } = await resolveClientCompany(
+  // Resolve first. A program office in a seat reads this under the
+  // client's own desk, and a seat scoped to one business unit reads that
+  // unit and everything under it — which on this screen is the whole
+  // point, because the finding is "your managers pay different rates"
+  // and a seat over one division must not answer it for another.
+  const { client: clientCompany, seat, error: clientError } = await resolveProgram(
     caller,
     url.searchParams.get('clientCompanyId')
   )
   if (clientError) return clientError
+
+  const seatUnits = await unitsReachedBy(seat)
 
   // Every rung standing at this end client, across every vendor.
   //
@@ -67,6 +81,7 @@ export async function GET(request: NextRequest) {
   const rungs = await prisma.sellContract.findMany({
     where: {
       ...endClientFilter(clientCompany.id),
+      ...(seatUnits ? { orgUnitId: { in: seatUnits } } : {}),
       state: { in: ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'] },
     },
     select: {
@@ -105,7 +120,7 @@ export async function GET(request: NextRequest) {
     actorPersonId: caller.person.id,
     actorCompanyId: caller.company?.id,
     action: 'CONTRACT_VIEW',
-    reason: `Org view at ${clientCompany.name}`,
+    reason: seat ? seatTrail(seat, 'Org view') : `Org view at ${clientCompany.name}`,
   })
 
   // ── Managers ──

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { seatedDesk } from '@/lib/resolve-client-company'
+import { seatTrail } from '@/lib/program-seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop, askGoesTo } from '@/lib/chain-top'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
@@ -23,7 +25,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (error) return error
   const notStaff = staffOnly(caller, 'The register')
   if (notStaff) return notStaff
-  const companyId = caller.company!.id
+
+  // Whose register this is. Under a seat it is the client's, and the
+  // trail below says so by name: a page that hands over one person's
+  // whole history at a client — every submission, every rate asked,
+  // every interview, the paperwork verdict — is exactly the read a
+  // client will later want accounted for, and "Register at Aptiva
+  // Workforce" accounts for nothing.
+  const desk = await seatedDesk(caller)
+  const companyId = desk?.companyId ?? caller.company!.id
+  const registerSays = (allowed: boolean) =>
+    desk?.seat
+      ? seatTrail(desk.seat, allowed ? 'Read one person’s register page' : 'Asked for somebody not on the register')
+      : allowed
+        ? `Register at ${desk?.companyName ?? caller.company!.name}`
+        : 'Not on this company’s register'
   const now = new Date()
 
   // Every rung of every chain this person stands on here. Read on its
@@ -48,10 +64,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   })
 
   if (subs.length === 0 && everyRung.length === 0) {
-    logAccess({ subjectId: id, actorPersonId: caller.person.id, actorCompanyId: companyId, action: 'PROFILE_VIEW', allowed: false, reason: 'Not on this company’s register' })
+    logAccess({ subjectId: id, actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'PROFILE_VIEW', allowed: false, reason: registerSays(false) })
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That person has not been put in front of you, so there is nothing here to read.' } }, { status: 404 })
   }
-  logAccess({ subjectId: id, actorPersonId: caller.person.id, actorCompanyId: companyId, action: 'PROFILE_VIEW', reason: `Register at ${caller.company!.name}` })
+  logAccess({ subjectId: id, actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'PROFILE_VIEW', reason: registerSays(true) })
 
   const [person, profile, favorite, block, tenureRule, breakRule, papers, listings] = await Promise.all([
     prisma.person.findUniqueOrThrow({ where: { id }, select: { id: true, name: true } }),

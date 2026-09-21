@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { seatedDesk } from '@/lib/resolve-client-company'
 import { defaultPostureFor } from '@/lib/walls'
 import {
   readSupplierList, listSentence, nameFromDomain, type SupplierRow,
@@ -40,7 +41,18 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Suppliers')
   if (notStaff) return notStaff
 
-  const companyId = caller.company!.id
+  // Whose supplier list this is. A program office in a seat is reading
+  // the client's suppliers — that is most of what running a program is —
+  // and read as its own it opened an empty page.
+  //
+  // **Reading only.** The four qualification desks below are the
+  // client's own people and stay that way: `lib/supplier-desks` routes
+  // each item to the desk that answers for it, and a program office
+  // holds one of those desks only where the client's role it sits at
+  // holds it. Nothing here widens that; the seat decides whose list is
+  // shown, and `lib/supplier-onboarding` decides who may say yes to it.
+  const desk = await seatedDesk(caller)
+  const companyId = desk?.companyId ?? caller.company!.id
 
   const now = new Date()
   const [invites, agreements, standings, engagements, stars, blocks, places] = await Promise.all([

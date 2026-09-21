@@ -126,9 +126,17 @@ describe('in a chain, nobody decides their own leg', () => {
   })
 
   it('a row carrying a figure is filed under a company entitled to read it', () => {
+    // `onBehalfOf` is the caller's own company, or — where a client has
+    // seated a program office at one of its own desks — the client's.
+    // It has to be the client's: an office signing a week on the
+    // client's behalf that filed the client's overtime decision under
+    // its own company would put a figure on the row of a firm that is
+    // not a party to the contract, which is this test's whole subject
+    // pointing sideways (2026-09-21).
     expect(APPROVE).toContain(
-      'const moneyCompanyId = leg.onHoursLeg ? timesheet.sellContract.companyId : caller.company!.id'
+      'const moneyCompanyId = leg.onHoursLeg ? timesheet.sellContract.companyId : onBehalfOf'
     )
+    expect(APPROVE).toContain('const onBehalfOf = (seat ? seat.clientCompany.id : caller.company?.id) as string')
     expect(APPROVE).toContain('companyId: moneyCompanyId,')
   })
 

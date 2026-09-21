@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { requirementScope } from '@/lib/resolve-client-company'
+import { requirementScope, seatedDesk, unitsReachedBy } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 
 /**
@@ -13,7 +13,14 @@ export async function GET(request: NextRequest) {
   const { caller, error: contextError } = await getCallerContext(request)
   if (contextError) return contextError
 
-  if (!hasPermission(caller.permissions, 'requirements.read')) {
+  // Resolve the desk first, then gate on it. A program office running a
+  // client's program reads the client's roles under the client's own
+  // role — asked for its own `requirements.read` first, an office whose
+  // firm never granted it was refused on a program it runs.
+  const desk = await seatedDesk(caller)
+  const acting = desk?.acting ?? caller
+
+  if (!hasPermission(acting.permissions, 'requirements.read')) {
     return NextResponse.json(
       {
         error: {
@@ -22,13 +29,16 @@ export async function GET(request: NextRequest) {
           // "needs requirements.read" tells somebody the name of a thing
           // they cannot grant themselves and nothing about what to do.
           message:
-            `Open roles are not part of your seat at ${caller.company?.name ?? 'this company'}. ` +
+            `Open roles are not part of your seat at ${desk?.companyName ?? caller.company?.name ?? 'this company'}. ` +
             'Whoever set up your access can add them.',
         },
       },
       { status: 403 }
     )
   }
+
+  // A seat over one business unit reads that unit's roles and no others.
+  const seatUnits = await unitsReachedBy(desk?.seat ?? null)
 
   const url = request.nextUrl
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
@@ -40,7 +50,10 @@ export async function GET(request: NextRequest) {
 
   const id = url.searchParams.get('id') ?? undefined
 
-  const mineId = caller.company?.id ?? '__none__'
+  // Whose roles count as "mine" for the purpose of showing a rate band.
+  // Under a seat that is the client's, because the band belongs to the
+  // company that wrote it and the office is holding that company's desk.
+  const mineId = desk?.companyId ?? caller.company?.id ?? '__none__'
 
   // Who may see which demand.
   //
@@ -55,7 +68,7 @@ export async function GET(request: NextRequest) {
   // anybody who is allowed to look outside their own company at all.
   // Composed once, in resolve-client-company, so the single-role surfaces
   // inherit the same rule rather than reassembling four fifths of it.
-  const scope = requirementScope(caller)
+  const scope = requirementScope(caller, desk?.seat ?? null)
   if (!scope) {
     return NextResponse.json({
       data: { requirements: [], pagination: { page, limit, total: 0, totalPages: 0 } },
@@ -63,6 +76,7 @@ export async function GET(request: NextRequest) {
   }
 
   const where: any = { ...scope }
+  if (seatUnits) where.orgUnitId = { in: seatUnits }
 
   if (id) {
     where.id = id

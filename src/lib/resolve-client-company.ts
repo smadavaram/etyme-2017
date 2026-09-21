@@ -4,7 +4,8 @@ import { hasPermission } from '@/lib/permissions'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { isConsultantSeat } from '@/lib/seat'
 import { maySeeOutside } from '@/lib/walls'
-import { seatFor, noteSeatRead, noSeatYet, type LiveSeat } from '@/lib/program-seat'
+import { seatFor, actingInSeat, noteSeatRead, noSeatYet, type LiveSeat } from '@/lib/program-seat'
+import { descendants } from '@/lib/org-tree'
 import type { CallerContext } from '@/lib/api-context'
 
 /**
@@ -381,11 +382,19 @@ export function invoiceScope(
  * Use requirementOwnerOnly for that.
  */
 export function requirementScope(
-  caller: CallerContext
+  caller: CallerContext,
+  /**
+   * A seat the caller is acting in, if any. A program office in a seat
+   * reads the client's roles, not its own — its own are none, because an
+   * office that places nobody raises nothing for itself, and the page
+   * read as "this client has posted nothing" when the client had posted
+   * eleven.
+   */
+  seat?: LiveSeat | null
 ): Record<string, unknown> | null {
   if (isConsultantSeat(caller) || !caller.company) return null
 
-  const id = caller.company.id
+  const id = seat ? seat.clientCompany.id : caller.company.id
 
   const outside = maySeeOutside({
     posture: caller.company.outsideAccess,
@@ -505,4 +514,121 @@ export function submissionScope(
   if (!caller.company) return null
   const id = caller.company.id
   return { OR: [{ fromCompanyId: id }, { toCompanyId: id }] }
+}
+
+// ── Acting in a seat the client granted ───────────────────────────────
+//
+// `resolveClientCompany` answers *which* program a caller may open. From
+// 2026-09-20 it also hands back the seat, and the seat changes the other
+// half of the question: what the caller may *do* inside.
+//
+// Every demand route asked the caller's own permissions before it asked
+// which program this was. So a program office whose own firm is thin on
+// permissions — most are, because an MSP's own company exists to hold
+// people rather than to run its own contingent program — was refused on
+// a program its client had deliberately opened to it, under a desk its
+// client had deliberately named. The seat resolved and then decided
+// nothing.
+//
+// Two lines fix it everywhere, in this order: resolve first, gate on
+// `acting`. Written here rather than repeated per route, because the
+// version that is repeated is the version one route forgets.
+
+/**
+ * The program, the seat, and the caller as they act inside it.
+ *
+ * `acting` is the caller with the seat's permissions and the seat's org
+ * unit, or the caller unchanged where there is no seat. Gate on
+ * `acting.permissions`, never on `caller.permissions`, in any route that
+ * a program office may legitimately reach.
+ *
+ * `acting.company` stays the office's on purpose (`actingInSeat`): the
+ * office is who is reading, and a trail recording the client reading its
+ * own records hides the one fact it exists to show.
+ */
+export type ProgramResolution =
+  | { client: ResolvedClientCompany; seat: LiveSeat | null; acting: CallerContext; error: null }
+  | { client: null; seat: null; acting: null; error: NextResponse }
+
+export async function resolveProgram(
+  caller: CallerContext,
+  requestedClientId: string | null
+): Promise<ProgramResolution> {
+  const res = await resolveClientCompany(caller, requestedClientId)
+  if (res.error) return { client: null, seat: null, acting: null, error: res.error }
+  const seat = res.seat ?? null
+  return {
+    client: res.client,
+    seat,
+    acting: seat ? actingInSeat(caller, seat) : caller,
+    error: null,
+  }
+}
+
+/**
+ * The same answer for a route scoped to the caller's *own* company.
+ *
+ * Suppliers, the register of people, agreements, milestones and units
+ * are all "this company's own book". Under a seat the book being kept is
+ * the client's, so the company id has to move as well as the
+ * permissions — otherwise a seated office reads its own empty register
+ * and concludes nobody has ever been put in front of the client it runs.
+ *
+ * Never fails: a caller with no seat is simply themselves. A caller with
+ * no company at all gets null, which every one of these routes already
+ * refuses in words of its own.
+ */
+export interface SeatedDesk {
+  companyId: string
+  companyName: string
+  seat: LiveSeat | null
+  acting: CallerContext
+}
+
+export async function seatedDesk(
+  caller: CallerContext,
+  requestedClientId: string | null = null
+): Promise<SeatedDesk | null> {
+  if (!caller.company) return null
+  // A client is never in a seat at itself, and asking would cost a query
+  // on every request from the population that makes most of them.
+  if (caller.company.kind !== 'CLIENT') {
+    const seat = await seatFor(caller, requestedClientId)
+    if (seat) {
+      return {
+        companyId: seat.clientCompany.id,
+        companyName: seat.clientCompany.name,
+        seat,
+        acting: actingInSeat(caller, seat),
+      }
+    }
+  }
+  return {
+    companyId: caller.company.id,
+    companyName: caller.company.name,
+    seat: null,
+    acting: caller,
+  }
+}
+
+/**
+ * The units a seat reaches, as a Prisma `in` list — or null for "all".
+ *
+ * A seat may be scoped to one business unit, and the whole point of that
+ * scope is that the office cannot read the rest of the program. Narrowing
+ * is a read filter and not a permission: the desk holds the same
+ * permissions everywhere, and reaches fewer rows.
+ *
+ * The unit and everything under it, because a unit is a tree and a seat
+ * at Technology that could not read R&D 1 would be a seat at nothing.
+ */
+export async function unitsReachedBy(
+  seat: LiveSeat | null
+): Promise<string[] | null> {
+  if (!seat || !seat.orgUnitId) return null
+  const units = await prisma.orgUnit.findMany({
+    where: { companyId: seat.clientCompany.id },
+    select: { id: true, parentId: true },
+  })
+  return [seat.orgUnitId, ...descendants(units, seat.orgUnitId)]
 }

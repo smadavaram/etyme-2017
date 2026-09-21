@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { seatedDesk } from '@/lib/resolve-client-company'
 import { mayBill } from '@/lib/billing-plan'
 import {
   acceptanceGap,
@@ -38,13 +39,17 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const companyId = caller.company?.id
-  if (!companyId) {
+  // A program office in a seat accepts deliverables on the client's
+  // behalf, so the party on the order is the client. Resolved before the
+  // scope is built rather than after, because the scope *is* the party.
+  const desk = await seatedDesk(caller)
+  if (!desk) {
     return NextResponse.json(
       { error: { code: 'NO_COMPANY', message: 'You must belong to a company.' } },
       { status: 403 }
     )
   }
+  const companyId = desk.companyId
 
   const orderId = request.nextUrl.searchParams.get('orderId')
 

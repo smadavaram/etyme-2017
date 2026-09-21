@@ -4,7 +4,7 @@ import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { ownPriceMedian } from '@/lib/chain-top'
-import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { resolveClientCompany, resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
 import {
   evaluateRequisition,
   type RuleKind,
@@ -34,11 +34,16 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const { client, error: clientError } = await resolveClientCompany(
+  const { client, seat, error: clientError } = await resolveProgram(
     caller,
     request.nextUrl.searchParams.get('clientCompanyId')
   )
   if (clientError) return clientError
+
+  // A seat granted over one business unit reads that unit's roles and
+  // none of the others. Null for everybody else, which is the whole
+  // program.
+  const seatUnits = await unitsReachedBy(seat)
 
   // Archived rows are off the working list unless asked for. Filed as a
   // date rather than a status, so putting one away never overwrites what
@@ -52,6 +57,7 @@ export async function GET(request: NextRequest) {
         { companyId: client.id },
         { msa: { clientId: client.id } },
       ],
+      ...(seatUnits ? { orgUnitId: { in: seatUnits } } : {}),
       ...(includeArchived ? {} : { archivedAt: null }),
     },
     include: {
@@ -127,7 +133,18 @@ export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const { client, error: clientError } = await resolveClientCompany(caller, null)
+  // Resolve the program first, then gate on the desk this caller is
+  // actually sitting at. `acting` is the caller under the seat's role
+  // where a client has granted one, and the caller themselves where it
+  // has not (`lib/program-seat`).
+  //
+  // This order is the whole fix. Asked the other way round — the
+  // caller's own `requirements.write` first — a program office was
+  // refused on the client's own program: an MSP's own company has no
+  // requisitions of its own to write, so its roles mostly do not carry
+  // the permission, and the client's Program Manager role that the seat
+  // holds does.
+  const { client, seat, acting, error: clientError } = await resolveProgram(caller, null)
   if (clientError) return clientError
 
   // Raising a requisition is the hiring manager's act, and only theirs.
@@ -146,7 +163,7 @@ export async function POST(request: NextRequest) {
   // It is deliberately not `requirements.distribute`: raising the role
   // and choosing which suppliers see it are two desks on purpose, and
   // the procurement lead who holds the second does not get the first.
-  if (!hasPermission(caller.permissions, 'requirements.write')) {
+  if (!hasPermission(acting.permissions, 'requirements.write')) {
     return NextResponse.json(
       {
         error: {
@@ -340,6 +357,25 @@ export async function POST(request: NextRequest) {
   facts.lead = lead
   facts.escalation = escalation
   facts.unitName = orgUnits.find(u => u.id === team)?.name ?? costCenter?.orgUnit?.name ?? null
+
+  // A seat scoped to one business unit raises work in that unit and
+  // nowhere else. Checked after the team is derived, because the team
+  // can come from the cost center rather than from the form, and a
+  // check on the field the form sent would have missed exactly that.
+  const seatUnits = await unitsReachedBy(seat)
+  if (seatUnits && (team === null || !seatUnits.includes(team))) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'OUTSIDE_YOUR_SEAT',
+          message:
+            `${caller.company!.name}'s desk at ${client.name} covers one part of the program, and this role ` +
+            `sits outside it. Raise it in a team your seat covers, or ask ${client.name} to widen the seat.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const decision = evaluateRequisition(facts, rules)
 

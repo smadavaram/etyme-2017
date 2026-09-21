@@ -120,14 +120,31 @@ const GATED: Array<[what: string, source: string, permission: string]> = [
   ['opening a role', REQUIREMENTS, 'requirements.write'],
 ]
 
+/**
+ * Whose permissions — and why there are two spellings.
+ *
+ * `caller.permissions` is the desk somebody holds at their own firm.
+ * `acting.permissions` is the same question asked one step later: where
+ * a client has seated a program office at one of its own desks, the
+ * office acts under the CLIENT's role and not its own (`lib/program-seat`,
+ * 2026-09-20). Both are a desk check and either satisfies this rule; a
+ * route that asks neither has authorized nothing.
+ *
+ * The seat is deliberately resolved *before* the gate. Asked the other
+ * way round, a program office was refused on a program its client had
+ * opened to it, because an MSP's own firm has no contingent program of
+ * its own and its roles do not carry the permissions for running one.
+ */
+const DESK = '(?:caller|acting)\\.permissions'
+
 describe('a route that acts asks which desk is calling, not only which company', () => {
   for (const [what, source, permission] of GATED) {
     it(`${what} asks for ${permission} before it does anything`, () => {
-      expect(source).toContain(`hasPermission(caller.permissions, '${permission}')`)
+      expect(source).toMatch(new RegExp(`hasPermission\\(${DESK}, '${permission}'\\)`))
     })
 
     it(`${what} refuses the wrong desk outright rather than warning and proceeding`, () => {
-      expect(source).toMatch(new RegExp(`!hasPermission\\(caller\\.permissions, '${permission}'\\)`))
+      expect(source).toMatch(new RegExp(`!hasPermission\\(${DESK}, '${permission}'\\)`))
       expect(source).toContain('status: 403')
     })
   }
@@ -142,8 +159,19 @@ describe('a route that acts asks which desk is calling, not only which company',
   })
 
   it('the two routes that open a role refuse the same people', () => {
-    expect(REQUISITIONS).toContain("hasPermission(caller.permissions, 'requirements.write')")
-    expect(REQUIREMENTS).toContain("hasPermission(caller.permissions, 'requirements.write')")
+    expect(REQUISITIONS).toMatch(new RegExp(`hasPermission\\(${DESK}, 'requirements.write'\\)`))
+    expect(REQUIREMENTS).toMatch(new RegExp(`hasPermission\\(${DESK}, 'requirements.write'\\)`))
+  })
+
+  it('a route a program office may reach resolves the seat before it gates, never after', () => {
+    // The order is the fix. `resolveProgram` hands back the client, the
+    // seat and the caller as they act inside it; the gate then reads
+    // `acting`. A route that gated first would refuse the office at its
+    // own firm's desk and never reach the client's.
+    const gate = REQUISITIONS.indexOf("hasPermission(acting.permissions, 'requirements.write')")
+    const resolve = REQUISITIONS.indexOf('await resolveProgram(caller, null)')
+    expect(resolve).toBeGreaterThan(-1)
+    expect(gate).toBeGreaterThan(resolve)
   })
 })
 

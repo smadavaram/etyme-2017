@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { seatedDesk } from '@/lib/resolve-client-company'
+import { seatTrail } from '@/lib/program-seat'
+import { logBulkAccess } from '@/lib/access-log'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { merge, order, summarize, type Person, type Offer } from '@/lib/one-person'
@@ -41,7 +44,11 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'The register')
   if (notStaff) return notStaff
 
-  const companyId = caller.company!.id
+  // Whose register this is. A program office in a seat reads the
+  // client's — its own holds nobody, because an office that places
+  // nobody is never submitted to.
+  const desk = await seatedDesk(caller)
+  const companyId = desk?.companyId ?? caller.company!.id
   const now = new Date()
 
   const subs = await prisma.submission.findMany({
@@ -58,6 +65,22 @@ export async function GET(request: NextRequest) {
   })
 
   const personIds = [...new Set(subs.map((s) => s.personId))]
+
+  // Every read of another person's data leaves a row, and this list is
+  // nothing but other people's data: everybody any supplier has ever put
+  // in front of this company, with the rate each was offered at. It
+  // wrote no row at all until now — the single-person page beside it
+  // always has — and under a seat the row names the seat, because "who
+  // looked at my workforce, and on whose authority" is the question a
+  // standing grant exists to be able to answer.
+  logBulkAccess(personIds, {
+    actorPersonId: caller.person.id,
+    actorCompanyId: caller.company?.id,
+    action: 'PROFILE_VIEW',
+    reason: desk?.seat
+      ? seatTrail(desk.seat, 'Read the register of everybody put in front of this company')
+      : `Read the register at ${desk?.companyName ?? caller.company!.name}`,
+  })
 
   // Time served here, through anybody. Counted against the person,
   // which is the entire reason this register is worth having.

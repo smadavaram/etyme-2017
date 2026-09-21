@@ -3,13 +3,16 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop } from '@/lib/chain-top'
+import { rateSpread, type Placement } from '@/lib/census-page'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 import { contractClearance } from '@/lib/contract-clearance'
 import { tierWord } from '@/lib/supplier-tier'
-import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
+import { seatTrail } from '@/lib/program-seat'
+import { programMonthlySpend, basisSays } from './spend'
 
 /**
  * GET /api/program
@@ -28,9 +31,16 @@ export async function GET(request: NextRequest) {
 
   const url = request.nextUrl
 
-  // Entitlement-checked: the caller is either this client, or a vendor
-  // with a real placement there. An unverified ?clientCompanyId= is a 403.
-  const { client: clientCompany, error: clientError } = await resolveClientCompany(
+  // Entitlement-checked: the caller is either this client, a program
+  // office in a seat the client granted, or a vendor with a real
+  // placement there. An unverified ?clientCompanyId= is a 403.
+  //
+  // Resolve first, then read `acting` — the caller with the seat's
+  // permissions and the seat's unit. Nothing on this page gates on a
+  // permission of its own, so what the seat changes here is the *reach*:
+  // a seat granted over one business unit reads that unit and everything
+  // under it, and none of the rest of the program.
+  const { client: clientCompany, seat, acting, error: clientError } = await resolveProgram(
     caller,
     url.searchParams.get('clientCompanyId')
   )
@@ -38,15 +48,20 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
+  // The units this reader reaches. Null means the whole program, which
+  // is every reader who is not in a unit-scoped seat.
+  const seatUnits = await unitsReachedBy(seat)
+  const unitWall: Record<string, unknown> = seatUnits ? { orgUnitId: { in: seatUnits } } : {}
+
   // Active contracts placed at this end client
   // Uses endClientFilter to include contracts where the paying customer differs
   // Inside a firm that separates its accounts, this is also filtered to
   // the accounts the reader belongs to. A delivery manager on one client's
   // account has no business reading who is staffed at another.
-  const wall = await accountFilterFor(caller)
+  const wall = await accountFilterFor(acting)
 
   const everyRung = await prisma.sellContract.findMany({
-    where: andAll(endClientFilter(clientCompany.id), wall.where, {
+    where: andAll(endClientFilter(clientCompany.id), wall.where, unitWall, {
       state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
     }),
     include: {
@@ -66,7 +81,7 @@ export async function GET(request: NextRequest) {
       // 2026-09-17. The role the contract is for, read by the starting-soon
       // preview below: a licensed role is cleared against the licensed
       // start packet, and a SellContract carries no title of its own.
-      requirement: { select: { title: true } },
+      requirement: { select: { title: true, hoursPerWeek: true } },
     },
     orderBy: { endDate: 'asc' },
   })
@@ -86,7 +101,7 @@ export async function GET(request: NextRequest) {
   // chain is the rung below the one this client pays.
   const pendingTimesheets = await prisma.timesheet.findMany({
     where: {
-      sellContract: endClientFilter(clientCompany.id),
+      sellContract: andAll(endClientFilter(clientCompany.id), unitWall),
       status: 'SUBMITTED',
       clientApprovedAt: null,
     },
@@ -103,7 +118,7 @@ export async function GET(request: NextRequest) {
 
   const pendingExpenses = await prisma.expense.findMany({
     where: {
-      sellContract: endClientFilter(clientCompany.id),
+      sellContract: andAll(endClientFilter(clientCompany.id), unitWall),
       status: 'SUBMITTED',
     },
     include: {
@@ -131,7 +146,15 @@ export async function GET(request: NextRequest) {
   // Only a client's own seats are masked. A supplier reading this page
   // about a client it places at is looking at its own supply chain, and
   // the term this reads is the client's agreement, not theirs.
-  const viewerIsClient = caller.company?.id === clientCompany.id
+  // Whether this reader is on the buying side of the program.
+  //
+  // A seat counts. An office acting in the client's own desk sees
+  // exactly what the client sees and not a row more — which on this page
+  // means the sub-vendor names below its suppliers are masked for the
+  // office too, because they are masked for the client. Left as a plain
+  // company comparison, the seat would have handed an outside firm the
+  // one thing the NDA between a prime and its sub exists to keep.
+  const viewerIsClient = caller.company?.id === clientCompany.id || seat != null
 
   // Unfiltered by state or by account wall, and only for the reader that
   // needs it: the walk up a chain is only as good as the rungs it can
@@ -253,9 +276,55 @@ export async function GET(request: NextRequest) {
     name: v.name,
     headcount: v.headcount,
     avgRate: v.headcount > 0 ? Math.round(v.totalBillRate / v.headcount) : 0,
-    totalMonthlySpend: v.totalBillRate * 160, // cents, at 160 hours a month
+    // Minor units, at a flat 160-hour month. The assumption, and the
+    // sentence that owns it, are in `./spend` — shared with the org view
+    // and the census page so four screens cannot drift into four answers.
+    totalMonthlySpend: programMonthlySpend(v.contracts.map((c) => ({ rateMinorPerHour: c.billRate ?? null }))).totalMinor,
     standing: tierWord(tierOf.get(v.id), agreed.has(v.id)),
   }))
+
+  // ── Same role, two suppliers, two prices ────────────────────────────
+  //
+  // The question a CFO asks and the program dashboard could not answer.
+  // The org view already compares rates *by hiring manager* — whether
+  // one manager pays over the odds — and that is a different question:
+  // it cannot see that two suppliers are billing differently for the
+  // same role, because both may be perfectly in line with their own
+  // manager.
+  //
+  // `rateSpread` is `lib/census-page`'s, imported rather than
+  // re-derived. It is pure, it takes the rungs and not the topped rows —
+  // `chainTop` is the first thing it does, so it is handed every rung
+  // and reduces them itself — and it already refuses the three cases
+  // that would produce a number nobody can stand behind: a role only
+  // one supplier fills has no spread and says so, a role priced in two
+  // currencies is never compared, and a role where a supplier sent no
+  // rate carries the caveat that the true gap can only be wider.
+  //
+  // Shown only to the buying side. A supplier reading a client's program
+  // has no business reading what the client pays its competitors, and
+  // the names on the rows are already the masked ones.
+  const spreadRows: Placement[] = everyRung.map((c) => ({
+    id: c.id,
+    personId: c.personId,
+    personName: c.person.name,
+    companyId: c.companyId,
+    clientCompanyId: c.clientCompanyId,
+    supplier: shown(c.companyId, c.company.name).name,
+    role: c.requirement?.title ?? c.person.consultant?.headline ?? null,
+    // A stored zero is not a rate — the column is not nullable and an
+    // importer writes zero into it. A free contractor on a CFO's page is
+    // a plausible wrong number, which is worse than a blank.
+    rateMinor: (c.billRate ?? 0) > 0 ? c.billRate : null,
+    currency: c.billCurrency,
+    hoursPerWeek: c.requirement?.hoursPerWeek ?? null,
+    startDate: c.startDate,
+    endDate: c.endDate,
+    state: c.state,
+  }))
+  const spreadBySupplier = viewerIsClient
+    ? rateSpread(spreadRows, now)
+    : { roles: [], oneSupplierOnly: [], refused: [] }
 
   // Somebody who has not started yet, and whether the paperwork lets
   // them. The same checklist activation runs, read early, so the desk
@@ -362,6 +431,7 @@ export async function GET(request: NextRequest) {
         { companyId: clientCompany.id },
         { msa: { clientId: clientCompany.id } },
       ],
+      ...unitWall,
     },
     include: {
       submissions: {
@@ -381,12 +451,19 @@ export async function GET(request: NextRequest) {
     actorPersonId: caller.person.id,
     actorCompanyId: caller.company?.id,
     action: 'CONTRACT_VIEW',
-    reason: `Program view at ${clientCompany.name}`,
+    // Under a seat the trail says whose desk this was read from and who
+    // granted it. "Program view at Cavanaugh Glassworks" is true of the
+    // client reading its own program and of an outside firm reading it,
+    // and only one of those is a fact somebody will later ask about.
+    reason: seat ? seatTrail(seat, 'Program view') : `Program view at ${clientCompany.name}`,
   })
 
-  // What the client pays a month, in cents, at 160 hours: the top rung
-  // of every chain with somebody on site.
-  const totalMonthlySpend = onSite.reduce((sum, c) => sum + (c.billRate ?? 0) * 160, 0)
+  // What the client pays a month, in minor units, at 160 hours: the top
+  // rung of every chain with somebody on site. Somebody with no rate on
+  // their top rung is a head and not a price, and `spend` counts them
+  // apart rather than as a zero.
+  const spend = programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))
+  const totalMonthlySpend = spend.totalMinor
 
   // Build approval queue items
   const approvalQueue = [
@@ -450,6 +527,20 @@ export async function GET(request: NextRequest) {
         pendingTimesheets: c.timesheets.filter(t => t.status === 'SUBMITTED').length,
       })),
       vendors,
+      // Same role, two suppliers, two prices — at the rung this client
+      // pays, in minor units, one currency per role or none stated.
+      rateSpread: {
+        roles: spreadBySupplier.roles,
+        oneSupplierOnly: spreadBySupplier.oneSupplierOnly,
+        refused: spreadBySupplier.refused,
+        basis:
+          spreadBySupplier.roles.length === 0 && spreadBySupplier.oneSupplierOnly.length === 0
+            ? 'Nobody is on site under a named role yet, so there is nothing to compare.'
+            : `Compared across ${spreadBySupplier.roles.length + spreadBySupplier.oneSupplierOnly.length} ` +
+              `role${spreadBySupplier.roles.length + spreadBySupplier.oneSupplierOnly.length === 1 ? '' : 's'} ` +
+              `filled today, at the contract ${clientCompany.name} is itself billed on. What a supplier pays ` +
+              'its own supplier is not this price and is never in this comparison.',
+      },
       approvalQueue,
       startingSoon,
       today,
