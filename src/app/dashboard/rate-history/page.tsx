@@ -3,7 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { amount as formatRate, compact } from '@/lib/money-display'
+import { amount as formatRate, rateMovement } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
@@ -43,17 +43,6 @@ type FilterTab = 'all' | 'increases' | 'decreases'
 
 // ── Helpers ────────────────────────────────────────────────
 
-
-function computeDelta(current: number, previous: number | null): { dollars: string; pct: string; direction: 'up' | 'down' | 'neutral' } {
-  if (previous == null || previous === 0) {
-    return { dollars: '—', pct: '—', direction: 'neutral' }
-  }
-  const diff = current - previous
-  const pct = ((diff / previous) * 100).toFixed(1)
-  if (diff > 0) return { dollars: `+{compact(diff)}`, pct: `+${pct}%`, direction: 'up' }
-  if (diff < 0) return { dollars: `-$${(Math.abs(diff) / 100).toFixed(2)}`, pct: `${pct}%`, direction: 'down' }
-  return { dollars: '$0.00', pct: '0.0%', direction: 'neutral' }
-}
 
 function matchesFilter(record: RateHistoryRecord, filter: FilterTab): boolean {
   if (filter === 'all') return true
@@ -174,7 +163,7 @@ export default function RateHistoryPage() {
       label: 'Change',
       align: 'right',
       render: (row) => {
-        const delta = computeDelta(row.rate, row.previousRate)
+        const delta = rateMovement(row.rate, row.previousRate)
         if (delta.direction === 'neutral') {
           return <span className="tabular-nums text-etyme-faint">—</span>
         }

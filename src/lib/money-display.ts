@@ -80,3 +80,59 @@ export function fromUnits(value: number | null | undefined, currency: string = D
 export function show(m: Money): string {
   return format(m)
 }
+
+// ── What a rate moved by ──────────────────────────────────────────────
+
+/** A rate change, ready to print: the amount, the percentage, the way. */
+export interface RateMovement {
+  /** "+$5" · "-$2.50" · "$0" · "—" where there is nothing to compare to. */
+  dollars: string
+  /** "+4.0%" · "-1.9%" · "0.0%" · "—". */
+  pct: string
+  direction: 'up' | 'down' | 'neutral'
+}
+
+/**
+ * How far a rate moved, and which way.
+ *
+ * ── Why this is here and not on the screen ───────────────────────────
+ *
+ * It was on the screen, and it printed the characters `+{compact(diff)}`
+ * in the column where every rate *increase*'s amount belongs — a
+ * template literal with a brace and no dollar sign, which is not an
+ * expression at all, so the source text was the output. The decrease
+ * branch was a number, which is why it survived every reading of the
+ * page: half the column looked right.
+ *
+ * Nothing could have caught it where it lived. A helper inside a page
+ * component is reachable only by rendering the page, and a string that
+ * is wrong but well-formed renders green. Money arithmetic belongs in a
+ * library with a test around it, which is the rule this file exists to
+ * hold.
+ *
+ * ── One formatter, both ways ─────────────────────────────────────────
+ *
+ * The decrease branch was hand-rolled as well — a literal `$`, a divide
+ * by a hundred and `toFixed(2)` — so a rise and a fall of the same size
+ * printed to different precision, and neither could have shown a
+ * contract in a currency that is not dollars. `compact` takes minor
+ * units and brings its own symbol.
+ *
+ * `previous` null or zero returns em dashes rather than a number: a
+ * first rate has not moved, and dividing by zero to say it moved
+ * infinitely is a figure nobody can stand behind.
+ */
+export function rateMovement(
+  current: number,
+  previous: number | null | undefined,
+  currency: string = DEFAULT_CURRENCY
+): RateMovement {
+  if (previous == null || previous === 0) {
+    return { dollars: '—', pct: '—', direction: 'neutral' }
+  }
+  const diff = current - previous
+  const pct = ((diff / previous) * 100).toFixed(1)
+  if (diff > 0) return { dollars: `+${compact(diff, currency)}`, pct: `+${pct}%`, direction: 'up' }
+  if (diff < 0) return { dollars: `-${compact(Math.abs(diff), currency)}`, pct: `${pct}%`, direction: 'down' }
+  return { dollars: compact(0, currency), pct: '0.0%', direction: 'neutral' }
+}
