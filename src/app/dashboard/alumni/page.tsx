@@ -218,6 +218,9 @@ export default function AlumniPage() {
   if (!data && !loading && !error) return null
 
   const summary = data?.summary ?? { total: 0, placed: 0, available: 0, ended: 0 }
+  // Null until the fetch says otherwise. A page should not assert a fact
+  // about a company before it knows the company's name.
+  const clientName = data?.client?.name ?? null
   const filtered = data?.alumni
     ? filter === 'all'
       ? data.alumni
@@ -233,21 +236,45 @@ export default function AlumniPage() {
 
   return (
     <>
-      {/* Head */}
+      {/* Head
+          ────────────────────────────────────────────────────────────
+          Nothing here is drawn until the answer is in.
+
+          The client name was read with an ellipsis as its fallback, so
+          a seated reader spent the fetch looking at "Institutional
+          memory at … ." — a sentence about a company, printed before
+          the page knew which company.
+          The heading above it was worse in the same way: "0 people have
+          worked here" is not a placeholder, it is a wrong number, and
+          somebody reading it in the half second before the data lands
+          has been told something untrue about their own program.
+
+          Loading is its own state. So the eyebrow stands — it names the
+          section and asserts nothing — and both sentences wait. */}
       <div className="page-head">
         <p className="eyebrow">Program</p>
-        <h1>
-          {summary.total} {summary.total === 1 ? 'person has' : 'people have'} worked here.{' '}
-          {summary.available > 0 && (
-            <span style={{ color: 'var(--color-action)' }}>
-              {summary.available} {summary.available === 1 ? 'is' : 'are'} available now.
-            </span>
-          )}
-        </h1>
-        <p>
-          Institutional memory at {data?.client.name ?? '…'} — every person who has held a contract here,
-          across all vendors. Re-engagement is gated by tenure policy.
-        </p>
+        {data ? (
+          <>
+            <h1>
+              {summary.total} {summary.total === 1 ? 'person has' : 'people have'} worked here.{' '}
+              {summary.available > 0 && (
+                <span style={{ color: 'var(--color-action)' }}>
+                  {summary.available} {summary.available === 1 ? 'is' : 'are'} available now.
+                </span>
+              )}
+            </h1>
+            {/* And where the answer came back without a name on it, the
+                sentence stays withheld rather than naming nobody. */}
+            {clientName && (
+              <p>
+                Institutional memory at {clientName} — every person who has held a contract here,
+                across all vendors. Re-engagement is gated by tenure policy.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-etyme-muted">Reading everyone who has worked here…</p>
+        )}
       </div>
 
       {/* Stats */}
