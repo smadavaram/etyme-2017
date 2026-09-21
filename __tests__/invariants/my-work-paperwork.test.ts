@@ -4,7 +4,7 @@ import { join } from 'path'
 import {
   paperRows, outstanding, countedAgainst, paperworkHeadline,
   owedWord, owedConsequence, owedTodo, owedFrom, awaitingReview, isAwaiting,
-  FILE_NOT_TAKEN_YET,
+  sectionOf, rowsInSection, SECTIONS, FILE_NOT_TAKEN_YET,
 } from '@/app/dashboard/my-work/paperwork-rows'
 import { myPapers, outstandingItems } from '@/lib/document-request'
 
@@ -206,6 +206,39 @@ describe('A worker sees what is being asked of her', () => {
     expect(sent.awaiting).toBe(true)
     expect(sent.todo).toBeNull()
     expect(outstanding(after).map((r) => r.name)).toEqual(['NDA'])
+  })
+
+  it('a document she has already sent is not filed under what is still needed from her', () => {
+    // A heading is where a person looks before she reads the row, and
+    // "Still needed from you" over a blurb saying "Send one in" asks her
+    // to act on something she has already acted on.
+    const rows = paperRows({
+      owed: [
+        owedItem({ key: 'PRODUCT_CONFIDENTIALITY', label: 'product confidentiality undertaking', received: true, openAskAt: null }),
+        owedItem({ key: 'NDA', label: 'NDA' }),
+      ],
+      papers: [{ id: 'v1', kind: 'HELD', name: 'Passport', word: 'On file until 2029-03-08' }],
+    })
+    expect(sectionOf(rows.find((r) => r.name === 'NDA')!)).toBe('OWED')
+    expect(sectionOf(rows.find((r) => r.name === 'Product confidentiality undertaking')!)).toBe('SENT')
+    expect(rowsInSection(rows, 'OWED').map((r) => r.name)).toEqual(['NDA'])
+    expect(rowsInSection(rows, 'SENT').map((r) => r.name)).toEqual(['Product confidentiality undertaking'])
+
+    // Its own heading, saying what the row says, read after what she
+    // still has to do and before what is on file.
+    const titles = SECTIONS.map((s) => s.title)
+    expect(titles).toEqual([
+      'Still needed from you', 'Sent, waiting to be checked',
+      'Sent to you to sign', 'Asked for', 'On your file',
+    ])
+    expect(SECTIONS.find((s) => s.key === 'SENT')!.blurb)
+      .toContain('Nothing more is needed from you')
+    // And the counts do not move: it is still nothing on file.
+    expect(outstanding(rows).map((r) => r.name)).toEqual(['NDA'])
+    expect(awaitingReview(rows)).toHaveLength(1)
+    // The screen draws the headings from that one list.
+    expect(SECTION).toContain('SECTIONS.map((g)')
+    expect(SECTION).toContain('rowsInSection(all, g.key)')
   })
 
   it('a worker with a photograph of her certificate can send the photograph, not a link to one', () => {

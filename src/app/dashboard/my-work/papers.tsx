@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { readJson } from '@/lib/read-response'
 import {
-  paperRows, outstanding, paperworkHeadline, FILE_NOT_TAKEN_YET,
+  paperRows, outstanding, paperworkHeadline, rowsInSection, SECTIONS,
+  FILE_NOT_TAKEN_YET,
   type PaperRow,
 } from './paperwork-rows'
 
@@ -66,13 +67,6 @@ function toneFor(r: PaperRow): 'attention' | 'verified' | 'action' | 'passive' {
   if (r.kind === 'HELD') return /Ran out|Runs out/.test(r.word) ? 'attention' : 'verified'
   return r.todo ? 'action' : 'passive'
 }
-
-const GROUPS: { kind: PaperRow['kind']; title: string; blurb: string }[] = [
-  { kind: 'OWED', title: 'Still needed from you', blurb: 'Documents your placements require that are not on your file yet. Send one in and whoever asked for it is told; they record whether it is accepted.' },
-  { kind: 'DOCUMENT', title: 'Sent to you to sign', blurb: 'Papers somebody sent you. You answer these here.' },
-  { kind: 'REQUEST', title: 'Asked for', blurb: 'Somebody has opened a request. You answer these at the link it came with.' },
-  { kind: 'HELD', title: 'On your file', blurb: 'What we already hold about you, and the day each one runs out.' },
-]
 
 export function YourPapers({ standalone = false }: { standalone?: boolean }) {
   const [rows, setRows] = useState<PaperRow[] | null>(null)
@@ -222,15 +216,18 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
         </div>
       )}
 
-      {GROUPS.map((g) => {
-        const group = all.filter((r) => r.kind === g.kind)
+      {/* The headings come from one list, in reading order, and a row's
+          heading is decided by `sectionOf` rather than by its kind — a
+          document she has already sent is not still needed from her. */}
+      {SECTIONS.map((g) => {
+        const group = rowsInSection(all, g.key)
         if (group.length === 0) return null
         return (
-          <div key={g.kind} className="mb-5">
+          <div key={g.key} className="mb-5">
             <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">{g.title}</div>
             <p className="text-xs text-etyme-muted mb-2">{g.blurb}</p>
             <div className={`bg-etyme-surface border rounded-lg divide-y divide-etyme-rule ${
-              g.kind === 'OWED' && group.some((r) => !r.waived) ? 'border-etyme-attention/30' : 'border-etyme-rule'
+              g.key === 'OWED' && group.some((r) => !r.waived) ? 'border-etyme-attention/30' : 'border-etyme-rule'
             }`}>
               {group.map((r) => (
                 <div key={`${r.kind}:${r.id}`} className="p-4 flex flex-wrap items-start gap-3">

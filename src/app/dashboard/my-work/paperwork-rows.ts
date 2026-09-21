@@ -46,6 +46,31 @@ export type PaperRowKind = 'OWED' | 'REQUEST' | 'DOCUMENT' | 'HELD'
  */
 const OUTSTANDING_KINDS = ['OWED', 'OUTSTANDING']
 
+/**
+ * The heading a row is read under.
+ *
+ * Not the same thing as its kind, and that was a real bug: a document
+ * she had already sent sat under "Still needed from you" over a blurb
+ * saying "Send one in", which asks her to act on something she has
+ * already acted on. A heading is where a person looks before they read
+ * the row, so the heading says what the row says.
+ */
+export type PaperSection = 'OWED' | 'SENT' | 'DOCUMENT' | 'REQUEST' | 'HELD'
+
+/** In reading order: what she must do, what is with them, then the file. */
+export const SECTIONS: { key: PaperSection; title: string; blurb: string }[] = [
+  { key: 'OWED', title: 'Still needed from you',
+    blurb: 'Documents your placements require that are not on your file yet. Send one in and whoever asked for it is told; they record whether it is accepted.' },
+  { key: 'SENT', title: 'Sent, waiting to be checked',
+    blurb: 'You have sent these. Nothing more is needed from you until somebody has looked at them — and they are not on your file until they do.' },
+  { key: 'DOCUMENT', title: 'Sent to you to sign',
+    blurb: 'Papers somebody sent you. You answer these here.' },
+  { key: 'REQUEST', title: 'Asked for',
+    blurb: 'Somebody has opened a request. You answer these at the link it came with.' },
+  { key: 'HELD', title: 'On your file',
+    blurb: 'What we already hold about you, and the day each one runs out.' },
+]
+
 /** One row as the screen draws it. */
 export interface PaperRow {
   id: string
@@ -375,11 +400,28 @@ export function paperRows(payload: { papers?: unknown; owed?: unknown } | null |
   // already sorts what stops the work to the top and a waived row below
   // it; sorting again here would be two domains deciding one order, and
   // the second one would win silently.
-  const order: Record<PaperRowKind, number> = { OWED: 0, DOCUMENT: 1, REQUEST: 2, HELD: 3 }
+  const order = Object.fromEntries(SECTIONS.map((s, i) => [s.key, i])) as Record<PaperSection, number>
   return once
     .map((r, i) => ({ r, i }))
-    .sort((a, b) => (order[a.r.kind] - order[b.r.kind]) || (a.i - b.i))
+    .sort((a, b) => (order[sectionOf(a.r)] - order[sectionOf(b.r)]) || (a.i - b.i))
     .map((x) => x.r)
+}
+
+/**
+ * Which heading a row is read under.
+ *
+ * A sent document is still an owed one by kind — it is not on her file
+ * and it still counts as nothing — but it is not still needed FROM her,
+ * and the heading is the part somebody reads first.
+ */
+export function sectionOf(row: PaperRow): PaperSection {
+  if (row.kind === 'OWED') return row.awaiting ? 'SENT' : 'OWED'
+  return row.kind
+}
+
+/** The rows under one heading, in the order they arrived. */
+export function rowsInSection(rows: PaperRow[], section: PaperSection): PaperRow[] {
+  return rows.filter((r) => sectionOf(r) === section)
 }
 
 /**
