@@ -125,6 +125,30 @@ describe('what the client desk is told', () => {
     expect(call.indexOf('through: c.endDate')).toBeLessThan(call.indexOf('lineExtras'))
   })
 
+  it('the standing read under that verdict asks for the firm\u2019s whole file, never four insurance kinds by name', () => {
+    // A list of four kinds went stale the day a fifth was named: the
+    // certificate of good standing joined `COVER_THAT_STOPS_WORK` and
+    // every caller that named keys beginning INSURANCE_ went on reading
+    // past it. `supplierCoverGate` decides for itself which kinds it has
+    // an opinion about, so nobody else needs a list.
+    expect(program).toContain('{ where: { companyId: c.companyId, personId: null }, select: verificationShape }')
+    expect(program).not.toContain("const CERTS = ['INSURANCE_GL'")
+  })
+
+  it('the month\u2019s spend carries the sentence it rests on, not just "from current rates"', () => {
+    // 160 hours a month is a stated assumption, not a measurement, and
+    // `basisSays` was imported into this route the day the helper was
+    // written and never called. A twenty-hour validation seat priced at
+    // 160 is twice its real cost, and the page said nothing about it.
+    expect(program).toContain('monthlySpendBasis:')
+    expect(program).toContain('basisSays(')
+    expect(program).toContain("'at the rate on the contract you pay,'")
+    // And the heads with no rate are named, so the total of some seats is
+    // never presented as the total of all of them.
+    expect(program).toContain('spend.unpriced > 0')
+    expect(page).toContain('{s.monthlySpendBasis}')
+  })
+
   it('each supplier carries the standing this client gave it, and a published role with nobody in five days says so', () => {
     expect(program).toContain('standing: tierWord(tierOf.get(v.id), agreed.has(v.id))')
     expect(page).toContain("const quiet = r.status === 'OPEN' && r.submissions === 0 && r.openDays >= 5")

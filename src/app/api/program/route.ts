@@ -337,7 +337,17 @@ export async function GET(request: NextRequest) {
   // Somebody who has not started yet, and whether the paperwork lets
   // them. The same checklist activation runs, read early, so the desk
   // sees "no I-9 on file" a week before the start date instead of on it.
-  const CERTS = ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] as const
+  // The four insurance kinds used to be listed here. `lineExtras` below
+  // reads the firm's whole standing — the same four plus the certificate
+  // of good standing — and is spread last, so on every real line it is
+  // the answer. The read below stays as the floor under it, because
+  // `lineExtras` returns nothing at all where it cannot find the line,
+  // and it now asks for the firm's rows without naming kinds: a list of
+  // four here was a list that went stale the day a fifth kind was named,
+  // and `supplierCoverGate` decides for itself which kinds it has an
+  // opinion about. `personId: null` because a person's own file is not
+  // the firm's standing.
+  //
   // `validFrom` as well as `expiresAt`, and it is read here because a
   // preview that disagrees with the decision it previews is worse than no
   // preview: without the floor this page called a policy beginning in
@@ -355,7 +365,7 @@ export async function GET(request: NextRequest) {
     contracts.filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5).map(async (c) => {
       const [personVerifications, supplierCertificates] = await Promise.all([
         prisma.verification.findMany({ where: { personId: c.personId }, select: verificationShape }),
-        prisma.verification.findMany({ where: { companyId: c.companyId, type: { in: [...CERTS] } }, select: verificationShape }),
+        prisma.verification.findMany({ where: { companyId: c.companyId, personId: null }, select: verificationShape }),
       ])
       const papers = contractClearance({
         personName: c.person.name, personVerifications,
@@ -523,6 +533,26 @@ export async function GET(request: NextRequest) {
         activeContractors: new Set(onSite.map((c) => c.personId)).size,
         vendors: vendors.length,
         monthlySpend: totalMonthlySpend,
+        // What the figure rests on, in a sentence, because 160 hours a
+        // month is a stated assumption and not a measurement. A
+        // twenty-hour validation seat priced at 160 is twice its real
+        // cost. `basisSays` has been imported here since the helper was
+        // written and never called, so the page said "from current
+        // rates" and never said the rest of it.
+        //
+        // The unpriced heads are named too: the total is the total of
+        // the seats that have a rate on the rung this client pays, and a
+        // total of some of them presented as the total of all of them is
+        // the plausible wrong number on a CFO's page.
+        monthlySpendBasis:
+          basisSays(
+            `This month counts ${spend.priced} ${spend.priced === 1 ? 'contractor' : 'contractors'} on site, ` +
+            'at the rate on the contract you pay,'
+          ) +
+          (spend.unpriced > 0
+            ? ` ${spend.unpriced} ${spend.unpriced === 1 ? 'person has' : 'people have'} no rate on the rung ` +
+              `you pay and ${spend.unpriced === 1 ? 'is' : 'are'} not in this figure.`
+            : ''),
         pendingApprovals: approvalQueue.length,
         openRoles: requirements.length,
         endingSoon: endingSoon.length,

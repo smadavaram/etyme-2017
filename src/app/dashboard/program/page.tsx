@@ -28,6 +28,8 @@ interface ProgramData {
     activeContractors: number
     vendors: number
     monthlySpend: number // cents, at 160 hours a month
+    /** What that figure rests on, in a sentence. From `lib/program-spend`. */
+    monthlySpendBasis?: string
     pendingApprovals: number
     openRoles: number
     endingSoon: number
@@ -674,6 +676,14 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
         <Stat label="Tenure" value={watch ?? '—'} sub={watch == null ? 'reading' : watch === 0 ? 'everybody inside the cap' : 'at or near the cap'} tone={watch ? 'attention' : undefined} href="/dashboard/tenure" />
         <Stat label="Requirements" value={s.openRoles} sub={firstGood?.hours == null ? 'published or drafted' : firstGood.hours < 1 ? 'first good candidate within the hour' : `first good candidate in ${firstGood.hours}h`} tone={s.openRoles > 0 ? 'action' : undefined} href="/dashboard/requisitions" />
       </div>
+
+      {/* The one figure here that is an estimate says so, under the row
+          it sits in. "From current rates" is true and is not the whole
+          of it: 160 hours a month is an assumption, and the total counts
+          only the seats that have a rate on the rung this client pays. */}
+      {s.monthlySpendBasis && (
+        <p className="-mt-1 text-xs text-etyme-muted">{s.monthlySpendBasis}</p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 space-y-8">
