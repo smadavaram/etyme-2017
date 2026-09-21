@@ -5,10 +5,10 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { defaultPostureFor } from '@/lib/walls'
-import { desksFor, deskPeople } from '@/lib/supplier-desks'
+import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
 import { sendLink } from '@/lib/supplier-link'
 import {
-  mayActAt, markItem, readiness, nextStage, STAGE_WORD,
+  mayActAt, markItem, readiness, nextStage, withOrderedItems, STAGE_WORD,
   type ChecklistItem, type ItemState, type Decision, type Stage,
 } from '@/lib/supplier-onboarding'
 
@@ -45,7 +45,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const note = typeof body?.note === 'string' ? body.note.trim() : ''
   const now = new Date()
   const stage = row.stage as Stage
-  const checklist = row.checklist as unknown as ChecklistItem[]
+  // Merged before anything reads it, so a desk can verify an item this
+  // client's orders require that was written after the firm came in. The
+  // merge keeps every state already recorded and is saved with the next
+  // mark, so it happens once and then stays on the row.
+  const checklist = withOrderedItems(
+    row.checklist as unknown as ChecklistItem[],
+    await orderedOfSuppliers(companyId),
+    caller.company!.name
+  )
   const decisions = ((row.decisions as unknown as Decision[]) ?? [])
   const desks = await desksFor(companyId, row.recommendedById)
 

@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState } from 'react'
  * client's Procurement desk verifies each one before it counts.
  */
 
-interface Ask { key: string; label: string; required: boolean; state: string; fileName: string | null }
+interface Ask { key: string; label: string; required: boolean; state: string; fileName: string | null; says?: string | null }
 interface Apply {
   client: string
   firm: string
@@ -27,7 +27,16 @@ interface Apply {
   application: Record<string, any> | null
 }
 
-const FILE_KEYS = new Set(['TAX_FORM', 'INSURANCE', 'REVENUE', 'PROPOSAL'])
+/**
+ * The three things a firm answers with something other than a file.
+ *
+ * An exclusion rather than a list of files, because the list of files is
+ * the client's now: a client that requires a certificate of good standing
+ * or its own site induction on every order has that item on this page,
+ * and a fixed set of four keys gave it a line in "what we ask for" and
+ * nowhere to upload it.
+ */
+const NOT_A_FILE = new Set(['BANK', 'EXPERIENCE', 'REFERENCES'])
 
 export default function ApplyPage() {
   const { token } = useParams<{ token: string }>()
@@ -106,7 +115,10 @@ export default function ApplyPage() {
                     {data.asks.map((a) => (
                       <li key={a.key} className="flex flex-wrap items-center gap-2 py-2 text-[13px]">
                         <span className={`w-5 text-center ${a.state === 'HELD' ? 'text-etyme-verified' : a.state === 'PROVIDED' ? 'text-etyme-action' : 'text-etyme-faint'}`}>{a.state === 'HELD' ? '✓' : a.state === 'PROVIDED' ? '•' : '○'}</span>
-                        <span className="flex-1 min-w-[200px]">{a.label}{!a.required && <span className="text-etyme-faint"> · if you have it</span>}</span>
+                        <span className="flex-1 min-w-[200px]">
+                          {a.label}{!a.required && <span className="text-etyme-faint"> · if you have it</span>}
+                          {a.says && <span className="block text-[11px] text-etyme-faint">{a.says}</span>}
+                        </span>
                         <span className="text-[12px] text-etyme-faint">
                           {a.state === 'HELD' ? 'verified' : a.state === 'PROVIDED' ? `received${a.fileName ? ` · ${a.fileName}` : ''}` : a.state === 'WAIVED' ? 'not needed' : ''}
                         </span>
@@ -129,9 +141,12 @@ export default function ApplyPage() {
 
                 <section className="panel space-y-3">
                   <p className="stat-label">Documents</p>
-                  {data.asks.filter((a) => FILE_KEYS.has(a.key)).map((a) => (
+                  {data.asks.filter((a) => !NOT_A_FILE.has(a.key)).map((a) => (
                     <label key={a.key} className="flex flex-wrap items-center gap-3 text-[13px]">
-                      <span className="flex-1 min-w-[220px]">{a.label}</span>
+                      <span className="flex-1 min-w-[220px]">
+                        {a.label}
+                        {a.says && <span className="block text-[11px] text-etyme-faint">{a.says}</span>}
+                      </span>
                       <input type="file" onChange={pick(a.key)} className="text-[12px]" aria-label={a.label} />
                       {files[a.key] && <span className="text-[12px] text-etyme-action">{files[a.key].fileName}</span>}
                       {!files[a.key] && a.fileName && <span className="text-[12px] text-etyme-faint">on file: {a.fileName}</span>}

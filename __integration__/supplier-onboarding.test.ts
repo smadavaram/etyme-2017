@@ -39,7 +39,7 @@ describe('a supplier walks four desks', () => {
     const vertex = r.body.data.requests.find((x: any) => x.name === 'Veritan Talent')
     expect(vertex?.stage).toBe('HR')
     expect(vertex?.steps.map((s: any) => s.status)).toEqual(['done', 'done', 'now', 'next', 'next'])
-    expect(vertex?.readiness).toMatchObject({ held: 0, of: 2, ok: false })
+    expect(vertex?.readiness).toMatchObject({ held: 0, of: 3, ok: false })
     expect(vertex?.mayAct).toBe(true)
   })
 
@@ -96,7 +96,18 @@ describe('a supplier walks four desks', () => {
     const page = await viaToken(applyGet, 'GET', it_.token)
     expect(page.status).toBe(200)
     expect(page.body.data.client).toBe('Northbend Athletic')
-    expect(page.body.data.asks.map((a: any) => a.key)).toEqual(['EXPERIENCE', 'REFERENCES', 'REVENUE', 'PROPOSAL', 'INSURANCE', 'TAX_FORM', 'BANK'])
+    // Northbend's own purchase orders require general liability and
+    // workers' comp cover, a certificate of good standing and a
+    // non-disclosure agreement of every supplier. The cover is the
+    // insurance item the walk already asks for; the good standing is
+    // asked for by name and says whose order asked; the NDA is the
+    // desk's to paper and never appears on the firm's page.
+    expect(page.body.data.asks.map((a: any) => a.key)).toEqual(['EXPERIENCE', 'REFERENCES', 'REVENUE', 'PROPOSAL', 'INSURANCE', 'GOOD_STANDING', 'TAX_FORM', 'BANK'])
+    const standing = page.body.data.asks.find((a: any) => a.key === 'GOOD_STANDING')
+    expect(standing.label).toBe('Certificate of good standing')
+    expect(standing.says).toBe('Required by Northbend Athletic\u2019s orders.')
+    expect(page.body.data.asks.find((a: any) => a.key === 'INSURANCE').says).toBe('Required by Northbend Athletic\u2019s orders.')
+    expect(page.body.data.asks.map((a: any) => a.key)).not.toContain('NDA')
     const sent = await viaToken(applyPost, 'POST', it_.token, {
       legalName: 'Harbor Staffing LLC', experience: 'Nine years placing planners across CPG.',
       skills: 'S&OP, demand planning',
@@ -105,7 +116,13 @@ describe('a supplier walks four desks', () => {
       docs: [{ key: 'TAX_FORM', fileName: 'Harbor-W9.pdf', size: 100 }, { key: 'INSURANCE', fileName: 'Harbor-COI.pdf', size: 100 }],
     })
     expect(sent.status, JSON.stringify(sent.body)).toBe(201)
-    expect(sent.body.data.says).toContain('has everything it asked you for')
+    // The one thing it did not send is the one the client's orders ask
+    // for and the old checklist never mentioned.
+    expect(sent.body.data.says).toContain('still needs: Certificate of good standing')
+    const again = await viaToken(applyPost, 'POST', it_.token, {
+      docs: [{ key: 'GOOD_STANDING', fileName: 'Harbor-good-standing-2026.pdf', size: 100 }],
+    })
+    expect(again.body.data.says).toContain('has everything it asked you for')
   })
 
   it('Procurement is refused until its own items are verified, verifies what the firm sent, waives the D&B report with a reason, and qualifies the firm', async () => {
@@ -130,17 +147,38 @@ describe('a supplier walks four desks', () => {
     expect(r.body.data.says).toBe('Harbor Staffing cleared Procurement and is with HR now.')
   })
 
-  it('HR verifies the insurance, runs the screening, and clears compliance; the lead who decided before cannot decide again', async () => {
-    as(LEAD)
-    const twice = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve' })
-    expect(twice.status).toBe(403)
-    expect(twice.body.error.code).toBe('DECIDED_BEFORE')
+  it('HR cannot clear compliance until the certificate of good standing the client\u2019s orders require is verified', async () => {
     as(HR)
     for (const key of ['INSURANCE', 'VENDOR_SCREENING']) {
       const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key, state: 'HELD' })
       expect(r.status, JSON.stringify(r.body)).toBe(200)
     }
-    const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve', note: 'COI current; no sanctions or litigation found.' })
+    const early = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve' })
+    expect(early.status).toBe(409)
+    expect(early.body.error.message).toContain('the certificate of good standing was supplied and needs verifying')
+  })
+
+  it('the checklist HR reads names the client\u2019s own order beside the item it asked for', async () => {
+    as(HR)
+    const r = await json(await listRequests(req('GET', '/api/supplier-requests')))
+    const harbor = r.body.data.requests.find((x: any) => x.name === 'Harbor Staffing')
+    const item = harbor.checklist.find((i: any) => i.key === 'GOOD_STANDING')
+    expect(item).toMatchObject({ desk: 'HR', required: true, state: 'PROVIDED' })
+    expect(item.says).toBe('Required by Northbend Athletic\u2019s orders.')
+    // The NDA the order also requires is on the list, the desk's to
+    // paper, and does not hold the firm up.
+    expect(harbor.checklist.find((i: any) => i.key === 'NDA')).toMatchObject({ desk: 'HR', by: 'DESK', required: false })
+  })
+
+  it('HR verifies the insurance and the good standing, runs the screening, and clears compliance; the lead who decided before cannot decide again', async () => {
+    as(LEAD)
+    const twice = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve' })
+    expect(twice.status).toBe(403)
+    expect(twice.body.error.code).toBe('DECIDED_BEFORE')
+    as(HR)
+    const r0 = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'GOOD_STANDING', state: 'HELD' })
+    expect(r0.status, JSON.stringify(r0.body)).toBe(200)
+    const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve', note: 'COI current; good standing current; no sanctions or litigation found.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.says).toBe('Harbor Staffing cleared HR and is with Finance now.')
   })
@@ -169,5 +207,63 @@ describe('a supplier walks four desks', () => {
     expect(told).not.toBeNull()
     const done = await viaToken(applyPost, 'POST', it_.token, { legalName: 'x' })
     expect(done.status).toBe(409)
+  })
+})
+
+/**
+ * "Ensure the loop of documents never cracks between parties."
+ *
+ * The register is where a client sees the crack before somebody starts:
+ * every firm it buys from, against what its own purchase orders require
+ * of a supplier, read through `lib/document-requirements`.
+ */
+describe('the register names what each supplier owes on this client\u2019s own orders', () => {
+  it('a supplier\u2019s row names the documents it owes on this client\u2019s orders and does not hold', async () => {
+    as(PROGRAMME)
+    const r = await json(await suppliers(req('GET', '/api/suppliers')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+
+    // Northbend's orders require general liability and workers' comp
+    // cover, a certificate of good standing, an NDA and the agreement
+    // itself of every supplier. Brightmoor's cover is on file and its
+    // agreement is signed; nobody has ever filed a good standing.
+    const brightmoor = r.body.data.suppliers.find((s: any) => s.name === 'Brightmoor Staffing')
+    expect(brightmoor.owes).toEqual(['Certificate of good standing'])
+    expect(brightmoor.agreement).toBe(true)
+
+    // And every firm on the register is asked the same question, so the
+    // page cannot say one supplier owes a certificate and the next owes
+    // nothing under the same client's orders.
+    for (const s of r.body.data.suppliers.filter((x: any) => !x.name.startsWith('Harbor'))) {
+      expect(s.owes, s.name).toContain('Certificate of good standing')
+    }
+  })
+
+  it('a document that is on file is not named as owed, and one nothing here can evidence is counted rather than claimed', async () => {
+    as(PROGRAMME)
+    const r = await json(await suppliers(req('GET', '/api/suppliers')))
+    const brightmoor = r.body.data.suppliers.find((s: any) => s.name === 'Brightmoor Staffing')
+
+    const cover = await prisma.verification.findMany({
+      where: { company: { name: 'Brightmoor Staffing' }, type: { in: ['INSURANCE_GL', 'INSURANCE_WC'] }, status: 'CLEAR' },
+      select: { type: true },
+    })
+    expect(cover.map((c) => c.type).sort()).toEqual(['INSURANCE_GL', 'INSURANCE_WC'])
+    expect(brightmoor.owes).not.toContain('Certificate of general liability insurance')
+
+    // The non-disclosure agreement Northbend requires of every supplier
+    // is signed paper, not a verification, so nothing here could say
+    // whether it is held. It is counted, never reported as missing.
+    expect(brightmoor.owesUnknown).toBe(1)
+  })
+
+  it('the firm approved a moment ago with no agreement signed owes the agreement, by name', async () => {
+    as(PROGRAMME)
+    const r = await json(await suppliers(req('GET', '/api/suppliers')))
+    const harbor = r.body.data.suppliers.find((s: any) => s.name === 'Harbor Staffing')
+    // Finance's yes wrote the stub; nobody signed it, and the register
+    // says so rather than showing an agreement on file.
+    expect(harbor.owes).toContain('Master service agreement')
+    expect(harbor.signedAt).toBeNull()
   })
 })

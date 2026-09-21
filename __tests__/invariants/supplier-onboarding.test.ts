@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, STAGE_VERB, type Decision } from '@/lib/supplier-onboarding'
+import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, withOrderedItems, deskForPurpose, STAGE_VERB, type Decision, type OrderedItem } from '@/lib/supplier-onboarding'
+import { builtInType } from '@/lib/document-type'
 import { linkLetter, applyUrl } from '@/lib/supplier-link'
 
 /**
@@ -55,12 +56,12 @@ describe('four desks, in order', () => {
 })
 
 describe('each desk verifies its own paperwork', () => {
-  it('Procurement holds experience, references, revenue and delivery proofs, the proposal, the D&B report; HR holds insurance, screening, the agreement; Finance holds the tax form and bank details', () => {
+  it('Procurement holds experience, references, revenue and delivery proofs, the proposal, the D&B report; HR holds insurance, good standing, screening, the agreement; Finance holds the tax form and bank details', () => {
     const c = newChecklist()
     expect(itemsFor(c, 'PROCUREMENT').map((i) => i.key)).toEqual(['EXPERIENCE', 'REFERENCES', 'REVENUE', 'PROPOSAL', 'DNB_REPORT', 'REFERENCE_CHECK'])
-    expect(itemsFor(c, 'HR').map((i) => i.key)).toEqual(['INSURANCE', 'VENDOR_SCREENING', 'AGREEMENT'])
+    expect(itemsFor(c, 'HR').map((i) => i.key)).toEqual(['INSURANCE', 'GOOD_STANDING', 'VENDOR_SCREENING', 'AGREEMENT'])
     expect(itemsFor(c, 'FINANCE').map((i) => i.key)).toEqual(['TAX_FORM', 'BANK'])
-    expect(c.filter((i) => i.by === 'VENDOR').map((i) => i.key)).toEqual(['EXPERIENCE', 'REFERENCES', 'REVENUE', 'PROPOSAL', 'INSURANCE', 'TAX_FORM', 'BANK'])
+    expect(c.filter((i) => i.by === 'VENDOR').map((i) => i.key)).toEqual(['EXPERIENCE', 'REFERENCES', 'REVENUE', 'PROPOSAL', 'INSURANCE', 'GOOD_STANDING', 'TAX_FORM', 'BANK'])
   })
   it('the lead has no paperwork and can say yes at once; a desk with paperwork cannot until its own is verified', () => {
     expect(readiness('Vertex', newChecklist(), 'LEAD').ok).toBe(true)
@@ -155,5 +156,61 @@ describe('a desk nobody has named', () => {
   it('the stepper says Program office, not Department lead, so whoever decides knows they are standing in', () => {
     expect(stepsOf('LEAD', 'RECOMMENDED', [], false)[0].word).toBe('Program office')
     expect(stepsOf('LEAD', 'RECOMMENDED', [], true)[0].word).toBe('Department lead')
+  })
+})
+
+// ── What the client's own orders ask of a firm on the way in ──────────
+
+describe('the loop of documents does not crack at the door', () => {
+  const ask = (key: string, purpose = 'COMPLIANCE', required = true): OrderedItem => ({
+    key, label: builtInType(key)?.label ?? key, purpose, required,
+  })
+
+  it('a firm is asked for its certificate of good standing on the way in, and HR verifies it', () => {
+    const item = newChecklist().find((i) => i.key === 'GOOD_STANDING')
+    expect(item).toMatchObject({ desk: 'HR', by: 'VENDOR', required: true, state: 'MISSING' })
+    expect(item?.label).toBe('Certificate of good standing')
+    // It ships with a consequence, which is what makes asking for it worth anything.
+    expect(builtInType('GOOD_STANDING')?.blocks).toBe(true)
+    expect(readiness('Vertex', newChecklist(), 'HR').says).toContain('the certificate of good standing')
+  })
+
+  it('a firm recommended to a client whose orders require a document is asked for that document too, and the item says whose order asked', () => {
+    const c = withOrderedItems(newChecklist(), [ask('HOT_FLOOR_INDUCTION')], 'Cavanaugh Glassworks')
+    const added = c.find((i) => i.key === 'HOT_FLOOR_INDUCTION')
+    expect(added).toMatchObject({ desk: 'HR', by: 'VENDOR', required: true, state: 'MISSING' })
+    expect(added?.says).toBe('Required by Cavanaugh Glassworks\u2019s orders.')
+    expect(readiness('Vertex', c, 'HR').missing).toContain('hot_floor_induction')
+  })
+
+  it('a document the walk already asks for is not asked for twice when an order asks for it as well', () => {
+    const c = withOrderedItems(newChecklist(), [ask('INSURANCE_GL'), ask('INSURANCE_WC'), ask('GOOD_STANDING'), ask('MSA', 'AGREEMENT')], 'Northbend Athletic')
+    expect(c.filter((i) => i.key === 'INSURANCE')).toHaveLength(1)
+    expect(c.find((i) => i.key === 'INSURANCE_GL')).toBeUndefined()
+    expect(c.find((i) => i.key === 'INSURANCE')?.says).toBe('Required by Northbend Athletic\u2019s orders.')
+    expect(c.find((i) => i.key === 'AGREEMENT')?.says).toBe('Required by Northbend Athletic\u2019s orders.')
+    expect(c).toHaveLength(newChecklist().length)
+  })
+
+  it('an item a desk has already verified stays verified when the order set is folded in again', () => {
+    const held = (markItem(newChecklist(), 'INSURANCE', 'HELD', null, now) as any).checklist
+    const c = withOrderedItems(held, [ask('INSURANCE_GL')], 'Northbend Athletic')
+    expect(c.find((i) => i.key === 'INSURANCE')).toMatchObject({ state: 'HELD', says: 'Required by Northbend Athletic\u2019s orders.' })
+  })
+
+  it('an agreement an order requires is asked for and never insisted on, because it is signed when the last desk says yes', () => {
+    const c = withOrderedItems(newChecklist(), [ask('NDA', 'AGREEMENT')], 'Talvern Medical')
+    expect(c.find((i) => i.key === 'NDA')).toMatchObject({ required: false, desk: 'HR' })
+    expect(readiness('Vertex', c, 'HR').missing).not.toContain('non-disclosure agreement')
+  })
+
+  it('evidence a firm produces about itself goes to Procurement; compliance and agreements go to HR', () => {
+    expect(deskForPurpose('PROOF')).toBe('PROCUREMENT')
+    expect(deskForPurpose('COMPLIANCE')).toBe('HR')
+    expect(deskForPurpose('AGREEMENT')).toBe('HR')
+  })
+
+  it('a client whose orders ask for nothing extra gets the walk it always had', () => {
+    expect(withOrderedItems(newChecklist(), [], 'Northbend Athletic')).toEqual(newChecklist())
   })
 })

@@ -8,6 +8,7 @@ import { defaultPostureFor } from '@/lib/walls'
 import {
   readSupplierList, listSentence, nameFromDomain, type SupplierRow,
 } from '@/lib/supplier-list'
+import { suppliersOwing } from '@/lib/supplier-desks'
 import { inviteLetter } from '@/lib/reaching-out'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
@@ -172,8 +173,25 @@ export async function GET(request: NextRequest) {
     byCompany.set(i.companyId, row)
   }
 
+  // ── What each firm owes on this client's own orders ────────────────
+  //
+  // Read through `lib/document-requirements` — the one door — rather than
+  // from a list here. A client that writes "certificate of good standing"
+  // on every purchase order sees which of its suppliers cannot be shown
+  // to hold one, on the register, before somebody starts. `owes` names
+  // only what this system could actually answer; `owesUnknown` carries
+  // the count of items nothing here can evidence, so the gap is visible
+  // rather than reported as compliance.
+  const owing = await suppliersOwing(
+    companyId,
+    [...byCompany.values()].map((r) => ({ companyId: r.companyId, agreementSigned: r.signedAt != null })),
+    now
+  )
+
   const rows = [...byCompany.values()].map((r) => ({
     ...r,
+    owes: (owing.get(r.companyId)?.owed ?? []).map((o) => o.label),
+    owesUnknown: (owing.get(r.companyId)?.unanswerable ?? []).length,
     onSiteCount: onSiteCount.get(r.companyId) ?? 0,
     onSite: (onSiteCount.get(r.companyId) ?? 0) > 0,
     // A firm with people on site is engaged today, whatever day they started.

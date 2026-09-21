@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
-import { desksFor, deskPeople } from '@/lib/supplier-desks'
-import { provideItems, vendorItems, type ChecklistItem } from '@/lib/supplier-onboarding'
+import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
+import { provideItems, vendorItems, withOrderedItems, type ChecklistItem } from '@/lib/supplier-onboarding'
 
 /**
  * GET  /api/supplier-apply/[token]  — what the client asks for, and what is already in
@@ -27,7 +27,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { token } = await params
   const row = await find(token)
   if (!row) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That link is not one we sent, or it has expired.' } }, { status: 404 })
-  const checklist = row.checklist as unknown as ChecklistItem[]
+  // The firm is shown what the client's own orders ask of it as well as
+  // the standard walk, with the sentence saying whose order asked. A firm
+  // that fills this page in and is then chased for a certificate nobody
+  // told it about is the crack this closes at the firm's end.
+  const checklist = withOrderedItems(
+    row.checklist as unknown as ChecklistItem[],
+    await orderedOfSuppliers(row.companyId),
+    row.company.name
+  )
   const app = (row.application ?? null) as Record<string, unknown> | null
   return NextResponse.json({
     data: {
@@ -36,7 +44,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       contactName: row.contactName,
       decided: row.state === 'APPROVED' || row.state === 'DECLINED',
       state: row.state,
-      asks: vendorItems(checklist).map((i) => ({ key: i.key, label: i.label, required: i.required, state: i.state, fileName: i.fileName ?? null })),
+      asks: vendorItems(checklist).map((i) => ({ key: i.key, label: i.label, required: i.required, state: i.state, fileName: i.fileName ?? null, says: i.says ?? null })),
       application: app,
     },
   })
@@ -82,7 +90,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     docs: [...((prior.docs as any[]) ?? []).filter((d) => !docs.some((n) => n.key === d.key)), ...docs.map((d) => ({ ...d, at: now.toISOString() }))],
     submittedAt: now.toISOString(),
   }
-  const checklist = provideItems(row.checklist as unknown as ChecklistItem[], provided, now)
+  const checklist = provideItems(
+    withOrderedItems(row.checklist as unknown as ChecklistItem[], await orderedOfSuppliers(row.companyId), row.company.name),
+    provided,
+    now
+  )
   await prisma.supplierRequest.update({
     where: { id: row.id },
     data: { application: application as unknown as object, checklist: checklist as unknown as object, state: 'IN_REVIEW', skills: skills.length ? skills : row.skills },
@@ -104,7 +116,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const still = vendorItems(checklist).filter((i) => i.required && i.state === 'MISSING').map((i) => i.label)
   return NextResponse.json({
     data: {
-      asks: vendorItems(checklist).map((i) => ({ key: i.key, label: i.label, required: i.required, state: i.state, fileName: i.fileName ?? null })),
+      asks: vendorItems(checklist).map((i) => ({ key: i.key, label: i.label, required: i.required, state: i.state, fileName: i.fileName ?? null, says: i.says ?? null })),
       says: still.length
         ? `Received, thank you. ${row.company.name} still needs: ${still.join('; ')}. Come back to this link when you have them.`
         : `Received, thank you. ${row.company.name}’s Procurement team has everything it asked you for; they will verify it and you will hear from them.`,

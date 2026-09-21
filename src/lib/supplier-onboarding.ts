@@ -8,6 +8,16 @@
  * revenue and delivery proofs, the proposal, a D&B report, sanctions —
  * with the vendor supplying its side through a link of its own. Nobody
  * decides their own recommendation, and nobody decides two desks.
+ *
+ * ── What the walk asks for, and where the list comes from ────────────
+ *
+ * Eleven items every firm is asked for, and then whatever this client's
+ * own orders require of a supplier — read through
+ * `lib/document-requirements`, never from a second hardcoded list here.
+ * A client that asks for a hot floor induction on its purchase orders
+ * asks the firm for it on the way in, and the item on the checklist says
+ * whose order asked. `lib/supplier-desks` does the reading;
+ * `withOrderedItems` below is the arithmetic.
  */
 
 import { hasPermission } from '@/lib/permissions'
@@ -27,7 +37,7 @@ export const STAGE_WORD: Record<Stage, string> = {
 export const STAGE_ASKS: Record<Exclude<Stage, 'DONE'>, string> = {
   LEAD: 'Is there a business need for another supplier in this department, and is this the firm?',
   PROCUREMENT: 'Does the firm qualify — its experience, references, revenue and delivery proofs, its proposal, its D&B standing?',
-  HR: 'Is the firm compliant and clean to trade with — insured, screened for sanctions and litigation, under an agreement?',
+  HR: 'Is the firm compliant and clean to trade with — insured, in good standing with the state that registered it, screened for sanctions and litigation, under an agreement?',
   FINANCE: 'Can the firm be paid — a tax form on file and bank details that check out?',
 }
 
@@ -64,6 +74,20 @@ export interface ChecklistItem {
   note: string | null
   at: string | null
   fileName?: string | null
+  /**
+   * The document types in `lib/document-type` this item already answers.
+   *
+   * So that a client whose own orders require general liability cover is
+   * not asked for insurance twice — once by the standard walk and once
+   * by the order. One question, one row, one desk verifying it.
+   */
+  answers?: string[]
+  /**
+   * Where this item came from, where it is not the standard walk —
+   * "Required by Northbend Athletic's orders." Null on the items every
+   * firm is asked for, because saying so on all eleven says nothing.
+   */
+  says?: string | null
 }
 
 /** What the desks ask for, in the words they use, and who verifies each. */
@@ -76,16 +100,124 @@ export const CHECKLIST: Omit<ChecklistItem, 'state' | 'note' | 'at'>[] = [
   { key: 'DNB_REPORT', label: 'Dun & Bradstreet report', required: true, by: 'DESK', desk: 'PROCUREMENT' },
   { key: 'REFERENCE_CHECK', label: 'References contacted', required: false, by: 'DESK', desk: 'PROCUREMENT' },
   // HR: compliance and screening
-  { key: 'INSURANCE', label: 'Certificate of insurance (general liability and workers’ comp)', required: true, by: 'VENDOR', desk: 'HR' },
+  { key: 'INSURANCE', label: 'Certificate of insurance (general liability and workers’ comp)', required: true, by: 'VENDOR', desk: 'HR', answers: ['INSURANCE_GL', 'INSURANCE_WC'] },
+  // A firm not in good standing with the state that registered it may not
+  // lawfully contract there — its registration is suspended, usually for
+  // an unfiled report or unpaid franchise tax. CLAUDE.md's paperwork table
+  // puts it beside insurance for that reason, and `lib/document-type`
+  // ships it with `blocks: true`. Until 2026-09-21 the one desk that
+  // screens a firm before it may trade never asked for it, so the loop
+  // cracked at the point a firm came in: the type existed, the watch
+  // existed, and nothing anywhere requested the certificate.
+  { key: 'GOOD_STANDING', label: 'Certificate of good standing', required: true, by: 'VENDOR', desk: 'HR', answers: ['GOOD_STANDING'] },
   { key: 'VENDOR_SCREENING', label: 'Vendor screening (sanctions, litigation)', required: true, by: 'DESK', desk: 'HR' },
-  { key: 'AGREEMENT', label: 'Signed agreement', required: false, by: 'DESK', desk: 'HR' },
+  { key: 'AGREEMENT', label: 'Signed agreement', required: false, by: 'DESK', desk: 'HR', answers: ['MSA'] },
   // Finance: can the firm be paid
-  { key: 'TAX_FORM', label: 'Tax form (W-9, or W-8 for a foreign firm)', required: true, by: 'VENDOR', desk: 'FINANCE' },
+  { key: 'TAX_FORM', label: 'Tax form (W-9, or W-8 for a foreign firm)', required: true, by: 'VENDOR', desk: 'FINANCE', answers: ['W9'] },
   { key: 'BANK', label: 'Bank details for payment', required: true, by: 'VENDOR', desk: 'FINANCE' },
 ]
 
 export function newChecklist(): ChecklistItem[] {
-  return CHECKLIST.map((c) => ({ ...c, state: 'MISSING', note: null, at: null, fileName: null }))
+  return CHECKLIST.map((c) => ({ ...c, state: 'MISSING' as ItemState, note: null, at: null, fileName: null, says: null }))
+}
+
+// ── What the client's own orders ask of a supplier ────────────────────
+
+/**
+ * One thing a buyer's order requires of the firm it pays.
+ *
+ * Read from `DocumentRequirement` through `lib/document-requirements`,
+ * never from a list in this file. That is the whole point: the three
+ * desks each carried their own hardcoded set, so a client that asked for
+ * a site induction on its orders could not have it reach the firm coming
+ * in. `lib/supplier-desks` does the reading; everything here is
+ * arithmetic over what it found.
+ */
+export interface OrderedItem {
+  /** The key in `lib/document-type`. */
+  key: string
+  label: string
+  /** COMPLIANCE · AGREEMENT · PROOF — what decides which desk verifies it. */
+  purpose: string
+  /** Whether the order insists on it, or merely lists it. */
+  required: boolean
+  /** What whoever wrote it on the order said, where they said anything. */
+  note?: string | null
+}
+
+/**
+ * Which desk verifies an item a client's order asked for.
+ *
+ * Read off the type's purpose rather than off its name, so a document a
+ * client invents next week lands on a desk without anybody adding a case
+ * here. Compliance and agreements are HR's — that is what HR's own three
+ * items already are. Evidence a firm produces about itself is
+ * Procurement's, beside the experience and the references it already
+ * qualifies on.
+ */
+export function deskForPurpose(purpose: string): 'PROCUREMENT' | 'HR' {
+  return purpose === 'PROOF' ? 'PROCUREMENT' : 'HR'
+}
+
+/**
+ * The checklist, plus whatever this client's own orders require of a
+ * supplier, each saying whose order asked.
+ *
+ * Three rules, and each was a way of getting it wrong first:
+ *
+ *   - An item the walk already asks for is not asked twice. The standard
+ *     insurance item answers INSURANCE_GL and INSURANCE_WC; an order
+ *     requiring either annotates that row rather than adding a second
+ *     one, because two rows for one certificate is two desks verifying
+ *     the same PDF.
+ *   - A state already recorded is never reset. This runs on every read
+ *     and every mark, so a verified item that an order also asks for
+ *     stays verified.
+ *   - An AGREEMENT is asked for and never insisted on at this point in
+ *     the walk. The agreement between the two firms is written when the
+ *     last desk says yes — requiring it before that is a deadlock, and
+ *     the standard "Signed agreement" item has been `required: false`
+ *     since the day it was written for exactly that reason. That is a
+ *     default and it is the founder's to overrule.
+ */
+export function withOrderedItems(
+  checklist: ChecklistItem[],
+  ordered: readonly OrderedItem[],
+  clientName: string
+): ChecklistItem[] {
+  if (ordered.length === 0) return checklist
+  const says = `Required by ${clientName}’s orders.`
+
+  const out = checklist.map((i) => ({ ...i }))
+  const answeredBy = (key: string): ChecklistItem | undefined =>
+    out.find((i) => i.key === key || (i.answers ?? []).includes(key))
+
+  for (const item of ordered) {
+    const already = answeredBy(item.key)
+    if (already) {
+      // The walk already asks for it. Say who else is asking, and leave
+      // the desk, the state and the verification exactly where they were.
+      already.says = already.says && already.says !== says ? already.says : says
+      continue
+    }
+    out.push({
+      key: item.key,
+      label: item.label,
+      required: item.purpose === 'AGREEMENT' ? false : item.required,
+      // An agreement is papered by the desk, the way the standard
+      // "Signed agreement" item already is; everything else is the firm's
+      // to send through its own link.
+      by: item.purpose === 'AGREEMENT' ? 'DESK' : 'VENDOR',
+      desk: deskForPurpose(item.purpose),
+      state: 'MISSING',
+      note: item.note ?? null,
+      at: null,
+      fileName: null,
+      answers: [item.key],
+      says,
+    })
+  }
+  return out
 }
 
 /**
@@ -230,8 +362,8 @@ export function readiness(firmName: string, checklist: ChecklistItem[], stage: S
   const mine = stage === 'PROCUREMENT' || stage === 'HR' || stage === 'FINANCE' ? itemsFor(checklist, stage) : []
   const required = mine.filter((i) => i.required)
   const held = required.filter((i) => i.state === 'HELD' || i.state === 'WAIVED').length
-  const missing = required.filter((i) => i.state === 'MISSING').map((i) => shortLabel(i.key))
-  const toVerify = required.filter((i) => i.state === 'PROVIDED').map((i) => shortLabel(i.key))
+  const missing = required.filter((i) => i.state === 'MISSING').map((i) => shortLabel(i.key, i.label))
+  const toVerify = required.filter((i) => i.state === 'PROVIDED').map((i) => shortLabel(i.key, i.label))
   const verb = stage === 'FINANCE' ? 'be approved' : stage === 'PROCUREMENT' ? 'be qualified' : stage === 'HR' ? 'clear compliance' : 'move on'
   if (missing.length === 0 && toVerify.length === 0) {
     return { ok: true, held, of: required.length, missing, toVerify, says: required.length ? `${firmName} has everything this desk asks for, verified, and can ${verb}.` : `${firmName} can ${verb}.` }
@@ -245,7 +377,15 @@ export function readiness(firmName: string, checklist: ChecklistItem[], stage: S
   }
 }
 
-export function shortLabel(key: string): string {
+/**
+ * The item in a sentence, for a refusal a person reads.
+ *
+ * `label` is the item's own, handed in for the keys this function has
+ * never heard of — a document a client invented and asked for on its
+ * orders. Without it a hot floor induction read as "hot_floor_induction"
+ * in the one sentence telling HR why it cannot say yes.
+ */
+export function shortLabel(key: string, label?: string | null): string {
   switch (key) {
     case 'TAX_FORM': return 'the tax form'
     case 'INSURANCE': return 'the certificate of insurance'
@@ -258,7 +398,8 @@ export function shortLabel(key: string): string {
     case 'VENDOR_SCREENING': return 'vendor screening'
     case 'REFERENCE_CHECK': return 'the reference check'
     case 'AGREEMENT': return 'the signed agreement'
-    default: return key.toLowerCase()
+    case 'GOOD_STANDING': return 'the certificate of good standing'
+    default: return label ? label.toLowerCase() : key.toLowerCase()
   }
 }
 
@@ -272,7 +413,7 @@ export function markItem(checklist: ChecklistItem[], key: string, state: ItemSta
   { ok: true; checklist: ChecklistItem[] } | { ok: false; message: string } {
   const item = checklist.find((i) => i.key === key)
   if (!item) return { ok: false, message: 'That is not on the checklist.' }
-  if (state === 'WAIVED' && !note?.trim()) return { ok: false, message: `Waiving ${shortLabel(key)} needs a reason written down.` }
+  if (state === 'WAIVED' && !note?.trim()) return { ok: false, message: `Waiving ${shortLabel(key, item.label)} needs a reason written down.` }
   return {
     ok: true,
     checklist: checklist.map((i) => (i.key === key ? { ...i, state, note: note?.trim() || null, at: state === 'MISSING' ? null : at.toISOString() } : i)),

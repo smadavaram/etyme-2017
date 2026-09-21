@@ -59,6 +59,18 @@ interface Supplier {
   blocked: boolean
   blockedReason: string | null
   location: string | null
+  /**
+   * What this client's own orders require of the firm, that the firm
+   * cannot be shown to hold. Named, in the words of the document.
+   */
+  owes: string[]
+  /**
+   * How many items its orders require that nothing here can evidence —
+   * a document a client invented and files by hand. Counted rather than
+   * reported as missing, because "we hold no record" and "they do not
+   * have it" are opposite facts.
+   */
+  owesUnknown: number
 }
 
 interface SupplierRequest {
@@ -160,6 +172,10 @@ export default function SuppliersPage() {
       invitedAt: null, where: `Pending · ${r.stageWord}. Recommended by ${r.recommendedBy}.`, tier: null,
       pending: { requestId: r.id, stageWord: r.stageWord },
       onSiteCount: 0, onSite: false, lastEngagement: r.createdAt, favorite: false, blocked: false, blockedReason: null, location: null,
+      // A firm still walking the desks owes its paperwork to the
+      // checklist, item by item, on the card below — not to this column,
+      // which would say the same thing twice in weaker words.
+      owes: [], owesUnknown: 0,
     })),
   ], [suppliers, requests])
   const places = useMemo(() => locationsOf(listed), [listed])
@@ -330,6 +346,25 @@ export default function SuppliersPage() {
         'Get one signed.'
       : `No agreement with ${s.name} on file. One is signed before the first person starts.`
 
+  /**
+   * What the firm owes on this client's own orders, in the words of the
+   * documents.
+   *
+   * The register used to say one thing — "No agreement" — and a client
+   * whose purchase orders require a certificate of insurance and a
+   * certificate of good standing learned about the gap when somebody was
+   * due to start. The sentence names the documents, so the crack is read
+   * before the start rather than at it.
+   */
+  const owesSays = (s: Supplier): string | null => {
+    if (s.owes.length === 0) return null
+    const list = s.owes.length === 1 ? s.owes[0] : `${s.owes.slice(0, -1).join(', ')} and ${s.owes[s.owes.length - 1]}`
+    const who = s.onSiteCount > 0
+      ? `${s.onSiteCount} ${s.onSiteCount === 1 ? 'person is' : 'people are'} on site through ${s.name}, and your orders`
+      : 'Your orders'
+    return `${who} require ${list} of ${s.name} — not on file here. Ask for ${s.owes.length === 1 ? 'it' : 'them'}.`
+  }
+
   const standingSelect = (s: Supplier) => (
     <select
       aria-label={`Standing of ${s.name}`}
@@ -357,6 +392,13 @@ export default function SuppliersPage() {
     { key: 'onSiteCount', label: 'On site', align: 'right', render: (s) => <span className="tabular-nums">{s.onSiteCount}</span> },
     { key: 'lastEngagement', label: 'Last engagement', render: (s) => <span className="tabular-nums text-etyme-muted">{when(s.lastEngagement)}</span>, sortValue: (s) => s.lastEngagement ?? '', hideOnMobile: true },
     { key: 'location', label: 'Location', render: (s) => <span className="text-etyme-muted">{s.location ?? '—'}</span>, hideOnMobile: true },
+    {
+      key: 'owes', label: 'Owes on your orders',
+      render: (s) => (s.pending ? <span className="text-[12px] text-etyme-faint">—</span>
+        : s.owes.length === 0 ? <span className="text-[12px] text-etyme-muted">Nothing outstanding</span>
+        : <span className="chip chip--attention" title={owesSays(s) ?? ''}>{s.owes.join(', ')}</span>),
+      sortValue: (s) => s.owes.length,
+    },
     {
       key: 'agreement', label: 'Agreement',
       render: (s) => (s.pending ? <span className="text-[12px] text-etyme-faint">—</span>
@@ -500,6 +542,9 @@ export default function SuppliersPage() {
                           {item.fileName && <span className="text-etyme-faint"> — {item.fileName}</span>}
                           {item.state === 'PROVIDED' && <span className="text-etyme-action"> · received, verify</span>}
                           {item.note && <span className="text-etyme-faint"> — {item.note}</span>}
+                          {/* Whose order asked for it, where it is not
+                              one of the eleven every firm is asked for. */}
+                          {item.says && <span className="block text-[11px] text-etyme-faint">{item.says}</span>}
                         </span>
                         {r.mayAct && (item.state === 'MISSING' || item.state === 'PROVIDED') && (
                           <span className="flex gap-1">
@@ -765,6 +810,19 @@ export default function SuppliersPage() {
             </p>
             {!s.pending && !s.agreement && (
               <p className="mt-1 text-[12px] text-etyme-attention">{noAgreement(s)}</p>
+            )}
+            {!s.pending && owesSays(s) && (
+              <p className="mt-1 text-[12px] text-etyme-attention">{owesSays(s)}</p>
+            )}
+            {/* Said out loud rather than left off the screen. A document a
+                client invented and files by hand has no record here that
+                could answer "is it on file" — and reporting silence as
+                compliance is how a gap stays a gap. */}
+            {!s.pending && s.owesUnknown > 0 && (
+              <p className="mt-1 text-[12px] text-etyme-faint">
+                {s.owesUnknown === 1 ? 'One more item your orders' : `${s.owesUnknown} more items your orders`} require of {s.name}
+                {s.owesUnknown === 1 ? ' is' : ' are'} evidenced outside Etyme — nothing here can say whether {s.owesUnknown === 1 ? 'it is' : 'they are'} on file.
+              </p>
             )}
             {s.blocked && (
               <p className="mt-1 text-[12px] text-etyme-attention">Blocked{s.blockedReason ? ` — ${s.blockedReason}` : ''}. Nothing is sent to them.</p>

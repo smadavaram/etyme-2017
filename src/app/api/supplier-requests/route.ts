@@ -3,11 +3,11 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
-import { desksFor, deskPeople } from '@/lib/supplier-desks'
+import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
 import { applyUrl, newApplyToken, sendLink } from '@/lib/supplier-link'
 import { hasPermission } from '@/lib/permissions'
 import {
-  mayRecommend, mayActAt, newChecklist, readiness, stepsOf, STAGE_WORD,
+  mayRecommend, mayActAt, newChecklist, readiness, stepsOf, withOrderedItems, STAGE_WORD,
   type ChecklistItem, type Decision, type Stage, type RequestState,
 } from '@/lib/supplier-onboarding'
 
@@ -39,10 +39,15 @@ export async function GET(request: NextRequest) {
     select: { id: true, name: true },
   })
   const nameOf = new Map(people.map((p) => [p.id, p.name]))
+  // What this client's own orders require of a supplier, folded into
+  // every checklist on the way out. Read here as well as written at
+  // recommendation, so a firm recommended before the client wrote the
+  // requirement on its orders is still asked for it.
+  const ordered = await orderedOfSuppliers(companyId)
   return NextResponse.json({
     data: {
       requests: await Promise.all(rows.map(async (r) => {
-        const checklist = r.checklist as unknown as ChecklistItem[]
+        const checklist = withOrderedItems(r.checklist as unknown as ChecklistItem[], ordered, caller.company!.name)
         const decisions = (r.decisions as unknown as Decision[]) ?? []
         const stage = r.stage as Stage
         const state = r.state as RequestState
@@ -126,7 +131,12 @@ export async function POST(request: NextRequest) {
     data: {
       companyId, name, domain, contactEmail, skills,
       contactName: typeof body?.contactName === 'string' && body.contactName.trim() ? body.contactName.trim() : null,
-      reason, recommendedById: caller.person.id, checklist: newChecklist() as unknown as object, stage: 'LEAD', decisions: [],
+      reason, recommendedById: caller.person.id, stage: 'LEAD', decisions: [],
+      // The walk's own eleven items, plus whatever this client's orders
+      // require of a supplier — read through `lib/document-requirements`,
+      // never a second list. A client asking for a hot floor induction on
+      // every purchase order asks this firm for it on the way in.
+      checklist: withOrderedItems(newChecklist(), await orderedOfSuppliers(companyId), caller.company!.name) as unknown as object,
       token: newApplyToken(),
     },
   })
