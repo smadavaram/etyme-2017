@@ -235,6 +235,10 @@ export const DOMAINS: Domain[] = [
       'app/api/checks', 'app/api/why',
       'lib/openings', 'lib/lead-reader', 'lib/requirement-quality',
       'lib/screening', 'lib/checks', 'lib/award', 'lib/first-good', 'lib/chain-top', 'lib/timesheet-flag',
+      // What a program costs a month: the 160-hour assumption, said out
+      // loud once and imported by the dashboard, the org view and the
+      // census page rather than written out four times.
+      'lib/program-spend',
       // The baton from the desk that wins a deal to the desk that papers
       // it. Who hears at the award and what the queue row says; the
       // contract state machine itself is money's.

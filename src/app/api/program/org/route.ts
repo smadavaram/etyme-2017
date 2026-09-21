@@ -6,7 +6,7 @@ import { resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
 import { seatTrail } from '@/lib/program-seat'
 import { asPayer } from '@/lib/chain-top'
 import { logBulkAccess } from '@/lib/access-log'
-import { HOURS_PER_MONTH, annualSpendMinor } from '../spend'
+import { HOURS_PER_MONTH, annualSpendMinor } from '@/lib/program-spend'
 
 /**
  * GET /api/program/org

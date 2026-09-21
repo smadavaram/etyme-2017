@@ -211,7 +211,7 @@ export async function noteSeatRead(
   logBulkAccess(subjects, {
     actorPersonId: caller.isService ? undefined : caller.person.id,
     actorCompanyId: caller.company?.id ?? undefined,
-    action: 'CONTRACT_VIEW',
+    action: 'PROGRAM_READ',
     reason: seatTrail(seat, what),
   })
 }

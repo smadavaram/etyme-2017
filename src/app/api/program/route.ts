@@ -12,7 +12,7 @@ import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
 import { seatTrail } from '@/lib/program-seat'
-import { programMonthlySpend, basisSays } from './spend'
+import { programMonthlySpend, basisSays } from '@/lib/program-spend'
 
 /**
  * GET /api/program

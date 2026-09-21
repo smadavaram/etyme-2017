@@ -19,7 +19,7 @@ import {
   annualSpendMinor,
   programMonthlySpend,
   basisSays,
-} from '@/app/api/program/spend'
+} from '@/lib/program-spend'
 
 describe('what a contingent program costs a month', () => {
   it('values a full-time seat at four forty-hour weeks, which is where 160 came from', () => {

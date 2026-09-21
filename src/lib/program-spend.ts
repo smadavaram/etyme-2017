@@ -9,7 +9,11 @@
  * view's annualization, and the census page. Four copies of one guess is
  * four places for the guess to drift, and the census page's own comment
  * already named this file's arithmetic as the thing it had to agree
- * with. It now imports it instead.
+ * with. The census page prices the quarter on the hours the client
+ * sent, so what it should share from here is `monthlyHours`,
+ * `WEEKS_PER_MONTH` and `basisSays` — never `programMonthlySpend`, which
+ * is the forward estimate and the wrong function where real hours are
+ * known. That import is money's, and open until it lands.
  *
  * ── The assumption, said out loud ────────────────────────────────────
  *
@@ -30,16 +34,12 @@
  * a function that took cents and returned dollars is how the client
  * dashboard once divided by a hundred twice.
  *
- * ── Where this file should live ──────────────────────────────────────
+ * ── Where this file lives ────────────────────────────────────────────
  *
  * `src/lib/program-spend.ts`, beside every other piece of pure
- * arithmetic. It is here because `src/lib/domains.ts` carries no needle
- * for that path and that file is the architect's; a file under `src/`
- * with no owning domain fails
- * `__tests__/invariants/domain-ownership.test.ts` on the commit that
- * adds it. One line in DEMAND's `owns` list — `'lib/program-spend'` —
- * and this becomes a `git mv`. Flagged rather than done, because a
- * green suite matters more than a tidy path.
+ * arithmetic, owned by DEMAND in `src/lib/domains.ts`. It was written
+ * first at `src/app/api/program/spend.ts` because that needle did not
+ * exist yet, and moved here the same day it was added.
  */
 
 /** Weeks in a month, for the purpose of a forward estimate. */

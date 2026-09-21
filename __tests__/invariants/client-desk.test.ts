@@ -64,7 +64,7 @@ describe('what the client desk is told', () => {
     // formatter. (The client desk once divided by a hundred twice and
     // reported $972 of a $60,000 month.)
     expect(program).toContain('programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))')
-    expect(program).toContain("from './spend'")
+    expect(program).toContain("from '@/lib/program-spend'")
     expect(program).not.toContain('/ 100, // cents to dollars')
     expect(page).toContain('compact(s.monthlySpend)')
   })
