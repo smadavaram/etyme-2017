@@ -25,6 +25,8 @@ interface Person {
   says: string
   tenure: { months: number; capMonths: number | null; headroomMonths: number | null; status: string; eligibleDate: string | null }
   engagements: { contractId: string; supplier: { id: string; name: string }; state: string; startDate: string; endDate: string | null; rateCents: number | null }[]
+  /** Every firm they have been here through, on one line. */
+  firms?: { parts: string[]; says: string; withheld: number }
   submissions: {
     id: string; supplier: { id: string; name: string }; role: string; requirementId: string; rateCents: number | null; at: string; status: string; cleared: boolean | null
     interviews: { id: string; round: number; state: string; at: string | null }[]
@@ -200,6 +202,15 @@ export default function PersonPage() {
       <section className="panel">
         <p className="stat-label">Engagements here</p>
         {data.engagements.length === 0 && <p className="mt-1 text-[13px] text-etyme-muted">Never on site here.</p>}
+        {/* One line for the firms, above the rows. A prime is named once
+            here rather than once by name and once as "Supplied through"
+            itself, and the firms below it are counted without being
+            named — that name is the prime's to keep. */}
+        {data.firms && data.firms.parts.length > 0 && (
+          <p className="mt-1 text-[13px] text-etyme-muted">
+            Here through {data.firms.says}.
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="mt-2 w-full text-[13px]">
             <tbody>

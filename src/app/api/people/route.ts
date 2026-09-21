@@ -6,7 +6,7 @@ import { seatedDesk } from '@/lib/resolve-client-company'
 import { seatTrail } from '@/lib/program-seat'
 import { logBulkAccess } from '@/lib/access-log'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
+import { firmsOnARow, mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { merge, order, summarize, type Person, type Offer } from '@/lib/one-person'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { bestMatchPerPerson, type Candidate } from '@/lib/identity-resolution'
@@ -333,6 +333,20 @@ export async function GET(request: NextRequest) {
     return {
       ...row,
       onSite,
+      // ── The firms this person has been here through ───────────────
+      //
+      // Every rung of a chain names this client as the site, so a person
+      // bought through a prime and its sub-vendor had two rungs and the
+      // register listed both: "Computer Systems Inc" and "Supplied
+      // through Computer Systems Inc", which reads as one firm entered
+      // twice. It is not — it is the prime the client pays and a firm
+      // below it whose name is the prime's to keep. `firmsOnARow` folds
+      // the second into the first: the firm the client pays is named
+      // once, the count below it is said out loud, and no name below the
+      // rung is disclosed that was not disclosed before.
+      firms: firmsOnARow(
+        mine.map((c) => seenNames.get(c.companyId)).filter((v): v is NonNullable<typeof v> => v != null)
+      ),
       // Somebody on site is engaged today, whatever day the contract began.
       lastEngagement: onSite ? now.toISOString() : last?.toISOString() ?? null,
       favorite: starred.has(row.personId),

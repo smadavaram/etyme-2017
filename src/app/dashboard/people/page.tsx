@@ -65,6 +65,13 @@ interface Row {
   name: string
   vendors: number
   vendorNames: string[]
+  /**
+   * The firms they have actually been here through, folded so a prime is
+   * named once rather than once by name and once as "Supplied through"
+   * itself. `withheld` is how many firms below the rung this client pays
+   * are on the row and may not be named.
+   */
+  firms?: { parts: string[]; says: string; withheld: number }
   spread: { lowCents: number; highCents: number; gapCents: number; says: string | null } | null
   monthsHere: number
   headroomMonths: number | null
@@ -216,7 +223,14 @@ export default function PeoplePage() {
       ),
       sortValue: (r) => r.name,
     },
-    { key: 'vendorNames', label: 'Through', render: (r) => <span className="text-etyme-muted">{r.vendorNames.join(', ')}</span>, sortValue: (r) => r.vendorNames.join(', ') },
+    {
+      key: 'vendorNames', label: 'Through',
+      // The firms they have been here through, where they have been here;
+      // the firms that have put them forward, where they have not. Both
+      // answer "through whom" and the first is the truer one.
+      render: (r) => <span className="text-etyme-muted">{r.firms?.parts.length ? r.firms.says : r.vendorNames.join(', ')}</span>,
+      sortValue: (r) => (r.firms?.parts.length ? r.firms.says : r.vendorNames.join(', ')),
+    },
     { key: 'state', label: 'Status', render: (r) => <span className={`chip ${TONE[r.state] ?? 'chip--passive'}`}>{r.state.toLowerCase()}</span> },
     { key: 'location', label: 'Location', render: (r) => <span className="text-etyme-muted">{r.location ?? '—'}</span>, hideOnMobile: true },
     { key: 'monthsHere', label: 'Months here', align: 'right', render: (r) => <span className="tabular-nums">{r.monthsHere}</span> },
@@ -398,7 +412,7 @@ export default function PeoplePage() {
           data={shown}
           rowKey={(r) => r.personId}
           searchPlaceholder="Search by name, supplier or role…"
-          searchFilter={(r, q) => `${r.name} ${r.vendorNames.join(' ')} ${r.roles.join(' ')} ${r.location ?? ''}`.toLowerCase().includes(q.toLowerCase())}
+          searchFilter={(r, q) => `${r.name} ${r.vendorNames.join(' ')} ${r.firms?.says ?? ''} ${r.roles.join(' ')} ${r.location ?? ''}`.toLowerCase().includes(q.toLowerCase())}
           onRowClick={(r) => router.push(`/dashboard/people/${r.personId}` as any)}
           exportName="contractors"
           defaultPageSize={50}
@@ -416,7 +430,7 @@ export default function PeoplePage() {
                 {r.location && <span className="ml-2 text-[12px] font-normal text-etyme-faint">{r.location}</span>}
               </p>
               <p className="text-[12px] text-etyme-faint">
-                {r.vendorNames.join(' · ')}
+                {r.firms?.parts.length ? r.firms.says : r.vendorNames.join(' · ')}
                 {r.roles.length > 0 && ` — ${r.roles.join(', ')}`}
                 {r.lastEngagement && ` · last ${when(r.lastEngagement)}`}
               </p>

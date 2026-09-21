@@ -6,7 +6,7 @@ import { seatedDesk } from '@/lib/resolve-client-company'
 import { seatTrail } from '@/lib/program-seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop, askGoesTo } from '@/lib/chain-top'
-import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
+import { firmsOnARow, mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { logAccess } from '@/lib/access-log'
 
@@ -147,6 +147,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
   })
 
+  // Every firm this person has been here through, on one line. The page
+  // lists the engagements one per row below; this is the sentence at the
+  // top of them, and it folds a withheld sub-vendor into the prime it
+  // comes through rather than printing that prime twice — once by name
+  // and once as "Supplied through" itself.
+  const firms = firmsOnARow([...seenNames.values()])
+
   const rates = subs.map((s) => s.rate).filter((r): r is number => r != null)
   const submissions = subs.map((s) => ({
     id: s.id, supplier: s.fromCompany, role: s.requirement.title, requirementId: s.requirementId,
@@ -253,6 +260,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       says,
       tenure: { months, capMonths, headroomMonths: capMonths ? Math.max(0, capMonths - months) : null, status, eligibleDate },
       engagements,
+      /** Every firm they have been here through, folded to one line. */
+      firms,
       submissions,
       spread: rates.length >= 2 ? { lowCents: Math.min(...rates), highCents: Math.max(...rates) } : null,
       paperwork: papers.map((p) => ({ type: p.type, status: p.status, expiresAt: p.expiresAt?.toISOString() ?? null, verifiedAt: p.verifiedAt?.toISOString() ?? null })),

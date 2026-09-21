@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { GET as person } from '@/app/api/people/[id]/route'
+import { GET as peopleList } from '@/app/api/people/route'
 import { POST as ask } from '@/app/api/people/[id]/ask/route'
 
 /**
@@ -138,6 +139,31 @@ describe('asking for a person you were shown', () => {
       it_.stranger = stranger.id
       it_.openRole = (await prisma.requirement.findFirstOrThrow({ where: { companyId: it_.nike, title: 'HCM integration lead' }, select: { id: true } })).id
     }, 120_000)
+
+    it('a person bought through a chain shows the firm the client pays once, with the count of firms below it and never their names', async () => {
+      // Every rung of a chain names Northbend as the site, so the
+      // register listed both: "Computer Systems Inc" and "Supplied
+      // through Computer Systems Inc" — one firm apparently entered
+      // twice. It is the prime Northbend pays and a firm below it whose
+      // name is the prime's to keep.
+      as(HIRING)
+      const list = await json(await peopleList(req('GET', '/api/people')))
+      expect(list.body?.error, JSON.stringify(list.body)).toBeUndefined()
+      const row = list.body.data.people.find((p: any) => p.personId === it_.helena)
+      expect(row, 'Helena is on the register').toBeTruthy()
+      expect(row.firms.parts, 'one firm named, not the same one twice').toHaveLength(1)
+      expect(row.firms.parts[0]).toContain(it_.primeName)
+      expect(row.firms.withheld, 'and one below it, counted').toBe(1)
+      expect(row.firms.says).toContain('below them')
+      expect(JSON.stringify(row), 'the sub is never named').not.toContain(it_.subName)
+
+      // The same answer on her own page, above the engagements it folds.
+      const page = await json(await person(req('GET', `/api/people/${it_.helena}`), { params: Promise.resolve({ id: it_.helena }) }))
+      expect(page.body.data.firms.parts).toHaveLength(1)
+      expect(page.body.data.firms.withheld).toBe(1)
+      expect(page.body.data.firms.says).not.toContain(`Supplied through ${it_.primeName}, `)
+      expect(JSON.stringify(page.body.data.firms)).not.toContain(it_.subName)
+    })
 
     it('the bench listing that would be submitted against belongs to the firm below the one Northbend Athletic pays', async () => {
       const listing = await prisma.benchListing.findFirstOrThrow({
