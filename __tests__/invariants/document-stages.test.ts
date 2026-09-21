@@ -14,7 +14,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  stageFor, compile, standingOf, clearance, WARN_WITHIN_DAYS,
+  stageFor, compile, standingOf, clearance, inSentence, WARN_WITHIN_DAYS,
   type Wish, type Held, type Ask,
 } from '@/lib/document-stages'
 
@@ -219,5 +219,50 @@ describe('Blocking somebody from starting is reserved for what actually should',
       ['INSURANCE_GL', { key: 'INSURANCE_GL', label: 'General liability insurance', expiresAt: new Date('2020-06-01T00:00:00Z'), verifiedAt: AT }],
     ])
     expect(clearance(asks, held, AT).says).toBe('Everything required is on file and in date.')
+  })
+})
+
+/**
+ * Found by a release walk on two client dashboards: "Ingrid Sørensen
+ * cannot start without proof of right to work and **i-9 and e-verify**."
+ * And on a supplier's screening packs: "we could not answer **supplier
+ * screening — us client** today." A checklist label is a heading, and a
+ * heading dropped into the middle of a sentence was being lowercased
+ * wholesale — which turns a government form into a typo.
+ */
+describe('a form’s name keeps its capitals in a sentence', () => {
+  it('leaves the I-9 and E-Verify exactly as the government writes them', () => {
+    expect(inSentence('I-9 and E-Verify')).toBe('I-9 and E-Verify')
+  })
+
+  it('leaves a W-9 a W-9', () => {
+    expect(inSentence('W-9')).toBe('W-9')
+  })
+
+  it('lowers an ordinary heading, because in a sentence it is not a heading', () => {
+    expect(inSentence('Certificate of general liability insurance')).toBe(
+      'certificate of general liability insurance'
+    )
+    expect(inSentence('Proof of right to work')).toBe('proof of right to work')
+    expect(inSentence('Non-disclosure agreement')).toBe('non-disclosure agreement')
+    expect(inSentence('Driver’s license')).toBe('driver’s license')
+  })
+
+  it('leaves an initialism standing, so a US client is not a us client', () => {
+    expect(inSentence('Supplier screening — US client')).toBe('supplier screening — US client')
+    expect(inSentence('MSA and NDA')).toBe('MSA and NDA')
+  })
+
+  it('leaves a capital inside a word alone, because that is somebody’s name', () => {
+    expect(inSentence('McKinsey code of conduct')).toBe('McKinsey code of conduct')
+    expect(inSentence('E-Verify')).toBe('E-Verify')
+  })
+
+  it('says the whole refusal the way a compliance officer would write it', () => {
+    // The sentence the walk actually caught, end to end.
+    const items = ['Proof of right to work', 'I-9 and E-Verify'].map(inSentence)
+    expect(`Ingrid Sørensen cannot start without ${items[0]} and ${items[1]}.`).toBe(
+      'Ingrid Sørensen cannot start without proof of right to work and I-9 and E-Verify.'
+    )
   })
 })

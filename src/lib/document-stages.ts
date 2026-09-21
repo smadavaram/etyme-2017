@@ -1274,3 +1274,61 @@ export function credentialsToChase(
 
   return out.sort((a, b) => (a.daysLeft ?? 9_999) - (b.daysLeft ?? 9_999))
 }
+
+// ── A form's name keeps its capitals ─────────────────────────────────
+//
+// Found on two client dashboards by a release walk: "Ingrid Sørensen
+// cannot start without proof of right to work and **i-9 and e-verify**."
+// And on a supplier's screening packs: "we could not answer **supplier
+// screening — us client** today."
+//
+// Both came from the same instinct, written twice — a document is
+// labeled "I-9 and E-Verify" on a checklist, where it is a heading, and
+// a heading dropped into the middle of a sentence has to stop shouting.
+// So both places called `.toLowerCase()` on the label and both turned a
+// government form into a typo. An I-9 is not an i-9; E-Verify is a
+// service with a name; a W-9 is not a w-9; a US client is not a us
+// client. A compliance officer reading "i-9" in a refusal is reading
+// something that does not exist, and CLAUDE.md is explicit that a screen
+// uses the reader's own word — the reader's word here is the form's own.
+//
+// The rule is narrow on purpose, because the thing it must not do is
+// start guessing. A word is lowered only when it is an ordinary
+// capitalized word: one capital at the front and nothing but lower-case
+// letters, apostrophes and hyphens behind it. Anything with a second
+// capital inside it (E-Verify, McKinsey), a digit (I-9, W-9, OSHA10) or
+// nothing but capitals (MSA, NDA, US) is left exactly as it was written,
+// because every one of those is somebody's name for something.
+//
+// This does not replace `said` in `lib/contract-clearance`. That exists
+// for the case where a label is the *wrong words* inside a sentence —
+// "state license" wants to become "a state nursing license (Wisconsin
+// Board of Nursing)" — which is a different job from casing, and no
+// amount of casing rules would do it.
+
+/** Is this token somebody's name for something, rather than a word? */
+function isName(word: string): boolean {
+  const bare = word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+  if (bare.length === 0) return false
+  // A digit anywhere: I-9, W-9, 1099, OSHA10.
+  if (/\p{N}/u.test(bare)) return true
+  // A capital anywhere but the first letter: E-Verify, McKinsey, PhD.
+  if (/\p{Lu}/u.test(bare.slice(1))) return true
+  // Nothing but capitals, and more than one: MSA, NDA, US, EU.
+  if (bare.length > 1 && bare === bare.toUpperCase() && /\p{Lu}/u.test(bare)) return true
+  return false
+}
+
+/**
+ * A label, said inside a sentence rather than shown as a heading.
+ *
+ * "Certificate of general liability insurance" → "certificate of general
+ * liability insurance". "I-9 and E-Verify" → "I-9 and E-Verify".
+ * "Supplier screening — US client" → "supplier screening — US client".
+ */
+export function inSentence(label: string): string {
+  return label
+    .split(' ')
+    .map((word) => (isName(word) ? word : word.toLowerCase()))
+    .join(' ')
+}

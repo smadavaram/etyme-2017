@@ -109,11 +109,55 @@ export async function GET(request: NextRequest) {
     orderBy: { evaluatedAt: 'desc' },
   })
 
-  // Find active contractors and vendors at this end client
-  // Uses endClientFilter to include contracts where the paying customer differs
+  // ── Every placement this company is answerable for ─────────────────
+  //
+  // Two halves, and until 2026-09-21 only the first was asked.
+  //
+  //   the ones at its own sites  — `endClientFilter`: whoever is working
+  //   here, through however many rungs. This is a client's whole answer
+  //   and it was written as if a client were the only reader.
+  //
+  //   the ones it pays for       — `clientCompanyId`: the firms below it
+  //   on a chain and the people they have here.
+  //
+  // The second half is what a prime's own page is. Until demand's F6 fix
+  // a supplier calling this route with no `?clientCompanyId=` resolved
+  // to somebody else's company; now it resolves to its own, and its own
+  // page came back nearly empty — `endClientFilter(Computer Systems)`
+  // asks "who works at Computer Systems' site", and CloudEPA's people
+  // work at Auralis's. The one thing a prime genuinely needs from a
+  // compliance page — is my sub-vendor's cover current, and are the
+  // people it has on my client's site cleared — was the one thing it
+  // could not read. `__integration__/full-spine.test.ts` named the gap
+  // rather than papering over it.
+  //
+  // Deliberately NOT a third half. A supplier's own sell contracts —
+  // the people it has placed — are not added here, because those rows
+  // carry its customers' names and this page is about the firms and the
+  // people a company is answerable for, not about its book of business.
+  // A vendor at the bottom of a chain, which buys from nobody, still
+  // reads an empty page, and that is the honest answer rather than a
+  // list of its own clients wearing a compliance heading.
+  //
+  // `endClientFilter`'s second branch — clientCompanyId AND a null end
+  // client — is subsumed by the second clause below, so the union is
+  // two terms rather than three.
+  //
+  // Spelled inside the `where` rather than lifted into a named object,
+  // and that is not a style choice: `__tests__/invariants/
+  // client-facing-names.test.ts` reads every query in `src/` looking for
+  // the ones scoped to a client's whole site, because those are the ones
+  // that must ask `lib/chain-names` whose name they may print. It finds
+  // them by seeing `endClientFilter(` inside the read. Hiding this one
+  // behind a variable took the compliance page off that sweep — the page
+  // still read every rung, and the check that says so went quiet, which
+  // is the worse of the two failures.
   const activeContracts = await prisma.sellContract.findMany({
     where: {
-      ...endClientFilter(clientCompany.id),
+      OR: [
+        ...endClientFilter(clientCompany.id).OR,
+        { clientCompanyId: clientCompany.id },
+      ],
       ...seatScope(units),
       state: { in: ['IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
     },

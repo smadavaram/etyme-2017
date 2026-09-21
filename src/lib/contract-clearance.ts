@@ -58,6 +58,7 @@ import {
 import {
   supplierCoverGate,
   licenseGate,
+  inSentence,
   type CoverCertificate,
   type CoverGate,
   type DocStanding,
@@ -593,7 +594,11 @@ function names(items: { label: string; said?: string }[]): string {
   // `said` where an item names itself more precisely inside a sentence —
   // the license does, because a proper noun cannot be lowercased and a
   // board that is not named is a board nobody can call.
-  const l = items.map((i) => i.said ?? i.label.toLowerCase())
+  // `inSentence` rather than `toLowerCase`: a label is a heading on a
+  // checklist and a phrase inside a refusal, and the two want different
+  // casing — but a form's name keeps its capitals in both. This said
+  // "i-9 and e-verify" on two client dashboards.
+  const l = items.map((i) => i.said ?? inSentence(i.label))
   if (l.length <= 1) return l.join('')
   return `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}`
 }

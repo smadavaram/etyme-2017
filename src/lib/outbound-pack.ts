@@ -55,7 +55,7 @@
  */
 
 import type { ItemSpec, PacketSpec } from '@/lib/packets'
-import { standingOf, type Held, type Standing } from '@/lib/document-stages'
+import { standingOf, inSentence, type Held, type Standing } from '@/lib/document-stages'
 
 // ── Who asks, and what they may see ──────────────────────────────────
 
@@ -840,11 +840,11 @@ function readinessSays(x: {
 
   if (x.missingRequired.length === 0) {
     parts.push(
-      `we could answer ${x.spec.label.toLowerCase()} today.`
+      `we could answer ${inSentence(x.spec.label)} today.`
     )
   } else {
     parts.push(
-      `we could not answer ${x.spec.label.toLowerCase()} today. ` +
+      `we could not answer ${inSentence(x.spec.label)} today. ` +
         `${x.missingRequired.map((m) => m.label).join(', ')} would stop the bid.`
     )
   }

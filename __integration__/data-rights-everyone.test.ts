@@ -57,7 +57,15 @@ const STAFF = 'ops@etyme.example'
 const CLOUDEPA_COMPLIANCE = 'compliance.cloudepa@seed.etyme.invalid'
 const CLOUDEPA_ACCOUNTS = 'accounts.cloudepa@seed.etyme.invalid'
 const APTIVA_COMPLIANCE = 'compliance.aptiva@seed.etyme.invalid'
-const KESTREL_COMPLIANCE = 'compliance.kestrel@seed.etyme.invalid'
+// A program office that holds no seat anywhere. Made here rather than
+// picked out of the world seed, because "which MSP has no seat" is a
+// fact about the seed and the seed keeps changing: Kestrel MSP was the
+// unseated one until 2026-09-21, when `lib/seed-world` gave it Talvern
+// Medical's own Compliance Officer desk — the right thing to seed, and
+// it turned this sentence green for the wrong reason, since the route
+// then answered from the seated branch. A test that needs an absence
+// creates the absence.
+const HALVARD_COMPLIANCE = 'compliance.halvard@seed.etyme.invalid'
 const CLOUDEPA_OWNER = `world-cloudepa${D}`
 const HARLOW_OWNER = `world-harlow-health${D}`
 const NORTHBEND_AP = `world-nike-ap${D}`
@@ -65,7 +73,7 @@ const NORTHBEND_HIRING = `world-nike-hiring${D}`
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
 const ANDERS = 'anders.lund@seed.etyme.invalid'
 
-const co = { cloudepa: '', teleworld: '', aptiva: '', kestrel: '', northbend: '', harlow: '' }
+const co = { cloudepa: '', teleworld: '', aptiva: '', kestrel: '', halvard: '', northbend: '', harlow: '' }
 const who = { karthik: '', anders: '', cloudepaConsultant: '', ap: '', hiring: '', cloudepaOwner: '' }
 let cloudepaConsultantName = ''
 
@@ -137,7 +145,23 @@ beforeAll(async () => {
   // Kestrel is the office nobody has seated. Aptiva holds a desk at
   // Cavanaugh Glassworks from the world seed, so it can no longer stand
   // for "seated nowhere" — the two sentences need two firms.
-  await seat(co.kestrel, 'MSP', 'Compliance Officer', 'Delphine Aubert', KESTREL_COMPLIANCE)
+  // Halvard Program Partners: an MSP on the record, with a compliance
+  // desk of its own, that no client has granted a seat to. Reserved
+  // domain, so nobody real can ever sign in as it.
+  const halvard = await prisma.company.upsert({
+    where: { slug: 'halvard-program-partners' },
+    update: {},
+    create: {
+      name: 'Halvard Program Partners', slug: 'halvard-program-partners', kind: 'MSP',
+      currency: 'USD', defaultPaymentTerms: 30,
+    },
+  })
+  co.halvard = halvard.id
+  await seat(co.halvard, 'MSP', 'Compliance Officer', 'Delphine Aubert', HALVARD_COMPLIANCE)
+  expect(
+    await prisma.programSeat.count({ where: { officeCompanyId: co.halvard } }),
+    'Halvard has to hold no seat for the sentence below to mean anything'
+  ).toBe(0)
 
   who.karthik = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK } })).id
   who.anders = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: ANDERS } })).id
@@ -324,9 +348,11 @@ describe('a program office is told what it is missing, rather than shown an empt
   // seated this office. Aptiva Workforce IS seated — the world seed gives
   // it a desk at Cavanaugh Glassworks' program manager — and for a week
   // it was told on its own page that the seat "is not built yet", because
-  // the framing read the company kind and nothing else. Kestrel MSP is
-  // seated nowhere, and the old sentence is right for it once the clause
-  // describing the product as it was a week ago comes out.
+  // the framing read the company kind and nothing else. Kestrel MSP was
+  // the office seated nowhere until the world seed gave it Talvern
+  // Medical's compliance desk, so the unseated half of the pair is now
+  // Halvard Program Partners, made in this file for the purpose — see
+  // the note beside HALVARD_COMPLIANCE.
   //
   // `__integration__/seat-compliance.test.ts` walks what a seated office
   // then reads. This holds the two sentences apart.
@@ -346,11 +372,11 @@ describe('a program office is told what it is missing, rather than shown an empt
   })
 
   it('an MSP nobody has seated is told a desk is the client’s to grant, and who at the client can grant it', async () => {
-    as(KESTREL_COMPLIANCE)
+    as(HALVARD_COMPLIANCE)
     const { status, body } = await json(await deskQueue(req('GET', '/api/data-requests')))
     expect(status).toBe(200)
     expect(body.data.requests).toEqual([])
-    expect(body.data.desk.missing).toContain('Kestrel MSP')
+    expect(body.data.desk.missing).toContain('Halvard Program Partners')
     expect(body.data.desk.missing).toContain('program office')
     expect(body.data.desk.missing).toContain('granted by the client')
     expect(body.data.desk.missing).toContain('owner or the')
