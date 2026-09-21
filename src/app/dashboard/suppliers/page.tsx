@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
-import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, type ChecklistItem, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, type ChecklistItem, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 
@@ -142,6 +142,18 @@ export default function SuppliersPage() {
   const [rec, setRec] = useState({ name: '', contactName: '', contactEmail: '', reason: '', skills: '' })
   const [noteFor, setNoteFor] = useState<string | null>(null)
   const [noteText, setNoteText] = useState('')
+  /**
+   * The two dates on the certificate this desk is about to call verified.
+   *
+   * Asked here rather than assumed, because a verdict with no dates
+   * cannot become a `Verification` and the compliance page would go on
+   * saying the firm has no cover — which is the crack this desk's yes is
+   * supposed to close. Prefilled with whatever the firm typed off its
+   * own certificate; the desk corrects it against the document in front
+   * of them.
+   */
+  const [datesFor, setDatesFor] = useState<string | null>(null)
+  const [dateForm, setDateForm] = useState({ validFrom: '', validUntil: '' })
   const [view, setView] = useState<View>('feed')
   const [filter, setFilter] = useState<NetworkFilter>('ALL')
   const [place, setPlace] = useState<string | null>(null)
@@ -247,6 +259,7 @@ export default function SuppliersPage() {
       // A mark speaks through the checklist itself; only a decision gets a banner.
       if (body.data.says && payload.action !== 'mark') setDone(body.data.says)
       setNoteFor(null); setNoteText('')
+      setDatesFor(null); setDateForm({ validFrom: '', validUntil: '' })
       await loadRequests()
       if (payload.action === 'approve') load()
     } catch (err: any) {
@@ -548,7 +561,17 @@ export default function SuppliersPage() {
                         </span>
                         {r.mayAct && (item.state === 'MISSING' || item.state === 'PROVIDED') && (
                           <span className="flex gap-1">
-                            <button onClick={() => act(r.id, { action: 'mark', key: item.key, state: 'HELD' })} disabled={busy}
+                            <button
+                              onClick={() =>
+                                wantsDates(item)
+                                  ? (setDatesFor(`${r.id}:${item.key}`),
+                                     setDateForm({
+                                       validFrom: item.validFrom ? item.validFrom.slice(0, 10) : '',
+                                       validUntil: item.validUntil ? item.validUntil.slice(0, 10) : '',
+                                     }))
+                                  : act(r.id, { action: 'mark', key: item.key, state: 'HELD' })
+                              }
+                              disabled={busy}
                               className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-ink hover:border-etyme-action">{item.state === 'PROVIDED' ? 'Verified' : 'On file'}</button>
                             <button onClick={() => { setNoteFor(`${r.id}:${item.key}`); setNoteText('') }} disabled={busy}
                               className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-muted hover:border-etyme-action">Waive…</button>
@@ -557,6 +580,42 @@ export default function SuppliersPage() {
                         {r.mayAct && (item.state === 'HELD' || item.state === 'WAIVED') && (
                           <button onClick={() => act(r.id, { action: 'mark', key: item.key, state: 'MISSING' })} disabled={busy}
                             className="text-[11px] text-etyme-faint hover:underline">undo</button>
+                        )}
+                        {/* The two dates, at the one moment somebody has the
+                            certificate open in front of them. What this desk
+                            types here is what the compliance record carries,
+                            and what the nightly watch chases before it runs
+                            out — a row filed with no expiry passes every
+                            check until the day somebody audits it. */}
+                        {datesFor === `${r.id}:${item.key}` && (
+                          <form
+                            className="flex w-full flex-wrap items-center gap-2 pl-7"
+                            onSubmit={(e) => {
+                              e.preventDefault()
+                              act(r.id, { action: 'mark', key: item.key, state: 'HELD', validFrom: dateForm.validFrom, validUntil: dateForm.validUntil })
+                            }}
+                          >
+                            <span className="w-full text-[11px] text-etyme-faint">
+                              The two dates printed on {item.label.toLowerCase()} — cover that begins next month covers nobody starting this week.
+                            </span>
+                            <label className="flex items-center gap-1 text-[12px] text-etyme-muted">
+                              Starts
+                              <input autoFocus type="date" value={dateForm.validFrom}
+                                onChange={(e) => setDateForm((f) => ({ ...f, validFrom: e.target.value }))}
+                                aria-label={`${item.label} starts`}
+                                className="rounded border border-etyme-rule px-2 py-1 text-[12px]" />
+                            </label>
+                            <label className="flex items-center gap-1 text-[12px] text-etyme-muted">
+                              Runs out
+                              <input type="date" value={dateForm.validUntil}
+                                onChange={(e) => setDateForm((f) => ({ ...f, validUntil: e.target.value }))}
+                                aria-label={`${item.label} runs out`}
+                                className="rounded border border-etyme-rule px-2 py-1 text-[12px]" />
+                            </label>
+                            <button type="submit" disabled={!dateForm.validFrom || !dateForm.validUntil || busy}
+                              className="rounded bg-etyme-action px-2 py-1 text-[11px] text-white disabled:opacity-40">Verified</button>
+                            <button type="button" onClick={() => setDatesFor(null)} className="text-[11px] text-etyme-muted">Not now</button>
+                          </form>
                         )}
                         {noteFor === `${r.id}:${item.key}` && (
                           <form className="flex w-full flex-wrap gap-2 pl-7" onSubmit={(e) => { e.preventDefault(); act(r.id, { action: 'mark', key: item.key, state: 'WAIVED', note: noteText }) }}>

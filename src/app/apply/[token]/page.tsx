@@ -16,7 +16,14 @@ import { useCallback, useEffect, useState } from 'react'
  * client's Procurement desk verifies each one before it counts.
  */
 
-interface Ask { key: string; label: string; required: boolean; state: string; fileName: string | null; says?: string | null }
+interface Ask {
+  key: string; label: string; required: boolean; state: string; fileName: string | null
+  says?: string | null
+  /** Whether the desk will be asked for the two dates before it can verify it. */
+  wantsDates?: boolean
+  validFrom?: string | null
+  validUntil?: string | null
+}
 interface Apply {
   client: string
   firm: string
@@ -47,6 +54,15 @@ export default function ApplyPage() {
   const [form, setForm] = useState({ legalName: '', address: '', duns: '', website: '', experience: '', skills: '', bankName: '', accountName: '', last4: '' })
   const [refs, setRefs] = useState([{ name: '', company: '', email: '', phone: '' }, { name: '', company: '', email: '', phone: '' }])
   const [files, setFiles] = useState<Record<string, { fileName: string; size: number }>>({})
+  /**
+   * The two dates printed on a certificate, typed by the firm that holds
+   * it. They are not a verdict: a desk still verifies the document, and
+   * what is typed here is what the desk sees in the boxes rather than a
+   * blank form filled in off a PDF. Without them the desk cannot call the
+   * item verified at all, so asking the firm that has the paper in its
+   * hand is the cheapest place to ask.
+   */
+  const [dates, setDates] = useState<Record<string, { validFrom: string; validUntil: string }>>({})
 
   const load = useCallback(async () => {
     try {
@@ -72,11 +88,16 @@ export default function ApplyPage() {
           legalName: form.legalName, address: form.address, duns: form.duns, website: form.website, experience: form.experience, skills: form.skills,
           bank: { bankName: form.bankName, accountName: form.accountName, last4: form.last4 },
           references: refs.filter((r) => r.name || r.company),
-          docs: Object.entries(files).map(([key, f]) => ({ key, fileName: f.fileName, size: f.size })),
+          docs: Object.entries(files).map(([key, f]) => ({
+            key, fileName: f.fileName, size: f.size,
+            validFrom: dates[key]?.validFrom || null,
+            validUntil: dates[key]?.validUntil || null,
+          })),
         }),
       }))
       setSaid(body.data.says)
       setFiles({})
+      setDates({})
       load()
     } catch (err: any) {
       setError(err.message)
@@ -150,6 +171,33 @@ export default function ApplyPage() {
                       <input type="file" onChange={pick(a.key)} className="text-[12px]" aria-label={a.label} />
                       {files[a.key] && <span className="text-[12px] text-etyme-action">{files[a.key].fileName}</span>}
                       {!files[a.key] && a.fileName && <span className="text-[12px] text-etyme-faint">on file: {a.fileName}</span>}
+                      {a.wantsDates && (
+                        <span className="flex w-full flex-wrap items-center gap-2 pl-0 text-[12px] text-etyme-muted">
+                          <span className="w-full text-[11px] text-etyme-faint">
+                            The two dates printed on it — cover that begins next month covers nobody starting this week.
+                          </span>
+                          <label className="flex items-center gap-1">
+                            Starts
+                            <input
+                              type="date"
+                              value={dates[a.key]?.validFrom ?? (a.validFrom ? a.validFrom.slice(0, 10) : '')}
+                              onChange={(e) => setDates((cur) => ({ ...cur, [a.key]: { validFrom: e.target.value, validUntil: cur[a.key]?.validUntil ?? (a.validUntil ? a.validUntil.slice(0, 10) : '') } }))}
+                              aria-label={`${a.label} starts`}
+                              className="rounded border border-etyme-rule px-2 py-1 text-[12px]"
+                            />
+                          </label>
+                          <label className="flex items-center gap-1">
+                            Runs out
+                            <input
+                              type="date"
+                              value={dates[a.key]?.validUntil ?? (a.validUntil ? a.validUntil.slice(0, 10) : '')}
+                              onChange={(e) => setDates((cur) => ({ ...cur, [a.key]: { validFrom: cur[a.key]?.validFrom ?? (a.validFrom ? a.validFrom.slice(0, 10) : ''), validUntil: e.target.value } }))}
+                              aria-label={`${a.label} runs out`}
+                              className="rounded border border-etyme-rule px-2 py-1 text-[12px]"
+                            />
+                          </label>
+                        </span>
+                      )}
                     </label>
                   ))}
                 </section>

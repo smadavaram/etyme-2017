@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
 import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
-import { provideItems, vendorItems, withOrderedItems, type ChecklistItem } from '@/lib/supplier-onboarding'
+import { provideItems, vendorItems, wantsDates, withOrderedItems, type ChecklistItem } from '@/lib/supplier-onboarding'
 
 /**
  * GET  /api/supplier-apply/[token]  — what the client asks for, and what is already in
@@ -44,7 +44,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       contactName: row.contactName,
       decided: row.state === 'APPROVED' || row.state === 'DECLINED',
       state: row.state,
-      asks: vendorItems(checklist).map((i) => ({ key: i.key, label: i.label, required: i.required, state: i.state, fileName: i.fileName ?? null, says: i.says ?? null })),
+      asks: vendorItems(checklist).map((i) => ({
+        key: i.key, label: i.label, required: i.required, state: i.state,
+        fileName: i.fileName ?? null, says: i.says ?? null,
+        wantsDates: wantsDates(i), validFrom: i.validFrom ?? null, validUntil: i.validUntil ?? null,
+      })),
       application: app,
     },
   })
@@ -63,15 +67,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const references = Array.isArray(body?.references)
     ? body.references.map((r: any) => ({ name: String(r?.name ?? '').trim(), company: String(r?.company ?? '').trim(), email: String(r?.email ?? '').trim(), phone: String(r?.phone ?? '').trim() })).filter((r: any) => r.name || r.company)
     : []
-  const docs: { key: string; fileName: string; size: number }[] = Array.isArray(body?.docs)
-    ? body.docs.filter((d: any) => typeof d?.key === 'string' && typeof d?.fileName === 'string').map((d: any) => ({ key: d.key, fileName: d.fileName, size: Number(d.size ?? 0) }))
+  // The two dates ride in with the file. They are printed on the
+  // certificate the firm is uploading, and asking for them here saves
+  // the desk retyping them off a PDF later — the desk still verifies,
+  // and corrects them where the firm typed them wrong.
+  const docs: { key: string; fileName: string; size: number; validFrom: string | null; validUntil: string | null }[] = Array.isArray(body?.docs)
+    ? body.docs.filter((d: any) => typeof d?.key === 'string' && typeof d?.fileName === 'string').map((d: any) => ({
+        key: d.key,
+        fileName: d.fileName,
+        size: Number(d.size ?? 0),
+        validFrom: typeof d?.validFrom === 'string' && d.validFrom.trim() ? d.validFrom.trim() : null,
+        validUntil: typeof d?.validUntil === 'string' && d.validUntil.trim() ? d.validUntil.trim() : null,
+      }))
     : []
   const bank = body?.bank && typeof body.bank === 'object'
     ? { bankName: String(body.bank.bankName ?? '').trim(), accountName: String(body.bank.accountName ?? '').trim(), last4: String(body.bank.last4 ?? '').replace(/\D/g, '').slice(-4) }
     : null
   const skills: string[] = typeof body?.skills === 'string' ? body.skills.split(/[,;]/).map((x: string) => x.trim()).filter(Boolean) : Array.isArray(body?.skills) ? body.skills : []
 
-  const provided: { key: string; fileName?: string | null }[] = docs.map((d) => ({ key: d.key, fileName: d.fileName }))
+  const provided: { key: string; fileName?: string | null; validFrom?: string | null; validUntil?: string | null }[] =
+    docs.map((d) => ({ key: d.key, fileName: d.fileName, validFrom: d.validFrom, validUntil: d.validUntil }))
   if (bank?.bankName && bank.accountName && bank.last4.length === 4) provided.push({ key: 'BANK', fileName: `${bank.bankName} ····${bank.last4}` })
   if (str('experience')) provided.push({ key: 'EXPERIENCE', fileName: null })
   if (references.length >= 2) provided.push({ key: 'REFERENCES', fileName: `${references.length} references` })
@@ -116,7 +131,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const still = vendorItems(checklist).filter((i) => i.required && i.state === 'MISSING').map((i) => i.label)
   return NextResponse.json({
     data: {
-      asks: vendorItems(checklist).map((i) => ({ key: i.key, label: i.label, required: i.required, state: i.state, fileName: i.fileName ?? null, says: i.says ?? null })),
+      asks: vendorItems(checklist).map((i) => ({
+        key: i.key, label: i.label, required: i.required, state: i.state,
+        fileName: i.fileName ?? null, says: i.says ?? null,
+        wantsDates: wantsDates(i), validFrom: i.validFrom ?? null, validUntil: i.validUntil ?? null,
+      })),
       says: still.length
         ? `Received, thank you. ${row.company.name} still needs: ${still.join('; ')}. Come back to this link when you have them.`
         : `Received, thank you. ${row.company.name}’s Procurement team has everything it asked you for; they will verify it and you will hear from them.`,

@@ -6,6 +6,7 @@ import { PATCH as review } from '@/app/api/supplier-requests/[id]/route'
 import { GET as applyGet, POST as applyPost } from '@/app/api/supplier-apply/[token]/route'
 import { GET as decisions } from '@/app/api/decisions/route'
 import { GET as suppliers } from '@/app/api/suppliers/route'
+import { GET as complianceView } from '@/app/api/compliance/route'
 
 /**
  * Northbend Athletic's hiring manager met a firm at a conference. It walks four desks
@@ -26,6 +27,7 @@ const call = async (fn: any, method: string, url: string, id: string, body?: unk
 const viaToken = async (fn: any, method: string, token: string, body?: unknown) =>
   json(await fn(req(method, `/api/supplier-apply/${token}`, body), { params: Promise.resolve({ token }) }))
 const it_: Record<string, any> = {}
+const iso = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
 
 describe('a supplier walks four desks', () => {
   beforeAll(async () => {
@@ -113,14 +115,19 @@ describe('a supplier walks four desks', () => {
       skills: 'S&OP, demand planning',
       bank: { bankName: 'US Bank', accountName: 'Harbor Staffing LLC', last4: '9921' },
       references: [{ name: 'A', company: 'Acme' }, { name: 'B', company: 'Beta' }],
-      docs: [{ key: 'TAX_FORM', fileName: 'Harbor-W9.pdf', size: 100 }, { key: 'INSURANCE', fileName: 'Harbor-COI.pdf', size: 100 }],
+      docs: [
+        { key: 'TAX_FORM', fileName: 'Harbor-W9.pdf', size: 100 },
+        // The two dates printed on the certificate, typed by the firm
+        // that holds it. Received, never verified — HR still decides.
+        { key: 'INSURANCE', fileName: 'Harbor-COI.pdf', size: 100, validFrom: iso(-30), validUntil: iso(335) },
+      ],
     })
     expect(sent.status, JSON.stringify(sent.body)).toBe(201)
     // The one thing it did not send is the one the client's orders ask
     // for and the old checklist never mentioned.
     expect(sent.body.data.says).toContain('still needs: Certificate of good standing')
     const again = await viaToken(applyPost, 'POST', it_.token, {
-      docs: [{ key: 'GOOD_STANDING', fileName: 'Harbor-good-standing-2026.pdf', size: 100 }],
+      docs: [{ key: 'GOOD_STANDING', fileName: 'Harbor-good-standing-2026.pdf', size: 100, validFrom: iso(-60), validUntil: iso(305) }],
     })
     expect(again.body.data.says).toContain('has everything it asked you for')
   })
@@ -147,12 +154,52 @@ describe('a supplier walks four desks', () => {
     expect(r.body.data.says).toBe('Harbor Staffing cleared Procurement and is with HR now.')
   })
 
+  it('a certificate verified with no dates is refused in a sentence asking for them, and the item stays unverified', async () => {
+    // Veritan Talent is the seeded firm sitting on the HR desk, and its
+    // link never carried the two dates — which is the ordinary case for
+    // a firm that uploaded a PDF and nothing else. Harbor Staffing typed
+    // them, so HR confirming its certificate is a different story and is
+    // the one below.
+    as(HR)
+    const list = await json(await listRequests(req('GET', '/api/supplier-requests')))
+    const veritan = list.body.data.requests.find((x: any) => x.name === 'Veritan Talent')
+    expect(veritan?.stage, 'Veritan is on the HR desk').toBe('HR')
+    expect(veritan.checklist.find((i: any) => i.key === 'INSURANCE').validFrom ?? null).toBeNull()
+
+    const bare = await call(review, 'PATCH', `/api/supplier-requests/${veritan.id}`, veritan.id, { action: 'mark', key: 'INSURANCE', state: 'HELD' })
+    expect(bare.status, JSON.stringify(bare.body)).toBe(422)
+    expect(bare.body.error.code).toBe('NEEDS_DATES')
+    expect(bare.body.error.message).toContain('the day it starts and the day it runs out')
+
+    const after = await json(await listRequests(req('GET', '/api/supplier-requests')))
+    const still = after.body.data.requests.find((x: any) => x.name === 'Veritan Talent')
+    expect(still.checklist.find((i: any) => i.key === 'INSURANCE').state, 'still unverified').not.toBe('HELD')
+  })
+
+  it('a certificate the firm dated on its own link is confirmed by the desk without retyping the dates', async () => {
+    as(HR)
+    const list = await json(await listRequests(req('GET', '/api/supplier-requests')))
+    const harbor = list.body.data.requests.find((x: any) => x.name === 'Harbor Staffing')
+    const item = harbor.checklist.find((i: any) => i.key === 'INSURANCE')
+    // What the firm typed off its own certificate, received and not yet
+    // verified: the desk sees it in the boxes rather than a blank form.
+    expect(item.state).toBe('PROVIDED')
+    expect(item.validFrom).toBe(iso(-30))
+    expect(item.validUntil).toBe(iso(335))
+  })
+
   it('HR cannot clear compliance until the certificate of good standing the client\u2019s orders require is verified', async () => {
     as(HR)
-    for (const key of ['INSURANCE', 'VENDOR_SCREENING']) {
-      const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key, state: 'HELD' })
-      expect(r.status, JSON.stringify(r.body)).toBe(200)
-    }
+    const insured = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, {
+      action: 'mark', key: 'INSURANCE', state: 'HELD', validFrom: iso(-30), validUntil: iso(335),
+    })
+    expect(insured.status, JSON.stringify(insured.body)).toBe(200)
+    // The firm is not a company on the register yet — Finance writes that
+    // row — so the dates are held and the sentence says when they land.
+    expect(insured.body.data.says).toContain('the moment Finance approves the firm')
+
+    const screened = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'VENDOR_SCREENING', state: 'HELD' })
+    expect(screened.status, JSON.stringify(screened.body)).toBe(200)
     const early = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve' })
     expect(early.status).toBe(409)
     expect(early.body.error.message).toContain('the certificate of good standing was supplied and needs verifying')
@@ -176,7 +223,9 @@ describe('a supplier walks four desks', () => {
     expect(twice.status).toBe(403)
     expect(twice.body.error.code).toBe('DECIDED_BEFORE')
     as(HR)
-    const r0 = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'GOOD_STANDING', state: 'HELD' })
+    const r0 = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, {
+      action: 'mark', key: 'GOOD_STANDING', state: 'HELD', validFrom: iso(-60), validUntil: iso(305),
+    })
     expect(r0.status, JSON.stringify(r0.body)).toBe(200)
     const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve', note: 'COI current; good standing current; no sanctions or litigation found.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
@@ -194,6 +243,11 @@ describe('a supplier walks four desks', () => {
     const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve', note: 'Bank details match the W-9 legal name.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.says).toContain('is a supplier now')
+    // Three rows: general liability and workers' comp off the one
+    // insurance item, and the certificate of good standing.
+    expect(r.body.data.evidence.recorded).toBe(3)
+    expect(r.body.data.evidence.undated).toEqual([])
+    expect(r.body.data.says).toContain('on their compliance record')
     const list = await json(await suppliers(req('GET', '/api/suppliers')))
     const harbor = list.body.data.suppliers.find((s: any) => s.name === 'Harbor Staffing')
     expect(harbor?.tier).toBe('APPROVED')
@@ -265,5 +319,52 @@ describe('the register names what each supplier owes on this client\u2019s own o
     // says so rather than showing an agreement on file.
     expect(harbor.owes).toContain('Master service agreement')
     expect(harbor.signedAt).toBeNull()
+  })
+})
+
+/**
+ * "Ensure the loop of documents never cracks between parties."
+ *
+ * HR clearing a certificate of insurance and the compliance page going
+ * on saying the firm has no cover were two records, and only one of them
+ * is what every gate in the product reads. This is the walk-out the
+ * other way: what four desks verified, on the firm's own record, the day
+ * it becomes a supplier.
+ */
+describe('what the desks verified is on the supplier\u2019s compliance record', () => {
+  it('a firm approved today is insured on the compliance page tomorrow, from the certificate HR verified on the way in', async () => {
+    const harbor = await prisma.company.findFirstOrThrow({ where: { name: 'Harbor Staffing' }, select: { id: true } })
+    const rows = await prisma.verification.findMany({
+      where: { companyId: harbor.id },
+      select: { type: true, status: true, validFrom: true, expiresAt: true, verifiedById: true, result: true },
+    })
+    expect(rows.map((v) => v.type).sort()).toEqual(['GOOD_STANDING', 'INSURANCE_GL', 'INSURANCE_WC'])
+    for (const v of rows) {
+      expect(v.status).toBe('CLEAR')
+      // The two dates are what make it a verification rather than a row
+      // that passes every check until somebody audits it.
+      expect(v.validFrom, v.type).toBeTruthy()
+      expect(v.expiresAt!.getTime(), v.type).toBeGreaterThan(Date.now())
+      expect(v.verifiedById, 'a person stands behind it').toBeTruthy()
+      expect(JSON.stringify(v.result)).toContain('Verified at supplier onboarding')
+    }
+
+    // And the client's own compliance page reads it, which is the whole
+    // point: it is the same table every gate in the product asks.
+    as(PROGRAMME)
+    const page = await json(await complianceView(req('GET', '/api/compliance')))
+    expect(page.status, JSON.stringify(page.body)).toBe(200)
+    const row = page.body.data.verifications.companies.find((c: any) => c.companyId === harbor.id)
+    if (row) expect(row.cover.outcome, row.cover.says).not.toBe('BLOCK')
+  })
+
+  it('the register stops saying the firm owes the cover its desks just verified', async () => {
+    as(PROGRAMME)
+    const r = await json(await suppliers(req('GET', '/api/suppliers')))
+    const harbor = r.body.data.suppliers.find((s: any) => s.name === 'Harbor Staffing')
+    expect(harbor.owes).not.toContain('Certificate of general liability insurance')
+    expect(harbor.owes).not.toContain('Certificate of good standing')
+    // The agreement stub nobody signed is still owed, and still named.
+    expect(harbor.owes).toContain('Master service agreement')
   })
 })

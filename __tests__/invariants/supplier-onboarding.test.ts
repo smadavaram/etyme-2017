@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, withOrderedItems, deskForPurpose, STAGE_VERB, type Decision, type OrderedItem } from '@/lib/supplier-onboarding'
+import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, withOrderedItems, deskForPurpose, wantsDates, STAGE_VERB, type Decision, type OrderedItem } from '@/lib/supplier-onboarding'
+import { verificationFromChecklistItem, verificationsFromChecklist } from '@/lib/onboarding-evidence'
 import { builtInType } from '@/lib/document-type'
 import { linkLetter, applyUrl } from '@/lib/supplier-link'
 
@@ -212,5 +213,98 @@ describe('the loop of documents does not crack at the door', () => {
 
   it('a client whose orders ask for nothing extra gets the walk it always had', () => {
     expect(withOrderedItems(newChecklist(), [], 'Northbend Athletic')).toEqual(newChecklist())
+  })
+})
+
+// ── What a desk verified becomes cover the product can read ───────────
+
+describe('a verdict at onboarding reaches the compliance record', () => {
+  const iso = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+
+  const held = (key: string, dates?: { validFrom?: string; validUntil?: string }) => {
+    const c = markItem(newChecklist(), key, 'HELD', null, now, dates) as any
+    return c.checklist.find((i: any) => i.key === key)
+  }
+
+  it('a certificate HR verifies with its dates becomes cover the compliance record can read', () => {
+    const item = held('INSURANCE', { validFrom: iso(-30), validUntil: iso(335) })
+    const v = verificationFromChecklistItem(item, 'brightmoor', { personId: 'hr', at: now })
+    expect(v.ok).toBe(true)
+    // One item, two kinds: the walk asks for general liability and
+    // workers' comp on one line and the record holds them apart.
+    expect(v.ok && v.rows.map((r) => r.type).sort()).toEqual(['INSURANCE_GL', 'INSURANCE_WC'])
+    expect(v.ok && v.rows.every((r) => r.status === 'CLEAR' && r.companyId === 'brightmoor')).toBe(true)
+    expect(v.says).toContain('compliance record')
+  })
+
+  it('a certificate verified with no dates is refused in a sentence asking for them, and the item stays unverified', () => {
+    const v = verificationFromChecklistItem(held('INSURANCE'), 'brightmoor', { at: now })
+    expect(v.ok).toBe(false)
+    expect(v.needsDates).toBe(true)
+    expect(v.says).toContain('the day it starts and the day it runs out')
+    expect(v.rows).toEqual([])
+  })
+
+  it('the desk is asked for the dates on the documents that expire, and never on its own checks', () => {
+    const c = newChecklist()
+    const asked = c.filter((i) => wantsDates(i)).map((i) => i.key)
+    expect(asked).toEqual(['INSURANCE', 'GOOD_STANDING'])
+    // A D&B report, a screening, references contacted, the signed
+    // agreement, bank details: a desk's own check or a paper with no
+    // validity window, so nothing expires and nothing is chased.
+    for (const key of ['DNB_REPORT', 'VENDOR_SCREENING', 'AGREEMENT', 'BANK', 'REFERENCES', 'EXPERIENCE']) {
+      expect(wantsDates(c.find((i) => i.key === key)!), key).toBe(false)
+    }
+  })
+
+  it('a certificate already run out is refused rather than recorded as current', () => {
+    const v = verificationFromChecklistItem(
+      held('GOOD_STANDING', { validFrom: iso(-400), validUntil: iso(-20) }),
+      'brightmoor',
+      { at: now }
+    )
+    expect(v.ok).toBe(false)
+    expect(v.says).toMatch(/ran out on/)
+  })
+
+  it('a waived item is not evidence, and its reason stays on the checklist rather than on the record', () => {
+    const c = (markItem(newChecklist(), 'INSURANCE', 'WAIVED', 'Covered by the parent policy.', now) as any).checklist
+    const v = verificationFromChecklistItem(c.find((i: any) => i.key === 'INSURANCE'), 'brightmoor', { at: now })
+    expect(v.ok).toBe(false)
+    expect(v.needsDates).toBe(false)
+    expect(v.says).toContain('waived rather than verified')
+  })
+
+  it('unmarking a verified item takes its dates with it, because a date nobody stands behind is worse than a blank', () => {
+    let c = (markItem(newChecklist(), 'INSURANCE', 'HELD', null, now, { validFrom: iso(-30), validUntil: iso(335) }) as any).checklist
+    expect(c.find((i: any) => i.key === 'INSURANCE').validUntil).toBe(iso(335))
+    c = (markItem(c, 'INSURANCE', 'MISSING', null, now) as any).checklist
+    expect(c.find((i: any) => i.key === 'INSURANCE').validUntil).toBeNull()
+  })
+
+  it('what the firm typed off its own certificate is carried to the desk, and is not a verdict', () => {
+    const c = provideItems(newChecklist(), [{ key: 'INSURANCE', fileName: 'COI.pdf', validFrom: iso(-10), validUntil: iso(355) }], now)
+    const item = c.find((i) => i.key === 'INSURANCE')!
+    expect(item.state).toBe('PROVIDED')
+    expect(item.validFrom).toBe(iso(-10))
+    // Received, never verified, until a desk says so — so it is not
+    // evidence yet either.
+    expect(verificationFromChecklistItem(item, 'brightmoor', { at: now }).ok).toBe(false)
+  })
+
+  it('a whole checklist replayed at approval writes what it can and names what it cannot', () => {
+    let c = newChecklist()
+    c = (markItem(c, 'INSURANCE', 'HELD', null, now, { validFrom: iso(-30), validUntil: iso(335) }) as any).checklist
+    c = (markItem(c, 'GOOD_STANDING', 'HELD', null, now) as any).checklist
+    c = (markItem(c, 'VENDOR_SCREENING', 'HELD', null, now) as any).checklist
+
+    const out = verificationsFromChecklist(c, 'brightmoor', { at: now })
+    expect(out.rows.map((r) => r.type).sort()).toEqual(['INSURANCE_GL', 'INSURANCE_WC'])
+    // The good standing HR verified with no dates on it is reported, not
+    // written, and not silently dropped either.
+    const standing = out.skipped.find((sk) => sk.key === 'GOOD_STANDING')
+    expect(standing?.needsDates).toBe(true)
+    // The screening is a desk's own check and was never going to be a row.
+    expect(out.skipped.find((sk) => sk.key === 'VENDOR_SCREENING')?.needsDates).toBe(false)
   })
 })

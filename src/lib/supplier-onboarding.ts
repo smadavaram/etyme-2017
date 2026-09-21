@@ -21,6 +21,7 @@
  */
 
 import { hasPermission } from '@/lib/permissions'
+import { verificationFromChecklistItem } from '@/lib/onboarding-evidence'
 
 export const STAGES = ['LEAD', 'PROCUREMENT', 'HR', 'FINANCE', 'DONE'] as const
 export type Stage = (typeof STAGES)[number]
@@ -88,6 +89,23 @@ export interface ChecklistItem {
    * firm is asked for, because saying so on all eleven says nothing.
    */
   says?: string | null
+  /**
+   * The day the certificate begins, as printed on it. ISO.
+   *
+   * Asked for at the moment a desk says "verified", because that is the
+   * one moment somebody has the document open in front of them — and
+   * because without the two dates the verdict cannot become a
+   * `Verification`, which is what every gate in the product actually
+   * reads. HR clearing a certificate of insurance here and the
+   * compliance page going on saying the firm has no cover was one
+   * record not speaking to the other; `lib/onboarding-evidence` is the
+   * translation and these two fields are what it needs.
+   *
+   * On the item, in the same JSON the rest of it rides in. No schema.
+   */
+  validFrom?: string | null
+  /** The day it runs out, as printed on it. ISO. */
+  validUntil?: string | null
 }
 
 /** What the desks ask for, in the words they use, and who verifies each. */
@@ -118,7 +136,32 @@ export const CHECKLIST: Omit<ChecklistItem, 'state' | 'note' | 'at'>[] = [
 ]
 
 export function newChecklist(): ChecklistItem[] {
-  return CHECKLIST.map((c) => ({ ...c, state: 'MISSING' as ItemState, note: null, at: null, fileName: null, says: null }))
+  return CHECKLIST.map((c) => ({
+    ...c, state: 'MISSING' as ItemState, note: null, at: null, fileName: null, says: null,
+    validFrom: null, validUntil: null,
+  }))
+}
+
+/**
+ * Whether this item wants the two dates before a desk may call it
+ * verified.
+ *
+ * Asked of `lib/onboarding-evidence` rather than answered from a list
+ * here, because that file already decides which items become a
+ * `Verification` — a document with a life that gets watched and chased —
+ * and which are a desk's own check with nothing to expire. Two lists
+ * would be two answers to one question, and the one that went stale
+ * would be the one asking for dates.
+ *
+ * The probe is the item as if it were verified with no dates: the only
+ * thing that comes back `needsDates` is an item that would have become a
+ * row if it had them.
+ */
+export function wantsDates(item: Pick<ChecklistItem, 'key' | 'label' | 'answers'>): boolean {
+  return verificationFromChecklistItem(
+    { ...item, state: 'HELD', validFrom: null, validUntil: null },
+    'a-firm-on-the-register',
+  ).needsDates
 }
 
 // ── What the client's own orders ask of a supplier ────────────────────
@@ -408,26 +451,74 @@ function list(xs: string[]): string {
   return `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
 }
 
-/** Procurement marks one item. Waiving needs a reason — never silently permit. */
-export function markItem(checklist: ChecklistItem[], key: string, state: ItemState, note: string | null, at: Date):
-  { ok: true; checklist: ChecklistItem[] } | { ok: false; message: string } {
+/**
+ * Procurement marks one item. Waiving needs a reason — never silently
+ * permit.
+ *
+ * `dates` is what the desk read off the certificate. They are kept on
+ * the item whatever the state, because the firm may be verified before
+ * it is a company on the register — the walk's four desks run before
+ * Finance writes the supplier row — and the dates are what the approval
+ * replays into the compliance record when the id finally exists.
+ * Unmarking clears them with the verdict, because a date recorded
+ * against a verification nobody stands behind is worse than a blank.
+ */
+export function markItem(
+  checklist: ChecklistItem[],
+  key: string,
+  state: ItemState,
+  note: string | null,
+  at: Date,
+  dates?: { validFrom?: string | null; validUntil?: string | null }
+): { ok: true; checklist: ChecklistItem[] } | { ok: false; message: string } {
   const item = checklist.find((i) => i.key === key)
   if (!item) return { ok: false, message: 'That is not on the checklist.' }
   if (state === 'WAIVED' && !note?.trim()) return { ok: false, message: `Waiving ${shortLabel(key, item.label)} needs a reason written down.` }
   return {
     ok: true,
-    checklist: checklist.map((i) => (i.key === key ? { ...i, state, note: note?.trim() || null, at: state === 'MISSING' ? null : at.toISOString() } : i)),
+    checklist: checklist.map((i) =>
+      i.key === key
+        ? {
+            ...i,
+            state,
+            note: note?.trim() || null,
+            at: state === 'MISSING' ? null : at.toISOString(),
+            validFrom: state === 'MISSING' ? null : dates?.validFrom ?? i.validFrom ?? null,
+            validUntil: state === 'MISSING' ? null : dates?.validUntil ?? i.validUntil ?? null,
+          }
+        : i
+    ),
   }
 }
 
-/** The vendor supplies items through its link: they become PROVIDED, never HELD — Procurement verifies. */
-export function provideItems(checklist: ChecklistItem[], provided: { key: string; fileName?: string | null }[], at: Date): ChecklistItem[] {
+/**
+ * The vendor supplies items through its link: they become PROVIDED,
+ * never HELD — Procurement verifies.
+ *
+ * The two dates ride in with the file where the firm typed them off its
+ * own certificate. They are not a verdict and they do not make the item
+ * held: the desk still verifies, and what the firm typed is what the
+ * desk sees in the boxes rather than a blank form to retype. A desk that
+ * disagrees with the certificate corrects it before saying yes.
+ */
+export function provideItems(
+  checklist: ChecklistItem[],
+  provided: { key: string; fileName?: string | null; validFrom?: string | null; validUntil?: string | null }[],
+  at: Date
+): ChecklistItem[] {
   const byKey = new Map(provided.map((p) => [p.key, p]))
   return checklist.map((i) => {
     const p = byKey.get(i.key)
     if (!p || i.by !== 'VENDOR') return i
     if (i.state === 'HELD' || i.state === 'WAIVED') return i
-    return { ...i, state: 'PROVIDED', at: at.toISOString(), fileName: p.fileName ?? i.fileName ?? null }
+    return {
+      ...i,
+      state: 'PROVIDED',
+      at: at.toISOString(),
+      fileName: p.fileName ?? i.fileName ?? null,
+      validFrom: p.validFrom ?? i.validFrom ?? null,
+      validUntil: p.validUntil ?? i.validUntil ?? null,
+    }
   })
 }
 

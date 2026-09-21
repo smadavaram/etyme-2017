@@ -6,6 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { defaultPostureFor } from '@/lib/walls'
 import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
+import { verificationFromChecklistItem, verificationsFromChecklist, type VerificationToWrite } from '@/lib/onboarding-evidence'
 import { sendLink } from '@/lib/supplier-link'
 import {
   mayActAt, markItem, readiness, nextStage, withOrderedItems, STAGE_WORD,
@@ -27,6 +28,51 @@ import {
  * domain), an agreement stub, a register row at approved standing, a
  * contact, and an invitation to sign in.
  */
+/**
+ * Write what a desk verified onto the firm's own compliance record.
+ *
+ * `documentTypeKey` is resolved to the client's own `DocumentType` row
+ * where the client invented the type, so a hot floor induction verified
+ * here carries the client's key and not only the closest built-in enum
+ * value. A key nobody defined leaves `documentTypeId` null, which is the
+ * shipped-type case and is correct.
+ *
+ * Idempotent on the pair (company, type, the day it runs out): a desk
+ * that unmarks an item and marks it again does not leave two rows for
+ * one certificate, and two rows for one certificate is how a lapse hides
+ * behind its own renewal.
+ */
+async function recordEvidence(rows: VerificationToWrite[], definedBy: string): Promise<number> {
+  if (rows.length === 0) return 0
+  const defined = await prisma.documentType.findMany({
+    where: { companyId: definedBy, key: { in: [...new Set(rows.map((r) => r.documentTypeKey))] } },
+    select: { id: true, key: true },
+  })
+  const typeId = new Map(defined.map((d) => [d.key, d.id]))
+
+  let written = 0
+  for (const r of rows) {
+    const already = await prisma.verification.findFirst({
+      where: { companyId: r.companyId, type: r.type as never, expiresAt: r.expiresAt },
+      select: { id: true },
+    })
+    if (already) continue
+    const { documentTypeKey, ...row } = r
+    await prisma.verification.create({
+      data: {
+        ...row,
+        type: row.type as never,
+        documentTypeId: typeId.get(documentTypeKey) ?? null,
+        // The column is not nullable and a desk verifying a certificate
+        // is the person who put it on the record.
+        uploadedById: row.uploadedById ?? row.verifiedById ?? '',
+      },
+    })
+    written++
+  }
+  return written
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const { caller, error } = await getCallerContext(request)
@@ -90,8 +136,58 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!['HELD', 'WAIVED', 'MISSING'].includes(state)) {
       return NextResponse.json({ error: { code: 'VALIDATION', message: 'Verified, waived or missing.' } }, { status: 422 })
     }
-    const marked = markItem(checklist, key, state, note || null, now)
+    const dates = {
+      validFrom: typeof body?.validFrom === 'string' && body.validFrom.trim() ? body.validFrom.trim() : null,
+      validUntil: typeof body?.validUntil === 'string' && body.validUntil.trim() ? body.validUntil.trim() : null,
+    }
+    const marked = markItem(checklist, key, state, note || null, now, dates)
     if (!marked.ok) return NextResponse.json({ error: { code: 'VALIDATION', message: marked.message } }, { status: 422 })
+
+    // ── What a desk verified becomes cover the product can read ───────
+    //
+    // HR clears a certificate of insurance here and `/api/compliance`
+    // goes on saying the firm has no cover: two records, and only one of
+    // them is what every gate actually reads. The translation needs the
+    // two dates printed on the certificate, and this is the one moment
+    // somebody has it open in front of them — so the desk is asked here
+    // rather than the row going green with no expiry, which passes every
+    // check until the day somebody audits it.
+    //
+    // The firm may not be a company on the register yet: the four desks
+    // run before Finance writes the supplier row. So the dates are kept
+    // on the item whatever happens, and the approval replays them into
+    // the record at the first moment an id exists.
+    const markedItem = marked.checklist.find((i) => i.key === key)!
+    let recorded: { written: number; says: string } | null = null
+    if (state === 'HELD') {
+      const verdict = verificationFromChecklistItem(
+        markedItem,
+        // Where the supplier is not on the register yet, the request's
+        // own id stands in so the dates are still checked. Nothing is
+        // ever written against it — the write below is guarded on the
+        // real company id.
+        row.supplierCompanyId ?? row.id,
+        { personId: caller.person.id, at: now }
+      )
+      if (!verdict.ok && verdict.needsDates) {
+        return NextResponse.json(
+          { error: { code: 'NEEDS_DATES', message: verdict.says, field: dates.validFrom ? 'validUntil' : 'validFrom' } },
+          { status: 422 }
+        )
+      }
+      if (verdict.ok && row.supplierCompanyId) {
+        const written = await recordEvidence(verdict.rows, companyId)
+        recorded = { written, says: verdict.says }
+      } else if (verdict.ok) {
+        recorded = {
+          written: 0,
+          says:
+            `${markedItem.label} is verified, and its dates are held with the recommendation. ` +
+            `They go on ${row.name}'s compliance record the moment Finance approves the firm.`,
+        }
+      }
+    }
+
     const updated = await prisma.supplierRequest.update({ where: { id }, data: { checklist: marked.checklist as unknown as object, state: 'IN_REVIEW' } })
 
     // Who verified it, and who waived it. The checklist carries the state,
@@ -112,7 +208,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     })
 
     const ready = readiness(row.name, marked.checklist, stage)
-    return NextResponse.json({ data: { request: { ...updated, checklist: marked.checklist }, readiness: ready, says: ready.says } })
+    return NextResponse.json({
+      data: {
+        request: { ...updated, checklist: marked.checklist },
+        readiness: ready,
+        recorded,
+        says: recorded ? `${recorded.says} ${ready.says}` : ready.says,
+      },
+    })
   }
 
   if (action === 'decline') {
@@ -205,6 +308,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         update: {},
       })
     }
+    // ── The firm is on the register, so what four desks verified goes
+    //    on its compliance record ───────────────────────────────────
+    //
+    // The first moment a company id exists. Until now everything the
+    // desks verified lived in a JSON blob nobody downstream reads, so a
+    // firm HR personally cleared on Tuesday was refused a start on
+    // Wednesday for having no cover on file, and the refusal named a
+    // certificate sitting in the onboarding record. Only the items with
+    // the two dates on them become rows; anything a desk verified
+    // without them is reported rather than written, because a
+    // certificate with no expiry passes every check until somebody
+    // audits it.
+    const evidence = verificationsFromChecklist(checklist, supplier.id, { personId: caller.person.id, at: now })
+    const recorded = await recordEvidence(evidence.rows, companyId)
+    const undated = evidence.skipped.filter((sk) => sk.needsDates)
+
     const updated = await prisma.supplierRequest.update({
       where: { id },
       data: { state: 'APPROVED', stage: 'DONE', decidedById: caller.person.id, decidedAt: now, decisionNote: note || null, supplierCompanyId: supplier.id, decisions: [...decisions, decision] as unknown as object },
@@ -222,7 +341,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         reversible: true,
       },
     })
-    return NextResponse.json({ data: { request: updated, supplier, says: `${row.name} is a supplier now, at approved standing. Send them a role.` } })
+    return NextResponse.json({
+      data: {
+        request: updated,
+        supplier,
+        evidence: { recorded, undated: undated.map((sk) => sk.says) },
+        says:
+          `${row.name} is a supplier now, at approved standing. Send them a role.` +
+          (recorded > 0
+            ? ` ${recorded === 1 ? 'The certificate' : `All ${recorded} certificates`} your desks verified ` +
+              `${recorded === 1 ? 'is' : 'are'} on their compliance record, and the nightly watch will chase ` +
+              `${recorded === 1 ? 'its renewal' : 'the renewals'} before ${recorded === 1 ? 'it runs' : 'they run'} out.`
+            : '') +
+          (undated.length > 0
+            ? ` ${undated.length} verified ${undated.length === 1 ? 'item has' : 'items have'} no dates on ` +
+              `${undated.length === 1 ? 'it' : 'them'}, so ${undated.length === 1 ? 'it is' : 'they are'} not on the ` +
+              `compliance record yet — open the firm's compliance page and add them.`
+            : ''),
+      },
+    })
   }
 
   return NextResponse.json({ error: { code: 'VALIDATION', message: 'Approve, decline, mark or resend.' } }, { status: 422 })
