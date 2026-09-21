@@ -54,7 +54,7 @@
  * never longer than the shortest-lived document in the pack.
  */
 
-import type { ItemSpec, PacketSpec } from '@/lib/packets'
+import { withRequirements, type ItemSpec, type PacketSpec, type RequiredItem } from '@/lib/packets'
 import { standingOf, inSentence, type Held, type Standing } from '@/lib/document-stages'
 
 // ── Who asks, and what they may see ──────────────────────────────────
@@ -313,6 +313,34 @@ export function outboundPackByKey(key: string): OutboundPackSpec | null {
 
 export function outboundPacksFor(purpose: OutboundPurpose): OutboundPackSpec[] {
   return OUTBOUND_PACKS.filter((p) => p.purpose === purpose)
+}
+
+/**
+ * The pack a client actually asked for, on a line it actually placed.
+ *
+ * "Ensure the loop of documents never cracks between parties."
+ * — the founder, 2026-09-21.
+ *
+ * The packs above are what a client's procurement team usually wants,
+ * and they were a list in this file with nothing behind them: a client
+ * whose order insisted on a certificate of good standing got a screening
+ * pack that did not include one, because the pack had never heard of the
+ * order. Where a caller has a line in hand, the line's own set is merged
+ * over the pack and the two ask for the same things.
+ *
+ * Only the firm's own documents come across. A pack is OUR papers going
+ * OUT: an item the line says the worker owes — an I-9, a license — is
+ * the worker's file, and sending it to a client's procurement team in a
+ * qualification pack is exactly the document abuse the two-stage split
+ * exists to stop. `owedBy` is how that is decided, not a list of keys.
+ *
+ * A waived item is dropped rather than sent as outstanding: this client
+ * decided on the record that this line does not need it.
+ */
+export function packForLine(spec: OutboundPackSpec, required: RequiredItem[]): OutboundPackSpec {
+  const ours = required.filter((r) => (r.owedBy === 'SUPPLIER' || r.owedBy === 'US') && !r.waived)
+  const merged = withRequirements(spec, ours)
+  return { ...spec, items: merged.items }
 }
 
 /**

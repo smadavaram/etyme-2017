@@ -412,6 +412,74 @@ export function resolveItems(
   })
 }
 
+// ── What a line requires, over the top of a packet ────────────────────
+//
+// "Ensure the loop of documents never cracks between parties."
+// — the founder, 2026-09-21.
+//
+// Three desks each kept their own list of what a placement needed: this
+// file's start packet, `lib/supplier-onboarding`'s checklist, and
+// `lib/outbound-pack`'s packs. `lib/document-requirements` is now the
+// one place a line's answer lives, and this is how a packet reads it —
+// so the documents a start asks for, the pack that goes out about the
+// firm, and the refusal at activation cannot name three different sets.
+//
+// A packet is still the floor. The line's set is merged OVER it, never
+// instead of it: a client's order adds what that client wants and
+// cannot order its way out of a federal form.
+
+/** One item of a line's required set, as a packet needs it. */
+export interface RequiredItem {
+  key: string
+  label: string
+  required: boolean
+  /** WORKER · SUPPLIER · CUSTOMER · US. */
+  owedBy: string
+  blocks: boolean
+  from: 'DEFAULT' | 'ORDER' | 'LINE'
+  /** Where it came from, in words: "required by Talvern Medical’s order PO-3". */
+  says: string
+  waived: boolean
+  note?: string | null
+}
+
+/**
+ * The packet, with a line's own set merged over it.
+ *
+ * Packet order is kept and the line's extras are appended, so a start
+ * with nothing written on its order produces the same list in the same
+ * order it always did — which is what keeps every sentence built from it
+ * word for word what it was.
+ *
+ * A line may make a shipped item optional, or insist on an optional one.
+ * It may not remove one: removing is what a waiver is for, and a waiver
+ * keeps the item on the list with a name and a reason beside it.
+ */
+export function withRequirements(spec: PacketSpec, required: RequiredItem[]): PacketSpec {
+  if (required.length === 0) return spec
+  const asked = new Map(required.map((r) => [r.key, r]))
+  const items: ItemSpec[] = spec.items.map((i) => {
+    const r = asked.get(i.key)
+    return r ? { ...i, required: r.required } : i
+  })
+  const have = new Set(spec.items.map((i) => i.key))
+  for (const r of required) {
+    if (have.has(r.key)) continue
+    items.push({
+      key: r.key,
+      label: r.label,
+      // The note whoever asked for it wrote, where they wrote one. A
+      // hint invented here would be this file guessing at a document it
+      // has never heard of — a client's own site induction is exactly
+      // that case, and the client already said what it wants in its note.
+      hint: r.note ?? r.says,
+      required: r.required,
+      validMonths: null,
+    })
+  }
+  return { ...spec, items }
+}
+
 /** The items a request should actually contain. */
 export function itemsToAsk(resolved: ResolvedItem[]): ResolvedItem[] {
   return resolved.filter((r) => r.state !== 'ALREADY_HELD')

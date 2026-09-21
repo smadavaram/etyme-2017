@@ -52,12 +52,15 @@ import {
   resolveItems,
   startPacketFor,
   licenseNaming,
+  withRequirements,
   type HeldDocument,
+  type RequiredItem,
   type ResolvedItem,
 } from '@/lib/packets'
 import {
   supplierCoverGate,
   licenseGate,
+  COVER_THAT_STOPS_WORK,
   inSentence,
   type CoverCertificate,
   type CoverGate,
@@ -65,6 +68,9 @@ import {
   type HeldCredential,
   type LicenseGate,
 } from '@/lib/document-stages'
+import { prisma } from '@/lib/db'
+import { requirementsFor } from '@/lib/document-requirements'
+import { heldFromDocInstances } from '@/lib/document-request'
 import {
   typesFor,
   typeByKey,
@@ -165,6 +171,21 @@ export interface ChecklistItem {
    * item wants.
    */
   said?: string
+  /**
+   * Where the item came from: the shape's own floor, the order the line
+   * is on, or the line itself. Absent where the caller named no line.
+   */
+  from?: 'DEFAULT' | 'ORDER' | 'LINE'
+  /** "required by Cavanaugh Glassworks’ order PO-2026-2", for a screen. */
+  asked?: string
+  /** Which party owes it — WORKER · SUPPLIER · CUSTOMER · US. */
+  owedByRole?: string
+  /** The firm or person that owes it, where the line names one. */
+  owedByName?: string | null
+  /** True where somebody waived it on the record, with a reason. */
+  waived?: boolean
+  /** Why it was waived and by whom, in a sentence. */
+  waivedSays?: string | null
 }
 
 export interface Clearance {
@@ -173,6 +194,14 @@ export interface Clearance {
   blocking: ChecklistItem[]
   /** Required and outstanding, but not legally grounded — warn and proceed. */
   chasing: ChecklistItem[]
+  /**
+   * Items somebody waived on this line, with the reason and the name.
+   *
+   * They stay on the list rather than disappearing from it: a checklist
+   * that silently drops what was waived is a checklist nobody can audit,
+   * and the auditor's question is always who decided and why.
+   */
+  waived: ChecklistItem[]
   /** Every item on the checklist, held or not, so a screen can show all of it. */
   items: ChecklistItem[]
   /** The supplier's own cover, judged the same way it is everywhere else. */
@@ -315,6 +344,72 @@ const HOLDABLE = new Set<string>([
   ...Object.keys(SATISFIED_BY),
 ])
 
+// ── What the line requires, over the top of the packet ────────────────
+//
+// "Ensure the loop of documents never cracks between parties."
+// — the founder, 2026-09-21.
+//
+// Until today this file decided what a placement needed on its own: a
+// start packet picked off the role, resolved against the person's
+// verifications. A client that wanted one more document on one role had
+// nowhere to say so, and a prime had no way to pass a client's list one
+// rung down to the firm that employs the person.
+//
+// `lib/document-requirements` is now that place, and this reads it
+// rather than recomputing it. Three rules hold the wiring honest:
+//
+//   **The packet is still the floor.** The line's set is merged over the
+//   start packet, never instead of it. A sell line's default set is the
+//   customer's paper — an MSA and an NDA — and reading only that would
+//   have dropped the I-9 off every placement in the book.
+//
+//   **A caller that names no line changes nothing.** `requirements` is
+//   optional and every branch below is inert without it, so the routes
+//   that have not been wired yet give exactly the verdict they gave
+//   yesterday.
+//
+//   **A default is not a decision.** An item that reaches the set from
+//   `DEFAULT` keeps the HOLDABLE doctrine above — listed, never moving
+//   the verdict, because there is still nowhere to record it. An item
+//   somebody actually wrote on an order or a line is holdable: a person
+//   decided to ask for it, so its absence is a real gap and it warns.
+//   That is the whole reason the NDA on Northbend Athletic's order moves
+//   a verdict and the NDA in the shipped start packet does not.
+
+/**
+ * One item of the line's required set, as this file needs it.
+ *
+ * `RequiredItem` itself lives in `lib/packets`, so the packet that asks
+ * for a document and the verdict that refuses over it read one shape.
+ * The three fields below are the clearance's own: who owes it by name,
+ * and what a waiver on it said.
+ */
+export interface LineRequirement extends RequiredItem {
+  /** The firm or person that owes it, where the line names one. */
+  owedByName?: string | null
+  waivedSays?: string | null
+  waiverRefused?: boolean
+}
+
+export type { RequiredItem }
+
+/**
+ * The supplier's own paperwork, judged by the cover gate rather than by
+ * the person's checklist.
+ *
+ * A certificate of insurance and a certificate of good standing are
+ * facts about the firm being paid, and the firm's file is not the
+ * person's file. Resolving them against a worker's verifications would
+ * report every one of them as missing forever, so they leave the
+ * checklist here and arrive at `supplierCoverGate` as `requiredTypes` —
+ * which already knows the difference between cover that lapsed and cover
+ * nobody ever asked for.
+ */
+function isSupplierStanding(item: LineRequirement): boolean {
+  if (item.owedBy !== 'SUPPLIER') return false
+  return item.key.startsWith('INSURANCE_') || item.key === 'GOOD_STANDING'
+}
+
 function outstandingRequired(item: ResolvedItem, holdable: Set<string>): boolean {
   if (!item.required) return false
   if (!outstanding(item.state)) return false
@@ -367,10 +462,26 @@ export function contractClearance(input: {
    * somebody signed. Both count.
    */
   extraHeld?: HeldDocument[]
+  /**
+   * What this line requires, from `lib/document-requirements`.
+   *
+   * Omitted means the caller has not named a line, and every branch that
+   * reads it is inert — the verdict is the packet's, exactly as before.
+   */
+  requirements?: LineRequirement[]
 }): Clearance {
   const credentials = credentialKeys(input.documentTypes ?? [])
-  const spec = packetByKey(input.packetKey ?? startPacketFor(input.role))
+  const basePacket = packetByKey(input.packetKey ?? startPacketFor(input.role))
   const held = [...heldFrom(input.personVerifications), ...(input.extraHeld ?? [])]
+
+  // The line's set, split into the part a person's file answers and the
+  // part the firm's file answers.
+  const required = input.requirements ?? []
+  const standing = required.filter(isSupplierStanding)
+  const personSide = required.filter((r) => !isSupplierStanding(r))
+  const byKey = new Map(personSide.map((r) => [r.key, r]))
+
+  const spec = basePacket ? withRequirements(basePacket, personSide) : null
   const resolved = spec ? resolveItems(spec, held, input.on) : []
 
   const blockingKeys = blockingKeysFor(input.documentTypes ?? [])
@@ -392,18 +503,42 @@ export function contractClearance(input: {
       .find((st) => !!st) ?? null
   const naming = licenseNaming(input.role, heldState)
 
-  const items: ChecklistItem[] = resolved.map((r) => ({
-    key: r.key,
-    label: naming && r.key === LICENSE_KEY ? naming.label : r.label,
-    required: r.required,
-    state: r.state,
-    note: r.note,
-    hint: r.hint,
-    blocks: blocksStart(r, blockingKeys),
-    ...(naming && r.key === LICENSE_KEY ? { said: naming.said } : {}),
-  }))
+  const items: ChecklistItem[] = resolved.map((r) => {
+    const asked = byKey.get(r.key)
+    // The line's own answer beats the packet's, except where the answer
+    // is a waiver of something nobody may waive — `document-requirements`
+    // has already refused that one and left `blocks` true.
+    const blocks = asked ? asked.required && outstanding(r.state) && asked.blocks : blocksStart(r, blockingKeys)
+    return {
+      key: r.key,
+      label: naming && r.key === LICENSE_KEY ? naming.label : r.label,
+      required: r.required,
+      state: r.state,
+      // A waived item says so where its note would otherwise say "not on
+      // file", because "not on file" about something a named person
+      // decided this line does not need reads as a gap and is not one.
+      // A waiver that was REFUSED says that instead, in the same place:
+      // somebody wrote one against a federal form and it is not being
+      // honored, and the row they will look at is this one.
+      note: asked?.waivedSays ? asked.waivedSays : r.note,
+      hint: r.hint,
+      blocks,
+      ...(naming && r.key === LICENSE_KEY ? { said: naming.said } : {}),
+      ...(asked
+        ? {
+            from: asked.from,
+            asked: asked.says,
+            owedByRole: asked.owedBy,
+            owedByName: asked.owedByName ?? null,
+            waived: asked.waived,
+            waivedSays: asked.waivedSays ?? null,
+          }
+        : {}),
+    }
+  })
 
   const blocking = items.filter((i) => i.blocks)
+  const waived = items.filter((i) => i.waived)
   const holdable = new Set<string>([
     ...HOLDABLE,
     // A license is holdable: `Verification` has recorded one since
@@ -411,9 +546,16 @@ export function contractClearance(input: {
     // rather than an item with nowhere to live.
     ...credentials,
     ...(input.extraHeld ?? []).map((h) => h.key),
+    // Everything somebody actually decided to ask for on this order or
+    // this line. A person wrote it down, so its absence is a gap rather
+    // than a shipped default with nowhere to be recorded.
+    ...personSide.filter((r) => r.from !== 'DEFAULT').map((r) => r.key),
   ])
   const chasing = items.filter(
-    (i) => !i.blocks && outstandingRequired(resolved.find((r) => r.key === i.key)!, holdable)
+    (i) =>
+      !i.blocks &&
+      !i.waived &&
+      outstandingRequired(resolved.find((r) => r.key === i.key)!, holdable)
   )
 
   // ── Composition: a form with nothing behind it ──
@@ -487,6 +629,11 @@ export function contractClearance(input: {
     certificates: input.supplierCertificates,
     clientName: input.clientName ?? null,
     on: input.on,
+    // What this line's own order insists the firm being paid must hold.
+    // A waived one is left out rather than passed as required: the point
+    // of a waiver is that this client accepted its absence, on the
+    // record, in somebody's name.
+    requiredTypes: standing.filter((s) => s.required && !s.waived).map((s) => s.key),
   })
   const cover = forActivation(rawCover)
 
@@ -524,12 +671,13 @@ export function contractClearance(input: {
     outcome,
     blocking,
     chasing,
+    waived,
     items,
     cover,
     license,
     unsupported,
     editions,
-    says: sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions),
+    says: sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions, waived),
     fix: fixFor(blocking, chasing, cover, license, unsupported, editions),
   }
 }
@@ -611,7 +759,8 @@ function sayIt(
   cover: CoverGate,
   license: LicenseGate,
   unsupported: BackingFinding[] = [],
-  editions: EditionFinding[] = []
+  editions: EditionFinding[] = [],
+  waived: ChecklistItem[] = []
 ): string {
   // What is reported and does not move the verdict still gets said. A
   // clearance that returns PASS and keeps a finding in an array nobody
@@ -622,6 +771,20 @@ function sayIt(
   const reported = [
     ...unsupported.filter((u) => u.standing === 'UNSUPPORTED').map(said),
     ...editions.filter((e) => e.standing === 'UNRECORDED').map(said),
+    // Who asked for what, where somebody asked rather than the floor.
+    // "Hot floor induction is required by Cavanaugh Glassworks' order
+    // PO-2026-2" is the half of a refusal that tells the reader which
+    // desk to ring; without it the item is a word nobody recognizes.
+    ...[...blocking, ...chasing]
+      .filter((i) => i.from && i.from !== 'DEFAULT' && i.asked)
+      .map((i) => `${i.label} is ${i.asked}.`),
+    // A waiver is said out loud on a green verdict as well as a red one.
+    // It is the sentence an auditor is looking for, and a checklist that
+    // only mentions what is missing hides the decisions somebody made.
+    ...waived.filter((i) => i.waivedSays).map((i) => `${i.label}: ${i.waivedSays}`),
+    // And a waiver nobody may make is said loudest of all, beside the
+    // refusal it did not prevent.
+    ...blocking.filter((i) => i.waivedSays && !i.waived).map((i) => i.waivedSays!),
   ]
   if (outcome === 'PASS') {
     const cleared = `${person} is cleared to start. Everything required is on file.`
@@ -634,7 +797,14 @@ function sayIt(
   if (license.outcome === 'BLOCK' && license.says) parts.push(license.says)
   if (blocking.length > 0) parts.push(`${person} cannot start without ${names(blocking)}`)
   if (cover.outcome === 'BLOCK') parts.push(cover.says)
-  if (outcome === 'BLOCK') return parts.join(' ').replace(/\s+/g, ' ').trim().replace(/([^.])$/, '$1.')
+  if (outcome === 'BLOCK') {
+    const refusal = parts.join(' ').replace(/\s+/g, ' ').trim().replace(/([^.])$/, '$1.')
+    // Who asked travels with the refusal too. A start stopped by a
+    // document nobody at the supplier has heard of is a refusal somebody
+    // rings us about; one that names the client's own order is a refusal
+    // they act on.
+    return reported.length === 0 ? refusal : `${refusal} ${reported.join(' ')}`
+  }
   if (license.outcome === 'WARN' && license.says) parts.push(license.says)
   if (chasing.length > 0) parts.push(`still waiting on ${names(chasing)} for ${person}`)
   if (cover.outcome === 'WARN') parts.push(cover.says)
@@ -903,4 +1073,162 @@ export function hrNotice(
   }
 
   return { title: preview.headline, body: parts.join(' ').replace(/\s+/g, ' ').trim() }
+}
+
+// ── The line's own set, read from the record ──────────────────────────
+//
+// Everything above this point is arithmetic with no database in it, and
+// that stays true: `contractClearance` takes the set as an argument and
+// cannot go and find one. What follows is the reading, kept in this file
+// because it is what every caller of the clearance needs and a second
+// file would be a second place for the two to disagree.
+//
+// The one line a route changes is:
+//
+//     const papers = contractClearance({ ...as before,
+//       ...(await lineExtras({ sellContractId: contract.id })) })
+//
+// and what it buys is three things the caller would otherwise each fetch
+// their own way: what this line requires, the papers signed against it,
+// and the whole of the firm's standing rather than its insurance alone.
+
+/**
+ * What a line requires, what is signed against it, and the standing of
+ * the firm being paid — in the shape `contractClearance` takes.
+ *
+ * Returns `{}` for a line that does not exist, so a caller spreading it
+ * gets exactly the verdict it got before rather than an exception.
+ */
+/**
+ * The firm's own file, as a query.
+ *
+ * Every caller selected keys beginning INSURANCE_, so the one supplier
+ * document the founder named beside them — the certificate of good
+ * standing — could be on file, lapsed, and invisible to the arithmetic
+ * that was already right about it.
+ */
+const FIRM_STANDING = [
+  'INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER',
+  ...COVER_THAT_STOPS_WORK.filter((k) => !k.startsWith('INSURANCE_')),
+] as const
+
+type LineDb = typeof prisma
+
+export async function lineExtras(
+  input: { sellContractId: string; buyContractId?: never } | { buyContractId: string; sellContractId?: never },
+  db: LineDb = prisma,
+  now: Date = new Date()
+): Promise<{
+  requirements?: LineRequirement[]
+  extraHeld?: HeldDocument[]
+  supplierCertificates?: CoverCertificate[]
+  documentTypes?: DefinedType[]
+}> {
+  const set = await requirementsFor(input as Parameters<typeof requirementsFor>[0], db as never)
+  if (!set) return {}
+
+  const sellContractId = 'sellContractId' in input ? input.sellContractId : undefined
+  const buyContractId = 'buyContractId' in input ? input.buyContractId : undefined
+
+  // Which firm is being paid on this line, and which firm is paying. The
+  // first is whose insurance and good standing the set asks about; the
+  // second is who the agreement is with.
+  const line = sellContractId
+    ? await db.sellContract.findUnique({
+        where: { id: sellContractId },
+        select: { id: true, companyId: true, personId: true, clientCompanyId: true },
+      })
+    : await db.buyContract.findUnique({
+        where: { id: buyContractId! },
+        select: {
+          id: true,
+          companyId: true,
+          vendorCompanyId: true,
+          candidates: { select: { personId: true }, take: 1 },
+        },
+      })
+  if (!line) return {}
+
+  const isSell = !!sellContractId
+  const supplierCompanyId = isSell
+    ? (line as { companyId: string }).companyId
+    : ((line as { vendorCompanyId: string | null }).vendorCompanyId ?? (line as { companyId: string }).companyId)
+  const customerCompanyId = isSell
+    ? ((line as { clientCompanyId: string | null }).clientCompanyId ?? null)
+    : (line as { companyId: string }).companyId
+  const personId = isSell
+    ? (line as { personId: string | null }).personId ?? null
+    : ((line as { candidates: { personId: string }[] }).candidates[0]?.personId ?? null)
+
+  const [certificates, types, instances, agreements] = await Promise.all([
+    // The firm's whole standing, not only its insurance. `GOOD_STANDING`
+    // was invisible to every caller because every caller selected keys
+    // beginning INSURANCE_, so a supplier whose registration had been
+    // suspended read as fully covered.
+    db.verification.findMany({
+      where: {
+        companyId: supplierCompanyId,
+        type: { in: [...FIRM_STANDING] },
+      },
+      select: {
+        type: true, status: true, issuedAt: true, validFrom: true,
+        expiresAt: true, verifiedAt: true,
+      },
+    }),
+    db.documentType.findMany({
+      where: { companyId: { in: [supplierCompanyId, customerCompanyId].filter((v): v is string => !!v) } },
+    }).catch(() => []),
+    // Papers signed against this line, or about this person, or about
+    // either firm. A signed NDA is a fact about the person and the firm,
+    // not about the row it happened to be raised from.
+    db.docInstance.findMany({
+      where: {
+        status: { in: ['SIGNED', 'UPLOADED'] },
+        OR: [
+          sellContractId ? { sellContractId } : { buyContractId: buyContractId! },
+          ...(personId ? [{ subjectType: 'PERSON', subjectId: personId }] : []),
+          { subjectType: 'COMPANY', subjectId: supplierCompanyId },
+          ...(customerCompanyId ? [{ subjectType: 'COMPANY', subjectId: customerCompanyId }] : []),
+        ],
+      },
+      select: {
+        id: true, status: true, validFrom: true, expiresAt: true, signedAt: true,
+        countersignedAt: true, template: { select: { name: true, needsSignature: true } },
+      },
+    }),
+    // The agreement between the two firms. An MSA is not a `DocInstance`
+    // in this system and never has been — it is its own row, with its own
+    // term and its own nightly watch — so a set that asks for one is
+    // answered from there rather than reported missing forever.
+    customerCompanyId
+      ? db.masterAgreement.findMany({
+          where: { vendorId: supplierCompanyId, clientId: customerCompanyId },
+          select: { status: true, effectiveDate: true, expiresAt: true, signedAt: true },
+        })
+      : Promise.resolve([]),
+  ])
+
+  const known = (types as { key: string; label: string }[]).map((t) => ({ key: t.key, label: t.label }))
+  const extraHeld: HeldDocument[] = heldFromDocInstances(instances, known)
+
+  for (const a of agreements) {
+    // DRAFT is a paper nobody has executed and EXPIRED is one that ran
+    // out; neither is an agreement in force. EXPIRING still is — that is
+    // the point of the word.
+    if (!['ACTIVE', 'EXPIRING'].includes(a.status)) continue
+    extraHeld.push({
+      key: 'MSA',
+      validFrom: a.effectiveDate ?? a.signedAt ?? null,
+      expiresAt: a.expiresAt ?? null,
+      accepted: true,
+    })
+  }
+
+  void now
+  return {
+    requirements: set.items as LineRequirement[],
+    extraHeld,
+    supplierCertificates: certificates as CoverCertificate[],
+    documentTypes: types as DefinedType[],
+  }
 }
