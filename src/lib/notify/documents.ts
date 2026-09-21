@@ -120,8 +120,13 @@ export function milestoneFor(daysLeft: number | null, neverFiled = false): numbe
  * the lapse costs it carries its own id in the key, because two clients
  * above one supplier are two different pieces of news.
  */
-export function docSaidKeyFor(documentId: string, milestone: number, exposedCompanyId?: string | null): string {
-  return exposedCompanyId ? `${documentId}:${milestone}:AT:${exposedCompanyId}` : `${documentId}:${milestone}`
+export function docSaidKeyFor(
+  documentId: string,
+  milestone: number,
+  atCompanyId?: string | null,
+  as: 'AT' | 'EMPLOYS' = 'AT'
+): string {
+  return atCompanyId ? `${documentId}:${milestone}:${as}:${atCompanyId}` : `${documentId}:${milestone}`
 }
 
 // ── What a letter is written from ─────────────────────────────────────
@@ -241,6 +246,22 @@ export interface Cast {
   chase: { personId: string; companyId: string | null; audience: Audience }[]
   /** Each firm the lapse costs, with what it may call the firm that owes it. */
   exposed: { companyId: string; people: string[]; sees: SeenName }[]
+  /**
+   * The firm that employs the worker, where a worker owes the document.
+   *
+   * Not an exposed buyer, and the bug that made this field exist: a
+   * worker-owed document has no owing company, so the employing firm was
+   * cast as somebody the lapse merely costs, handed the client's letter,
+   * and then masked from itself by the chain wall — thirteen letters in
+   * one night telling a staffing firm to ask itself for its own
+   * consultant's license, and describing that consultant as somebody at
+   * a firm below one of its own suppliers.
+   *
+   * It is neither the party that owes the paper nor a bystander: it is
+   * the firm whose job it is to chase its own worker, and it reads a
+   * letter of its own that says so.
+   */
+  employs: { companyId: string; people: string[] } | null
 }
 
 // ── The words ─────────────────────────────────────────────────────────
@@ -459,12 +480,59 @@ export function noticeLetter(d: OwedDocument, cast: Cast, sees: SeenName | null)
   return { title, body: `${opening} ${cost} ${ask}` }
 }
 
+/**
+ * The letter to the firm that employs the worker who owes the document.
+ *
+ * Its own consultant, by name, in its own voice. Three things it must
+ * do and one it must never: name who owes the paper, say what happens
+ * if it does not arrive, and say that the chase is theirs — and never
+ * tell a firm to ask itself, or describe its own employee as somebody
+ * standing at a firm below one of its suppliers.
+ *
+ * Null where nothing on the line names the person, because a letter
+ * telling a firm to chase "the person this line is about" is a letter
+ * nobody can act on.
+ */
+export function employerLetter(d: OwedDocument, cast: Cast): { title: string; body: string } | null {
+  if (d.owedBy !== 'WORKER') return null
+  const who = cast.personName
+  if (!who) return null
+  const doc = lower(d.document)
+  const on = theDay(d)
+  const site = cast.clientName
+
+  const title = d.neverFiled
+    ? `${who}'s ${doc} is not on file`
+    : d.lapsed
+      ? `${who}'s ${doc} ran out on ${on}`
+      : `${who}'s ${doc} ${whenSays(d)}`
+
+  const at = site ? ` at ${site}` : ''
+  const opening = d.neverFiled
+    ? `${who} works for you${at}, and the ${doc} this placement requires is not on file.`
+    : d.lapsed
+      ? `${who} works for you${at}, and their ${doc} ran out on ${on}.`
+      : `${who} works for you${at}, and their ${doc} ${whenSays(d)}.`
+
+  const cost = d.stopsWork
+    ? d.lapsed || d.neverFiled
+      ? `${who} cannot be on site until it is on file.`
+      : `After that day ${who} cannot be on site.`
+    : WARNS
+
+  const ask = d.neverFiled
+    ? `Chasing it is yours: ask ${who} for it, then file it against this placement.`
+    : `Chasing it is yours: ask ${who} for the renewal, then file it against this placement.`
+
+  return { title, body: `${opening} ${cost} ${ask}` }
+}
+
 // ── One document, every letter it produces ────────────────────────────
 
 /** One message, ready for `notify`, with why it was written on it. */
 export interface LapseLetter {
-  /** The chase, or the notice. Two letters, never the same words. */
-  side: 'OWES' | 'EXPOSED'
+  /** The chase, the notice, or the employer's own chase. Never the same words. */
+  side: 'OWES' | 'EXPOSED' | 'EMPLOYS'
   personId: string
   /** Whose books this letter is written in. Null where there are none. */
   companyId: string | null
@@ -489,15 +557,29 @@ export interface LapseLetter {
     neverFiled: boolean
     stopsWork: boolean
     owedBy: OwedBy | null
-    side: 'OWES' | 'EXPOSED'
+    /** The line the document hangs off, so one fact cannot be told twice. */
+    lineId: string | null
+    side: 'OWES' | 'EXPOSED' | 'EMPLOYS'
     saidKey: string
+    /**
+     * The keys of the letters this one stood in for.
+     *
+     * A letter suppressed as a duplicate was never written, so its key
+     * was nowhere to be read back the next night — and the next run sent
+     * it, having found only its sibling's key on file. One night's
+     * silence became the following night's letter. The survivor carries
+     * the keys it covered, `alreadySaid` reads them back, and a second
+     * run the same night writes nothing.
+     */
+    alsoSaid?: string[]
   }
 }
 
 /** The desk a letter arrived at, said as a role rather than as a name. */
-const DESK_WORDS: Record<'OWES' | 'EXPOSED', string> = {
+const DESK_WORDS: Record<'OWES' | 'EXPOSED' | 'EMPLOYS', string> = {
   OWES: 'the desk that owes it',
   EXPOSED: 'the program and compliance desk',
+  EMPLOYS: 'the desk that employs them',
 }
 
 /**
@@ -522,6 +604,7 @@ export function lettersFor(d: OwedDocument, cast: Cast, alreadySaid: ReadonlySet
     neverFiled: d.neverFiled,
     stopsWork: d.stopsWork,
     owedBy: d.owedBy,
+    lineId: d.line?.id ?? null,
   }
   // "runs out on October 3, 2026" · "ran out on September 30, 2026" ·
   // "is not on file". One phrase, so the letter, the log summary and
@@ -557,6 +640,32 @@ export function lettersFor(d: OwedDocument, cast: Cast, alreadySaid: ReadonlySet
             `for the ${lower(d.document)}, which ${saysWhen}.`,
           logReason: reason,
           data: { ...base, side: 'OWES', saidKey: key },
+        })
+      }
+    }
+  }
+
+  const employs = cast.employs
+  const employer = employs ? employerLetter(d, cast) : null
+  if (employs && employer) {
+    const key = docSaidKeyFor(d.id, milestone, employs.companyId, 'EMPLOYS')
+    if (!alreadySaid.has(key)) {
+      for (const personId of employs.people) {
+        out.push({
+          side: 'EMPLOYS',
+          personId,
+          companyId: employs.companyId,
+          audience: 'business',
+          channel: 'EMAIL',
+          type: 'SYSTEM',
+          title: employer.title,
+          body: employer.body,
+          entityId: d.id,
+          saidKey: key,
+          logSummary:
+            `Told ${DESK_WORDS.EMPLOYS} to chase their own worker for the ${lower(d.document)}, which ${saysWhen}.`,
+          logReason: reason,
+          data: { ...base, side: 'EMPLOYS', saidKey: key },
         })
       }
     }
@@ -786,6 +895,15 @@ async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
   // reads the chase, not a notice about itself.
   if (owingCompanyId) buyers.delete(owingCompanyId)
 
+  // The firm that employs the worker is not a firm the lapse merely
+  // costs. A worker-owed document names no owing company, so this firm
+  // fell through to the exposed list, read the client's letter about
+  // "one of your contractors", and was then masked from itself by the
+  // chain wall — ending in "Ask <its own name> for it". It gets its own
+  // letter instead, and is removed from here before anybody is told.
+  const employsCompanyId = d.owedBy === 'WORKER' ? aboutCompanyId : null
+  if (employsCompanyId) buyers.delete(employsCompanyId)
+
   const exposedIds = [...buyers]
 
   const [names, chaseDesks, exposedDesks, terms, person] = await Promise.all([
@@ -793,7 +911,7 @@ async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
       where: { id: { in: [...exposedIds, owingCompanyId, aboutCompanyId].filter((v): v is string => !!v) } },
       select: { id: true, name: true },
     }),
-    owingCompanyId ? desksAt(db, [owingCompanyId], CHASE_DESK) : Promise.resolve(new Map<string, string[]>()),
+    desksAt(db, [owingCompanyId, employsCompanyId].filter((v): v is string => !!v), CHASE_DESK),
     desksAt(db, exposedIds, EXPOSED_DESK),
     exposedIds.length
       ? db.masterAgreement.findMany({
@@ -841,6 +959,11 @@ async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
     })
   }
 
+  // The desk that chases a person for their paper is the desk that
+  // chases a firm for its own — the same permissions, because it is the
+  // same job seen from the employer's side.
+  const employsPeople = employsCompanyId ? (chaseDesks.get(employsCompanyId) ?? []) : []
+
   return {
     personName: person?.name ?? null,
     clientName,
@@ -848,6 +971,7 @@ async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
     aboutFirmName,
     chase,
     exposed,
+    employs: employsCompanyId && employsPeople.length > 0 ? { companyId: employsCompanyId, people: employsPeople } : null,
   }
 }
 
@@ -922,6 +1046,55 @@ export async function tellAbout(
       out.letters.push(l)
       said.add(l.saidKey)
     }
+  }
+  out.letters = oneLetterPerPartyPerFact(out.letters)
+  return out
+}
+
+/**
+ * One letter per party per fact, in one night's run.
+ *
+ * A nudge has a cost, and the run was paying it twice. One night wrote
+ * 194 letters of which 164 were distinct: three compliance officers at
+ * one client each read the identical NDA sentence twice, and one
+ * recruiter read two different sentences about a single missing NDA —
+ * one from the expiry half of the watch and one from the never-filed
+ * half, for the same document on the same line.
+ *
+ * Two passes, because the two faults are different:
+ *
+ *   the same words twice   a reader cannot tell two facts apart when
+ *                          the sentence is character-for-character the
+ *                          same, so it is one letter however many rows
+ *                          produced it.
+ *   one fact, two letters  the same reader, the same side, the same
+ *                          document on the same line. The first stands:
+ *                          callers put the dated lapse before the
+ *                          never-filed one, and a date is the more
+ *                          actionable of the two.
+ */
+export function oneLetterPerPartyPerFact(letters: LapseLetter[]): LapseLetter[] {
+  const words = new Map<string, LapseLetter>()
+  const facts = new Map<string, LapseLetter>()
+  const out: LapseLetter[] = []
+  const stoodInFor = (survivor: LapseLetter, dropped: LapseLetter) => {
+    if (dropped.saidKey === survivor.saidKey) return
+    const also = survivor.data.alsoSaid ?? []
+    if (!also.includes(dropped.saidKey)) also.push(dropped.saidKey)
+    survivor.data.alsoSaid = also
+  }
+  for (const l of letters) {
+    const to = `${l.personId}|${l.companyId ?? ''}|${l.side}`
+    const sameWords = `${to}|${l.title}|${l.body}`
+    const sameFact = `${to}|${l.data.documentKey ?? l.data.document}|${l.data.lineId ?? l.entityId}`
+    const said = words.get(sameWords) ?? facts.get(sameFact)
+    if (said) {
+      stoodInFor(said, l)
+      continue
+    }
+    words.set(sameWords, l)
+    facts.set(sameFact, l)
+    out.push(l)
   }
   return out
 }
@@ -1038,13 +1211,14 @@ export async function everyDocumentLetter(
 ): Promise<LapseTelling> {
   const db = opts.db ?? prisma
   const watch = await documentsToChase(now, { db, windowDays: opts.windowDays })
-  const lapses = await tellDocumentLapses(watch, now, db)
-  const missing = await tellAbout(await documentsNeverFiled(now, { db, limit: opts.limit }), now, db)
-  return {
-    letters: [...lapses.letters, ...missing.letters],
-    leftToDemand: lapses.leftToDemand + missing.leftToDemand,
-    unaddressed: [...lapses.unaddressed, ...missing.unaddressed],
-  }
+  const missing = await documentsNeverFiled(now, { db, limit: opts.limit })
+  // One pass over both halves rather than two, because the dedupe and
+  // what-was-already-said are the same question: a document that is
+  // both lapsing and never filed is one fact, and two passes each read
+  // back only their own half's record of having told somebody. The
+  // dated half comes first, so the letter that survives is the one that
+  // can name a day.
+  return tellAbout([...fromWatch(watch), ...missing], now, db)
 }
 
 /**
@@ -1063,8 +1237,11 @@ async function alreadySaid(db: Db, documentIds: string[]): Promise<Set<string>> 
   })
   const out = new Set<string>()
   for (const r of rows) {
-    const key = (r.data as { saidKey?: string } | null)?.saidKey
-    if (typeof key === 'string') out.add(key)
+    const d = r.data as { saidKey?: string; alsoSaid?: unknown } | null
+    if (typeof d?.saidKey === 'string') out.add(d.saidKey)
+    // The keys of the letters this one stood in for, so a duplicate
+    // suppressed tonight is not sent tomorrow for want of a record.
+    if (Array.isArray(d?.alsoSaid)) for (const k of d.alsoSaid) if (typeof k === 'string') out.add(k)
   }
   return out
 }
@@ -1119,7 +1296,7 @@ export async function sendDocumentLapses(
           daysLeft: l.data.daysLeft,
           side: l.side,
           stopsWork: l.data.stopsWork,
-          told: l.side === 'OWES' ? DESK_WORDS.OWES : DESK_WORDS.EXPOSED,
+          told: DESK_WORDS[l.side],
           at: now.toISOString(),
         },
         reversible: false,

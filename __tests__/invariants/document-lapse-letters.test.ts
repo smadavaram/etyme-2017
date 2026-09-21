@@ -14,6 +14,8 @@ import { describe, it, expect } from 'vitest'
 import {
   chaseLetter,
   noticeLetter,
+  employerLetter,
+  oneLetterPerPartyPerFact,
   lettersFor,
   milestoneFor,
   docSaidKeyFor,
@@ -78,9 +80,16 @@ function cast(over: Partial<Cast> = {}): Cast {
         },
       },
     ],
+    // Set only by the tests about a firm chasing its own worker: the
+    // default cast is a sub-vendor's consultant read by a client.
+    employs: null,
     ...over,
   }
 }
+
+
+/** The firm that employs the worker, seated with one compliance desk. */
+const EMPLOYER = { companyId: 'byrne', people: ['byrne-officer'] }
 
 /** The chain the wall is tested on: a client, its prime, and a sub below. */
 const CHAIN: ChainRung[] = [
@@ -263,7 +272,7 @@ describe('a document running out is told to every party it costs, and to nobody 
     ]
     const bad: string[] = []
     for (const d of shapes) {
-      for (const l of lettersFor(d, cast())) {
+      for (const l of lettersFor(d, cast({ employs: EMPLOYER }))) {
         bad.push(...readsAsAimedAtSuppliers(`${l.title}. ${l.body} ${l.logSummary} ${l.logReason}`))
       }
     }
@@ -351,6 +360,95 @@ describe('a document running out is told to every party it costs, and to nobody 
     expect(ask.audience).toBe('candidate')
     expect(told.audience).toBe('business')
     for (const l of letters) expect(l.channel).toBe('EMAIL')
+  })
+
+
+  it('the firm that employs somebody is asked to chase its own worker, in its own voice, and never told to ask itself', () => {
+    const letters = lettersFor(doc(), cast({ employs: EMPLOYER }))
+    const mine = letters.find((l) => l.side === 'EMPLOYS')!
+    expect(mine.companyId).toBe('byrne')
+    expect(mine.personId).toBe('byrne-officer')
+    expect(mine.body).toContain('Ingrid Sørensen works for you at Cavanaugh Glassworks')
+    expect(mine.body).toContain('Chasing it is yours: ask Ingrid Sørensen for the renewal')
+    // The sentence that went out thirteen times in one night.
+    expect(mine.body).not.toContain('Ask Byrne Critical Care for it')
+    expect(mine.body).not.toContain('one of your contractors')
+  })
+
+  it("a firm's own employee is never described to it as somebody at a firm below one of its suppliers", () => {
+    for (const d of [doc(), doc({ lapsed: true, daysLeft: -2, expiresAt: SEP_30 }), doc({ neverFiled: true, expiresAt: null, daysLeft: null })]) {
+      const mine = lettersFor(d, cast({ employs: EMPLOYER })).filter((l) => l.side === 'EMPLOYS')
+      expect(mine.length).toBe(1)
+      for (const l of mine) {
+        expect(l.body).not.toContain('below one of your suppliers')
+        expect(l.body).not.toContain('supplied through')
+        expect(l.body).not.toContain('one of your suppliers')
+        // Never "Ask <itself> for it", however the firm is named.
+        expect(l.body).not.toMatch(/Ask .+ for it\./)
+      }
+    }
+  })
+
+  it('the firm that employs somebody hears once per milestone, on a key of its own', () => {
+    const said = new Set(lettersFor(doc(), cast({ employs: EMPLOYER })).map((l) => l.saidKey))
+    expect(lettersFor(doc({ daysLeft: 11 }), cast({ employs: EMPLOYER }), said)).toEqual([])
+    expect(docSaidKeyFor('doc1', 30, 'byrne', 'EMPLOYS')).not.toBe(docSaidKeyFor('doc1', 30, 'byrne'))
+  })
+
+  it('a firm is asked to chase nobody it cannot name', () => {
+    expect(employerLetter(doc(), cast({ personName: null, employs: EMPLOYER }))).toBe(null)
+    // An agreement between two firms is not a worker's to renew.
+    expect(employerLetter(doc({ owedBy: 'SUPPLIER' }), cast({ employs: EMPLOYER }))).toBe(null)
+  })
+
+  it("one night's run writes one letter per party per fact, and a second run the same night writes none", () => {
+    const one = lettersFor(doc(), cast({ employs: EMPLOYER }))
+    // The same document reaching the run twice — once from the expiry
+    // half of the watch and once from the never-filed half.
+    const twice = oneLetterPerPartyPerFact([...one, ...one])
+    expect(twice.length).toBe(one.length)
+
+    const alsoNeverFiled = lettersFor(
+      doc({ neverFiled: true, expiresAt: null, daysLeft: null }),
+      cast({ employs: EMPLOYER })
+    )
+    const run = oneLetterPerPartyPerFact([...one, ...alsoNeverFiled])
+    // One fact, one letter each, and the dated one is the one that stands.
+    expect(run.length).toBe(one.length)
+    for (const l of run) expect(l.data.neverFiled).toBe(false)
+
+    // One person's licence on two lines is one licence, and a reader
+    // cannot tell two letters apart when the sentence is identical.
+    const sameLicense = lettersFor(doc({ id: 'doc2', line: { side: 'SELL', id: 'line2' } }), cast({ employs: EMPLOYER }))
+    expect(oneLetterPerPartyPerFact([...one, ...sameLicense]).length).toBe(one.length)
+
+    // The letter that stood in says which one it stood in for, so
+    // tomorrow's run reads one row and finds both keys. Without it, a
+    // letter suppressed tonight is sent tomorrow in its sibling's
+    // place, and the run is loud on the second night instead of silent.
+    const kept = oneLetterPerPartyPerFact([...one, ...alsoNeverFiled])
+    const covered = new Set(kept.flatMap((l) => [l.saidKey, ...(l.data.alsoSaid ?? [])]))
+    for (const l of alsoNeverFiled) expect(covered.has(l.saidKey)).toBe(true)
+    expect(lettersFor(doc({ neverFiled: true, expiresAt: null, daysLeft: null }), cast({ employs: EMPLOYER }), covered)).toEqual([])
+
+    // A different person is a different fact, and both letters go.
+    const other = lettersFor(
+      doc({ id: 'doc3', personId: 'p2', line: { side: 'SELL', id: 'line3' } }),
+      cast({
+        personName: 'Colleen Byrne',
+        chase: [{ personId: 'p2', companyId: 'byrne', audience: 'candidate' }],
+        employs: EMPLOYER,
+      })
+    )
+    expect(oneLetterPerPartyPerFact([...one, ...other]).length).toBe(one.length + other.length)
+  })
+
+  it('a client reads the standing of whoever employs the person, and no name it is not owed', () => {
+    const seen = nameForClient(CHAIN[1], CHAIN, 'cavanaugh', () => false)
+    const told = noticeLetter(doc(), cast(), seen)
+    expect(told.body).not.toContain('Byrne Critical Care')
+    expect(told.body).toContain('Computer Systems Inc')
+    expect(readsAsAimedAtSuppliers(`${told.title}. ${told.body}`)).toEqual([])
   })
 
   it('a document that is not inside the window is told to nobody at all', () => {
