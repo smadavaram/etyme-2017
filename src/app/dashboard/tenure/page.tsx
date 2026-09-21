@@ -35,7 +35,13 @@ interface TenureData {
 interface TenurePerson {
   personId: string
   name: string
-  vendors: { id: string; name: string }[]
+  /**
+   * The firms on this row, folded so a chain reads as one firm and a
+   * count rather than as the same name twice. `parts` is one label per
+   * firm the reader may name; `withheld` is how many below them it may
+   * not.
+   */
+  firms: { parts: string[]; says: string; withheld: number }
   cumulativeMonths: number
   cumulativeDays: number
   contractCount: number
@@ -117,16 +123,20 @@ export default function TenurePage() {
     },
     {
       key: 'vendors',
-      label: 'Vendor(s)',
+      label: 'Supplier(s)',
       render: (row) => (
         <div>
-          <span className="text-etyme-muted">{row.vendors.map(v => v.name).join(', ')}</span>
-          {row.vendors.length > 1 && (
+          <span className="text-etyme-muted">{row.firms.parts.join(', ')}</span>
+          {/* Cross-vendor means two firms the client pays — two separate
+              suppliers billing for one person — not two rungs of one
+              chain, where the client pays once and the prime pays the
+              rest. Keyed off the firms it may name for that reason. */}
+          {row.firms.parts.length > 1 && (
             <span className="chip chip--action ml-1">cross-vendor</span>
           )}
         </div>
       ),
-      sortValue: (row) => row.vendors.map(v => v.name).join(', '),
+      sortValue: (row) => row.firms.says,
     },
     {
       key: 'cumulativeMonths',
@@ -247,7 +257,7 @@ export default function TenurePage() {
         searchPlaceholder="Search by person or vendor…"
         searchFilter={(row, q) =>
           row.name.toLowerCase().includes(q) ||
-          row.vendors.some(v => v.name.toLowerCase().includes(q))
+          row.firms.says.toLowerCase().includes(q)
         }
         emptyMessage={`No tenure records found at ${data?.client.name ?? 'this client'}.`}
         exportName={`tenure-${data?.client.name ?? 'export'}`}
@@ -266,8 +276,11 @@ export default function TenurePage() {
                   {person.name} — contributing contracts
                 </p>
                 <p className="text-[11px] text-etyme-faint mt-0.5">
-                  {person.contracts.length} contract{person.contracts.length !== 1 ? 's' : ''} across{' '}
-                  {person.vendors.length} vendor{person.vendors.length !== 1 ? 's' : ''}
+                  {person.contracts.length} contract{person.contracts.length !== 1 ? 's' : ''} through{' '}
+                  {person.firms.parts.length} supplier{person.firms.parts.length !== 1 ? 's' : ''} you pay
+                  {person.firms.withheld > 0
+                    ? `, with ${person.firms.withheld} firm${person.firms.withheld !== 1 ? 's' : ''} below them`
+                    : ''}
                 </p>
               </div>
               <button

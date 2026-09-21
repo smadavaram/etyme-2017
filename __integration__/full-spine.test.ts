@@ -979,9 +979,15 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
     expect(tenure.body?.error, JSON.stringify(tenure.body)).toBeUndefined()
 
     const priya = tenure.body.data.people.find((p: any) => p.personId === who.priya)
-    expect(priya.vendors.length, 'both rungs are still counted').toBe(2)
-    expect(priya.vendors.map((v: any) => v.name)).toContain('Computer Systems')
-    expect(priya.vendors.map((v: any) => v.name)).toContain('Supplied through Computer Systems.')
+    // Both rungs are still counted; the row names the one Auralis pays
+    // and says how many firms sit below it. It used to read "Computer
+    // Systems, Supplied through Computer Systems" — one firm apparently
+    // entered twice — which is what `firmsOnARow` folds.
+    expect(priya.firms.parts.length, 'one firm the client pays').toBe(1)
+    expect(priya.firms.withheld, 'and one below it, counted').toBe(1)
+    expect(priya.firms.says).toContain('Computer Systems')
+    expect(priya.firms.says).toContain('below them')
+    expect(priya.firms.says).not.toContain('Supplied through Computer Systems,')
     expect(JSON.stringify(tenure.body)).not.toContain('CloudEPA')
   })
 
@@ -1046,7 +1052,8 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
     expect(firm.nameWithheld).toBe(false)
 
     const inTenure = tenure.body.data.people.find((p: any) => p.personId === who.priya)
-    expect(inTenure.vendors.map((v: any) => v.name)).toContain('CloudEPA')
+    expect(inTenure.firms.parts).toContain('CloudEPA')
+    expect(inTenure.firms.withheld, 'nothing is withheld once the term discloses it').toBe(0)
 
     const inAlumni = alumni.body.data.alumni.find((a: any) => a.personId === who.priya)
     expect(inAlumni.vendors.map((v: any) => v.name)).toContain('CloudEPA')

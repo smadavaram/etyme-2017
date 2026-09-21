@@ -566,7 +566,7 @@ describe('10 · the tenure is the person’s, and every read of it leaves a trai
     expect(officer.body?.error, JSON.stringify(officer.body)).toBeUndefined()
     const rhea = officer.body.data.people.find((p: any) => p.name === 'Rhea Saunders')
     expect(rhea, 'Rhea is on Northbend Athletic’s ledger').toBeTruthy()
-    expect(rhea.vendors.map((v: any) => v.name)).toContain('Pinnacle Resourcing')
+    expect(rhea.firms.parts).toContain('Pinnacle Resourcing')
 
     // A firm that never supplied her does not learn she is there.
     as(SEAT.SUB)

@@ -14,7 +14,7 @@ import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 // otherwise, and one rule landing in three routes at once is a rule, not
 // three changes. Nothing else in this file was touched — every day on
 // site is still counted the same way, from the same rungs.
-import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
+import { mayNameSubVendors, namesForClient, firmsOnARow, type SeenName } from '@/lib/chain-names'
 
 /**
  * GET /api/tenure
@@ -230,12 +230,19 @@ export async function GET(request: NextRequest) {
     return {
       personId,
       name: data.name,
-      vendors: Array.from(data.vendors.entries()).map(([id, name]) => ({
-        id,
-        name: shown(id, name).name,
-        nameWithheld: shown(id, name).masked,
-        suppliedThrough: shown(id, name).through,
-      })),
+      // ── The firms on this person's row ──
+      //
+      // Folded, not listed. A person bought through a chain has a row
+      // per rung, and a withheld sub-vendor's name IS the name of the
+      // prime it comes through — so the cell read "Computer Systems Inc,
+      // Supplied through Computer Systems Inc", which looks like one
+      // firm entered twice and is actually two rungs of one chain.
+      //
+      // `firmsOnARow` names the firm the client pays once and says how
+      // many firms sit below it. Nothing newly hidden and nothing newly
+      // disclosed: the count is the client's own exposure, the name
+      // below is the prime's to keep.
+      firms: firmsOnARow(Array.from(data.vendors.entries()).map(([id, name]) => shown(id, name))),
       cumulativeMonths,
       cumulativeDays: data.totalDays,
       contractCount: data.contracts.length,

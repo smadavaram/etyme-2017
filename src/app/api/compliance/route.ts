@@ -486,6 +486,19 @@ export async function GET(request: NextRequest) {
           // is a real answer rather than a gap.
           license: data.license,
         })),
+        // ── Not folded, and that is deliberate ──
+        //
+        // `firmsOnARow` folds a withheld sub-vendor into the prime it
+        // comes through, because a list of firms beside one person read
+        // "Computer Systems, Supplied through Computer Systems" — one
+        // firm apparently entered twice. This list is not that list: it
+        // is one row per firm, each carrying its own cover verdict and
+        // its own standing. Folding two rows into one would take a
+        // sub-vendor's lapsed insurance off the page, and the standing
+        // of whoever employs somebody on this client's site is the
+        // client's own exposure — the name is withheld, never the
+        // standing. A person's firms are folded on the tenure ledger,
+        // where the cell is a list of names and nothing else.
         companies: Array.from(companyVerifMap.entries()).map(([companyId, data]) => ({
           companyId,
           name: shown(companyId, data.name).name,

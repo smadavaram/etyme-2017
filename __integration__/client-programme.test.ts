@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { day } from '@/lib/seed-days'
@@ -394,7 +396,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const lucia = r.body.data.people.find((p: any) => p.name === 'Lucía Fernández')
     expect(lucia, 'Lucía is on the ledger').toBeTruthy()
-    expect(lucia.vendors.map((v: any) => v.name).sort()).toEqual(['Brightmoor Staffing', 'Pinnacle Resourcing'])
+    expect(lucia.firms.parts.slice().sort()).toEqual(['Brightmoor Staffing', 'Pinnacle Resourcing'])
     expect(lucia.cumulativeMonths).toBe(14)
     expect(lucia.status).toBe('WARNING')
   })
@@ -413,7 +415,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     const anders = r.body.data.people.find((p: any) => p.name === 'Anders Lund')
     expect(anders.cumulativeMonths).toBe(23)
     expect(anders.status).toBe('BREAK_REQUIRED')
-    expect(anders.vendors).toHaveLength(2)
+    expect(anders.firms.parts).toHaveLength(2)
   })
 
   it('a person supplied through a prime and a bench vendor is counted once, not once per rung', async () => {
@@ -424,6 +426,40 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     const helena = r.body.data.people.find((p: any) => p.name === 'Helena Marsh')
     expect(helena.contractCount).toBe(2)
     expect(helena.cumulativeMonths).toBe(7)
+  })
+
+  it('a person bought through a chain shows the firm the client pays once, with the count of firms below it and never their names', async () => {
+    as(NIKE.compliance)
+    const r = await json(await tenure(req('GET', '/api/tenure')))
+    const helena = r.body.data.people.find((p: any) => p.name === 'Helena Marsh')
+
+    // It read "Computer Systems Inc, Supplied through Computer Systems
+    // Inc" — the prime Northbend pays and the sub below it, whose
+    // withheld name names the prime, joined with a comma. One firm,
+    // apparently entered twice.
+    expect(helena.firms.parts).toHaveLength(1)
+    expect(helena.firms.parts[0]).toMatch(/Computer Systems/)
+    expect(helena.firms.parts[0]).toContain('and one firm below them')
+    expect(helena.firms.withheld).toBe(1)
+    expect(helena.firms.says).not.toMatch(/Computer Systems[^()]*,\s*Supplied through Computer Systems/)
+    expect(JSON.stringify(helena)).not.toContain('CloudEPA')
+  })
+
+  it('the cross-vendor chip means two firms the client pays, not two rungs of one chain', async () => {
+    as(NIKE.compliance)
+    const r = await json(await tenure(req('GET', '/api/tenure')))
+    const helena = r.body.data.people.find((p: any) => p.name === 'Helena Marsh')
+    const lucia = r.body.data.people.find((p: any) => p.name === 'Lucía Fernández')
+
+    // The page shows the chip when `parts.length > 1`. Helena is two
+    // rungs of one chain and Northbend pays one firm for her, so no
+    // chip; Lucía is two suppliers both billing Northbend, so a chip.
+    expect(helena.firms.parts.length, 'one firm the client pays').toBe(1)
+    expect(lucia.firms.parts.length, 'two firms the client pays').toBe(2)
+
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/tenure/page.tsx'), 'utf8')
+    expect(page, 'the chip is keyed off the firms, not the rungs').toContain('row.firms.parts.length > 1')
+    expect(page).not.toContain('row.vendors.length > 1')
   })
 
   it('asking somebody back is a date inside the break, and a button after it', async () => {
