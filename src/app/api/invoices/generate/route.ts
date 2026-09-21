@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { completeCycle } from '@/lib/cycle-complete'
 import { billableNow, expenseLine, expenseTotal } from '@/lib/expense-billing'
@@ -49,13 +49,19 @@ export async function GET(request: NextRequest) {
   if (error) return error
 
   if (!hasPermission(caller.permissions, 'invoices.issue')) {
+    // The same sentence the button gets, from the same register of
+    // which desks actually hold it — two hand-written lists of desks
+    // are two lists that drift.
     return NextResponse.json(
       {
         error: {
           code: 'FORBIDDEN',
-          message:
-            'Raising a bill is the desk that invoices the customer — accounts receivable, ' +
-            'or finance at a smaller firm. This seat is not it.',
+          message: askTheDesk({
+            doing: 'Raising a bill',
+            needs: 'invoices.issue',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
         },
       },
       { status: 403 }
@@ -165,7 +171,17 @@ export async function POST(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'invoices.issue')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires invoices.issue permission' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Raising a bill',
+            needs: 'invoices.issue',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

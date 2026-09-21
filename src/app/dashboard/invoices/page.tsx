@@ -836,7 +836,6 @@ function InvoiceDetailDrawer({
 export default function InvoicesPage() {
   const { company } = useSession()
   const isClient = company?.kind === 'CLIENT'
-  const framing = pageFraming(company?.kind ?? 'VENDOR', 'invoices')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -880,6 +879,15 @@ export default function InvoicesPage() {
   const [reading, setReading] = useState<
     { company: string; inASeat: boolean; says: string | null } | null
   >(null)
+  // The words over the rows, from the same block that decided the rows.
+  //
+  // Declared below `reading` on purpose: it reads that state, and a
+  // `const` read above its own declaration is a temporal-dead-zone
+  // throw, not a stale value. A program office at Cavanaugh Glassworks'
+  // desk was reading Aptiva Workforce's own headings over Cavanaugh's
+  // book — "Sell · What you bill clients" over seven buy-side lines at
+  // a firm that bills nobody.
+  const framing = pageFraming(company?.kind ?? 'VENDOR', 'invoices', reading)
   // Whose book, read out of the URL and written back into it.
   //
   // It was React state only: `?books=own` did nothing on load, a
@@ -1187,10 +1195,16 @@ export default function InvoicesPage() {
         </div>
         {/* A client raises no invoices. The button was here for them too,
             and pressing it offered a list of engagements to bill — their
-            suppliers' engagements, to bill themselves. */}
-        {!isClient && (
+            suppliers' engagements, to bill themselves.
+
+            Read off the framing rather than off the company kind, so a
+            program office sitting at a client's desk loses it for the
+            same reason the client does: it is reading a book it does
+            not bill from. `create` is null there, and the label on it
+            is the reader's own word for the act. */}
+        {framing.create && (
           <button onClick={() => setShowGenerate(true)} className="btn-primary mt-3 shrink-0">
-            + Generate
+            + {framing.create}
           </button>
         )}
       </div>

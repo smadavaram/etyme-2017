@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { expenseScope } from '@/lib/resolve-client-company'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
 
 /**
  * GET /api/expenses
@@ -26,9 +28,44 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  if (!hasPermission(caller.permissions, 'invoices.read')) {
+  // ── Whose expenses ──────────────────────────────────────────────────
+  //
+  // Every other money page on this product follows the seat a client
+  // granted a program office — invoices, purchase orders, accounts
+  // payable, contracts — and this one resolved no seat at all. So an
+  // office at Cavanaugh Glassworks' desk read Aptiva Workforce's own
+  // (empty) expense book on a page whose every neighbour was showing
+  // Cavanaugh's, with nothing on the screen to say which.
+  //
+  // Reads follow the seat. Writing does not: `POST` below still scopes
+  // the sell contract to the caller's own company, and the picker on
+  // the screen asks for that same book by name, so a control and its
+  // route still agree. Whether a seated office should raise an expense
+  // onto a client's book is a decision somebody has to make, and it is
+  // not made by a read path drifting into a write path.
+  let reading = null
+  if (caller.company) {
+    const whose = await booksFor(caller, request)
+    if (whose.error) return whose.error
+    reading = whose.books
+  }
+
+  const permissions = reading?.caller.permissions ?? caller.permissions
+  if (!hasPermission(permissions, 'invoices.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires invoices.read permission' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: reading?.seat
+            ? seatedRefusal(reading.seat, 'The expense book')
+            : askTheDesk({
+                doing: 'Reading expenses',
+                needs: 'invoices.read',
+                kind: caller.company?.kind,
+                companyName: caller.company?.name,
+              }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -42,13 +79,22 @@ export async function GET(request: NextRequest) {
 
   // Scope to the caller's side: a vendor owns its expenses; a client sees
   // only the billable ones raised against work at their own sites.
-  const scope = expenseScope(caller)
+  //
+  // Seated, the scope is the client's own: the billable expenses raised
+  // against work at that client's sites. That is exactly the branch
+  // `expenseScope` takes for a client reading its own book, applied to
+  // the company whose desk this reader is sitting at — a supplier's
+  // internal costs stay with the supplier either way.
+  const scope = reading?.seated
+    ? { billable: true, sellContract: endClientFilter(reading.companyId) }
+    : expenseScope(caller)
   if (!scope) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'No company context' } },
       { status: 403 }
     )
   }
+  if (reading) noteMoneyRead(reading, 'Expense book read')
 
   const where: any = { ...scope }
 
@@ -67,7 +113,18 @@ export async function GET(request: NextRequest) {
         sellContract: {
           select: {
             id: true,
-            billRate: true,
+            // No `billRate` here, and that is the point.
+            //
+            // It was selected and never read — not by this response,
+            // not by the screen, not by the actions route. A dead
+            // select is harmless until the list it sits on is scoped by
+            // the SITE the work happens at, which is how a client and
+            // now a seat read this page: in a chain the row carries the
+            // bottom rung's rate, which is the prime's whole margin by
+            // subtraction. `rate-party.test.ts` scans for exactly that
+            // shape, and the answer to it is to stop fetching the
+            // number rather than to walk it up a chain nothing on this
+            // page displays.
             clientCompany: { select: { id: true, name: true } },
             endClientCompany: { select: { id: true, name: true } },
           },
@@ -144,6 +201,12 @@ export async function GET(request: NextRequest) {
         internal: internalTotal,
         internalCount: internalSums._count,
       },
+      // Whose book this is, in the shape every other money route already
+      // returns it, so the page frames itself from the same block that
+      // decided the rows.
+      reading: reading
+        ? { company: reading.companyName, inASeat: reading.seated, says: reading.says }
+        : null,
     },
   })
 }
@@ -162,7 +225,17 @@ export async function POST(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'invoices.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires invoices.read permission' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Raising an expense',
+            needs: 'invoices.read',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

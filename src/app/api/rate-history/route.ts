@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { assessRateChange } from '@/lib/contract-rate'
 import { prisma } from '@/lib/db'
 
@@ -39,7 +39,8 @@ const TO_READ = 'rates.read'
  *
  * Two modes:
  *   1. Contract-scoped: pass contractId + contractType → returns rate history
- *      for that contract. Requires consultants.cost for buy rates.
+ *      for that contract. Pay rates need the desk that reads what
+ *      people cost; bill rates need the price desk.
  *   2. Dashboard (no contractId): returns all rate history for the caller's
  *      company, enriched with consultant and contract display names.
  */
@@ -53,14 +54,20 @@ export async function GET(request: NextRequest) {
   // scope a consultant seat to their own rows. Everybody else is asking
   // about somebody else's price.
   if (!hasPermission(caller.permissions, TO_READ) && !isConsultantSeat(caller)) {
+    // Which desks those are is read off this company's own roles rather
+    // than listed here. A sentence that names four desks by hand is a
+    // second copy of the role table, and it is wrong the first time
+    // somebody renames one.
     return NextResponse.json(
       {
         error: {
           code: 'FORBIDDEN',
-          message:
-            'What a placement has been priced at is the price desk\'s to read — ' +
-            'account management, contracts, procurement or the desk that bills. ' +
-            'This seat is none of them. Ask whoever runs access here if that is your job.',
+          message: askTheDesk({
+            doing: 'Reading what a placement has been priced at',
+            needs: TO_READ,
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
         },
       },
       { status: 403 }
@@ -209,7 +216,17 @@ export async function GET(request: NextRequest) {
   // Permission check: buy contract rates require consultants.cost
   if (contractType === 'BUY' && !hasPermission(caller.permissions, 'consultants.cost')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires consultants.cost permission to view pay rates' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reading what somebody is paid',
+            needs: 'consultants.cost',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -287,8 +304,21 @@ export async function POST(request: NextRequest) {
   if (error) return error
 
   if (!hasPermission(caller.permissions, 'assignments.write')) {
+    // It named `contracts.write`, which is not a permission this
+    // product has — so the one person who might have acted on the key
+    // was sent looking for something that does not exist.
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires contracts.write permission' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Recording a rate change',
+            needs: 'assignments.write',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

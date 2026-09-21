@@ -157,11 +157,15 @@ describe('what a placement is priced at is the price desk\'s to read', () => {
     isASentence(body.error.message)
   })
 
-  it('tells that engineer which desk it belongs to, and never which permission', async () => {
+  it('tells that engineer which desks at his own firm do hold it, by name', async () => {
+    // Not a hand-written list of four desks — that is a second copy of
+    // the role table and it is wrong the first time somebody renames
+    // one. `askTheDesk` reads the company's own roles.
     as(SEAT.engineer)
     const { body } = await json(await rateHistory(req('GET', '/api/rate-history')))
-    expect(body.error.message).toContain('price desk')
-    expect(body.error.message).toContain('account management')
+    expect(body.error.message).toContain('Account Manager')
+    expect(body.error.message).toContain('Computer Systems Inc')
+    expect(body.error.message).toContain('Ask one of them')
   })
 
   it('refuses the same engineer one placement\'s rate movements as well as the whole book', async () => {

@@ -1168,7 +1168,21 @@ export default function ContractsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<ViewTab>(initialSide)
-  const framing = pageFraming(company?.kind ?? 'VENDOR', tab === 'sell' ? 'contracts.sell' : 'contracts.buy')
+  // Whose book these lines are, as the route that returned them said it.
+  //
+  // `/api/contracts` has answered with this block since the money
+  // routes learned about seats, and this page threw it away — so a
+  // program office at Cavanaugh Glassworks' desk read Cavanaugh's seven
+  // buy-side lines under Aptiva Workforce's own heading, "Sell · What
+  // you bill clients", at a firm that bills nobody.
+  const [reading, setReading] = useState<
+    { company: string | null; inASeat: boolean; says: string | null } | null
+  >(null)
+  const framing = pageFraming(
+    company?.kind ?? 'VENDOR',
+    tab === 'sell' ? 'contracts.sell' : 'contracts.buy',
+    reading
+  )
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
@@ -1202,6 +1216,7 @@ export default function ContractsPage() {
 
       const body = await res.json()
       const rawContracts = body.data?.contracts ?? []
+      setReading(body.data?.reading ?? null)
 
       setContracts(rawContracts.map((c: any) => {
         // Resolve the display name: end client if set, otherwise paying customer
@@ -1449,10 +1464,17 @@ export default function ContractsPage() {
           <h1>{framing.title}</h1>
           <p>{framing.subtitle}</p>
         </div>
-        {/* A client does not raise contracts here — their vendors do. */}
-        {!isClient && (
+        {/* A client does not raise contracts here — their vendors do.
+            The word on it comes from the framing, so a reader in a
+            client's seat is offered the act in the client's language
+            rather than a supplier's. Visibility is deliberately still
+            `isClient` and not `framing.create`: page-framing gives a
+            client "Record a contractor" here, which disagrees with this
+            guard, and picking one of the two is etyme-conversation's
+            call rather than something to settle silently. */}
+        {!isClient && framing.create && (
           <button onClick={() => setShowCreate(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
-            + Record a placement
+            + {framing.create}
           </button>
         )}
       </div>

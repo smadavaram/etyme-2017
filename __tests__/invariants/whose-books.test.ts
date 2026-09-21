@@ -118,3 +118,84 @@ describe('the three money pages that carry the switch all keep it in the URL', (
     })
   }
 })
+
+/**
+ * The words over the rows come from the block that decided the rows.
+ *
+ * `pageFraming` learned a third argument at 64588942: hand it the
+ * `reading` block a money route already returns and it frames the page
+ * in the client's words, with a clause naming whose book it is. Three
+ * money pages were still framing themselves off their own company kind
+ * while the rows under them were somebody else's — a program office at
+ * Cavanaugh Glassworks' desk read "Sell · What you bill clients" over
+ * seven buy-side lines at a firm that bills nobody.
+ *
+ * Two of the three pages had the answer and discarded it; the third had
+ * no answer to discard, because `GET /api/expenses` resolved no seat at
+ * all.
+ */
+describe('a money page is framed by the same block that chose its rows', () => {
+  const MONEY_PAGES = {
+    Invoices: 'src/app/dashboard/invoices/page.tsx',
+    Contracts: 'src/app/dashboard/contracts/page.tsx',
+    Expenses: 'src/app/dashboard/expenses/page.tsx',
+  }
+
+  for (const [name, path] of Object.entries(MONEY_PAGES)) {
+    it(`${name} hands the framing whose book it is, instead of only which kind of firm is reading`, () => {
+      const src = read(path)
+      expect(src, `${name} still frames off the company kind alone`)
+        .toMatch(/pageFraming\([\s\S]{0,120}reading\s*\n?\s*\)/)
+    })
+
+    it(`${name} keeps whose book it is in state, so the heading cannot disagree with the table`, () => {
+      const src = read(path)
+      expect(src).toContain('setReading(body.data?.reading ?? null)')
+    })
+
+    it(`${name} declares the framing after the state it reads, or the page throws on load`, () => {
+      // A `const` read above its own declaration is a temporal dead
+      // zone throw, not a stale value — the page would not render at
+      // all. Cheap to get wrong, and invisible until somebody opens it.
+      const src = read(path)
+      const state = src.indexOf('const [reading, setReading]')
+      const framing = src.indexOf('pageFraming(')
+      expect(state, `${name} holds no reading state`).toBeGreaterThan(-1)
+      expect(framing, `${name} never frames itself`).toBeGreaterThan(-1)
+      expect(framing, `${name} frames itself above the state it reads`).toBeGreaterThan(state)
+    })
+  }
+
+  it('the expense book follows the seat for reads, the way every other money page does', () => {
+    const route = read('src/app/api/expenses/route.ts')
+    expect(route, 'GET /api/expenses resolves no seat').toContain('booksFor(caller, request)')
+    expect(route, 'and never says whose book it answered with')
+      .toContain('reading: reading')
+  })
+
+  it('raising an expense still writes to the reader\'s own book, not the client\'s', () => {
+    // Reads follow the seat. Writing does not, and the picker on the
+    // screen asks for the same book the POST accepts — so a control and
+    // its route still agree even while the rows beside them are
+    // somebody else's.
+    const route = read('src/app/api/expenses/route.ts')
+    expect(route).toContain('companyId: caller.company?.id')
+    const page = read('src/app/dashboard/expenses/page.tsx')
+    expect(page).toContain('books=own')
+  })
+
+  it('offers no "+" where the framing says this reader raises nothing here', () => {
+    // A client does not generate its suppliers' invoices and does not
+    // raise their expenses; neither does somebody reading a client's
+    // book from a seat. `create` is null in both cases, and a control
+    // the route would refuse is a control that lies.
+    expect(read(MONEY_PAGES.Invoices)).toContain('{framing.create && (')
+    expect(read(MONEY_PAGES.Expenses)).toContain('{framing.create && (')
+  })
+
+  it('labels every "+" with the reader\'s own word for the act', () => {
+    for (const path of Object.values(MONEY_PAGES)) {
+      expect(read(path), `${path} still hard-codes the label`).toContain('+ {framing.create}')
+    }
+  })
+})

@@ -467,7 +467,6 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
 export default function ExpensesPage() {
   const { company } = useSession()
   const isClient = company?.kind === 'CLIENT'
-  const framing = pageFraming(company?.kind ?? 'VENDOR', 'expenses')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [expenses, setExpenses] = useState<Expense[]>([])
@@ -479,6 +478,13 @@ export default function ExpensesPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showModal, setShowModal] = useState(false)
+  // Whose expense book is on screen, as the route that returned the rows
+  // said it. Declared above the framing that reads it — a `const` read
+  // before its own declaration throws rather than reading stale.
+  const [reading, setReading] = useState<
+    { company: string | null; inASeat: boolean; says: string | null } | null
+  >(null)
+  const framing = pageFraming(company?.kind ?? 'VENDOR', 'expenses', reading)
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {
@@ -505,6 +511,7 @@ export default function ExpensesPage() {
       const body = await res.json()
       setExpenses(body.data?.expenses ?? [])
       setTotals(body.data?.totals ?? { grand: 0, billable: 0, billableCount: 0, internal: 0, internalCount: 0 })
+      setReading(body.data?.reading ?? null)
     } catch (err: any) {
       setError(err.message)
       setExpenses([])
@@ -718,9 +725,17 @@ export default function ExpensesPage() {
               </button>
             ))}
           </div>
-          <button onClick={() => setShowModal(true)} className="btn-primary">
-            + New
-          </button>
+          {/* A client does not raise its suppliers' expenses, and a
+              program office reading a client's book does not either —
+              `POST /api/expenses` scopes the placement to the caller's
+              own company and would refuse every row on the screen. The
+              framing says so, and a control the route would refuse is
+              a control that lies. */}
+          {framing.create && (
+            <button onClick={() => setShowModal(true)} className="btn-primary">
+              + {framing.create}
+            </button>
+          )}
         </div>
       </div>
 
