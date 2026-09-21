@@ -9,12 +9,11 @@ import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
 import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
-import { labelFor } from '@/lib/document-type'
+import { labelFor, humanKey } from '@/lib/document-type'
 import { requirementsFor } from '@/lib/document-requirements'
 import {
   outstandingItems,
   heldFromDocInstances,
-  humanKey,
   type HeldKeyRecord,
   type OutstandingItem,
 } from '@/lib/document-request'

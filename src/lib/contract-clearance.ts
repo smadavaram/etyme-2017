@@ -70,13 +70,14 @@ import {
 } from '@/lib/document-stages'
 import { prisma } from '@/lib/db'
 import { requirementsFor } from '@/lib/document-requirements'
-import { heldFromDocInstances, humanKey } from '@/lib/document-request'
+import { heldFromDocInstances } from '@/lib/document-request'
 import {
   typesFor,
   typeByKey,
   backingFinding,
   editionFinding,
   labelFor,
+  humanKey,
   type BackingDocument,
   type BackingFinding,
   type DefinedType,

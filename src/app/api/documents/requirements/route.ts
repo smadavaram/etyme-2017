@@ -11,8 +11,7 @@ import {
   type LineRequirements,
   type OwedBy,
 } from '@/lib/document-requirements'
-import { labelFor } from '@/lib/document-type'
-import { sayType } from '@/lib/document-request'
+import { labelFor, sayType } from '@/lib/document-type'
 
 /**
  * What this order asks for on paper, and who may change it.
@@ -385,14 +384,21 @@ export async function POST(request: NextRequest) {
 
   // ── A type nobody defined is still said in words ──
   //
-  // `labelFor` falls through to the key, so a client that added
-  // FURNACE_SAFETY_INDUCTION to its order read exactly that back — here,
-  // on the placement checklist, and in a refusal a hiring manager was
-  // meant to act on. The key is for the machine; the sentence is the
-  // product. It is humanized and the reply says once that nobody here
-  // has defined it, rather than pretending it is a known type.
+  // A client that added FURNACE_SAFETY_INDUCTION to its order read
+  // exactly that back — here, on the placement checklist, and inside a
+  // refusal a hiring manager was meant to act on. The key is for the
+  // machine; the sentence is the product.
+  //
+  // Two different facts, and `sayType` is the one door that separates
+  // them: what to CALL it, and whether anybody has DEFINED it. This
+  // route detected the second from the first — an undefined type was one
+  // whose label came back equal to its key — and that stopped being true
+  // the hour `labelFor` learned to humanize its own fallback. The name
+  // went on rendering correctly and the caveat silently stopped
+  // printing, with every test still green, because a test that checks
+  // the rendered name cannot see a caveat that is missing.
   const defined = await dictionary(target.buyerCompanyId)
-  const said = sayType(key, (k) => labelFor(k, defined))
+  const said = sayType(key, defined)
   const label = said.label
   const undefinedTypeSays = said.known
     ? ''

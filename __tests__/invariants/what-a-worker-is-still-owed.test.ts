@@ -17,12 +17,11 @@ import { describe, it, expect } from 'vitest'
 import {
   outstandingItems,
   myPapers,
-  humanKey,
-  sayType,
   type RequiredItem,
   type HeldKeyRecord,
 } from '@/lib/document-request'
 import { supplierCoverGate, nameCredential } from '@/lib/document-stages'
+import { humanKey, sayType, labelFor, type DefinedType } from '@/lib/document-type'
 
 const TODAY = new Date('2026-09-21T00:00:00Z')
 
@@ -192,18 +191,40 @@ describe('a document type nobody defined is still said in words, never in the ke
   })
 
   it('says the type is not defined, so the reply can tell the client once rather than pretending it knows it', () => {
-    const said = sayType('FURNACE_SAFETY_INDUCTION', (k) => k)
+    const said = sayType('FURNACE_SAFETY_INDUCTION')
     expect(said.known).toBe(false)
     expect(said.label).toBe('furnace safety induction')
   })
 
   it('keeps the dictionary’s own label where there is one, and says so', () => {
-    const said = sayType('I9_EVERIFY', () => 'I-9 and E-Verify')
-    expect(said).toEqual({ label: 'I-9 and E-Verify', known: true })
+    expect(sayType('I9_EVERIFY')).toEqual({ label: 'I-9 and E-Verify', known: true })
   })
 
   it('never invents a definition — an unknown key gets its own words and nothing more', () => {
     expect(humanKey('DRUG_SCREEN_10_PANEL')).toBe('drug screen 10 panel')
+  })
+
+  // ── The sentence that would have caught the swap ──
+  //
+  // For a day this file detected an undefined type by the label coming
+  // back equal to the key. The hour `labelFor` learned to humanize its
+  // own fallback, that became false everywhere: the name went on
+  // rendering correctly, the "nobody here has defined this" caveat
+  // silently stopped printing, and every test stayed green — because
+  // every test was checking the rendered name. A test that pins the
+  // spelling cannot see a caveat that is missing.
+  it('a type nobody defined still says so, whoever humanized its name', () => {
+    // The label and the key are now different for an unknown type, which
+    // is exactly the condition the old detection read as "known".
+    expect(labelFor('FURNACE_SAFETY_INDUCTION')).not.toBe('FURNACE_SAFETY_INDUCTION')
+    expect(sayType('FURNACE_SAFETY_INDUCTION').known).toBe(false)
+  })
+
+  it('reads a type the company defined itself as known, by the label that company typed', () => {
+    const mine: DefinedType[] = [
+      { key: 'FURNACE_SAFETY_INDUCTION', label: 'Hot floor induction', purpose: 'COMPLIANCE' } as DefinedType,
+    ]
+    expect(sayType('FURNACE_SAFETY_INDUCTION', mine)).toEqual({ label: 'Hot floor induction', known: true })
   })
 })
 

@@ -575,41 +575,14 @@ export function outstandingItems(input: {
   )
 }
 
-/**
- * A document type nobody defined, said in words rather than in the key
- * somebody typed.
- *
- * `labelFor` falls through to the key when neither the shipped
- * dictionary nor the company's own names it, so a client that added
- * FURNACE_SAFETY_INDUCTION to its order read exactly that back — on the
- * confirmation, on the placement checklist, and in a refusal a hiring
- * manager was meant to act on. The key is for the machine; the sentence
- * is the product.
- *
- * It does not invent a definition. It renders the key as the words
- * inside it, and the caller says once that nobody has defined the type.
- */
-export function humanKey(key: string): string {
-  const words = key.trim().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').toLowerCase()
-  return words || key
-}
-
-/**
- * What to call a document type on a screen.
- *
- * The dictionary first — the company's own, then the shipped defaults —
- * and the humanized key where neither knows it. `defined` is whatever
- * `labelFor` was going to be given; `known` is false where the answer is
- * the key humanized, so a caller can say so once and not once per row.
- */
-export function sayType(
-  key: string,
-  labelOf: (k: string) => string
-): { label: string; known: boolean } {
-  const said = labelOf(key)
-  if (said && said !== key) return { label: said, known: true }
-  return { label: humanKey(key), known: false }
-}
+// `humanKey` and `sayType` used to live here. They moved to
+// `lib/document-type` in the architect's 204b4e02, which is the right
+// home: a type key is the dictionary's vocabulary, and the copy here
+// detected an undefined type by the label coming back equal to the key
+// — which stopped being true the hour `labelFor` learned to humanize.
+// A test that only checks the rendered name cannot see that, which is
+// why `document-type.test.ts` and this file's own sentence both pin the
+// caveat rather than the spelling.
 
 /**
  * Everything asked of one person, in one list.
