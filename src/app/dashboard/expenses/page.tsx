@@ -148,11 +148,20 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch active sell contracts on mount
+  // The firm's OWN live placements, and not whatever this seat can read.
+  //
+  // The same shape of bug as the Generate invoice picker, found while
+  // fixing that one: `/api/contracts` honors a program office's seat and
+  // answers with the client's book, while `POST /api/expenses` scopes
+  // the contract to `caller.company` and refuses everything on it —
+  // "Sell contract not found or does not belong to your company", said
+  // about a row the screen had just offered. An expense is recorded
+  // against a placement the firm itself holds, so the picker asks for
+  // that book by name.
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch('/api/contracts?side=sell&state=IN_PROGRESS&limit=100')
+        const res = await fetch('/api/contracts?side=sell&state=IN_PROGRESS&limit=100&books=own')
         if (res.ok) {
           const body = await res.json()
           const raw = body.data?.contracts ?? []

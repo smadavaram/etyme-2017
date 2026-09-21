@@ -199,6 +199,62 @@ function nameOr(firm: FirmRef | null | undefined, fallback: string): string {
   return firm?.name ?? fallback
 }
 
+// ── Who may raise a bill under a deal ─────────────────────────────────
+
+/** Whether this firm may bill under this deal, and why not where it may not. */
+export interface BillingRight {
+  ok: boolean
+  /** One sentence, for a refusal or for an empty picker. */
+  says: string
+}
+
+/**
+ * Only the supplier bills.
+ *
+ * `invoices.issue` says somebody may raise a bill at their own company.
+ * It says nothing about whose deal this is, and an engagement id is not
+ * a secret — so without this a firm could raise an invoice in another
+ * supplier's name, addressed to that supplier's client.
+ *
+ * ── Why it is here and not only in the route ─────────────────────────
+ *
+ * The release walk of 2026-09-21 opened Invoices from a program
+ * office's seat, pressed "+ Generate", and was offered an engagement
+ * the route then refused: *"This engagement is Arcadia Tech Group's to
+ * bill, not Aptiva Workforce's."* The sentence was right. The picker
+ * was the bug — it listed every engagement the seat could read rather
+ * than every engagement the seat could bill, which are different
+ * questions on any screen where somebody sits at another company's
+ * desk.
+ *
+ * A button that the route will refuse is a button that lies, and a
+ * picker is a row of them. So the list and the gate read one function:
+ * the only way they cannot disagree.
+ */
+export function mayBillUnder(
+  parties: InvoiceParties,
+  biller: FirmRef | null | undefined
+): BillingRight {
+  if (!biller?.id) {
+    return { ok: false, says: 'Nobody is signed in at a company, so there is nothing to bill from.' }
+  }
+  if (!parties.vendor || !parties.client) {
+    return {
+      ok: false,
+      says: `Nothing says who this deal is between, so nobody can bill under it. ${parties.says}`,
+    }
+  }
+  if (parties.vendor.id !== biller.id) {
+    return {
+      ok: false,
+      says:
+        `This engagement is ${parties.vendor.name ?? 'another firm'}'s to bill, ` +
+        `not ${biller.name ? `${biller.name}'s` : 'yours'}.`,
+    }
+  }
+  return { ok: true, says: `${biller.name ?? 'You'} bills under this engagement.` }
+}
+
 /**
  * Whose receivable or payable this is, for a reader.
  *

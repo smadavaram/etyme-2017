@@ -6,6 +6,28 @@ import { assessRateChange } from '@/lib/contract-rate'
 import { prisma } from '@/lib/db'
 
 /**
+ * Who may read what a placement has been priced at.
+ *
+ * `rates.read` — "Price is procurement's to set and to amend", the
+ * permission already declared for exactly this and, until now, gating
+ * nothing. The desks that hold it are the desks whose job is price:
+ * account management, contract management, accounts receivable, a
+ * client's procurement lead and program manager, an MSP's supplier
+ * manager and AP clerk, and every owner.
+ *
+ * ── Why this appears now ─────────────────────────────────────────────
+ *
+ * The release walk of 2026-09-21 signed in as a systems integrator's
+ * Validation Engineer — a seat holding `assignments.read` and
+ * `timesheets.read` and nothing else — and got 200 from this route:
+ * every sell rate on every placement the firm has. The same seat was
+ * correctly refused on consultants, invoices, purchase orders and
+ * profitability. A rate is the one number in this business nobody
+ * shares sideways, and this was the last door left open on it.
+ */
+const TO_READ = 'rates.read'
+
+/**
  * GET /api/rate-history
  *
  * BUILD.md §6.9: "Rate changes must be versioned or the timesheet valuation
@@ -24,6 +46,26 @@ import { prisma } from '@/lib/db'
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  // A person reads their own rate movements without holding the price
+  // desk's permission — a consultant paid a share of a number may see
+  // that number, on their own assignment only — and both branches below
+  // scope a consultant seat to their own rows. Everybody else is asking
+  // about somebody else's price.
+  if (!hasPermission(caller.permissions, TO_READ) && !isConsultantSeat(caller)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            'What a placement has been priced at is the price desk\'s to read — ' +
+            'account management, contracts, procurement or the desk that bills. ' +
+            'This seat is none of them. Ask whoever runs access here if that is your job.',
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const url = request.nextUrl
   const contractId = url.searchParams.get('contractId')
@@ -47,7 +89,17 @@ export async function GET(request: NextRequest) {
     const canSeeBuy = !own && hasPermission(caller.permissions, 'consultants.cost')
     const [sellContracts, buyContracts] = await Promise.all([
       prisma.sellContract.findMany({
-        where: own ? { personId: caller.person.id } : { companyId },
+        // Their own assignment, at the firm whose bench they are on —
+        // and not every rung of their chain.
+        //
+        // `{ personId }` alone was every sell contract in the world with
+        // their name on it. Helena Marsh is sold by CloudEPA at $112 and
+        // by Computer Systems at $138, so her own rate history listed
+        // both and the subtraction is her employer's entire markup on
+        // her. CLAUDE.md: the chain descends and never ascends. Adding
+        // the company scopes it to the leg that actually pays her, which
+        // is the one "their own assignment" ever meant.
+        where: own ? { personId: caller.person.id, companyId } : { companyId },
         select: {
           id: true,
           person: { select: { name: true } },

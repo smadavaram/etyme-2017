@@ -16,7 +16,134 @@ import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { policyOf, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
-import { partiesOf } from '@/lib/money/invoice-parties'
+import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
+
+/**
+ * GET /api/invoices/generate — the engagements this firm may bill.
+ *
+ * ── Why a route and not a filter on the screen ───────────────────────
+ *
+ * The release walk of 2026-09-21, from the seat Cavanaugh Glassworks
+ * granted Aptiva Workforce: Invoices → "+ Generate" → a picker holding
+ * an engagement that belongs to a supplier, and a 403 on pressing the
+ * button — *"This engagement is Arcadia Tech Group's to bill, not
+ * Aptiva Workforce's."*
+ *
+ * The sentence was right and the picker was the bug. It was built out
+ * of `/api/contracts?side=sell`, which answers "what may this seat
+ * read" — and a program office sitting at a client's desk may read the
+ * client's whole book. Reading is not billing. So a picker built on a
+ * read permission offers an office every one of its client's suppliers'
+ * deals and lets it press the button on each.
+ *
+ * This answers the question the button actually asks. It runs the same
+ * `mayBillUnder` the POST refuses on, over the same `partiesOf`
+ * cascade, so the list and the gate are one rule with one spelling.
+ *
+ * An empty answer is an answer, and it carries a sentence: a firm with
+ * nothing to bill is told why rather than offered a control that will
+ * refuse it.
+ */
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  if (!hasPermission(caller.permissions, 'invoices.issue')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            'Raising a bill is the desk that invoices the customer — accounts receivable, ' +
+            'or finance at a smaller firm. This seat is not it.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // Every engagement with a live line on it that names this firm
+  // somewhere. Narrowed to what may actually be billed below; asking
+  // the database for "ours" first keeps the page off every engagement
+  // in the world.
+  const engagements = await prisma.engagement.findMany({
+    where: {
+      sellContracts: { some: { state: 'IN_PROGRESS' } },
+      OR: [
+        { msa: { vendorId: caller.company!.id } },
+        { workOrders: { some: { issuedToId: caller.company!.id } } },
+        { sellContracts: { some: { companyId: caller.company!.id } } },
+      ],
+    },
+    select: {
+      id: true,
+      title: true,
+      msa: {
+        select: {
+          vendorId: true, clientId: true,
+          vendor: { select: { id: true, name: true } },
+          client: { select: { id: true, name: true } },
+        },
+      },
+      workOrders: {
+        select: {
+          number: true,
+          issuedById: true, issuedToId: true,
+          issuedBy: { select: { id: true, name: true } },
+          issuedTo: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 1,
+      },
+      sellContracts: {
+        where: { state: 'IN_PROGRESS' },
+        select: {
+          companyId: true, clientCompanyId: true,
+          company: { select: { id: true, name: true } },
+          clientCompany: { select: { id: true, name: true } },
+          endClientCompany: { select: { id: true, name: true } },
+        },
+      },
+    },
+    take: 200,
+  })
+
+  const billable = []
+  for (const e of engagements) {
+    const parties = partiesOf({
+      agreement: e.msa,
+      order: e.workOrders[0] ?? null,
+      lines: e.sellContracts,
+    })
+    if (!mayBillUnder(parties, caller.company).ok) continue
+
+    billable.push({
+      id: e.id,
+      title: e.title,
+      // Who the bill would go to. The end client where a line names one
+      // — that is the firm on the paper — and the customer on the line
+      // otherwise. Never a guess: null where nothing says, and the
+      // screen prints the engagement's own name alone.
+      clientName:
+        e.sellContracts[0]?.endClientCompany?.name ??
+        parties.client?.name ??
+        null,
+      says: parties.says,
+    })
+  }
+
+  return NextResponse.json({
+    data: {
+      engagements: billable,
+      says:
+        billable.length > 0
+          ? null
+          : `${caller.company!.name} has no engagement it can bill right now. A bill is ` +
+            'raised by the firm that supplied the people, against its own live placements — ' +
+            'so there is nothing here until this firm has one.',
+    },
+  })
+}
 
 /**
  * POST /api/invoices/generate
@@ -128,14 +255,15 @@ export async function POST(request: NextRequest) {
   })
 
   const { vendor: billedBy_, client: billedTo } = parties
-  if (!billedBy_ || !billedTo || billedBy_.id !== caller.company!.id) {
+  // The same function the picker filters on, so a list that offers an
+  // engagement and a route that refuses it cannot disagree.
+  const right = mayBillUnder(parties, caller.company)
+  if (!right.ok || !billedBy_ || !billedTo) {
     return NextResponse.json(
       {
         error: {
           code: 'NOT_THE_SUPPLIER',
-          message: billedBy_
-            ? `This engagement is ${billedBy_.name ?? 'another firm'}'s to bill, not ${caller.company!.name}'s.`
-            : `Nothing says who this engagement is between, so nobody can bill under it. ${parties.says}`,
+          message: right.says,
         },
       },
       { status: 403 }

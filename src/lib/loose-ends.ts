@@ -54,6 +54,24 @@ export interface Subject {
   amountCents?: number
   /** When the thing that should have been linked happened. */
   since: Date
+  /**
+   * The placement the gap sits on — a sell contract id.
+   *
+   * Not the same as `id`. A missing pay rate is a fact about a BUY
+   * contract and that is the record named in the sentence, but there is
+   * no page in this product that opens a buy contract on its own: a
+   * placement is a sell contract with its buy leg beside it
+   * (`/dashboard/placements/[id]`), and that is the screen somebody
+   * actually wants. So the subject carries both — the record it is
+   * about, and the door onto it.
+   */
+  placementId?: string
+  /**
+   * The role a submission was for. The submissions list filters on it,
+   * which is the nearest thing to landing on the row for a record with
+   * no page of its own.
+   */
+  requirementId?: string
 }
 
 export interface LooseEnd {
@@ -87,6 +105,40 @@ export function ageIn(days: Date, now: Date): number {
   return Math.max(0, Math.floor((now.getTime() - days.getTime()) / DAY))
 }
 
+// ── Where a gap is actually fixed ─────────────────────────────────────
+//
+// Every one of these links used to point at a page that does not exist.
+// `/dashboard/contracts/<id>`, `/dashboard/timesheets/<id>` and
+// `/dashboard/submissions/<id>` were all written as if a list page
+// implied a detail page under it, and none of those three folders has
+// ever held an `[id]` route. So the one screen in the product whose
+// whole job is "here is what is unfinished, go and finish it" answered
+// "404 — This page could not be found" on six of its seven kinds.
+//
+// It was invisible for the same reason it was easy to write: an href is
+// a string, and nothing in a string says whether anything is on the
+// other end of it. `every-fix-it-link-opens.test.ts` reads the route
+// tree and now does.
+//
+// The rule these two helpers hold: **never build a link out of an id
+// unless a route exists that takes that id.** Where one does not, fall
+// back to the list — a list the person must scan is a worse answer than
+// landing on the row, and an infinitely better one than a dead end.
+
+/**
+ * The placement a gap sits on.
+ *
+ * `/dashboard/placements/[id]` takes a SELL contract id and is the only
+ * page in the product that opens one placement: the person, the client,
+ * both legs of the contract, the paperwork and the hours. A buy-side
+ * gap therefore opens the sell line it funds, not itself.
+ */
+function placementHref(s: Subject, side: 'sell' | 'buy'): string {
+  return s.placementId
+    ? `/dashboard/placements/${s.placementId}`
+    : `/dashboard/contracts?side=${side}`
+}
+
 // ── What each kind of gap actually is ─────────────────────────────────
 
 const RULES: Record<
@@ -103,25 +155,25 @@ const RULES: Record<
     says: (s) =>
       `${s.label} is billed${s.client ? ` to ${s.client}` : ''} and nothing on record says what they cost.`,
     fix: 'Raise the buy contract and set the pay rate. Until then this placement has no margin, not a perfect one.',
-    href: (s) => `/dashboard/contracts/${s.id}`,
+    href: (s) => placementHref(s, 'sell'),
   },
   NO_PAY_RATE: {
     severity: 'MISSTATES_MARGIN',
     says: (s) => `${s.label} has a buy contract with no pay rate on it.`,
     fix: 'Set the rate that was agreed. A zero reads as free labour and makes the margin look perfect.',
-    href: (s) => `/dashboard/contracts/${s.id}`,
+    href: (s) => placementHref(s, 'buy'),
   },
   NO_PROJECT_ORDER: {
     severity: 'BREAKS_REPORTING',
     says: (s) => `${s.label} is not attached to any project order, so nothing it earns reaches a report.`,
     fix: 'Attach it to the project it belongs to, or let one be opened for it.',
-    href: (s) => `/dashboard/contracts/${s.id}`,
+    href: (s) => placementHref(s, 'sell'),
   },
   BUY_WITHOUT_ORDER: {
     severity: 'BREAKS_REPORTING',
     says: (s) => `${s.label} pays somebody against no project order, so the cost lands nowhere.`,
     fix: 'Attach it to the same order as the sell contract it backs.',
-    href: (s) => `/dashboard/contracts/${s.id}`,
+    href: (s) => placementHref(s, 'buy'),
   },
   ORDER_WITHOUT_COST: {
     severity: 'MISSTATES_MARGIN',
@@ -134,13 +186,25 @@ const RULES: Record<
     says: (s) =>
       `${s.label} — the client approved these hours and the employer never accepted them, so they are billed and not costed.`,
     fix: 'Accept the hours for pay, or say why they are not being paid.',
-    href: (s) => `/dashboard/timesheets/${s.id}`,
+    // The list, not the week. Accepting hours for pay happens on the
+    // timesheets list and nowhere else, and that page reads no filter
+    // out of its URL today — so there is no honest way to land on the
+    // row. The sentence above names the person and the dates, which is
+    // what somebody scans for. Asked of etyme-demand: a `?id=` or
+    // `?status=` the list honors, and this link points at the row.
+    href: () => '/dashboard/timesheets',
   },
   AWARDED_NO_CONTRACT: {
     severity: 'BREAKS_REPORTING',
     says: (s) => `${s.label} was awarded and no contract was ever raised.`,
     fix: 'Raise the contract, or reverse the award if the placement did not happen.',
-    href: (s) => `/dashboard/submissions/${s.id}`,
+    // A submission has no page of its own; the list filters by the role
+    // it was for, which is one row for most requirements and a short
+    // list for the rest.
+    href: (s) =>
+      s.requirementId
+        ? `/dashboard/submissions?requirementId=${s.requirementId}`
+        : '/dashboard/submissions',
   },
 }
 

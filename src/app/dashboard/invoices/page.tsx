@@ -9,6 +9,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { openingSide, counterpartyOf, counterpartyHeading } from '@/lib/money/invoice-parties'
+import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, OWN, type Books } from '@/lib/money/books-view'
 
 /**
  * Invoices working surface — the Operate section.
@@ -162,7 +163,8 @@ function agingColor(bucket: string): string {
 interface EngagementOption {
   id: string
   title: string
-  clientName: string
+  /** Who the bill would go to. Null where nothing on the paper says. */
+  clientName: string | null
 }
 
 function GenerateInvoiceModal({
@@ -174,35 +176,38 @@ function GenerateInvoiceModal({
 }) {
   const [engagements, setEngagements] = useState<EngagementOption[]>([])
   const [loadingEngagements, setLoadingEngagements] = useState(true)
+  /** Why there is nothing to bill, where there is nothing to bill. */
+  const [nothingToBill, setNothingToBill] = useState<string | null>(null)
   const [engagementId, setEngagementId] = useState('')
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch active sell contracts to extract engagement options
+  // What this firm may bill — asked of the route that will refuse it.
+  //
+  // This was built out of `/api/contracts?side=sell`, which answers
+  // "what may this seat read". A program office sitting at a client's
+  // desk may read the client's whole book, so the picker offered it
+  // every one of that client's suppliers' engagements and the button
+  // answered 403: "This engagement is Arcadia Tech Group's to bill, not
+  // Aptiva Workforce's." The sentence was right; offering the row was
+  // the bug. Reading is not billing, and a picker is a row of buttons.
   useEffect(() => {
     setLoadingEngagements(true)
-    fetch('/api/contracts?side=sell&state=IN_PROGRESS&limit=100')
-      .then((r) => r.json())
-      .then((body) => {
-        const contracts = body.data?.contracts ?? []
-        // Extract unique engagements from contracts
-        const seen = new Map<string, EngagementOption>()
-        for (const c of contracts) {
-          if (c.engagement?.id && !seen.has(c.engagement.id)) {
-            seen.set(c.engagement.id, {
-              id: c.engagement.id,
-              title: c.engagement.title,
-              clientName: c.endClientCompany?.name ?? c.clientCompany?.name ?? 'Unknown',
-            })
-          }
+    fetch('/api/invoices/generate')
+      .then(async (r) => {
+        const body = await r.json()
+        if (!r.ok) {
+          setNothingToBill(body.error?.message ?? 'This desk cannot raise a bill.')
+          return
         }
-        const list = Array.from(seen.values())
+        const list: EngagementOption[] = body.data?.engagements ?? []
         setEngagements(list)
+        setNothingToBill(list.length === 0 ? body.data?.says ?? null : null)
         if (list.length === 1) setEngagementId(list[0].id)
       })
-      .catch(() => {})
+      .catch(() => setNothingToBill('The list of engagements could not be read. Try again.'))
       .finally(() => setLoadingEngagements(false))
   }, [])
 
@@ -279,28 +284,32 @@ function GenerateInvoiceModal({
                 <option value="">Select engagement…</option>
                 {engagements.map((eng) => (
                   <option key={eng.id} value={eng.id}>
-                    {eng.title} — {eng.clientName}
+                    {eng.clientName ? `${eng.title} — ${eng.clientName}` : eng.title}
                   </option>
                 ))}
               </select>
             ) : (
-              <div>
-                <p className="text-[11px] text-etyme-faint mb-1">
-                  No active engagements found. Enter an engagement ID directly.
-                </p>
-                <input
-                  type="text"
-                  required
-                  value={engagementId}
-                  onChange={(e) => setEngagementId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                  placeholder="Engagement ID"
-                />
-              </div>
+              // Nothing to bill is an answer, and it is a sentence.
+              //
+              // This used to be a text box asking a human to type an
+              // engagement id — a database identifier, offered to
+              // somebody who has never seen one, as the way out of an
+              // empty list. Nobody types an id, and the one thing they
+              // could have typed was the id of a deal the route would
+              // have refused anyway.
+              <p className="text-[13px] text-etyme-muted">
+                {nothingToBill ??
+                  'There is no engagement here to bill. A bill is raised by the firm that ' +
+                    'supplied the people, against its own live placements.'}
+              </p>
             )}
           </div>
 
+          {/* Dates and a description of what the button does, only where
+              there is a button. A dialog that says there is nothing to
+              bill and then asks for a period reads as a bug. */}
+          {(engagements.length > 0 || loadingEngagements) && (
+          <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Period start</label>
@@ -330,14 +339,23 @@ function GenerateInvoiceModal({
             Generates an invoice from all approved, uninvoiced timesheets under the selected engagement.
             {periodStart || periodEnd ? ' Filtered to the specified period.' : ' Covers all available periods.'}
           </div>
+          </>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary">
-              Cancel
+              {engagements.length === 0 && !loadingEngagements ? 'Close' : 'Cancel'}
             </button>
-            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
-              {submitting ? 'Generating…' : 'Generate invoice'}
-            </button>
+            {/* No button where there is nothing it could do. */}
+            {(engagements.length > 0 || loadingEngagements) && (
+              <button
+                type="submit"
+                disabled={submitting || !engagementId}
+                className="btn-primary disabled:opacity-50"
+              >
+                {submitting ? 'Generating…' : 'Generate invoice'}
+              </button>
+            )}
           </div>
         </form>
       </div>
@@ -862,7 +880,19 @@ export default function InvoicesPage() {
   const [reading, setReading] = useState<
     { company: string; inASeat: boolean; says: string | null } | null
   >(null)
-  const [ownBooks, setOwnBooks] = useState(false)
+  // Whose book, read out of the URL and written back into it.
+  //
+  // It was React state only: `?books=own` did nothing on load, a
+  // refresh put the reader back on the client's book without saying so,
+  // and nobody could link a colleague to what they were reading. These
+  // are two companies' money, so a view that does not survive a reload
+  // is a total somebody will read as the wrong firm's.
+  const whoseBooks = booksFrom(searchParams.get(BOOKS_PARAM))
+  const ownBooks = whoseBooks === 'own'
+  const readInstead = useCallback(
+    (next: Books) => router.replace(booksHref('/dashboard/invoices', next) as any, { scroll: false }),
+    [router]
+  )
 
   // Open the generate modal when navigated with ?new=1
   useEffect(() => {
@@ -878,7 +908,7 @@ export default function InvoicesPage() {
     try {
       const params = new URLSearchParams({ limit: '50' })
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
-      if (ownBooks) params.set('books', 'own')
+      if (ownBooks) params.set(BOOKS_PARAM, OWN)
 
       const res = await fetch(`/api/invoices?${params}`)
       if (!res.ok) {
@@ -1176,10 +1206,10 @@ export default function InvoicesPage() {
           </p>
           <button
             type="button"
-            onClick={() => setOwnBooks(!ownBooks)}
+            onClick={() => readInstead(otherBooks(whoseBooks))}
             className="mt-2 text-[13px] text-etyme-action underline"
           >
-            {ownBooks ? 'Read the program you run' : 'Read our own books instead'}
+            {switchLabel(whoseBooks, 'books')}
           </button>
         </div>
       )}

@@ -3,8 +3,10 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { lineName, lineDoes, type LineSide, type OrderSide } from '@/lib/order-naming'
+import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
 
 /**
  * What has been authorized, and how much of it is left.
@@ -92,6 +94,8 @@ function Consumed({ po }: { po: PO }) {
 }
 
 export default function PurchaseOrdersPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [pos, setPos] = useState<PO[] | null>(null)
   const [canRaise, setCanRaise] = useState(false)
   const [needsAttention, setNeedsAttention] = useState(0)
@@ -106,7 +110,14 @@ export default function PurchaseOrdersPage() {
   const [reading, setReading] = useState<
     { company: string; inASeat: boolean; says: string | null } | null
   >(null)
-  const [ownBooks, setOwnBooks] = useState(false)
+  // Whose orders, read out of the URL and written back into it, so a
+  // refresh keeps the choice and a link says what it opens.
+  const books = booksFrom(searchParams.get(BOOKS_PARAM))
+  const ownBooks = books === 'own'
+  const readInstead = useCallback(
+    (next: Books) => router.replace(booksHref('/dashboard/purchase-orders', next) as any, { scroll: false }),
+    [router]
+  )
 
   const [number, setNumber] = useState('')
   const [supplierId, setSupplierId] = useState('')
@@ -116,7 +127,7 @@ export default function PurchaseOrdersPage() {
   const load = useCallback(async () => {
     setError(null)
     try {
-      const res = await fetch(ownBooks ? '/api/purchase-orders?books=own' : '/api/purchase-orders')
+      const res = await fetch(booksHref('/api/purchase-orders', books))
       const body = await readJson(res)
       setPos(body.data.orders)
       setCanRaise(body.data.canRaise)
@@ -125,7 +136,7 @@ export default function PurchaseOrdersPage() {
     } catch (e: any) {
       setError(e.message)
     }
-  }, [ownBooks])
+  }, [books])
 
   useEffect(() => { load() }, [load])
 
@@ -199,10 +210,10 @@ export default function PurchaseOrdersPage() {
           </p>
           <button
             type="button"
-            onClick={() => setOwnBooks(!ownBooks)}
+            onClick={() => readInstead(otherBooks(books))}
             className="mt-2 text-[13px] text-etyme-action underline"
           >
-            {ownBooks ? 'Read the program you run' : 'Read our own orders instead'}
+            {switchLabel(books, 'orders')}
           </button>
         </div>
       )}

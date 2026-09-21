@@ -3,9 +3,11 @@
 import { readJson } from '@/lib/read-response'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { compact, amount } from '@/lib/money-display'
 import { CHECK_NAME, CHECK_PHRASE, type MatchCode } from '@/lib/three-way-match'
+import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
 
 /**
  * Accounts payable.
@@ -51,6 +53,8 @@ const STATE_CHIP: Record<string, { chip: string; word: string }> = {
 }
 
 export default function ApPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,12 +62,19 @@ export default function ApPage() {
   const [currency, setCurrency] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('chains')
   // A program office running somebody else's program opens on that
-  // program's payables. This is the way back to its own.
-  const [ownBooks, setOwnBooks] = useState(false)
+  // program's payables. This is the way back to its own — and it is in
+  // the URL, not in React state, so a
+  // refresh keeps the choice and a link says what it opens.
+  const books = booksFrom(searchParams.get(BOOKS_PARAM))
+  const ownBooks = books === 'own'
+  const readInstead = useCallback(
+    (next: Books) => router.replace(booksHref('/dashboard/ap', next) as any, { scroll: false }),
+    [router]
+  )
 
   useEffect(() => {
     setLoading(true)
-    fetch(ownBooks ? '/api/ap?books=own' : '/api/ap')
+    fetch(booksHref('/api/ap', books))
       .then(async (r) => {
         const b = await r.json()
         if (r.status === 403) {
@@ -76,7 +87,7 @@ export default function ApPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [ownBooks])
+  }, [books])
 
   const book = useMemo(
     () => data?.currencies?.find((c: any) => c.currency === currency) ?? null,
@@ -98,8 +109,8 @@ export default function ApPage() {
 
       <SeatBanner
         reading={data?.reading}
-        ownBooks={ownBooks}
-        onSwitch={setOwnBooks}
+        books={books}
+        onSwitch={readInstead}
       />
 
       {denied && (
@@ -1034,15 +1045,15 @@ function PaymentRuns({ currency }: { currency: string }) {
  */
 function SeatBanner({
   reading,
-  ownBooks,
+  books,
   onSwitch,
 }: {
   reading?: { company: string; inASeat: boolean; says: string | null } | null
-  ownBooks: boolean
-  onSwitch: (own: boolean) => void
+  books: Books
+  onSwitch: (next: Books) => void
 }) {
   if (!reading) return null
-  if (!reading.inASeat && !ownBooks) return null
+  if (!reading.inASeat && books !== 'own') return null
 
   return (
     <div className="panel">
@@ -1053,10 +1064,10 @@ function SeatBanner({
       </p>
       <button
         type="button"
-        onClick={() => onSwitch(!ownBooks)}
+        onClick={() => onSwitch(otherBooks(books))}
         className="mt-2 text-[13px] text-etyme-action underline"
       >
-        {ownBooks ? 'Read the program you run' : 'Read our own books instead'}
+        {switchLabel(books, 'books')}
       </button>
     </div>
   )

@@ -64,6 +64,11 @@ export async function GET(request: NextRequest) {
       id: s.id,
       label: s.person.name,
       client: s.clientCompany.name,
+      // The door onto the gap, which is never the buy contract's own id:
+      // `/dashboard/placements/[id]` takes the sell line and shows both
+      // legs. Carried on every subject so a buy-side finding names the
+      // buy record in its sentence and still opens somewhere real.
+      placementId: s.id,
       // What is billed against the gap, roughly, so the list sorts by
       // consequence rather than by row count.
       amountCents: Math.round(s.billRate * 160),
@@ -208,6 +213,9 @@ export async function GET(request: NextRequest) {
           label: `${a.person.name} on ${a.requirement.title}`,
           amountCents: a.rate ? Math.round(a.rate * 160) : 0,
           since: a.decidedAt ?? a.submittedAt,
+          // The submissions list filters by role, which is the nearest
+          // thing to the row for a record with no page of its own.
+          requirementId: a.requirementId,
         },
         now
       )
