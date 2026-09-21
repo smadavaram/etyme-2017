@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { invoiceScope } from '@/lib/resolve-client-company'
+import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
 import { dueOn, resolveBillingTerms } from '@/lib/billing-cascade'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
-import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
+import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * POST /api/invoices/:id/received
@@ -55,8 +56,16 @@ export async function POST(
   // agreement alone, and an agreement is optional now, so an invoice with
   // none behind it would 404 for the two firms whose bill it is. Their
   // helper is demand's; the substitution is here, in money's own routes.
-  const mayLook = invoiceScope(caller)
-  const scope = mayLook ? invoiceBetween(caller.company!.id) : null
+  // And whose book it is. A program office sitting at the client's desk
+  // opens the client's supplier invoices, under the client's own role,
+  // with the read logged against the seat (`lib/money/seated-books`).
+  // Unseated, this is `invoiceBetween(caller.company.id)` exactly as
+  // before.
+  const whose = caller.company ? await booksFor(caller, request) : null
+  if (whose?.error) return whose.error
+  const reading = whose?.books ?? null
+  const mayLook = reading ? invoiceScope(caller) : null
+  const scope = mayLook && reading ? reading.invoiceWhere : null
   const invoice = scope
     ? await prisma.invoice.findFirst({
         where: { id, ...scope },
@@ -104,6 +113,8 @@ export async function POST(
       { status: 404 }
     )
   }
+
+  if (reading) noteMoneyRead(reading, `Invoice ${invoice.number} opened to record receipt`)
 
   const body = await request.json().catch(() => ({}))
   const when = body?.receivedAt ? new Date(body.receivedAt) : new Date()
@@ -155,7 +166,10 @@ export async function POST(
   const customer =
     partiesOf({ agreement: msa, order: invoice.workOrder }).client?.name ?? 'the client'
   const terms = resolveBillingTerms({
-    company: { name: caller.company?.name ?? 'this company' },
+    // The firm whose book this is. In a seat that is the client, and
+    // printing the office's name in the client's own terms sentence
+    // would read as the office having agreed them.
+    company: { name: reading?.companyName ?? caller.company?.name ?? 'this company' },
     // Null where the engagement has no agreement behind it. The cascade
     // then runs order → contract → default and says which answered.
     agreement: msa
@@ -210,7 +224,10 @@ export async function POST(
       // inventory has a second test that fails on a rung nothing writes.
       // The two changes have to land in one commit, and no single agent
       // may make both. Asked for: `INVOICE_RECEIPT_RECORDED`,
-      // ATTRIBUTED, basis RULE. The write goes in beside it.
+      // ATTRIBUTED, basis RULE. The write goes in beside it — and where
+      // a program office said it from a client's seat, the reason is
+      // `moneyTrailFor(reading.seat, …)`, which names the desk the
+      // client granted rather than the firm that typed it.
 
       return row
     })

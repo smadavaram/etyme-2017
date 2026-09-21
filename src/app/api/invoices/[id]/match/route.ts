@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { invoiceBetween } from '@/lib/money/invoice-parties'
 import { getCallerContext } from '@/lib/api-context'
 import { matchInvoice } from '@/lib/invoice-match'
 import { invoiceScope } from '@/lib/resolve-client-company'
+import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
 
 /**
@@ -33,8 +33,16 @@ export async function GET(
   // agreement alone, and an agreement is optional now, so an invoice with
   // none behind it would 404 for the two firms whose bill it is. Their
   // helper is demand's; the substitution is here, in money's own routes.
-  const mayLook = invoiceScope(caller)
-  const scope = mayLook ? invoiceBetween(caller.company!.id) : null
+  // And whose book it is. A program office sitting at the client's desk
+  // opens the client's supplier invoices, under the client's own role,
+  // with the read logged against the seat (`lib/money/seated-books`).
+  // Unseated, this is `invoiceBetween(caller.company.id)` exactly as
+  // before.
+  const whose = caller.company ? await booksFor(caller, request) : null
+  if (whose?.error) return whose.error
+  const reading = whose?.books ?? null
+  const mayLook = reading ? invoiceScope(caller) : null
+  const scope = mayLook && reading ? reading.invoiceWhere : null
   const mine = scope
     ? await prisma.invoice.findFirst({ where: { id, ...scope }, select: { id: true } })
     : null
@@ -45,6 +53,8 @@ export async function GET(
       { status: 404 }
     )
   }
+
+  if (reading) noteMoneyRead(reading, `Three-way match read on invoice ${id}`)
 
   const result = await matchInvoice(id)
 

@@ -260,7 +260,12 @@ describe('The refusal describes the reader it is actually in front of', () => {
     for (const r of READS) {
       const src = readFileSync(join(process.cwd(), r), 'utf8')
       expect(src, `${r} does not use the shared desk gate`).toContain("@/lib/money/desks")
-      expect(src, `${r} gates a read on margin again`).toContain('mayOpen(caller.permissions')
+      // `caller.permissions`, or the permissions of the desk a client
+      // granted a program office sitting in its seat — which are a
+      // client's own role's and are therefore the same table.
+      expect(src, `${r} gates a read on margin again`).toMatch(
+        /mayOpen\((?:caller|reading\.caller)\.permissions/
+      )
     }
   })
 })

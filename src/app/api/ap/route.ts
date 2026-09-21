@@ -15,6 +15,7 @@ import {
 import { customerOf, loadBook } from '../ar/book'
 import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-parties'
 import { supplierInvoicesOwed, type SupplierInvoiceRow } from '@/lib/money/supplier-invoices'
+import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
 
 /**
  * GET /api/ap — how long money takes to travel, and who is paying for the wait.
@@ -107,17 +108,32 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (!mayOpen(caller.permissions, PAYABLE)) {
-    return NextResponse.json(refusal(PAYABLE), { status: 403 })
+  // Whose payables these are. A program office running a client's
+  // program has no contract with it and never will, so scoping by
+  // `caller.company.id` served an MSP's AP clerk the MSP's own bills
+  // while they sat at the client's desk. One door: `lib/money/seated-books`.
+  const { books: reading, error: booksError } = await booksFor(caller, request)
+  if (booksError) return booksError
+
+  // The desk the CLIENT granted decides, where one was granted. An
+  // office's own permissions stop at its own door.
+  if (!mayOpen(reading.caller.permissions, PAYABLE)) {
+    return NextResponse.json(
+      reading.seat
+        ? { error: { code: 'FORBIDDEN', message: seatedRefusal(reading.seat, PAYABLE.title) } }
+        : refusal(PAYABLE),
+      { status: 403 }
+    )
   }
 
   // Cost beside revenue for the same piece of work is margin, whoever is
   // reading. The page opens without it; the chains and the comparison do
   // not.
-  const bothSides = maySeeBothSides(caller.permissions)
+  const bothSides = maySeeBothSides(reading.caller.permissions)
 
-  const companyId = caller.company.id
-  const usName = caller.company.name
+  const companyId = reading.companyId
+  const usName = reading.companyName
+  noteMoneyRead(reading, 'Accounts payable read')
   const now = new Date()
   const gaps: string[] = []
 
@@ -163,6 +179,7 @@ export async function GET(request: NextRequest) {
           asOf: now.toISOString(),
           source: 'SUPPLIER_INVOICES',
           us: usName,
+          reading: { company: usName, inASeat: reading.seated, says: reading.says },
           gaps,
           supplierInvoices: {
             says: owed.says,
@@ -187,6 +204,7 @@ export async function GET(request: NextRequest) {
         asOf: now.toISOString(),
         source: 'NONE',
         us: usName,
+        reading: { company: usName, inASeat: reading.seated, says: reading.says },
         gaps,
         supplierInvoices: { says: owed.says, openCount: 0, books: [], rows: [] },
         note:
@@ -530,6 +548,7 @@ export async function GET(request: NextRequest) {
       asOf: now.toISOString(),
       source: 'BILLS_AND_INVOICES',
       us: usName,
+      reading: { company: usName, inASeat: reading.seated, says: reading.says },
       // So the screen says "withheld" where the chains would be rather
       // than "nothing could be tied together", which is a different
       // sentence and would be a lie.

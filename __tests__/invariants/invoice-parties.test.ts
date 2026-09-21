@@ -188,6 +188,14 @@ describe('an invoice with no agreement is still found by the scope that lists it
     // it — and it answers the second through the agreement alone, which
     // would 404 an invoice with none behind it for the two firms whose
     // bill it is. The gate stays; the cascade decides ours.
+    //
+    // The cascade now arrives through one door rather than four copies of
+    // one expression: `reading.invoiceWhere` is `invoiceBetween` of
+    // whichever book the reader is on — their own firm's, or a client's
+    // where a program office is sitting at its desk
+    // (`lib/money/seated-books`, and the unit test there holds the
+    // equality). What this refuses, still, is a route deciding for itself
+    // which invoices are ours.
     for (const file of [
       'src/app/api/invoices/[id]/route.ts',
       'src/app/api/invoices/[id]/received/route.ts',
@@ -196,7 +204,13 @@ describe('an invoice with no agreement is still found by the scope that lists it
     ]) {
       const src = readFileSync(join(process.cwd(), file), 'utf8')
       expect(src, `${file} should keep the consultant gate`).toContain('invoiceScope(caller)')
-      expect(src, `${file} should scope through the cascade`).toContain(
+      expect(src, `${file} should scope through the one door`).toContain('reading.invoiceWhere')
+      expect(src, `${file} should ask whose book this is`).toContain(
+        "from '@/lib/money/seated-books'"
+      )
+      // And never a company id straight off the caller, which is the
+      // line that served a program office its own books.
+      expect(src, `${file} scopes an invoice read by the caller's own firm`).not.toContain(
         'invoiceBetween(caller.company!.id)'
       )
     }

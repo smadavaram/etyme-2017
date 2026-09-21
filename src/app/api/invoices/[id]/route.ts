@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { invoiceScope } from '@/lib/resolve-client-company'
+import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
 import { matchInvoice, recompute } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
 import { discountDeadline, discountOn, dueOn, ladderFor, resolveBillingTerms } from '@/lib/billing-cascade'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
-import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
+import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
  * GET /api/invoices/:id
@@ -39,8 +40,16 @@ export async function GET(
   // agreement alone, and an agreement is optional now, so an invoice with
   // none behind it would 404 for the two firms whose bill it is. Their
   // helper is demand's; the substitution is here, in money's own routes.
-  const mayLook = invoiceScope(caller)
-  const scope = mayLook ? invoiceBetween(caller.company!.id) : null
+  // And whose book it is. A program office sitting at the client's desk
+  // opens the client's supplier invoices, under the client's own role,
+  // with the read logged against the seat (`lib/money/seated-books`).
+  // Unseated, this is `invoiceBetween(caller.company.id)` exactly as
+  // before.
+  const whose = caller.company ? await booksFor(caller, request) : null
+  if (whose?.error) return whose.error
+  const reading = whose?.books ?? null
+  const mayLook = reading ? invoiceScope(caller) : null
+  const scope = mayLook && reading ? reading.invoiceWhere : null
   if (!scope) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
@@ -132,6 +141,8 @@ export async function GET(
       { status: 404 }
     )
   }
+
+  if (reading) noteMoneyRead(reading, `Invoice ${invoice.number} read`)
 
   const match = await matchInvoice(id)
   const payments = await prisma.payment.findMany({

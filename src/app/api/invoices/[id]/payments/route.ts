@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { invoiceScope } from '@/lib/resolve-client-company'
+import { booksFor, noteMoneyRead, seatMayPay, moneyTrailFor } from '@/lib/money/seated-books'
 import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 
 /**
@@ -25,9 +26,27 @@ export async function POST(
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  if (!hasPermission(caller.permissions, 'payments.record')) {
+  // Whose money is moving, and by whose rule.
+  //
+  // A program office in a client's seat pays from the CLIENT's book with
+  // the CLIENT's role. Its own clerks may pay its own suppliers all day;
+  // inside somebody else's program it may pay nothing at all unless that
+  // client seated it at a desk that pays, and the refusal says so in the
+  // client's own words rather than naming a permission.
+  const whose = caller.company ? await booksFor(caller, request) : null
+  if (whose?.error) return whose.error
+  const reading = whose?.books ?? null
+
+  if (!hasPermission(reading?.caller.permissions ?? caller.permissions, 'payments.record')) {
+    const seated = reading?.seat ? seatMayPay(reading.seat) : null
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires payments.record permission' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            seated && !seated.ok ? seated.says : 'Requires payments.record permission',
+        },
+      },
       { status: 403 }
     )
   }
@@ -56,8 +75,10 @@ export async function POST(
   // agreement alone, and an agreement is optional now, so an invoice with
   // none behind it would 404 for the two firms whose bill it is. Their
   // helper is demand's; the substitution is here, in money's own routes.
-  const mayLook = invoiceScope(caller)
-  const scope = mayLook ? invoiceBetween(caller.company!.id) : null
+  // And whose book it is — resolved above, before the permission gate,
+  // because in a seat the gate itself is the client's.
+  const mayLook = reading ? invoiceScope(caller) : null
+  const scope = mayLook && reading ? reading.invoiceWhere : null
   const invoice = scope
     ? await prisma.invoice.findFirst({
         where: { id, ...scope },
@@ -124,7 +145,12 @@ export async function POST(
   }
 
   const { vendor: billedBy, client: billedTo } = parties
-  const payer = caller.company!.id === billedTo.id
+  // The side is the BOOK's, not the reader's. A program office recording
+  // a payment for the client it runs is on the paying side, because the
+  // client is — and reading the office's own id here would have made
+  // every seated payment look like a supplier recording a receipt, which
+  // skips the control that an invoice must clear the match first.
+  const payer = (reading?.companyId ?? caller.company!.id) === billedTo.id
   if (payer && invoice.status === 'ISSUED') {
     return NextResponse.json(
       {
@@ -211,13 +237,23 @@ export async function POST(
 
       await tx.automationLog.create({
         data: {
-          companyId: caller.company!.id,
+          companyId: reading?.companyId ?? caller.company!.id,
           action: 'PAYMENT_RECORDED',
           summary: `Payment of $${amount.toFixed(2)} recorded on invoice ${invoice.number}. ${newStatus === 'PAID' ? 'Invoice now fully paid.' : `$${(totalNum - newPaid).toFixed(2)} outstanding.`}`,
-          reason: `Recorded by ${caller.person.name} at ${caller.company!.name}, ${payer ? 'paying' : 'receiving'}`,
+          reason:
+            moneyTrailFor(reading?.seat ?? null, `Payment of ${amount} recorded`) ??
+            `Recorded by ${caller.person.name} at ${caller.company!.name}, ${payer ? 'paying' : 'receiving'}`,
           payload: {
             paymentId: payment.id,
-            recordedBy: { personId: caller.person.id, companyId: caller.company!.id, side: payer ? 'PAYER' : 'SUPPLIER' },
+            recordedBy: {
+              personId: caller.person.id,
+              companyId: caller.company!.id,
+              side: payer ? 'PAYER' : 'SUPPLIER',
+              // Null on all but a seated payment, and the one fact a
+              // client asking "on whose authority" needs.
+              seatId: reading?.seat?.id ?? null,
+              onBooksOf: reading?.companyId ?? caller.company!.id,
+            },
             invoiceId: id,
             invoiceNumber: invoice.number,
             amount,

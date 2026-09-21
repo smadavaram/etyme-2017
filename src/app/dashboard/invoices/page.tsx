@@ -857,6 +857,12 @@ export default function InvoicesPage() {
 
   const [bookCurrency, setBookCurrency] = useState<string | null>(null)
   const [submittingBulk, setSubmittingBulk] = useState(false)
+  // Whose invoice book is on screen, and the way back to the reader's
+  // own where a program office is sitting at a client's desk.
+  const [reading, setReading] = useState<
+    { company: string; inASeat: boolean; says: string | null } | null
+  >(null)
+  const [ownBooks, setOwnBooks] = useState(false)
 
   // Open the generate modal when navigated with ?new=1
   useEffect(() => {
@@ -872,6 +878,7 @@ export default function InvoicesPage() {
     try {
       const params = new URLSearchParams({ limit: '50' })
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (ownBooks) params.set('books', 'own')
 
       const res = await fetch(`/api/invoices?${params}`)
       if (!res.ok) {
@@ -882,13 +889,14 @@ export default function InvoicesPage() {
       const body = await res.json()
       setInvoices(body.data?.invoices ?? [])
       setSummary(body.data?.summary ?? null)
+      setReading(body.data?.reading ?? null)
     } catch (err: any) {
       setError(err.message)
       setInvoices([])
     } finally {
       setLoading(false)
     }
-  }, [statusFilter])
+  }, [statusFilter, ownBooks])
 
   useEffect(() => {
     fetchInvoices()
@@ -1156,6 +1164,25 @@ export default function InvoicesPage() {
           </button>
         )}
       </div>
+
+      {/* Whose book. Silent for a firm reading its own, which is
+          everybody but a program office in a client's seat. */}
+      {(reading?.inASeat || ownBooks) && (
+        <div className="panel mb-4">
+          <p className="text-[13px] text-etyme-ink">
+            {reading?.inASeat
+              ? reading.says
+              : 'Your own invoice book. The program you run is on this same page.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setOwnBooks(!ownBooks)}
+            className="mt-2 text-[13px] text-etyme-action underline"
+          >
+            {ownBooks ? 'Read the program you run' : 'Read our own books instead'}
+          </button>
+        </div>
+      )}
 
       {/* Which side of the ledger, and which currency. Never summed. */}
       {summary && (summary.payable.length > 0 || summary.receivable.length + summary.payable.length > 1) && (

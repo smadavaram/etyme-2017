@@ -10,6 +10,7 @@ import { cyclesFor } from '@/lib/cycle-kinds'
 import { loadContractHolidays } from '@/lib/holidays'
 import { getTemplatePack } from '@/lib/template-packs'
 import { payerScope, sellContractScope, buyContractScope } from '@/lib/resolve-client-company'
+import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { canAttachPoToBuyContract } from '@/lib/purchase-order'
@@ -593,6 +594,16 @@ export async function GET(request: NextRequest) {
   // pay of anybody beside them is theirs to read.
   const isConsultant = isConsultantSeat(caller)
 
+  // Whose lines these are. A program office in a client's seat reads the
+  // client's placements at the rung the client pays — never the rung
+  // below, where a sub-vendor's rate is the prime's margin and nobody
+  // else's business (`lib/chain-top`, `lib/money/seated-books`).
+  // Unseated, this is `payerScope` and `buyContractScope` exactly as
+  // before.
+  const whose = caller.company ? await booksFor(caller, request) : null
+  if (whose?.error) return whose.error
+  const reading = whose?.books ?? null
+
   const url = request.nextUrl
   const side = url.searchParams.get('side') ?? 'sell'
   const companyId = url.searchParams.get('companyId')
@@ -604,7 +615,7 @@ export async function GET(request: NextRequest) {
   if (side === 'buy') {
     // Scoped to the caller's company — a missing ?companyId= used to mean
     // "every buy contract in the database".
-    const scope = buyContractScope(caller)
+    const scope = reading?.buyContractWhere ?? buyContractScope(caller)
     if (!scope) {
       return NextResponse.json(
         { error: { code: 'FORBIDDEN', message: 'No company context' } },
@@ -718,7 +729,7 @@ export async function GET(request: NextRequest) {
   // Default: sell contracts — scoped to whichever side of the placement
   // the caller sits on. A client sees contracts at their sites; a vendor
   // sees the ones they sell.
-  const scope = payerScope(caller)
+  const scope = reading?.sellContractWhere ?? payerScope(caller)
   if (!scope) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'No company context' } },
@@ -732,10 +743,19 @@ export async function GET(request: NextRequest) {
   // Which side of the contract this caller owns. A buyer's structure is
   // their departments; a supplier's is their accounts, and they are
   // different companies' org charts.
-  const wall = await accountFilterFor(
-    caller,
-    caller.company?.kind === 'CLIENT' ? 'orgUnitId' : 'deliveryUnitId'
-  )
+  // Inside a seat the units are the client's and are already in the
+  // scope above, resolved against the CLIENT's org chart. Running the
+  // caller's own wall over them would read one firm's unit id against
+  // another firm's tree, which matches nothing and reads as an empty
+  // program.
+  const wall = reading?.seated
+    ? { where: {}, units: null, note: null }
+    : await accountFilterFor(
+        caller,
+        caller.company?.kind === 'CLIENT' ? 'orgUnitId' : 'deliveryUnitId'
+      )
+
+  if (reading) noteMoneyRead(reading, 'Placements read')
 
   // AND, never a spread. Both fragments express themselves as OR, and
   // spreading one over the other keeps only the second — which is how a
@@ -841,6 +861,9 @@ export async function GET(request: NextRequest) {
         rolloff: c.rolloff ? { id: c.rolloff.id, endDate: c.rolloff.endDate.toISOString(), outcome: c.rolloff.outcome } : null,
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      reading: reading
+        ? { company: reading.companyName, inASeat: reading.seated, says: reading.says }
+        : null,
       // Said plainly when somebody is seeing less than the whole firm. A
       // total that silently excludes half the company is worse than a
       // smaller one somebody understands.

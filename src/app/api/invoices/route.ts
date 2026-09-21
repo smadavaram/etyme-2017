@@ -8,6 +8,7 @@ import {
   type ArInvoice, type Bucket, type Direction,
 } from '@/lib/ar-ageing'
 import { directionFrom, invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
+import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
 
 /**
  * GET /api/invoices
@@ -93,9 +94,27 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  if (!hasPermission(caller.permissions, 'invoices.read')) {
+  // Whose invoice book this is. A program office in a client's seat
+  // reads the CLIENT's book — the supplier invoices addressed to the
+  // client — and not the office's own. One door, `lib/money/seated-books`,
+  // with `invoiceBetween` still answering the unseated case unchanged.
+  let reading = null
+  if (caller.company) {
+    const whose = await booksFor(caller, request)
+    if (whose.error) return whose.error
+    reading = whose.books
+  }
+
+  if (!hasPermission(reading?.caller.permissions ?? caller.permissions, 'invoices.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires invoices.read permission' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: reading?.seat
+            ? seatedRefusal(reading.seat, 'The invoice book')
+            : 'Requires invoices.read permission',
+        },
+      },
       { status: 403 }
     )
   }
@@ -108,7 +127,8 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
 
-  const companyId = caller.company?.id ?? null
+  const companyId = reading?.companyId ?? caller.company?.id ?? null
+  if (reading) noteMoneyRead(reading, 'Invoice book read')
 
   const where: any = {}
 
@@ -369,6 +389,12 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       invoices: classified,
+      // Whose book this is, said on the page. A program office reading a
+      // client's invoices from the client's own desk must never be left
+      // to assume the rows are its own.
+      reading: reading
+        ? { company: reading.companyName, inASeat: reading.seated, says: reading.says }
+        : null,
       summary: {
         /** Every amount in this response is in minor units — cents, pence. */
         units: 'MINOR',

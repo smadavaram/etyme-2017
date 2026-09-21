@@ -15,6 +15,9 @@ import {
   matchVendorBill, exceptionQueue, CHECK_PHRASE,
   type AcceptedWork, type PurchaseOrderFacts,
 } from '@/lib/three-way-match'
+import {
+  booksFor, noteMoneyRead, seatMayPay, seatedRefusal, moneyTrailFor,
+} from '@/lib/money/seated-books'
 
 /**
  * Supplier bills — the record without which nothing on the AP screen exists.
@@ -73,14 +76,28 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (!mayRecordSupplierInvoice(caller.permissions)) {
+  // Whose payables this bill lands on. An MSP's AP clerk keying in an
+  // off-platform supplier's invoice for the client it runs is recording
+  // it on the CLIENT's books, under the client's own desk — never on the
+  // office's, where nobody owes it.
+  const { books: reading, error: booksError } = await booksFor(caller, request)
+  if (booksError) return booksError
+
+  if (!mayRecordSupplierInvoice(reading.caller.permissions)) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: NOT_THE_PAYING_DESK } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: reading.seat
+            ? seatedRefusal(reading.seat, 'Recording what a supplier has invoiced')
+            : NOT_THE_PAYING_DESK,
+        },
+      },
       { status: 403 }
     )
   }
 
-  const companyId = caller.company.id
+  const companyId = reading.companyId
   const body = await request.json().catch(() => ({}))
 
   const vendorCompanyId = String(body.vendorCompanyId ?? '')
@@ -556,9 +573,25 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
-  if (!hasPermission(caller.permissions, 'payments.record')) {
+  // Whose bill is being paid, and by whose rule. A seat holds one of the
+  // CLIENT's roles, so an office whose own clerks pay suppliers all day
+  // may not pay a penny inside somebody else's program unless that
+  // client seated it at a desk that pays.
+  const { books: reading, error: booksError } = await booksFor(caller, request)
+  if (booksError) return booksError
+
+  if (!hasPermission(reading.caller.permissions, 'payments.record')) {
+    const seated = reading.seat ? seatMayPay(reading.seat) : null
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Recording a payment needs payments.record' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            seated && !seated.ok
+              ? seated.says
+              : 'Recording a payment needs payments.record',
+        },
+      },
       { status: 403 }
     )
   }
@@ -576,7 +609,7 @@ export async function PATCH(request: NextRequest) {
     where: { id },
     select: { id: true, companyId: true, currency: true, totalCents: true, paidCents: true, receivedAt: true },
   })
-  if (!bill || bill.companyId !== caller.company.id) {
+  if (!bill || bill.companyId !== reading.companyId) {
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such bill here' } }, { status: 404 })
   }
 
@@ -629,9 +662,45 @@ export async function PATCH(request: NextRequest) {
     select: { id: true, paidCents: true, totalCents: true, paidAt: true, status: true },
   })
 
+  // A payment made in a seat is on the record under the seat.
+  //
+  // Only in a seat: a firm paying its own bill from its own desk writes
+  // what it always wrote, because a log line that appeared on every
+  // payment the day this shipped would be a change to everybody's books
+  // to fix one party's gap. What a client needs afterwards is the
+  // answer to "who moved our money, and on whose authority", and that
+  // is exactly the case this branch covers.
+  if (reading.seat) {
+    await prisma.automationLog.create({
+      data: {
+        companyId: reading.companyId,
+        // `PAYMENT_RECORDED` rather than a name of its own: the act is
+        // exactly what the invoice route logs under it — a person
+        // recorded that money moved — and a new action name needs a rung
+        // in `src/lib/autonomy.ts`, which is the architect's file and
+        // cannot land in this commit.
+        action: 'PAYMENT_RECORDED',
+        summary:
+          `${settled ? 'Paid in full' : 'Part paid'}: bill ${bill.id} on ` +
+          `${reading.companyName}'s books.`,
+        reason: moneyTrailFor(reading.seat, 'Supplier bill paid') ?? '',
+        payload: {
+          vendorBillId: bill.id,
+          paidCents: addCents,
+          settled,
+          seatId: reading.seat.id,
+          officeCompanyId: reading.seat.officeCompany.id,
+          byPersonId: caller.person.id,
+        },
+        reversible: false,
+      },
+    })
+  }
+
   return NextResponse.json({
     data: {
       bill: updated,
+      readInASeat: reading.seated,
       note: settled
         ? 'Paid in full. This is the date every float figure on this supplier counts to.'
         : 'Part paid. No paid date is set — the obligation is still open, and dating it ' +
@@ -671,11 +740,24 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
-  if (!mayOpen(caller.permissions, PAYABLE)) {
-    return NextResponse.json(refusal(PAYABLE), { status: 403 })
+  // Whose bills these are: the client's where a program office is
+  // sitting at its desk, its own everywhere else. One door,
+  // `lib/money/seated-books`, and `payerScope` still answers the
+  // unseated case exactly as it did.
+  const { books: reading, error: booksError } = await booksFor(caller, request)
+  if (booksError) return booksError
+
+  if (!mayOpen(reading.caller.permissions, PAYABLE)) {
+    return NextResponse.json(
+      reading.seat
+        ? { error: { code: 'FORBIDDEN', message: seatedRefusal(reading.seat, 'The exception queue') } }
+        : refusal(PAYABLE),
+      { status: 403 }
+    )
   }
 
-  const companyId = caller.company.id
+  const companyId = reading.companyId
+  noteMoneyRead(reading, 'Supplier bill exceptions read')
   const now = new Date()
 
   const bills = await prisma.vendorBill.findMany({
@@ -793,6 +875,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       asOf: now.toISOString(),
+      reading: { company: reading.companyName, inASeat: reading.seated, says: reading.says },
       open: items.length,
       exceptions: queue.map((e) => ({
         id: e.id,

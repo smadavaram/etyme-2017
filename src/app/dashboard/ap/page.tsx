@@ -57,9 +57,13 @@ export default function ApPage() {
   const [denied, setDenied] = useState<string | null>(null)
   const [currency, setCurrency] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('chains')
+  // A program office running somebody else's program opens on that
+  // program's payables. This is the way back to its own.
+  const [ownBooks, setOwnBooks] = useState(false)
 
   useEffect(() => {
-    fetch('/api/ap')
+    setLoading(true)
+    fetch(ownBooks ? '/api/ap?books=own' : '/api/ap')
       .then(async (r) => {
         const b = await r.json()
         if (r.status === 403) {
@@ -72,7 +76,7 @@ export default function ApPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [ownBooks])
 
   const book = useMemo(
     () => data?.currencies?.find((c: any) => c.currency === currency) ?? null,
@@ -91,6 +95,12 @@ export default function ApPage() {
           working-capital problem, and only laying the hops end to end produces it.
         </p>
       </header>
+
+      <SeatBanner
+        reading={data?.reading}
+        ownBooks={ownBooks}
+        onSwitch={setOwnBooks}
+      />
 
       {denied && (
         <div className="panel">
@@ -1010,6 +1020,44 @@ function PaymentRuns({ currency }: { currency: string }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Whose book is on the screen.
+ *
+ * A program office in a client's seat is reading somebody else's money.
+ * Saying so is not decoration: the figures here are the ones a person
+ * acts on, and a payables total that silently belongs to another firm is
+ * the plausible wrong number this codebase exists to refuse.
+ */
+function SeatBanner({
+  reading,
+  ownBooks,
+  onSwitch,
+}: {
+  reading?: { company: string; inASeat: boolean; says: string | null } | null
+  ownBooks: boolean
+  onSwitch: (own: boolean) => void
+}) {
+  if (!reading) return null
+  if (!reading.inASeat && !ownBooks) return null
+
+  return (
+    <div className="panel">
+      <p className="text-[13px] text-etyme-ink">
+        {reading.inASeat
+          ? reading.says
+          : `Your own books. The program you run is on this page without the switch below.`}
+      </p>
+      <button
+        type="button"
+        onClick={() => onSwitch(!ownBooks)}
+        className="mt-2 text-[13px] text-etyme-action underline"
+      >
+        {ownBooks ? 'Read the program you run' : 'Read our own books instead'}
+      </button>
     </div>
   )
 }

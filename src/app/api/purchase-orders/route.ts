@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { Prisma } from '@prisma/client'
 import { getCallerContext } from '@/lib/api-context'
+import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { emit } from '@/lib/events'
@@ -45,14 +46,29 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
-  if (!hasPermission(caller.permissions, 'invoices.read')) {
+  // Whose orders these are. A program office in a client's seat reads
+  // the CLIENT's orders — the ones it raised to its suppliers — because
+  // that is what running a program means; its own are at `books=own`.
+  // One door: `lib/money/seated-books`.
+  const { books: reading, error: booksError } = await booksFor(caller, request)
+  if (booksError) return booksError
+
+  if (!hasPermission(reading.caller.permissions, 'invoices.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Seeing purchase orders needs invoices.read' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: reading.seat
+            ? seatedRefusal(reading.seat, 'Purchase orders')
+            : 'Seeing purchase orders needs invoices.read',
+        },
+      },
       { status: 403 }
     )
   }
 
-  const companyId = caller.company.id
+  const companyId = reading.companyId
+  noteMoneyRead(reading, 'Purchase orders read')
   const side = request.nextUrl.searchParams.get('side') // issued | received
 
   const pos = await prisma.workOrder.findMany({
@@ -230,7 +246,9 @@ export async function GET(request: NextRequest) {
       // The address is the client's word and stays; each row carries
       // its own `noun` for whoever is reading it.
       orders: rows,
-      canRaise: hasPermission(caller.permissions, 'invoices.issue'),
+      reading: { company: reading.companyName, inASeat: reading.seated, says: reading.says },
+      // In a seat, what may be raised is the client's desk's to say.
+      canRaise: hasPermission(reading.caller.permissions, 'invoices.issue'),
       // What actually needs somebody's attention. A PO quietly running out
       // stops invoices from matching, and the first anybody hears is a
       // supplier chasing payment.

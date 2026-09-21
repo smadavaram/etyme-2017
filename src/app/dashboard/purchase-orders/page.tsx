@@ -101,6 +101,13 @@ export default function PurchaseOrdersPage() {
   const [adding, setAdding] = useState(false)
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
 
+  // Whose orders are on screen. A program office in a client's seat
+  // reads the client's, and the switch is how it gets back to its own.
+  const [reading, setReading] = useState<
+    { company: string; inASeat: boolean; says: string | null } | null
+  >(null)
+  const [ownBooks, setOwnBooks] = useState(false)
+
   const [number, setNumber] = useState('')
   const [supplierId, setSupplierId] = useState('')
   const [amount, setAmount] = useState('')
@@ -109,15 +116,16 @@ export default function PurchaseOrdersPage() {
   const load = useCallback(async () => {
     setError(null)
     try {
-      const res = await fetch('/api/purchase-orders')
+      const res = await fetch(ownBooks ? '/api/purchase-orders?books=own' : '/api/purchase-orders')
       const body = await readJson(res)
       setPos(body.data.orders)
       setCanRaise(body.data.canRaise)
       setNeedsAttention(body.data.needsAttention)
+      setReading(body.data.reading ?? null)
     } catch (e: any) {
       setError(e.message)
     }
-  }, [])
+  }, [ownBooks])
 
   useEffect(() => { load() }, [load])
 
@@ -181,6 +189,23 @@ export default function PurchaseOrdersPage() {
           </button>
         )}
       </div>
+
+      {(reading?.inASeat || ownBooks) && (
+        <div className="panel mb-5">
+          <p className="text-[13px] text-etyme-ink">
+            {reading?.inASeat
+              ? reading.says
+              : 'Your own orders. The program you run is on this same page.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setOwnBooks(!ownBooks)}
+            className="mt-2 text-[13px] text-etyme-action underline"
+          >
+            {ownBooks ? 'Read the program you run' : 'Read our own orders instead'}
+          </button>
+        </div>
+      )}
 
       {flash && (
         <div className="mb-5 rounded-md border border-etyme-verified/30 bg-etyme-verified/5 p-3">
