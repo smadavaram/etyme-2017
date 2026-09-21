@@ -4,7 +4,7 @@ import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { hasPermission } from '@/lib/permissions'
 import { packetByKey, startPacketFor } from '@/lib/packets'
-import { startPreview, hrNotice, type StartPreview } from '@/lib/contract-clearance'
+import { startPreview, hrNotice, lineExtras, type StartPreview } from '@/lib/contract-clearance'
 
 /**
  * Asking for the papers when somebody is placed, not when somebody tries
@@ -46,6 +46,75 @@ import { startPreview, hrNotice, type StartPreview } from '@/lib/contract-cleara
  * has a chase that owns it (`api/cron/watch`, `lib/cover-gap`) and
  * asking here as well would ask the same broker twice.
  */
+
+/**
+ * The two things the verdict now says out loud, on the record.
+ *
+ * Until today an unsigned non-disclosure agreement moved no verdict at
+ * all — it sat as "needed" for ever, chased by nobody, and a system that
+ * lists something and never acts on it is silently permitting it. And a
+ * supplier whose certificate of good standing had lapsed was invisible,
+ * because nothing anywhere refused on a type that shipped saying it
+ * blocks.
+ *
+ * Both are recorded here, where the placement is first looked at, rather
+ * than inside the arithmetic: a verdict is read on every screen that
+ * shows a placement, and a log row written from a read would fire every
+ * time somebody opened a page. This runs once, when the papers are asked
+ * for, which is when a desk is being told.
+ *
+ * Neither row does anything. `GOOD_STANDING_LAPSED` records a refusal
+ * that `supplierCoverGate` has already made; `NDA_UNSIGNED_WARNED`
+ * records a warning that proceeds, with the reason in it. Both are
+ * reversible: the moment the paper arrives the verdict changes on its
+ * own.
+ */
+async function recordWhatIsOutstanding(
+  contract: { id: string; companyId: string; personId: string; person: { name: string }; company: { name: string } | null },
+  preview: StartPreview,
+  clientName: string | null
+): Promise<void> {
+  /** Once per placement per fact. A log that repeats is a log nobody reads. */
+  const alreadySaid = async (action: string): Promise<boolean> =>
+    !!(await prisma.automationLog.findFirst({
+      where: { action, payload: { path: ['contractId'], equals: contract.id } },
+      select: { id: true },
+    }))
+
+  const nda = [...preview.blocking, ...preview.chasing].find((i) => i.key === 'NDA' || i.key === 'NCA')
+  if (nda && !(await alreadySaid('NDA_UNSIGNED_WARNED'))) {
+    await prisma.automationLog.create({
+      data: {
+        companyId: contract.companyId,
+        action: 'NDA_UNSIGNED_WARNED',
+        summary: `${contract.person.name} is due to start${clientName ? ` at ${clientName}` : ''} with ${nda.label} unsigned`,
+        reason:
+          `${nda.label} is ${nda.asked ?? 'required before the first day'} and nobody has signed it. ` +
+          `The start can go ahead with a reason recorded; the signature is still owed.`,
+        payload: { contractId: contract.id, personId: contract.personId, key: nda.key, outcome: preview.outcome },
+        reversible: true,
+      },
+    })
+  }
+
+  const standing = preview.coverOutstanding.find(
+    (c) => c.key === 'GOOD_STANDING' && (c.standing === 'EXPIRED' || c.standing === 'NOT_YET_VALID')
+  )
+  if (standing && !(await alreadySaid('GOOD_STANDING_LAPSED'))) {
+    await prisma.automationLog.create({
+      data: {
+        companyId: contract.companyId,
+        action: 'GOOD_STANDING_LAPSED',
+        summary: `${contract.company?.name ?? 'The supplier'}'s certificate of good standing does not cover today`,
+        reason:
+          `${standing.says} Nobody starts through ${contract.company?.name ?? 'this supplier'} until the state ` +
+          `that registered it says it may trade again.`,
+        payload: { contractId: contract.id, companyId: contract.companyId, key: standing.key, standing: standing.standing },
+        reversible: true,
+      },
+    })
+  }
+}
 
 /** The verdict in the clearance's own words, and what was done about it. */
 export interface ClearanceAskResult {
@@ -120,6 +189,14 @@ export async function previewFor(contractId: string, now = new Date()): Promise<
   // buys from a sub, the end client is the site and the sentence names it.
   const clientName = contract.endClientCompany?.name ?? contract.clientCompany?.name ?? null
 
+  // What THIS line requires, from the order it is on and from the line
+  // itself — the client's own document types included, which is how a
+  // furnace floor induction reaches a placement without a migration.
+  // Spread last on purpose: it carries the firm's whole standing rather
+  // than its insurance alone, and the company dictionaries of both
+  // firms rather than the supplier's alone.
+  const extras = await lineExtras({ sellContractId: contract.id })
+
   const preview = startPreview({
     personName: contract.person.name,
     personVerifications: facts.personVerifications as any,
@@ -133,6 +210,7 @@ export async function previewFor(contractId: string, now = new Date()): Promise<
     role: contract.requirement?.title ?? null,
     documentTypes: facts.documentTypes as any,
     startDate: contract.startDate ?? null,
+    ...extras,
   })
 
   return { contract, preview }
@@ -163,6 +241,8 @@ export async function askForClearance(input: {
   const { contract, preview } = found
   const clientName = contract.endClientCompany?.name ?? contract.clientCompany?.name ?? null
   const roleTitle = contract.requirement?.title ?? null
+
+  await recordWhatIsOutstanding(contract, preview, clientName)
 
   const base = {
     contractId: contract.id,

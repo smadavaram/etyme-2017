@@ -320,7 +320,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
 
   // ── The nightly watch ───────────────────────────────────────────────
 
-  it('the nightly job marks an agreement running out and tells the contracting desk at thirty days', async () => {
+  it('the nightly job marks an agreement running out and tells both signers at thirty days, each in its own words', async () => {
     process.env.CRON_SECRET = 'agreement-test'
     const r = await json(
       await termWatch(
@@ -332,13 +332,22 @@ describe('a master agreement gets a term, a signature and a trail', () => {
     const row = await prisma.masterAgreement.findUniqueOrThrow({ where: { id: it_.msa } })
     expect(row.status).toBe('EXPIRING')
 
-    const note = await prisma.notification.findFirst({
+    // Both signers are told now, each in its own words. The supplier's
+    // letter is the one this sentence has always read; the client's is
+    // the new one, and it carries who is on its sites under the paper.
+    const notes = await prisma.notification.findMany({
       where: { entityId: it_.msa, type: 'CONTRACT' },
       orderBy: { createdAt: 'desc' },
     })
-    expect(note?.title).toContain('runs out in')
-    expect(note?.body).toContain('Start the renewal')
-    expect((note?.data as any)?.milestone).toBe(30)
+    const vendorNote = notes.find((n) => (n.data as any)?.side === 'VENDOR')
+    const clientNote = notes.find((n) => (n.data as any)?.side === 'CLIENT')
+    expect(vendorNote?.title).toContain('runs out in')
+    expect(vendorNote?.body).toContain('Start the renewal')
+    expect((vendorNote?.data as any)?.milestone).toBe(30)
+    expect(vendorNote?.companyId).toBe(co['world-pinnacle'])
+    expect(clientNote?.title).toContain('runs out in')
+    expect(clientNote?.body).toContain('Ask ')
+    expect(clientNote?.companyId).not.toBe(co['world-pinnacle'])
 
     const log = await prisma.automationLog.findFirst({
       where: { companyId: co['world-pinnacle'], action: 'AGREEMENT_TERM_WATCH' },
