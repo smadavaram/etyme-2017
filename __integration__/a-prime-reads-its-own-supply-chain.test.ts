@@ -87,11 +87,68 @@ describe('a prime reads its own supply chain on its own compliance page', () => 
     // The refusal `full-spine` holds is untouched: this is the other
     // door, and it must not become a way round it. A prime's own page
     // carries its supply chain and not its customer's book.
+    //
+    // ── Why this is four assertions and not one ──
+    //
+    // It was `JSON.stringify(body).not.toContain('Harlow Health')`, and
+    // that sentence went from true to false on 2026-09-21 when the page
+    // learned to say what this firm still owes on the lines it is paid
+    // on. Each of those rows names the customer whose order is asking —
+    // and Harlow Health is Computer Systems' OWN customer: it invoices
+    // it, it signed with it, and its own sell line names it. Nothing is
+    // withheld by saying a name to the party that holds the contract.
+    // The rule is the architect's, from 204b4e02: a firm is told the
+    // counterparty above it and never a rung beyond it.
+    //
+    // So the blanket was catching a claim nobody meant — "a prime may
+    // not see its own customer's name anywhere in its own payload" —
+    // rather than the one this file is about, which is that a prime may
+    // not read the client's page. What is genuinely the client's is
+    // named here instead: its rulebook, the decisions taken under it,
+    // and the other suppliers standing on it.
     as(PRIME)
     const { body } = await json(await compliance(req('GET', '/api/compliance')))
     expect(body.data.client.name).toContain('Computer Systems')
-    expect(JSON.stringify(body), 'the client’s name reached the prime’s own page')
+
+    expect(JSON.stringify(body.data.policies), 'the client’s rulebook reached the prime')
       .not.toContain('Harlow Health')
+    expect(JSON.stringify(body.data.recentEvaluations), 'the client’s decisions reached the prime')
+      .not.toContain('Harlow Health')
+    expect(JSON.stringify(body.data.lapsed), 'the client’s blocked suppliers reached the prime')
+      .not.toContain('Harlow Health')
+    // The client is not a firm on the prime's own compliance list. A
+    // supplier's compliance page is about who it PAYS; a customer is not
+    // a counterparty whose cover this firm has any business reading.
+    expect(
+      body.data.verifications.companies.map((f: any) => f.name).join(' '),
+      'the client appeared as a firm on the prime’s own list'
+    ).not.toContain('Harlow Health')
+  })
+
+  it('reads which of its own customers asked for a document, and nothing else of that customer’s page', async () => {
+    // The other half of the same rule, and the reason the blanket above
+    // had to be narrowed rather than the payload trimmed. A prime that
+    // cannot see WHICH customer's order is asking for a certificate
+    // cannot act on the row at all — it has five customers, and "somebody
+    // wants a certificate of good standing" is not something anybody can
+    // ring anybody about.
+    as(PRIME)
+    const { body } = await json(await compliance(req('GET', '/api/compliance')))
+    const owes = body.data.owes ?? []
+    if (owes.length === 0) return
+
+    // Every row is about this firm's own paperwork on its own lines, and
+    // the customer it names is the one it bills directly.
+    for (const row of owes) {
+      expect(['SUPPLIER', 'US', 'WORKER']).toContain(row.owedBy)
+    }
+    const customers: string[] = [...new Set(owes.map((r: any) => r.toName).filter(Boolean))] as string[]
+    for (const name of customers) {
+      const billed = await prisma.sellContract.count({
+        where: { companyId: co.prime, clientCompany: { name } },
+      })
+      expect(billed, `${name} is named on the prime’s page and it does not bill them`).toBeGreaterThan(0)
+    }
   })
 
   it('leaves the client’s own page reading the whole chain, masked at the rung below the one it pays', async () => {

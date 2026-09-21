@@ -121,21 +121,31 @@ function Inner() {
   async function post(payload: Record<string, unknown>) {
     setError(null)
     setSaid(null)
-    const body = await fetch('/api/documents/requirements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...target, ...payload }),
-    }).then(readJson)
-    if (body?.error) {
-      // The refusal is the product. Work authorization that cannot be
-      // waived says so here, in the sentence the route wrote, rather
-      // than as a control that was never offered.
-      setError(body.error.message)
+    try {
+      const body = await fetch('/api/documents/requirements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...target, ...payload }),
+      }).then(readJson)
+      setSaid(body?.data?.says ?? null)
+      await load()
+      return true
+    } catch (e) {
+      // ── The refusal is the product ──
+      //
+      // `readJson` THROWS on anything that is not a 2xx, carrying the
+      // route's own sentence. This used to read `body.error` off a
+      // resolved promise, which never arrived — so waiving I-9 and
+      // E-Verify returned 422 with the best sentence in the whole loop
+      // ("Nobody may agree to work without authorization, however urgent
+      // the start is") and the screen showed nothing at all: the form
+      // stayed open with the reason still typed, and the only trace was
+      // the development overlay, which does not exist in production.
+      //
+      // A refusal nobody is shown is a refusal that did not happen.
+      setError(e instanceof Error ? e.message : 'That did not go through.')
       return false
     }
-    setSaid(body?.data?.says ?? null)
-    await load()
-    return true
   }
 
   if (!target) {
@@ -240,8 +250,9 @@ function Inner() {
       </div>
 
       {error && (
-        <div className="panel p-4 border-etyme-attention">
-          <p className="text-[13px] text-etyme-ink">{error}</p>
+        <div className="panel p-4 border-etyme-attention" role="alert">
+          <p className="lbl text-etyme-attention">Not done</p>
+          <p className="text-[13px] text-etyme-ink mt-1">{error}</p>
         </div>
       )}
       {said && (
@@ -315,6 +326,15 @@ function Inner() {
             read it. A waived item stays on the checklist, marked, rather than disappearing from
             it.
           </p>
+          {/* The refusal again, where the reader is actually looking. A
+              sentence at the top of a page somebody has scrolled past is
+              a sentence nobody reads, and this is the one refusal in the
+              loop that the law rather than a preference is making. */}
+          {error && (
+            <p className="text-[13px] text-etyme-attention mt-2" role="alert">
+              {error}
+            </p>
+          )}
           <div className="flex gap-2 mt-3 flex-wrap">
             <input
               className="flex-1 min-w-[240px] border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised"

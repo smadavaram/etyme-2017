@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
   for (const takeAnswered of [false, true]) {
     for (const r of instances) {
       if (answered.includes(r.status) !== takeAnswered) continue
-      const key = typeKeyForTemplate(r.template.name, named)
+      const key = typeKeyForTemplate(r.template.name, named, { guess: false })
       if (key && !asksByKey[key]) asksByKey[key] = r.id
     }
   }
@@ -310,7 +310,13 @@ function papersAsHeld(
   const out: HeldKeyRecord[] = []
   for (const r of papers) {
     if (r.status !== 'SIGNED' && r.status !== 'UPLOADED') continue
-    const key = typeKeyForTemplate(r.template.name, items)
+    // Never guessed. A paper is credited against a requirement only
+    // where its own name IS that document's name — which it is, because
+    // the request that opened it was named from the item it answers.
+    // Guessing from a word in a title put one uploaded paper on two
+    // rows of a worker's file, one of them reporting a document that
+    // does not exist.
+    const key = typeKeyForTemplate(r.template.name, items, { guess: false })
     if (!key) continue
     const signed =
       r.countersignedAt && r.signedAt
@@ -583,7 +589,9 @@ async function lineOwing(
       // request and not a new one, whatever the template ended up
       // called — `mayAct` is what says "it is already on file", and it
       // has to say it about the row that actually holds the file.
-      const forThis = papers.filter((r) => typeKeyForTemplate(r.template.name, set.items) === key)
+      const forThis = papers.filter(
+        (r) => typeKeyForTemplate(r.template.name, set.items, { guess: false }) === key
+      )
       const answered = forThis.find((r) => r.status === 'SIGNED' || r.status === 'UPLOADED')
       const open = forThis.find((r) => r.status !== 'SIGNED' && r.status !== 'UPLOADED')
       return {

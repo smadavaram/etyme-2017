@@ -19,7 +19,10 @@ import {
   myPapers,
   type RequiredItem,
   type HeldKeyRecord,
+  typeKeyForTemplate,
 } from '@/lib/document-request'
+import { readJson } from '@/lib/read-response'
+import { mayWaive } from '@/lib/document-requirements'
 import { supplierCoverGate, nameCredential } from '@/lib/document-stages'
 import { humanKey, sayType, labelFor, type DefinedType } from '@/lib/document-type'
 
@@ -534,5 +537,113 @@ describe('what a worker reads on a document type her client invented', () => {
       on: TODAY,
     })
     expect(out[0].label).toBe('Hot floor induction')
+  })
+})
+
+// ── A paper answers the requirement it was opened for ─────────────────
+//
+// The release re-walk, 2026-09-21. Helena owed two documents. She sent
+// one — a "Product confidentiality undertaking" — and her page then
+// reported BOTH as sent, including a non-disclosure agreement nobody had
+// ever sent, while still offering to send the one she had. Two rows
+// wrong in opposite directions from one upload, on the page built to be
+// the one honest view a contractor has of her own file.
+//
+// The cause was a pattern matching a concept rather than a name:
+// "confidentiality" counted as an NDA. A compliance record saying a
+// paper arrived when no paper exists is the worst thing this file can
+// produce, and it came from a guess.
+
+describe('a document she never sent is never reported as sent, whatever another document on her page is called', () => {
+  const KNOWN = [
+    { key: 'PRODUCT_CONFIDENTIALITY', label: 'Product confidentiality undertaking' },
+    { key: 'NDA', label: 'Non-disclosure agreement' },
+  ]
+
+  it('reads a paper by its own name, not by a word inside it', () => {
+    expect(typeKeyForTemplate('Product confidentiality undertaking', KNOWN)).toBe('PRODUCT_CONFIDENTIALITY')
+  })
+
+  it('never credits a paper against a requirement it was not opened for, even where a word matches', () => {
+    // The line that asks for an NDA and nothing else. The undertaking she
+    // sent is not that document and must satisfy nothing here.
+    expect(
+      typeKeyForTemplate('Product confidentiality undertaking', [{ key: 'NDA', label: 'Non-disclosure agreement' }], {
+        guess: false,
+      })
+    ).toBeNull()
+  })
+
+  it('stops calling a confidentiality undertaking a non-disclosure agreement, because that is a concept and not a name', () => {
+    expect(typeKeyForTemplate('Product confidentiality undertaking')).toBeNull()
+  })
+
+  it('still reads a paper somebody named their own way where a verdict is being assembled, because that is a different question', () => {
+    expect(typeKeyForTemplate('Mutual NDA — 2026')).toBe('NDA')
+  })
+
+  it('leaves the row she has not sent asking her to send it, and says nothing about a paper that does not exist', () => {
+    const out = outstandingItems({
+      items: [
+        required({ key: 'NDA', label: 'Non-disclosure agreement' }),
+        required({ key: 'PRODUCT_CONFIDENTIALITY', label: 'Product confidentiality undertaking' }),
+      ],
+      // Only the undertaking arrived.
+      held: [held({ key: 'PRODUCT_CONFIDENTIALITY', accepted: false, received: true })],
+      on: TODAY,
+    })
+    const nda = out.find((o) => o.key === 'NDA')!
+    const pcu = out.find((o) => o.key === 'PRODUCT_CONFIDENTIALITY')!
+    expect(nda.state).toBe('MISSING')
+    expect(pcu.state).toBe('AWAITING_REVIEW')
+  })
+
+  it('says on the row itself that a paper arrived, rather than leaving a screen to infer it from having nowhere to send it', () => {
+    const papers = myPapers({
+      myEmail: null,
+      documents: [],
+      packets: [],
+      owed: outstandingItems({
+        items: [
+          required({ key: 'NDA', label: 'Non-disclosure agreement' }),
+          required({ key: 'PRODUCT_CONFIDENTIALITY', label: 'Product confidentiality undertaking' }),
+        ],
+        held: [held({ key: 'PRODUCT_CONFIDENTIALITY', accepted: false, received: true })],
+        on: TODAY,
+      }),
+    })
+    const nda = papers.find((p) => p.documentTypeKey === 'NDA')!
+    const pcu = papers.find((p) => p.documentTypeKey === 'PRODUCT_CONFIDENTIALITY')!
+    // Two states that mean opposite things, and two different signals.
+    expect(nda.received).toBe(false)
+    expect(nda.todo).toBe('upload')
+    expect(pcu.received).toBe(true)
+    expect(pcu.todo).toBeNull()
+  })
+})
+
+describe('a waiver the law refuses is refused on the screen, in the route’s own words', () => {
+  it('hands the route’s own sentence to the page rather than a parser error', async () => {
+    // The defect: the screen read `body.error` off a resolved promise
+    // and `readJson` throws on anything that is not a 2xx. So waiving
+    // I-9 and E-Verify returned 422 with the best sentence in the loop
+    // and the page showed nothing at all — the form stayed open with the
+    // reason still typed, and the only trace was a development overlay
+    // that does not exist in production.
+    const refusal =
+      'I-9 and E-Verify cannot be waived. Nobody may agree to work without authorization, ' +
+      'however urgent the start is. Get it on file, then activate.'
+    const res = new Response(JSON.stringify({ error: { code: 'CANNOT_BE_WAIVED', message: refusal } }), {
+      status: 422,
+      headers: { 'Content-Type': 'application/json' },
+    })
+    await expect(readJson(res)).rejects.toThrow(refusal)
+  })
+
+  it('says what is missing and what to do, never a code', async () => {
+    const verdict = mayWaive('I9_EVERIFY', 'the plant runs its own checks', () => 'I-9 and E-Verify')
+    expect(verdict.ok).toBe(false)
+    expect(verdict.says).toContain('cannot be waived')
+    expect(verdict.says).not.toContain('CANNOT_BE_WAIVED')
   })
 })

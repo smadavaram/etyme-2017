@@ -262,6 +262,17 @@ export interface Paper {
   /** True where somebody accepted its absence, on the record, by name. */
   waived?: boolean
   /**
+   * True where a paper for THIS row actually arrived and nobody has
+   * checked it yet.
+   *
+   * Said rather than inferred, since 2026-09-21. The screen was reading
+   * "sent" off the ABSENCE of somewhere to send it, so "nobody can send
+   * this" and "this has been sent" were the same shape — and a document
+   * nobody had ever sent read as sent. Two states that mean opposite
+   * things must not share a signal.
+   */
+  received?: boolean
+  /**
    * The type key, on an outstanding row. What a page posts to open an
    * ask for it — the document has no request behind it yet, so it has no
    * id of its own to act on.
@@ -758,6 +769,9 @@ export function myPapers(input: {
       link: null,
       stopsWork: o.stopsWork,
       waived: o.state === 'WAIVED',
+      // Only where a paper for this row actually arrived. Never inferred
+      // from the row having nowhere to send it.
+      received: o.state === 'AWAITING_REVIEW',
       documentTypeKey: o.key,
       // Nothing to post against until a request exists, so the page asks
       // for one here and then answers it at /api/documents/:id/upload —
@@ -804,7 +818,13 @@ const NAMED_BY: { key: string; names: RegExp }[] = [
   // never put "master agreement" beside "master contract" — see
   // `order-lines.test.ts`. An agreement is "Agreement" or "MSA".
   { key: 'MSA', names: /\bmsa\b|\bmaster\s+(services?|agreem\w+)\b/i },
-  { key: 'NDA', names: /\b(nda|non-?disclosure|confidentiality)\b/i },
+  // "confidentiality" used to be here and is not a word that names this
+  // document. A client's "Product confidentiality undertaking" is its
+  // own type, and matching it to the NDA between two firms put one
+  // uploaded paper on two rows of a worker's file — one saying a
+  // document had arrived when no such document existed. A pattern that
+  // matches a concept rather than a name is a guess.
+  { key: 'NDA', names: /\b(nda|non-?disclosure)\b/i },
   { key: 'NCA', names: /\b(nca|non-?compete|non-?competition|non-?solicit\w*)\b/i },
   { key: 'EMPLOYMENT_AGREEMENT', names: /\b(employment agreement|offer letter|contract of employment)\b/i },
   { key: 'SOW', names: /\b(sow|statement of work)\b/i },
@@ -826,7 +846,23 @@ const NAMED_BY: { key: string; names: RegExp }[] = [
  */
 export function typeKeyForTemplate(
   templateName: string,
-  types: { key: string; label: string }[] = []
+  types: { key: string; label: string }[] = [],
+  opts: {
+    /**
+     * Whether a paper whose name nobody recognizes may be guessed at
+     * from the words in it.
+     *
+     * True for a verdict being assembled out of whatever is on file,
+     * where a "Mutual NDA — 2026" ought to answer a line's NDA. **False
+     * wherever a paper is being credited against a requirement**, which
+     * is the reading that decides whether somebody is chased. A guess
+     * that lands on the wrong row does not merely fail to satisfy an
+     * item — it reports a document as having arrived when none has, and
+     * a compliance record that says a paper exists when it does not is
+     * the worst thing this file can produce.
+     */
+    guess?: boolean
+  } = {}
 ): string | null {
   const name = templateName.trim()
   if (!name) return null
@@ -834,6 +870,7 @@ export function typeKeyForTemplate(
     (t) => t.label.trim().toLowerCase() === name.toLowerCase() || t.key.toLowerCase() === name.toLowerCase()
   )
   if (exact) return exact.key
+  if (opts.guess === false) return null
   for (const row of NAMED_BY) {
     if (row.names.test(name)) return row.key
   }
