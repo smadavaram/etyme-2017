@@ -32,7 +32,7 @@
  * that absence is the deliberate act.
  */
 
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, type Permission } from '@/lib/permissions'
 
 // ── Looking out ───────────────────────────────────────────────────────
 
@@ -202,4 +202,82 @@ export function andAll(...fragments: (Record<string, unknown> | undefined | null
   if (real.length === 0) return {}
   if (real.length === 1) return real[0]
   return { AND: real }
+}
+
+// ── The third wall: a desk one company granted another ────────────────
+//
+// The two walls above are both inside one firm. This one is between
+// firms: a client grants a program office a seat in its own program
+// office, the office acts at one of the CLIENT'S roles, and what it may
+// read is exactly what that desk may read (`lib/program-seat`, decided
+// 2026-09-14, built 2026-09-20).
+//
+// It needs its own refusal because the ordinary one is wrong here twice
+// over. "An owner or administrator can add it under Users and
+// permissions" tells the office to go and change a permission at its own
+// company, which would do nothing — the permissions are the client's.
+// And "this seat does not hold it" reads as a bug to somebody who was
+// deliberately seated at a narrower desk. So the sentence names the
+// client, the desk the client chose, and the desk it would have to
+// choose instead, and it is the client's rule that is quoted rather than
+// the platform's.
+
+/** A seat, as much of it as a refusal needs. `LiveSeat` fits. */
+export interface SeatedDesk {
+  role: { name: string; permissions: readonly string[] }
+  clientCompany: { name: string }
+  officeCompany: { name: string }
+}
+
+export interface SeatVerdict {
+  ok: boolean
+  /** Null when allowed. Never a code. */
+  says: string | null
+}
+
+/**
+ * May this seat read this, and if not, what is the office told.
+ *
+ * Pure. `what` is the thing in the reader's own words — "the tenure
+ * ledger", "the queue of data requests" — because a refusal that says
+ * what was refused is the product and the permission key is for the
+ * machine.
+ *
+ * Nothing here consults the office's own permissions, on purpose. A
+ * coordinator at an MSP whose own firm never gave its coordinators
+ * `assignments.read` is still the client's program manager inside this
+ * seat, and asking the office's own role first would refuse a program
+ * the client had deliberately opened.
+ */
+export function seatMayRead(
+  seat: SeatedDesk,
+  permission: Permission,
+  what: string
+): SeatVerdict {
+  if (hasPermission(seat.role.permissions, permission)) return { ok: true, says: null }
+  return {
+    ok: false,
+    says:
+      `${seat.clientCompany.name} seated ${seat.officeCompany.name} at its ${seat.role.name} desk, ` +
+      `and that desk does not read ${what} here. What a program office may do is exactly what the ` +
+      `desk it was given may do, so this changes when ${seat.clientCompany.name} changes the desk — ` +
+      `an owner or the program manager there can seat ${seat.officeCompany.name} at a desk that ` +
+      `reads it, or widen this one.`,
+  }
+}
+
+/**
+ * The rows a seat narrowed to one business unit may read.
+ *
+ * Strict, unlike `accountScope` above, and the difference is deliberate.
+ * An account wall lets a firm-wide row through on a null unit, because a
+ * contract nobody charged to a team is the whole firm's. A seat narrowed
+ * to a unit is a client saying "this office runs Technology and not the
+ * rest", and a contract charged to no team is not charged to Technology.
+ * Letting nulls through would hand a unit-scoped office every row the
+ * client had never coded, which on most programs is most of them.
+ */
+export function seatScope(units: string[] | null, field = 'orgUnitId'): Record<string, unknown> {
+  if (units === null) return {}
+  return { [field]: { in: units } }
 }

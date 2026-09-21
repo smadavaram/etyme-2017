@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { unitsVisibleTo, accountScope, scopeNote } from '@/lib/walls'
+import { descendants } from '@/lib/org-tree'
 import type { CallerContext } from '@/lib/api-context'
 
 /**
@@ -67,4 +68,39 @@ export async function accountFilterFor(
     where: accountScope(visible, field),
     note: scopeNote(visible, mine?.name ?? null),
   }
+}
+
+// ── The units a seat reaches ──────────────────────────────────────────
+
+/**
+ * The business units a program-office seat may read, or null for "all".
+ *
+ * A client may narrow a seat to one business unit, and the whole point
+ * of that narrowing is that the office cannot read the rest of the
+ * program. Narrowing is a read filter and never a permission: the desk
+ * holds the same permissions everywhere and reaches fewer rows.
+ *
+ * The unit and everything under it, because a unit is a tree and a seat
+ * at Technology that could not read R&D 1 would be a seat at nothing.
+ *
+ * ── A twin, named rather than left to be discovered ──────────────────
+ *
+ * `unitsReachedBy` in `lib/resolve-client-company` is the same six lines,
+ * written by etyme-demand in the same hour for the demand routes. Two
+ * helpers answering one question is the shape that produces a wall in
+ * one screen and none in the next, so they collapse into one — the
+ * architect's call which file it lives in, since that file is demand's
+ * and this one is regulatory's. Until then both read the same tree the
+ * same way and are covered by the same sentences in
+ * `__integration__/seat-compliance.test.ts`.
+ */
+export async function seatUnits(
+  seat: { orgUnitId: string | null; clientCompany: { id: string } } | null
+): Promise<string[] | null> {
+  if (!seat || !seat.orgUnitId) return null
+  const units = await prisma.orgUnit.findMany({
+    where: { companyId: seat.clientCompany.id },
+    select: { id: true, parentId: true },
+  })
+  return [seat.orgUnitId, ...descendants(units, seat.orgUnitId)]
 }

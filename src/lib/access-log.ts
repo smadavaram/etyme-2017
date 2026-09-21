@@ -43,6 +43,22 @@ export type AccessAction =
   // one that produces a file somebody else could later be handed.
   | 'DATA_EXPORT'         // produced or downloaded an export of everything held
   | 'ERASURE'             // read the whole footprint in order to erase it
+  // ── A read made from a desk the client granted somebody else ───────
+  //
+  // A program office that is not the client acts in a seat the client
+  // grants it (`lib/program-seat`, 2026-09-20). Every read under that
+  // seat was filed as CONTRACT_VIEW, which is a customer reading its own
+  // book, and the one question a client asks afterwards — "who looked at
+  // my workforce, and on whose authority" — could then only be answered
+  // by grepping the reason column for a seat id.
+  //
+  // So the read has a name of its own. The reason beside it is
+  // `seatTrail`, which names the office, the client's own role the seat
+  // holds, the client that granted it and the seat id, in one sentence a
+  // client can read back. The action is what makes the whole class of
+  // them findable in a query: every read a firm made inside somebody
+  // else's program, and nothing else.
+  | 'PROGRAM_READ'        // read a client's program from a seat that client granted
 
 interface LogAccessParams {
   /** The person whose data was accessed */
