@@ -1982,7 +1982,30 @@ model Requirement {
   overtimeMultiplierBps Int       @default(15000)
   months                Int?
   startDate             DateTime?
-  status                String    @default("OPEN") // DRAFT · OPEN · FILLED · CLOSED
+  /// The lifecycle column. The trailing comment is the whole value set,
+  /// and it is the only place the set is written down — a string column
+  /// carries no list of its own — so it is read by a test rather than
+  /// trusted. `CANCELLED` was missing from it for as long as the cancel
+  /// door had been writing it (POST /api/requisitions/:id/cancel), and
+  /// `lib/requisition-stage`'s `stageOf` falls through to DRAFT for any
+  /// status it does not name, so a role somebody called off read back as
+  /// one nobody had raised.
+  ///
+  /// **Left as a string on purpose, decided 2026-09-22.** The case for an
+  /// enum is that this comment has now been wrong twice. It does not
+  /// survive contact: an enum would not have caught either drift, because
+  /// both values were legal members somebody forgot to write down, and
+  /// `@default("OPEN")` on an enum is exactly as unable to say "nobody set
+  /// this" as `@default("OPEN")` on a string — that argument asks for
+  /// nullability, which is a worse change. What an enum buys is a
+  /// migration against a paying client's data, and a second one every time
+  /// this vocabulary moves, which it is still doing (see `stageOf`:
+  /// FILLED is a placement's word and is already being read as archived).
+  /// What catches the drift is a test that reads this comment against what
+  /// the product writes — `__tests__/invariants/requirement-status-words`
+  /// — and it fails on the commit that causes it. Revisit if this column
+  /// ever stops moving; not before.
+  status                String    @default("OPEN") // DRAFT · OPEN · FILLED · CLOSED · CANCELLED
   source                String    @default("MANUAL") // MANUAL · EMAIL · VMS · NETWORK
   parseConf             Json? // per field confidence when it came from a parser
   // Addendum D: rate transparency per requirement
@@ -2107,7 +2130,14 @@ model Requirement {
   // OPEN, or PENDING and never reach the market. Addendum E: most clear
   // without a human, because governance slower than the workaround produces
   // the workaround.
-  approvalState String @default("DRAFT") // DRAFT · PENDING_APPROVAL · APPROVED · REJECTED · AUTO_APPROVED
+  //
+  // `CHANGES_REQUESTED` was missing from this list while
+  // `lib/requisition-approval` had been writing it — a desk hands a role
+  // back and `advanceApproval` returns it as `nextState`. Same string
+  // column, same reason to read the comment with a test rather than trust
+  // it, and the same answer on whether to make it an enum: see the note on
+  // `status` above.
+  approvalState String @default("DRAFT") // DRAFT · PENDING_APPROVAL · CHANGES_REQUESTED · APPROVED · REJECTED · AUTO_APPROVED
 
   approvals  RequirementApproval[]
   placements SellContract[]
