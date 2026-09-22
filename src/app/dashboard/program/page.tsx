@@ -136,7 +136,15 @@ interface Decision {
 interface TenureRow {
   personId: string
   name: string
-  vendors: { id: string; name: string }[]
+  // The firms the client pays, folded: one label per firm it may name,
+  // `says` comma-joined for a single line, and how many below it may not.
+  // This used to be `vendors: {id,name}[]`; /api/tenure stopped sending
+  // that in 7fae9d30 and this page went on reading it, so the tenure
+  // panel crashed for any client with somebody near the cap — which is
+  // two of the three seeded programs, and the page the demo door lands
+  // on. The fetch runs through readJson to `any`, so tsc could not see
+  // it and no test read this panel.
+  firms: { parts: string[]; says: string; withheld: number }
   cumulativeMonths: number
   status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE' | string
   eligibleDate: string | null
@@ -729,7 +737,9 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
                   <div className="flex-1 min-w-[200px]">
                     <p className="text-sm text-etyme-ink">{p.name}</p>
                     <p className="text-xs text-etyme-muted">
-                      {p.cumulativeMonths} months here through {p.vendors.map((v) => v.name).join(' and ')}
+                      {p.cumulativeMonths} months here through {p.firms.says}
+                      {p.firms.withheld > 0 &&
+                        ` (and ${p.firms.withheld === 1 ? 'one firm' : `${p.firms.withheld} firms`} below ${p.firms.withheld === 1 ? 'them' : 'those'})`}
                       {p.status === 'IN_BREAK' && p.eligibleDate && ` · can come back ${shortDate(p.eligibleDate)}`}
                     </p>
                   </div>

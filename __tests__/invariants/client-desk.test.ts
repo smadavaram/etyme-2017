@@ -246,6 +246,26 @@ describe('what the client desk is told', () => {
     expect(volume).toContain("? [['OPEN', 12], ['FILLED', 48], ['CLOSED', 22], ['CANCELLED', 10], ['DRAFT', 8]]")
   })
 
+  it('the tenure panel reads the shape the tenure route actually sends', () => {
+    // The fourth walk found this white-screening the client program
+    // dashboard — the page the demo door lands on — for any client with
+    // somebody near the cap, which is two of the three seeded programs.
+    // /api/tenure stopped sending `vendors` in 7fae9d30 and this page
+    // went on calling .map on it. Nothing caught it: the fetch runs
+    // through readJson to `any`, so tsc cannot see it, and 7,004 green
+    // tests never read this panel. This is the test that reads it.
+    const tenureRoute = read('src/app/api/tenure/route.ts')
+    expect(tenureRoute, 'the route sends firms, folded').toContain('firms: firmsOnARow(')
+    expect(page, 'the panel reads firms, not a field the route stopped sending')
+      .toContain('{p.firms.says}')
+    expect(page, 'nothing on this page reads vendors off a tenure row')
+      .not.toMatch(/p\.vendors/)
+    // And the count of firms it may not name travels with it, because a
+    // client is entitled to know a chain is there without being told
+    // whose it is.
+    expect(page).toContain('p.firms.withheld')
+  })
+
   it('the seeded Northbend Athletic desk has one week claimed over the role, so there is an exception to read', () => {
     expect(seed).toContain("rates: [9800, 7400], exceptionHours: 44,")
     expect(seed).toContain('const longHours = awaiting && w === 1 ? pl.exceptionHours ?? null : null')
