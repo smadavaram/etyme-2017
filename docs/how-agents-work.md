@@ -96,6 +96,21 @@ BUILT row with no tests. A feature built and not recorded breaks the
 build on its own commit, which is the cheapest moment it will ever be to
 fix.
 
+**`src/lib/matrix.ts` is PLATFORM in `domains.ts`, and a domain agent may
+still edit its own rows.** The two rules collided on 2026-09-22 —
+`mayWrite` refuses the file, and step 6 above requires the row in the same
+commit as the code — and regulatory edited it anyway, said so, and asked
+whether that was the wrong call. It was the right one, and the exception is
+written down rather than left to each agent's nerve. A domain agent edits
+**the rows its own L2 group owns and nothing else in the file**: not another
+domain's rows, not the group table, not the shape. The file carries no logic,
+rows are namespaced by owner, and two agents editing two rows of a data file
+is the cheap case; an OPEN row nobody can act on, or a BUILT feature with no
+row, is the expensive one. Commit by explicit path, having checked the file
+was clean first, so another agent's in-flight rows are not swept into your
+commit. Anything crossing rows — a row moving between groups, a new L2, the
+status of somebody else's work — goes to the coordinator as text.
+
 It is a test because it was a page, and within two agent runs the page
 was wrong: accounts receivable still read "not started" after it had been
 built and tested. Nobody noticed, because a page cannot notice.
