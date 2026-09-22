@@ -70,10 +70,45 @@ export interface TemplatePack {
 
 // ── Pack definitions ───────────────────────────────────────────
 
+// ── Two dates the packs asked for and nobody meant ────────────────────
+//
+// Both found on the release agent's third walk and measured by
+// `etyme-money` against the calendar and the seeded world, with the
+// arithmetic written out beside the code that produces it in
+// `lib/cycle-generator`. Changed here on 2026-09-22.
+//
+// **An approval is not a rhythm of its own.** It is "three days after
+// the hours are due". Asking for a second weekly series on a Monday
+// anchored it separately at the contract start, so a contract starting
+// Saturday, Sunday or Monday — and Monday is the commonest start in
+// staffing, six of the thirty-two seeded placements — got an approval
+// date four days BEFORE its first submission. Not cosmetic: `pickCycle`
+// matches the first approval to the week ending that Friday, so the
+// spurious head is never claimed and the placement timeline calls it
+// overdue for the life of the contract. `offsetDays` off the submission
+// day says the same thing and cannot drift: every approval from the
+// second onward lands on the identical day, the head disappears, and
+// the last week of a contract gains the approval date a Monday-anchored
+// series stopped short of.
+//
+// **A semimonthly cut on the 1st is a typo for the 15th.** A cycle date
+// is a period END, and `lib/periods`' `semiMonth` defines a semimonthly
+// contract's periods as the 1st to the 15th and the 16th to the last.
+// Month-end matches; the 1st matches no period end at all — it asks for
+// an invoice on the first day of the period it would bill, fourteen days
+// before those hours exist, and the 1st-to-15th period is never closed.
+// On the calendar: 20 dates a year with gaps of 1, 3 and 32 days, where
+// 15 gives 24 with gaps of 14 to 18. It is also
+// `DEFAULT_SEMIMONTHLY_CUT` in the generator and CLAUDE.md's stated
+// default, "Friday weeks, the 15th and month-end".
+//
+// Cycles are generated once — at award, convert, replace, extend and
+// seed — so nothing already written is rewritten, and a demo moves when
+// it is re-seeded.
 const COMMON_CYCLES: CycleDefinition[] = [
   { kind: 'TIMESHEET_SUBMIT', label: 'Timesheet submission', frequency: 'WEEKLY', dayOfWeek: 5 },
-  { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 1 },
-  { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'SEMIMONTHLY', dayOfMonth: 1 },
+  { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 3 },
+  { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'SEMIMONTHLY', dayOfMonth: 15 },
   { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'BIWEEKLY', dayOfWeek: 3 },
   { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'BIWEEKLY', dayOfWeek: 5 },
 ]
@@ -90,7 +125,7 @@ const US_IT: TemplatePack = {
   ],
   cycleDefinitions: [
     ...COMMON_CYCLES,
-    { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'SEMIMONTHLY', dayOfMonth: 1 },
+    { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'SEMIMONTHLY', dayOfMonth: 15 },
   ],
   docTemplates: [
     { name: 'Employment Agreement (W-2)', audience: 'CANDIDATE', needsSignature: true },
@@ -169,7 +204,11 @@ const UK: TemplatePack = {
   ],
   cycleDefinitions: [
     { kind: 'TIMESHEET_SUBMIT', label: 'Timesheet submission', frequency: 'WEEKLY', dayOfWeek: 5 },
-    { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 1 },
+    // The same pair, and the same defect, as the note on COMMON_CYCLES
+    // above: a weekly approval anchored on its own Monday. A UK
+    // placement starting on a Monday had it too, and a fix that leaves
+    // the identical line in the next pack down is half a fix.
+    { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 3 },
     { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'MONTHLY', dayOfMonth: 25 },
     { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'MONTHLY', dayOfMonth: 28 },
     { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 1 },
