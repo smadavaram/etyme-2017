@@ -1311,6 +1311,49 @@ continuity.** A lapsed certificate stops a supplier working, an expired
 work authorization stops a person working, and neither fails loudly on
 its own.
 
+### Who renders the verdict — decided 2026-09-22
+
+From the founder, and it is a liability rule before it is a product rule:
+
+> Ultimately background check companies are the ones that confirm
+> background pass or fail — the risk is passed there to background check
+> companies; our job would be to collect all info and pass it to them to
+> verify in today's market.
+
+So paperwork divides once more, underneath the three purposes:
+
+- **A document somebody else issued, which we hold and read.** An
+  insurance certificate, a visa, a green card, a degree. The insurer,
+  the government or the university made the assertion; a desk reading
+  the dates off it and recording them is honest, and that is what
+  supplier onboarding does when HR verifies a certificate.
+- **A verdict a third party renders about a person.** A background
+  check, a drug screen, a sanctions and litigation screening, an
+  education verification. Sterling or HireRight says clear or not clear,
+  on their letterhead, and carries the professional liability for that
+  opinion. **Etyme never renders that verdict and no desk in Etyme
+  renders it either.** The job is to collect the consent and the
+  identifiers, pass the package to the provider, and record what came
+  back — verbatim, with their name, their reference and their date on
+  it. A reader must be able to tell "Sterling said clear on 12 March,
+  reference 4471" from "somebody here ticked a box", and a screen never
+  says Etyme verified a check.
+
+**What does not transfer, and it is the trap in the sentence.** The
+verdict is theirs; the *process* stays with the employer. Under US law
+the firm ordering the check owns the consent and the disclosure before
+it, and the adverse action steps after an unfavourable result — the
+pre-adverse notice, a copy of the report, a waiting period, the final
+notice. A product that reads "the provider decides" as "we have no
+process left" drops exactly the step that generates lawsuits. Passing
+the verdict on does not pass the paperwork around it on.
+
+**What this means for the loop built on 2026-09-21.** A chase letter
+must not tell a worker to upload her background check as though it were
+a paper she holds — the report goes to the firm that ordered it, not to
+her. What she owes is her consent and her identifiers. The required set
+can ask for either; the sentence has to know which it is asking for.
+
 ### The list is not the domain — the purpose is
 
 Corrected by the founder the same day, before anybody built to the table
