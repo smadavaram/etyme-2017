@@ -339,8 +339,8 @@ export async function GET(request: NextRequest) {
       `${withoutLimit} customer${withoutLimit === 1 ? '' : 's'} here ha${
         withoutLimit === 1 ? 's' : 've'
       } no credit limit set, so ${withoutLimit === 1 ? 'it reads' : 'they read'} as ` +
-        `NO_LIMIT_SET. That is not the same as being within a limit and is never shown ` +
-        `as a pass.`
+        `"no limit set" — the same words as the chip on the row. That is not the same ` +
+        `as being within a limit and is never shown as a pass.`
     )
   }
 
