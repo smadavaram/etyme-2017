@@ -389,14 +389,19 @@ export async function POST(request: NextRequest) {
       action: 'OUTBOUND_PACK_SENT',
       summary: `${caller.person.name} sent ${pack.sending.length} of our own document(s) to ${recipientEmail} — ${spec.label}`,
       reason:
-        pack.refusals.length > 0
+        (clientCompanyId ? 'Assembled against that customer\u2019s own order set. ' : '') +
+        (pack.refusals.length > 0
           ? `${pack.refusals.length} held back because they are out of date or their expiry was never recorded: ` +
             pack.refusals.map((r) => r.label).join(', ')
-          : 'Everything the pack asks for was current and went out.',
+          : 'Everything the pack asks for was current and went out.'),
       payload: {
         packetId: created.id,
         packKey: spec.key,
         purpose: spec.purpose,
+        // Whose rules this pack was assembled under. Without it the row
+        // says what went out and not which customer's order decided the
+        // list, which is the half an auditor asks for.
+        assembledFor: clientCompanyId,
         sent: pack.sending.map((s) => s.key),
         refused: pack.refusals.map((r) => r.key),
         withheldOutOfScope: pack.withheld.map((w) => w.key),
