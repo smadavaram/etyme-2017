@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { advanceApprovalChain } from '@/lib/requisition-approval'
+import { approvalsToGo } from '@/app/api/requisitions/words'
 
 /**
  * POST /api/requisitions/:id/approve
@@ -230,7 +231,7 @@ export async function POST(
           : result.fullyApproved
             ? `${caller.person.name} approved it. It is now open to your vendors.`
             : action === 'approve'
-              ? `${caller.person.name} approved it. ${result.remaining} further approval(s) to go.`
+              ? `${caller.person.name} approved it. ${approvalsToGo(result.remaining)}`
               : `${caller.person.name} rejected it: ${decisionReason}`,
       entityId: id,
       data: { requirementId: id, action },
@@ -305,7 +306,7 @@ export async function POST(
         ? `Requisition rejected: ${decisionReason}`
         : result.fullyApproved
           ? 'Requisition approved — now open to vendors'
-          : `Approved. ${result.remaining} further approval(s) required.`,
+          : `Approved. ${approvalsToGo(result.remaining)}`,
     },
   })
 }

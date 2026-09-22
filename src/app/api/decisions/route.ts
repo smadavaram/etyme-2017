@@ -10,6 +10,7 @@ import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
 import { desksFor } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-onboarding'
 import { paperingRow } from '@/lib/papering'
+import { seatedDesk } from '@/lib/resolve-client-company'
 
 /**
  * GET /api/decisions
@@ -318,6 +319,82 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ── 2c-bis. A requisition waiting on this desk ───────────────────
+  //
+  // "The desk that acts is the desk that hears" — the rule the client
+  // dashboard week produced, and the approval chain was the one queue it
+  // never reached. Every desk in the program console read timesheets and
+  // expenses and nothing else, so an HR partner, a cost-center lead and
+  // an account owner each landed on /dashboard/program, were shown
+  // nothing, and stopped: the requisition they had to sign existed only
+  // on a page they would have had to think to open. Addendum E's
+  // governance is worth nothing if the person it routes to is not told.
+  //
+  // Entitlement here is not a permission. The approve route lets exactly
+  // one person decide a row — the one named on it, at the lowest rank
+  // still pending ("an approval someone else can click is not an
+  // approval") — so the query asks that and nothing else. A desk at rank
+  // 2 is not shown a row rank 1 has not cleared, because it is not
+  // theirs to decide yet and a queue that lists work nobody may do is a
+  // queue people stop reading.
+  {
+    const mine = await prisma.requirementApproval.findMany({
+      where: {
+        approverId: caller.person.id,
+        outcome: 'PENDING',
+        requirement: {
+          companyId,
+          // A requisition that was cancelled or filled underneath a
+          // pending approval is nobody's decision any more.
+          status: { notIn: ['CANCELLED', 'FILLED', 'CLOSED'] },
+          approvalState: 'PENDING_APPROVAL',
+        },
+      },
+      select: {
+        id: true, rank: true, reason: true, createdAt: true,
+        requirement: {
+          select: {
+            id: true, title: true, headcount: true, billMax: true, createdAt: true,
+            costCenter: { select: { code: true } },
+            approvals: { select: { rank: true, outcome: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 20,
+    })
+
+    for (const a of mine) {
+      const pending = a.requirement.approvals.filter((r) => r.outcome === 'PENDING')
+      const lowest = Math.min(...pending.map((r) => r.rank))
+      // Not this desk's turn yet. It will appear the day it is.
+      if (a.rank !== lowest) continue
+
+      const days = Math.floor((now.getTime() - a.createdAt.getTime()) / 86_400_000)
+      const heads = a.requirement.headcount ?? 1
+      const scale = `${heads} ${heads === 1 ? 'position' : 'positions'}`
+      const rate = a.requirement.billMax != null ? ` · up to $${Math.round(a.requirement.billMax / 100)}/hr` : ''
+      const cc = a.requirement.costCenter?.code ? ` · ${a.requirement.costCenter.code}` : ''
+      decisions.push({
+        type: 'REQUISITION_APPROVAL',
+        title: `Approve requisition — ${a.requirement.title}`,
+        // What it is waiting for, in the engine's own words — the reason
+        // the rule wrote when it routed this to this desk, which is the
+        // question this desk is being asked.
+        subtitle: `${a.reason.replace(/\s*\.\s*$/, '')}${scale ? ` · ${scale}` : ''}${rate}${cc}`,
+        urgency: days >= 5 ? 'HIGH' : days >= 2 ? 'MEDIUM' : 'LOW',
+        entityType: 'REQUISITION',
+        entityId: a.requirement.id,
+        dueDate: null,
+        // The role's own page, where the approve, reject and hand-back
+        // buttons are, rather than the list it would have to be found in.
+        actionUrl: `/dashboard/requisitions/${a.requirement.id}`,
+        amount: null,
+        createdAt: a.createdAt.toISOString(),
+      })
+    }
+  }
+
   // ── 2d. Placements won and not yet papered, and papered and not started ──
   //
   // The handoff from the desk that sells to the desk that papers. An
@@ -548,11 +625,27 @@ export async function GET(request: NextRequest) {
     counts[d.type] = (counts[d.type] ?? 0) + 1
   }
 
+  // ── Whose queue this is ───────────────────────────────────────────
+  //
+  // Every query above is scoped to `companyId` — the caller's own firm —
+  // and that is the only book this route can prove the caller is
+  // entitled to. A program office in a seat reads the client's program
+  // on the same page, so the page needs to be able to say which of the
+  // two it is showing rather than leaving an MSP to read its own supplier
+  // work as the client's. The sentence itself is the page's
+  // (`whoseQueue` in dashboard/program/needs-you); this says the facts it
+  // needs, in the shape `lib/page-framing` already accepts.
+  const desk = await seatedDesk(caller)
   return NextResponse.json({
     data: {
       decisions,
       counts,
       total: decisions.length,
+      reading: {
+        company: caller.company?.name ?? null,
+        seated: !!desk?.seat,
+        clientName: desk?.seat ? desk.companyName : null,
+      },
     },
   })
 }

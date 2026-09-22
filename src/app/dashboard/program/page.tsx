@@ -8,7 +8,7 @@ import { compact } from '@/lib/money-display'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
-import { deskCounts, deskHeadline } from './needs-you'
+import { deskCounts, deskHeadline, whoseQueue } from './needs-you'
 
 /**
  * Client Program Overview
@@ -157,6 +157,9 @@ interface Tenure {
 
 const KIND_WORD: Record<string, string> = {
   TIMESHEET_APPROVAL: 'Hours',
+  // A requisition routed to this desk. One word, in the reader's own
+  // vocabulary — never the type.
+  REQUISITION_APPROVAL: 'Role',
   EXPENSE_APPROVAL: 'Expense',
   ROLLOFF_ACTION: 'Ending',
   SUBMISSION_REVIEW: 'Candidate',
@@ -227,6 +230,12 @@ const TENURE_WORD: Record<string, string> = {
 export default function ProgramPage() {
   const [data, setData] = useState<ProgramData | null>(null)
   const [decisions, setDecisions] = useState<Decision[] | null>(null)
+  // Whose book the queue is. A seated program office reads the client's
+  // program with its own firm's decisions under it, and the page has to
+  // say so (`whoseQueue`).
+  const [queueBook, setQueueBook] = useState<
+    { company: string | null; seated: boolean; clientName: string | null } | null
+  >(null)
   const [tenure, setTenure] = useState<Tenure | null>(null)
   const [firstGood, setFirstGood] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -252,7 +261,10 @@ export default function ProgramPage() {
     // The queue and the exposure are their own reads. A desk whose queue
     // cannot load still shows the picture; a picture whose queue fails
     // says so in one line rather than taking the page down.
-    fetch('/api/decisions').then(readJson).then((b) => setDecisions(b?.data?.decisions ?? [])).catch(() => setDecisions([]))
+    fetch('/api/decisions').then(readJson).then((b) => {
+      setDecisions(b?.data?.decisions ?? [])
+      setQueueBook(b?.data?.reading ?? null)
+    }).catch(() => setDecisions([]))
     fetch('/api/tenure').then(readJson).then((b) => setTenure(b?.data ?? null)).catch(() => setTenure(null))
     fetch('/api/first-good').then(readJson).then((b) => setFirstGood(b?.data ?? null)).catch(() => {})
   }
@@ -451,6 +463,7 @@ export default function ProgramPage() {
           onApprovals={() => setTab('approvals')}
           queue={queue}
           queueLoaded={decisions !== null}
+          queueBook={queueBook}
           tenure={tenure}
           firstGood={firstGood}
           busy={busy}
@@ -532,11 +545,13 @@ function Stat({ label, value, sub, tone, href }: {
  * everything else opens where the decision is made. Under the queue,
  * what was done today, so a clear desk is not an empty page.
  */
-function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, onExtend, onRolloff, onApprovals }: {
+function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, onApprove, onExtend, onRolloff, onApprovals }: {
   data: ProgramData
   onApprovals: () => void
   queue: Decision[]
   queueLoaded: boolean
+  /** Whose book the queue is, as /api/decisions says it. */
+  queueBook: { company: string | null; seated: boolean; clientName: string | null } | null
   tenure: Tenure | null
   firstGood: any
   busy: string | null
@@ -545,6 +560,7 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
   onRolloff: (contractId: string) => void
 }) {
   const s = data.summary
+  const whoseBook = whoseQueue(queueBook ?? {})
   const [reasonFor, setReasonFor] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const watchList = (tenure?.people ?? [])
@@ -576,9 +592,16 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
     <div className="space-y-8">
       {/* ── Yours today ── */}
       <section>
-        <div className="flex items-baseline justify-between gap-3 mb-3">
+        <div className="flex items-baseline justify-between gap-3 mb-1">
           <h2 className="font-serif text-lg text-etyme-ink">Yours today</h2>
           {queue.length > 0 && <Link href={{ pathname: '/dashboard/decisions' }} className="text-xs text-etyme-action hover:underline">All decisions</Link>}
+        </div>
+        {/* Whose book. Everything else on this page is the client's; the
+            queue is the reader's own firm's, and a seated program office
+            reading both without a word between them signs the wrong
+            week. */}
+        <div className="mb-3">
+          {whoseBook && <p className="text-xs text-etyme-muted max-w-2xl">{whoseBook}</p>}
         </div>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {!queueLoaded && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}

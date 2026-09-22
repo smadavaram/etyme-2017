@@ -94,3 +94,61 @@ export function deskHeadline(c: DeskCounts): DeskHeadline {
   }
   return { total, says: parts.join(' ') }
 }
+
+/**
+ * Whose book the queue on this page is — the clause, or nothing.
+ *
+ * ── What was wrong ───────────────────────────────────────────────────
+ *
+ * Aptiva Workforce holds one seat, at Cavanaugh Glassworks. Its program
+ * page is headed "Workforce · Cavanaugh Glassworks", every figure on it
+ * is Cavanaugh's, and "Yours today" offered "Ruben Ortega — 40h ·
+ * Harlow Health" with an Approve button beside it. Nothing there is a
+ * leak — Aptiva really is Ruben's supplier into Harlow Health, and the
+ * week really is Aptiva's to accept. It is two books on one page with
+ * nothing saying which is which, and the reader most likely to be
+ * confused is the one holding the seat: a program manager signing what
+ * they think is the client's week.
+ *
+ * `/api/decisions` answers for the caller's own company and only ever
+ * has. A seat does not carry the client's queue — and that gap is worth
+ * saying out loud on the screen rather than leaving a reader to work out
+ * why the client's unsigned weeks are not here.
+ *
+ * ── Why a clause and not a filter ────────────────────────────────────
+ *
+ * Dropping the reader's own work off the page would hide real work with
+ * an Approve button on it, and showing the client's would be a read of
+ * the client's book that has to be logged against the seat — which is
+ * the seat's whole discipline and a bigger piece of work than a
+ * sentence. So the page says whose these are, and says what is not here.
+ */
+export function whoseQueue(reading: {
+  /** The reader's own firm. */
+  company?: string | null
+  /** True when the page is being read from a seat somebody granted. */
+  seated?: boolean
+  /** Whose book the rest of the page is. */
+  clientName?: string | null
+}): string | null {
+  if (!reading?.seated) return null
+  const mine = reading.company?.trim()
+  const theirs = reading.clientName?.trim()
+  // Named, or nothing. A clause that says "somebody else's work" without
+  // saying whose is a sentence a reader cannot act on.
+  if (!mine || !theirs) return null
+  return (
+    `These are ${possessive(mine)} own to decide. The seat ${theirs} granted you does not ` +
+    `carry ${possessive(theirs)} queue — its weeks are signed from its own desks.`
+  )
+}
+
+/**
+ * "Cavanaugh Glassworks'" and "Aptiva Workforce's".
+ *
+ * The same rule `lib/page-framing` uses, so a page carrying both
+ * sentences does not spell one firm two ways.
+ */
+function possessive(name: string): string {
+  return name.endsWith('s') ? `${name}'` : `${name}'s`
+}

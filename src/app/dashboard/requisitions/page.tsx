@@ -8,7 +8,8 @@ import { useSession } from '@/components/session-provider'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { STAGES, stageOf, mayEdit, closedBecause, type Stage } from '@/lib/requisition-stage'
 import {
-  Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, clearedForSentence, deskOf, myRow, whoFor, whoWillBeAsked,
+  Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, alsoWaitingSays, clearedForSentence, deskOf,
+  headlineRow, myRow, whoFor, whoWillBeAsked,
   type Approval,
 } from './chain'
 
@@ -139,12 +140,19 @@ function Why({ approvals, state, desks }: {
     )
   }
 
-  const headline = approvals[0]
+  // The desk that is actually waiting, never whichever row came back
+  // first. `headlineRow` holds the rule and is tested beside the chain.
+  const lead = headlineRow(approvals)
+  if (!lead) return null
+  const also = alsoWaitingSays(lead.alsoWaiting, desks ?? {})
 
   return (
     <div className="mt-3">
       <div className="flex items-start gap-2">
-        <p className="text-sm text-etyme-muted flex-1">{headline.reason}</p>
+        <p className="text-sm text-etyme-muted flex-1">
+          {lead.row.reason}
+          {also && <span className="text-etyme-faint"> {also}</span>}
+        </p>
         <button
           onClick={() => setOpen(o => !o)}
           className="text-xs text-etyme-action hover:underline shrink-0 mt-0.5"

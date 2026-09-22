@@ -6,6 +6,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { range as showRange } from '@/lib/money-display'
+import { statusWord, statusWordLower } from './words'
 
 /**
  * Requirements working surface — open demand.
@@ -500,7 +501,9 @@ export default function RequirementsPage() {
           FILLED: 'chip--verified',
           CLOSED: 'chip--passive',
         }
-        return <span className={`chip ${styles[row.status] ?? 'chip--passive'}`}>{row.status}</span>
+        // The word, never the column. A supplier read `OPEN` on the row
+        // its client reads as "Published".
+        return <span className={`chip ${styles[row.status] ?? 'chip--passive'}`}>{statusWord(row.status)}</span>
       },
       sortValue: (row) => row.status,
     },
@@ -563,15 +566,20 @@ export default function RequirementsPage() {
     row.title.toLowerCase().includes(q) ||
     row.skills.some((s) => s.toLowerCase().includes(q)) ||
     (row.location ?? '').toLowerCase().includes(q) ||
-    row.status.toLowerCase().includes(q)
+    // Searchable by what is on the screen, so typing "published" finds
+    // the published ones. The raw status still matches, because somebody
+    // who knows the data will type that.
+    (row.status.toLowerCase().includes(q) || statusWordLower(row.status).includes(q))
 
   // ── Status filter options ──────────────────────────
+  // One vocabulary — the tab, the chip and the footer say the same word
+  // about the same row, and it is the word the client's own list uses.
   const statusOptions: { key: StatusFilter; label: string }[] = [
     { key: 'ALL', label: 'All' },
-    { key: 'DRAFT', label: 'Draft' },
-    { key: 'OPEN', label: 'Open' },
-    { key: 'FILLED', label: 'Filled' },
-    { key: 'CLOSED', label: 'Closed' },
+    { key: 'DRAFT', label: statusWord('DRAFT') },
+    { key: 'OPEN', label: statusWord('OPEN') },
+    { key: 'FILLED', label: statusWord('FILLED') },
+    { key: 'CLOSED', label: statusWord('CLOSED') },
   ]
 
   return (
@@ -591,11 +599,11 @@ export default function RequirementsPage() {
       {/* Stats row */}
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Open</p>
+          <p className="stat-label">{statusWord('OPEN')}</p>
           <p className={`stat-value ${openCount > 0 ? 'text-etyme-action' : 'text-etyme-ink'}`}>
             {openCount}
           </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">requirements</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">open to suppliers</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Matches</p>
@@ -605,7 +613,7 @@ export default function RequirementsPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">across all reqs</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Filled</p>
+          <p className="stat-label">{statusWord('FILLED')}</p>
           <p className="stat-value text-etyme-verified">{filledCount}</p>
           <p className="text-[11px] text-etyme-faint mt-0.5">placements</p>
         </div>
@@ -635,7 +643,7 @@ export default function RequirementsPage() {
         error={error}
         searchFilter={searchFilter}
         searchPlaceholder="Search by title, skill, location, or status…"
-        emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} requirements.` : 'No requirements yet.'}
+        emptyMessage={statusFilter !== 'ALL' ? `No ${statusWordLower(statusFilter)} requirements.` : 'No requirements yet.'}
         emptyDetail="Create your first requirement to start matching consultants, or import requirements from your VMS."
         onRowClick={(row) => router.push(`/dashboard/requirements/${row.id}` as any)}
         exportName="requirements"
@@ -646,7 +654,7 @@ export default function RequirementsPage() {
       {!loading && filtered.length > 0 && (
         <p className="text-xs text-etyme-faint mt-3 tabular-nums">
           {filtered.length} requirement{filtered.length !== 1 ? 's' : ''}
-          {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase()}`}
+          {statusFilter !== 'ALL' && ` · ${statusWordLower(statusFilter)}`}
         </p>
       )}
 

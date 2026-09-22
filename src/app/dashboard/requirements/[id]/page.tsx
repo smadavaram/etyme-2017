@@ -4,6 +4,7 @@ import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
 import { range } from '@/lib/money-display'
+import { statusWord } from '../words'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -93,14 +94,20 @@ function confidenceChip(c: string): { cls: string; text: string } {
   }
 }
 
+/**
+ * The chip on the role itself.
+ *
+ * The word comes from the one list of words (`./words`) so the role's
+ * own page cannot say "Open" while the list it was opened from says
+ * "Published" about the same row; only the color is decided here.
+ */
 function statusChip(s: string): { cls: string; text: string } {
-  switch (s) {
-    case 'OPEN': return { cls: 'chip--verified', text: 'Open' }
-    case 'FILLED': return { cls: 'chip--action', text: 'Filled' }
-    case 'CLOSED': return { cls: 'chip--passive', text: 'Closed' }
-    case 'DRAFT': return { cls: 'chip--attention', text: 'Draft' }
-    default: return { cls: 'chip--passive', text: s }
-  }
+  const cls =
+    s === 'OPEN' ? 'chip--verified'
+    : s === 'FILLED' ? 'chip--action'
+    : s === 'DRAFT' ? 'chip--attention'
+    : 'chip--passive'
+  return { cls, text: statusWord(s) }
 }
 
 function formatRate(min: number | null, max: number | null): string {

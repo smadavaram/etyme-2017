@@ -201,6 +201,84 @@ export function clearedForSentence(
 }
 
 /**
+ * The row whose sentence leads — the desk that is actually waiting.
+ *
+ * The list printed `approvals[0].reason`, which is whichever row the
+ * read path happened to return first. On a $1,152,000 requisition
+ * waiting on two names that printed "Within the plan — 5 of 6 approved
+ * heads. HR (Priya Natarajan) not needed." beside an Approve button: a
+ * true sentence about a desk that had already stood down, read as the
+ * reason somebody was being asked. The desks at one rank decide
+ * alongside each other in any order, so "first" is not a fact about the
+ * chain at all.
+ *
+ * The rule is the engine's own (`advanceApprovalChain`): the lowest
+ * undecided rank is the one in play. Where two desks sit at that rank
+ * and both are still owed a decision, one leads and the other is named
+ * beside it — naming one and hiding the other is how somebody concludes
+ * their signature is the last one needed when it is not.
+ *
+ * With nothing pending the chain is settled, and the sentence that
+ * settled it leads: a rejection or a hand-back first, because that is
+ * what stopped it; otherwise the last desk to say yes.
+ */
+export function headlineRow<
+  T extends { rank: number; outcome: string; decidedAt?: string | null }
+>(approvals: T[]): { row: T; alsoWaiting: T[] } | null {
+  if (approvals.length === 0) return null
+
+  const pending = approvals
+    .filter((a) => String(a.outcome).toUpperCase() === 'PENDING')
+    .sort((a, b) => a.rank - b.rank)
+
+  if (pending.length > 0) {
+    const lowest = pending[0].rank
+    const atLowest = pending.filter((a) => a.rank === lowest)
+    return { row: atLowest[0], alsoWaiting: atLowest.slice(1) }
+  }
+
+  const stopped = approvals.filter((a) =>
+    ['REJECTED', 'CHANGES_REQUESTED'].includes(String(a.outcome).toUpperCase())
+  )
+  if (stopped.length > 0) {
+    // The highest rank to refuse it: a chain can only be stopped once,
+    // and where an older refusal is still on the row the later desk is
+    // the one that decided the version in front of the reader.
+    const row = [...stopped].sort((a, b) => b.rank - a.rank)[0]
+    return { row, alsoWaiting: [] }
+  }
+
+  // Cleared all the way up. The last yes is the one that opened it.
+  const row = [...approvals].sort((a, b) => b.rank - a.rank)[0]
+  return { row, alsoWaiting: [] }
+}
+
+/**
+ * The other desks still owed a decision at the same rank, in a clause.
+ *
+ * Null where there are none, so the sentence stays one sentence in the
+ * ordinary case — which is most of them, because most requisitions clear
+ * without a human at all.
+ */
+export function alsoWaitingSays(
+  rows: { approver?: { name: string } | null; rank: number; stage?: string | null; reason?: string }[],
+  desks: { hrPersonId?: string | null; procurementPersonId?: string | null } = {}
+): string | null {
+  if (rows.length === 0) return null
+  const names = rows.map((r) => {
+    const desk = DESKS.find((d) => d.key === deskOf({ ...r, approver: r.approver as any }, desks))
+    const who = r.approver?.name ?? null
+    const what = desk ? desk.heading.split('—').pop()!.trim() : 'another desk'
+    return who ? `${what} (${who})` : what
+  })
+  const list =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  return `Also waiting on ${list}.`
+}
+
+/**
  * The row this caller may decide, if any.
  *
  * The same rule the route enforces (`advanceApprovalChain`): the lowest

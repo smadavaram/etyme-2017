@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deskCounts, deskHeadline } from '@/app/dashboard/program/needs-you'
+import { deskCounts, deskHeadline, whoseQueue } from '@/app/dashboard/program/needs-you'
 import { supplierCoverGate } from '@/lib/document-stages'
 
 /**
@@ -98,5 +98,44 @@ describe('what the submit door can tell apart', () => {
       on,
     })
     expect(gate.blocking.some((b) => b.standing !== 'MISSING')).toBe(true)
+  })
+})
+
+/**
+ * Two books on one page.
+ *
+ * Aptiva Workforce holds one seat, at Cavanaugh Glassworks. Its program
+ * page is headed with Cavanaugh's name and filled with Cavanaugh's
+ * figures, and "Yours today" offered a week for Ruben Ortega at Harlow
+ * Health with an Approve button beside it. Nothing leaked — Aptiva is
+ * genuinely Ruben's supplier into Harlow Health — but a program manager
+ * cannot tell the seat's work from their own firm's, and the one they
+ * are about to sign is not the one the page is about.
+ */
+describe('Whose book the queue on a program page is', () => {
+  const seated = { company: 'Aptiva Workforce', seated: true, clientName: 'Cavanaugh Glassworks' }
+
+  it('a program office in a seat is told the queue is its own firm’s, not the client’s', () => {
+    expect(whoseQueue(seated)).toContain("These are Aptiva Workforce's own to decide")
+  })
+
+  it('and is told what the seat does not carry, rather than left to wonder where the client’s weeks are', () => {
+    expect(whoseQueue(seated)).toContain(
+      "The seat Cavanaugh Glassworks granted you does not carry Cavanaugh Glassworks' queue"
+    )
+  })
+
+  it('a client reading its own program is told nothing about whose book it is, because there is only one', () => {
+    expect(whoseQueue({ company: 'Cavanaugh Glassworks', seated: false, clientName: null })).toBeNull()
+  })
+
+  it('a firm whose name a reader is not shown gets no clause at all, rather than one naming nobody', () => {
+    expect(whoseQueue({ company: 'Aptiva Workforce', seated: true, clientName: null })).toBeNull()
+    expect(whoseQueue({ seated: true, clientName: 'Cavanaugh Glassworks' })).toBeNull()
+  })
+
+  it('a firm whose name ends in s is spelled the way the rest of the page spells it', () => {
+    expect(whoseQueue({ company: 'Cavanaugh Glassworks', seated: true, clientName: 'Harlow Health' }))
+      .toContain("Cavanaugh Glassworks' own to decide")
   })
 })

@@ -228,10 +228,13 @@ export function whoRendersItem(item: Pick<ChecklistItem, 'answers'>): 'PROVIDER'
  * sanctions screening, bank details, all of them a desk's own check with
  * nothing to expire — and anything not verified at all.
  *
- * The one case the door's sentence is thinner than this helper's answer
- * is a key regulation's table recognizes and the compliance record has
- * no type for. It is surfaced anyway: nothing was recorded, and saying
- * so is the whole point.
+ * The door's sentence used to be thinner than this helper's answer in
+ * one case — a key the regulation's table recognizes and the compliance
+ * record has no type for, where the sentence ran the three reasons
+ * together. The architect split it into three on 2026-09-22, so the door
+ * now names which of them happened and there is no case left where this
+ * helper knows more than the sentence it passes on. It is still
+ * surfaced: nothing was recorded, and saying so is the whole point.
  */
 export interface EvidenceNote {
   /** Whether anything from this item is on the firm's compliance record. */

@@ -36,13 +36,14 @@ interface Decision {
   createdAt: string
 }
 
-type TypeFilter = 'all' | 'TIMESHEET_APPROVAL' | 'EXPENSE_APPROVAL' | 'ROLLOFF_ACTION' | 'SUBMISSION_REVIEW' | 'CONTRACT_PAPERING' | 'CONTRACT_START' | 'INVOICE_OVERDUE'
+type TypeFilter = 'all' | 'TIMESHEET_APPROVAL' | 'EXPENSE_APPROVAL' | 'ROLLOFF_ACTION' | 'SUBMISSION_REVIEW' | 'CONTRACT_PAPERING' | 'CONTRACT_START' | 'INVOICE_OVERDUE' | 'REQUISITION_APPROVAL'
 
 // ── Helpers ──────────────────────────────────────────
 
 function typeIcon(type: string): string {
   const map: Record<string, string> = {
     TIMESHEET_APPROVAL: '▦',
+    REQUISITION_APPROVAL: '⊞',
     EXPENSE_APPROVAL:   '◫',
     ROLLOFF_ACTION:     '⚠',
     SUBMISSION_REVIEW:  '◇',
@@ -57,6 +58,9 @@ function typeIcon(type: string): string {
 function typeLabel(type: string): string {
   const map: Record<string, string> = {
     TIMESHEET_APPROVAL: 'Timesheet',
+    // The menu's own word for these is Requirements; "Requisitions" is a
+    // retired name and __tests__/invariants/sidebar-nav fails on it.
+    REQUISITION_APPROVAL: 'Role',
     EXPENSE_APPROVAL:   'Expense',
     ROLLOFF_ACTION:     'Rolloff',
     SUBMISSION_REVIEW:  'Submission',
@@ -228,6 +232,7 @@ export default function DecisionsPage() {
   const filterOptions: { key: TypeFilter; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: decisions.length },
     { key: 'TIMESHEET_APPROVAL', label: 'Timesheets', count: counts.TIMESHEET_APPROVAL ?? 0 },
+    { key: 'REQUISITION_APPROVAL', label: 'Roles', count: counts.REQUISITION_APPROVAL ?? 0 },
     { key: 'EXPENSE_APPROVAL', label: 'Expenses', count: counts.EXPENSE_APPROVAL ?? 0 },
     { key: 'ROLLOFF_ACTION', label: 'Rolloff', count: counts.ROLLOFF_ACTION ?? 0 },
     { key: 'SUBMISSION_REVIEW', label: 'Submissions', count: counts.SUBMISSION_REVIEW ?? 0 },

@@ -32,6 +32,8 @@ import {
   byDesk,
   clearedForSentence,
   deskOf,
+  alsoWaitingSays,
+  headlineRow,
   myRow,
   outcomeWords,
   tickedIds,
@@ -472,5 +474,84 @@ describe('The program team names a desk per unit and says what is missing', () =
       []
     )
     expect(out['a'].hr).toBeNull()
+  })
+})
+
+// ── 6. The line on the row names the desk that is waiting ─────────
+
+/**
+ * The list printed `approvals[0].reason` — whichever row the read path
+ * happened to return first. On a $1,152,000 requisition waiting on two
+ * names the release walk read "Within the plan — 5 of 6 approved heads.
+ * HR (Priya Natarajan) not needed." beside an Approve button: a true
+ * sentence about a desk that had stood down, read as the reason
+ * somebody was being asked.
+ */
+describe('The line on a requisition names the desk that is actually waiting', () => {
+  const chain = [
+    { id: 'a', rank: 1, stage: 'SOURCING', outcome: 'AUTO_CLEARED', reason: 'Within the going rate.', decidedAt: '2026-09-20', approver: null },
+    { id: 'b', rank: 1, stage: 'ROLE', outcome: 'PENDING', reason: '6 heads against the plan — over it.', decidedAt: null, approver: { id: 'p1', name: 'Priya Natarajan' } },
+    { id: 'c', rank: 2, stage: 'FINAL', outcome: 'PENDING', reason: 'Over $250k.', decidedAt: null, approver: { id: 'p2', name: 'Robert Ashby' } },
+  ]
+
+  it('leads with the desk still owed a decision, not with whichever row came back first', () => {
+    const lead = headlineRow(chain)!
+    expect(lead.row.id).toBe('b')
+    expect(lead.row.reason).toContain('6 heads')
+  })
+
+  it('never leads with a desk that already cleared by rule', () => {
+    expect(headlineRow(chain)!.row.outcome).not.toBe('AUTO_CLEARED')
+  })
+
+  it('asks the lowest rank first, so nobody is named before their turn', () => {
+    expect(headlineRow(chain)!.row.rank).toBe(1)
+  })
+
+  it('names the other desk when two are waiting at the same rank', () => {
+    const both = [
+      { id: 'b', rank: 1, stage: 'ROLE', outcome: 'PENDING', reason: 'Is this a role?', decidedAt: null, approver: { id: 'p1', name: 'Priya Natarajan' } },
+      { id: 'd', rank: 1, stage: 'SOURCING', outcome: 'PENDING', reason: 'Who may supply it?', decidedAt: null, approver: { id: 'p3', name: 'Derek Halvorsen' } },
+    ]
+    const lead = headlineRow(both)!
+    expect(lead.alsoWaiting).toHaveLength(1)
+    expect(alsoWaitingSays(lead.alsoWaiting)).toBe('Also waiting on Procurement (Derek Halvorsen).')
+  })
+
+  it('says nothing extra when one desk is the only one waiting', () => {
+    expect(alsoWaitingSays(headlineRow(chain)!.alsoWaiting)).toBeNull()
+  })
+
+  it('leads with the refusal on a chain somebody stopped', () => {
+    const stopped = [
+      { id: 'a', rank: 1, stage: 'ROLE', outcome: 'APPROVED', reason: 'In the plan.', decidedAt: '2026-09-20', approver: { id: 'p1', name: 'Priya Natarajan' } },
+      { id: 'b', rank: 2, stage: 'FINAL', outcome: 'REJECTED', reason: 'Not this quarter.', decidedAt: '2026-09-21', approver: { id: 'p2', name: 'Robert Ashby' } },
+    ]
+    expect(headlineRow(stopped)!.row.reason).toBe('Not this quarter.')
+  })
+
+  it('leads with the hand-back when an approver asked for changes', () => {
+    const sentBack = [
+      { id: 'a', rank: 1, stage: 'ROLE', outcome: 'APPROVED', reason: 'In the plan.', decidedAt: '2026-09-20', approver: null },
+      { id: 'b', rank: 1, stage: 'SOURCING', outcome: 'CHANGES_REQUESTED', reason: 'Bring it to $120 and I will sign.', decidedAt: '2026-09-21', approver: null },
+    ]
+    expect(headlineRow(sentBack)!.row.reason).toContain('$120')
+  })
+
+  it('leads with the last yes on a chain that cleared all the way up', () => {
+    const cleared = [
+      { id: 'a', rank: 1, stage: 'ROLE', outcome: 'APPROVED', reason: 'In the plan.', decidedAt: '2026-09-20', approver: null },
+      { id: 'b', rank: 2, stage: 'FINAL', outcome: 'APPROVED', reason: 'Signed for the cost center.', decidedAt: '2026-09-21', approver: null },
+    ]
+    expect(headlineRow(cleared)!.row.reason).toBe('Signed for the cost center.')
+  })
+
+  it('has nothing to say about a requisition nobody has been asked about', () => {
+    expect(headlineRow([])).toBeNull()
+  })
+
+  it('the list reads the waiting desk through the rule, never the first row in the array', () => {
+    expect(code(LIST_PAGE)).not.toContain('approvals[0]')
+    expect(code(LIST_PAGE)).toContain('headlineRow(approvals)')
   })
 })

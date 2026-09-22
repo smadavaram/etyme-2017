@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { whyNotOpen } from './words'
 import { reportError } from '@/lib/alerts'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
     select: {
-      id: true, companyId: true, status: true, approvalState: true, title: true,
+      id: true, companyId: true, status: true, approvalState: true, title: true, cancelReason: true,
       endClientCompanyId: true, payerCompanyId: true, openToNetwork: true,
       // For the consent text: enough detail that somebody can answer
       // without a phone call.
@@ -197,11 +198,21 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (requirement.status !== 'OPEN') {
-    return NextResponse.json(
-      { error: { code: 'NOT_OPEN', message: `Requirement is ${requirement.status}, not OPEN` } },
-      { status: 409 }
-    )
+  // Not open, and which kind of not-open. The door used to answer
+  // "Requirement is DRAFT, not OPEN" — a machine state, and the wrong
+  // one: a requisition at DRAFT with its chain running is waiting on
+  // three desks, not on somebody remembering to publish it. The code is
+  // for the machine and the sentence is the product, and a narrower code
+  // is a reason somebody can count a year from now.
+  const shut = whyNotOpen({
+    title: requirement.title,
+    status: requirement.status,
+    approvalState: requirement.approvalState,
+    buyerName: requirement.company.name,
+    cancelReason: requirement.cancelReason,
+  })
+  if (shut) {
+    return NextResponse.json({ error: shut }, { status: 409 })
   }
 
   // Published, but paused. A change to the money on a published role sends
