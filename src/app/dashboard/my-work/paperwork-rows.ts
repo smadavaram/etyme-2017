@@ -386,15 +386,31 @@ export function paperRows(payload: { papers?: unknown; owed?: unknown } | null |
 
   const rows = [...papers.map(rowFromPaper), ...owed.map(rowFromOwed)]
 
-  // The same requirement can arrive twice where the route sends it both
-  // ways round. The row is one document either way.
-  const seen = new Set<string>()
-  const once = rows.filter((r) => {
-    const id = `${r.kind}:${r.id}`
-    if (seen.has(id)) return false
-    seen.add(id)
-    return true
-  })
+  // ── One document is one row ───────────────────────────────────────
+  //
+  // This deduped on kind and id together, which is not a dedupe at all
+  // where the route knows about one document two ways: Helena's own
+  // upload came back as a DOCUMENT saying "On file" and as an
+  // OUTSTANDING saying "Sent — waiting for somebody to check it", and
+  // both survived. She read the same paper twice, under two headings
+  // that contradicted each other, one of them claiming somebody had
+  // sent it to her.
+  //
+  // The id is the document. Where two rows carry one id, the one that
+  // says what is owed wins, because the page's job is to tell her what
+  // to do — and "on file" is the claim that would stop her doing it.
+  //
+  // An `owed:<KEY>` row is a requirement rather than a document and
+  // carries an id no document can have, so nothing collapses into it
+  // and two different requirements are two different ids. They are
+  // never duplicates of anything.
+  const best = new Map<string, PaperRow>()
+  for (const r of rows) {
+    const held = best.get(r.id)
+    if (!held) best.set(r.id, r)
+    else if (held.kind !== 'OWED' && r.kind === 'OWED') best.set(r.id, r)
+  }
+  const once = rows.filter((r) => best.get(r.id) === r)
 
   // Grouped, and within a group left exactly as it arrived. `myPapers`
   // already sorts what stops the work to the top and a waived row below

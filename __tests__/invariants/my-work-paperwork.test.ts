@@ -330,6 +330,52 @@ describe('A worker sees what is being asked of her', () => {
     expect(rows).toHaveLength(1)
   })
 
+  it('one document is one row on her page, however many ways the route knows about it', () => {
+    // The route knew about Helena's own upload twice: as a document on
+    // file, and as the requirement it answered, still waiting to be
+    // checked. Both came back with the same id and both were drawn, so
+    // she read one paper twice under two headings that contradicted
+    // each other — and one of them said somebody had sent it to her.
+    const rows = paperRows({
+      papers: [
+        { id: 'doc-1', kind: 'DOCUMENT', name: 'Non-disclosure agreement', askedBy: 'CloudEPA', word: 'On file' },
+        { id: 'doc-1', kind: 'OUTSTANDING', name: 'Non-disclosure agreement', status: 'AWAITING_REVIEW', received: true, word: 'Sent — waiting for somebody to check it' },
+      ],
+    })
+    expect(rows).toHaveLength(1)
+    // And it is the row that says where the document stands with them,
+    // not the one that says it is done. The page's job is to tell her
+    // what is left to do.
+    expect(rows[0].kind).toBe('OWED')
+    expect(rows[0].word).toBe('Sent — waiting for somebody to check it')
+    expect(sectionOf(rows[0])).toBe('SENT')
+
+    // The same, the other way round in the payload: whichever order the
+    // route sends them, the owed row is the one she reads.
+    const flipped = paperRows({
+      papers: [
+        { id: 'doc-1', kind: 'OUTSTANDING', name: 'Non-disclosure agreement', status: 'MISSING', word: 'Not on file', openAskAt: '/api/me/papers', documentTypeKey: 'NDA' },
+        { id: 'doc-1', kind: 'DOCUMENT', name: 'Non-disclosure agreement', askedBy: 'CloudEPA', word: 'On file' },
+      ],
+    })
+    expect(flipped).toHaveLength(1)
+    expect(flipped[0].word).toBe('Not on file')
+
+    // Two different documents are still two rows, and a requirement
+    // nobody has opened a request for is a requirement rather than a
+    // document — it carries an id no document can have, so nothing
+    // collapses into it and two of them never collapse together.
+    const many = paperRows({
+      papers: [
+        { id: 'doc-1', kind: 'DOCUMENT', name: 'NDA', word: 'On file' },
+        { id: 'doc-2', kind: 'DOCUMENT', name: 'W-9', word: 'On file' },
+        { id: 'owed:I9_EVERIFY', kind: 'OUTSTANDING', name: 'Form I-9', word: 'Not on file', stopsWork: true },
+        { id: 'owed:NDA', kind: 'OUTSTANDING', name: 'Non-disclosure agreement', word: 'Not on file' },
+      ],
+    })
+    expect(many).toHaveLength(4)
+  })
+
   it('the order the route sent is the order she reads, with what is owed above what is on file', () => {
     // `myPapers` already sorts what stops the work to the top. The
     // screen groups; it never sorts again, because two domains deciding
