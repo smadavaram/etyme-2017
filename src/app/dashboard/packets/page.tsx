@@ -64,6 +64,10 @@ export default function PacketsPage() {
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const [link, setLink] = useState<string | null>(null)
+  // What was actually asked for, and which rule wanted each one. A
+  // client's own order can add a document the shipped list has never
+  // heard of, and "Asking for 6 documents" does not say which six.
+  const [asked, setAsked] = useState<{ label: string; required: boolean; becauseOf: string | null }[]>([])
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -102,7 +106,7 @@ export default function PacketsPage() {
   const spec = available.find((a) => a.key === packetKey)
 
   async function ask() {
-    setBusy(true); setError(null); setFlash(null); setLink(null)
+    setBusy(true); setError(null); setFlash(null); setLink(null); setAsked([])
     try {
       const res = await fetch('/api/packets', {
         method: 'POST',
@@ -115,6 +119,7 @@ export default function PacketsPage() {
       })
       const body = await readJson(res)
       setFlash(body.data.message)
+      setAsked(body.data.asking ?? [])
       if (body.data.link) setLink(body.data.link)
       if (body.data.created) {
         setPacketKey(''); setEmail(''); setSubjectCompanyId(''); setAsking(false)
@@ -159,6 +164,20 @@ export default function PacketsPage() {
             <p className="text-[12px] text-etyme-muted mt-1.5">
               Link to send them: <span className="font-mono text-etyme-ink">{link}</span>
             </p>
+          )}
+          {asked.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {asked.map((a) => (
+                <li key={a.label} className="text-[12px] text-etyme-muted">
+                  <span className="text-etyme-ink">{a.label}</span>
+                  {a.required ? '' : ' (optional)'}
+                  {/* Whose rule wanted it, in that rule's own words.
+                      "The system requires it" is the answer that makes
+                      somebody phone you. */}
+                  {a.becauseOf ? ` — ${a.becauseOf}` : ''}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}
