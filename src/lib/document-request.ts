@@ -755,9 +755,31 @@ export function myPapers(input: {
   const papers: Paper[] = []
   const now = input.on ?? new Date()
 
+  // ── One document is one row on her page ────────────────────────────
+  //
+  // A `DocInstance` opened against a requirement is two things the
+  // system knows about: a paper somebody asked for, and the answer to an
+  // item on her list. It was emitted as both, with the SAME id — so one
+  // upload rendered twice, once under "Sent, waiting to be checked" and
+  // once under "Papers somebody sent you", marked "On file". Same
+  // document, opposite words, and the second row claimed a firm had sent
+  // it TO her when she had sent it to them.
+  //
+  // While the requirement is unanswered the OUTSTANDING row IS the
+  // document: it carries the state, which item it answers, whose order
+  // asked for it, and whether work stops without it. The DOCUMENT row
+  // carries none of that. So the outstanding row wins and the duplicate
+  // is not produced. Once the item is satisfied it leaves `owed`
+  // altogether and the DOCUMENT row is the only one left, which is the
+  // right row for a paper that is simply on file.
+  const answering = new Set(
+    (input.owed ?? []).map((o) => input.asksByKey?.[o.key]).filter((id): id is string => !!id)
+  )
+
   for (const d of input.documents) {
     // Not asked yet is the company's business, not the person's.
     if (d.status === 'PENDING') continue
+    if (answering.has(d.id)) continue
     papers.push({
       id: d.id,
       kind: 'DOCUMENT',

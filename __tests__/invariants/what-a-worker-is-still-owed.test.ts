@@ -363,6 +363,41 @@ describe('a worker can send the document she is being chased for from the page t
     expect(papers[0].id).toBe('doc-99')
   })
 
+  it('is one row on her page, however many ways the route knows about it', () => {
+    // The third walk's only blocker. A DocInstance opened against a
+    // requirement is two things the system knows about — a paper
+    // somebody asked for, and the answer to an item on her list — and it
+    // was emitted as both, with the same id. One upload rendered twice:
+    // once under "Sent, waiting to be checked" and once under "Papers
+    // somebody sent you" marked "On file". Same document, opposite
+    // words, and the second row claimed a firm had sent it to her when
+    // she had sent it to them.
+    const papers = myPapers({
+      myEmail: null,
+      documents: [
+        {
+          id: 'doc-99',
+          name: 'Hot floor induction',
+          status: 'UPLOADED',
+          signerEmail: null,
+          templateName: 'Hot floor induction',
+          companyName: 'Computer Systems Inc',
+          createdAt: TODAY,
+          signedAt: null,
+        } as never,
+      ],
+      packets: [],
+      owed,
+      asksByKey: { HOT_FLOOR_INDUCTION: 'doc-99' },
+    })
+    const forThatDocument = papers.filter((p) => p.id === 'doc-99')
+    expect(forThatDocument, JSON.stringify(papers)).toHaveLength(1)
+    // And the one that survives is the one that says what is owed, not
+    // the one that says it is on file: her page exists to tell her what
+    // to do about it.
+    expect(forThatDocument[0].kind).toBe('OUTSTANDING')
+  })
+
   it('offers to open nothing against a waived item, because nobody is asking her for it', () => {
     const waived = outstandingItems({
       items: [required({ waived: true, waivedSays: 'Waived by Dana Whitfield on September 18.' })],
