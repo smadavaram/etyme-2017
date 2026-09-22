@@ -400,3 +400,348 @@ export function overallVerdict(): never {
       'and a date in it is a fact.'
   )
 }
+
+// ── Who renders the verdict ───────────────────────────────────────────
+//
+// The founder, 2026-09-22:
+//
+//   "Ultimately background check companies are the ones that confirm
+//   background pass or fail — the risk is passed there to background
+//   check companies; our job would be to collect all info and pass it to
+//   them to verify in today's market."
+//
+// That is the file's own doctrine pointed at one class of check, and it
+// settles a question the app had been answering wrongly for a year: a
+// background check was carried as a document the worker supplies, the
+// same shape as a passport, so her own paperwork page chased her for a
+// report she will never hold. The provider sends the report to the firm
+// that ordered it and to nobody else. She was being asked for somebody
+// else's post.
+//
+// Two facts decide the shape of every check, and they are not the same
+// fact:
+//
+//   **Who renders it** — whose judgment the record carries. A screening
+//   company's, an employer's, a licensing board's, or the person's own.
+//
+//   **Who holds the output** — who can physically produce the artifact.
+//   A nurse holds her license; nobody hands a consultant her own
+//   criminal record check.
+//
+// A licensing board renders a verdict AND the person holds the card, so
+// the chase still asks her. A screening company renders a verdict and
+// the report goes to the buyer, so the chase must never ask her. One
+// column cannot say both, which is why `suppliedBy: 'CANDIDATE'` on
+// BACKGROUND_CHECK was wrong rather than merely imprecise.
+
+/** Whose judgment a recorded check carries. */
+export type Renderer =
+  /** A licensed screening or testing company. The report is theirs. */
+  | 'PROVIDER'
+  /** The firm employing the person, examining documents itself. */
+  | 'EMPLOYER'
+  /** A board, a registry, an awarding body. */
+  | 'AUTHORITY'
+  /** The person, by attestation. Honest, and worth what it is worth. */
+  | 'SUBJECT'
+
+/** What the person the check is about is actually asked for. */
+export type SubjectOwes =
+  /** The document itself. A passport, a license, a degree certificate. */
+  | 'THE_DOCUMENT'
+  /**
+   * Her permission to run it and the identifiers it is run against.
+   * Never the result: the result is sent to whoever ordered it.
+   */
+  | 'CONSENT_AND_IDENTIFIERS'
+
+export interface WhoRenders {
+  kind: CheckKind
+  renders: Renderer
+  /** True where the person can actually produce the artifact. */
+  subjectHoldsIt: boolean
+  subjectOwes: SubjectOwes
+  /** Said on any screen that would otherwise ask her for it. */
+  says: string
+}
+
+const RENDERS: Record<CheckKind, WhoRenders> = {
+  BACKGROUND_CHECK: {
+    kind: 'BACKGROUND_CHECK',
+    renders: 'PROVIDER',
+    subjectHoldsIt: false,
+    subjectOwes: 'CONSENT_AND_IDENTIFIERS',
+    says:
+      'A screening company runs this one and sends the report to the firm that ordered ' +
+      'it. What the person gives is permission and the details it is run against — never ' +
+      'the report, because she is not sent one.',
+  },
+  DRUG_SCREENING: {
+    kind: 'DRUG_SCREENING',
+    renders: 'PROVIDER',
+    subjectHoldsIt: false,
+    subjectOwes: 'CONSENT_AND_IDENTIFIERS',
+    says:
+      'A laboratory renders this one and reports to whoever ordered the test. The person ' +
+      'consents and attends; the result is not hers to hand over.',
+  },
+  EMPLOYMENT_VERIFICATION: {
+    kind: 'EMPLOYMENT_VERIFICATION',
+    renders: 'PROVIDER',
+    subjectHoldsIt: false,
+    subjectOwes: 'CONSENT_AND_IDENTIFIERS',
+    says:
+      'Somebody calls the former employer and writes down what was said. The person ' +
+      'consents to the call and names the employer; the answer comes back to the caller.',
+  },
+  I9_EVERIFY: {
+    kind: 'I9_EVERIFY',
+    renders: 'EMPLOYER',
+    // She holds what the form is completed FROM, which is why the chase
+    // still reaches her — and the form itself is the employer's, which is
+    // why no third party's copy discharges anybody.
+    subjectHoldsIt: true,
+    subjectOwes: 'THE_DOCUMENT',
+    says:
+      'The employer of record examines the documents and completes the form. The person ' +
+      'produces the documents; nobody else can complete it for either of them.',
+  },
+  RIGHT_TO_WORK: {
+    kind: 'RIGHT_TO_WORK',
+    renders: 'EMPLOYER',
+    subjectHoldsIt: true,
+    subjectOwes: 'THE_DOCUMENT',
+    says:
+      'The employer looks at the document and records what it saw. The document is the ' +
+      "person's, and which one she shows is hers to choose.",
+  },
+  IDENTITY: {
+    kind: 'IDENTITY',
+    renders: 'EMPLOYER',
+    subjectHoldsIt: true,
+    subjectOwes: 'THE_DOCUMENT',
+    says: 'The person holds the document. Somebody looks at it and records that they did.',
+  },
+  EDUCATION_VERIFICATION: {
+    kind: 'EDUCATION_VERIFICATION',
+    renders: 'AUTHORITY',
+    // WES and ECE issue the evaluation to the applicant, who forwards it.
+    // It is hers, and asking her for it is asking the right party.
+    subjectHoldsIt: true,
+    subjectOwes: 'THE_DOCUMENT',
+    says:
+      'The awarding body or the evaluation service says it, and issues the evaluation to ' +
+      'the person. She forwards it, which is why asking her for it is asking the right party.',
+  },
+  CERTIFICATION: {
+    kind: 'CERTIFICATION',
+    renders: 'AUTHORITY',
+    subjectHoldsIt: true,
+    subjectOwes: 'THE_DOCUMENT',
+    says: 'The registry issued it and publishes it. The person holds the certificate.',
+  },
+  REFERENCE_CHECK: {
+    kind: 'REFERENCE_CHECK',
+    renders: 'SUBJECT',
+    // As shipped this item asks for names and contact details, which is
+    // the person's to give. Where a firm turns it into a called-and-
+    // recorded check it becomes the provider's, and the type is the
+    // company's own to redefine.
+    subjectHoldsIt: true,
+    subjectOwes: 'THE_DOCUMENT',
+    says:
+      'The person names the referees and how to reach them. What the referee then says is ' +
+      'said to whoever calls, and is not hers to produce.',
+  },
+}
+
+/**
+ * Who renders the verdict on a check of this kind.
+ *
+ * Named apart from `whoRenders` in `lib/document-type`, which is the
+ * architect's same question asked of a document TYPE. Two tables saying
+ * one thing is the duplication this file exists to argue against, and
+ * reconciling them — this one reading that one — is the architect's
+ * call rather than a rename made from here.
+ */
+export function whoRendersCheck(kind: CheckKind): WhoRenders {
+  return RENDERS[kind]
+}
+
+/**
+ * The check a document type key is, where it is one at all.
+ *
+ * Document keys are the company's own dictionary and this table is not,
+ * so a key nobody here has heard of answers null rather than guessing.
+ * A wrong guess here would either chase somebody for a report she cannot
+ * produce, or stop chasing her for a document she can.
+ */
+export function checkKindOf(documentKey: string): CheckKind | null {
+  switch (documentKey) {
+    case 'BACKGROUND_CHECK': return 'BACKGROUND_CHECK'
+    case 'DRUG_SCREENING': return 'DRUG_SCREENING'
+    case 'EMPLOYMENT_VERIFICATION': return 'EMPLOYMENT_VERIFICATION'
+    case 'I9_EVERIFY': return 'I9_EVERIFY'
+    case 'RIGHT_TO_WORK': return 'RIGHT_TO_WORK'
+    case 'EDUCATION_EVALUATION':
+    case 'EDUCATION_VERIFICATION': return 'EDUCATION_VERIFICATION'
+    case 'REFERENCE_CHECK': return 'REFERENCE_CHECK'
+    case 'CERTIFICATION': return 'CERTIFICATION'
+    case 'PASSPORT':
+    case 'DRIVERS_LICENSE': return 'IDENTITY'
+    default: return null
+  }
+}
+
+/**
+ * Whether a check of this type is ordered from a third party rather than
+ * collected from the person.
+ *
+ * The one predicate every chase, every list and every upload door should
+ * ask before it puts a document on somebody's own page. False for a key
+ * nobody recognizes, because a type a client invented is a document it
+ * asked somebody for and the safe default is to keep asking.
+ */
+export function orderedNotCollected(documentKey: string): boolean {
+  const kind = checkKindOf(documentKey)
+  return kind != null && RENDERS[kind].renders === 'PROVIDER'
+}
+
+/**
+ * What to say on a row for a check somebody else orders.
+ *
+ * `firm` is whoever is responsible for ordering it on this line. Null
+ * where nothing names one — and it says so rather than inventing a
+ * party, because "your supplier will order it" about a line with no
+ * supplier on it is a sentence nobody can act on.
+ */
+export function orderedBySays(documentKey: string, firm: string | null): string | null {
+  const kind = checkKindOf(documentKey)
+  if (!kind || RENDERS[kind].renders !== 'PROVIDER') return null
+  const who = firm ?? 'The firm placing you'
+  return (
+    `${who} orders this from a screening company, and the report goes to them. ` +
+    `What you are asked for is your consent and the details it is run against.`
+  )
+}
+
+// ── Telling a provider's report from somebody ticking a box ───────────
+//
+// `Verification` has carried `provider` and `referenceId` since it was
+// written and nothing in production sets either. So a row saying CLEAR
+// could be Sterling's report or it could be a desk that clicked a
+// button, and no reader could tell the two apart. That is the 2017
+// expiry column again: a field that exists, is never written, and is
+// read as though it were.
+//
+// This does not invent the missing half. It reports what is on the row
+// and refuses to dress it up: where nobody is named, the sentence says
+// nobody is named.
+
+export interface RecordedCheck {
+  /** The document type key — BACKGROUND_CHECK, DRUG_SCREENING, … */
+  key: string
+  /** CLEAR · CONDITIONAL · PENDING · IN_PROGRESS · EXPIRED · FAILED */
+  status: string
+  /** The screening company, as written on the row. */
+  provider?: string | null
+  /** Their case number, so somebody can go and ask. */
+  reference?: string | null
+  /** The day the verdict was rendered, or the day it was recorded here. */
+  on?: Date | null
+  /** Whoever at this firm recorded it, where a person did. */
+  recordedBy?: string | null
+}
+
+export interface VerdictReading {
+  /**
+   * True only where a named third party rendered it. A row with no
+   * provider on it is our own note, however green its status.
+   */
+  rendered: boolean
+  /** The screening company by name, or null. */
+  renderedBy: string | null
+  /** True where the check has not come back at all. */
+  running: boolean
+  /** A sentence with a name and a date in it, or an honest absence. */
+  says: string
+}
+
+/** Statuses that mean the provider has answered. */
+const ANSWERED_BY_PROVIDER = ['CLEAR', 'CONDITIONAL', 'FAILED', 'EXPIRED']
+
+function day(d: Date | null | undefined): string | null {
+  return d ? d.toISOString().slice(0, 10) : null
+}
+
+function outcomeWord(status: string): string {
+  switch (status) {
+    case 'CLEAR': return 'clear'
+    case 'CONDITIONAL': return 'clear with conditions'
+    case 'FAILED': return 'not clear'
+    case 'EXPIRED': return 'clear, and it has since run out'
+    default: return status.toLowerCase().replace(/_/g, ' ')
+  }
+}
+
+/**
+ * What a reader can honestly be told about a recorded check.
+ *
+ * Three answers, and the middle one is the whole point:
+ *
+ *   Sterling reported clear on 2026-03-12, reference 4471.
+ *   Recorded here by Dana Whitfield on 2026-03-12. No screening company
+ *     is named on it, so it is this firm's own note rather than a
+ *     provider's report.
+ *   Ordered from Sterling and not back yet.
+ */
+export function readVerdict(r: RecordedCheck): VerdictReading {
+  const label = labelOf(r.key)
+  const when = day(r.on)
+  const running = !ANSWERED_BY_PROVIDER.includes(r.status)
+  const provider = r.provider?.trim() || null
+
+  if (running) {
+    return {
+      rendered: false,
+      renderedBy: provider,
+      running: true,
+      says: provider
+        ? `${label} is with ${provider} and has not come back. Nothing is on file yet.`
+        : `${label} has been opened and nothing has come back. ` +
+          `No screening company is named on it, so there is nobody to chase for it.`,
+    }
+  }
+
+  if (provider) {
+    const ref = r.reference?.trim() ? `, reference ${r.reference.trim()}` : ''
+    return {
+      rendered: true,
+      renderedBy: provider,
+      running: false,
+      says: when
+        ? `${provider} reported ${outcomeWord(r.status)} on ${when}${ref}.`
+        : `${provider} reported ${outcomeWord(r.status)}${ref}. No date was recorded against it.`,
+    }
+  }
+
+  const who = r.recordedBy?.trim() || null
+  return {
+    rendered: false,
+    renderedBy: null,
+    running: false,
+    says:
+      `${label} was recorded here${who ? ` by ${who}` : ''}${when ? ` on ${when}` : ''}. ` +
+      `No screening company is named on it, so it is this firm's own note rather than a ` +
+      `provider's report.`,
+  }
+}
+
+function labelOf(key: string): string {
+  const kind = checkKindOf(key)
+  if (kind) return label(kind)
+  return key
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/^./, (c) => c.toUpperCase())
+}

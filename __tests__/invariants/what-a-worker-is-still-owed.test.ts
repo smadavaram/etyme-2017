@@ -32,10 +32,19 @@ import { humanKey, sayType, labelFor, type DefinedType } from '@/lib/document-ty
 
 const TODAY = new Date('2026-09-21T00:00:00Z')
 
+// The stand-in document is one she actually holds.
+//
+// It was BACKGROUND_CHECK until 2026-09-22, which made every sentence
+// below quietly wrong: a screening company renders that one and sends
+// the report to the firm that ordered it, so "she filed it and let it
+// run out" is not something that can happen. A license is hers, it
+// expires, and she is the only person who can renew it — which is what
+// these sentences are actually about. The background check has its own
+// describe block at the end of the file.
 function required(over: Partial<RequiredItem> = {}): RequiredItem {
   return {
-    key: 'BACKGROUND_CHECK',
-    label: 'background check',
+    key: 'PROFESSIONAL_LICENSE',
+    label: 'state license',
     required: true,
     owedBy: 'WORKER',
     owedByName: 'Helena Marsh',
@@ -48,14 +57,14 @@ function required(over: Partial<RequiredItem> = {}): RequiredItem {
 }
 
 function held(over: Partial<HeldKeyRecord> = {}): HeldKeyRecord {
-  return { key: 'BACKGROUND_CHECK', validFrom: null, expiresAt: null, accepted: true, ...over }
+  return { key: 'PROFESSIONAL_LICENSE', validFrom: null, expiresAt: null, accepted: true, ...over }
 }
 
 describe('what a worker is still owed, on the lines she is on', () => {
   it('names a document her line requires that nobody has filed, so the page she is sent to knows it exists', () => {
     const out = outstandingItems({ items: [required()], on: TODAY })
     expect(out).toHaveLength(1)
-    expect(out[0].key).toBe('BACKGROUND_CHECK')
+    expect(out[0].key).toBe('PROFESSIONAL_LICENSE')
     expect(out[0].state).toBe('MISSING')
   })
 
@@ -127,7 +136,7 @@ describe('what a worker is still owed, on the lines she is on', () => {
       owedBy: ['WORKER'],
       on: TODAY,
     })
-    expect(out.map((o) => o.key)).toEqual(['BACKGROUND_CHECK'])
+    expect(out.map((o) => o.key)).toEqual(['PROFESSIONAL_LICENSE'])
   })
 
   it('leaves an optional item off the list of what is owed, because nobody is chasing it', () => {
@@ -887,5 +896,127 @@ describe('a document a client invented is recognized by either of its names', ()
     const route = readFileSync(join(process.cwd(), 'src/app/api/me/papers/route.ts'), 'utf8')
     expect(route).toContain('function namesOf(')
     expect(route.match(/namesOf\(/g)?.length).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe('a worker is asked for her consent to a check and never for the report', () => {
+  function check(over: Partial<RequiredItem> = {}): RequiredItem {
+    return {
+      key: 'BACKGROUND_CHECK',
+      label: 'background check',
+      required: true,
+      owedBy: 'WORKER',
+      owedByName: 'Helena Marsh',
+      blocks: false,
+      waived: false,
+      waivedSays: null,
+      says: 'required by Cavanaugh Glassworks’s order PO-2026-2',
+      ...over,
+    }
+  }
+
+  it('shows a background check as the firm’s to order and never as a file for her to send', () => {
+    const out = outstandingItems({ items: [check()], on: TODAY })
+    expect(out[0].hers).toBe(false)
+    expect(out[0].word).toBe('Not on file — it is ordered from a screening company')
+    expect(out[0].notHersBecause).toContain('orders this from a screening company')
+  })
+
+  it('offers her no upload button for a report the provider posted to somebody else', () => {
+    const owed = outstandingItems({ items: [check()], on: TODAY })
+    const papers = myPapers({ myEmail: null, documents: [], packets: [], owed, on: TODAY })
+    expect(papers[0].todo).toBeNull()
+    expect(papers[0].openAskAt).toBeNull()
+    expect(papers[0].why).toContain('your consent')
+  })
+
+  it('still keeps it on her list, because she is not being asked for nothing — she is asked for her consent', () => {
+    const out = outstandingItems({ items: [check()], on: TODAY })
+    expect(out).toHaveLength(1)
+    expect(out[0].key).toBe('BACKGROUND_CHECK')
+  })
+
+  it('tells her the day a check ran out and still leaves the reordering with the firm', () => {
+    const out = outstandingItems({
+      items: [check()],
+      held: [{ key: 'BACKGROUND_CHECK', validFrom: null, expiresAt: new Date('2026-09-01T00:00:00Z'), accepted: true }],
+      on: TODAY,
+    })
+    expect(out[0].state).toBe('LAPSED')
+    expect(out[0].word).toBe('Ran out 20 days ago — a new one has to be ordered')
+  })
+
+  it('says a check that has been opened is with the provider, not with a desk here waiting to read a file she sent', () => {
+    const out = outstandingItems({
+      items: [check()],
+      held: [{ key: 'BACKGROUND_CHECK', validFrom: null, expiresAt: null, accepted: false, received: true }],
+      on: TODAY,
+    })
+    expect(out[0].word).toBe('Ordered — waiting for the provider')
+  })
+
+  it('says work cannot start until it is ordered and back, where a client’s order makes the check a condition of starting', () => {
+    const out = outstandingItems({ items: [check({ blocks: true })], on: TODAY })
+    expect(out[0].stopsWork).toBe(true)
+    expect(out[0].word).toBe('Not on file — work cannot start until it is ordered and back')
+  })
+
+  it('leaves a document she actually holds hers to send, so nothing else on her page loses its button', () => {
+    const out = outstandingItems({ items: [required()], on: TODAY })
+    expect(out[0].hers).toBe(true)
+    expect(out[0].notHersBecause).toBeNull()
+    const papers = myPapers({ myEmail: null, documents: [], packets: [], owed: out, on: TODAY })
+    expect(papers[0].todo).toBe('upload')
+    expect(papers[0].openAskAt).toBe('/api/me/papers')
+  })
+})
+
+describe('what a worker reads about a check already on her file', () => {
+  it('names the screening company that rendered it, with the day and the reference', () => {
+    const papers = myPapers({
+      myEmail: null,
+      documents: [],
+      packets: [],
+      held: [{
+        id: 'v1', key: 'BACKGROUND_CHECK', label: 'Background check', status: 'CLEAR',
+        provider: 'Sterling', reference: '4471',
+        validFrom: new Date('2026-03-12T00:00:00Z'), expiresAt: new Date('2027-03-12T00:00:00Z'),
+        stopsWork: false,
+      }],
+      on: TODAY,
+    })
+    expect(papers[0].askedBy).toBe('Sterling')
+    expect(papers[0].why).toBe('Sterling reported clear on 2026-03-12, reference 4471.')
+  })
+
+  it('never reports a check as on file where no screening company is named on it', () => {
+    const papers = myPapers({
+      myEmail: null,
+      documents: [],
+      packets: [],
+      held: [{
+        id: 'v1', key: 'BACKGROUND_CHECK', label: 'Background check', status: 'CLEAR',
+        provider: null, validFrom: new Date('2026-03-12T00:00:00Z'),
+        expiresAt: new Date('2027-03-12T00:00:00Z'), stopsWork: false,
+      }],
+      on: TODAY,
+    })
+    expect(papers[0].word).toBe('Recorded here — no screening company named on it')
+    expect(papers[0].why).toContain('No screening company is named on it')
+  })
+
+  it('leaves a license on her file reading as her own document, with the day it runs out', () => {
+    const papers = myPapers({
+      myEmail: null,
+      documents: [],
+      packets: [],
+      held: [{
+        id: 'v1', key: 'PROFESSIONAL_LICENSE', label: 'State license', status: 'CLEAR',
+        provider: 'Wisconsin Board of Nursing', validFrom: null,
+        expiresAt: new Date('2026-10-21T00:00:00Z'), stopsWork: true,
+      }],
+      on: TODAY,
+    })
+    expect(papers[0].word).toBe('Runs out in 30 days')
   })
 })

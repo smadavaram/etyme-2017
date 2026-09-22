@@ -47,6 +47,7 @@
  * A warning captures a reason and proceeds. Never silently.
  */
 
+import { orderedNotCollected, readVerdict } from '@/lib/attestation'
 import {
   packetByKey,
   resolveItems,
@@ -162,6 +163,25 @@ export interface ChecklistItem {
   /** True where the state alone would stop the contract starting. */
   blocks: boolean
   /**
+   * The screening company that rendered this one, where a company did.
+   *
+   * Only ever set on a check somebody else runs — a background check, a
+   * drug screening. Null on a passport, because nobody renders a verdict
+   * on a passport; null on a background check whose row names nobody,
+   * which is the case `renderedSays` exists to put into words.
+   */
+  renderedBy?: string | null
+  /**
+   * What the record actually supports, as a sentence with a name and a
+   * date in it — "Sterling reported clear on 2026-03-12, reference
+   * 4471", or that nobody is named on it and this is the firm's own
+   * note. The founder, 2026-09-22: the screening company confirms pass
+   * or fail, and the risk is passed there. A row that cannot name one
+   * has passed the risk nowhere, and a screen saying "on file" of it is
+   * reporting a verdict nobody rendered.
+   */
+  renderedSays?: string | null
+  /**
    * How this item is named inside a refusal, where that differs from the
    * label on the checklist.
    *
@@ -255,6 +275,12 @@ export interface VerificationRow {
   backedBy?: BackingDocument[]
   /** Who ran or issued it — a board of nursing, an insurer, a screener. */
   provider?: string | null
+  /**
+   * The provider's own case number. Read so a compliance officer can go
+   * and ask them; nothing in production writes it yet, and a row without
+   * one still names the provider where the provider is named.
+   */
+  referenceId?: string | null
   /**
    * Whatever the check came back with. Read only for the two fields a
    * license refusal has to name — the number and the state — because
@@ -514,8 +540,42 @@ export function contractClearance(input: {
       .find((st) => !!st) ?? null
   const naming = licenseNaming(input.role, heldState)
 
+  // ── Who rendered the verdict on each check somebody else ran ───────
+  //
+  // The founder, 2026-09-22: "background check companies are the ones
+  // that confirm background pass or fail — the risk is passed there to
+  // background check companies."
+  //
+  // `Verification.provider` and `referenceId` have existed since the
+  // table did and nothing in production writes either, so a row reading
+  // CLEAR could be Sterling's report or a desk that clicked a button. A
+  // checklist cannot tell the difference, so it stops claiming it can:
+  // where a name is on the row the item says whose report it is, and
+  // where none is, the item says so instead of printing "on file".
+  //
+  // No verdict moves on this. A background check warns when it is
+  // missing and warns when it is missing, whoever ran the last one —
+  // Addendum E says WARN, capture a reason, proceed. What changes is
+  // that nobody reads an unattributed green line as a provider's answer.
+  const rendered = new Map<string, ReturnType<typeof readVerdict>>()
+  for (const v of input.personVerifications) {
+    if (!orderedNotCollected(v.type)) continue
+    if (rendered.has(v.type)) continue
+    rendered.set(
+      v.type,
+      readVerdict({
+        key: v.type,
+        status: v.status,
+        provider: v.provider ?? null,
+        reference: v.referenceId ?? null,
+        on: v.verifiedAt ?? v.validFrom ?? v.issuedAt ?? null,
+      })
+    )
+  }
+
   const items: ChecklistItem[] = resolved.map((r) => {
     const asked = byKey.get(r.key)
+    const verdict = rendered.get(r.key) ?? null
     // The line's own answer beats the packet's, except where the answer
     // is a waiver of something nobody may waive — `document-requirements`
     // has already refused that one and left `blocks` true.
@@ -531,9 +591,19 @@ export function contractClearance(input: {
       // A waiver that was REFUSED says that instead, in the same place:
       // somebody wrote one against a federal form and it is not being
       // honored, and the row they will look at is this one.
-      note: asked?.waivedSays ? asked.waivedSays : r.note,
+      // A held check that names nobody says so on the row a compliance
+      // officer actually reads, rather than reading "on file until
+      // 2027-06-01" and being believed. A waiver still wins the line:
+      // somebody decided that by name, and their reason is the thing to
+      // show.
+      note: asked?.waivedSays
+        ? asked.waivedSays
+        : verdict && !outstanding(r.state)
+          ? verdict.says
+          : r.note,
       hint: r.hint,
       blocks,
+      ...(verdict ? { renderedBy: verdict.renderedBy, renderedSays: verdict.says } : {}),
       ...(naming && r.key === LICENSE_KEY ? { said: naming.said } : {}),
       ...(asked
         ? {

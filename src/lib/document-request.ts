@@ -20,6 +20,7 @@
  */
 
 import { humanKey } from '@/lib/document-type'
+import { orderedBySays, orderedNotCollected, readVerdict } from '@/lib/attestation'
 
 export type DocStatus = 'PENDING' | 'SENT' | 'SIGNED' | 'UPLOADED'
 export type DocAction = 'send' | 'upload' | 'sign'
@@ -317,6 +318,12 @@ export interface HeldRecord {
   status: string
   /** Who ran or issued it, where recorded. */
   provider: string | null
+  /**
+   * The provider's own case number, where one was recorded. The column
+   * has existed since the table did and nothing in production writes it;
+   * it is read here so that the day something does, the row says it.
+   */
+  reference?: string | null
   validFrom: Date | null
   expiresAt: Date | null
   /** True where a lapse stops the work rather than starting a conversation. */
@@ -530,6 +537,23 @@ export interface OutstandingItem {
   /** The day the one on file ran out, where there was one. */
   ranOutOn: Date | null
   waivedSays: string | null
+  /**
+   * Whether this is actually the person's to send.
+   *
+   * False on a check a screening company runs. The founder, 2026-09-22:
+   * "background check companies are the ones that confirm background
+   * pass or fail — our job would be to collect all info and pass it to
+   * them to verify." The report goes to the firm that ordered it and
+   * never to the person it is about, so a row offering her an upload
+   * button for one is asking her for somebody else's post.
+   *
+   * It stays ON her list, because she is not being asked for nothing —
+   * she is asked for her consent and the details the check runs
+   * against. What changes is whose move it is.
+   */
+  hers: boolean
+  /** Where it is not hers, what is actually happening. Null where it is. */
+  notHersBecause: string | null
 }
 
 /**
@@ -613,6 +637,15 @@ export function outstandingItems(input: {
     // set gets it rather than each humanizing its own copy.
     const item = raw.label === raw.key ? { ...raw, label: humanKey(raw.key) } : raw
 
+    // Ordered from a third party, or collected from the person.
+    //
+    // A screening company renders the verdict and sends the report to
+    // whoever ordered it, so there is no version of this the person can
+    // hand over. `orderedBySays` returns null for everything else, which
+    // is what keeps a passport, a license and an I-9 hers to send.
+    const notHersBecause = orderedBySays(item.key, item.owedBy === 'WORKER' ? null : item.owedByName)
+    const hers = notHersBecause == null
+
     // What she holds that answers this item: the type itself, and
     // anything that proves it outright.
     const answers = [item.key, ...(SATISFIED_BY[item.key] ?? [])]
@@ -635,6 +668,8 @@ export function outstandingItems(input: {
         asked: item.says,
         ranOutOn: null,
         waivedSays: item.waivedSays,
+        hers,
+        notHersBecause,
       })
       continue
     }
@@ -659,10 +694,14 @@ export function outstandingItems(input: {
         owedByName: item.owedByName,
         stopsWork: item.blocks,
         state: 'AWAITING_REVIEW',
-        word: 'Sent — waiting for somebody to check it',
+        // A check that has been opened is with the provider, not with a
+        // desk here waiting to look at a file she sent.
+        word: hers ? 'Sent — waiting for somebody to check it' : 'Ordered — waiting for the provider',
         asked: item.says,
         ranOutOn: null,
         waivedSays: null,
+        hers,
+        notHersBecause,
       })
       continue
     }
@@ -676,14 +715,24 @@ export function outstandingItems(input: {
       .sort((a, b) => b.expiresAt!.getTime() - a.expiresAt!.getTime())[0]
 
     const state: OutstandingState = lapsed ? 'LAPSED' : early ? 'NOT_YET_VALID' : 'MISSING'
+    // The day a check ran out is the same fact whoever orders the next
+    // one, so a lapse still says the date. What changes on a check
+    // somebody else orders is the sentence about the gap: "not on file"
+    // reads as a thing she failed to send, and it is not.
     const word =
       state === 'LAPSED'
-        ? heldWord(lapsed!.expiresAt, on, item.blocks)
+        ? hers
+          ? heldWord(lapsed!.expiresAt, on, item.blocks)
+          : `${heldWord(lapsed!.expiresAt, on, item.blocks)} — a new one has to be ordered`
         : state === 'NOT_YET_VALID'
           ? `On file, but not in force until ${early!.validFrom!.toISOString().slice(0, 10)}`
-          : item.blocks
-            ? 'Not on file — work cannot start without it'
-            : 'Not on file'
+          : !hers
+            ? item.blocks
+              ? 'Not on file — work cannot start until it is ordered and back'
+              : 'Not on file — it is ordered from a screening company'
+            : item.blocks
+              ? 'Not on file — work cannot start without it'
+              : 'Not on file'
 
     out.push({
       key: item.key,
@@ -696,6 +745,8 @@ export function outstandingItems(input: {
       asked: item.says,
       ranOutOn: lapsed?.expiresAt ?? null,
       waivedSays: null,
+      hers,
+      notHersBecause,
     })
   }
 
@@ -842,16 +893,32 @@ export function myPapers(input: {
     // it is on file is how somebody relies on paperwork that does not
     // exist. Only what actually came back is shown.
     if (!ACCEPTED_CHECK.includes(h.status)) continue
+    // A check a screening company renders says who rendered it, or says
+    // that nobody is named on it. "On file until 2027-06-01" over a row
+    // nobody can trace is the 2017 expiry column wearing a friendlier
+    // face: a fact about an event, reported as a verdict.
+    const verdict = orderedNotCollected(h.key)
+      ? readVerdict({
+          key: h.key,
+          status: h.status,
+          provider: h.provider,
+          reference: h.reference ?? null,
+          on: h.validFrom ?? null,
+        })
+      : null
     papers.push({
       id: h.id,
       kind: 'HELD',
       name: asRow(h.label),
       partOf: null,
-      askedBy: h.provider ?? 'On your file',
-      why: null,
+      askedBy: verdict ? (verdict.renderedBy ?? 'Recorded here — no screening company named') : (h.provider ?? 'On your file'),
+      why: verdict?.says ?? null,
       needsSignature: false,
       status: h.status,
-      word: heldWord(h.expiresAt ?? null, now, h.stopsWork),
+      word:
+        verdict && !verdict.rendered
+          ? 'Recorded here — no screening company named on it'
+          : heldWord(h.expiresAt ?? null, now, h.stopsWork),
       askedAt: (h.validFrom ?? null)?.toISOString() ?? null,
       doneAt: (h.validFrom ?? null)?.toISOString() ?? null,
       dueOn: h.expiresAt?.toISOString() ?? null,
@@ -881,7 +948,10 @@ export function myPapers(input: {
       // which on her own page is her, and "Helena Marsh asked for Helena
       // Marsh's I-9" reads as though she asked herself.
       askedBy: null,
-      why: o.waivedSays ?? capitalize(o.asked),
+      // Whose move it is comes first on a check she cannot produce. The
+      // order's own words still follow it, so the row never loses who
+      // asked for the check in the first place.
+      why: o.waivedSays ?? (o.notHersBecause ? `${o.notHersBecause} ${capitalize(o.asked)}` : capitalize(o.asked)),
       needsSignature: false,
       status: o.state,
       word: o.word,
@@ -892,7 +962,10 @@ export function myPapers(input: {
       // Nothing was sent, so there is no link and no signature page. The
       // upload on her own page is the answer, and a waived item asks her
       // for nothing at all.
-      todo: o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : 'upload',
+      // Nothing for her to send on a check somebody else orders. A row
+      // offering an upload button for a background check is a row
+      // asking her for a report the provider posted to somebody else.
+      todo: !o.hers || o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : 'upload',
       link: null,
       stopsWork: o.stopsWork,
       waived: o.state === 'WAIVED',
@@ -903,7 +976,7 @@ export function myPapers(input: {
       // Nothing to post against until a request exists, so the page asks
       // for one here and then answers it at /api/documents/:id/upload —
       // the same door, and the same rule, as every other paper.
-      openAskAt: o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : '/api/me/papers',
+      openAskAt: !o.hers || o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : '/api/me/papers',
     })
   }
 

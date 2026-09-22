@@ -4,7 +4,7 @@ import { seedWorld } from '@/lib/seed-world'
 import { contractClearance, lineExtras } from '@/lib/contract-clearance'
 import { lookAtDocInstances, checksToRedo, documentFindings } from '@/lib/document-request'
 import { GET as compliance } from '@/app/api/compliance/route'
-import { GET as myPapersRoute } from '@/app/api/me/papers/route'
+import { GET as myPapersRoute, POST as openMyAsk } from '@/app/api/me/papers/route'
 import { POST as setRequirement, GET as readRequirements } from '@/app/api/documents/requirements/route'
 
 /**
@@ -335,7 +335,7 @@ describe('the loop of documents, between the parties', () => {
         templateId: template.id,
         sellContractId: line.id,
         subjectType: 'PERSON',
-        subjectId: line.personId!,
+        subjectId: line.personId,
         status: 'SIGNED',
         signedAt: new Date(Date.now() - 300 * 86_400_000),
         countersignedAt: new Date(Date.now() - 300 * 86_400_000),
@@ -398,5 +398,68 @@ describe('the loop of documents, between the parties', () => {
     // It is a chase and it has never been a block. Nobody stops working
     // over a screening that needs redoing.
     expect(found!.stopsWork).toBe(false)
+  })
+})
+
+describe('who renders the verdict, walked on the seeded world', () => {
+  // The founder, 2026-09-22: "Ultimately background check companies are
+  // the ones that confirm background pass or fail — the risk is passed
+  // there to background check companies; our job would be to collect
+  // all info and pass it to them to verify."
+  //
+  // Before this, /api/me/papers put a background check on a worker's
+  // outstanding list owed by her, and POST opened a DocInstance for it
+  // through the same door as a passport scan. She does not have the
+  // report. The provider posts it to whoever ordered it.
+
+  async function aWorkerOnALine() {
+    return prisma.sellContract.findFirstOrThrow({
+      where: { state: { notIn: ['ENDED', 'CANCELLED'] } },
+      select: { personId: true, person: { select: { primaryEmail: true, name: true } } },
+    })
+  }
+
+  it('a worker cannot open a document request for a background check, and the refusal names the firm that orders it', async () => {
+    const line = await aWorkerOnALine()
+    as(line.person.primaryEmail!)
+    const r = await json(
+      await openMyAsk(req('POST', '/api/me/papers', { documentTypeKey: 'BACKGROUND_CHECK' }))
+    )
+    expect(r.status, JSON.stringify(r.body).slice(0, 400)).toBe(409)
+    expect(r.body.error.code).toBe('NOT_HERS_TO_SEND')
+    expect(r.body.error.message).toMatch(/orders it from a screening company/)
+    expect(r.body.error.message).toMatch(/your consent/)
+    // And nothing was written. A refusal that leaves a request behind is
+    // a document asked for that nobody asked for.
+    const asks = await prisma.docInstance.count({
+      where: { subjectType: 'PERSON', subjectId: line.personId, template: { name: { contains: 'ackground' } } },
+    })
+    expect(asks).toBe(0)
+  })
+
+  it('a worker can still open a document request for a document she actually holds', async () => {
+    const line = await aWorkerOnALine()
+    as(line.person.primaryEmail!)
+    const r = await json(
+      await openMyAsk(req('POST', '/api/me/papers', { documentTypeKey: 'RIGHT_TO_WORK' }))
+    )
+    expect(r.status, JSON.stringify(r.body).slice(0, 400)).toBe(200)
+    expect(r.body.data.uploadTo).toMatch(/\/api\/documents\/.+\/upload/)
+  })
+
+  it('a worker’s own page offers her nothing to press on a check a screening company runs', async () => {
+    const line = await aWorkerOnALine()
+    as(line.person.primaryEmail!)
+    const r = await json(await myPapersRoute(req('GET', '/api/me/papers')))
+    expect(r.status).toBe(200)
+    const row = (r.body.data.papers ?? []).find(
+      (p: { kind: string; documentTypeKey?: string }) =>
+        p.kind === 'OUTSTANDING' && p.documentTypeKey === 'BACKGROUND_CHECK'
+    )
+    if (row) {
+      expect(row.todo).toBeNull()
+      expect(row.openAskAt).toBeNull()
+      expect(row.why).toMatch(/consent/)
+    }
   })
 })

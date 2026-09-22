@@ -12,6 +12,7 @@ import {
   type SentDocument,
 } from '@/lib/document-request'
 import { requirementsFor } from '@/lib/document-requirements'
+import { orderedNotCollected } from '@/lib/attestation'
 import { humanKey, labelFor, typeByKey } from '@/lib/document-type'
 
 /**
@@ -81,6 +82,10 @@ export async function GET(request: NextRequest) {
       where: { personId: me },
       select: {
         id: true, type: true, status: true, provider: true,
+        // Read so her own page can say "Sterling, reference 4471"
+        // rather than an unattributed green line. Nothing in production
+        // writes it yet; the row says so when it does not.
+        referenceId: true,
         issuedAt: true, validFrom: true, expiresAt: true,
       },
       orderBy: { type: 'asc' },
@@ -130,6 +135,7 @@ export async function GET(request: NextRequest) {
     label: labelFor(v.type),
     status: v.status,
     provider: v.provider,
+    reference: v.referenceId,
     validFrom: v.validFrom ?? v.issuedAt,
     expiresAt: v.expiresAt,
     stopsWork: typeByKey(v.type)?.blocks ?? false,
@@ -418,6 +424,38 @@ export async function POST(request: NextRequest) {
   ])
 
   const found = await lineOwing(me, key, checks, papers, new Date())
+
+  // ── A check she cannot produce ─────────────────────────────────────
+  //
+  // The founder, 2026-09-22: "background check companies are the ones
+  // that confirm background pass or fail — the risk is passed there to
+  // background check companies; our job would be to collect all info
+  // and pass it to them to verify."
+  //
+  // So there is no file for her to attach. The screening company sends
+  // the report to the firm that ordered it, and a door that took one
+  // from her would be recording a document she cannot have obtained
+  // honestly — and would let anybody put a clear background check on
+  // their own file.
+  //
+  // Answered BEFORE "nobody is asking you for that", because this is
+  // true whether or not a line requires one: a worker who reaches for
+  // this needs to be told what is actually happening, not that nothing
+  // is. Where a line does name a firm the sentence names it; where
+  // none does, it says the firm placing you rather than inventing one.
+  if (orderedNotCollected(key)) {
+    const label = labelFor(key)
+    const firm = found?.companyName ?? 'The firm placing you'
+    return refuse(
+      `${label.charAt(0).toUpperCase() + label.slice(1)} is not a document you hold. ` +
+        `${firm} orders it from a screening company and the report goes to them — what you ` +
+        `are asked for is your consent and the details it is run against, which they will ` +
+        `come to you for. There is nothing for you to send here.`,
+      409,
+      'NOT_HERS_TO_SEND'
+    )
+  }
+
   if (!found) {
     return refuse(
       `Nobody is asking you for that. Your paperwork page lists what is still owed on the work you are ` +

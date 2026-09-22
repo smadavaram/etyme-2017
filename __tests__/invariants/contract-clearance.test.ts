@@ -154,3 +154,57 @@ describe('what it says', () => {
     expect(v.fix).toMatch(/or activate with a reason/)
   })
 })
+
+describe('a checklist never reports a check as verified without the provider’s name on it', () => {
+  // The founder, 2026-09-22: "background check companies are the ones
+  // that confirm background pass or fail — the risk is passed there to
+  // background check companies." `Verification.provider` has existed
+  // since the table did and nothing in production writes it, so a green
+  // row on a placement checklist could be Sterling's report or a desk
+  // that clicked a button. The row now says which.
+  const rendered = (over: Record<string, unknown> = {}) => ({
+    type: 'BACKGROUND_CHECK',
+    status: 'CLEAR',
+    expiresAt: inDays(300),
+    provider: 'Sterling',
+    referenceId: '4471',
+    verifiedAt: new Date('2026-03-12T00:00:00Z'),
+    ...over,
+  })
+
+  it('names the screening company, the day and the reference on a background check that is on file', () => {
+    const v = verdict([clear('I9_EVERIFY'), rendered() as never])
+    const item = v.items.find((i) => i.key === 'BACKGROUND_CHECK')!
+    expect(item.renderedBy).toBe('Sterling')
+    expect(item.note).toBe('Sterling reported clear on 2026-03-12, reference 4471.')
+  })
+
+  it('says a background check with nobody named on it is this firm’s own note rather than a provider’s report', () => {
+    const v = verdict([clear('I9_EVERIFY'), rendered({ provider: null, referenceId: null }) as never])
+    const item = v.items.find((i) => i.key === 'BACKGROUND_CHECK')!
+    expect(item.renderedBy).toBeNull()
+    expect(item.note).toContain('No screening company is named on it')
+  })
+
+  it('moves no verdict either way, because a background check warns and has always warned', () => {
+    const named = verdict([clear('I9_EVERIFY'), rendered() as never])
+    const unnamed = verdict([clear('I9_EVERIFY'), rendered({ provider: null }) as never])
+    expect(named.outcome).toBe(unnamed.outcome)
+    expect(named.blocking.map((b) => b.key)).toEqual(unnamed.blocking.map((b) => b.key))
+    expect(named.chasing.map((c) => c.key)).toEqual(unnamed.chasing.map((c) => c.key))
+  })
+
+  it('leaves a document nobody renders a verdict on saying what it always said', () => {
+    const v = verdict([clear('I9_EVERIFY'), clear('BACKGROUND_CHECK', inDays(300))])
+    const i9 = v.items.find((i) => i.key === 'I9_EVERIFY')!
+    expect(i9.renderedBy).toBeUndefined()
+    expect(i9.renderedSays).toBeUndefined()
+  })
+
+  it('says a background check nobody has filed is not on file, rather than claiming somebody rendered nothing', () => {
+    const v = verdict([clear('I9_EVERIFY')])
+    const item = v.items.find((i) => i.key === 'BACKGROUND_CHECK')!
+    expect(item.renderedBy).toBeUndefined()
+    expect(item.note).not.toContain('reported')
+  })
+})

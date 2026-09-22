@@ -189,7 +189,7 @@ const START_RULES: Rule[] = [
     when: (c) => c.onSite !== false,
     because: 'the client requires it for anybody on their premises',
     items: [
-      { key: 'BACKGROUND_CHECK', label: 'Background check', hint: 'Through our provider, or yours if the client accepts it.', required: true, validMonths: 12 },
+      { key: 'BACKGROUND_CHECK', label: 'Background check', hint: 'We order this from a screening company and they report back to us. What we need from you is your consent and the details it is run against — the report is not sent to you.', required: true, validMonths: 12 },
     ],
   },
   {
@@ -205,7 +205,7 @@ const START_RULES: Rule[] = [
     when: (c) => c.country === 'US' && c.onSite === true && (c.valueCents ?? 0) > 0,
     because: 'the client site requires it',
     items: [
-      { key: 'DRUG_SCREENING', label: 'Drug screening', hint: 'Where the client site requires it.', required: false, validMonths: 12 },
+      { key: 'DRUG_SCREENING', label: 'Drug screening', hint: 'Where the client site requires it. We book it with the laboratory and they report the result to us; you consent and attend.', required: false, validMonths: 12 },
     ],
   },
 ]
