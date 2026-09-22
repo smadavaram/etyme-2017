@@ -137,7 +137,71 @@ function dayInMonth(year: number, month: number, requested: number | undefined):
   return new Date(year, month, day)
 }
 
-/** First date on or after `from` that falls on `dayOfWeek`. */
+/**
+ * First date on or after `from` that falls on `dayOfWeek`.
+ *
+ * ── An approval that lands before the submission it approves ─────────
+ *
+ * Found 2026-09-22, on the release agent's third walk, and written down
+ * here because this is where somebody will come looking. **The bug is
+ * not in this file and the one-line fix is not here either** — see the
+ * note at the end.
+ *
+ * A contract starting Monday 12 October 2026 generates
+ *
+ *     TIMESHEET_APPROVE   Mon 12 Oct
+ *     TIMESHEET_SUBMIT    Fri 16 Oct
+ *
+ * because the US_IT pack asks for two independent weekly series —
+ * `TIMESHEET_SUBMIT` on `dayOfWeek: 5` and `TIMESHEET_APPROVE` on
+ * `dayOfWeek: 1` — and each is anchored separately at the contract
+ * start by the function above. The engine did exactly what it was
+ * asked; the pack asked for the wrong thing.
+ *
+ * It is not the weekend-direction question, which was decided on
+ * 2026-09-16 and is now a company setting in `lib/cycle-shift`. The
+ * walk saw 13 October rather than 12 only because 12 October is a
+ * holiday on the seeded calendar; the defect is there with no holidays
+ * and no shifting at all.
+ *
+ * Which contracts: those starting on a **Saturday, Sunday or Monday** —
+ * the days where the next Monday arrives before the next Friday. Monday
+ * is the commonest start day in staffing. Three of seven.
+ *
+ * Steady state is right. The second approval, Mon 19 Oct, sits three
+ * days after the submission of Fri 16 Oct and approves it. Only the
+ * head of the series is spurious — and it is not merely cosmetic:
+ * `pickCycle` in `lib/cycle-complete` matches a period's event to the
+ * earliest uncompleted cycle due on or after `periodEnd - 1 day`, so
+ * approving the first week (ending Fri 16 Oct) claims the 19th and the
+ * 12th is never claimed by anything. It stays open for the life of the
+ * contract and the placement timeline calls it overdue, which is the
+ * exact failure `lib/cycle-complete` was written to end.
+ *
+ * ── The fix, and why it is one line and not here ─────────────────────
+ *
+ * The approval is not a rhythm of its own. It is "three days after the
+ * hours are due", which this engine can already say — `offsetDays` is
+ * honored in `generateCycles` below. So in `lib/template-packs`:
+ *
+ *     { kind: 'TIMESHEET_APPROVE', frequency: 'WEEKLY', dayOfWeek: 1 }
+ *  →  { kind: 'TIMESHEET_APPROVE', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 3 }
+ *
+ * Checked over a full quarter from all seven start weekdays: every
+ * approval from the second onward lands on the identical day, the
+ * spurious head disappears, and the counts come out equal (11 and 11
+ * where they were 11 and 12). It also closes the tail — a Monday-
+ * anchored series stops at the last Monday inside the contract, so the
+ * final week's hours had no approval date at all.
+ *
+ * `lib/template-packs` belongs to `etyme-regulatory` under
+ * `lib/domains`, so this is written down rather than done. Making the
+ * generator drop a cycle that precedes another kind's first cycle would
+ * hard-code a dependency between kinds that `lib/cycle-kinds` does not
+ * express, and would be wrong for a company that genuinely runs
+ * approvals on their own rhythm. The pack is where the sentence
+ * belongs.
+ */
 function nextOnDay(from: Date, dayOfWeek: number): Date {
   const d = new Date(from)
   while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1)
@@ -165,6 +229,52 @@ function generatePeriodEnds(start: Date, end: Date, def: CycleDefinition): Date[
       // says 1 gets the 1st and the last; one that says nothing gets
       // the 15th and the last. If the first cut IS month-end there is
       // only one, and it is not emitted twice.
+      //
+      // ── And the shipped pack says 1, which is a typo for 15 ────────
+      //
+      // Found 2026-09-22 on the release agent's third walk, and the same
+      // file and the same handful of lines as the approval note above,
+      // so `etyme-regulatory` gets one change with two fixes in it.
+      //
+      // `lib/template-packs` sets `INVOICE_GENERATE` and
+      // `VENDOR_BILL_GENERATE` to SEMIMONTHLY with `dayOfMonth: 1`, so
+      // the two cuts are the 1st and month-end — one day apart, then a
+      // month. Over calendar 2026 that is 20 dates with gaps of
+      // 1, 29, 1, 30, 3, 28, 1 …, where a semimonthly cycle should give
+      // 24 dates with gaps of 14 to 18. Four of the twenty-four
+      // boundaries vanish entirely into the same-working-day guard
+      // below, because a Saturday month-end and a Sunday 1st both move
+      // forward to one Monday. A placement timeline reads "Invoice to
+      // raise Nov 30 / Dec 1".
+      //
+      // The decisive evidence is not the gaps, it is `lib/periods`.
+      // `semiMonth` there defines the periods a semimonthly contract
+      // actually bills — the 1st to the 15th, then the 16th to the last
+      // — and a cycle date is a period END. Month-end matches. The 1st
+      // matches no period end at all: it asks for an invoice on the
+      // FIRST day of the period it would bill, fourteen days before any
+      // of those hours exist, and the 1st-to-15th period is then never
+      // closed by a cycle. CLAUDE.md's stated default — "Friday weeks,
+      // the 15th and month-end" — is `DEFAULT_SEMIMONTHLY_CUT` above and
+      // is what the pack meant.
+      //
+      // What moves if it is changed to 15: the month-end date does not
+      // move at all; the other date moves from the 1st to the 15th, 14
+      // days later; a year gains four invoice dates. Nothing already
+      // written is rewritten — cycles are generated once, at award,
+      // convert, replace, extend and seed — so it reaches contracts
+      // awarded after the change and worlds seeded after it, and a
+      // re-seeded demo moves. No test pins the pack's value; the two in
+      // `cycles.test.ts` that use `dayOfMonth: 1` pass a local
+      // definition and are testing that this engine honors what it is
+      // given, which it does.
+      //
+      // Separately, and bigger: the pack decides this rhythm even for a
+      // line whose order states a `billFrequency`. That is the open
+      // money work already documented in `lib/contract-cycles` — a
+      // header that says MONTHLY does not yet move an invoice date —
+      // and it is why the walk saw SEMIMONTHLY dates beside a line
+      // reading MONTHLY. Fixing the typo does not fix that.
       let year = start.getFullYear()
       let month = start.getMonth()
       const firstCut = def.dayOfMonth ?? DEFAULT_SEMIMONTHLY_CUT

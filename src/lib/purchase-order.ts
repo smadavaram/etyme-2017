@@ -13,6 +13,8 @@
  * services rather than running payroll.
  */
 
+import { amount } from '@/lib/money-display'
+
 export type PoStatus = 'OPEN' | 'CLOSED' | 'CANCELLED'
 
 export interface PoBalanceInput {
@@ -71,7 +73,7 @@ export function poBalance(input: PoBalanceInput, now: Date = new Date()): PoBala
   } else if (remainingCents <= 0) {
     canInvoice = false
     reason = overdrawn
-      ? `Overdrawn by $${Math.abs(remainingCents / 100).toFixed(2)} — raise a change order`
+      ? `Overdrawn by ${money(Math.abs(remainingCents))} — raise a change order`
       : 'Fully drawn — raise a change order'
   }
 
@@ -358,10 +360,13 @@ function iso(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
-function money(cents: number): string {
-  const n = Math.abs(cents) / 100
-  return `${cents < 0 ? '-' : ''}$${n.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
-}
+/**
+ * The one formatter, under the name this file's sentences already use.
+ * It was a local divide by a hundred with a hard `$`, which is right
+ * for dollars and quietly wrong for a purchase order raised in
+ * anything else. `amount` carries the currency; the callers here do
+ * not have one to pass yet, so it is `DEFAULT_CURRENCY` — the
+ * documented gap, greppable, not a decision that everything is
+ * dollars.
+ */
+const money = (cents: number): string => amount(cents)

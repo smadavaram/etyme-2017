@@ -18,6 +18,8 @@
  * than advisory.
  */
 
+import { DEFAULT_CURRENCY, compact, rate } from '@/lib/money-display'
+
 export interface RatePeriod {
   id: string
   rateCents: number
@@ -102,7 +104,17 @@ const AUTO_APPROVE_PERCENT = 5
 
 export function assessRateChange(
   fromCents: number,
-  toCents: number
+  toCents: number,
+  /**
+   * The contract's own, where the caller has it.
+   *
+   * These sentences printed a hard `$` in front of a rounded
+   * `cents / 100`, so a contract in rupees read as dollars and
+   * $145.50/hr read as $146/hr. `DEFAULT_CURRENCY` is the documented,
+   * greppable gap for a caller that does not yet carry one — not a
+   * decision that everything is dollars.
+   */
+  currency: string = DEFAULT_CURRENCY
 ): RateChangeAssessment {
   if (fromCents === toCents) {
     return { changePercent: 0, direction: 'NONE', needsApproval: false, reason: 'No change' }
@@ -119,7 +131,7 @@ export function assessRateChange(
   if (direction === 'DECREASE') {
     return {
       changePercent, direction, needsApproval: false,
-      reason: `Rate falls ${magnitude}% to $${Math.round(toCents / 100)}/hr`,
+      reason: `Rate falls ${magnitude}% to ${rate(toCents, currency)}`,
     }
   }
 
@@ -128,7 +140,7 @@ export function assessRateChange(
     direction,
     needsApproval: magnitude > AUTO_APPROVE_PERCENT,
     reason: magnitude > AUTO_APPROVE_PERCENT
-      ? `Rate rises ${magnitude}% from $${Math.round(fromCents / 100)} to $${Math.round(toCents / 100)}/hr — above the ${AUTO_APPROVE_PERCENT}% threshold`
-      : `Rate rises ${magnitude}% to $${Math.round(toCents / 100)}/hr — within the ${AUTO_APPROVE_PERCENT}% threshold`,
+      ? `Rate rises ${magnitude}% from ${compact(fromCents, currency)} to ${rate(toCents, currency)} — above the ${AUTO_APPROVE_PERCENT}% threshold`
+      : `Rate rises ${magnitude}% to ${rate(toCents, currency)} — within the ${AUTO_APPROVE_PERCENT}% threshold`,
   }
 }

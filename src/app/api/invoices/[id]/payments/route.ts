@@ -7,6 +7,7 @@ import { emit } from '@/lib/events'
 import { invoiceScope } from '@/lib/resolve-client-company'
 import { booksFor, noteMoneyRead, seatMayPay, moneyTrailFor } from '@/lib/money/seated-books'
 import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
+import { fromUnits } from '@/lib/money-display'
 
 /**
  * POST /api/invoices/:id/payments
@@ -186,7 +187,9 @@ export async function POST(
     return NextResponse.json(
       { error: {
         code: 'OVERPAYMENT',
-        message: `Payment of $${amount.toFixed(2)} exceeds outstanding balance of $${outstanding.toFixed(2)}`,
+        message:
+          `${fromUnits(amount, invoice.currency)} is more than the ${fromUnits(outstanding, invoice.currency)} still owed on ` +
+          `invoice ${invoice.number}. Record what actually arrived, or raise a credit note for the difference.`,
         field: 'amount',
       }},
       { status: 422 }
@@ -239,9 +242,9 @@ export async function POST(
         data: {
           companyId: reading?.companyId ?? caller.company!.id,
           action: 'PAYMENT_RECORDED',
-          summary: `Payment of $${amount.toFixed(2)} recorded on invoice ${invoice.number}. ${newStatus === 'PAID' ? 'Invoice now fully paid.' : `$${(totalNum - newPaid).toFixed(2)} outstanding.`}`,
+          summary: `Payment of ${fromUnits(amount, invoice.currency)} recorded on invoice ${invoice.number}. ${newStatus === 'PAID' ? 'Invoice now fully paid.' : `${fromUnits(totalNum - newPaid, invoice.currency)} outstanding.`}`,
           reason:
-            moneyTrailFor(reading?.seat ?? null, `Payment of ${amount} recorded`) ??
+            moneyTrailFor(reading?.seat ?? null, `Payment of ${fromUnits(amount, invoice.currency)} recorded`) ??
             `Recorded by ${caller.person.name} at ${caller.company!.name}, ${payer ? 'paying' : 'receiving'}`,
           payload: {
             paymentId: payment.id,
@@ -309,7 +312,7 @@ export async function POST(
         },
         message: newStatus === 'PAID'
           ? `Invoice ${invoice.number} fully paid`
-          : `Payment recorded — $${(totalNum - newPaid).toFixed(2)} remaining`,
+          : `Payment recorded — ${fromUnits(totalNum - newPaid, invoice.currency)} remaining`,
       },
     }, { status: 201 })
   } catch (err: any) {

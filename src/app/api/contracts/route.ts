@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rate } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
@@ -513,7 +514,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           action: 'CONTRACT_CREATED',
-          summary: `A line for person ${personId} at $${billRate}/hr${header ? ` on ${header.number}` : ', not yet on an order'}. ${buyContract ? `The buy line that funds it pays $${payRate}/hr.` : 'No buy line beside it.'} ${sellCyclesCreated} cycles generated.`,
+          summary: `A line for person ${personId} at ${rate(billRate, billCurrency ?? 'USD')}${header ? ` on ${header.number}` : ', not yet on an order'}. ${buyContract ? `The buy line that funds it pays ${rate(payRate, payCurrency ?? billCurrency ?? 'USD')}.` : 'No buy line beside it.'} ${sellCyclesCreated} cycles generated.`,
           reason: 'Contract created via API',
           payload: {
             workOrderId: header?.id ?? null,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
-import { compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
+import { compact as fmtMinor, amount as fmtMinorExact, fromUnits } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
@@ -592,7 +592,7 @@ function InvoiceDetailDrawer({
                         <p className={`text-[11px] tabular-nums mt-0.5 ${
                           coding.purchaseOrderBalance.overdrawn ? 'text-etyme-attention' : 'text-etyme-muted'
                         }`}>
-                          ${(coding.purchaseOrderBalance.remainingCents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })} left
+                          {fmtMinor(coding.purchaseOrderBalance.remainingCents)} left
                           {' · '}{coding.purchaseOrderBalance.consumedPercent}% drawn
                         </p>
                       )}
@@ -667,7 +667,7 @@ function InvoiceDetailDrawer({
                     <span className={coding.reconciliation.balanced ? 'text-etyme-verified' : 'text-etyme-attention'}>
                       {coding.reconciliation.balanced
                         ? '✓ Coded total matches the invoice'
-                        : `Coded total is $${coding.reconciliation.codedTotal.toFixed(2)} against $${coding.reconciliation.invoiceTotal.toFixed(2)}`}
+                        : `Coded total is ${fromUnits(coding.reconciliation.codedTotal)} against ${fromUnits(coding.reconciliation.invoiceTotal)}`}
                     </span>
                   </div>
 

@@ -21,6 +21,8 @@
  * submission earlier in this codebase.
  */
 
+import { amount } from '@/lib/money-display'
+
 export type MatchCode =
   | 'RECEIPT'       // every line is backed by an approved timesheet
   | 'QUANTITY'      // billed hours equal approved hours
@@ -280,9 +282,20 @@ function day(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
-function money(cents: number): string {
-  return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
+/**
+ * The one formatter, under the name the sentences in this file already
+ * use. It was a local divide by a hundred with a hard `$` in front of
+ * it — right for dollars and silently wrong for anything else, and
+ * "nothing else in the codebase should divide by a hundred, because
+ * nothing else knows whether a hundred is the right number".
+ *
+ * The match does not yet carry the invoice's currency down to the
+ * sentence — `MatchInput` has the cents and not the code — so this is
+ * `DEFAULT_CURRENCY`, which is the documented gap rather than a
+ * decision. Threading the real currency through is a change to the
+ * input shape and its callers.
+ */
+const money = (cents: number): string => amount(cents)
 
 export function threeWayMatch(input: MatchInput): MatchResult {
   const { invoice, lines, timesheets, po, poRequired } = input

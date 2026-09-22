@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { totals } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
@@ -112,6 +113,11 @@ export async function POST(request: NextRequest) {
         personName: string
         totalHours: number
         grossPay: number
+        /**
+         * The buy contract's own. A batch may span two, and a gross
+         * total that adds them is a number nobody can stand behind.
+         */
+        currency: string
         cyclesCompleted: number
       }> = []
 
@@ -170,6 +176,7 @@ export async function POST(request: NextRequest) {
             personName: cand.person.name,
             totalHours: approvedHours,
             grossPay: Math.round(approvedHours * cand.payRate),
+            currency: bc.payCurrency,
             cyclesCompleted: updatedCycles.count,
           })
         }
@@ -180,9 +187,9 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           action: 'PAYROLL_RUN',
-          summary: `Payroll ${action}: ${processed.length} contracts, $${(
-            processed.reduce((s, p) => s + p.grossPay, 0) / 100
-          ).toFixed(2)} gross total`,
+          summary: `Payroll ${action}: ${processed.length} contracts, ${totals(
+            processed.map((p) => ({ minor: p.grossPay, currency: p.currency }))
+          )} gross total`,
           reason: `Payroll ${action} initiated by ${caller.person.name}`,
           payload: {
             action,
@@ -204,6 +211,10 @@ export async function POST(request: NextRequest) {
     })
 
     const totalGross = result.reduce((s, p) => s + p.grossPay, 0)
+    // Said, not added. `totalGrossPay` below is kept for the callers that
+    // already read it and is only a sum worth trusting while the batch is
+    // one currency, which the sentence is honest about when it is not.
+    const grossSays = totals(result.map((p) => ({ minor: p.grossPay, currency: p.currency })))
 
     return NextResponse.json({
       data: {
@@ -212,7 +223,7 @@ export async function POST(request: NextRequest) {
         totalGrossPay: totalGross,
         totalHours: result.reduce((s, p) => s + p.totalHours, 0),
         details: result,
-        message: `Payroll ${action} complete: ${result.length} contracts, $${(totalGross / 100).toFixed(2)} gross`,
+        message: `Payroll ${action} complete: ${result.length} contracts, ${grossSays} gross`,
       },
     })
   } catch (err: any) {

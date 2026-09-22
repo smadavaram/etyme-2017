@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { amount, totals } from '@/lib/money-display'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     byKey.set(key, row)
   }
   const earnings = [...byKey.values()].sort((a, b) => b.period.localeCompare(a.period) || b.amountCents - a.amountCents)
-  const total = earnings.reduce((n, e) => n + e.amountCents, 0)
+  const earned = totals(earnings.map((e) => ({ minor: e.amountCents, currency: e.currency })))
 
   const agents = await prisma.buyContract.count({
     where: { companyId, commissionType: { not: null }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
         ? 'Nobody is on a commission agreement here yet. A buy contract with a commission type is what puts them on one.'
         : earnings.length === 0
           ? `${agents} ${agents === 1 ? 'person is' : 'people are'} on a commission agreement, and nothing has been run yet.`
-          : `$${Math.round(total / 100).toLocaleString('en-US')} earned across ${earnings.length} ${earnings.length === 1 ? 'person-period' : 'person-periods'}.`,
+          : `${earned} earned across ${earnings.length} ${earnings.length === 1 ? 'person-period' : 'person-periods'}.`,
     },
   })
 }
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  const posted: { agent: string; buyContractId: string; amountCents: number; says: string }[] = []
+  const posted: { agent: string; buyContractId: string; amountCents: number; currency: string; says: string }[] = []
   const skipped: { buyContractId: string; why: string }[] = []
 
   for (const bc of agents) {
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
         throw e
       }
     }
-    posted.push({ agent: agent?.person.name ?? 'Commission', buyContractId: bc.id, amountCents: result.amountCents, says: result.says })
+    posted.push({ agent: agent?.person.name ?? 'Commission', buyContractId: bc.id, amountCents: result.amountCents, currency: orders[0].currency, says: result.says })
   }
 
   await prisma.automationLog.create({
@@ -181,7 +182,7 @@ export async function POST(request: NextRequest) {
       companyId,
       action: 'COMMISSION_RUN',
       summary: posted.length
-        ? `Commissions for the period to ${periodKey}: ${posted.map((p) => `${p.agent} $${(p.amountCents / 100).toFixed(2)}`).join('; ')}.`
+        ? `Commissions for the period to ${periodKey}: ${posted.map((p) => `${p.agent} ${amount(p.amountCents, p.currency)}`).join('; ')}.`
         : `Commissions for the period to ${periodKey}: nothing earned.`,
       reason: `Run by ${caller.person.name} for ${periodStart.toISOString().slice(0, 10)} to ${periodKey}.`,
       payload: { periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(), posted, skipped },

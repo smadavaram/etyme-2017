@@ -81,6 +81,51 @@ export function show(m: Money): string {
   return format(m)
 }
 
+/**
+ * Several amounts as one phrase — and never as one number when they are
+ * in more than one currency.
+ *
+ * ── Why this exists ──────────────────────────────────────────────────
+ *
+ * A payroll run takes a list of buy contracts the caller chose. Each
+ * carries its own `payCurrency`, and the run reported
+ * `contracts.reduce((s, p) => s + p.grossPay, 0)` with a dollar sign in
+ * front of it. A US W-2 batched with an Indian CDD produced a total that
+ * is neither dollars nor rupees, printed as dollars. The commission
+ * screen adds `amountCents` across postings the same way, and postings
+ * carry a currency each precisely because an order's result is only safe
+ * to sum while it is one currency (see the schema note on
+ * `OrderPosting.amountCents`).
+ *
+ * `lib/money`'s `add` throws on a mismatch, which is right for
+ * arithmetic and wrong inside a payroll run — a 500 in place of a
+ * sentence. So this is the display answer: group by currency, total
+ * within each, and say all of them.
+ *
+ *   one currency   → "$12,400"
+ *   two            → "$12,400 and ₹840,000"
+ *   three or more  → "$12,400, ₹840,000 and £2,100"
+ *   nothing        → "—"
+ *
+ * The order is the order the amounts arrived in, so the caller's own
+ * first row leads and the phrase does not reshuffle between two reads of
+ * the same screen.
+ */
+export function totals(
+  items: ReadonlyArray<{ minor: number | null | undefined; currency?: string | null }>
+): string {
+  const byCurrency = new Map<string, number>()
+  for (const item of items) {
+    if (item.minor == null) continue
+    const ccy = (item.currency ?? DEFAULT_CURRENCY).toUpperCase()
+    byCurrency.set(ccy, (byCurrency.get(ccy) ?? 0) + item.minor)
+  }
+  const parts = [...byCurrency.entries()].map(([ccy, minor]) => amount(minor, ccy))
+  if (parts.length === 0) return '—'
+  if (parts.length === 1) return parts[0]
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
 // ── What a rate moved by ──────────────────────────────────────────────
 
 /** A rate change, ready to print: the amount, the percentage, the way. */

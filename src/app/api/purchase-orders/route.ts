@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { fromUnits } from '@/lib/money-display'
 import type { Prisma } from '@prisma/client'
 import { getCallerContext } from '@/lib/api-context'
 import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
@@ -371,14 +372,14 @@ export async function POST(request: NextRequest) {
   // the message names the existing PO rather than surfacing a constraint.
   const clash = await prisma.workOrder.findFirst({
     where: { issuedById, number },
-    select: { id: true, issuedTo: { select: { name: true } }, amount: true },
+    select: { id: true, issuedTo: { select: { name: true } }, amount: true, currency: true },
   })
   if (clash) {
     return NextResponse.json(
       {
         error: {
           code: 'DUPLICATE',
-          message: `${number} already exists — it authorizes $${Number(clash.amount).toLocaleString()} to ${clash.issuedTo.name}.`,
+          message: `${number} already exists — it authorizes ${fromUnits(Number(clash.amount), clash.currency)} to ${clash.issuedTo.name}.`,
         },
       },
       { status: 409 }
@@ -581,8 +582,8 @@ export async function POST(request: NextRequest) {
       companyId,
       action: allowed.onBehalf ? 'WORK_ORDER_RECORDED' : 'PURCHASE_ORDER_RAISED',
       summary: allowed.onBehalf
-        ? `${caller.person.name} recorded ${buyer.name}'s order ${number} — $${amount.toLocaleString()} authorized to ${seller.name}`
-        : `${caller.person.name} authorized $${amount.toLocaleString()} to ${seller.name} on ${number}`,
+        ? `${caller.person.name} recorded ${buyer.name}'s order ${number} — ${fromUnits(amount, currency)} authorized to ${seller.name}`
+        : `${caller.person.name} authorized ${fromUnits(amount, currency)} to ${seller.name} on ${number}`,
       reason: [
         allowed.onBehalf
           ? allowed.says
@@ -642,8 +643,8 @@ export async function POST(request: NextRequest) {
             ? `${allowed.says} `
             : '') +
           (attached > 0
-            ? `${number} authorizes $${amount.toLocaleString()} to ${seller.name}, and ${attached} running contract(s) now bill against it.`
-            : `${number} authorizes $${amount.toLocaleString()} to ${seller.name}.`) +
+            ? `${number} authorizes ${fromUnits(amount, currency)} to ${seller.name}, and ${attached} running contract(s) now bill against it.`
+            : `${number} authorizes ${fromUnits(amount, currency)} to ${seller.name}.`) +
           (po.autoApproveTimesheets
             ? ` A timesheet nobody answers within ${po.approvalWindowDays ?? 'the default number of'} working days is approved.`
             : ''),
@@ -679,7 +680,7 @@ export async function PATCH(request: NextRequest) {
     // are billing against, which is the whole point of a PO.
     where: { id, issuedById: caller.company.id },
     select: {
-      id: true, number: true, amount: true, status: true, endDate: true,
+      id: true, number: true, amount: true, currency: true, status: true, endDate: true,
       issuedTo: { select: { name: true } },
     },
   })
@@ -704,8 +705,8 @@ export async function PATCH(request: NextRequest) {
     data.amount = amount
     changes.push(
       amount > Number(existing.amount)
-        ? `raised from $${Number(existing.amount).toLocaleString()} to $${amount.toLocaleString()}`
-        : `reduced from $${Number(existing.amount).toLocaleString()} to $${amount.toLocaleString()}`
+        ? `raised from ${fromUnits(Number(existing.amount), existing.currency)} to ${fromUnits(amount, existing.currency)}`
+        : `reduced from ${fromUnits(Number(existing.amount), existing.currency)} to ${fromUnits(amount, existing.currency)}`
     )
   }
 

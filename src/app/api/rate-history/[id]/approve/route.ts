@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { DEFAULT_CURRENCY, rate } from '@/lib/money-display'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
@@ -79,7 +80,17 @@ export async function POST(
   }
 
   // Nobody approves their own rate rise.
-  const assessment = assessRateChange(amendment.previousRate ?? 0, amendment.rate)
+  // Which currency this rate is in. `RateHistory` carries a rate and no
+  // currency, and `contractId` is polymorphic, so the contract it amends
+  // is the only place the answer lives.
+  const onSell = amendment.contractType.toUpperCase() === 'SELL'
+  const currency =
+    (onSell
+      ? (await prisma.sellContract.findUnique({ where: { id: amendment.contractId }, select: { billCurrency: true } }))?.billCurrency
+      : (await prisma.buyContract.findUnique({ where: { id: amendment.contractId }, select: { payCurrency: true } }))?.payCurrency) ??
+    DEFAULT_CURRENCY
+
+  const assessment = assessRateChange(amendment.previousRate ?? 0, amendment.rate, currency)
   if (amendment.changedById === caller.person.id && assessment.direction === 'INCREASE') {
     return NextResponse.json(
       {
@@ -121,7 +132,7 @@ export async function POST(
     data: {
       companyId: caller.company?.id ?? '',
       action: action === 'approve' ? 'RATE_AMENDMENT_APPROVED' : 'RATE_AMENDMENT_REJECTED',
-      summary: `${caller.person.name} ${action === 'approve' ? 'approved' : 'rejected'} a rate change to $${Math.round(amendment.rate / 100)}/hr effective ${amendment.fromDate.toISOString().slice(0, 10)}`,
+      summary: `${caller.person.name} ${action === 'approve' ? 'approved' : 'rejected'} a rate change to ${rate(amendment.rate, currency)} effective ${amendment.fromDate.toISOString().slice(0, 10)}`,
       reason: assessment.reason,
       payload: {
         rateHistoryId: id,
@@ -162,8 +173,8 @@ export async function POST(
       invoiceLinesAffected: affected,
       message: action === 'approve'
         ? affected > 0
-          ? `Approved. $${Math.round(amendment.rate / 100)}/hr applies from ${amendment.fromDate.toISOString().slice(0, 10)}, and ${affected} unpaid invoice line(s) now bill at it.`
-          : `Approved. $${Math.round(amendment.rate / 100)}/hr applies from ${amendment.fromDate.toISOString().slice(0, 10)}.`
+          ? `Approved. ${rate(amendment.rate, currency)} applies from ${amendment.fromDate.toISOString().slice(0, 10)}, and ${affected} unpaid invoice ${affected === 1 ? 'line now bills' : 'lines now bill'} at it.`
+          : `Approved. ${rate(amendment.rate, currency)} applies from ${amendment.fromDate.toISOString().slice(0, 10)}.`
         : `Rejected. The contracted rate is unchanged, so invoices billing the new rate will keep failing the price check.`,
     },
   })

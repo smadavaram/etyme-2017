@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { DEFAULT_CURRENCY } from '@/lib/money-display'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
@@ -418,16 +419,21 @@ export async function POST(request: NextRequest) {
   //
   // The previous rate to compare against is the one in force, not merely
   // the newest row — a proposal sitting unapproved is not the current price.
-  const contractRate = contractType.toUpperCase() === 'SELL'
-    ? (await prisma.sellContract.findUnique({ where: { id: contractId }, select: { billRate: true } }))?.billRate ?? 0
-    : 0
+  // The contract's rate and the currency it is in. A sentence that says
+  // "$145/hr" about a contract billed in rupees is a wrong number with a
+  // symbol in front of it, and the symbol is the part somebody believes.
+  const sell = contractType.toUpperCase() === 'SELL'
+    ? await prisma.sellContract.findUnique({ where: { id: contractId }, select: { billRate: true, billCurrency: true } })
+    : null
+  const contractRate = sell?.billRate ?? 0
+  const contractCurrency = sell?.billCurrency ?? DEFAULT_CURRENCY
   const priorApproved = await prisma.rateHistory.findFirst({
     where: { contractType: contractType.toUpperCase(), contractId, approvalState: 'APPROVED' },
     orderBy: { fromDate: 'desc' },
   })
   const fromCents = priorApproved?.rate ?? contractRate
 
-  const assessment = assessRateChange(fromCents, rate)
+  const assessment = assessRateChange(fromCents, rate, contractCurrency)
   const approvalState = assessment.needsApproval ? 'PROPOSED' : 'APPROVED'
 
   const entry = await prisma.rateHistory.create({

@@ -3,7 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { amount as formatRate, rateMovement } from '@/lib/money-display'
+import { amount as formatRate, rate as perHour, rateMovement } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
@@ -284,9 +284,9 @@ export default function RateHistoryPage() {
               <div key={r.id} className="p-4 flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="text-etyme-ink">
-                    {r.personName} — {r.previousRate ? `$${Math.round(r.previousRate / 100)}` : '—'}
+                    {r.personName} — {r.previousRate ? formatRate(r.previousRate) : '—'}
                     {' → '}
-                    <span className="font-medium">${Math.round(r.rate / 100)}/hr</span>
+                    <span className="font-medium">{perHour(r.rate)}</span>
                   </p>
                   <p className="text-xs text-etyme-muted">
                     from {r.fromDate.slice(0, 10)} · proposed by {r.changedByName}
