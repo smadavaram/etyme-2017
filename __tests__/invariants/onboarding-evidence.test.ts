@@ -6,7 +6,8 @@ import {
   verificationsFromChecklist,
   type OnboardingEvidenceItem,
 } from '@/lib/onboarding-evidence'
-import { CHECKLIST } from '@/lib/supplier-onboarding'
+import { CHECKLIST, withOrderedItems, newChecklist, wantsDates } from '@/lib/supplier-onboarding'
+import { checkKindOf, whoRendersCheck } from '@/lib/attestation'
 
 /**
  * A certificate HR verified on the way in reaches the compliance record.
@@ -175,6 +176,182 @@ describe('what a desk verified at onboarding, on the compliance record', () => {
     const values = [...map.matchAll(/:\s*'([A-Z0-9_]+)'/g)].map((m) => m[1])
     expect(values.length).toBeGreaterThan(8)
     for (const v of values) expect(known, `${v} is not a VerificationType`).toContain(v)
+  })
+
+  // ── Who renders the verdict, 2026-09-22 ────────────────────────────
+  //
+  // The founder: background check companies are the ones that confirm
+  // pass or fail, and the risk is passed there. So a desk may repeat an
+  // assertion an insurer or a registry already printed, and may never
+  // render one a screening company or an employer of record renders.
+
+  it('a desk records the dates on a certificate the insurer issued, and never a verdict a laboratory or a screening firm renders', () => {
+    const cover = verificationFromChecklistItem(item(), 'veritan', by)
+    expect(cover.ok).toBe(true)
+    expect(cover.rows.map((r) => r.type)).toEqual(['INSURANCE_GL', 'INSURANCE_WC'])
+
+    const check = verificationFromChecklistItem(
+      item({ key: 'BACKGROUND', label: 'Background check', answers: ['BACKGROUND_CHECK'] }),
+      'veritan',
+      by
+    )
+    expect(check.ok).toBe(false)
+    expect(check.rows).toEqual([])
+  })
+
+  it('a background check a desk marks verified writes nothing to the compliance record, however complete its dates are', () => {
+    // Two good dates and a file name. The dates are not the problem —
+    // the verdict is, and no amount of paperwork makes it this desk's.
+    const check = verificationFromChecklistItem(
+      item({
+        key: 'BACKGROUND',
+        label: 'Background check',
+        answers: ['BACKGROUND_CHECK'],
+        fileName: 'ramirez-background-2026.pdf',
+        validFrom: '2026-03-12',
+        validUntil: '2027-03-12',
+      }),
+      'veritan',
+      by
+    )
+    expect(check.ok).toBe(false)
+    expect(check.rows).toEqual([])
+  })
+
+  it('a refusal names the party whose opinion it is, so the desk knows who to ask rather than what it did wrong', () => {
+    const check = verificationFromChecklistItem(
+      item({ key: 'BACKGROUND', label: 'Background check', answers: ['BACKGROUND_CHECK'] }),
+      'veritan',
+      by
+    )
+    expect(check.says).toContain('screening company')
+    // What a real record of it would carry, because that door is not
+    // built and a refusal that does not say so teaches nothing.
+    expect(check.says).toContain('their reference number')
+    expect(check.says).toContain('the day they ran it')
+    // And where the answer that was given stays.
+    expect(check.says).toContain('stay on the checklist')
+    // Never a code, and never a scolding.
+    expect(check.says).not.toMatch(/[A-Z]{4,}_[A-Z]{4,}/)
+  })
+
+  it('a drug screen is refused the same way, because a laboratory renders that result and nobody in Etyme does', () => {
+    const screen = verificationFromChecklistItem(
+      item({ key: 'DRUG', label: 'Drug screening', answers: ['DRUG_SCREENING'] }),
+      'veritan',
+      by
+    )
+    expect(screen.ok).toBe(false)
+    expect(screen.says).toContain('laboratory')
+  })
+
+  it('work authorization is the employer of record’s own check, and a desk at the firm buying from them cannot clear it', () => {
+    const i9 = verificationFromChecklistItem(
+      item({ key: 'I9', label: 'I-9 and E-Verify', answers: ['I9_EVERIFY'] }),
+      'veritan',
+      by
+    )
+    expect(i9.ok).toBe(false)
+    expect(i9.says).toContain('employer of record')
+    expect(i9.says).toContain('running its own')
+  })
+
+  it('a desk is never asked for the two dates on a check it was never going to be allowed to record', () => {
+    // `needsDates` is the one refusal a screen acts on — it opens the
+    // two date fields. Opening them here would ask a desk to finish
+    // something it is being told not to start.
+    for (const key of ['BACKGROUND_CHECK', 'DRUG_SCREENING', 'I9_EVERIFY', 'RIGHT_TO_WORK']) {
+      const verdict = verificationFromChecklistItem(
+        item({ key, label: key, answers: [key], validFrom: null, validUntil: null }),
+        'veritan',
+        by
+      )
+      expect(verdict.ok, key).toBe(false)
+      expect(verdict.needsDates, key).toBe(false)
+    }
+  })
+
+  it('an item answering both a certificate and a screening report records the certificate and says what it left off', () => {
+    // One checklist row can answer two things. Writing nothing would
+    // lose the cover; writing both would render the verdict. It does
+    // neither, and says so.
+    const mixed = verificationFromChecklistItem(
+      item({ key: 'PACK', label: 'Onboarding pack', answers: ['INSURANCE_GL', 'BACKGROUND_CHECK'] }),
+      'veritan',
+      by
+    )
+    expect(mixed.ok).toBe(true)
+    expect(mixed.rows.map((r) => r.type)).toEqual(['INSURANCE_GL'])
+    expect(mixed.says).toContain('Background check')
+    expect(mixed.says).toContain('not this desk’s to render')
+  })
+
+  it('one table says who renders a check, and this file keeps no second list of its own', () => {
+    // The answer for every type this door can write is read off
+    // `lib/attestation`. Two tables would be two answers to one
+    // question, and the stale one would be the one letting a desk clear
+    // a background check.
+    const src = readFileSync(join(process.cwd(), 'src/lib/onboarding-evidence.ts'), 'utf8')
+    const map = src.slice(src.indexOf('const VERIFICATION_TYPE'), src.indexOf('/** One row, ready'))
+    const keys = [...map.matchAll(/^\s{2}([A-Z0-9_]+):/gm)].map((m) => m[1])
+    expect(keys.length).toBeGreaterThan(8)
+
+    for (const key of keys) {
+      const kind = checkKindOf(key)
+      const renders = kind ? whoRendersCheck(kind).renders : null
+      const theirs = renders === 'PROVIDER' || renders === 'EMPLOYER'
+      const verdict = verificationFromChecklistItem(
+        item({ key, label: key, answers: [key] }),
+        'veritan',
+        by
+      )
+      if (theirs) expect(verdict.ok, `${key} is rendered by ${renders} and must not be recorded here`).toBe(false)
+    }
+  })
+
+  it('a client whose order asks its suppliers for a background check does not get its own HR desk rendering one', () => {
+    // The route this actually arrives by. The shipped walk asks for no
+    // background check, so this was never reachable with the twelve
+    // items it ships \u2014 and the required set is deliberately open-ended,
+    // so a client folds one on and its own HR desk is handed the button.
+    const folded = withOrderedItems(
+      newChecklist(),
+      [{ key: 'BACKGROUND_CHECK', label: 'Background check', purpose: 'COMPLIANCE', required: true }],
+      'Northbend Athletic'
+    )
+    const added = folded.find((i) => i.key === 'BACKGROUND_CHECK')!
+    expect(added.answers).toEqual(['BACKGROUND_CHECK'])
+    expect(added.says).toContain('Northbend Athletic')
+
+    // And the desk is not even asked for the two dates, because the two
+    // dates were never the thing standing between it and a row.
+    expect(wantsDates(added)).toBe(false)
+
+    const verdict = verificationFromChecklistItem(
+      { ...added, state: 'HELD', validFrom: '2026-03-12', validUntil: '2027-03-12' },
+      'veritan',
+      by
+    )
+    expect(verdict.ok).toBe(false)
+    expect(verdict.rows).toEqual([])
+    expect(verdict.says).toContain('screening company')
+  })
+
+  it('a whole checklist replayed at approval writes the certificates and reports the verdicts it left alone', () => {
+    const { rows, skipped } = verificationsFromChecklist(
+      [
+        item(),
+        item({ key: 'BACKGROUND', label: 'Background check', answers: ['BACKGROUND_CHECK'] }),
+      ],
+      'veritan',
+      by
+    )
+    expect(rows.map((r) => r.type)).toEqual(['INSURANCE_GL', 'INSURANCE_WC'])
+    // Reported rather than dropped: a desk that is told nothing assumes
+    // it did the whole job.
+    expect(skipped.map((s) => s.key)).toEqual(['BACKGROUND'])
+    expect(skipped[0].needsDates).toBe(false)
+    expect(skipped[0].says).toContain('screening company')
   })
 
   it('every item the supplier walk asks for either becomes a verification or says why it does not', () => {

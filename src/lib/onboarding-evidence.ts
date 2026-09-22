@@ -38,6 +38,48 @@
  * reference somebody took up. `lib/document-type` already knows which is
  * which, and this asks it rather than keeping a second list.
  *
+ * ── And what no desk may render at all ───────────────────────────────
+ *
+ * The founder, 2026-09-22: *“Ultimately background check companies are
+ * the ones that confirm background pass or fail — the risk is passed
+ * there to background check companies; our job would be to collect all
+ * info and pass it to them to verify.”*
+ *
+ * This file writes `status: 'CLEAR'` with the clicking desk as
+ * `verifiedById`, and until 2026-09-22 it did that for anything with a
+ * compliance purpose and two dates on it. For a certificate of insurance
+ * that is exactly right — the insurer asserted the cover and printed
+ * the dates, and the desk is repeating an assertion somebody else made.
+ * For a background check or a drug screen it is Etyme declaring a person
+ * clear to work, which is the line `lib/attestation` exists to hold:
+ * *“we attest, we do not declare.”*
+ *
+ * It has fired honestly so far, because the shipped checklist only wires
+ * `answers` for insurance, good standing, the MSA and the W-9 — every
+ * one of them somebody else's assertion, already printed. Honestly by
+ * accident, though: the required set is deliberately open-ended, so a
+ * client whose order asks its suppliers for a background check folds
+ * that item onto the same checklist, `withOrderedItems` gives it
+ * `answers: ['BACKGROUND_CHECK']`, and the client's own HR desk is
+ * handed the button.
+ *
+ * So the gate is on the kind of assertion rather than on the list, and
+ * it is asked of `lib/attestation` rather than answered from a second
+ * table here. That file now says, per check, who renders it: a screening
+ * company, the employer of record personally, an awarding body, or the
+ * person themselves. A desk may record what an issuing body already
+ * asserted and printed. It may not render a provider's verdict, and it
+ * may not stand in for an employer's own statutory check.
+ *
+ * Two lists would be two answers to one question, and the one that went
+ * stale would be the one letting a desk clear a background check. So
+ * there is one: `checkKindOf` and `whoRendersCheck`, in regulation's file.
+ *
+ * The refusal names the party whose opinion it is, so the desk leaves
+ * with somebody to ask rather than with a fault of its own — and the
+ * answer stays on the checklist, where “Veritan sent us Sterling’s
+ * report on 12 March” is a true thing to have written down.
+ *
  * No database in here. It returns the row to write; the route writes it.
  * That is deliberate — the supplier's own company row does not exist
  * until Finance approves the firm, so when the write happens is the
@@ -45,6 +87,7 @@
  */
 
 import { typeByKey, type DefinedType } from '@/lib/document-type'
+import { checkKindOf, whoRendersCheck } from '@/lib/attestation'
 
 /**
  * A checklist item as `lib/supplier-onboarding` holds it, plus the two
@@ -129,6 +172,62 @@ function onDay(d: Date): string {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
 }
 
+/** What these keys are called, in the dictionary's own words. */
+function labelsOf(keys: string[]): string {
+  const names = keys.map((k) => typeByKey(k)?.label ?? k)
+  if (names.length === 1) return names[0]
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+/**
+ * Whether this document type is one a desk may record at all, and who
+ * renders it where it is not.
+ *
+ * `null` means the desk may record it: either nothing in regulation's
+ * table recognizes the key — an insurance certificate, a certificate of
+ * good standing, a business registration, all of them somebody else's
+ * assertion already printed on paper — or the table says the body that
+ * issued it rendered it, or the person themselves did.
+ */
+function renderedElsewhere(key: string): 'PROVIDER' | 'EMPLOYER' | null {
+  const kind = checkKindOf(key)
+  if (!kind) return null
+  const renders = whoRendersCheck(kind).renders
+  return renders === 'PROVIDER' || renders === 'EMPLOYER' ? renders : null
+}
+
+/**
+ * Why a desk may not call this one verified, and who can.
+ *
+ * Two things the sentence has to do at once, and the second is the one
+ * usually missed: say that the answer is somebody else's, and say whose
+ * — so the desk leaves with a next move rather than with a refusal it
+ * reads as a fault of its own. It also says what a record of the check
+ * would have to carry, because that is the door nobody has built yet and
+ * naming it is cheaper than discovering it.
+ */
+function rendersElsewhereSays(keys: string[]): string {
+  const who = renderedElsewhere(keys[0])
+  const kind = checkKindOf(keys[0])!
+  const what = labelsOf(keys)
+  const because = whoRendersCheck(kind).says
+
+  if (who === 'EMPLOYER') {
+    return (
+      `${what} is the employer of record’s own check, not a document a desk reads the dates off. ${because} ` +
+      `Keep what this desk was shown on the checklist; nothing recorded here discharges the firm that employs ` +
+      `the person from running its own.`
+    )
+  }
+
+  return (
+    `${what} is a verdict a screening company renders, not a document a desk can read the dates off. ${because} ` +
+    `No desk in Etyme renders it, so nothing goes on the compliance record from here — what would go on it is ` +
+    `their report, with the company that ran it, their reference number and the day they ran it. Your note and ` +
+    `the file stay on the checklist, which is the honest record of what the firm sent.`
+  )
+}
+
 /**
  * The verification rows a verified checklist item should become, or
  * nothing and a sentence saying why.
@@ -164,7 +263,17 @@ export function verificationFromChecklistItem(
   }
 
   const keys = (item.answers ?? []).filter((k) => VERIFICATION_TYPE[k])
-  const compliance = keys.filter((k) => {
+
+  // Whose assertion each one would be. A desk may repeat an assertion
+  // somebody else printed; it may not make one on their behalf.
+  const theirs = keys.filter((k) => renderedElsewhere(k) != null)
+  const ours = keys.filter((k) => renderedElsewhere(k) == null)
+
+  if (ours.length === 0 && theirs.length > 0) {
+    return nothing(rendersElsewhereSays(theirs))
+  }
+
+  const compliance = ours.filter((k) => {
     const t = typeByKey(k, by?.documentTypes ?? [])
     return t == null || t.purpose === 'COMPLIANCE'
   })
@@ -232,7 +341,16 @@ export function verificationFromChecklistItem(
     needsDates: false,
     says:
       `${item.label} goes on the compliance record as ${what}, current until ${onDay(validUntil)}. ` +
-      `The nightly watch will chase the renewal before it runs out.`,
+      `The nightly watch will chase the renewal before it runs out.` +
+      // One item can answer two things at once — a pack holding a
+      // certificate and a screening report. What the desk may record is
+      // recorded, and what it may not is named rather than dropped
+      // silently, because a desk that is told nothing assumes it did the
+      // whole job.
+      (theirs.length > 0
+        ? ` ${labelsOf(theirs)} ${theirs.length === 1 ? 'is not on it, because it is' : 'are not on it, because they are'} ` +
+          `not this desk’s to render. ${whoRendersCheck(checkKindOf(theirs[0])!).says}`
+        : ''),
   }
 }
 
