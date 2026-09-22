@@ -776,6 +776,14 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             personId: who.id, type: v.type, status: 'CLEAR', provider: v.type === 'I9_EVERIFY' ? 'E-Verify' : 'Sterling',
             issuedAt: day(-pl.startedDaysAgo - 8), expiresAt: v.expiresAt,
             uploadedById: seatBySlug.get(employerSlug)!.personId, verifiedById: desk.compliance.personId, verifiedAt: day(-pl.startedDaysAgo - 7),
+            // Who bought the report, where somebody bought one. The
+            // employer ordered it and the screening company posted it
+            // back to them — which is the fact the row could not carry
+            // until 2026-09-22, and the reason a reader could not tell a
+            // provider's verdict from a desk's note.
+            ...(v.type === 'BACKGROUND_CHECK'
+              ? { orderedByCompanyId: employer.id, orderedAt: day(-pl.startedDaysAgo - 12) }
+              : {}),
             result: { outcome: 'CLEAR' },
           },
         })
@@ -1171,6 +1179,9 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
           data: {
             personId: dWho.id, type: v.type, status: 'CLEAR', provider: v.provider,
             issuedAt: day(-d.startedDaysAgo - 8), expiresAt: v.expiresAt,
+            ...(v.type === 'BACKGROUND_CHECK'
+              ? { orderedByCompanyId: supplier.id, orderedAt: day(-d.startedDaysAgo - 12) }
+              : {}),
             uploadedById: supplierSeat.personId, verifiedById: desk.compliance.personId,
             verifiedAt: day(-d.startedDaysAgo - 7), result: { outcome: 'CLEAR' },
           },

@@ -317,6 +317,51 @@ describe('what a line requires, and where the answer came from', () => {
     expect(unshipped.length).toBeGreaterThan(0)
   })
 
+  // ── Who is asked for a report nobody hands over, 2026-09-22 ───────
+  //
+  // The founder: the screening companies confirm pass or fail, and the
+  // risk passes to them. A background check was carried at CANDIDATE,
+  // the same value a passport has, so every line in the product asked
+  // the worker for a report the provider posts to whoever bought it.
+
+  it('a background check is owed by the firm that pays for the work, because the report is posted to whoever ordered it', () => {
+    for (const shape of ['W2', 'CORP_TO_CORP'] as const) {
+      const item = effectiveRequirements({ shape, role: 'ERP consultant' }).find((i) => i.key === 'BACKGROUND_CHECK')
+      if (!item) continue
+      expect(item.owedBy, shape).toBe('US')
+    }
+  })
+
+  it('a worker is never chased for her own background report, and is still asked for everything that is hers', () => {
+    const w2 = effectiveRequirements({ shape: 'W2', role: 'ERP consultant' })
+    const hers = w2.filter((i) => i.owedBy === 'WORKER').map((i) => i.key)
+    expect(hers).not.toContain('BACKGROUND_CHECK')
+    // The packet did not shrink. Her own papers are still hers.
+    expect(hers).toContain('I9_EVERIFY')
+    expect(hers.length).toBeGreaterThan(1)
+  })
+
+  it('a packet item says who owes it through the dictionary, so no shape can force one party onto every document', () => {
+    // defaultItemsFor's W2 branch used to stamp owedBy: WORKER onto
+    // every item in the start packet, which overrode the dictionary for
+    // every type at once — one line, and the only way any type could
+    // say otherwise was to be on a different shape.
+    const stated = defaultItemsFor('W2', 'ERP consultant').filter((d) => d.owedBy != null)
+    expect(stated).toEqual([])
+  })
+
+  it('a document a screening company renders is owed by us on a sell line as well as a buy line', () => {
+    // fromSuppliedBy's fallback sends an unknown paper to the customer
+    // on a sell line. A report is not the customer's to hand over
+    // either, so PROVIDER answers before the fallback does.
+    const item = effectiveRequirements({
+      shape: 'CUSTOMER',
+      orderRows: [orderRow({ documentTypeKey: 'BACKGROUND_CHECK', owedBy: undefined as unknown as string })],
+      orderSays: ORDER_SAYS,
+    }).find((i) => i.key === 'BACKGROUND_CHECK')!
+    expect(item.owedBy).toBe('US')
+  })
+
   it('an item nobody waived says whether a lapse stops the work, and the type decides where the line does not', () => {
     const fromType = effectiveRequirements({ shape: 'SUB_VENDOR' }).find((i) => i.key === 'W9')!
     expect(fromType.blocks).toBe(false)

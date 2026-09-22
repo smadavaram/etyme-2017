@@ -12,6 +12,7 @@ import {
   editionFinding,
   backingFinding,
   builtInType,
+  SUPPLIED_BY,
 } from '@/lib/document-type'
 
 /**
@@ -448,5 +449,42 @@ describe('what the clearance says about a form with nothing behind it', () => {
     })
     expect(v.editions).toEqual([])
     expect(v.outcome).toBe('PASS')
+  })
+})
+
+describe('who can physically produce a document, which is not who renders it', () => {
+
+  // Decided 2026-09-22, on the founder's rule that the screening
+  // companies confirm pass or fail and the risk passes to them. A
+  // background check sat at CANDIDATE, the same value a passport has,
+  // so the chase asked a consultant for a report she is never sent.
+
+  it('a background check is supplied by the provider that runs it, never by the person it is about', () => {
+    for (const key of ['BACKGROUND_CHECK', 'DRUG_SCREENING']) {
+      const t = builtInType(key)!
+      expect(t.suppliedBy, key).toBe('PROVIDER')
+    }
+  })
+
+  it('a passport is still the person\u2019s to hand over, because she actually holds one', () => {
+    expect(builtInType('PASSPORT')!.suppliedBy).toBe('CANDIDATE')
+    expect(builtInType('DRIVERS_LICENSE')!.suppliedBy).toBe('CANDIDATE')
+    // And a license she practices on: the board renders the verdict and
+    // she holds the card, which is two different facts about one paper.
+    expect(builtInType('PROFESSIONAL_LICENSE')!.suppliedBy).toBe('CANDIDATE')
+  })
+
+  it('the hint on a check says the report goes to whoever ordered it, so nobody writes a screen asking her for it', () => {
+    for (const key of ['BACKGROUND_CHECK', 'DRUG_SCREENING']) {
+      const hint = builtInType(key)!.hint ?? ''
+      expect(hint.toLowerCase(), key).toContain('ordered')
+      expect(hint.toLowerCase(), key).not.toContain('our provider, or yours')
+    }
+  })
+
+  it('every value in the supplied-by list is one the document dictionary actually uses or could', () => {
+    expect(SUPPLIED_BY).toContain('PROVIDER')
+    const used = new Set(BUILT_IN.map((t) => t.suppliedBy).filter(Boolean))
+    for (const v of used) expect(SUPPLIED_BY, `${v} is not in SUPPLIED_BY`).toContain(v)
   })
 })

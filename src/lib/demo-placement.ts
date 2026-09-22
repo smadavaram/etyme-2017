@@ -199,7 +199,11 @@ export async function completePlacement(input: CompleteInput): Promise<void> {
   // ── Cleared to work ──
   const clearances = [
     { personId, type: 'I9_EVERIFY' as const, provider: 'E-Verify', expiresAt: null },
-    { personId, type: 'BACKGROUND_CHECK' as const, provider: 'Sterling', expiresAt: day(new Date(), 300) },
+    // The employer ordered the report and the screening company posted
+    // it back to them. Recorded, because a row that cannot say who
+    // bought it reads the same as a desk's own note.
+    { personId, type: 'BACKGROUND_CHECK' as const, provider: 'Sterling', expiresAt: day(new Date(), 300),
+      orderedByCompanyId: supplierCompanyId, orderedAt: day(sell.startDate, -14) },
     { companyId: supplierCompanyId, type: 'INSURANCE_GL' as const, provider: 'Hartford', expiresAt: day(new Date(), 240) },
     { companyId: supplierCompanyId, type: 'INSURANCE_WC' as const, provider: 'Hartford', expiresAt: day(new Date(), 240) },
   ]

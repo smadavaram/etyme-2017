@@ -560,6 +560,10 @@ model Company {
   buyContractsIn        BuyContract[]           @relation("buyVendor") // talent bought from us
   // Compliance & governance
   verifications         Verification[]
+  /// Checks this firm ordered from a screening company about somebody
+  /// else's person. Not the same set as `verifications`, which is what
+  /// was checked ABOUT this firm.
+  verificationsOrdered  Verification[]          @relation("verificationOrderedBy")
   governancePolicies    GovernancePolicy[]
   // Training
   courses               Course[]
@@ -5009,6 +5013,33 @@ model Verification {
   formEdition String?
   result      Json? // { outcome: "CLEAR", notes: "...", details: {...} }
 
+  /// Which firm ordered this check from the provider, where one did.
+  ///
+  /// The founder, 2026-09-22: the screening companies are the ones who
+  /// confirm pass or fail, and the risk passes to them. What that leaves
+  /// behind is a question the row could not answer: a report Brightmoor
+  /// bought in March and a report Veritan ran last week are byte
+  /// identical here, and `companyId` is no help — it is the subject of a
+  /// company-level check and null on a person's.
+  ///
+  /// `lib/attestation`'s `mayRelyOn` says a background check is
+  /// POINT_IN_TIME and that passing on somebody else's report is a
+  /// regulated act in its own right. It is correct, exported, and has
+  /// nothing to feed it, so the rule is not enforced rather than enforced
+  /// on a guess — a refusal built on a guess blocks the wrong people.
+  ///
+  /// **Null means nobody recorded it, and never "we ordered it".** No
+  /// production route writes this today, because nothing in Etyme orders
+  /// a check from a provider yet; the seeds set it where the demo world
+  /// knows the answer. A reader treats null as unknown, the way
+  /// `readVerdict` already treats a missing provider.
+  orderedByCompanyId String?
+  orderedByCompany   Company?  @relation("verificationOrderedBy", fields: [orderedByCompanyId], references: [id])
+  /// The day the package went to the provider. Makes "ordered and not
+  /// back yet" a fact with a date on it rather than a PENDING row with
+  /// nothing on it at all.
+  orderedAt          DateTime?
+
   uploadedById String // personId of whoever uploaded this
   verifiedById String? // personId of whoever verified/approved it
   verifiedAt   DateTime?
@@ -5029,6 +5060,7 @@ model Verification {
   @@index([expiresAt]) // for expiry alert jobs
   @@index([validFrom]) // cover that has not started yet is found the same way
   @@index([documentTypeId])
+  @@index([orderedByCompanyId])
 }
 
 model VerificationDoc {

@@ -88,10 +88,22 @@ export type SignedBy = 'NOBODY' | 'ONE_PARTY' | 'BOTH_PARTIES'
 
 export const SIGNED_BY: SignedBy[] = ['NOBODY', 'ONE_PARTY', 'BOTH_PARTIES']
 
-/** Who owes it, which is who gets chased for it. */
-export type SuppliedBy = 'CANDIDATE' | 'SUPPLIER' | 'CLIENT' | 'EMPLOYEE' | 'GOVERNMENT'
+/**
+ * Who owes it, which is who gets chased for it.
+ *
+ * PROVIDER was added 2026-09-22, on the founder's rule that the
+ * screening companies are the ones who confirm pass or fail. It is not a
+ * sixth party to chase — it is the answer "nobody you can chase for the
+ * paper, because the paper is a report and it is posted to whoever
+ * ordered it." A background check sat at CANDIDATE, the same value a
+ * passport has, so a worker's own page listed a report she will never
+ * hold and the chase asked her for it. `lib/attestation` reasons about
+ * who renders a verdict; this says who can physically produce the
+ * artifact, and the two are different facts about the same document.
+ */
+export type SuppliedBy = 'CANDIDATE' | 'SUPPLIER' | 'CLIENT' | 'EMPLOYEE' | 'GOVERNMENT' | 'PROVIDER'
 
-export const SUPPLIED_BY: SuppliedBy[] = ['CANDIDATE', 'SUPPLIER', 'CLIENT', 'EMPLOYEE', 'GOVERNMENT']
+export const SUPPLIED_BY: SuppliedBy[] = ['CANDIDATE', 'SUPPLIER', 'CLIENT', 'EMPLOYEE', 'GOVERNMENT', 'PROVIDER']
 
 // ── A type, as this file reasons about it ─────────────────────────────
 
@@ -204,20 +216,23 @@ export const BUILT_IN: DocumentTypeSpec[] = [
   spec({
     key: 'BACKGROUND_CHECK',
     label: 'Background check',
-    hint: 'Through our provider, or yours if the client accepts it.',
+    hint: 'Ordered from a screening company by the firm paying for the work. What the person gives is consent and the details it is run against — the report goes to whoever ordered it.',
     purpose: 'COMPLIANCE',
     validityShape: 'END_ONLY',
     validMonths: 12,
-    suppliedBy: 'CANDIDATE',
+    // Not the candidate's. She is never sent the report, and a value
+    // that says she is turns her own paperwork page into a demand for
+    // somebody else's post.
+    suppliedBy: 'PROVIDER',
   }),
   spec({
     key: 'DRUG_SCREENING',
     label: 'Drug screening',
-    hint: 'Where the client site requires it.',
+    hint: 'Where the client site requires it. The laboratory reports to whoever ordered the test; the person consents and attends.',
     purpose: 'COMPLIANCE',
     validityShape: 'END_ONLY',
     validMonths: 12,
-    suppliedBy: 'CANDIDATE',
+    suppliedBy: 'PROVIDER',
   }),
   // The two the founder named as having a start AND an end. Cover printed
   // in August for a policy starting 1 September is the whole reason the

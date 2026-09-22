@@ -205,6 +205,12 @@ function fromSuppliedBy(suppliedBy: SuppliedBy | null, shape: LineShape): OwedBy
       return 'SUPPLIER'
     case 'CLIENT':
       return 'CUSTOMER'
+    case 'PROVIDER':
+      // A report nobody on the line can produce. The firm on the paying
+      // side orders it from a screening company and the report is posted
+      // back to them, so the item is ours to get done rather than
+      // anybody's to hand over — and a worker is never chased for it.
+      return 'US'
     default:
       // Nothing in the dictionary says who supplies it. On a sell line
       // the paper is the customer's to hand us; on a buy line it is ours
@@ -268,7 +274,7 @@ const CORP_TO_CORP_DEFAULTS: DefaultItem[] = [
   { key: 'BUSINESS_PARTNER', required: true },
   { key: 'INSURANCE_GL', required: true },
   { key: 'INSURANCE_WC', required: true },
-  { key: 'BACKGROUND_CHECK', required: true, owedBy: 'WORKER' },
+  { key: 'BACKGROUND_CHECK', required: true },
   { key: 'NDA', required: true },
 ]
 
@@ -310,7 +316,12 @@ export function defaultItemsFor(shape: LineShape, role?: string | null): Default
   switch (shape) {
     case 'W2': {
       const packet = packetByKey(startPacketFor(role))
-      return (packet?.items ?? []).map((i) => ({ key: i.key, required: i.required, owedBy: 'WORKER' as OwedBy }))
+      // No owedBy: the packet says which documents, and the dictionary
+      // says who owes each one. Forcing WORKER here overrode every type
+      // that says otherwise — which is how a background check, a report
+      // posted to the firm that ordered it, came to be chased from the
+      // worker on every W2 line in the product.
+      return (packet?.items ?? []).map((i) => ({ key: i.key, required: i.required }))
     }
     case 'CORP_TO_CORP':
       return CORP_TO_CORP_DEFAULTS

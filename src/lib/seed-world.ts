@@ -569,9 +569,15 @@ export async function seedWorld(): Promise<{
     personId?: string; companyId?: string
     type: 'I9_EVERIFY' | 'BACKGROUND_CHECK' | 'INSURANCE_GL' | 'INSURANCE_WC'
     provider: string; expiresAt: Date | null
+    orderedByCompanyId?: string; orderedAt?: Date
   }[] = [
     { personId: person.id, type: 'I9_EVERIFY', provider: 'E-Verify', expiresAt: null },
-    { personId: person.id, type: 'BACKGROUND_CHECK', provider: 'Sterling', expiresAt: day(250) },
+    // The employer bought the report. Recorded, because `mayRelyOn` says
+    // a background check is point in time and that passing on somebody
+    // else's report is a regulated act of its own — and a row that
+    // cannot say whose report it is cannot answer that at all.
+    { personId: person.id, type: 'BACKGROUND_CHECK', provider: 'Sterling', expiresAt: day(250),
+      orderedByCompanyId: employer.id, orderedAt: day(-96) },
     { companyId: employer.id, type: 'INSURANCE_GL', provider: 'Hartford', expiresAt: day(200) },
     { companyId: employer.id, type: 'INSURANCE_WC', provider: 'Hartford', expiresAt: day(200) },
   ]

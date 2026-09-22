@@ -71,7 +71,10 @@ interface Ask {
  */
 const CLIENT_ASKS: Ask[] = [
   { key: 'I9_EVERIFY', owedBy: 'WORKER' },
-  { key: 'BACKGROUND_CHECK', owedBy: 'WORKER' },
+  // Not the worker's: the screening company posts the report to whoever
+  // ordered it, and a client's order asking a consultant for her own
+  // background report asks her for post she never receives.
+  { key: 'BACKGROUND_CHECK', owedBy: 'US' },
   { key: 'INSURANCE_GL', owedBy: 'SUPPLIER' },
   { key: 'INSURANCE_WC', owedBy: 'SUPPLIER' },
   { key: 'GOOD_STANDING', owedBy: 'SUPPLIER' },
