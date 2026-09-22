@@ -555,3 +555,32 @@ describe('The line on a requisition names the desk that is actually waiting', ()
     expect(code(LIST_PAGE)).toContain('headlineRow(approvals)')
   })
 })
+
+// ── 7. A finished role is not offered the actions of a live one ───
+
+/**
+ * The release walk found two CLOSED roles on Cavanaugh Glassworks'
+ * requisitions list reading "Draft", with Edit, Cancel and Archive
+ * beside them. The word and the Edit button are `stageOf` and `mayEdit`
+ * in src/lib/requisition-stage.ts, which belongs to another domain and
+ * is reported rather than changed here. Cancel is this page's own
+ * condition and the route behind it, and both were wrong: the door
+ * refused FILLED and CANCELLED and accepted CLOSED, so cancelling a
+ * finished role would have written a withdrawal reason onto it and told
+ * every supplier it had been pulled.
+ */
+describe('A role that is already closed is not offered a cancellation', () => {
+  const CANCEL_ROUTE = read('src/app/api/requisitions/[id]/route.ts')
+
+  it('the door refuses to cancel a role that is filled, cancelled or closed', () => {
+    expect(code(CANCEL_ROUTE)).toContain(
+      "requisition.status === 'FILLED' || requisition.status === 'CANCELLED' || requisition.status === 'CLOSED'"
+    )
+  })
+
+  it('and the row does not offer the button the door would refuse', () => {
+    expect(code(LIST_PAGE)).toContain(
+      "r.status !== 'CANCELLED' && r.status !== 'FILLED' && r.status !== 'CLOSED'"
+    )
+  })
+})

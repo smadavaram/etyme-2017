@@ -337,7 +337,13 @@ export async function PATCH(
         { status: 422 }
       )
     }
-    if (requisition.status === 'FILLED' || requisition.status === 'CANCELLED') {
+    // A role that is already finished. CLOSED belongs in this list for
+    // the same reason the other two do — the seat is settled, the
+    // suppliers were stood down when it closed, and a cancellation now
+    // would write a withdrawal reason onto a role nobody is working and
+    // tell every supplier it had been pulled. It was missing, so the
+    // door accepted it.
+    if (requisition.status === 'FILLED' || requisition.status === 'CANCELLED' || requisition.status === 'CLOSED') {
       return NextResponse.json(
         {
           error: {

@@ -11,6 +11,7 @@ import { desksFor } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-onboarding'
 import { paperingRow } from '@/lib/papering'
 import { seatedDesk } from '@/lib/resolve-client-company'
+import { rate as rateSays } from '@/lib/money-display'
 
 /**
  * GET /api/decisions
@@ -373,7 +374,10 @@ export async function GET(request: NextRequest) {
       const days = Math.floor((now.getTime() - a.createdAt.getTime()) / 86_400_000)
       const heads = a.requirement.headcount ?? 1
       const scale = `${heads} ${heads === 1 ? 'position' : 'positions'}`
-      const rate = a.requirement.billMax != null ? ` · up to $${Math.round(a.requirement.billMax / 100)}/hr` : ''
+      // Through the one formatter, which takes minor units only. A
+      // hand-rolled dollar sign over a cents column is how a $145/hr
+      // placement was written into a diary entry as $14,500/hr.
+      const ceiling = a.requirement.billMax != null ? ` · up to ${rateSays(a.requirement.billMax)}` : ''
       const cc = a.requirement.costCenter?.code ? ` · ${a.requirement.costCenter.code}` : ''
       decisions.push({
         type: 'REQUISITION_APPROVAL',
@@ -381,7 +385,7 @@ export async function GET(request: NextRequest) {
         // What it is waiting for, in the engine's own words — the reason
         // the rule wrote when it routed this to this desk, which is the
         // question this desk is being asked.
-        subtitle: `${a.reason.replace(/\s*\.\s*$/, '')}${scale ? ` · ${scale}` : ''}${rate}${cc}`,
+        subtitle: `${a.reason.replace(/\s*\.\s*$/, '')}${scale ? ` · ${scale}` : ''}${ceiling}${cc}`,
         urgency: days >= 5 ? 'HIGH' : days >= 2 ? 'MEDIUM' : 'LOW',
         entityType: 'REQUISITION',
         entityId: a.requirement.id,

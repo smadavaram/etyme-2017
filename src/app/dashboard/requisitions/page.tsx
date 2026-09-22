@@ -885,7 +885,11 @@ export default function RequisitionsPage() {
                           Edit
                         </button>
                       )}
-                      {!pending && r.status !== 'CANCELLED' && r.status !== 'FILLED' && (
+                      {/* Cancel is for a role somebody still wants to
+                          stop. A closed one is already stopped, and the
+                          route refuses it — a button the route refuses is
+                          a button that lies. */}
+                      {!pending && r.status !== 'CANCELLED' && r.status !== 'FILLED' && r.status !== 'CLOSED' && (
                         <button
                           onClick={() => cancel(r.id, r.title)}
                           disabled={busyId === r.id}
