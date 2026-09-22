@@ -270,11 +270,18 @@ function generatePeriodEnds(start: Date, end: Date, def: CycleDefinition): Date[
       // given, which it does.
       //
       // Separately, and bigger: the pack decides this rhythm even for a
-      // line whose order states a `billFrequency`. That is the open
-      // money work already documented in `lib/contract-cycles` — a
-      // header that says MONTHLY does not yet move an invoice date —
-      // and it is why the walk saw SEMIMONTHLY dates beside a line
+      // line whose order states a `billFrequency` of its own. That is
+      // the open money work already documented in `lib/contract-cycles`
+      // — a header that says MONTHLY does not yet move an invoice date
+      // — and it is why the walk saw semimonthly dates beside a line
       // reading MONTHLY. Fixing the typo does not fix that.
+      //
+      // Nothing here reads that column and nothing here should: this
+      // engine is handed two dates and a list of definitions, and
+      // `lib/money/order-terms` is the one door for deciding between a
+      // header's copy and a line's. Naming the column in a sentence is
+      // not reading it, which is what `terms-through-one-door` had to
+      // learn on 2026-09-22 — see the note on `codeOnly` there.
       let year = start.getFullYear()
       let month = start.getMonth()
       const firstCut = def.dayOfMonth ?? DEFAULT_SEMIMONTHLY_CUT

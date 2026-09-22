@@ -159,7 +159,83 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 
 const FILES = sourceFiles(SRC).map((f) => relative(ROOT, f).replace(/\\/g, '/'))
 
-const text = (file: string) => readFileSync(join(ROOT, file), 'utf8')
+const raw = (file: string) => readFileSync(join(ROOT, file), 'utf8')
+
+/**
+ * The exception this sweep did not know it had: **a comment is not a
+ * reader.**
+ *
+ * Found 2026-09-22. `lib/cycle-generator` wrote down a diagnosis of two
+ * wrong cycle dates and, in explaining one of them, used the word
+ * `billFrequency` in a sentence — "the pack decides this rhythm even
+ * for a line whose order states a billFrequency". It reads no column,
+ * loads no row and touches no document; it is prose about a defect. The
+ * sweep read the file as text, found the word, and demanded the engine
+ * import `lib/money/order-terms` — a helper that takes a line and a
+ * header, neither of which this file has ever seen. It is handed two
+ * dates and a list of definitions.
+ *
+ * The first fix was to reword the comment so the word did not appear.
+ * That is worse than the bug: the next person greps for `billFrequency`
+ * to find everything that knows about it, and the honest note about why
+ * an invoice cycle disagrees with its order is the one thing they most
+ * need and would not find. A test that makes documentation more
+ * expensive than silence teaches silence.
+ *
+ * So the rule is unchanged and the reading is narrowed: **detection
+ * runs on code, with comments and string bodies removed.** That is
+ * strictly more precise, not weaker — a real decision is
+ * `frequency: contract.billFrequency`, which is code and survives. It
+ * also removes a second false positive this file had been living with:
+ * the docblocks above quote `frequency: contract.billFrequency` as the
+ * example of the forbidden shape, and this test would have accused
+ * itself if it were under `src/`.
+ *
+ * `codeOnly` is a scanner rather than a regex because a regex cannot
+ * tell `//` in a URL from a comment, and truncating a line at a URL
+ * would hide a real decision after it. Template literals re-enter code
+ * at `${`, so an expression inside one is still read.
+ */
+function codeOnly(src: string): string {
+  let out = ''
+  let i = 0
+
+  while (i < src.length) {
+    const c = src[i]
+    const next = src[i + 1]
+
+    if (c === '/' && next === '/') {
+      while (i < src.length && src[i] !== '\n') i++
+      continue
+    }
+    if (c === '/' && next === '*') {
+      i += 2
+      while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i++
+      i += 2
+      continue
+    }
+    // Strings are kept, not blanked — only their `//` is prevented from
+    // starting a comment. A column named inside a string is still a
+    // mention worth catching; a column named inside a comment is not.
+    if (c === "'" || c === '"' || c === '`') {
+      const quote = c
+      out += c
+      i++
+      while (i < src.length && src[i] !== quote) {
+        if (src[i] === '\\') { out += src[i]; i++ }
+        if (i < src.length) { out += src[i]; i++ }
+      }
+      out += quote
+      i++
+      continue
+    }
+    out += c
+    i++
+  }
+  return out
+}
+
+const text = (file: string) => codeOnly(raw(file))
 
 /** Files that mention a line's own copy of one of the six at all. */
 function filesTouchingTheColumns(): string[] {
@@ -308,5 +384,67 @@ describe('a placement is billed on the rhythm of the document it is on', () => {
 
     // And with no door in the file at all, nothing is exempt.
     expect(copiesFrom('data: { payFrequency: bc.payFrequency }')).toHaveLength(1)
+  })
+
+  it('a column named in a sentence about it is not a file that reads it', () => {
+    // The 2026-09-22 false positive, as the line that caused it.
+    const prose = '// a line whose order states a `billFrequency` of its own\n'
+    expect(codeOnly(prose)).not.toContain('billFrequency')
+
+    const block = '/**\n * frequency: contract.billFrequency — the forbidden shape\n */\n'
+    expect(codeOnly(block)).not.toContain('billFrequency')
+    expect([...codeOnly(block).matchAll(DECIDES_ON_A_LINE)]).toHaveLength(0)
+  })
+
+  it('a real decision is still caught with the comments taken out', () => {
+    // The narrowing must not buy its precision with a hole. This is the
+    // exact shape every one of the original bugs had.
+    const real =
+      '// deciding a period from the line, which is the bug\n' +
+      "const terms: Terms = { frequency: anchorContract.billFrequency as Terms['frequency'] }"
+    expect([...codeOnly(real).matchAll(DECIDES_ON_A_LINE)]).toHaveLength(1)
+
+    // A decision hiding behind a comment on the same line is still read.
+    const trailing = "frequency: bc.payFrequency, // agreed at hire"
+    expect([...codeOnly(trailing).matchAll(DECIDES_ON_A_LINE)]).toHaveLength(1)
+  })
+
+  it('a double slash inside a string does not blind the rest of the line', () => {
+    // Why this is a scanner and not a regex. Truncating at the `//` of a
+    // URL would hide the decision sitting after it.
+    const withUrl =
+      "const doc = 'https://example.invalid/terms'; frequency: c.billFrequency"
+    expect([...codeOnly(withUrl).matchAll(DECIDES_ON_A_LINE)]).toHaveLength(1)
+    expect(codeOnly(withUrl)).toContain('https://example.invalid/terms')
+  })
+
+  it('the sweep still looks at the same tree it looked at before the narrowing', () => {
+    // Taking comments out removes files that only talked about a column.
+    // It must not remove the population — if this collapses, the scanner
+    // has eaten code rather than prose.
+    const seen = filesTouchingTheColumns()
+    expect(seen.length).toBeGreaterThan(10)
+    expect(seen).toContain(THE_DOOR)
+    expect(seen).toContain('src/app/api/invoices/generate/route.ts')
+  })
+
+  it('only files that merely talk about a column fall out of the sweep, and they are few', () => {
+    // The one way the scanner could buy precision with a hole: a regex
+    // literal containing a lone quote would put it into string mode and
+    // it would swallow the code after it. Nothing in the tree does that
+    // today, and this is how somebody finds out if it starts.
+    //
+    // A ratchet on the count, with the names in the message: two files
+    // discuss the six in prose and read none of them —
+    // `lib/cycle-generator`, which is handed dates, and
+    // `lib/contract-cycles`, which goes through the door. More than a
+    // handful means prose, or the scanner is eating code.
+    const inCode = new Set(filesTouchingTheColumns())
+    const inText = FILES.filter((f) => LINE_COLUMNS.some((c) => raw(f).includes(c)))
+    const proseOnly = inText.filter((f) => !inCode.has(f))
+    expect(
+      proseOnly.length,
+      `files naming one of the six outside code:\n  ${proseOnly.join('\n  ')}`
+    ).toBeLessThanOrEqual(4)
   })
 })
