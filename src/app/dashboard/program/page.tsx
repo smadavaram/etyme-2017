@@ -737,9 +737,11 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
                   <div className="flex-1 min-w-[200px]">
                     <p className="text-sm text-etyme-ink">{p.name}</p>
                     <p className="text-xs text-etyme-muted">
+                      {/* `says` is the whole of it: firmsOnARow already folds the
+                          firms this client may not name into the one it pays,
+                          as "Computer Systems Inc (and one firm below them)".
+                          Appending the count here printed that clause twice. */}
                       {p.cumulativeMonths} months here through {p.firms.says}
-                      {p.firms.withheld > 0 &&
-                        ` (and ${p.firms.withheld === 1 ? 'one firm' : `${p.firms.withheld} firms`} below ${p.firms.withheld === 1 ? 'them' : 'those'})`}
                       {p.status === 'IN_BREAK' && p.eligibleDate && ` · can come back ${shortDate(p.eligibleDate)}`}
                     </p>
                   </div>

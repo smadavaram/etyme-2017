@@ -260,10 +260,17 @@ describe('what the client desk is told', () => {
       .toContain('{p.firms.says}')
     expect(page, 'nothing on this page reads vendors off a tenure row')
       .not.toMatch(/p\.vendors/)
-    // And the count of firms it may not name travels with it, because a
-    // client is entitled to know a chain is there without being told
-    // whose it is.
-    expect(page).toContain('p.firms.withheld')
+    // And the page does not add its own clause about the firms it may
+    // not name: `firmsOnARow` already folds them into `says`, as
+    // "Computer Systems Inc (and one firm below them)". The first cut of
+    // this fix appended the count on top of that and printed the clause
+    // twice — invisible on the seeded world, because only a chained
+    // placement over 75% of the cap reaches this panel, and ordinary at
+    // a real client. This test is three greps over source text: it would
+    // have caught the crash and could never have caught that, which is
+    // why the walk exists.
+    expect(page, 'says already carries the withheld clause')
+      .not.toMatch(/firms\.withheld\s*>\s*0/)
   })
 
   it('the seeded Northbend Athletic desk has one week claimed over the role, so there is an exception to read', () => {
