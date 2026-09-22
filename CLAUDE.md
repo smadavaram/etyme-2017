@@ -512,6 +512,44 @@ than "No client company found for this caller"
 (`lib/resolve-client-company`), and
 `__integration__/party-uniform.test.ts` holds the sentence.
 
+### The assurance gate — decided 2026-09-22
+
+The founder, after a second conversation with the CTO of the
+two-billion-dollar company who is the exact buyer: **without SOC 2 Type
+II and ISO 27001 there is almost no chance of an enterprise contract.**
+
+That reverses the sequencing this file and the matrix both carried. The
+old line said the attestations start after the first contract that
+requires one, on the reasoning that buying one ahead of a buyer is a
+year of cost with nobody on the other side. Half of that is still true
+and the other half is now wrong: the buyer is asking before he will sign
+anything at all, so for him the attestation is **Phase 1, not Phase 3.**
+
+Three things follow, and none of them is a product change:
+
+- **Type II cannot be bought quickly.** It attests that controls
+  *operated* over a window, commonly six months. The window is the long
+  pole and the only part that cannot be compressed later, so the clock
+  starts now or the delay is paid in full later. Type I is a
+  point-in-time assessment of design, takes weeks, and is the bridge a
+  buyer accepts meanwhile. The penetration test still runs first, because
+  a report written over controls nobody has attacked is the wrong order.
+- **Most of the hard evidence already exists**, built for its own
+  reasons: every read of another person's data logged including refusals,
+  every unprompted act on a declared ladder, retention as code with the
+  legal basis cited or its absence stated, erasure, the breach clock, and
+  a deploy that is a reviewed replay through two gates. Firms usually
+  start this with nothing and collect for six months.
+- **It is one buyer describing his own procurement**, and he is very
+  likely right about it. Two or three of the hundred leads asked the same
+  question would say whether it is the market or the man, and that costs
+  nothing to find out.
+
+The sequencing rule below still holds for everything else. This is the
+one exception, and it is an exception because the gate is commercial
+rather than technical: the product is finished enough to sell and cannot
+be bought.
+
 ### Phase 3 — scale
 
 Multi-region programmes · IR35, GST, withholding · supplier scorecards
