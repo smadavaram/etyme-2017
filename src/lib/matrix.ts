@@ -468,6 +468,7 @@ export const MATRIX: L1[] = [
             'An item the walk already asks for is not asked twice when an order asks for it as well, and an item a desk has verified stays verified when the order set is folded in again',
             'An agreement an order requires is the desk\u2019s to paper and never insisted on at this point, because the agreement is written when the last desk says yes',
             'A certificate a desk verifies at supplier onboarding becomes a row on the firm\u2019s own compliance record, with the two dates printed on it, so the desk that cleared it and the gate that reads it stop disagreeing \u2014 and a verdict with no dates is refused rather than filed with no expiry',
+            'FIXED 2026-09-22: a desk that verifies a verdict no desk in Etyme renders \u2014 a background check, a drug screen, an employer\u2019s own I-9 \u2014 is told nothing went on the compliance record and whose opinion it would take, beside the item and again at approval. The item stays on the checklist as the desk\u2019s own note with the file the firm sent, and does not read as verified. The refusal was landing silently: the route surfaced a verdict only where it succeeded or wanted dates, so a desk marked a screening report verified, nothing was written, and it saw nothing at all.',
           ],
           implementedBy: ['src/lib/party-onboarding.ts', 'src/lib/packets.ts', 'src/app/api/onboarding/readiness/route.ts',
             'src/lib/supplier-onboarding.ts', 'src/lib/supplier-desks.ts', 'src/lib/supplier-link.ts',
