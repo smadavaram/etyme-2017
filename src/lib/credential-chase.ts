@@ -296,6 +296,17 @@ export interface AskOutcome {
  * items come from the chase rather than from `resolveItems`, because a
  * license on file with no expiry date reads as "held and does not
  * expire" to a packet and is exactly the row worth asking about.
+ *
+ * **And nothing from the line's required set is merged in here, on
+ * purpose.** The annual supplier refresh in `cron/watch` does merge —
+ * that packet means "everything this firm owes us this year", so a
+ * certificate a client wrote onto its own order belongs in it. This one
+ * means "your license expires next month, renew it", and folding a
+ * client's site induction into that letter would answer a question the
+ * person did not ask and bury the one thing they have to act on. What a
+ * line requires of a worker is chased by `documentFindings` in
+ * `lib/document-request`, which the same night job runs beside this one,
+ * so the item is not lost — it arrives in the letter that is about it.
  */
 export async function askForRenewal(
   input: { personId: string; askingCompanyId: string },

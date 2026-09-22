@@ -120,6 +120,75 @@ describe('a supplier whose cover has not begun is chased for the weeks nobody is
     expect(asked!.reopenedReason).toContain('nobody is insured')
   }, 120_000)
 
+  it('the letter comes from the firm that pays the supplier, not from the supplier to itself', async () => {
+    // A prime buying through a sub holds a buy line against that sub and
+    // the sub holds nothing of its own, so the chase found no buyer above
+    // it at all: the letter was raised by the sub, to the sub, saying
+    // "remind yourself", while the prime that pays it — and whose
+    // placement a lapse actually stops — heard nothing.
+    const asked = await prisma.documentPacket.findFirstOrThrow({
+      where: { subjectCompanyId: ctx.subVendorId, cancelledAt: null },
+      select: { companyId: true },
+    })
+    expect(asked.companyId).toBe(ctx.sellerId)
+    expect(asked.companyId).not.toBe(ctx.subVendorId)
+  }, 120_000)
+
+  it('and the same letter asks for the document the buyer wrote onto its own line, not only the shipped annual list', async () => {
+    // The crack this closes: the nightly finding refused a start and
+    // chased a firm for a document the buyer had asked for on its own
+    // order, and the letter that then went out asked only for what the
+    // shipped `COMPLIANCE_ANNUAL` packet lists. Chased for one thing,
+    // asked for another.
+    const buy = await prisma.buyContract.findFirstOrThrow({
+      where: { vendorCompanyId: ctx.subVendorId, companyId: ctx.sellerId },
+      select: { id: true },
+    })
+    await prisma.documentType.upsert({
+      where: { companyId_key: { companyId: ctx.sellerId, key: 'GOOD_STANDING' } },
+      create: {
+        companyId: ctx.sellerId,
+        key: 'GOOD_STANDING',
+        label: 'Certificate of good standing',
+        purpose: 'COMPLIANCE',
+        validityShape: 'START_AND_END',
+        suppliedBy: 'SUPPLIER',
+        blocks: true,
+      },
+      update: {},
+    })
+    await prisma.documentRequirement.upsert({
+      where: { buyContractId_documentTypeKey: { buyContractId: buy.id, documentTypeKey: 'GOOD_STANDING' } },
+      create: {
+        buyContractId: buy.id,
+        documentTypeKey: 'GOOD_STANDING',
+        required: true,
+        owedBy: 'SUPPLIER',
+        note: 'We do not pay a firm that is not in good standing where it is registered.',
+      },
+      update: {},
+    })
+
+    await prisma.documentPacket.deleteMany({ where: { subjectCompanyId: ctx.subVendorId } })
+    const res = await json(
+      await nightlyWatch(
+        req('GET', '/api/cron/watch', undefined, { authorization: 'Bearer cover-chase-test' })
+      )
+    )
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+
+    const asked = await prisma.documentPacket.findFirst({
+      where: { subjectCompanyId: ctx.subVendorId, cancelledAt: null },
+      select: { items: { select: { key: true } } },
+    })
+    expect(asked, 'nobody asked the supplier for anything').toBeTruthy()
+    const keys = asked!.items.map((i) => i.key)
+    // Still asked for the thing that triggered the chase...
+    expect(keys).toContain('INSURANCE_GL')
+    // ...and now also for the thing the buyer's own line requires.
+    expect(keys).toContain('GOOD_STANDING')
+  }, 120_000)
+
   it('and the automation log says in plain English why it asked, and that cancelling undoes it', async () => {
     const logged = await prisma.automationLog.findFirst({
       where: { action: 'PACKET_REOPENED' },

@@ -14,9 +14,9 @@ import {
   digest,
   type Finding,
 } from '@/lib/watch'
-import { packetByKey, resolveItems, itemsToAsk, type HeldDocument } from '@/lib/packets'
+import { packetByKey, resolveItems, itemsToAsk, withRequirements, type HeldDocument } from '@/lib/packets'
 import { coverGaps } from '@/lib/cover-gap'
-import { documentFindings } from '@/lib/document-request'
+import { documentFindings, requiredOfSupplier } from '@/lib/document-request'
 import { everyDocumentLetter, sendDocumentLapses } from '@/lib/notify/documents'
 import {
   lookAtCredentials,
@@ -352,6 +352,18 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
     where: {
       OR: [
         { sellContractsIn: { some: { companyId: verification.companyId, state: { in: ['IN_PROGRESS', 'PAUSED'] } } } },
+        // The buy line naming them as the vendor, which is the ordinary
+        // shape of a sub-vendor in a chain and was missing here.
+        //
+        // A prime buying through a sub holds a `BuyContract` against that
+        // sub and the sub holds nothing of its own — so neither branch
+        // above matched, the chase fell through to "they have no buyer",
+        // and the letter went to the sub telling it to remind itself
+        // while the prime that pays it, and that a lapse actually stops,
+        // heard nothing. Found by a test that expected the prime's own
+        // requirement in the letter and got a letter from the supplier
+        // to the supplier.
+        { buyContractsOut: { some: { vendorCompanyId: verification.companyId, state: { in: ['IN_PROGRESS', 'PAUSED'] } } } },
         // A firm holding this supplier on its counterparty register is a
         // firm whose placements a lapse would stop.
         { counterparties: { some: { otherCompanyId: verification.companyId, status: 'ACTIVE' } } },
@@ -396,7 +408,29 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
     accepted: v.status === 'CLEAR' || v.status === 'CONDITIONAL',
   }))
 
-  const asking = itemsToAsk(resolveItems(spec, heldDocs, now))
+  // What the buyer's own orders require of this firm, merged over the
+  // shipped annual list.
+  //
+  // Without this the chase and the ask disagreed about the same firm: a
+  // client that wrote a certificate of good standing onto its order had
+  // it refused at a start and chased by the finding above, and then the
+  // letter that went out asked only for what `COMPLIANCE_ANNUAL` ships
+  // with. `lib/document-request` is the one door for "what does this
+  // party owe us", and the packets route already asks it — this is the
+  // same question from the night job rather than from a desk.
+  //
+  // Nothing is merged where a firm is chasing itself: there is no buyer
+  // above it whose order could have asked for anything, so the query
+  // would read its own lines to itself and answer nothing.
+  const theirs = chasingSelf
+    ? null
+    : await requiredOfSupplier({ companyId: askingCompanyId, supplierCompanyId: verification.companyId })
+  // A waived item is not asked for. The desk that waived it put its name
+  // on that decision and asking again relitigates it.
+  const alsoWanted = (theirs?.items ?? []).filter((i) => !i.waived)
+  const asked = alsoWanted.length ? withRequirements(spec, alsoWanted) : spec
+
+  const asking = itemsToAsk(resolveItems(asked, heldDocs, now))
   if (asking.length === 0) return { done: null, because: null }
 
   // The thing that triggered this must actually be one of the things being
@@ -481,6 +515,12 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
         verificationId: verification.id,
         subjectCompanyId: verification.companyId,
         asked: asking.map((a) => a.key),
+        // Which of them the shipped annual list would never have asked
+        // for, and how many of the buyer's lines said so. An automation
+        // log that cannot say where an item came from is a log a desk
+        // cannot answer a supplier's "why are you asking me for this".
+        fromTheirOrders: alsoWanted.map((i) => i.key),
+        readOffLines: theirs?.lines.length ?? 0,
         daysUntil: f.daysUntil,
       },
       // Cancelling the request undoes this entirely.
