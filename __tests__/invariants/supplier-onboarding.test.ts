@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, withOrderedItems, deskForPurpose, wantsDates, STAGE_VERB, type Decision, type OrderedItem, type ChecklistItem, CHECKLIST } from '@/lib/supplier-onboarding'
+import { newChecklist, readiness, mayActAt, mayRecommend, markItem, provideItems, nextStage, stepsOf, itemsFor, withOrderedItems, deskForPurpose, wantsDates, evidenceNoteFor, whoRendersItem, STAGE_VERB, type Decision, type OrderedItem, type ChecklistItem, CHECKLIST } from '@/lib/supplier-onboarding'
 import { verificationFromChecklistItem, verificationsFromChecklist } from '@/lib/onboarding-evidence'
 import { builtInType } from '@/lib/document-type'
 import { linkLetter, applyUrl } from '@/lib/supplier-link'
@@ -391,5 +391,138 @@ describe('a checklist written before the code changed', () => {
     ]
     const out = withOrderedItems(invented, [{ key: 'FURNACE_SAFETY_INDUCTION', label: 'Furnace safety induction', purpose: 'COMPLIANCE', required: true }], 'Cavanaugh Glassworks')
     expect(out.filter((i) => i.key === 'FURNACE_SAFETY_INDUCTION').length).toBe(1)
+  })
+})
+
+// ── A refusal nobody is shown is worse than the gap it closes ─────────
+//
+// `lib/onboarding-evidence` refuses to put a background check on a
+// compliance record, because a screening company renders that verdict
+// and no desk in Etyme does. The gate held and said so, and the route
+// surfaced its sentence only when the answer was `ok` or `needsDates` —
+// so a desk marked a screening report verified, the tick went green,
+// nothing was written anywhere, and the desk was told nothing at all.
+
+describe('a desk is never told nothing when its click recorded nothing', () => {
+  const iso = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+  const ordered = (key: string, label: string): OrderedItem => ({ key, label, purpose: 'COMPLIANCE', required: true })
+
+  /** The checklist a client whose orders ask its suppliers for a screening report hands HR. */
+  const withCheck = (key: string, label: string) =>
+    withOrderedItems(newChecklist(), [ordered(key, label)], 'Northbend Athletic')
+
+  const heldItem = (key: string, label: string, note: string | null = null, fileName: string | null = null) => {
+    const c = withCheck(key, label).map((i) => (i.key === key ? { ...i, fileName } : i))
+    const marked = markItem(c, key, 'HELD', note, now) as { ok: true; checklist: ChecklistItem[] }
+    return marked.checklist.find((i) => i.key === key)!
+  }
+
+  it('a desk that marks a screening report verified is told nothing was recorded, and why', () => {
+    const item = heldItem('BACKGROUND_CHECK', 'Background check')
+    // The gate itself: neither a yes nor a request for two dates, which
+    // is exactly the shape the route used to drop on the floor.
+    const verdict = verificationFromChecklistItem(item, 'veritan', { at: now })
+    expect(verdict.ok).toBe(false)
+    expect(verdict.needsDates).toBe(false)
+
+    const note = evidenceNoteFor(item, 'veritan', now)
+    expect(note).not.toBeNull()
+    expect(note!.onRecord).toBe(false)
+    expect(note!.says).toBe(verdict.says)
+    expect(note!.says).toContain('nothing goes on the compliance record from here')
+  })
+
+  it('the sentence names the screening company whose verdict it is, so the desk leaves with somebody to ask', () => {
+    const note = evidenceNoteFor(heldItem('BACKGROUND_CHECK', 'Background check'), 'veritan', now)!
+    expect(note.renders).toBe('PROVIDER')
+    expect(note.says).toContain('A screening company runs this one')
+    // And what a record of it would have to carry, which is the door
+    // nobody has built yet.
+    expect(note.says).toContain('their reference number and the day they ran it')
+  })
+
+  it('an employer of record’s own check names the employer rather than a screening company', () => {
+    const note = evidenceNoteFor(heldItem('I9_EVERIFY', 'Form I-9 and E-Verify'), 'veritan', now)!
+    expect(note.onRecord).toBe(false)
+    expect(note.renders).toBe('EMPLOYER')
+    expect(note.says).toContain('employer of record')
+    expect(note.says).not.toContain('screening company')
+  })
+
+  it('the note and the file the desk was shown stay on the checklist, because that is the honest record of what the firm sent', () => {
+    const item = heldItem('BACKGROUND_CHECK', 'Background check', 'Sterling report, 12 March.', 'sterling-report.pdf')
+    // Verified as this desk's own note. Nothing is refused, nothing is
+    // dropped, and the evidence of what the firm sent is still here.
+    expect(item.state).toBe('HELD')
+    expect(item.note).toBe('Sterling report, 12 March.')
+    expect(item.fileName).toBe('sterling-report.pdf')
+    expect(evidenceNoteFor(item, 'veritan', now)!.says).toContain('stay on the checklist')
+  })
+
+  it('a certificate of insurance with its two dates says nothing extra, because it went on the record', () => {
+    const c = (markItem(newChecklist(), 'INSURANCE', 'HELD', null, now, { validFrom: iso(-30), validUntil: iso(335) }) as any).checklist
+    expect(evidenceNoteFor(c.find((i: ChecklistItem) => i.key === 'INSURANCE'), 'veritan', now)).toBeNull()
+  })
+
+  it('a desk’s own check says nothing either, because nobody expected a compliance record from it', () => {
+    const c = (markItem(newChecklist(), 'VENDOR_SCREENING', 'HELD', null, now) as any).checklist
+    expect(evidenceNoteFor(c.find((i: ChecklistItem) => i.key === 'VENDOR_SCREENING'), 'veritan', now)).toBeNull()
+    const bank = (markItem(newChecklist(), 'BANK', 'HELD', null, now) as any).checklist
+    expect(evidenceNoteFor(bank.find((i: ChecklistItem) => i.key === 'BANK'), 'veritan', now)).toBeNull()
+  })
+
+  it('a verified item still short of its two dates says which dates are wanted', () => {
+    const c = (markItem(newChecklist(), 'GOOD_STANDING', 'HELD', null, now) as any).checklist
+    const note = evidenceNoteFor(c.find((i: ChecklistItem) => i.key === 'GOOD_STANDING'), 'veritan', now)!
+    expect(note.onRecord).toBe(false)
+    expect(note.renders).toBeNull()
+    expect(note.says).toContain('the day it starts and the day it runs out')
+  })
+
+  it('nothing is said about an item no desk has touched, or one a desk waived', () => {
+    const c = newChecklist()
+    expect(evidenceNoteFor(c.find((i) => i.key === 'INSURANCE')!, 'veritan', now)).toBeNull()
+    const waived = (markItem(c, 'INSURANCE', 'WAIVED', 'Covered by the parent policy.', now) as any).checklist
+    expect(evidenceNoteFor(waived.find((i: ChecklistItem) => i.key === 'INSURANCE'), 'veritan', now)).toBeNull()
+  })
+
+  it('an item that is part certificate and part screening report says which half is not on the record', () => {
+    // One line answering two things at once — a pack holding a
+    // certificate and a report. What may be recorded is recorded, and
+    // what may not is named rather than dropped.
+    const item: ChecklistItem = {
+      key: 'SUPPLIER_PACK', label: 'Compliance pack', required: true, by: 'VENDOR', desk: 'HR',
+      state: 'HELD', note: null, at: now.toISOString(), fileName: 'pack.pdf',
+      answers: ['GOOD_STANDING', 'BACKGROUND_CHECK'], validFrom: iso(-30), validUntil: iso(335),
+    }
+    const note = evidenceNoteFor(item, 'veritan', now)!
+    expect(note.onRecord).toBe(true)
+    expect(note.says).toContain('goes on the compliance record')
+    expect(note.says).toContain('not this desk’s to render')
+  })
+
+  it('who renders a verdict is asked of regulation’s own table, never of a list kept here', () => {
+    expect(whoRendersItem({ answers: ['BACKGROUND_CHECK'] })).toBe('PROVIDER')
+    expect(whoRendersItem({ answers: ['DRUG_SCREENING'] })).toBe('PROVIDER')
+    expect(whoRendersItem({ answers: ['I9_EVERIFY'] })).toBe('EMPLOYER')
+    // An insurer asserted the cover and printed the dates; a desk
+    // repeating that is doing its job.
+    expect(whoRendersItem({ answers: ['INSURANCE_GL', 'INSURANCE_WC'] })).toBeNull()
+    expect(whoRendersItem({ answers: ['GOOD_STANDING'] })).toBeNull()
+    expect(whoRendersItem({})).toBeNull()
+  })
+
+  it('the screen shows the sentence beside the item and the route says it out loud', () => {
+    const page = read('src/app/dashboard/suppliers/page.tsx')
+    // Beside the item, where the desk is looking.
+    expect(page).toContain('item.evidence.says')
+    // And not reading as verified.
+    expect(page).toContain('const nothingRecorded = !!item.evidence && !item.evidence.onRecord')
+    const list = read('src/app/api/supplier-requests/route.ts')
+    expect(list).toContain('evidenceNoteFor(i, r.supplierCompanyId ?? r.id)')
+    const one = read('src/app/api/supplier-requests/[id]/route.ts')
+    // The approve replay carries the same sentence for every item it skipped.
+    expect(one).toContain('notRecorded: notOurs')
+    expect(one).toContain('notOurs.map((n) => n.says).join')
   })
 })

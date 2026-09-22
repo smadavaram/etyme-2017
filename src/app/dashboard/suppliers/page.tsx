@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
-import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, type ChecklistItem, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 
@@ -84,7 +84,13 @@ interface SupplierRequest {
   state: RequestState
   stage: Stage
   stageWord: string
-  checklist: ChecklistItem[]
+  /**
+   * Each item, plus what became of it on the firm's compliance record —
+   * null where there is nothing to say. An item a desk verified that no
+   * desk in Etyme may render carries the sentence saying so, and must
+   * not read as verified.
+   */
+  checklist: (ChecklistItem & { evidence?: EvidenceNote | null })[]
   decisions: Decision[]
   steps: { stage: Stage; word: string; status: 'done' | 'now' | 'next' | 'declined'; by: string | null; at: string | null; note: string | null }[]
   recommendedBy: string
@@ -135,6 +141,14 @@ export default function SuppliersPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  /**
+   * What a desk is told when its click recorded nothing.
+   *
+   * Apart from `done`, which is drawn in the verified color: "nothing
+   * went on the compliance record" read in green is the same silence
+   * one shade quieter.
+   */
+  const [told, setTold] = useState<string | null>(null)
   const [requests, setRequests] = useState<SupplierRequest[]>([])
   const [mayRecommend, setMayRecommend] = useState(false)
   const [mayDecide, setMayDecide] = useState(false)
@@ -251,13 +265,21 @@ export default function SuppliersPage() {
   }
 
   async function act(id: string, payload: Record<string, unknown>) {
-    setBusy(true); setError(null); setDone(null)
+    setBusy(true); setError(null); setDone(null); setTold(null)
     try {
       const body = await readJson(await fetch(`/api/supplier-requests/${id}`, {
         method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
       }))
       // A mark speaks through the checklist itself; only a decision gets a banner.
       if (body.data.says && payload.action !== 'mark') setDone(body.data.says)
+      // Except a mark that recorded nothing. The item keeps the desk's
+      // note and the firm's file, and the desk is told out loud that no
+      // compliance record came of it and whose verdict it would take —
+      // a tick going green over a gate that refused is how a desk ends
+      // up believing it verified something.
+      if (payload.action === 'mark' && body.data.recorded && body.data.recorded.onRecord === false) {
+        setTold(body.data.recorded.says)
+      }
       setNoteFor(null); setNoteText('')
       setDatesFor(null); setDateForm({ validFrom: '', validUntil: '' })
       await loadRequests()
@@ -543,10 +565,18 @@ export default function SuppliersPage() {
                   )}
                   <p className="text-[11px] uppercase tracking-[0.12em] text-etyme-faint">{STAGE_WORD[r.stage]} verifies</p>
                   <ul className="divide-y divide-etyme-rule rounded-lg border border-etyme-rule bg-etyme-surface">
-                    {r.checklist.filter((item) => item.desk === r.stage).map((item) => (
+                    {r.checklist.filter((item) => item.desk === r.stage).map((item) => {
+                      // An item this desk marked verified that no desk in
+                      // Etyme may render. It is still on the checklist as
+                      // the desk's own note, with the file the firm sent —
+                      // the honest record of what the firm sent — and it
+                      // may not read as verified, because nothing went on
+                      // the compliance record.
+                      const nothingRecorded = !!item.evidence && !item.evidence.onRecord
+                      return (
                       <li key={item.key} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[12.5px]">
-                        <span className={`w-5 text-center ${item.state === 'HELD' ? 'text-etyme-verified' : item.state === 'PROVIDED' ? 'text-etyme-action' : item.state === 'WAIVED' ? 'text-etyme-attention' : 'text-etyme-faint'}`}>
-                          {item.state === 'HELD' ? '✓' : item.state === 'PROVIDED' ? '•' : item.state === 'WAIVED' ? '~' : '○'}
+                        <span className={`w-5 text-center ${nothingRecorded ? 'text-etyme-attention' : item.state === 'HELD' ? 'text-etyme-verified' : item.state === 'PROVIDED' ? 'text-etyme-action' : item.state === 'WAIVED' ? 'text-etyme-attention' : 'text-etyme-faint'}`}>
+                          {nothingRecorded ? '!' : item.state === 'HELD' ? '✓' : item.state === 'PROVIDED' ? '•' : item.state === 'WAIVED' ? '~' : '○'}
                         </span>
                         <span className={`flex-1 min-w-[200px] ${item.state === 'MISSING' ? 'text-etyme-ink' : 'text-etyme-muted'}`}>
                           {item.label}
@@ -558,6 +588,18 @@ export default function SuppliersPage() {
                           {/* Whose order asked for it, where it is not
                               one of the eleven every firm is asked for. */}
                           {item.says && <span className="block text-[11px] text-etyme-faint">{item.says}</span>}
+                          {/* What became of it on the compliance record.
+                              Said in the door's own words, which name the
+                              party whose verdict it is — so the desk
+                              leaves with somebody to ask. */}
+                          {nothingRecorded && (
+                            <span className="text-etyme-attention"> · your note, not a compliance record</span>
+                          )}
+                          {item.evidence && (
+                            <span className={`block text-[11px] ${nothingRecorded ? 'text-etyme-attention' : 'text-etyme-faint'}`}>
+                              {item.evidence.says}
+                            </span>
+                          )}
                         </span>
                         {r.mayAct && (item.state === 'MISSING' || item.state === 'PROVIDED') && (
                           <span className="flex gap-1">
@@ -626,7 +668,8 @@ export default function SuppliersPage() {
                           </form>
                         )}
                       </li>
-                    ))}
+                      )
+                    })}
                   </ul>
                   <p className={`text-[12.5px] ${r.readiness.ok ? 'text-etyme-verified' : 'text-etyme-muted'}`}>{r.readiness.says}</p>
                 </>
@@ -694,6 +737,11 @@ export default function SuppliersPage() {
         </div>
       )}
 
+      {told && (
+        <div className="panel">
+          <p className="text-[13px] text-etyme-attention">{told}</p>
+        </div>
+      )}
       {done && (
         <div className="panel">
           <p className="text-[13px]" style={{ color: 'var(--color-verified)' }}>{done}</p>

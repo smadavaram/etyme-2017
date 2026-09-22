@@ -7,7 +7,7 @@ import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
 import { applyUrl, newApplyToken, sendLink } from '@/lib/supplier-link'
 import { hasPermission } from '@/lib/permissions'
 import {
-  mayRecommend, mayActAt, newChecklist, readiness, stepsOf, withOrderedItems, STAGE_WORD,
+  mayRecommend, mayActAt, newChecklist, readiness, stepsOf, withOrderedItems, evidenceNoteFor, STAGE_WORD,
   type ChecklistItem, type Decision, type Stage, type RequestState,
 } from '@/lib/supplier-onboarding'
 
@@ -47,7 +47,20 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       requests: await Promise.all(rows.map(async (r) => {
-        const checklist = withOrderedItems(r.checklist as unknown as ChecklistItem[], ordered, caller.company!.name)
+        const raw = withOrderedItems(r.checklist as unknown as ChecklistItem[], ordered, caller.company!.name)
+        // What became of each verified item on the firm's compliance
+        // record, beside the item, every time the desk reads the list.
+        //
+        // Derived here rather than written onto the row when the desk
+        // clicked: the rule about who may render a verdict lives in
+        // `lib/attestation` and changes there, and a sentence frozen
+        // into JSON on the day of the mark is a sentence that cannot
+        // learn. It is also what makes the note survive a reload — a
+        // banner the desk scrolled past is a refusal nobody saw.
+        const checklist = raw.map((i) => ({
+          ...i,
+          evidence: evidenceNoteFor(i, r.supplierCompanyId ?? r.id),
+        }))
         const decisions = (r.decisions as unknown as Decision[]) ?? []
         const stage = r.stage as Stage
         const state = r.state as RequestState

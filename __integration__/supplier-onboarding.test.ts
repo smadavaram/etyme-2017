@@ -368,3 +368,115 @@ describe('what the desks verified is on the supplier\u2019s compliance record', 
     expect(harbor.owes).toContain('Master service agreement')
   })
 })
+
+/**
+ * "Background check is a verdict a screening company renders, not a
+ * document a desk can read the dates off." — the founder, 2026-09-22.
+ *
+ * `lib/onboarding-evidence` refuses to write a compliance record for
+ * one, and the refusal was invisible: neither `ok` nor `needsDates`, so
+ * the route surfaced nothing. A desk marked a screening report verified,
+ * the tick went green, nothing was written anywhere, and the desk was
+ * told nothing at all. A silent refusal on a compliance screen leaves
+ * the desk more wrong than the gap it closed.
+ */
+describe('a desk that verifies somebody else\u2019s verdict is told nothing was recorded', () => {
+  beforeAll(async () => {
+    // This client's own orders ask its suppliers for a screening report.
+    // The client may ask for anything; what it may not do is have its
+    // own HR desk render the answer.
+    const client = await prisma.company.findFirstOrThrow({ where: { name: 'Northbend Athletic' }, select: { id: true } })
+    const order = await prisma.workOrder.findFirstOrThrow({ where: { issuedById: client.id }, select: { id: true } })
+    // The client's orders already ask for a screening report on the
+    // worker; this one asks the firm itself to hold one before it may
+    // trade, which is what puts the item on the supplier walk.
+    const asked = await prisma.documentRequirement.updateMany({
+      where: { workOrderId: order.id, documentTypeKey: 'BACKGROUND_CHECK' },
+      data: { owedBy: 'SUPPLIER', required: true },
+    })
+    expect(asked.count).toBe(1)
+    as(HIRING)
+    const r = await json(await recommend(req('POST', '/api/supplier-requests', {
+      name: 'Ridgeline Staffing', contactEmail: 'ops@ridgelinestaffing.com', contactName: 'Dana Voss',
+      skills: 'Warehouse supervisors', reason: 'Strong on warehouse supervisors at short notice.',
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    it_.rid = r.body.data.request.id
+
+    as(LEAD)
+    expect((await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'approve' })).status).toBe(200)
+    as(PROCUREMENT)
+    for (const key of ['EXPERIENCE', 'REFERENCES', 'DNB_REPORT']) {
+      const m = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'mark', key, state: 'HELD' })
+      expect(m.status, JSON.stringify(m.body)).toBe(200)
+    }
+    expect((await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'approve' })).status).toBe(200)
+  }, 120_000)
+
+  it('a desk that marks a screening report verified is told nothing was recorded, and why', async () => {
+    as(HR)
+    const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, {
+      action: 'mark', key: 'BACKGROUND_CHECK', state: 'HELD', note: 'Sterling report received from the firm.',
+    })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    // Not an error, and not silence either.
+    expect(r.body.data.recorded).not.toBeNull()
+    expect(r.body.data.recorded.onRecord).toBe(false)
+    expect(r.body.data.recorded.written).toBe(0)
+    expect(r.body.data.recorded.says).toContain('a verdict a screening company renders')
+    expect(r.body.data.recorded.says).toContain('nothing goes on the compliance record from here')
+    // And whose it is, so the desk leaves with somebody to ask.
+    expect(r.body.data.recorded.says).toContain('A screening company runs this one')
+    expect(r.body.data.says).toContain('nothing goes on the compliance record from here')
+  })
+
+  it('the note and the file the desk was shown stay on the checklist, because that is the honest record of what the firm sent', async () => {
+    as(HR)
+    const r = await json(await listRequests(req('GET', '/api/supplier-requests')))
+    const ridge = r.body.data.requests.find((x: any) => x.name === 'Ridgeline Staffing')
+    const item = ridge.checklist.find((i: any) => i.key === 'BACKGROUND_CHECK')
+    expect(item.state).toBe('HELD')
+    expect(item.note).toBe('Sterling report received from the firm.')
+    expect(item.says).toBe('Required by Northbend Athletic\u2019s orders.')
+    // Beside the item, where the desk is looking — every time it reads
+    // the list, not once in a banner it scrolled past.
+    expect(item.evidence.onRecord).toBe(false)
+    expect(item.evidence.renders).toBe('PROVIDER')
+    expect(item.evidence.says).toContain('Your note and the file stay on the checklist')
+    // A certificate the same desk verifies properly says nothing extra.
+    const insured = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, {
+      action: 'mark', key: 'INSURANCE', state: 'HELD', validFrom: iso(-30), validUntil: iso(335),
+    })
+    expect(insured.status, JSON.stringify(insured.body)).toBe(200)
+    expect(insured.body.data.recorded.onRecord).toBe(true)
+  })
+
+  it('an approval says which items it did not put on the compliance record, and whose opinion each of them is', async () => {
+    as(HR)
+    for (const [key, dates] of [['GOOD_STANDING', { validFrom: iso(-60), validUntil: iso(305) }], ['VENDOR_SCREENING', {}]] as const) {
+      const m = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'mark', key, state: 'HELD', ...dates })
+      expect(m.status, JSON.stringify(m.body)).toBe(200)
+    }
+    expect((await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'approve', note: 'Insured, in good standing, screened.' })).status).toBe(200)
+
+    as(AP)
+    for (const key of ['TAX_FORM', 'BANK']) {
+      expect((await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'mark', key, state: 'HELD' })).status).toBe(200)
+    }
+    const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'approve', note: 'Bank details match the W-9.' })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    // The three certificates its desks verified are on the record.
+    expect(r.body.data.evidence.recorded).toBe(3)
+    // And the one they could not is named, in full, with the party whose
+    // verdict it would take.
+    expect(r.body.data.evidence.notRecorded.map((n: any) => n.key)).toEqual(['BACKGROUND_CHECK'])
+    expect(r.body.data.says).toContain('not on the compliance record')
+    expect(r.body.data.says).toContain('A screening company runs this one')
+
+    // Nothing was written, which is the point of the refusal.
+    const supplier = r.body.data.supplier
+    expect(await prisma.verification.count({ where: { companyId: supplier.id, type: 'BACKGROUND_CHECK' } })).toBe(0)
+    expect(await prisma.verification.count({ where: { companyId: supplier.id } })).toBe(3)
+  })
+})
+

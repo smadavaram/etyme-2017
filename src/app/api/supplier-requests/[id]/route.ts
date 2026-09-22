@@ -9,7 +9,7 @@ import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
 import { verificationFromChecklistItem, verificationsFromChecklist, type VerificationToWrite } from '@/lib/onboarding-evidence'
 import { sendLink } from '@/lib/supplier-link'
 import {
-  mayActAt, markItem, readiness, nextStage, withOrderedItems, STAGE_WORD,
+  mayActAt, markItem, readiness, nextStage, withOrderedItems, evidenceNoteFor, whoRendersItem, STAGE_WORD,
   type ChecklistItem, type ItemState, type Decision, type Stage,
 } from '@/lib/supplier-onboarding'
 
@@ -158,7 +158,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // on the item whatever happens, and the approval replays them into
     // the record at the first moment an id exists.
     const markedItem = marked.checklist.find((i) => i.key === key)!
-    let recorded: { written: number; says: string } | null = null
+    let recorded: { written: number; onRecord: boolean; says: string } | null = null
     if (state === 'HELD') {
       const verdict = verificationFromChecklistItem(
         markedItem,
@@ -177,14 +177,32 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
       if (verdict.ok && row.supplierCompanyId) {
         const written = await recordEvidence(verdict.rows, companyId)
-        recorded = { written, says: verdict.says }
+        recorded = { written, onRecord: true, says: verdict.says }
       } else if (verdict.ok) {
         recorded = {
           written: 0,
+          onRecord: true,
           says:
             `${markedItem.label} is verified, and its dates are held with the recommendation. ` +
             `They go on ${row.name}'s compliance record the moment Finance approves the firm.`,
         }
+      } else {
+        // ── The refusal that used to be silent ────────────────────────
+        //
+        // Neither `ok` nor `needsDates`: a verdict no desk in Etyme
+        // renders. A background check is a screening company's opinion
+        // and an I-9 is the employer of record's own, so
+        // `lib/onboarding-evidence` writes nothing — correctly — and
+        // until now said nothing either. The desk watched the tick go
+        // green and walked away believing a compliance record existed.
+        //
+        // It is not an error and the mark is not refused: the item stays
+        // verified as this desk's own note, the file the firm sent stays
+        // attached, and that is the honest record of what the firm sent.
+        // What is said out loud is that nothing went on the compliance
+        // record, and whose opinion would have to.
+        const note = evidenceNoteFor(markedItem, row.supplierCompanyId ?? row.id, now)
+        if (note) recorded = { written: 0, onRecord: note.onRecord, says: note.says }
       }
     }
 
@@ -323,6 +341,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const evidence = verificationsFromChecklist(checklist, supplier.id, { personId: caller.person.id, at: now })
     const recorded = await recordEvidence(evidence.rows, companyId)
     const undated = evidence.skipped.filter((sk) => sk.needsDates)
+    // And the ones nothing was written for because no desk here renders
+    // them. The approval is the last moment anybody reads this walk, so
+    // it says what it did not record and whose opinion each one is —
+    // otherwise a firm arrives on the register with a background check
+    // ticked by HR and nothing behind it anywhere.
+    const labelOf = new Map(checklist.map((i) => [i.key, i.label]))
+    const notOurs = evidence.skipped
+      .filter((sk) => !sk.needsDates)
+      .filter((sk) => whoRendersItem(checklist.find((i) => i.key === sk.key) ?? {}) != null)
+      .map((sk) => ({ key: sk.key, label: labelOf.get(sk.key) ?? sk.key, says: sk.says }))
 
     const updated = await prisma.supplierRequest.update({
       where: { id },
@@ -345,7 +373,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: {
         request: updated,
         supplier,
-        evidence: { recorded, undated: undated.map((sk) => sk.says) },
+        evidence: {
+          recorded,
+          undated: undated.map((sk) => sk.says),
+          notRecorded: notOurs,
+        },
         says:
           `${row.name} is a supplier now, at approved standing. Send them a role.` +
           (recorded > 0
@@ -357,6 +389,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             ? ` ${undated.length} verified ${undated.length === 1 ? 'item has' : 'items have'} no dates on ` +
               `${undated.length === 1 ? 'it' : 'them'}, so ${undated.length === 1 ? 'it is' : 'they are'} not on the ` +
               `compliance record yet — open the firm's compliance page and add them.`
+            : '') +
+          // Said in full, not counted: the sentence names the party
+          // whose verdict it is, and a desk that reads "1 item was not
+          // recorded" and nothing else is no better off than a desk
+          // that read nothing.
+          (notOurs.length > 0
+            ? ` ${notOurs.map((n) => n.label).join(', ')} ${notOurs.length === 1 ? 'is' : 'are'} not on the ` +
+              `compliance record, because ${notOurs.length === 1 ? 'it is' : 'they are'} not this client's to ` +
+              `render. ${notOurs.map((n) => n.says).join(' ')}`
             : ''),
       },
     })

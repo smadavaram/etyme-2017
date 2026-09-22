@@ -22,6 +22,7 @@
 
 import { hasPermission } from '@/lib/permissions'
 import { verificationFromChecklistItem } from '@/lib/onboarding-evidence'
+import { checkKindOf, whoRendersCheck } from '@/lib/attestation'
 
 export const STAGES = ['LEAD', 'PROCUREMENT', 'HR', 'FINANCE', 'DONE'] as const
 export type Stage = (typeof STAGES)[number]
@@ -162,6 +163,98 @@ export function wantsDates(item: Pick<ChecklistItem, 'key' | 'label' | 'answers'
     { ...item, state: 'HELD', validFrom: null, validUntil: null },
     'a-firm-on-the-register',
   ).needsDates
+}
+
+/**
+ * Whose verdict this item carries, where it is not this desk's to
+ * render at all.
+ *
+ * Asked of `lib/attestation` — regulation's own table of who renders
+ * what — rather than answered from a list here, for the same reason
+ * `wantsDates` asks `lib/onboarding-evidence`: two lists would be two
+ * answers to one question, and the one that went stale would be the one
+ * letting a desk clear a background check.
+ *
+ * A key the table does not recognize answers null, which is right: a
+ * certificate of insurance, a certificate of good standing and a
+ * business registration are all somebody else's assertion already
+ * printed on paper, and a desk repeating one is doing its job.
+ */
+export function whoRendersItem(item: Pick<ChecklistItem, 'answers'>): 'PROVIDER' | 'EMPLOYER' | null {
+  for (const key of item.answers ?? []) {
+    const kind = checkKindOf(key)
+    if (!kind) continue
+    const renders = whoRendersCheck(kind).renders
+    if (renders === 'PROVIDER' || renders === 'EMPLOYER') return renders
+  }
+  return null
+}
+
+/**
+ * What became of a verified item on the firm's compliance record, said
+ * beside the item where the answer is anything other than "it is on
+ * there".
+ *
+ * ── The silent refusal this closes ───────────────────────────────────
+ *
+ * `lib/onboarding-evidence` refuses to write a compliance record for a
+ * verdict a screening company renders, which is right — no desk in
+ * Etyme renders a background check. But the route surfaced the door's
+ * sentence only when the answer was `ok` or `needsDates`, and this
+ * refusal is neither. So an HR desk marked a background check verified,
+ * the tick went green, nothing went on the compliance record, and the
+ * desk was told nothing at all. It believed it had verified something.
+ *
+ * A refusal nobody is shown is worse than the gap it closes: the gate
+ * held and the desk walked away wrong.
+ *
+ * ── What it is not ───────────────────────────────────────────────────
+ *
+ * Not an error. The item stays HELD, the desk's own note and the file
+ * the firm sent stay on the checklist, and that is the honest record of
+ * what the firm sent — "Veritan sent us Sterling's report on 12 March"
+ * is a true thing to have written down. What must not happen is the
+ * desk thinking a compliance record now exists.
+ *
+ * ── What it says, and whose words ────────────────────────────────────
+ *
+ * The door's own sentence, never a second one written here. It already
+ * names whose opinion it is and what a record of the check would have
+ * to carry, so the desk leaves with somebody to ask rather than with a
+ * fault of its own.
+ *
+ * `null` where there is nothing to say: an item that went on the record
+ * clean, an item nobody expected a record from — a D&B report, a
+ * sanctions screening, bank details, all of them a desk's own check with
+ * nothing to expire — and anything not verified at all.
+ *
+ * The one case the door's sentence is thinner than this helper's answer
+ * is a key regulation's table recognizes and the compliance record has
+ * no type for. It is surfaced anyway: nothing was recorded, and saying
+ * so is the whole point.
+ */
+export interface EvidenceNote {
+  /** Whether anything from this item is on the firm's compliance record. */
+  onRecord: boolean
+  /** Whose verdict it is, where it is not this desk's to render. */
+  renders: 'PROVIDER' | 'EMPLOYER' | null
+  /** The door's own sentence, in its own words. */
+  says: string
+}
+
+export function evidenceNoteFor(
+  item: Pick<ChecklistItem, 'key' | 'label' | 'state' | 'answers' | 'fileName' | 'note' | 'validFrom' | 'validUntil'>,
+  companyId: string,
+  at?: Date
+): EvidenceNote | null {
+  if (item.state !== 'HELD') return null
+  const renders = whoRendersItem(item)
+  const verdict = verificationFromChecklistItem(item, companyId, { at })
+  // A verified item that went on the record cleanly needs no sentence —
+  // unless part of it could not, which the door says in the same breath.
+  if (verdict.ok) return renders ? { onRecord: true, renders, says: verdict.says } : null
+  if (renders || verdict.needsDates) return { onRecord: false, renders, says: verdict.says }
+  return null
 }
 
 /**
