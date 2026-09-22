@@ -124,6 +124,14 @@ export interface OnboardingEvidenceItem {
  * company's own key is carried beside it. A key with no enum value here
  * has no verification to write — which is correct rather than a gap, and
  * the sentence says so.
+ *
+ * It is not, and must never be used as, the list of document types that
+ * exist. It is the list this door can write a row for. Whether a
+ * document is a desk's own check, somebody else's verdict, or a paper
+ * with an expiry is asked of `lib/document-type` and `lib/attestation`,
+ * off the key the item declares — never off whether that key appears
+ * below. Reading absence here as "not a real document" is what told a
+ * desk holding a passport that nothing expires.
  */
 const VERIFICATION_TYPE: Record<string, string> = {
   INSURANCE_GL: 'INSURANCE_GL',
@@ -262,26 +270,71 @@ export function verificationFromChecklistItem(
     )
   }
 
-  const keys = (item.answers ?? []).filter((k) => VERIFICATION_TYPE[k])
+  // Every type the item declares, before anything is dropped.
+  //
+  // Whose assertion a document is has to be asked of what the item says
+  // it answers, never of what this file happens to have a column for.
+  // Asking the filtered list first is how a `PASSPORT` item came to be
+  // told "this desk's own check, so nothing here expires" — true of a
+  // sanctions screening and false of a passport, which has an expiry
+  // date printed on the front of it. `lib/attestation` knew all along
+  // that a passport is an IDENTITY check the employer of record renders;
+  // the key never reached it, because `VERIFICATION_TYPE` has no
+  // `PASSPORT` row and the filter ran first. Found on the release walk,
+  // 2026-09-22.
+  const declared = item.answers ?? []
 
   // Whose assertion each one would be. A desk may repeat an assertion
   // somebody else printed; it may not make one on their behalf.
-  const theirs = keys.filter((k) => renderedElsewhere(k) != null)
-  const ours = keys.filter((k) => renderedElsewhere(k) == null)
+  const theirs = declared.filter((k) => renderedElsewhere(k) != null)
+  const ours = declared.filter((k) => renderedElsewhere(k) == null)
 
   if (ours.length === 0 && theirs.length > 0) {
     return nothing(rendersElsewhereSays(theirs))
   }
 
-  const compliance = ours.filter((k) => {
+  // And of the ones that are this desk's to repeat, the ones the
+  // compliance record has a column for at all. A company's dictionary is
+  // open and `Verification.type` is an enum, so a client that invents a
+  // document type will land here — and it is told that, rather than told
+  // its document does not expire.
+  const recordable = ours.filter((k) => VERIFICATION_TYPE[k])
+
+  const compliance = recordable.filter((k) => {
     const t = typeByKey(k, by?.documentTypes ?? [])
     return t == null || t.purpose === 'COMPLIANCE'
   })
 
   if (compliance.length === 0) {
+    // Three different nothings, and until 2026-09-22 they shared one
+    // sentence — the one that says nothing expires. It is true of a
+    // screening this desk ran itself and a lie about everything else,
+    // and a lie about expiry is the one lie this whole file exists to
+    // stop.
+    if (ours.length === 0) {
+      return nothing(
+        `${item.label} is this desk’s own check rather than a document with a life of its own, ` +
+          `so nothing here expires and there is nothing for the watch to chase. It stays on the checklist.`
+      )
+    }
+
+    const agreements = ours.filter((k) => {
+      const t = typeByKey(k, by?.documentTypes ?? [])
+      return t?.purpose === 'AGREEMENT'
+    })
+    if (agreements.length === ours.length) {
+      return nothing(
+        `${labelsOf(agreements)} is a paper both sides signed, not a certificate with a validity ` +
+          `window, so it lives with the agreement rather than on the compliance record. Nothing is ` +
+          `written here and nothing will be chased for renewal from here.`
+      )
+    }
+
     return nothing(
-      `${item.label} is this desk’s own check rather than a document with a life of its own, ` +
-        `so nothing here expires and there is nothing for the watch to chase. It stays on the checklist.`
+      `${labelsOf(ours)} is not something the compliance record can hold — it has no type for it — ` +
+        `so nothing goes on the record and the nightly watch will not chase it. What this desk was ` +
+        `shown stays on the checklist, and if the document has an expiry somebody has to watch it ` +
+        `somewhere else.`
     )
   }
 

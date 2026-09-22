@@ -204,8 +204,17 @@ export async function completePlacement(input: CompleteInput): Promise<void> {
     // bought it reads the same as a desk's own note.
     { personId, type: 'BACKGROUND_CHECK' as const, provider: 'Sterling', expiresAt: day(new Date(), 300),
       orderedByCompanyId: supplierCompanyId, orderedAt: day(sell.startDate, -14) },
-    { companyId: supplierCompanyId, type: 'INSURANCE_GL' as const, provider: 'Hartford', expiresAt: day(new Date(), 240) },
-    { companyId: supplierCompanyId, type: 'INSURANCE_WC' as const, provider: 'Hartford', expiresAt: day(new Date(), 240) },
+    // The two company rows carry the day cover begins as well as the day
+    // it runs out. `lib/onboarding-evidence` — the one door in the
+    // product that puts a certificate on a compliance record — refuses
+    // to write one without both, so a seeded certificate with no start
+    // is a verdict no desk could have reached through the door it would
+    // really use. A person's I-9 and background check have no such door
+    // yet and are left as they are.
+    { companyId: supplierCompanyId, type: 'INSURANCE_GL' as const, provider: 'Hartford',
+      validFrom: sell.startDate, expiresAt: day(new Date(), 240) },
+    { companyId: supplierCompanyId, type: 'INSURANCE_WC' as const, provider: 'Hartford',
+      validFrom: sell.startDate, expiresAt: day(new Date(), 240) },
   ]
   for (const c of supplierPersonId ? clearances : []) {
     const where = 'personId' in c ? { personId: c.personId, type: c.type } : { companyId: c.companyId, type: c.type }

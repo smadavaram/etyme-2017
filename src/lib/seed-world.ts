@@ -569,6 +569,23 @@ export async function seedWorld(): Promise<{
     personId?: string; companyId?: string
     type: 'I9_EVERIFY' | 'BACKGROUND_CHECK' | 'INSURANCE_GL' | 'INSURANCE_WC'
     provider: string; expiresAt: Date | null
+    /**
+     * The day cover begins.
+     *
+     * Only the two company rows carry it, and they carry it because the
+     * one door that puts a certificate on a compliance record —
+     * `lib/onboarding-evidence`, reached from the supplier walk —
+     * refuses to write a row without the two dates printed on the
+     * certificate, and writes both on every row it does write. A seeded
+     * row with no start is a verdict no desk could have reached through
+     * the door it would really use.
+     *
+     * A person's I-9 and background check are left alone: no route in
+     * the product writes either yet, so there is no door to be honest
+     * about, and inventing a start date for a form would be inventing a
+     * fact rather than recording one.
+     */
+    validFrom?: Date
     orderedByCompanyId?: string; orderedAt?: Date
   }[] = [
     { personId: person.id, type: 'I9_EVERIFY', provider: 'E-Verify', expiresAt: null },
@@ -578,8 +595,8 @@ export async function seedWorld(): Promise<{
     // cannot say whose report it is cannot answer that at all.
     { personId: person.id, type: 'BACKGROUND_CHECK', provider: 'Sterling', expiresAt: day(250),
       orderedByCompanyId: employer.id, orderedAt: day(-96) },
-    { companyId: employer.id, type: 'INSURANCE_GL', provider: 'Hartford', expiresAt: day(200) },
-    { companyId: employer.id, type: 'INSURANCE_WC', provider: 'Hartford', expiresAt: day(200) },
+    { companyId: employer.id, type: 'INSURANCE_GL', provider: 'Hartford', expiresAt: day(200), validFrom: day(-165) },
+    { companyId: employer.id, type: 'INSURANCE_WC', provider: 'Hartford', expiresAt: day(200), validFrom: day(-165) },
   ]
   for (const v of clearances) {
     const where = v.personId ? { personId: v.personId, type: v.type } : { companyId: v.companyId, type: v.type }

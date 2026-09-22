@@ -480,3 +480,68 @@ describe('a desk that verifies somebody else\u2019s verdict is told nothing was 
   })
 })
 
+
+/**
+ * A seeded world may only hold verdicts a desk could have reached.
+ *
+ * The release walk, 2026-09-22, reported the demo teaching a lie: a
+ * certificate of insurance on the compliance record that the desk's own
+ * door would refuse today. The specific report was off — Veritan's
+ * certificate is seeded PROVIDED, which is HR's work still to do, and
+ * exactly what the report asked for. The class was real all the same,
+ * one layer down.
+ *
+ * `lib/onboarding-evidence` is the only door in the product that puts a
+ * certificate on a compliance record, and it insists on the two dates
+ * printed on the certificate: cover that starts next month covers nobody
+ * starting this week, and a row filed with no expiry passes every check
+ * until the day somebody audits it. Thirteen of the nineteen seeded
+ * company certificates carried no `validFrom`. Every reader falls back
+ * to `issuedAt`, so nothing computed a wrong answer — what was wrong was
+ * a demo world shaped in a way the product will not accept, which is how
+ * a real refusal stays hidden until a paying client finds it.
+ *
+ * Replayed through the door rather than asserted against a column, so
+ * the rule cannot drift: what the desk saw, on the day it saw it.
+ */
+describe('every certificate in the seeded world is one a desk could have written through its own door', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 240_000)
+
+  it('every certificate a company holds carries the day it starts and the day it runs out, as its own desk would have had to type them', async () => {
+    const { verificationFromChecklistItem } = await import('@/lib/onboarding-evidence')
+    const { typeByKey } = await import('@/lib/document-type')
+
+    const rows = await prisma.verification.findMany({
+      where: { NOT: { companyId: null } },
+      select: {
+        type: true, validFrom: true, expiresAt: true, verifiedAt: true, issuedAt: true,
+        company: { select: { name: true } },
+      },
+    })
+    expect(rows.length, 'no company in the seeded world holds a certificate at all').toBeGreaterThan(10)
+
+    const refused: string[] = []
+    for (const r of rows) {
+      const verdict = verificationFromChecklistItem(
+        {
+          key: r.type,
+          label: typeByKey(r.type)?.label ?? r.type,
+          state: 'HELD',
+          answers: [r.type],
+          validFrom: r.validFrom,
+          validUntil: r.expiresAt,
+        },
+        'a-firm-on-the-register',
+        // The day the desk looked at it. A certificate verified in March
+        // and out of date by August is an ordinary fact and not a seed
+        // bug; one that was already dead the day somebody cleared it is.
+        { at: r.verifiedAt ?? r.issuedAt ?? new Date() }
+      )
+      if (!verdict.ok) refused.push(`${r.company!.name} — ${r.type}: ${verdict.says}`)
+    }
+
+    expect(refused, refused.join('\n')).toEqual([])
+  }, 120_000)
+})

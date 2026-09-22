@@ -156,13 +156,29 @@ export const CLIENT_DESKS: ClientDesk[] = [
   { desk: 'procurement', label: 'Procurement lead',
     waiting: 'A requisition is waiting for you to say which suppliers may see it.' },
   { desk: 'vp', label: 'Approver',
-    waiting: 'A requisition over the $250k line is in your queue.' },
+    waiting: 'A requisition over the $250k line is in your queue — and your yes is one of two.' },
   { desk: 'ap', label: 'AP clerk',
     waiting: 'An invoice has matched the hours and is waiting to be paid.' },
   { desk: 'compliance', label: 'Compliance officer',
     waiting: 'Tenure across every supplier, and whose paperwork is not on file.' },
+  // The second half of the final word, said out loud.
+  //
+  // A client's final rank is two desks, not one: the approver, and
+  // whoever owns the cost center the money is coded to. At all three
+  // programs the cost center's owner is the account owner, so this chip
+  // is the only door to the last yes on an over-threshold requisition —
+  // and it said nothing about it. The release walk read that as "no desk
+  // key seats him" and concluded raise-to-award could not be finished
+  // from the demo. It can: HR, then the approver, then here, and the
+  // requisition goes OPEN. What was missing was the sentence, which is
+  // the same failure as a menu entry the route will refuse, facing the
+  // other way — a door that opens onto work it does not name.
+  //
+  // `__integration__/demo-seats.test.ts` walks those three doors into a
+  // published requisition, so a desk that stops being the last yes
+  // breaks the build rather than the founder's walk.
   { desk: '', label: 'Account owner',
-    waiting: 'People, roles and desks. Add someone, make them HR for a unit, and watch a requisition find them.' },
+    waiting: 'People, roles and desks — and the last yes on the requisition over the $250k line, after the approver.' },
 ]
 
 /**

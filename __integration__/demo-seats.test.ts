@@ -13,6 +13,7 @@ import { getNavForKind } from '@/components/shell/sidebar'
 import { seedWorld } from '@/lib/seed-world'
 
 import { POST as demo } from '@/app/api/demo/route'
+import { POST as approveRequisition } from '@/app/api/requisitions/[id]/approve/route'
 import { GET as ownPeople } from '@/app/api/submissions/own-people/route'
 import { GET as requirements } from '@/app/api/requirements/route'
 import { GET as myWork } from '@/app/api/me/work/route'
@@ -807,4 +808,129 @@ describe('every client door says something true of the seeded world', () => {
     expect((cap.parameters as any).maxMonths).toBe(18)
     expect(CLIENT_PROGRAMS[2].waiting).toContain('twenty-three months')
   }, 60_000)
+})
+
+/**
+ * The over-threshold requisition, walked to published from demo doors
+ * only.
+ *
+ * The release walk reported that it could not be: an over-threshold
+ * requisition routes to the cost center's owner as well as to the
+ * approver, and "no desk key seats him". Half of that is true — the
+ * cost center's owner holds no `desk` key of his own; he is the firm's
+ * first seat, which the page draws as "Account owner" and the route
+ * answers with an empty desk. The conclusion was not: the door opens,
+ * and a founder who sits at it gives the last yes.
+ *
+ * What was actually wrong was that the chip said nothing about it. A
+ * founder clicks Approver, is told one further approval is required,
+ * and is not told whose — and the one door that holds it describes
+ * itself as the place to add people and name desks.
+ *
+ * So the sentence is fixed on the door and the walk is fixed here. Two
+ * failures this catches, either of which would silently end the demo's
+ * headline path: a seeded final rank that stops naming the account
+ * owner, and a first seat that stops being the cost center's owner.
+ */
+describe('a requisition over the line is walked to published from the demo’s own doors', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  /** Whoever is behind a demo door, as an address a route can be called as. */
+  async function seatedAt(slug: string, desk: string): Promise<string> {
+    const r = req('POST', '/api/demo', { as: slug, ...(desk ? { desk } : {}) })
+    const res = await demo(r as NextRequest)
+    expect(res.status, `${slug} — ${desk || 'account owner'} does not open`).toBe(200)
+    const setCookie = res.headers.get('set-cookie') ?? ''
+    const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(setCookie)
+    const email = readCookie(m![1])
+    expect(email, `${slug} — ${desk || 'account owner'} seated nobody`).toBeTruthy()
+    return email!
+  }
+
+  it('every desk a requisition is still waiting on is somebody a demo door seats', async () => {
+    // The founder cannot be handed a queue he has no chair for. Read off
+    // the approvals themselves rather than off the seat list, so a desk
+    // added to the chain by a rule change shows up here rather than on
+    // his screen as a dead end.
+    const doors = new Map<string, string[]>()
+    for (const program of CLIENT_PROGRAMS) {
+      const behind: string[] = []
+      for (const d of CLIENT_DESKS) behind.push(await seatedAt(program.slug, d.desk))
+      doors.set(program.slug, behind)
+    }
+
+    for (const program of CLIENT_PROGRAMS) {
+      const client = await prisma.company.findFirstOrThrow({ where: { slug: program.slug } })
+      const pending = await prisma.requirementApproval.findMany({
+        where: { outcome: 'PENDING', requirement: { companyId: client.id }, NOT: { approverId: null } },
+        select: { rank: true, stage: true, approver: { select: { name: true, primaryEmail: true } } },
+      })
+      expect(pending.length, `${program.name} has no requisition waiting on anybody`).toBeGreaterThan(0)
+      const seated = doors.get(program.slug)!
+      for (const a of pending) {
+        expect(
+          seated,
+          `${program.name}: ${a.approver!.name} holds the ${a.stage} approval at rank ${a.rank} ` +
+            `and no door on /demo seats him — the walk stops there`
+        ).toContain(a.approver!.primaryEmail)
+      }
+    }
+  }, 180_000)
+
+  it('the last yes on the money is the account owner’s, and the door says so', async () => {
+    // Said on the chip as well as true in the data: a door that opens
+    // onto work it does not name is a door nobody opens.
+    const owner = CLIENT_DESKS.find((d) => d.desk === '')!
+    expect(owner.label).toBe('Account owner')
+    expect(owner.waiting).toContain('last yes')
+
+    for (const program of CLIENT_PROGRAMS) {
+      const client = await prisma.company.findFirstOrThrow({ where: { slug: program.slug } })
+      const email = await seatedAt(program.slug, '')
+      const costCenter = await prisma.costCenter.findFirstOrThrow({
+        where: { companyId: client.id, code: { startsWith: 'APPS-' } },
+        select: { owner: { select: { primaryEmail: true, name: true } } },
+      })
+      expect(
+        costCenter.owner?.primaryEmail,
+        `${program.name}: the account owner door seats somebody who does not own the cost center`
+      ).toBe(email)
+    }
+  }, 120_000)
+
+  it('HR reads the role, the approver signs the money, and the account owner’s yes is the one that publishes it', async () => {
+    const program = CLIENT_PROGRAMS[1]
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: program.slug } })
+    const routed = await prisma.requirement.findFirstOrThrow({
+      where: { companyId: client.id, approvalState: 'PENDING_APPROVAL' },
+      select: { id: true, title: true },
+    })
+
+    const say = async (email: string) => {
+      as(email)
+      const res = await approveRequisition(
+        req('POST', `/api/requisitions/${routed.id}/approve`, { action: 'approve', note: 'Agreed.' }) as NextRequest,
+        { params: { id: routed.id } } as never
+      )
+      const { status, body } = await json(res)
+      expect(status, `${email}: ${body?.error?.message}`).toBe(200)
+      return body.data
+    }
+
+    const hr = await say(await seatedAt(program.slug, 'hr'))
+    expect(hr.fullyApproved, 'HR reading the role published it on its own').toBe(false)
+
+    const vp = await say(await seatedAt(program.slug, 'vp'))
+    expect(vp.fullyApproved, 'the approver published it on his own, with the money unsigned').toBe(false)
+    expect(vp.remainingApprovals, 'the approver was the last yes, so the owner’s door leads nowhere').toBe(1)
+
+    const lead = await say(await seatedAt(program.slug, ''))
+    expect(lead.fullyApproved, 'three desks said yes and the requisition is still in a drawer').toBe(true)
+
+    const after = await prisma.requirement.findUniqueOrThrow({ where: { id: routed.id } })
+    expect(after.approvalState).toBe('APPROVED')
+    expect(after.status, 'approved and still not open to a single supplier').toBe('OPEN')
+  }, 120_000)
 })

@@ -370,4 +370,103 @@ describe('what a desk verified at onboarding, on the compliance record', () => {
       }
     }
   })
+
+  // ── The keys the map had never heard of, 2026-09-22 ─────────────────
+  //
+  // `checkKindOf` has recognized PASSPORT and DRIVERS_LICENSE as an
+  // IDENTITY check since it was written, and `VERIFICATION_TYPE` has no
+  // row for either — so the key was filtered out before anybody asked
+  // whose check it was, and the item fell to the sentence that says
+  // nothing expires. A passport has an expiry date printed on the front
+  // of it. Found on the release walk; it cannot arise on the shipped
+  // walk, only on an item a client's own order added.
+
+  it('a passport a desk marks verified is not called a check with nothing to expire, because a passport runs out', () => {
+    const verdict = verificationFromChecklistItem(
+      item({ key: 'PASSPORT', label: 'Passport', answers: ['PASSPORT'], validFrom: null, validUntil: null }),
+      'veritan',
+      by
+    )
+    expect(verdict.ok).toBe(false)
+    expect(verdict.says).not.toContain('nothing here expires')
+    expect(verdict.says).not.toContain('this desk\u2019s own check')
+  })
+
+  it('a passport is the employer of record\u2019s to look at, and the refusal names them rather than blaming the desk', () => {
+    const verdict = verificationFromChecklistItem(
+      item({ key: 'PASSPORT', label: 'Passport', answers: ['PASSPORT'] }),
+      'veritan',
+      by
+    )
+    expect(verdict.ok).toBe(false)
+    expect(verdict.says).toContain('employer of record')
+    expect(verdict.says).toContain('running its own')
+    // And never the two date fields, because the desk is being told not
+    // to start this one rather than to finish it.
+    expect(verdict.needsDates).toBe(false)
+  })
+
+  it('a driver\u2019s license is answered the same way, because one table says who renders a check and this file asks it', () => {
+    const verdict = verificationFromChecklistItem(
+      item({ key: 'DRIVERS_LICENSE', label: 'Driver\u2019s license', answers: ['DRIVERS_LICENSE'] }),
+      'veritan',
+      by
+    )
+    expect(verdict.ok).toBe(false)
+    expect(whoRendersCheck(checkKindOf('DRIVERS_LICENSE')!).renders).toBe('EMPLOYER')
+    expect(verdict.says).toContain('employer of record')
+  })
+
+  it('a document type this client invented is told the compliance record has no room for it, not that it never expires', () => {
+    // The required set is deliberately open-ended, so a client whose
+    // orders ask its suppliers for a hot floor induction folds that onto
+    // the same checklist. `Verification.type` is an enum and a company's
+    // dictionary is not, so nothing can be written — and the desk is
+    // told that, so it knows the expiry is somebody\u2019s to watch by hand.
+    const verdict = verificationFromChecklistItem(
+      item({ key: 'HOT_FLOOR_INDUCTION', label: 'Hot floor induction', answers: ['HOT_FLOOR_INDUCTION'] }),
+      'veritan',
+      by
+    )
+    expect(verdict.ok).toBe(false)
+    expect(verdict.needsDates).toBe(false)
+    expect(verdict.says).toContain('no type for it')
+    expect(verdict.says).toContain('somewhere else')
+    expect(verdict.says).not.toContain('nothing here expires')
+  })
+
+  it('a signed agreement is told it lives with the agreement, which is where it is chased from', () => {
+    const verdict = verificationFromChecklistItem(
+      item({ key: 'AGREEMENT', label: 'Signed agreement', answers: ['MSA'] }),
+      'veritan',
+      by
+    )
+    expect(verdict.ok).toBe(false)
+    expect(verdict.says).toContain('lives with the agreement')
+    expect(verdict.says).not.toContain('nothing here expires')
+  })
+
+  it('a check the desk ran itself keeps the sentence that is true of it, and only of it', () => {
+    // The one item that really has nothing to expire: no document type
+    // behind it at all.
+    const verdict = verificationFromChecklistItem(
+      item({ key: 'VENDOR_SCREENING', label: 'Vendor screening (sanctions, litigation)', answers: [] }),
+      'veritan',
+      by
+    )
+    expect(verdict.ok).toBe(false)
+    expect(verdict.says).toContain('nothing here expires')
+  })
+
+  it('a pack holding a certificate and a passport records the certificate and leaves the passport to the employer', () => {
+    const verdict = verificationFromChecklistItem(
+      item({ key: 'PACK', label: 'Onboarding pack', answers: ['INSURANCE_GL', 'PASSPORT'] }),
+      'veritan',
+      by
+    )
+    expect(verdict.ok).toBe(true)
+    expect(verdict.rows.map((r) => r.type)).toEqual(['INSURANCE_GL'])
+    expect(verdict.says).toContain('Passport')
+    expect(verdict.says).toContain('not this desk\u2019s to render')
+  })
 })

@@ -456,7 +456,19 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
     return profile
   }
 
-  /** Supplier cover: only written where the world seed has not already. */
+  /**
+   * Supplier cover: only written where the world seed has not already.
+   *
+   * `validFrom` is the day the policy begins, and it is written because
+   * the one door in the product that puts a certificate on a compliance
+   * record refuses to write one without it. HR marks the item verified
+   * on the supplier walk, `lib/onboarding-evidence` insists on the two
+   * dates printed on the certificate, and every row it writes carries
+   * both — so a seeded row with no start is a verdict no desk could have
+   * reached through the door it would really use. The readers all fall
+   * back to `issuedAt`, so nothing was reading wrong; what was wrong was
+   * the demo teaching a shape the product will not accept.
+   */
   async function cover(vendorSlug: string, gl: number, wc: number, uploadedById: string, verifiedById: string) {
     const co = firmBySlug.get(vendorSlug)!
     for (const [type, expires] of [['INSURANCE_GL', gl], ['INSURANCE_WC', wc]] as const) {
@@ -464,6 +476,7 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
       await db.verification.create({
         data: {
           companyId: co.id, type, status: 'CLEAR', provider: 'Hartford', issuedAt: day(expires - 365),
+          validFrom: day(expires - 365),
           expiresAt: day(expires), uploadedById, verifiedById, verifiedAt: day(-30),
           result: { outcome: 'CLEAR' },
         },
