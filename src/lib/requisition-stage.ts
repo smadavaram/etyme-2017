@@ -71,10 +71,30 @@ export const STAGES: Array<[Stage, string]> = [
 export function stageOf(r: RequisitionRow): Stage {
   if (r.archivedAt || r.status === 'FILLED') return 'ARCHIVED'
   if (r.status === 'CANCELLED') return 'CANCELLED'
+  // Settled without being filled. It reads Archived rather than taking
+  // a tab of its own, because "closed" and "cancelled" are one word to
+  // a reader and only one of them means somebody withdrew it — which is
+  // what `closedBecause` puts on the row.
+  if (r.status === 'CLOSED') return 'ARCHIVED'
   if (r.approvalState === 'PENDING_APPROVAL') return 'AWAITING'
   if (r.approvalState === 'CHANGES_REQUESTED') return 'CHANGES'
+  // Turned down, which is not handed back: CHANGES_REQUESTED goes back
+  // to the manager to fix, and a refusal is the end of that requisition.
+  if (r.approvalState === 'REJECTED') return 'ARCHIVED'
   if (r.status === 'OPEN') return 'OPEN'
-  return 'DRAFT'
+  if (r.status === 'DRAFT') return 'DRAFT'
+  // A status nobody has placed reads as finished, never as a draft.
+  //
+  // CLOSED is a real status the product writes, and it fell through to
+  // here: a role that was settled read as one nobody had written yet,
+  // on the supplier's list and on the client's. Found by walking, which
+  // is how this class of bug is always found.
+  //
+  // The safe direction is the settled one. A stale role offered for
+  // editing invites somebody to work on something that is over; a live
+  // one that looks settled is corrected by its own status the moment
+  // anybody opens it.
+  return 'ARCHIVED'
 }
 
 /**
@@ -89,6 +109,10 @@ export function closedBecause(r: RequisitionRow): string | null {
     return n === 1 ? 'the seat filled' : `all ${n} seats filled`
   }
   if (r.status === 'CANCELLED') return `cancelled${r.cancelReason ? ` — ${r.cancelReason}` : ''}`
+  // Closed and cancelled are the same word to a reader, and only one of
+  // them means somebody withdrew it. The row says which.
+  if (r.status === 'CLOSED') return 'closed without being filled'
+  if (r.approvalState === 'REJECTED') return 'turned down at approval'
   if (r.archivedAt) return 'archived'
   return null
 }
@@ -105,6 +129,12 @@ export function closedBecause(r: RequisitionRow): string | null {
  * requirement is past changing.
  */
 export function mayEdit(r: RequisitionRow): boolean {
-  if (r.archivedAt || r.status === 'FILLED' || r.status === 'CANCELLED') return false
-  return true
+  // Read off the stage rather than off the columns again. The two
+  // answered from separate lists of statuses and drifted apart on the
+  // first one added: a CLOSED role was past changing and was still
+  // offered an edit, and so was one that had been turned down. Anything
+  // the list shows as settled or called off is past changing, and there
+  // is now one place that decides which those are.
+  const stage = stageOf(r)
+  return stage !== 'ARCHIVED' && stage !== 'CANCELLED'
 }

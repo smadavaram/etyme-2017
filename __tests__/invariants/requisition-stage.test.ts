@@ -104,3 +104,64 @@ describe('whether it can still be changed', () => {
     expect(mayEdit(row({ status: 'CANCELLED', approvalState: 'APPROVED' }))).toBe(false)
   })
 })
+
+describe('a role that is over does not read as one nobody has written', () => {
+  /**
+   * `CLOSED` is a status the product writes and `stageOf` did not name,
+   * so it fell through to the draft branch: a settled role read "Draft"
+   * on the supplier's list and on the client's. Found by walking, on
+   * 2026-09-22, which is how this class of bug is always found.
+   */
+
+  it('a closed role reads as Archived, not as a draft nobody has written', () => {
+    expect(stageOf(row({ status: 'CLOSED', approvalState: 'APPROVED' }))).toBe('ARCHIVED')
+  })
+
+  it('a closed role says on its own row that it was closed rather than withdrawn', () => {
+    // "Closed" and "cancelled" are one word to a reader, and only one of
+    // them means somebody pulled it.
+    expect(closedBecause(row({ status: 'CLOSED' }))).toBe('closed without being filled')
+  })
+
+  it('a cancelled role reads as Cancelled, and says who withdrew it', () => {
+    const r = row({ status: 'CANCELLED', cancelReason: 'the project was pulled' })
+    expect(stageOf(r)).toBe('CANCELLED')
+    expect(closedBecause(r)).toContain('the project was pulled')
+  })
+
+  it('a role turned down at approval says it was turned down at approval', () => {
+    const r = row({ status: 'DRAFT', approvalState: 'REJECTED' })
+    expect(stageOf(r)).toBe('ARCHIVED')
+    expect(closedBecause(r)).toBe('turned down at approval')
+  })
+
+  it('a role handed back for changes is not turned down, and is still the manager’s to fix', () => {
+    const r = row({ status: 'OPEN', approvalState: 'CHANGES_REQUESTED' })
+    expect(stageOf(r)).toBe('CHANGES')
+    expect(mayEdit(r)).toBe(true)
+  })
+
+  it('a closed role cannot be edited', () => {
+    expect(mayEdit(row({ status: 'CLOSED', approvalState: 'APPROVED' }))).toBe(false)
+  })
+
+  it('a role turned down at approval cannot be edited either', () => {
+    expect(mayEdit(row({ status: 'DRAFT', approvalState: 'REJECTED' }))).toBe(false)
+  })
+
+  it('a status nobody has placed reads as finished, never as a draft', () => {
+    // The safe direction: a stale role offered for editing invites
+    // somebody to work on something that is over, and a live one that
+    // looks settled is corrected by its own status the moment anybody
+    // opens it.
+    expect(stageOf(row({ status: 'ON_HOLD_PENDING_BUDGET' }))).toBe('ARCHIVED')
+    expect(mayEdit(row({ status: 'ON_HOLD_PENDING_BUDGET' }))).toBe(false)
+  })
+
+  it('every status the schema lists lands in a tab somebody can find it in', () => {
+    const tabs = STAGES.map(([key]) => key)
+    for (const status of ['DRAFT', 'OPEN', 'FILLED', 'CLOSED', 'CANCELLED']) {
+      expect(tabs, status).toContain(stageOf(row({ status })))
+    }
+  })
+})
