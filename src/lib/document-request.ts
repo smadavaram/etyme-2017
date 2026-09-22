@@ -1131,7 +1131,12 @@ export function heldFromDocInstances(
 // letter is also what makes it testable on a fixed day.
 
 import { prisma } from '@/lib/db'
-import { requirementsFor, type OwedBy } from '@/lib/document-requirements'
+import {
+  requirementsFor,
+  type EffectiveRequirement,
+  type LineRequirements,
+  type OwedBy,
+} from '@/lib/document-requirements'
 import { labelFor } from '@/lib/document-type'
 
 /** How far ahead a lapse is worth telling somebody about. */
@@ -1445,4 +1450,221 @@ export async function documentFindings(
   opts: { windowDays?: number; db?: Db } = {}
 ) {
   return asFindings(await documentsToChase(now, opts))
+}
+
+// ── What a counterparty is owed for, read through the one door ────────
+//
+// "Ensure the loop of documents never cracks between parties."
+// — the founder, 2026-09-21.
+//
+// `lib/document-requirements` answers for one line. Three desks do not
+// hold a line — they hold a counterparty. A client's procurement team
+// asks a supplier for its documents; a firm sends its own pack to the
+// client screening it; HR asks a worker for her papers. Each of those
+// is several lines at once, and until this existed each of them kept
+// its own list instead: the packet asked the shipped `PACKETS` floor
+// and nothing else, so a client that invented a hot floor induction on
+// its order had it refused at a start, chased by the nightly watch, and
+// never once actually asked for.
+//
+// So this is the same door, asked about a party rather than a line: the
+// lines between the two firms are found, each line's set is read, and
+// the items that party owes are folded into one list with the duplicate
+// keys collapsed. It computes nothing itself — every item still says
+// where it came from in the order's own words.
+
+/** One line the answer was read off. */
+export interface RequiredLine {
+  side: 'SELL' | 'BUY'
+  id: string
+}
+
+export interface RequiredOfParty {
+  /** The items that party owes, deduplicated by key. */
+  items: EffectiveRequirement[]
+  /** The lines they were read off. Empty is a real answer. */
+  lines: RequiredLine[]
+}
+
+const NOT_RUNNING = ['ENDED', 'CANCELLED']
+
+/**
+ * Fold several lines' sets into one list for one party.
+ *
+ * The strongest answer wins where two lines disagree: an item one
+ * client's order insists on is still required where another's does not
+ * ask for it at all, and an item waived on one line is not waived on
+ * the next. A firm asked for one certificate by two clients is asked
+ * once.
+ */
+function foldForParty(
+  sets: (LineRequirements | null)[],
+  owedBy: OwedBy[],
+  lines: RequiredLine[]
+): RequiredOfParty {
+  const byKey = new Map<string, EffectiveRequirement>()
+  for (const set of sets) {
+    if (!set) continue
+    for (const item of set.items) {
+      if (!owedBy.includes(item.owedBy)) continue
+      const prior = byKey.get(item.key)
+      if (!prior) {
+        byKey.set(item.key, item)
+        continue
+      }
+      // Required beats optional; asked beats waived; an order beats a
+      // default, because somebody typed it.
+      const stronger =
+        (Number(item.required) - Number(prior.required)) ||
+        (Number(prior.waived) - Number(item.waived)) ||
+        (rank(item.from) - rank(prior.from))
+      if (stronger > 0) byKey.set(item.key, item)
+    }
+  }
+  return { items: [...byKey.values()], lines }
+}
+
+function rank(from: 'DEFAULT' | 'ORDER' | 'LINE'): number {
+  return from === 'LINE' ? 2 : from === 'ORDER' ? 1 : 0
+}
+
+/**
+ * What a supplier owes the firm that buys from it.
+ *
+ * Two shapes of relationship, because a buyer is not always the party
+ * that pays directly.
+ *
+ * A prime buying from a sub-vendor holds the **buy line** — that is the
+ * side of the trade their paperwork protects, per CLAUDE.md's "Where a
+ * document lives". A client buying from a staffing firm holds no buy
+ * line at all: it raised a purchase order, and the supplier's own sell
+ * line sits under it carrying the client's required set by inheritance.
+ * Reading only the first would have answered "nothing" for every client
+ * on the platform, which is the population this was written for.
+ *
+ * A firm we have neither ordered from nor paid owes nothing yet, and
+ * that is a real answer rather than a gap.
+ */
+export async function requiredOfSupplier(input: {
+  companyId: string
+  supplierCompanyId: string
+  db?: Db
+}): Promise<RequiredOfParty> {
+  const db = input.db ?? prisma
+  const [buy, sell] = await Promise.all([
+    db.buyContract.findMany({
+      where: {
+        companyId: input.companyId,
+        vendorCompanyId: input.supplierCompanyId,
+        state: { notIn: NOT_RUNNING as never[] },
+      },
+      select: { id: true },
+      take: 40,
+    }),
+    db.sellContract.findMany({
+      where: {
+        companyId: input.supplierCompanyId,
+        state: { notIn: NOT_RUNNING as never[] },
+        workOrder: { issuedById: input.companyId, issuedToId: input.supplierCompanyId },
+      },
+      select: { id: true },
+      take: 40,
+    }),
+  ])
+  const lines: RequiredLine[] = [
+    ...buy.map((r) => ({ side: 'BUY' as const, id: r.id })),
+    ...sell.map((r) => ({ side: 'SELL' as const, id: r.id })),
+  ]
+  const sets = await Promise.all([
+    ...buy.map((r) => requirementsFor({ buyContractId: r.id }, db as never)),
+    ...sell.map((r) => requirementsFor({ sellContractId: r.id }, db as never)),
+  ])
+  return foldForParty(sets, ['SUPPLIER'], lines)
+}
+
+/**
+ * What a person owes on the lines they are actually on.
+ *
+ * Both sides, because both carry items about them: the buy line is the
+ * party we pay, and the client's own order sits above the sell line and
+ * can ask for something about the worker — a site induction, a
+ * confidentiality undertaking — that no buy line has ever heard of.
+ * And both ends of the sell line, because a client is never the company
+ * on it and its order is exactly where its own asks were written.
+ *
+ * Only WORKER items come back. A report a screening company posts to
+ * the firm that ordered it is `US`, and asking the worker for post she
+ * never receives is the thing `lib/attestation` exists to stop.
+ */
+export async function requiredOfWorker(input: {
+  companyId: string
+  personId: string
+  db?: Db
+}): Promise<RequiredOfParty> {
+  const db = input.db ?? prisma
+  const [sell, buy] = await Promise.all([
+    db.sellContract.findMany({
+      where: {
+        personId: input.personId,
+        state: { notIn: NOT_RUNNING as never[] },
+        // Ours where we bill for them, and ours where we ordered them:
+        // a client holds no line of its own for anybody on its site, and
+        // reading only the first would answer "nothing" for the party
+        // whose own order asked for the document.
+        OR: [{ companyId: input.companyId }, { workOrder: { issuedById: input.companyId } }],
+      },
+      select: { id: true },
+      take: 20,
+    }),
+    db.buyContract.findMany({
+      where: {
+        companyId: input.companyId,
+        state: { notIn: NOT_RUNNING as never[] },
+        candidates: { some: { personId: input.personId } },
+      },
+      select: { id: true },
+      take: 20,
+    }),
+  ])
+  const lines: RequiredLine[] = [
+    ...sell.map((r) => ({ side: 'SELL' as const, id: r.id })),
+    ...buy.map((r) => ({ side: 'BUY' as const, id: r.id })),
+  ]
+  const sets = await Promise.all([
+    ...sell.map((r) => requirementsFor({ sellContractId: r.id }, db as never)),
+    ...buy.map((r) => requirementsFor({ buyContractId: r.id }, db as never)),
+  ])
+  return foldForParty(sets, ['WORKER'], lines)
+}
+
+/**
+ * What this firm itself owes a customer, on the lines it bills them on.
+ *
+ * The outbound direction: the pack that goes out to a client's
+ * procurement team is assembled from this, so a client whose order
+ * asks for a certificate of good standing is sent one rather than
+ * finding out it was never in the pack.
+ *
+ * `SUPPLIER` and `US` both, because on a sell line this firm is both —
+ * the supplier the customer holds the cover of, and the party that
+ * orders what nobody on the line can hand over.
+ */
+export async function requiredOfUsBy(input: {
+  companyId: string
+  clientCompanyId: string
+  db?: Db
+}): Promise<RequiredOfParty> {
+  const db = input.db ?? prisma
+  const rows = await db.sellContract.findMany({
+    where: {
+      companyId: input.companyId,
+      clientCompanyId: input.clientCompanyId,
+      state: { notIn: NOT_RUNNING as never[] },
+    },
+    select: { id: true },
+    take: 40,
+  })
+  const lines: RequiredLine[] = rows.map((r) => ({ side: 'SELL' as const, id: r.id }))
+  const sets = await Promise.all(rows.map((r) => requirementsFor({ sellContractId: r.id }, db as never)))
+  return foldForParty(sets, ['SUPPLIER', 'US'], lines)
 }

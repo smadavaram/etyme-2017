@@ -11,9 +11,16 @@ import {
   resolveItems,
   itemsToAsk,
   progressOf,
+  withRequirements,
   type HeldDocument,
   type PacketSpec,
 } from '@/lib/packets'
+import {
+  requiredOfSupplier,
+  requiredOfWorker,
+  type RequiredLine,
+} from '@/lib/document-request'
+import type { EffectiveRequirement } from '@/lib/document-requirements'
 import {
   deriveSupplierPacket,
   deriveStartPacket,
@@ -36,6 +43,63 @@ import {
  * counterparty needs no account, because a supplier's office manager will
  * not create a login to upload a W-9.
  */
+
+/**
+ * The items the lines between us require of the party this packet is
+ * about, ready to merge over the packet.
+ *
+ * ── Why a submission packet gets none of them ────────────────────────
+ *
+ * Questions at application, documents at award. A line exists only
+ * because somebody was awarded the work, so every requirement read off
+ * a line or the order above it is an engagement-stage fact by
+ * construction — including one a client invented and `stageFor` has
+ * never heard of, which is the case that would otherwise slip through,
+ * since an unknown key answers APPLICATION on purpose.
+ *
+ * So a SUBMISSION packet is left exactly as it ships. Where the subject
+ * happens to be somebody already placed, the submission list is still
+ * the application list: folding a start's documents into it would ask
+ * for a passport before an offer, which is document abuse in the US,
+ * discrimination in the UK and excessive collection across the EU.
+ *
+ * A waived item is not asked for either: this client decided on the
+ * record that this line does not need it, and asking again relitigates
+ * a decision somebody already took with their name on it. Work
+ * authorization cannot be waived at all, and `lib/document-requirements`
+ * refuses that waiver before the item ever reaches here.
+ */
+async function lineRequirements(input: {
+  spec: PacketSpec
+  companyId: string
+  subjectCompanyId: string | null
+  subjectPersonId: string | null
+}): Promise<{ extras: EffectiveRequirement[]; extraLines: RequiredLine[]; heldBack: string[] }> {
+  const nothing = { extras: [], extraLines: [], heldBack: [] }
+  if (input.spec.purpose === 'SUBMISSION') return nothing
+
+  const answer = input.subjectCompanyId
+    ? await requiredOfSupplier({ companyId: input.companyId, supplierCompanyId: input.subjectCompanyId })
+    : input.subjectPersonId
+      ? await requiredOfWorker({ companyId: input.companyId, personId: input.subjectPersonId })
+      : null
+  if (!answer) return nothing
+
+  const onTheFloor = new Set(input.spec.items.map((i) => i.key))
+  return {
+    extras: answer.items.filter((i) => !i.waived),
+    extraLines: answer.lines,
+    // Named rather than dropped silently, so the desk that waived
+    // something is not left wondering why it vanished off the ask.
+    //
+    // Only what the waiver actually removed. An item the packet itself
+    // ships with is still asked for — a customer waiving its own
+    // requirement does not cancel this firm's, and saying it was
+    // dropped when it is on the list below would be the log describing
+    // a packet nobody sent.
+    heldBack: answer.items.filter((i) => i.waived && !onTheFloor.has(i.key)).map((i) => i.label),
+  }
+}
 
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -292,8 +356,30 @@ export async function POST(request: NextRequest) {
     ...priorItems.map((i) => ({ key: i.key, validFrom: null, expiresAt: i.validUntil, accepted: true })),
   ]
 
+  // ── What the lines actually require, over the packet's own floor ────
+  //
+  // The packet was a list in this file and nothing behind it. A client
+  // whose order asks for a hot floor induction had it refused at the
+  // start and chased by the nightly watch, and the one screen whose
+  // whole job is asking for documents never mentioned it — because the
+  // packet had never heard of the order.
+  //
+  // So where the subject is somebody we actually trade with, the lines
+  // between us are read through `lib/document-requirements` and their
+  // items are merged over the packet. The packet stays the floor:
+  // nobody orders their way out of a federal form, and a line can make
+  // a shipped item required where it was optional but cannot remove it.
+  const { extras, extraLines, heldBack } = await lineRequirements({
+    spec,
+    companyId: caller.company.id,
+    subjectCompanyId,
+    subjectPersonId,
+  })
+  const asked = extras.length ? withRequirements(spec, extras) : spec
+  const saysFor = new Map(extras.map((e) => [e.key, e.says]))
+
   const now = new Date()
-  const resolved = resolveItems(spec, held, now)
+  const resolved = resolveItems(asked, held, now)
   const asking = itemsToAsk(resolved)
 
   if (asking.length === 0) {
@@ -303,6 +389,7 @@ export async function POST(request: NextRequest) {
         alreadyHeld: resolved.map((r) => ({ label: r.label, note: r.note })),
         explanation,
         message: `Nothing to ask for — everything in "${spec.label}" is already on file and current.`,
+        alsoAsked: extras.map((e) => ({ label: e.label, says: e.says })),
       },
     })
   }
@@ -346,12 +433,21 @@ export async function POST(request: NextRequest) {
       companyId: caller.company.id,
       action: 'PACKET_REQUESTED',
       summary: `${caller.person.name} asked ${recipientEmail} for ${asking.length} document(s) — ${spec.label}`,
-      reason: resolved.length > asking.length
-        ? `${resolved.length - asking.length} item(s) skipped because they are already on file and current`
-        : 'Nothing was already on file',
+      reason:
+        (resolved.length > asking.length
+          ? `${resolved.length - asking.length} item(s) skipped because they are already on file and current`
+          : 'Nothing was already on file') +
+        (extras.length
+          ? `. ${extras.length} of them ${extras.length === 1 ? 'is' : 'are'} asked for by the lines between the two firms rather than by the packet: ` +
+            extras.map((e) => `${e.label} (${e.says})`).join('; ')
+          : '') +
+        (heldBack.length
+          ? `. ${heldBack.join(', ')} ${heldBack.length === 1 ? 'was' : 'were'} waived on the line and ${heldBack.length === 1 ? 'is' : 'are'} not asked for again`
+          : ''),
       payload: {
         packetId: packet.id,
         packetKey: spec.key,
+        fromLines: extraLines.map((l) => `${l.side}:${l.id}`),
         asked: asking.map((a) => a.key),
         skipped: resolved.filter((r) => r.state === 'ALREADY_HELD').map((r) => r.key),
       },
@@ -405,9 +501,9 @@ export async function POST(request: NextRequest) {
           label: a.label,
           required: a.required,
           why: a.note,
-          // Which rule wanted it. "The system requires it" is the answer
-          // that makes somebody phone you.
-          becauseOf: (a as any).becauseOf ?? null,
+          // Which rule wanted it, in the order's own words. "The system
+          // requires it" is the answer that makes somebody phone you.
+          becauseOf: saysFor.get(a.key) ?? null,
         })),
         derivedFrom,
         explanation,

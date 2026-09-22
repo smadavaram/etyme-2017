@@ -6,6 +6,8 @@ import { lookAtDocInstances, checksToRedo, documentFindings } from '@/lib/docume
 import { GET as compliance } from '@/app/api/compliance/route'
 import { GET as myPapersRoute, POST as openMyAsk } from '@/app/api/me/papers/route'
 import { POST as setRequirement, GET as readRequirements } from '@/app/api/documents/requirements/route'
+import { POST as askForPapers } from '@/app/api/packets/route'
+import { GET as packStanding, POST as sendPack } from '@/app/api/outbound-pack/route'
 
 /**
  * The loop of documents, walked on the seeded world.
@@ -461,5 +463,189 @@ describe('who renders the verdict, walked on the seeded world', () => {
       expect(row.openAskAt).toBeNull()
       expect(row.why).toMatch(/consent/)
     }
+  })
+})
+
+describe('the packet, the pack and the verdict ask one question of one door', () => {
+  /**
+   * The last place the loop still cracked.
+   *
+   * `lib/document-requirements` landed on 2026-09-21 and clearance was
+   * rewired to read it the same day. The two screens whose whole job is
+   * documents were not: `POST /api/packets` asked the shipped list in
+   * `lib/packets` and nothing else, and `/api/outbound-pack` assembled
+   * from the five packs in its own file — `packForLine` existed, was
+   * tested, and no production caller had ever run it.
+   *
+   * So a client that asked for a certificate of good standing on its
+   * own order had it refused at a start and chased by the nightly
+   * watch, and the one screen that exists to ask for documents never
+   * mentioned it. These are the sentences that close that.
+   */
+
+  /** The one Cavanaugh line in this world, and the person on it. */
+  async function theLine() {
+    const wrenfield = await firm('world-wrenfield')
+    const order = await prisma.workOrder.findFirstOrThrow({
+      where: { issuedToId: wrenfield.id },
+      select: { id: true },
+    })
+    return prisma.sellContract.findFirstOrThrow({
+      where: { workOrderId: order.id },
+      select: {
+        id: true,
+        person: { select: { id: true, name: true, primaryEmail: true } },
+        company: { select: { slug: true, name: true } },
+      },
+    })
+  }
+
+  async function seatAt(slug: string, needs: string[]) {
+    const seats = await prisma.context.findMany({
+      where: { company: { slug }, revokedAt: null },
+      select: { person: { select: { primaryEmail: true, name: true } }, role: { select: { permissions: true } } },
+    })
+    // An owner holds the wildcard, which is how a small firm is seated:
+    // one person, every desk. A seat with no role at all holds nothing.
+    const held = seats.find((c) => {
+      const p = (c.role?.permissions ?? []) as string[]
+      return p.includes('*') || needs.some((n) => p.includes(n))
+    })
+    return held?.person.primaryEmail ?? null
+  }
+
+  it('a supplier is asked for the certificate of good standing its customer’s own order requires, in the packet that customer sends it', async () => {
+    const wrenfield = await firm('world-wrenfield')
+    const desk = await seatAt('world-corning', ['vendors.manage', 'consultants.write'])
+    expect(desk, 'somebody at the client may ask a supplier for documents').toBeTruthy()
+    as(desk!)
+
+    const r = await json(
+      await askForPapers(
+        req('POST', '/api/packets', {
+          packetKey: 'VENDOR_ONBOARDING_US',
+          subjectCompanyId: wrenfield.id,
+          recipientEmail: 'office@wrenfield.example',
+        })
+      )
+    )
+    expect(r.status, JSON.stringify(r.body).slice(0, 400)).toBe(201)
+
+    const asked = (r.body.data.asking ?? []) as { label: string; becauseOf: string | null }[]
+    const standing = asked.find((a) => /good standing/i.test(a.label))
+    expect(standing, 'the shipped supplier packet has never asked for one; the order does').toBeTruthy()
+    // And it says whose order asked, in that order’s own words, because
+    // "the system requires it" is the answer that makes somebody phone
+    // you.
+    expect(standing!.becauseOf).toMatch(/Cavanaugh Glassworks/)
+    expect(standing!.becauseOf).toMatch(/order/)
+  })
+
+  it('a submission packet asks the application list and nothing the award collects, even about somebody already placed', async () => {
+    const line = await theLine()
+    const desk = await seatAt(line.company.slug, ['consultants.write', 'vendors.manage'])
+    expect(desk, 'somebody at the supplier may ask its own contractor for papers').toBeTruthy()
+    as(desk!)
+
+    const r = await json(
+      await askForPapers(
+        req('POST', '/api/packets', {
+          packetKey: 'SUBMISSION_STANDARD',
+          subjectPersonId: line.person!.id,
+          recipientEmail: line.person!.primaryEmail ?? 'somebody@example.invalid',
+        })
+      )
+    )
+    expect(r.status, JSON.stringify(r.body).slice(0, 400)).toBe(201)
+
+    const labels = ((r.body.data.asking ?? []) as { label: string }[]).map((a) => a.label.toLowerCase())
+    // Questions at application, documents at award. A line exists only
+    // because somebody was awarded the work, so nothing read off one
+    // belongs on the list asked before there was an offer.
+    expect(labels.join(' ')).not.toMatch(/i-9|hot floor|crane/)
+    expect(labels.some((l) => /work authorization/.test(l)), 'the question is still asked').toBe(true)
+  })
+
+  it('the start packet asks for the document the client invented, and never again for the one it waived', async () => {
+    const line = await theLine()
+    const desk = await seatAt(line.company.slug, ['consultants.write', 'vendors.manage'])
+    expect(desk, 'somebody at the supplier may ask its own contractor for papers').toBeTruthy()
+    as(desk!)
+
+    const r = await json(
+      await askForPapers(
+        req('POST', '/api/packets', {
+          packetKey: 'CONTRACT_START_W2',
+          subjectPersonId: line.person!.id,
+          recipientEmail: line.person!.primaryEmail ?? 'somebody@example.invalid',
+        })
+      )
+    )
+    expect(r.status, JSON.stringify(r.body).slice(0, 400)).toBe(201)
+
+    const asked = (r.body.data.asking ?? []) as { label: string; becauseOf: string | null }[]
+    const induction = asked.find((a) => /hot floor/i.test(a.label))
+    expect(induction, 'the plant’s own induction reaches the person who has to do it').toBeTruthy()
+    expect(induction!.becauseOf).toMatch(/Cavanaugh Glassworks/)
+
+    // The crane signaller card was waived on this line, by name, with a
+    // reason, earlier in this walk. A waiver is a decision somebody took
+    // with their name on it, and asking again relitigates it.
+    expect(asked.map((a) => a.label).join(' ')).not.toMatch(/crane/i)
+    const log = await prisma.automationLog.findFirst({
+      where: { action: 'PACKET_REQUESTED' },
+      orderBy: { at: 'desc' },
+    })
+    expect(log!.reason).toMatch(/Crane signaller card .* waived on the line/)
+  })
+
+  it('the pack a supplier sends its customer carries what that customer’s order asks of the firm, and none of the worker’s own file', async () => {
+    const cavanaugh = await firm('world-corning')
+    const desk = await seatAt('world-wrenfield', ['settings.manage', 'vendors.manage'])
+    expect(desk, 'somebody at the supplier may send its own documents out').toBeTruthy()
+    as(desk!)
+
+    const r = await json(
+      await packStanding(req('GET', `/api/outbound-pack?clientCompanyId=${cavanaugh.id}`))
+    )
+    expect(r.status, JSON.stringify(r.body).slice(0, 400)).toBe(200)
+    expect(r.body.data.askedBy?.name).toBe('Cavanaugh Glassworks')
+
+    const added = (r.body.data.addedByCustomer ?? []) as { key: string; label: string }[]
+    expect(added.map((a) => a.key), 'the standing to trade this customer insists on').toContain('GOOD_STANDING')
+    // A qualification pack is our papers going out. What the order asks
+    // of the worker is her file, and sending it to a procurement team is
+    // the document abuse the two-stage split exists to stop.
+    expect(added.map((a) => a.key)).not.toContain('HOT_FLOOR_INDUCTION')
+    expect(r.body.data.addedSays).toMatch(/Cavanaugh Glassworks asks for/)
+
+    // And the shipped pack, answered to nobody in particular, is the
+    // shipped pack.
+    const plain = await json(await packStanding(req('GET', '/api/outbound-pack')))
+    expect(plain.body.data.addedByCustomer).toEqual([])
+    expect(plain.body.data.addedSays).toBeNull()
+  })
+
+  it('a certificate the customer’s order asks for, lapsed, stops the pack rather than being left out of it quietly', async () => {
+    const cavanaugh = await firm('world-corning')
+    const desk = await seatAt('world-wrenfield', ['settings.manage', 'vendors.manage'])
+    expect(desk, 'somebody at the supplier may send its own documents out').toBeTruthy()
+    as(desk!)
+
+    const r = await json(
+      await sendPack(
+        req('POST', '/api/outbound-pack', {
+          packKey: 'CLIENT_SCREENING_US',
+          recipientEmail: 'procurement@cavanaugh.example',
+          clientCompanyId: cavanaugh.id,
+        })
+      )
+    )
+    expect(r.status, JSON.stringify(r.body).slice(0, 400)).toBe(422)
+    expect(r.body.error.code).toBe('NOT_SENDABLE')
+    const named = JSON.stringify(r.body.error)
+    expect(named).toMatch(/good standing/i)
+    // There is no force flag here and there should never be one.
+    expect(r.body.error.fix).toMatch(/Nothing here can be overridden/)
   })
 })

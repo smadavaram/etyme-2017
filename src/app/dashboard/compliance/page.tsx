@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { owedSentence, sayCheckType, twoPopulations } from './says'
 
 /**
  * Compliance Overview — Governance section
@@ -357,6 +358,8 @@ export default function CompliancePage() {
   const lapsed = data?.lapsed ?? []
   const owes = data?.owes ?? []
   const needsReview = calls?.review.stale ?? []
+  const stopsWork = owes.filter(o => o.stopsWork && o.state !== 'WAIVED').length
+  const standing = twoPopulations(owes.length, stopsWork, health.totalChecks, health.clearPercentage)
 
   return (
     <>
@@ -369,6 +372,17 @@ export default function CompliancePage() {
           Every cleared requisition records the basis on which it cleared.
         </p>
       </div>
+
+      {/* ── What the page counted, before any number is shown ──
+          Two populations were drawn side by side and neither said what
+          it counted: a clear rate of a hundred percent over twelve
+          checks, above a banner reading "5 documents are still owed, 2
+          stop work". A compliance officer read the hundred and went
+          home. The numbers were both right; the screen said two things
+          and looked like one. */}
+      {data && (
+        <p className="text-[13px] text-etyme-ink mb-6">{standing}</p>
+      )}
 
       {/* Lapsed cover — lifted out of the table, because a lapse buried in
           forty vendors is a lapse nobody sees, and this one stops work. */}
@@ -428,11 +442,7 @@ export default function CompliancePage() {
                   <span className="font-medium text-etyme-ink text-[13px]">{o.label}</span>
                   <span className="text-[12px] text-etyme-muted">{o.word}</span>
                 </div>
-                <p className="text-[12px] text-etyme-muted mt-1">
-                  {o.aboutName ? `${o.aboutName}’s to produce. ` : o.owedByName ? `${o.owedByName}’s to produce. ` : ''}
-                  {o.asked}
-                  {o.toName ? ` — on the line billing ${o.toName}.` : '.'}
-                </p>
+                <p className="text-[12px] text-etyme-muted mt-1">{owedSentence(o)}</p>
                 {o.waivedSays && <p className="text-[12px] text-etyme-muted mt-1">{o.waivedSays}</p>}
                 <a
                   className="text-[12px] text-etyme-action hover:underline"
@@ -447,6 +457,7 @@ export default function CompliancePage() {
       )}
 
       {/* Health stats */}
+      <p className="lbl mb-2">Checks recorded on people and firms</p>
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[100px]">
           <p className="stat-label">Clear rate</p>
@@ -459,12 +470,20 @@ export default function CompliancePage() {
               <p className="text-[10px] text-etyme-faint mt-0.5">Nothing on file yet</p>
             </>
           ) : (
-            <p className={`stat-value ${
-              health.clearPercentage >= 90 ? 'text-etyme-verified' :
-              health.clearPercentage >= 70 ? 'text-etyme-attention' : 'text-etyme-danger'
-            }`}>
-              {health.clearPercentage}%
-            </p>
+            <>
+              <p className={`stat-value ${
+                health.clearPercentage >= 90 ? 'text-etyme-verified' :
+                health.clearPercentage >= 70 ? 'text-etyme-attention' : 'text-etyme-danger'
+              }`}>
+                {health.clearPercentage}%
+              </p>
+              {/* Of the checks, and of nothing else. A rate that does not
+                  say what it is a rate of is read as a rate of
+                  everything. */}
+              <p className="text-[10px] text-etyme-faint mt-0.5">
+                of {health.totalChecks} check{health.totalChecks === 1 ? '' : 's'}, not of what the lines require
+              </p>
+            </>
           )}
         </div>
         <div className="panel flex-1 min-w-[100px]">
@@ -883,7 +902,7 @@ function VerificationsTab({
                                 style={check.status === 'EXPIRED' && !check.standing ? { background: 'var(--color-faint)' } : undefined}
                               />
                               <span className="text-etyme-muted">
-                                {check.licenseState ? `${formatRuleType(check.type)} · ${check.licenseState}` : formatRuleType(check.type)}
+                                {check.licenseState ? `${sayCheckType(check.type)} · ${check.licenseState}` : sayCheckType(check.type)}
                               </span>
                               <span className="text-etyme-faint">·</span>
                               <span className="font-medium text-etyme-ink">{effectiveLabel(check)}</span>
@@ -966,7 +985,7 @@ function VerificationsTab({
                               title={check.says ?? undefined}
                             >
                               <span className={effectiveDotClass(check)} />
-                              <span className="text-etyme-muted">{formatRuleType(check.type)}</span>
+                              <span className="text-etyme-muted">{sayCheckType(check.type)}</span>
                               <span className="text-etyme-faint">·</span>
                               <span className="font-medium text-etyme-ink">{effectiveLabel(check)}</span>
                               {check.standing === 'NOT_YET_VALID' && check.validFrom ? (

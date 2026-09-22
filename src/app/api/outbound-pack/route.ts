@@ -9,9 +9,12 @@ import {
   outboundPackByKey,
   assemble,
   linkLife,
+  packForLine,
   readinessAcross,
   DEFAULT_HORIZON_DAYS,
+  type OutboundPackSpec,
 } from '@/lib/outbound-pack'
+import { requiredOfUsBy } from '@/lib/document-request'
 import { loadOwnDocuments } from './own-documents'
 
 /**
@@ -30,6 +33,59 @@ import { loadOwnDocuments } from './own-documents'
  * no force flag here and there should never be one — the way to send a
  * lapsed certificate is to renew it.
  */
+
+
+/**
+ * The customers this firm bills, for the "who asked for it" picker.
+ *
+ * A pack is answered to somebody, and which somebody decides what is in
+ * it: a client whose own order requires a certificate of good standing
+ * is answered with one. Read off the lines rather than typed, because a
+ * list somebody maintains by hand is a list that is wrong by the second
+ * week.
+ */
+async function customersOf(companyId: string): Promise<{ id: string; name: string }[]> {
+  const rows = await prisma.sellContract.findMany({
+    where: { companyId, state: { notIn: ['ENDED', 'CANCELLED'] } },
+    select: { clientCompany: { select: { id: true, name: true } } },
+    take: 200,
+  })
+  const byId = new Map<string, { id: string; name: string }>()
+  for (const r of rows) if (r.clientCompany) byId.set(r.clientCompany.id, r.clientCompany)
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * The packs as this customer's own orders ask for them.
+ *
+ * "Ensure the loop of documents never cracks between parties."
+ * — the founder, 2026-09-21.
+ *
+ * `packForLine` has been able to do this since the day the table
+ * landed and nothing in production called it, so a client that asked
+ * for a document on its order was screened against a list in a file
+ * that had never heard of the order. The lines this firm bills that
+ * customer on are read through `lib/document-requirements`, and only
+ * what this firm itself owes comes across: an item the set says the
+ * worker owes is her file, and sending it to a procurement team in a
+ * qualification pack is the document abuse the two-stage split exists
+ * to stop.
+ */
+async function packsFor(
+  companyId: string,
+  clientCompanyId: string | null
+): Promise<{ packs: OutboundPackSpec[]; added: { key: string; label: string; says: string }[] }> {
+  if (!clientCompanyId) return { packs: OUTBOUND_PACKS, added: [] }
+  const answer = await requiredOfUsBy({ companyId, clientCompanyId })
+  if (answer.items.length === 0) return { packs: OUTBOUND_PACKS, added: [] }
+
+  const packs = OUTBOUND_PACKS.map((p) => packForLine(p, answer.items))
+  const shipped = new Set(OUTBOUND_PACKS.flatMap((p) => p.items.map((i) => i.key)))
+  const added = answer.items
+    .filter((i) => !shipped.has(i.key) && (i.owedBy === 'SUPPLIER' || i.owedBy === 'US') && !i.waived)
+    .map((i) => ({ key: i.key, label: i.label, says: i.says }))
+  return { packs, added }
+}
 
 /** Sending our own legal and financial papers out of the building. */
 function maySend(permissions: readonly string[]) {
@@ -58,9 +114,20 @@ export async function GET(request: NextRequest) {
   const horizonParam = url.searchParams.get('horizonDays')
   const horizonDays = horizonParam ? Math.max(1, Math.min(730, Number(horizonParam))) : DEFAULT_HORIZON_DAYS
 
+  // Who is doing the screening. A pack answered to nobody in particular
+  // is the shipped list; a pack answered to a customer is that
+  // customer's own order as well.
+  const askedById = url.searchParams.get('clientCompanyId')
+  const customers = await customersOf(caller.company.id)
+  const askedBy = askedById ? customers.find((c) => c.id === askedById) ?? null : null
+
   const held = await loadOwnDocuments(caller.company.id)
   const now = new Date()
-  const packs = readinessAcross(held, now, { horizonDays: Number.isFinite(horizonDays) ? horizonDays : DEFAULT_HORIZON_DAYS })
+  const { packs: specs, added } = await packsFor(caller.company.id, askedBy?.id ?? null)
+  const packs = readinessAcross(held, now, {
+    horizonDays: Number.isFinite(horizonDays) ? horizonDays : DEFAULT_HORIZON_DAYS,
+    packs: specs,
+  })
 
   const sent = await prisma.documentPacket.findMany({
     where: { companyId: caller.company.id, direction: 'SEND', cancelledAt: null },
@@ -110,6 +177,20 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       horizonDays,
+      // The firms this pack could be answered to, and the one it is
+      // being answered to now.
+      customers,
+      askedBy,
+      // What this customer's own order adds to every pack, said out
+      // loud — a document appearing in a list with no explanation is a
+      // document somebody deletes.
+      addedByCustomer: added,
+      addedSays:
+        added.length === 0
+          ? null
+          : `${askedBy?.name ?? 'This customer'} asks for ` +
+            `${added.map((a) => a.label).join(', ')} on its own order, so ${added.length === 1 ? 'it is' : 'they are'} ` +
+            `in every pack answered to ${askedBy?.name ?? 'it'}.`,
       // The number worth putting on a screen. A vendor losing a bid on a
       // certificate that lapsed three weeks ago never finds out why.
       standing: {
@@ -145,7 +226,7 @@ export async function GET(request: NextRequest) {
         unconfirmed: p.unconfirmed.map((i) => ({ key: i.key, label: i.label })),
       })),
       sent: sentRows,
-      available: OUTBOUND_PACKS.map((p) => ({
+      available: specs.map((p) => ({
         key: p.key,
         label: p.label,
         purpose: p.purpose,
@@ -195,8 +276,8 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const spec = outboundPackByKey(String(body.packKey ?? ''))
-  if (!spec) {
+  const shipped = outboundPackByKey(String(body.packKey ?? ''))
+  if (!shipped) {
     return NextResponse.json(
       {
         error: {
@@ -226,6 +307,14 @@ export async function POST(request: NextRequest) {
       { status: 422 }
     )
   }
+
+  // The pack as the customer who asked for it asks for it. Where the
+  // sender does not say who asked, it is the shipped list — which is
+  // honest rather than lazy: a set merged from a customer nobody named
+  // would be this route guessing at whose rules it is applying.
+  const clientCompanyId = body.clientCompanyId ? String(body.clientCompanyId) : null
+  const { packs } = await packsFor(caller.company.id, clientCompanyId)
+  const spec = packs.find((p) => p.key === shipped.key) ?? shipped
 
   const now = new Date()
   const held = await loadOwnDocuments(caller.company.id)

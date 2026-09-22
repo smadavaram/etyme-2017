@@ -58,16 +58,23 @@ export default function OutboundPackPage() {
   const [filter, setFilter] = useState<Filter>('all')
   const [open, setOpen] = useState<string | null>(null)
 
+  // Who is screening us. A pack is answered to somebody, and which
+  // somebody decides what is in it: a client whose own purchase order
+  // requires a certificate of good standing is answered with one.
+  const [askedById, setAskedById] = useState<string>('')
+
   const [sendingKey, setSendingKey] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [refusal, setRefusal] = useState<any>(null)
 
-  async function load() {
+  async function load(clientCompanyId = askedById) {
     setLoading(true)
     try {
-      const res = await fetch('/api/outbound-pack')
+      const res = await fetch(
+        clientCompanyId ? `/api/outbound-pack?clientCompanyId=${encodeURIComponent(clientCompanyId)}` : '/api/outbound-pack'
+      )
       const body = await res.json()
       if (res.status === 403) {
         setDenied(body.error?.message ?? 'You cannot see this.')
@@ -111,7 +118,13 @@ export default function OutboundPackPage() {
       const res = await fetch('/api/outbound-pack', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packKey, recipientEmail: email }),
+        body: JSON.stringify({
+          packKey,
+          recipientEmail: email,
+          // The same customer the screen was read against, so what was
+          // shown and what goes out cannot be two different packs.
+          ...(askedById ? { clientCompanyId: askedById } : {}),
+        }),
       })
       // A safe parse rather than readJson: this branch needs the
       // error object itself (branches on error.code), and readJson throws an
@@ -163,6 +176,39 @@ export default function OutboundPackPage() {
           us, before the bid rather than after.
         </p>
       </header>
+
+
+      {/* ── Who is screening us ──────────────────────────────────────
+          The packs below are the ones a procurement team usually asks
+          for. A customer that wrote its own rules on its own order asks
+          for more, and until this picker existed nothing on this screen
+          could say so. */}
+      {(data?.customers?.length ?? 0) > 0 && (
+        <div className="panel">
+          <label className="lbl" htmlFor="asked-by">Who is screening us</label>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <select
+              id="asked-by"
+              className="max-w-[320px] px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm"
+              value={askedById}
+              onChange={(e) => { setAskedById(e.target.value); load(e.target.value) }}
+            >
+              <option value="">Nobody in particular — the usual pack</option>
+              {data.customers.map((c: { id: string; name: string }) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {data.addedSays && (
+              <p className="text-[13px] text-etyme-ink">{data.addedSays}</p>
+            )}
+            {askedById && !data.addedSays && (
+              <p className="text-[13px] text-etyme-muted">
+                Their orders ask for nothing beyond the usual pack.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Loading ──────────────────────────────────────────────── */}
       {loading && !data && (
