@@ -49,8 +49,13 @@ describe('the series order', () => {
     expect(new Set(SEVERITY).size).toBe(SEVERITY.length)
     expect(new Set(AGE_BANDS).size).toBe(AGE_BANDS.length)
   })
-  it('opens on the brand’s blue and clay, so the common two-series chart is Etyme’s own pair', () => {
-    expect(SERIES[0]).toBe('#2B47E5')
+  it('opens on the brand’s violet and clay, so the common two-series chart is Etyme’s own pair', () => {
+    // The action color moved from blue to violet with the brand kit on
+    // 2026-09-26 (CLAUDE.md, "Design system"). SERIES[0] is the action
+    // color and moves with it; this is the sentence that changes when it
+    // does, on purpose, so the swap is a decision somebody reads rather
+    // than a hex that drifted.
+    expect(SERIES[0]).toBe('#5228FF')
     expect(SERIES[1]).toBe('#C0622E')
   })
   it('every series color stands off the page at 3:1', () => {

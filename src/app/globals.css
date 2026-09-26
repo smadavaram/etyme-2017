@@ -3,19 +3,92 @@
 @tailwind utilities;
 
 @layer base {
+  /* ------------------------------------------------------------------------
+     Etyme brand kit — design tokens. Adopted 2026-09-26.
+     Values from brand-kit/tokens.css on the production remote
+     (git show deploy/main:brand-kit/tokens.css). One warm cream ground.
+     No dark mode: the kit has none and neither do we.
+     ------------------------------------------------------------------------ */
   :root {
-    /* Prototype palette — warm, not slate. From Etyme_Demo_AllViews.jsx */
-    --color-canvas:  #F0EEE6;
-    --color-surface: #FBFAF7;
-    --color-raised:  #FFFFFF;
-    --color-ink:     #1F1E1D;
-    --color-muted:   #6B6862;
-    --color-faint:   #9C9891;
-    --color-rule:    #E3DFD5;
-    --color-action:  #2B47E5;
-    --color-attention: #C0622E;
+    /* Surfaces */
+    --canvas:#F0EEE6;   /* page background */
+    --surface:#FBFAF7;  /* panels, rails, table row hover */
+    --raised:#FFFFFF;   /* cards, inputs, menus, modals */
+    --sunk:#E7E4DA;     /* hover fill on nav items and secondary buttons, meters, skeletons */
+
+    /* Text and lines */
+    --ink:#1F1E1D;      /* primary text — ink, never pure black */
+    --muted:#6B6862;    /* secondary text, table body labels */
+    --faint:#9C9891;    /* eyebrows, column headers, placeholders */
+    --rule:#E3DFD5;     /* borders and dividers */
+
+    /* Brand strength — logo, primary buttons, focus ring */
+    --violet:#5228FF; --orange:#E16400; --green:#00C800;
+    --violet-hover:#3F16E8; --violet-press:#3512C4;
+
+    /* Product strength — small text, chips, active navigation, dots */
+    --violet-p:#4421D6; --orange-p:#C0622E; --green-p:#2F7D3E; --danger:#B83A3A;
+
+    /* Washes and lines — chip fills, active nav fill, focus halo */
+    --violet-wash:#EDE9FF; --violet-line:#C7CDF5;
+    --orange-wash:#F7EDE6; --orange-line:#E5C9B5;
+    --green-wash:#EDF1ED;  --green-line:#C9D6CA;
+    --danger-wash:#FDE8E8; --danger-line:#F0C0C0;
+
+    /* Type. var(--font-gelasio) is added ahead of the bare family name: a
+       next/font family resolves only through its variable, never by its name. */
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,var(--font-gelasio),Gelasio,serif;
+    --sans:var(--font-inter),Inter,system-ui,-apple-system,'Segoe UI',sans-serif;
+    --mono:var(--font-mono),'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+
+    /* Radii */
+    --r:8px;       /* buttons, inputs, cards, panels, tiles */
+    --r-lg:12px;   /* shells, modals, figures, large tiles */
+    --r-nav:6px;   /* navigation items, pager buttons */
+    --r-chip:5px;  /* chips */
+    --r-box:4px;   /* checkboxes, kbd, focus corners */
+    --r-pill:99px; /* filter pills, badges, meters */
+
+    /* Motion — three durations, one curve. Reduced motion turns them off below. */
+    --t-fast:120ms; --t:180ms; --t-slow:260ms;
+    --ease:cubic-bezier(.2,.7,.3,1);
+
+    /* Shadows — only on things that float */
+    --lift:0 1px 2px #1f1e1d0f, 0 4px 14px #1f1e1d0f;      /* hovered card or tile */
+    --float:0 8px 20px #1f1e1d14, 0 24px 56px #1f1e1d1a;   /* menus, modals, drawers, toasts */
+    --scrim:#1f1e1d5c;                                     /* behind a modal or drawer */
+
+    /* ----------------------------------------------------------------------
+       The product's own names, kept. 119 places outside this file read these,
+       so the names stay and only the values move.
+
+       --color-action is the VIOLET SPLIT, and it resolves to the deep violet
+       on purpose. Every one of the 21 external callers of var(--color-action)
+       sets `color:` — links, active tab labels, small buttons. None sets a
+       background. The founder's decision of 2026-09-26 gives small text the
+       deeper #4421D6: 8.26:1 on surface against the brighter violet's 6.48,
+       and 7.27:1 on the chip wash against 5.70. Fills take --violet directly
+       (see .btn-primary) and so does the focus ring, which is not text.
+       ---------------------------------------------------------------------- */
+    --color-canvas:  var(--canvas);
+    --color-surface: var(--surface);
+    --color-raised:  var(--raised);
+    --color-sunk:    var(--sunk);
+    --color-ink:     var(--ink);
+    --color-muted:   var(--muted);
+    --color-faint:   var(--faint);
+    --color-rule:    var(--rule);
+    --color-action:  var(--violet-p);   /* text, links, chips, active nav */
+    --color-action-fill: var(--violet); /* filled controls only */
+    --color-attention: var(--orange-p);
+    /* Verified stays ours. The kit proposes #2F7D3E, which scores 4.46:1 on
+       the verified chip's own wash where our sage scores 4.94:1 — the chip is
+       the most-read small text in the product and the kit's green takes it
+       from passing 4.5 to just under. A darker green that clears 4.5 on
+       #EDF1ED has been asked of the kit's author. Until it arrives this does
+       not move; do not "finish the job" by pointing it at --green-p. */
     --color-verified:  #4F6F52;
-    --color-danger:    #B83A3A;
+    --color-danger:    var(--danger);
   }
 
   html {
@@ -25,14 +98,14 @@
   }
 
   body {
-    font-family: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
+    font-family: var(--sans);
     color: var(--color-ink);
     background: var(--color-canvas);
   }
 
   /* Serif — headlines, hero numbers, decision surfaces */
   .font-serif {
-    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    font-family: var(--serif);
   }
 
   /* Tabular figures wherever digits align */
@@ -40,11 +113,21 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Focus ring — visible, consistent */
+  /* Focus ring — visible, consistent. The brand violet, not the deep one: a
+     ring is a shape on the page, not small text. */
   :focus-visible {
-    outline: 2px solid var(--color-action);
+    outline: 2px solid var(--violet);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: var(--r-box);
+  }
+
+  /* Reduced motion turns every transition off — the kit's rule. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
   }
 
   /* Scrollbar for wide content */
@@ -102,11 +185,15 @@
     white-space: nowrap;
   }
 
-  .chip--action    { background: #EDEFFC; color: var(--color-action);    border: 1px solid #C7CDF5; }
-  .chip--attention { background: #F7EDE6; color: var(--color-attention); border: 1px solid #E5C9B5; }
-  .chip--verified  { background: #EDF1ED; color: var(--color-verified);  border: 1px solid #C9D6CA; }
-  .chip--danger    { background: #FDE8E8; color: var(--color-danger);    border: 1px solid #F0C0C0; }
-  .chip--passive   { background: #F0EEE6; color: var(--color-muted);     border: 1px solid var(--color-rule); }
+  /* Chip tones — wash fill, line border, the deep violet for action text.
+     Measured on each chip's own wash: action 7.27:1, verified 4.94:1,
+     danger 4.83:1, attention 3.62:1 (large-text grade, and the chip is set
+     in 600 weight caps — it was 3.62 before the kit too and did not move). */
+  .chip--action    { background: var(--violet-wash); color: var(--color-action);    border: 1px solid var(--violet-line); }
+  .chip--attention { background: var(--orange-wash); color: var(--color-attention); border: 1px solid var(--orange-line); }
+  .chip--verified  { background: var(--green-wash);  color: var(--color-verified);  border: 1px solid var(--green-line); }
+  .chip--danger    { background: var(--danger-wash); color: var(--color-danger);    border: 1px solid var(--danger-line); }
+  .chip--passive   { background: var(--canvas);      color: var(--color-muted);     border: 1px solid var(--color-rule); }
 
   /* Eyebrow label — 10px uppercase letter-spaced */
   .eyebrow {
@@ -127,7 +214,7 @@
 
   /* Stat — label + serif number + optional subtitle */
   .stat-value {
-    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    font-family: var(--serif);
     font-size: 30px;
     letter-spacing: -0.02em;
     line-height: 1.15;
@@ -202,19 +289,25 @@
     color: var(--color-ink);
   }
 
-  /* Action button — prototype pattern */
+  /* Action button — a FILL, so it takes the brand violet, not the deep one.
+     White on #5228FF measures 6.76:1. Hover and press are the kit's own steps
+     rather than an opacity fade, which washed the violet into the canvas. */
   .btn-primary {
-    background: var(--color-action);
+    background: var(--color-action-fill);
     color: #fff;
     font-size: 13px;
     font-weight: 500;
     padding: 9px 18px;
     border-radius: 5px;
-    transition: opacity 150ms;
+    transition: background var(--t-fast) var(--ease);
   }
 
   .btn-primary:hover {
-    opacity: 0.9;
+    background: var(--violet-hover);
+  }
+
+  .btn-primary:active {
+    background: var(--violet-press);
   }
 
   .btn-secondary {
@@ -240,7 +333,7 @@
   }
 
   .page-head h1 {
-    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    font-family: var(--serif);
     font-size: 31px;
     letter-spacing: -0.02em;
     line-height: 1.15;
@@ -264,7 +357,7 @@
 
   /* Serif headline treatment */
   .headline-serif {
-    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    font-family: var(--serif);
     letter-spacing: -0.02em;
     text-wrap: balance;
   }
