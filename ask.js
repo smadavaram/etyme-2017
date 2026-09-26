@@ -6,7 +6,9 @@
     AUDIT_PAGE:'Got it. Your contractor spend audit will be in your inbox within 24 hours.',
     CONTACT_PAGE:'Got it. Somebody reads this and writes back within 24 hours.',
     HOME_PAGE:'Got it. Somebody reads this and writes back.',
-    DOCS_GATE:'Got it. Somebody reads this and sends a sign-in link.'
+    DOCS_GATE:'Got it. Somebody reads this and sends a sign-in link.',
+    SIGN_IN:'Check your inbox. The sign-in link works once and expires in 15 minutes.',
+    SIGN_UP:'Got it. Your program is being set up; a sign-in link is on its way.'
   };
   var AFTER='If you would rather look before you talk to anybody, the example program needs no card and no sign-up.';
   var PREVIEW='This is a preview page with no server behind it, so nothing was sent. On the live site this reaches a person, and somebody writes back.';
