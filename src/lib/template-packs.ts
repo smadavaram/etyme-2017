@@ -102,6 +102,67 @@ export interface TemplatePack {
 // `DEFAULT_SEMIMONTHLY_CUT` in the generator and CLAUDE.md's stated
 // default, "Friday weeks, the 15th and month-end".
 //
+// ── And two monthly ones, four days later ─────────────────────────────
+//
+// Changed 2026-09-26, the same defect one frequency up: the two packs
+// that bill monthly — IN_DELIVERY and UK — asked for a date on the 1st,
+// and the 1st is the first day of the month it would close rather than
+// the end of it. Measured against `lib/periods`' `calendarMonth`, which
+// is what a MONTHLY contract actually bills, not asserted.
+//
+// **Monthly invoicing on the 1st is a coherent intent said the wrong
+// way.** "Bill on the 1st for last month" is what a pack author meant,
+// and `dayOfMonth: 1` says "close the period containing the 1st" — so
+// every date fell inside the month it would bill, thirty days early. On
+// a twelve-month contract through 2026: twelve dates, **none** of them
+// at or after the end of the month it was paired with, the first one
+// (1 January) billing nothing at all, and December never closed by a
+// cycle. The repair keeps the intent rather than moving the dates:
+// month-end is the period end, `offsetDays: 1` is the 1st of the month
+// after. Every date is identical from the second onward — 2 February, 2
+// March, 1 April … — the spurious head disappears and the tail appears,
+// which is the same shape as the weekly `offsetDays: 3` fix above whose
+// last date also lands past the contract's final day.
+//
+// **The vendor side was worse, because a PAY kind shifts backward.**
+// `VENDOR_BILL_GENERATE` is PAY in `lib/cycle-kinds`, so `cycle-shift`
+// moves it to the working day *before* a weekend. The UK pack's shipped
+// series over two years put **six of twenty-four** dates in the month
+// before the work: 30 January 2026 for a February that had not begun,
+// then 27 February, 31 July, 30 October, 30 April 2027, 30 July 2027.
+// Month-end plus one cures it — 0 of 24 — because the period it closes
+// is now the month behind the date rather than the month in front of it.
+// The backward shift still applies, so a January bill can read 30
+// January when 1 February is a Sunday: one day inside the month of the
+// work rather than a month ahead of it, which is the company's own
+// weekend policy doing what it was asked.
+//
+// **A monthly approval bit on exactly one start day in twenty-eight.**
+// `dayOfMonth: 28` is month-end (`MEANS_MONTH_END`), so the relayed
+// claim that IN_DELIVERY approved a month twenty-seven days before it
+// was filed was wrong and is worth recording as wrong: the submission
+// lands on the 30th or 31st and an approval on the 1st is nought to
+// three days after it. What is real is narrow — a contract starting on
+// the **1st** of a month, which is the natural start for a monthly India
+// or UK engagement, got all 24 approvals before their paired submission,
+// the head inverted, and a last month with no approval date at all.
+// Measured over 24 months from every start day of the month, 672
+// submissions: shipped `dayOfMonth: 1` gave 24 approvals before their
+// hours, 1 start day in 28 with an inverted head, 1 in 28 with an
+// unapprovable last month and 216 same-day collisions (32%); month-end
+// `offsetDays: 1` gave 0, 0, 0 and 224 (33%); month-end `offsetDays: 3`
+// gave 0, 0, 0 and **0**.
+//
+// **The three is the founder's answer, decided 2026-09-26.** Asked
+// whether a client should sign a month off the next day or three days
+// later like the weekly packs, he chose three days later, and the reason
+// he was shown is the one to record: it is the only variant where an
+// approval never falls on the same calendar day the hours are due. Under
+// the shipped dates that happened a third of the time — 216 of 672 — and
+// a same-day pair asks a client to sign work that has only just landed.
+// Month-end plus one is no better on this (224 of 672); plus three has
+// none.
+//
 // Cycles are generated once — at award, convert, replace, extend and
 // seed — so nothing already written is rewritten, and a demo moves when
 // it is re-seeded.
@@ -179,10 +240,16 @@ const IN_DELIVERY: TemplatePack = {
   ],
   cycleDefinitions: [
     { kind: 'TIMESHEET_SUBMIT', label: 'Timesheet submission', frequency: 'MONTHLY', dayOfMonth: 28 },
-    { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'MONTHLY', dayOfMonth: 1 },
+    // Month-end plus three, for the reason the weekly pair above carries
+    // it: an approval is not a rhythm of its own. The three is the
+    // founder's own answer, 2026-09-26 — see the monthly note above
+    // COMMON_CYCLES.
+    { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 3 },
     { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'MONTHLY', dayOfMonth: 25 },
     { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'MONTHLY', dayOfMonth: 28 },
-    { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 1 },
+    // Still the 1st, and now the 1st AFTER the month it closes rather
+    // than the 1st inside it. See the monthly note above COMMON_CYCLES.
+    { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 1 },
   ],
   docTemplates: [
     { name: 'Appointment Letter', audience: 'CANDIDATE', needsSignature: true },
@@ -211,8 +278,12 @@ const UK: TemplatePack = {
     { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 3 },
     { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'MONTHLY', dayOfMonth: 25 },
     { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'MONTHLY', dayOfMonth: 28 },
-    { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 1 },
-    { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'MONTHLY', dayOfMonth: 1 },
+    // Both still land on the 1st, and it is now the 1st after the month
+    // they close. The vendor side was the worse of the two because a PAY
+    // kind shifts BACKWARD off a weekend — see the monthly note above
+    // COMMON_CYCLES.
+    { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 1 },
+    { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 1 },
   ],
   docTemplates: [
     { name: 'Contract for Services (Ltd)', audience: 'VENDOR', needsSignature: true },
