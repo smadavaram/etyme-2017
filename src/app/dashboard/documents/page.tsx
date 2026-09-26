@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
-import { statusWord } from '@/lib/document-request'
+import { statusWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 
 /**
  * Paperwork — what the company asks people and firms for, and where
@@ -17,6 +17,22 @@ import { statusWord } from '@/lib/document-request'
  * Nothing on this page is a signing product. A signature is the person
  * attesting from their own page, or the company recording the signed
  * copy it received. That is what the trade actually does.
+ *
+ * ── The picker offered nobody, at every firm ──────────────────────────
+ *
+ * "From whom" read the bench answer's `data.listings` — a key
+ * `/api/bench` has never sent — coalesced `undefined` to `[]`, and drew
+ * an empty dropdown. So nobody could be asked for a document from this
+ * screen, ever, and nothing failed: an empty list is a valid-looking
+ * answer.
+ *
+ * Both halves of the fix are outside this component. The bench answer is
+ * read through `readBench`, one door, so this page and `/dashboard/bench`
+ * cannot disagree about the same firm's people; and the population is
+ * `peopleOnBooks` in `lib/document-request` — the payroll as well as the
+ * listings, because asking somebody for a W-9 needs no consent to be
+ * marketed, and a reading that failed says so rather than offering
+ * nobody.
  */
 
 interface Template { id: string; name: string; audience: string; needsSignature: boolean; instanceCount: number }
@@ -32,14 +48,12 @@ interface Request_ {
   fileName: string | null
   note: string | null
 }
-interface Person { id: string; name: string }
-
 const AUDIENCES = ['CANDIDATE', 'VENDOR', 'CLIENT', 'EMPLOYEE', 'GENERAL']
 
 export default function DocumentsPage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [requests, setRequests] = useState<Request_[]>([])
-  const [people, setPeople] = useState<Person[]>([])
+  const [books, setBooks] = useState<BooksReading>({ people: [], why: null, whole: true })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
@@ -52,19 +66,14 @@ export default function DocumentsPage() {
     setLoading(true)
     setError(null)
     try {
-      const [t, r, b] = await Promise.all([
+      const [t, r, whoWeMayAsk] = await Promise.all([
         fetch('/api/documents').then(readJson),
         fetch('/api/documents?view=instances').then(readJson),
-        fetch('/api/bench?limit=200').then(readJson).catch(() => null),
+        askTheBooks(),
       ])
       setTemplates(t?.data?.templates ?? [])
       setRequests(r?.data?.instances ?? [])
-      const listings: any[] = b?.data?.listings ?? b?.data?.consultants ?? []
-      setPeople(
-        listings
-          .map((l) => l.consultant?.person ?? l.person ?? null)
-          .filter((p): p is Person => Boolean(p?.id && p?.name))
-      )
+      setBooks(whoWeMayAsk)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -155,10 +164,19 @@ export default function DocumentsPage() {
           <label className="flex-1 min-w-[200px]">
             <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">From whom</span>
             <select value={ask.personId} onChange={(e) => setAsk({ ...ask, personId: e.target.value })} required
-              className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
-              <option value="">Somebody on your bench</option>
-              {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              disabled={books.people.length === 0}
+              className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised disabled:opacity-50">
+              <option value="">{books.people.length === 0 ? 'Nobody to ask' : 'Somebody on your books'}</option>
+              {books.people.map((p) => (
+                <option key={p.personId} value={p.personId}>{p.name} · {p.because}</option>
+              ))}
             </select>
+            {/* Three states, never collapsed into an empty dropdown: a
+                reading that failed, a firm with nobody yet, and a list
+                that is short because half of it would not read. */}
+            {booksSays(books) && (
+              <span className="block mt-1 text-xs text-etyme-attention">{booksSays(books)}</span>
+            )}
           </label>
           <button type="submit" disabled={!ask.templateId || !ask.personId}
             className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">

@@ -21,6 +21,9 @@
 
 import { humanKey } from '@/lib/document-type'
 import { orderedBySays, orderedNotCollected, readVerdict } from '@/lib/attestation'
+// The bench answer is read through one door — `lib/bench-filter` — so two
+// screens on one menu cannot disagree about the same firm's people.
+import { readBench, type BenchReading } from '@/lib/bench-filter'
 
 export type DocStatus = 'PENDING' | 'SENT' | 'SIGNED' | 'UPLOADED'
 export type DocAction = 'send' | 'upload' | 'sign'
@@ -217,6 +220,216 @@ export function askNotice(doc: DocFacts): { title: string; body: string } {
       ? `Sign ${doc.templateName} from your page. It takes a minute.`
       : `Upload ${doc.templateName} from your page. A photo is fine.`,
   }
+}
+
+// ── Who a compliance desk may pick ───────────────────────────────────
+//
+// Two pickers on two compliance screens ask the same question: which
+// people is this firm allowed to act on. "Ask this person for a
+// document" on the Paperwork page, and "File a petition for" on the
+// Visas tab. Both read `/api/bench` and both read it wrong — they took
+// `data.listings`, a key that route has never sent in its life, got
+// `undefined`, coalesced it to `[]`, and drew an empty dropdown. Nothing
+// failed, because an empty list is a valid-looking answer: a compliance
+// officer opening the Visas tab at any firm on the platform saw nobody
+// to file for and concluded there was nobody.
+//
+// ── And the population was wrong as well as unread ──────────────────
+//
+// A `BenchListing` is a consultant consenting to be **marketed**. Not
+// one of the things these two screens do needs that consent. A firm
+// files an H-1B for somebody it **employs**, and asks for a W-9 or an
+// NDA from anybody on its books — CLAUDE.md, on a prime's own bench:
+// "employees between projects... Not a `BenchListing` — that is a
+// consultant consenting to be sold; this is an employer's roster." So
+// even a picker that had read the listings correctly would have offered
+// no employee of an integrator whose whole supply is its own payroll.
+//
+// The population is therefore the union: the people who granted this
+// firm a listing, and the people it employs. That is a subset of what
+// `/api/compliance/petitions` already accepts — `ourPeople` there is
+// every live seat plus every granted listing — so nobody offered here
+// is refused on the way in, and nobody the route accepts is offered
+// without a reason a reader can see.
+//
+// ── Why it lives in this file ────────────────────────────────────────
+//
+// It belongs in a file of its own and cannot have one: a new path under
+// `src/lib` needs a line in `lib/domains.ts`, which is the architect's.
+// One copy in the file that owns "a document asked for" beats two copies
+// in two screens, which is the bug this whole comment is about.
+
+/** One name a compliance desk may pick, and why it is on the list. */
+export interface PersonOnBooks {
+  personId: string
+  name: string
+  /** In the reader's words: on your bench, on your payroll, or both. */
+  because: string
+}
+
+export interface BooksReading {
+  /** Who may be picked, one row per person, sorted by name. */
+  people: PersonOnBooks[]
+  /**
+   * What could not be read, in one sentence for the screen. Null when
+   * both sides answered in a shape this code understands — and an empty
+   * `people` with a null `why` really is a firm with nobody on its
+   * books, which is a different sentence and a different fact.
+   */
+  why: string | null
+  /** False when either side was unreadable, so a short list is never presented as the whole one. */
+  whole: boolean
+}
+
+const ON_BENCH = 'on your bench'
+const ON_PAYROLL = 'on your payroll'
+const ON_BOTH = 'on your payroll and your bench'
+
+/**
+ * The firm's own payroll, as `/api/bench?scope=payroll` answers it.
+ *
+ * Same rule as `readBench`: a row that cannot be read fails the whole
+ * reading rather than shortening it, because a list of five showing four
+ * is the bug nobody reports.
+ */
+function readRoster(payload: unknown): { ok: true; rows: PersonOnBooks[] } | { ok: false; why: string } {
+  if (payload == null || typeof payload !== 'object') {
+    return { ok: false, why: 'Your payroll did not answer, so anybody who is only on it is missing from this list.' }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = (payload as any).data
+  if (data == null || typeof data !== 'object') {
+    return { ok: false, why: 'Your payroll answered without a body this page understands, so anybody who is only on it is missing from this list.' }
+  }
+  if (!Array.isArray(data.roster)) {
+    return {
+      ok: false,
+      why:
+        'Your payroll answered in a shape this page does not understand — it expects a ' +
+        'list of the people you employ. Nobody from it is offered here, rather than a ' +
+        'shorter list that looks complete.',
+    }
+  }
+
+  const rows: PersonOnBooks[] = []
+  let unreadable = 0
+  for (const r of data.roster) {
+    if (!r?.personId || typeof r?.name !== 'string' || !r.name) {
+      unreadable++
+      continue
+    }
+    rows.push({ personId: String(r.personId), name: r.name, because: ON_PAYROLL })
+  }
+  if (unreadable > 0) {
+    return {
+      ok: false,
+      why:
+        `Your payroll answered with ${unreadable} ${unreadable === 1 ? 'row' : 'rows'} this page ` +
+        'could not read, so nobody from it is offered here. A short list read as a whole one is worse than no list.',
+    }
+  }
+  return { ok: true, rows }
+}
+
+/**
+ * Everybody this firm may be asked about, from both halves of its books.
+ *
+ * `bench` is what `readBench` in `lib/bench-filter` made of
+ * `/api/bench?scope=company`; `payroll` is the raw answer to
+ * `/api/bench?scope=payroll`.
+ */
+export function peopleOnBooks(
+  bench: BenchReading,
+  payroll: unknown,
+  /**
+   * Where a side refused rather than answered, its own sentence. A
+   * compliance officer who lacks `consultants.read` should read the
+   * route's refusal, not "the bench did not answer" — CLAUDE.md: a
+   * refusal says what is missing and what to do.
+   */
+  refused: { bench?: string | null; payroll?: string | null } = {}
+): BooksReading {
+  const troubles: string[] = []
+  if (refused.bench) troubles.push(refused.bench)
+  else if (!bench.ok) troubles.push(bench.why)
+
+  const roster = readRoster(payroll)
+  if (refused.payroll) troubles.push(refused.payroll)
+  else if (!roster.ok) troubles.push(roster.why)
+
+  // One row per person. Somebody a firm employs who also granted it a
+  // listing is one person to pick, not two.
+  const byPerson = new Map<string, PersonOnBooks>()
+  for (const r of bench.rows) {
+    byPerson.set(r.personId, { personId: r.personId, name: r.name, because: ON_BENCH })
+  }
+  for (const r of roster.ok ? roster.rows : []) {
+    const seen = byPerson.get(r.personId)
+    if (seen) seen.because = ON_BOTH
+    else byPerson.set(r.personId, r)
+  }
+
+  return {
+    people: [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    why: troubles.length > 0 ? troubles.join(' ') : null,
+    whole: troubles.length === 0,
+  }
+}
+
+/**
+ * Both halves of the books, asked for and read, from a screen.
+ *
+ * The two compliance pickers call this and nothing else, so they cannot
+ * come to disagree about who may be picked — which is how one of them
+ * came to offer a firm's whole bench and the other to offer nobody.
+ *
+ * A side that refuses keeps its own sentence: a desk without
+ * `consultants.read` reads why rather than seeing an empty dropdown.
+ */
+export async function askTheBooks(): Promise<BooksReading> {
+  const ask = async (url: string): Promise<{ payload: unknown; refused: string | null }> => {
+    try {
+      const res = await fetch(url)
+      // The body is read either way — a refusal carries the sentence
+      // this screen is going to show.
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const said = (body as any)?.error?.message
+        return { payload: null, refused: typeof said === 'string' && said ? said : `That did not go through (${res.status}).` }
+      }
+      return { payload: body, refused: null }
+    } catch {
+      return { payload: null, refused: null }
+    }
+  }
+
+  const [bench, payroll] = await Promise.all([
+    ask('/api/bench?scope=company'),
+    // The firm's own people. At an integrator the whole answer is here
+    // and none of it is a listing — see `rosterFor` in `app/api/bench`.
+    ask('/api/bench?scope=payroll'),
+  ])
+
+  return peopleOnBooks(readBench(bench.payload), payroll.payload, {
+    bench: bench.refused,
+    payroll: payroll.refused,
+  })
+}
+
+/**
+ * The sentence above the picker, or null when the list speaks for itself.
+ *
+ * Three states, and the screen must not collapse them: something could
+ * not be read; everything was read and this firm has nobody yet; there
+ * are people to pick.
+ */
+export function booksSays(reading: BooksReading): string | null {
+  if (reading.why) return reading.why
+  if (reading.people.length === 0) {
+    return 'Nobody is on your books yet. Somebody you employ, or somebody who has granted you a bench listing, appears here.'
+  }
+  return null
 }
 
 /** The word a row shows: what is true, not the enum. */

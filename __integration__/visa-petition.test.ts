@@ -5,6 +5,9 @@ import { day } from '@/lib/seed-days'
 import { GET as list, POST as file } from '@/app/api/compliance/petitions/route'
 import { POST as move } from '@/app/api/compliance/petitions/[id]/route'
 import { GET as watch } from '@/app/api/cron/visa-watch/route'
+import { GET as bench } from '@/app/api/bench/route'
+import { readBench } from '@/lib/bench-filter'
+import { peopleOnBooks } from '@/lib/document-request'
 
 /**
  * Pinnacle files an H-1B for Tariq, records the request for evidence,
@@ -88,5 +91,57 @@ describe('a visa petition on the bench, filing to running out', () => {
     as(BRIGHTMOOR)
     const theirs = await json(await list(req('GET', '/api/compliance/petitions')))
     expect(theirs.body.data.petitions.some((x: any) => x.id === it_.petition)).toBe(false)
+  })
+
+  // ── The picker in front of all of it ────────────────────────────────
+  //
+  // Every test above files for a person somebody chose in code. On the
+  // screen a compliance officer chooses from a dropdown, and that
+  // dropdown read `/api/bench`'s answer under `data.listings` — a key the
+  // route has never sent — so it offered nobody, at every firm, for as
+  // long as the route has answered in its present shape. Nothing failed:
+  // an empty list is a valid-looking answer, which is why the whole story
+  // above could pass over a screen nobody could use.
+
+  it('the Visas picker offers the people on this firm’s books — its bench and its own payroll', async () => {
+    as(PINNACLE)
+    const listings = await json(await bench(req('GET', '/api/bench?scope=company')))
+    const payroll = await json(await bench(req('GET', '/api/bench?scope=payroll')))
+    expect(listings.status, JSON.stringify(listings.body)).toBe(200)
+    expect(payroll.status, JSON.stringify(payroll.body)).toBe(200)
+
+    const reading = peopleOnBooks(readBench(listings.body), payroll.body)
+    expect(reading.why, 'both halves of the books must have been readable').toBeNull()
+    expect(reading.people.length).toBeGreaterThan(0)
+
+    // Tariq granted the listing, so he is offered as somebody on the bench.
+    const tariq = reading.people.find((x) => x.personId === it_.worker)
+    expect(tariq?.because).toContain('on your bench')
+
+    // And Pinnacle's own staff are offered, having granted nothing — a
+    // firm files a petition for somebody it employs, and a BenchListing
+    // is consent to be marketed, which is a different question.
+    expect(reading.people.some((x) => x.because === 'on your payroll')).toBe(true)
+  })
+
+  it('every name the picker offers is a name the petition route accepts', async () => {
+    as(PINNACLE)
+    const listings = await json(await bench(req('GET', '/api/bench?scope=company')))
+    const payroll = await json(await bench(req('GET', '/api/bench?scope=payroll')))
+    const reading = peopleOnBooks(readBench(listings.body), payroll.body)
+
+    // Filed for real, one at a time. A picker that offers a name the
+    // route refuses is a dropdown that produces an error message.
+    for (const person of reading.people) {
+      const r = await json(await file(req('POST', '/api/compliance/petitions', { personId: person.personId, type: 'H1B', country: 'US' })))
+      expect(r.status, `${person.name} is offered by the picker and the route said: ${JSON.stringify(r.body)}`).toBe(201)
+    }
+  })
+
+  it('a firm that cannot read the bench is told so rather than shown an empty picker', async () => {
+    // The old shape, as the screens read it for the life of the route.
+    const reading = peopleOnBooks(readBench({ data: { listings: [] } }), null)
+    expect(reading.people).toEqual([])
+    expect(reading.why).toContain('shape this page does not understand')
   })
 })

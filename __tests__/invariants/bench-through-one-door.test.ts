@@ -92,14 +92,22 @@ const CALLS_THE_BENCH = /fetch\(\s*[`'"]\/api\/bench/
  *
  * Found by this sweep on 2026-09-26, which is the whole reason the rule
  * is enforced over the tree rather than over the two screens the bug was
- * reported on. **Three more pickers have the identical bug** — reading
- * `data.listings`, a key the route has never sent — and two of them are
+ * reported on. **Three more pickers had the identical bug** — reading
+ * `data.listings`, a key the route has never sent — and two of them were
  * not supply's to fix:
  *
  *   · `app/dashboard/compliance` (etyme-regulatory) — the Visas tab's
- *     "file a petition for" picker offers nobody, at every firm.
+ *     "file a petition for" picker offered nobody, at every firm.
  *   · `app/dashboard/documents` (etyme-regulatory) — "ask this person
- *     for a document" offers nobody, at every firm.
+ *     for a document" offered nobody, at every firm.
+ *
+ * **Both were fixed the same day** and have come off the list below.
+ * They ask `askTheBooks` in `lib/document-request`, which reads the
+ * listings through this file's door and the firm's own payroll beside
+ * them — a petition is filed for somebody a firm employs, which needs no
+ * listing at all — and which says why when it cannot read a side rather
+ * than offering nobody. `compliance-pickers.test.ts` holds the
+ * sentences.
  *
  * And three more re-derive the shape correctly, so they are right today
  * and one refactor from being wrong:
@@ -115,8 +123,6 @@ const CALLS_THE_BENCH = /fetch\(\s*[`'"]\/api\/bench/
  * five — and that is a conversation with the bench desk.
  */
 const STILL_READS_BY_HAND = [
-  'src/app/dashboard/compliance/page.tsx',
-  'src/app/dashboard/documents/page.tsx',
   'src/app/dashboard/page.tsx',
   'src/app/dashboard/reports/page.tsx',
   'src/app/dashboard/submissions/page.tsx',

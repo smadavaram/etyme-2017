@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 import { owedSentence, sayCheckType, twoPopulations } from './says'
 
 /**
@@ -1035,13 +1036,29 @@ interface Petition {
 }
 
 /**
- * The bench's petitions, each with the moves open on it. A vendor's
- * problem before anybody else's: a consultant on an expiring visa is a
- * placement about to end whatever the contract says.
+ * The petitions of the people on this firm's books, each with the moves
+ * open on it. A vendor's problem before anybody else's: a consultant on
+ * an expiring visa is a placement about to end whatever the contract
+ * says.
+ *
+ * ── Nobody could be filed for, at any firm ────────────────────────────
+ *
+ * "File a petition for" read the bench answer's `data.listings` — a key
+ * `/api/bench` has never sent — coalesced `undefined` to `[]`, and drew
+ * an empty dropdown. A compliance officer opening this tab saw nobody to
+ * file for and concluded there was nobody, and nothing failed, because
+ * an empty list is a valid-looking answer.
+ *
+ * The population was wrong as well as unread. A `BenchListing` is a
+ * consultant consenting to be marketed, and a firm files an H-1B for
+ * somebody it **employs** — no listing anywhere in that. So the picker
+ * asks `askTheBooks` in `lib/document-request`, which is the payroll and
+ * the listings read through one door, and which says why when it cannot
+ * read a side rather than offering nobody.
  */
 function VisasTab() {
   const [rows, setRows] = useState<Petition[]>([])
-  const [people, setPeople] = useState<{ id: string; name: string }[]>([])
+  const [books, setBooks] = useState<BooksReading>({ people: [], why: null, whole: true })
   const [form, setForm] = useState({ personId: '', type: 'H1B', country: 'US' })
   const [ask, setAsk] = useState<{ id: string; move: string; word: string; expiresAt: string; notes: string } | null>(null)
   const [said, setSaid] = useState<string | null>(null)
@@ -1049,14 +1066,13 @@ function VisasTab() {
 
   const load = async () => {
     try {
-      const [p, b] = await Promise.all([
+      const [p, whoWeMayFileFor] = await Promise.all([
         fetch('/api/compliance/petitions').then((r) => r.json()),
-        fetch('/api/bench?limit=200').then((r) => r.json()).catch(() => null),
+        askTheBooks(),
       ])
       if (p?.error) throw new Error(p.error.message)
       setRows(p?.data?.petitions ?? [])
-      const listings: any[] = b?.data?.listings ?? b?.data?.consultants ?? []
-      setPeople(listings.map((l) => l.consultant?.person ?? l.person ?? null).filter((x) => x?.id && x?.name))
+      setBooks(whoWeMayFileFor)
     } catch (e: any) { setErr(e.message) }
   }
   useEffect(() => { load() }, [])
@@ -1099,10 +1115,16 @@ function VisasTab() {
       <form onSubmit={file} className="mb-6 bg-etyme-surface border border-etyme-rule rounded-lg p-4 flex flex-wrap gap-3 items-end">
         <label className="flex-1 min-w-[200px]">
           <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">File a petition for</span>
-          <select value={form.personId} onChange={(e) => setForm({ ...form, personId: e.target.value })} required className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
-            <option value="">Somebody on your bench</option>
-            {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <select value={form.personId} onChange={(e) => setForm({ ...form, personId: e.target.value })} required
+            disabled={books.people.length === 0}
+            className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised disabled:opacity-50">
+            <option value="">{books.people.length === 0 ? 'Nobody to file for' : 'Somebody on your books'}</option>
+            {books.people.map((p) => <option key={p.personId} value={p.personId}>{p.name} · {p.because}</option>)}
           </select>
+          {/* Three states, never collapsed into an empty dropdown: a
+              reading that failed, a firm with nobody yet, and a list that
+              is short because half of it would not read. */}
+          {booksSays(books) && <span className="block mt-1 text-xs text-etyme-attention">{booksSays(books)}</span>}
         </label>
         <label>
           <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Visa</span>
