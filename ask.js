@@ -1,75 +1,46 @@
-// Form submission handler for audit and contact forms
-document.addEventListener('DOMContentLoaded', function() {
-  const forms = document.querySelectorAll('.ask-form');
-
-  forms.forEach(form => {
-    form.addEventListener('submit', async function(e) {
+/* Lead capture for every .ask-form on the site (home, audit, contact). Posts every field the form
+   holds to /api/market/leads. With no server behind the page it keeps the row in the browser and
+   says so, instead of pretending something was sent. */
+(function(){
+  var THANKS={
+    AUDIT_PAGE:'Got it. Your contractor spend audit will be in your inbox within 24 hours.',
+    CONTACT_PAGE:'Got it. Somebody reads this and writes back within 24 hours.',
+    HOME_PAGE:'Got it. Somebody reads this and writes back.'
+  };
+  var AFTER='If you would rather look before you talk to anybody, the example program needs no card and no sign-up.';
+  var PREVIEW='This is a preview page with no server behind it, so nothing was sent. On the live site this reaches a person, and somebody writes back.';
+  function clean(v){ return (v||'').replace(/\s+/g,' ').trim(); }
+  function say(f,text,bad){ var s=f.querySelector('.ask-says'); s.hidden=false; s.textContent=text; s.classList.toggle('bad',!!bad); }
+  document.querySelectorAll('form.ask-form').forEach(function(f){
+    var t0=Date.now();
+    f.addEventListener('submit',function(e){
       e.preventDefault();
-
-      const formData = new FormData(form);
-      const data = Object.fromEntries(formData);
-      const button = form.querySelector('button[type="submit"]');
-      const statusDiv = form.querySelector('.ask-says');
-
-      // Validate required fields
-      if (!data.email || !data.name || !data.companyName) {
-        if (statusDiv) {
-          statusDiv.textContent = 'Please fill in all required fields.';
-          statusDiv.hidden = false;
-        }
-        return;
-      }
-
-      // Show loading state
-      const originalText = button.textContent;
-      button.disabled = true;
-      button.textContent = 'Sending...';
-
-      try {
-        // Log the submission locally
-        const submission = {
-          timestamp: new Date().toISOString(),
-          source: form.dataset.source || 'UNKNOWN',
-          data: data
-        };
-
-        console.log('Form submission:', submission);
-
-        // Store in localStorage (for demo purposes)
-        const submissions = JSON.parse(localStorage.getItem('etymeSubmissions') || '[]');
-        submissions.push(submission);
-        localStorage.setItem('etymeSubmissions', JSON.stringify(submissions));
-
-        // Show success message
-        if (statusDiv) {
-          statusDiv.innerHTML = `
-            <div style="padding:16px;background:#e8f5e9;border-radius:4px;color:#2e7d32;border-left:4px solid #4caf50">
-              <strong>✓ Submission received!</strong>
-              <p style="margin:8px 0 0;font-size:13px">We'll send your audit report to <strong>${data.email}</strong> within 24 hours.</p>
-              <p style="margin:8px 0 0;font-size:13px">Check your spam folder if you don't see it.</p>
-            </div>
-          `;
-          statusDiv.hidden = false;
-        }
-
-        // Reset form
-        form.reset();
-
-        // Re-enable button after 2 seconds
-        setTimeout(() => {
-          button.disabled = false;
-          button.textContent = originalText;
-        }, 2000);
-
-      } catch (error) {
-        console.error('Form submission error:', error);
-        if (statusDiv) {
-          statusDiv.textContent = 'There was an error. Please try again.';
-          statusDiv.hidden = false;
-        }
-        button.disabled = false;
-        button.textContent = originalText;
-      }
+      var btn=f.querySelector('button[type=submit]');
+      var source=f.getAttribute('data-source')||'HOME_PAGE';
+      var email=clean(f.elements.email.value).toLowerCase();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ say(f,'An email address is the one thing we need.',true); f.elements.email.focus(); return; }
+      var missing=Array.prototype.filter.call(f.querySelectorAll('[required]'),function(el){ return !clean(el.value); });
+      if(missing.length){ say(f,'A few fields are still empty. Everything marked is needed for the report.',true); missing[0].focus(); return; }
+      var body={source:source, filledInMs:Date.now()-t0, submittedAt:new Date().toISOString()};
+      Array.prototype.forEach.call(f.elements,function(el){ if(el.name&&el.name!=='email') body[el.name]=clean(el.value)||null; });
+      body.email=email;
+      btn.disabled=true; var label=btn.textContent; btn.textContent='Sending…';
+      fetch('/api/market/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){ return r.json().catch(function(){return null;}).then(function(j){ return {ok:r.ok,j:j}; }); })
+        .then(function(x){
+          if(!x.ok){ var m=x.j&&x.j.error&&x.j.error.message; if(m){ say(f,m,true); btn.disabled=false; btn.textContent=label; return; } throw new Error('no server'); }
+          done(f,(x.j&&x.j.data&&x.j.data.says)||THANKS[source]||THANKS.HOME_PAGE,AFTER);
+        })
+        .catch(function(){
+          try{ var rows=JSON.parse(localStorage.getItem('etymeSubmissions')||'[]'); rows.push(body); localStorage.setItem('etymeSubmissions',JSON.stringify(rows)); }catch(_){}
+          done(f,PREVIEW,null);
+        });
     });
   });
-});
+  function done(f,text,after){
+    f.querySelectorAll('.ask-body').forEach(function(el){ el.hidden=true; });
+    var s=f.querySelector('.ask-says'); s.hidden=false; s.classList.remove('bad'); s.innerHTML='';
+    var p=document.createElement('p'); p.textContent=text; s.appendChild(p);
+    if(after){ var q=document.createElement('p'); q.className='after'; q.textContent=after; s.appendChild(q); }
+  }
+})();
