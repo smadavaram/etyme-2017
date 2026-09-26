@@ -310,6 +310,15 @@ export const DOMAINS: Domain[] = [
       // claim and any invented urgency on it.
       'app/census', 'lib/census-copy',
       'app/dashboard/market', 'app/api/market', 'app/api/site',
+      // The public marketing site: the eight module pages, the
+      // documentation and the company pages. A route group, so the URLs
+      // read /requisitions and /docs/client while the whole site sits
+      // under one folder with one owner. The words live in
+      // lib/public-site; these are the three-line files that mount them.
+      // /docs sits inside the group rather than on a line of its own —
+      // it is marketing held to the same guard, and one line is one
+      // place to look.
+      'app/(site)',
     ],
   },
   {
@@ -320,7 +329,7 @@ export const DOMAINS: Domain[] = [
       'The things every domain depends on and none of them may change alone: the ' +
       'schema, the database client, authentication, company identity, the design ' +
       'system, and the agent loop itself.',
-    l2: ['L2.2.2', 'L2.6.3'],
+    l2: ['L2.1.5', 'L2.2.2', 'L2.6.3'],
     owns: [
       'app/dashboard/page', 'app/dashboard/shell', 'app/dashboard/import',
       'app/(auth)',

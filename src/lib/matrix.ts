@@ -358,6 +358,22 @@ export const MATRIX: L1[] = [
             'Regulatory OPEN \u2014 the upload letter links to /census?token=\u2026 and app/census does not read the token, so somebody following it lands on step one. One page, owned by etyme-market: read the token and open at the upload step',
           ] },
       ]},
+      { code: 'L2.1.5', name: 'How the product looks to the person reading it', domain: 'PLATFORM', processes: [
+        { code: 'L3.1.5.1', name: 'One palette, one typeface and one logo, the same on every screen', owner: 'Etyme', status: P,
+          tasks: [
+            'Every screen draws its colors from the named tokens, so moving a brand color moves one line and not two hundred files',
+            'Text colors are chosen by measured contrast on the surface they sit on, and the measurement is written beside the value',
+            'Serif for headlines, Inter for body, IBM Plex Mono for data, and tabular figures inside tables',
+            'The logo is one component, drawn from the brand kit\u2019s own paths, and no public page reaches for a second one',
+            'Chart colors come from one validated palette and never from a Tailwind color picked by eye',
+            'DONE 2026-09-26 (429d3ffc): the brand kit adopted \u2014 action is the deep violet #4421D6 for text and links with the bright #5228FF for filled controls, attention stays clay #C0622E, verified stays sage #4F6F52 because it measures 4.94:1 on its own chip where the kit\u2019s green measures 4.46; token names unchanged, so no screen was edited to follow the values',
+            'OPEN, and why this row is PARTIAL rather than BUILT: nothing tests the tokens themselves. chart-colors.test.ts recomputes the chart palette, which opens on the action color, but no sentence asserts that globals.css and tailwind.config.ts agree with each other, or that a text token clears its contrast floor on its surface. The attention chip measures 3.62:1 on its own wash and is held at large-text grade by a comment, not by a test',
+            'OPEN: CLAUDE.md\u2019s design-system section still reads action #2B47E5, one blue. The code has moved to the founder\u2019s violet and the page that steers every agent has not; CLAUDE.md is not a file an agent edits, so this is the founder\u2019s to change or to reverse',
+          ],
+          implementedBy: ['src/app/globals.css', 'tailwind.config.ts', 'src/app/layout.tsx',
+            'src/components/logo.tsx', 'src/lib/chart-colors.ts'],
+          testedBy: ['__tests__/invariants/chart-colors.test.ts'] },
+      ]},
       { code: 'L2.1.3', name: 'Evaluation', domain: 'DEMAND', processes: [
         { code: 'L3.1.3.1', name: 'Screening loop', owner: 'Client screener', status: B,
           tasks: ['Nine rule checks', 'Attempt cap and fix list', 'Human sample review'],
