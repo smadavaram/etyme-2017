@@ -1,0 +1,110 @@
+<title>Contact Etyme</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gelasio:wght@400;500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="kit.css">
+<script src="ask.js" defer></script>
+<style>body{background:#F0EEE6}</style>
+
+<header class="eh"><div class="wrap">
+  <a class="logo" href="index.html"><img src="img/wordmark.svg" alt="Etyme"></a>
+  <nav class="eh-nav" aria-label="Main">
+    <a class="plain" href="index.html">← Back to home</a>
+  </nav>
+  <div class="eh-right">
+    <a class="btn btn-p btn-sm" href="#contact-form">Get in touch</a>
+  </div>
+</div></header>
+
+<main class="page" style="padding-block:72px 0">
+  <div class="prose">
+    <p class="eyebrow">We're here to help</p>
+    <h1 class="ch-h1" style="font-size:clamp(30px,3.6vw,44px)">Get in touch with the Etyme team.</h1>
+    <p class="ch-lede">Have questions about contractor management? Want to see Etyme in action? Reach out—we respond within 24 hours.</p>
+  </div>
+
+  <div style="margin-top:60px;display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:40px;max-width:1000px">
+    <section>
+      <h2 style="margin-top:0;font-size:1.25rem">Headquarters</h2>
+      <div style="color:#666;line-height:1.8;font-size:0.95rem">
+        <p style="margin:0"><strong>Etyme Inc.</strong></p>
+        <p style="margin:8px 0 0">3201 Yorktown Ave</p>
+        <p style="margin:0">Suite 110B</p>
+        <p style="margin:0">Durham, NC 27713</p>
+        <p style="margin:16px 0 0 0">
+          <a href="tel:919-228-9961" style="color:#1a1a1a;text-decoration:none;font-weight:500">919-228-9961</a>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2 style="margin-top:0;font-size:1.25rem">Connect with us</h2>
+      <div style="color:#666;line-height:1.8;font-size:0.95rem">
+        <p style="margin:0">Questions about pricing?</p>
+        <p style="margin:8px 0 0"><a href="mailto:sales@etyme.com" style="color:#1a1a1a;text-decoration:none;font-weight:500">sales@etyme.com</a></p>
+        <p style="margin:16px 0 0">General inquiries?</p>
+        <p style="margin:8px 0 0"><a href="mailto:support@etyme.com" style="color:#1a1a1a;text-decoration:none;font-weight:500">support@etyme.com</a></p>
+      </div>
+    </section>
+
+    <section>
+      <h2 style="margin-top:0;font-size:1.25rem">Quick links</h2>
+      <div style="color:#666;line-height:1.8;font-size:0.95rem">
+        <p style="margin:0"><a href="audit.html" style="color:#1a1a1a;text-decoration:none;font-weight:500">Get a free audit</a></p>
+        <p style="margin:8px 0 0"><a href="docs.html" style="color:#1a1a1a;text-decoration:none;font-weight:500">View documentation</a></p>
+        <p style="margin:8px 0 0"><a href="index.html" style="color:#1a1a1a;text-decoration:none;font-weight:500">Back to homepage</a></p>
+      </div>
+    </section>
+  </div>
+
+  <section class="ch-sec" id="contact-form" style="margin-top:80px;max-width:600px">
+    <h2>Send us a message</h2>
+    <p>Fill out the form below and we'll get back to you within 24 hours.</p>
+    <div class="ask" style="margin-top:40px">
+      <form class="ask-form" data-source="CONTACT_PAGE" novalidate>
+        <div class="ask-body">
+          <div class="field"><label for="contact-email">Work email</label>
+            <input id="contact-email" name="email" type="email" autocomplete="email" placeholder="you@company.com" required>
+          </div>
+          <div class="field"><label for="contact-name">Your name</label>
+            <input id="contact-name" name="name" type="text" autocomplete="name" placeholder="Jane Smith" required>
+          </div>
+          <div class="field"><label for="contact-company">Company name</label>
+            <input id="contact-company" name="companyName" type="text" autocomplete="organization" placeholder="Acme Corp" required>
+          </div>
+          <div class="field"><label for="contact-message">Message</label>
+            <textarea id="contact-message" name="message" rows="4" placeholder="Tell us about your question or what you'd like to discuss..." required></textarea>
+          </div>
+          <div class="hp" aria-hidden="true"><label for="contact-cw">Company website</label><input id="contact-cw" name="company_website" tabindex="-1" autocomplete="off"></div>
+          <div class="send"><button class="btn btn-p" type="submit">Send Message →</button><span class="fine">We typically respond within 24 hours</span></div>
+        </div>
+        <div class="ask-says" role="status" hidden></div>
+      </form>
+    </div>
+  </section>
+
+  <div class="turn three">
+    <a href="index.html"><span class="d">←</span><span class="t">Back to Etyme</span></a>
+    <a href="contact.html"><span class="d">✉</span><span class="t">Contact us directly</span></a>
+    <a href="audit.html"><span class="d">📊</span><span class="t">Get your free audit</span></a>
+  </div>
+</main>
+
+<footer class="book"><div class="page">
+  <div style="flex:1">
+    <div style="font-size:13px;color:#999;margin-bottom:12px">
+      <a href="index.html" style="color:#666;text-decoration:none;margin-right:16px">Home</a>
+      <a href="audit.html" style="color:#666;text-decoration:none;margin-right:16px">Free Audit</a>
+      <a href="contact.html" style="color:#666;text-decoration:none">Contact</a>
+    </div>
+    <div style="font-size:13px;color:#999">
+      <span style="display:block;margin-bottom:4px"><strong style="color:#666">Etyme</strong></span>
+      <span style="display:block">3201 Yorktown Ave, Ste. 110B</span>
+      <span style="display:block">Durham, NC 27713</span>
+      <span style="display:block;margin-top:8px"><a href="tel:919-228-9961" style="color:#666;text-decoration:none">919-228-9961</a></span>
+      <span style="display:block"><a href="mailto:support@etyme.com" style="color:#666;text-decoration:none">support@etyme.com</a></span>
+    </div>
+  </div>
+  <span style="font-size:13px;color:#999;text-align:right">
+    <span style="display:block">&copy; 2026 Etyme</span>
+  </span>
+</div></footer>
