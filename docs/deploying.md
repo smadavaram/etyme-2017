@@ -107,14 +107,51 @@ build eventually runs on the wrong build.
 
 ## Confirming a deploy actually landed
 
-`/api/health` is not enough — it only counts companies, so it passes
-against a stale schema. Two better checks:
+**Ask `/api/health` which commit it is serving.** Added 2026-09-26, for
+the reason below:
 
-- **The route test.** Ask for a route that exists only in the new code.
+```
+curl -s https://etyme2040.vercel.app/api/health | python3 -m json.tool | grep -A 5 '"deploy"'
+```
+
+It reads `VERCEL_GIT_COMMIT_SHA` and names the sha and the branch.
+Compare it against the tip you pushed to `deploy/main` — the production
+sha, not the one on your own branch, since the replay makes new objects.
+Locally it says so rather than guessing.
+
+### Why that exists, and the two traps it replaces
+
+The 26 September deploy had **no new route**, because every change was
+inside routes that already existed. So the route test below had nothing
+to ask for, and confirming the deploy meant taking the demo door, reading
+`/api/requirements` and checking for a field only the new build sends. It
+worked, and it is not a thing anybody should have to invent twice.
+
+**Do not compare asset hashes.** A Vercel build does not reproduce a
+local `next build` byte for byte, so a chunk filename from your `.next`
+returns 404 on production whether or not the deploy landed. It reads
+exactly like a failed deploy and it means nothing. Twenty minutes went
+into that before the demo-door check settled it.
+
+### The older checks, still useful
+
+`/api/health`'s `ok` alone is not enough — it counts companies, so it
+passes against a stale schema. Beyond the commit:
+
+- **The route test.** Where the deploy *does* add a route, ask for it.
   404 means old code; 401 means it is deployed. `/api/placements/xyz` was
   the marker for the September 9th deploy.
 - **The schema test.** Open a placement — `/dashboard/placements/<id>`.
   It reads `BuyContract.supplierSellContractId`, so it renders if the
   schema moved and 500s if it did not.
+- **The behavior test**, which needs no new route and is what actually
+  settled the 26th: take the demo door and read a field the new code
+  sends.
+
+  ```
+  curl -s -c ck.txt -X POST https://etyme2040.vercel.app/api/demo \
+    -H 'content-type: application/json' -d '{"as":"world-nike","desk":"programme"}'
+  curl -s -b ck.txt 'https://etyme2040.vercel.app/api/requirements?limit=1'
+  ```
 
 `scripts/seed-placement-demo.mjs` creates one complete placement to open.

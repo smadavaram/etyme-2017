@@ -97,6 +97,29 @@ export async function GET() {
         ok,
         database,
         configured,
+        // Which commit is actually serving this, and when it was built.
+        //
+        // Added 2026-09-26 after a deploy nobody could confirm. The
+        // procedure in docs/deploying.md says to prove a deploy landed by
+        // asking for a route that exists only in the new code — and a
+        // deploy whose changes are all inside existing routes has no such
+        // route. That one had none, so confirming it meant taking the demo
+        // door, reading a list and checking for a field the new build
+        // sends, which works and is not a thing anybody should have to
+        // invent twice. Comparing asset hashes is worse than useless: a
+        // Vercel build does not reproduce a local one byte for byte, so a
+        // 404 on a chunk means nothing and reads like a failed deploy.
+        //
+        // Vercel sets these; locally they are absent, and absent is an
+        // honest answer rather than a guess.
+        deploy: {
+          commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+          branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+          builtFor: process.env.VERCEL_ENV ?? null,
+          says: process.env.VERCEL_GIT_COMMIT_SHA
+            ? `Serving ${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 8)}${process.env.VERCEL_GIT_COMMIT_REF ? ` from ${process.env.VERCEL_GIT_COMMIT_REF}` : ''}.`
+            : 'Not a Vercel build, so there is no commit to name — this is a local or self-hosted run.',
+        },
         signIn:
           providers.length > 0
             ? `Sign-in via ${providers.join(', ')}.`
