@@ -72,8 +72,8 @@ export const NAV_MENUS: NavMenu[] = [
     label: 'Compliance',
     items: [
       { t: 'Work authorization', d: 'Blocked, not warned, where the law is behind it.', href: '/contracts' },
-      { t: 'Tenure & co-employment', d: 'Counted per person across suppliers, not per assignment.', href: '/compliance' },
-      { t: 'Insurance & good standing', d: 'A supplier with lapsed cover submits nobody and starts nobody.', href: '/governance' },
+      { t: 'Co-employment & time on site', d: 'Counted per person across suppliers, not per assignment.', href: '/compliance' },
+      { t: 'Insurance & good standing', d: 'A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/governance' },
       { t: 'Security position', d: 'What is done, what is not, and when.', href: '/security' },
       { t: 'Data processing addendum', d: 'Retention by category, and who processes what.', href: '/dpa' },
     ],

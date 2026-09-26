@@ -158,8 +158,10 @@ import type { Route } from 'next'
  *
  * The flat six-word module list it replaced named stations with nothing
  * organizing them. An enterprise buyer evaluating a system of record
- * expects this shape. Every item links to a real section on this page;
- * nothing here promises a screen that does not exist.
+ * expects this shape. Since 2026-09-26 the items lead to the module
+ * pages, the security position and About, which exist; the menus are the
+ * same as every other public page's (`lib/public-site/nav`), and a test
+ * holds the two lists equal. A `#` link is a section on this page.
  *
  * Industries is deliberately not a set of vertical product pages — the
  * core stays horizontal, and the note under the menu says so, so the
@@ -169,11 +171,14 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
   {
     label: 'Products',
     items: [
-      { t: 'What it does, in four steps', d: 'A role goes out, a person starts, a week is signed, a bill is paid.', href: '#steps' },
-      { t: 'Your contractors', d: 'Every contractor on site, across every supplier, one row each.', href: '#monday' },
-      { t: 'Requisitions & suppliers', d: 'Raised, approved, released to the suppliers you cleared.', href: '#lifecycle' },
-      { t: 'Hours, invoices & bills', d: 'Signed hours, and bills matched to the order behind them.', href: '#lifecycle' },
-      { t: 'Rates across suppliers', d: 'What each supplier charges for the same skill, side by side.', href: '#monday' },
+      { t: 'Requisitions & suppliers', d: 'Raised, cleared by rule or by a desk, released to the suppliers Procurement named.', href: '/requisitions' },
+      { t: 'Submissions & screening', d: 'Every supplier against the same role, on one screen, each at its own rate.', href: '/submissions' },
+      { t: 'Contracts & onboarding', d: 'The award writes the contract. The papers are checked before day one.', href: '/contracts' },
+      { t: 'Timesheets & expenses', d: 'Filed once, signed twice, flagged first. Nobody approves their own.', href: '/timesheets' },
+      { t: 'Invoices & the three-way match', d: 'An invoice with no signed week behind it is not paid.', href: '/invoices' },
+      { t: 'Compliance & tenure', d: 'Counted per person across suppliers, warned at three quarters, blocked at your cap.', href: '/compliance' },
+      { t: 'The chain', d: 'Each firm sees its own level. Insurance and authorization are visible at every depth.', href: '/chain' },
+      { t: 'Governance', d: 'Blocks where the law is behind it, warns everywhere else, records even a pass.', href: '/governance' },
     ],
   },
   {
@@ -189,20 +194,21 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
   {
     label: 'Compliance',
     items: [
-      { t: 'Work authorization', d: 'Blocked, not warned, where the law is behind it.', href: '#lifecycle' },
-      { t: 'Tenure & co-employment', d: 'Counted per person across suppliers, not per assignment.', href: '#exposure' },
-      { t: 'Insurance & good standing', d: 'A lapsed certificate of insurance or good standing stops a submission and a start.', href: '#exposure' },
-      { t: 'Governance & approvals', d: 'Every override keeps the name of whoever gave it.', href: '#exposure' },
+      { t: 'Work authorization', d: 'Blocked, not warned, where the law is behind it.', href: '/contracts' },
+      { t: 'Co-employment & time on site', d: 'Counted per person across suppliers, not per assignment.', href: '/compliance' },
+      { t: 'Insurance & good standing', d: 'A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/governance' },
+      { t: 'Security position', d: 'What is done, what is not, and when.', href: '/security' },
+      { t: 'Data processing addendum', d: 'Retention by category, and who processes what.', href: '/dpa' },
     ],
   },
   {
     label: 'Why Etyme',
     items: [
-      { t: 'Who sits at the program office desks', href: '#ways' },
-      { t: 'Never runs a bench, never places anybody', href: '#why' },
-      { t: 'Governance is never a paid tier', href: '#why' },
-      { t: 'Rules first, a model only on what is left', href: '#compliance' },
+      { t: 'About Etyme', d: 'What we build, how we work, where we are.', href: '/about' },
+      { t: 'Never runs a bench, never places anybody', href: '/about#neutral' },
+      { t: 'Governance is never a paid tier', href: '/governance' },
       { t: 'Free while we prove it out', href: '#why' },
+      { t: 'Contact', d: 'Durham, North Carolina. A person answers.', href: '/contact' },
     ],
   },
 ]
@@ -677,6 +683,16 @@ const FOOTER: { heading: string; links: { label: string; href: string }[]; note?
     note: 'No card and no sign-up to look. A person reads what you send.',
   },
   {
+    heading: 'Read',
+    links: [
+      { label: 'Documentation', href: '/docs' },
+      { label: 'Security position', href: '/security' },
+      { label: 'Free contractor spend audit', href: '/census' },
+      { label: 'About Etyme', href: '/about' },
+      { label: 'Contact', href: '/contact' },
+    ],
+  },
+  {
     heading: 'Legal',
     links: [
       { label: 'Terms of service', href: '/terms' },
@@ -745,6 +761,14 @@ export default function LandingPage() {
                 </div>
               </li>
             ))}
+            <li>
+              <a
+                href="/docs"
+                className="rounded-md px-3 py-2 text-etyme-muted transition-colors hover:text-etyme-ink"
+              >
+                {'Documentation'}
+              </a>
+            </li>
           </ul>
 
           <Link
@@ -1622,7 +1646,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-etyme-rule bg-etyme-surface">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16">
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
             <div>
               <EtymeLogo size="md" />
               <p className="mt-4 max-w-[32ch] text-[14px] leading-relaxed text-etyme-muted">

@@ -59,7 +59,8 @@ export function companyPage(route: CompanyPage['route']) {
   const p = COMPANY_PAGES.find((x) => x.route === route)
   if (!p) throw new Error(`No company page is registered at ${route}`)
   return {
-    metadata: { title: `${p.eyebrow} — Etyme`, description: p.lede },
+    // The layout's template adds "| Etyme", so "About Etyme" would read twice.
+    metadata: { title: p.eyebrow.replace(/ Etyme$/, ''), description: p.lede },
     Page: function Page() {
       return <CompanyPageView p={p} />
     },

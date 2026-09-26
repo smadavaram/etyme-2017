@@ -177,7 +177,7 @@ export function modulePage(route: string) {
   const m = MODULES.find((x) => x.route === route)
   if (!m) throw new Error(`No module page is registered at ${route}`)
   return {
-    metadata: { title: `${m.title} — Etyme`, description: m.lede },
+    metadata: { title: m.title, description: m.lede },
     Page: function Page() {
       return <ModulePageView m={m} />
     },

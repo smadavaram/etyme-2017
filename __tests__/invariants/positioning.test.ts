@@ -1591,8 +1591,9 @@ describe('The footer is where a company keeps its papers', () => {
         expect(PAGE, `${href} has no section on the page`).toContain(`id="${href.slice(1)}"`)
       } else {
         // A route may sit inside a route group — /login is
-        // src/app/(auth)/login — and a group folder is not part of the URL.
-        const candidates = ['', '(auth)'].map((group) =>
+        // src/app/(auth)/login, /docs is src/app/(site)/docs — and a group
+        // folder is not part of the URL.
+        const candidates = ['', '(auth)', '(site)'].map((group) =>
           join(process.cwd(), 'src/app', group, href.slice(1), 'page.tsx')
         )
         expect(candidates.some(existsSync), `no page for ${href}`).toBe(true)

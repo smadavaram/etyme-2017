@@ -50,7 +50,7 @@ import {
  */
 
 export const metadata: Metadata = {
-  title: 'Contractor census — Etyme',
+  title: 'Contractor census',
   description:
     'Send what you already hold about your contractors. A named person at Etyme sends back ' +
     'one page inside five working days: who is on your sites by supplier, what you spend, ' +

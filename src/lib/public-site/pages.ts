@@ -17,12 +17,11 @@
  * ── The route is recorded separately from the words ──────────────────
  *
  * The words of the module pages, the documentation and the company pages
- * live in `lib/public-site`, which is the market's. The route files that
- * mount them live under `src/app`, and a new top-level folder there has
- * no owner in `lib/domains` until the architect gives it one. So each
- * entry names the route file it is mounted by, and the test reports the
- * ones still waiting for their route by name, rather than a page built
- * and silently unreachable.
+ * live in `lib/public-site`. The route files that mount them are three
+ * lines each under `src/app/(site)`, the market's since `afa187c7`. Each
+ * entry names the file it is mounted by, and the test fails on an entry
+ * whose file does not exist, so a page cannot be registered and
+ * unreachable.
  */
 
 export type PageKind =

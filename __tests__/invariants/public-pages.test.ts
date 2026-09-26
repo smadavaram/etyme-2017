@@ -27,6 +27,9 @@ import { COMPANY_PAGES, ABOUT, CONTACT, SECURITY, copyOfCompanyPage } from '@/li
 import {
   PARTIES, REFERENCE, INTEGRATIONS, TIME_AND_MONEY, docSlugs, partyAt, copyOfDoc, copyOfDocsHome, textOfHtml,
 } from '@/lib/public-site/docs/index'
+import { modulePage } from '@/lib/public-site/module-page'
+import { companyPage } from '@/lib/public-site/company-page'
+import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
 import { NAV_MENUS, FOOTER, SPEND_AUDIT, DOCS_LINK, everyFrameLink, frameCopy } from '@/lib/public-site/nav'
 
 const ROOT = process.cwd()
@@ -405,6 +408,34 @@ describe('One header and footer on every new page', () => {
     expect(NAV_MENUS.map((m) => m.label)).toEqual(['Products', 'Industries', 'Compliance', 'Why Etyme'])
     expect(homeMenus).toEqual(['Products', 'Industries', 'Compliance', 'Why Etyme'])
     expect(DOCS_LINK.href).toBe('/docs')
+  })
+
+  it('the home page’s menus lead to the same pages as every other page’s header', () => {
+    const home = read('src/app/page.tsx')
+    const block = home.slice(home.indexOf('const NAV_MENUS'), home.indexOf('const STEPS'))
+    const homeHrefs = [...block.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
+    // A section of the home page is '#x' on the home page and '/#x' from anywhere else.
+    const siteHrefs = NAV_MENUS.flatMap((m) => m.items.map((i) => i.href.replace(/^\/#/, '#')))
+    expect(homeHrefs).toEqual(siteHrefs)
+    expect(home).toContain('href="/docs"')
+  })
+
+  it('no public page puts Etyme in its own title, because the layout adds it to every tab', () => {
+    const layout = read('src/app/layout.tsx')
+    expect(layout).toContain("template: '%s | Etyme'")
+    for (const m of MODULES) expect(modulePage(m.route).metadata.title, m.route).not.toMatch(/Etyme/)
+    for (const c of COMPANY_PAGES) expect(companyPage(c.route).metadata.title, c.route).not.toMatch(/Etyme/)
+    expect(docsHomeMetadata().title).not.toMatch(/Etyme/)
+    for (const s of docSlugs()) {
+      const md = docMetadata(s)
+      expect(md.title, s).not.toMatch(/Etyme/)
+      expect((md as { description?: string }).description, `${s} has no description`).toBeTruthy()
+    }
+    expect(read('src/app/census/page.tsx')).not.toMatch(/title: '[^']*Etyme'/)
+  })
+
+  it('every route a public page is registered at is mounted by a file that exists', () => {
+    for (const p of PUBLIC_PAGES) expect(existsSync(join(ROOT, p.routeFile)), `${p.route} has no route file`).toBe(true)
   })
 
   it('Industries stays one product and says so, with no vertical page behind it', () => {

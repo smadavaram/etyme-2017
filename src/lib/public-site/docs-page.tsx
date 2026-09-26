@@ -197,3 +197,19 @@ export function DocsSlugView({ slug }: { slug: string }) {
   if (r) return <ReferenceDocView doc={r} />
   return null
 }
+
+/**
+ * A tab's title and a search result's line. The layout's template adds
+ * "| Etyme", so no title here says Etyme itself.
+ */
+export function docsHomeMetadata() {
+  return { title: 'Documentation', description: DOCS_HOME.lede }
+}
+
+export function docMetadata(slug: string) {
+  const p = partyAt(slug)
+  if (p) return { title: `${p.title} — documentation`, description: p.lede }
+  const r = referenceAt(slug)
+  if (r) return { title: `${r.title} — documentation`, description: r.lede }
+  return { title: 'Documentation' }
+}
