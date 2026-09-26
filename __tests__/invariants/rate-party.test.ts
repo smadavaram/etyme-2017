@@ -291,6 +291,16 @@ const REGISTER: Record<string, { may: string[]; because: string }> = {
       'where it was deliberately opened — the network. Not by a contract scope: ' +
       'there is no contract yet.',
   },
+  'src/app/api/bench/burn/route.ts': {
+    may: ['requirementScope'],
+    because:
+      'Bench burn puts the cost of the gaps beside the roles that could close ' +
+      'them, so it counts open roles as well as people. It counted every OPEN ' +
+      'requirement on the platform with no company filter at all — "12 open reqs ' +
+      'for matching" at a firm that could see one, and a count of other tenants\' ' +
+      'demand. The same scope the Requirements list uses, so the burn panel and ' +
+      'the list cannot say two different numbers about one firm.',
+  },
   'src/app/api/submissions/route.ts': {
     may: ['submissionScope'],
     because:

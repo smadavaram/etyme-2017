@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { range, compact } from '@/lib/money-display'
+import { readBench } from '@/lib/bench-filter'
+import { useCompanyKind } from '@/components/session-provider'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 
@@ -61,7 +63,48 @@ interface BenchEntry {
  * with no partners added under Your suppliers sees an honest empty
  * state, not a wall error.
  */
-type BenchScope = 'company' | 'network'
+type BenchScope = 'company' | 'payroll' | 'network'
+
+/**
+ * One row of the firm's own roster — the people it employs.
+ *
+ * Not a listing, and deliberately not the same shape as one. CLAUDE.md:
+ * "Not a `BenchListing` — that is a consultant consenting to be sold;
+ * this is an employer's roster." So there is no tier, no rate band and no
+ * visibility here: a roster row carries what somebody is *on*, and
+ * `mayMarket` — which is false for everybody who granted no listing, and
+ * is read off the API rather than guessed on the screen.
+ */
+interface RosterEntry {
+  personId: string
+  name: string
+  email: string | null
+  seat: string | null
+  practice: string | null
+  skills: string[]
+  location: string | null
+  workAuth: string | null
+  listed: boolean
+  standing: 'ON_PROJECT' | 'STARTING_SOON' | 'BETWEEN_PROJECTS' | 'NOT_ON_THE_RECORD'
+  says: string
+  freeForDays: number | null
+  on: string | null
+  free: boolean
+  mayMarket: boolean
+  marketSays: string
+}
+
+interface RosterSummaryData {
+  total: number
+  onProject: number
+  startingSoon: number
+  betweenProjects: number
+  notOnTheRecord: number
+  skillsKnown: number
+  skillsUnknown: number
+  marketable: number
+  says: string
+}
 
 interface BurnData {
   burn: { daily: number; weekly: number; monthly: number; toDate: number }
@@ -402,8 +445,21 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
 export default function BenchPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const companyKind = useCompanyKind()
 
-  const [scope, setScope] = useState<BenchScope>('company')
+  // An integrator, a prime or a program office staffs work mostly from
+  // its own payroll, so that is where its Bench page opens. Teleworld
+  // Solutions read a bare screen under "Your own team" while holding five
+  // live employee seats, because this page only ever asked for listings.
+  const opensOn: BenchScope =
+    companyKind === 'GSI' || companyKind === 'MSP' || companyKind === 'CONSULTANT_CORP'
+      ? 'payroll'
+      : 'company'
+
+  const [scope, setScope] = useState<BenchScope>(opensOn)
+  const [scopeChosen, setScopeChosen] = useState(false)
+  const [roster, setRoster] = useState<RosterEntry[]>([])
+  const [rosterSays, setRosterSays] = useState<RosterSummaryData | null>(null)
   const [entries, setEntries] = useState<BenchEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -419,6 +475,12 @@ export default function BenchPage() {
   // whichever scope was requested last wins, not whichever request
   // happened to finish last.
   const requestId = useRef(0)
+
+  // The session arrives after the first render, so the opening tab is
+  // corrected once — and never after the reader has chosen one themselves.
+  useEffect(() => {
+    if (!scopeChosen) setScope(opensOn)
+  }, [opensOn, scopeChosen])
 
   // Open modal from ?new=1 link
   useEffect(() => {
@@ -440,49 +502,63 @@ export default function BenchPage() {
       }
 
       const body = await res.json()
-      const tiers = body.data?.tiers ?? {}
 
-      // Flatten tiers into a single list
-      const flat: BenchEntry[] = []
-      for (const [tier, listings] of Object.entries(tiers)) {
-        for (const l of listings as any[]) {
-          flat.push({
-            id: l.id,
-            tier: tier as 'RETAINED' | 'MARKETING',
-            consultantId: l.consultant.id,
-            personId: l.consultant.personId,
-            name: l.consultant.person.name,
-            email: l.consultant.person.email,
-            headline: l.consultant.headline,
-            skills: l.consultant.skills ?? [],
-            location: l.consultant.location,
-            workAuth: l.consultant.workAuth,
-            rateMin: l.rateMin ?? null,
-            rateMax: l.rateMax ?? null,
-            availableFrom: l.consultant.availableFrom,
-            visibility: l.consultant.visibility,
-            grantedAt: l.grantedAt,
-            // Copied explicitly, like everything else here. The row is
-            // rebuilt field by field rather than spread, so a field the
-            // API adds is invisible until it is named on this list —
-            // which is how the contracts Approver column shipped showing
-            // a dash for every row.
-            consent: l.consent,
-            companyId: l.company.id,
-            companyName: l.company.name,
-          })
-        }
+      // The firm's own roster. A different question with a different
+      // consent behind it, so it is a different shape and is never mixed
+      // into the listings below.
+      if (forScope === 'payroll') {
+        const rows: RosterEntry[] = Array.isArray(body.data?.roster) ? body.data.roster : []
+        if (thisRequest !== requestId.current) return
+        setRoster(rows)
+        setRosterSays(body.data?.summary ?? null)
+        setEntries([])
+        return
       }
+
+      // One door. This page flattened the answer by hand and the training
+      // page flattened it differently, under a key the route never sent —
+      // so the two screens on one menu disagreed about the same firm's
+      // bench for the life of both. `readBench` is that one door, and it
+      // refuses to read a shape it does not understand rather than
+      // returning an empty list that counts to nought.
+      const reading = readBench(body)
+      if (!reading.ok) {
+        throw new Error(reading.why)
+      }
+
+      const flat: BenchEntry[] = reading.rows.map((r) => ({
+        id: r.listingId,
+        tier: r.tier,
+        consultantId: r.consultantId,
+        personId: r.personId,
+        name: r.name,
+        email: r.email ?? '',
+        headline: r.headline,
+        skills: r.skills,
+        location: r.location,
+        workAuth: r.workAuth,
+        rateMin: r.rateMin,
+        rateMax: r.rateMax,
+        availableFrom: r.availableFrom,
+        visibility: r.visibility,
+        grantedAt: r.grantedAt,
+        consent: r.consent ?? undefined,
+        companyId: r.companyId,
+        companyName: r.companyName,
+      }))
 
       // A tab clicked twice in quick succession fires two requests; only
       // the most recent one is allowed to write state, whichever answers
       // first.
       if (thisRequest !== requestId.current) return
+      setRoster([])
+      setRosterSays(null)
       setEntries(flat)
     } catch (err: any) {
       if (thisRequest !== requestId.current) return
       setError(err.message)
       setEntries([])
+      setRoster([])
     } finally {
       if (thisRequest === requestId.current) setLoading(false)
     }
@@ -688,26 +764,34 @@ export default function BenchPage() {
           </h1>
           <p className="text-body-sm text-etyme-muted">
             {scope === 'company'
-              ? 'Your own team — retained and marketing listings.'
-              : 'What your suppliers have offered to show you — marketing-tier only, and only from firms on Your suppliers.'}
+              ? 'People who granted you a listing — retained and marketing. Their consent is what lets you market them.'
+              : scope === 'payroll'
+                ? 'People you employ, and what each of them is on. You need no listing to staff your own — and nothing here markets them.'
+                : 'What your suppliers have offered to show you — marketing-tier only, and only from firms on Your suppliers.'}
           </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary mt-3 shrink-0">
-          Add to bench
-        </button>
+        {scope !== 'payroll' && (
+          <button onClick={() => setShowAddModal(true)} className="btn-primary mt-3 shrink-0">
+            Add to bench
+          </button>
+        )}
       </div>
 
-      {/* Your team / your network — two different benches, never merged.
-          A GSI holds both hats at once (src/lib/persona.ts): its own
-          people, and whatever its sub-vendors have marketed to it. */}
+      {/* Three benches, never merged, because three different consents sit
+          behind them. On your bench: somebody granted you a listing. On
+          your payroll: you employ them and the employment is the consent
+          — CLAUDE.md, "Not a `BenchListing` ... this is an employer's
+          roster." Your network: a supplier chose to show you theirs.
+          A GSI holds all three hats at once (src/lib/persona.ts). */}
       <div className="flex items-center gap-1 bg-etyme-canvas rounded-md p-0.5 mb-6 w-fit">
         {([
-          { key: 'company', label: 'Your team' },
+          { key: 'company', label: 'On your bench' },
+          { key: 'payroll', label: 'On your payroll' },
           { key: 'network', label: 'Your network' },
         ] as { key: BenchScope; label: string }[]).map(({ key, label }) => (
           <button
             key={key}
-            onClick={() => setScope(key)}
+            onClick={() => { setScopeChosen(true); setScope(key) }}
             className={`px-3.5 py-1.5 text-[12px] font-medium rounded transition-colors ${
               scope === key
                 ? 'bg-white text-etyme-ink shadow-sm'
@@ -720,7 +804,7 @@ export default function BenchPage() {
       </div>
 
       {/* Stats row */}
-      {!loading && entries.length > 0 && (
+      {scope !== 'payroll' && !loading && entries.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           <StatChip label="Total" value={stats.total} />
           <StatChip label="Retained" value={stats.retained} tone="verified" />
@@ -730,12 +814,26 @@ export default function BenchPage() {
         </div>
       )}
 
-      {/* Bench burn panel — visible only if the user has cost permission */}
-      {burnData && burnData.benchSize > 0 && (
+      {/* Bench burn panel — visible only if the user has cost permission.
+          Burn is about people a firm pays to sit on a bench, which is the
+          listing side; a roster's own cost is payroll and not this number. */}
+      {scope !== 'payroll' && burnData && burnData.benchSize > 0 && (
         <BenchBurnPanel data={burnData} />
       )}
 
-      {/* DataTable */}
+      {scope === 'payroll' ? (
+        <RosterSurface
+          rows={roster}
+          summary={rosterSays}
+          loading={loading}
+          error={error}
+          onNeedsListing={(says) => {
+            setToast({ message: says, type: 'error' })
+            setTimeout(() => setToast(null), 6000)
+          }}
+        />
+      ) : (
+      /* DataTable */
       <ListSurface
         columns={columns}
         data={filtered}
@@ -838,6 +936,7 @@ export default function BenchPage() {
           </div>
         }
       />
+      )}
 
       {/* Add bench listing modal */}
       {showAddModal && (
@@ -858,6 +957,185 @@ export default function BenchPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// ── The employer's roster ───────────────────────────
+
+/**
+ * The people this firm employs, and what each of them is on.
+ *
+ * ── Why this is a separate surface and not a filter ──────────────────
+ *
+ * Because it is a different question with a different consent behind it.
+ * A bench row exists because somebody granted a listing; a roster row
+ * exists because the firm employs them. CLAUDE.md is explicit that
+ * conflating the two is the bug: "Not a `BenchListing` — that is a
+ * consultant consenting to be sold; this is an employer's roster."
+ *
+ * So there is no Share and no Submit here. A firm may still put its own
+ * W2 in front of a client — it is INTERNAL, the employment is the consent
+ * and the employee is told — but that happens from the role, under the
+ * submit door's own rules, and offering it as a bulk action on a list of
+ * people would make a roster into a shop window. Where somebody has not
+ * granted a listing, the row says so in a sentence rather than greying a
+ * control out with no words.
+ *
+ * ── And the number nobody can stand behind is not shown ──────────────
+ *
+ * "Free to allocate" counts only people whose last assignment ended.
+ * Somebody with no contract on the record here is neither free nor busy —
+ * the firm's own owner holds an employee seat like everybody else — and
+ * counting unknown as free would have put him on a capacity figure.
+ */
+function RosterSurface({
+  rows,
+  summary,
+  loading,
+  error,
+  onNeedsListing,
+}: {
+  rows: RosterEntry[]
+  summary: RosterSummaryData | null
+  loading: boolean
+  error: string | null
+  onNeedsListing: (says: string) => void
+}) {
+  const standingChip = (r: RosterEntry): { text: string; cls: string } => {
+    switch (r.standing) {
+      case 'ON_PROJECT':       return { text: 'On a project', cls: 'chip--action' }
+      case 'STARTING_SOON':    return { text: 'Starting soon', cls: 'chip--passive' }
+      case 'BETWEEN_PROJECTS': return { text: 'Between projects', cls: 'chip--attention' }
+      default:                 return { text: 'Nothing on record', cls: 'chip--passive' }
+    }
+  }
+
+  const columns: Column<RosterEntry>[] = [
+    {
+      key: 'name',
+      label: 'Name',
+      render: (row) => (
+        <div>
+          <p className="text-[13px] font-medium text-etyme-ink">{row.name}</p>
+          <p className="text-[11px] text-etyme-muted">{row.seat ?? 'No seat named'}</p>
+        </div>
+      ),
+      sortValue: (row) => row.name,
+    },
+    {
+      key: 'standing',
+      label: 'Where they are',
+      render: (row) => {
+        const { text, cls } = standingChip(row)
+        return (
+          <div>
+            <span className={`chip text-[9px] ${cls}`}>{text}</span>
+            <p className="text-[11px] text-etyme-muted mt-1">{row.says}</p>
+          </div>
+        )
+      },
+      sortValue: (row) => row.standing,
+    },
+    {
+      key: 'free',
+      label: 'Days free',
+      render: (row) =>
+        row.freeForDays == null ? (
+          <span className="text-etyme-faint">—</span>
+        ) : (
+          <span className="text-[12px] tabular-nums text-etyme-attention font-medium">{row.freeForDays}</span>
+        ),
+      sortValue: (row) => row.freeForDays ?? -1,
+    },
+    {
+      key: 'skills',
+      label: 'Skills',
+      render: (row) =>
+        row.skills.length === 0 ? (
+          // Reported, never filled in. A firm that cannot describe its own
+          // engineer has a record problem, and hiding it is how the
+          // Training page came to report nought skilled people.
+          <span className="text-[11px] text-etyme-faint">None on record</span>
+        ) : (
+          <div className="flex gap-1 flex-wrap">
+            {row.skills.slice(0, 3).map((s) => (
+              <span key={s} className="chip chip--passive text-[9px]">{s}</span>
+            ))}
+            {row.skills.length > 3 && (
+              <span className="text-[10px] text-etyme-faint">+{row.skills.length - 3}</span>
+            )}
+          </div>
+        ),
+      sortValue: (row) => row.skills.length,
+      hideOnMobile: true,
+    },
+    {
+      key: 'practice',
+      label: 'Practice',
+      render: (row) => (
+        <span className="text-[11px] text-etyme-muted">{row.practice ?? '—'}</span>
+      ),
+      sortValue: (row) => row.practice ?? '',
+      hideOnMobile: true,
+    },
+    {
+      key: 'listing',
+      label: 'Marketable',
+      render: (row) =>
+        row.mayMarket ? (
+          <span className="chip chip--verified text-[9px]">Listed</span>
+        ) : (
+          <button
+            onClick={(e) => { e.stopPropagation(); onNeedsListing(row.marketSays) }}
+            className="text-[11px] text-etyme-muted hover:text-etyme-ink underline decoration-dotted"
+          >
+            No listing
+          </button>
+        ),
+      sortValue: (row) => (row.mayMarket ? 0 : 1),
+    },
+  ]
+
+  return (
+    <>
+      {summary && !loading && (
+        <div className="panel mb-6">
+          <p className="text-body-sm text-etyme-ink">{summary.says}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+            <StatChip label="On your payroll" value={summary.total} />
+            <StatChip label="On a project" value={summary.onProject} tone="verified" />
+            <StatChip label="Free to allocate" value={summary.betweenProjects} tone="attention" />
+            <StatChip label="Nothing on record" value={summary.notOnTheRecord} />
+          </div>
+          {summary.skillsUnknown > 0 && (
+            <p className="text-[12px] text-etyme-muted mt-3">
+              {summary.skillsUnknown} of {summary.total}{' '}
+              {summary.skillsUnknown === 1 ? 'has' : 'have'} no skills on record, so nothing can be
+              matched to a role for {summary.skillsUnknown === 1 ? 'them' : 'them'} yet.
+            </p>
+          )}
+        </div>
+      )}
+
+      <ListSurface<RosterEntry>
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.personId}
+        loading={loading}
+        error={error}
+        searchFilter={(row, q) =>
+          row.name.toLowerCase().includes(q) ||
+          (row.email ?? '').toLowerCase().includes(q) ||
+          (row.seat ?? '').toLowerCase().includes(q) ||
+          (row.practice ?? '').toLowerCase().includes(q) ||
+          row.skills.some((sk) => sk.toLowerCase().includes(q))
+        }
+        searchPlaceholder="Search by name, seat, practice, skill…"
+        emptyMessage="Nobody is on your payroll here yet."
+        emptyDetail="Invite your team under Users & permissions, and you can staff them on client work without asking them for a bench listing — the employment is the consent."
+        exportName="etyme-payroll"
+      />
+    </>
   )
 }
 

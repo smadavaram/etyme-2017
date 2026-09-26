@@ -27,10 +27,37 @@ const API = readFileSync(
   'utf8'
 )
 
-describe('the bench page reaches both scopes the API has always had', () => {
-  it('offers a Your team / Your network toggle', () => {
-    expect(PAGE).toContain("label: 'Your team'")
+describe('the bench page reaches every scope the API has', () => {
+  it('offers three benches, and names the consent behind each', () => {
+    // Renamed 2026-09-26 when the payroll scope landed. "Your team" was
+    // one label doing two jobs: at a staffing vendor it meant the people
+    // who granted a listing, and at an integrator the reader expected the
+    // people it employs — who were on no screen at all. Three labels now,
+    // one per consent.
+    expect(PAGE).toContain("label: 'On your bench'")
+    expect(PAGE).toContain("label: 'On your payroll'")
     expect(PAGE).toContain("label: 'Your network'")
+  })
+
+  it('a firm sees the people it employs even where none of them has agreed to be marketed', () => {
+    expect(PAGE).toContain("'payroll'")
+    expect(PAGE).toContain('RosterSurface')
+    // The roster is its own shape, never a listing with a tier bolted on.
+    expect(PAGE).toContain('body.data?.roster')
+  })
+
+  it('a roster never offers to put forward somebody who has granted no listing', () => {
+    const roster = PAGE.slice(PAGE.indexOf('function RosterSurface'), PAGE.indexOf('// ── Bench burn panel'))
+    // No bulk Share and no bulk Submit on a list of people who consented
+    // to nothing. The refusal is a sentence, never a dead control.
+    expect(roster).not.toContain('bulkActions')
+    expect(roster).toContain('marketSays')
+    expect(roster).toContain('onNeedsListing')
+  })
+
+  it('an integrator opens on its own payroll, because that is where its people are', () => {
+    expect(PAGE).toContain("companyKind === 'GSI'")
+    expect(PAGE).toContain("? 'payroll'")
   })
 
   it('actually asks the API for both scopes, not just company', () => {

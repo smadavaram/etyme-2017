@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { readBench } from '@/lib/bench-filter'
+import { skillGap, type SkillGapReading } from '@/lib/training'
 
 /**
  * Training funnel — Talent section (vendor)
@@ -9,23 +11,35 @@ import Link from 'next/link'
  * BRD §9: "Training pipeline that tracks a candidate from sourcing
  * through onboarding to bench-ready."
  *
- * Shows a skill-gap analysis: what skills are in demand (from open
- * requirements) vs what skills are on bench. This drives training
- * investment decisions.
+ * Shows a skill-gap analysis: what skills clients are asking for against
+ * what this firm can actually field. That drives training investment,
+ * which is the BRD's founding thesis — recruiters as human capital
+ * developers rather than resume forwarders.
  *
- * Phase 1: derives the gap from live /api/requirements and /api/bench data.
- * Phase 2: will add training programs, certifications, and completion tracking.
+ * ── What was wrong with it, and for how long ──────────────────────────
+ *
+ * This page read the bench under `data.listings`, a key `/api/bench` has
+ * never returned. So the supply side of every comparison was nought, on
+ * every firm, for the life of the screen: CloudEPA read "Bench
+ * consultants 0 with skills listed" over five fully skilled people, and
+ * every skill a client asked for read as an unfilled deficit.
+ *
+ * Both halves of the fix live outside this component on purpose. The
+ * bench answer is read through `readBench` — one door, so this page and
+ * `/dashboard/bench` cannot disagree about the same firm's bench again —
+ * and the gap is `skillGap` in `lib/training`, which returns null where
+ * it cannot compare and a sentence saying why.
+ *
+ * ── And it asks for both benches ──────────────────────────────────────
+ *
+ * A firm can field two kinds of person: somebody who granted it a bench
+ * listing, and somebody it employs. An integrator's supply is almost all
+ * the second, so a page that asked only for listings showed a GSI an
+ * empty bench and a full order book. Both are fetched and counted once
+ * per person.
  */
 
 // ── Types ────────────────────────────────────────────
-
-interface SkillGap {
-  skill: string
-  demand: number      // how many open requirements need this skill
-  supply: number      // how many bench consultants have this skill
-  gap: number         // demand - supply (positive = unfilled demand)
-  gapLabel: string
-}
 
 interface FunnelStage {
   label: string
@@ -38,85 +52,84 @@ interface FunnelStage {
 export default function TrainingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [skillGaps, setSkillGaps] = useState<SkillGap[]>([])
+  const [gap, setGap] = useState<SkillGapReading | null>(null)
   const [funnel, setFunnel] = useState<FunnelStage[]>([])
   const [totalReqs, setTotalReqs] = useState(0)
-  const [totalBench, setTotalBench] = useState(0)
+  /** Said on the screen when the bench could not be read at all. */
+  const [benchWhy, setBenchWhy] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [reqsRes, benchRes] = await Promise.all([
+      const [reqsRes, benchRes, payrollRes] = await Promise.all([
         fetch('/api/requirements?status=OPEN&limit=100').then(r => r.ok ? r.json() : { data: { requirements: [] } }),
-        fetch('/api/bench?limit=200').then(r => r.ok ? r.json() : { data: { listings: [] } }),
+        fetch('/api/bench?scope=company').then(r => r.ok ? r.json() : null),
+        // The firm's own people. A GSI's whole supply is here and none of
+        // it is a listing — see `rosterFor` in `app/api/bench`.
+        fetch('/api/bench?scope=payroll').then(r => r.ok ? r.json() : null),
       ])
 
       const reqs = reqsRes.data?.requirements ?? []
-      const bench = benchRes.data?.listings ?? []
       setTotalReqs(reqs.length)
-      setTotalBench(bench.length)
 
-      // Count skill demand from open requirements
-      const demandMap = new Map<string, number>()
-      for (const r of reqs) {
-        for (const skill of (r.skills ?? [])) {
-          const s = skill.toLowerCase()
-          demandMap.set(s, (demandMap.get(s) ?? 0) + 1)
-        }
+      // One door. This page read `data.listings` for its whole life and
+      // the route never sent one.
+      const listings = readBench(benchRes)
+      const roster = Array.isArray(payrollRes?.data?.roster) ? payrollRes.data.roster : null
+
+      if (!listings.ok && roster === null) {
+        // Neither side could be read. No number is shown at all — the
+        // gap function returns nulls and says why.
+        setBenchWhy(listings.why)
+        setGap(skillGap(reqs, null))
+        setFunnel([])
+        return
       }
 
-      // Count skill supply from bench
-      const supplyMap = new Map<string, number>()
-      for (const b of bench) {
-        for (const skill of (b.skills ?? [])) {
-          const s = skill.toLowerCase()
-          supplyMap.set(s, (supplyMap.get(s) ?? 0) + 1)
-        }
+      setBenchWhy(listings.ok ? null : listings.why)
+
+      // One row per person. Somebody on a listing who is also on the
+      // payroll is one person the firm can field, not two.
+      const people = new Map<string, { skills: string[]; availableFrom: string | null }>()
+      for (const r of listings.rows) {
+        people.set(r.personId, { skills: r.skills, availableFrom: r.availableFrom })
       }
-
-      // Compute gaps — union of all skills
-      const allSkills = new Set([...demandMap.keys(), ...supplyMap.keys()])
-      const gaps: SkillGap[] = []
-      for (const skill of allSkills) {
-        const demand = demandMap.get(skill) ?? 0
-        const supply = supplyMap.get(skill) ?? 0
-        const gap = demand - supply
-        let gapLabel = 'Balanced'
-        if (gap > 0) gapLabel = `${gap} needed`
-        else if (gap < 0) gapLabel = `${Math.abs(gap)} surplus`
-
-        gaps.push({
-          skill: skill.charAt(0).toUpperCase() + skill.slice(1), // capitalize
-          demand,
-          supply,
-          gap,
-          gapLabel,
+      for (const r of roster ?? []) {
+        const existing = people.get(r.personId)
+        if (existing) {
+          // Skills come off one profile, so they are the same list. Keep
+          // whichever side actually has them.
+          if (existing.skills.length === 0) existing.skills = Array.isArray(r.skills) ? r.skills : []
+          continue
+        }
+        people.set(r.personId, {
+          skills: Array.isArray(r.skills) ? r.skills : [],
+          // A roster carries a standing rather than a date. Somebody
+          // between projects is free now; anybody else is not claimed to be.
+          availableFrom: r.standing === 'BETWEEN_PROJECTS' ? new Date().toISOString() : null,
         })
       }
 
-      // Sort by gap (biggest unfilled demand first)
-      gaps.sort((a, b) => b.gap - a.gap)
-      setSkillGaps(gaps.slice(0, 15))
+      const supply = [...people.values()]
+      setGap(skillGap(reqs, { people: supply.map((p) => ({ skills: p.skills })) }))
 
-      // Pipeline funnel — based on consultant states in bench
-      const availableNow = bench.filter((b: any) => {
-        if (!b.availableFrom) return false
-        return new Date(b.availableFrom) <= new Date()
-      }).length
-      const availableSoon = bench.filter((b: any) => {
-        if (!b.availableFrom) return false
-        const d = new Date(b.availableFrom)
-        const now = new Date()
-        const twoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+      const now = new Date()
+      const twoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+      const availableNow = supply.filter(p => p.availableFrom != null && new Date(p.availableFrom) <= now).length
+      const availableSoon = supply.filter(p => {
+        if (!p.availableFrom) return false
+        const d = new Date(p.availableFrom)
         return d > now && d <= twoWeeks
       }).length
-      const later = bench.length - availableNow - availableSoon
+      // Not "in pipeline" — the rest are people whose next free day this
+      // firm has not recorded, and calling that a pipeline was a claim.
+      const unknown = supply.length - availableNow - availableSoon
 
       setFunnel([
-        { label: 'Available now', count: availableNow, color: 'bg-etyme-verified' },
-        { label: 'Available ≤14d', count: availableSoon, color: 'bg-etyme-attention' },
-        { label: 'In pipeline', count: later, color: 'bg-etyme-action' },
+        { label: 'Free now', count: availableNow, color: 'bg-etyme-verified' },
+        { label: 'Free within 14 days', count: availableSoon, color: 'bg-etyme-attention' },
+        { label: 'No free date on record', count: unknown, color: 'bg-etyme-action' },
       ])
     } catch (err: any) {
       setError(err.message ?? 'Failed to load training data')
@@ -147,7 +160,11 @@ export default function TrainingPage() {
     )
   }
 
-  const maxDemand = Math.max(...skillGaps.map(g => Math.max(g.demand, g.supply)), 1)
+  const rows = gap?.rows ?? []
+  const maxDemand = Math.max(...rows.map(r => Math.max(r.demand, r.supply)), 1)
+  const top = rows.slice(0, 15)
+  /** A figure nobody can stand behind is a dash and a sentence, never a number. */
+  const figure = (n: number | null) => (n == null ? '—' : String(n))
 
   return (
     <div className="animate-fade-in">
@@ -156,34 +173,54 @@ export default function TrainingPage() {
         <p className="eyebrow">Talent</p>
         <h1>Training</h1>
         <p>
-          Skill gap analysis — what clients need vs what your bench provides.
-          Invest in training where demand exceeds supply.
+          What clients are asking for, against the people you could field — your bench
+          and your own payroll. Invest where more roles want a skill than you have people for.
         </p>
       </div>
+
+      {/* What the gap actually says, before any number on it. */}
+      {gap && (
+        <div className="panel mb-6">
+          <p className="text-body-sm text-etyme-ink">{gap.says}</p>
+          {benchWhy && (
+            <p className="text-[12px] text-etyme-attention mt-1.5">{benchWhy}</p>
+          )}
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="panel">
           <p className="stat-label">Open requirements</p>
           <p className="stat-value text-etyme-ink">{totalReqs}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">with skill demand</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">asking for a skill</p>
         </div>
         <div className="panel">
-          <p className="stat-label">Bench consultants</p>
-          <p className="stat-value text-etyme-ink">{totalBench}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">with skills listed</p>
+          <p className="stat-label">People you could field</p>
+          <p className="stat-value text-etyme-ink">{figure(gap?.people ?? null)}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">
+            {gap?.people == null
+              ? 'not readable'
+              : gap.peopleWithSkills === gap.people
+                ? 'all with skills on record'
+                : `${gap.peopleWithSkills} with skills on record`}
+          </p>
         </div>
         <div className="panel">
           <p className="stat-label">Skills tracked</p>
-          <p className="stat-value text-etyme-action">{skillGaps.length}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">across demand &amp; supply</p>
+          <p className="stat-value text-etyme-action">{figure(gap?.skillsTracked ?? null)}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">
+            {gap?.skillsTracked == null ? 'both sides, or neither' : 'across roles and people'}
+          </p>
         </div>
         <div className="panel">
-          <p className="stat-label">Skills in deficit</p>
-          <p className={`stat-value ${skillGaps.filter(g => g.gap > 0).length > 0 ? 'text-etyme-attention' : 'text-etyme-verified'}`}>
-            {skillGaps.filter(g => g.gap > 0).length}
+          <p className="stat-label">Skills short</p>
+          <p className={`stat-value ${(gap?.inDeficit ?? 0) > 0 ? 'text-etyme-attention' : 'text-etyme-verified'}`}>
+            {figure(gap?.inDeficit ?? null)}
           </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">demand &gt; supply</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">
+            {gap?.inDeficit == null ? 'not comparable' : 'more roles than people'}
+          </p>
         </div>
       </div>
 
@@ -193,14 +230,14 @@ export default function TrainingPage() {
       {/* Bench pipeline funnel */}
       {funnel.some(f => f.count > 0) && (
         <div className="panel mb-6">
-          <p className="stat-label mb-3">Bench pipeline</p>
+          <p className="stat-label mb-3">When they are free</p>
           <div className="flex h-4 rounded-full overflow-hidden bg-etyme-canvas mb-3">
             {funnel.map(stage =>
               stage.count > 0 ? (
                 <div
                   key={stage.label}
                   className={`${stage.color} transition-all`}
-                  style={{ width: `${(stage.count / totalBench) * 100}%` }}
+                  style={{ width: `${(stage.count / Math.max(1, funnel.reduce((n, f) => n + f.count, 0))) * 100}%` }}
                   title={`${stage.label}: ${stage.count}`}
                 />
               ) : null
@@ -222,57 +259,62 @@ export default function TrainingPage() {
       <div className="panel mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="stat-label">Skill gap analysis</p>
+            <p className="stat-label">Skill gap</p>
             <p className="text-[11px] text-etyme-faint mt-0.5">
-              Demand (from open requirements) vs supply (bench consultants)
+              What open roles ask for, against the people you could field — your bench and your own payroll
             </p>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-etyme-attention" />
-              Demand
+              Roles asking
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-etyme-verified" />
-              Supply
+              People who have it
             </span>
           </div>
         </div>
 
-        {skillGaps.length === 0 ? (
+        {top.length === 0 ? (
           <p className="text-sm text-etyme-muted text-center py-6">
-            No skill data yet. Add skills to requirements and bench listings to see the gap analysis.
+            {gap?.says ??
+              'No skill data yet. Put skills on your roles and on your people, and the comparison appears here.'}
           </p>
         ) : (
           <div className="space-y-2.5">
-            {skillGaps.map(gap => (
-              <div key={gap.skill} className="flex items-center gap-3">
-                <span className="text-[12px] font-medium text-etyme-ink w-28 truncate shrink-0">
-                  {gap.skill}
+            {top.map(row => (
+              <div key={row.skill} className="flex items-center gap-3">
+                <span className="text-[12px] font-medium text-etyme-ink w-28 truncate shrink-0" title={row.skill}>
+                  {row.skill}
                 </span>
                 <div className="flex-1 flex items-center gap-1 h-5">
-                  {/* Demand bar */}
                   <div
                     className="h-3 rounded-l bg-etyme-attention/70 transition-all"
-                    style={{ width: `${(gap.demand / maxDemand) * 50}%`, minWidth: gap.demand > 0 ? '4px' : '0' }}
-                    title={`Demand: ${gap.demand}`}
+                    style={{ width: `${(row.demand / maxDemand) * 50}%`, minWidth: row.demand > 0 ? '4px' : '0' }}
+                    title={`${row.demand} open ${row.demand === 1 ? 'role asks' : 'roles ask'} for it`}
                   />
-                  {/* Supply bar */}
                   <div
                     className="h-3 rounded-r bg-etyme-verified/70 transition-all"
-                    style={{ width: `${(gap.supply / maxDemand) * 50}%`, minWidth: gap.supply > 0 ? '4px' : '0' }}
-                    title={`Supply: ${gap.supply}`}
+                    style={{ width: `${(row.supply / maxDemand) * 50}%`, minWidth: row.supply > 0 ? '4px' : '0' }}
+                    title={`${row.supply} ${row.supply === 1 ? 'person has' : 'people have'} it on record`}
                   />
                 </div>
-                <span className={`text-[11px] tabular-nums w-20 text-right shrink-0 ${
-                  gap.gap > 0 ? 'text-etyme-attention font-medium' :
-                  gap.gap < 0 ? 'text-etyme-verified' :
+                <span className={`text-[11px] tabular-nums w-24 text-right shrink-0 ${
+                  row.gap == null ? 'text-etyme-faint' :
+                  row.gap > 0 ? 'text-etyme-attention font-medium' :
+                  row.gap < 0 ? 'text-etyme-verified' :
                   'text-etyme-muted'
                 }`}>
-                  {gap.gapLabel}
+                  {row.says}
                 </span>
               </div>
             ))}
+            {rows.length > top.length && (
+              <p className="text-[11px] text-etyme-faint pt-1 tabular-nums">
+                Showing the 15 with the widest gap, of {rows.length} skills tracked.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -280,7 +322,7 @@ export default function TrainingPage() {
       {/* Actions */}
       <div className="flex gap-3 flex-wrap">
         <Link href="/dashboard/bench" className="btn-secondary">
-          View bench →
+          Your bench and your payroll →
         </Link>
         <Link href="/dashboard/requirements" className="btn-secondary">
           View requirements →
@@ -327,14 +369,28 @@ function Courses() {
 
   const load = useCallback(async () => {
     try {
-      const [c, b] = await Promise.all([
+      const [c, b, payroll] = await Promise.all([
         fetch('/api/training').then((r) => r.json()),
-        fetch('/api/bench?limit=200').then((r) => r.json()).catch(() => null),
+        fetch('/api/bench?scope=company').then((r) => r.json()).catch(() => null),
+        fetch('/api/bench?scope=payroll').then((r) => r.json()).catch(() => null),
       ])
       if (c?.error) throw new Error(c.error.message)
       setCourses(c?.data?.courses ?? [])
-      const listings: any[] = b?.data?.listings ?? b?.data?.consultants ?? []
-      setPeople(listings.map((l) => l.consultant?.person ?? l.person ?? null).filter((x) => x?.id && x?.name))
+
+      // Who can be enrolled on a course.
+      //
+      // This picker read `b?.data?.listings` — a key `/api/bench` has
+      // never sent — so "Enroll somebody from the skill gap" offered an
+      // empty list at every firm in the product's life. The one door
+      // reads it now, and the firm's own payroll is here too: an
+      // integrator develops the people it employs, and none of them is a
+      // bench listing.
+      const listed = readBench(b)
+      const roster: any[] = Array.isArray(payroll?.data?.roster) ? payroll.data.roster : []
+      const byId = new Map<string, { id: string; name: string }>()
+      for (const r of listed.rows) byId.set(r.personId, { id: r.personId, name: r.name })
+      for (const r of roster) if (r?.personId && r?.name) byId.set(r.personId, { id: r.personId, name: r.name })
+      setPeople([...byId.values()].sort((x, y) => x.name.localeCompare(y.name)))
     } catch (e: any) { setErr(e.message) }
   }, [])
   useEffect(() => { load() }, [load])

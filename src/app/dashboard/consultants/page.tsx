@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { compact } from '@/lib/money-display'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { hasPermission } from '@/lib/permissions'
@@ -733,6 +734,20 @@ export default function ConsultantsPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [selected, setSelected] = useState<Consultant | null>(null)
   const [hasCostPermission, setHasCostPermission] = useState(false)
+  /**
+   * How many people this firm employs who are not consultant records.
+   *
+   * `/api/consultants` reads `ConsultantProfile`, which exists only once
+   * somebody has been onboarded as a consultant. An integrator's own W2
+   * has no such row and needs none — the employment is the consent to
+   * staff them — so Teleworld Solutions read "TOTAL 0 consultants" while
+   * holding five live employee seats.
+   *
+   * Their home is the payroll tab on Bench, which is where the roster is
+   * computed. What this page owes them is to stop reporting a confident
+   * nought over five real people, and to say where they are.
+   */
+  const [onPayroll, setOnPayroll] = useState<number | null>(null)
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {
@@ -764,6 +779,14 @@ export default function ConsultantsPage() {
       }))
       setConsultants(mapped)
       setHasCostPermission(hasPermission(body.data?.permissions ?? [], 'consultants.cost'))
+
+      // Asked separately and never merged into the table above: a roster
+      // is not a set of listings and must not be read as one.
+      const payroll = await fetch('/api/bench?scope=payroll')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
+      const total = payroll?.data?.summary?.total
+      setOnPayroll(typeof total === 'number' ? total : null)
     } catch (err: any) {
       setError(err.message)
       setConsultants([])
@@ -909,19 +932,34 @@ export default function ConsultantsPage() {
         <div className="page-head">
           <p className="eyebrow">Sell</p>
           <h1>Consultants</h1>
-          <p>Your talent pool. Imported, retained, and marketing bench — with skills, availability, and work authorization at a glance.</p>
+          <p>Consultant records — imported, retained and marketing bench, with skills, availability and work authorization at a glance. People who granted you a listing.</p>
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
           Add consultant
         </button>
       </div>
 
+      {/* The people this page cannot see, said rather than left as a zero. */}
+      {!loading && onPayroll != null && onPayroll > 0 && (
+        <div className="panel mb-6">
+          <p className="text-body-sm text-etyme-ink">
+            {onPayroll} {onPayroll === 1 ? 'person is' : 'people are'} on your payroll and
+            {onPayroll === 1 ? ' is' : ' are'} not counted here. You need no bench listing to
+            staff your own — the employment is the consent — so they are on your payroll rather
+            than in this list.
+          </p>
+          <Link href="/dashboard/bench" className="btn-secondary mt-3 inline-block">
+            See who is on your payroll →
+          </Link>
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Total</p>
           <p className="stat-value text-etyme-ink">{consultants.length}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">consultants</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">consultant records</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Retained</p>
@@ -946,8 +984,8 @@ export default function ConsultantsPage() {
         error={error}
         searchFilter={searchFilter}
         searchPlaceholder="Search by name, email, skill, location, or work auth…"
-        emptyMessage="No consultants found."
-        emptyDetail="Import your team from CSV or add consultants one at a time."
+        emptyMessage="No consultant records."
+        emptyDetail="A consultant record exists once somebody grants you a bench listing. People you employ need none — they are on your payroll, under Bench."
         onRowClick={(row) => setSelected(row)}
         exportName="consultants"
         defaultPageSize={20}

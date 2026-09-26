@@ -645,3 +645,263 @@ export function checkBioEdit(field: 'headline' | 'intro', value: string): { ok: 
   }
   return { ok: true, reason: 'Saved.' }
 }
+
+// ── The employer's roster ─────────────────────────────────────────────
+
+/**
+ * The people a firm employs, and what each of them is on right now.
+ *
+ * ── Why this is not a bench ──────────────────────────────────────────
+ *
+ * CLAUDE.md, on what a prime needs that a staffing vendor does not:
+ *
+ *   > **Its own bench**: employees between projects, visible to the
+ *   > delivery managers and HR who allocate them. Not a `BenchListing` —
+ *   > that is a consultant consenting to be sold; this is an employer's
+ *   > roster.
+ *
+ * Every talent screen in the product read bench *listings*, and you do
+ * not ask your own W2 for permission to staff them. So a staffing vendor
+ * — whose people mostly are listings — looked right, and an integrator
+ * looked empty: Teleworld Solutions holds five live EMPLOYEE seats and
+ * its own Consultants page read "TOTAL 0 consultants" while its Bench
+ * page was bare under the heading "Your own team".
+ *
+ * ── The two things that make this a roster and not a shop window ──────
+ *
+ * **A roster is not consent to sell anybody.** `listed` says whether this
+ * person granted this firm a bench listing, and nothing else on this
+ * surface may offer to market, share or list somebody where it is false.
+ * A firm may still put its own W2 in front of a client — it is
+ * `INTERNAL`, the employment is the consent and the employee is told, not
+ * asked — but that is the submissions door's business and its own rules,
+ * not a button on a roster. `mayMarket` below is the guard.
+ *
+ * **Standing is read off the work, never off the seat.** The same rule
+ * `ownPage` above is built on, for the same reason: every staffer of
+ * every firm holds an EMPLOYEE context, so a seat cannot tell a
+ * validation engineer from the firm's owner. What tells them apart is a
+ * contract with their name on it. Where there is none, this says so in
+ * those words and refuses to call the person available — which is the
+ * honest answer for four of Teleworld's five, and a far better one than
+ * counting the owner as bench capacity.
+ *
+ * ── What is deliberately not derived ─────────────────────────────────
+ *
+ * Whether somebody is billable. `BuyContractState` already carries
+ * `BENCH_PAID`, `INTERNAL` and `TRAINING` — the exact three states a
+ * roster wants — and nothing in the product has ever written one of them
+ * (nought rows in the seeded world). When something does, this reads them
+ * instead of inferring, and the inference here becomes the fallback.
+ */
+export type RosterStanding =
+  /** A contract with their name on it is live today. */
+  | 'ON_PROJECT'
+  /** A contract is papered and the work has not started. */
+  | 'STARTING_SOON'
+  /** Their last assignment ended and nothing has replaced it. The bench that matters. */
+  | 'BETWEEN_PROJECTS'
+  /** No contract of any kind carries their name here. Not a claim that they are free. */
+  | 'NOT_ON_THE_RECORD'
+
+export interface RosterLine {
+  /** Whether work is happening under it today. */
+  live: boolean
+  /** Live but suspended — still engaged, not free. */
+  paused?: boolean
+  startsOn: Date | null
+  endsOn: Date | null
+  /** Where the work is. The firm's own counterparty on its own contract. */
+  clientName: string | null
+}
+
+export interface RosterPerson {
+  personId: string
+  name: string
+  /** The seat they hold here, in the firm's own words. "Validation Engineer", "Owner". */
+  seat: string | null
+  /** Why the seat was granted — the practice, where the firm wrote one down. */
+  practice: string | null
+  /** Skills on record. Empty is common and is reported, never filled in. */
+  skills: string[]
+  /** Whether they have granted this firm a bench listing. Decides marketing and nothing else. */
+  listed: boolean
+  lines: RosterLine[]
+}
+
+export interface RosterVerdict {
+  standing: RosterStanding
+  /** One sentence about this person, in a delivery manager's words. */
+  says: string
+  /** Days since the last assignment ended. Null unless BETWEEN_PROJECTS. */
+  freeForDays: number | null
+  /** Where they are, where that is known. */
+  on: string | null
+  /**
+   * Whether this person can be allocated to something.
+   *
+   * True only for BETWEEN_PROJECTS. `NOT_ON_THE_RECORD` is not free and
+   * not busy — it is unknown, and counting unknown as free is how the
+   * firm's owner ends up on a capacity number.
+   */
+  free: boolean
+}
+
+const A_DAY = 24 * 60 * 60 * 1000
+
+function onDay(d: Date): string {
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+export function standingOf(p: RosterPerson, now: Date): RosterVerdict {
+  const live = p.lines.filter((l) => l.live)
+  if (live.length > 0) {
+    // The one that runs longest is the one that describes them.
+    const main = live.reduce((a, b) => ((b.endsOn?.getTime() ?? Infinity) > (a.endsOn?.getTime() ?? Infinity) ? b : a))
+    const where = main.clientName ? ` at ${main.clientName}` : ''
+    const until = main.endsOn ? `, until ${onDay(main.endsOn)}` : ''
+    return {
+      standing: 'ON_PROJECT',
+      says: main.paused
+        ? `On a project${where}, paused${until}. Still engaged, so not free to allocate.`
+        : `On a project${where}${until}.`,
+      freeForDays: null,
+      on: main.clientName,
+      free: false,
+    }
+  }
+
+  const starting = p.lines
+    .filter((l) => l.startsOn != null && l.startsOn.getTime() > now.getTime())
+    .sort((a, b) => a.startsOn!.getTime() - b.startsOn!.getTime())[0]
+  if (starting) {
+    const where = starting.clientName ? ` at ${starting.clientName}` : ''
+    return {
+      standing: 'STARTING_SOON',
+      says: `Starts${where} on ${onDay(starting.startsOn!)}. Papered and not begun, so not on the bench.`,
+      freeForDays: null,
+      on: starting.clientName,
+      free: false,
+    }
+  }
+
+  const ended = p.lines
+    .filter((l) => l.endsOn != null && l.endsOn.getTime() <= now.getTime())
+    .sort((a, b) => b.endsOn!.getTime() - a.endsOn!.getTime())[0]
+  if (ended) {
+    const days = Math.max(0, Math.floor((now.getTime() - ended.endsOn!.getTime()) / A_DAY))
+    const where = ended.clientName ? ` ${ended.clientName}` : ''
+    return {
+      standing: 'BETWEEN_PROJECTS',
+      says:
+        `Came off${where} on ${onDay(ended.endsOn!)} — ` +
+        `${days} ${days === 1 ? 'day' : 'days'} between projects.`,
+      freeForDays: days,
+      on: null,
+      free: true,
+    }
+  }
+
+  return {
+    standing: 'NOT_ON_THE_RECORD',
+    says: p.seat
+      ? `No contract here carries their name. Their seat says ${p.seat}, and nothing on the record says whether they are free.`
+      : 'No contract here carries their name, and no seat says what they do. Nothing on the record says whether they are free.',
+    freeForDays: null,
+    on: null,
+    free: false,
+  }
+}
+
+/**
+ * Whether this surface may offer to market somebody.
+ *
+ * Asked per person, per button. A roster row for somebody who granted no
+ * listing carries no Share and no Submit, and the sentence says why
+ * rather than greying a control out with no words — CLAUDE.md: "Never a
+ * disabled button with no words."
+ */
+export function mayMarket(p: { name: string; listed: boolean }): { ok: boolean; says: string } {
+  if (p.listed) {
+    return { ok: true, says: `${p.name} granted you a bench listing, so they can be marketed.` }
+  }
+  return {
+    ok: false,
+    says:
+      `${p.name} has granted no bench listing, so nothing here markets, shares or lists them. ` +
+      'Putting your own employee in front of a client happens from the role itself, where the ' +
+      'employment is the consent and they are told where they went.',
+  }
+}
+
+export interface RosterSummary {
+  total: number
+  onProject: number
+  startingSoon: number
+  betweenProjects: number
+  notOnTheRecord: number
+  /** People with at least one skill on record. */
+  skillsKnown: number
+  skillsUnknown: number
+  /** How many granted a listing. A roster is usually mostly nought here, and that is correct. */
+  marketable: number
+  says: string
+}
+
+export function rosterSummary(rows: RosterPerson[], now: Date): RosterSummary {
+  const verdicts = rows.map((r) => standingOf(r, now))
+  const count = (s: RosterStanding) => verdicts.filter((v) => v.standing === s).length
+
+  const total = rows.length
+  const onProject = count('ON_PROJECT')
+  const startingSoon = count('STARTING_SOON')
+  const betweenProjects = count('BETWEEN_PROJECTS')
+  const notOnTheRecord = count('NOT_ON_THE_RECORD')
+  const skillsKnown = rows.filter((r) => r.skills.some((s) => s.trim())).length
+
+  return {
+    total,
+    onProject,
+    startingSoon,
+    betweenProjects,
+    notOnTheRecord,
+    skillsKnown,
+    skillsUnknown: total - skillsKnown,
+    marketable: rows.filter((r) => r.listed).length,
+    says: rosterSentence({ total, onProject, startingSoon, betweenProjects, notOnTheRecord }),
+  }
+}
+
+function rosterSentence(f: {
+  total: number
+  onProject: number
+  startingSoon: number
+  betweenProjects: number
+  notOnTheRecord: number
+}): string {
+  if (f.total === 0) {
+    return (
+      'Nobody is on your payroll here yet. Invite your team, and you can staff them on client ' +
+      'work without asking them for a bench listing — the employment is the consent.'
+    )
+  }
+
+  const parts: string[] = []
+  if (f.onProject > 0) parts.push(`${f.onProject} on a project`)
+  if (f.startingSoon > 0) parts.push(`${f.startingSoon} starting soon`)
+  if (f.betweenProjects > 0) parts.push(`${f.betweenProjects} between projects`)
+
+  const head = `${f.total} ${f.total === 1 ? 'person' : 'people'} on your payroll`
+  const middle = parts.length > 0 ? `. ${joinNames(parts)}` : ''
+  // The honest part, and the reason this sentence exists. Unknown is not
+  // free: a firm's owner and a delivery engineer who has never been
+  // placed here both land in it, and neither is capacity.
+  const one = f.notOnTheRecord === 1
+  const tail =
+    f.notOnTheRecord > 0
+      ? `. ${f.notOnTheRecord} ${one ? 'has' : 'have'} no contract on the record here, so nothing says whether they are free — ` +
+        `${one ? 'their seat says' : 'their seats say'} what they do`
+      : ''
+
+  return `${head}${middle}${tail}.`
+}

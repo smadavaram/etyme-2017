@@ -328,3 +328,162 @@ export function summarize(considered: number, kept: number, dropped: Dropped[]):
     ? `${kept} of ${considered} worth scoring — ${said.join(', ')}.`
     : `${kept} of ${considered} worth scoring.`
 }
+
+// ── Reading the bench answer — one door ───────────────────────────────
+
+/**
+ * What `/api/bench` said, turned into rows.
+ *
+ * ── The bug this exists to stop coming back ──────────────────────────
+ *
+ * `/api/bench` answers `{ data: { tiers, totals } }`. Two screens read
+ * that answer and each worked out the shape for itself. The bench page
+ * read `data.tiers` and flattened it correctly. The training page read
+ * `data.listings` — a key the route has never returned in its life — and
+ * so received an empty array on every firm that ever existed. It then
+ * reported "Bench consultants 0 with skills listed" over a bench of five
+ * fully skilled people, and computed a skill gap from that zero.
+ *
+ * Nobody noticed because the failure was silent and confident. A missing
+ * key in JavaScript is `undefined`, `undefined ?? []` is `[]`, and `[]`
+ * counts to nought without complaint. So the one page in the product
+ * about developing people reported that no consultant anywhere had a
+ * skill, for every supplier, and looked like an honest empty state.
+ *
+ * Two rules follow, and they are why this is a function rather than four
+ * lines in each page:
+ *
+ * **One door.** Every screen that reads the bench reads it here. Two
+ * screens on one menu must not disagree about the same firm's bench, and
+ * the only way to guarantee that is for them to ask the same code.
+ *
+ * **An answer that cannot be read is not an answer of zero.** Where the
+ * shape is not what this understands, the reading fails and says so, and
+ * the screen shows a sentence rather than a number. A plausible wrong
+ * number is worse than a blank, because nobody audits good news.
+ */
+export interface BenchRow {
+  /** The listing, which is what the row actually is. */
+  listingId: string
+  tier: 'RETAINED' | 'MARKETING'
+  /** INVITED · GRANTED · DECLINED — whether they agreed to be marketed. */
+  consent: string | null
+  consultantId: string
+  personId: string
+  name: string
+  email: string | null
+  headline: string | null
+  skills: string[]
+  location: string | null
+  workAuth: string | null
+  /** Cents per hour. Undefined where the reader may not see cost. */
+  rateMin: number | null
+  rateMax: number | null
+  /** ISO, as the route sent it. Parsed by whoever needs a date. */
+  availableFrom: string | null
+  visibility: string
+  grantedAt: string
+  /** Whose bench this listing lives on — your own firm, or a partner's. */
+  companyId: string
+  companyName: string
+}
+
+export type BenchReading =
+  | { ok: true; rows: BenchRow[]; retained: number; marketing: number; why: null }
+  /**
+   * The shape was not understood. `rows` is empty and must not be read as
+   * a count of anything — `why` is what goes on the screen instead.
+   */
+  | { ok: false; rows: []; retained: null; marketing: null; why: string }
+
+function unreadable(why: string): BenchReading {
+  return { ok: false, rows: [], retained: null, marketing: null, why }
+}
+
+/** Every value we accept for a tier, so a new tier fails loudly rather than vanishing. */
+const TIERS = ['RETAINED', 'MARKETING'] as const
+
+export function readBench(payload: unknown): BenchReading {
+  if (payload == null || typeof payload !== 'object') {
+    return unreadable('The bench did not answer. Nothing is counted here rather than counted as nothing.')
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = (payload as any).data
+  if (data == null || typeof data !== 'object') {
+    return unreadable('The bench answered without a body this page understands, so no count is shown.')
+  }
+
+  const tiers = data.tiers
+  if (tiers == null || typeof tiers !== 'object' || Array.isArray(tiers)) {
+    return unreadable(
+      'The bench answered in a shape this page does not understand — it expects the ' +
+        'listings grouped by tier. No number is shown, because a zero here would be invented.'
+    )
+  }
+
+  const rows: BenchRow[] = []
+  let unreadableRows = 0
+
+  for (const tier of Object.keys(tiers)) {
+    const listings = tiers[tier]
+    if (listings == null) continue
+    if (!Array.isArray(listings)) {
+      return unreadable(`The bench answered with a "${tier}" group that is not a list of people, so nothing is counted.`)
+    }
+    if (!(TIERS as readonly string[]).includes(tier)) {
+      return unreadable(
+        `The bench answered with a tier this page has never heard of ("${tier}"). ` +
+          'It is not counted and it is not ignored — somebody has to decide what it means.'
+      )
+    }
+
+    for (const l of listings) {
+      const person = l?.consultant?.person
+      if (!l?.id || !l?.consultant?.id || !person?.id || typeof person?.name !== 'string') {
+        unreadableRows++
+        continue
+      }
+      rows.push({
+        listingId: String(l.id),
+        tier: tier as 'RETAINED' | 'MARKETING',
+        consent: typeof l.consent === 'string' ? l.consent : null,
+        consultantId: String(l.consultant.id),
+        personId: String(person.id),
+        name: person.name,
+        email: typeof person.email === 'string' ? person.email : null,
+        headline: l.consultant.headline ?? null,
+        skills: Array.isArray(l.consultant.skills) ? l.consultant.skills.filter((s: unknown) => typeof s === 'string') : [],
+        location: l.consultant.location ?? null,
+        workAuth: l.consultant.workAuth ?? null,
+        rateMin: typeof l.rateMin === 'number' ? l.rateMin : null,
+        rateMax: typeof l.rateMax === 'number' ? l.rateMax : null,
+        availableFrom: l.consultant.availableFrom ?? null,
+        visibility: typeof l.consultant.visibility === 'string' ? l.consultant.visibility : 'INTERNAL',
+        grantedAt: typeof l.grantedAt === 'string' ? l.grantedAt : '',
+        companyId: String(l.company?.id ?? ''),
+        companyName: String(l.company?.name ?? ''),
+      })
+    }
+  }
+
+  // A reader that silently drops people is indistinguishable from a
+  // broken one — the rule this whole file is built on. So a row that
+  // cannot be read fails the whole reading rather than shortening it,
+  // because a bench of five showing four is the bug nobody reports.
+  if (unreadableRows > 0) {
+    return unreadable(
+      `The bench answered with ${unreadableRows} ` +
+        `${unreadableRows === 1 ? 'row' : 'rows'} this page could not read, so no count is shown. ` +
+        'A short list read as a whole one is worse than no list.'
+    )
+  }
+
+  return {
+    ok: true,
+    rows,
+    retained: rows.filter((r) => r.tier === 'RETAINED').length,
+    marketing: rows.filter((r) => r.tier === 'MARKETING').length,
+    why: null,
+  }
+}

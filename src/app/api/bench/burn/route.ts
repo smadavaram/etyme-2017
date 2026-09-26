@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, canReadCostAggregates, type FieldContext } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { requirementScope } from '@/lib/resolve-client-company'
 
 /**
  * GET /api/bench/burn
@@ -162,12 +163,26 @@ export async function GET(request: NextRequest) {
   const totalMonthlyBurn = entries.reduce((sum, e) => sum + e.monthlyCost, 0)
   const totalBurnToDate = entries.reduce((sum, e) => sum + e.totalBurnToDate, 0)
 
-  // Find open requirements for matching opportunity count
-  const openRequirements = await prisma.requirement.count({
-    where: {
-      status: 'OPEN',
-    },
-  })
+  // Open roles this firm could actually put somebody forward for.
+  //
+  // ── What this counted before, and why it was two bugs ─────────────
+  //
+  // Every OPEN requirement on the platform, with no company filter at
+  // all. So CloudEPA's bench page read "12 open reqs for matching" over
+  // a firm that could see exactly one — and the twelve were every
+  // client's open roles across every tenant, including roles this firm
+  // was never invited to and cannot open. A count it may not have, and
+  // a number that disagreed with the Requirements page on the same menu.
+  //
+  // `requirementScope` is the composed rule the Requirements list itself
+  // uses: the roles a firm raised, the roles it was invited to, and —
+  // only where a raiser deliberately opened it — roles open to the
+  // network. Read rather than reassembled, so the burn panel and the
+  // list cannot drift apart.
+  const scope = requirementScope(caller, null)
+  const openRequirements = scope
+    ? await prisma.requirement.count({ where: { ...scope, status: 'OPEN' } })
+    : 0
 
   return NextResponse.json({
     data: {

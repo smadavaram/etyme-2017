@@ -142,15 +142,26 @@ export const MATRIX: L1[] = [
       { code: 'L2.1.2', name: 'Supply response', domain: 'SUPPLY', processes: [
         { code: 'L3.1.2.1', name: 'Bench matching', owner: 'Recruiter', status: B,
           tasks: ['Rules filter first', 'One model pass on what survives', 'Factors, basis, confidence, unknowns',
-            'The row says whether a model or arithmetic scored it, read from the agent-run ledger and never inferred from the basis sentence'],
+            'The row says whether a model or arithmetic scored it, read from the agent-run ledger and never inferred from the basis sentence',
+            'FIXED 2026-09-26: the Training page reported \u201cBench consultants 0 with skills listed\u201d over CloudEPA\u2019s five fully skilled people, and computed its skill gap from that nought against a real demand side \u2014 so every skill a client asked for read as an unfilled deficit, on every supplier, for the life of the screen. It read the bench answer under `data.listings`, a key `/api/bench` has never sent; a missing key is undefined, `undefined ?? []` is `[]`, and `[]` counts to nought without complaining. `readBench` in lib/bench-filter is the one door now, and it refuses a shape it does not understand rather than returning a confident zero.',
+            'FIXED 2026-09-26: a gap needs both sides, or neither. `skillGap` in lib/training returns null for skills-tracked and skills-short where the people side cannot be read, and where a firm has people but no skills on record at all \u2014 five engineers nobody can describe is a gap in the record, not in the bench, and the screen says so instead of sending a recruiter to buy training. Skills tracked used to be the union of the two maps, which on a broken supply side was the demand side wearing a name claiming to span both.',
+            'FIXED 2026-09-26: the supply side counts the firm\u2019s own payroll as well as its listings, once per person, so an integrator\u2019s skill gap is computed over the people it actually employs. The course-enrollment picker had the same `data.listings` bug and offered nobody at every firm in the product\u2019s life.',
+            'FIXED 2026-09-26: the bench burn panel read \u201c12 open reqs for matching\u201d at a firm that could see one \u2014 `api/bench/burn` counted every OPEN requirement on the platform with no company filter, which is both a wrong number and a cross-tenant count. It reads `requirementScope`, the same rule the Requirements list itself uses.',
+            'A sweep holds it: no screen that fetches /api/bench may read the answer\u2019s own shape, and the five that still do are named in the test with their owner and what each one leaks \u2014 two of them (compliance, documents) have the identical picker bug and belong to etyme-regulatory'],
           implementedBy: ['src/lib/match-engine.ts', 'src/lib/bench-filter.ts', 'src/lib/candidate-fit.ts',
-            'src/app/api/requirements/[id]/matches/route.ts'],
+            'src/app/api/requirements/[id]/matches/route.ts',
+            'src/lib/training.ts', 'src/app/dashboard/training/page.tsx',
+            'src/app/api/bench/burn/route.ts'],
           testedBy: ['__tests__/invariants/match-engine.test.ts', '__tests__/invariants/bench-filter.test.ts', '__tests__/invariants/candidate-fit.test.ts',
-            '__tests__/invariants/match-decided-by.test.ts'] },
+            '__tests__/invariants/match-decided-by.test.ts',
+            '__tests__/invariants/bench-reading.test.ts', '__tests__/invariants/skill-gap.test.ts',
+            '__tests__/invariants/bench-through-one-door.test.ts',
+            '__integration__/employers-roster.test.ts'] },
         { code: 'L3.1.2.2', name: 'Submission assembly', owner: 'Recruiter', status: B,
           tasks: ['Point-in-time CV', 'Rate and availability', 'Batch with per-item errors',
             'An employer puts its own W2 forward with no listing; the employee is told',
-            'FIXED 2026-09-22: the submit door refused with \u201cRequirement is DRAFT, not OPEN\u201d \u2014 the enum, to a recruiter. Six reasons now say what is wrong and what to do: never published, withdrawn, already filled, settled, paused, and past its closing date. A supplier\u2019s role list says Draft \u00b7 Published \u00b7 Filled \u00b7 Closed in the one vocabulary the client\u2019s list uses.'],
+            'FIXED 2026-09-22: the submit door refused with \u201cRequirement is DRAFT, not OPEN\u201d \u2014 the enum, to a recruiter. Six reasons now say what is wrong and what to do: never published, withdrawn, already filled, settled, paused, and past its closing date. A supplier\u2019s role list says Draft \u00b7 Published \u00b7 Filled \u00b7 Closed in the one vocabulary the client\u2019s list uses.',
+            'The W2 carve-out now has a screen behind it as well as a picker: a firm reads who it employs on Bench \u2192 On your payroll (L3.1.2.4), and putting one of them forward still happens from the role, under this door\u2019s own rules. Nothing on the roster markets, shares or lists somebody who granted no listing \u2014 a roster is not consent to sell anybody.'],
           implementedBy: ['src/lib/resumes.ts', 'src/app/api/submissions/route.ts',
             'src/app/api/submissions/kind.ts', 'src/app/api/submissions/own-people/route.ts'],
           testedBy: ['__tests__/invariants/submission.test.ts', '__tests__/invariants/resumes.test.ts',
@@ -165,7 +176,14 @@ export const MATRIX: L1[] = [
         // direction — a row claiming more than the code does. This is
         // code claiming less than it does, and it stays invisible until
         // somebody looks.
-        { code: 'L3.1.2.4', name: 'A page of the person\u2019s own', owner: 'Consultant', status: B,
+        // One rule with two faces, and the second was missing for months.
+        // "Whether somebody is a worker is read off the work" answers the
+        // person's question — may I have a page — and the employer's —
+        // who do I have, and what is each of them on. Both are here
+        // because they are the same derivation from the same facts, and
+        // splitting them is how the second came to be read off a bench
+        // listing instead.
+        { code: 'L3.1.2.4', name: 'Read off the work: a person\u2019s own page, and their employer\u2019s roster', owner: 'Consultant', status: B,
           tasks: [
             'Whether somebody is a worker is read off the work — a placement, a submission, a contract that pays them — and never off the type of seat they hold',
             'Five verdicts, each a sentence about this person: listed on a bench, employed here, placed or submitted or paid, a page of their own making, or nothing at all',
@@ -173,15 +191,26 @@ export const MATRIX: L1[] = [
             'Nothing about them is public until they turn the page on, and visibility on a bench listing was never consent to be named on the open internet',
             'Who has them, and the listing theirs to take back',
             'An address that moves with them: the old one is never reissued and always redirects',
+            'FIXED 2026-09-26, the employer\u2019s side of the same rule: a firm sees the people it employs, even where none of them has agreed to be marketed. Teleworld Solutions holds five live EMPLOYEE seats and its Consultants page read \u201cTOTAL 0 consultants\u201d while its Bench page was bare, because every talent screen read bench listings \u2014 and you do not ask your own W2 for permission to staff them. CLAUDE.md named this gap in September: \u201cNot a BenchListing \u2014 that is a consultant consenting to be sold; this is an employer\u2019s roster.\u201d',
+            'A roster row\u2019s standing is read off the work and never off the seat, the same rule ownPage is built on: on a project, starting soon, between projects, or nothing on the record. The last is not a claim that somebody is free, which is why the firm\u2019s own owner \u2014 who holds an employee seat like everybody else \u2014 never lands on a capacity figure. Only the between-projects count is offered as people to allocate.',
+            'A roster is not consent to sell anybody: nothing on the surface markets, shares or lists somebody who granted no listing, and the refusal is a sentence naming where it does happen rather than a disabled control with no words',
+            'Skills are reported, never filled in \u2014 a firm that cannot describe its own engineer reads \u201cnone on record\u201d, which is the fact the Training page used to hide behind a zero',
+            'Bench reads three benches with three consents behind them \u2014 On your bench, On your payroll, Your network \u2014 and an integrator, a program office or a one-person corporation opens on its payroll, because that is where its people are',
+            'STILL OWED: `BuyContractState` already carries BENCH_PAID, INTERNAL and TRAINING, the exact three states a roster wants, and nothing in the product has ever written one of them (nought rows in the seeded world). When something does, the roster reads them instead of inferring, and the inference becomes the fallback. Writing them is a contract-lifecycle change and belongs to etyme-money.',
           ],
           implementedBy: [
             'src/lib/consultant-portfolio.ts', 'src/lib/portfolio-data.ts',
             'src/app/dashboard/my-page/page.tsx', 'src/app/dashboard/my-benches/page.tsx',
             'src/app/api/me/portfolio/route.ts',
+            'src/app/api/bench/route.ts', 'src/app/dashboard/bench/page.tsx',
+            'src/app/dashboard/consultants/page.tsx',
           ],
           testedBy: [
             '__tests__/invariants/own-page.test.ts', '__integration__/own-page.test.ts',
             '__tests__/invariants/independent-candidate.test.ts',
+            '__tests__/invariants/employers-roster.test.ts',
+            '__tests__/invariants/bench-scope.test.ts',
+            '__integration__/employers-roster.test.ts',
           ] },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [
@@ -1203,9 +1232,22 @@ export const MATRIX: L1[] = [
       ]},
       { code: 'L2.6.2', name: 'Profitability', domain: 'MONEY', processes: [
         { code: 'L3.6.2.1', name: 'By contract, person, customer, order', owner: 'Controller', status: B,
-          tasks: ['Same postings, four questions', 'Refuses a margin with no cost behind it'],
-          implementedBy: ['src/lib/profitability.ts', 'src/app/dashboard/profitability/page.tsx'],
-          testedBy: ['__tests__/invariants/profitability.test.ts'] },
+          tasks: ['Same postings, four questions', 'Refuses a margin with no cost behind it',
+            'FIXED 2026-09-26: the pair is what a placement is and the roll-up is optional, and the screen was built the other way round. `by=order` grouped strictly by `projectOrderId`, so Teleworld Solutions — two placements, two `ContractLink` rows, nothing tagged — read “Nothing has been posted” while /dashboard/reports computed a margin from the same two placements two clicks away. CLAUDE.md says a company tags a line to a master contract when it wants to, and that `ContractLink` is written by the award; an empty page for every firm that has not tagged anything is 2017’s mandatory container wearing a blank instead of a form. Profitability reads the pair where there is no roll-up, a tagged line reads under its master contract, and a sell line with no buy line behind it is a sentence rather than a silent omission.',
+            'FIXED 2026-09-26: one door, so two screens cannot answer one question twice. Reports read “AVG MARGIN 10.1%” by taking the mean of every active sell rate less the mean of every active buy rate, in the browser. Re-derived by hand from the rows: `payerScope` serves a GSI `OR: [companyId, clientCompanyId]` — correctly, because a prime both sells and buys — so the sell list held its own sub-vendor’s $116/hr line billing it, and that rate went into its own revenue and its own denominator. (14200 + 11600) / 2 = 12900; 1300 / 12900 = 10.077%. The margin on the one live placement is 2600 / 14200 = 18.3%, eight points higher, and Reports understated it by counting its own cost as revenue. Reports now reads /api/profitability?by=book and computes nothing.',
+            'FIXED 2026-09-26: “ACTIVE REVENUE $41,280 monthly (2 contracts)” for a firm billing $22,720 from one placement — the same sub-vendor line, counted as revenue, and one consultant counted at both rungs of one chain. Revenue is read over the firm’s own sell lines server-side, where the question can be answered, and counts a live placement with no buy line behind it, because revenue does not need a cost. The pipeline count and the bench utilization denominator had the same fault and read the same door now.',
+            'FIXED 2026-09-26: a placement with nothing in the hours ledger was chipped THIN — a firm told its placements were marginal on the strength of no data at all. `marginPct == null` fell through to the thin branch; a zero-revenue placement is NOTHING_YET and is not graded.',
+            'FIXED 2026-09-26: cost was paired by person through a `Map<personId, buyContract>` whose last write won, so a consultant with two placements had one priced from the other’s buy line. `ContractLink` is the authority and a sell line with no link has no cost on record, which is what it is.',
+            'FIXED 2026-09-26: clicking from By candidate to By customer put “Something broke” on the page. The row renderer keyed off the local tab state, which changes a render before the rows arrive, and read `r.client.name` off a candidate row. Every branch asks the route’s own `data.by` now.',
+            'A figure says whether it counts work that has finished, and offers the other — everything to date by default, because a live-only default hides the placement that ran ten months and lost money. Every view honors the same scope; cost is a fact about a placement and is never read through it.',
+            'Two figures, two labels, neither printed under the other’s name: the agreed spread is per hour and knows nothing about hours, burden, commission or the bench, and the earned margin is the ledger’s. A blended rate is the rate across the placements and never the rates added — $278/hr under the label “blended bill rate” for two placements at $142 and $136 was on the screen for exactly one commit.',
+            'STILL OWED, and it is not this row’s: `lib/seed-doors` writes an APPROVED timesheet with both signature columns set and no `WorkAssertion` rows, so nine seeded weeks across three firms are invisible to every earned figure. Teleworld’s four are why its Billed reads $0 beside $95,000 of receivable. The real approve route writes both, so this is the seed and not the product — `lib/seed-doors` is PLATFORM’s and the gap is reported, not fixed here.'],
+          implementedBy: ['src/lib/profitability.ts', 'src/lib/money/placement-margin.ts',
+            'src/app/api/profitability/route.ts',
+            'src/app/dashboard/profitability/page.tsx', 'src/app/dashboard/reports/page.tsx'],
+          testedBy: ['__tests__/invariants/profitability.test.ts',
+            '__tests__/invariants/placement-margin.test.ts',
+            '__integration__/one-margin-two-screens.test.ts'] },
         { code: 'L3.6.2.2', name: 'Earned against cash', owner: 'Controller', status: B,
           tasks: ['To collect and still owed to people', 'Side by side, never merged'],
           implementedBy: ['src/lib/order.ts'],
