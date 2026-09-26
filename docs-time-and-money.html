@@ -4,12 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>html{color-scheme:light}body{margin:0;background:#F0EEE6}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>Documentation</title>
+<title>Time and money</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gelasio:wght@400;500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="icon" href="img/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="kit.css">
-<script src="ask.js" defer></script>
 <style>body{background:#F0EEE6}</style>
 
 </head>
@@ -55,82 +54,62 @@
 </div></header>
 <script src="nav.js" defer></script>
 
-<main class="page" style="padding-block:56px 0">
+<main class="page" style="padding-block:64px 0">
   <div class="prose">
-    <p class="eyebrow">Reference</p>
-    <h1 class="ch-h1" style="font-size:clamp(30px,4vw,44px)">Documentation</h1>
-    <p class="ch-lede">The part of the site for the people who will run it. Every flow station by station, the
-      data processing addendum, the security position, and what a machine may do on its own.</p>
+    <p class="chno"><a href="docs.html">Documentation</a> &middot; Training &amp; flows</p>
+    <h1 class="ch-h1">Time and money</h1>
+    <p class="ch-lede">From an hour worked to a bill paid. Seven stations, one record, every step visible.</p>
   </div>
 
-  <div class="docs">
-    <aside class="docnav">
-      <p class="grp">The flows</p>
-      <a href="#gate" aria-current="page">Requisition to start</a>
-      <a href="docs-time-and-money.html">Time and money</a>
-      <a href="#gate">Suppliers and the chain</a>
-      <a href="#gate">Compliance and governance</a>
-      <p class="grp">Reference</p>
-      <a href="#gate">Worker classes</a>
-      <a href="#gate">The autonomy ladder, L0&ndash;L5</a>
-      <a href="#gate">Every automatic action</a>
-      <a href="#gate">Retention, by category</a>
-      <p class="grp">Trust</p>
-      <a href="#gate">Security position</a>
-      <a href="#gate">Data processing addendum</a>
-      <a href="#gate">Sub-processors</a>
-      <a href="#gate">Terms &middot; Privacy</a>
-      <p class="grp">Integration</p>
-      <a href="#gate">Signed links</a>
-      <a href="#gate">Webhooks</a>
-      <a href="#gate">CSV, from every screen</a>
-    </aside>
+  <section class="ch-sec prose">
+    <h2>The complete flow</h2>
+    <p>This is how Etyme follows every contractor through the entire payment cycle. Each of the seven stations below is one step from work to payment, with rules that cannot be overridden and visibility that keeps everybody honest.</p>
+  </section>
 
-    <div>
-      <div class="gate" id="gate">
-        <span class="chip chip--passive">Sign in to read</span>
-        <h3 style="margin-top:14px">The flows are drawn for people running a program</h3>
-        <p>Every station, including the ones not built yet, with who reads what at each. It is the operating
-          model, not marketing, so it sits behind a sign-in &mdash; and any account can read it, including a
-          free one.</p>
-        <div style="margin-top:20px"><form class="ask-form" data-source="DOCS_GATE" novalidate>
-      <div class="ask-body">
-        <div class="field"><label for="docs-email">Your email</label>
-          <input id="docs-email" name="email" type="email" autocomplete="email" placeholder="you@yourfirm.com">
-          <p class="hint">The only thing we need.</p></div>
-        <div class="field"><label for="docs-asked">What do you need?</label>
-          <textarea id="docs-asked" name="asked" rows="3" placeholder="Which flow you are after, or what you are trying to check."></textarea>
-          <p class="hint">A sentence is enough. The problem in your words, not ours.</p></div>
-        <div class="pair"><input name="name" autocomplete="name" placeholder="Your name, if you like" aria-label="Your name, if you like"><input name="companyName" autocomplete="organization" placeholder="Company, if you like" aria-label="Company, if you like"></div>
-        <div class="hp" aria-hidden="true"><label for="docs-cw">Company website</label><input id="docs-cw" name="company_website" tabindex="-1" autocomplete="off"></div>
-        <div class="send"><button class="btn btn-p" type="submit">Send a sign-in link</button><span class="fine">No list. No sequence. One person writes back.</span></div>
-      </div>
-      <div class="ask-says" role="status" hidden></div>
-    </form></div>
-        <p style="margin-top:12px"><a class="btn btn-t btn-sm" href="index.html#ask">Start free instead</a></p>
-        <p style="margin-top:16px;font:400 12px/1.6 var(--mono);color:var(--faint)">No password. A link, and every read of a person&rsquo;s data logged.</p>
-      </div>
+  <section class="ch-sec">
+    <h2>Desktop workflow</h2>
+    <figure class="fig" style="margin-top:32px;max-width:1000px">
+      <img src="img/flow-desk.png" alt="Complete seven-step workflow from contractor work through timesheet filing, manager approval, system flagging, supplier invoicing, three-way matching, and final payment. Shows data flow and rule enforcement at each step.">
+      <figcaption><b>From work to payment in seven steps.</b> The candidate works, files a week, gets paid—or the supplier does. Client sees every signed hour before they pay. Rule violations are flagged at each step; nothing is hidden in a queue.</figcaption>
+    </figure>
+  </section>
 
-      <section class="ch-sec" style="margin-top:44px;max-width:720px">
-        <h2 style="font-size:22px">What is inside, without signing in</h2>
-        <div class="acc" style="margin-top:18px">
-          <div><button aria-expanded="true" onclick="var b=this,o=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!o));b.parentElement.querySelector('.pan').hidden=o">Requisition to start
-            <svg class="cx" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
-            <div class="pan">Fourteen stations from a role being raised to a person on site. Three desks clear the requisition in order; the release goes only to suppliers procurement approved; every supplier submits against the same role at its own rate; the award writes the contract.</div></div>
-          <div><button aria-expanded="false" onclick="var b=this,o=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!o));b.parentElement.querySelector('.pan').hidden=o">Time and money
-            <svg class="cx" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
-            <div class="pan" hidden>The signed week as the receipt; one row of hours travelling the chain; the three-way match; payroll for employees and matched invoices for suppliers; the due date belonging to the document. <a href="docs-time-and-money.html">Read the flow &rarr;</a></div></div>
-          <div><button aria-expanded="false" onclick="var b=this,o=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!o));b.parentElement.querySelector('.pan').hidden=o">The autonomy ladder
-            <svg class="cx" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
-            <div class="pan" hidden>Sixteen jobs run unattended. Each carries a rung, L0 to L5, and a row in the automation log saying what it did and whether it can be undone. Twenty-two of twenty-three automatic actions are a date, a threshold or a count.</div></div>
-        </div>
-        <div class="flow" style="margin-top:22px;gap:8px">
-          <span class="rung"><b>L0</b>Observe</span><span class="rung"><b>L1</b>Recommend</span><span class="rung"><b>L2</b>Draft</span>
-          <span class="rung"><b>L3</b>Execute, low risk</span><span class="rung"><b>L4</b>With approval</span><span class="rung hi"><b>L5</b>Autonomous in policy</span>
-        </div>
-      </section>
+  <section class="ch-sec">
+    <h2>Understanding the flow</h2>
+    <div class="feat" style="margin-top:24px">
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3L2 9l10 6 10-6-10-6z"/><path d="M2 15l10 6 10-6M2 21l10 6 10-6"/></svg><b>Step 1: Work begins</b><p>A contractor starts work on an assignment. Hours are logged, time is tracked. Nothing is delayed waiting for approval yet.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M14.5 9.5c0-1-1.1-1.7-2.5-1.7s-2.5.7-2.5 1.7 1 1.5 2.5 1.8 2.5.8 2.5 1.9-1.1 1.8-2.5 1.8-2.5-.8-2.5-1.8"/></svg><b>Step 2: Timesheet filed</b><p>The contractor files their weekly timesheet showing hours worked. The form captures all the details needed downstream.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></svg><b>Step 3: Manager approval</b><p>The hiring manager signs the week, confirming the hours match what was expected. Both the candidate and manager must approve—never one alone.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><b>Step 4: System flags</b><p>The system checks against rules: Is the rate within bounds? Are hours within reasonable daily limits? Are there contract violations? All flagged immediately.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><b>Step 5: Invoice issued</b><p>The supplier invoices based on the approved, signed week. Not from copies or estimates—from the actual hours the client already approved.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/></svg><b>Step 6: Three-way match</b><p>Finance checks: Does the signed week exist? Does the invoice amount match the order? Is there room left on the order line? All three, or nothing is paid.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 16.17L4.83 12m-4 4l5.17 5.17L20 7.25"/></svg><b>Step 7: Payment</b><p>Money flows two ways: The supplier is paid by the client for the invoice. The contractor is paid by payroll—never seeing the higher rate a firm above them charges.</p></div>
     </div>
-  </div>
+  </section>
+
+  <section class="ch-sec prose">
+    <h2>What cannot be overridden</h2>
+    <p>Every rule in this flow has a reason. None can be bypassed by an approver or a manager:</p>
+    <ul>
+      <li><b>No self-approval.</b> A contractor never approves their own timesheet. A manager never approves their own expenses.</li>
+      <li><b>No unsigned bills.</b> An invoice without a signed, approved week behind it is refused, never parked for later.</li>
+      <li><b>No overages.</b> A bill past the order cap is rejected. The order must be raised or the supplier re-issues. Nobody overrides the line.</li>
+      <li><b>No hidden rates.</b> An employee is paid through payroll. They never see the markup a staffing supplier charges above their rate.</li>
+      <li><b>Every flag is visible.</b> Violations are not hidden in a queue or sent to an inbox. They appear on every view.</li>
+    </ul>
+  </section>
+
+  <section class="ch-sec prose">
+    <h2>More detail</h2>
+    <p>Learn more about each step in the product documentation:</p>
+    <ul>
+      <li><a href="timesheets.html">Timesheets &amp; expenses</a> — How weeks are filed, signed, and flagged</li>
+      <li><a href="invoices.html">Invoices &amp; the three-way match</a> — How bills are matched and paid</li>
+      <li><a href="compliance.html">Compliance &amp; tenure</a> — How rules are enforced</li>
+    </ul>
+    <p style="margin-top:22px">Questions? <a href="index.html#ask">Leave your email and ask a person</a>.</p>
+  </section>
+
 </main>
 
 <footer class="book"><div class="page">
@@ -150,7 +129,7 @@
     </div>
   </div>
   <span style="font-size:13px;color:#999;text-align:right">
-    <span style="display:block">Documentation &middot; Reference</span>
+    <span style="display:block">Documentation &middot; Training &amp; flows</span>
     <span style="display:block">&copy; 2026 Etyme</span>
   </span>
 </div></footer>

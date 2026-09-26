@@ -5,7 +5,8 @@
   var THANKS={
     AUDIT_PAGE:'Got it. Your contractor spend audit will be in your inbox within 24 hours.',
     CONTACT_PAGE:'Got it. Somebody reads this and writes back within 24 hours.',
-    HOME_PAGE:'Got it. Somebody reads this and writes back.'
+    HOME_PAGE:'Got it. Somebody reads this and writes back.',
+    DOCS_GATE:'Got it. Somebody reads this and sends a sign-in link.'
   };
   var AFTER='If you would rather look before you talk to anybody, the example program needs no card and no sign-up.';
   var PREVIEW='This is a preview page with no server behind it, so nothing was sent. On the live site this reaches a person, and somebody writes back.';

@@ -467,7 +467,7 @@
   .feat p{margin-top:6px;font-size:13.5px;line-height:1.5;color:var(--muted)}
   .roles{margin-top:24px;border:1px solid var(--rule);border-radius:var(--r-lg);background:var(--raised);overflow:hidden}
   .roles .tabs{padding:0 12px;overflow-x:auto;scrollbar-width:none}
-  .roles .tabs button{white-space:nowrap}
+  .roles .tabs button{white-space:nowrap;flex:none}
   .roles .pane{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:30px;padding:26px}
   .roles .pane[hidden]{display:none}
   .roles .pane h3{font-family:var(--serif);font-size:24px;line-height:1.2;letter-spacing:-.01em}
