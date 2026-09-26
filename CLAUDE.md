@@ -643,6 +643,55 @@ because two of them are money.
    local time and looks holidays up by UTC key. Under `TZ=Asia/Kolkata` a holiday
    does not shift at all. Correct under UTC and US zones, so Vercel is fine
    today and a second region would not be.
+9. **And a second, separate timezone fault in the same file changes a
+   count.** Found 2026-09-22 by `etyme-money`, measuring rather than
+   reading. `dayInMonth` builds `new Date(year, month, day)` in **local**
+   time and compares it against **UTC**-midnight `start`/`end` bounds, so
+   a boundary date falls outside the range. Under
+   `TZ=America/New_York` a twelve-month monthly billing series generates
+   **eleven dates instead of twelve** — a month of revenue with no
+   invoice date. This is not item 8: no holidays were passed in any of
+   those runs. Vercel is UTC so nothing is wrong today, and moving a
+   range boundary in the generator moves cycle dates for every contract,
+   which is why it is written down here rather than slipped into an
+   unrelated commit. It is `etyme-money`'s next piece of work.
+
+### The monthly packs anchor an approval to a calendar day, not to the hours
+
+Measured 2026-09-22 by `etyme-money` over every start day of the month,
+after regulatory fixed the weekly and semimonthly cases. Recorded because
+one of the three needs the founder and two do not, and because the first
+version of this note — written from a relayed claim rather than from the
+source — was wrong in a way worth remembering.
+
+**The claim that was wrong:** that `IN_DELIVERY` approves a month's
+hours twenty-seven days before they are submitted. It does not.
+`MEANS_MONTH_END = 28` in `lib/cycle-generator`, so `dayOfMonth: 28`
+means month-end, the submission lands on the 30th or 31st, and the
+approval on the 1st is nought to three days *after* the hours. A relayed
+number that nobody re-derived is how the old "the 2017 cycle engine is
+correct" claim survived for months.
+
+**What is genuinely wrong, and it is narrow.** A monthly
+`TIMESHEET_APPROVE` on `dayOfMonth: 1` is anchored to a calendar day of
+its own rather than to the hours it approves, so on **one start day in
+twenty-eight — a contract starting on the 1st** — the first approval
+precedes the first submission and the last month's hours have no
+approval date at all. That is the natural start date for a monthly
+India or UK engagement. The repair is `offsetDays` off month-end, not a
+different `dayOfMonth`; the same argument as the weekly case.
+
+**Monthly invoicing on the 1st is the same shape and needs no
+decision.** UK `INVOICE_GENERATE`, UK `VENDOR_BILL_GENERATE` and
+`IN_DELIVERY`'s `INVOICE_GENERATE` all bill on `dayOfMonth: 1`, which
+leaves one month of work per contract with no invoice date and a first
+date that bills nothing. Unlike the semimonthly case this is a coherent
+intent — "bill on the 1st for last month" — so the repair preserves it:
+`dayOfMonth: 28, offsetDays: 1`, every date staying on the 1st, the
+spurious head gone and the tail appearing. Worse on the vendor side,
+because `VENDOR_BILL_GENERATE` is a PAY kind and shifts **backward** off
+a weekend: six of twenty-four dates fell into the previous month, a
+supplier invoice recorded 30 January for a February that has not begun.
 
 ### Where the 2017 Rails tree went
 
