@@ -454,7 +454,11 @@ export function Header({ title }: HeaderProps) {
 
         {/* Whose workspace this is. The rail says so on a desktop; on a
             phone the rail is off screen, so the header does — mark,
-            company, role, as the prototype's header has them. */}
+            company, role, as the prototype's header has them. The mark
+            and not the wordmark, on purpose: this block names the
+            company, and "Northbend Athletic" beside "etyme" would be two
+            names in 390px. The wordmark on a phone is at the top of the
+            menu sheet, which is the rail itself (sidebar.tsx). */}
         <Link href={home as any} className="md:hidden flex items-center gap-2.5 min-w-0">
           <EtymeMark size={26} />
           <span className="min-w-0">

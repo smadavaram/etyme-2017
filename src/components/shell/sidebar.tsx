@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { EtymeMark } from '@/components/logo'
+import { EtymeLogo } from '@/components/logo'
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
 import { consoleHome } from '@/lib/console-home'
 /**
@@ -976,12 +976,18 @@ export function Sidebar({
           : 'w-[220px] flex-shrink-0 h-screen sticky top-0 flex flex-col bg-etyme-surface border-r border-etyme-rule'
       }
     >
-      {/* Logo */}
+      {/* Logo — the wordmark at 26px, the size every marketing header and
+          the denied page draw it at, so a person who signed in under the
+          real logo lands under the same one. It was the mark alone at 28px
+          (15px wide, three thin strokes) beside "etyme" set in Inter: the
+          kit's "rail header beside the name" read literally, which drew an
+          icon and a word where the logo should be. The founder read it as
+          "the logo is missing". The mark stays in the phone header, beside
+          the company's name, which is the sentence the kit meant. */}
       <div className="px-5 py-5 flex items-center gap-2.5">
-        <EtymeMark size={28} />
-        <span className="font-semibold text-sm tracking-[-0.02em] text-etyme-ink">
-          etyme
-        </span>
+        <Link href={dashboardHref as any} aria-label="Etyme home" className="flex items-center">
+          <EtymeLogo size="md" />
+        </Link>
         {onDismiss && (
           <button
             type="button"

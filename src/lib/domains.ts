@@ -430,6 +430,8 @@ export const DOMAINS: Domain[] = [
       'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-chain', 'lib/demo-volume', 'lib/demo-seed-client',
       'lib/demo-seed-consultant', 'lib/demo-session',
       'app/layout', 'app/login', 'app/start',
+      // The tab icon: the kit's mark, square. Next links both from app/.
+      'app/icon', 'app/apple-icon',
       'app/dashboard/layout', 'app/dashboard/settings', 'app/dashboard/companies',
       'app/dashboard/data', 'app/dashboard/automation', 'app/dashboard/checks',
       'app/api/health', 'app/api/demo', 'app/demo', 'app/api/auth', 'app/api/companies',
