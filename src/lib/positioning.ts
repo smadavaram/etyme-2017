@@ -204,6 +204,16 @@ const TRADEMARKED = [
   'fieldglass', 'beeline', 'coupa', 'workday', 'oracle', 'salesforce',
   'bullhorn', 'greenhouse', 'ceipal', 'icims', 'taleo', 'successfactors',
   'linkedin', 'indeed', 'ziprecruiter',
+  // Added 2026-09-26, when the documentation came across from the static
+  // site with a column headed "What SAP calls it" on every page and an
+  // integrations table marking SAP, Concur and a dozen others as
+  // connected. None of them has agreed to appear, and none of those
+  // connectors exists. "SAP" is three letters and breaks the four-letter
+  // floor below on purpose: it is matched as a whole word, the brief
+  // named it, and an ERP's name in a crosswalk is exactly the comparison
+  // the founder struck on 2026-09-20.
+  'sap', 'concur', 'magnit', 'netsuite', 'quickbooks', 'xero', 'docusign',
+  'okta', 'checkr', 'hireright', 'adobe', 'dynamics 365', 'computer futures',
   // The large staffing and consulting firms.
   'accenture', 'deloitte', 'infosys', 'wipro', 'cognizant', 'capgemini',
   'randstad', 'adecco', 'manpower', 'aerotek', 'robert half',
