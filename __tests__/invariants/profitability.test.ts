@@ -189,6 +189,22 @@ describe('the floor nobody was checking', () => {
     expect(health(profitOf(line({ contractType: 'W2' })), null)).toBe('THIN')
     expect(health(profitOf(line({ billRateCents: 6000 })), null)).toBe('LOSS')
   })
+
+  // Found walking Teleworld Solutions on 2026-09-26. Both its placements
+  // had no hours in the ledger, so revenue was zero and the percentage
+  // was null — and the screen chipped them THIN. A firm was being told
+  // its placements were marginal on the strength of no data at all.
+  it('a placement with nothing billed yet is not graded thin, because a grade needs a number behind it', () => {
+    const nothing = profitOf(line({ billedHours: 0, paidHours: 0 }))
+    expect(nothing.revenueCents).toBe(0)
+    expect(nothing.marginPct).toBeNull()
+    expect(health(nothing, null)).toBe('NOTHING_YET')
+    expect(health(nothing, null)).not.toBe('THIN')
+  })
+
+  it('a placement that has billed and is losing money is still graded a loss, not nothing yet', () => {
+    expect(health(profitOf(line({ billRateCents: 6000 })), null)).toBe('LOSS')
+  })
 })
 
 // ── When there is no cost on record ────────────────────────────

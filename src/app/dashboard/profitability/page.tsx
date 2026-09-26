@@ -16,9 +16,27 @@ import { useEffect, useState, useCallback } from 'react'
  * placement can look fine while the consultant loses money over a year
  * on bench time, and a client can look profitable while owing more than
  * they have ever paid.
+ *
+ * ── Two figures, two labels ──────────────────────────────────────────
+ *
+ * **Agreed** is the rate spread — bill rate less the pay rate of the buy
+ * line that funds the placement, per hour, with no hours in it. It exists
+ * the moment a placement is awarded.
+ *
+ * **Earned** is what the work actually made — the hours the client
+ * approved against the hours the employer accepted, burden, commission,
+ * expenses, and on the candidate view the bench. It exists once hours are
+ * signed.
+ *
+ * They are different numbers and both belong here. Until 2026-09-26 only
+ * the second was on this page and it was grouped by master contract, so a
+ * firm that had not tagged anything read an empty page while Reports
+ * computed a margin from the same placements two clicks away. Neither
+ * figure is ever printed under the other's name.
  */
 
 type By = 'order' | 'contract' | 'candidate' | 'customer'
+type Scope = 'all' | 'live'
 
 const money = (c: number) =>
   `${c < 0 ? '-' : ''}$${Math.abs(Math.round(c / 100)).toLocaleString('en-US')}`
@@ -30,9 +48,22 @@ const TONE: Record<string, string> = {
   // Not a grade. A placement with no buy contract behind it has no
   // margin to grade, and saying "no cost on record" is the point.
   UNKNOWN: 'chip--passive',
+  // Also not a grade. A placement with no hours in the ledger was chipped
+  // THIN until 2026-09-26 — a firm told its placements were marginal on
+  // the strength of no data at all.
+  NOTHING_YET: 'chip--passive',
+  NO_RATE: 'chip--passive',
 }
 
-const CHIP_SAYS: Record<string, string> = { UNKNOWN: 'no cost on record' }
+/** "1 placement" and "2 placements". A count nobody can read is a count nobody checks. */
+const plural = (n: number, one: string, many?: string) =>
+  `${n} ${n === 1 ? one : many ?? `${one}s`}`
+
+const CHIP_SAYS: Record<string, string> = {
+  UNKNOWN: 'no cost on record',
+  NOTHING_YET: 'nothing billed yet',
+  NO_RATE: 'no rate',
+}
 
 // A posted result and a contract-derived one name their margin
 // differently. Reading both here rather than in five places stops a
@@ -42,6 +73,10 @@ const pctOf = (r: any) => (r?.grossPct ?? r?.marginPct ?? null) as number | null
 
 export default function ProfitabilityPage() {
   const [by, setBy] = useState<By>('order')
+  // Everything to date by default. Profitability is a historical question
+  // and a live-only default hides a placement that ran ten months and lost
+  // money, which is the one it is most important to see.
+  const [scope, setScope] = useState<Scope>('all')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +84,7 @@ export default function ProfitabilityPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/profitability?by=${by}`)
+      const res = await fetch(`/api/profitability?by=${by}&scope=${scope}`)
       const body = await readJson(res)
       setData(body.data)
       setError(null)
@@ -59,7 +94,7 @@ export default function ProfitabilityPage() {
     } finally {
       setLoading(false)
     }
-  }, [by])
+  }, [by, scope])
 
   useEffect(() => { load() }, [load])
 
@@ -90,6 +125,26 @@ export default function ProfitabilityPage() {
             By {t}
           </button>
         ))}
+
+        {/* Whether finished work is in the figure is a real decision and
+            never a silent default, so it sits beside the tabs and the
+            sentence under the numbers repeats the answer. */}
+        <div className="ml-auto flex items-center gap-1 pb-1">
+          {(['all', 'live'] as Scope[]).map((sc) => (
+            <button
+              key={sc}
+              onClick={() => setScope(sc)}
+              className="rounded px-2 py-1 text-[11px]"
+              style={
+                scope === sc
+                  ? { background: 'var(--color-ink)', color: 'var(--color-surface)' }
+                  : { color: 'var(--color-muted)' }
+              }
+            >
+              {sc === 'all' ? 'To date' : 'Running now'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
@@ -100,14 +155,78 @@ export default function ProfitabilityPage() {
         </div>
       )}
 
+      {/* ── What the two sides agreed ─────────────────────────────
+          The rate spread, which exists from the day a placement is
+          awarded. On its own line, labeled, above the earned figures —
+          because a firm with nothing in the hours ledger yet still has a
+          margin on its placements, and reading only "nothing billed" is
+          how this page said nothing while Reports said 10.1%. */}
+      {data?.agreed && (
+        <div className="panel">
+          <div className="flex flex-wrap items-baseline gap-8">
+            <div>
+              <p className="stat-label">Agreed spread</p>
+              <p
+                className="stat-value tabular-nums"
+                style={{ color: data.agreed.pct == null ? 'var(--color-muted)' : 'var(--color-ink)' }}
+              >
+                {data.agreed.pct == null ? '—' : `${data.agreed.pct}%`}
+              </p>
+              <p className="mt-0.5 text-[11px] text-etyme-faint">on the rates, not the hours</p>
+            </div>
+            {data.agreed.billRateCents != null && (
+              <div>
+                <p className="stat-label">Bill rate, blended</p>
+                <p className="stat-value tabular-nums">
+                  {money(data.agreed.billRateCents)}
+                  <span className="text-[13px] text-etyme-faint">/hr</span>
+                </p>
+                <p className="mt-0.5 text-[11px] text-etyme-faint">
+                  {data.agreed.placements} placement{data.agreed.placements === 1 ? '' : 's'}
+                  {data.agreed.currency ? ` · ${data.agreed.currency}` : ''}
+                </p>
+              </div>
+            )}
+            {data.agreed.payRateCents != null && (
+              <div>
+                <p className="stat-label">Pay rate, blended</p>
+                <p className="stat-value tabular-nums">
+                  {money(data.agreed.payRateCents)}
+                  <span className="text-[13px] text-etyme-faint">/hr</span>
+                </p>
+              </div>
+            )}
+          </div>
+          <p className="mt-2 text-[13px] text-etyme-ink">{data.agreed.says}</p>
+          {/* Where there is no figure, the reason — never a bare dash. */}
+          {data.agreed.refusedBecause && (
+            <p className="mt-1 text-[13px] text-etyme-attention">{data.agreed.refusedBecause}</p>
+          )}
+          {data.unlinked > 0 && (
+            <p className="mt-1 text-[13px] text-etyme-attention">
+              {data.unlinked} placement{data.unlinked === 1 ? '' : 's'} with no buy line behind
+              {data.unlinked === 1 ? ' it' : ' them'}. Until one is linked there is no margin on
+              {data.unlinked === 1 ? ' it' : ' them'}, not a perfect one.
+            </p>
+          )}
+          {data.multiLinked?.length > 0 && (
+            <p className="mt-1 text-[13px] text-etyme-muted">
+              {data.multiLinked.length} placement{data.multiLinked.length === 1 ? '' : 's'} bought
+              from more than one supplier over its life. The rate shown is the one paying today.
+            </p>
+          )}
+        </div>
+      )}
+
       {data?.overall && (
         <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-4">
           <div>
             <p className="stat-label">Billed</p>
             <p className="stat-value tabular-nums">{money(data.overall.revenueCents)}</p>
+            <p className="mt-0.5 text-[11px] text-etyme-faint">hours signed on both sides</p>
           </div>
           <div>
-            <p className="stat-label">Margin</p>
+            <p className="stat-label">Earned margin</p>
             <p
               className="stat-value tabular-nums"
               style={{ color: marginOf(data.overall) < 0 ? 'var(--color-attention)' : 'var(--color-verified)' }}
@@ -159,6 +278,72 @@ export default function ProfitabilityPage() {
       )}
 
       {data?.note && <p className="text-[13px] text-etyme-muted">{data.note}</p>}
+
+      {/* ── The order, before anything has posted ──────────────────
+          The pair — a sell line and the buy line that funds it — read
+          under its master contract where the company tagged it to one,
+          and as the placement it is where nobody did. Tagging is the
+          company's choice and a firm that has tagged nothing has
+          placements, not an empty page. */}
+      {data?.by === 'order' && data.source === 'PAIRS' &&
+        data.rows.map((r: any) => (
+          <article key={r.masterContractId ?? r.name} className="panel">
+            <div className="flex items-baseline justify-between gap-4">
+              <div>
+                <p className="text-[15px] font-semibold text-etyme-ink">{r.name}</p>
+                {r.code ? (
+                  <p className="font-mono text-[11px] text-etyme-faint">{r.code}</p>
+                ) : (
+                  <p className="text-[11px] text-etyme-faint">
+                    {r.placements.length} placement{r.placements.length === 1 ? '' : 's'} · not on a
+                    master contract, which is nobody's problem
+                  </p>
+                )}
+              </div>
+              <span className="tabular-nums text-[13px] text-etyme-muted">
+                {r.agreed.pct == null ? '—' : `${r.agreed.pct}%`}
+              </span>
+            </div>
+
+            <p className="mt-2 text-[13px] text-etyme-ink">{r.agreed.says}</p>
+            {r.agreed.refusedBecause && (
+              <p className="mt-1 text-[13px] text-etyme-attention">{r.agreed.refusedBecause}</p>
+            )}
+
+            <div className="mt-3 border-t border-etyme-rule pt-3">
+              <p className="stat-label">Who is on it</p>
+              <ul className="mt-1 space-y-2">
+                {r.placements.map((pl: any) => (
+                  <li key={pl.sellContractId} className="text-[13px]">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <span className="text-etyme-ink">
+                        {pl.person.name}
+                        <span className="text-etyme-faint">
+                          {' · '}
+                          {pl.client.name}
+                          {pl.vendorName ? ` · via ${pl.vendorName}` : pl.contractType ? ` · ${pl.contractType}` : ''}
+                          {pl.live ? '' : ' · finished'}
+                        </span>
+                      </span>
+                      <span className="tabular-nums text-etyme-muted">
+                        {pl.agreed.pct == null ? '—' : `${pl.agreed.pct}%`}
+                      </span>
+                    </div>
+                    {/* A placement with no buy line says so on its own row
+                        rather than being dropped from the list. */}
+                    <p
+                      className={`mt-0.5 text-[11px] ${
+                        pl.agreed.refusedBecause ? 'text-etyme-attention' : 'text-etyme-faint'
+                      }`}
+                    >
+                      {pl.agreed.says}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </article>
+        ))}
 
       {/* ── The order ──────────────────────────────────────────────
           Everything that happened on one piece of work, from the
@@ -247,17 +432,27 @@ export default function ProfitabilityPage() {
           </article>
         ))}
 
-      {data?.source !== 'POSTINGS' && data?.rows?.map((r: any, i: number) => (
+      {/* ── One row, three shapes ──────────────────────────────────
+          Every branch below asks `data.by` and never the local `by`.
+          They are not the same thing for one render: clicking a tab sets
+          `by` at once and the rows arrive a moment later, so for that
+          moment the screen holds candidate rows and a flag saying
+          customer. Reading `by` there took `r.client.name` off a row that
+          has no client and threw — a click from By candidate to By
+          customer put "Something broke" on the page every time. The route
+          returns `by` in its own payload precisely so the screen can tell
+          which rows it is holding, and now it asks. */}
+      {data?.source !== 'POSTINGS' && data?.source !== 'PAIRS' && data?.rows?.map((r: any, i: number) => (
         <article key={i} className="panel">
           <div className="flex items-baseline justify-between gap-4">
             <div>
               <p className="text-[15px] font-semibold text-etyme-ink">
-                {by === 'customer' ? r.client.name : r.person.name}
+                {data.by === 'customer' ? r.client?.name : r.person?.name}
               </p>
               <p className="text-[12px] text-etyme-faint">
-                {by === 'contract' && `${r.client.name} · ${r.contractType}`}
-                {by === 'candidate' && `${r.contracts} assignment${r.contracts === 1 ? '' : 's'} · ${r.idleDays} idle days`}
-                {by === 'customer' && `${r.contracts} contracts · ${r.people} people`}
+                {data.by === 'contract' && `${r.client?.name} · ${r.contractType}${r.vendorName ? ` · via ${r.vendorName}` : ''}${r.live ? '' : ' · finished'}`}
+                {data.by === 'candidate' && `${plural(r.contracts, 'assignment')} · ${plural(r.idleDays, 'idle day')}`}
+                {data.by === 'customer' && `${plural(r.contracts, 'placement')} · ${plural(r.people, 'person', 'people')}`}
               </p>
             </div>
             {r.health && (
@@ -268,22 +463,36 @@ export default function ProfitabilityPage() {
           </div>
 
           <p className="mt-2 text-[13px] text-etyme-ink">
-            {by === 'candidate' ? r.netSays : (r.profit?.says ?? r.says)}
+            {data.by === 'candidate' ? r.netSays : (r.profit?.says ?? r.says)}
           </p>
 
           {/* The bench, and the case where every assignment made money and
               the year did not. */}
-          {by === 'candidate' && r.profitableOnPaperOnly && (
+          {data.by === 'candidate' && r.profitableOnPaperOnly && (
             <p className="mt-1 text-[13px] text-etyme-attention">
               Profitable on paper only.
             </p>
           )}
 
-          {by === 'customer' && (
+          {data.by === 'customer' && (
             <p
               className={`mt-1 text-[13px] ${r.marginOnPaperOnly ? 'text-etyme-attention' : 'text-etyme-muted'}`}
             >
               {r.cashSays}
+            </p>
+          )}
+
+          {/* The rate the two sides agreed, on the row. A placement with
+              nothing in the hours ledger has no earned margin and does have
+              a margin, and "Nothing billed yet." on its own reads as though
+              the placement were not happening. */}
+          {data.by === 'contract' && r.agreed && (
+            <p
+              className={`mt-1 text-[13px] ${
+                r.agreed.refusedBecause ? 'text-etyme-attention' : 'text-etyme-muted'
+              }`}
+            >
+              {r.agreed.says}
             </p>
           )}
 
@@ -305,7 +514,17 @@ export default function ProfitabilityPage() {
       {!loading && data && data.rows?.length === 0 && (
         <div className="panel">
           <p className="text-[13px] text-etyme-muted">
-            Nothing to add up yet. This fills in as hours are approved and accepted.
+            {/* "Nothing to add up yet" on a firm with two linked placements
+                and an 18.3% margin was the screen lying about itself. The
+                empty state now only speaks when the book is genuinely
+                empty, and says which question came back empty. */}
+            {data.agreed?.placements > 0
+              ? `Nothing has been billed on ${
+                  data.agreed.placements === 1 ? 'this placement' : 'these placements'
+                } yet, so there is no earned margin to add up. What was agreed is above.`
+              : scope === 'live'
+                ? 'Nothing is running right now. Ask for everything to date to see what has finished.'
+                : 'No placements on the record yet. One appears when a candidate is awarded.'}
           </p>
         </div>
       )}

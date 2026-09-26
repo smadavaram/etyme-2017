@@ -33,6 +33,78 @@ interface SellContract {
   endDate: string | null
   clientCompany: { id: string; name: string } | null
   endClientCompany: { id: string; name: string } | null
+  /**
+   * Whose line this is.
+   *
+   * Not cosmetic. `/api/contracts?side=sell` serves a prime or a GSI
+   * `OR: [companyId, clientCompanyId]` — correctly, because a prime both
+   * sells and buys and wants both sides of its placements on one list. So
+   * the list contains the lines this firm sells **and** the lines its own
+   * suppliers sell to it, and the second kind is its cost.
+   *
+   * This page counted both as revenue until 2026-09-26: Teleworld
+   * Solutions read $41,280 a month over two contracts when one of the two
+   * was Nimbus Talent's $116/hr line billing Teleworld. Its revenue is
+   * $22,720. The one live consultant was counted twice, once at each rung
+   * of one chain.
+   */
+  companyId: string | null
+}
+
+/**
+ * The margin, from the one route that computes it.
+ *
+ * This page used to work a margin out in the browser — the mean of every
+ * active sell rate less the mean of every active buy rate — and printed
+ * 10.1% where the placement's own spread was 18.3%. Two screens each doing
+ * their own arithmetic is two numbers, so the figure comes from
+ * `/api/profitability?by=book` now, which is the same door
+ * `/dashboard/profitability` reads. One door or two numbers; there is no
+ * third option.
+ *
+ * It is also the gate. A margin percentage requires `margin.read`
+ * (`lib/permissions`), the Profitability nav link asks for it and this
+ * page does not — so a Recruiter who is deliberately refused the
+ * Profitability page was reading a margin off this one. The route refuses
+ * them and the panel says why instead of printing a number.
+ */
+interface Book {
+  agreed: {
+    pct: number | null
+    billRateCents: number | null
+    payRateCents: number | null
+    currency: string | null
+    placements: number
+    unpriced: number
+    refusedBecause: string | null
+    says: string
+  }
+  /** What is billed, whether or not anything is priced behind it. */
+  revenue: {
+    /** The rates added. What a run rate multiplies. */
+    totalBillRateCents: number | null
+    /** The blended rate, which is a rate somebody pays. */
+    billRateCents: number | null
+    monthlyCents: number | null
+    placements: number
+    currency: string | null
+    withoutCost: number
+    refusedBecause: string | null
+    says: string
+  }
+  revenueByClient: {
+    clientId: string
+    name: string
+    placements: number
+    monthlyCents: number | null
+    currency: string | null
+    refusedBecause: string | null
+  }[]
+  /** The firm's own placements by state. Never its suppliers' lines. */
+  pipeline: { counts: Record<string, number>; total: number }
+  placements: number
+  unlinked: number
+  scopeSays: string
 }
 
 interface BuyContract {
@@ -95,6 +167,9 @@ interface ReportData {
   benchEntries: BenchEntry[]
   invoices: Invoice[]
   invoiceSummary: InvoiceSummary | null
+  book: Book | null
+  /** Set where the caller may not read a margin at all. */
+  bookRefusal: string | null
 }
 
 // ── Helpers ────────────────────────────────────────────
@@ -128,11 +203,16 @@ export default function ReportsPage() {
     setError(null)
 
     try {
-      const [sellRes, buyRes, benchRes, invoiceRes] = await Promise.all([
+      const [sellRes, buyRes, benchRes, invoiceRes, bookRes] = await Promise.all([
         fetch('/api/contracts?side=sell&limit=100'),
         fetch('/api/contracts?side=buy&limit=100'),
         fetch('/api/bench?scope=company'),
         fetch('/api/invoices?limit=100'),
+        // The margin, from the one door. `scope=live` because the panel
+        // beside it is a monthly run rate, and a run rate over finished
+        // work is not a run rate — the two figures on one row have to be
+        // answering the same question about the same placements.
+        fetch('/api/profitability?by=book&scope=live'),
       ])
 
       // Parse responses — each might fail independently
@@ -140,6 +220,23 @@ export default function ReportsPage() {
       const buyBody = buyRes.ok ? await buyRes.json() : null
       const benchBody = benchRes.ok ? await benchRes.json() : null
       const invoiceBody = invoiceRes.ok ? await invoiceRes.json() : null
+      const bookBody = bookRes.ok ? await bookRes.json() : null
+
+      // A refusal is not a failure. A seat without `margin.read` reads the
+      // sentence rather than a blank, because a blank invites somebody to
+      // conclude the margin is nothing.
+      let bookRefusal: string | null = null
+      if (!bookRes.ok) {
+        try {
+          const b = await bookRes.json()
+          bookRefusal = b?.error?.message ?? null
+        } catch {
+          bookRefusal = null
+        }
+        if (bookRes.status === 403 && !bookRefusal) {
+          bookRefusal = 'You cannot see what placements earn.'
+        }
+      }
 
       // If all four failed, throw
       if (!sellBody && !buyBody && !benchBody && !invoiceBody) {
@@ -155,6 +252,7 @@ export default function ReportsPage() {
         endDate: c.endDate ?? null,
         clientCompany: c.clientCompany ?? null,
         endClientCompany: c.endClientCompany ?? null,
+        companyId: c.companyId ?? null,
       }))
 
       // Buy contracts
@@ -195,7 +293,19 @@ export default function ReportsPage() {
 
       const invoiceSummary: InvoiceSummary | null = invoiceBody?.data?.summary ?? null
 
-      setData({ sellContracts, buyContracts, benchEntries, invoices, invoiceSummary })
+      const book: Book | null = bookBody?.data
+        ? {
+            agreed: bookBody.data.agreed,
+            revenue: bookBody.data.revenue,
+            revenueByClient: bookBody.data.revenueByClient ?? [],
+            pipeline: bookBody.data.pipeline ?? { counts: {}, total: 0 },
+            placements: bookBody.data.placements,
+            unlinked: bookBody.data.unlinked,
+            scopeSays: bookBody.data.scopeSays,
+          }
+        : null
+
+      setData({ sellContracts, buyContracts, benchEntries, invoices, invoiceSummary, book, bookRefusal })
     } catch (err: any) {
       setError(err.message ?? 'Failed to load report data')
     } finally {
@@ -248,27 +358,37 @@ export default function ReportsPage() {
 
   // ── Compute metrics ───────────────────────────────
 
-  const { sellContracts, buyContracts, benchEntries, invoices, invoiceSummary } = data
+  const { sellContracts, buyContracts, benchEntries, invoices, invoiceSummary, book, bookRefusal } = data
 
-  // 1. Active Revenue — sum of billRate for IN_PROGRESS sell contracts, as monthly ($rate x 160)
-  const activeSellContracts = sellContracts.filter(c => c.state === 'IN_PROGRESS')
-  const totalBillRateCentsPerHr = activeSellContracts.reduce((sum, c) => sum + c.billRate, 0)
-  const monthlyRevenue = (totalBillRateCentsPerHr / 100) * 160
+  // 1. Active Revenue — from the same door as the margin.
+  //
+  // This was `sum(billRate for IN_PROGRESS sell contracts) x 160` computed
+  // over `/api/contracts?side=sell`, and that list serves a prime or a GSI
+  // both sides of its placements — correctly, because a prime both sells
+  // and buys. So a supplier's line billing *us* was being counted as our
+  // revenue: Teleworld Solutions read $41,280 a month over "2 contracts"
+  // when one of the two was Nimbus Talent's $116/hr line billing Teleworld
+  // for the same consultant. Its revenue is $22,720 from one placement.
+  //
+  // `/api/profitability?by=book` scopes to `companyId` server-side, which
+  // is the only place the question can be answered, and it counts a live
+  // placement with no buy line behind it — revenue does not need a cost.
+  const revenue = book?.revenue ?? null
+  const monthlyRevenue = revenue?.monthlyCents != null ? revenue.monthlyCents / 100 : null
+  const revenuePlacements = revenue?.placements ?? null
 
-  // 2. Avg Margin — (avgBillRate - avgPayRate) / avgBillRate * 100
-  const activeBuyContracts = buyContracts.filter(c => c.state === 'IN_PROGRESS')
-  const avgBillRate = activeSellContracts.length > 0
-    ? activeSellContracts.reduce((sum, c) => sum + c.billRate, 0) / activeSellContracts.length
-    : 0
-  const avgPayRate = activeBuyContracts.length > 0
-    ? activeBuyContracts.reduce((sum, c) => sum + c.payRate, 0) / activeBuyContracts.length
-    : 0
-  const avgMargin = avgBillRate > 0 && avgPayRate > 0
-    ? ((avgBillRate - avgPayRate) / avgBillRate) * 100
-    : null
+  // 2. Avg Margin — from `/api/profitability?by=book&scope=live`, and from
+  //    nowhere else. Never recomputed here; see the `Book` note above.
+  const avgMargin = book?.agreed.pct ?? null
 
-  // 3. Bench Utilization — IN_PROGRESS contracts / (IN_PROGRESS + bench available)
-  const activeContractCount = activeSellContracts.length
+
+  // 3. Bench Utilization — live placements / (live + bench available)
+  //
+  // Also reads the route's count rather than the contract list, and for
+  // the same reason: a GSI's own placements are the numerator, never its
+  // supplier's line billing it, which would have shown a firm as more
+  // utilized the more it subcontracted.
+  const activeContractCount = revenuePlacements ?? 0
   const benchAvailableCount = benchEntries.length
   const utilizationDenominator = activeContractCount + benchAvailableCount
   const benchUtilization = utilizationDenominator > 0
@@ -291,30 +411,28 @@ export default function ReportsPage() {
 
   // ── Revenue by client ─────────────────────────────
 
-  const revenueByClient: { name: string; monthly: number }[] = []
-  const clientMap = new Map<string, number>()
-
-  for (const c of activeSellContracts) {
-    const clientName = c.endClientCompany?.name ?? c.clientCompany?.name ?? 'Unknown'
-    const existing = clientMap.get(clientName) ?? 0
-    clientMap.set(clientName, existing + (c.billRate / 100) * 160)
-  }
-
-  for (const [name, monthly] of clientMap.entries()) {
-    revenueByClient.push({ name, monthly })
-  }
-  revenueByClient.sort((a, b) => b.monthly - a.monthly)
+  // From the route, over the firm's own sell lines. A client billed in two
+  // currencies carries its reason instead of a bar, because a bar of two
+  // currencies added together is not a length.
+  const revenueByClient = (book?.revenueByClient ?? [])
+    .filter((c) => c.monthlyCents != null)
+    .map((c) => ({ name: c.name, monthly: c.monthlyCents! / 100 }))
+  const clientsWithoutTotal = (book?.revenueByClient ?? []).filter((c) => c.monthlyCents == null)
 
   const maxClientRevenue = revenueByClient.length > 0 ? revenueByClient[0].monthly : 0
 
   // ── Contract pipeline ─────────────────────────────
 
+  // From the route, over the firm's own placements. Counted off
+  // `sellContracts` this read "3 total sell contracts" for a firm with
+  // two, because its supplier's line billing it is on that list — the
+  // same correction as the revenue figure, one panel over.
   const pipelineStates = ['DRAFT', 'IN_PROGRESS', 'ENDED', 'PAUSED'] as const
   const pipelineCounts: Record<string, number> = {}
   for (const state of pipelineStates) {
-    pipelineCounts[state] = sellContracts.filter(c => c.state === state).length
+    pipelineCounts[state] = book?.pipeline.counts[state] ?? 0
   }
-  const totalPipeline = sellContracts.length
+  const totalPipeline = book?.pipeline.total ?? 0
 
   // Four states of a contract: identity, not severity — a paused
   // contract is not "worse" than a draft. The fixed series order, so
@@ -420,10 +538,15 @@ export default function ReportsPage() {
             <div className="panel">
               <p className="stat-label">Active Revenue</p>
               <p className="stat-value text-etyme-ink">
-                {fmtCurrency(monthlyRevenue)}
+                {monthlyRevenue == null ? '—' : fmtCurrency(monthlyRevenue)}
               </p>
               <p className="text-[11px] text-etyme-faint mt-0.5">
-                monthly ({activeSellContracts.length} contract{activeSellContracts.length !== 1 ? 's' : ''})
+                {/* "Placement" rather than "contract": there are two
+                    contracts behind one placement in a chain and counting
+                    them was how one consultant was billed twice. */}
+                {monthlyRevenue == null
+                  ? revenue?.refusedBecause ?? 'nothing running'
+                  : `monthly at 160 hrs (${revenuePlacements} placement${revenuePlacements === 1 ? '' : 's'})`}
               </p>
             </div>
 
@@ -434,8 +557,18 @@ export default function ReportsPage() {
                 {avgMargin != null ? fmtPercent(avgMargin) : '—'}
               </p>
               <p className="text-[11px] text-etyme-faint mt-0.5">
-                {avgMargin != null ? 'sell vs buy rate' : 'needs both sides'}
+                {/* Never a bare dash. Where there is no figure there is a
+                    reason, and a seat that may not read a margin is told
+                    that rather than shown an empty box. */}
+                {avgMargin != null
+                  ? 'agreed rate spread, running now'
+                  : bookRefusal ?? book?.agreed.refusedBecause ?? 'needs both sides of a placement'}
               </p>
+              {book != null && book.unlinked > 0 && (
+                <p className="text-[11px] text-etyme-attention mt-0.5">
+                  {book.unlinked} with no buy line behind {book.unlinked === 1 ? 'it' : 'them'}
+                </p>
+              )}
             </div>
 
             {/* Bench Utilization */}
@@ -501,8 +634,16 @@ export default function ReportsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-etyme-faint">No active sell contracts.</p>
+                <p className="text-sm text-etyme-faint">Nothing running to bill for right now.</p>
               )}
+              {/* A client billed in two currencies carries its reason
+                  rather than a bar, because a bar of two currencies added
+                  together is not a length. */}
+              {clientsWithoutTotal.map((c) => (
+                <p key={c.clientId} className="mt-2 text-[11px] text-etyme-attention">
+                  {c.name} — {c.refusedBecause}
+                </p>
+              ))}
             </div>
 
             {/* Contract pipeline */}
@@ -553,11 +694,22 @@ export default function ReportsPage() {
 
                   <p className="text-[11px] text-etyme-faint mt-3"
                      style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {totalPipeline} total sell contract{totalPipeline !== 1 ? 's' : ''}
+                    {totalPipeline} placement{totalPipeline !== 1 ? 's' : ''} this firm sells
                   </p>
                 </>
+              ) : book == null ? (
+                /* Not a blank. Counting these off the contract list would
+                   include the lines this firm's own suppliers bill it,
+                   which is how it read "3" for a firm with two, and only
+                   the server can tell those apart. So it says what is
+                   missing rather than showing a number that is wrong. */
+                <p className="text-sm text-etyme-faint">
+                  {bookRefusal
+                    ? `${bookRefusal} The placement count sits behind the same permission.`
+                    : 'Could not read this firm\u2019s own placements just now. Retry above.'}
+                </p>
               ) : (
-                <p className="text-sm text-etyme-faint">No sell contracts yet.</p>
+                <p className="text-sm text-etyme-faint">No placements yet.</p>
               )}
             </div>
           </div>

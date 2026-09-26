@@ -185,6 +185,11 @@ export function profitOf(l: Line): Profit {
   }
 }
 
+/** "1 has" and "2 have". A total nobody can read is a total nobody checks. */
+function unknownSays(n: number): string {
+  return n === 1 ? '1 has' : `${n} have`
+}
+
 function lineSays(revenue: number, margin: number, pct: number | null): string {
   if (revenue === 0) {
     return margin < 0
@@ -225,8 +230,8 @@ export function total(lines: Profit[]): Profit {
     marginPct: anyUnknown || revenue === 0 ? null : Math.round((margin / revenue) * 1000) / 10,
     assumptions: [...new Set(lines.flatMap((p) => p.assumptions))],
     says: anyUnknown
-      ? `${money(revenue)} billed across ${lines.length}. ` +
-        `${lines.filter((p) => p.costUnknown).length} have no cost on record, so this total is not a margin.`
+      ? `${money(revenue)} billed across ${lines.length} placement${lines.length === 1 ? '' : 's'}. ` +
+        `${unknownSays(lines.filter((p) => p.costUnknown).length)} no cost on record, so this total is not a margin.`
       : lineSays(revenue, margin, revenue === 0 ? null : (margin / revenue) * 100),
   }
 }
@@ -335,14 +340,32 @@ export function forCustomer(
 
 export type Health = 'LOSS' | 'THIN' | 'FINE'
 
-export type HealthOrUnknown = Health | 'UNKNOWN'
+/**
+ * Two things that are not grades, and were both being graded.
+ *
+ * `UNKNOWN` is a placement with no cost on record — the arithmetic would
+ * say a hundred per cent and mean nothing.
+ *
+ * `NOTHING_YET` is a placement where no hours have been billed at all.
+ * Found on 2026-09-26 walking Teleworld Solutions: both its placements
+ * read `revenueCents: 0`, `marginPct: null` and were chipped **THIN** on
+ * the screen, because `marginPct == null` fell through to the thin
+ * branch. "Thin" is a judgment about a margin, and there was no margin to
+ * judge — a firm was being told its placements were marginal on the
+ * strength of no data at all. A grade with nothing behind it is the
+ * plausible wrong number this file exists to refuse, wearing a color.
+ */
+export type HealthOrUnknown = Health | 'UNKNOWN' | 'NOTHING_YET'
 
 export function health(p: Profit, floorPct: number | null): HealthOrUnknown {
   // Grading a placement whose cost nobody recorded is guessing with a
   // color attached.
   if (p.costUnknown) return 'UNKNOWN'
+  // Nothing billed is not a thin margin. It is no margin, and the two
+  // read very differently to whoever has to act on the row.
+  if (p.revenueCents === 0) return 'NOTHING_YET'
   if (p.marginCents < 0) return 'LOSS'
-  if (p.marginPct == null) return 'THIN'
+  if (p.marginPct == null) return 'NOTHING_YET'
   return p.marginPct < (floorPct ?? THIN_BELOW_PCT) ? 'THIN' : 'FINE'
 }
 
