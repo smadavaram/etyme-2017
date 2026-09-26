@@ -693,6 +693,60 @@ because `VENDOR_BILL_GENERATE` is a PAY kind and shifts **backward** off
 a weekend: six of twenty-four dates fell into the previous month, a
 supplier invoice recorded 30 January for a February that has not begun.
 
+### India: the law constrains the pay date, and the packs have no pay date
+
+The founder asked, on the 25th-of-the-month salary calculation in the
+India pack: *"I don't know — can you research and make sure we meet
+compliance there."* Researched 2026-09-26. Three findings, and the third
+is the one that matters.
+
+**1. Calculating on the 25th is lawful, and the question was the wrong
+one.** Nothing in Indian law says when payroll may be *computed*. The
+**Code on Wages, 2019** — in force nationwide since **21 November 2025**
+by notification S.O. 5322(E), which repealed the Payment of Wages Act
+1936 and three other Acts — constrains when wages must be **paid**: for a
+monthly wage period, before the expiry of the **7th day of the following
+month** in an establishment with fewer than 1,000 employees, and the
+**10th** at 1,000 or more. So the 25th stands, and the reason is written
+down here so the next agent does not "fix" it.
+
+**2. The Code widened who is covered, which is why this is not academic.**
+The 1936 Act protected only employees under a wage ceiling. The Code on
+Wages extends timely payment and authorized deductions to **all**
+employees whatever they earn — so every contractor on an Indian payroll
+is inside it now, including the senior ones who were outside before.
+
+**3. What the packs actually lack is every statutory date after the
+calculation.** `SALARY_CALCULATE` on the 25th is the only date in the
+India pack. There is no pay date, and there are no deposit dates, and
+four separate deadlines with four separate penalties hang off the month:
+
+| What | Due | If late |
+|---|---|---|
+| **Wages paid** | 7th of the following month (10th at 1,000+ employees) | a claim under the Code, with compensation |
+| **TDS on salary** | 7th of the following month; **30 April** for March | 1.5% per month |
+| **EPF** | 15th of the following month | 12% a year plus 1% a month damages — and PF deducted and not deposited is a **criminal** offence |
+| **ESI** | 15th of the following month | interest and damages |
+| **Professional tax** | 15th of the following month, and it varies by state | state penalties |
+
+Each goes to a different authority, so one late run triggers several
+penalties at once. This is the shape CLAUDE.md already argues for
+elsewhere — a settlement date is a cycle kind, not a status (item 5 in
+the honest list) — and it is `etyme-regulatory`'s next piece after the
+monthly dates land, with the arithmetic `etyme-money`'s.
+
+**4. And the 25th has a real hole that is not about the law.** A fixed
+salary can be computed before the month ends because nothing about it
+depends on the month. **Hourly work cannot.** `IN_DELIVERY` carries a
+monthly timesheet, so it is a pack for work paid by the hour, and eight
+of its twelve salary-calculate dates fall before that month's hours are
+filed. For a salaried employee that is normal Indian practice; for a
+contractor paid by the hour it is a number computed from days not yet
+worked. The answer is not a different date for everybody — it is that
+the calculation follows the **pay model**: the 25th where pay is fixed,
+the hours where pay is hourly. Nobody has built that, and it is the
+question to put to the first client who actually runs an Indian payroll.
+
 ### Where the 2017 Rails tree went
 
 Deleted from the working tree on 2026-09-16 after its business rules were
