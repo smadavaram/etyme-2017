@@ -118,8 +118,9 @@ complaint from us.
 - **Third-party providers.** Vercel, the managed Postgres host, Resend,
   SendGrid, Anthropic, Microsoft Entra and Google. Report those to them;
   we will help you route it if you are not sure where it goes.
-- **The demo world.** `/demo` and the seeded companies — Nike, Corning,
-  Terumo BCT, CloudEPA and the rest — contain no real people and no real
+- **The demo world.** `/demo` and the seeded companies — Northbend
+  Athletic, Cavanaugh Glassworks, Talvern Medical, CloudEPA and the rest
+  — contain no real people and no real
   money. Please test there rather than against a real tenant.
 - **Everything already listed in `docs/security-posture.md` §14.** No
   SOC 2, no penetration test, no rate limiting, no security headers, no

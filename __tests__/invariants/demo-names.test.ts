@@ -76,6 +76,11 @@ const SURFACES: Record<string, string> = {
   'src/lib/demo-seed-client.ts': read('src/lib/demo-seed-client.ts'),
   'src/lib/demo-seed-consultant.ts': read('src/lib/demo-seed-consultant.ts'),
   'prisma/seed.ts': read('prisma/seed.ts'),
+  // The public security statement names the demo tenants as proof they
+  // hold no real people. It went on naming Nike, Corning and Terumo BCT
+  // for eleven days after the sheet retired them, because nothing read
+  // it — the same one-click-behind failure the demo page had.
+  'SECURITY.md': read('SECURITY.md'),
   // etyme-market, 2026-09-17. A cross-domain edit in etyme-architect's file,
   // on the precedent of c126c1c4: the three below are the signed-in screens
   // the sheet's last real names lived on — the sign-up picker every new
