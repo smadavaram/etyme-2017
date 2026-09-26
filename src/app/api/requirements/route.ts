@@ -3,6 +3,7 @@ import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { requirementScope, seatedDesk, unitsReachedBy } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
+import { requirementForReader } from './visible'
 
 /**
  * GET /api/requirements
@@ -139,35 +140,12 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: {
-      requirements: requirements.map((r) => ({
-        id: r.id,
-        title: r.title,
-        skills: r.skills,
-        location: r.location,
-        // The buyer's own band. What a supplier may charge lives on their
-        // invitation precisely so no recipient reads another's number, and
-        // this is the buyer's ceiling rather than anybody's offer.
-        billMin: r.companyId === mineId ? r.billMin : undefined,
-        billMax: r.companyId === mineId ? r.billMax : undefined,
-        months: r.months,
-        startDate: r.startDate?.toISOString() ?? null,
-        status: r.status,
-        source: r.source,
-        marginClass: r.marginClass,
-        rateVisible: r.rateVisible,
-        company: r.company,
-        // Naming the end client hands a supplier the relationship and a
-        // competitor the account. Off unless the firm that holds it said
-        // otherwise, exactly like the rate band above.
-        endClientCompany:
-          r.companyId === mineId || r.endClientVisible ? r.endClientCompany : null,
-        counts: {
-          submissions: r._count.submissions,
-          matches: r._count.matches,
-          invitations: r._count.invitations,
-        },
-        createdAt: r.createdAt.toISOString(),
-      })),
+      // One row, one place that decides what each reader is told. The
+      // gates used to be written inline beside each field, so the four
+      // columns a stage is computed from — approvalState, archivedAt,
+      // headcount, cancelReason — were loaded and never sent, and a
+      // supplier could not tell a live role from a withdrawn one.
+      requirements: requirements.map((r) => requirementForReader(r, mineId)),
       pagination: {
         page,
         limit,

@@ -6,7 +6,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { range as showRange } from '@/lib/money-display'
-import { statusWord, statusWordLower } from './words'
+import { statusWord, statusWordLower, stageWordFor, stageReason } from './words'
 
 /**
  * Requirements working surface — open demand.
@@ -32,6 +32,16 @@ interface Requirement {
   billMax: number | null
   months: number | null
   status: string
+  // Where the role has actually got to, which the status alone cannot
+  // say. Archiving is a date and deliberately leaves the status where it
+  // was, so a role the client put away still reads OPEN in this column;
+  // approvalState is '' unless this firm raised the role.
+  approvalState: string
+  archivedAt: string | null
+  headcount: number
+  cancelReason: string | null
+  /** Published, but refusing submissions while the money is re-approved. */
+  paused: boolean
   source: string
   matches: number
   marginClass: string | null
@@ -495,17 +505,30 @@ export default function RequirementsPage() {
       key: 'status',
       label: 'Status',
       render: (row) => {
-        const styles: Record<string, string> = {
-          DRAFT:  'chip--passive',
-          OPEN:   'chip--action',
-          FILLED: 'chip--verified',
-          CLOSED: 'chip--passive',
-        }
         // The word, never the column. A supplier read `OPEN` on the row
-        // its client reads as "Published".
-        return <span className={`chip ${styles[row.status] ?? 'chip--passive'}`}>{statusWord(row.status)}</span>
+        // its client reads as "Published" — and went on reading
+        // "Published" after the client had put the role away, because
+        // archiving is a date and never touches the status. The word
+        // comes off the stage now, so a role that is over says so.
+        const word = stageWordFor(row)
+        const live = word === statusWord('OPEN')
+        const cls =
+          live ? 'chip--action'
+          : word === statusWord('FILLED') ? 'chip--verified'
+          : word === 'Paused' ? 'chip--attention'
+          : 'chip--passive'
+        // Why it was withdrawn, which the chip cannot carry and a
+        // recruiter needs: a budget cut and a lost deal are not the same
+        // news about this client.
+        const why = stageReason(row)
+        return (
+          <div className="flex flex-col gap-0.5 items-start">
+            <span className={`chip ${cls}`}>{word}</span>
+            {why && <span className="text-etyme-faint text-[10px] leading-tight">{why}</span>}
+          </div>
+        )
       },
-      sortValue: (row) => row.status,
+      sortValue: (row) => stageWordFor(row),
     },
     {
       key: 'marginClass',
@@ -569,7 +592,11 @@ export default function RequirementsPage() {
     // Searchable by what is on the screen, so typing "published" finds
     // the published ones. The raw status still matches, because somebody
     // who knows the data will type that.
-    (row.status.toLowerCase().includes(q) || statusWordLower(row.status).includes(q))
+    // ...or by the word actually on the chip, so typing "paused" or
+    // "closed" finds the rows that read that way even when the status
+    // column underneath them still says OPEN.
+    (row.status.toLowerCase().includes(q) || statusWordLower(row.status).includes(q) ||
+     stageWordFor(row).toLowerCase().includes(q))
 
   // ── Status filter options ──────────────────────────
   // One vocabulary — the tab, the chip and the footer say the same word

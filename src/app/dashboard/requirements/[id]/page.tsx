@@ -4,7 +4,8 @@ import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
 import { range } from '@/lib/money-display'
-import { statusWord } from '../words'
+import { statusWord, stageWordFor, stageReason } from '../words'
+import { mayEdit } from '@/lib/requisition-stage'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -37,6 +38,16 @@ interface Requirement {
   months: number | null
   startDate: string | null
   status: string
+  // The other three columns a stage is read from. Archiving is a date
+  // and never overwrites the status, so this page said "Published" about
+  // a role the client had put away; approvalState is '' unless this firm
+  // raised the role.
+  approvalState: string
+  archivedAt: string | null
+  headcount: number
+  cancelReason: string | null
+  /** Published, but refusing submissions while the money is re-approved. */
+  paused: boolean
   source: string
   marginClass: string | null
   rateVisible: boolean
@@ -108,6 +119,34 @@ function statusChip(s: string): { cls: string; text: string } {
     : s === 'DRAFT' ? 'chip--attention'
     : 'chip--passive'
   return { cls, text: statusWord(s) }
+}
+
+/**
+ * The same chip, read off where the role actually got to.
+ *
+ * `statusChip` above reads one column, and one column cannot answer the
+ * question: archiving writes a date and deliberately leaves the status
+ * alone, so a role the client had put away opened here reading
+ * "Published". The word comes from `stageWordFor`, which is what the
+ * list this page was opened from now uses, so the two cannot disagree
+ * about the same row. Color still follows the word.
+ */
+function stageChip(r: Requirement): { cls: string; text: string } {
+  const text = stageWordFor(r)
+  // Waiting on somebody is the one tone the status table has no entry
+  // for, because it is not a status.
+  if (text === 'Paused' || text === 'Awaiting approval' || text === 'Needs changes') {
+    return { cls: 'chip--attention', text }
+  }
+  // Otherwise the color comes off the same table as before, chosen by
+  // the status the word stands for rather than by the column — a role
+  // put away while still open is colored as closed, which is what it is.
+  const base =
+    text === statusWord('OPEN') ? 'OPEN'
+    : text === statusWord('FILLED') ? 'FILLED'
+    : text === statusWord('DRAFT') ? 'DRAFT'
+    : 'CLOSED'
+  return { cls: statusChip(base).cls, text }
 }
 
 function formatRate(min: number | null, max: number | null): string {
@@ -291,7 +330,10 @@ export default function RequirementDetailPage() {
 
   // ── Render ─────────────────────────────────────────
 
-  const { cls: statusCls, text: statusText } = statusChip(requirement.status)
+  const { cls: statusCls, text: statusText } = stageChip(requirement)
+  // Why it was withdrawn, where somebody wrote one. The chip says
+  // "Cancelled"; only the row can say the client's budget was cut.
+  const stoppedBecause = stageReason(requirement)
 
   return (
     <div className="animate-fade-in">
@@ -310,6 +352,14 @@ export default function RequirementDetailPage() {
             <h1 className="headline-serif text-heading text-etyme-ink mb-2">
               {requirement.title}
             </h1>
+            {/* A sentence, not a code. Somebody who opens a role that was
+                withdrawn should read why on the way in, rather than find
+                out by submitting into it. */}
+            {stoppedBecause && (
+              <p className="text-[12px] text-etyme-muted">
+                {requirement.company.name} withdrew this role — {stoppedBecause}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className={`chip ${statusCls}`}>{statusText}</span>
@@ -322,7 +372,13 @@ export default function RequirementDetailPage() {
             >
               The pile
             </Link>
-            {(requirement.status === 'OPEN' || requirement.status === 'DRAFT') && (
+            {/* A button the role will refuse is a button that lies. The
+                status column still says OPEN on a role the client put
+                away, so both of these were offered on a dead role —
+                matching against it and sending it to more suppliers.
+                `mayEdit` is the one place that decides what is past
+                working on. */}
+            {(requirement.status === 'OPEN' || requirement.status === 'DRAFT') && mayEdit(requirement) && (
               <button
                 onClick={() => handleRunMatching(matches.length > 0)}
                 disabled={matching}
@@ -340,7 +396,7 @@ export default function RequirementDetailPage() {
                 )}
               </button>
             )}
-            {requirement.status === 'OPEN' && (
+            {requirement.status === 'OPEN' && mayEdit(requirement) && (
               <button
                 onClick={() => setShowDistribute(true)}
                 className="btn-primary text-[12px] px-4 py-1.5"
