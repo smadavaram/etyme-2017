@@ -1,2 +1,0 @@
-class Branchout < ApplicationRecord
-end

@@ -1,0 +1,271 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Prototype palette — warm, not slate. From Etyme_Demo_AllViews.jsx */
+    --color-canvas:  #F0EEE6;
+    --color-surface: #FBFAF7;
+    --color-raised:  #FFFFFF;
+    --color-ink:     #1F1E1D;
+    --color-muted:   #6B6862;
+    --color-faint:   #9C9891;
+    --color-rule:    #E3DFD5;
+    --color-action:  #2B47E5;
+    --color-attention: #C0622E;
+    --color-verified:  #4F6F52;
+    --color-danger:    #B83A3A;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
+    color: var(--color-ink);
+    background: var(--color-canvas);
+  }
+
+  /* Serif — headlines, hero numbers, decision surfaces */
+  .font-serif {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  }
+
+  /* Tabular figures wherever digits align */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus ring — visible, consistent */
+  :focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Scrollbar for wide content */
+  .overflow-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer components {
+  /* Evidence dot — the visual signature of verified records */
+  .evidence-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-verified);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .evidence-dot--pending {
+    background: var(--color-attention);
+  }
+
+  .evidence-dot--blocked {
+    background: var(--color-danger);
+  }
+
+  /* Panel — surface background, 1px rule border, from CLAUDE.md design system */
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  /* Card — raised variant */
+  .card {
+    background: var(--color-raised);
+    border: 1px solid var(--color-rule);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  /* Chip — small rounded label with tone-coded background */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .chip--action    { background: #EDEFFC; color: var(--color-action);    border: 1px solid #C7CDF5; }
+  .chip--attention { background: #F7EDE6; color: var(--color-attention); border: 1px solid #E5C9B5; }
+  .chip--verified  { background: #EDF1ED; color: var(--color-verified);  border: 1px solid #C9D6CA; }
+  .chip--danger    { background: #FDE8E8; color: var(--color-danger);    border: 1px solid #F0C0C0; }
+  .chip--passive   { background: #F0EEE6; color: var(--color-muted);     border: 1px solid var(--color-rule); }
+
+  /* Eyebrow label — 10px uppercase letter-spaced */
+  .eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+
+  /* Lbl — same concept, sometimes action-colored */
+  .lbl {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* Stat — label + serif number + optional subtitle */
+  .stat-value {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    font-size: 30px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+
+  /* Pill — inline tag. Distinguished from chip: no border, smaller, looser. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  /* Working-surface table — from onboarding prototype .tbl */
+  .data-table th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+    font-weight: 600;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--color-rule);
+    white-space: nowrap;
+  }
+
+  .data-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid #EDE9DF; /* lighter than rule — prototype pattern */
+    vertical-align: middle;
+  }
+
+  .data-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Filter tab — the bold pill-shaped tab from prototypes */
+  .filter-tab {
+    padding: 9px 16px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: 400;
+    transition: all 150ms ease;
+    white-space: nowrap;
+  }
+
+  .filter-tab--active {
+    background: var(--color-ink);
+    color: var(--color-canvas);
+    font-weight: 600;
+  }
+
+  .filter-tab--inactive {
+    background: var(--color-surface);
+    color: var(--color-muted);
+    border: 1px solid var(--color-rule);
+  }
+
+  .filter-tab--inactive:hover {
+    color: var(--color-ink);
+  }
+
+  /* Action button — prototype pattern */
+  .btn-primary {
+    background: var(--color-action);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 18px;
+    border-radius: 5px;
+    transition: opacity 150ms;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  .btn-secondary {
+    font-size: 13px;
+    padding: 9px 16px;
+    border-radius: 5px;
+    border: 1px solid var(--color-rule);
+    background: var(--color-raised);
+    transition: background 150ms;
+  }
+
+  .btn-secondary:hover {
+    background: var(--color-surface);
+  }
+
+  /* Head — page heading from prototype Head component */
+  .page-head {
+    margin-bottom: 24px;
+  }
+
+  .page-head .eyebrow {
+    margin-bottom: 0;
+  }
+
+  .page-head h1 {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    font-size: 31px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-top: 8px;
+    text-wrap: balance;
+  }
+
+  .page-head p {
+    font-size: 14.5px;
+    color: var(--color-muted);
+    margin-top: 10px;
+    max-width: 620px;
+    line-height: 1.7;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Serif headline treatment */
+  .headline-serif {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+}

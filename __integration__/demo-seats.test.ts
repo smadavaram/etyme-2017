@@ -1,0 +1,936 @@
+import { describe, it, expect, beforeAll } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { NextRequest } from 'next/server'
+import { req, json, resetDatabase, prisma, as } from './harness'
+import { DEMO_COOKIE, read as readCookie } from '@/lib/demo-session'
+import {
+  ALL_SEATS, INTEGRATOR_SEATS, CANDIDATE_SEATS, PROGRAM_OFFICE_SEATS,
+  CLIENT_PROGRAMS, CLIENT_DESKS,
+} from '@/app/demo/seats'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { getNavForKind } from '@/components/shell/sidebar'
+import { seedWorld } from '@/lib/seed-world'
+
+import { POST as demo } from '@/app/api/demo/route'
+import { POST as approveRequisition } from '@/app/api/requisitions/[id]/approve/route'
+import { GET as ownPeople } from '@/app/api/submissions/own-people/route'
+import { GET as requirements } from '@/app/api/requirements/route'
+import { GET as myWork } from '@/app/api/me/work/route'
+import { GET as myPapers } from '@/app/api/me/papers/route'
+import { GET as compliance } from '@/app/api/compliance/route'
+
+/**
+ * Every door on the home page lands somewhere different.
+ *
+ * It did not. The demo route resumed whatever workspace the cookie
+ * already held regardless of which seat had just been picked, so the
+ * first click seated a visitor as Oxford Corp and every later click —
+ * MSP, integrator, prime, bench — silently put them back in Oxford
+ * Corp's book. The seat picker was a form whose answer was thrown away,
+ * and the founder's report was exactly right: "it shows Oxford client
+ * for everything".
+ *
+ * A resume is still correct for a refresh. It is wrong for a different
+ * seat, which is an explicit intent and gets a workspace of its own.
+ */
+
+/** POST /api/demo carrying whatever cookie the last response set. */
+async function enter(seat: string, cookie?: string) {
+  const r = req('POST', '/api/demo', { side: seat }, cookie ? { cookie: `${DEMO_COOKIE}=${cookie}` } : {})
+  const res = await demo(r as NextRequest)
+  const body = (await res.json()).data
+  // The set-cookie header carries the signed value; keep it for the next call.
+  const setCookie = res.headers.get('set-cookie') ?? ''
+  const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(setCookie)
+  return { body, cookie: m?.[1] ?? cookie }
+}
+
+/** POST /api/demo asking for a named seat in the seeded world. */
+async function sit(slug: string, desk?: string, cookie?: string) {
+  const r = req(
+    'POST', '/api/demo',
+    { as: slug, ...(desk ? { desk } : {}) },
+    cookie ? { cookie: `${DEMO_COOKIE}=${cookie}` } : {}
+  )
+  const res = await demo(r as NextRequest)
+  const body = (await res.json()).data
+  const setCookie = res.headers.get('set-cookie') ?? ''
+  const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(setCookie)
+  return { body, cookie: m?.[1] ?? cookie }
+}
+
+/** POST /api/demo asking to sit as one of the five people. */
+async function sitAs(handle: string, cookie?: string) {
+  const r = req('POST', '/api/demo', { person: handle }, cookie ? { cookie: `${DEMO_COOKIE}=${cookie}` } : {})
+  const res = await demo(r as NextRequest)
+  const body = (await res.json()).data
+  const setCookie = res.headers.get('set-cookie') ?? ''
+  const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(setCookie)
+  return { body, cookie: m?.[1] ?? cookie }
+}
+
+/** Whose chair the signed cookie actually put the visitor in. */
+async function whoIsSitting(cookie: string) {
+  const email = readCookie(cookie)
+  if (!email) return null
+  const person = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { name: true } })
+  return person?.name ?? null
+}
+
+describe('the seat you pick is the seat you get', () => {
+  beforeAll(async () => {
+    await resetDatabase()
+  }, 120_000)
+
+  it('each of the five kinds of company seat lands in a company of its own kind', async () => {
+    const expected: Record<string, string> = {
+      CLIENT: 'CLIENT', MSP: 'MSP', GSI: 'GSI', PRIME: 'VENDOR', BENCH: 'VENDOR',
+    }
+    for (const seat of Object.keys(expected)) {
+      const { body } = await enter(seat)
+      const company = await prisma.company.findUniqueOrThrow({ where: { id: body.companyId } })
+      expect(company.kind, `${seat} should be a ${expected[seat]}`).toBe(expected[seat])
+      expect(body.resumed).toBe(false)
+    }
+  }, 120_000)
+
+  it('no two seats are the same firm — an MSP is not named like a buyer', async () => {
+    const names = new Set<string>()
+    for (const seat of ['CLIENT', 'MSP', 'GSI', 'PRIME', 'BENCH']) {
+      const { body } = await enter(seat)
+      names.add(body.companyName)
+    }
+    expect(names.size).toBe(5)
+  }, 120_000)
+
+  it('picking the same seat again resumes rather than building a second workspace', async () => {
+    const first = await enter('MSP')
+    const again = await enter('MSP', first.cookie)
+    expect(again.body.resumed).toBe(true)
+    expect(again.body.companyId).toBe(first.body.companyId)
+  }, 60_000)
+
+  it('picking a different seat builds a new workspace instead of resuming the old one', async () => {
+    const asClient = await enter('CLIENT')
+    const asMsp = await enter('MSP', asClient.cookie)
+    expect(asMsp.body.resumed).toBe(false)
+    expect(asMsp.body.companyId).not.toBe(asClient.body.companyId)
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: asMsp.body.companyId } })
+    expect(company.kind).toBe('MSP')
+  }, 60_000)
+
+  it('a prime and a bench vendor are told apart even though both are VENDOR kind', async () => {
+    // Kind alone cannot separate them, so the resume must read the seat
+    // off the slug. Without that, a prime who clicked "bench" would be
+    // resumed into the prime's book.
+    const asPrime = await enter('PRIME')
+    const asBench = await enter('BENCH', asPrime.cookie)
+    expect(asBench.body.resumed).toBe(false)
+    expect(asBench.body.companyId).not.toBe(asPrime.body.companyId)
+  }, 60_000)
+
+  it('an integrator lands on a page its own navigation offers, not on the client program overview', async () => {
+    // GSI nav is Deliver → Supply → Operate and holds no /dashboard/program
+    // at all, so landing there was a dead end with no way back.
+    const { body } = await enter('GSI')
+    const hrefs = getNavForKind('GSI', false).flatMap((s) => s.items.map((i) => i.href))
+    expect(hrefs, `landed on ${body.landing}`).toContain(body.landing)
+  }, 60_000)
+
+  it('a candidate who then picks a company seat is not handed the agency that lists them', async () => {
+    // A candidate's only context is a CONSULTANT one on somebody else's
+    // agency. Resuming them into "their company" would put a candidate in
+    // charge of the firm that markets them.
+    const asCandidate = await enter('CANDIDATE')
+    const asClient = await enter('CLIENT', asCandidate.cookie)
+    expect(asClient.body.resumed).toBe(false)
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: asClient.body.companyId } })
+    expect(company.kind).toBe('CLIENT')
+  }, 60_000)
+})
+
+/**
+ * Every door drawn on /demo, walked.
+ *
+ * The page listed five seats and the seeded world holds seven kinds of
+ * firm worth sitting at. The two integrators were missing, so the one
+ * thing shipped that morning — a prime or a GSI putting its own W2
+ * employee in front of a client, with no bench listing anywhere — could
+ * not be reached by clicking. A demo door that is not on the page is a
+ * feature that does not exist for the person being shown it.
+ *
+ * These read the same list the page draws (`app/demo/seats`), so a seat
+ * added to the page without a company behind it fails here rather than
+ * on the founder's screen.
+ */
+describe('every seat on the demo page opens', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  it('offers eleven company doors and five people — three programs, four suppliers, two program offices, two integrators', () => {
+    // Eleven since 2026-09-21: Brightmoor Staffing, the one firm whose
+    // nine supplier desks are seated, and Kestrel MSP, which sits at a
+    // client's compliance desk rather than its program manager's.
+    expect(ALL_SEATS).toHaveLength(11)
+    expect(CANDIDATE_SEATS).toHaveLength(5)
+  })
+
+  it('names a company the seed actually builds, for every one of the seven', async () => {
+    for (const s of ALL_SEATS) {
+      const company = await prisma.company.findUnique({ where: { slug: s.slug } })
+      expect(company, `${s.name} (${s.slug}) is on the page and not in the world`).toBeTruthy()
+    }
+  })
+
+  it('says what is waiting behind each door, as a sentence rather than a label', () => {
+    for (const s of ALL_SEATS) {
+      // A finished sentence, not a tag: the door has to tell somebody
+      // who has never seen Etyme what they will find on the other side.
+      expect(s.about.trim().endsWith('.'), `${s.name}: “${s.about}”`).toBe(true)
+      expect(s.about.split(/\s+/).length, `${s.name} says too little`).toBeGreaterThan(5)
+      expect(s.where.trim().length, `${s.name} says nowhere`).toBeGreaterThan(2)
+    }
+  })
+
+  it('seats the visitor at Teleworld Solutions, an integrator, and nowhere else', async () => {
+    const { body } = await sit('world-teleworld')
+    expect(body.companyName).toBe('Teleworld Solutions')
+    expect(body.kind).toBe('GSI')
+  })
+
+  it('puts them at the delivery manager’s desk, because that is the desk that submits', async () => {
+    const { body, cookie } = await sit('world-teleworld')
+    expect(body.companyName).toBe('Teleworld Solutions')
+    const who = await whoIsSitting(cookie!)
+    expect(who).toBe('Sunil Raghavan')
+  })
+
+  it('lands that desk on a page the integrator’s own navigation offers', async () => {
+    const { body } = await sit('world-teleworld')
+    const hrefs = getNavForKind('GSI', false).flatMap((s) => s.items.map((i) => i.href))
+    expect(hrefs, `landed on ${body.landing}`).toContain(body.landing)
+    expect(body.landing).toBe('/dashboard/submissions')
+  })
+
+  it('shows that desk Karthik, Amara, Felix and Deepa under “On our payroll”', async () => {
+    as('world-teleworld@demo.etyme.local')
+    const r = await json(await ownPeople(req('GET', '/api/submissions/own-people')))
+    const names = r.body.data.people.map((p: any) => p.name)
+    for (const name of ['Karthik Menon', 'Amara Nwosu', 'Felix Brenner', 'Deepa Varma']) {
+      expect(names, JSON.stringify(names)).toContain(name)
+    }
+  })
+
+  it('has an open client role on the same form for one of them to be submitted to', async () => {
+    as('world-teleworld@demo.etyme.local')
+    const r = await json(await requirements(req('GET', '/api/requirements?status=OPEN&limit=50')))
+    const titles = (r.body.data?.requirements ?? []).map((x: any) => x.title)
+    expect(titles, JSON.stringify(titles)).toContain('DO-178C verification engineer')
+  })
+
+  it('seats Sundara Systems at its own delivery manager, never at Teleworld’s', async () => {
+    const { body, cookie } = await sit('world-sundara')
+    expect(body.companyName).toBe('Sundara Systems')
+    expect(body.kind).toBe('GSI')
+    expect(await whoIsSitting(cookie!)).toBe('Lakshmi Iyer')
+  })
+
+  it('offers both integrators, and only firms that employ people they can submit', async () => {
+    for (const s of INTEGRATOR_SEATS) {
+      const company = await prisma.company.findUniqueOrThrow({ where: { slug: s.slug } })
+      expect(company.kind).toBe('GSI')
+      const payroll = await prisma.context.count({
+        where: { companyId: company.id, type: 'EMPLOYEE', revokedAt: null, suspendedAt: null },
+      })
+      // Four on the payroll, and the delivery manager who submits them.
+      expect(payroll, `${s.name} has nobody to submit`).toBeGreaterThanOrEqual(5)
+    }
+  })
+})
+
+/**
+ * The five people, and the two firms whose door led to an empty book.
+ *
+ * ── Why a person is a door at all ────────────────────────────────────
+ *
+ * Every seat on /demo was a company, and the consultant is the one party
+ * to a placement who is not one. The only candidate door minted a
+ * private throwaway workspace holding a random Java developer — one
+ * profile, invisible to everybody else, unconnected to the placement the
+ * client and supplier doors were both looking at. So the third side of
+ * this market could not be shown against the same contract.
+ *
+ * And two doors were worse than missing. Aptiva Workforce and Kestrel
+ * MSP held no contracts at all, because the seed was written to a model
+ * where an MSP routes work and takes no rate. An MSP of the ordinary
+ * kind sells to its client and buys below it, including from itself when
+ * the person on the seat is its own employee.
+ */
+describe('the five people the demo can be walked as', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  /** Whatever /api/me/work says about whoever the cookie names. */
+  async function ownWork(email: string) {
+    as(email)
+    const r = await json(await myWork(req('GET', '/api/me/work')))
+    return r.body.data
+  }
+  async function ownPapers(email: string) {
+    as(email)
+    const r = await json(await myPapers(req('GET', '/api/me/papers')))
+    return r.body.data.papers as {
+      name: string
+      partOf: string | null
+      askedBy: string
+      why: string | null
+      dueOn: string | null
+      word: string
+      todo: string | null
+      link: string | null
+    }[]
+  }
+
+  it('offers five people, in five industries, and not one of them a company', () => {
+    expect(CANDIDATE_SEATS).toHaveLength(5)
+    const trades = new Set(CANDIDATE_SEATS.map((c) => c.where.split('·')[0].trim()))
+    expect(trades.size, [...trades].join(', ')).toBe(5)
+    for (const c of CANDIDATE_SEATS) {
+      expect(c.email, c.name).toMatch(/@seed\.etyme\.invalid$/)
+      expect(c.about.trim().endsWith('.'), `${c.name}: ${c.about}`).toBe(true)
+      expect(c.about.split(/\s+/).length, `${c.name} says too little`).toBeGreaterThan(20)
+    }
+  })
+
+  it('seats the visitor as the person themselves, never at the firm that employs or lists them', async () => {
+    for (const c of CANDIDATE_SEATS) {
+      const { body, cookie } = await sitAs(c.slug)
+      expect(body.personName, c.slug).toBe(c.name)
+      expect(await whoIsSitting(cookie!)).toBe(c.name)
+      // The door says who holds them without handing them that company.
+      expect(body.companyId, `${c.name} was handed a company`).toBeUndefined()
+    }
+  }, 60_000)
+
+  it('lands every candidate on their own work, and never on a company dashboard', async () => {
+    for (const c of CANDIDATE_SEATS) {
+      const { body } = await sitAs(c.slug)
+      expect(body.landing, c.name).toBe('/dashboard/my-work')
+      expect(body.landing).not.toBe('/dashboard')
+      expect(body.landing).not.toBe('/dashboard/program')
+    }
+  }, 60_000)
+
+  /**
+   * The one door with nothing behind it, and why that is not a bug.
+   *
+   * Four of the five open on work. The fifth is party 8B — a person
+   * with a profile, a page of her own and nothing else — and the whole
+   * point of her door is that the page is empty. So the sentence that
+   * used to cover all four is split: one for the four who have work,
+   * one for the one who does not, because a single assertion over five
+   * rows can only be satisfied by giving her work she must not have.
+   */
+  const WITH_WORK = CANDIDATE_SEATS.filter((c) => c.slug !== 'marisol-quintero')
+  const INDEPENDENT = CANDIDATE_SEATS.find((c) => c.slug === 'marisol-quintero')!
+
+  it('the four who have work open their page on something real — a placement, a week, or a paper asked of them', async () => {
+    expect(WITH_WORK).toHaveLength(4)
+    for (const c of WITH_WORK) {
+      const work = await ownWork(c.email)
+      const papers = await ownPapers(c.email)
+      const found = work.placements.length + work.timesheets.length + papers.length
+      expect(
+        found,
+        `${c.name} opens on an empty page: ${work.placements.length} placements, ` +
+          `${work.timesheets.length} weeks, ${papers.length} papers`
+      ).toBeGreaterThan(0)
+    }
+  }, 60_000)
+
+  it('the one who has no work yet opens their page on a sentence that says so, and on no button Etyme cannot honor', async () => {
+    const work = await ownWork(INDEPENDENT.email)
+    const papers = await ownPapers(INDEPENDENT.email)
+
+    // Nothing, and every kind of nothing named, because the value of
+    // this door is exactly what is absent.
+    expect(work.placements, 'she has a placement, so she is no longer party 8B').toHaveLength(0)
+    expect(work.timesheets, 'she has a week of hours, so somebody placed her').toHaveLength(0)
+    expect(papers, 'somebody has asked her for a document, and nobody has any standing to').toHaveLength(0)
+
+    // And the page says so rather than drawing four zeros. The standing
+    // is what the screen reads to decide that (`ownPage` in
+    // lib/consultant-portfolio, asked once in /api/me/work so the page,
+    // the shell and her own page cannot disagree), and for her it is
+    // OWN_MAKING: she made the page, nobody has put her forward.
+    expect(
+      work.standing?.because,
+      `she is told she is ${work.standing?.because ?? 'nothing at all'}, which is a sentence ` +
+        'about somebody else'
+    ).toBe('OWN_MAKING')
+    expect(work.standing.says.trim().endsWith('.')).toBe(true)
+    expect(work.standing.says.split(/\s+/).length, 'a label rather than a sentence').toBeGreaterThan(20)
+    expect(
+      work.standing.says,
+      'the sentence has to say what is missing, because what is missing is the whole state'
+    ).toMatch(/nobody has put you forward|no firm markets you/i)
+
+    // Etyme places nobody, so nothing here may offer to. The screen
+    // behind the door is read for the same promise: a button with
+    // nothing behind it is worse on this page than on any other,
+    // because she is the one party who cannot tell.
+    const screen = readFileSync(join(process.cwd(), 'src/app/dashboard/my-work/page.tsx'), 'utf8')
+    expect(screen, 'my-work draws no empty state, so party 8B opens on blank panels').toMatch(
+      /OWN_MAKING/
+    )
+    for (const source of [screen, work.standing.says]) {
+      expect(source, 'offers her work Etyme has no way to find').not.toMatch(
+        /find you work|apply now|get placed|we\u2019ll place you|we will place you/i
+      )
+    }
+
+    // The profile and the seat are real, which is what makes the door
+    // openable at all: one CONSULTANT context, no company, no listing.
+    const profile = await prisma.consultantProfile.findFirstOrThrow({
+      where: { person: { primaryEmail: INDEPENDENT.email } },
+      include: { listings: true, person: { select: { contexts: true } } },
+    })
+    expect(profile.listings, 'a bench listing makes her party 8A').toHaveLength(0)
+    expect(profile.ownCompanyId, 'a corporation of her own makes her party 7').toBeNull()
+    expect(profile.slug, 'no address, so no page').not.toBeNull()
+    expect(profile.pageLiveAt, 'the page is off, and the page is the only thing she has').not.toBeNull()
+    expect(profile.person.contexts).toHaveLength(1)
+    expect(profile.person.contexts[0].type).toBe('CONSULTANT')
+    expect(profile.person.contexts[0].companyId, 'a company seat, so somebody employs her').toBeNull()
+
+    const submissions = await prisma.submission.count({
+      where: { person: { primaryEmail: INDEPENDENT.email } },
+    })
+    expect(submissions, 'somebody has put her forward, which nobody may have').toBe(0)
+  }, 60_000)
+
+  it('refuses a name that is not one of the four, rather than seating a stranger off the wire', async () => {
+    const r = req('POST', '/api/demo', { person: 'somebody.else@seed.etyme.invalid' })
+    const res = await demo(r as NextRequest)
+    expect(res.status).toBe(400)
+  })
+
+  it('shows Helena Marsh the week she filed that nobody has signed yet', async () => {
+    const work = await ownWork('helena.marsh@seed.etyme.invalid')
+    expect(work.summary.awaitingApproval).toBeGreaterThan(0)
+    expect(work.placements.length).toBeGreaterThan(0)
+  }, 30_000)
+
+  it('shows Chidi Okafor the attestation his client has asked him to sign, in words rather than a code', async () => {
+    const papers = await ownPapers('chidi.okafor@seed.etyme.invalid')
+    const one = papers.find((p) => /attestation/i.test(p.name))
+    expect(one, JSON.stringify(papers)).toBeTruthy()
+    expect(one!.todo).toBe('sign')
+  }, 30_000)
+
+  it('shows Karthik Menon the project he has just come off, so the page a W2 employee opens is not empty', async () => {
+    const work = await ownWork('karthik.menon@seed.etyme.invalid')
+    expect(work.placements.length, 'no placement at all').toBeGreaterThan(0)
+    expect(work.timesheets.length, 'no hours at all').toBeGreaterThan(0)
+    // Ended, because he is between projects — which is why his employer
+    // has an open seat to put him forward for.
+    expect(work.summary.livePlacements).toBe(0)
+  }, 30_000)
+
+  it('has not submitted Karthik for the open seat, because that is the thing the integrator door exists to do', async () => {
+    const seat = await prisma.requirement.findFirstOrThrow({
+      where: { title: 'DO-178C verification engineer', company: { slug: 'world-corveldt' } },
+    })
+    const karthik = await prisma.person.findFirstOrThrow({
+      where: { primaryEmail: 'karthik.menon@seed.etyme.invalid' },
+    })
+    const already = await prisma.submission.findFirst({
+      where: { requirementId: seat.id, personId: karthik.id },
+    })
+    expect(already, 'the seed submitted him, so the demo has nothing left to walk').toBeNull()
+  })
+
+  it('pays the travel nurse through the limited company she owns, not through the agency', async () => {
+    const profile = await prisma.consultantProfile.findFirstOrThrow({
+      where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
+      include: { ownCompany: true },
+    })
+    expect(profile.ownCompany, 'ownCompanyId is still unset on every row in this world').toBeTruthy()
+    expect(profile.ownCompany!.kind).toBe('CONSULTANT_CORP')
+
+    const buy = await prisma.buyContract.findFirstOrThrow({
+      where: { candidates: { some: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } } } },
+    })
+    expect(buy.contractType).toBe('C2C')
+    expect(buy.vendorCompanyId, 'the agency is buying from itself').toBe(profile.ownCompanyId)
+  })
+
+  it('carries the liability cover on her own company, which is the company that owes it on corp to corp', async () => {
+    const profile = await prisma.consultantProfile.findFirstOrThrow({
+      where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
+    })
+    const cover = await prisma.verification.findMany({
+      where: { companyId: profile.ownCompanyId!, type: { in: ['INSURANCE_GL', 'INSURANCE_WC'] } },
+    })
+    expect(cover).toHaveLength(2)
+    for (const c of cover) expect(c.expiresAt!.getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it('files a nurse’s week as three twelve-hour shifts, not as five eights', async () => {
+    const week = await prisma.timesheet.findFirstOrThrow({
+      where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },
+      orderBy: { periodStart: 'desc' },
+    })
+    expect(Number(week.totalHours)).toBe(36)
+    expect(Object.keys(week.days as Record<string, number>)).toHaveLength(3)
+  })
+
+  it('gives her state license the day it runs out, and the client’s compliance desk reads that date', async () => {
+    as('world-harlow-health@demo.etyme.local')
+    const r = await json(await compliance(req('GET', '/api/compliance')))
+    const people = r.body.data?.verifications?.persons ?? []
+    const her = people.find((p: any) => p.name === 'Colleen Byrne')
+    expect(her, JSON.stringify(people.map((p: any) => p.name))).toBeTruthy()
+    const license = her.checks.find((c: any) => c.type === 'PROFESSIONAL_LICENSE')
+    expect(license, JSON.stringify(her.checks)).toBeTruthy()
+    expect(license.expiresAt, 'a license with no expiry is a license nobody can chase').toBeTruthy()
+    const daysLeft = (new Date(license.expiresAt).getTime() - Date.now()) / 86_400_000
+    expect(daysLeft).toBeGreaterThan(0)
+    expect(daysLeft).toBeLessThan(60)
+  }, 30_000)
+
+  // etyme-architect, 2026-09-17. This read a document request the seed
+  // typed in by hand — the seed describing what the product ought to do.
+  // The nightly chase raises the ask now (`lib/credential-chase`), as a
+  // packet addressed to her with a link of her own, so the sentence moves
+  // to what is actually true of the seeded world.
+  it('asks her for the renewal at a link of her own, raised by the nightly chase and not typed into the seed', async () => {
+    const packet = await prisma.documentPacket.findFirst({
+      where: {
+        packetKey: 'CREDENTIAL_RENEWAL',
+        subjectPerson: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' },
+      },
+      include: { items: true },
+    })
+    expect(packet, 'nothing asked her for the renewal her seat promises').toBeTruthy()
+    expect(packet!.recipientEmail).toBe('colleen.byrne@seed.etyme.invalid')
+    expect(packet!.items.map((i) => i.key)).toEqual(['PROFESSIONAL_LICENSE'])
+
+    // And she hears about it where she will see it, with the link in it.
+    const her = await prisma.person.findUniqueOrThrow({
+      where: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' },
+      select: { id: true },
+    })
+    const told = await prisma.notification.findFirst({
+      where: { personId: her.id, entityId: packet!.id },
+    })
+    expect(told, 'she is asked and nobody told her').toBeTruthy()
+    expect(told!.body).toContain(`/packet/${packet!.token}`)
+  }, 30_000)
+
+  // The sentence this file carried until 2026-09-17, restored. It was
+  // rewritten to describe a packet the page could not show, because
+  // `/api/me/papers` read `DocInstance` and the chase raises a packet —
+  // so the one thing she was emailed about was missing from the one page
+  // she would go to. The page reads both now.
+  it('a nurse asked for her license renewal sees the ask on her own paperwork page, with who asked and the day it runs out', async () => {
+    const packet = await prisma.documentPacket.findFirstOrThrow({
+      where: {
+        packetKey: 'CREDENTIAL_RENEWAL',
+        subjectPerson: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' },
+      },
+      include: { company: { select: { name: true } } },
+    })
+
+    const papers = await ownPapers('colleen.byrne@seed.etyme.invalid')
+    const renewal = papers.find((p) => /license/i.test(p.name))
+    expect(renewal, JSON.stringify(papers)).toBeTruthy()
+
+    // Who asked: the firm that places her, by name.
+    expect(renewal!.askedBy).toBe(packet.company.name)
+    expect(renewal!.partOf).toMatch(/renew/i)
+
+    // The day it runs out — the ask's own last day, and the sentence she
+    // was sent, which counts the days left on the license itself.
+    expect(new Date(renewal!.dueOn!).getTime()).toBeGreaterThan(Date.now())
+    expect(renewal!.why).toContain('Wisconsin Board of Nursing')
+    expect(renewal!.why).toMatch(/runs out in \d+ days/)
+
+    // And it is hers to answer: her own link, not a code.
+    expect(renewal!.word).toBe('Asked for')
+    expect(renewal!.todo).toBe('open')
+    expect(renewal!.link).toBe(`/packet/${packet.token}`)
+  }, 30_000)
+})
+
+/**
+ * The two party doors that opened on an empty book.
+ */
+describe('an MSP that sells and buys, and a sub-vendor that only ever sees the rung above it', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  const aptiva = () => prisma.company.findFirstOrThrow({ where: { slug: 'world-aptiva' } })
+
+  it('offers a door for the program office and one for the sub-vendor, beside the primes and the integrators', () => {
+    // Two offices now: one that runs a program from the program
+    // manager's desk, and one that answers for compliance from the
+    // client's compliance desk.
+    expect(PROGRAM_OFFICE_SEATS).toHaveLength(2)
+    expect(ALL_SEATS.map((s) => s.slug)).toContain('world-aptiva')
+    expect(ALL_SEATS.map((s) => s.slug)).toContain('world-cloudepa')
+  })
+
+  it('names something waiting on both sides of every supplying firm’s book, not only on the side it sells from', () => {
+    // Kestrel is the exception and it is the honest one: it holds a
+    // client's compliance desk, places nobody and holds no contract in
+    // either direction, so naming a sell side or a buy side would be a
+    // sentence the world behind the door does not hold.
+    for (const s of [...ALL_SEATS].filter((x) =>
+      !x.slug.startsWith('world-nike') && !x.slug.startsWith('world-corning') &&
+      !x.slug.startsWith('world-terumo') && x.slug !== 'world-kestrel'
+    )) {
+      const says = s.about.toLowerCase()
+      expect(/sell|sells/.test(says), `${s.name} never says what it sells`).toBe(true)
+      expect(/buy|buys|employs/.test(says), `${s.name} never says what it buys`).toBe(true)
+    }
+  })
+
+  it('gives the MSP a sell contract to its client and a buy contract of its own', async () => {
+    const co = await aptiva()
+    const sells = await prisma.sellContract.findMany({ where: { companyId: co.id } })
+    const buys = await prisma.buyContract.findMany({ where: { companyId: co.id } })
+    expect(sells.length, 'an MSP with nothing to sell').toBeGreaterThan(0)
+    expect(buys.length, 'an MSP that buys nothing, which was the pre-correction model').toBeGreaterThan(0)
+  })
+
+  it('buys its own employee on a W2 leg with no purchase order behind it — you do not raise a PO to your own staff', async () => {
+    const co = await aptiva()
+    const buy = await prisma.buyContract.findFirstOrThrow({ where: { companyId: co.id } })
+    expect(buy.contractType).toBe('W2')
+    expect(buy.vendorCompanyId).toBeNull()
+    expect(buy.workOrderId).toBeNull()
+  })
+
+  it('records that submission as internal, because the firm already employs the person it put forward', async () => {
+    const co = await aptiva()
+    const sub = await prisma.submission.findFirstOrThrow({ where: { fromCompanyId: co.id } })
+    expect(sub.kind).toBe('INTERNAL')
+    const listing = await prisma.benchListing.findFirst({
+      where: { companyId: co.id, consultant: { personId: sub.personId } },
+    })
+    expect(listing, 'a bench listing for its own employee, whose consent the job already gave').toBeNull()
+  })
+
+  it('leaves the MSP a week its client has signed and it has not accepted as the employer', async () => {
+    const co = await aptiva()
+    const sell = await prisma.sellContract.findFirstOrThrow({ where: { companyId: co.id } })
+    const waiting = await prisma.timesheet.findMany({
+      where: { sellContractId: sell.id, clientApprovedAt: { not: null }, employerAcceptedAt: null },
+    })
+    expect(waiting.length, 'nothing on the buy side of the desk').toBeGreaterThan(0)
+    const billable = await prisma.timesheet.findMany({
+      where: { sellContractId: sell.id, status: 'APPROVED', invoiceLines: { none: {} } },
+    })
+    expect(billable.length, 'nothing on the sell side of the desk').toBeGreaterThan(0)
+  })
+
+  it('lands the MSP on a page the menu it actually reads offers', async () => {
+    // Its own menu when it holds no desk anywhere, and the client's
+    // menu when a client has granted it one — which Cavanaugh
+    // Glassworks has. A program office at somebody else's desk reads
+    // that client's book on every page (lib/money/seated-books) and
+    // reads that client's sections above it (components/shell/sidebar),
+    // so the landing has to be checked against the menu it will
+    // actually see rather than against the one it would see unseated.
+    const { body } = await sit('world-aptiva')
+    expect(body.kind).toBe('MSP')
+    expect(body.seatedAt, 'the world no longer grants this office a desk').toBeTruthy()
+    const hrefs = getNavForKind('MSP', false, { seatedAtClient: body.seatedAt })
+      .flatMap((s) => s.items.map((i) => i.href))
+    expect(hrefs, `landed on ${body.landing}`).toContain(body.landing)
+  }, 30_000)
+
+  it('lands a program office holding a client’s compliance desk on that desk’s own work', async () => {
+    const { body } = await sit('world-kestrel', 'compliance')
+    expect(body.seatedAt, 'Talvern no longer grants Kestrel a desk').toBeTruthy()
+    expect(body.landing).toBe('/dashboard/compliance')
+  }, 30_000)
+
+  it('gives the sub-vendor a prime above it and its own consultant below, and never the prime’s client', async () => {
+    const cloudepa = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' } })
+    const harlow = await prisma.company.findFirstOrThrow({ where: { slug: 'world-harlow-health' } })
+    // It sells to the prime, never to the hospital.
+    const sells = await prisma.sellContract.findMany({ where: { companyId: cloudepa.id } })
+    expect(sells.length).toBeGreaterThan(0)
+    for (const s of sells) {
+      expect(s.clientCompanyId, 'a sub-vendor billing the client directly').not.toBe(harlow.id)
+    }
+    // And a paper it is chasing its own consultant for.
+    const asked = await prisma.docInstance.findMany({
+      where: { template: { companyId: cloudepa.id }, status: 'SENT' },
+      include: { template: true },
+    })
+    expect(asked.length, 'a bench vendor chasing nobody for anything').toBeGreaterThan(0)
+  })
+
+  it('leaves the prime and the integrator a bill from the firm below, so the buy side of each is not an empty page', async () => {
+    for (const slug of ['world-computer-systems', 'world-teleworld']) {
+      const co = await prisma.company.findFirstOrThrow({ where: { slug } })
+      const bills = await prisma.vendorBill.findMany({ where: { companyId: co.id, paidAt: null } })
+      expect(bills.length, `${slug} owes nobody anything`).toBeGreaterThan(0)
+    }
+  })
+})
+
+/**
+ * What the client doors promise, checked against the world behind them.
+ *
+ * The page now says one true thing about each program above its desks —
+ * a 44-hour week waiting for a signature, cover running out in twelve
+ * days beside a contractor on a purchase order with no agreement, a
+ * consultant twenty-three months on site across two suppliers. Those
+ * are the first sentences a buyer reads on the second page of this
+ * product, and a sentence on a door the world behind it does not hold
+ * is the worst thing the page can do, because the visitor presses it.
+ *
+ * So each one is a query. If a seed changes and the sentence stops
+ * being true, this fails on that commit rather than on a demo.
+ */
+describe('every client door says something true of the seeded world', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  const bySlug = (slug: string) => prisma.company.findFirstOrThrow({ where: { slug } })
+
+  it('every client desk on the page is a door the route actually seats', async () => {
+    for (const program of CLIENT_PROGRAMS) {
+      for (const desk of CLIENT_DESKS) {
+        const r = req('POST', '/api/demo', { as: program.slug, ...(desk.desk ? { desk: desk.desk } : {}) })
+        const res = await demo(r as NextRequest)
+        const body = await res.json()
+        expect(
+          res.status,
+          `${program.name} — ${desk.label}: ${body.error?.message ?? 'no seat'}`
+        ).toBe(200)
+        expect(body.data.landing, `${program.name} — ${desk.label} lands nowhere`).toBeTruthy()
+        // And somebody is actually in the chair.
+        const setCookie = res.headers.get('set-cookie') ?? ''
+        const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(setCookie)
+        expect(await whoIsSitting(m![1]), `${program.name} — ${desk.label} seated nobody`).toBeTruthy()
+      }
+    }
+  }, 120_000)
+
+  it('has the 44-hour week its first door promises, filed and waiting for a signature', async () => {
+    const client = await bySlug('world-nike')
+    const waiting = await prisma.timesheet.findMany({
+      where: { sellContract: { clientCompanyId: client.id }, status: 'SUBMITTED', clientApprovedAt: null },
+    })
+    const long = waiting.filter((w) => Number(w.totalHours) === 44)
+    expect(
+      long.length,
+      `the door says a 44-hour week is waiting; the weeks waiting are ${waiting.map((w) => Number(w.totalHours)).join(', ') || 'none'}`
+    ).toBeGreaterThan(0)
+    expect(CLIENT_PROGRAMS[0].waiting).toContain('44-hour week')
+  }, 60_000)
+
+  it('has somebody starting in ten days with no I-9 on file, as the second door says', async () => {
+    const client = await bySlug('world-corning')
+    const starting = await prisma.sellContract.findMany({
+      where: { clientCompanyId: client.id, startDate: { gt: new Date() } },
+      select: { personId: true, startDate: true, person: { select: { name: true } } },
+    })
+    expect(starting.length, 'nobody at this client is starting at all').toBeGreaterThan(0)
+    const withoutI9: string[] = []
+    for (const line of starting) {
+      const i9 = await prisma.verification.findFirst({
+        where: { personId: line.personId, type: 'I9_EVERIFY' },
+      })
+      if (!i9) withoutI9.push(line.person?.name ?? line.personId)
+    }
+    expect(
+      withoutI9,
+      'the door says somebody starts without an I-9; everybody starting has one'
+    ).not.toHaveLength(0)
+    expect(CLIENT_PROGRAMS[1].waiting).toContain('no I-9 on file')
+  }, 60_000)
+
+  it('has the contractor on a purchase order with no agreement behind it at all', async () => {
+    const client = await bySlug('world-corning')
+    const line = await prisma.sellContract.findFirst({
+      where: { clientCompanyId: client.id, msaId: null, NOT: { workOrderId: null } },
+      include: { workOrder: { select: { number: true, msaId: true } } },
+    })
+    expect(line, 'every line at this client is papered under an agreement').toBeTruthy()
+    expect(line!.workOrder!.msaId, 'the order itself hangs off an agreement').toBeNull()
+    expect(CLIENT_PROGRAMS[1].waiting).toContain('no agreement')
+  }, 60_000)
+
+  it('has the consultant twenty-three months on site across two suppliers, against a cap of eighteen', async () => {
+    const client = await bySlug('world-terumo-bct')
+    const lines = await prisma.sellContract.findMany({
+      where: { clientCompanyId: client.id },
+      select: {
+        personId: true, companyId: true, startDate: true, endDate: true,
+        person: { select: { name: true } },
+      },
+    })
+    const byPerson = new Map<string, { name: string; suppliers: Set<string>; periods: { startDate: Date; endDate: Date | null }[] }>()
+    for (const l of lines) {
+      const key = l.personId
+      const row = byPerson.get(key) ?? { name: l.person?.name ?? key, suppliers: new Set<string>(), periods: [] }
+      row.suppliers.add(l.companyId)
+      row.periods.push({ startDate: l.startDate, endDate: l.endDate })
+      byPerson.set(key, row)
+    }
+    const across = [...byPerson.values()]
+      .filter((p) => p.suppliers.size > 1)
+      .map((p) => ({ ...p, months: monthsOf(daysOnSite(p.periods)) }))
+    const over = across.find((p) => p.months >= 23)
+    expect(
+      over,
+      `nobody at this client is twenty-three months across two suppliers: ${across.map((p) => `${p.name} ${p.months}`).join(', ') || 'nobody across two at all'}`
+    ).toBeTruthy()
+
+    // Counted once per day on site, not once per rung — the union of the
+    // periods, which is the whole reason the ledger exists.
+    expect(over!.months).toBe(23)
+
+    const cap = await prisma.governanceRule.findFirstOrThrow({
+      where: { ruleType: 'TENURE_CAP', policy: { companyId: client.id } },
+    })
+    expect((cap.parameters as any).maxMonths).toBe(18)
+    expect(CLIENT_PROGRAMS[2].waiting).toContain('twenty-three months')
+  }, 60_000)
+})
+
+/**
+ * The over-threshold requisition, walked to published from demo doors
+ * only.
+ *
+ * The release walk reported that it could not be: an over-threshold
+ * requisition routes to the cost center's owner as well as to the
+ * approver, and "no desk key seats him". Half of that is true — the
+ * cost center's owner holds no `desk` key of his own; he is the firm's
+ * first seat, which the page draws as "Account owner" and the route
+ * answers with an empty desk. The conclusion was not: the door opens,
+ * and a founder who sits at it gives the last yes.
+ *
+ * What was actually wrong was that the chip said nothing about it. A
+ * founder clicks Approver, is told one further approval is required,
+ * and is not told whose — and the one door that holds it describes
+ * itself as the place to add people and name desks.
+ *
+ * So the sentence is fixed on the door and the walk is fixed here. Two
+ * failures this catches, either of which would silently end the demo's
+ * headline path: a seeded final rank that stops naming the account
+ * owner, and a first seat that stops being the cost center's owner.
+ */
+describe('a requisition over the line is walked to published from the demo’s own doors', () => {
+  beforeAll(async () => {
+    await seedWorld()
+  }, 600_000)
+
+  /** Whoever is behind a demo door, as an address a route can be called as. */
+  async function seatedAt(slug: string, desk: string): Promise<string> {
+    const r = req('POST', '/api/demo', { as: slug, ...(desk ? { desk } : {}) })
+    const res = await demo(r as NextRequest)
+    expect(res.status, `${slug} — ${desk || 'account owner'} does not open`).toBe(200)
+    const setCookie = res.headers.get('set-cookie') ?? ''
+    const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(setCookie)
+    const email = readCookie(m![1])
+    expect(email, `${slug} — ${desk || 'account owner'} seated nobody`).toBeTruthy()
+    return email!
+  }
+
+  it('every desk a requisition is still waiting on is somebody a demo door seats', async () => {
+    // The founder cannot be handed a queue he has no chair for. Read off
+    // the approvals themselves rather than off the seat list, so a desk
+    // added to the chain by a rule change shows up here rather than on
+    // his screen as a dead end.
+    const doors = new Map<string, string[]>()
+    for (const program of CLIENT_PROGRAMS) {
+      const behind: string[] = []
+      for (const d of CLIENT_DESKS) behind.push(await seatedAt(program.slug, d.desk))
+      doors.set(program.slug, behind)
+    }
+
+    for (const program of CLIENT_PROGRAMS) {
+      const client = await prisma.company.findFirstOrThrow({ where: { slug: program.slug } })
+      const pending = await prisma.requirementApproval.findMany({
+        where: { outcome: 'PENDING', requirement: { companyId: client.id }, NOT: { approverId: null } },
+        select: { rank: true, stage: true, approver: { select: { name: true, primaryEmail: true } } },
+      })
+      expect(pending.length, `${program.name} has no requisition waiting on anybody`).toBeGreaterThan(0)
+      const seated = doors.get(program.slug)!
+      for (const a of pending) {
+        expect(
+          seated,
+          `${program.name}: ${a.approver!.name} holds the ${a.stage} approval at rank ${a.rank} ` +
+            `and no door on /demo seats him — the walk stops there`
+        ).toContain(a.approver!.primaryEmail)
+      }
+    }
+  }, 180_000)
+
+  it('the last yes on the money is the account owner’s, and the door says so', async () => {
+    // Said on the chip as well as true in the data: a door that opens
+    // onto work it does not name is a door nobody opens.
+    const owner = CLIENT_DESKS.find((d) => d.desk === '')!
+    expect(owner.label).toBe('Account owner')
+    expect(owner.waiting).toContain('last yes')
+
+    for (const program of CLIENT_PROGRAMS) {
+      const client = await prisma.company.findFirstOrThrow({ where: { slug: program.slug } })
+      const email = await seatedAt(program.slug, '')
+      const costCenter = await prisma.costCenter.findFirstOrThrow({
+        where: { companyId: client.id, code: { startsWith: 'APPS-' } },
+        select: { owner: { select: { primaryEmail: true, name: true } } },
+      })
+      expect(
+        costCenter.owner?.primaryEmail,
+        `${program.name}: the account owner door seats somebody who does not own the cost center`
+      ).toBe(email)
+    }
+  }, 120_000)
+
+  it('HR reads the role, the approver signs the money, and the account owner’s yes is the one that publishes it', async () => {
+    const program = CLIENT_PROGRAMS[1]
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: program.slug } })
+    const routed = await prisma.requirement.findFirstOrThrow({
+      where: { companyId: client.id, approvalState: 'PENDING_APPROVAL' },
+      select: { id: true, title: true },
+    })
+
+    const say = async (email: string) => {
+      as(email)
+      const res = await approveRequisition(
+        req('POST', `/api/requisitions/${routed.id}/approve`, { action: 'approve', note: 'Agreed.' }) as NextRequest,
+        { params: { id: routed.id } } as never
+      )
+      const { status, body } = await json(res)
+      expect(status, `${email}: ${body?.error?.message}`).toBe(200)
+      return body.data
+    }
+
+    const hr = await say(await seatedAt(program.slug, 'hr'))
+    expect(hr.fullyApproved, 'HR reading the role published it on its own').toBe(false)
+
+    const vp = await say(await seatedAt(program.slug, 'vp'))
+    expect(vp.fullyApproved, 'the approver published it on his own, with the money unsigned').toBe(false)
+    expect(vp.remainingApprovals, 'the approver was the last yes, so the owner’s door leads nowhere').toBe(1)
+
+    const lead = await say(await seatedAt(program.slug, ''))
+    expect(lead.fullyApproved, 'three desks said yes and the requisition is still in a drawer').toBe(true)
+
+    const after = await prisma.requirement.findUniqueOrThrow({ where: { id: routed.id } })
+    expect(after.approvalState).toBe('APPROVED')
+    expect(after.status, 'approved and still not open to a single supplier').toBe('OPEN')
+  }, 120_000)
+})
