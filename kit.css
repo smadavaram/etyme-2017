@@ -544,3 +544,5 @@
   .dash-edge .s{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--muted)}
   .d-nav.edge-on{color:var(--ink)} .d-nav.edge-on .ic{color:var(--green-p)} .d-side span.d-nav{cursor:default}
   .chip.ip{margin-left:6px;vertical-align:middle;gap:4px} .chip.ip .ic{color:var(--green-p)}
+  .d-nav.sub{padding-left:30px;font-size:13px}
+  .dash-edge .s a{color:var(--violet-p)}
