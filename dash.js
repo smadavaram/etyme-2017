@@ -1,6 +1,7 @@
-/* Dashboard illustrations for the marketing site. The shell, menus and styling follow the product
-   (etyme2040: components/shell/sidebar.tsx, app/globals.css); the content is the operating-model data
-   in model.js — a party (L1), its value streams (L2), the stations (L3), the desk's task and the rule (L4). */
+/* Dashboard illustrations for the marketing site. The content is the operating-model data in model.js —
+   a party (L1), its value streams (L2), the stations (L3), the desk's task and the rule (L4).
+   Styling follows the product's design system (etyme2040 app/globals.css). The product's own shell and
+   sidebar are not reproduced here. */
 (function(){
   var M=window.ETYME_MODEL; if(!M) return;
   var P={
@@ -44,68 +45,20 @@
   var PAGE={client:'docs-client.html',gsi:'docs-systems-integrator.html',msp:'docs-msp-program-office.html',prime:'docs-prime-vendor.html',sub:'docs-sub-vendor.html',bench:'docs-bench-vendor.html',self:'docs-self-employed.html',candidate:'docs-candidate.html',cand_ind:'docs-candidate-independent.html',cand_emp:'docs-candidate-employee.html'};
   /* The seeded company behind each party, and the label the product prints under it (lib/parties kindLabel). */
   var COMPANY={client:['Northbend Athletic','Client · Enterprise'],gsi:['Teleworld Solutions','Integrator · Delivery'],msp:['Aptiva Workforce','Program office · MSP'],prime:['Computer Systems Inc','Supplier · Staffing'],sub:['Vertex Global','Supplier · Staffing'],bench:['CloudEPA','Supplier · Staffing'],self:['Byrne Critical Care LLC','Own company · One person'],candidate:['Helena Marsh','Consultant'],cand_ind:['Marisol Quintero','Consultant'],cand_emp:['Karthik Menon','Consultant · Teleworld Solutions']};
-  /* The product's menus, one per company kind (components/shell/sidebar.tsx). [section, [group|null, label, icon]...] */
-  var TODAY=[[null,'Dashboard','home'],[null,'Needs attention','warn'],[null,'Conversations','chat'],[null,'Notifications','bell']];
-  var NETWORK=[['Network','Suppliers','building'],['Network','Companies','building'],['Network','Contacts','phone']];
-  var CT=[['Contracts & time','Sell contracts','doc'],['Contracts & time','Buy contracts','doc'],['Contracts & time','POs','req'],['Contracts & time','Timesheets','clock'],['Contracts & time','Expenses','invoice']];
-  var MONEY=[['Money','Invoices','invoice'],['Money','AR','pay'],['Money','AP','pay'],['Money','Payroll','pay'],['Money','Commissions','star']];
-  var GOV=[['Compliance','Compliance','shield'],['Compliance','Paperwork','doc'],['Compliance','Document requests','mail'],['Compliance','Screening packs','check'],['Compliance','Check queue','check'],['Compliance','DNR list','block'],['Privacy','Data requests','shield'],['Privacy','Your data','user'],['Admin','Users & permissions','people'],['Admin','Settings','gear'],['Admin','Automation','gear'],['Admin','Integrations','plug'],['Admin','Import','upload'],['Admin','Setup','check']];
-  function operate(net,money){ return [[null,'Missing paperwork','link']].concat(net,CT,money); }
-  var SELL=[[null,'Leads','star'],[null,'Shared with you','mail'],[null,'Requirements','req'],[null,'Submissions','people'],[null,'Interviews','clock'],[null,'Rolloff','warn']];
-  var PROCURE=[[null,'Bench','people'],[null,'Consultants','user'],[null,'Bench check-ins','phone'],[null,'Training','book']];
-  var GROW=[[null,'Profitability','chart'],[null,'Reports','chart'],[null,'Rate history','clock'],[null,'Your scorecard','star']];
-  var VENDOR_NAV=[['Today',TODAY],['Sell',SELL],['Procure',PROCURE],['Operate',operate(NETWORK,MONEY)],['Grow',GROW],['Governance',GOV]];
-  var GSI_NAV=[['Today',TODAY],['Deliver',SELL.slice(1)],['Supply',PROCURE],['Operate',operate(NETWORK,MONEY)],['Grow',GROW],['Governance',GOV]];
-  var MSP_NAV=[['Today',TODAY],['Demand',SELL.slice(1)],['Supply',[[null,'Suppliers','building'],[null,'Supplier scorecards','star'],[null,'Bench','people'],[null,'Consultants','user'],[null,'Bench check-ins','phone']]],['Operate',operate(NETWORK.slice(1),MONEY.slice(0,4))],['Grow',GROW.slice(0,3)],['Governance',GOV]];
-  var CLIENT_NAV=[['Workforce',[[null,'Dashboard','home'],['Hire','Requirements','req'],['Hire','Submissions','people'],['Hire','Conversations','chat'],['Network','Contractors','user'],['Network','Suppliers','building'],['Network','Contacts','phone'],['Operate','Contracts','doc'],['Operate','POs','req'],['Operate','Timesheets','clock'],['Operate','Expenses','invoice'],['Money','Invoices','invoice'],['Money','AP','pay'],['Money','Budget','chart'],['Offboard','Ending soon','warn'],['Offboard','Past contractors','user']]],
-    ['Governance',[['Who runs it','Program team','people'],['Who runs it','Program office','building'],['Who runs it','Org view','network'],['Oversight','Compliance','shield'],['Oversight','Document requests','mail'],['Oversight','Tenure','clock'],['Oversight','Supplier scorecards','star'],['Oversight','Duplicate check','check'],['Privacy','Data requests','shield'],['Privacy','Your data','user'],['Setup','Users & permissions','people'],['Setup','Settings','gear'],['Setup','Import','upload']]]];
-  var YOU=[[null,'Your work','home'],[null,'Your page','user'],[null,'Who has you','people'],[null,'Your data','shield'],[null,'Your paperwork','doc']];
-  var SOLO_NAV=[['Today',TODAY.slice(1)],['Operate',[[null,'Contracts','doc'],[null,'POs','req'],[null,'Timesheets','clock'],[null,'Invoices','invoice'],[null,'Expenses','invoice'],[null,'AR','pay']]],['Governance',[[null,'Compliance','shield'],[null,'Company paperwork','doc'],[null,'Settings','gear']]],['You',YOU]];
-  var CONSULTANT_NAV=[['You',YOU.concat([[null,'Notifications','bell']])]];
-  var NAV={client:CLIENT_NAV,gsi:GSI_NAV,msp:MSP_NAV,prime:VENDOR_NAV,sub:VENDOR_NAV,bench:VENDOR_NAV,self:SOLO_NAV,candidate:CONSULTANT_NAV,cand_ind:CONSULTANT_NAV,cand_emp:CONSULTANT_NAV};
-  /* Which menu entry a value stream opens, so the rail highlights the page the stations belong to. */
-  var OPEN={'L1.1':['Requirements','Submissions','Your work'],'L1.2':['Contracts','Sell contracts','Your work'],'L1.3':['Timesheets','Your work'],'L1.4':['Invoices','Your work'],'L1.5':['AP','Payroll','AR','Your work'],'L1.6':['Reports','Budget','Your work'],'L1.7':['Compliance','Your paperwork','Your data'],'L1.3 → L1.5':['Expenses','Your work']};
-  var SECTION_FOR_STREAM={};
   var IP=[['Concur',/files an expense|expense report|reimburs/i],['HCM',/payroll|\bw-?2\b|onboard|i-9|position|headcount|worker record|employment/i],['SAP S/4',/purchase order|sales order|work order|invoice|\bbill\b|journal|\berp\b|ledger|payment|pay run|remittance|vendor master|requisition/i]];
   function ipoint(st){ var t=(st.title+' '+st.sub); for(var i=0;i<IP.length;i++) if(IP[i][1].test(t)) return IP[i][0]; return null; }
   function slug(code){ return code==='L1.3 → L1.5'?'expenses':code.toLowerCase().replace(/\./g,'-'); }
-  function initials(name){ var w=name.replace(/[^A-Za-z ]/g,' ').trim().split(/\s+/).filter(Boolean); var s=(w[0]||'').charAt(0)+(w[1]||'').charAt(0); if(s.length<2) s=(w[0]||'??').slice(0,2); return s.toUpperCase(); }
   function party(k){ for(var i=0;i<M.parties.length;i++) if(M.parties[i].meta.key===k) return M.parties[i]; return M.parties[0]; }
   function stream(p,code){ for(var i=0;i<p.streams.length;i++) if(p.streams[i].code===code) return p.streams[i]; return p.streams[0]; }
   function words(s){ return s.toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(function(w){return w.length>3;}); }
   function glossFor(st,title){ var tw=words(title); for(var i=0;i<st.glossary.length;i++){ var gw=words(st.glossary[i].etyme); for(var a=0;a<tw.length;a++) for(var b=0;b<gw.length;b++) if(tw[a]===gw[b]||tw[a].indexOf(gw[b])===0||gw[b].indexOf(tw[a])===0) return st.glossary[i]; } return null; }
 
-  function activeLabel(nav, code){
-    var wants=OPEN[code]||[]; var labels=[]; nav.forEach(function(sec){ sec[1].forEach(function(it){ labels.push(it[1]); }); });
-    for(var i=0;i<wants.length;i++) if(labels.indexOf(wants[i])>=0) return wants[i];
-    return labels[0];
-  }
-  function railHtml(m, nav, active){
-    var co=COMPANY[m.key]||[m.label,m.label];
-    var out='<aside class="d-side"><div class="d-logo"><img src="img/icon.svg" alt="" width="28" height="28"><span>etyme</span></div><nav class="d-navlist">';
-    nav.forEach(function(sec){
-      out+='<p class="grp">'+esc(sec[0])+'</p>'; var prev=null;
-      sec[1].forEach(function(it){
-        if(it[0]&&it[0]!==prev) out+='<p class="sub">'+esc(it[0])+'</p>'; prev=it[0];
-        var isActive=it[1]===active, isInt=it[1]==='Integrations';
-        out+='<a class="d-nav'+(isActive?' on':'')+'" href="'+(isInt?'docs-integrations.html':'#')+'"'+(isActive?' aria-current="page"':'')+(isInt?'':' data-inert="1"')+'>'+ic(it[2],15)+'<span>'+esc(it[1])+'</span></a>';
-      });
-    });
-    out+='</nav><div class="d-co"><b>'+esc(co[0])+'</b><span>'+esc(co[1])+'</span></div></aside>';
-    return out;
-  }
-  function headerHtml(m){
-    var co=COMPANY[m.key]||[m.label,m.label];
-    return '<div class="d-bar"><button type="button" class="d-burger" aria-label="Menu">'+ic('menu',18)+'</button><div class="d-search">'+ic('search',15)+'<span>Search '+esc(co[0])+'</span><kbd>⌘K</kbd></div><button type="button" class="d-plus">'+ic('plus',14)+'New</button><span class="d-ic" aria-label="Notifications">'+ic('bell',18)+'<i></i></span><span class="av">'+initials(co[0])+'</span></div>';
-  }
-
   function render(box, pkey, code, openN, filt){
     filt=filt||'all';
-    var p=party(pkey), m=p.meta, st=stream(p,code), nav=NAV[m.key]||CONSULTANT_NAV, co=COMPANY[m.key]||[m.label,m.label];
-    var active=activeLabel(nav, st.code), section=''; nav.forEach(function(sec){ sec[1].forEach(function(it){ if(it[1]===active) section=sec[0]; }); });
+    var p=party(pkey), m=p.meta, st=stream(p,code), co=COMPANY[m.key]||[m.label,m.label];
     var lanesUsed=[]; st.stations.forEach(function(s){ if(s.lane&&lanesUsed.indexOf(s.lane)<0) lanesUsed.push(s.lane); }); var own=lanesUsed.filter(function(l){ return m.desks.indexOf(l)>=0; }).length;
     var tabs='<div class="tabs dash-tabs" role="tablist">'+M.parties.map(function(q){ return '<button role="tab" data-party="'+q.meta.key+'" aria-selected="'+(q.meta.key===m.key)+'">'+ic(PICON[q.meta.key]||'user',15)+q.meta.number+' · '+esc(q.meta.label)+'</button>'; }).join('')+'</div>';
-    var head='<div class="page-head"><p class="eyebrow">'+esc(section)+' · '+esc(co[0])+'</p><div class="dash-head-row"><div><h1>'+esc(st.name)+'</h1><p>'+esc(st.caption||m.tagline)+'</p></div><a class="btn-secondary" href="'+PAGE[m.key]+'#'+slug(st.code)+'">Read the drawing &rarr;</a></div></div>';
+    var head='<div class="page-head"><p class="eyebrow">'+esc(m.label)+' · '+esc(co[0])+'</p><div class="dash-head-row"><div><h1>'+esc(st.name)+'</h1><p>'+esc(st.caption||m.tagline)+'</p></div><a class="btn-secondary" href="'+PAGE[m.key]+'#'+slug(st.code)+'">Read the drawing &rarr;</a></div></div>';
     var streams='<div class="d-tabs">'+p.streams.map(function(s){ return '<button type="button" class="filter-tab '+(s.code===st.code?'filter-tab--active':'filter-tab--inactive')+'" data-stream="'+esc(s.code)+'">'+esc(s.short)+'</button>'; }).join('')+'</div>';
     var stats='<div class="d-stats">'+[['Desks on the drawing',lanesUsed.length,own+' of yours · '+(lanesUsed.length-own)+' counterpart'+((lanesUsed.length-own)===1?'y':'ies')],['Stations',st.stations.length,'in the order the work happens'],['Refusals',st.refusals.length,'blocks said in a sentence'],['Proven by',st.sentences,'test sentences on this branch']].map(function(t){ return '<div class="card d-stat"><div class="stat-label">'+esc(t[0])+'</div><div class="stat-value">'+esc(t[1])+'</div><div class="stat-sub">'+esc(t[2])+'</div></div>'; }).join('')+'</div>';
     var ips=st.stations.filter(function(x){return ipoint(x);});
@@ -128,15 +81,13 @@
       return row+l4;
     }).join('');
     var table='<div class="scrollx panel d-panel"><table class="data-table tabular"><thead><tr><th>#</th><th>Station</th><th>Desk</th><th>What happens</th><th>System rule</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
-    var cap='<p class="dash-cap"><b>L1 '+esc(m.label)+' · L2 '+esc(st.short)+' · L3 '+st.stations.length+' stations</b>The menu is the product’s own for this kind of company; open a station for its task and the system’s rule (L4). Wording and refusals are taken from the operating-model document for this party.</p>';
-    box.innerHTML=tabs+'<div class="d-shell dash-shell">'+railHtml(m,nav,active)+'<div class="d-main">'+headerHtml(m)+'<div class="d-content">'+head+streams+stats+edge+seg+table+'</div></div></div>'+cap;
+    var cap='<p class="dash-cap"><b>L1 '+esc(m.label)+' · L2 '+esc(st.short)+' · L3 '+st.stations.length+' stations</b>Open a station for its task and the system’s rule (L4). Wording and refusals are taken from the operating-model document for this party.</p>';
+    box.innerHTML=tabs+'<div class="dash-shell"><div class="d-content">'+head+streams+stats+edge+seg+table+'</div></div>'+cap;
     box.dataset.party=m.key; box.dataset.stream=st.code; box.dataset.filt=filt;
     box.querySelectorAll('.dash-tabs button').forEach(function(b){ b.addEventListener('click',function(){ render(box,b.dataset.party,box.dataset.stream,null,'all'); var sel=box.querySelector('.dash-tabs [aria-selected="true"]'); if(sel&&sel.scrollIntoView) sel.scrollIntoView({block:'nearest',inline:'center'}); }); });
     box.querySelectorAll('[data-stream]').forEach(function(a){ a.addEventListener('click',function(e){ e.preventDefault(); render(box,box.dataset.party,a.dataset.stream,null,'all'); }); });
-    box.querySelectorAll('[data-inert]').forEach(function(a){ a.addEventListener('click',function(e){ e.preventDefault(); }); });
     box.querySelectorAll('.d-seg button').forEach(function(f){ f.addEventListener('click',function(){ render(box,box.dataset.party,box.dataset.stream,null,f.dataset.filt); }); });
     box.querySelectorAll('.dash-row').forEach(function(r){ r.addEventListener('click',function(e){ if(e.target.closest('a')) return; var n=parseInt(r.dataset.n,10); render(box,box.dataset.party,box.dataset.stream,openN===n?null:n,box.dataset.filt); }); });
-    var side=box.querySelector('.d-side'), on=side&&side.querySelector('.d-nav.on'); if(on&&side.scrollHeight>side.clientHeight){ var sr=side.getBoundingClientRect(), orr=on.getBoundingClientRect(); if(orr.top<sr.top||orr.bottom>sr.bottom){ side.scrollTop=Math.max(0,side.scrollTop+(orr.top-sr.top)-side.clientHeight/2); } }
   }
   document.querySelectorAll('.dash[data-stream]').forEach(function(box){ render(box, box.dataset.party||'client', box.dataset.stream, null, 'all'); });
 })();
