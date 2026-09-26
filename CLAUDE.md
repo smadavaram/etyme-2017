@@ -842,18 +842,69 @@ The test for any screen: would somebody who has done this job for ten
 years, and never seen Etyme, do the right thing on the first try? If the
 honest answer needs the word "once they understand", it is not done.
 
-## Design system — the prototypes ARE the standard
+## Design system — the brand kit for the surface, the prototypes for the rest
 
-The prototypes in `prototypes/` define how the production UI must look and feel.
-**If the production build does not look like the prototypes, we have failed.**
+**The brand kit is adopted. Decided by the founder, 2026-09-26.** It
+arrived from the marketing site as `brand-kit/` and it now decides
+**color, type, corners, shadows, motion, icons and the logo.** The
+prototypes in `prototypes/` still decide **layout, screens and
+behavior** — what is on a page, in what order, and what happens when
+somebody clicks it. Where the two disagree about a color or a typeface,
+the kit wins; where they disagree about what a screen does, the
+prototypes win.
 
-### Design tokens (from `Etyme_Demo_AllViews.jsx`)
+The old line — *if the production build does not look like the
+prototypes, we have failed* — still holds for everything the kit does
+not cover, which is most of what a screen actually is.
+
+**The kit is a copy, and a copy drifts.** It is maintained on the
+marketing site and this folder is a duplicate of it. Two homes for one
+design system is how the landing page spent a week saying something this
+file had already replaced. Either the product's tokens become generated
+from the kit, or one person owns the sync on purpose — but nobody should
+assume the folder is current because it is checked in.
+
+### Design tokens
+
+The neutrals were already identical on both sides and do not move:
 
 ```
-canvas:   #F0EEE6    surface:  #FBFAF7    raised:   #FFFFFF
-ink:      #1F1E1D    muted:    #6B6862    faint:    #9C9891    rule:     #E3DFD5
-action:   #2B47E5    attention:#C0622E    verified: #4F6F52
+canvas:   #F0EEE6    surface:  #FBFAF7    raised:   #FFFFFF    sunk: #E7E4DA
+ink:      #1F1E1D    muted:    #6B6862    faint:    #9C9891    rule: #E3DFD5
 ```
+
+**The accents, and the three decisions inside them.** Every figure below
+was computed with the same WCAG arithmetic
+`__tests__/invariants/chart-colors.test.ts` uses, not chosen by eye.
+
+| Role | Value | Why |
+|---|---|---|
+| **action, on a filled button** | `#5228FF` | the site's violet; white text on it scores 6.76 |
+| **action, as text** — links, chips, active nav, small type | `#4421D6` | **8.26** on surface against the brighter violet's 6.48, and **7.27** on its own chip wash against 5.70. The deeper violet is materially easier to read at the sizes most of the product is set in |
+| **attention** | `#C0622E` | unchanged |
+| **verified** | `#4F6F52` — **ours, kept** | the kit proposes `#2F7D3E`, which scores **4.46** on the verified chip's own wash where ours scores **4.94**. The verified chip is the most-read small text in the product and the kit's green takes it from passing to just under. Ask the kit's author for a darker green that clears 4.5 on `#EDF1ED`; until then this token does not move |
+| **danger** | `#B83A3A` | unchanged |
+
+**The vivid green `#00C800` is the logo and nothing else, ever.** White
+text on it scores **2.27**, which is unusable on any control. The kit
+says logo-only and it is right; this is the enforcement.
+
+**The chart palette survives the swap and had to be checked.** `SERIES`
+opens on the brand's action color, and the whole five-color set is
+validated for color-blind separation. Swapping blue for violet costs
+nothing: the worst-separated pair is the clay against the olive, which
+the kit does not touch, so the separation is identical before and after.
+Every series color stays above the contrast floor. The test sentence
+that says the series *"opens on the brand's blue"* is the one artifact
+that has to be reworded when the swap lands.
+
+**What this costs, so nobody over-plans it.** Five files carry the token
+change — `tailwind.config.ts`, `globals.css`, `layout.tsx`, `logo.tsx`,
+`lib/chart-colors.ts`. The 88 files using `etyme-action`, the 95 using
+`etyme-attention` and the 56 using `etyme-verified` do **not** move,
+because the names stay and only their values change. The September sweep
+that pulled twenty-seven off-brand colors onto tokens is what makes this
+a five-file change instead of a two-hundred-file one.
 
 ### Typography
 
