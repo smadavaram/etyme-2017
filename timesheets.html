@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{color-scheme:light}body{margin:0;background:#F0EEE6}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Timesheets &amp; expenses</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gelasio:wght@400;500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="kit.css">
+<style>body{background:#F0EEE6}</style>
+
+</head>
+<body>
+<header class="eh"><div class="wrap">
+  <a class="logo" href="index.html"><img src="img/wordmark.svg" alt="Etyme"></a>
+  <nav class="eh-nav" aria-label="Main">
+    <div class="item"><button aria-expanded="false" aria-controls="m-product">Product<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="mega" id="m-product" hidden><div class="mega-in cols4"><div class="col"><p class="grp">Source</p><a href="requisitions.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></svg><span><b>Requisitions &amp; suppliers</b><em>A role raised, cleared by rule or by a manager, released only to the suppliers Procurement named.</em></span></a><a href="submissions.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></svg><span><b>Submissions &amp; screening</b><em>Every supplier against the same role, on one screen, each at its own rate.</em></span></a></div><div class="col"><p class="grp">Start</p><a href="contracts.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13l2 2 4-4"/></svg><span><b>Contracts &amp; onboarding</b><em>The award writes the contract. Work authorization and insurance checked before day one.</em></span></a></div><div class="col"><p class="grp">Work and pay</p><a href="timesheets.html" aria-current="page"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span><b>Timesheets &amp; expenses</b><em>Filed once, signed twice, flagged first. Nobody signs their own.</em></span></a><a href="invoices.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span><b>Invoices &amp; the three-way match</b><em>A bill with no signed week or no room on the order is not paid.</em></span></a></div><div class="col"><p class="grp">Govern</p><a href="compliance.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Compliance &amp; tenure</b><em>Tracked per person across suppliers. Warns at 75%, blocks at your cap.</em></span></a><a href="chain.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span><b>The chain</b><em>Every step recorded. Each rate stays at its level. Insurance visible at every point.</em></span></a><a href="governance.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M5 20h14M12 6l-6 2 6-2 6 2"/><path d="M3.5 13.5L6 8l2.5 5.5a2.5 2.5 0 0 1-5 0zM15.5 13.5L18 8l2.5 5.5a2.5 2.5 0 0 1-5 0z"/></svg><span><b>Governance</b><em>Blocks where law says so. Warns everywhere else. Records everything.</em></span></a></div></div></div></div>
+    <div class="item"><button aria-expanded="false" aria-controls="m-solutions">Solutions<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="mega" id="m-solutions" hidden><div class="mega-in cols1"><div class="col"><p class="grp">By role</p><a href="index.html#role-program"><span><b>The program office</b></span></a><a href="index.html#role-procurement"><span><b>Procurement</b></span></a><a href="index.html#role-hr"><span><b>HR and compliance</b></span></a><a href="index.html#role-finance"><span><b>Finance</b></span></a><a href="index.html#role-managers"><span><b>Hiring managers</b></span></a><a href="index.html#role-suppliers"><span><b>Suppliers</b></span></a></div></div></div></div>
+    <div class="item"><button aria-expanded="false" aria-controls="m-resources">Resources<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="mega" id="m-resources" hidden><div class="mega-in cols2"><div class="col"><p class="grp">Read</p>
+      <a href="docs.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13l2 2 4-4"/></svg><span><b>Documentation</b><em>Every flow, station by station, behind sign-in</em></span></a>
+      <a href="https://claude.ai/artifact/9uFH9xQMtd3J61UfYFLTqn"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Security position</b><em>What is done, what is not, and when</em></span></a>
+      <a href="docs.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg><span><b>Data processing addendum</b><em>Retention by category, sub-processors</em></span></a></div>
+      <div class="col"><p class="grp">Try</p>
+      <a href="#"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.8"/></svg><span><b>Open the example program</b><em>A month of data, no card, no sign-up</em></span></a>
+      <a href="index.html#ask"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></svg><span><b>Ask a person</b><em>An email and a sentence. Somebody writes back</em></span></a></div></div></div></div>
+    <a class="plain" href="index.html#free">Free to start</a>
+  </nav>
+  <div class="eh-right">
+    <a class="plain" href="docs.html">Sign in</a>
+    <a class="btn btn-p btn-sm" href="index.html#ask">Start free</a>
+    <button class="burger" aria-label="Menu" aria-expanded="false" aria-controls="eh-drawer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </div>
+</div>
+<div class="eh-drawer" id="eh-drawer" hidden>
+  <details open><summary>Product</summary><div class="col"><p class="grp">Source</p><a href="requisitions.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></svg><span><b>Requisitions &amp; suppliers</b><em>A role raised, cleared by rule or by a manager, released only to the suppliers Procurement named.</em></span></a><a href="submissions.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></svg><span><b>Submissions &amp; screening</b><em>Every supplier against the same role, on one screen, each at its own rate.</em></span></a></div><div class="col"><p class="grp">Start</p><a href="contracts.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13l2 2 4-4"/></svg><span><b>Contracts &amp; onboarding</b><em>The award writes the contract. Work authorization and insurance checked before day one.</em></span></a></div><div class="col"><p class="grp">Work and pay</p><a href="timesheets.html" aria-current="page"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span><b>Timesheets &amp; expenses</b><em>Filed once, signed twice, flagged first. Nobody signs their own.</em></span></a><a href="invoices.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span><b>Invoices &amp; the three-way match</b><em>A bill with no signed week or no room on the order is not paid.</em></span></a></div><div class="col"><p class="grp">Govern</p><a href="compliance.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Compliance &amp; tenure</b><em>Tracked per person across suppliers. Warns at 75%, blocks at your cap.</em></span></a><a href="chain.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span><b>The chain</b><em>Every step recorded. Each rate stays at its level. Insurance visible at every point.</em></span></a><a href="governance.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M5 20h14M12 6l-6 2 6-2 6 2"/><path d="M3.5 13.5L6 8l2.5 5.5a2.5 2.5 0 0 1-5 0zM15.5 13.5L18 8l2.5 5.5a2.5 2.5 0 0 1-5 0z"/></svg><span><b>Governance</b><em>Blocks where law says so. Warns everywhere else. Records everything.</em></span></a></div></details>
+  <details><summary>Solutions</summary><div class="col"><a href="index.html#role-program"><span><b>The program office</b></span></a><a href="index.html#role-procurement"><span><b>Procurement</b></span></a><a href="index.html#role-hr"><span><b>HR and compliance</b></span></a><a href="index.html#role-finance"><span><b>Finance</b></span></a><a href="index.html#role-managers"><span><b>Hiring managers</b></span></a><a href="index.html#role-suppliers"><span><b>Suppliers</b></span></a></div></details>
+  <details><summary>Resources</summary><div class="col"><p class="grp">Read</p>
+      <a href="docs.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13l2 2 4-4"/></svg><span><b>Documentation</b><em>Every flow, station by station, behind sign-in</em></span></a>
+      <a href="https://claude.ai/artifact/9uFH9xQMtd3J61UfYFLTqn"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Security position</b><em>What is done, what is not, and when</em></span></a>
+      <a href="docs.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg><span><b>Data processing addendum</b><em>Retention by category, sub-processors</em></span></a></div>
+      <div class="col"><p class="grp">Try</p>
+      <a href="#"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.8"/></svg><span><b>Open the example program</b><em>A month of data, no card, no sign-up</em></span></a>
+      <a href="index.html#ask"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></svg><span><b>Ask a person</b><em>An email and a sentence. Somebody writes back</em></span></a></div></details>
+  <a class="row" href="index.html#free">Free to start</a>
+  <a class="row" href="docs.html">Sign in</a>
+</div></header>
+<script src="nav.js" defer></script>
+
+<main class="page" style="padding-block:64px 0">
+  <div class="prose">
+    <p class="chno">Product &middot; 4 of 8</p>
+    <h1 class="ch-h1">Timesheets &amp; expenses</h1>
+    <p class="ch-lede">The person files their own week, or the agency that employs them does. The manager who owns the work signs it, nobody approves their own hours, and a week that looks wrong is flagged before anybody signs.</p>
+  </div>
+
+  <section class="ch-sec">
+    <h2>Key capabilities</h2>
+    <div class="feat">
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><b>File once, against the contract</b><p>By the person or their employer. Never twice for one week.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg><b>Nobody signs their own</b><p>Only the paying company signs, and rejection says why.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/></svg><b>Signed twice</b><p>Client signs so supplier invoices. Employer signs so person gets paid.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><b>Flagged before anyone signs</b><p>Over 12 hours a day, over 60 a week, over the role, or past contract end. Warns, never blocks.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 16V11a5.5 5.5 0 0 1 11 0v5l1.5 2h-14z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><b>Reminders before due</b><p>At 7, 3, and 1 day out.</p></div>
+      <div><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3"/><path d="M4 6v5h5M20 18v-5h-5"/></svg><b>Auto-sign quiet weeks</b><p>Only if your company turns it on, and never if flagged.</p></div>
+    </div>
+  </section>
+
+  <section class="ch-sec prose">
+    <h2>The complaint</h2>
+    <div class="complaint">
+      <p>&ldquo;Every Monday I get four spreadsheets in four formats. I sign what I am sent, because the alternative is finding the person and asking. Then the invoice arrives with different hours.&rdquo;</p>
+      <cite>A hiring manager who signs for contractors from three suppliers</cite>
+    </div>
+    <p style="margin-top:22px">The hours were right when the person wrote them down. They were re-keyed by the supplier, summarised by the prime and copied into the invoice, and each copy was a chance to be wrong. The manager signs the second copy and pays the fourth.</p>
+  </section>
+
+  <section class="ch-sec prose">
+    <h2>What Etyme does</h2>
+    <p>A week is filed once, against the contract, by the person or by the agency that employs them, and cannot be filed twice for the same period. Submitting locks it. Only the company being billed can approve it, nobody approves their own hours, and rejection needs a reason. The signed week carries two signatures: the client approves it, so the supplier may invoice, and the employer accepts it, so the person can be paid. Accepting different hours needs a reason too.</p>
+    <p>Before anyone signs, the sheet is read. More than twelve hours in a day or sixty in a week, more than the role allows, or a day past the contract&rsquo;s end is flagged and shown first. Flags warn; they never block. A reminder goes to the person seven, three and one day before the week is due. Approving a silent week automatically exists, is off until your company turns it on, and never touches a flagged sheet. Expenses are filed by the supplier against the contract, in six categories, and only approved, billable expenses reach an invoice.</p>
+    <div class="flow" style="margin-top:22px;gap:8px">
+      <span class="chip chip--verified">Filed once</span><span class="chip chip--verified">Signed twice</span><span class="chip chip--verified">Flagged first</span><span style="font-size:13px;color:var(--muted)">&mdash; nobody approves their own</span>
+    </div>
+  </section>
+
+  <section class="ch-sec">
+    <h2>What it looks like</h2>
+    <figure class="fig" style="max-width:860px">
+      <svg viewBox="0 0 860 368" role="img" aria-label="The timesheets screen from the client's seat: four figures, then the weeks awaiting approval with the flagged one first.">
+        <rect width="860" height="368" fill="#FFFFFF"/>
+        <text x="24" y="38" font-family="Iowan Old Style,Palatino,Georgia,serif" font-size="20" fill="#1F1E1D">Timesheets</text>
+        <text x="24" y="58" font-family="Inter,sans-serif" font-size="11.5" fill="#6B6862">Hours worked at your sites, awaiting your approval. Flagged entries are shown first.</text>
+        <g font-family="Inter,sans-serif">
+        <rect x="24" y="76" width="196" height="62" rx="7" fill="#FBFAF7" stroke="#E3DFD5"/>
+        <text x="38" y="94" font-size="9" font-weight="600" letter-spacing="1.2" fill="#9C9891">TOTAL HOURS</text>
+        <text x="38" y="124" font-family="Iowan Old Style,Palatino,Georgia,serif" font-size="24" fill="#1F1E1D">412</text>
+        <rect x="230" y="76" width="196" height="62" rx="7" fill="#FBFAF7" stroke="#E3DFD5"/>
+        <text x="244" y="94" font-size="9" font-weight="600" letter-spacing="1.2" fill="#9C9891">PENDING APPROVAL</text>
+        <text x="244" y="124" font-family="Iowan Old Style,Palatino,Georgia,serif" font-size="24" fill="#C0622E">3</text>
+        <rect x="435" y="76" width="196" height="62" rx="7" fill="#FBFAF7" stroke="#E3DFD5"/>
+        <text x="449" y="94" font-size="9" font-weight="600" letter-spacing="1.2" fill="#9C9891">ANOMALIES</text>
+        <text x="449" y="124" font-family="Iowan Old Style,Palatino,Georgia,serif" font-size="24" fill="#B83A3A">1</text>
+        <rect x="640" y="76" width="196" height="62" rx="7" fill="#FBFAF7" stroke="#E3DFD5"/>
+        <text x="654" y="94" font-size="9" font-weight="600" letter-spacing="1.2" fill="#9C9891">APPROVED VALUE</text>
+        <text x="654" y="124" font-family="Iowan Old Style,Palatino,Georgia,serif" font-size="24" fill="#1F1E1D">$31,240</text>
+        </g>
+        <line x1="24" y1="164" x2="836" y2="164" stroke="#E3DFD5"/>
+        <g font-family="Inter,sans-serif" font-size="9" font-weight="600" fill="#9C9891" letter-spacing="1.2">
+        <text x="42" y="182">CONSULTANT</text>
+        <text x="200" y="182">VENDOR</text>
+        <text x="380" y="182">PERIOD</text>
+        <text x="540" y="182">HOURS</text>
+        <text x="620" y="182">VALUE</text>
+        <text x="720" y="182">STATUS</text>
+        </g>
+        <line x1="24" y1="192" x2="836" y2="192" stroke="#E3DFD5"/>
+        <g font-family="Inter,sans-serif" font-size="12" fill="#1F1E1D">
+        <circle cx="30" cy="213" r="3.2" fill="#B83A3A"/>
+        <text x="42" y="217">R. Adebayo</text>
+        <text x="200" y="217" fill="#6B6862">Pinnacle Resourcing</text>
+        <text x="380" y="217" font-family="IBM Plex Mono,monospace" font-size="11.5">Sep 22 – 28</text>
+        <text x="540" y="217" fill="#B83A3A">61.0</text>
+        <text x="620" y="217" font-family="IBM Plex Mono,monospace" font-size="11.5">$6,832</text>
+        <rect x="720" y="204" width="59" height="17" rx="4" fill="#FDE8E8" stroke="#F0C0C0"/><text x="728" y="216" font-size="9" font-weight="600" fill="#B83A3A">FLAGGED</text>
+        <line x1="24" y1="234" x2="836" y2="234" stroke="#E3DFD5"/>
+        <circle cx="30" cy="255" r="3.2" fill="#C0622E"/>
+        <text x="42" y="259">M. Okafor</text>
+        <text x="200" y="259" fill="#6B6862">Brightmoor Staffing</text>
+        <text x="380" y="259" font-family="IBM Plex Mono,monospace" font-size="11.5">Sep 22 – 28</text>
+        <text x="540" y="259" font-family="IBM Plex Mono,monospace" font-size="11.5">40.0</text>
+        <text x="620" y="259" font-family="IBM Plex Mono,monospace" font-size="11.5">$1,560</text>
+        <rect x="720" y="246" width="72" height="17" rx="4" fill="#F7EDE6" stroke="#E5C9B5"/><text x="728" y="258" font-size="9" font-weight="600" fill="#C0622E">SUBMITTED</text>
+        <line x1="24" y1="276" x2="836" y2="276" stroke="#E3DFD5"/>
+        <circle cx="30" cy="297" r="3.2" fill="#C0622E"/>
+        <text x="42" y="301">S. Lindqvist</text>
+        <text x="200" y="301" fill="#6B6862">Keystone Talent</text>
+        <text x="380" y="301" font-family="IBM Plex Mono,monospace" font-size="11.5">Sep 22 – 28</text>
+        <text x="540" y="301" font-family="IBM Plex Mono,monospace" font-size="11.5">38.5</text>
+        <text x="620" y="301" font-family="IBM Plex Mono,monospace" font-size="11.5">$2,387</text>
+        <rect x="720" y="288" width="72" height="17" rx="4" fill="#F7EDE6" stroke="#E5C9B5"/><text x="728" y="300" font-size="9" font-weight="600" fill="#C0622E">SUBMITTED</text>
+        <line x1="24" y1="318" x2="836" y2="318" stroke="#E3DFD5"/>
+        <circle cx="30" cy="339" r="3.2" fill="#2F7D3E"/>
+        <text x="42" y="343">M. Okafor</text>
+        <text x="200" y="343" fill="#6B6862">Brightmoor Staffing</text>
+        <text x="380" y="343" font-family="IBM Plex Mono,monospace" font-size="11.5">Sep 15 – 21</text>
+        <text x="540" y="343" font-family="IBM Plex Mono,monospace" font-size="11.5">40.0</text>
+        <text x="620" y="343" font-family="IBM Plex Mono,monospace" font-size="11.5">$1,560</text>
+        <rect x="720" y="330" width="66" height="17" rx="4" fill="#EDF1ED" stroke="#C9D6CA"/><text x="728" y="342" font-size="9" font-weight="600" fill="#2F7D3E">APPROVED</text>
+        <line x1="24" y1="360" x2="836" y2="360" stroke="#E3DFD5"/>
+        </g></svg>
+      <figcaption><b>Timesheets screen</b>The timesheets screen at Northbend Athletic. One week is sixty-one hours and sits at the top with a flag. The manager can still sign it, but not without seeing it.</figcaption>
+    </figure>
+  </section>
+
+  <section class="ch-sec prose">
+    <h2>What it refuses</h2>
+    <div style="display:grid;gap:10px;margin-top:20px">
+      <div class="refuse"><span class="dot dot--blocked" style="margin-top:6px"></span>
+        <div><b>Nobody approves their own hours</b>
+          <span>The person who filed the week cannot sign it, and a supplier cannot sign a week its own customer is billed for. Only the company being billed approves.</span></div></div>
+      <div class="refuse warn"><span class="dot dot--pending" style="margin-top:6px"></span>
+        <div><b>R. Adebayo&rsquo;s week is 61 hours</b>
+          <span>Flagged and shown first. A warning, not a block: the manager who owns the work decides, and the decision is recorded with their name.</span></div></div>
+    </div>
+    <p style="margin-top:22px">A week that has been invoiced cannot have its overtime decision changed, and a week amended after that decision asks for it again. Nothing here re-keys hours: the number the person wrote is the number every firm above bills from.</p>
+  </section>
+
+  <section class="ch-sec">
+    <h2>From work to payment</h2>
+    <p>Seven steps. The candidate works, files a week, gets paid—or the supplier does. Client sees every signed hour before they pay.</p>
+    <figure class="fig" style="margin-top:32px;max-width:1000px">
+      <img src="img/flow-desk.png" alt="Workflow showing seven numbered steps from candidate starting work, through timesheet filing and approval, to payment flow with rule violation flags">
+    </figure>
+  </section>
+
+  <section class="ch-sec prose">
+    <h2>Read the flow</h2>
+    <p>Every station of this flow is drawn, including the ones not built yet, in the documentation:
+      <a href="docs.html">Time and money &rarr;</a></p>
+    <p>Or ask a person about it: <a href="index.html#ask">leave your email and a sentence &rarr;</a></p>
+  </section>
+
+  <div class="turn">
+    <a href="contracts.html"><span class="d">&larr; Previous</span><span class="t">Contracts &amp; onboarding</span></a>
+    <a href="invoices.html" class="next"><span class="d">Next &rarr;</span><span class="t">Invoices &amp; the three-way match</span></a>
+  </div>
+</main>
+
+<footer class="book"><div class="page"><span>&copy; 2026 Etyme</span><span style="flex:1"></span><span>Product &middot; 4 of 8</span></div></footer>
+</body>
+</html>
