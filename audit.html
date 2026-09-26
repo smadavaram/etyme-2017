@@ -1,0 +1,155 @@
+<title>Contractor Spend Audit | Etyme</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gelasio:wght@400;500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="kit.css">
+<script src="ask.js" defer></script>
+<style>body{background:#F0EEE6}</style>
+
+<header class="eh"><div class="wrap">
+  <a class="logo" href="index.html"><img src="img/wordmark.svg" alt="Etyme"></a>
+  <nav class="eh-nav" aria-label="Main">
+    <a class="plain" href="index.html">← Back to home</a>
+  </nav>
+  <div class="eh-right">
+    <a class="btn btn-p btn-sm" href="#audit-form">Get Audit</a>
+  </div>
+</div></header>
+
+<main class="page" style="padding-block:72px 0">
+  <div class="prose">
+    <p class="eyebrow">Know what you're actually spending</p>
+    <h1 class="ch-h1" style="font-size:clamp(30px,3.6vw,44px">Your contractors cost more than you think.</h1>
+    <p class="ch-lede">Find hidden costs in your supplier network in 10 minutes. Free contractor spend audit, no card required.</p>
+    <div class="flow" style="margin-top:30px;gap:11px">
+      <a class="btn btn-p" href="#audit-form">Get Your Free Audit →</a>
+      <a class="btn btn-s" href="index.html">Learn about Etyme</a>
+    </div>
+  </div>
+
+  <section class="ch-sec">
+    <h2>What you're missing</h2>
+    <p>Most program offices discover these issues in an audit—or a lawsuit.</p>
+    <div class="toc two" style="margin-top:22px">
+      <div><span class="n">⏱️</span><div><b>14+ days from timesheet to payment</b><span>Your suppliers wait. Your cash flow stalls. You never questioned the speed.</span></div></div>
+      <div><span class="n">💰</span><div><b>3-6 different rates for the same role</b><span>Hidden across email, Excel, and supplier contracts. Nobody adds them up until somebody's audit does.</span></div></div>
+      <div><span class="n">📋</span><div><b>6+ approval loops everywhere</b><span>Timesheets wait on signatures, invoices sit in inboxes, nobody owns the timeline.</span></div></div>
+      <div><span class="n">⚖️</span><div><b>Compliance gaps nobody sees coming</b><span>Tenure miscounted, right-to-work papers missing, vendor insurance expired. You find out when you're fined.</span></div></div>
+    </div>
+  </section>
+
+  <section class="ch-sec">
+    <h2>Why companies run this audit</h2>
+    <div class="toc" style="margin-top:22px">
+      <div style="flex:1;padding:20px;background:rgba(0,0,0,.02);border-radius:4px">
+        <p style="color:#999;font-size:13px;margin-bottom:8px">AVERAGE COST FOUND</p>
+        <h3 style="font-size:32px;margin:0;font-weight:600">$180K</h3>
+        <p style="font-size:13px;color:#999;margin:8px 0 0">in year-one spend</p>
+      </div>
+      <div style="flex:1;padding:20px;background:rgba(0,0,0,.02);border-radius:4px">
+        <p style="color:#999;font-size:13px;margin-bottom:8px">DAYS SAVED</p>
+        <h3 style="font-size:32px;margin:0;font-weight:600">11 days</h3>
+        <p style="font-size:13px;color:#999;margin:8px 0 0">payment cycle reduction</p>
+      </div>
+      <div style="flex:1;padding:20px;background:rgba(0,0,0,.02);border-radius:4px">
+        <p style="color:#999;font-size:13px;margin-bottom:8px">HOURS FREED</p>
+        <h3 style="font-size:32px;margin:0;font-weight:600">6 hours</h3>
+        <p style="font-size:13px;color:#999;margin:8px 0 0">per week in approvals</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="ch-sec" id="audit-form">
+    <h2>Get your contractor spend audit</h2>
+    <p>No card. No sales call unless you want one. Just numbers.</p>
+    <div class="ask" style="margin-top:40px;max-width:600px">
+      <form class="ask-form" data-source="AUDIT_PAGE" novalidate>
+        <div class="ask-body">
+          <div class="field"><label for="audit-email">Work email</label>
+            <input id="audit-email" name="email" type="email" autocomplete="email" placeholder="you@company.com" required>
+          </div>
+          <div class="field"><label for="audit-name">Your name</label>
+            <input id="audit-name" name="name" type="text" autocomplete="name" placeholder="Jane Smith" required>
+          </div>
+          <div class="field"><label for="audit-company">Company name</label>
+            <input id="audit-company" name="companyName" type="text" autocomplete="organization" placeholder="Acme Corp" required>
+          </div>
+          <div class="field"><label for="audit-title">Your title</label>
+            <input id="audit-title" name="title" type="text" placeholder="CFO, VP Procurement, Head of Finance" required>
+          </div>
+          <div class="field"><label for="audit-spend">Annual contractor spend</label>
+            <select id="audit-spend" name="annualSpend" required>
+              <option value="">Select range</option>
+              <option value="under-1m">Under $1M</option>
+              <option value="1m-5m">$1M - $5M</option>
+              <option value="5m-10m">$5M - $10M</option>
+              <option value="10m-50m">$10M - $50M</option>
+              <option value="over-50m">$50M+</option>
+            </select>
+          </div>
+          <div class="field"><label for="audit-suppliers">Number of active suppliers</label>
+            <select id="audit-suppliers" name="numSuppliers" required>
+              <option value="">Select count</option>
+              <option value="1-5">1-5</option>
+              <option value="5-15">5-15</option>
+              <option value="15-50">15-50</option>
+              <option value="50-100">50-100</option>
+              <option value="100+">100+</option>
+            </select>
+          </div>
+          <div class="field"><label for="audit-challenge">Your biggest challenge managing contractors</label>
+            <textarea id="audit-challenge" name="challenge" rows="3" placeholder="Payment delays? Rate inconsistencies? Compliance risk?"></textarea>
+            <p class="hint">A few words. We're looking for patterns.</p>
+          </div>
+          <div class="hp" aria-hidden="true"><label for="audit-cw">Company website</label><input id="audit-cw" name="company_website" tabindex="-1" autocomplete="off"></div>
+          <div class="send"><button class="btn btn-p" type="submit">Send It →</button><span class="fine">Results in 24 hours</span></div>
+        </div>
+        <div class="ask-says" role="status" hidden></div>
+      </form>
+    </div>
+  </section>
+
+  <section class="ch-sec">
+    <h2>What happens next</h2>
+    <div class="toc" style="margin-top:22px">
+      <div><span class="n">1</span><div><b>You get a report</b><span>24 hours. Personalized analysis of your contractor spend patterns, based on your numbers.</span></div></div>
+      <div><span class="n">2</span><div><b>It shows your biggest opportunities</b><span>Where you're likely overspending, losing time in approvals, what compliance risks sit in front of you.</span></div></div>
+      <div><span class="n">3</span><div><b>One concrete next step</b><span>Not a pitch. Just: here's what companies like yours do about this. Want to talk?</span></div></div>
+    </div>
+  </section>
+
+  <section class="ch-sec">
+    <h2>Questions</h2>
+    <details style="margin-bottom:16px">
+      <summary style="cursor:pointer;font-weight:500">Will you call me?</summary>
+      <p style="margin-top:12px;color:#666">Only if you ask. If your audit shows big findings, we might suggest a 20-minute conversation with someone who fixed the same issue. But that's optional.</p>
+    </details>
+    <details style="margin-bottom:16px">
+      <summary style="cursor:pointer;font-weight:500">What's the catch?</summary>
+      <p style="margin-top:12px;color:#666">No catch. We built this because contractors universally cost more than companies think. The audit is real. The data is yours forever. We make money if you decide to fix it—and this audit is how you decide if that's worth exploring.</p>
+    </details>
+    <details style="margin-bottom:16px">
+      <summary style="cursor:pointer;font-weight:500">Who is Etyme?</summary>
+      <p style="margin-top:12px;color:#666">We build software for companies that manage contractors through multiple suppliers. Our platform connects requisitions, contracts, timesheets, invoices, and compliance into one system so you can actually see what's happening.</p>
+    </details>
+    <details>
+      <summary style="cursor:pointer;font-weight:500">What if I'm not ready to do anything?</summary>
+      <p style="margin-top:12px;color:#666">The audit still shows what's possible. Many companies use it for budget planning or to justify hiring someone to own contractor operations.</p>
+    </details>
+  </section>
+
+  <div class="turn three">
+    <a href="index.html"><span class="d">←</span><span class="t">Back to Etyme</span></a>
+    <a href="#audit-form"><span class="d">Audit</span><span class="t">Get your free contractor audit</span></a>
+    <a href="index.html#ask"><span class="d">Talk</span><span class="t">Ask Etyme something</span></a>
+  </div>
+</main>
+
+<footer class="book"><div class="page"><span>&copy; 2026 Etyme</span><span style="flex:1"></span><span><a href="index.html">Home</a> · <a href="audit.html">Free Audit</a></span></div></footer>
+
+<script>
+document.querySelectorAll('details summary').forEach(summary => {
+  summary.addEventListener('click', function(e) {
+    // Allow default details behavior
+  });
+});
+</script>
