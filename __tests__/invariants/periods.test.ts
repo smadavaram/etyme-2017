@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   periodFor, periodsBetween, isAPeriod, hoursInPeriod, collect,
-  endOfMonth, daysInMonth, iso,
-  type Terms, type Sheet, type Period,
+  endOfMonth, daysInMonth, iso, billingStraddle,
+  type Terms, type Sheet, type Period, type Straddle,
 } from '@/lib/periods'
 
 /**
@@ -269,6 +269,67 @@ describe('a week that straddles the month end', () => {
     expect(august.hours).toBe(40)
     expect(august.partial).toBe(false)
     expect(august.note).toMatch(/no daily hours recorded/)
+  })
+})
+
+/**
+ * What a BILL can do with a straddling week, as opposed to what the
+ * arithmetic can do with it.
+ *
+ * Splitting a week by day is exact. It is also unwritable: `InvoiceLine`
+ * is unique on `(timesheetId, sellContractId)` — "one timesheet bills
+ * once, ever", in the schema's own words, because it is the whole
+ * anti-double-billing control — so the minority days of a straddling
+ * week have no second line to go on, and no earlier invoice is coming
+ * for them. Nine of Omar Haddad's hours were on no document at all
+ * before this, at $1,188 on one week.
+ */
+describe('the straddle a bill can actually record', () => {
+
+  it('the straddle a bill can record is named, and splitting a week by day is not one of them', () => {
+    // Each of the three is a real answer to "what happens to a week that
+    // crosses the boundary". Only two of them can be written down.
+    const recordable: Straddle[] = ['END', 'START']
+    for (const straddle of recordable) {
+      expect(billingStraddle(straddle).straddle, straddle).toBe(straddle)
+      expect(billingStraddle(straddle).instead, straddle).toBeNull()
+    }
+
+    expect(billingStraddle('SPLIT').straddle).toBe('END')
+  })
+
+  it('a document that asks for a week to be split is told which answer was used instead, and why', () => {
+    const asked = billingStraddle('SPLIT')
+    expect(asked.instead).toContain('one week bills once per contract')
+    expect(asked.instead).toContain('billed in the period it ends in')
+  })
+
+  it('the week goes to the period it ends in rather than the one it starts in, so no client is billed for work nobody has done yet', () => {
+    // A week beginning 29 September under START would reach the September
+    // invoice with four unworked days on it. END never bills ahead of the
+    // work, and that is the money reason the fallback is END.
+    expect(billingStraddle('SPLIT').straddle).not.toBe('START')
+  })
+
+  it('asking how many hours of a week fall in a month still splits them by day, because a report is not a bill', () => {
+    // `hoursInPeriod` answers a question. A report, a tenure count or a
+    // spend-by-month panel may ask it and get the exact answer; nothing
+    // there is constrained by how many lines an invoice may carry.
+    const week = sheet({
+      id: 'ts-report',
+      periodStart: new Date('2026-08-31T00:00:00Z'),
+      periodEnd: new Date('2026-09-04T00:00:00Z'),
+      days: {
+        '2026-08-31': 9, '2026-09-01': 9, '2026-09-02': 9,
+        '2026-09-03': 9, '2026-09-04': 9,
+      },
+      totalHours: 45,
+    })
+    const august = hoursInPeriod(week, periodFor(new Date('2026-08-15T00:00:00Z'), terms()), 'SPLIT')!
+    const september = hoursInPeriod(week, periodFor(new Date('2026-09-15T00:00:00Z'), terms()), 'SPLIT')!
+    expect(august.hours).toBe(9)
+    expect(september.hours).toBe(36)
+    expect(august.partial).toBe(true)
   })
 })
 

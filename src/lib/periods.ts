@@ -64,13 +64,117 @@ export type Anchor =
 
 /** What happens to a timesheet week that crosses a period boundary. */
 export type Straddle =
-  /** Each day goes to the period it falls in. Exact, and possible because
-   *  hours are stored per day. */
+  /**
+   * Each day goes to the period it falls in. Exact, and possible because
+   * hours are stored per day.
+   *
+   * Exact, and **not recordable on a bill** — see `billingStraddle`
+   * below. Answering "how many of this week's hours fell in August" is a
+   * question a report may ask and get a true answer to. Billing it is a
+   * different act, and the document model cannot hold the answer.
+   */
   | 'SPLIT'
   /** The whole timesheet goes to the period its last day falls in. */
   | 'END'
   /** The whole timesheet goes to the period its first day falls in. */
   | 'START'
+
+/** A straddle a bill can honor, and what it was asked for. */
+export interface BillingStraddle {
+  /** What the bill will actually do. */
+  straddle: Straddle
+  /**
+   * Why the document's own answer could not be honored, in a sentence.
+   * Null where it was honored, which is every case but one.
+   */
+  instead: string | null
+}
+
+/**
+ * The straddle a BILL can record, which is not always the one the
+ * document asked for.
+ *
+ * ── The nine hours billed to nobody ──────────────────────────────────
+ *
+ * Omar Haddad worked Monday 31 August to Friday 4 September 2026, nine
+ * hours a day, forty-five hours, signed by Northbend Athletic's hiring
+ * manager with five hours at time and a half. The September invoice
+ * billed thirty-six of them — the four September days — and `SPLIT` was
+ * right to say so: one day of that week belongs to August, the split was
+ * exact, and `hoursInPeriod` flagged it partial and said which days it
+ * had taken.
+ *
+ * Monday's nine hours were then on no invoice, and no invoice they could
+ * ever reach was coming. Two facts close that door, and neither is a
+ * default anybody chose:
+ *
+ * **One timesheet bills once, ever.** `InvoiceLine` is unique on
+ * `(timesheetId, sellContractId)` and the schema says the reason out
+ * loud: it is the whole anti-double-billing control, and it is in the
+ * database rather than in a service because a service can be bypassed by
+ * the next route somebody writes. So the August days have nowhere to be
+ * written — not a second line on the September invoice, and not a line
+ * on an August one.
+ *
+ * **Generation runs forward.** An invoice bills the period containing
+ * the work it was asked about. Nothing walks backwards looking for a
+ * period that was never billed, and the periods before an engagement's
+ * first billing cycle are never generated at all. On the seeded world
+ * there is no August invoice on that engagement and there will not be
+ * one.
+ *
+ * So under `SPLIT` the minority days of every straddling week are lost,
+ * silently, at $1,188 a time on one placement — and a monthly or
+ * fortnightly period straddles a week roughly once a month on every
+ * calendar-anchored engagement. It is not an exotic configuration; it is
+ * arithmetic that is right and cannot be written down.
+ *
+ * ── Why the answer is not "change the default" ────────────────────────
+ *
+ * The shipped default could be moved from `SPLIT` to `END` and this
+ * placement would come out right. `SPLIT` would still be a setting the
+ * product offers, still be the honest answer for a client that will not
+ * accept a part-week line, and still lose the same hours for anybody who
+ * chose it. A defect made rarer is a defect made harder to find, and
+ * nobody audits an invoice that is too small.
+ *
+ * So the resolution is here, where the arithmetic is, and it is narrow:
+ * `START` and `END` each put the whole week in one period, are each
+ * recordable, and are untouched. Only `SPLIT` cannot be recorded, and a
+ * bill asked for it does the one thing that loses nothing and says which
+ * answer it used.
+ *
+ * ── Why the fallback is END rather than START ─────────────────────────
+ *
+ * Two reasons, and the file already had the first. `hoursInPeriod` has
+ * fallen back to `END` for a timesheet with no daily breakdown since it
+ * was written — the same situation, a split that cannot be performed —
+ * so this is the existing rule applied to the case that was missed.
+ *
+ * The second is money. `END` bills a week on the invoice for the period
+ * its last day falls in, so the work is always complete before it is
+ * billed. `START` would put a week beginning 29 September on the
+ * September invoice, billing a client for four days nobody had worked
+ * yet.
+ *
+ * ── What would make SPLIT recordable ─────────────────────────────────
+ *
+ * `periodStart` and `periodEnd` on `InvoiceLine`, and the unique
+ * relaxed to `(timesheetId, sellContractId, periodStart)`. That is a
+ * schema request for `etyme-architect` and it is not urgent: the unique
+ * is a real control, one line per week reads better on a document than
+ * two, and nothing is lost today.
+ */
+export function billingStraddle(straddle: Straddle): BillingStraddle {
+  if (straddle !== 'SPLIT') return { straddle, instead: null }
+
+  return {
+    straddle: 'END',
+    instead:
+      'one week bills once per contract, so the days falling in the earlier period ' +
+      'cannot be billed there and the whole week is billed in the period it ends in',
+  }
+}
 
 export interface Terms {
   frequency: Frequency
@@ -434,8 +538,23 @@ export function billableInPeriod(
   policy: OvertimePolicy,
   decisions: Decision[] = []
 ): BilledInPeriod | null {
-  const share = hoursInPeriod(sheet, period, straddle)
+  // What this document asked for, and what a bill can actually record.
+  // Only SPLIT differs, and `billingStraddle` says why in a sentence
+  // rather than moving the hours quietly. This is the one door for it, so
+  // the invoice route and the three-way match cannot reach two answers
+  // about the same week.
+  const asked = billingStraddle(straddle)
+  const share = hoursInPeriod(sheet, period, asked.straddle)
   if (!share) return null
+
+  // The reason rides on the line, because a week billed somewhere other
+  // than where its days fall is a thing the person paying it should be
+  // able to read. It replaces `hoursInPeriod`'s own note rather than
+  // being appended to it: that note says what END did, and this one says
+  // why END was used.
+  if (asked.instead && share.note) {
+    share.note = `Crosses the period boundary — ${asked.instead}`
+  }
 
   const days = sheet.days ?? {}
   const leave = sheet.leaveDays ?? {}

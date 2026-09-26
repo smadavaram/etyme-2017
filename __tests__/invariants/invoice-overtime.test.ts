@@ -152,35 +152,78 @@ describe('what an invoice may bill for a week that went over the line', () => {
     expect(b.weeksBilled).toEqual([])
   })
 
-  it('a week straddling two months is judged whole and billed in the days that fall in each', () => {
-    // Monday 31 August to Friday 4 September, nine hours a day: one day
-    // in August, four in September, and five hours over the line in a
-    // 45-hour week that neither month can see on its own.
-    const days = week('2026-08-31', [9, 9, 9, 9, 9])
-    const s = sheet(days)
-    const answer = [decided('2026-08-31', 'PREMIUM', 15_000, 5)]
+  // ── A week that crosses the end of a month ────────────────────────
+  //
+  // These five sentences replace one that was true of the arithmetic and
+  // false of the money. It asserted that a straddling week is billed nine
+  // hours in August and thirty-six in September and that "between them,
+  // the week is billed once and in full". The addition was right and the
+  // second invoice does not exist: `InvoiceLine` is unique on
+  // `(timesheetId, sellContractId)` — one timesheet bills once, ever —
+  // so the August days have no line to go on, and generation runs forward
+  // and never raises an invoice for a period behind it. On the seeded
+  // world Omar Haddad's Monday was on no document at all, $1,188 of
+  // signed work, and `__integration__/premium-invoice.test.ts` was red
+  // about exactly that.
+  //
+  // The split is still exact and `hoursInPeriod` still performs it for
+  // any reader that only wants to know how many hours fell in a month.
+  // What changed is that a BILL resolves SPLIT through
+  // `billingStraddle`, which is where the reason is written down.
 
-    const august = billableInPeriod(
-      s,
-      periodFor(new Date('2026-08-15T00:00:00.000Z'), { frequency: 'MONTHLY', anchor: 'CALENDAR', straddle: 'SPLIT', startedOn: new Date('2026-01-01T00:00:00.000Z') } as Terms),
-      'SPLIT', RATE, OT, answer
-    )!
-    const september = billableInPeriod(s, SEPTEMBER, 'SPLIT', RATE, OT, answer)!
+  const AUGUST: Period = periodFor(new Date('2026-08-15T00:00:00.000Z'), {
+    frequency: 'MONTHLY', anchor: 'CALENDAR', straddle: 'SPLIT',
+    startedOn: new Date('2026-01-01T00:00:00.000Z'),
+  } as Terms)
 
-    // August takes Monday's nine hours, all of them ordinary: the week
-    // had not crossed the line yet.
-    expect(august.hours).toBe(9)
-    expect(august.split.overtimeHours).toBe(0)
+  /** Monday 31 August to Friday 4 September, nine hours a day. */
+  const crossing = () => sheet(week('2026-08-31', [9, 9, 9, 9, 9]))
+  const signed = [decided('2026-08-31', 'PREMIUM', 15_000, 5)]
 
-    // September takes the other thirty-six, of which the last five are
-    // the hours that took the week over.
-    expect(september.hours).toBe(36)
-    expect(september.split.overtimeHours).toBe(5)
-    expect(september.value.totalCents).toBe(31 * RATE + 5 * RATE * 1.5)
+  it('a week that crosses the end of a month is billed whole, and no signed hour is billed to nobody', () => {
+    const september = billableInPeriod(crossing(), SEPTEMBER, 'SPLIT', RATE, OT, signed)!
+    expect(september.hours).toBe(45)
 
-    // Between them, the week is billed once and in full.
-    expect(august.hours + september.hours).toBe(45)
-    expect(august.value.totalCents + september.value.totalCents).toBe(40 * RATE + 5 * RATE * 1.5)
+    // And the week is billed once: the August period does not bill it
+    // too, so forty-five hours reach exactly one document.
+    expect(billableInPeriod(crossing(), AUGUST, 'SPLIT', RATE, OT, signed)).toBeNull()
+  })
+
+  it('the whole week is valued as the week: forty hours at the usual rate and five at the premium the desk signed', () => {
+    const b = billableInPeriod(crossing(), SEPTEMBER, 'SPLIT', RATE, OT, signed)!
+    expect(b.split.regularHours).toBe(40)
+    expect(b.split.overtimeHours).toBe(5)
+    expect(b.value.totalCents).toBe(40 * RATE + 5 * RATE * 1.5)
+
+    // The bands a person reads under the amount, each multiplying out on
+    // its own and adding to what was charged.
+    const bands = bandsOf(b.split, RATE)
+    expect(bands.map((x) => [x.hours, x.rateCents, x.amountCents])).toEqual([
+      [40, RATE, 40 * RATE],
+      [5, RATE * 1.5, 5 * RATE * 1.5],
+    ])
+    expect(bands.reduce((n, x) => n + x.amountCents, 0)).toBe(b.value.totalCents)
+  })
+
+  it('the invoice for the month the week begins in does not bill it, because the week is not finished', () => {
+    // Billing August would charge a client for four days nobody had
+    // worked yet. The week is billed once it is complete, which is on its
+    // last day.
+    expect(billableInPeriod(crossing(), AUGUST, 'SPLIT', RATE, OT, signed)).toBeNull()
+  })
+
+  it('a document that sends the whole week to the month it begins in is honored, because that answer can be recorded', () => {
+    // START puts the whole week in one period too, so nothing is lost and
+    // nothing is resolved away. A client who asked for it gets it.
+    const august = billableInPeriod(crossing(), AUGUST, 'START', RATE, OT, signed)!
+    expect(august.hours).toBe(45)
+    expect(billableInPeriod(crossing(), SEPTEMBER, 'START', RATE, OT, signed)).toBeNull()
+  })
+
+  it('the line says the week crossed the boundary and why it was billed where it was', () => {
+    const b = billableInPeriod(crossing(), SEPTEMBER, 'SPLIT', RATE, OT, signed)!
+    expect(b.share.note).toContain('Crosses the period boundary')
+    expect(b.share.note).toContain('one week bills once per contract')
   })
 
   it('the hours printed on a line and the money printed on it are the same hours', () => {
