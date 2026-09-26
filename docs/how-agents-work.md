@@ -111,6 +111,33 @@ was clean first, so another agent's in-flight rows are not swept into your
 commit. Anything crossing rows — a row moving between groups, a new L2, the
 status of somebody else's work — goes to the coordinator as text.
 
+**And that rule protected the wrong agent. Corrected 2026-09-26, hours
+after it was written.** Two agents in different domains each edited their
+own row on the same afternoon. The one that committed first picked up the
+other's uncommitted row and carried it under its own commit message.
+Nothing was lost and the file was correct, but the work was misattributed
+and neither agent did anything wrong by the rule as written: "check the
+file was clean first" stops you inheriting somebody's rows only if you
+are the one committing second, and the agent committing *first* has no
+reason to look.
+
+So both halves are now stated:
+
+- **Commit your row within the minute you write it.** A row edit held
+  back until the end of a long run is a row edit sitting in the path of
+  whoever finishes first. It is one string; it does not need to wait for
+  your code.
+- **Before you commit `src/lib/matrix.ts`, read the diff of that file
+  and not just your own memory of it.** If it carries a row that is not
+  yours, stop and say so rather than committing it — the other agent is
+  still working and the row will land under their own message in a
+  minute. `git diff src/lib/matrix.ts` is the whole check.
+
+Regenerating `docs/delivery-matrix.html` has the same hazard, because it
+is rebuilt from whatever `MATRIX` currently holds: a regeneration made
+while somebody else's row is in the file bakes their work into your
+artifact. Regenerate immediately before committing, never earlier.
+
 It is a test because it was a page, and within two agent runs the page
 was wrong: accounts receivable still read "not started" after it had been
 built and tested. Nobody noticed, because a page cannot notice.
