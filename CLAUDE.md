@@ -130,6 +130,22 @@ follow:
   says in a conversation, where he can answer the next question. The guard
   in `lib/positioning` refuses any named company on the page again, with
   no exception.
+- **The category is contingent workforce management; VMS is the word
+  beside it. Decided by the founder, 2026-09-27.** The sentence above is
+  replaced by: *"Contingent workforce management for companies with 20
+  to 200 contractors. The vendor management system, sized for fifty
+  contractors rather than five thousand."* The product spans the whole
+  of contingent work — requisition, suppliers, timesheets, invoices,
+  tenure, compliance, and the program office option — and a VMS is one
+  piece of that, so the category names the whole. "Vendor management
+  system" stays in the second sentence because it is the word a buyer's
+  procurement searches for and the word that made the CTO understand the
+  product. **The label is not where the competition thins out**: the
+  contingent-workforce umbrella holds the same enterprise VMS vendors
+  plus freelancer platforms and employer-of-record firms. What is
+  uncrowded is the size — companies with 20 to 200 contractors, too small
+  for the enterprise vendors and too big for a spreadsheet. The niche is
+  the size, not the word.
 - **Concrete nouns only above the fold**: contractors, suppliers,
   timesheets, invoices, rates, months on site. "Record" is allowed once
   the reader has seen the list it refers to.
