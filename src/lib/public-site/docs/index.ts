@@ -99,7 +99,7 @@ export const TIME_AND_MONEY: ReferenceDoc = {
     img: '/screens/timesheets.png',
     alt: 'A timesheets screen at a client: one week flagged at 168 hours with an overtime decision on it, and approved weeks under it.',
     caption:
-      'The hiring manager at Northbend Athletic, in the example program. The flagged week is on top; the weeks under it are signed, at their bill rates.',
+      'The hiring manager at Northbend Athletic, a demo company — not a customer. The flagged week is on top; the weeks under it are signed, at their bill rates.',
   },
   blocks: [
     {

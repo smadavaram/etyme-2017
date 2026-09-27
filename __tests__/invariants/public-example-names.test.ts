@@ -8,10 +8,15 @@
  * the moment a buyer decides whether to trust the page.
  *
  * So every public page is read here, sentence by sentence, for the names
- * the seeded world uses. Wherever one appears, the same sentence says the
- * company is invented or an example; and no sentence names two of them
- * together, because two names side by side is a customer list whatever
- * the sentence around it says.
+ * the seeded world uses. Wherever one appears, the same sentence carries
+ * the founder's label, "a demo company — not a customer"; and no sentence
+ * names two of them together, because two names side by side is a
+ * customer list whatever the sentence around it says.
+ *
+ * The label was "invented" for an hour. The founder asked what that
+ * meant, which is the proof it did not land, and the CRO's question was
+ * "are these your customers?" — which "not a customer" answers in his
+ * own words.
  *
  * `/demo` is the one exception, named here with its reason: it is the
  * door into the example program, the companies are its subject, and it
@@ -46,6 +51,8 @@ function seededFirms(): string[] {
   const fromClientDemo = [...client.matchAll(/\{ name: '([^']+)', bandOfMax/g)].map((m) => m[1])
   // The program spine, named in CLAUDE.md and seeded by lib/seed-programmes.
   const spine = ['Veritan Talent', 'Auralis Software', 'Maren MSP']
+  // A consultant's own corporation, named in the self-employed documentation.
+  spine.push('Byrne Critical Care LLC')
   return [...new Set([...fromWorld, ...fromClientDemo, ...spine])]
 }
 
@@ -65,7 +72,9 @@ function firmsIn(sentence: string): string[] {
   })
 }
 
-const SAYS_IT_IS_INVENTED = /\b(?:invented|example)\b/i
+/** The founder's label, both halves in the one sentence. */
+const SAYS_IT_IS_A_DEMO = (sentence: string) =>
+  /\bdemo compan(?:y|ies)\b/i.test(sentence) && /\bnot (?:a )?customers?\b/i.test(sentence)
 
 function sentences(text: string): string[] {
   return text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean)
@@ -145,11 +154,11 @@ describe('An invented company never reads as a customer', () => {
     expect(SAID.filter((s) => firmsIn(s.unit).length > 0).length).toBeGreaterThan(5)
   })
 
-  it('no public page names an example company without saying, in the same sentence, that it is invented', () => {
+  it('no public page names an example company without saying, in the same sentence, that it is a demo company and not a customer', () => {
     const bare = SAID
-      .filter((s) => firmsIn(s.unit).length > 0 && !SAYS_IT_IS_INVENTED.test(s.unit))
+      .filter((s) => firmsIn(s.unit).length > 0 && !SAYS_IT_IS_A_DEMO(s.unit))
       .map((s) => `${s.where}: ${s.unit}`)
-    expect(bare, `say "invented" or "example" in the same sentence:\n  ${bare.join('\n  ')}`).toEqual([])
+    expect(bare, `say "a demo company — not a customer" in the same sentence:\n  ${bare.join('\n  ')}`).toEqual([])
   })
 
   it('no public page lists two example companies together, because two names side by side is a customer list', () => {
@@ -159,16 +168,16 @@ describe('An invented company never reads as a customer', () => {
     expect(lists, lists.join('\n  ')).toEqual([])
   })
 
-  it('the home page names one example company, and says it is invented in the line that names it', () => {
+  it('the home page names one example company, and says it is a demo company and not a customer in the line that names it', () => {
     const home = SAID.filter((s) => s.where === '/')
     const named = [...new Set(home.flatMap((s) => firmsIn(s.unit)))]
     expect(named).toEqual(['Northbend Athletic'])
     for (const s of home.filter((x) => firmsIn(x.unit).length > 0)) {
-      expect(s.unit).toMatch(/an invented company/)
+      expect(s.unit).toContain('a demo company — not a customer')
     }
   })
 
-  it('every screen on the home page is captioned as showing invented firms, because a screenshot lists names the text guard cannot read', () => {
+  it('every screen on the home page is captioned as showing demo companies, not customers, because a screenshot lists names the text guard cannot read', () => {
     // The hero screen shows a supplier panel naming three seeded firms side
     // by side, and the invoices screen names two. A PNG is opaque to a
     // test, so the caption under each screen carries the disclaimer for
@@ -176,21 +185,29 @@ describe('An invented company never reads as a customer', () => {
     const page = read('src/app/page.tsx')
     const screens = (page.match(/<img/g) ?? []).length
     expect(screens).toBe(2)
-    expect(page).toContain('every firm on screen is invented too.')
-    expect(/caption: '([^']+)'/.exec(page.slice(page.indexOf('const STEP_SCREEN')))?.[1]).toMatch(/firms are invented/)
+    expect(page).toContain('every firm on this screen is a demo company — not a customer.')
+    expect(/caption: '([^']+)'/.exec(page.slice(page.indexOf('const STEP_SCREEN')))?.[1])
+      .toContain('Every firm on this screen is a demo company — not a customer.')
+    // And the word that did not land is gone from what a reader reads.
+    expect(copyFrom(page).join(' ')).not.toMatch(/\binvented\b/)
   })
 
   it('catches a caption that names a seeded firm as if it were a customer', () => {
     expect(firmsIn('The program manager at Northbend Athletic signs the week.')).toEqual(['Northbend Athletic'])
     expect(firmsIn('Trusted by Northbend Athletic and Talvern Medical.')).toHaveLength(2)
-    expect(SAYS_IT_IS_INVENTED.test('The program manager at Northbend Athletic signs the week.')).toBe(false)
-    expect(SAYS_IT_IS_INVENTED.test('Northbend Athletic, an invented company, signs the week.')).toBe(true)
+    expect(SAYS_IT_IS_A_DEMO('The program manager at Northbend Athletic signs the week.')).toBe(false)
+    expect(SAYS_IT_IS_A_DEMO('Northbend Athletic, an invented company, signs the week.')).toBe(false)
+    expect(SAYS_IT_IS_A_DEMO('Northbend Athletic, a demo company, signs the week.')).toBe(false)
+    expect(SAYS_IT_IS_A_DEMO('Northbend Athletic, a demo company — not a customer.')).toBe(true)
     // And it knows a firm by its own first word, the way a screen shortens it.
     expect(firmsIn('Nobody can be submitted through Brightmoor.')).toEqual(['Brightmoor Staffing'])
   })
 
-  it('leaves the example program’s own door as the one page that shows the companies, and it says they are invented', () => {
+  it('leaves the example program’s own door as the one page that shows the companies, and it says they are not real', () => {
+    // /demo is Platform's page. Its sentence says "the companies are
+    // invented" today and is queued to take the founder's label; either
+    // wording passes, so the change is not blocked by this file.
     const demo = read('src/app/demo/page.tsx')
-    expect(demo).toContain('the companies are invented')
+    expect(demo).toMatch(/the companies are invented|not a customer|not customers/)
   })
 })

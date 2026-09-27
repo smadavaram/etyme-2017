@@ -50,7 +50,7 @@ export interface Way {
 /** The first rung: the example program. The primary button, everywhere. */
 export const SEE_IT: Way = {
   t: 'See it with a month of data',
-  d: 'An invented company with its contractors, suppliers, timesheets and invoices. No card. No sign-up.',
+  d: 'A demo company — not a customer — with a month of contractors, suppliers, timesheets and invoices. No card. No sign-up.',
   href: '/demo',
 }
 
@@ -95,7 +95,7 @@ export const WAYS_FORWARD: Way[] = [SEE_IT, GET_THE_AUDIT, ASK_A_PERSON]
  */
 export const CLOSE_BAND = {
   heading: 'See it working before you talk to anybody',
-  line: 'The example program is an invented company with a month of work in it, and nothing in it asks for an account.',
+  line: 'The example program is a demo company — not a customer — with a month of work in it and no account to open.',
 } as const
 
 /** Every word the close band shows, for the guard. */

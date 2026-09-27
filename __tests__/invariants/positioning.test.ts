@@ -1394,8 +1394,8 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     // company says it is invented.
     expect(SEE_IT.href).toBe('/demo')
     expect(PAGE).toContain('href={SEE_IT.href as Route}')
-    expect(CLOSE_BAND.line).toContain('an invented company')
-    expect(PAGE).toContain('Northbend Athletic, an invented company')
+    expect(CLOSE_BAND.line).toContain('a demo company — not a customer')
+    expect(PAGE).toContain('Northbend Athletic; every firm on this screen is a demo company — not a customer.')
     expect(namedCompanies(all)).toEqual([])
   })
 
@@ -1875,7 +1875,11 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // hero screen's caption: 458. Then each screen's caption saying every
     // firm on it is invented, because the screenshots list seeded supplier
     // names side by side and a PNG is opaque to the name guard; the
-    // documentation link lost three words to pay for it: 464.
+    // documentation link lost three words to pay for it: 464. Then the
+    // founder's label, "a demo company — not a customer", replaced
+    // "invented", a few words longer on each screen; the documentation
+    // link under the steps went to pay for it, because each of the four
+    // steps already leads to its own part's page: 463.
     //
     // About sixty of those are the ask form's own labels and promise beside
     // the close ("your email", "what do you need", "nothing you send starts

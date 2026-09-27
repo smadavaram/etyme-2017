@@ -137,7 +137,7 @@ const STEPS: { n: string; t: string; href: string }[] = [
 const STEP_SCREEN = {
   img: '/screens/invoices.png',
   alt: 'An invoices screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
-  caption: 'Step 04 in the example program, whose firms are invented: a bill with no signed week behind it is not paid.',
+  caption: 'A bill with no signed week behind it is not paid. Every firm on this screen is a demo company — not a customer.',
   from: '/dashboard/invoices, what we owe, as the AP clerk',
   /**
    * When the image was taken, UTC. Pinned because the seeded world it
@@ -258,7 +258,7 @@ export default function LandingPage() {
                 page's caption says the example program opens without an
                 account. */}
             <figcaption className="px-5 py-3.5 text-[13px] leading-relaxed text-etyme-muted">
-              The program manager’s desk at Northbend Athletic, an invented company; every firm on screen is invented too. Open it yourself. No card. No sign-up.
+              The program manager’s desk at Northbend Athletic; every firm on this screen is a demo company — not a customer. Open it yourself. No card. No sign-up.
             </figcaption>
           </figure>
         </div>
@@ -315,14 +315,6 @@ export default function LandingPage() {
             </figure>
           </div>
 
-          <p className="mt-10 text-[15px]">
-            <Link
-              href={'/docs/client' as Route}
-              className="font-medium text-etyme-action underline underline-offset-4 hover:opacity-80"
-            >
-              The documentation, desk by desk →
-            </Link>
-          </p>
         </div>
       </section>
 

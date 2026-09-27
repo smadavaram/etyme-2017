@@ -182,7 +182,7 @@ export const ABOUT: CompanyPage = {
       screen: {
         img: '/screens/contractors.png',
         alt: 'A contractors table: one row per person, with the supplier that sent them, their status, where they are and their months on site.',
-        caption: 'Every contractor at Northbend Athletic, an invented company in the example program, whichever supplier sent them.',
+        caption: 'Every contractor at Northbend Athletic, a demo company — not a customer, whichever supplier sent them.',
         from: '/dashboard/people, table view, as the program manager',
         capturedAt: '2026-09-21T15:17:41Z',
       },

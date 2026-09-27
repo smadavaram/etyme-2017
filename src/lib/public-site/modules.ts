@@ -163,10 +163,11 @@ const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
  * Northbend Athletic asked "are these real?" — and an invented company
  * that reads as a customer is fake social proof, which loses the trust
  * moment on its own. So the name never appears on a public page without
- * "invented" or "example" in the same sentence or caption, and
+ * the founder's label, "a demo company — not a customer" (decided the
+ * same evening, after "invented" did not land), in the same sentence, and
  * `__tests__/invariants/public-example-names.test.ts` holds it.
  */
-const NORTHBEND = 'Northbend Athletic, an invented company'
+const NORTHBEND = 'Northbend Athletic, a demo company — not a customer'
 
 export const MODULES: ModulePage[] = [
   {
@@ -222,7 +223,7 @@ export const MODULES: ModulePage[] = [
     refuses: [
       {
         says: 'Pinnacle Resourcing was not among the suppliers Procurement cleared for this requirement.',
-        then: 'Pinnacle Resourcing is an invented supplier in the example program. Not sent. Ask Procurement to add them, or leave them out. A hiring manager cannot choose who sees a role.',
+        then: 'Pinnacle Resourcing is a demo company — not a customer. Not sent. Ask Procurement to add them, or leave them out. A hiring manager cannot choose who sees a role.',
         kind: 'BLOCK',
         source: 'src/app/api/requisitions/[id]/distribute/route.ts',
         phrase: 'not among the suppliers Procurement cleared for this requirement',
@@ -237,7 +238,7 @@ export const MODULES: ModulePage[] = [
     ],
     refusesNote:
       'Whoever recommended a supplier cannot decide it, and a rejection needs a reason the requester can read. ' +
-      'With Brightmoor Staffing, an invented supplier, the screen says: “You recommended Brightmoor Staffing, so the desks decide it without you.”',
+      'With Brightmoor Staffing, a demo company — not a customer, the screen says: “You recommended Brightmoor Staffing, so the desks decide it without you.”',
     flow: { href: '/docs/client#l1-1', label: 'Source to contract, from the client’s desk' },
   },
 
@@ -664,7 +665,7 @@ export const MODULES: ModulePage[] = [
     refuses: [
       {
         says: 'Supplied through Computer Systems Inc.',
-        then: 'Computer Systems Inc is an invented supplier in the example program. The firm below the supplier you pay is not named, unless your agreement with that supplier requires it. Its insurance and authorization are never hidden.',
+        then: 'Computer Systems Inc is a demo company — not a customer. The firm below the supplier you pay is not named, unless your agreement with that supplier requires it. Its insurance and authorization are never hidden.',
         kind: 'BLOCK',
         source: 'src/lib/chain-names.ts',
         phrase: 'Supplied through ',
@@ -767,7 +768,7 @@ export const MODULES: ModulePage[] = [
     refuses: [
       {
         says: 'Brightmoor Staffing has no current insurance verification on file.',
-        then: 'Brightmoor Staffing is an invented supplier in the example program. Nobody can be submitted through it until its cover is back in date, and new starts wait for it too.',
+        then: 'Brightmoor Staffing is a demo company — not a customer. Nobody can be submitted through it until its cover is back in date, and new starts wait for it too.',
         kind: 'BLOCK',
         source: 'src/lib/governance.ts',
         phrase: 'has no current insurance verification on file.',
