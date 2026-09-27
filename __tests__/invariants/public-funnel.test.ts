@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  check, priceClaims, namedCompanies, readsAsAimedAtSuppliers, offersTheProgramOffice,
+  check, copyFrom, priceClaims, namedCompanies, readsAsAimedAtSuppliers, offersTheProgramOffice,
   sizesAgainstIncumbents, longSentences, headlinesFrom, withoutVerb, promisesAnAccount,
 } from '@/lib/positioning'
 import {
@@ -152,8 +152,29 @@ describe('No button promises what the site cannot give', () => {
   it('lets a door say what it leads to, and lets a page say nobody needs an account', () => {
     expect(promisesAnAccount([
       'See it with a month of data', 'Get your contractor spend audit', 'Ask a person', 'Sign in',
-      'Open the example program', 'No card and no sign-up.', 'Ask for your census',
+      'Open the example program', 'No card. No sign-up.', 'No card and no sign-up.', 'Ask for your census',
     ])).toEqual([])
+  })
+
+  it('says no card and no sign-up as two short sentences, the same way everywhere it is said', () => {
+    // A buyer-side review, 2026-09-27: "No card and no sign-up." became
+    // "No card. No sign-up." everywhere.
+    expect(SEE_IT.d).toContain('No card. No sign-up.')
+    expect(HOME).toContain('No card. No sign-up.')
+    const said = [...SITE_SOURCES.map(read), read('src/lib/public-site/funnel.ts'), read('src/lib/public-site/leads.ts')]
+      .map((src) => copyFrom(src).join(' ')).join(' ')
+    expect(said).not.toMatch(/no card and no sign-up/i)
+  })
+
+  it('the line about the price says why it is free, and still leads to what is settled', () => {
+    // "What is settled →" read as a riddle beside "free while we prove it
+    // out with the first five firms". The link now says what it answers,
+    // and it still goes to the paragraph on About that answers it.
+    expect(HOME).toContain('Why it’s free for the first five firms →')
+    expect(HOME).not.toContain('What is settled →')
+    const link = HOME.slice(HOME.lastIndexOf('<Link', HOME.indexOf('Why it’s free for the first five firms')))
+    expect(link).toMatch(/^<Link\s+href=\{'\/about#price' as Route\}/)
+    expect(priceClaims(copyFrom(HOME).join(' '))).toEqual([])
   })
 
   it('the spend audit is promised in the census’s own time everywhere, never a faster one', () => {

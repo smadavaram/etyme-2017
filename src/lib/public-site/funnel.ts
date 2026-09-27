@@ -50,7 +50,7 @@ export interface Way {
 /** The first rung: the example program. The primary button, everywhere. */
 export const SEE_IT: Way = {
   t: 'See it with a month of data',
-  d: 'An invented company with its contractors, suppliers, timesheets and invoices. No card and no sign-up.',
+  d: 'An invented company with its contractors, suppliers, timesheets and invoices. No card. No sign-up.',
   href: '/demo',
 }
 

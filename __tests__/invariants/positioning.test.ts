@@ -1870,12 +1870,14 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // and lines the header's Product menu already carries — left the page,
     // and so did three of the four step screens and their captions: 434.
     // Then one outcome line under the category, seventeen words, which the
-    // same review asked for: 451.
+    // same review asked for: 451. Then the price link saying what it
+    // answers, and "Open it yourself. No card. No sign-up." moving onto the
+    // hero screen's caption: 458.
     //
     // About sixty of those are the ask form's own labels and promise beside
     // the close ("your email", "what do you need", "nothing you send starts
     // a sequence"), which are the form rather than prose to cut. The
-    // ceiling sits one short sentence above the count and no more: room to
+    // ceiling sits a few words above the count and no more: room to
     // fix a line, never room for a band. A band that needs more words than
     // this needs a page of its own.
     const words = readerWords()

@@ -235,9 +235,6 @@ export default function LandingPage() {
               {GET_THE_AUDIT.t}
             </Link>
           </div>
-          <p className="mt-4 font-mono text-[12px] text-etyme-muted">
-            No card and no sign-up.
-          </p>
 
           <figure className="mt-10 overflow-hidden rounded-xl border border-etyme-rule
                              bg-etyme-raised shadow-sm">
@@ -254,8 +251,14 @@ export default function LandingPage() {
               height={900}
               className="block h-auto w-full border-b border-etyme-rule"
             />
+            {/* "No card. No sign-up." sat under the two buttons until
+                2026-09-27. The outcome line took the last of the six
+                sentences allowed before the first screen, so the note moved
+                here, onto the screen it is about, the way every module
+                page's caption says the example program opens without an
+                account. */}
             <figcaption className="px-5 py-3.5 text-[13px] leading-relaxed text-etyme-muted">
-              The program manager’s desk at Northbend Athletic, an invented company in the example program.
+              The program manager’s desk at Northbend Athletic, an invented company in the example program. Open it yourself. No card. No sign-up.
             </figcaption>
           </figure>
         </div>
@@ -371,7 +374,7 @@ export default function LandingPage() {
             href={'/about#price' as Route}
             className="text-etyme-action underline underline-offset-4 hover:opacity-80"
           >
-            What is settled →
+            Why it’s free for the first five firms →
           </Link>
         </p>
         {/* The two quieter doors, as whole sentences. A buyer-side review,

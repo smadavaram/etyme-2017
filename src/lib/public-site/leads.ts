@@ -533,8 +533,8 @@ export const ASK_COPY = {
   sending: 'Sending…',
   thanks: 'Got it. Somebody reads this and writes back.',
   after:
-    'If you would rather look before you talk to anybody, the demo above needs no card ' +
-    'and no sign-up.',
+    'If you would rather look before you talk to anybody, the demo above is open to you. ' +
+    'No card. No sign-up.',
 } as const
 
 // ── Somebody is told a lead arrived ─────────────────────────────────
