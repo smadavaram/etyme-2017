@@ -156,7 +156,17 @@ export function spelled(n: number): string {
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-const NORTHBEND = 'Northbend Athletic'
+/**
+ * The example client, said with what it is every time it is named.
+ *
+ * A buyer-side review, 2026-09-27: a CTO reading a caption that named
+ * Northbend Athletic asked "are these real?" — and an invented company
+ * that reads as a customer is fake social proof, which loses the trust
+ * moment on its own. So the name never appears on a public page without
+ * "invented" or "example" in the same sentence or caption, and
+ * `__tests__/invariants/public-example-names.test.ts` holds it.
+ */
+const NORTHBEND = 'Northbend Athletic, an invented company'
 
 export const MODULES: ModulePage[] = [
   {
@@ -212,7 +222,7 @@ export const MODULES: ModulePage[] = [
     refuses: [
       {
         says: 'Pinnacle Resourcing was not among the suppliers Procurement cleared for this requirement.',
-        then: 'Not sent. Ask Procurement to add them, or leave them out. A hiring manager cannot choose who sees a role.',
+        then: 'Pinnacle Resourcing is an invented supplier in the example program. Not sent. Ask Procurement to add them, or leave them out. A hiring manager cannot choose who sees a role.',
         kind: 'BLOCK',
         source: 'src/app/api/requisitions/[id]/distribute/route.ts',
         phrase: 'not among the suppliers Procurement cleared for this requirement',
@@ -226,8 +236,8 @@ export const MODULES: ModulePage[] = [
       },
     ],
     refusesNote:
-      'Whoever recommended a supplier cannot decide it: “You recommended Brightmoor Staffing, so the desks decide it without you.” ' +
-      'And a rejection needs a reason the requester can read.',
+      'Whoever recommended a supplier cannot decide it, and a rejection needs a reason the requester can read. ' +
+      'With Brightmoor Staffing, an invented supplier, the screen says: “You recommended Brightmoor Staffing, so the desks decide it without you.”',
     flow: { href: '/docs/client#l1-1', label: 'Source to contract, from the client’s desk' },
   },
 
@@ -654,7 +664,7 @@ export const MODULES: ModulePage[] = [
     refuses: [
       {
         says: 'Supplied through Computer Systems Inc.',
-        then: 'The firm below the supplier you pay is not named, unless your agreement with that supplier requires it. Its insurance and authorization are never hidden.',
+        then: 'Computer Systems Inc is an invented supplier in the example program. The firm below the supplier you pay is not named, unless your agreement with that supplier requires it. Its insurance and authorization are never hidden.',
         kind: 'BLOCK',
         source: 'src/lib/chain-names.ts',
         phrase: 'Supplied through ',
@@ -721,7 +731,7 @@ export const MODULES: ModulePage[] = [
       img: '/screens/governance.png',
       alt: 'A compliance overview: the client’s contingent workforce policy, with a tenure cap, a break in service and supplier insurance set to block, and a rate band set to warn.',
       caption:
-        `${NORTHBEND}’s own policy, as its program manager reads it. The tenure cap, the break in service and supplier insurance block; ` +
+        `The policy of ${NORTHBEND}, as its program manager reads it. The tenure cap, the break in service and supplier insurance block; ` +
         'the rate band warns and asks for a reason.',
       from: '/dashboard/compliance as the program manager',
       capturedAt: '2026-09-26T21:13:58Z',
@@ -757,7 +767,7 @@ export const MODULES: ModulePage[] = [
     refuses: [
       {
         says: 'Brightmoor Staffing has no current insurance verification on file.',
-        then: 'Nobody can be submitted through Brightmoor until its cover is back in date, and new starts wait for it too.',
+        then: 'Brightmoor Staffing is an invented supplier in the example program. Nobody can be submitted through it until its cover is back in date, and new starts wait for it too.',
         kind: 'BLOCK',
         source: 'src/lib/governance.ts',
         phrase: 'has no current insurance verification on file.',
