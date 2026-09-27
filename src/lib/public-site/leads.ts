@@ -536,3 +536,120 @@ export const ASK_COPY = {
     'If you would rather look before you talk to anybody, the demo above needs no card ' +
     'and no sign-up.',
 } as const
+
+// ── Somebody is told a lead arrived ─────────────────────────────────
+
+/**
+ * The form promises "a person reads it". Until 2026-09-27 the route
+ * stored the row and emailed nobody, so the promise was kept only when
+ * somebody at Etyme happened to open the list. A census request already
+ * emailed staff; a lead now goes the same way — `tellStaff` in
+ * `lib/alerts`, to `ETYME_STAFF_EMAILS`, through the one configured
+ * sender. No second mail path.
+ *
+ * The words live here rather than in `lib/notify` because there was no
+ * lead letter there to call, lead capture is this domain's, and the
+ * letter goes to our own staff — never to the person who wrote.
+ */
+
+/**
+ * Whether this arrival should email the team: the first time an address
+ * writes, and never again.
+ *
+ * The founder allowed once an hour per lead or first creation only.
+ * Once an hour needs a memory of when the team was last told, and there
+ * is none to use: `MarketingLead` has no `toldAt` and no `updatedAt`, and
+ * a new `AutomationLog` action needs a rung on the ladder in
+ * `lib/autonomy`, which is the architect's. First creation needs no
+ * memory — the unique index on email already says whether this is the
+ * first time — so it is bounded by construction: however often an
+ * address presses the button, the team hears about it once.
+ *
+ * The cost, said rather than hidden: somebody who comes back weeks later
+ * with a new question has their words merged into the row, newest first,
+ * and nobody is emailed about it. It surfaces on the list, not in an
+ * inbox. Once-an-hour is the better rule and is one ladder entry away.
+ */
+export function shouldTellStaff(alreadyOnFile: boolean): boolean {
+  return !alreadyOnFile
+}
+
+/** Where on our side they wrote from, in words. `source` is all we record. */
+const FROM: Record<LeadSource, string> = {
+  HOME_PAGE: 'the ask form on the home page',
+  DEMO: 'the demo',
+  GENERATED_SITE: 'the ask form on a generated company site',
+  REFERRAL: 'a referral',
+  EVENT: 'an event',
+}
+
+export interface LeadArrived {
+  email: string
+  name?: string | null
+  companyName?: string | null
+  source: string
+  /** What they wrote this time, in their words. */
+  askedNow?: string | null
+  /** The staff list of everybody who wrote. */
+  listUrl: string
+}
+
+/** The email the team gets. Plain text, to our own staff only. */
+export function leadArrivedNotice(l: LeadArrived): { subject: string; body: string } {
+  const name = tidy(l.name)
+  const company = tidy(l.companyName)
+  const asked = tidy(l.askedNow)
+  const from = isSource(l.source) ? FROM[l.source] : 'a page we do not recognize'
+
+  const who = name ? `${name} (${l.email})` : l.email
+  const at = company ? ` at ${company}` : ''
+
+  const subject = `Somebody asked: ${name ?? l.email}${company ? `, ${company}` : ''}`
+
+  const lines: string[] = [
+    `${who}${at} wrote from ${from}.`,
+    '',
+    asked ? `What they wrote:\n"${asked}"` : 'They left no sentence — only an address.',
+    '',
+  ]
+  lines.push(
+    'The form promised them that a person reads it and writes back. Nothing automatic follows ' +
+      `this email: reply to ${l.email} yourself.`,
+    '',
+    `Everybody who has written, longest wait first (staff only): ${l.listUrl}`
+  )
+
+  return { subject, body: lines.join('\n') }
+}
+
+/**
+ * Whether anybody hears about a lead on this deployment, said plainly on
+ * the staff list. Leads are stored either way; this is whether a person
+ * is told.
+ */
+export function whoHearsSays(staffNamed: number, senderConfigured: boolean): { told: boolean; says: string } {
+  if (staffNamed === 0) {
+    return {
+      told: false,
+      says:
+        'Leads are being stored and nobody is told. ETYME_STAFF_EMAILS is not set on this ' +
+        'deployment, so a lead waits here until somebody opens this list.',
+    }
+  }
+  if (!senderConfigured) {
+    return {
+      told: false,
+      says:
+        'Leads are being stored and nobody is told. Staff are named but no email sender is ' +
+        'configured (NOTIFY_FROM_EMAIL with RESEND_API_KEY or SENDGRID_API_KEY).',
+    }
+  }
+  return {
+    told: true,
+    says:
+      `Each lead is emailed to ${staffNamed === 1 ? 'the one address' : `the ${staffNamed} addresses`} ` +
+      'on ETYME_STAFF_EMAILS the first time that address writes. A second message from the ' +
+      'same address is added to its row here and emails nobody. A send that fails is recorded ' +
+      'as an incident.',
+  }
+}

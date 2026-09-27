@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getSessionEmail } from '@/lib/api-context'
+import { reportError, staffAddresses, tellStaff } from '@/lib/alerts'
+import { emailSender } from '@/lib/senders'
 import {
   problems,
   looksScripted,
@@ -12,6 +14,9 @@ import {
   stillWaiting,
   conversion,
   ASK_COPY,
+  leadArrivedNotice,
+  shouldTellStaff,
+  whoHearsSays,
   type OnFile,
 } from '@/lib/public-site/leads'
 
@@ -120,8 +125,9 @@ export async function POST(request: NextRequest) {
 
   const verdict = secondAsk(input, existing as OnFile | null, now)
 
-  await prisma.marketingLead.upsert({
+  const saved = await prisma.marketingLead.upsert({
     where: { email },
+    select: { id: true },
     create: {
       email,
       name: input.name,
@@ -139,7 +145,60 @@ export async function POST(request: NextRequest) {
     },
   })
 
+  // Somebody is told. After the row, never instead of it, and never in
+  // the way of the reply: the visitor gets the same thanks whatever
+  // happens here, because the lead is kept either way.
+  if (shouldTellStaff(verdict.alreadyOnFile)) {
+    await tellAboutLead({
+      leadId: saved.id,
+      email,
+      input,
+      source,
+      listUrl: `${request.nextUrl.origin}/api/market/leads`,
+    })
+  }
+
   return NextResponse.json({ data: { says: ASK_COPY.thanks } })
+}
+
+/**
+ * Email the people who answer — the first time an address writes.
+ *
+ * The same channel a census request uses: `tellStaff` in `lib/alerts`,
+ * to `ETYME_STAFF_EMAILS`, through the one configured sender.
+ *
+ * Never throws. A send that fails, or a deployment with nobody named to
+ * hear it, goes through `reportError` and so becomes an Incident; the
+ * lead is already stored and the visitor's reply does not change.
+ */
+async function tellAboutLead(a: {
+  leadId: string
+  email: string
+  input: { name: string | null; companyName: string | null; asked: string | null }
+  source: string
+  listUrl: string
+}): Promise<void> {
+  const where = 'A lead from the ask form reached nobody'
+  try {
+    const letter = leadArrivedNotice({
+      email: a.email,
+      name: a.input.name,
+      companyName: a.input.companyName,
+      source: a.source,
+      askedNow: a.input.asked,
+      listUrl: a.listUrl,
+    })
+    const told = await tellStaff(letter.subject, letter.body)
+    if (!told.sent) {
+      await reportError(
+        where,
+        new Error(`${a.email} is stored (lead ${a.leadId}) and nobody was told: ${told.reason}`),
+        { path: '/api/market/leads' }
+      )
+    }
+  } catch (err) {
+    await reportError(where, err, { path: '/api/market/leads' })
+  }
 }
 
 /**
@@ -235,6 +294,9 @@ export async function GET() {
 
   return NextResponse.json({
     data: {
+      // Whether anybody is told when somebody writes. Leads are stored
+      // either way; this is the sentence that says when nobody hears.
+      told: whoHearsSays(staffAddresses().length, emailSender() !== null),
       // Everybody, newest first, for reading.
       leads: rows,
       // And the queue that matters: who asked, has not become a
