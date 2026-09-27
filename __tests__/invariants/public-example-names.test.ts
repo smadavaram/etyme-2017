@@ -168,6 +168,18 @@ describe('An invented company never reads as a customer', () => {
     }
   })
 
+  it('every screen on the home page is captioned as showing invented firms, because a screenshot lists names the text guard cannot read', () => {
+    // The hero screen shows a supplier panel naming three seeded firms side
+    // by side, and the invoices screen names two. A PNG is opaque to a
+    // test, so the caption under each screen carries the disclaimer for
+    // everything on it.
+    const page = read('src/app/page.tsx')
+    const screens = (page.match(/<img/g) ?? []).length
+    expect(screens).toBe(2)
+    expect(page).toContain('every firm on screen is invented too.')
+    expect(/caption: '([^']+)'/.exec(page.slice(page.indexOf('const STEP_SCREEN')))?.[1]).toMatch(/firms are invented/)
+  })
+
   it('catches a caption that names a seeded firm as if it were a customer', () => {
     expect(firmsIn('The program manager at Northbend Athletic signs the week.')).toEqual(['Northbend Athletic'])
     expect(firmsIn('Trusted by Northbend Athletic and Talvern Medical.')).toHaveLength(2)

@@ -1872,7 +1872,10 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // Then one outcome line under the category, seventeen words, which the
     // same review asked for: 451. Then the price link saying what it
     // answers, and "Open it yourself. No card. No sign-up." moving onto the
-    // hero screen's caption: 458.
+    // hero screen's caption: 458. Then each screen's caption saying every
+    // firm on it is invented, because the screenshots list seeded supplier
+    // names side by side and a PNG is opaque to the name guard; the
+    // documentation link lost three words to pay for it: 464.
     //
     // About sixty of those are the ask form's own labels and promise beside
     // the close ("your email", "what do you need", "nothing you send starts
