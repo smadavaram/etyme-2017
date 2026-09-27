@@ -7,7 +7,9 @@ import {
   PROGRAM_OFFICE_SEATS,
   INTEGRATOR_SEATS,
   CANDIDATE_SEATS,
+  NEXT_STEP_LEAD,
 } from './seats'
+import { GET_THE_AUDIT, ASK_A_PERSON } from '@/lib/public-site/funnel'
 
 /**
  * The second page a client sees, one click after the home page.
@@ -35,6 +37,16 @@ import {
  * promises nothing, because the visitor presses it.
  *
  * The seats themselves are in ./seats, where a test can read them.
+ *
+ * ── The way back to the funnel ───────────────────────────────────────
+ *
+ * A visitor arrives here from "See it with a month of data", the first
+ * rung of the ladder in `lib/public-site/funnel`, and until 2026-09-27
+ * the page had no second rung: nothing said what to do after looking.
+ * One quiet line at the foot now offers the next two, in the funnel's
+ * own words and to its own addresses — the audit and a person — and
+ * never an account, because sign-in for a real tenant is not open.
+ * `site-description.test.ts` reads the line against `promisesAnAccount`.
  */
 
 export default function DemoPage() {
@@ -116,6 +128,19 @@ export default function DemoPage() {
             <PersonDoors people={CANDIDATE_SEATS} />
           </div>
         </section>
+
+        {/* ── The next step, quietly ───────────────────────────── */}
+        <p className="mt-16 border-t border-etyme-rule pt-6 text-[14px] leading-relaxed text-etyme-muted">
+          {NEXT_STEP_LEAD}{' '}
+          <a href={GET_THE_AUDIT.href} className="text-etyme-action hover:underline">
+            {GET_THE_AUDIT.t}
+          </a>
+          , or{' '}
+          <a href={ASK_A_PERSON.href} className="text-etyme-action hover:underline">
+            {ASK_A_PERSON.t.toLowerCase()}
+          </a>
+          .
+        </p>
       </main>
     </div>
   )

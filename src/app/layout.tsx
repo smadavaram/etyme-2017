@@ -44,8 +44,19 @@ export const metadata: Metadata = {
     default: 'Etyme',
     template: '%s | Etyme',
   },
+  // What every page but the home page says it is — the search result, the
+  // link preview, the tab. It said "the system of record for contingent
+  // hiring … verified" until 2026-09-27, which read as a hiring tool and
+  // claimed a verification nothing backs. It is now the category sentence
+  // the founder decided that day (CLAUDE.md, "Show the product"), word for
+  // word, and `site-description.test.ts` holds it there.
+  //
+  // No openGraph or twitter block on purpose: one set here would be
+  // inherited as the og:title of every page that sets only a title, so a
+  // link preview would read "Etyme" over a page about invoices. Previews
+  // fall back to this description, which is the part that was wrong.
   description:
-    'The system of record for contingent hiring. Every hire, every timesheet, every payment — verified.',
+    'Contingent workforce management for companies with 20 to 200 contractors. The vendor management system, sized for fifty contractors rather than five thousand.',
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
 }
 
