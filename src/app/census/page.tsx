@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { EtymeLogo } from '@/components/logo'
+import { SiteHeader, SiteFooter } from '@/lib/public-site/frame'
 import { CensusFlow } from './flow'
 import {
   CENSUS_COPY,
@@ -63,21 +63,7 @@ export default function CensusPage() {
 
   return (
     <main className="min-h-screen bg-etyme-canvas">
-      {/* ── The header ───────────────────────────────────────── */}
-      <header className="border-b border-etyme-rule">
-        <nav className="mx-auto flex max-w-4xl items-center gap-4 px-4 py-4 sm:px-6">
-          <Link href="/" aria-label="Etyme — home">
-            <EtymeLogo size="md" />
-          </Link>
-          <Link
-            href="/login"
-            className="ml-auto rounded-lg border border-etyme-rule px-4 py-2 text-sm font-medium
-                       text-etyme-muted transition-colors hover:border-etyme-ink hover:text-etyme-ink"
-          >
-            Sign in
-          </Link>
-        </nav>
-      </header>
+      <SiteHeader />
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       {/* Category first: contractors and the suppliers behind them,
@@ -92,7 +78,26 @@ export default function CensusPage() {
           <p className="mt-6 max-w-[56ch] text-[17px] leading-relaxed text-etyme-muted">
             {CENSUS_COPY.standfirst}
           </p>
-          <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-etyme-muted">
+          <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-etyme-ink">
+            {CENSUS_COPY.start.says}
+          </p>
+          <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-3">
+            <a
+              href={CENSUS_COPY.start.href}
+              className="rounded-lg bg-etyme-action px-6 py-3.5 text-sm font-semibold text-white shadow-sm
+                         transition-opacity hover:opacity-90"
+            >
+              {`${CENSUS_COPY.start.button} ↓`}
+            </a>
+            <a
+              href={CENSUS_COPY.start.secondaryHref}
+              className="px-1 py-3.5 text-sm font-medium text-etyme-muted underline underline-offset-4
+                         transition-colors hover:text-etyme-ink"
+            >
+              {CENSUS_COPY.start.secondary}
+            </a>
+          </div>
+          <p className="mt-6 max-w-[56ch] text-[14px] leading-relaxed text-etyme-muted">
             {CENSUS_COPY.get.firstStep}
           </p>
         </div>
@@ -234,7 +239,7 @@ export default function CensusPage() {
         </div>
       </section>
 
-      <footer className="bg-etyme-surface">
+      <section className="bg-etyme-surface">
         <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             <Link href="/" className="text-[14px] text-etyme-muted hover:text-etyme-ink">
@@ -258,7 +263,8 @@ export default function CensusPage() {
             we do not write to any of them.
           </p>
         </div>
-      </footer>
+      </section>
+      <SiteFooter />
     </main>
   )
 }

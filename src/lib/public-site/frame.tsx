@@ -1,5 +1,6 @@
 import { EtymeLogo } from '@/components/logo'
 import { NAV_MENUS, PRIMARY, SPEND_AUDIT, FOOTER, ADDRESS, type NavMenu } from './nav'
+import { CloseBand } from './close-band'
 
 /**
  * The header and footer every page of the public site shares, the home
@@ -191,12 +192,22 @@ export function SiteFooter() {
   )
 }
 
-/** A public page: the header, the page, the footer. */
+/**
+ * A public page: the header, the page, the close, the footer.
+ *
+ * Every page drawn in the frame ends in the same three ways forward —
+ * see it, get the audit, ask a person — since 2026-09-27, so a reader
+ * who arrives on a module page or a documentation page from a search
+ * result has the same ladder as one who arrived on the home page. There
+ * is no switch to leave it off: a page that should not end in it is not
+ * a page of this site.
+ */
 export function SiteFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-etyme-canvas">
       <SiteHeader />
       <main>{children}</main>
+      <CloseBand />
       <SiteFooter />
     </div>
   )

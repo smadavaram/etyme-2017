@@ -188,6 +188,26 @@ export const CENSUS_COPY = {
     'You send what you already hold. A named person at Etyme reads it and sends back one ' +
     'page, inside five working days. It is free and you create no account.',
 
+  /**
+   * The rest of the first screen, added 2026-09-27 when the census became
+   * the second rung of the site's funnel ("Get your contractor spend
+   * audit" on every page). A visitor arriving from that button has to
+   * read, before scrolling, what it asks for — a work address, because a
+   * census is a company's own data — and who answers. The button goes to
+   * the form at the foot of the page; the committee that reads top to
+   * bottom still meets what you get, what you send and what we promise
+   * first, in that order.
+   */
+  start: {
+    says:
+      'It starts with your name, your company and your work email. The page and the upload ' +
+      'link go to that address, and the person running your census writes to you by name.',
+    button: 'Ask for your census',
+    href: '#ask',
+    secondary: 'See what you get first',
+    secondaryHref: '#what-you-get',
+  },
+
   get: {
     heading: 'You get one page inside five working days',
     lines: [

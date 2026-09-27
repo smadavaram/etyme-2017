@@ -825,3 +825,48 @@ export function sizesAgainstIncumbents(text: string): string[] {
   }
   return out
 }
+
+// ── A button that promises an account the site cannot open ────────────
+//
+// Added 2026-09-27, with the lead funnel. The marketing thread's primary
+// button said "Start free". Sign-in for a real tenant is not configured
+// on production — `/ready` says the only way in is the demo — so there
+// was nothing to start, and the button led to a demo while promising an
+// account. Every rule above reads sentences; this one reads the words on
+// things a reader presses, because a button is a promise with a click
+// attached and the reader finds out it was false one second later.
+//
+// It reads labels, not prose, on purpose. The census page says "you
+// create no account" and the hero says "no sign-up", both true and both
+// the opposite of a promise; a rule that fired on them would be deleted.
+
+const ACCOUNT_PROMISES: { pattern: RegExp; says: string }[] = [
+  { pattern: /\b(?:start|try)(?: it| etyme)?(?: for)? free\b/i, says: 'a free start, which is an account' },
+  { pattern: /\bfree trial\b|\bstart (?:a |your )?(?:free )?trial\b/i, says: 'a trial, which is an account' },
+  { pattern: /(?<!\bno )\bsign[ -]?up\b/i, says: 'a sign-up' },
+  { pattern: /\b(?:create|open|get) (?:an |your |a free )?account\b/i, says: 'an account' },
+  { pattern: /\bget started\b/i, says: 'getting started, which is an account with the word hidden' },
+  { pattern: /\bregister\b/i, says: 'a registration' },
+  { pattern: /\bjoin (?:free|now|etyme|today)\b/i, says: 'joining, which is an account' },
+  { pattern: /\bstart (?:now|today|here)\b/i, says: 'a start, which is an account' },
+]
+
+/**
+ * Every label that promises the reader an account of their own.
+ *
+ * Empty is the only acceptable answer while sign-in for a real tenant is
+ * not open. Each hit is the label and what it promised, so somebody can
+ * find the button rather than read every page.
+ */
+export function promisesAnAccount(labels: string[]): string[] {
+  const out: string[] = []
+  for (const label of labels) {
+    for (const { pattern, says } of ACCOUNT_PROMISES) {
+      if (pattern.test(label)) {
+        out.push(`"${label.trim()}" — ${says}`)
+        break
+      }
+    }
+  }
+  return out
+}
