@@ -366,14 +366,13 @@ describe('The reader finds words that are actually on the page', () => {
 // here rather than in a week.
 
 /**
- * Everything a reader reads on the home page below the fold. Since
- * 2026-09-27 two of its bands are drawn from shared data — the eight
- * parts from the header's Product menu, the close from the funnel every
- * page ends in — so their words are read from that data and added here,
- * where the page's own guards can see them.
+ * Everything a reader reads on the home page below the fold. The close is
+ * drawn from the funnel every page ends in, so its words are read from
+ * that data and added here, where the page's own guards can see them.
+ * The eight parts were drawn here too until 2026-09-27, when their band
+ * left the page for the header's Product menu, which `frameCopy` reads.
  */
 const DRAWN = [
-  ...PRODUCT_STAGES.flatMap((g) => [g.heading, ...g.items.flatMap((i) => [i.t, i.d ?? ''])]),
   ...closeBandCopy(),
   GET_THE_AUDIT.d,
 ]
@@ -395,7 +394,7 @@ describe('Below the hero, the page says what the business is', () => {
     // which is how a screening headline made this a hiring tool. The span
     // was a line in the hero until 2026-09-27; the hero is the headline,
     // the category and the hook now, and the span is said on About. The
-    // home page teaches it as the four stages of the module band.
+    // header's Product menu teaches it as four stages, on every page.
     expect(ABOUT_PAGE).toContain(
       'Requisition, suppliers, submissions, screening, interviews, ' +
       'onboarding, timesheets, invoices, compliance'
@@ -506,7 +505,7 @@ describe('Below the hero, the page says what the business is', () => {
     // close; the paragraph written to a supplier is on About beside the
     // two ways to run it, and prime, sub and bench on the chain page.
     expect(ABOUT_PAGE).toContain('you are on it because your client is')
-    expect(PAGE).toContain('If you supply into a program instead')
+    expect(PAGE).toContain('Supply people to a program instead?')
     for (const position of ['prime', 'sub', 'bench']) {
       expect(CHAIN_PAGE.toLowerCase(), position).toContain(position)
     }
@@ -515,9 +514,9 @@ describe('Below the hero, the page says what the business is', () => {
   it('writes to the client before it writes to anybody who supplies the client', () => {
     // On the home page, the client's doors come before the supplier's.
     // On About, the client's answers come before the supplier's paragraph.
-    expect(PAGE.indexOf('withForm')).toBeLessThan(PAGE.indexOf('If you supply into a program instead'))
-    for (const first of ['steps', 'modules']) {
-      expect(at(first), `#${first} should come before the supplier's door`).toBeLessThan(PAGE.indexOf('If you supply into a program instead'))
+    expect(PAGE.indexOf('withForm')).toBeLessThan(PAGE.indexOf('Supply people to a program instead?'))
+    for (const first of ['steps', 'join']) {
+      expect(at(first), `#${first} should come before the supplier's door`).toBeLessThan(PAGE.indexOf('Supply people to a program instead?'))
     }
     expect(aboutAt('answered')).toBeLessThan(aboutAt('ways'))
   })
@@ -726,10 +725,10 @@ describe('Every line says an outcome, a benefit or a method', () => {
     const signed = 'Every contractor. Every supplier. One record.'
     const heads = headlinesFrom(PAGE)
     expect(heads, 'the page has headlines to read').toContain(signed)
-    // Five bands since 2026-09-27. Three headlines are written as text;
-    // the founder's line about teams around the world and the close are
-    // drawn from data, and are checked here too.
-    expect(heads.length).toBeGreaterThanOrEqual(3)
+    // Four bands since 2026-09-27. Two headlines are written as text —
+    // the hero's and the steps'; the founder's line about teams around
+    // the world and the close are drawn from data, and are checked here too.
+    expect(heads.length).toBeGreaterThanOrEqual(2)
     const joinHeading = /heading: '([^']+)'/.exec(PAGE.slice(PAGE.indexOf('const JOIN')))?.[1] ?? ''
     expect(joinHeading).toBe('Join forces with global teams around the world.')
     const slogans = withoutVerb([...heads, joinHeading, CLOSE_BAND.heading], [signed])
@@ -1205,7 +1204,11 @@ describe('The page shows the product before it describes it', () => {
     // A marketing page with a broken image is worse than a page with no
     // image. These are checked in as files, not hotlinked, and a
     // rename that misses one fails here rather than in front of a buyer.
-    expect(SCREENS.length, 'the page draws screenshots').toBeGreaterThanOrEqual(5)
+    // Two, since 2026-09-27: the hero's, and one beside the four steps. A
+    // CRO read four step screens under the hero screen as "too much data";
+    // the other three open their own module pages. Two is also the floor,
+    // because screens before sentences still holds.
+    expect(new Set(SCREENS).size, 'the page draws two screens').toBe(2)
     for (const src of SCREENS) {
       const file = join(process.cwd(), 'public', src)
       expect(existsSync(file), `${src} is not in public/screens`).toBe(true)
@@ -1214,9 +1217,9 @@ describe('The page shows the product before it describes it', () => {
     // screenshot is the argument and a reader who cannot see it is owed
     // the same argument in words.
     const tags = PAGE.split('<img').slice(1).map((t) => t.slice(0, 700))
-    // Two places draw screens since 2026-09-27: the hero, and the step
-    // loop, which draws four.
-    expect(tags.length, 'an img tag per place a screen is drawn').toBeGreaterThanOrEqual(2)
+    // Two places draw screens since 2026-09-27: the hero, and the one
+    // screen beside the four steps.
+    expect(tags.length, 'an img tag per place a screen is drawn').toBe(2)
     for (const tag of tags) expect(tag.slice(0, 200), tag.slice(0, 80)).toMatch(/alt=/)
     expect((PAGE.match(/<figcaption/g) ?? []).length).toBe(tags.length)
     // And each image declares a width and a height, so nothing on the
@@ -1281,13 +1284,17 @@ describe('The page shows the product before it describes it', () => {
     const steps = PAGE.slice(PAGE.indexOf('const STEPS'), PAGE.indexOf('const JOIN'))
     const numbers = [...steps.matchAll(/n: '(\d\d)'/g)].map((m) => m[1])
     expect(numbers).toEqual(['01', '02', '03', '04'])
-    // Each step is one line and one screen since 2026-09-27, and the
-    // screen is a file somebody can open.
+    // Each step is one line that leads to its part's page, and the four
+    // share one screen, since a buyer's review on 2026-09-27 — a file
+    // somebody can open.
     const shots = [...steps.matchAll(/img: '([^']+)'/g)].map((m) => m[1])
-    expect(shots.length).toBe(4)
+    expect(shots).toEqual(['/screens/invoices.png'])
     for (const shot of shots) {
       expect(existsSync(join(process.cwd(), 'public', shot)), shot).toBe(true)
     }
+    const leads = [...steps.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
+    expect(leads).toEqual(['/requisitions', '/contracts', '/timesheets', '/invoices'])
+    for (const route of leads) expect(MODULES.map((m) => m.route), route).toContain(route)
     // The four verbs, in the order the work happens in.
     const said = copyFrom(steps).join(' ')
     expect(said).toContain('Post a role to the suppliers you cleared')
@@ -1296,13 +1303,13 @@ describe('The page shows the product before it describes it', () => {
     expect(said).toContain('Each supplier bills, and you pay what matched')
     // And the section is on the page, before the argument.
     expect(at('steps')).toBeGreaterThan(0)
-    expect(at('steps')).toBeLessThan(at('modules'))
-    // One line each: the step, and nothing under it but the screen's own caption.
+    expect(at('steps')).toBeLessThan(at('join'))
+    // One line each: the step, and nothing under it.
     expect(steps).not.toMatch(/\n    says: '/)
     expect(body).toContain('A role goes out, a person starts, a week is signed, a bill is paid')
     // Every image says where it was taken, so it can be retaken after a
     // redesign rather than quietly going stale.
-    expect([...steps.matchAll(/from: '([^']+)'/g)].length).toBe(4)
+    expect([...steps.matchAll(/from: '([^']+)'/g)].length).toBe(1)
   })
 
   it('names the category and the size, and no company at all', () => {
@@ -1390,12 +1397,29 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     expect(PAGE).not.toMatch(/side="CANDIDATE"[\s\S]{0,240}bg-etyme-action/)
   })
 
+  it('says each quieter door as a whole question, so a reader who never sees the button still reads a finished sentence', () => {
+    // A buyer-side review, 2026-09-27: "If you supply into a program
+    // instead" had no verb, and the two buttons after it are skipped by a
+    // reader mode or a text extract, so the page read as if it had broken.
+    const door = (side: string) => {
+      const i = PAGE.indexOf(`side="${side}"`)
+      const para = PAGE.lastIndexOf('<p ', i)
+      return copyFrom(PAGE.slice(para, i)).join(' ')
+    }
+    expect(door('BENCH')).toBe('Supply people to a program instead?')
+    expect(door('CANDIDATE')).toBe('Work in a program as a contractor?')
+    for (const side of ['BENCH', 'CANDIDATE']) {
+      expect(withoutVerb([door(side).replace(/\?$/, '')]), side).toEqual([])
+    }
+    expect(copyFrom(PAGE).join(' ')).not.toContain('If you supply into a program instead')
+  })
+
   it('keeps the supplier door second and quieter than the client one', () => {
     // A supplier is welcome and is not who this page is written to.
-    expect(PAGE).toContain('If you supply into a program instead')
+    expect(PAGE).toContain('Supply people to a program instead?')
     expect(PAGE).toContain('side="BENCH"')
     expect(PAGE.indexOf('{`${SEE_IT.t} →`}'))
-      .toBeLessThan(PAGE.indexOf('If you supply into a program instead'))
+      .toBeLessThan(PAGE.indexOf('Supply people to a program instead?'))
     expect(PAGE).not.toMatch(/side="BENCH"[\s\S]{0,240}bg-etyme-action/)
   })
 
@@ -1776,9 +1800,9 @@ describe('A price on a page is caught by its unit, not by its dollar sign', () =
  * Read from the source, because a page file cannot be rendered in a unit
  * test: the JSX between the header and the footer, the data it draws
  * (without alt text, capture stamps and routes, which a sighted reader
- * never sees), the two quiet doors' labels, the eight parts it draws from
- * the header's Product menu, the close band's words from the funnel, and
- * the ask form's own words.
+ * never sees), the two quiet doors' labels, the close band's words from
+ * the funnel, and the ask form's own words. The eight parts it drew from
+ * the header's Product menu left the page on 2026-09-27.
  */
 function readerWords(): number {
   const count = (t: string) => t.split(/\s+/).filter((x) => /[A-Za-z0-9]/.test(x)).length
@@ -1792,12 +1816,14 @@ function readerWords(): number {
     .join('\n')
   const labels = [...jsx.matchAll(/label="([^"]+)"/g)].map((m) => m[1])
   const hero = [SEE_IT.t, GET_THE_AUDIT.t]
-  const tiles = PRODUCT_STAGES.flatMap((g) => [g.heading, ...g.items.flatMap((i) => [i.t, i.d ?? ''])])
   const close = [...closeBandCopy(), GET_THE_AUDIT.d]
   const ask = [ASK_COPY.eyebrow, ASK_COPY.heading, ASK_COPY.body,
     ASK_COPY.emailLabel, ASK_COPY.emailHint, ASK_COPY.askLabel, ASK_COPY.askHint, ASK_COPY.button]
-  return [copyFrom(jsx), copyFrom(data), labels, hero, tiles, close, ask].reduce((n, part) => n + count(part.join(' ')), 0)
+  return [copyFrom(jsx), copyFrom(data), labels, hero, close, ask].reduce((n, part) => n + count(part.join(' ')), 0)
 }
+
+/** The most words the home page may carry between its header and footer. */
+const CEILING = 450
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -1810,46 +1836,46 @@ function band(id: string): string {
 
 describe('The home page reads as a product page, and every band leads deeper', () => {
 
-  it('the home page is five bands and about five hundred words, and the nav and the page teach the same map', () => {
-    // The ceiling is 600 words between the header and the footer, and
+  it('the home page is four bands and under five hundred words, and the eight parts are the header’s to teach', () => {
+    // The ceiling is 450 words between the header and the footer, and
     // this is the arithmetic. On 2026-09-27 the founder said the page was
-    // still too big at 1,280 words in seven bands. The target he was given
-    // is about five hundred. What this counts is 582: about 520 words a
-    // reader reads on the page, and about 60 that are the ask form's own
-    // labels and promise beside the close — "your email", "what do you
-    // need", "nothing you send starts a sequence". Those are not prose to
-    // cut; they are the form. So 600 leaves room for one short sentence
-    // and not for a band, and it is under half of what it replaced. A band
-    // that needs more words than this allows needs a page of its own.
+    // still too big at 1,280 words in seven bands, and the target he was
+    // given is about five hundred. It went to five bands at 582 words the
+    // same afternoon. That evening a CRO he showed it to said it was "too
+    // much data", so the eight-part tile band — about ninety words of names
+    // and lines the header's Product menu already carries — left the page,
+    // and so did three of the four step screens and their captions.
+    //
+    // What this counts is 434, and about sixty of those are the ask
+    // form's own labels and promise beside the close ("your email", "what
+    // do you need", "nothing you send starts a sequence"), which are the
+    // form rather than prose to cut. The ceiling sits a short sentence
+    // above the count and no more: room to fix a word, never room for a
+    // band. A band that needs more words than this needs a page of its own.
     const words = readerWords()
-    expect(words, `${words} words between the header and the footer`).toBeLessThanOrEqual(600)
+    expect(words, `${words} words between the header and the footer`).toBeLessThanOrEqual(CEILING)
     // And the reader is really reading the page, not passing on nothing.
     expect(words).toBeGreaterThan(400)
 
-    // Five bands: the hero, the steps, the eight parts, the line about
-    // teams around the world, and the close every public page ends in.
+    // Four bands: the hero, the steps, the line about teams around the
+    // world, and the close every public page ends in.
     const sections = (PAGE.match(/<section/g) ?? []).length
     const closes = (PAGE.match(/<CloseBand/g) ?? []).length
-    expect(sections + closes, 'five bands').toBe(5)
+    expect(sections + closes, 'four bands').toBe(4)
     expect(closes, 'the page ends in the shared close').toBe(1)
     expect(PAGE.lastIndexOf('<section')).toBeLessThan(PAGE.indexOf('<CloseBand'))
-    expect((PAGE.match(/<h2/g) ?? []).length, 'one headline per band under the hero').toBe(3)
-    for (const gone of ['gap', 'ways']) expect(PAGE, `#${gone} is still on the home page`).not.toContain(`id="${gone}"`)
+    expect((PAGE.match(/<h2/g) ?? []).length, 'one headline per band under the hero').toBe(2)
+    for (const gone of ['gap', 'ways', 'modules']) expect(PAGE, `#${gone} is still on the home page`).not.toContain(`id="${gone}"`)
 
     // Every band leads to a page that goes deeper, except the quiet one,
     // which the founder asked to carry no button of its own.
-    const deeper = /href=\{?\s*['"`(]*\/[a-z]|href=\{m\.href/
-    for (const id of ['steps', 'modules']) {
-      expect(band(id), `#${id} links to no page`).toMatch(deeper)
-    }
+    const deeper = /href=\{?\s*['"`(]*\/[a-z]|href=\{s\.href/
+    expect(band('steps'), '#steps links to no page').toMatch(deeper)
     expect(CLOSE_SRC).toContain('href={SEE_IT.href}')
 
-    // The nav and the page teach the same map: the module band is drawn
-    // from the header's Product menu, stage by stage, and nothing else.
-    const modules = band('modules')
-    expect(modules).toContain('PRODUCT_STAGES.map((stage)')
-    expect(modules).toContain('{stage.heading}')
-    expect(modules).toContain('stage.items.map((m)')
+    // The eight parts are taught once, by the header's Product menu, on
+    // every page: the same four stages, the same eight names.
+    expect(PAGE).not.toContain('PRODUCT_STAGES')
     expect(SITE_MENUS[0].label).toBe('Product')
     expect(SITE_MENUS[0].groups).toBe(PRODUCT_STAGES)
   })
@@ -1887,7 +1913,11 @@ describe('The home page reads as a product page, and every band leads deeper', (
     }
     // The sections that left have no anchor here any more — except #why,
     // which is the one line on price the close still carries.
-    for (const gone of ['exposure', 'lifecycle', 'monday', 'alongside', 'who', 'compliance', 'gap', 'ways']) {
+    // The third move, the same evening: the eight-part tile band went to
+    // the header's Product menu, which every public page draws.
+    expect(SITE_MENUS[0].groups).toBe(PRODUCT_STAGES)
+    expect(PRODUCT_STAGES.flatMap((g) => g.items)).toHaveLength(8)
+    for (const gone of ['exposure', 'lifecycle', 'monday', 'alongside', 'who', 'compliance', 'gap', 'ways', 'modules']) {
       expect(PAGE, `#${gone} is still on the home page`).not.toContain(`id="${gone}"`)
     }
     // Each destination is a registered public page, so the guard reads it.
@@ -1900,14 +1930,12 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect(MODULES.find((m) => m.slug === 'contracts')!.refuses.some((r) => r.phrase === 'cannot start without')).toBe(true)
   })
 
-  it('the eight module tiles lead to the eight module pages, grouped by the stage a hire reaches them in', () => {
-    // A tile is the part's name and one line, and the whole tile leads to
-    // the part's page. The name and the line are the header's own, and
-    // the four headings over them are the Product menu's stages.
+  it('the eight parts live in the Product menu, grouped by the stage a hire reaches them in, and each step leads to its own part', () => {
+    // The tile band that drew the eight parts on the home page left it on
+    // 2026-09-27; the Product menu in the header carries all eight on
+    // every page, under the same four stages, and each opens its page.
     expect(PAGE).not.toContain('const TILES')
-    expect(PAGE).toContain('href={m.href as Route}')
-    expect(PAGE.indexOf('PRODUCT_STAGES.map')).toBeGreaterThan(at('modules'))
-    expect(PAGE.indexOf('PRODUCT_STAGES.map')).toBeLessThan(at('join'))
+    expect(PAGE).not.toContain('id="modules"')
     expect(MODULES).toHaveLength(8)
     expect(PRODUCT_ITEMS.map((i) => i.href)).toEqual(MODULES.map((m) => m.route))
     for (const m of MODULES) {
@@ -1915,6 +1943,16 @@ describe('The home page reads as a product page, and every band leads deeper', (
       expect(item?.t, m.route).toBe(m.title)
       expect(item?.d, `${m.route} has no line`).toBeTruthy()
       expect(existsSync(join(process.cwd(), 'public', m.screen.img)), m.screen.img).toBe(true)
+    }
+    // And the page still leads into them: each of the four steps is a
+    // link to the part it names, drawn inside the steps band.
+    expect(PAGE).toContain('href={s.href as Route}')
+    expect(PAGE.indexOf('STEPS.map')).toBeGreaterThan(at('steps'))
+    expect(PAGE.indexOf('STEPS.map')).toBeLessThan(at('join'))
+    // The three step screens that left the page are each the screen their
+    // own module page opens on.
+    for (const shot of ['/screens/submissions.png', '/screens/timesheets.png']) {
+      expect(MODULES.map((m) => m.screen.img), shot).toContain(shot)
     }
   })
 
@@ -1982,7 +2020,7 @@ describe('The line about teams around the world', () => {
     // No button, no link and no demo door of its own.
     expect(join).not.toMatch(/<Link|href=|<button|<TryDemo|bg-etyme-action/)
     // Below the tiles, above the two ways.
-    expect(at('join')).toBeGreaterThan(at('modules'))
+    expect(at('join')).toBeGreaterThan(at('steps'))
     expect(at('join')).toBeLessThan(at('close'))
     // The heading and its two sentences sit side by side on a wide
     // screen and stack on a phone.

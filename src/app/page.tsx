@@ -3,7 +3,6 @@ import { TryDemo } from '@/components/try-demo'
 import { JoinMural } from '@/lib/public-site/join-mural'
 import { SiteHeader, SiteFooter } from '@/lib/public-site/frame'
 import { CloseBand } from '@/lib/public-site/close-band'
-import { PRODUCT_STAGES } from '@/lib/public-site/nav'
 import { SEE_IT, GET_THE_AUDIT } from '@/lib/public-site/funnel'
 import Link from 'next/link'
 // Typed routes widen a string in an array to `string`, which Link will not
@@ -14,23 +13,25 @@ import type { Route } from 'next'
 /**
  * The front door.
  *
- * ── Five bands, about five hundred words. Rewritten 2026-09-27 ───────
+ * ── Four bands and two screens. Rewritten 2026-09-27, twice ─────────
  *
  * The founder, the day after the page became a product page: it is
- * still too big. It was 1,280 words in seven bands. Now it is five, and
- * each says one thing and leads to the page that says the rest:
+ * still too big. It was 1,280 words in seven bands, then five. The same
+ * evening a CRO he showed it to said "the website seems too much data,
+ * and you are already giving screenshots in the main page", and asked
+ * whether the companies named were real customers. So it is four bands,
+ * each saying one thing and leading to the page that says the rest:
  *
  *   1. what is this      the hero — the founder's headline, the category
- *                        line he decided, one hook line, the two ways in,
- *                        and the program dashboard
- *   2. what does it do   #steps — four steps, a line and a screen each
- *   3. what is in it     #modules — the eight parts under the same four
- *                        stage headings as the Product menu, so the page
- *                        and the header teach one map
- *   4. where it reaches  #join — the founder's line and the mural, quietly
- *   5. the door          #close — see it, get the audit, ask a person;
+ *                        line he decided, the outcome, one hook line, the
+ *                        two ways in, and the program dashboard
+ *   2. what does it do   #steps — four steps a line each, every one a
+ *                        link to its part's page, beside one screen
+ *   3. where it reaches  #join — the founder's line and the mural, quietly
+ *   4. the door          #close — see it, get the audit, ask a person;
  *                        the program office offered once, quietly; one
- *                        line on price
+ *                        line on price; the supplier's and the
+ *                        contractor's doors as whole questions
  *
  * Where each band that left went, so nobody re-adds it here:
  *
@@ -39,6 +40,11 @@ import type { Route } from 'next'
  *   #ways  VMS software or MSP provider, and the supplier's paragraph
  *                                                          → /about#ways
  *   the hero's record and span lines                       → /about#build
+ *   #modules  the eight parts under four stages → the header's Product
+ *          menu, on every page, grouped the same way; each step here
+ *          links to its own part's page
+ *   three of the four step screens → their module pages, each opening
+ *          on its screen
  *
  * The earlier moves, 2026-09-27 morning, are unchanged: #exposure to
  * /compliance#cost, #lifecycle to /about#hire, #alongside to
@@ -97,74 +103,56 @@ export const metadata: Metadata = {
 }
 
 /**
- * What it does, in four steps, each one a real screen.
+ * What it does, in four steps, and one screen for all four.
  *
- * A CTO recognizes post, choose, approve, pay. One line each since
- * 2026-09-27: the step says the verb, the caption says what the screen
- * under it shows. `from` is the desk and the route the image came from,
- * so anybody can retake it: seat at Northbend Athletic with
- * `POST /api/demo {"as":"world-nike","desk":"..."}` and screenshot the
- * route at 1440×900. Nothing in a caption is a claim the image does not
- * show.
+ * A CTO recognizes post, choose, approve, pay. One line each, and each
+ * line leads to the page for that part of the product, so the step is
+ * the way deeper rather than a tile beside it.
+ *
+ * ── One screen, not four. Decided 2026-09-27, on a buyer's review ────
+ *
+ * A CRO the founder showed the site to: "the website seems too much
+ * data, and you are already giving screenshots in the main page." Four
+ * full-size screens under the hero screen was the "too much". Screens
+ * before sentences still holds — the page shows the product, twice: the
+ * program dashboard in the hero, and here the bill paid only against a
+ * signed week, which is the step a CFO checks first. The other three
+ * screens are on their own module pages, one click from the step that
+ * names them, so nothing left the site.
  */
-const STEPS: {
-  n: string
-  t: string
-  img: string
-  alt: string
-  caption: string
-  from: string
+const STEPS: { n: string; t: string; href: string }[] = [
+  { n: '01', t: 'Post a role to the suppliers you cleared', href: '/requisitions' },
+  { n: '02', t: 'Interview, choose, and the paperwork is written', href: '/contracts' },
+  { n: '03', t: 'Contractors file their weeks and your manager approves them', href: '/timesheets' },
+  { n: '04', t: 'Each supplier bills, and you pay what matched', href: '/invoices' },
+]
+
+/**
+ * The one screen under the four steps. `from` is the desk and the route
+ * the image came from, so anybody can retake it: seat at the example
+ * program with `POST /api/demo {"as":"world-nike","desk":"ap"}` and
+ * screenshot the route at 1440×900. Nothing in the caption is a claim the
+ * image does not show.
+ */
+const STEP_SCREEN = {
+  img: '/screens/invoices.png',
+  alt: 'An invoices screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
+  caption: 'Step 04 on screen: a bill with no signed week behind it is not paid.',
+  from: '/dashboard/invoices, what we owe, as the AP clerk',
   /**
    * When the image was taken, UTC. Pinned because the seeded world it
    * was photographed from is renamed from time to time, and a PNG cannot
    * be read by a test. The date is what catches a stale shot.
    */
-  capturedAt: string
-}[] = [
-  {
-    n: '01',
-    t: 'Post a role to the suppliers you cleared',
-    img: '/screens/submissions.png',
-    alt: 'A Candidates screen: nine people from three suppliers, each row naming the consultant, the role, the supplier, the rate and the stage.',
-    caption: 'Nine people from three suppliers, each at the rate asked.',
-    from: '/dashboard/submissions as the hiring manager',
-    capturedAt: '2026-09-21T15:15:10Z',
-  },
-  {
-    n: '02',
-    t: 'Interview, choose, and the paperwork is written',
-    img: '/screens/purchase-orders.png',
-    alt: 'An orders screen: one order per supplier, what is left of what was authorized, and a line naming the person and their rate.',
-    caption: 'One order per supplier, and the ceiling left to bill.',
-    from: '/dashboard/purchase-orders as the program manager',
-    capturedAt: '2026-09-21T15:15:16Z',
-  },
-  {
-    n: '03',
-    t: 'Contractors file their weeks and your manager approves them',
-    img: '/screens/timesheets.png',
-    alt: 'A timesheets screen: one week flagged at 168 hours with an overtime decision on it. The approved weeks sit under it, each row naming the person, the period, the hours, the bill rate and what the week is worth.',
-    caption: 'A week over the hours is flagged above the signed ones.',
-    from: '/dashboard/timesheets as the hiring manager',
-    capturedAt: '2026-09-21T15:15:22Z',
-  },
-  {
-    n: '04',
-    t: 'Each supplier bills, and you pay what matched',
-    img: '/screens/invoices.png',
-    alt: 'An invoices screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
-    caption: 'A bill with no signed week behind it is not paid.',
-    from: '/dashboard/invoices, what we owe, as the AP clerk',
-    capturedAt: '2026-09-21T15:15:28Z',
-  },
-]
+  capturedAt: '2026-09-21T15:15:28Z',
+}
 
 /**
  * The founder's line, in a quiet band. Added 2026-09-27.
  *
  * "Join forces with global teams around the world" — his words, exactly,
  * and he was clear it is subtle and not a hero. So it is a heading in a
- * band below the module tiles, with two sentences and a mural, and no
+ * band below the four steps, with two sentences and a mural, and no
  * button of its own.
  *
  * It reads to both sides of the trade at once: a client reads suppliers
@@ -263,7 +251,14 @@ export default function LandingPage() {
 
       {/* ── What it does, in four steps ───────────────────────────── */}
       {/* The answer to "I do not understand what the app does": four
-          screens rather than four claims, a line each. */}
+          steps a line each, every one leading to its own page, and one
+          screen beside them. The caption sits inside the screen's frame,
+          under the image and after the steps in reading order, so a
+          caption and a step never read as one paragraph.
+
+          The eight-part tile band that stood under this until 2026-09-27
+          is gone: the Product menu in the header carries all eight,
+          grouped by stage, on every page. */}
       <section id="steps" className="scroll-mt-6 border-b border-etyme-rule bg-etyme-surface">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
           <p className="eyebrow mb-3">What it does, in four steps</p>
@@ -272,30 +267,38 @@ export default function LandingPage() {
             A role goes out, a person starts, a week is signed, a bill is paid
           </h2>
 
-          <ol className="mt-10 grid gap-x-8 gap-y-10 md:grid-cols-2">
-            {STEPS.map((s) => (
-              <li key={s.n}>
-                <figure className="overflow-hidden rounded-xl border border-etyme-rule
-                                   bg-etyme-raised shadow-sm">
-                  <img
-                    src={s.img}
-                    alt={s.alt}
-                    width={1440}
-                    height={900}
-                    loading="lazy"
-                    className="block h-auto w-full border-b border-etyme-rule"
-                  />
-                  <figcaption className="px-4 py-2.5 text-[12.5px] leading-relaxed text-etyme-muted">
-                    {s.caption}
-                  </figcaption>
-                </figure>
-                <h3 className="mt-4 flex items-baseline gap-3 text-balance font-serif text-[20px] leading-snug text-etyme-ink">
-                  <span className="font-mono text-[11px] tabular-nums text-etyme-faint">{s.n}</span>
-                  {s.t}
-                </h3>
-              </li>
-            ))}
-          </ol>
+          <div className="mt-10 grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+            <ol className="divide-y divide-etyme-rule border-y border-etyme-rule">
+              {STEPS.map((s) => (
+                <li key={s.n}>
+                  <Link
+                    href={s.href as Route}
+                    className="group flex items-baseline gap-4 py-5"
+                  >
+                    <span className="font-mono text-[12px] tabular-nums text-etyme-faint">{s.n}</span>
+                    <span className="text-balance font-serif text-[20px] leading-snug text-etyme-ink
+                                     group-hover:text-etyme-action">
+                      {s.t}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+
+            <figure className="overflow-hidden rounded-xl border border-etyme-rule bg-etyme-raised shadow-sm">
+              <img
+                src={STEP_SCREEN.img}
+                alt={STEP_SCREEN.alt}
+                width={1440}
+                height={900}
+                loading="lazy"
+                className="block h-auto w-full border-b border-etyme-rule"
+              />
+              <figcaption className="px-4 py-2.5 text-[12.5px] italic leading-relaxed text-etyme-muted">
+                {STEP_SCREEN.caption}
+              </figcaption>
+            </figure>
+          </div>
 
           <p className="mt-10 text-[15px]">
             <Link
@@ -305,45 +308,6 @@ export default function LandingPage() {
               Every step, desk by desk, in the documentation →
             </Link>
           </p>
-        </div>
-      </section>
-
-      {/* ── The eight parts ─────────────────────────────────────── */}
-      {/* Drawn from the header's Product menu, group by group, so the
-          page and the menu teach one map: the same four stages, the same
-          eight names, the same line under each. */}
-      <section id="modules" className="scroll-mt-6 border-b border-etyme-rule">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
-          <p className="eyebrow mb-3">What is in it</p>
-          <h2 className="max-w-[30ch] text-balance font-serif text-3xl leading-tight
-                         tracking-[-0.02em] text-etyme-ink md:text-[40px]">
-            Eight parts of one record, in the order a hire moves through them
-          </h2>
-
-          <div className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-            {PRODUCT_STAGES.map((stage) => (
-              <div key={stage.heading}>
-                <p className="stat-label border-b border-etyme-rule pb-2">{stage.heading}</p>
-                <ul className="mt-3 space-y-3">
-                  {stage.items.map((m) => (
-                    <li key={m.href}>
-                      <Link
-                        href={m.href as Route}
-                        className="group block rounded-xl border border-etyme-rule bg-etyme-raised px-4 py-3.5
-                                   transition-shadow hover:shadow-md"
-                      >
-                        <span className="block text-[15px] font-semibold leading-snug text-etyme-ink
-                                         group-hover:text-etyme-action">
-                          {m.t}
-                        </span>
-                        <span className="mt-1 block text-[13px] leading-snug text-etyme-muted">{m.d}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -398,14 +362,29 @@ export default function LandingPage() {
             What is settled →
           </Link>
         </p>
+        {/* The two quieter doors, as whole sentences. A buyer-side review,
+            2026-09-27, read "If you supply into a program instead" as a
+            page that had broken: it had no verb, and the two doors after
+            it are buttons, which a reader mode or a text extract drops.
+            So each door is now a question that stands on its own, with the
+            door as its answer, and a reader who never sees the button
+            still reads two finished sentences.
+
+            They stay buttons rather than links on purpose: each seats the
+            visitor at a desk in one click by posting to /api/demo, and a
+            plain link could only reach /demo, which opens on the client's
+            desks. Making the door a real link that still seats in one
+            click is a change to components/try-demo, which is Platform's. */}
         <p className="mt-3 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
-          <span className="font-semibold text-etyme-ink">If you supply into a program instead</span>{' '}
+          <span className="font-semibold text-etyme-ink">Supply people to a program instead?</span>{' '}
           <TryDemo
             side="BENCH"
             label="Sit at a supplier’s desk →"
             className="text-etyme-action underline underline-offset-4 hover:opacity-80"
           />
-          <span className="mx-2 text-etyme-faint" aria-hidden="true">·</span>
+        </p>
+        <p className="mt-2 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
+          <span className="font-semibold text-etyme-ink">Work in a program as a contractor?</span>{' '}
           <TryDemo
             side="CANDIDATE"
             label="See it as a candidate →"

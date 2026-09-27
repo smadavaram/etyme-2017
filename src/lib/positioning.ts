@@ -611,6 +611,9 @@ const VERBS = [
   'put', 'puts', 'read', 'reads', 'record', 'records', 'replace', 'replaces', 'run', 'runs',
   'say', 'says', 'see', 'sees', 'send', 'sends', 'settle', 'settled', 'show', 'shows',
   'sign', 'signs', 'sit', 'sits', 'spend', 'spends', 'stay', 'stays', 'stop', 'stops',
+  // "Supply people to a program instead?" — the supplier's door on the
+  // home page, 2026-09-27. The trade's own verb for what a supplier does.
+  'supply', 'supplies',
   'take', 'takes', 'tell', 'tells', 'travel', 'travels', 'use', 'uses', 'watch', 'watches',
   'work', 'works', 'write', 'writes',
 ]
