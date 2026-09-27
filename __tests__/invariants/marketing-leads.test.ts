@@ -340,12 +340,16 @@ describe('The list of people who wrote to us is ours, not a tenant’s', () => {
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
 const FORM = readFileSync(join(process.cwd(), 'src/app/site/ask.tsx'), 'utf8')
+const CLOSE = readFileSync(join(process.cwd(), 'src/lib/public-site/close-band.tsx'), 'utf8')
 const COPY = Object.values(ASK_COPY).join(' ')
 
 describe('The home page asks a question rather than harvesting an address', () => {
 
   it('asks for an email and for what they need, and nothing else', () => {
-    expect(PAGE).toContain('<Ask')
+    // The form sits beside the home page's close since 2026-09-27: the
+    // shared close band draws it where the page asks for it.
+    expect(PAGE).toContain('<CloseBand id="close" withForm>')
+    expect(CLOSE).toContain('<Ask source="HOME_PAGE" />')
     expect(COPY.toLowerCase()).toContain('what do you need')
   })
 

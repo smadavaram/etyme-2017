@@ -40,7 +40,66 @@ export interface Block {
   title: string
   paragraphs?: string[]
   items?: { t: string; d: string }[]
+  /** A screen from the seeded demo, drawn under the words. */
+  screen?: { img: string; alt: string; caption: string; from: string; capturedAt: string }
 }
+
+/**
+ * The four questions a client cannot answer about its own workforce, each
+ * answered in a line that names the screen answering it.
+ *
+ * On the home page until 2026-09-27, when it became five bands; here
+ * since, word for word, beside the long form of why nobody can answer
+ * them today. `route` is the screen it opens, and the test checks the
+ * folder is really there. Tenure is the fourth of four and gets one line:
+ * it is the moat, not the wedge.
+ */
+export const FOUR_ANSWERS: { q: string; screen: string; route: string; etyme: string }[] = [
+  {
+    q: 'How many contractors are on our sites right now?',
+    screen: 'Workforce',
+    route: 'people',
+    etyme: 'The Workforce screen lists every contractor on site today, across every supplier.',
+  },
+  {
+    q: 'What are we spending on them this quarter, and with whom?',
+    screen: 'Program',
+    route: 'program',
+    etyme: 'The Program screen shows this month by supplier, and the Invoices screen what each one billed.',
+  },
+  {
+    q: 'Are we paying two suppliers different money for the same work?',
+    screen: 'Rates',
+    route: 'rate-history',
+    etyme: 'The Program screen puts two suppliers’ rates for one role side by side. The Rates screen keeps who agreed each.',
+  },
+  {
+    q: 'Who has been here longest?',
+    screen: 'Tenure',
+    route: 'tenure',
+    etyme: 'The Tenure screen counts each person’s days on your sites across every supplier, once per day.',
+  },
+]
+
+/**
+ * The two ways to run a program on the record, in the founder's two
+ * labels (decided 2026-09-20). On the home page until 2026-09-27, which
+ * now offers the service in one quiet sentence and links here.
+ *
+ * The MSP card says what the client gets, not that Etyme would run it:
+ * About already makes the offer once, under #neutral, and a page that
+ * offers it twice has stopped offering and started pitching.
+ */
+export const TWO_WAYS: { label: string; says: string }[] = [
+  {
+    label: 'VMS software',
+    says: 'Your own program office runs the program on Etyme. Your people hold the seats. Etyme holds the record and the rules.',
+  },
+  {
+    label: 'MSP provider',
+    says: 'Etyme staff sit in seats your company grants them, work to your rules, and every read they make is logged.',
+  },
+]
 
 export interface CompanyPage {
   route: '/about' | '/contact' | '/security'
@@ -70,6 +129,11 @@ export const ABOUT: CompanyPage = {
         // The note under the header's Industries menu, kept when the menu
         // went on 2026-09-27. Horizontal, never vertical.
         'One product serves every industry. There is no industry-specific version to buy.',
+        // The hero's span line, 2026-09-27. Naming every station once, in
+        // the trade's order, is what stops any one of them reading as the
+        // product.
+        'Requisition, suppliers, submissions, screening, interviews, onboarding, timesheets, invoices, compliance. ' +
+          'One record holds all of it, and each desk opens the part that is its own.',
       ],
     },
     // ── Four blocks moved from the home page, 2026-09-27 ──────────────
@@ -100,6 +164,28 @@ export const ABOUT: CompanyPage = {
         { t: 'Are we paying two suppliers different money for the same work?', d: 'Rates sit on invitations and in email. Putting them side by side means asking each supplier what it charges.' },
         { t: 'Who has been here longest?', d: 'Time through one supplier and time through another read as two contractors, each with less time than the person has.' },
       ],
+    },
+    // ── Moved from the home page's #gap band, 2026-09-27 ─────────────
+    //
+    // The home page keeps one hook line in its hero. The answers, the
+    // one screen that is hardest to believe from prose, and the sentence
+    // about what the client sees below its supplier are here, one click
+    // from why nobody can answer today.
+    {
+      id: 'answered',
+      title: 'Etyme shows every contractor on your sites, whoever placed them',
+      paragraphs: [
+        'You see the person, and whether the firm that employs them is insured and authorized. ' +
+          'What your supplier arranges below that stays its own, unless your agreement with it says otherwise.',
+      ],
+      items: FOUR_ANSWERS.map((a) => ({ t: a.q, d: a.etyme })),
+      screen: {
+        img: '/screens/contractors.png',
+        alt: 'A contractors table: one row per person, with the supplier that sent them, their status, where they are and their months on site.',
+        caption: 'Every contractor at Northbend Athletic, an invented company in the example program, whichever supplier sent them.',
+        from: '/dashboard/people, table view, as the program manager',
+        capturedAt: '2026-09-21T15:17:41Z',
+      },
     },
     {
       id: 'hire',
@@ -154,14 +240,26 @@ export const ABOUT: CompanyPage = {
         { t: 'Free while testing', d: 'Etyme is free while it is tested with its first firms. Governance is part of every program and never a paid tier.' },
       ],
     },
+    // ── Moved from the home page's #ways band, 2026-09-27 ────────────
+    {
+      id: 'ways',
+      title: 'The record is the product, and your own people run the program on it',
+      paragraphs: [
+        'Most clients staff the program office themselves. The record is the same either way and it stays yours.',
+        'In either way, Etyme never supplies a contractor and never runs a bench, so it has no reason to favor one supplier. ' +
+          'Your people keep the decisions that are yours: which roles to open, who to hire, and what to approve.',
+        'If you are a staffing supplier, you are on it because your client is. ' +
+          'Your rates and your sub-vendors’ names stay private, and your client stays your client. ' +
+          'Where Etyme runs a client’s program, approvals come back faster and your bills are matched and paid without chasing.',
+      ],
+      items: TWO_WAYS.map((w) => ({ t: w.label, d: w.says })),
+    },
     {
       id: 'neutral',
       title: 'Etyme never runs a bench and never places anybody',
       paragraphs: [
         'The record sits between a company and every supplier it uses, so it can only work if no supplier has to compete with it. ' +
           'It has no contractors of its own to sell. It is built into how this works, not a policy we might change.',
-        'Your suppliers keep their clients, their rates and their sub-vendors’ names. ' +
-          'What they get from the record is faster approvals, invoices matched and paid, and fewer spreadsheets.',
         'If you would rather not staff a program office, Etyme can run it for you on the same record. ' +
           'You keep every decision that is yours: who may supply, at what band, and who is chosen.',
       ],
@@ -315,6 +413,7 @@ export function copyOfCompanyPage(p: CompanyPage): { hero: string[]; body: strin
       b.title,
       ...(b.paragraphs ?? []),
       ...(b.items ?? []).flatMap((i) => [i.t, i.d]),
+      ...(b.screen ? [b.screen.caption] : []),
     ]),
   }
 }

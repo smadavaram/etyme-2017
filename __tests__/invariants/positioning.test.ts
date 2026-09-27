@@ -60,9 +60,12 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // product page. A fact that moved is pinned where it now lives, so a
 // section cannot fall off both pages at once.
 import { MODULES, copyOfModule, spelled } from '@/lib/public-site/modules'
-import { ABOUT, copyOfCompanyPage } from '@/lib/public-site/company'
+import { ABOUT, FOUR_ANSWERS, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { NAV_MENUS as SITE_MENUS, PRODUCT_ITEMS, PRODUCT_STAGES, ROLES as SITE_ROLES } from '@/lib/public-site/nav'
 import { ASK_COPY } from '@/lib/public-site/leads'
+import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, closeBandCopy } from '@/lib/public-site/funnel'
+import { FOOTER as SITE_FOOTER, frameCopy } from '@/lib/public-site/nav'
+import { DOCS_SLUGS } from '@/lib/public-site/pages'
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
 
@@ -85,10 +88,12 @@ const moreOn = (slug: string) => MODULES.find((m) => m.slug === slug)!.more
 /**
  * The real page, split at roughly where a first screen ends. The header is
  * a shared component since 2026-09-27 and none of its words are in this
- * file, so the first screen is the first eleven pieces of the hero.
+ * file. The first screen is the hero: the headline, the two category
+ * sentences, the hook, the line under the buttons and the caption under
+ * the dashboard — six pieces.
  */
 const words = copyFrom(PAGE)
-const FOLD = 11
+const FOLD = 6
 const live: Copy = { hero: words.slice(0, FOLD), body: words.slice(FOLD) }
 
 describe('The live home page still says what we agreed it says', () => {
@@ -360,8 +365,24 @@ describe('The reader finds words that are actually on the page', () => {
 // decision somebody made, and a rewrite that quietly reorders it fails
 // here rather than in a week.
 
-const body = words.slice(FOLD).join(' ')
-const all = words.join(' ')
+/**
+ * Everything a reader reads on the home page below the fold. Since
+ * 2026-09-27 two of its bands are drawn from shared data — the eight
+ * parts from the header's Product menu, the close from the funnel every
+ * page ends in — so their words are read from that data and added here,
+ * where the page's own guards can see them.
+ */
+const DRAWN = [
+  ...PRODUCT_STAGES.flatMap((g) => [g.heading, ...g.items.flatMap((i) => [i.t, i.d ?? ''])]),
+  ...closeBandCopy(),
+  GET_THE_AUDIT.d,
+]
+const body = [...words.slice(FOLD), ...DRAWN].join(' ')
+const all = [...words, ...DRAWN].join(' ')
+/** The shared frame — header and footer — which the home page draws too. */
+const FRAME_SRC = readFileSync(join(process.cwd(), 'src/lib/public-site/frame.tsx'), 'utf8')
+const CLOSE_SRC = readFileSync(join(process.cwd(), 'src/lib/public-site/close-band.tsx'), 'utf8')
+const aboutAt = (id: string) => ABOUT.blocks.findIndex((b) => b.id === id)
 /** Everything above the fold, as one string, for the guards that read it. */
 const hero = live.hero.join(' ')
 
@@ -371,47 +392,46 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('names the whole span once, so that no single station reads as the product', () => {
     // Naming one station makes the whole product read as that station,
-    // which is how a screening headline made this a hiring tool. The
-    // span is named in the hero, in the trade's order, once.
-    expect(all).toContain(
+    // which is how a screening headline made this a hiring tool. The span
+    // was a line in the hero until 2026-09-27; the hero is the headline,
+    // the category and the hook now, and the span is said on About. The
+    // home page teaches it as the four stages of the module band.
+    expect(ABOUT_PAGE).toContain(
       'Requisition, suppliers, submissions, screening, interviews, ' +
       'onboarding, timesheets, invoices, compliance'
     )
+    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Source', 'Start', 'Work and pay', 'Govern'])
   })
 
   it('asks the four questions before it argues anything', () => {
-    // The hook is the not-knowing. Since 2026-09-27 the page no longer
-    // argues at length below it — the business case, the lifecycle and
-    // the chain moved to the pages that go deeper — so what is held here
-    // is that the four questions are on the page, all four, and that
-    // nothing after the hook opens on a penalty.
-    expect(PAGE).toContain('const QUESTIONS')
-    for (const q of [
+    // The hook is the not-knowing. Since 2026-09-27 it is one line in the
+    // hero, and the four questions with their answers are on About.
+    expect(hero).toContain('How many contractors are on your sites')
+    expect(hero).toContain('what are they costing you')
+    expect(FOUR_ANSWERS.map((a) => a.q)).toEqual([
       'How many contractors are on our sites right now?',
       'What are we spending on them this quarter, and with whom?',
       'Are we paying two suppliers different money for the same work?',
       'Who has been here longest?',
-    ]) {
-      expect(PAGE, q).toContain(q)
-    }
-    expect(at('gap')).toBeGreaterThan(0)
-    for (const later of ['join', 'ways', 'close']) {
-      expect(at('gap'), `#gap should come before #${later}`).toBeLessThan(at(later))
-    }
+    ])
+    // On About, why nobody can answer comes first, then the answers.
+    expect(aboutAt('unanswered')).toBeGreaterThanOrEqual(0)
+    expect(aboutAt('answered')).toBe(aboutAt('unanswered') + 1)
+    expect(PAGE).not.toContain('id="gap"')
   })
 
   it('keeps tenure to one question, not a section', () => {
     // Corrected 2026-09-17: "Tenure is nobody's problem — only you
     // expect it to be solved." It is the moat, not the wedge. The ledger
-    // stays as one question of four, answered in a line, and has no
-    // section of its own.
+    // stays one question of four, answered in a line, and has no section
+    // of its own anywhere.
     expect(PAGE).not.toContain('id="tenure"')
-    expect(PAGE).toContain("screen: 'Tenure'")
+    expect(ABOUT.blocks.map((b) => b.id)).not.toContain('tenure')
+    expect(FOUR_ANSWERS.filter((a) => a.screen === 'Tenure')).toHaveLength(1)
     const mentions = (all.toLowerCase().match(/tenure/g) ?? []).length
     expect(mentions, `the word "tenure" is on the page ${mentions} times`).toBeLessThanOrEqual(5)
-    // The arithmetic, in numbers a reader can add, left the home page with
-    // the rest of the long form. It is on the compliance page, where the
-    // number is the whole point.
+    // The arithmetic, in numbers a reader can add, is on the compliance
+    // page, where the number is the whole point.
     expect(body).not.toContain('One person worked 14 months')
     expect(COMPLIANCE_PAGE).toContain(
       'One person worked fourteen months through one supplier, three through a second and two through a third. ' +
@@ -421,13 +441,12 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('keeps the business case off the front door and one click from the hook', () => {
     // Two sentences doing two jobs: the hook is the not-knowing, the
-    // business case is what it costs when somebody finally asks. On a
-    // product page the second is a link under the first, never a band
-    // of its own, and it lives on the compliance page.
+    // business case is what it costs when somebody finally asks. The hook
+    // is in the hero; the business case is on the compliance page, one
+    // click from any page through the Product menu.
     expect(PAGE).not.toContain('id="exposure"')
     expect(body).not.toContain('Nobody is fined on the day')
-    const gap = PAGE.slice(at('gap'), at('join'))
-    expect(gap).toContain("'/compliance#cost'")
+    expect(PRODUCT_ITEMS.map((i) => i.href)).toContain('/compliance')
     expect(moreOn('compliance')?.id).toBe('cost')
     expect(COMPLIANCE_PAGE).toContain('Nobody is fined on the day a contractor passes eighteen months')
     expect(COMPLIANCE_PAGE.toLowerCase()).toContain('co-employment')
@@ -454,15 +473,14 @@ describe('Below the hero, the page says what the business is', () => {
   })
 
   it('says what the not-knowing costs today — three weeks and a number nobody trusts', () => {
-    expect(body).toContain('let me come back to you')
-    expect(body).toContain('Three weeks later')
-    expect(body).toContain('nobody fully trusts')
+    // In the hero as one line, and in full on About.
+    expect(hero).toContain('Most companies cannot answer without three weeks of asking.')
+    expect(ABOUT_PAGE).toContain('let me come back to you')
+    expect(ABOUT_PAGE).toContain('three weeks of asking every supplier')
   })
 
   it('says why no supplier can answer, one click from the questions, on About', () => {
-    // The long form of the hook moved to About on 2026-09-27, and the
-    // band with the four questions links straight to it.
-    expect(PAGE.slice(at('gap'), at('join'))).toContain("'/about#unanswered'")
+    // The long form of the hook, directly above the answers on About.
     expect(aboutBlock('unanswered')).toBeDefined()
     expect(ABOUT_PAGE).toContain('No supplier can add that up')
     expect(ABOUT_PAGE).toContain('A VMS sees inside')
@@ -471,32 +489,37 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('is written to the client’s desks by name — program manager, CFO, procurement', () => {
     // The client is the customer, decided 2026-09-10. Writing to "a
-    // company" is writing to nobody.
+    // company" is writing to nobody. The home page names the program
+    // manager's desk under its first screen; the header names each desk
+    // as a way in; About names the CFO who asks.
+    expect(PAGE).toContain('The program manager’s desk')
+    expect(SITE_ROLES.map((r) => r.t)).toEqual(expect.arrayContaining(['The program office', 'Procurement', 'Finance', 'Hiring managers']))
     for (const desk of ['program manager', 'CFO', 'procurement']) {
-      expect(body, desk).toContain(desk)
+      expect(ABOUT_PAGE, desk).toContain(desk)
     }
   })
 
   it('is written to the client, with the supplier reading over its shoulder', () => {
     // Addressing hiring companies, primes, subs and bench operators as
     // four equals is the plan from before the client became the customer
-    // on 2026-09-10. The home page speaks to the supplier once, beside
-    // the offer to run a program, which is where it would otherwise read
-    // a threat. Prime, sub and bench are spoken to on the chain page.
-    expect(body).toContain('you are on it because your client is')
+    // on 2026-09-10. The home page gives a supplier one quiet door in its
+    // close; the paragraph written to a supplier is on About beside the
+    // two ways to run it, and prime, sub and bench on the chain page.
+    expect(ABOUT_PAGE).toContain('you are on it because your client is')
+    expect(PAGE).toContain('If you supply into a program instead')
     for (const position of ['prime', 'sub', 'bench']) {
       expect(CHAIN_PAGE.toLowerCase(), position).toContain(position)
     }
   })
 
   it('writes to the client before it writes to anybody who supplies the client', () => {
-    // The order on the page: the client's own case — the steps, the
-    // parts, the questions — comes before the one paragraph for a
-    // supplier.
-    const supplierAt = PAGE.indexOf('If you are a staffing supplier')
-    for (const first of ['steps', 'modules', 'gap']) {
-      expect(at(first), `#${first} should come before the supplier paragraph`).toBeLessThan(supplierAt)
+    // On the home page, the client's doors come before the supplier's.
+    // On About, the client's answers come before the supplier's paragraph.
+    expect(PAGE.indexOf('withForm')).toBeLessThan(PAGE.indexOf('If you supply into a program instead'))
+    for (const first of ['steps', 'modules']) {
+      expect(at(first), `#${first} should come before the supplier's door`).toBeLessThan(PAGE.indexOf('If you supply into a program instead'))
     }
+    expect(aboutAt('answered')).toBeLessThan(aboutAt('ways'))
   })
 
   it('says prime, sub and bench are positions on a deal rather than kinds of company', () => {
@@ -517,25 +540,24 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('tells a supplier it is welcome under a plain sub-heading, never a rhetorical question', () => {
     // Subtle is not absent. The network only works because suppliers are
-    // on it, and a supplier who reads this as hostile does not join. It
-    // is said beside the offer to run a program, because that is the
-    // sentence a supplier would otherwise read as aimed at it.
-    expect(body).toContain('If you are a staffing supplier')
-    expect(body).toContain('Your rates and your sub-vendors’ names stay private')
-    expect(body).toContain('your client stays your client')
-    const ways = PAGE.slice(at('ways'), at('close'))
+    // on it. It is said beside the two ways to run the program, because
+    // that is where a supplier would otherwise read a threat.
+    const ways = [...(aboutBlock('ways')?.paragraphs ?? [])].join(' ')
     expect(ways).toContain('If you are a staffing supplier')
+    expect(ways).toContain('Your rates and your sub-vendors’ names stay private')
+    expect(ways).toContain('your client stays your client')
+    expect(`${PAGE} ${ways}`).not.toMatch(/supplier\?/)
   })
 
   it('says what the chain costs the client, in outcomes rather than in a warning', () => {
-    // On the chain page since 2026-09-27, as its own section, and the
-    // footer of the home page links to it.
+    // On the chain page, as its own section, and the header's Suppliers
+    // role leads straight to it.
     expect(moreOn('chain')?.title).toBe('Etyme sends your role down the chain and records what each supplier sees')
     expect(CHAIN_PAGE).toContain('past the agreement that covers them')
     expect(CHAIN_PAGE).toContain('The same resume reaches you from more than one supplier')
     expect(CHAIN_PAGE).toContain('Etyme describes the end client where the agreement forbids naming it')
     expect(CHAIN_PAGE).toContain('A blind key lets two competing suppliers')
-    expect(PAGE).toContain("href: '/chain#down-the-chain'")
+    expect(SITE_ROLES.map((r) => r.href)).toContain('/chain#down-the-chain')
   })
 
   it('says where the guarantee stops, because a company that is not on Etyme is not covered by it', () => {
@@ -547,12 +569,13 @@ describe('Below the hero, the page says what the business is', () => {
   })
 
   it('shows how a placement moves as the handful of milestones a person acts on', () => {
-    // Six milestones, not the internal lifecycle. On About since
-    // 2026-09-27, and the home page's footer links to it.
+    // Six milestones, not the internal lifecycle, on About. The header's
+    // program office role leads to the documentation's own walk of one
+    // hire from every desk.
     const hire = aboutBlock('hire')!
     expect(hire.title).toBe('One hire moves through six milestones, and three of them can stop it')
     expect((hire.items ?? []).map((i) => i.t)).toEqual(['Raised', 'Released', 'Awarded', 'Cleared', 'Working', 'Ended'])
-    expect(PAGE).toContain("href: '/about#hire'")
+    expect(SITE_ROLES.find((r) => r.t === 'The program office')?.href).toBe('/docs/client#one-hire')
     expect(PAGE).not.toContain('const LIFECYCLE')
   })
 
@@ -588,16 +611,13 @@ describe('Below the hero, the page says what the business is', () => {
     // A page describing a screen nobody built is the exact failure this
     // file was written to stop. The route is written beside the label so
     // this reads the page's own answer rather than guessing it.
-    for (const screen of ['Program', 'Workforce', 'Tenure', 'Rates']) {
-      expect(PAGE, screen).toContain(`screen: '${screen}'`)
-    }
-    const routes = [...PAGE.matchAll(/route: '([a-z-]+)',/g)].map((m) => m[1])
-    expect(routes.length).toBe(4)
-    for (const route of routes) {
+    expect(FOUR_ANSWERS.map((a) => a.screen)).toEqual(['Workforce', 'Program', 'Rates', 'Tenure'])
+    for (const a of FOUR_ANSWERS) {
       expect(
-        existsSync(join(process.cwd(), 'src/app/dashboard', route, 'page.tsx')),
-        `src/app/dashboard/${route}/page.tsx`
+        existsSync(join(process.cwd(), 'src/app/dashboard', a.route, 'page.tsx')),
+        `src/app/dashboard/${a.route}/page.tsx`
       ).toBe(true)
+      expect(ABOUT_PAGE, a.q).toContain(a.etyme)
     }
   })
 
@@ -655,26 +675,29 @@ describe('Below the hero, the page says what the business is', () => {
   })
 
   it('names the category in the words the buyer uses, then the line the founder signed off', () => {
-    // "Contingent workforce management" is what we call it. "Vendor
-    // management system" is what a CTO with fifty contractors calls it,
-    // and he is the one reading. Changed 2026-09-20, after a real buyer
-    // read the page and could not tell what the product was.
-    expect(words[0]).toBe('Vendor management system')
-    expect(words[1]).toBe('Every contractor. Every supplier. One record.')
+    // The founder's line first, then the category he decided on
+    // 2026-09-27: contingent workforce management names the whole span,
+    // and "vendor management system" stays beside it because it is what
+    // a buyer's procurement searches for and the word the CTO understood.
+    expect(words[0]).toBe('Every contractor. Every supplier. One record.')
+    expect(words[1]).toBe('Contingent workforce management for companies with 20 to 200 contractors.')
+    expect(words[2]).toBe('The vendor management system, sized for fifty contractors rather than five thousand.')
   })
 
   it('says the hero subhead in concrete nouns a reader can picture', () => {
-    // Contractors, suppliers, timesheets, invoices. The subhead used to
-    // describe an absence — "nobody has one record" — which is true and
-    // is not a thing anybody can see. This names what is on the screens
-    // underneath it, in the order the steps come in.
-    const sub = words[2]
-    for (const noun of ['contractor', 'supplier', 'timesheets', 'invoice']) {
-      expect(sub, noun).toContain(noun)
+    // One hook line, decided 2026-09-27: the questions a buyer cannot
+    // answer about their own contractors, and what it costs to try. Only
+    // nouns a reader can picture — contractors, sites, suppliers — and
+    // nothing about a record, which is abstract until the list is seen.
+    const hook = words[3]
+    for (const noun of ['contractors', 'sites', 'suppliers']) {
+      expect(hook, noun).toContain(noun)
     }
-    // Plain means short sentences. A subhead built from one 44-word
-    // sentence is not what "bring it down to earth" asked for.
-    const longestSentence = Math.max(...sub.split(/[.!?]/).map((s: string) => s.trim().split(/\s+/).filter(Boolean).length))
+    expect(hook).not.toMatch(/\brecord\b/i)
+    // Plain means short sentences, and the whole line is two of them.
+    const sentences = hook.split(/(?<=[.!?])\s+/)
+    expect(sentences).toHaveLength(2)
+    const longestSentence = Math.max(...sentences.map((x: string) => x.trim().split(/\s+/).filter(Boolean).length))
     expect(longestSentence).toBeLessThanOrEqual(24)
   })
 
@@ -703,27 +726,22 @@ describe('Every line says an outcome, a benefit or a method', () => {
     const signed = 'Every contractor. Every supplier. One record.'
     const heads = headlinesFrom(PAGE)
     expect(heads, 'the page has headlines to read').toContain(signed)
-    // Six bands since 2026-09-27, so six headlines written as text. The
-    // founder's line about teams around the world is drawn from data and
-    // is checked here too: "Join forces" is an imperative, a sentence
-    // with a verb, not a slogan.
-    expect(heads.length).toBeGreaterThanOrEqual(6)
+    // Five bands since 2026-09-27. Three headlines are written as text;
+    // the founder's line about teams around the world and the close are
+    // drawn from data, and are checked here too.
+    expect(heads.length).toBeGreaterThanOrEqual(3)
     const joinHeading = /heading: '([^']+)'/.exec(PAGE.slice(PAGE.indexOf('const JOIN')))?.[1] ?? ''
     expect(joinHeading).toBe('Join forces with global teams around the world.')
-    const slogans = withoutVerb([...heads, joinHeading], [signed])
+    const slogans = withoutVerb([...heads, joinHeading, CLOSE_BAND.heading], [signed])
     expect(slogans, `these headlines have no verb in them:\n  ${slogans.join('\n  ')}`).toEqual([])
   })
 
   it('answers each of the four questions in one line that names a screen a reader can open', () => {
-    // A question with no answer under it is a complaint. Until 2026-09-27
-    // each carried a "today" line as well, and a second section named
-    // the four screens again. Now the question, the screen and one line
-    // are one row, and what happens today is on About, one click away.
-    const block = PAGE.slice(PAGE.indexOf('const QUESTIONS'), PAGE.indexOf('const ANSWER_SCREEN'))
-    const answers = [...block.matchAll(/\n    etyme: '([^']+)'/g)].map((m) => m[1])
+    // A question with no answer under it is a complaint. The question,
+    // the screen and one line are one row, on About since 2026-09-27,
+    // directly under what happens today.
+    const answers = FOUR_ANSWERS.map((a) => a.etyme)
     expect(answers.length).toBe(4)
-    expect(PAGE).toContain('{item.etyme}')
-    expect(block).not.toMatch(/\n    today: '/)
     const screens = ['Workforce', 'Program', 'Rates', 'Tenure']
     for (const line of answers) {
       expect(screens.some((screen) => line.includes(`${screen} screen`)), `names no screen: ${line}`).toBe(true)
@@ -731,14 +749,10 @@ describe('Every line says an outcome, a benefit or a method', () => {
       const count = line.split(/\s+/).length
       expect(count, `${count} words is not one line: ${line}`).toBeLessThanOrEqual(22)
     }
-    // And what happens today is still said, on the page the band links to.
+    expect((aboutBlock('answered')?.items ?? []).map((i) => i.d)).toEqual(answers)
+    // And what happens today is still said, directly above.
     const today = (aboutBlock('unanswered')?.items ?? []).map((i) => i.t)
-    expect(today).toEqual([
-      'How many contractors are on our sites right now?',
-      'What are we spending on them this quarter, and with whom?',
-      'Are we paying two suppliers different money for the same work?',
-      'Who has been here longest?',
-    ])
+    expect(today).toEqual(FOUR_ANSWERS.map((a) => a.q))
   })
 
   it('keeps every sentence short enough to read once', () => {
@@ -864,11 +878,7 @@ describe('Every claim about a screen is a thing that screen does', () => {
     // bills is a page a buyer disproves by opening the screen.
     const spend = readFileSync(join(process.cwd(), 'src/lib/program-spend.ts'), 'utf8')
     expect(spend).toContain('It is an estimate, not signed time.')
-
-    const answers = PAGE.slice(PAGE.indexOf('const QUESTIONS'), PAGE.indexOf('const ANSWER_SCREEN'))
-    const spendAnswer = [...answers.matchAll(/\n    etyme: '([^']+)'/g)]
-      .map((m) => m[1])
-      .find((line) => /spend|month|billed/i.test(line))
+    const spendAnswer = FOUR_ANSWERS.map((a) => a.etyme).find((line) => /spend|month|billed/i.test(line))
     expect(spendAnswer, 'the page answers the spend question').toBeTruthy()
     expect(spendAnswer).toContain('Program screen')
     expect(spendAnswer).toContain('Invoices screen')
@@ -878,37 +888,30 @@ describe('Every claim about a screen is a thing that screen does', () => {
 
   it('sends the comparison of two suppliers to the screen that draws it', () => {
     // "Same role, two suppliers" is a panel on the Program screen's
-    // suppliers tab, computed from the contracts the client itself is
-    // billed on. The Rates screen is the history of what a rate was and
-    // who agreed it, one contract at a time — it has never put two
-    // suppliers side by side, and the page said it did.
+    // suppliers tab. The Rates screen is the history of what a rate was
+    // and who agreed it, one contract at a time.
     const dashboard = readFileSync(
       join(process.cwd(), 'src/app/dashboard/program/page.tsx'), 'utf8'
     )
     expect(dashboard).toContain('Same role, two suppliers')
-    const answers = PAGE.slice(PAGE.indexOf('const QUESTIONS'), PAGE.indexOf('const ANSWER_SCREEN'))
-    const rateAnswer = [...answers.matchAll(/\n    etyme: '([^']+)'/g)]
-      .map((m) => m[1])
-      .find((line) => /side by side/i.test(line))
+    const rateAnswer = FOUR_ANSWERS.map((a) => a.etyme).find((line) => /side by side/i.test(line))
     expect(rateAnswer).toContain('Program screen')
   })
 
   it('the page never tells a client it will see a supplier’s subcontractors by name', () => {
-    // 2026-09-21. The #gap headline read "Etyme shows every contractor
-    // on your sites, including contractors your suppliers' subcontractors
+    // 2026-09-21. The headline read "Etyme shows every contractor on
+    // your sites, including contractors your suppliers' subcontractors
     // placed", and every guard in the file passed it. To a prime that
-    // sentence is a promise to show its client the firm it buys from,
-    // which is the NDA between them and the reason "a sub-vendor's name
-    // is the prime's to keep" is a ratified decision.
+    // sentence is a promise to show its client the firm it buys from.
     //
-    // What the record does is narrower and is what the page says now:
-    // the person, and whether whoever employs them is insured and
-    // authorized, because that is the client's own exposure. The name
-    // below follows the client's own agreement, never the page.
-    const gap = PAGE.slice(at('gap'), at('join'))
-    expect(gap).toContain('Etyme shows every contractor on your sites, whoever placed them')
-    expect(gap).toContain('whether the firm that employs them is insured')
-    expect(gap).not.toContain('subcontractors placed')
+    // What the record does is narrower and is what the site says now,
+    // on About since 2026-09-27: the person, and whether whoever employs
+    // them is insured and authorized, because that is the client's own
+    // exposure. The name below follows the client's own agreement.
+    const answered = aboutBlock('answered')!
+    expect(answered.title).toBe('Etyme shows every contractor on your sites, whoever placed them')
+    expect(answered.paragraphs?.join(' ')).toContain('whether the firm that employs them is insured')
+    expect(ABOUT_PAGE).not.toContain('subcontractors placed')
 
     // And the guard refuses the sentence that shipped, so it cannot
     // come back by another route.
@@ -918,8 +921,9 @@ describe('Every claim about a screen is a thing that screen does', () => {
     )
     expect(caught, 'the old headline is refused now').not.toEqual([])
     expect(caught.join(' ')).toContain('subcontractor')
-    // The live page, read whole, still says nothing aimed at a supplier.
+    // The live page and About, read whole, say nothing aimed at a supplier.
     expect(readsAsAimedAtSuppliers(all)).toEqual([])
+    expect(readsAsAimedAtSuppliers(ABOUT_PAGE)).toEqual([])
   })
 
   it('stops the award where the ledger stops it, rather than the submission', () => {
@@ -966,31 +970,27 @@ describe('Every claim about a screen is a thing that screen does', () => {
 describe('The record is the product, and the program office is offered quietly', () => {
 
   it('leads with the record and offers the program office in one quiet sentence under it', () => {
-    // The hero says what Etyme holds. The offer is the sentence after
-    // it, in the muted line, and a reader may take it or leave it.
-    expect(all).toContain(
-      'Etyme keeps one record of every contractor across every staffing supplier you use.'
-    )
-    expect(all).toContain(
-      'Your own program office runs it. If you would rather not staff one, Etyme can run it for you on the same record.'
-    )
+    // Since 2026-09-27 the hero is the headline, the category and the hook,
+    // and the offer is one quiet sentence in the close, after the three
+    // ways forward — never in the hero.
+    const offer = 'If you would rather not staff a program office, Etyme can run it for you on the same record.'
+    expect(all).toContain(offer)
+    expect(offersTheProgramOffice(hero)).toEqual([])
+    expect(PAGE.indexOf(offer)).toBeGreaterThan(at('close'))
     // And the sentence it replaced is gone. "You choose how to use it"
     // made the choice the thing being sold.
     expect(all).not.toContain('You choose how to use it')
   })
 
   it('mentions the program office service once as a quiet option, never as a headline', () => {
-    // Twice on the whole page: the hero sentence, and the card under
-    // #ways that explains what it means. Anywhere else it has stopped
+    // Once on the whole page, in the close. Anywhere else it has stopped
     // being a second option and become the pitch.
     const offers = offersTheProgramOffice(all)
-    expect(offers, offers.join(' | ')).toHaveLength(2)
-    expect(offersTheProgramOffice(hero)).toHaveLength(1)
-    // Never in a headline, and never in the line the founder signed off.
-    for (const heading of headlinesFrom(PAGE)) {
+    expect(offers, offers.join(' | ')).toHaveLength(1)
+    for (const heading of [...headlinesFrom(PAGE), CLOSE_BAND.heading]) {
       expect(offersTheProgramOffice(heading), heading).toEqual([])
     }
-    expect(offersTheProgramOffice(`${words[0]} ${words[1]}`)).toEqual([])
+    expect(offersTheProgramOffice(`${words[0]} ${words[1]} ${words[2]}`)).toEqual([])
   })
 
   it('does not size Etyme against the incumbents', () => {
@@ -1035,68 +1035,66 @@ describe('The record is the product, and the program office is offered quietly',
 
   it('keeps the two labels the founder named, as sub-headings rather than the headline', () => {
     // A program manager has already evaluated things called both of
-    // those, and inventing a third word costs the recognition. They
-    // are sub-headings inside #ways now, and the section headline is
-    // about the record.
-    expect(PAGE).toContain('const TWO_WAYS')
-    const twoWays = PAGE.slice(PAGE.indexOf('const TWO_WAYS'), PAGE.indexOf('const CENSUS_IS_OPEN'))
-    const labels = [...twoWays.matchAll(/label: '([^']+)'/g)].map((m) => m[1])
-    expect(labels).toEqual(['VMS software', 'MSP provider'])
-    expect(PAGE).toContain('{w.label}')
-    expect(PAGE).toContain('{line}')
-    // Two plain lines under each label, drawn from the data. It was
-    // three each until 2026-09-27; the third said again what the
-    // sentence above both cards already says — the record stays yours.
-    expect([...twoWays.matchAll(/^      '[^']+',$/gm)].length).toBe(4)
-    expect(all).toContain('The record is the product, and your own people run the program on it')
-    for (const heading of headlinesFrom(PAGE)) {
+    // those, and inventing a third word costs the recognition. They are
+    // sub-headings under About's #ways since 2026-09-27, and the section
+    // headline is about the record.
+    expect(TWO_WAYS.map((w) => w.label)).toEqual(['VMS software', 'MSP provider'])
+    const ways = aboutBlock('ways')!
+    expect((ways.items ?? []).map((i) => i.t)).toEqual(['VMS software', 'MSP provider'])
+    expect(ways.title).toBe('The record is the product, and your own people run the program on it')
+    for (const heading of [...headlinesFrom(PAGE), CLOSE_BAND.heading, ...ABOUT.blocks.map((b) => b.title)]) {
       expect(heading, heading).not.toContain('MSP')
     }
+    // The home page's close links to it.
+    expect(PAGE).toContain("'/about#ways'")
   })
 
   it('says the program office is the second option and most clients take the first', () => {
-    expect(all).toContain('Most clients staff the program office themselves.')
-    expect(all).toContain('The record is the same either way and it stays yours.')
+    expect(ABOUT_PAGE).toContain('Most clients staff the program office themselves.')
+    expect(ABOUT_PAGE).toContain('The record is the same either way and it stays yours.')
   })
 
   it('says what a client gets from the service in plain sentences, and that the record stays theirs', () => {
-    // Value added, said as outcomes: a program office without the
-    // headcount, seats the client grants, every read logged — and the
-    // record the client's either way.
-    expect(all).toContain('You get a program office without hiring one.')
-    expect(all).toContain(
+    // Value added, said as outcomes: seats the client grants, its rules,
+    // every read logged — and the record the client's either way. "You
+    // get a program office without hiring one" was the home page's second
+    // offer; About already offers once, under #neutral, so the card says
+    // what the client gets rather than offering again.
+    expect(ABOUT_PAGE).toContain(
       'Etyme staff sit in seats your company grants them, work to your rules, and every read they make is logged.'
     )
-    expect(all).toContain('The record is the same either way and it stays yours.')
+    expect(ABOUT_PAGE).toContain('The record is the same either way and it stays yours.')
   })
 
   it('says what Etyme never does in either way', () => {
     // Neutrality is absolute and this is the place a reader is weighing
-    // whether to hand Etyme the program, so it is said here and not
+    // whether to hand Etyme the program, so it is said there and not
     // only in the footer.
-    expect(all).toContain(
-      'Etyme never supplies a contractor and never runs a bench, so it has no reason to favor one supplier.'
+    const ways = (aboutBlock('ways')?.paragraphs ?? []).join(' ')
+    expect(ways).toContain(
+      'In either way, Etyme never supplies a contractor and never runs a bench, so it has no reason to favor one supplier.'
     )
-    expect(PAGE.slice(at('ways'), at('close'))).toContain('In either way,')
     expect(check(live).map((f) => f.rule)).not.toContain('neutrality')
+    expect(check(copyOfCompanyPage(ABOUT)).map((f) => f.rule)).not.toContain('neutrality')
   })
 
   it('leaves the client the decisions that are the client’s', () => {
     // A program office that takes the hiring manager's decisions is not
     // neutral and is not this. The client is sold control, never
     // outsourcing, so this stays beside the offer.
-    expect(all).toContain(
+    expect(ABOUT_PAGE).toContain(
       'Your people keep the decisions that are yours: which roles to open, who to hire, and what to approve.'
     )
   })
 
   it('puts the choice after the four questions and the line about teams around the world', () => {
     // A reader who has just been shown what they cannot answer asks who
-    // is going to do something about it. The penalty never leads, and
-    // since 2026-09-27 it is not on this page at all.
-    expect(at('ways')).toBeGreaterThan(at('gap'))
-    expect(at('ways')).toBeGreaterThan(at('join'))
-    expect(at('ways')).toBeLessThan(at('close'))
+    // is going to do something about it. On the home page the offer is in
+    // the close, after the line about teams; on About the two ways come
+    // after the answers.
+    const offer = PAGE.indexOf('If you would rather not staff a program office')
+    expect(offer).toBeGreaterThan(at('join'))
+    expect(aboutAt('ways')).toBeGreaterThan(aboutAt('answered'))
   })
 
   it('says how a program Etyme runs is paid for, once and plainly, without a number', () => {
@@ -1121,23 +1119,20 @@ describe('The record is the product, and the program office is offered quietly',
     // Reassurance first — rates, sub-vendors' names, the client stays
     // theirs — and then what is actually better for them. Never a
     // sentence about being watched or compared.
-    expect(body).toContain('Your rates and your sub-vendors’ names stay private, and your client stays your client.')
-    expect(body).toContain(
+    expect(ABOUT_PAGE).toContain('Your rates and your sub-vendors’ names stay private, and your client stays your client.')
+    expect(ABOUT_PAGE).toContain(
       'Where Etyme runs a client’s program, approvals come back faster and your bills are matched and paid without chasing.'
     )
-    expect(readsAsAimedAtSuppliers(all)).toEqual([])
+    expect(readsAsAimedAtSuppliers(ABOUT_PAGE)).toEqual([])
   })
 
   it('opens the census door now that the page exists', () => {
-    // The census is the first step for a client weighing the program
-    // office service. The constant was off while `src/app/census` was
-    // not built, because a link to a page that is not there costs more
-    // trust than no link at all. The page shipped on 2026-09-20, so the
-    // door is open — and the file is read here as well as the constant,
-    // so switching one without the other fails on that commit.
-    expect(PAGE).toContain('const CENSUS_IS_OPEN = true')
-    expect(PAGE).toContain('{CENSUS_IS_OPEN && (')
-    expect(PAGE).toContain('If you are considering Etyme as your MSP provider')
+    // The census is the spend audit, the second rung of the ladder every
+    // page ends in, and the first step for a client weighing the service.
+    // It is a button in the hero and in the close, and the page is there.
+    expect(GET_THE_AUDIT.href).toBe('/census')
+    expect(PAGE).toContain('{GET_THE_AUDIT.t}')
+    expect(CLOSE_SRC).toContain('{GET_THE_AUDIT.t}')
     expect(existsSync(join(process.cwd(), 'src/app/census/page.tsx'))).toBe(true)
   })
 
@@ -1145,9 +1140,12 @@ describe('The record is the product, and the program office is offered quietly',
     // Horizontal, never vertical. The label is a product category a
     // buyer names, and the rule that guards the industry assumption has
     // to tell it apart from a page about engineers.
-    expect(all).toContain('VMS software')
+    expect(ABOUT_PAGE).toContain('VMS software')
+    expect(check(copyOfCompanyPage(ABOUT)).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
+    expect(all).toContain('The vendor management system')
     expect(check(live).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
   })
+
 })
 
 // ── Screens before sentences ─────────────────────────────────────────
@@ -1190,7 +1188,7 @@ describe('The page shows the product before it describes it', () => {
     const headline = PAGE.indexOf('Every contractor. Every supplier. One record.')
     expect(firstImage, 'there is a screenshot on the page at all').toBeGreaterThan(0)
     expect(firstImage, 'the screen sits under the hero headline').toBeGreaterThan(headline)
-    expect(firstImage, 'and before the page starts arguing').toBeLessThan(at('gap'))
+    expect(firstImage, 'and before the four steps').toBeLessThan(at('steps'))
     // And it is the client's own dashboard, which is the screen that
     // answers "what is this" in one look. Read off the rendered tag
     // rather than off the data, because the step images are declared at
@@ -1216,7 +1214,9 @@ describe('The page shows the product before it describes it', () => {
     // screenshot is the argument and a reader who cannot see it is owed
     // the same argument in words.
     const tags = PAGE.split('<img').slice(1).map((t) => t.slice(0, 700))
-    expect(tags.length, 'an img tag per place a screen is drawn').toBeGreaterThanOrEqual(3)
+    // Two places draw screens since 2026-09-27: the hero, and the step
+    // loop, which draws four.
+    expect(tags.length, 'an img tag per place a screen is drawn').toBeGreaterThanOrEqual(2)
     for (const tag of tags) expect(tag.slice(0, 200), tag.slice(0, 80)).toMatch(/alt=/)
     expect((PAGE.match(/<figcaption/g) ?? []).length).toBe(tags.length)
     // And each image declares a width and a height, so nothing on the
@@ -1278,11 +1278,11 @@ describe('The page shows the product before it describes it', () => {
     // Four is what a buyer can hold; the ten stations of a placement
     // are further down, where somebody who wants them will look.
     expect(PAGE).toContain('const STEPS')
-    const steps = PAGE.slice(PAGE.indexOf('const STEPS'), PAGE.indexOf('const TILES'))
+    const steps = PAGE.slice(PAGE.indexOf('const STEPS'), PAGE.indexOf('const JOIN'))
     const numbers = [...steps.matchAll(/n: '(\d\d)'/g)].map((m) => m[1])
     expect(numbers).toEqual(['01', '02', '03', '04'])
-    // Each step is two sentences and one screen, and the screen is a
-    // file somebody can open.
+    // Each step is one line and one screen since 2026-09-27, and the
+    // screen is a file somebody can open.
     const shots = [...steps.matchAll(/img: '([^']+)'/g)].map((m) => m[1])
     expect(shots.length).toBe(4)
     for (const shot of shots) {
@@ -1296,7 +1296,9 @@ describe('The page shows the product before it describes it', () => {
     expect(said).toContain('Each supplier bills, and you pay what matched')
     // And the section is on the page, before the argument.
     expect(at('steps')).toBeGreaterThan(0)
-    expect(at('steps')).toBeLessThan(at('gap'))
+    expect(at('steps')).toBeLessThan(at('modules'))
+    // One line each: the step, and nothing under it but the screen's own caption.
+    expect(steps).not.toMatch(/\n    says: '/)
     expect(body).toContain('A role goes out, a person starts, a week is signed, a bill is paid')
     // Every image says where it was taken, so it can be retaken after a
     // redesign rather than quietly going stale.
@@ -1307,19 +1309,17 @@ describe('The page shows the product before it describes it', () => {
     // The subhead named SAP Fieldglass and Beeline for one evening, and
     // the founder struck it: a rival's name invites "how are you
     // different" and "who else uses you", and a page cannot finish that
-    // argument. What a reader needs from this line is what kind of
-    // thing it is and what size of company it is built for.
-    const subhead =
-      'A vendor management system for companies with twenty to two hundred ' +
-      'contractors, sized for a company with fifty contractors rather than five thousand.'
-    expect(all).toContain(subhead)
-    // And it is one sentence a reader can hold, not two.
-    expect(longSentences(subhead, 30)).toEqual([])
+    // argument. What a reader needs is what kind of thing it is and what
+    // size of company it is built for — the line he decided on
+    // 2026-09-27.
+    const category =
+      'Contingent workforce management for companies with 20 to 200 contractors. ' +
+      'The vendor management system, sized for fifty contractors rather than five thousand.'
+    expect(all).toContain(category)
+    expect(longSentences(category, 30)).toEqual([])
     // Nobody is named anywhere, with nothing set aside — no customer,
     // no logo, no comparison.
     expect(namedCompanies(all)).toEqual([])
-    // The guard is strict again rather than asleep: the sentence that
-    // was allowed for an evening is refused now.
     expect(namedCompanies(
       'If you know SAP Fieldglass or Beeline, it is the same job.'
     ).length).toBeGreaterThan(0)
@@ -1328,25 +1328,24 @@ describe('The page shows the product before it describes it', () => {
     // measures Etyme against anybody.
     const sized = sizesAgainstIncumbents(all)
     expect(sized, sized.join('; ')).toEqual([])
-    expect(sizesAgainstIncumbents(subhead)).toEqual([])
-    // The category is named in the buyer's own words first.
-    expect(words[0]).toBe('Vendor management system')
+    expect(sizesAgainstIncumbents(category)).toEqual([])
+    // And the page's own title and description say the same thing.
+    expect(PAGE).toContain("title: { absolute: 'Etyme | Contingent workforce management' }")
+    expect(PAGE).toContain("'Contingent workforce management for companies with 20 to 200 contractors. '")
   })
 
   it('shows the hardest answer to believe as the screen that gives it', () => {
     // Every contractor across every supplier, on one list. It is the
-    // claim a reader has least reason to believe from prose, so it is
-    // the one screen in the band with the four questions. The tenure
-    // screen that stood beside it until 2026-09-27 now opens the
-    // compliance page.
-    expect(PAGE).toContain('const ANSWER_SCREEN')
-    const block = PAGE.slice(PAGE.indexOf('const ANSWER_SCREEN'), PAGE.indexOf('const JOIN'))
-    expect(/img: '([^']+)'/.exec(block)?.[1]).toBe('/screens/contractors.png')
+    // claim a reader has least reason to believe from prose, so it is the
+    // screen beside the four answers — on About since 2026-09-27.
+    const shot = aboutBlock('answered')?.screen
+    expect(shot?.img).toBe('/screens/contractors.png')
     expect(existsSync(join(process.cwd(), 'public/screens/contractors.png'))).toBe(true)
-    expect(PAGE.indexOf('src={ANSWER_SCREEN.img}')).toBeGreaterThan(at('gap'))
-    expect(PAGE.indexOf('src={ANSWER_SCREEN.img}')).toBeLessThan(at('join'))
+    expect(Date.parse(shot!.capturedAt)).toBeGreaterThan(Date.parse('2026-09-20T22:00:00Z'))
+    expect(readFileSync(join(process.cwd(), 'src/lib/public-site/company-page.tsx'), 'utf8')).toContain('src={b.screen.img}')
     expect(MODULES.find((m) => m.slug === 'compliance')!.screen.from).toContain('/dashboard/tenure')
   })
+
 })
 
 // ── The door ──────────────────────────────────────────────────────────
@@ -1359,36 +1358,35 @@ describe('The page shows the product before it describes it', () => {
 describe('The door is a client desk, in a company nobody can sue us over', () => {
 
   it('offers the demo seated at a client desk, with invented names only', () => {
-    expect(PAGE).toContain('const PROGRAMS')
-    expect(PAGE).toContain('href="/demo"')
-    expect(PAGE).toContain('Pick a client desk')
-    // The three named here are inventions, and the page says they are
-    // inventions rather than leaving them to read as a customer list.
-    for (const name of ['Northbend Athletic', 'Cavanaugh Glassworks', 'Talvern Medical']) {
-      expect(body, name).toContain(name)
-    }
-    expect(body).toContain('The companies are invented')
+    // The primary button everywhere leads to the example program's door,
+    // where a visitor picks a client desk, and every line that names a
+    // company says it is invented.
+    expect(SEE_IT.href).toBe('/demo')
+    expect(PAGE).toContain('href={SEE_IT.href as Route}')
+    expect(CLOSE_BAND.line).toContain('an invented company')
+    expect(PAGE).toContain('Northbend Athletic, an invented company')
     expect(namedCompanies(all)).toEqual([])
   })
 
   it('names the three programs the seed actually builds, so no door opens on nothing', () => {
+    // The page names one program now, under its first screen, and it is
+    // one the seed builds. The three doors are on /demo, which reads them
+    // from the same list.
     const seats = readFileSync(join(process.cwd(), 'src/app/demo/seats.ts'), 'utf8')
-    const clientBlock = seats.slice(
-      seats.indexOf('CLIENT_PROGRAMS'),
-      seats.indexOf('SUPPLIER_SEATS')
-    )
+    const clientBlock = seats.slice(seats.indexOf('CLIENT_PROGRAMS'), seats.indexOf('SUPPLIER_SEATS'))
     const seeded = [...clientBlock.matchAll(/name: '([^']+)'/g)].map((m) => m[1])
-    const onPage = [...PAGE.slice(PAGE.indexOf('const PROGRAMS')).matchAll(/name: '([^']+)'/g)]
-      .map((m) => m[1]).slice(0, seeded.length)
-    expect(onPage).toEqual(seeded)
+    expect(seeded).toContain('Northbend Athletic')
+    for (const name of ['Northbend Athletic', 'Cavanaugh Glassworks', 'Talvern Medical']) {
+      if (all.includes(name)) expect(seeded, name).toContain(name)
+    }
+    expect(PAGE).not.toContain('const PROGRAMS')
   })
 
   it('keeps the contractor’s own door on the page, quieter than both company doors', () => {
     // A person who is the work is not an audience to drop off a page
-    // written to the company hiring. It stays a text link in both places
-    // the company doors are, never a button beside them, and
-    // `__tests__/invariants/demo-candidate.test.ts` counts it too.
-    expect((PAGE.match(/side="CANDIDATE"/g) ?? []).length).toBe(2)
+    // written to the company hiring. It stays a text link, never a button,
+    // and `__tests__/invariants/demo-candidate.test.ts` holds it too.
+    expect((PAGE.match(/side="CANDIDATE"/g) ?? []).length).toBeGreaterThanOrEqual(1)
     expect(PAGE).not.toMatch(/side="CANDIDATE"[\s\S]{0,240}bg-etyme-action/)
   })
 
@@ -1396,9 +1394,11 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     // A supplier is welcome and is not who this page is written to.
     expect(PAGE).toContain('If you supply into a program instead')
     expect(PAGE).toContain('side="BENCH"')
-    expect(PAGE.indexOf('Pick a client desk'))
+    expect(PAGE.indexOf('{`${SEE_IT.t} →`}'))
       .toBeLessThan(PAGE.indexOf('If you supply into a program instead'))
+    expect(PAGE).not.toMatch(/side="BENCH"[\s\S]{0,240}bg-etyme-action/)
   })
+
 })
 
 // ── The number under the AI honesty ───────────────────────────────────
@@ -1487,9 +1487,9 @@ describe('The header reads as an enterprise product, not a job board', () => {
   it('opens one door into an example program rather than asking a visitor to classify itself', () => {
     // One company door, not a company door and a supplier door. The
     // split forked the front page on demand-vs-supply, which is a
-    // position on a deal and not a property of a firm; the seats sit
-    // behind one button.
-    expect(PAGE).toContain('Open an example program')
+    // position on a deal and not a property of a firm.
+    expect(SEE_IT.t).toBe('See it with a month of data')
+    expect(PAGE).toContain('{`${SEE_IT.t} →`}')
     expect(PAGE).not.toContain('See it as the supplier')
     expect(PAGE).not.toContain('See it as the company')
   })
@@ -1545,10 +1545,14 @@ describe('The home page is read on a phone', () => {
   it('leaves a 16px gutter at the edge of a phone screen', () => {
     // px-4 from zero, px-6 once there is room. A max-width container with
     // no padding puts the first letter of every line against the glass.
-    const containers = [...PAGE.matchAll(/mx-auto max-w-[\w[\]-]+ ([^"]*)/g)].map((m) => m[1])
-    expect(containers.length).toBeGreaterThan(5)
-    for (const c of containers) {
-      expect(c, `a container with no phone gutter: ${c}`).toMatch(/px-4|px-6/)
+    // Four bands are written here; the close and the frame are held to
+    // the same rule in their own files.
+    for (const src of [PAGE, CLOSE_SRC, FRAME_SRC]) {
+      const containers = [...src.matchAll(/mx-auto max-w-[\w[\]-]+ ([^"]*)/g)].map((m) => m[1])
+      expect(containers.length).toBeGreaterThan(0)
+      for (const c of containers) {
+        expect(c, `a container with no phone gutter: ${c}`).toMatch(/px-4|px-6/)
+      }
     }
   })
 
@@ -1605,18 +1609,22 @@ describe('The home page is drawn in the brand’s own colors', () => {
 // reviewer who goes looking in the footer, is the same as not having
 // written them.
 
-const FOOTER_SRC = PAGE.slice(PAGE.indexOf('const FOOTER'), PAGE.indexOf('export default function'))
-const FOOTER_LINKS = [...FOOTER_SRC.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
+// Since 2026-09-27 the home page draws the one footer every public page
+// draws, so its links are read from that footer's data and its words from
+// the component that renders it.
+const FOOTER_LINKS = SITE_FOOTER.flatMap((g) => g.links.map((l) => l.href))
+const FOOTER_WORDS = SITE_FOOTER.flatMap((g) => [g.heading, ...g.links.map((l) => l.label), g.note ?? '']).join(' ')
+const FOOTER_JSX = FRAME_SRC.slice(FRAME_SRC.indexOf('export function SiteFooter'), FRAME_SRC.indexOf('export function SiteFrame'))
 
 describe('The footer is where a company keeps its papers', () => {
 
   it('a visitor can reach the terms and the privacy notice from the home page', () => {
     expect(FOOTER_LINKS).toContain('/terms')
     expect(FOOTER_LINKS).toContain('/privacy')
-    // And the list is actually rendered, rather than sitting in the file
-    // as data nothing draws — which is how it was invisible in the first
-    // place, one level up.
-    expect(PAGE).toContain('FOOTER.map')
+    // And the home page draws that footer, and the footer draws the list,
+    // rather than it sitting in a file as data nothing renders.
+    expect(PAGE).toContain('<SiteFooter />')
+    expect(FOOTER_JSX).toContain('FOOTER.map')
   })
 
   it('offers the data processing addendum too, because that is the document a buyer’s counsel asks for', () => {
@@ -1624,7 +1632,8 @@ describe('The footer is where a company keeps its papers', () => {
   })
 
   it('says the legal documents are drafts before somebody clicks one, not after', () => {
-    expect(FOOTER_SRC).toContain('not yet reviewed by a lawyer')
+    expect(FOOTER_WORDS).toContain('not yet reviewed by a lawyer')
+    expect(FOOTER_JSX).toContain('group.note')
   })
 
   it('every page the footer points at exists, so none of it is a dead link', () => {
@@ -1642,39 +1651,48 @@ describe('The footer is where a company keeps its papers', () => {
         const candidates = ['', '(auth)', '(site)'].map((group) =>
           join(process.cwd(), 'src/app', group, path.slice(1), 'page.tsx')
         )
-        expect(candidates.some(existsSync), `no page for ${href}`).toBe(true)
+        // A documentation page is one route file for every slug, and the
+        // slug must be one the documentation registers.
+        const docsSlug = path.startsWith('/docs/') ? path.slice('/docs/'.length) : null
+        const isDoc = docsSlug !== null && (DOCS_SLUGS as readonly string[]).includes(docsSlug)
+        expect(candidates.some(existsSync) || isDoc, `no page for ${href}`).toBe(true)
       }
     }
   })
 
   it('gives a visitor a way to reach a person, and it is the one channel that exists', () => {
     // Alerts go out to staff and nothing came in from a prospect except
-    // this box, which somebody reads and answers.
-    expect(FOOTER_LINKS).toContain('#contact')
-    expect(PAGE).toContain('id="contact"')
-    expect(PAGE).toContain('<Ask source="HOME_PAGE" />')
+    // this box, which somebody reads and answers. It sits beside the
+    // home page's close, and the footer leads to the contact page, which
+    // carries the same box.
+    expect(FOOTER_LINKS).toContain('/contact')
+    expect(PAGE).toContain('<CloseBand id="close" withForm>')
+    expect(CLOSE_SRC).toContain('id="contact"')
+    expect(CLOSE_SRC).toContain('<Ask source="HOME_PAGE" />')
   })
 
   it('invents no support mailbox, no office and no social account', () => {
-    expect(FOOTER_SRC).not.toMatch(/mailto:/)
-    expect(FOOTER_SRC.toLowerCase()).not.toMatch(/linkedin|twitter|x\.com|facebook|status\.|careers|\babout us\b/)
+    // The one mailbox the footer shows is the one Contact already names.
+    expect(FOOTER_WORDS.toLowerCase()).not.toMatch(/linkedin|twitter|x\.com|facebook|status\.|careers|\babout us\b/)
+    expect([...FOOTER_JSX.matchAll(/mailto:/g)].length).toBeLessThanOrEqual(1)
+    expect(FOOTER_JSX).toContain('mailto:${ADDRESS.email}')
   })
 
   it('names the company and the year rather than a hardcoded copyright that goes stale', () => {
-    expect(PAGE).toContain('Etyme Inc.')
-    expect(PAGE).toContain('new Date().getFullYear()')
+    expect(FOOTER_JSX).toContain('ADDRESS.company')
+    expect(FOOTER_JSX).toContain('new Date().getFullYear()')
   })
 
   it('says what Etyme is in the footer, in the words from CLAUDE.md', () => {
     // Somebody who scrolled past the hero and read nothing else still
     // leaves knowing the category.
-    expect(PAGE).toContain('The system of record for contingent workers')
+    expect(FOOTER_JSX).toContain('The system of record for contingent workers')
   })
 
   it('repeats the neutrality commitment where a supplier reading the page will see it', () => {
-    const footerJsx = PAGE.slice(PAGE.indexOf('<footer'))
-    expect(footerJsx).toContain('never runs a bench and never places anybody')
+    expect(FOOTER_JSX).toContain('never runs a bench and never places anybody')
   })
+
 })
 
 // ── The four sentences the founder reads ──────────────────────────────
@@ -1682,7 +1700,7 @@ describe('The footer is where a company keeps its papers', () => {
 describe('The public page still says the four things it may not stop saying', () => {
 
   it('the home page names what Etyme is before it names anything it does', () => {
-    expect(words[0]).toBe('Vendor management system')
+    expect(words[1]).toBe('Contingent workforce management for companies with 20 to 200 contractors.')
     expect(check(live).map((f) => f.rule)).not.toContain('category-first')
     expect(check(live).map((f) => f.rule)).not.toContain('module-not-category')
   })
@@ -1698,7 +1716,7 @@ describe('The public page still says the four things it may not stop saying', ()
 
   it('nothing on the public page claims Etyme places anybody', () => {
     expect(check(live).map((f) => f.rule)).not.toContain('neutrality')
-    expect(all).toContain('never runs a bench and never places anybody')
+    expect(FOOTER_JSX).toContain('never runs a bench and never places anybody')
   })
 
   it('claims no paying customers, because there are none yet', () => {
@@ -1758,61 +1776,82 @@ describe('A price on a page is caught by its unit, not by its dollar sign', () =
  * Read from the source, because a page file cannot be rendered in a unit
  * test: the JSX between the header and the footer, the data it draws
  * (without alt text, capture stamps and routes, which a sighted reader
- * never sees), the eight tiles, and the ask form's own words. On
- * 2026-09-27 this read 1,093 where a browser counting `innerText` on
- * `next start` read within a few percent of it.
+ * never sees), the two quiet doors' labels, the eight parts it draws from
+ * the header's Product menu, the close band's words from the funnel, and
+ * the ask form's own words.
  */
 function readerWords(): number {
   const count = (t: string) => t.split(/\s+/).filter((x) => /[A-Za-z0-9]/.test(x)).length
   const noComments = (t: string) =>
     t.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
-  const jsx = noComments(PAGE.slice(PAGE.indexOf('<SiteHeader />'), PAGE.indexOf('<footer')))
-  const data = noComments(PAGE.slice(PAGE.indexOf('const STEPS'), PAGE.indexOf('const FOOTER')))
+  const jsx = noComments(PAGE.slice(PAGE.indexOf('<SiteHeader />'), PAGE.indexOf('<SiteFooter />')))
+  const data = noComments(PAGE.slice(PAGE.indexOf('const STEPS'), PAGE.indexOf('export default function')))
     .split('\n')
     .filter((l) => !/^\s*(alt|from|capturedAt|proof|source|img|route):/.test(l))
     .filter((l) => !/says: '(W-9|GST and PAN|VAT position)'/.test(l))
     .join('\n')
-  const tiles = MODULES.map((m) => `${m.title} ${PRODUCT_ITEMS.find((i) => i.href === m.route)?.d ?? ''}`)
+  const labels = [...jsx.matchAll(/label="([^"]+)"/g)].map((m) => m[1])
+  const hero = [SEE_IT.t, GET_THE_AUDIT.t]
+  const tiles = PRODUCT_STAGES.flatMap((g) => [g.heading, ...g.items.flatMap((i) => [i.t, i.d ?? ''])])
+  const close = [...closeBandCopy(), GET_THE_AUDIT.d]
   const ask = [ASK_COPY.eyebrow, ASK_COPY.heading, ASK_COPY.body,
     ASK_COPY.emailLabel, ASK_COPY.emailHint, ASK_COPY.askLabel, ASK_COPY.askHint, ASK_COPY.button]
-  return [copyFrom(jsx), copyFrom(data), tiles, ask].reduce((n, part) => n + count(part.join(' ')), 0)
+  return [copyFrom(jsx), copyFrom(data), labels, hero, tiles, close, ask].reduce((n, part) => n + count(part.join(' ')), 0)
 }
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
   const start = at(id)
-  const next = PAGE.indexOf('<section', start + 1)
-  return PAGE.slice(start, next > 0 ? next : PAGE.indexOf('<footer'))
+  const ends = ['<section', '<CloseBand', '<SiteFooter']
+    .map((tag) => PAGE.indexOf(tag, start + 1))
+    .filter((i) => i > 0)
+  return PAGE.slice(start, Math.min(...ends))
 }
 
 describe('The home page reads as a product page, and every band leads deeper', () => {
 
-  it('the home page reads as a product page: short, and every band leads to the page that goes deeper', () => {
-    // The ceiling is 1,150 words between the header and the footer, and
-    // this is the arithmetic. A Microsoft or SAP product page is 600 to
-    // 900 words, and its hero is about forty. This hero is the founder's,
-    // signed off, about 190 words, and is not reworded to fit a number:
-    // 900 − 40 + 190 is 1,050. The ask form's own labels add about 65.
-    // So 1,150 leaves room for one more sentence and not for a section,
-    // and it is under a third of the 3,771 words it replaced. A band that
-    // needs more words than this allows needs a page of its own.
+  it('the home page is five bands and about five hundred words, and the nav and the page teach the same map', () => {
+    // The ceiling is 600 words between the header and the footer, and
+    // this is the arithmetic. On 2026-09-27 the founder said the page was
+    // still too big at 1,280 words in seven bands. The target he was given
+    // is about five hundred. What this counts is 582: about 520 words a
+    // reader reads on the page, and about 60 that are the ask form's own
+    // labels and promise beside the close — "your email", "what do you
+    // need", "nothing you send starts a sequence". Those are not prose to
+    // cut; they are the form. So 600 leaves room for one short sentence
+    // and not for a band, and it is under half of what it replaced. A band
+    // that needs more words than this allows needs a page of its own.
     const words = readerWords()
-    expect(words, `${words} words between the header and the footer`).toBeLessThanOrEqual(1150)
+    expect(words, `${words} words between the header and the footer`).toBeLessThanOrEqual(600)
     // And the reader is really reading the page, not passing on nothing.
-    expect(words).toBeGreaterThan(600)
+    expect(words).toBeGreaterThan(400)
 
-    // Six bands under the hero, each with one headline. Twelve was an
-    // essay; a product page is five or six.
-    const h2 = (PAGE.match(/<h2/g) ?? []).length
-    expect(h2, `${h2} headlines`).toBeLessThanOrEqual(6)
-    expect((PAGE.match(/<section/g) ?? []).length, 'the hero and six bands').toBeLessThanOrEqual(7)
+    // Five bands: the hero, the steps, the eight parts, the line about
+    // teams around the world, and the close every public page ends in.
+    const sections = (PAGE.match(/<section/g) ?? []).length
+    const closes = (PAGE.match(/<CloseBand/g) ?? []).length
+    expect(sections + closes, 'five bands').toBe(5)
+    expect(closes, 'the page ends in the shared close').toBe(1)
+    expect(PAGE.lastIndexOf('<section')).toBeLessThan(PAGE.indexOf('<CloseBand'))
+    expect((PAGE.match(/<h2/g) ?? []).length, 'one headline per band under the hero').toBe(3)
+    for (const gone of ['gap', 'ways']) expect(PAGE, `#${gone} is still on the home page`).not.toContain(`id="${gone}"`)
 
     // Every band leads to a page that goes deeper, except the quiet one,
     // which the founder asked to carry no button of its own.
-    const deeper = /href=\{?\s*['"`(]*\/[a-z]|href=\{m\.route/
-    for (const id of ['steps', 'modules', 'gap', 'ways', 'close']) {
+    const deeper = /href=\{?\s*['"`(]*\/[a-z]|href=\{m\.href/
+    for (const id of ['steps', 'modules']) {
       expect(band(id), `#${id} links to no page`).toMatch(deeper)
     }
+    expect(CLOSE_SRC).toContain('href={SEE_IT.href}')
+
+    // The nav and the page teach the same map: the module band is drawn
+    // from the header's Product menu, stage by stage, and nothing else.
+    const modules = band('modules')
+    expect(modules).toContain('PRODUCT_STAGES.map((stage)')
+    expect(modules).toContain('{stage.heading}')
+    expect(modules).toContain('stage.items.map((m)')
+    expect(SITE_MENUS[0].label).toBe('Product')
+    expect(SITE_MENUS[0].groups).toBe(PRODUCT_STAGES)
   })
 
   it('every section taken off the home page lives on a public page', () => {
@@ -1834,6 +1873,13 @@ describe('The home page reads as a product page, and every band leads deeper', (
         phrase: 'Looking around costs nothing and needs no card' },
       { was: 'gap (the long form)', to: '/about', anchor: aboutBlock('unanswered')?.id, text: ABOUT_PAGE,
         phrase: 'You can name every employee on your payroll' },
+      // The second move, 2026-09-27 afternoon: five bands.
+      { was: 'gap', to: '/about', anchor: aboutBlock('answered')?.id, text: ABOUT_PAGE,
+        phrase: 'The Workforce screen lists every contractor on site today, across every supplier.' },
+      { was: 'ways', to: '/about', anchor: aboutBlock('ways')?.id, text: ABOUT_PAGE,
+        phrase: 'Most clients staff the program office themselves.' },
+      { was: 'the hero’s span line', to: '/about', anchor: aboutBlock('build')?.id, text: ABOUT_PAGE,
+        phrase: 'One record holds all of it, and each desk opens the part that is its own.' },
     ]
     for (const m of MOVED) {
       expect(m.anchor, `#${m.was} has no section on ${m.to}`).toBeTruthy()
@@ -1841,7 +1887,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     }
     // The sections that left have no anchor here any more — except #why,
     // which is the one line on price the close still carries.
-    for (const gone of ['exposure', 'lifecycle', 'monday', 'alongside', 'who', 'compliance']) {
+    for (const gone of ['exposure', 'lifecycle', 'monday', 'alongside', 'who', 'compliance', 'gap', 'ways']) {
       expect(PAGE, `#${gone} is still on the home page`).not.toContain(`id="${gone}"`)
     }
     // Each destination is a registered public page, so the guard reads it.
@@ -1854,23 +1900,24 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect(MODULES.find((m) => m.slug === 'contracts')!.refuses.some((r) => r.phrase === 'cannot start without')).toBe(true)
   })
 
-  it('the eight module tiles lead to the eight module pages, each opening on its own screen', () => {
-    // One tile per part, in the order a hire moves: the name and the
-    // screen are the module page's own, and the line is the header
-    // menu's description of the same page, so the tile and the menu
-    // cannot say two different things.
-    expect(PAGE).toContain('const TILES = MODULES.map(')
-    expect(PAGE).toContain('href={m.route as Route}')
-    expect(PAGE).toContain('src={m.img}')
-    expect(PAGE.indexOf('TILES.map')).toBeGreaterThan(at('modules'))
-    expect(PAGE.indexOf('TILES.map')).toBeLessThan(at('gap'))
+  it('the eight module tiles lead to the eight module pages, grouped by the stage a hire reaches them in', () => {
+    // A tile is the part's name and one line, and the whole tile leads to
+    // the part's page. The name and the line are the header's own, and
+    // the four headings over them are the Product menu's stages.
+    expect(PAGE).not.toContain('const TILES')
+    expect(PAGE).toContain('href={m.href as Route}')
+    expect(PAGE.indexOf('PRODUCT_STAGES.map')).toBeGreaterThan(at('modules'))
+    expect(PAGE.indexOf('PRODUCT_STAGES.map')).toBeLessThan(at('join'))
     expect(MODULES).toHaveLength(8)
+    expect(PRODUCT_ITEMS.map((i) => i.href)).toEqual(MODULES.map((m) => m.route))
     for (const m of MODULES) {
-      const line = PRODUCT_ITEMS.find((i) => i.href === m.route)?.d
-      expect(line, `${m.route} has no line`).toBeTruthy()
+      const item = PRODUCT_ITEMS.find((i) => i.href === m.route)
+      expect(item?.t, m.route).toBe(m.title)
+      expect(item?.d, `${m.route} has no line`).toBeTruthy()
       expect(existsSync(join(process.cwd(), 'public', m.screen.img)), m.screen.img).toBe(true)
     }
   })
+
 })
 
 // ── Join forces with global teams around the world ────────────────────
@@ -1936,7 +1983,7 @@ describe('The line about teams around the world', () => {
     expect(join).not.toMatch(/<Link|href=|<button|<TryDemo|bg-etyme-action/)
     // Below the tiles, above the two ways.
     expect(at('join')).toBeGreaterThan(at('modules'))
-    expect(at('join')).toBeLessThan(at('ways'))
+    expect(at('join')).toBeLessThan(at('close'))
     // The heading and its two sentences sit side by side on a wide
     // screen and stack on a phone.
     expect(join).toMatch(/md:grid-cols-/)

@@ -42,6 +42,20 @@ export function CompanyPageView({ p }: { p: CompanyPage }) {
                 ))}
               </ul>
             )}
+            {b.screen && (
+              <figure className="mt-8 overflow-hidden rounded-xl border border-etyme-rule bg-etyme-raised shadow-sm">
+                <img
+                  src={b.screen.img}
+                  alt={b.screen.alt}
+                  data-captured-at={b.screen.capturedAt}
+                  width={1440}
+                  height={900}
+                  loading="lazy"
+                  className="block h-auto w-full border-b border-etyme-rule"
+                />
+                <figcaption className="px-5 py-3 text-[13px] leading-relaxed text-etyme-muted">{b.screen.caption}</figcaption>
+              </figure>
+            )}
             {p.route === '/contact' && b.id === 'ask' && (
               <div className="mt-6 max-w-xl">
                 <Ask source="HOME_PAGE" />

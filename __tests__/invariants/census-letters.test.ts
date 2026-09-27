@@ -227,12 +227,13 @@ describe('the page is delivered with its gaps named and no urgency on it', () =>
     expect(body).toContain('Etyme as MSP provider:')
     expect(body).toContain(`Or do nothing, and the data is deleted on ${day(deleteBy)}.`)
 
-    // The labels are the buyer's, taken from the home page rather than
+    // The labels are the buyer's, taken from the public site rather than
     // invented here, because a program manager has already evaluated
-    // things called both of those.
-    const home = readFileSync(join(ROOT, 'src/app/page.tsx'), 'utf8')
-    expect(home).toContain("label: 'VMS software'")
-    expect(home).toContain("label: 'MSP provider'")
+    // things called both of those. They left the home page for About on
+    // 2026-09-27 (etyme-market), and are read where they live now.
+    const site = readFileSync(join(ROOT, 'src/lib/public-site/company.ts'), 'utf8')
+    expect(site).toContain("label: 'VMS software'")
+    expect(site).toContain("label: 'MSP provider'")
     expect(WAYS_FORWARD.length).toBe(2)
   })
 
