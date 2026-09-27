@@ -20,7 +20,7 @@ import {
   SEE_IT, GET_THE_AUDIT, ASK_A_PERSON, WAYS_FORWARD, CLOSE_BAND, closeBandCopy,
 } from '@/lib/public-site/funnel'
 import { PRIMARY, SPEND_AUDIT, NAV_MENUS, frameCopy, frameButtons, itemsOf } from '@/lib/public-site/nav'
-import { CENSUS_COPY, NOTHING_YET, offered } from '@/lib/census-copy'
+import { CENSUS_COPY, NOTHING_YET, offered, acceptedKinds } from '@/lib/census-copy'
 import { checkWorkEmail } from '@/lib/census'
 import { PUBLIC_PAGES } from '@/lib/public-site/pages'
 import { CONTACT } from '@/lib/public-site/company'
@@ -170,6 +170,39 @@ describe('No button promises what the site cannot give', () => {
 })
 
 describe('The spend audit is where a lead is captured', () => {
+
+  it('the audit offer says what to send and where, with a verb', () => {
+    // A buyer-side review, 2026-09-27, read "Send what you already hold.
+    // A named person sends one page back inside five working days." as a
+    // riddle. The line now opens on what to do, names where it is done,
+    // and names what to send in a CFO's own words.
+    const offer = GET_THE_AUDIT.d
+    expect(offer).toMatch(/^(Ask|Upload|Send|Fill in)\b/)
+    expect(offer).toContain('the audit page')
+    expect(GET_THE_AUDIT.href).toBe('/census')
+    expect(offer).toContain('upload your contractor list')
+    expect(offer).toContain('supplier invoices')
+    expect(offer).toContain('a spreadsheet is fine')
+    expect(offer).toContain('five working days')
+
+    // Every one of those is something the census really takes: a list of
+    // contractors is its template, one row per contractor; invoices are
+    // its second option; and a spreadsheet opens, whether CSV or Excel.
+    expect(CENSUS_COPY.send.optionA.says).toContain('One row per contractor')
+    expect(CENSUS_COPY.send.optionB.says).toContain('supplier invoices')
+    expect(acceptedKinds()).toEqual(expect.arrayContaining(['CSV', 'XLSX']))
+    // And the page the button leads to says the same thing first.
+    expect(CENSUS_COPY.standfirst).toMatch(/^Upload your contractor list/)
+    expect(CENSUS_COPY.standfirst).toContain('supplier invoices you hold')
+
+    // One wording wherever the audit is offered: the menu's line is the
+    // funnel's, the close band draws the funnel's, and the riddle is gone.
+    expect(SPEND_AUDIT.d).toBe(offer)
+    expect(CLOSE).toContain('{GET_THE_AUDIT.d}')
+    const everywhere = [...frameCopy(), ...closeBandCopy(), offer, CENSUS_COPY.standfirst, CENSUS].join(' ')
+    expect(everywhere).not.toContain('what you already hold')
+    expect(longSentences(offer, 30)).toEqual([])
+  })
 
   it('the spend audit asks for a work email and says who answers and when', () => {
     // Its first screen, before any scrolling: what it asks for, who

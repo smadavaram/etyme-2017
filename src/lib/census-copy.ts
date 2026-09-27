@@ -185,8 +185,9 @@ export const CENSUS_COPY = {
   headline: 'Find out how many contractors are on your sites, across every supplier',
 
   standfirst:
-    'You send what you already hold. A named person at Etyme reads it and sends back one ' +
-    'page, inside five working days. It is free and you create no account.',
+    'Upload your contractor list — a spreadsheet is fine — or the supplier invoices you hold. ' +
+    'A named person at Etyme reads it and sends back one page, inside five working days. ' +
+    'It is free and you create no account.',
 
   /**
    * The rest of the first screen, added 2026-09-27 when the census became

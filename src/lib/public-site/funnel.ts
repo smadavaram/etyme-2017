@@ -54,10 +54,27 @@ export const SEE_IT: Way = {
   href: '/demo',
 }
 
-/** The second rung: the contractor census, which is the spend audit. */
+/**
+ * The second rung: the contractor census, which is the spend audit.
+ *
+ * The line under it was "Send what you already hold. A named person sends
+ * one page back inside five working days." A buyer-side review,
+ * 2026-09-27, read it as a riddle: send what, and to where? So it says
+ * what the census actually takes, in words a CFO already uses — the
+ * contractor list (the template is one row per contractor, and a CSV or
+ * an Excel file both open) or the supplier invoices they hold (option B)
+ * — and the order it happens in on the page the button leads to: ask
+ * first, then upload.
+ *
+ * The destination is the census form, never a bare address. The form
+ * keeps the file with the request it belongs to, puts the asker in the
+ * line, and emails the named person at Etyme the moment it is sent
+ * (`/api/census/request`); an attachment in an inbox does none of that.
+ */
 export const GET_THE_AUDIT: Way = {
   t: 'Get your contractor spend audit',
-  d: 'Send what you already hold. A named person sends one page back inside five working days.',
+  d: 'Ask on the audit page, then upload your contractor list — a spreadsheet is fine — or the supplier invoices you hold. ' +
+    'A named person sends back one page inside five working days.',
   href: '/census',
 }
 
