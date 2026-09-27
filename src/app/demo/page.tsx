@@ -74,9 +74,10 @@ export default function DemoPage() {
           data is shared, and what you change, everybody else at that company sees.
         </p>
         <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-etyme-faint">
-          It is all seeded: the companies are invented, their addresses are reserved names
-          nobody can register, re-seeding puts it back the way it was, and nobody named
-          anywhere on this page is real.
+          Northbend Athletic, Cavanaugh Glassworks, Talvern Medical and every firm that supplies
+          them are demo companies — not customers. Nothing here is real data, and nobody named is
+          a real person. Their addresses are reserved names nobody can register, and re-seeding
+          puts it all back the way it was.
         </p>
 
         <div className="mt-10">
@@ -91,7 +92,10 @@ export default function DemoPage() {
         </p>
 
         {/* ── The suppliers, over the client's shoulder ─────────── */}
-        <section className="mt-16 border-t border-etyme-rule pt-10">
+        {/* The id is the no-script landing of the home page's supplier door
+            (components/try-demo): a reader without a script follows the
+            link here instead of being seated. */}
+        <section id="supplier" className="mt-16 scroll-mt-6 border-t border-etyme-rule pt-10">
           <p className="eyebrow">The other side of the same placements</p>
           <h2 className="mt-2 font-serif text-[24px] tracking-[-0.02em]">
             The firms that supply them
@@ -110,7 +114,7 @@ export default function DemoPage() {
         </section>
 
         {/* ── And the person the work is about ──────────────────── */}
-        <section className="mt-16 border-t border-etyme-rule pt-10">
+        <section id="candidate" className="mt-16 scroll-mt-6 border-t border-etyme-rule pt-10">
           <p className="eyebrow">And the person the work is about</p>
           <h2 className="mt-2 font-serif text-[24px] tracking-[-0.02em]">
             See it as the person, not the firm

@@ -198,3 +198,45 @@ describe('the page is read on a phone first', () => {
     expect(page.toLowerCase()).not.toMatch(/\bai\b|artificial intelligence|machine learning/)
   })
 })
+
+describe('the demo tells a reader what its companies are', () => {
+  // The founder's label, decided 2026-09-27. A CRO who read the site asked
+  // whether the companies listed were real, and "invented" did not land
+  // either — the founder himself asked what it meant.
+  it('the demo says its companies are demo companies and not customers', () => {
+    const text = page.replace(/\s+/g, ' ')
+    expect(text).toContain(
+      'Northbend Athletic, Cavanaugh Glassworks, Talvern Medical and every firm that supplies them are demo companies — not customers.'
+    )
+    expect(text).toContain('Nothing here is real data, and nobody named is a real person.')
+    // The rest of the honest paragraph stays: the addresses cannot be
+    // registered, and a re-seed resets the lot.
+    expect(text).toContain('reserved names nobody can register')
+    expect(text).toMatch(/re-seeding puts it all back/)
+    expect(text, 'the word the founder struck is back on the page').not.toMatch(/\binvented\b/i)
+  })
+})
+
+describe('the doors into the demo work without a script', () => {
+  const door = read('src/components/try-demo.tsx')
+
+  it('every demo door is a link a reader without a script can follow', async () => {
+    const { DOOR_HREF } = await import('@/components/try-demo')
+    expect(DOOR_HREF).toEqual({ HIRING: '/demo', BENCH: '/demo#supplier', CANDIDATE: '/demo#candidate' })
+    // Every fragment a door names is a section the demo page actually has.
+    for (const href of Object.values(DOOR_HREF)) {
+      const id = href.split('#')[1]
+      if (id) expect(page, `/demo has no section with id="${id}"`).toContain(`id="${id}"`)
+    }
+    // The door itself is an anchor carrying that address, not a button a
+    // reader mode or a text extract drops.
+    const doorReturn = door.slice(door.lastIndexOf('return ('))
+    expect(doorReturn).toMatch(/<a\s[^>]*href=\{DOOR_HREF\[side\]\}/)
+    expect(doorReturn).not.toMatch(/<button/)
+  })
+
+  it('still seats the visitor in one click when a script runs, by posting to the demo route', () => {
+    expect(door).toMatch(/e\.preventDefault\(\)/)
+    expect(door).toMatch(/fetch\('\/api\/demo', \{\s*method: 'POST'/)
+  })
+})

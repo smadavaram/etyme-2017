@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 
 /**
@@ -45,6 +45,23 @@ const WORLD_SEAT: Record<string, { as: string; desk?: string; firm: string }> = 
   // The old buyer's door means the client's chair.
   HIRING: { as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' },
 }
+/**
+ * Where each door lands when nothing runs the click.
+ *
+ * The door is a link, not a button. A reader mode, a text extract or a
+ * buyer's review tool drops a button, and a reviewer on 2026-09-27 read
+ * "If you supply into a program instead" as a sentence that ended with
+ * nothing after it. So every door is an `<a>` with a real address: with
+ * a script, the click still seats the visitor at a desk in one step by
+ * posting to /api/demo; without one, the link opens the section of /demo
+ * that says what that door is for.
+ */
+export const DOOR_HREF: Record<'HIRING' | 'BENCH' | 'CANDIDATE', string> = {
+  HIRING: '/demo',
+  BENCH: '/demo#supplier',
+  CANDIDATE: '/demo#candidate',
+}
+
 export function TryDemo({
   className,
   label = 'Look around',
@@ -132,6 +149,16 @@ export function TryDemo({
     }
   }
 
+  // A plain click seats them; a click that asks for a new tab or window
+  // is the reader's own choice, and the link's address is honored.
+  function follow(e: MouseEvent<HTMLAnchorElement>) {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    if (busy) return
+    if (asks) setAsking(true)
+    else start()
+  }
+
   // Nothing is seeded until they answer. The same chain either way —
   // what changes is which seat in it they get, and therefore whose book
   // they are looking at.
@@ -173,13 +200,14 @@ export function TryDemo({
 
   return (
     <span className="inline-flex flex-col items-start gap-1.5">
-      <button
-        onClick={() => (asks ? setAsking(true) : start())}
-        disabled={busy}
+      <a
+        href={DOOR_HREF[side]}
+        onClick={follow}
+        aria-disabled={busy || undefined}
         className={className}
       >
         {busy ? 'Taking your seat…' : label}
-      </button>
+      </a>
       {error && <span className="text-xs text-red-300">{error}</span>}
     </span>
   )
