@@ -683,12 +683,36 @@ describe('Below the hero, the page says what the business is', () => {
     expect(words[2]).toBe('The vendor management system, sized for fifty contractors rather than five thousand.')
   })
 
+  it('says the outcome straight after the category: a procurement team’s control, in the client’s own hands', () => {
+    // A buyer-side review, 2026-09-27: the reader is an operations leader
+    // or a CFO with a dozen suppliers and nobody to watch them. The line
+    // comes after the category, never before it, because category first
+    // is the first rule. It sells control, never outsourcing; it is about
+    // the software the client's own people use, so it never reads as the
+    // program office offered quietly in the close; and it is written to
+    // the client, with nothing a supplier would read as aimed at them.
+    const outcome = words[3]
+    expect(outcome).toBe(
+      'Your own people get a procurement team’s control over every contractor and every supplier, without hiring one.'
+    )
+    expect(words[1]).toBe('Contingent workforce management for companies with 20 to 200 contractors.')
+    expect(outcome).toMatch(/\bcontrol\b/)
+    expect(outcome).toMatch(/\byour own people\b/i)
+    expect(outcome).not.toMatch(/outsourc|for you\b|on your behalf|we run|Etyme runs/i)
+    expect(offersTheProgramOffice(outcome)).toEqual([])
+    expect(readsAsAimedAtSuppliers(outcome)).toEqual([])
+    expect(withoutVerb([outcome])).toEqual([])
+    expect(longSentences(outcome, 30)).toEqual([])
+    expect(check({ hero: [words[0], words[1], words[2], outcome], body: [] }).map((f) => f.rule))
+      .not.toContain('category-first')
+  })
+
   it('says the hero subhead in concrete nouns a reader can picture', () => {
     // One hook line, decided 2026-09-27: the questions a buyer cannot
     // answer about their own contractors, and what it costs to try. Only
     // nouns a reader can picture — contractors, sites, suppliers — and
     // nothing about a record, which is abstract until the list is seen.
-    const hook = words[3]
+    const hook = words[4]
     for (const noun of ['contractors', 'sites', 'suppliers']) {
       expect(hook, noun).toContain(noun)
     }
@@ -1823,7 +1847,7 @@ function readerWords(): number {
 }
 
 /** The most words the home page may carry between its header and footer. */
-const CEILING = 450
+const CEILING = 465
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -1837,21 +1861,23 @@ function band(id: string): string {
 describe('The home page reads as a product page, and every band leads deeper', () => {
 
   it('the home page is four bands and under five hundred words, and the eight parts are the header’s to teach', () => {
-    // The ceiling is 450 words between the header and the footer, and
+    // The ceiling is 465 words between the header and the footer, and
     // this is the arithmetic. On 2026-09-27 the founder said the page was
     // still too big at 1,280 words in seven bands, and the target he was
     // given is about five hundred. It went to five bands at 582 words the
     // same afternoon. That evening a CRO he showed it to said it was "too
     // much data", so the eight-part tile band — about ninety words of names
     // and lines the header's Product menu already carries — left the page,
-    // and so did three of the four step screens and their captions.
+    // and so did three of the four step screens and their captions: 434.
+    // Then one outcome line under the category, seventeen words, which the
+    // same review asked for: 451.
     //
-    // What this counts is 434, and about sixty of those are the ask
-    // form's own labels and promise beside the close ("your email", "what
-    // do you need", "nothing you send starts a sequence"), which are the
-    // form rather than prose to cut. The ceiling sits a short sentence
-    // above the count and no more: room to fix a word, never room for a
-    // band. A band that needs more words than this needs a page of its own.
+    // About sixty of those are the ask form's own labels and promise beside
+    // the close ("your email", "what do you need", "nothing you send starts
+    // a sequence"), which are the form rather than prose to cut. The
+    // ceiling sits one short sentence above the count and no more: room to
+    // fix a line, never room for a band. A band that needs more words than
+    // this needs a page of its own.
     const words = readerWords()
     expect(words, `${words} words between the header and the footer`).toBeLessThanOrEqual(CEILING)
     // And the reader is really reading the page, not passing on nothing.

@@ -202,6 +202,18 @@ export default function LandingPage() {
           <p className="mb-4 max-w-[62ch] text-[19px] leading-relaxed text-etyme-muted md:text-[21px]">
             <span className="font-medium text-etyme-ink">Contingent workforce management for companies with 20 to 200 contractors.</span> The vendor management system, sized for fifty contractors rather than five thousand.
           </p>
+          {/* The outcome, added 2026-09-27 on a buyer-side review: the
+              reader is an operations leader or a CFO with a dozen
+              suppliers and no procurement team to watch them. It comes
+              after the category, never before it, because a visitor knows
+              what kind of thing this is before they know what is good
+              about it. It sells control, never outsourcing, and it is
+              about the software in the hands of the client's own people —
+              "your own people" is what keeps it from reading as the quiet
+              program office offer in the close. */}
+          <p className="mb-4 max-w-[62ch] text-[17px] font-medium leading-relaxed text-etyme-ink">
+            Your own people get a procurement team’s control over every contractor and every supplier, without hiring one.
+          </p>
           <p className="mb-8 max-w-[62ch] text-[17px] leading-relaxed text-etyme-ink">
             How many contractors are on your sites, which suppliers sent them, and what are
             they costing you? Most companies cannot answer without three weeks of asking.
