@@ -69,6 +69,78 @@ export const ABOUT: CompanyPage = {
         'Nobody sees a rate that is not theirs, and everybody sees what is waiting on them.',
       ],
     },
+    // ── Four blocks moved from the home page, 2026-09-27 ──────────────
+    //
+    // The founder asked for the home page to read like a Microsoft or SAP
+    // product page rather than an essay. It was 3,771 words. What was on
+    // it and belonged to no one station came here, word for word where
+    // the words had already been read against the code: why nobody can
+    // answer the four questions (#gap's long form), how one hire moves
+    // (#lifecycle), what it sits beside (#alongside), and what is settled
+    // about the money (#why). `positioning.test.ts` finds each phrase
+    // here, so a section cannot fall off both pages.
+    {
+      id: 'unanswered',
+      title: 'Why nobody can answer the four questions today',
+      paragraphs: [
+        'You can name every employee on your payroll. Nobody can name every contractor on your sites.',
+        'A supplier hired almost all of them. Sometimes a supplier’s subcontractor did. ' +
+          'They badge in on Monday and turn up on a bill at the end of the month. No system you own counts them the same way twice.',
+        'A CFO, an auditor or a board member asks how many contractors you have. The program manager says: let me come back to you. ' +
+          'Then three weeks of asking every supplier for a spreadsheet, and procurement chasing the two that do not reply.',
+        'No supplier can add that up, and no supplier is hiding anything. Each one sees only its own contractors. ' +
+          'A VMS sees inside one program. You cannot get the total by asking, because nobody you could ask is holding all of it.',
+      ],
+      items: [
+        { t: 'How many contractors are on our sites right now?', d: 'Each supplier counts its own contractors. Nobody adds the counts up, and two attempts give two totals.' },
+        { t: 'What are we spending on them this quarter, and with whom?', d: 'Bills arrive on different dates into different inboxes. The quarter ends before the number is assembled.' },
+        { t: 'Are we paying two suppliers different money for the same work?', d: 'Rates sit on invitations and in email. Putting them side by side means asking each supplier what it charges.' },
+        { t: 'Who has been here longest?', d: 'Time through one supplier and time through another read as two contractors, each with less time than the person has.' },
+      ],
+    },
+    {
+      id: 'hire',
+      title: 'One hire moves through six milestones, and three of them can stop it',
+      paragraphs: [
+        'The hiring manager raises it, HR reads the role, procurement audits the suppliers, and the lead who owns the cost center signs the money.',
+        'The supplier submits, you award, compliance clears the start, the plant signs the week, and accounts payable pays what matched. Nobody signs their own.',
+        'Raised, awarded and cleared can stop the deal. Released, working and ended record what happened. ' +
+          'Each product page quotes the sentence its screen shows when it stops something.',
+        'Inside, a placement moves through more states than six. Nobody using it has to learn any of them. ' +
+          'It is one record, end to end, for one company or for nine of them in a chain.',
+      ],
+      items: [
+        { t: 'Raised', d: 'A manager needs somebody, with a budget and a rate band. It can stop here.' },
+        { t: 'Released', d: 'To the suppliers your program office cleared.' },
+        { t: 'Awarded', d: 'One person, one seat, and the order that pays for it. It can stop here.' },
+        { t: 'Cleared', d: 'Work authorization, checks and insurance, before day one. It can stop here.' },
+        { t: 'Working', d: 'Hours signed, bills matched, everybody paid.' },
+        { t: 'Ended', d: 'Notice, handover, and the days on site keep counting.' },
+      ],
+    },
+    {
+      id: 'alongside',
+      title: 'Keep your ATS, your VMS and every supplier you already use',
+      paragraphs: [
+        'Etyme sits in front of the systems you already use and replaces none of them. ' +
+          'There is nothing to switch off and no supplier to drop. ' +
+          'Your suppliers submit and bill on Etyme, and what Etyme adds is the one record across all of them.',
+      ],
+      items: [
+        {
+          t: 'Work arrives the way it already does',
+          d: 'Paste in a forwarded email, a role description, or five of them at once. They come back as seats, with duplicates already merged. Nobody has to change how they send you work.',
+        },
+        {
+          t: 'Your suppliers do not need to sign up first',
+          d: 'Paste the distribution list you already use. You can send a role today to every firm on it, whether or not it has an Etyme account. A hop to a company that is not on Etyme leaves the record, and the screen says so.',
+        },
+        {
+          t: 'What is yours stays yours',
+          d: 'Your rates, your suppliers and your contractors’ records stay yours. Every list exports to CSV from the screen it is on. Anybody this system holds data about can ask for a copy of it, or ask to be forgotten, from their own page.',
+        },
+      ],
+    },
     {
       id: 'work',
       title: 'How we work',
@@ -84,11 +156,37 @@ export const ABOUT: CompanyPage = {
       title: 'Etyme never runs a bench and never places anybody',
       paragraphs: [
         'The record sits between a company and every supplier it uses, so it can only work if no supplier has to compete with it. ' +
-          'It has no contractors of its own to sell.',
+          'It has no contractors of its own to sell. It is built into how this works, not a policy we might change.',
         'Your suppliers keep their clients, their rates and their sub-vendors’ names. ' +
           'What they get from the record is faster approvals, invoices matched and paid, and fewer spreadsheets.',
         'If you would rather not staff a program office, Etyme can run it for you on the same record. ' +
           'You keep every decision that is yours: who may supply, at what band, and who is chosen.',
+      ],
+    },
+    // Moved from the home page's #why, 2026-09-27. The home page keeps one
+    // line near its close — no price because none is settled, free while
+    // we prove it out — and links here for the rest. The percentage
+    // sentence is said once on the whole site, here, because it is a fact
+    // a supplier will read and must not discover later.
+    {
+      id: 'price',
+      title: 'There is no price yet, because we have not settled one',
+      paragraphs: [
+        'Etyme is free while we prove it out with the first five firms. ' +
+          'Founding firms keep the terms we agree with them, in writing, before they start. ' +
+          'We will not put a number on this site that we would have to take back later.',
+        'Where Etyme runs the program, it is paid the way program offices are paid: ' +
+          'a percentage the suppliers pay on their billings, disclosed to every supplier when they join.',
+      ],
+      items: [
+        {
+          t: 'Governance is never a paid tier',
+          d: 'Tenure caps, approval chains and the record of who approved what are included for everybody. Any company with two hiring managers needs them. Charging extra for them loses the deal before the negotiation starts.',
+        },
+        {
+          t: 'Looking around costs nothing and needs no card',
+          d: 'You get a live workspace with a worked example in it, and you can change anything in there. If it is not useful in there, a price was never going to fix that.',
+        },
       ],
     },
     {

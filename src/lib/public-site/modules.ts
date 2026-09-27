@@ -47,6 +47,8 @@
  *    sentence is under thirty words. `lib/positioning` checks all three.
  */
 
+import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
+
 export interface Screen {
   /** Under /public. */
   img: string
@@ -96,7 +98,63 @@ export interface ModulePage {
   refusesNote: string
   /** The documentation page that draws this flow. */
   flow: { href: string; label: string }
+  /**
+   * A section carried over from the home page, drawn after "What it
+   * refuses". See `More` below.
+   */
+  more?: More
 }
+
+/**
+ * A section that used to be on the home page.
+ *
+ * ── Why the module pages grew one section each, 2026-09-27 ────────────
+ *
+ * The founder: the home page is too long and should read like a
+ * Microsoft or SAP product page, not an essay. It was 3,771 words in
+ * twelve bands. A product page can be short because every band links to
+ * depth, and the depth went live the day before — these eight pages,
+ * the documentation, the security position and About.
+ *
+ * So the home page's long middle was moved, not deleted. Three of its
+ * sections belong to one station each and are here, under that
+ * station's own page: what it costs when nobody can answer (compliance),
+ * the chain the client buys through (the chain), and how much of what
+ * runs on its own is a rule (governance). The rest went to About.
+ * `positioning.test.ts` finds each moved phrase where it went, so a
+ * section cannot be dropped from both pages by accident.
+ */
+export interface More {
+  /** The anchor, so the home page and the footer can link straight to it. */
+  id: string
+  title: string
+  paragraphs: string[]
+  items?: { t: string; d: string }[]
+}
+
+// ── How much runs on its own, counted rather than typed ──────────────
+//
+// The home page said "Twenty-four things in here happen without anybody
+// asking" as a literal, and a test recomputed it from `lib/autonomy` so
+// the literal failed the build the day somebody added an action. Here
+// the sentence is computed from the same ladder, so it cannot go stale
+// at all, and the test still reads it against the ladder.
+
+const UNPROMPTED = ALL_ACTIONS.map((name) => ACTIONS[name]).filter((a) => a.kind === 'UNPROMPTED')
+const BY_RULE = UNPROMPTED.filter((a) => a.basis === 'RULE')
+
+const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen']
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
+
+/** A count as a reader says it, "twenty-four", up to ninety-nine; digits beyond. */
+export function spelled(n: number): string {
+  if (n < 20) return ONES[n]
+  if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? `-${ONES[n % 10]}` : '')
+  return String(n)
+}
+
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 const NORTHBEND = 'Northbend Athletic'
 
@@ -509,6 +567,42 @@ export const MODULES: ModulePage[] = [
     refusesNote:
       'Rate parity is reported, not enforced. What to do about two prices for one role is your call, and a rate above the band is a warning that takes a reason.',
     flow: { href: '/docs/client#l1-7', label: 'Govern and protect, from the client’s desk' },
+    // Moved from the home page's #exposure, 2026-09-27. The business case
+    // follows the hook and never leads, so it sits on the station whose
+    // exposure it describes rather than on the front door.
+    more: {
+      id: 'cost',
+      title: 'What it costs when nobody can answer',
+      paragraphs: [
+        'Nobody is fined on the day a contractor passes eighteen months. ' +
+          'There is no tenure regulator, and most companies have never been caught by any of this.',
+        'The cost today is the three weeks and the wrong number. ' +
+          'The cost when somebody finally checks is one of these three.',
+      ],
+      items: [
+        {
+          t: 'A co-employment claim counts every supplier together',
+          d:
+            'One contractor can work two years on your site through two suppliers. ' +
+            'The claim lands on you, not on the supplier that billed the first year. ' +
+            'Etyme counts days per person across suppliers and blocks the award at your limit.',
+        },
+        {
+          t: 'A supplier whose insurance lapsed keeps working',
+          d:
+            'Cover runs out in March and its contractors are on your site in April. ' +
+            'Nobody watches the date on the certificate, because it lives in an inbox. ' +
+            'Etyme reads the dates on the certificate and stops a start until the supplier renews it.',
+        },
+        {
+          t: 'A bill is paid with no signed timesheet behind it',
+          d:
+            'It matched no timesheet and no order line. It was paid because the month ' +
+            'closes and somebody has to approve it. ' +
+            'Etyme pays only bills that match a signed week and an order.',
+        },
+      ],
+    },
   },
 
   {
@@ -576,6 +670,43 @@ export const MODULES: ModulePage[] = [
     refusesNote:
       'A firm cannot submit a person who has not put themselves on its bench, unless it employs them. A chain deeper than eight firms is treated as a fault in the data, not as a business model.',
     flow: { href: '/docs/prime-vendor', label: 'The chain, from the prime vendor’s desk' },
+    // Moved from the home page's #who, 2026-09-27, with the line each for
+    // a prime, a sub and a bench vendor. The home page keeps the one
+    // paragraph a supplier must read beside the offer to run a program:
+    // its rates and its sub-vendors' names stay private, its client stays
+    // its client.
+    more: {
+      id: 'down-the-chain',
+      title: 'Etyme sends your role down the chain and records what each supplier sees',
+      paragraphs: [
+        'You send a role to one supplier. That supplier sends it to another, and that one sends it to the firm that has the person. ' +
+          'Today every hop is an email forwarded as it arrived, because editing it takes longer than anybody has. ' +
+          'Your company name, your rate and your manager’s words end up two firms past the agreement that covers them.',
+        'Etyme describes the end client where the agreement forbids naming it. ' +
+          'A medical device maker in the Denver area is enough to price the work. ' +
+          'A blind key lets two competing suppliers see that they have submitted the same person, without either learning anything about the other. ' +
+          'Every hop records what was sent, to whom, under which agreement, and what was withheld.',
+        'The same resume reaches you from more than one supplier. ' +
+          'You cannot tell whether a rate is the person’s or the chain’s. ' +
+          'Somebody you have used before arrives as a stranger. One record across the chain fixes all three.',
+        'Prime, sub and bench are positions on a deal, not kinds of company. ' +
+          'The same firm is a prime this week and a sub next week.',
+      ],
+      items: [
+        {
+          t: 'A prime',
+          d: 'Send a role to your sub without giving up the client’s name, and see a duplicate submission before your client sees it.',
+        },
+        {
+          t: 'A sub',
+          d: 'Price a role against the real band before you answer, and get paid on the hours the client approved.',
+        },
+        {
+          t: 'A bench vendor',
+          d: 'Your consultant stays unnamed until there is a signed right to represent, and what you are paid never travels in either direction.',
+        },
+      ],
+    },
   },
 
   {
@@ -642,6 +773,34 @@ export const MODULES: ModulePage[] = [
     refusesNote:
       'Governance is included for every account, and it is never a paid tier.',
     flow: { href: '/docs/client#l1-7', label: 'Govern and protect, from the client’s desk' },
+    // Moved from the home page's #compliance, 2026-09-27. The counts are
+    // computed from `lib/autonomy` above rather than typed, and the
+    // sentence after them names no ordinal, because "the one that is
+    // left" stays true while "the thirteenth" goes stale.
+    more: {
+      id: 'rules',
+      title: 'Most of what runs without being asked is a rule, not a model',
+      paragraphs: [
+        `${capital(spelled(UNPROMPTED.length))} things in here happen without anybody asking for them. ` +
+          `${capital(spelled(BY_RULE.length))} of the ${spelled(UNPROMPTED.length)} are a date, a threshold or a count: ` +
+          'a permit running out, an agreement past its term, a retention period that has ended.',
+        'The one that is left scores a person against a role, and it falls back to arithmetic when there is no model to call.',
+      ],
+      items: [
+        {
+          t: 'Plain rules',
+          d:
+            'A rate against the band. A permit about to expire. A missing document. The same person submitted twice. ' +
+            'Each one is right every time, costs nothing to run, and explains itself in a sentence you can push back on.',
+        },
+        {
+          t: 'A model, on what is left',
+          d:
+            'It reads CVs, drafts messages and scores a person against a role. Never decides whether someone can legally work. ' +
+            'Every score carries what it is made of and what it could not find. A bare number with no explanation is a bug here.',
+        },
+      ],
+    },
   },
 ]
 
@@ -663,6 +822,7 @@ export function copyOfModule(m: ModulePage): { hero: string[]; body: string[] } 
       ...m.looks,
       ...m.refuses.flatMap((r) => [r.says, r.then]),
       m.refusesNote,
+      ...(m.more ? [m.more.title, ...m.more.paragraphs, ...(m.more.items ?? []).flatMap((i) => [i.t, i.d])] : []),
       m.flow.label,
     ],
   }

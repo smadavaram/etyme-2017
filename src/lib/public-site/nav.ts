@@ -16,8 +16,10 @@
  * ── Industries is still one product ──────────────────────────────────
  *
  * Industries does not grow vertical pages. The core stays horizontal and
- * the note under the menu says so; its items lead to the one lifecycle
- * that serves all four.
+ * the note under the menu says so; its items lead to the eight parts of
+ * the one product on the home page, which serve all four. They led to
+ * the home page's six-milestone lifecycle until 2026-09-27, when that
+ * section moved to About with the rest of the home page's long middle.
  *
  * ── The spend audit is the census ────────────────────────────────────
  *
@@ -61,10 +63,10 @@ export const NAV_MENUS: NavMenu[] = [
   {
     label: 'Industries',
     items: [
-      { t: 'Manufacturing & quality', href: '/#lifecycle' },
-      { t: 'Healthcare & clinical', href: '/#lifecycle' },
-      { t: 'Skilled trades & field services', href: '/#lifecycle' },
-      { t: 'Professional & corporate services', href: '/#lifecycle' },
+      { t: 'Manufacturing & quality', href: '/#modules' },
+      { t: 'Healthcare & clinical', href: '/#modules' },
+      { t: 'Skilled trades & field services', href: '/#modules' },
+      { t: 'Professional & corporate services', href: '/#modules' },
     ],
     note: 'One product. No industry-specific version to buy.',
   },

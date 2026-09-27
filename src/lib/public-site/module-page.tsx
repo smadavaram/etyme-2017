@@ -131,6 +131,31 @@ export function ModulePageView({ m }: { m: ModulePage }) {
           <p className="mt-6 max-w-[66ch] text-[15px] leading-relaxed text-etyme-muted">{m.refusesNote}</p>
         </Section>
 
+        {/* ── Carried over from the home page, 2026-09-27 ── */}
+        {/* The home page became a product page and its long middle moved
+            to the station each section belongs to. See `More` in
+            ./modules. The anchor is the section's own, so the home page
+            and its footer link straight to it. */}
+        {m.more && (
+          <Section id={m.more.id} title={m.more.title}>
+            <div className="max-w-[66ch] space-y-4">
+              {m.more.paragraphs.map((p) => (
+                <p key={p} className="text-[16px] leading-relaxed text-etyme-ink">{p}</p>
+              ))}
+            </div>
+            {m.more.items && (
+              <ul className="mt-8 grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+                {m.more.items.map((i) => (
+                  <li key={i.t} className="border-t border-etyme-rule pt-4">
+                    <p className="text-[15px] font-semibold text-etyme-ink">{i.t}</p>
+                    <p className="mt-1 text-[14px] leading-relaxed text-etyme-muted">{i.d}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+        )}
+
         {/* ── Read the flow ── */}
         <Section id="flow" title="Read the flow">
           <p className="max-w-[62ch] text-[16px] leading-relaxed text-etyme-muted">

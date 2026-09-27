@@ -441,7 +441,9 @@ describe('One header and footer on every new page', () => {
   it('Industries stays one product and says so, with no vertical page behind it', () => {
     const industries = NAV_MENUS.find((m) => m.label === 'Industries')!
     expect(industries.note).toBe('One product. No industry-specific version to buy.')
-    for (const i of industries.items) expect(i.href).toBe('/#lifecycle')
+    // The eight parts of the one product, on the home page. They led to
+    // the six-milestone lifecycle until 2026-09-27, when it moved to About.
+    for (const i of industries.items) expect(i.href).toBe('/#modules')
   })
 
   it('every link in the header and footer goes to a registered public page, the demo, sign-in or a section of the home page', () => {

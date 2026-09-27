@@ -517,10 +517,11 @@ export function mayReadTheList(
 export const ASK_COPY = {
   eyebrow: 'Ask us something',
   heading: 'Tell us what you need and a person reads it',
+  // Shortened 2026-09-27 with the home page, the one place it is drawn.
+  // What it promises is unchanged: no sequence, no list, a person answers.
   body:
-    'Not a form that opens a sequence. There is no list to be added to and nothing ' +
-    'automatic happens next — one of the people building this reads what you wrote and ' +
-    'writes back, or tells you it is not built yet.',
+    'Nothing you send starts a sequence or joins a list. One of the people building ' +
+    'this reads it and writes back, or tells you it is not built yet.',
   emailLabel: 'Your email',
   emailHint: 'The only thing we need.',
   askLabel: 'What do you need?',

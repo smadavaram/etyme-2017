@@ -601,7 +601,11 @@ const VERBS = [
   'buy', 'buys', 'call', 'calls', 'change', 'changes', 'charge', 'charges', 'check', 'checks',
   'come', 'comes', 'cost', 'costs', 'count', 'counts', 'cover', 'covers', 'end', 'ends',
   'file', 'files', 'find', 'finds', 'fix', 'fixes', 'get', 'gets', 'give', 'gives', 'go', 'goes',
-  'hire', 'hires', 'hold', 'holds', 'keep', 'keeps', 'know', 'knows', 'land', 'lands',
+  'hire', 'hires', 'hold', 'holds',
+  // "Join forces with global teams around the world" — the founder's line,
+  // 2026-09-27. An imperative is a finite verb and the line is a sentence.
+  'join', 'joins',
+  'keep', 'keeps', 'know', 'knows', 'land', 'lands',
   'leave', 'leaves', 'list', 'lists', 'look', 'looks', 'make', 'makes', 'match', 'matches',
   'move', 'moves', 'name', 'names', 'need', 'needs', 'open', 'opens', 'pay', 'pays',
   'put', 'puts', 'read', 'reads', 'record', 'records', 'replace', 'replaces', 'run', 'runs',
