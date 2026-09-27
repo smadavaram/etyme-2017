@@ -1,25 +1,41 @@
 /**
- * The public site's header and footer, as data.
+ * The public site's header and footer, as data. Every public page draws
+ * this header, the home page included.
  *
- * ── The four menus stay ──────────────────────────────────────────────
+ * ── Product, Solutions, Resources, Company. Decided 2026-09-27 ────────
  *
- * The live home page's menu is Products · Industries · Compliance · Why
- * Etyme, and the founder has read it. The static marketing site on the
- * old repository used Source · Read · Company instead, which he has not.
- * So the new pages are mapped into the four he has seen, rather than the
- * four being replaced: the eight module pages under Products, the
- * compliance pages under Compliance, and About and Contact under Why
- * Etyme. Documentation gets an entry of its own beside them, because
- * documentation a buyer can read before signing anything is half of
- * what makes an enterprise product read as one.
+ * The founder, after reviewing the marketing thread one last time: "The
+ * header section seemed better organized in that thread." It was. The
+ * live header was Products · Industries · Compliance · Why Etyme, which
+ * listed the eight parts flat, grew an Industries menu whose four items
+ * all led to the same place, and split compliance across a menu and a
+ * module. The thread's static site (`index.html` on the old repository's
+ * `development` branch) grouped the same eight parts by the stage a hire
+ * reaches them in, gave each reader a way in by their role, and put what
+ * a buyer reads and what a buyer tries under one Resources menu.
  *
- * ── Industries is still one product ──────────────────────────────────
+ * So the structure is the thread's, and the words are ours wherever ours
+ * are more accurate:
  *
- * Industries does not grow vertical pages. The core stays horizontal and
- * the note under the menu says so; its items lead to the eight parts of
- * the one product on the home page, which serve all four. They led to
- * the home page's six-milestone lifecycle until 2026-09-27, when that
- * section moved to About with the rest of the home page's long middle.
+ *   - its Documentation line said "behind sign-in". The documentation is
+ *     public, decided 2026-09-26, and the line says so.
+ *   - its invoices line said a bill with "no room on the order" is not
+ *     paid. A named person can override the order's balance with a
+ *     reason (`OVERRIDABLE.PO_BALANCE` in `lib/three-way-match`); the
+ *     missing signed week is the one nobody can waive. The live line says
+ *     only that.
+ *   - its Industries menu is gone. It had four items leading to one
+ *     place. The sentence under it — one product, no industry-specific
+ *     version — is kept on About, where it is a fact about the company.
+ *   - its "Start free" button is not brought across. See `./funnel`.
+ *
+ * ── Every role leads to something written for that reader ────────────
+ *
+ * The thread linked each role to an anchor on its home page that did
+ * not exist. Here each leads to the section of the documentation drawn
+ * from that desk, or to the module page section that speaks to it, and
+ * the test opens each destination and finds the anchor. Six roles, six
+ * real destinations; none was dropped.
  *
  * ── The spend audit is the census ────────────────────────────────────
  *
@@ -28,85 +44,150 @@
  * route, so a second, rebuilt audit cannot appear beside it.
  */
 
+import { SEE_IT, GET_THE_AUDIT, ASK_A_PERSON } from './funnel'
+
 export interface NavItem {
   t: string
   d?: string
   href: string
 }
 
+export interface NavGroup {
+  heading: string
+  items: NavItem[]
+}
+
 export interface NavMenu {
   label: string
-  items: NavItem[]
-  note?: string
+  groups: NavGroup[]
 }
 
-export const SPEND_AUDIT: NavItem = {
-  t: 'Free contractor spend audit',
-  d: 'Ten minutes, no card. Your numbers back in 24 hours.',
-  href: '/census',
-}
-
-export const NAV_MENUS: NavMenu[] = [
+/**
+ * The eight parts of the product, grouped by the stage a hire reaches
+ * them in. The home page's module band draws these same four groups, so
+ * the menu and the page teach one map.
+ */
+export const PRODUCT_STAGES: NavGroup[] = [
   {
-    label: 'Products',
+    heading: 'Source',
     items: [
       { t: 'Requisitions & suppliers', d: 'Raised, cleared by rule or by a desk, released to the suppliers Procurement named.', href: '/requisitions' },
       { t: 'Submissions & screening', d: 'Every supplier against the same role, on one screen, each at its own rate.', href: '/submissions' },
+    ],
+  },
+  {
+    heading: 'Start',
+    items: [
       { t: 'Contracts & onboarding', d: 'The award writes the contract. The papers are checked before day one.', href: '/contracts' },
+    ],
+  },
+  {
+    heading: 'Work and pay',
+    items: [
       { t: 'Timesheets & expenses', d: 'Filed once, signed twice, flagged first. Nobody approves their own.', href: '/timesheets' },
       { t: 'Invoices & the three-way match', d: 'An invoice with no signed week behind it is not paid.', href: '/invoices' },
+    ],
+  },
+  {
+    heading: 'Govern',
+    items: [
       { t: 'Compliance & tenure', d: 'Counted per person across suppliers, warned at three quarters, blocked at your cap.', href: '/compliance' },
       { t: 'The chain', d: 'Each firm sees its own level. Insurance and authorization are visible at every depth.', href: '/chain' },
       { t: 'Governance', d: 'Blocks where the law is behind it, warns everywhere else, records even a pass.', href: '/governance' },
     ],
   },
-  {
-    label: 'Industries',
-    items: [
-      { t: 'Manufacturing & quality', href: '/#modules' },
-      { t: 'Healthcare & clinical', href: '/#modules' },
-      { t: 'Skilled trades & field services', href: '/#modules' },
-      { t: 'Professional & corporate services', href: '/#modules' },
-    ],
-    note: 'One product. No industry-specific version to buy.',
-  },
-  {
-    label: 'Compliance',
-    items: [
-      { t: 'Work authorization', d: 'Blocked, not warned, where the law is behind it.', href: '/contracts' },
-      { t: 'Co-employment & time on site', d: 'Counted per person across suppliers, not per assignment.', href: '/compliance' },
-      { t: 'Insurance & good standing', d: 'A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/governance' },
-      { t: 'Security position', d: 'What is done, what is not, and when.', href: '/security' },
-      { t: 'Data processing addendum', d: 'Retention by category, and who processes what.', href: '/dpa' },
-    ],
-  },
-  {
-    label: 'Why Etyme',
-    items: [
-      { t: 'About Etyme', d: 'What we build, how we work, where we are.', href: '/about' },
-      { t: 'Never runs a bench, never places anybody', href: '/about#neutral' },
-      { t: 'Governance is never a paid tier', href: '/governance' },
-      { t: 'Free while we prove it out', href: '/#why' },
-      { t: 'Contact', d: 'Durham, North Carolina. A person answers.', href: '/contact' },
-    ],
-  },
+]
+
+/** The eight parts in the order a hire moves through them. */
+export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
+
+/**
+ * A way in for each reader, and where it leads.
+ *
+ * Each destination is the part of the site written from that desk: the
+ * client documentation is drawn lane by lane, one lane per desk, and its
+ * sections are the stages each desk works in. The line under a role says
+ * what that reader will find, in the product's own terms. The HR line
+ * carries the one claim about good standing the header makes, and the
+ * positioning test reads it against the two doors that refuse it.
+ */
+export const ROLES: NavItem[] = [
+  { t: 'The program office', d: 'One hire walked from every desk, and who acts at each.', href: '/docs/client#one-hire' },
+  { t: 'Procurement', d: 'Procurement audits the suppliers, and a role goes only to the ones it cleared.', href: '/docs/client#l1-1' },
+  { t: 'HR and compliance', d: 'Two gates before day one. A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/docs/client#l1-2' },
+  { t: 'Finance', d: 'Seven steps from a filed week to a paid invoice, and which checks can be waived.', href: '/docs/time-and-money' },
+  { t: 'Hiring managers', d: 'The worker files the week and you sign it. A week over the hours is flagged first.', href: '/docs/client#l1-3' },
+  { t: 'Suppliers', d: 'What a prime, a sub and a bench vendor each see, and what stays theirs.', href: '/chain#down-the-chain' },
 ]
 
 export const DOCS_LINK: NavItem = {
   t: 'Documentation',
-  d: 'Every flow, party by party, desk by desk. No sign-in.',
+  d: 'Every flow, party by party, desk by desk. Public, with no sign-in.',
   href: '/docs',
+}
+
+export const SPEND_AUDIT: NavItem = {
+  t: 'Free contractor spend audit',
+  d: GET_THE_AUDIT.d,
+  href: GET_THE_AUDIT.href,
+}
+
+export const NAV_MENUS: NavMenu[] = [
+  { label: 'Product', groups: PRODUCT_STAGES },
+  { label: 'Solutions', groups: [{ heading: 'By role', items: ROLES }] },
+  {
+    label: 'Resources',
+    groups: [
+      {
+        heading: 'Read',
+        items: [
+          DOCS_LINK,
+          { t: 'Security position', d: 'What is done, what is not, and when.', href: '/security' },
+          { t: 'Data processing addendum', d: 'Retention by category, and who processes what.', href: '/dpa' },
+        ],
+      },
+      {
+        heading: 'Try',
+        items: [
+          { t: 'Open the example program', d: SEE_IT.d, href: SEE_IT.href },
+          { t: ASK_A_PERSON.t, d: ASK_A_PERSON.d, href: ASK_A_PERSON.href },
+          SPEND_AUDIT,
+        ],
+      },
+    ],
+  },
+  {
+    label: 'Company',
+    groups: [
+      {
+        heading: 'Company',
+        items: [
+          { t: 'About Etyme', d: 'What we build, how we work, where we are.', href: '/about' },
+          { t: 'Contact', d: 'Durham, North Carolina. A person answers.', href: '/contact' },
+        ],
+      },
+    ],
+  },
+]
+
+/** The filled button on the right of every header. */
+export const PRIMARY = SEE_IT
+
+/** Every item in one menu, across its groups. */
+export function itemsOf(menu: NavMenu): NavItem[] {
+  return menu.groups.flatMap((g) => g.items)
 }
 
 export interface FooterGroup {
   heading: string
   links: { label: string; href: string }[]
+  note?: string
 }
 
 export const FOOTER: FooterGroup[] = [
   {
     heading: 'Product',
-    links: NAV_MENUS[0].items.map((i) => ({ label: i.t, href: i.href })),
+    links: PRODUCT_ITEMS.map((i) => ({ label: i.t, href: i.href })),
   },
   {
     heading: 'Read',
@@ -115,7 +196,6 @@ export const FOOTER: FooterGroup[] = [
       { label: 'Time and money', href: '/docs/time-and-money' },
       { label: 'Integrations', href: '/docs/integrations' },
       { label: 'Security position', href: '/security' },
-      { label: 'Data processing addendum', href: '/dpa' },
     ],
   },
   {
@@ -135,6 +215,9 @@ export const FOOTER: FooterGroup[] = [
       { label: 'Terms of service', href: '/terms' },
       { label: 'Data processing addendum', href: '/dpa' },
     ],
+    // Moved from the home page's own footer with the home page onto this
+    // one, 2026-09-27. Said before somebody clicks, not after.
+    note: 'Drafts, written from the code itself and not yet reviewed by a lawyer. Each one says so on its face.',
   },
 ]
 
@@ -150,9 +233,8 @@ export const ADDRESS = {
 /** Every href the header and footer draw, for the test. */
 export function everyFrameLink(): string[] {
   return [
-    ...NAV_MENUS.flatMap((m) => m.items.map((i) => i.href)),
-    DOCS_LINK.href,
-    SPEND_AUDIT.href,
+    ...NAV_MENUS.flatMap((m) => itemsOf(m).map((i) => i.href)),
+    PRIMARY.href,
     '/login',
     ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
   ]
@@ -161,9 +243,20 @@ export function everyFrameLink(): string[] {
 /** Every word the header and footer show. */
 export function frameCopy(): string[] {
   return [
-    ...NAV_MENUS.flatMap((m) => [m.label, ...m.items.flatMap((i) => [i.t, i.d ?? '']), m.note ?? '']),
-    DOCS_LINK.t, DOCS_LINK.d ?? '',
-    SPEND_AUDIT.t, SPEND_AUDIT.d ?? '',
-    ...FOOTER.flatMap((g) => [g.heading, ...g.links.map((l) => l.label)]),
+    ...NAV_MENUS.flatMap((m) => [
+      m.label,
+      ...m.groups.flatMap((g) => [g.heading, ...g.items.flatMap((i) => [i.t, i.d ?? ''])]),
+    ]),
+    PRIMARY.t,
+    'Sign in',
+    ...FOOTER.flatMap((g) => [g.heading, ...g.links.map((l) => l.label), g.note ?? '']),
   ].filter(Boolean)
+}
+
+/**
+ * Every label on something a reader presses in the header, for the
+ * guard that refuses a button promising an account.
+ */
+export function frameButtons(): string[] {
+  return [PRIMARY.t, 'Sign in', ...NAV_MENUS.map((m) => m.label)]
 }

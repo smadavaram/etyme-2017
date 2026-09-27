@@ -30,7 +30,10 @@ import {
 import { modulePage } from '@/lib/public-site/module-page'
 import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
-import { NAV_MENUS, FOOTER, SPEND_AUDIT, DOCS_LINK, everyFrameLink, frameCopy } from '@/lib/public-site/nav'
+import {
+  NAV_MENUS, FOOTER, SPEND_AUDIT, DOCS_LINK, PRODUCT_STAGES, PRODUCT_ITEMS, ROLES, PRIMARY,
+  everyFrameLink, frameCopy, itemsOf,
+} from '@/lib/public-site/nav'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
@@ -187,7 +190,7 @@ describe('Every module page opens on a real screen from the demo', () => {
   it('there are eight module pages, in the order a hire moves, one for each entry under Products', () => {
     expect(MODULES.map((m) => m.route)).toEqual([...MODULE_ROUTES])
     expect(MODULES.map((m) => m.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
-    expect(NAV_MENUS[0].items.map((i) => i.href)).toEqual([...MODULE_ROUTES])
+    expect(PRODUCT_ITEMS.map((i) => i.href)).toEqual([...MODULE_ROUTES])
   })
 
   it('every module page opens on a screen, and the file exists under public/screens', () => {
@@ -286,7 +289,9 @@ describe('The documentation is public', () => {
       expect(text, p.route).not.toMatch(/behind sign-in|sign in to read|needs a sign-in|start free/i)
     }
     for (const p of PARTIES) expect(p.doc.html, p.doc.slug).not.toMatch(/href="\/login"/)
-    expect(DOCS_LINK.d).toContain('No sign-in')
+    // The thread's line said "behind sign-in". Ours is public, and says so.
+    expect(DOCS_LINK.d).toMatch(/public/i)
+    expect(DOCS_LINK.d).toMatch(/no sign-in/i)
   })
 
   it('there is a documentation page for each of the ten parties and for time and money and integrations', () => {
@@ -401,23 +406,100 @@ describe('Security, About and Contact say only what can be checked', () => {
 
 describe('One header and footer on every new page', () => {
 
-  it('the header keeps the live home page’s four menus and adds documentation beside them', () => {
+  it('every page carries the same header: product by stage, solutions by role, resources, company', () => {
+    // The structure the founder preferred in the marketing thread,
+    // 2026-09-27. One header, drawn by one component, on every page.
+    expect(NAV_MENUS.map((m) => m.label)).toEqual(['Product', 'Solutions', 'Resources', 'Company'])
+    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Source', 'Start', 'Work and pay', 'Govern'])
+    expect(NAV_MENUS[1].groups.map((g) => g.heading)).toEqual(['By role'])
+    expect(NAV_MENUS[2].groups.map((g) => g.heading)).toEqual(['Read', 'Try'])
+    expect(itemsOf(NAV_MENUS[2]).map((i) => i.href)).toEqual(['/docs', '/security', '/dpa', '/demo', '/contact#ask', '/census'])
+    expect(itemsOf(NAV_MENUS[3]).map((i) => i.href)).toEqual(['/about', '/contact'])
+    // Every item says what it is in one line under its name.
+    for (const m of NAV_MENUS) for (const i of itemsOf(m)) expect(i.d, i.t).toBeTruthy()
+    // The home page draws the same header, rather than a copy of it.
     const home = read('src/app/page.tsx')
-    const block = home.slice(home.indexOf('const NAV_MENUS'), home.indexOf('const STEPS'))
-    const homeMenus = [...block.matchAll(/^\s{4}label: '([^']+)',$/gm)].map((m) => m[1])
-    expect(NAV_MENUS.map((m) => m.label)).toEqual(['Products', 'Industries', 'Compliance', 'Why Etyme'])
-    expect(homeMenus).toEqual(['Products', 'Industries', 'Compliance', 'Why Etyme'])
-    expect(DOCS_LINK.href).toBe('/docs')
+    expect(home).toContain('<SiteHeader />')
+    expect(home).not.toContain('const NAV_MENUS')
+    for (const f of ['module-page.tsx', 'docs-page.tsx', 'company-page.tsx']) {
+      expect(read(`src/lib/public-site/${f}`), f).toContain('<SiteFrame>')
+    }
+    // And a phone reads the same four menus, each with its groups.
+    const frame = read('src/lib/public-site/frame.tsx')
+    expect(frame.match(/NAV_MENUS\.map/g)?.length, 'the bar and the drawer both draw every menu').toBe(2)
+    expect(frame).toContain('menu.groups.map')
   })
 
-  it('the home page’s menus lead to the same pages as every other page’s header', () => {
-    const home = read('src/app/page.tsx')
-    const block = home.slice(home.indexOf('const NAV_MENUS'), home.indexOf('const STEPS'))
-    const homeHrefs = [...block.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
-    // A section of the home page is '#x' on the home page and '/#x' from anywhere else.
-    const siteHrefs = NAV_MENUS.flatMap((m) => m.items.map((i) => i.href.replace(/^\/#/, '#')))
-    expect(homeHrefs).toEqual(siteHrefs)
-    expect(home).toContain('href="/docs"')
+  it('the Product menu names all eight parts, each under the stage a hire reaches it in', () => {
+    const stageOf = (route: string) => PRODUCT_STAGES.find((g) => g.items.some((i) => i.href === route))?.heading
+    expect(stageOf('/requisitions')).toBe('Source')
+    expect(stageOf('/submissions')).toBe('Source')
+    expect(stageOf('/contracts')).toBe('Start')
+    expect(stageOf('/timesheets')).toBe('Work and pay')
+    expect(stageOf('/invoices')).toBe('Work and pay')
+    for (const r of ['/compliance', '/chain', '/governance']) expect(stageOf(r), r).toBe('Govern')
+    // Each item carries the module page's own name and leads to it.
+    for (const m of MODULES) {
+      expect(PRODUCT_ITEMS.find((i) => i.href === m.route), m.route).toBeTruthy()
+    }
+    // The invoices line says only what nobody can waive: a named person can
+    // override the order's balance, so "no room on the order" is not in it.
+    const invoices = PRODUCT_ITEMS.find((i) => i.href === '/invoices')!
+    expect(invoices.d).toBe('An invoice with no signed week behind it is not paid.')
+    expect(frameCopy().join(' ')).not.toMatch(/room on the order/i)
+  })
+
+  it('every role in the solutions menu leads to a page written for that reader', () => {
+    // Six roles, and each one lands on a section somebody wrote from that
+    // desk: a stage of the client documentation, the finance reference, or
+    // the chain page's section a line per supplier position. Never the home
+    // page, never About, never a section that is not there.
+    expect(ROLES.map((r) => r.t)).toEqual([
+      'The program office', 'Procurement', 'HR and compliance', 'Finance', 'Hiring managers', 'Suppliers',
+    ])
+    const written: Record<string, string> = {
+      'The program office': '/docs/client#one-hire',
+      Procurement: '/docs/client#l1-1',
+      'HR and compliance': '/docs/client#l1-2',
+      Finance: '/docs/time-and-money',
+      'Hiring managers': '/docs/client#l1-3',
+      Suppliers: '/chain#down-the-chain',
+    }
+    for (const role of ROLES) {
+      expect(role.href, role.t).toBe(written[role.t])
+      const [path, anchor] = role.href.split('#')
+      expect(pageAt(path), `${role.t} leads to ${path}, which is not a public page`).toBeTruthy()
+      expect(['/', '/about', '/contact'], role.t).not.toContain(path)
+      if (!anchor) continue
+      if (path.startsWith('/docs/')) {
+        const doc = partyAt(path.slice('/docs/'.length))!
+        expect(doc.html, `${role.href} has no such section`).toContain(`id="${anchor}"`)
+      } else {
+        const m = MODULES.find((x) => x.route === path)!
+        expect(m.more?.id, `${role.href} has no such section`).toBe(anchor)
+      }
+    }
+    // The desks named in each client section are the ones the role is for.
+    const section = (id: string) => {
+      const html = partyAt('client')!.html
+      const at = html.indexOf(`id="${id}"`)
+      const next = html.indexOf('<section', at + 1)
+      return html.slice(at, next > 0 ? next : undefined)
+    }
+    expect(section('l1-1')).toMatch(/Procurement/)
+    expect(section('l1-2')).toMatch(/HR/)
+    expect(section('l1-3')).toMatch(/Hiring Manager/)
+    const chain = MODULES.find((m) => m.slug === 'chain')!.more!.items!.map((i) => i.t)
+    expect(chain).toEqual(['A prime', 'A sub', 'A bench vendor'])
+  })
+
+  it('the right of every header is Sign in and one filled button, which leads to the example program', () => {
+    expect(PRIMARY.href).toBe('/demo')
+    const frame = read('src/lib/public-site/frame.tsx')
+    const right = frame.slice(frame.indexOf('ml-auto flex'), frame.indexOf('<details'))
+    expect(right).toContain('href="/login"')
+    expect(right).toContain('{PRIMARY.t}')
+    expect((right.match(/bg-etyme-action/g) ?? []).length, 'one filled button').toBe(1)
   })
 
   it('no public page puts Etyme in its own title, because the layout adds it to every tab', () => {
@@ -438,12 +520,11 @@ describe('One header and footer on every new page', () => {
     for (const p of PUBLIC_PAGES) expect(existsSync(join(ROOT, p.routeFile)), `${p.route} has no route file`).toBe(true)
   })
 
-  it('Industries stays one product and says so, with no vertical page behind it', () => {
-    const industries = NAV_MENUS.find((m) => m.label === 'Industries')!
-    expect(industries.note).toBe('One product. No industry-specific version to buy.')
-    // The eight parts of the one product, on the home page. They led to
-    // the six-milestone lifecycle until 2026-09-27, when it moved to About.
-    for (const i of industries.items) expect(i.href).toBe('/#modules')
+  it('there is no Industries menu, and About still says it is one product for every industry', () => {
+    // The menu had four items leading to one place. The sentence under it
+    // is a fact about the company, and it stays, on About.
+    expect(NAV_MENUS.map((m) => m.label)).not.toContain('Industries')
+    expect(all(copyOfCompanyPage(ABOUT))).toContain('There is no industry-specific version to buy.')
   })
 
   it('every link in the header and footer goes to a registered public page, the demo, sign-in or a section of the home page', () => {

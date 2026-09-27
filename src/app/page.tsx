@@ -4,6 +4,8 @@ import { Ask } from '@/app/site/ask'
 import { ASK_COPY } from '@/lib/public-site/leads'
 import { MODULES } from '@/lib/public-site/modules'
 import { JoinMural } from '@/lib/public-site/join-mural'
+import { SiteHeader } from '@/lib/public-site/frame'
+import { PRODUCT_ITEMS } from '@/lib/public-site/nav'
 import Link from 'next/link'
 // Typed routes widen a string in an array to `string`, which Link will not
 // take. The footer's routes are literals below; the cast is at the render
@@ -95,65 +97,11 @@ import type { Route } from 'next'
  */
 
 /**
- * The header nav — Products, Industries, Compliance, Why Etyme.
- *
- * The flat six-word module list it replaced named stations with nothing
- * organizing them. An enterprise buyer evaluating a system of record
- * expects this shape. Since 2026-09-26 the items lead to the module
- * pages, the security position and About, which exist; the menus are the
- * same as every other public page's (`lib/public-site/nav`), and a test
- * holds the two lists equal. A `#` link is a section on this page.
- *
- * Industries is deliberately not a set of vertical product pages — the
- * core stays horizontal, and the note under the menu says so. Its items
- * lead to the eight parts of the one product, which serve every
- * industry the same way.
+ * The header is the one every public page draws (`lib/public-site/frame`,
+ * its menus in `lib/public-site/nav`), since 2026-09-27. Until then this
+ * page drew its own copy of the menus and a test held the two lists
+ * equal; drawing the same component makes them one list.
  */
-const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }[]; note?: string }[] = [
-  {
-    label: 'Products',
-    items: [
-      { t: 'Requisitions & suppliers', d: 'Raised, cleared by rule or by a desk, released to the suppliers Procurement named.', href: '/requisitions' },
-      { t: 'Submissions & screening', d: 'Every supplier against the same role, on one screen, each at its own rate.', href: '/submissions' },
-      { t: 'Contracts & onboarding', d: 'The award writes the contract. The papers are checked before day one.', href: '/contracts' },
-      { t: 'Timesheets & expenses', d: 'Filed once, signed twice, flagged first. Nobody approves their own.', href: '/timesheets' },
-      { t: 'Invoices & the three-way match', d: 'An invoice with no signed week behind it is not paid.', href: '/invoices' },
-      { t: 'Compliance & tenure', d: 'Counted per person across suppliers, warned at three quarters, blocked at your cap.', href: '/compliance' },
-      { t: 'The chain', d: 'Each firm sees its own level. Insurance and authorization are visible at every depth.', href: '/chain' },
-      { t: 'Governance', d: 'Blocks where the law is behind it, warns everywhere else, records even a pass.', href: '/governance' },
-    ],
-  },
-  {
-    label: 'Industries',
-    items: [
-      { t: 'Manufacturing & quality', href: '#modules' },
-      { t: 'Healthcare & clinical', href: '#modules' },
-      { t: 'Skilled trades & field services', href: '#modules' },
-      { t: 'Professional & corporate services', href: '#modules' },
-    ],
-    note: 'One product. No industry-specific version to buy.',
-  },
-  {
-    label: 'Compliance',
-    items: [
-      { t: 'Work authorization', d: 'Blocked, not warned, where the law is behind it.', href: '/contracts' },
-      { t: 'Co-employment & time on site', d: 'Counted per person across suppliers, not per assignment.', href: '/compliance' },
-      { t: 'Insurance & good standing', d: 'A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/governance' },
-      { t: 'Security position', d: 'What is done, what is not, and when.', href: '/security' },
-      { t: 'Data processing addendum', d: 'Retention by category, and who processes what.', href: '/dpa' },
-    ],
-  },
-  {
-    label: 'Why Etyme',
-    items: [
-      { t: 'About Etyme', d: 'What we build, how we work, where we are.', href: '/about' },
-      { t: 'Never runs a bench, never places anybody', href: '/about#neutral' },
-      { t: 'Governance is never a paid tier', href: '/governance' },
-      { t: 'Free while we prove it out', href: '#why' },
-      { t: 'Contact', d: 'Durham, North Carolina. A person answers.', href: '/contact' },
-    ],
-  },
-]
 
 /**
  * What it does, in four steps, each one a real screen.
@@ -237,7 +185,7 @@ const STEPS: {
 const TILES = MODULES.map((m) => ({
   route: m.route,
   title: m.title,
-  line: NAV_MENUS[0].items.find((i) => { return i.href === m.route })?.d ?? '',
+  line: PRODUCT_ITEMS.find((i) => i.href === m.route)?.d ?? '',
   img: m.screen.img,
   alt: m.screen.alt,
 }))
@@ -451,80 +399,7 @@ const FOOTER: { heading: string; links: { label: string; href: string }[]; note?
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-etyme-canvas">
-      {/* ── The header ───────────────────────────────────────── */}
-      {/* Every label below renders through {expr} rather than as literal
-          JSX text, so the menu cannot shift the hero words the founder
-          signed off — `lib/positioning` reads text nodes in source
-          order, and "Sign in" is deliberately the first of them. */}
-      <header className="border-b border-etyme-rule">
-        <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-3 px-4 py-4 sm:px-6">
-          <Link href="/" aria-label="Etyme — home">
-            <EtymeLogo size="md" />
-          </Link>
-
-          <ul className="ml-6 hidden items-center gap-1 text-sm lg:flex">
-            {NAV_MENUS.map((menu) => (
-              <li key={menu.label} className="group relative">
-                <button
-                  type="button"
-                  className="rounded-md px-3 py-2 text-etyme-muted transition-colors
-                             hover:text-etyme-ink focus-visible:text-etyme-ink focus-visible:outline-none
-                             focus-visible:ring-2 focus-visible:ring-etyme-action/40"
-                >
-                  {menu.label}
-                </button>
-                <div
-                  className="invisible absolute left-0 top-full z-20 w-72 -translate-y-1 pt-2
-                             opacity-0 transition-all duration-100
-                             group-hover:visible group-hover:translate-y-0 group-hover:opacity-100
-                             group-focus-within:visible group-focus-within:translate-y-0
-                             group-focus-within:opacity-100"
-                >
-                  <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-2 shadow-xl">
-                    {menu.items.map((item) => (
-                      <a
-                        key={item.t}
-                        href={item.href}
-                        className="block rounded-lg px-3 py-2.5 hover:bg-etyme-canvas"
-                      >
-                        <span className="block text-[13px] font-medium text-etyme-ink">
-                          {item.t}
-                        </span>
-                        {item.d && (
-                          <span className="mt-0.5 block text-[12px] leading-snug text-etyme-muted">
-                            {item.d}
-                          </span>
-                        )}
-                      </a>
-                    ))}
-                    {menu.note && (
-                      <p className="mt-1 border-t border-etyme-rule px-3 pt-2 text-[11px] text-etyme-faint">
-                        {menu.note}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-            <li>
-              <a
-                href="/docs"
-                className="rounded-md px-3 py-2 text-etyme-muted transition-colors hover:text-etyme-ink"
-              >
-                {'Documentation'}
-              </a>
-            </li>
-          </ul>
-
-          <Link
-            href="/login"
-            className="ml-auto rounded-lg border border-etyme-rule px-4 py-2 text-sm font-medium
-                       text-etyme-muted transition-colors hover:border-etyme-ink hover:text-etyme-ink"
-          >
-            Sign in
-          </Link>
-        </nav>
-      </header>
+      <SiteHeader />
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       {/* Category first, the way Concur says travel and expense before

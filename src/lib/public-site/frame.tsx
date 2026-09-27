@@ -1,21 +1,54 @@
 import { EtymeLogo } from '@/components/logo'
-import { NAV_MENUS, DOCS_LINK, SPEND_AUDIT, FOOTER, ADDRESS } from './nav'
+import { NAV_MENUS, PRIMARY, SPEND_AUDIT, FOOTER, ADDRESS, type NavMenu } from './nav'
 
 /**
- * The header and footer every page of the public site shares.
+ * The header and footer every page of the public site shares, the home
+ * page included since 2026-09-27.
  *
- * The menus are the live home page's four, with the new pages mapped
- * into them (see `./nav`). Links are plain anchors on purpose: every
- * page here is a server-rendered document that works with JavaScript
- * off, and a marketing page is the one surface where that still matters.
+ * The header is four menus — Product by stage, Solutions by role,
+ * Resources, Company — with Sign in and one filled button on the right
+ * (see `./nav` for where the structure came from and which of its words
+ * were corrected). Links are plain anchors on purpose: every page here is
+ * a server-rendered document that works with JavaScript off, and a
+ * marketing page is the one surface where that still matters. The menus
+ * open on hover and on keyboard focus, with no script.
  *
- * On a phone the menus fold into one disclosure rather than vanishing.
- * The home page's own header hides its menus below `lg` and shows only
- * "Sign in"; a reader who arrives on a module page from a search result
- * has no home page behind them, so the drawer carries every link.
+ * On a phone the menus fold into one disclosure carrying the same four
+ * groups, so a reader who arrives on a module page from a search result
+ * has every link the desktop reader has.
  */
 
 const LINK = 'text-etyme-muted underline-offset-2 transition-colors hover:text-etyme-ink hover:underline'
+
+/** How wide each menu's panel is, by how many groups sit side by side. */
+const PANEL: Record<string, string> = {
+  Product: 'w-[min(52rem,calc(100vw-3rem))] grid gap-2 lg:grid-cols-4',
+  Solutions: 'w-[26rem]',
+  Resources: 'w-[36rem] grid gap-2 lg:grid-cols-2',
+  Company: 'w-80',
+}
+
+function MenuPanel({ menu }: { menu: NavMenu }) {
+  return (
+    <div className={`rounded-xl border border-etyme-rule bg-etyme-raised p-2 shadow-xl ${PANEL[menu.label] ?? 'w-80'}`}>
+      {menu.groups.map((group) => (
+        <div key={group.heading}>
+          <p className="px-3 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-etyme-faint">
+            {group.heading}
+          </p>
+          {group.items.map((item) => (
+            <a key={item.t} href={item.href} className="block rounded-lg px-3 py-2.5 hover:bg-etyme-canvas">
+              <span className="block text-[13px] font-medium text-etyme-ink">{item.t}</span>
+              {item.d && (
+                <span className="mt-0.5 block text-[12px] leading-snug text-etyme-muted">{item.d}</span>
+              )}
+            </a>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export function SiteHeader() {
   return (
@@ -37,69 +70,66 @@ export function SiteHeader() {
                 {menu.label}
               </button>
               <div
-                className="invisible absolute left-0 top-full z-20 w-80 -translate-y-1 pt-2 opacity-0
+                className="invisible absolute left-0 top-full z-20 -translate-y-1 pt-2 opacity-0
                            transition-all duration-100 group-hover:visible group-hover:translate-y-0
                            group-hover:opacity-100 group-focus-within:visible
                            group-focus-within:translate-y-0 group-focus-within:opacity-100"
               >
-                <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-2 shadow-xl">
-                  {menu.items.map((item) => (
-                    <a key={item.t} href={item.href} className="block rounded-lg px-3 py-2.5 hover:bg-etyme-canvas">
-                      <span className="block text-[13px] font-medium text-etyme-ink">{item.t}</span>
-                      {item.d && (
-                        <span className="mt-0.5 block text-[12px] leading-snug text-etyme-muted">{item.d}</span>
-                      )}
-                    </a>
-                  ))}
-                  {menu.note && (
-                    <p className="mt-1 border-t border-etyme-rule px-3 pt-2 text-[11px] text-etyme-faint">
-                      {menu.note}
-                    </p>
-                  )}
-                </div>
+                <MenuPanel menu={menu} />
               </div>
             </li>
           ))}
-          <li>
-            <a href={DOCS_LINK.href} className="rounded-md px-3 py-2 text-etyme-muted transition-colors hover:text-etyme-ink">
-              {DOCS_LINK.t}
-            </a>
-          </li>
         </ul>
 
-        <a
-          href="/login"
-          className="ml-auto rounded-lg border border-etyme-rule px-4 py-2 text-sm font-medium text-etyme-muted
-                     transition-colors hover:border-etyme-ink hover:text-etyme-ink"
-        >
-          {'Sign in'}
-        </a>
+        <div className="ml-auto flex items-center gap-2">
+          <a
+            href="/login"
+            className="hidden rounded-lg px-3 py-2 text-sm font-medium text-etyme-muted transition-colors
+                       hover:text-etyme-ink sm:inline-block"
+          >
+            {'Sign in'}
+          </a>
+          <a
+            href={PRIMARY.href}
+            className="rounded-lg bg-etyme-action px-4 py-2 text-sm font-semibold text-white shadow-sm
+                       transition-opacity hover:opacity-90"
+          >
+            {PRIMARY.t}
+          </a>
+        </div>
 
         {/* The phone drawer. `details` needs no script, and closes by tapping the same word. */}
         <details className="w-full lg:hidden">
           <summary className="cursor-pointer list-none text-sm font-medium text-etyme-muted">
             {'Menu'}
           </summary>
-          <div className="mt-3 space-y-5 border-t border-etyme-rule pt-4">
+          <div className="mt-3 space-y-6 border-t border-etyme-rule pt-4">
             {NAV_MENUS.map((menu) => (
               <div key={menu.label}>
                 <p className="eyebrow">{menu.label}</p>
-                <ul className="mt-2 space-y-1.5">
-                  {menu.items.map((item) => (
-                    <li key={item.t}>
-                      <a href={item.href} className={`text-[14px] ${LINK}`}>{item.t}</a>
-                    </li>
+                <div className="mt-2 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                  {menu.groups.map((group) => (
+                    <div key={group.heading}>
+                      {menu.groups.length > 1 && (
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-etyme-faint">
+                          {group.heading}
+                        </p>
+                      )}
+                      <ul className="mt-1.5 space-y-1.5">
+                        {group.items.map((item) => (
+                          <li key={item.t}>
+                            <a href={item.href} className={`text-[14px] ${LINK}`}>{item.t}</a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             ))}
-            <div>
-              <p className="eyebrow">{'Read'}</p>
-              <ul className="mt-2 space-y-1.5">
-                <li><a href={DOCS_LINK.href} className={`text-[14px] ${LINK}`}>{DOCS_LINK.t}</a></li>
-                <li><a href={SPEND_AUDIT.href} className={`text-[14px] ${LINK}`}>{SPEND_AUDIT.t}</a></li>
-              </ul>
-            </div>
+            <p>
+              <a href="/login" className={`text-[14px] ${LINK}`}>{'Sign in'}</a>
+            </p>
           </div>
         </details>
       </nav>
@@ -139,6 +169,9 @@ export function SiteFooter() {
                   </li>
                 ))}
               </ul>
+              {group.note && (
+                <p className="mt-3 max-w-[30ch] text-[12px] leading-snug text-etyme-faint">{group.note}</p>
+              )}
             </div>
           ))}
         </div>

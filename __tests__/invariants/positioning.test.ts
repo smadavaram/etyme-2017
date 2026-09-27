@@ -61,7 +61,7 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // section cannot fall off both pages at once.
 import { MODULES, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { ABOUT, copyOfCompanyPage } from '@/lib/public-site/company'
-import { NAV_MENUS as SITE_MENUS } from '@/lib/public-site/nav'
+import { NAV_MENUS as SITE_MENUS, PRODUCT_ITEMS, PRODUCT_STAGES, ROLES as SITE_ROLES } from '@/lib/public-site/nav'
 import { ASK_COPY } from '@/lib/public-site/leads'
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
@@ -82,9 +82,14 @@ const ABOUT_PAGE = (() => {
 const aboutBlock = (id: string) => ABOUT.blocks.find((b) => b.id === id)
 const moreOn = (slug: string) => MODULES.find((m) => m.slug === slug)!.more
 
-/** The real page, split at roughly where a first screen ends. */
+/**
+ * The real page, split at roughly where a first screen ends. The header is
+ * a shared component since 2026-09-27 and none of its words are in this
+ * file, so the first screen is the first eleven pieces of the hero.
+ */
 const words = copyFrom(PAGE)
-const live: Copy = { hero: words.slice(0, 12), body: words.slice(12) }
+const FOLD = 11
+const live: Copy = { hero: words.slice(0, FOLD), body: words.slice(FOLD) }
 
 describe('The live home page still says what we agreed it says', () => {
 
@@ -355,7 +360,7 @@ describe('The reader finds words that are actually on the page', () => {
 // decision somebody made, and a rewrite that quietly reorders it fails
 // here rather than in a week.
 
-const body = words.slice(12).join(' ')
+const body = words.slice(FOLD).join(' ')
 const all = words.join(' ')
 /** Everything above the fold, as one string, for the guards that read it. */
 const hero = live.hero.join(' ')
@@ -654,8 +659,8 @@ describe('Below the hero, the page says what the business is', () => {
     // management system" is what a CTO with fifty contractors calls it,
     // and he is the one reading. Changed 2026-09-20, after a real buyer
     // read the page and could not tell what the product was.
-    expect(words[1]).toBe('Vendor management system')
-    expect(words[2]).toBe('Every contractor. Every supplier. One record.')
+    expect(words[0]).toBe('Vendor management system')
+    expect(words[1]).toBe('Every contractor. Every supplier. One record.')
   })
 
   it('says the hero subhead in concrete nouns a reader can picture', () => {
@@ -663,7 +668,7 @@ describe('Below the hero, the page says what the business is', () => {
     // describe an absence — "nobody has one record" — which is true and
     // is not a thing anybody can see. This names what is on the screens
     // underneath it, in the order the steps come in.
-    const sub = words[3]
+    const sub = words[2]
     for (const noun of ['contractor', 'supplier', 'timesheets', 'invoice']) {
       expect(sub, noun).toContain(noun)
     }
@@ -824,13 +829,15 @@ describe('Every claim about a screen is a thing that screen does', () => {
     const submissionReadsStanding = !/startsWith\('INSURANCE_'\)/.test(code(SUBMISSION))
     const doorsReadStanding = startReadsStanding && submissionReadsStanding
 
-    const menu = PAGE.slice(PAGE.indexOf("t: 'Insurance & good standing'")).slice(0, 300)
+    // The claim sat under a Compliance menu until 2026-09-27; it is the
+    // HR and compliance role's line in the shared header now.
+    const hr = SITE_ROLES.find((r) => r.t === 'HR and compliance')!
     // Sentence by sentence, because the claim is only a claim when the
     // standing and the refusal are in the same one: "a lapsed insurance
     // certificate stops a start" beside "good standing is read on the
     // compliance screen" says nothing about good standing stopping
     // anything, and read as one string it would look as though it did.
-    const said = /d: '([^']+)'/.exec(menu)?.[1] ?? ''
+    const said = hr.d ?? ''
     const saysStandingStopsWork = said
       .split(/(?<=[.!?])\s+/)
       .some((sentence) => /good standing/i.test(sentence) && /\bstops?\b/i.test(sentence))
@@ -983,7 +990,7 @@ describe('The record is the product, and the program office is offered quietly',
     for (const heading of headlinesFrom(PAGE)) {
       expect(offersTheProgramOffice(heading), heading).toEqual([])
     }
-    expect(offersTheProgramOffice(`${words[1]} ${words[2]}`)).toEqual([])
+    expect(offersTheProgramOffice(`${words[0]} ${words[1]}`)).toEqual([])
   })
 
   it('does not size Etyme against the incumbents', () => {
@@ -1323,7 +1330,7 @@ describe('The page shows the product before it describes it', () => {
     expect(sized, sized.join('; ')).toEqual([])
     expect(sizesAgainstIncumbents(subhead)).toEqual([])
     // The category is named in the buyer's own words first.
-    expect(words[1]).toBe('Vendor management system')
+    expect(words[0]).toBe('Vendor management system')
   })
 
   it('shows the hardest answer to believe as the screen that gives it', () => {
@@ -1461,13 +1468,13 @@ describe('The claim about how much of this is a model is computed, not asserted'
 
 describe('The header reads as an enterprise product, not a job board', () => {
 
-  it('is organized into exactly Products, Industries, Compliance and Why Etyme', () => {
-    const menuStart = PAGE.indexOf('const NAV_MENUS')
-    const menuEnd = PAGE.indexOf('const RECORD')
-    const menus = PAGE.slice(menuStart, menuEnd)
-    for (const label of ['Products', 'Industries', 'Compliance', 'Why Etyme']) {
-      expect(menus, label).toContain(`label: '${label}'`)
-    }
+  it('is the shared header, organized as Product, Solutions, Resources and Company', () => {
+    // Decided 2026-09-27, from the marketing thread's structure. The home
+    // page draws the one header every public page draws, so the two can
+    // no longer say different things; `public-pages.test.ts` holds the
+    // groups inside each menu.
+    expect(PAGE).toContain('<SiteHeader />')
+    expect(SITE_MENUS.map((m) => m.label)).toEqual(['Product', 'Solutions', 'Resources', 'Company'])
   })
 
   it('never says "I\'m hiring" — that is job-board language, not an enterprise layer', () => {
@@ -1487,29 +1494,34 @@ describe('The header reads as an enterprise product, not a job board', () => {
     expect(PAGE).not.toContain('See it as the company')
   })
 
-  it('sends every header link to a section that actually exists on the page', () => {
-    const menuStart = PAGE.indexOf('const NAV_MENUS')
-    const menuEnd = PAGE.indexOf('const RECORD')
-    const menus = PAGE.slice(menuStart, menuEnd)
-    const hrefs = [...menus.matchAll(/href: '#([a-z]+)'/g)].map((m) => m[1])
-    expect(hrefs.length).toBeGreaterThan(0)
-    for (const anchor of new Set(hrefs)) {
-      expect(PAGE, `#${anchor}`).toContain(`id="${anchor}"`)
+  it('sends every header link to a page that exists, or a section that exists on it', () => {
+    // The thread's roles led to anchors on its home page that were never
+    // written. Every header link here is a route with a file behind it.
+    for (const m of SITE_MENUS) {
+      for (const g of m.groups) {
+        for (const i of g.items) {
+          const path = i.href.split('#')[0]
+          const candidates = ['', '(site)'].map((group) => join(process.cwd(), 'src/app', group, path.slice(1), 'page.tsx'))
+          const docs = path.startsWith('/docs/') && existsSync(join(process.cwd(), 'src/app/(site)/docs/[slug]/page.tsx'))
+          expect(candidates.some(existsSync) || docs, i.href).toBe(true)
+        }
+      }
     }
   })
 
   it('names industries as one product used across them, never a vertical feature', () => {
-    // "Horizontal, never vertical." Listing industries is fine as an
-    // illustration of breadth; it would be wrong as a claim that a
-    // different product exists per industry, so the menu says so itself.
-    expect(PAGE).toContain('One product. No industry-specific version to buy.')
+    // "Horizontal, never vertical." The Industries menu went on
+    // 2026-09-27 — four items leading to one place — and the sentence
+    // under it is said on About, where it is a fact about the company.
+    expect(SITE_MENUS.map((m) => m.label)).not.toContain('Industries')
+    expect(ABOUT_PAGE).toContain('One product serves every industry. There is no industry-specific version to buy.')
   })
 
   it('does not let the header text shift the pinned hero words', () => {
-    // Every header label renders through {expr}, never as literal JSX
-    // text, specifically so it stays invisible to copyFrom's tag-text
-    // scan and the hero stays where it was pinned.
-    expect(words[0]).toBe('Sign in')
+    // The header is a component now, so none of its words are in this
+    // file and the first words read here are the hero's own.
+    expect(words[0]).not.toBe('Sign in')
+    expect(PAGE).not.toMatch(/>\s*Sign in\s*</)
   })
 })
 
@@ -1670,7 +1682,7 @@ describe('The footer is where a company keeps its papers', () => {
 describe('The public page still says the four things it may not stop saying', () => {
 
   it('the home page names what Etyme is before it names anything it does', () => {
-    expect(words[1]).toBe('Vendor management system')
+    expect(words[0]).toBe('Vendor management system')
     expect(check(live).map((f) => f.rule)).not.toContain('category-first')
     expect(check(live).map((f) => f.rule)).not.toContain('module-not-category')
   })
@@ -1754,13 +1766,13 @@ function readerWords(): number {
   const count = (t: string) => t.split(/\s+/).filter((x) => /[A-Za-z0-9]/.test(x)).length
   const noComments = (t: string) =>
     t.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
-  const jsx = noComments(PAGE.slice(PAGE.indexOf('</header>'), PAGE.indexOf('<footer')))
+  const jsx = noComments(PAGE.slice(PAGE.indexOf('<SiteHeader />'), PAGE.indexOf('<footer')))
   const data = noComments(PAGE.slice(PAGE.indexOf('const STEPS'), PAGE.indexOf('const FOOTER')))
     .split('\n')
     .filter((l) => !/^\s*(alt|from|capturedAt|proof|source|img|route):/.test(l))
     .filter((l) => !/says: '(W-9|GST and PAN|VAT position)'/.test(l))
     .join('\n')
-  const tiles = MODULES.map((m) => `${m.title} ${SITE_MENUS[0].items.find((i) => i.href === m.route)?.d ?? ''}`)
+  const tiles = MODULES.map((m) => `${m.title} ${PRODUCT_ITEMS.find((i) => i.href === m.route)?.d ?? ''}`)
   const ask = [ASK_COPY.eyebrow, ASK_COPY.heading, ASK_COPY.body,
     ASK_COPY.emailLabel, ASK_COPY.emailHint, ASK_COPY.askLabel, ASK_COPY.askHint, ASK_COPY.button]
   return [copyFrom(jsx), copyFrom(data), tiles, ask].reduce((n, part) => n + count(part.join(' ')), 0)
@@ -1854,7 +1866,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect(PAGE.indexOf('TILES.map')).toBeLessThan(at('gap'))
     expect(MODULES).toHaveLength(8)
     for (const m of MODULES) {
-      const line = SITE_MENUS[0].items.find((i) => i.href === m.route)?.d
+      const line = PRODUCT_ITEMS.find((i) => i.href === m.route)?.d
       expect(line, `${m.route} has no line`).toBeTruthy()
       expect(existsSync(join(process.cwd(), 'public', m.screen.img)), m.screen.img).toBe(true)
     }

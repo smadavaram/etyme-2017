@@ -67,6 +67,9 @@ export const ABOUT: CompanyPage = {
         'The role that was raised, the supplier that filled it, the contract it wrote, the weeks that were signed, the invoices that matched, and the papers checked before day one. ' +
           'Eight areas, in the order the work happens.',
         'Nobody sees a rate that is not theirs, and everybody sees what is waiting on them.',
+        // The note under the header's Industries menu, kept when the menu
+        // went on 2026-09-27. Horizontal, never vertical.
+        'One product serves every industry. There is no industry-specific version to buy.',
       ],
     },
     // ── Four blocks moved from the home page, 2026-09-27 ──────────────
