@@ -372,16 +372,14 @@ export default function LandingPage() {
         {/* The two quieter doors, as whole sentences. A buyer-side review,
             2026-09-27, read "If you supply into a program instead" as a
             page that had broken: it had no verb, and the two doors after
-            it are buttons, which a reader mode or a text extract drops.
+            it were buttons, which a reader mode or a text extract drops.
             So each door is now a question that stands on its own, with the
-            door as its answer, and a reader who never sees the button
-            still reads two finished sentences.
+            door as its answer, so a reader who never sees the door still
+            reads two finished sentences.
 
-            They stay buttons rather than links on purpose: each seats the
-            visitor at a desk in one click by posting to /api/demo, and a
-            plain link could only reach /demo, which opens on the client's
-            desks. Making the door a real link that still seats in one
-            click is a change to components/try-demo, which is Platform's. */}
+            Each door is a real link since e83e8797: TryDemo draws an <a>
+            with an address every reader sees, and a click still seats the
+            visitor at a desk in one step by posting to /api/demo. */}
         <p className="mt-3 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
           <span className="font-semibold text-etyme-ink">Supply people to a program instead?</span>{' '}
           <TryDemo
