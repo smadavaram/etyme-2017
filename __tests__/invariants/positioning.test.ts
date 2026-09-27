@@ -1872,7 +1872,8 @@ describe('The home page reads as a product page, and every band leads deeper', (
 const JOIN_SRC = PAGE.slice(PAGE.indexOf('const JOIN'), PAGE.indexOf('const TWO_WAYS'))
 const JOIN_LINES = [...JOIN_SRC.slice(JOIN_SRC.indexOf('lines:'), JOIN_SRC.indexOf('backedBy:'))
   .matchAll(/'([^']+)'/g)].map((m) => m[1])
-const ART_SRC = PAGE.slice(PAGE.indexOf('function JoinArt'), PAGE.indexOf('export default function'))
+// The mural lives in its own file under the market's public-site folder.
+const ART_SRC = readFileSync(join(process.cwd(), 'src/lib/public-site/join-mural.tsx'), 'utf8')
 
 describe('The line about teams around the world', () => {
 
@@ -1924,31 +1925,89 @@ describe('The line about teams around the world', () => {
     // Below the tiles, above the two ways.
     expect(at('join')).toBeGreaterThan(at('modules'))
     expect(at('join')).toBeLessThan(at('ways'))
-    // And it stacks under the words on a phone.
+    // The heading and its two sentences sit side by side on a wide
+    // screen and stack on a phone.
     expect(join).toMatch(/md:grid-cols-/)
   })
 
-  it('the drawing is in the kit’s own colors, stands still, and says what it shows to a screen reader', () => {
+  it('the mural is in the kit’s own colors, stands still, and says what it shows to a screen reader', () => {
     expect(ART_SRC).toContain('role="img"')
-    expect(ART_SRC).toMatch(/aria-label="[^"]{40,}"/)
+    // A real description, naming what is drawn: firms and people on both
+    // sides, and the one record they pass through.
+    const label = ART_SRC.match(/aria-label="([^"]+)"/)?.[1] ?? ''
+    expect(label.length).toBeGreaterThan(120)
+    expect(label).toMatch(/firms/i)
+    expect(label).toMatch(/people/i)
+    expect(label).toMatch(/one shared record/i)
     // Colors come through the kit's variables, never hand-typed, so the
-    // drawing moves with the kit. The vivid logo green is the logo's.
+    // mural moves with the kit: ink line work on the canvas, and at most
+    // a violet touch and an orange one. Never the logo's vivid green,
+    // never the navy the kit removed from its tokens.
     expect(ART_SRC).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/)
+    expect(ART_SRC).not.toMatch(/00C800|0D1426/i)
     const vars = [...ART_SRC.matchAll(/var\(--([a-z-]+)\)/g)].map((m) => m[1])
-    expect(vars.length).toBeGreaterThan(4)
     const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8')
-    const KIT = ['violet', 'violet-p', 'orange', 'orange-p', 'green-p', 'raised', 'faint', 'rule', 'mono']
+    const KIT = ['ink', 'canvas', 'violet', 'violet-p', 'orange', 'orange-p']
     for (const v of new Set(vars)) {
-      expect(KIT, `--${v} is not one of the kit's colors`).toContain(v)
+      expect(KIT, `--${v} is not one of the mural's colors`).toContain(v)
       expect(css, `--${v} is not defined in globals.css`).toContain(`--${v}:`)
     }
-    expect(vars).not.toContain('green')
+    expect(vars).toContain('ink')
+    expect(vars).toContain('canvas')
+    const accents = new Set(vars.filter((v) => v !== 'ink' && v !== 'canvas'))
+    expect(accents.size, 'at most two accent colors').toBeLessThanOrEqual(2)
+    expect([...accents].some((v) => v.startsWith('violet')), 'a violet touch on the supply side').toBe(true)
+    expect([...accents].some((v) => v.startsWith('orange')), 'an orange touch on the demand side').toBe(true)
+    // Only the ink color is ever a fill or stroke by name: everything else
+    // is currentColor off the root, which is set to the ink variable.
+    expect(ART_SRC).not.toMatch(/(fill|stroke)="(?!currentColor|none)[a-z#]/i)
     // It does not move, so there is nothing for reduced motion to stop.
     expect(ART_SRC).not.toMatch(/<animate|animation|transition|@keyframes/)
-    // No globe, no map pins, no people: it is lines and a point.
-    expect(ART_SRC).not.toMatch(/globe|pin|person|people-icon/i)
-    // It scales with its column, so it fits a 390px screen.
-    expect(ART_SRC).toContain('viewBox=')
-    expect(ART_SRC).toMatch(/w-full/)
+    // No globe, no map, no flags: lines, firms, figures and one record.
+    expect(ART_SRC).not.toMatch(/globe|map pin|\bflag/i)
+    // And it is a mural: much wider than it is tall.
+    const [, w, h] = ART_SRC.match(/const W = (\d+)\s+const H = (\d+)/)!.map(Number)
+    expect(ART_SRC).toContain('viewBox={`0 0 ${W} ${H}`}')
+    expect(w / h).toBeGreaterThanOrEqual(3)
+  })
+
+  it('the mural runs the full width of the band, the way the kit’s mural does', () => {
+    const join = band('join')
+    expect(join).toContain('<JoinMural />')
+    // The mural is not inside the page's max-width column: its wrapper is
+    // the band's own full width, after the column that holds the words.
+    const wrapper = join.slice(0, join.indexOf('<JoinMural />'))
+    const last = wrapper.lastIndexOf('<div')
+    expect(wrapper.slice(last)).toMatch(/w-full/)
+    expect(wrapper.slice(last)).not.toMatch(/max-w-/)
+    const column = wrapper.lastIndexOf('max-w-6xl')
+    expect(column, 'the words keep their column').toBeGreaterThan(-1)
+    expect(wrapper.slice(column).split('</div>').length - 1, 'the column is closed before the mural').toBeGreaterThanOrEqual(2)
+    // And the drawing itself fills the width it is given.
+    expect(ART_SRC).toMatch(/className="[^"]*\bw-full\b/)
+    // Nothing sideways: the wrapper clips rather than scrolling the page.
+    expect(wrapper.slice(last)).toMatch(/overflow-hidden/)
+  })
+
+  it('on a phone the mural keeps its middle rather than shrinking to a sliver', () => {
+    // Cropped to its centre at a fixed height on a small screen, and only
+    // from the small breakpoint up does it take its natural proportion.
+    expect(ART_SRC).toContain('preserveAspectRatio="xMidYMid slice"')
+    const cls = ART_SRC.match(/className="([^"]+)"/)?.[1] ?? ''
+    const phone = Number(cls.match(/(?:^|\s)h-\[(\d+)px\]/)?.[1])
+    expect(phone, 'a fixed height on a phone').toBeGreaterThanOrEqual(160)
+    expect(cls).toMatch(/sm:h-auto/)
+    // At 390 wide and that height the crop shows the record whole: the
+    // visible span of the drawing is centred and wider than the record.
+    const W = Number(ART_SRC.match(/const W = (\d+)/)![1])
+    const H = Number(ART_SRC.match(/const H = (\d+)/)![1])
+    const rec = ART_SRC.match(/const REC = \{ x: (\d+), y: \d+, w: (\d+)/)!.slice(1).map(Number)
+    const visible = 390 / (phone / H)
+    const from = (W - visible) / 2
+    expect(from).toBeLessThan(rec[0])
+    expect(from + visible).toBeGreaterThan(rec[0] + rec[1])
+    // And the record is drawn at a readable size, not a sliver: at least
+    // a third of the phone's width.
+    expect(rec[1] * (phone / H)).toBeGreaterThan(390 / 3)
   })
 })

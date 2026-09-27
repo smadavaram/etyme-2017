@@ -3,6 +3,7 @@ import { TryDemo } from '@/components/try-demo'
 import { Ask } from '@/app/site/ask'
 import { ASK_COPY } from '@/lib/public-site/leads'
 import { MODULES } from '@/lib/public-site/modules'
+import { JoinMural } from '@/lib/public-site/join-mural'
 import Link from 'next/link'
 // Typed routes widen a string in an array to `string`, which Link will not
 // take. The footer's routes are literals below; the cast is at the render
@@ -447,62 +448,6 @@ const FOOTER: { heading: string; links: { label: string; href: string }[]; note?
   },
 ]
 
-/**
- * The drawing beside the founder's line.
- *
- * Supply on one side, demand on the other: thin lines from the left
- * edge gather into a violet stroke, thin lines from the right edge into
- * an orange one, and the two meet and continue as one green stroke —
- * the three strokes of the Y in the mark, which is the record between
- * them. Abstract on purpose: no globe, no map, no pins, no people.
- *
- * Drawn in the kit's own colors through its CSS variables rather than
- * by hand-typed hex, so a change to the kit's values moves the drawing
- * with everything else. The vivid logo green is not used; the stem is
- * the kit's deeper green. It does not move, so there is nothing for
- * `prefers-reduced-motion` to stop. It scales to its column and stacks
- * under the words on a phone.
- */
-const LEFT = [36, 84, 132, 180, 228]
-const RIGHT = [30, 78, 126, 174, 222]
-
-function JoinArt() {
-  return (
-    <svg
-      viewBox="0 0 520 260"
-      role="img"
-      aria-label="Thin lines from suppliers on the left and from clients on the right gather into two strokes, which meet and continue as one line: one record between them."
-      className="h-auto w-full max-w-[520px]"
-    >
-      {LEFT.map((y) => (
-        <g key={`l${y}`}>
-          <path
-            d={`M 26 ${y} C 120 ${y}, 150 56, 206 56`}
-            fill="none"
-            style={{ stroke: 'var(--violet)', strokeWidth: 1.5, opacity: 0.45 }}
-          />
-          <circle cx={26} cy={y} r={5} style={{ fill: 'var(--raised)', stroke: 'var(--violet-p)', strokeWidth: 1.5 }} />
-        </g>
-      ))}
-      {RIGHT.map((y) => (
-        <g key={`r${y}`}>
-          <path
-            d={`M 494 ${y} C 410 ${y}, 380 28, 322 28`}
-            fill="none"
-            style={{ stroke: 'var(--orange)', strokeWidth: 1.5, opacity: 0.45 }}
-          />
-          <circle cx={494} cy={y} r={5} style={{ fill: 'var(--raised)', stroke: 'var(--orange-p)', strokeWidth: 1.5 }} />
-        </g>
-      ))}
-      <path d="M 206 56 L 262 150" style={{ stroke: 'var(--violet)', strokeWidth: 16, strokeLinecap: 'round' }} />
-      <path d="M 322 28 L 262 150" style={{ stroke: 'var(--orange)', strokeWidth: 16, strokeLinecap: 'round' }} />
-      <path d="M 262 150 L 240 236" style={{ stroke: 'var(--green-p)', strokeWidth: 16, strokeLinecap: 'round' }} />
-      <text x={26} y={256} style={{ fill: 'var(--faint)', fontFamily: 'var(--mono)', fontSize: 11 }}>{'Suppliers'}</text>
-      <text x={494} y={256} textAnchor="end" style={{ fill: 'var(--faint)', fontFamily: 'var(--mono)', fontSize: 11 }}>{'Clients'}</text>
-    </svg>
-  )
-}
-
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-etyme-canvas">
@@ -901,26 +846,28 @@ export default function LandingPage() {
 
       {/* ── Join forces ──────────────────────────────────────────── */}
       {/* The founder's line, 2026-09-27, and he was clear: subtle, not a
-          hero. So it is a heading a size under the others, two sentences
-          and a drawing, on the plain canvas, with no button of its own.
-          What it may claim about other countries is in the note on JOIN
-          above, and the test reads the source that backs it. */}
+          hero. So it is a heading a size under the others and two
+          sentences, on the plain canvas, with no button of its own, over a
+          mural that runs the full width of the band in the kit's mural
+          style (lib/public-site/join-mural). What it may claim about other
+          countries is in the note on JOIN above, and the test reads the
+          source that backs it. */}
       <section id="join" className="border-b border-etyme-rule scroll-mt-6">
-        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1fr_1fr] md:py-16">
+        <div className="mx-auto grid max-w-6xl gap-x-12 gap-y-4 px-4 pt-12 sm:px-6 md:grid-cols-[1fr_1fr] md:pt-16">
+          <h2 className="max-w-[22ch] text-balance font-serif text-[26px] leading-snug
+                         tracking-[-0.02em] text-etyme-ink md:text-[32px]">
+            {JOIN.heading}
+          </h2>
           <div>
-            <h2 className="max-w-[22ch] text-balance font-serif text-[26px] leading-snug
-                           tracking-[-0.02em] text-etyme-ink md:text-[32px]">
-              {JOIN.heading}
-            </h2>
             {JOIN.lines.map((line) => (
-              <p key={line} className="mt-4 max-w-[48ch] text-[16px] leading-relaxed text-etyme-muted">
+              <p key={line} className="mb-4 max-w-[48ch] text-[16px] leading-relaxed text-etyme-muted">
                 {line}
               </p>
             ))}
           </div>
-          <div className="flex justify-center md:justify-end">
-            <JoinArt />
-          </div>
+        </div>
+        <div className="mt-6 w-full overflow-hidden md:mt-8">
+          <JoinMural />
         </div>
       </section>
 
