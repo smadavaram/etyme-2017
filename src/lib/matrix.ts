@@ -280,7 +280,7 @@ export const MATRIX: L1[] = [
             'A purchased list is refused whole, so it cannot be laundered by mixing',
             'Cold outbound at volume trains a market to filter you',
             'BUILT 2026-09-27: one ladder on every public page \u2014 see it with a month of data (the example program), get your contractor spend audit (the census, which asks for a work email and says a named person answers inside five working days), ask a person (the form) \u2014 named once in lib/public-site/funnel and drawn by one close band; no button may promise an account while sign-in for a real tenant is closed (promisesAnAccount in lib/positioning)',
-            'Not built: a lead from the ask form is stored and nobody is told. It waits in the list until somebody at Etyme reads it; a census request, by contrast, emails staff when ETYME_STAFF_EMAILS is set',
+            'BUILT 2026-09-27: the first message from an address emails ETYME_STAFF_EMAILS through tellStaff; a failed or unaddressed send is an Incident and the lead is kept; a returning address is merged into its row and emails nobody. The lead list says plainly when leads are stored and nobody is told',
           ],
           implementedBy: [
             'src/lib/public-site/leads.ts',
@@ -290,7 +290,7 @@ export const MATRIX: L1[] = [
             'src/lib/public-site/funnel.ts',
             'src/lib/public-site/close-band.tsx',
           ],
-          testedBy: ['__tests__/invariants/marketing-leads.test.ts', '__tests__/invariants/public-funnel.test.ts'] },
+          testedBy: ['__tests__/invariants/lead-reaches-a-person.test.ts', '__tests__/invariants/marketing-leads.test.ts', '__tests__/invariants/public-funnel.test.ts'] },
         // The contractor census. Designed 2026-09-20 in
         // `docs/census-brief.md`, schema landed the same day, nothing
         // built. Four domains build parts of it and the task says which,
