@@ -50,9 +50,9 @@ describe('The desk a money page is named after can open it', () => {
     expect(mayOpen(ap.permissions, PAYABLE)).toBe(true)
   })
 
-  it('a client’s AP clerk can open the page they match supplier invoices on', () => {
+  it('a client’s AP clerk can open the page they match invoice receipts on', () => {
     const clerk = role('CLIENT', 'AP Clerk')
-    expect(clerk.blurb).toContain('supplier invoices')
+    expect(clerk.blurb).toContain('invoice receipts')
     expect(mayOpen(clerk.permissions, PAYABLE)).toBe(true)
   })
 
@@ -123,7 +123,7 @@ describe('A money gate never refuses the desk the page is for', () => {
     const refused: string[] = []
     for (const { kind, role } of everySeat()) {
       const b = role.blurb.toLowerCase()
-      const pays = /supplier invoices|settles bills|bills, pays|pays the consultant or the sub-vendor/.test(b)
+      const pays = /invoice receipts|supplier invoices|settles bills|bills, pays|pays the consultant or the sub-vendor/.test(b)
       if (pays && !mayOpen(role.permissions, PAYABLE)) {
         refused.push(`${kind} “${role.name}”: ${role.blurb}`)
       }

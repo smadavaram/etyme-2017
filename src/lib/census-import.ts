@@ -45,7 +45,7 @@ import { fromDecimal } from '@/lib/money'
  */
 export const TEMPLATE_COLUMNS = [
   'supplier',
-  'role',
+  'job',
   'site',
   'start date',
   'end date',
@@ -94,7 +94,7 @@ function askedAs(column: string): string {
  * two ever differ.
  */
 export const TEMPLATE_CSV =
-  'supplier,role,site,start date,end date,bill rate,hours per week,reference number\n' +
+  'supplier,job,site,start date,end date,bill rate,hours per week,reference number\n' +
   'Veritan Talent,Validation Engineer,Tualatin OR,2024-03-04,2025-03-03,92.50,40,C-1041\n'
 
 // ── What comes out ───────────────────────────────────────────────────

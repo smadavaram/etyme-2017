@@ -331,7 +331,7 @@ export async function GET(request: NextRequest) {
     for (const b of disputed) {
       decisions.push({
         type: 'BILL_DISPUTED',
-        title: `Bill ${b.number} from ${b.vendorCompany.name} does not match`,
+        title: `Invoice receipt ${b.number} from ${b.vendorCompany.name} does not match`,
         subtitle: `$${(b.totalCents / 100).toFixed(2)} · held out of payment runs until somebody says why it should go in`,
         urgency: 'HIGH',
         entityType: 'VENDOR_BILL',

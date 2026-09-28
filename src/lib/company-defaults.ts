@@ -243,7 +243,7 @@ const CLIENT_ROLES: RoleSeed[] = [
   },
   {
     name: 'AP Clerk',
-    blurb: 'Matches and pays supplier invoices.',
+    blurb: 'Matches and pays invoice receipts.',
     // No rates.write. An invoice failing the price check is a contract
     // amendment somebody must approve, not a number this desk can change.
     permissions: uniq(['timesheets.read'], SEE_MONEY, ['payments.record', 'rates.read']),
@@ -286,7 +286,7 @@ const MSP_ROLES: RoleSeed[] = [
   },
   {
     name: 'AP Clerk',
-    blurb: 'Consolidates supplier invoices and pays them.',
+    blurb: 'Consolidates invoice receipts and pays them.',
     permissions: uniq(['timesheets.read'], RUN_MONEY_IN, ['rates.read']),
   },
   {

@@ -108,7 +108,7 @@ describe('the last money moves', () => {
     as(NIKE_AP)
     const r = await json(await decisions(req('GET', '/api/decisions')))
     const mine = r.body.data.decisions.find((d: any) => d.type === 'BILL_DISPUTED' && d.entityId === bill.id)
-    expect(mine?.title).toBe('Bill PIN-9001 from Pinnacle Resourcing does not match')
+    expect(mine?.title).toBe('Invoice receipt PIN-9001 from Pinnacle Resourcing does not match')
     expect(mine?.actionUrl).toBe('/dashboard/ap')
   })
 })
