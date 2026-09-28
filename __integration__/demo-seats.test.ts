@@ -758,7 +758,7 @@ describe('every client door says something true of the seeded world', () => {
       withoutI9,
       'the door says somebody starts without an I-9; everybody starting has one'
     ).not.toHaveLength(0)
-    expect(CLIENT_PROGRAMS[1].waiting).toContain('no I-9 on file')
+    expect(CLIENT_PROGRAMS[1].waiting).toContain('no US work form (I-9) on file')
   }, 60_000)
 
   it('has the contractor on a purchase order with no agreement behind it at all', async () => {
