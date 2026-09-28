@@ -497,3 +497,44 @@ export function readBench(payload: unknown): BenchReading {
     why: null,
   }
 }
+
+/**
+ * Where the bench's Submit takes the reader, for the people chosen.
+ *
+ * It opened the submit form and dropped who was chosen, so a recruiter
+ * ticked somebody on the bench and then had to find them again in a
+ * picker. The form takes one person (`/dashboard/submissions?new=1&person=`),
+ * so one person goes through by id.
+ *
+ * More than one is refused in a sentence rather than opened with the
+ * first and the rest silently lost: a recruiter who ticked three and
+ * submitted one would believe all three went. Nobody is sent forward
+ * who has not agreed to be marketed by this firm — said here, before
+ * the form, rather than as a refusal after it.
+ */
+export function submitLink(
+  chosen: { personId: string; name: string; consent?: string | null }[]
+): { ok: true; href: string } | { ok: false; says: string } {
+  if (chosen.length === 0) {
+    return { ok: false, says: 'Choose the person to put forward first.' }
+  }
+  if (chosen.length > 1) {
+    return {
+      ok: false,
+      says:
+        `You chose ${chosen.length} people. A submission is one person to one role, so put them forward ` +
+        'one at a time: choose one and press Submit.',
+    }
+  }
+  const [p] = chosen
+  if (p.consent && p.consent !== 'GRANTED') {
+    return {
+      ok: false,
+      says:
+        p.consent === 'DECLINED'
+          ? `${p.name} declined to be marketed by you, so they cannot be put forward.`
+          : `${p.name} has not answered your invitation yet. Nobody is put forward until they say yes.`,
+    }
+  }
+  return { ok: true, href: `/dashboard/submissions?new=1&person=${encodeURIComponent(p.personId)}` }
+}

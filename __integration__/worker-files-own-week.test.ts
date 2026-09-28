@@ -4,6 +4,7 @@ import { seedWorld } from '@/lib/seed-world'
 
 import { GET as myWork, POST as fileWeek } from '@/app/api/me/work/route'
 import { GET as timesheets } from '@/app/api/timesheets/route'
+import { POST as reject } from '@/app/api/timesheets/[id]/reject/route'
 
 /**
  * The worker files their own week, from their own page, on the seeded world.
@@ -108,6 +109,35 @@ describe('a worker files their own week', () => {
     const r = await json(await timesheets(req('GET', '/api/timesheets?status=SUBMITTED&limit=50')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.timesheets.map((t: any) => t.id)).toContain(it_.filed.id)
+  })
+
+  it('Northbend sends her week back with a reason, and her page offers it again with her hours and the reason', async () => {
+    as(NIKE_HIRING)
+    const r = await json(await reject(req('POST', `/api/timesheets/${it_.filed.id}/reject`, { reason: 'The second day was a site shutdown' }), { params: Promise.resolve({ id: it_.filed.id }) }))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    const d = await page(HELENA)
+    const back = d.filing[0].returned.find((w: any) => w.timesheetId === it_.filed.id)
+    expect(back, JSON.stringify(d.filing[0].returned)).toBeTruthy()
+    expect(back.reason).toContain('The second day was a site shutdown')
+    expect(back.hours).toEqual({ [it_.filed.week.days[0]]: 8, [it_.filed.week.days[1]]: 8 })
+    // Corrected here, never re-sent unchanged from the open list.
+    expect(d.filing[0].weeks.flatMap((w: any) => w.days)).not.toContain(it_.filed.week.days[0])
+  })
+
+  it('she corrects the week and sends it again, over the same week, and it is waiting once more', async () => {
+    as(HELENA)
+    const r = await json(await fileWeek(req('POST', '/api/me/work', {
+      contractId: it_.helena.contractId, periodStart: it_.filed.week.periodStart, hours: { [it_.filed.week.days[0]]: 8 },
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.message).toContain('again, corrected')
+    expect(r.body.data.timesheetId).toBe(it_.filed.id)
+    const t = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.filed.id } })
+    expect(t.status).toBe('SUBMITTED')
+    expect(Number(t.totalHours)).toBe(8)
+    const d = await page(HELENA)
+    expect(d.filing[0].returned).toEqual([])
   })
 
   it('she cannot put hours on the rung above her employer', async () => {

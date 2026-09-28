@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import type { Route } from 'next'
 import { range, compact } from '@/lib/money-display'
-import { readBench } from '@/lib/bench-filter'
+import { readBench, submitLink } from '@/lib/bench-filter'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind } from '@/components/session-provider'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -972,7 +973,18 @@ export default function BenchPage() {
               Share ({selected.size})
             </button>
             <button
-              onClick={() => router.push('/dashboard/submissions?new=1')}
+              onClick={() => {
+                // Who was chosen travels to the form (`submitLink`); more
+                // than one, or somebody who has not agreed, is said here.
+                const chosen = filtered.filter((r) => selected.has(r.id))
+                const go = submitLink(chosen)
+                if (go.ok) {
+                  router.push(go.href as Route)
+                } else {
+                  setToast({ message: go.says, type: 'error' })
+                  setTimeout(() => setToast(null), 6000)
+                }
+              }}
               className="chip chip--verified text-[10px] hover:opacity-80"
             >
               Submit ({selected.size})

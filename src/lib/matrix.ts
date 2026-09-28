@@ -216,6 +216,8 @@ export const MATRIX: L1[] = [
             'In a chain the hours go on the bottom rung, where the employer is (`rungsToFile`), never on a rung above it; the final week of a placement that ended in the last fortnight can still be filed; a day in the future, before the start, after the end or already filed is refused in a sentence naming the day, by the server (`checkWeek`, POST /api/me/work) and not only by the form',
             'A candidate offered a role reads on their own pipeline what their email says: they are placed when the client awards the position, and the firm that put them forward is in touch about start and terms \u2014 never \u201cThey made an offer\u201d, which read as an offer they could accept, and never a rate (`pipelineSays`, 2026-09-28)',
             'The worker knows the complete chain (decided 2026-09-28): Where you work shows one placement as one line naming every firm between them and the client, in order \u2014 \u201cNorthbend Athletic \u00b7 through Computer Systems Inc \u00b7 employed by CloudEPA\u201d \u2014 where it listed each rung as a placement of its own, so Helena read Northbend twice; \u201cpaid by\u201d for somebody paid through their own company, \u201cthrough\u201d where the record does not say; only their own pay, never a rung above theirs (`placementLines`)',
+            'A week sent back is corrected, not lost (2026-09-28): Your work counted a returned week\u2019s days as filed, so it was offered nowhere. It now appears under Sent back to you with the hours that were on it and the signer\u2019s reason, and Send again writes over the same week through the timesheets door, so the rejection still points at it (`returnedWeek`)',
+            'The bench\u2019s Submit carries who was chosen to the submit form (`submitLink`); more than one chosen, or somebody who has not agreed to be marketed, is said in a sentence rather than opened with the rest dropped',
             'STILL OWED: `BuyContractState` already carries BENCH_PAID, INTERNAL and TRAINING, the exact three states a roster wants, and nothing in the product has ever written one of them (nought rows in the seeded world). When something does, the roster reads them instead of inferring, and the inference becomes the fallback. Writing them is a contract-lifecycle change and belongs to etyme-money.',
           ],
           implementedBy: [
@@ -240,6 +242,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/worker-files-own-week.test.ts', '__integration__/worker-files-own-week.test.ts',
             '__tests__/invariants/pipeline-offered.test.ts',
             '__tests__/invariants/worker-knows-the-chain.test.ts',
+            '__tests__/invariants/sent-back-and-submit-link.test.ts',
           ] },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [

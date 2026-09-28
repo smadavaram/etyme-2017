@@ -599,11 +599,92 @@ interface OpenWeek {
   days: string[]
   label: string
 }
+interface ReturnedWeek extends OpenWeek {
+  timesheetId: string
+  /** The hours that were on it, to start the correction from. */
+  hours: Record<string, number>
+  /** Why it came back, in the signer's words. */
+  reason: string | null
+}
 interface Filing {
   contractId: string
   site: string
   payer: string
   weeks: OpenWeek[]
+  returned?: ReturnedWeek[]
+}
+
+/**
+ * A week that came back, corrected and sent again.
+ *
+ * A reject returns a week to OPEN with a reason, and this page counted its
+ * days as filed — so it was offered nowhere and could not be corrected.
+ * It is offered here with the hours that were on it and the reason it
+ * came back, and "Send again" writes over the same week through the same
+ * door (`POST /api/me/work`, then the timesheets door), so the rejection
+ * on the record still points at it.
+ */
+function SentBack({ contractId, week, onSent }: { contractId: string; week: ReturnedWeek; onSent: () => Promise<void> }) {
+  const [hours, setHours] = useState<Record<string, string>>(() =>
+    Object.fromEntries(Object.entries(week.hours).map(([d, h]) => [d, String(h)]))
+  )
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+  const total = Object.values(hours).reduce((n, h) => n + (Number(h) || 0), 0)
+
+  async function send() {
+    setBusy(true); setError(null); setFlash(null)
+    try {
+      const res = await fetch('/api/me/work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractId, periodStart: week.periodStart, hours }),
+      })
+      const j = await readJson(res)
+      setFlash(j.data?.message ?? 'Sent.')
+      await onSent()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="p-4 space-y-3">
+      <div>
+        <div className="text-etyme-ink">{week.label}</div>
+        <p className="text-xs text-etyme-attention mt-0.5">{week.reason ?? 'Sent back for correction.'}</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-4 md:grid-cols-7 gap-2">
+        {week.days.map((d) => (
+          <label key={d} className="text-xs text-etyme-muted">
+            <span className="block mb-1">{dayLabel(d)}</span>
+            <input
+              type="number" min="0" max="24" step="0.25" inputMode="decimal"
+              value={hours[d] ?? ''}
+              onChange={(e) => setHours({ ...hours, [d]: e.target.value })}
+              className="w-full px-2 py-1.5 text-sm border border-etyme-rule rounded tabular-nums text-etyme-ink"
+              placeholder="0"
+            />
+          </label>
+        ))}
+      </div>
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm text-etyme-muted tabular-nums">{total} hours</span>
+        <button
+          onClick={send}
+          disabled={busy || total <= 0}
+          className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-40"
+        >
+          Send again
+        </button>
+      </div>
+      {error && <p className="text-sm text-etyme-attention">{error}</p>}
+      {flash && <p className="text-sm text-etyme-verified">{flash}</p>}
+    </div>
+  )
 }
 
 function dayLabel(iso: string): string {
@@ -799,7 +880,12 @@ export default function MyWorkPage() {
   }
 
   const s = data.summary
-  const open = data.timesheets.filter((t: Timesheet) => t.status === 'OPEN')
+  const returned: { contractId: string; week: ReturnedWeek }[] = (data.filing ?? []).flatMap((f: Filing) =>
+    (f.returned ?? []).map((week) => ({ contractId: f.contractId, week }))
+  )
+  const returnedIds = new Set(returned.map((r) => r.week.timesheetId))
+  // A week sent back is corrected above, never re-sent unchanged from here.
+  const open = data.timesheets.filter((t: Timesheet) => t.status === 'OPEN' && !returnedIds.has(t.id))
 
   return (
     <div className="max-w-3xl">
@@ -837,6 +923,21 @@ export default function MyWorkPage() {
       <YourInterviews />
 
       <YourPapers />
+
+      {/* Weeks sent back to them, first: somebody is waiting on the correction. */}
+      {returned.length > 0 && (
+        <section className="mb-8">
+          <h2 className="font-serif text-lg text-etyme-ink mb-1">Sent back to you</h2>
+          <p className="text-xs text-etyme-muted mb-3">
+            Correct the hours and send the week again. It replaces the week that came back.
+          </p>
+          <div className="bg-etyme-surface border border-etyme-attention/30 rounded-lg divide-y divide-etyme-rule">
+            {returned.map(({ contractId, week }) => (
+              <SentBack key={week.timesheetId} contractId={contractId} week={week} onSent={() => load(true)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Their own week. The one thing on this page that only they may do. */}
       {(data.filing?.length ?? 0) > 0 && (

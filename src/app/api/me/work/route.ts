@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { ownPageFor } from '@/lib/portfolio-data'
-import { rungsToFile, openWeeks, checkWeek, placementLines, tieOf } from '@/lib/consultant-portfolio'
+import { rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 
@@ -109,9 +109,14 @@ export async function GET(request: NextRequest) {
   const filedOn = toFile.length
     ? await prisma.timesheet.findMany({
         where: { sellContractId: { in: toFile.map((c) => c.id) }, personId },
-        select: { sellContractId: true, periodStart: true, periodEnd: true },
+        select: { id: true, sellContractId: true, periodStart: true, periodEnd: true, status: true, days: true },
       })
     : []
+  // Why each open week came back, where it did. The reject step writes
+  // the reason on the automation log against the week's id; an OPEN week
+  // with no such row was saved and never sent, and is offered under
+  // "Hours to send" instead.
+  const reasons = await returnReasons(filedOn.filter((t) => t.status === 'OPEN').map((t) => t.id))
   const filing = toFile.map((r) => {
     const c = contracts.find((x) => x.id === r.id)!
     const filed = filedOn
@@ -128,6 +133,21 @@ export async function GET(request: NextRequest) {
       endDate: r.endDate,
       filed,
       weeks: openWeeks(r, filed, today),
+      // Weeks sent back, to correct and send again over the same row.
+      returned: filedOn
+        .filter((t) => t.sellContractId === r.id && t.status === 'OPEN' && reasons.has(t.id))
+        .map((t) => {
+          const mine = { periodStart: t.periodStart.toISOString().slice(0, 10), periodEnd: t.periodEnd.toISOString().slice(0, 10) }
+          const others = filed.filter((f) => f.periodStart !== mine.periodStart)
+          return returnedWeek(
+            { id: t.id, ...mine, days: (t.days ?? {}) as Record<string, number> },
+            r,
+            others,
+            today,
+            reasons.get(t.id) ?? null
+          )
+        })
+        .filter((w) => w !== null),
     }
   })
 
@@ -396,17 +416,30 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const filed = (
-    await prisma.timesheet.findMany({
-      where: { sellContractId: contractId, personId },
-      select: { periodStart: true, periodEnd: true },
-    })
-  ).map((t) => ({
+  const sheets = await prisma.timesheet.findMany({
+    where: { sellContractId: contractId, personId },
+    select: { id: true, status: true, days: true, periodStart: true, periodEnd: true },
+  })
+  const asDates = (t: { periodStart: Date; periodEnd: Date }) => ({
     periodStart: t.periodStart.toISOString().slice(0, 10),
     periodEnd: t.periodEnd.toISOString().slice(0, 10),
-  }))
+  })
 
-  const week = openWeeks(rung, filed, today).find((w) => w.periodStart === periodStart)
+  // A week sent back is filed again over its own row: judged against
+  // every other week, never against itself. The timesheets door decides
+  // whether that row may still be written (not billed, not decided on).
+  const again = sheets.find((t) => t.status === 'OPEN' && asDates(t).periodStart === periodStart)
+  const filed = sheets.filter((t) => t !== again).map(asDates)
+
+  const week = again
+    ? returnedWeek(
+        { id: again.id, ...asDates(again), days: (again.days ?? {}) as Record<string, number> },
+        rung,
+        filed,
+        today,
+        null
+      )
+    : openWeeks(rung, filed, today).find((w) => w.periodStart === periodStart)
   if (!week) {
     return NextResponse.json(
       {
@@ -479,7 +512,7 @@ export async function POST(request: NextRequest) {
         timesheetId,
         status: 'SUBMITTED',
         anomaly: createdBody.data.timesheet.anomalyReason ?? null,
-        message: `Sent ${check.totalHours} hours for ${week.label} for approval.`,
+        message: `Sent ${check.totalHours} hours for ${week.label} ${again ? 'again, corrected, ' : ''}for approval.`,
       },
     },
     { status: 201 }
@@ -488,4 +521,31 @@ export async function POST(request: NextRequest) {
 
 function toMs(iso: string): number {
   return Date.parse(iso + 'T00:00:00Z')
+}
+
+/**
+ * Why each of these weeks was sent back, newest reason per week.
+ *
+ * Read from what the reject step writes (`TIMESHEET_REJECTED`, with the
+ * week's id and the signer's reason in the payload). The worker's own
+ * week, so it is theirs to read; the name of the desk that returned it is
+ * in the log's reason and travels with it.
+ */
+async function returnReasons(ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  if (ids.length === 0) return out
+  const rows = await prisma.automationLog.findMany({
+    where: {
+      action: 'TIMESHEET_REJECTED',
+      OR: ids.map((id) => ({ payload: { path: ['timesheetId'], equals: id } })),
+    },
+    select: { payload: true, reason: true, at: true },
+    orderBy: { at: 'desc' },
+  })
+  for (const r of rows) {
+    const p = (r.payload ?? {}) as { timesheetId?: string; rejectionReason?: string }
+    if (!p.timesheetId || out.has(p.timesheetId)) continue
+    out.set(p.timesheetId, r.reason ?? (p.rejectionReason ? `Sent back: ${p.rejectionReason}` : 'Sent back.'))
+  }
+  return out
 }

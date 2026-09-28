@@ -1289,3 +1289,70 @@ export function tieOf(contractType: string | null | undefined): Tie {
   if (!contractType) return null
   return ['W2', 'C2H_W2', 'CDD', 'FIXED_TERM'].includes(contractType) ? 'EMPLOYED' : 'PAID'
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// A week sent back, corrected and sent again
+// ─────────────────────────────────────────────────────────────────────
+//
+// A reject returns a week to OPEN with a reason. Your work counted its
+// days as filed — they are, on that row — so the week was offered
+// nowhere and the worker could not correct it. The timesheets door now
+// files a week again over its own OPEN row (`timesheets/filing.ts`), so
+// the page offers the returned week itself, with the hours that were on
+// it and the reason it came back.
+
+/** A week on the record that came back for correction. */
+export interface ReturnedSheet {
+  id: string
+  periodStart: string
+  periodEnd: string
+  /** The hours that were on it, by day. */
+  days: Record<string, number>
+}
+
+export interface ReturnedWeek extends OpenWeek {
+  timesheetId: string
+  /** The hours that were on it, to start the correction from. */
+  hours: Record<string, number>
+  /** Why it came back, in the signer's words, or null where nothing says. */
+  reason: string | null
+}
+
+/**
+ * The returned week as a week to file again.
+ *
+ * Its own period, every day of it that the placement covers and that has
+ * happened, judged against every *other* week — its own row is the one
+ * being written, so its days are not "already filed" against itself.
+ * Null where no day of it can carry hours any more (the placement was
+ * shortened under it), which the page says rather than offering a form
+ * that would refuse every box.
+ */
+export function returnedWeek(
+  sheet: ReturnedSheet,
+  contract: { startDate: string; endDate: string | null },
+  others: FiledWeek[],
+  today: string,
+  reason: string | null
+): ReturnedWeek | null {
+  const days: string[] = []
+  for (let d = toDay(sheet.periodStart); d <= toDay(sheet.periodEnd); d += DAY_MS) {
+    const day = fromDay(d)
+    if (dayStanding(day, contract, others, today) === 'OPEN') days.push(day)
+  }
+  if (days.length === 0) return null
+  const hours: Record<string, number> = {}
+  for (const [day, h] of Object.entries(sheet.days ?? {})) {
+    const n = Number(h)
+    if (days.includes(day.slice(0, 10)) && Number.isFinite(n) && n > 0) hours[day.slice(0, 10)] = n
+  }
+  return {
+    timesheetId: sheet.id,
+    periodStart: sheet.periodStart,
+    periodEnd: sheet.periodEnd,
+    days,
+    label: label(sheet.periodStart, sheet.periodEnd),
+    hours,
+    reason,
+  }
+}
