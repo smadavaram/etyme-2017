@@ -1534,7 +1534,7 @@ describe('The claim about how much of this is a model is computed, not asserted'
   it('says what the one that is not a rule does, rather than leaving it to the imagination', () => {
     const notARule = unprompted.filter((a) => a.basis !== 'RULE')
     expect(notARule.length).toBe(1)
-    expect(notARule[0].says.toLowerCase()).toContain('scored people against an open role')
+    expect(notARule[0].says.toLowerCase()).toContain('scored people against an open job')
     expect(GOVERNANCE_PAGE).toContain('scores a person against a job')
     expect(GOVERNANCE_PAGE).toContain('falls back to arithmetic')
   })
