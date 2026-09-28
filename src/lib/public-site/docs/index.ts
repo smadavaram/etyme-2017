@@ -93,7 +93,7 @@ export const TIME_AND_MONEY: ReferenceDoc = {
   eyebrow: 'Documentation · Reference',
   title: 'Time and money',
   lede:
-    'From an hour a contractor worked to an invoice a supplier is paid. ' +
+    'From an hour a contractor worked to the bill a client pays and the invoice a supplier is paid on. ' +
     'One signed week is the receipt, and every firm in the chain bills from it.',
   screen: {
     img: '/screens/timesheets.png',
@@ -106,12 +106,12 @@ export const TIME_AND_MONEY: ReferenceDoc = {
       id: 'steps',
       title: 'Seven steps',
       items: [
-        { t: '1 · The week is filed', d: 'By the person, or by the supplier that employs them, against the contract. Never twice for one period, and submitting locks it.' },
-        { t: '2 · It is read before anyone signs', d: 'Over twelve hours a day, over sixty a week, over the role’s hours, or past the contract’s end is flagged and shown first. Flags warn; they never block.' },
+        { t: '1 · The week is filed', d: 'By the person who worked it and by nobody else, the supplier that employs them included, against the contract. Never twice for one period, and submitting locks it.' },
+        { t: '2 · It is read before anyone signs', d: 'Over twelve hours a day, over sixty a week, over the job’s hours, or past the contract’s end is flagged and shown first. Flags warn; they never block.' },
         { t: '3 · The client signs', d: 'The manager who owns the work approves it. The person who filed it cannot, and a rejection needs a reason.' },
-        { t: '4 · The employer accepts', d: 'The firm that pays the person says what it will pay for. That is a second signature, because it is a different statement.' },
+        { t: '4 · The employer accepts', d: 'The firm that pays the person says what it will pay for. That is a second signature, because it is a different statement. In a chain the signed week goes down it, and each firm accepts it in turn, never before the firm above it has.' },
         { t: '5 · The supplier invoices', d: 'Only from weeks the client already signed. The same week travels up the chain, and each firm bills it at its own rate.' },
-        { t: '6 · The invoice is matched', d: 'A signed week behind every line, the hours billed against the hours approved, the rate against the contract, and room left on the order.' },
+        { t: '6 · The supplier’s invoice is matched', d: 'A signed week behind every line, the hours billed against the hours approved, the rate against the contract, and room left on the order.' },
         { t: '7 · Money moves two ways', d: 'A supplier is paid against its matched invoice. An employee is paid by payroll, and sees what they are paid, never a rate above it.' },
       ],
     },
@@ -119,19 +119,19 @@ export const TIME_AND_MONEY: ReferenceDoc = {
       id: 'waivable',
       title: 'What can be waived, and what cannot',
       paragraphs: [
-        'A check that fails on an invoice is either waivable with a name and a reason, or not waivable at all. The screen says which.',
+        'A check that fails on a supplier’s invoice is either waivable with a name and a reason, or not waivable at all. The screen says which.',
       ],
       items: [
         { t: 'Never waived', d: 'A line with no signed week or approved expense behind it. A week billed twice. Arithmetic that does not add up. A rate that differs from the contract.' },
         { t: 'Waived with a name and a reason', d: 'Hours under query, a week approved after the cut-off, a part period, an order being raised after the fact, and an order being topped up.' },
-        { t: 'A different rate is a contract change', d: 'It is amended on the contract, from the day it changed, by somebody with the authority. It is never a note on one invoice.' },
+        { t: 'A different rate is a contract change', d: 'It is amended on the contract, from the day it changed, by somebody with the authority. It is never a note on one bill.' },
       ],
     },
     {
       id: 'words',
       title: 'Three words, used the way an ERP uses them',
       items: [
-        { t: 'Bill', d: 'What a firm sends its customer. “Invoice” is a correct synonym.' },
+        { t: 'Bill', d: 'What a firm sends its customer. An ERP calls it a customer invoice; Etyme says bill, because the firm is the one billing.' },
         { t: 'Invoice receipt', d: 'A supplier’s invoice, received and matched. The supplier issues it; the buyer receives it.' },
         { t: 'Payroll', d: 'How an employee is paid. Never billed and never invoiced.' },
       ],
@@ -187,7 +187,7 @@ export const DOCS_HOME = {
     'Every flow station by station, drawn from each party’s desk, including the stations not built yet. ' +
     'It is public, and none of it needs an account.',
   inside: [
-    { t: 'Requisition to start', d: 'A role raised, cleared by three desks in order, released only to the suppliers Procurement approved, and awarded. The award writes the contract.', href: '/docs/client#l1-1' },
+    { t: 'Job request to start', d: 'A job request raised, cleared by three desks in order, released only to the suppliers Procurement approved, and awarded. The award writes the contract.', href: '/docs/client#l1-1' },
     { t: 'Time and money', d: 'The signed week as the receipt, one row of hours through the chain, the three-way match, and payroll for employees.', href: '/docs/time-and-money' },
     { t: 'The autonomy ladder', d: 'Everything the system does on its own carries a level, from L0 observe to L5 autonomous within policy, and a row saying whether it can be undone.', href: '/security#done' },
   ],

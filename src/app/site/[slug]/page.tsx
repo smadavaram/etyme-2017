@@ -210,7 +210,7 @@ function ForSuppliers({ site }: { site: PublicSite }) {
 
             <div className="grid sm:grid-cols-2 gap-x-10 gap-y-8 mt-6">
               <Fact label="Time to decide" m={rep.decisionSpeed} basisUnit="decisions" />
-              <Fact label="Paying invoices" m={rep.payment} basisUnit="invoices" />
+              <Fact label="Paying bills" m={rep.payment} basisUnit="bills" />
               <Fact label="How long people stay" m={rep.tenure} />
               <div>
                 <Lbl>Suppliers working with them</Lbl>

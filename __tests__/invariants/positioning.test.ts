@@ -62,7 +62,7 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // section cannot fall off both pages at once.
 import { MODULES, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { ABOUT, COMPANY_PAGES, FOUR_ANSWERS, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
-import { copyOfDoc, copyOfDocsHome, docSlugs } from '@/lib/public-site/docs/index'
+import { copyOfDoc, copyOfDocsHome, docSlugs, TIME_AND_MONEY, PARTIES } from '@/lib/public-site/docs/index'
 import { NAV_MENUS as SITE_MENUS, PRODUCT_ITEMS, PRODUCT_STAGES, ROLES as SITE_ROLES } from '@/lib/public-site/nav'
 import { MODULE_ICON } from '@/lib/public-site/module-icons'
 import { ASK_COPY } from '@/lib/public-site/leads'
@@ -2395,11 +2395,14 @@ describe('The site says what it does and shows it, and claims nothing a reader c
 // banned on public pages; the page says job, not role or requisition; job
 // request where the object is meant; bill, never invoice, with the
 // three-way check defined where it is first named; time limit, not tenure
-// cap. The rule governs the public site and the demo hub, not the product
-// screens, whose words stay the trade's — so a product sentence quoted on
-// a public page, or a product screen named by its own title, keeps the
-// product's word and is set aside here rather than rewritten into a
-// sentence the screen does not say.
+// cap. Extended the same day to the product screens and so to the
+// documentation that describes them: on a screen and in the docs, bill is
+// what a firm sends its customer, and what a supplier sends stays its
+// invoice, received as an invoice receipt — the party who issues a
+// document names it. A product sentence quoted on a public page, or a
+// product screen named by its own title, keeps the screen's word and is
+// set aside here rather than rewritten into a sentence the screen does
+// not say.
 
 /** The canvas and the ink, read from the kit's variables rather than retyped. */
 const cssVar = (name: string): string => {
@@ -2431,6 +2434,31 @@ function inOurWords(text: string): string {
   t = t.replace(/\bBy role\b/g, ' ')
   // "A role for every seat" is an access role, on the security page.
   t = t.replace(/\bA role for every seat\b/g, ' ')
+  return t
+}
+
+/**
+ * A documentation page's words with what a supplier sends set aside, and
+ * the ERP's own words in the crosswalk. Everything left is the page's own
+ * voice, and holds to the same plain words as the rest of the site.
+ */
+function supplierSideSetAside(text: string): string {
+  let t = inOurWords(text)
+  for (const kept of [
+    // SAP's rule: the supplier issues its invoice; the firm paying it receives it.
+    /\binvoice[- ]receipts?\b/gi,
+    /\b(?:its|its own|its matched|the sub’s|a sub-vendor’s own|the sub-vendor’s own)\s+invoice\b/gi,
+    /\bsupplier(?:’s)?\s+invoices?\b/gi,
+    /\bthe invoice a supplier is paid on\b/gi,
+    /\bnever invoiced\b/gi,
+    // What an ERP calls each thing, in the crosswalk column that says so.
+    /\ba purchase requisition\b/gi,
+    /\ba customer invoice\b/gi,
+    /\binvoice verification\b/gi,
+    /\ba blocked invoice\b/gi,
+    // The one sentence mapping an accounting package's words onto ours.
+    /say Invoice for the customer document and Bill for the received one: their Invoice is our bill/g,
+  ]) t = t.replace(kept, ' ')
   return t
 }
 
@@ -2469,6 +2497,65 @@ describe('Plain words on public pages, defined once', () => {
     expect(PRODUCT_ITEMS.map((i) => i.href)).toEqual(expect.arrayContaining(['/requisitions', '/invoices']))
   })
 
+  it('the documentation says job, job request and bill, and keeps “invoice” only for what a supplier sends', () => {
+    // The founder extended the plain words to the product screens on
+    // 2026-09-28, so the documentation that describes them follows.
+    // What a supplier sends is its invoice and what the firm paying it
+    // does is an invoice receipt — SAP's rule, the party who issues a
+    // document names it — so those survive. So do the ERP's own words in
+    // the column that says what an ERP calls each thing, and the one
+    // sentence mapping an accounting package's words onto ours.
+    const docs = everyPublicPage().filter(([route]) => route.startsWith('/docs'))
+    expect(docs.length).toBe(docSlugs().length + 1)
+    for (const [route, text] of docs) {
+      const found = supplierSideSetAside(text).match(/\b(?:roles?|requisitions?|requirements?|invoic\w*)\b/gi) ?? []
+      expect(found, route).toEqual([])
+    }
+  })
+
+  it('the set-aside for a supplier’s invoice is narrow: a bill to a customer called an invoice is still caught', () => {
+    for (const kept of [
+      'Issues its invoice', 'Invoice receipt', 'the supplier’s invoice, received and matched',
+      'order ↔ receipt ↔ supplier invoice', 'payroll, or the sub’s invoice',
+      'A supplier is paid against its matched invoice.', '5 · The supplier invoices',
+    ]) {
+      expect(supplierSideSetAside(kept), kept).not.toMatch(/invoic/i)
+    }
+    for (const caught of [
+      'Approve to invoice', 'The firm invoices its customer.', 'Generate invoice', 'A check that fails on an invoice',
+      'One requisition becomes one award.', 'HR reads the role',
+    ]) {
+      expect(supplierSideSetAside(caught), caught).toMatch(/\b(?:roles?|requisitions?|invoic\w*)\b/i)
+    }
+  })
+
+  it('every party page names the fourth value stream “Approve to bill”, the firm being the one billing', () => {
+    for (const { doc } of PARTIES) {
+      expect(doc.thisParty.map((l) => l.label), doc.slug).toContain('L1.4 · Approve to bill')
+      expect(doc.html, doc.slug).not.toMatch(/Approve to invoice/)
+    }
+  })
+
+  it('the time-and-money page says only the person who worked the week files it, and the signed week goes down the chain', () => {
+    // Founder, 2026-09-28: the worker files their own week only; no
+    // supplier files on their behalf (lib/timesheet-authority, mayEnter).
+    const filed = TIME_AND_MONEY.blocks[0].items![0]
+    expect(filed.t).toBe('1 · The week is filed')
+    expect(filed.d).toContain('By the person who worked it and by nobody else')
+    expect(JSON.stringify(PARTIES.map((p) => p.doc.html))).not.toMatch(/may enter on their behalf/)
+    const words = TIME_AND_MONEY.blocks.find((b) => b.id === 'words')!.items!
+    expect(words.map((w) => w.t)).toEqual(['Bill', 'Invoice receipt', 'Payroll'])
+    expect(words[0].d).toContain('What a firm sends its customer.')
+  })
+
+  it('the legend under every drawing ends on a whole sentence, never cut mid-word', () => {
+    for (const { doc } of PARTIES) {
+      const legend = doc.html.match(/Labeled arrow[^<]*/)?.[0] ?? ''
+      expect(legend, doc.slug).toContain('job request, submission, order, timesheet receipt, bill, supplier invoice.')
+      expect(legend.trim(), doc.slug).toMatch(/[.]$/)
+    }
+  })
+
   it('the spend audit asks for the supplier bills a client holds, never its invoices', () => {
     for (const said of [GET_THE_AUDIT.d, JSON.stringify(CENSUS_COPY)]) {
       expect(said).not.toMatch(/\binvoic/i)
@@ -2485,9 +2572,8 @@ describe('Plain words on public pages, defined once', () => {
     expect(page.hero[0]).toBe('Bills & the three-way check')
     expect(page.hero[1]).toContain(THREE_WAY_CHECK)
     // And it is said once: every other mention uses the term plainly.
-    // The documentation is set aside: it documents the product's screens
-    // in the product's words, and it was held back from the plain-words
-    // pass for the founder to decide (see the matrix row L3.1.4.1).
+    // The documentation is set aside: it documents the product's screens,
+    // and the screens call the check the three-way match.
     const everywhere = everyPublicPage().filter(([r]) => !r.startsWith('/docs')).map(([, t]) => t).join(' ')
     const definitions = everywhere.split('the hours, the bill, and the contract rate must all agree').length - 1
     expect(definitions, 'the menu line, drawn on every page, and the bills page').toBeLessThanOrEqual(3)
