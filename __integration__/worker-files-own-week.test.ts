@@ -150,6 +150,36 @@ describe('a worker files their own week', () => {
     expect(r.body.data.message).toContain('Sent 24 hours')
   })
 
+  it('Helena reads her placement once, naming every firm between her and Northbend, in order', async () => {
+    const d = await page(HELENA)
+    const at = d.placements.filter((p: any) => p.site === 'Northbend Athletic')
+    expect(at).toHaveLength(1)
+    expect(at[0].chain).toBe('Northbend Athletic · through Computer Systems Inc · employed by CloudEPA')
+  })
+
+  it('the pay on her placement is her own, never a price between two firms', async () => {
+    const d = await page(HELENA)
+    const p = d.placements.find((x: any) => x.site === 'Northbend Athletic')
+    const own = await prisma.buyContractCandidate.findFirst({
+      where: { personId: d.person.id, state: 'ACTIVE', buyContract: { supplierSellContractId: null } },
+      select: { payRate: true },
+    })
+    expect(p.payRate).toBe(own?.payRate ?? null)
+    const bills = await prisma.sellContract.findMany({ where: { personId: d.person.id }, select: { billRate: true } })
+    for (const b of bills) expect(p.payRate).not.toBe(b.billRate)
+  })
+
+  it('every worker in a chain reads one line per placement, however many rungs it has', async () => {
+    for (const email of [HELENA, CHIDI, COLLEEN]) {
+      const d = await page(email)
+      const sites = d.placements.map((p: any) => p.id)
+      expect(new Set(sites).size).toBe(sites.length)
+      const rungs = await prisma.sellContract.count({ where: { personId: d.person.id } })
+      expect(d.placements.length).toBeLessThanOrEqual(rungs)
+      for (const p of d.placements) expect(p.chain.startsWith(p.site)).toBe(true)
+    }
+  })
+
   it('somebody with no placement is offered nothing to file', async () => {
     const d = await page(MARISOL)
     expect(d.filing).toEqual([])

@@ -1183,3 +1183,109 @@ export function pipelineSays(
       return status
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Where you work: one placement, the whole chain, in order
+// ─────────────────────────────────────────────────────────────────────
+//
+// Founder, 2026-09-28: "Worker knows the complete chain." Their page
+// listed every rung as a placement of its own, so Helena read Northbend
+// Athletic twice — once as CloudEPA's contract, once as Computer
+// Systems'. One placement is one line naming every firm between her and
+// the client, in order. The NDA keeping a sub-vendor's name from the
+// client is about the client; the worker is employed through that firm
+// and already knows it. Rates of rungs she is not party to stay closed.
+
+export interface ChainRung extends WorkRung {
+  /** The firm selling on this rung. */
+  companyName: string
+  /** The firm buying on this rung. */
+  clientName: string
+  /** Where the work happens, where the rung names it. */
+  endClientName: string | null
+}
+
+/** How the firm at the bottom stands to the worker. */
+export type Tie = 'EMPLOYED' | 'PAID' | null
+
+export interface PlacementLine<T extends ChainRung = ChainRung> {
+  /** The worker's own rung: the bottom of the chain. */
+  own: T
+  /** Every rung, bottom first. */
+  rungs: T[]
+  /** Where the work happens. */
+  site: string
+  /** The firms between the site and the bottom, nearest the client first. */
+  through: string[]
+  /** The firm at the bottom, which pays the worker. */
+  employer: string
+  /** "Northbend Athletic · through Computer Systems · employed by CloudEPA" */
+  says: string
+}
+
+function overlapDays(a: WorkRung, b: WorkRung): boolean {
+  const aEnd = a.endDate ? toDay(a.endDate) : Number.POSITIVE_INFINITY
+  const bEnd = b.endDate ? toDay(b.endDate) : Number.POSITIVE_INFINITY
+  return toDay(a.startDate) <= bEnd && toDay(b.startDate) <= aEnd
+}
+
+/**
+ * The worker's placements, one per chain, each naming the whole chain.
+ *
+ * Walked up from each bottom rung: the buyer of one rung is the seller of
+ * the next, over the same days. Where two rungs above claim the same days
+ * the walk stops there rather than guessing, and anything not reached is
+ * its own line — a rung is never dropped, because a placement missing
+ * from a person's own page is worse than one shown twice.
+ *
+ * `tie` says how the bottom firm stands to them, read from the buy line
+ * that pays them: employed (W2 and the fixed-term kinds), paid (their own
+ * corporation or 1099), or null where no buy line says, which reads
+ * "through" rather than guessing a relationship.
+ */
+export function placementLines<T extends ChainRung>(rungs: T[], tie: (companyId: string) => Tie): PlacementLine<T>[] {
+  const reached = new Set<string>()
+  const lines: PlacementLine<T>[] = []
+
+  const bottoms = rungs.filter(
+    (c) => !rungs.some((o) => o.id !== c.id && o.personId === c.personId && o.clientCompanyId === c.companyId)
+  )
+
+  const build = (start: T): PlacementLine<T> => {
+    const chain: T[] = [start]
+    reached.add(start.id)
+    let current = start
+    for (;;) {
+      const above = rungs.filter(
+        (o) => !reached.has(o.id) && o.personId === current.personId && o.companyId === current.clientCompanyId && overlapDays(o, start)
+      )
+      if (above.length !== 1) break
+      current = above[0]
+      chain.push(current)
+      reached.add(current.id)
+    }
+    const top = chain[chain.length - 1]
+    const site = top.endClientName ?? top.clientName
+    const sellersAbove = chain.slice(1).map((r) => r.companyName).reverse()
+    // The top rung's buyer is somebody other than the site — a program
+    // office or a shared service center paying for it — and is a firm
+    // between them too.
+    const through = [...(top.clientName !== site ? [top.clientName] : []), ...sellersAbove]
+    const employer = start.companyName
+    const t = tie(start.companyId)
+    const bottomWord = t === 'EMPLOYED' ? 'employed by' : t === 'PAID' ? 'paid by' : 'through'
+    const says = [site, ...through.map((n) => `through ${n}`), `${bottomWord} ${employer}`].join(' · ')
+    return { own: start, rungs: chain, site, through, employer, says }
+  }
+
+  for (const b of bottoms) lines.push(build(b))
+  // A rung no walk reached — two chains above one rung, say — still shows.
+  for (const r of rungs) if (!reached.has(r.id)) lines.push(build(r))
+  return lines
+}
+
+/** Which buy-line contract types make the paying firm an employer. */
+export function tieOf(contractType: string | null | undefined): Tie {
+  if (!contractType) return null
+  return ['W2', 'C2H_W2', 'CDD', 'FIXED_TERM'].includes(contractType) ? 'EMPLOYED' : 'PAID'
+}

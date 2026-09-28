@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { ownPageFor } from '@/lib/portfolio-data'
-import { rungsToFile, openWeeks, checkWeek } from '@/lib/consultant-portfolio'
+import { rungsToFile, openWeeks, checkWeek, placementLines, tieOf } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 
@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     where: { personId },
     include: {
       company: { select: { id: true, name: true } },        // who pays them
+      clientCompany: { select: { id: true, name: true } },  // who buys this rung
       endClientCompany: { select: { id: true, name: true } }, // where they work
       workLocation: { select: { name: true, city: true } },
     },
@@ -83,7 +84,6 @@ export async function GET(request: NextRequest) {
     take: 10,
   })
 
-  const live = contracts.filter(c => c.state === 'IN_PROGRESS' || c.state === 'VERIFIED')
 
   // What they can file, and against which contract.
   //
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
     where: { personId: caller.person.id, state: 'ACTIVE' },
     select: {
       payRate: true, payCurrency: true, startDate: true,
-      buyContract: { select: { companyId: true, supplierSellContractId: true } },
+      buyContract: { select: { companyId: true, supplierSellContractId: true, contractType: true } },
     },
   })
 
@@ -169,39 +169,65 @@ export async function GET(request: NextRequest) {
       .map(l => [l.buyContract.companyId, l])
   )
 
+  // One placement per chain, naming every firm in it (`placementLines`).
+  // The worker knows the complete chain — decided 2026-09-28 — and the
+  // rungs above theirs were listed as placements of their own, so Helena
+  // read Northbend Athletic twice. Her pay is read off her own rung only.
+  const lines = placementLines(
+    contracts.map((c) => ({
+      id: c.id,
+      personId: c.personId,
+      companyId: c.companyId,
+      clientCompanyId: c.clientCompanyId,
+      state: c.state,
+      startDate: c.startDate.toISOString().slice(0, 10),
+      endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
+      companyName: c.company.name,
+      clientName: c.clientCompany?.name ?? c.company.name,
+      endClientName: c.endClientCompany?.name ?? null,
+    })),
+    (companyId) => tieOf(payByCompany.get(companyId)?.buyContract.contractType)
+  )
+  const byId = new Map(contracts.map((c) => [c.id, c]))
+  const livePlacements = lines.filter((l) => l.own.state === 'IN_PROGRESS' || l.own.state === 'VERIFIED')
+
   return NextResponse.json({
     data: {
       person: { id: caller.person.id, name: caller.person.name },
       standing: { ok: standing.ok, because: standing.because, says: standing.says },
-      placements: contracts.map(c => ({
-        id: c.id,
-        payer: c.company.name,
-        // Where they actually go. Often not who pays them, and the
-        // difference matters to the person standing in the building.
-        site: c.endClientCompany?.name ?? c.company.name,
-        location: c.workLocation ? (c.workLocation.city ?? c.workLocation.name) : null,
-        // Their pay, or nothing. A blank with a reason beats the wrong
-        // number: somebody planning around a rate that is not theirs is
-        // worse off than somebody who knows it is not recorded here.
-        payRate: payByCompany.get(c.companyId)?.payRate ?? null,
-        payCurrency: payByCompany.get(c.companyId)?.payCurrency ?? null,
-        rateNote: payByCompany.has(c.companyId)
-          ? null
-          : paysAnybody.has(c.companyId)
-            // Two different blanks, and saying which one it is matters:
-            // one is a gap in the record, the other is a rate that was
-            // never theirs to read.
-            ? 'This firm buys you from another supplier, so what it pays is a ' +
-              'price between two firms and not your rate. Yours is on the agreement ' +
-              'with whoever employs you.'
-            : 'Your rate is not recorded on Etyme for this placement. Your agency has it.',
-        state: c.state,
-        startDate: c.startDate.toISOString().slice(0, 10),
-        endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
-        daysLeft: c.endDate
-          ? Math.ceil((c.endDate.getTime() - now.getTime()) / 86_400_000)
-          : null,
-      })),
+      placements: lines.map((l) => {
+        const c = byId.get(l.own.id)!
+        return {
+          id: c.id,
+          // The whole chain, in order, from the site down to whoever pays
+          // them: "Northbend Athletic · through Computer Systems ·
+          // employed by CloudEPA".
+          chain: l.says,
+          through: l.through,
+          payer: l.employer,
+          site: l.site,
+          location: c.workLocation ? (c.workLocation.city ?? c.workLocation.name) : null,
+          // Their pay, from their own rung, or nothing. No rung above
+          // theirs is priced here: those are prices between two firms.
+          payRate: payByCompany.get(c.companyId)?.payRate ?? null,
+          payCurrency: payByCompany.get(c.companyId)?.payCurrency ?? null,
+          rateNote: payByCompany.has(c.companyId)
+            ? null
+            : paysAnybody.has(c.companyId)
+              // A line the walk could not reach the bottom of: this firm
+              // buys them from somebody else, so its figure is not theirs.
+              ? 'This firm buys you from another supplier, so what it pays is a ' +
+                'price between two firms and not your rate. Yours is on the agreement ' +
+                'with whoever employs you.'
+              : 'Your rate is not recorded on Etyme for this placement. ' + l.employer + ' has it.',
+          state: c.state,
+          startDate: c.startDate.toISOString().slice(0, 10),
+          endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
+          daysLeft: c.endDate
+            ? Math.ceil((c.endDate.getTime() - now.getTime()) / 86_400_000)
+            : null,
+        }
+      }),
       // One entry per contract they file on, with the weeks still open.
       // Empty where they have nothing to file, which the page says in a
       // sentence rather than showing an empty form.
@@ -229,7 +255,8 @@ export async function GET(request: NextRequest) {
         withdrawn: s.revokedAt !== null,
       })),
       summary: {
-        livePlacements: live.length,
+        // Placements, not rungs: a chain of three is one place to be.
+        livePlacements: livePlacements.length,
         // Their own hours, not billing. Somebody working two contracts
         // wants one number.
         hoursThisMonth: timesheets
@@ -238,7 +265,7 @@ export async function GET(request: NextRequest) {
         awaitingApproval: timesheets.filter(t => t.status === 'SUBMITTED').length,
         // The one that matters: approved work nobody has invoiced.
         approvedNotBilled: timesheets.filter(t => t.status === 'APPROVED' && t.invoiceLines.length === 0).length,
-        endingSoon: live.filter(c => c.endDate && (c.endDate.getTime() - now.getTime()) / 86_400_000 <= 60).length,
+        endingSoon: livePlacements.filter((l) => l.own.endDate && (toMs(l.own.endDate) - now.getTime()) / 86_400_000 <= 60).length,
       },
 
       // Deadlines, soonest first, and only the ones still open.
@@ -457,4 +484,8 @@ export async function POST(request: NextRequest) {
     },
     { status: 201 }
   )
+}
+
+function toMs(iso: string): number {
+  return Date.parse(iso + 'T00:00:00Z')
 }

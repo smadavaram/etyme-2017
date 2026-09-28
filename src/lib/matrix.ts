@@ -215,6 +215,7 @@ export const MATRIX: L1[] = [
             'FIXED 2026-09-28, break #5 of the founder\u2019s lifecycle walk (station 6, \u201cthe worker files their own week\u201d): a consultant\u2019s own page listed weeks and offered to send an open one, and nothing let anybody write one, so the worker\u2019s view was read-only. The timesheets door already admitted the person; the page never asked it. Your work now offers File your hours: the weeks still open, Monday to Sunday, trimmed to days that have happened, that the placement covers and that no filed sheet claims, and Send for approval writes the week through the timesheets door and sends it',
             'In a chain the hours go on the bottom rung, where the employer is (`rungsToFile`), never on a rung above it; the final week of a placement that ended in the last fortnight can still be filed; a day in the future, before the start, after the end or already filed is refused in a sentence naming the day, by the server (`checkWeek`, POST /api/me/work) and not only by the form',
             'A candidate offered a role reads on their own pipeline what their email says: they are placed when the client awards the position, and the firm that put them forward is in touch about start and terms \u2014 never \u201cThey made an offer\u201d, which read as an offer they could accept, and never a rate (`pipelineSays`, 2026-09-28)',
+            'The worker knows the complete chain (decided 2026-09-28): Where you work shows one placement as one line naming every firm between them and the client, in order \u2014 \u201cNorthbend Athletic \u00b7 through Computer Systems Inc \u00b7 employed by CloudEPA\u201d \u2014 where it listed each rung as a placement of its own, so Helena read Northbend twice; \u201cpaid by\u201d for somebody paid through their own company, \u201cthrough\u201d where the record does not say; only their own pay, never a rung above theirs (`placementLines`)',
             'STILL OWED: `BuyContractState` already carries BENCH_PAID, INTERNAL and TRAINING, the exact three states a roster wants, and nothing in the product has ever written one of them (nought rows in the seeded world). When something does, the roster reads them instead of inferring, and the inference becomes the fallback. Writing them is a contract-lifecycle change and belongs to etyme-money.',
           ],
           implementedBy: [
@@ -238,6 +239,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/bench-reach.test.ts', '__integration__/bench-reach.test.ts',
             '__tests__/invariants/worker-files-own-week.test.ts', '__integration__/worker-files-own-week.test.ts',
             '__tests__/invariants/pipeline-offered.test.ts',
+            '__tests__/invariants/worker-knows-the-chain.test.ts',
           ] },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [

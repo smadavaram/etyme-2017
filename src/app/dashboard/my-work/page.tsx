@@ -21,6 +21,9 @@ import { YourPapers } from './papers'
 
 interface Placement {
   id: string
+  /** "Northbend Athletic · through Computer Systems · employed by CloudEPA" */
+  chain: string
+  through: string[]
   payer: string
   site: string
   location: string | null
@@ -871,12 +874,14 @@ export default function MyWorkPage() {
           {data.placements.map((p: Placement) => (
             <div key={p.id} className="p-4 flex items-center gap-4">
               <div className="flex-1 min-w-0">
-                <div className="text-etyme-ink">{p.site}</div>
+                {/* One placement, the whole chain in order — the site,
+                    every firm between, and whoever pays them. The worker
+                    knows the complete chain (decided 2026-09-28); the
+                    page listed each rung as a placement of its own. */}
+                <div className="text-etyme-ink">{p.chain}</div>
                 <div className="text-xs text-etyme-muted">
                   {p.location && `${p.location} · `}
-                  {/* Who pays is shown separately, because it is usually
-                      not the company whose building they walk into. */}
-                  paid by {p.payer} · from {p.startDate}
+                  from {p.startDate}
                 </div>
               </div>
               <div className="shrink-0 text-right">
