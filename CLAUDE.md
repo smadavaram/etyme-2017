@@ -1198,6 +1198,18 @@ Three rules follow:
   is employed through it and already knows. Rates of rungs the worker
   is not party to stay closed.
 
+- **The signed week travels down the chain, and each rung accepts it
+  in turn.** Asked whether the client's signature is enough for every
+  supplier below to pay, the founder, the same day: *"Supplier still
+  accepts it on its own, or gets forwarded the worker's approved
+  timesheet to approve, and the flow continues."* So the client signs
+  first; the signed week is then forwarded to the next rung down, which
+  accepts what it pays; then to the rung below that, and so on to the
+  worker's employer. No rung pays on a week it has not accepted, no rung
+  accepts before the rung above it signed, and every rung accepts the
+  same week — never a re-keyed copy. Each rung is told when the week
+  reaches it.
+
 And: **a consultant a firm adds is marketed by default**; the firm may
 choose to retain them, and nothing reaches past the firm until the
 consultant grants it.
