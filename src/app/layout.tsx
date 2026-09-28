@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   // link preview would read "Etyme" over a page about invoices. Previews
   // fall back to this description, which is the part that was wrong.
   description:
-    'Contingent workforce management for companies with 20 to 200 contractors. The vendor management system, sized for fifty contractors rather than five thousand.',
+    'Enterprise contingent workforce management. One vendor management system for every contractor and every supplier, from requisition to paid invoice.',
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
 }
 

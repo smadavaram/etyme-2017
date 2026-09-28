@@ -7,6 +7,8 @@ import {
   priceClaims,
   promisesAnAccount,
   sizesAgainstIncumbents,
+  sizesTheBuyer,
+  unverifiableClaims,
   readsAsAimedAtSuppliers,
 } from '@/lib/positioning'
 import { GET_THE_AUDIT, ASK_A_PERSON } from '@/lib/public-site/funnel'
@@ -29,8 +31,7 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 /** The founder's category sentence, decided 2026-09-27 (CLAUDE.md). */
 const CATEGORY_SENTENCE =
-  'Contingent workforce management for companies with 20 to 200 contractors. ' +
-  'The vendor management system, sized for fifty contractors rather than five thousand.'
+  'Enterprise contingent workforce management. One vendor management system for every contractor and every supplier, from requisition to paid invoice.'
 
 /** The one literal `description:` in a metadata object, joined if concatenated. */
 function descriptionIn(source: string): string {
@@ -70,6 +71,9 @@ describe('what the site says it is, outside the home page', () => {
     expect(namedCompanies(description)).toEqual([])
     expect(priceClaims(description)).toEqual([])
     expect(sizesAgainstIncumbents(description)).toEqual([])
+    // 2026-09-28: no size of buyer, and nothing a technical reader cannot check.
+    expect(sizesTheBuyer(description)).toEqual([])
+    expect(unverifiableClaims(description)).toEqual([])
     expect(readsAsAimedAtSuppliers(description)).toEqual([])
   })
 
