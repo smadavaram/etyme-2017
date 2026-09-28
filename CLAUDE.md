@@ -146,6 +146,19 @@ follow:
   uncrowded is the size — companies with 20 to 200 contractors, too small
   for the enterprise vendors and too big for a spreadsheet. The niche is
   the size, not the word.
+- **Enterprise contingent workforce management, for every size. Decided
+  by the founder, 2026-09-28, superseding the size line above.** The
+  category is declared as **"Enterprise contingent workforce
+  management"**, and the page no longer limits the buyer to 20–200
+  contractors: *"Don't limit to 50–500 consultants — keep the business
+  open for all."* So no public page states a contractor range or "sized
+  for fifty rather than five thousand". What this gives up, said once so
+  it is a choice and not an accident: the size line was the one claim
+  that set Etyme apart from the enterprise vendors, who now share the
+  category word. The difference has to be carried by what the page shows
+  — every supplier on one record, the program office option, set up in
+  days — rather than by a number. "Vendor management system" may still
+  appear as the word procurement searches for.
 - **Concrete nouns only above the fold**: contractors, suppliers,
   timesheets, invoices, rates, months on site. "Record" is allowed once
   the reader has seen the list it refers to.
