@@ -350,7 +350,7 @@ Tenure will be aggregated across suppliers, which requires resolving that a pers
 
 **Rationale: this is the only control a single-vendor system structurally cannot offer.**
 
-Without it, tenure tracking is equivalent to the incumbents and is a checkbox. With it, Etyme reports an exposure that Fieldglass, Beeline and VNDLY cannot see, because they sit inside one supplier relationship at a time. This is the difference between governance as a feature and governance as the reason a client moves.
+Without it, tenure tracking is equivalent to the incumbents and is a checkbox. With it, Etyme reports an exposure that the enterprise VMS platforms cannot see, because they sit inside one supplier relationship at a time. This is the difference between governance as a feature and governance as the reason a client moves.
 
 Implementation constraints:
 

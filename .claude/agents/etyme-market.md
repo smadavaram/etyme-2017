@@ -20,9 +20,8 @@ That is now `src/lib/positioning.ts` and it runs against the real copy
 in `src/app/page.tsx`. Four rules, each catching a failure that has
 happened or would end the business:
 
-- **Category first.** The way Concur says travel and expense before it
-  says anything clever. A visitor knows what kind of thing this is
-  before they know what is good about it.
+- **Category first,** before anything clever. A visitor knows what
+  kind of thing this is before they know what is good about it.
 - **Never one module describing itself.** Naming one station makes the
   whole product read as that station.
 - **Never lead with AI.** It is in there, it does real work, and it is

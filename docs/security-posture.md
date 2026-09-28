@@ -402,8 +402,8 @@ place where a convenient boolean would have been easier.
 
 ## 7. What the software does without being asked
 
-Named with SAP's autonomy ladder, because that is the vocabulary every
-enterprise buyer is currently being taught, and recorded per action in
+Named on the common autonomy ladder, because that is the vocabulary every
+enterprise buyer is currently asking in, and recorded per action in
 `src/lib/autonomy.ts`.
 
 Recomputed from the module on 2026-09-21:

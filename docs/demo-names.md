@@ -13,7 +13,7 @@ per firm; sector kept so the stories still read, initial letter kept.
 | Corning | Client | Specialty glass | **Cavanaugh Glassworks** | Keeps C and the surname-founder pattern of American glassmakers. No glass firm carries it. |
 | Terumo BCT | Client | Medical devices | **Talvern Medical** | Keeps T and the invented-Latin register of device makers. Not a word or a mark. Holds the Denver-area example in `distribution.ts`. |
 | Adobe Systems | Client (spine) | Software | **Auralis Software** | Keeps A and the Latin-root software register; the sector word does the work. |
-| Magnit | MSP (spine) | Workforce MSP | **Maren MSP** | Keeps M and the one abstract word MSPs brand with; sits beside the seed's Kestrel MSP. A given name, not a firm. |
+| *a real workforce MSP, name retired* | MSP (spine) | Workforce MSP | **Maren MSP** | Keeps M and the one abstract word MSPs brand with; sits beside the seed's Kestrel MSP. A given name, not a firm. |
 | Vertex Talent | Recommended supplier | Staffing | **Veritan Talent** | Keeps V and fixes a collision the seed has: Vertex Global is a different firm in the same world. |
 | Columbia Sportswear | Reference contact | Outdoor apparel | **Ridgeline Outfitters** | Familiar in outdoor apparel; not a mark |
 | Adidas | Reference contact | Athletic apparel | **Ascent Athletic** | Keeps A, keeps the sector. |

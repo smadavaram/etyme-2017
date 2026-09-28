@@ -6,13 +6,13 @@ The Rolloff Event · VMS Integration · Global Delivery & Internal Mobility
 
 C1. THE MARKET FINDING
 
-**Verified from direct field experience: even top-tier global SIs (Infosys-class, 300,000+ consultants) run contract rolloff on Excel sheets. No tool in their stack talks to the client VMS (Beeline) when a contract ends. No system simultaneously informs the candidate, the candidate\'s sub-vendor, and the client. No system flips the consultant to \"available\" so another internal PM can hire them.**
+**Verified from direct field experience: even top-tier global SIs (Infosys-class, 300,000+ consultants) run contract rolloff on Excel sheets. No tool in their stack talks to the client VMS when a contract ends. No system simultaneously informs the candidate, the candidate\'s sub-vendor, and the client. No system flips the consultant to \"available\" so another internal PM can hire them.**
 
 Prior assumption in this BRD process --- that large SIs have mature internal tooling for internal mobility --- was wrong. The gap exists at every scale, from 50-consultant vendors to the largest SIs in the world. The difference is only the size of the Excel sheet.
 
 C1.1 Why Nobody Has Built This
 
-> • The rolloff event originates in the client VMS (Beeline, Fieldglass) --- building around it requires VMS integration, which staffing tools avoid
+> • The rolloff event originates in the client VMS --- building around it requires VMS integration, which staffing tools avoid
 >
 > • The buyer inside an SI is ambiguous: RMG? Delivery? IT? Procurement? --- ambiguity kills enterprise sales, so vendors built for clearer buyers (ATS for recruiting, VMS for procurement)
 >
@@ -31,7 +31,7 @@ C2.1 The Layer Cake (All Parties Already in the Data Model)
 
   End Client          AMAT / Apple                  Company (hiring_manager) or external via VMS
 
-  Client VMS          Beeline / Fieldglass          NEW: VmsConnection integration layer
+  Client VMS          the client's own VMS          NEW: VmsConnection integration layer
 
   Prime SI / Vendor   Inosys                        Company (vendor) --- the Etyme customer
 
@@ -45,7 +45,7 @@ C2.2 The Rolloff Workflow (Reference Case: AMAT San Jose → Apple Austin)
   ------------------------- -------------------------------------------------------------------------------------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   **Step**                  **Trigger / Actor**                                                                          **System Action**
 
-  1\. End Signal            Assignment end_date approaching (T-4 weeks) --- from Etyme Assignment OR Beeline API event   Consultant enters \"Releasing Soon\" supply pool with availability date
+  1\. End Signal            Assignment end_date approaching (T-4 weeks) --- from Etyme Assignment OR client VMS event    Consultant enters \"Releasing Soon\" supply pool with availability date
 
   2\. Forecast Match        System                                                                                       Matching fires against ALL open internal demand (other PMs\' engagements) BEFORE bench
 
@@ -70,13 +70,13 @@ C2.3 What Makes This Sellable Immediately
 >
 > • Measurable: utilization % and bench cost are THE metrics SI leadership tracks; the rolloff loop moves both directly
 >
-> • Cheap to adopt: does not replace Beeline, does not replace the HRIS, does not require migration --- it listens and orchestrates
+> • Cheap to adopt: does not replace the client VMS, does not replace the HRIS, does not require migration --- it listens and orchestrates
 >
 > • Clear buyer identified: RMG / Resource Management leadership + Delivery Ops, whose entire job is this workflow and who currently do it in Excel
 
 C3. VMS INTEGRATION LAYER (NET NEW)
 
-Extends the Ariba Option B strategy: Etyme never replaces the client\'s system of record --- it connects to it and orchestrates the workflow the VMS ignores.
+Extends the Option B strategy (connect through the vendor's own supplier-network account): Etyme never replaces the client\'s system of record --- it connects to it and orchestrates the workflow the VMS ignores.
 
   ---------------------------- --------------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   **Integration**              **Direction**   **Events / Data**
@@ -90,7 +90,7 @@ Extends the Ariba Option B strategy: Etyme never replaces the client\'s system o
   Fallback: Email/CSV parser   Inbound         AI-parsed rolloff notices and assignment reports for clients with no API access --- critical because VMS API access requires client cooperation; the fallback makes adoption unilateral
   ---------------------------- --------------- -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-**The fallback parser is strategically essential: the prime vendor can adopt Etyme WITHOUT asking the client for anything. Forwarding Beeline notification emails into Etyme is enough to drive the rolloff loop on day one. API integration deepens later.**
+**The fallback parser is strategically essential: the prime vendor can adopt Etyme WITHOUT asking the client for anything. Forwarding the client VMS's notification emails into Etyme is enough to drive the rolloff loop on day one. API integration deepens later.**
 
 C4. GLOBAL DELIVERY FRACTURES & FIXES
 
@@ -133,7 +133,7 @@ C5.1 Revised Target Segments
 
   Mid-tier SI     500--5,000            Rolloff loop + demand-supply grid + bench burn                          Runs on spreadsheets; cannot build internal tools
 
-  Global SI       5,000+                Rolloff loop via email-parser fallback → VMS API expansion              Field-verified: Excel-based rolloff even at 300k+ scale; no Beeline-connected rolloff tooling
+  Global SI       5,000+                Rolloff loop via email-parser fallback → VMS API expansion              Field-verified: Excel-based rolloff even at 300k+ scale; no VMS-connected rolloff tooling
   --------------- --------------------- ----------------------------------------------------------------------- -----------------------------------------------------------------------------------------------
 
 C5.2 Phase Plan Impact (Amends B4)
@@ -142,7 +142,7 @@ C5.2 Phase Plan Impact (Amends B4)
 >
 > • Phase 3: compliance gates attach to Assignment transitions (location/visa checks) alongside the MSA→Engagement→Assignment restructure
 >
-> • Phase 4: Beeline/Fieldglass API integrations join Ariba; PM + RMG roles ship with the enterprise portal
+> • Phase 4: client VMS API integrations join the supplier-network connector; PM + RMG roles ship with the enterprise portal
 >
 > • Phase 5: demand-supply grid AI forecasting (predictive rolloff risk, proactive redeployment recommendations) deepens the loop
 

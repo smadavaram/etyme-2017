@@ -272,7 +272,7 @@ Actors: Owner (company owner/admin), Recruiter (company staff with recruiting pe
 
 > **RO-01** As a **System**, I want to detect an approaching contract end and initiate the rolloff workflow automatically so that no consultant falls through the cracks between projects.
 >
-> **⚙ SYSTEM:** T-4 weeks before Assignment end_date (or Beeline end-date-changed event): creates RolloffEvent record. Consultant enters Releasing Soon supply pool with availability_date. Forecast matching fires against ALL open internal demand BEFORE bench return. Notification to recruiter_id owner, RMG, and current PM.
+> **⚙ SYSTEM:** T-4 weeks before Assignment end_date (or a client VMS end-date-changed event): creates RolloffEvent record. Consultant enters Releasing Soon supply pool with availability_date. Forecast matching fires against ALL open internal demand BEFORE bench return. Notification to recruiter_id owner, RMG, and current PM.
 >
 > **RO-02** As a **PM**, I want to see releasing-soon consultants across the company and claim one for my upcoming project so that I can fill my next project internally before going to market.
 >
@@ -292,9 +292,9 @@ Actors: Owner (company owner/admin), Recruiter (company staff with recruiting pe
 
 14\. VMS & PROCUREMENT INTEGRATION (BRD §17)
 
-> **VI-01** As a **Owner**, I want to forward Beeline notification emails to Etyme and have them auto-parsed so that I get rolloff alerts and assignment data from the VMS without waiting for API access or client permission.
+> **VI-01** As a **Owner**, I want to forward the client VMS's notification emails to Etyme and have them auto-parsed so that I get rolloff alerts and assignment data from the VMS without waiting for API access or client permission.
 >
-> **⚙ SYSTEM:** Email/CSV parser fallback: dedicated inbound email address per company. AI parses Beeline/Fieldglass notification emails into structured events: assignment created, end-date changed, assignment ended, requisition posted. Parsed events create/update Assignments, trigger RolloffEvents, or create Jobs. Confidence score on parse; low-confidence flagged for human review. ZERO client permission required.
+> **⚙ SYSTEM:** Email/CSV parser fallback: dedicated inbound email address per company. AI parses client-VMS notification emails into structured events: assignment created, end-date changed, assignment ended, requisition posted. Parsed events create/update Assignments, trigger RolloffEvents, or create Jobs. Confidence score on parse; low-confidence flagged for human review. ZERO client permission required.
 >
 > **VI-02** As a **System**, I want to auto-submit consolidated invoices to the client\'s Ariba Network via the vendor\'s existing ANID so that invoices reach the client\'s procurement system without manual portal entry.
 >

@@ -1,7 +1,7 @@
 # The whole spine — requisition to cash, walked step by step
 
 ```
-Adobe Systems  →  Magnit  →  Computer Systems  →  CloudEPA  →  Priya Raman
+Adobe Systems  →  Maren MSP  →  Computer Systems  →  CloudEPA  →  Priya Raman
    (client)       (MSP)         (prime)            (sub)      (the person)
 
    demand travels down ▸                        ◂ the person travels up
@@ -26,7 +26,7 @@ the code.
 | | Who they are | What they hold |
 |---|---|---|
 | **Adobe Systems** | the client | the requisition, the budget, the purchase order |
-| **Magnit** | the MSP | Adobe's programme. Routes demand, takes no rate |
+| **Maren MSP** | the MSP | Adobe's programme. Routes demand, takes no rate |
 | **Computer Systems** | the prime supplier | sells to Adobe, buys from CloudEPA |
 | **CloudEPA** | the sub-vendor | sells to Computer Systems, employs Priya |
 | **Priya Raman** | the consultant | one bench listing, one timesheet |
@@ -35,7 +35,7 @@ the code.
 who gets to see it, and holds no contract — the arrangement the founder
 described. A principal MSP, one that sells to Adobe and buys from
 Computer Systems, is a fourth commercial hop and is not modelled. The
-walk asserts Magnit ends with zero sell contracts and zero buy contracts,
+walk asserts Maren MSP ends with zero sell contracts and zero buy contracts,
 so if that ever changes a test says so.
 
 ---
@@ -60,7 +60,7 @@ on the invitation, never on the requisition, so a second vendor cannot
 read the first one's numbers. A band above the ceiling the requisition
 was approved at is refused outright.
 
-**Step 4–5 · It travels down the panel.** Magnit accepts, records the role
+**Step 4–5 · It travels down the panel.** Maren MSP accepts, records the role
 against itself carrying Adobe forward as the end client, and sends it to
 Computer Systems at $135. Computer Systems does the same and sends it to
 CloudEPA at $115. Three bands, three recipients, **each reads only its
@@ -283,7 +283,7 @@ better done deliberately than folded into this.
 
 Demand travels down the chain by somebody **rekeying it**. There is no
 route that turns an accepted invitation into the recipient's own record,
-so Magnit's copy and Computer Systems' copy carry no
+so Maren MSP's copy and Computer Systems' copy carry no
 `Requirement.mirroredFromId` and nothing ties the three rows together.
 
 When the submission climbs back up, forwarding mirrors the role onto

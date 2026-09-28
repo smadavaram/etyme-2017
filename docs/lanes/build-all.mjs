@@ -162,7 +162,7 @@ const CSS = `
   table { border-collapse: collapse; width: 100%; font-size: 13px; background: var(--surface); border: 1px solid var(--rule); }
   th { text-align: left; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
   td { padding: 9px 12px; vertical-align: top; border-bottom: 1px solid var(--rule); } tr:last-child td { border-bottom: 0; }
-  td.w { font-weight: 600; width: 22%; } td.sap { width: 26%; color: var(--ink); } td.note { color: var(--muted); }
+  td.w { font-weight: 600; width: 22%; } td.mid { width: 26%; color: var(--ink); } td.note { color: var(--muted); }
   .callout { background: var(--surface); border-left: 3px solid var(--action); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 18px 0; font-size: 14px; }
   .callout.clay { border-left-color: var(--attention); }
   ul { padding-left: 20px; margin: 8px 0; } li { margin: 5px 0; }
@@ -206,8 +206,8 @@ const KEY = `
 
 const table = (rows) => `
 <div class="tbl-wrap"><table>
-<thead><tr><th>Etyme says</th><th>What SAP calls it — an inspiration, not a template</th><th>Where they meet, and where they part</th></tr></thead>
-<tbody>${rows.map((r) => `<tr><td class="w">${esc(r[0])}</td><td class="sap">${esc(r[1])}</td><td class="note">${esc(r[2])}</td></tr>`).join('')}</tbody>
+<thead><tr><th>Etyme says</th><th>What it is, and why</th></tr></thead>
+<tbody>${rows.map((r) => `<tr><td class="w">${esc(r[0])}</td><td class="note">${esc(r[1])}</td></tr>`).join('')}</tbody>
 </table></div>`
 
 const head = (title, description) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -261,7 +261,7 @@ function clientFlowSections(party) {
   html += `<section class="stream" id="${party.key}-${f.id}-held"><p class="eyebrow">${esc(f.name)} · who holds each lane</p><h2>The ten lanes, on the seeded client</h2>
   <div class="prose"><p>Two of the lanes the founder named are drawn as desks and are not yet roles of their own on the client — said here rather than hidden in the drawing.</p></div>
   <div class="tbl-wrap"><table><thead><tr><th>Lane in the drawing</th><th>Role on the seeded client</th><th>What it holds, and what it does not</th></tr></thead>
-  <tbody>${f.held.map((r) => `<tr><td class="w">${esc(r[0])}</td><td class="sap">${esc(r[1])}</td><td class="note">${esc(r[2]).replace(/`([^`]+)`/g, '<span class="mono">$1</span>')}</td></tr>`).join('')}</tbody></table></div>`
+  <tbody>${f.held.map((r) => `<tr><td class="w">${esc(r[0])}</td><td class="mid">${esc(r[1])}</td><td class="note">${esc(r[2]).replace(/`([^`]+)`/g, '<span class="mono">$1</span>')}</td></tr>`).join('')}</tbody></table></div>`
   const walk = ['client-programme.test.ts', 'desks-in-tandem.test.ts', 'supplier-onboarding.test.ts']
   const files = {}
   for (const r of SENTENCES) if (walk.includes(r.file)) (files[r.file] ??= []).push(r)
@@ -329,11 +329,11 @@ function partyDoc(party) {
 // ── The single artifact page: every stream from the supplier's view ───────
 function artifactPage() {
   const prime = parties.find((p) => p.key === 'prime')
-  let html = head('Seven streams, three counterparties', 'Etyme’s seven value streams drawn as swim lanes from the supplier’s desks, with every artifact that crosses to a customer, a sub-vendor or a candidate, and the trade’s word set beside SAP’s — as an inspiration, never a template.')
+  let html = head('Seven streams, three counterparties', 'Etyme’s seven value streams drawn as swim lanes from the supplier’s desks, with every artifact that crosses to a customer, a sub-vendor or a candidate, and beside each word the reason it is the one on the screen.')
   html += `<header><p class="eyebrow">Etyme · the operating model, drawn</p><h1>Seven streams, three counterparties, one trade’s words</h1><div class="prose">
-  <p class="lede">Each of the seven value streams of the delivery matrix, drawn as the desks inside one firm and the three parties outside it — the customer above, the supply below, and the person the work is about. Beside every station, the word SAP would use for the same thing, because a buyer who knows SAP or Fieldglass should read Etyme’s screens without translation.</p>
+  <p class="lede">Each of the seven value streams of the delivery matrix, drawn as the desks inside one firm and the three parties outside it — the customer above, the supply below, and the person the work is about. Under every drawing, each word the stream uses and the reason for it.</p>
   <p>The firm in the lanes is the <strong>supplier</strong> — a staffing vendor, a prime or a systems integrator — because it is the only party that trades with all three. A client has no customer; a program office places nobody; a consultant is the candidate. Each of the ten parties has a document of its own, drawn from its own desks; the table under the key says what each drops or gains.</p>
-  <p><strong>SAP is an inspiration here, not a template.</strong> What was taken: a purchase order is a header and its lines; the signed week is the goods receipt; a supplier’s invoice is received and matched, never raised; the sales order and the purchase order both settle to one roll-up. What was not taken: its words on the screen, its codes, its forms. The screens use the trade’s words.</p></div>${KEY}</header>
+  <p><strong>Each rule stands on its own reason.</strong> A purchase order is a header and its lines; the signed week is the receipt; a supplier’s invoice is received and matched, never raised; the sales order and the purchase order both settle to one roll-up. No codes and no forms: the screens use the trade’s words.</p></div>${KEY}</header>
   <section class="prose"><p class="eyebrow">Which company is in the lanes</p><h2>Ten parties, one set of streams</h2>
   <div class="tbl-wrap"><table><thead><tr><th>Party</th><th>Customer lane</th><th>Supply lane</th><th>Candidate lane</th><th>Payroll</th><th>What changes in its drawings</th></tr></thead><tbody>
   <tr><td><strong>Client</strong></td><td>— it <em>is</em> the customer</td><td>every supplier it pays</td><td>on its sites, through a supplier</td><td>never</td><td class="note">Its own desks split the Customer lane — Hiring Manager, Program office, Procurement Lead, AP Clerk, Compliance. Every supplier collapses to one lane: the client sees the rung it pays.</td></tr>
@@ -351,26 +351,26 @@ function artifactPage() {
     const view = viewFor(prime, s)
     html += `<section class="stream" id="${s.id}"><p class="eyebrow">${s.code}</p><h2>${esc(s.name)}</h2><figure><div class="fig-scroll">${svg(view, { id: s.id, aria: s.aria })}</div><figcaption>${esc(s.caption)}</figcaption></figure>${table(s.table)}</section>`
   }
-  html += `<section class="stream prose" id="words"><p class="eyebrow">The comparison, summed</p><h2>Where the words agree, and where they part</h2>
-  <h3>Taken from SAP, by the founder’s decision</h3><ul>
-  <li><strong>Bill</strong> — SAP’s process is billing; its document a billing document; its output a customer invoice. “Invoice” stays a correct synonym.</li>
-  <li><strong>Invoice receipt</strong> — SAP’s own term for the step where a supplier’s invoice is received and matched. The party who issues a document names it: the supplier issues its invoice, we receive it.</li>
-  <li><strong>A header and its lines</strong> — a purchase order is a header with items, and the sell and buy contracts are its lines. SAP never had a separate contract beside the order item.</li>
-  <li><strong>Purchase order · sales order · work order</strong> — one document, three names, and SAP mirrors a single order as a PO on the buyer and a sales order on the seller.</li>
-  <li><strong>Three-way match</strong> — order ↔ goods receipt ↔ invoice receipt is order ↔ timesheet receipt ↔ supplier invoice, and the exceptions routed to the AP desk are the same queue.</li>
-  <li><strong>Master contract</strong> — the roll-up both sides settle to is SAP’s internal order or work-breakdown element. The word is Etyme-2017’s own, kept, and the tag is optional.</li>
+  html += `<section class="stream prose" id="words"><p class="eyebrow">The words, summed</p><h2>Why each word is the one on the screen</h2>
+  <h3>The words, and the reason for each</h3><ul>
+  <li><strong>Bill</strong> — the firm issues the document to its customer, so the firm bills. “Invoice” stays a correct synonym.</li>
+  <li><strong>Invoice receipt</strong> — the step where a supplier’s invoice is received and matched. The party who issues a document names it: the supplier issues its invoice, we receive it.</li>
+  <li><strong>A header and its lines</strong> — a purchase order is a header with items, and the sell and buy contracts are its lines. A line is the contract for that person; there is no second document beside it.</li>
+  <li><strong>Purchase order · sales order · work order</strong> — one document, three names: a PO to the buyer who raises it, a sales order to the seller who receives it.</li>
+  <li><strong>Three-way match</strong> — order ↔ timesheet receipt ↔ supplier invoice. A mismatch is a decision on the AP desk, with a reason.</li>
+  <li><strong>Master contract</strong> — the roll-up both sides settle to. The word is Etyme-2017’s own, kept, and the tag is optional.</li>
   <li><strong>The four partner roles</strong> — sold-to, bill-to, ship-to, payer.</li></ul>
-  <h3>The trade’s word chosen over SAP’s</h3><ul>
-  <li><strong>Timesheet receipt</strong>, not service entry sheet. Same object; nobody at a staffing firm says the other. The screen uses the reader’s word; the mapping is stated once, at the boundary to the books.</li>
+  <h3>The trade’s word, on purpose</h3><ul>
+  <li><strong>Timesheet receipt</strong> — the signed week, the proof the work happened. It is what a staffing firm says, so it is what the screen says.</li>
   <li><strong>Two signatures</strong>, not one approval. The client says the work happened; the employer says what it will pay for.</li>
   <li><strong>A sentence, not a message number.</strong> A refusal says what is missing and what to do.</li></ul>
-  <h3>What SAP has no word for</h3><div class="callout"><ul>
+  <h3>What only Etyme records</h3><div class="callout"><ul>
   <li><strong>Consent to be marketed.</strong> A bench listing the consultant grants and can take back.</li>
   <li><strong>Neutrality.</strong> Etyme runs no bench and places nobody.</li>
   <li><strong>The person’s own page.</strong> Built from the work, made by their own first save, off until they turn it on.</li>
-  <li><strong>Why, and whether it can be undone.</strong> Change records say what changed. The automation log says the reason and carries an honest reversible flag.</li>
+  <li><strong>Why, and whether it can be undone.</strong> The automation log says what changed, the reason, and carries an honest reversible flag.</li>
   <li><strong>Bench reserve.</strong></li></ul></div>
-  <div class="callout clay"><p style="margin:0"><strong>Where SAP already does what Etyme claims.</strong> Fieldglass tracks tenure per worker at the buyer, within its own walls. The honest claim is narrower: across suppliers who are <em>not</em> all on one system — which is every buyer who cannot afford one. That is the buyer, and that is the moat, not the wedge.</p></div></section>`
+  <div class="callout clay"><p style="margin:0"><strong>Where a VMS already does what Etyme claims.</strong> A VMS tracks tenure per worker at the buyer, within its own walls. The honest claim is narrower: across suppliers who are <em>not</em> all on one system — which is every buyer who cannot afford one. That is the buyer, and that is the moat, not the wedge.</p></div></section>`
   return html + foot
 }
 

@@ -90,7 +90,7 @@ const rows = [
   ['Statement of work and milestones', 'fixed price, retainer, milestone',
     P('A milestone the client accepts bills on the next invoice with the acceptance as its receipt; fixed-price and retainer orders exist. No separate SOW product'), Y('separate SOW product'), Y(), Y(), Y('AI-assisted SOW'), P()],
   ['The supplier’s own desk, in the same product', 'bench, payroll, receivables, payables, rolloff — roles in the trade’s words',
-    Y('Account Manager, Recruiter, Contract Manager, HR, Accounts Receivable, AP & Payroll, Compliance — one sign-in, their client is there'), P('supplier portal'), P('Beeline Professional'), P(), P(), P()],
+    Y('Account Manager, Recruiter, Contract Manager, HR, Accounts Receivable, AP & Payroll, Compliance — one sign-in, their client is there'), P('supplier portal'), P('a supplier edition'), P(), P(), P()],
   ['The worker’s own page', 'travels between suppliers; nothing public until they turn it on',
     Y('Files their own week; sees their own pay and never the bill rate; told what is held about them'), P('worker record inside the client’s database'), P(), P(), P('redeployment marketplace'), Y()],
   ['Paperwork by purpose', 'compliance blocks or warns; agreements are signed; proof is attached',
@@ -98,9 +98,9 @@ const rows = [
   ['Multi-country tax, currency, language', '',
     N('One deployment, US dollars; holidays per site. Horizontal by design — a travel nurse and a validation engineer run on the same core'), Y('190 countries, 21 languages'), Y('120+ countries'), Y(), Y(), N('US and Canada')],
   ['ERP and HR integrations', '',
-    P('Every bill, invoice receipt and payroll run posts to a journal; an account map states our words in their accounts. QuickBooks and Xero mapped at the boundary; nothing live-connected'), Y('native SAP'), Y(), Y('native Workday HCM'), Y(), P()],
+    P('Every bill, invoice receipt and payroll run posts to a journal; an account map states our words in their accounts. QuickBooks and Xero mapped at the boundary; nothing live-connected'), Y('native to its own ERP'), Y(), Y('native to its own HR suite'), Y(), P()],
   ['Matching that shows its reasons', 'a score carries factors, basis, confidence and what it could not see',
-    Y('A bare number is a bug. Roughly half is plain rules, and that is a feature. Never the lead'), P(), P('agentic AI, human in the loop'), P(), P('“Maggi” assistant'), P()],
+    Y('A bare number is a bug. Roughly half is plain rules, and that is a feature. Never the lead'), P(), P('agentic AI, human in the loop'), P(), P('an AI assistant'), P()],
   ['Security certifications', 'SOC 2, ISO 27001, penetration test',
     N('Stated openly on the data processing page'), Y(), Y(), Y(), Y(), P()],
   ['Price', '',
@@ -111,12 +111,12 @@ const map = () => {
   // Reviewer's judgment, not a measurement. One highlight (Etyme) and one
   // neutral for everybody else, every dot labeled, so nothing rests on color.
   const pts = [
-    ['SAP Fieldglass', 150, 62, 'Deepest enterprise suite; one company’s program'],
-    ['Beeline', 205, 96, 'Broadest incumbent feature set; one program at a time'],
-    ['Workday VNDLY', 170, 132, 'One record for employees and contractors, inside Workday'],
-    ['Magnit VMS', 300, 110, 'Software plus the people who run the program'],
-    ['SimplifyVMS · Conexis · VectorVMS', 265, 200, 'Lighter, cheaper; a single-program view'],
-    ['Prosperix', 470, 168, 'A marketplace of suppliers and the worker’s consent; one tier'],
+    ['ERP-owned suite', 150, 62, 'Deepest enterprise suite; one company’s program'],
+    ['Independent platform', 205, 96, 'Broadest incumbent feature set; one program at a time'],
+    ['HR-suite VMS', 170, 132, 'One record for employees and contractors, inside the HR suite'],
+    ['VMS plus managed service', 300, 110, 'Software plus the people who run the program'],
+    ['Mid-market VMSs', 265, 200, 'Lighter, cheaper; a single-program view'],
+    ['Networked VMS', 470, 168, 'A marketplace of suppliers and the worker’s consent; one tier'],
   ]
   let g = `<svg viewBox="0 0 900 330" role="img" aria-label="Positioning map: how much of the supply chain each system puts on one record, against enterprise depth. Etyme sits far right and low: it records the prime, the sub-vendor and the worker as parties, and has no certifications, no global tax engine and no paying customers yet.">`
   g += `<defs><marker id="mah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><polygon points="0,0 8,4 0,8" fill="currentColor" fill-opacity=".55"/></marker></defs>`
@@ -188,7 +188,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <section>
   <p class="eyebrow">Where each system stands</p>
   <h2>Breadth of the chain against depth of the enterprise</h2>
-  <p class="prose">A vendor management system puts one company’s program on the record. Etyme’s bet is that the questions above need a record shared across companies — the prime, the sub-vendor below it and the worker — with each rung shown what it may see and nothing more. No incumbent is built that way; Prosperix is the closest in spirit, and stops at one tier.</p>
+  <p class="prose">A vendor management system puts one company’s program on the record. Etyme’s bet is that the questions above need a record shared across companies — the prime, the sub-vendor below it and the worker — with each rung shown what it may see and nothing more. No incumbent is built that way; the networked VMS is the closest in spirit, and stops at one tier.</p>
   <figure><div class="fig map">${map()}</div><figcaption>Placement is the reviewer’s judgment from public materials, not a measured score. Depth means certifications, countries covered and native integrations. Etyme sits far right because it records the prime, the sub-vendor and the worker as parties to a deal; it sits low because it has no certifications, one deployment, one currency, and no paying customers yet.</figcaption></figure>
 </section>
 
@@ -198,21 +198,21 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
   <p class="prose">Yes means shipped and visible. Partial means it exists in a narrower form. No means absent from public materials, or stated as absent. Etyme’s notes are the product’s own sentences — the words a screen or a refusal uses — so a reader can check them against the demo.</p>
   <div class="legend"><span class="pill y"><i></i>Yes</span><span class="pill p"><i></i>Partial</span><span class="pill n"><i></i>No</span></div>
   <div class="tbl"><table>
-    <thead><tr><th>Capability</th><th class="et">Etyme</th><th>SAP Fieldglass</th><th>Beeline</th><th>Workday VNDLY</th><th>Magnit VMS</th><th>Prosperix</th></tr></thead>
+    <thead><tr><th>Capability</th><th class="et">Etyme</th><th>ERP-owned suite</th><th>Independent platform</th><th>HR-suite VMS</th><th>VMS plus managed service</th><th>Networked VMS</th></tr></thead>
     <tbody>${rows.map(([cap, sub, ...cells]) => `<tr><td class="cap">${esc(cap)}${sub ? `<small>${esc(sub)}</small>` : ''}</td>${cells.map((c, i) => `<td${i === 0 ? ' class="et"' : ''}>${c}</td>`).join('')}</tr>`).join('')}</tbody>
   </table></div>
 </section>
 
 <section>
-  <p class="eyebrow">Who each rival is</p>
-  <h2>Six names a buyer will raise</h2>
+  <p class="eyebrow">Who each one is</p>
+  <h2>Six kinds of system a buyer will raise</h2>
   <div class="cards">
-    <div class="card"><div class="tag">Enterprise suite · owned by SAP</div><h3>SAP Fieldglass</h3><p>The heaviest option. Contingent workforce and services procurement tied to SAP finance, HR and purchasing, with localized tax and employment rules in 190 countries.</p><dl><dt>Strength</dt><dd>Global scale and compliance depth</dd><dt>Weakness</dt><dd>Long, expensive rollouts; a dated interface</dd><dt>Buyer</dt><dd>Multinationals already on SAP</dd></dl></div>
-    <div class="card"><div class="tag">Independent platform · Jacksonville, FL</div><h3>Beeline</h3><p>Calls itself an extended workforce platform. Named a global market leader in VMS technology by Ardent Partners in 2025, strong in SOW, direct sourcing and AI, with over 400 enterprise clients.</p><dl><dt>Strength</dt><dd>Broadest feature set; strong partner network</dd><dt>Weakness</dt><dd>Enterprise-sized setup</dd><dt>Buyer</dt><dd>Large programs, often run by an MSP</dd></dl></div>
-    <div class="card"><div class="tag">Enterprise suite · owned by Workday</div><h3>Workday VNDLY</h3><p>A VMS paired with Workday HCM so contractors and employees sit in one people system. An Everest Group leader in 2026.</p><dl><dt>Strength</dt><dd>One record for employees and contractors</dd><dt>Weakness</dt><dd>Best value only inside Workday</dd><dt>Buyer</dt><dd>Workday HCM customers</dd></dl></div>
-    <div class="card"><div class="tag">VMS plus managed service · Folsom, CA</div><h3>Magnit VMS</h3><p>Sells the software and the people who run the program. An Everest Group leader in every region in 2026, with a generative-AI assistant, direct sourcing and supplier scorecards.</p><dl><dt>Strength</dt><dd>Technology plus a managed program office</dd><dt>Weakness</dt><dd>A bundled model, less neutral toward suppliers</dd><dt>Buyer</dt><dd>Companies that want the program run for them</dd></dl></div>
-    <div class="card"><div class="tag">Networked VMS · US and Canada</div><h3>Prosperix</h3><p>The closest in spirit. A VMS with a built-in marketplace of suppliers and a digital right-to-represent so candidates choose who may submit them.</p><dl><dt>Strength</dt><dd>Fast setup, wide supplier reach, worker consent</dd><dt>Weakness</dt><dd>Sees one supplier tier; North America only</dd><dt>Buyer</dt><dd>Mid-market and MSPs</dd></dl></div>
-    <div class="card"><div class="tag">Mid-market VMS · several vendors</div><h3>SimplifyVMS, Conexis, VectorVMS</h3><p>Lighter, cheaper systems for one program. SimplifyVMS is an Everest Group leader and star performer in 2026; Conexis and VectorVMS sell on speed and support.</p><dl><dt>Strength</dt><dd>Price and simplicity</dd><dt>Weakness</dt><dd>A single-program view; no chain</dd><dt>Buyer</dt><dd>Mid-sized companies and staffing-led programs</dd></dl></div>
+    <div class="card"><div class="tag">Enterprise suite · owned by an ERP vendor</div><h3>The ERP-owned suite</h3><p>The heaviest option. Contingent workforce and services procurement tied to its owner’s finance, HR and purchasing, with localized tax and employment rules in 190 countries.</p><dl><dt>Strength</dt><dd>Global scale and compliance depth</dd><dt>Weakness</dt><dd>Long, expensive rollouts; a dated interface</dd><dt>Buyer</dt><dd>Multinationals already on that ERP</dd></dl></div>
+    <div class="card"><div class="tag">Independent platform</div><h3>The independent platform</h3><p>Calls itself an extended workforce platform. Named a global market leader in VMS technology by Ardent Partners in 2025, strong in SOW, direct sourcing and AI, with over 400 enterprise clients.</p><dl><dt>Strength</dt><dd>Broadest feature set; strong partner network</dd><dt>Weakness</dt><dd>Enterprise-sized setup</dd><dt>Buyer</dt><dd>Large programs, often run by an MSP</dd></dl></div>
+    <div class="card"><div class="tag">Enterprise suite · owned by an HR-suite vendor</div><h3>The HR-suite VMS</h3><p>A VMS paired with its owner’s HR system so contractors and employees sit in one people system. An Everest Group leader in 2026.</p><dl><dt>Strength</dt><dd>One record for employees and contractors</dd><dt>Weakness</dt><dd>Best value only inside that HR suite</dd><dt>Buyer</dt><dd>That HR suite’s customers</dd></dl></div>
+    <div class="card"><div class="tag">VMS plus managed service</div><h3>VMS plus managed service</h3><p>Sells the software and the people who run the program. An Everest Group leader in every region in 2026, with a generative-AI assistant, direct sourcing and supplier scorecards.</p><dl><dt>Strength</dt><dd>Technology plus a managed program office</dd><dt>Weakness</dt><dd>A bundled model, less neutral toward suppliers</dd><dt>Buyer</dt><dd>Companies that want the program run for them</dd></dl></div>
+    <div class="card"><div class="tag">Networked VMS · US and Canada</div><h3>The networked VMS</h3><p>The closest in spirit. A VMS with a built-in marketplace of suppliers and a digital right-to-represent so candidates choose who may submit them.</p><dl><dt>Strength</dt><dd>Fast setup, wide supplier reach, worker consent</dd><dt>Weakness</dt><dd>Sees one supplier tier; North America only</dd><dt>Buyer</dt><dd>Mid-market and MSPs</dd></dl></div>
+    <div class="card"><div class="tag">Mid-market VMS · several vendors</div><h3>Mid-market VMSs</h3><p>Lighter, cheaper systems for one program. One is an Everest Group leader and star performer in 2026; others sell on speed and support.</p><dl><dt>Strength</dt><dd>Price and simplicity</dd><dt>Weakness</dt><dd>A single-program view; no chain</dd><dt>Buyer</dt><dd>Mid-sized companies and staffing-led programs</dd></dl></div>
   </div>
 </section>
 
@@ -233,7 +233,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
       <li>No data retention schedule, no self-service export or deletion, no breach-notification clock.</li>
       <li>One deployment, one currency. No global tax or employment-rule engine.</li>
       <li>Statement of work is milestones on an order, not a product of its own. Every incumbent sells SOW management.</li>
-      <li>Integrations are a journal and an account map, not live connections. SAP and Workday own their suites natively.</li>
+      <li>Integrations are a journal and an account map, not live connections. The suite vendors own their suites natively.</li>
       <li>No customers and no price. Its own readiness page says one of eight edges with the outside world is proven: nobody outside has yet signed in, imported a file, or heard it on a Teams channel on that deployment.</li>
       <li><strong>No program is run by Etyme yet.</strong> The program office is offered and not delivered: the seat a client grants a program office that is not the client is being built, and until it exists Etyme cannot act inside anybody’s program under that client’s own rules. The desks are defined, the ten stations are drawn from them, and nobody has sat at one for a paying client.</li>
     </ul></div>
@@ -256,9 +256,9 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <section>
   <p class="eyebrow">Who buys first</p>
   <h2>The client is the customer</h2>
-  <p class="prose">Etyme should not sell against Fieldglass or Beeline on breadth; it loses. The winnable ground is the mid-sized US company with five to fifteen staffing suppliers and no VMS today, where somebody senior has just asked one of the four questions above and been told to wait. It pays for the one thing none of its suppliers can give it. The suppliers come because their client is there.</p>
+  <p class="prose">Etyme should not sell against the enterprise suites on breadth; it loses. The winnable ground is the mid-sized US company with five to fifteen staffing suppliers and no VMS today, where somebody senior has just asked one of the four questions above and been told to wait. It pays for the one thing none of its suppliers can give it. The suppliers come because their client is there.</p>
   <p class="prose"><strong>Etyme is the record, and the record is what it sells.</strong> Every supplier’s contractors for one client on one row each, with the chain visible at every rung and the days on site added up across all of them. Where a client would rather not staff a program office of its own, Etyme can run the program on that same record — vendor-neutral, supplying nobody, running no bench, and the record stays the client’s if the service ends. It is offered quietly, as something added to the record, not as the thing being sold.
-  <p class="prose">The firms in the table above remain what they are. Fieldglass, Beeline and Workday sell the software; Magnit and Allegis sell the software and the people who run the program; and each of them is bought by companies Etyme is not in a room with. There is no rivalry claim on this page, because Etyme has run no programs yet and a claim it cannot stand behind is worth less than silence. Horizontal, never vertical: nothing in the core assumes IT staffing, and the same product runs a travel nurse and a validation engineer. And never lead with AI — it is in there, it does real work, and it is the least defensible thing in the product.
+  <p class="prose">The systems in the table above remain what they are. The suites and the independent platforms sell the software; the managed-service firms sell the software and the people who run the program; and each of them is bought by companies Etyme is not in a room with. There is no rivalry claim on this page, because Etyme has run no programs yet and a claim it cannot stand behind is worth less than silence. Horizontal, never vertical: nothing in the core assumes IT staffing, and the same product runs a travel nurse and a validation engineer. And never lead with AI — it is in there, it does real work, and it is the least defensible thing in the product.
   <div class="callout clay"><p style="margin:0"><strong>Stated on purpose, not decided here:</strong> which of the four questions is the wedge. Twice an agent has picked confidently and been repeating somebody else’s confidence. The fastest way to find out is one client answering their CFO with this instead of a spreadsheet.</p></div>
 </section>
 
@@ -266,12 +266,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
   <h2 style="font-size:18px">Sources</h2>
   <ul>
     <li><a href="https://etyme2040.vercel.app/demo">Etyme demo</a> · <a href="https://etyme2040.vercel.app/ready">readiness page</a> · <a href="https://etyme2040.vercel.app/dpa">data processing addendum</a> · <a href="https://claude.ai/artifact/EGSzb92ojaNtDAxq4fuehm">the ten party drawings and their test scripts</a></li>
-    <li><a href="https://www.workday.com/en-us/products/vndly-vms/overview.html">Workday VNDLY overview</a></li>
-    <li><a href="https://www.businesswire.com/news/home/20260617278095/en/Magnit-Global-Recognized-as-a-Global-Leader-in-Everest-Groups-2026-VMS-PEAK-Matrix-Assessment">Magnit, Everest Group 2026 VMS PEAK Matrix</a></li>
-    <li><a href="https://www.beeline.com/news/beeline-named-2025-global-market-leader-in-vms-technology-by-ardent-partners">Beeline, Ardent Partners 2025 VMS Technology Advisor</a></li>
-    <li><a href="https://www.sap.com/products/hcm/contingent-workforce-management.html">SAP Fieldglass Contingent Workforce Management</a> · <a href="https://procurementvms.com/vendor-reviews/sap-fieldglass-review.html">SAP Fieldglass review 2026</a></li>
-    <li><a href="http://prosperix.com/solutions/vendor-management-system-network">Prosperix VMS Network</a></li>
-    <li><a href="https://www.simplifyvms.com/">SimplifyVMS</a> · <a href="https://www.conexisvmssoftware.com/contingent-workforce-vms">Conexis</a> · <a href="https://vectorvms.com/blog/contingent-workforce-program-management/vendor-management-system-vms-your-guide-for-2026/">VectorVMS</a></li>
+    <li>The vendors’ own public product pages, and the Everest Group 2026 VMS PEAK Matrix and Ardent Partners 2025 VMS technology reports, read in September 2026. The systems are described by kind rather than by name.</li>
   </ul>
   <p>Colors on this page: one highlight for Etyme and one neutral for everybody else, every dot labeled; the three verdicts in the table carry a glyph and a word beside the color. Nothing here rests on color alone.</p>
 </section>

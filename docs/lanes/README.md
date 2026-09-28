@@ -54,8 +54,8 @@ the client document, generalized.
 > station is done by different desks at different parties, tag the step
 > with `desk: {client, msp, sub}` so `viewFor` places it. Then add the
 > sentence for it to the caption, and a row to the stream's trade-language
-> table (Etyme's word · the inspiration's word · where they meet and part;
-> no transaction codes, ever).
+> table (Etyme's word · what it is and why, on its own reason; no other
+> system's words and no transaction codes, ever).
 >
 > Then prove it: for every station, name the integration test sentence
 > that walks it (`__integration__/*.test.ts`, `it('…')` as an English
