@@ -42,6 +42,12 @@
 export interface Way {
   /** The words on the button or link. */
   t: string
+  /**
+   * The same door in fewer words, where the phone header has no room for
+   * the whole label. Said only where `t` cannot fit; never a different
+   * promise.
+   */
+  short?: string
   /** One line under it, where there is room for one. */
   d: string
   href: string
@@ -50,6 +56,7 @@ export interface Way {
 /** The first rung: the example program. The primary button, everywhere. */
 export const SEE_IT: Way = {
   t: 'See it with a month of data',
+  short: 'See the demo',
   d: 'A demo company — not a customer — with a month of contractors, suppliers, timesheets and bills. No card. No sign-up.',
   href: '/demo',
 }

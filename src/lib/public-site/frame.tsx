@@ -59,22 +59,27 @@ function MenuPanel({ menu }: { menu: NavMenu }) {
  * nothing under it has to be pushed down by a guessed height. It sets the
  * document's scroll padding to its own height, from here, so a link to an
  * anchor — and a snap point on the home page — lands under the header
- * rather than behind it, on every page that draws it. The height is two
- * rows on a phone (the logo and buttons, then Menu) and one from `lg`:
- * 101 and 69 pixels, measured on `next start` at 390 and 1440 wide on
- * 2026-09-28. A change to the header's padding or its rows changes these.
+ * rather than behind it, on every page that draws it.
  *
- * The phone drawer scrolls inside itself, because a sticky header taller
- * than the screen would leave its last links out of reach.
+ * One row at every width since 2026-09-28 (night): the founder read the
+ * phone header and found no Sign in, and a second row carrying only
+ * "Menu". So on a phone the row is the logo, Sign in, the demo button
+ * under its short label, and Menu, whose drawer opens under the header
+ * rather than inside it. The height is 61 pixels on a phone and 69 from
+ * `lg`, measured in WebKit and Chromium at 390 and 1440 wide; a change to
+ * the header's padding changes these.
+ *
+ * The phone drawer scrolls inside itself, because a drawer taller than
+ * the screen would leave its last links out of reach.
  */
 export function SiteHeader() {
   return (
     <header
       className="sticky top-0 z-40 border-b border-etyme-rule bg-etyme-canvas
-                 [html:has(&)]:scroll-pt-[101px] lg:[html:has(&)]:scroll-pt-[69px]"
+                 [html:has(&)]:scroll-pt-[61px] lg:[html:has(&)]:scroll-pt-[69px]"
     >
-      <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-3 px-4 py-4 sm:px-6">
-        <a href="/" aria-label="Etyme — home">
+      <nav className="relative mx-auto flex max-w-6xl items-center gap-x-1 px-4 py-3 sm:gap-x-2 sm:px-6 lg:py-4">
+        <a href="/" aria-label="Etyme — home" className="shrink-0">
           <EtymeLogo size="md" />
         </a>
 
@@ -101,29 +106,36 @@ export function SiteHeader() {
           ))}
         </ul>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <a
             href="/login"
-            className="hidden rounded-lg px-3 py-2 text-sm font-medium text-etyme-muted transition-colors
-                       hover:text-etyme-ink sm:inline-block"
+            className="whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium text-etyme-muted transition-colors
+                       hover:text-etyme-ink sm:px-3"
           >
             {'Sign in'}
           </a>
           <a
             href={PRIMARY.href}
-            className="rounded-lg bg-etyme-action px-4 py-2 text-sm font-semibold text-white shadow-sm
-                       transition-opacity hover:opacity-90"
+            className="whitespace-nowrap rounded-lg bg-etyme-action px-3 py-2 text-sm font-semibold text-white shadow-sm
+                       transition-opacity hover:opacity-90 sm:px-4"
           >
-            {PRIMARY.t}
+            <span className="sm:hidden">{PRIMARY.short ?? PRIMARY.t}</span>
+            <span className="hidden sm:inline">{PRIMARY.t}</span>
           </a>
         </div>
 
         {/* The phone drawer. `details` needs no script, and closes by tapping the same word. */}
-        <details className="w-full lg:hidden">
-          <summary className="cursor-pointer list-none text-sm font-medium text-etyme-muted">
+        <details className="group/menu lg:hidden">
+          <summary
+            className="cursor-pointer list-none whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium
+                       text-etyme-muted hover:text-etyme-ink [&::-webkit-details-marker]:hidden"
+          >
             {'Menu'}
           </summary>
-          <div className="mt-3 max-h-[calc(100dvh-7rem)] space-y-6 overflow-y-auto overscroll-contain border-t border-etyme-rule pb-4 pt-4">
+          <div
+            className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] space-y-6 overflow-y-auto overscroll-contain
+                       border-b border-etyme-rule bg-etyme-canvas px-4 pb-6 pt-4 shadow-lg sm:px-6"
+          >
             {NAV_MENUS.map((menu) => (
               <div key={menu.label}>
                 <p className="eyebrow">{menu.label}</p>
@@ -147,9 +159,6 @@ export function SiteHeader() {
                 </div>
               </div>
             ))}
-            <p>
-              <a href="/login" className={`text-[14px] ${LINK}`}>{'Sign in'}</a>
-            </p>
           </div>
         </details>
       </nav>

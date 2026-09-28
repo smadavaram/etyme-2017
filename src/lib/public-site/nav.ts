@@ -261,6 +261,7 @@ export function frameCopy(): string[] {
       ...m.groups.flatMap((g) => [g.heading, ...g.items.flatMap((i) => [i.t, i.d ?? ''])]),
     ]),
     PRIMARY.t,
+    PRIMARY.short ?? '',
     'Sign in',
     ...FOOTER.flatMap((g) => [g.heading, ...g.links.map((l) => l.label), g.note ?? '']),
   ].filter(Boolean)
@@ -271,5 +272,5 @@ export function frameCopy(): string[] {
  * guard that refuses a button promising an account.
  */
 export function frameButtons(): string[] {
-  return [PRIMARY.t, 'Sign in', ...NAV_MENUS.map((m) => m.label)]
+  return [PRIMARY.t, ...(PRIMARY.short ? [PRIMARY.short] : []), 'Sign in', ...NAV_MENUS.map((m) => m.label)]
 }

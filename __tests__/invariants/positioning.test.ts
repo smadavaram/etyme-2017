@@ -49,7 +49,7 @@ import {
   check, verdict, copyFrom, gridsWithoutBreakpoint, priceClaims, namedCompanies,
   headlinesFrom, withoutVerb, longSentences, settingTheOfferAside,
   readsAsAimedAtSuppliers, offersTheProgramOffice, sizesAgainstIncumbents,
-  sizesTheBuyer, unverifiableClaims, vendorManagementSystem,
+  sizesTheBuyer, unverifiableClaims, vendorManagementSystem, promisesAnAccount,
   type Copy,
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
@@ -2660,6 +2660,23 @@ describe('The header stays, and one scroll lands on one band', () => {
     expect(cls).toMatch(/lg:\[html:has\(&\)\]:scroll-pt-\[\d+px\]/)
     // A phone's drawer scrolls inside itself, so no link is out of reach.
     expect(header).toMatch(/max-h-\[calc\(100dvh-[\d.]+rem\)\][^"]*overflow-y-auto/)
+  })
+
+  it('the phone header is one row carrying Sign in, the demo button under a short label, and Menu', () => {
+    // The founder, 2026-09-28, on his phone: no Sign in anywhere in the
+    // header, and "Menu" on a second row. Sign in is never hidden at any
+    // width now, the demo button says the short label below sm, and the
+    // drawer opens under the header rather than adding a row to it.
+    const header = FRAME_SRC.slice(FRAME_SRC.indexOf('export function SiteHeader'), FRAME_SRC.indexOf('export function SiteFooter'))
+    const signIn = header.match(/<a\s+href="\/login"\s+className="([^"]+)"/)![1]
+    expect(signIn).not.toMatch(/(?:^|\s)hidden\b/)
+    expect(header).toContain('{PRIMARY.short ?? PRIMARY.t}')
+    expect(SEE_IT.short).toBe('See the demo')
+    expect(promisesAnAccount([SEE_IT.short!])).toEqual([])
+    const nav = header.match(/<nav\s+className="([^"]+)"/)![1]
+    expect(nav).not.toMatch(/flex-wrap/)
+    const drawer = header.slice(header.indexOf('<details'))
+    expect(drawer).toMatch(/className="absolute inset-x-0 top-full/)
   })
 
   it('one scroll lands on one band of the home page, by proximity, and never for a reader who asked for reduced motion', () => {
