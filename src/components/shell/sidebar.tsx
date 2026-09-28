@@ -166,8 +166,8 @@ const MONEY: NavItem[] = [
   { label: 'Bills', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
   // "Bills", not "Invoices": the firm is the one billing here, and the
   // party who issues a document names it (CLAUDE.md, "Bill, invoice
-  // receipt, payroll"). A client's own menu keeps "Invoices", because
-  // what reaches a client is its suppliers' invoices.
+  // receipt, payroll"). A client's own menu reads "Invoice receipts",
+  // because what reaches a client is its suppliers' invoices, received.
   //
   // Next to Bills deliberately: same money, different question. One
   // is what we sent, the other is what came back.
@@ -709,9 +709,10 @@ const CLIENT_NAV: NavSection[] = [
       // money for contract labor, and the supplier employs the
       // contractor — so both would be a menu entry with nothing behind
       // it, which this nav already has a rule against.
-      // A client receives what its suppliers send, so it reads their
-      // word for it: an invoice, received. A firm that bills reads Bills.
-      { label: 'Supplier invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
+      // What a firm receives from below is an invoice receipt; what it
+      // issues upward is a bill (founder, 2026-09-28). A client only
+      // receives, so it reads Invoice receipts; a firm that bills reads Bills.
+      { label: 'Invoice receipts', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
       { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
       { label: 'Budget', href: '/dashboard/program/budget', icon: '◱', group: 'Money' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard' },
