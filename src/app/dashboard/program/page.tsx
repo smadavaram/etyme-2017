@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { deskCounts, deskHeadline, whoseQueue } from './needs-you'
+import { jobListWord } from '../requirements/words'
 
 /**
  * Client Program Overview
@@ -401,7 +402,10 @@ export default function ProgramPage() {
     { key: 'approvals', label: 'Approvals', count: s.pendingApprovals || undefined },
     { key: 'contractors', label: 'Contractors', count: data.contractors.length || undefined },
     { key: 'vendors', label: 'Suppliers', count: s.vendors || undefined },
-    { key: 'roles', label: 'Requirements', count: s.openRoles || undefined },
+    // The program desk is always a client's book — the client's own, or a
+    // program office in its seat — so the tab carries the client's word
+    // for its jobs, the same one its menu uses (lib/page-framing).
+    { key: 'roles', label: jobListWord('CLIENT').plural, count: s.openRoles || undefined },
   ]
 
   return (

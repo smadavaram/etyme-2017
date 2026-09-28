@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
+import { jobListWord } from '../requirements/words'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { STAGES, stageOf, mayEdit, closedBecause, type Stage } from '@/lib/requisition-stage'
 import {
@@ -545,6 +546,10 @@ const REQ_COLUMNS: Column<Requisition>[] = [
 export default function RequisitionsPage() {
   const [reqs, setReqs] = useState<Requisition[]>([])
   const [summary, setSummary] = useState<any>(null)
+  // Whose book the list is. It is always a client's: the client's own
+  // desk, or a program office in a seat that client granted. Either way
+  // the heading is the client's word, read from lib/page-framing.
+  const [book, setBook] = useState<{ id: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [q, setQ] = useState('')
@@ -561,7 +566,7 @@ export default function RequisitionsPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [raising, setRaising] = useState(false)
   /** What this reader's desk may do, so a button is not offered that the route refuses. */
-  const { permissions } = useSession()
+  const { permissions, company } = useSession()
   const [decision, setDecision] = useState<any>(null)
   /** Who is reading — so only your own row offers you a decision. */
   const [me, setMe] = useState<{ id: string; name: string } | null>(null)
@@ -581,6 +586,7 @@ export default function RequisitionsPage() {
       const json = await readJson(res)
       setReqs(json.data.requisitions)
       setSummary(json.data.summary)
+      setBook(json.data.client ?? null)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -714,12 +720,13 @@ export default function RequisitionsPage() {
         <div>
           {/* The eyebrow and the heading both said something the menu no
               longer says — "Program" for a section now called Workforce,
-              "Requisitions" for an entry now called Requirements. A menu
-              item and the heading of the page it opens are one promise
-              made twice. */}
+              "Requisitions" for an entry since called Job requests on a
+              client's menu. A menu item and the heading of the page it
+              opens are one promise made twice, so the heading reads the
+              word from lib/page-framing, where the menu's word lives. */}
           <Lbl>Workforce</Lbl>
           <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
-            Requirements
+            {jobListWord(company?.kind, book && company && book.id !== company.id ? { seated: true, companyName: book.name } : null).plural}
           </h1>
           <p className="text-etyme-muted mt-2 max-w-2xl">
             What your managers need. Most clear the moment they are raised — only

@@ -13,6 +13,7 @@ import {
 } from '../chain'
 import { mayEdit } from '@/lib/requisition-stage'
 import { useSession } from '@/components/session-provider'
+import { jobListWord } from '../../requirements/words'
 import { hasPermission } from '@/lib/permissions'
 
 /**
@@ -392,7 +393,7 @@ export default function RequisitionDetail() {
   // Editors: the manager it is for, whoever raised it, the program
   // office. The approvers ask for changes instead. Same rule as the
   // route; a button that would only refuse is not offered.
-  const { permissions } = useSession()
+  const { permissions, company } = useSession()
   const [editing, setEditing] = useState(false)
   /** The desks for this unit, for placing rows and for naming people. */
   const [team, setTeam] = useState<any | null>(null)
@@ -495,7 +496,7 @@ export default function RequisitionDetail() {
 
   return (
     <div className="max-w-3xl">
-      <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← Requirements</a>
+      <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← {jobListWord(company?.kind).plural}</a>
 
       <div className="mt-4 mb-8">
         <Lbl>{r.costCenter ? `${r.costCenter.code} · ${r.costCenter.name}` : 'No cost center'}</Lbl>

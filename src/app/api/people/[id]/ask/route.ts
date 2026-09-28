@@ -3,6 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
+import type { CompanyKind } from '@/components/session-provider'
+import { jobListWord } from '@/app/dashboard/requirements/words'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { askGoesTo } from '@/lib/chain-top'
 import { tellThread } from '@/lib/thread-notices'
@@ -44,15 +46,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (error) return error
   const notStaff = staffOnly(caller, 'Asking for a person')
   if (notStaff) return notStaff
+  // The reader's own word for a job, the one on their menu: a client
+  // says "job request", a supplier "requirement" (lib/page-framing).
+  const word = jobListWord(caller.company?.kind as CompanyKind | undefined)
   if (!hasPermission(caller.permissions, 'requirements.write')) {
-    return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Asking for a person is for whoever raises requirements here.' } }, { status: 403 })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: `Asking for a person is for whoever raises ${word.plural.toLowerCase()} here.` } }, { status: 403 })
   }
   const companyId = caller.company!.id
   const now = new Date()
   const body = await request.json().catch(() => ({}))
   const requirementId = typeof body?.requirementId === 'string' ? body.requirementId : null
   const note = typeof body?.note === 'string' ? body.note.trim() : ''
-  if (!requirementId) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Which job? Pick a published requirement.', field: 'requirementId' } }, { status: 422 })
+  if (!requirementId) return NextResponse.json({ error: { code: 'VALIDATION', message: `Which job? Pick a published ${word.singular}.`, field: 'requirementId' } }, { status: 422 })
 
   // Every rung of this person's chains standing here, and the firms
   // holding their consent — both as ids only. Neither read asks a
@@ -73,7 +78,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!person || (subs.length === 0 && listings.length === 0 && rungs.length === 0)) {
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That person has not been put in front of you.' } }, { status: 404 })
   }
-  if (!requirement) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That requirement is not yours.' } }, { status: 404 })
+  if (!requirement) return NextResponse.json({ error: { code: 'NOT_FOUND', message: `That ${word.singular} is not yours.` } }, { status: 404 })
   if (requirement.status !== 'OPEN') {
     return NextResponse.json({ error: { code: 'NOT_PUBLISHED', message: `${requirement.title} is not published, so nobody can be submitted to it yet.` } }, { status: 409 })
   }

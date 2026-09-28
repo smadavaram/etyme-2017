@@ -47,6 +47,8 @@
  */
 
 import { stageOf, type RequisitionRow } from '@/lib/requisition-stage'
+import { pageFraming, type Reading } from '@/lib/page-framing'
+import type { CompanyKind } from '@/components/session-provider'
 
 /** Every status the column can hold, in the order a role passes through them. */
 export const STATUS_WORDS: Array<[string, string]> = [
@@ -134,4 +136,24 @@ export function stageWordFor(r: RequirementRow): string {
 export function stageReason(r: RequirementRow): string | null {
   if (stageOf(r) !== 'CANCELLED') return null
   return r.cancelReason?.trim() || null
+}
+
+/**
+ * What the reader calls the list of jobs, read off the page framing
+ * rather than written here a second time.
+ *
+ * A client's menu says "Job requests" — the document is its own — and a
+ * supplier's says "Requirements", its record of a client's job. The
+ * heading, the back link, the program tab and a refusal all use the same
+ * word the menu does, and `lib/page-framing` is the one place it lives.
+ * The singular drops the plural's trailing "s": "job request",
+ * "requirement".
+ */
+export function jobListWord(
+  kind: CompanyKind | null | undefined,
+  reading?: Reading | null
+): { plural: string; singular: string } {
+  const plural = pageFraming(kind ?? 'CLIENT', 'requirements', reading).title
+  const singular = plural.replace(/s$/, '').toLowerCase()
+  return { plural, singular }
 }
