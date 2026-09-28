@@ -1,5 +1,5 @@
 import { EtymeLogo } from '@/components/logo'
-import { NAV_MENUS, PRIMARY, SPEND_AUDIT, FOOTER, ADDRESS, type NavMenu } from './nav'
+import { NAV_MENUS, PRIMARY, SPEND_AUDIT, FOOTER, ADDRESS, SIGN_UP, signInOpen, type NavMenu } from './nav'
 import { CloseBand } from './close-band'
 
 /**
@@ -69,18 +69,27 @@ function MenuPanel({ menu }: { menu: NavMenu }) {
  * `lg`, measured in WebKit and Chromium at 390 and 1440 wide; a change to
  * the header's padding changes these.
  *
+ * Sign up sits beside Sign in only once Microsoft or Google sign-in is
+ * configured (`signInOpen`), and goes to the same sign-in page, where the
+ * first sign-in with a corporate tenant creates the company. Below 360
+ * wide it moves into the drawer, because the row would not fit it.
+ *
  * The phone drawer scrolls inside itself, because a drawer taller than
  * the screen would leave its last links out of reach.
  */
 export function SiteHeader() {
+  // Sign up only once a company can actually sign in (see `signInOpen`);
+  // before that it would be a promise the demo cannot keep.
+  const open = signInOpen()
   return (
     <header
       className="sticky top-0 z-40 border-b border-etyme-rule bg-etyme-canvas
                  [html:has(&)]:scroll-pt-[61px] lg:[html:has(&)]:scroll-pt-[69px]"
     >
-      <nav className="relative mx-auto flex max-w-6xl items-center gap-x-1 px-4 py-3 sm:gap-x-2 sm:px-6 lg:py-4">
+      <nav className="relative mx-auto flex max-w-6xl items-center gap-x-1 px-3.5 py-3 sm:gap-x-2 sm:px-6 lg:py-4">
         <a href="/" aria-label="Etyme — home" className="shrink-0">
-          <EtymeLogo size="md" />
+          <span className="sm:hidden"><EtymeLogo size="sm" /></span>
+          <span className="hidden sm:inline"><EtymeLogo size="md" /></span>
         </a>
 
         <ul className="ml-6 hidden items-center gap-1 text-sm lg:flex">
@@ -106,18 +115,27 @@ export function SiteHeader() {
           ))}
         </ul>
 
-        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <div className="ml-auto flex items-center gap-0.5 sm:gap-2">
           <a
             href="/login"
-            className="whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium text-etyme-muted transition-colors
-                       hover:text-etyme-ink sm:px-3"
+            className="whitespace-nowrap rounded-lg px-1.5 py-2 text-[13px] font-medium text-etyme-muted transition-colors
+                       hover:text-etyme-ink sm:px-3 sm:text-sm"
           >
             {'Sign in'}
           </a>
+          {open && (
+            <a
+              href={SIGN_UP.href}
+              className="hidden whitespace-nowrap rounded-lg px-1.5 py-2 text-[13px] font-medium text-etyme-ink transition-colors
+                         hover:text-etyme-action min-[360px]:inline-block sm:px-3 sm:text-sm"
+            >
+              {SIGN_UP.t}
+            </a>
+          )}
           <a
             href={PRIMARY.href}
-            className="whitespace-nowrap rounded-lg bg-etyme-action px-3 py-2 text-sm font-semibold text-white shadow-sm
-                       transition-opacity hover:opacity-90 sm:px-4"
+            className="ml-1 whitespace-nowrap rounded-lg bg-etyme-action px-2.5 py-2 text-[13px] font-semibold text-white shadow-sm
+                       transition-opacity hover:opacity-90 sm:ml-0 sm:px-4 sm:text-sm"
           >
             <span className="sm:hidden">{PRIMARY.short ?? PRIMARY.t}</span>
             <span className="hidden sm:inline">{PRIMARY.t}</span>
@@ -127,8 +145,8 @@ export function SiteHeader() {
         {/* The phone drawer. `details` needs no script, and closes by tapping the same word. */}
         <details className="group/menu lg:hidden">
           <summary
-            className="cursor-pointer list-none whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium
-                       text-etyme-muted hover:text-etyme-ink [&::-webkit-details-marker]:hidden"
+            className="cursor-pointer list-none whitespace-nowrap rounded-lg py-2 pl-2.5 pr-0.5 text-[13px] font-medium
+                       text-etyme-muted hover:text-etyme-ink sm:px-2 sm:text-sm [&::-webkit-details-marker]:hidden"
           >
             {'Menu'}
           </summary>
@@ -159,6 +177,11 @@ export function SiteHeader() {
                 </div>
               </div>
             ))}
+            {open && (
+              <p className="min-[360px]:hidden">
+                <a href={SIGN_UP.href} className={`text-[14px] ${LINK}`}>{SIGN_UP.t}</a>
+              </p>
+            )}
           </div>
         </details>
       </nav>

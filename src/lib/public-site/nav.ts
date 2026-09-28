@@ -186,6 +186,31 @@ export const NAV_MENUS: NavMenu[] = [
 /** The filled button on the right of every header. */
 export const PRIMARY = SEE_IT
 
+/**
+ * Whether a company can sign in for real on this deployment: Microsoft
+ * (Entra) or Google Workspace, each with both its id and its secret.
+ *
+ * The same condition `lib/auth` registers a provider on and
+ * `lib/readiness-facts` reports as `env.microsoft` / `env.google`. It is
+ * restated here rather than imported because that module gathers its
+ * facts from the database, and a header must not query anything to draw
+ * one word. Read on the server when the page is rendered, so a static
+ * page shows the change on the next deploy after the keys are set.
+ */
+export function signInOpen(env: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(
+    (env.AZURE_AD_CLIENT_ID && env.AZURE_AD_CLIENT_SECRET) ||
+    (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET)
+  )
+}
+
+/**
+ * The label beside Sign in once sign-in is open. It goes to the same
+ * sign-in page, because there the first sign-in with a corporate tenant
+ * creates the company — which is what signing up means here.
+ */
+export const SIGN_UP = { t: 'Sign up', href: '/login' } as const
+
 /** Every item in one menu, across its groups. */
 export function itemsOf(menu: NavMenu): NavItem[] {
   return menu.groups.flatMap((g) => g.items)
@@ -254,7 +279,7 @@ export function everyFrameLink(): string[] {
 }
 
 /** Every word the header and footer show. */
-export function frameCopy(): string[] {
+export function frameCopy(open: boolean = signInOpen()): string[] {
   return [
     ...NAV_MENUS.flatMap((m) => [
       m.label,
@@ -263,6 +288,7 @@ export function frameCopy(): string[] {
     PRIMARY.t,
     PRIMARY.short ?? '',
     'Sign in',
+    ...(open ? [SIGN_UP.t] : []),
     ...FOOTER.flatMap((g) => [g.heading, ...g.links.map((l) => l.label), g.note ?? '']),
   ].filter(Boolean)
 }
@@ -271,6 +297,6 @@ export function frameCopy(): string[] {
  * Every label on something a reader presses in the header, for the
  * guard that refuses a button promising an account.
  */
-export function frameButtons(): string[] {
-  return [PRIMARY.t, ...(PRIMARY.short ? [PRIMARY.short] : []), 'Sign in', ...NAV_MENUS.map((m) => m.label)]
+export function frameButtons(open: boolean = signInOpen()): string[] {
+  return [PRIMARY.t, ...(PRIMARY.short ? [PRIMARY.short] : []), 'Sign in', ...(open ? [SIGN_UP.t] : []), ...NAV_MENUS.map((m) => m.label)]
 }

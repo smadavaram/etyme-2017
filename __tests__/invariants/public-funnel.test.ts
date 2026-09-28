@@ -19,7 +19,7 @@ import {
 import {
   SEE_IT, GET_THE_AUDIT, ASK_A_PERSON, WAYS_FORWARD, CLOSE_BAND, closeBandCopy,
 } from '@/lib/public-site/funnel'
-import { PRIMARY, SPEND_AUDIT, NAV_MENUS, frameCopy, frameButtons, itemsOf } from '@/lib/public-site/nav'
+import { PRIMARY, SPEND_AUDIT, NAV_MENUS, SIGN_UP, frameCopy, frameButtons, itemsOf, signInOpen } from '@/lib/public-site/nav'
 import { CENSUS_COPY, NOTHING_YET, offered, acceptedKinds } from '@/lib/census-copy'
 import { checkWorkEmail } from '@/lib/census'
 import { PUBLIC_PAGES } from '@/lib/public-site/pages'
@@ -140,6 +140,41 @@ describe('No button promises what the site cannot give', () => {
     expect(labels).toContain('Sit at a supplier’s desk →')
     const promised = promisesAnAccount(labels)
     expect(promised, promised.join('\n')).toEqual([])
+  })
+
+  it('while sign-in is not open, no page promises an account', () => {
+    // Neither Microsoft nor Google configured, or only half of one: the
+    // header offers Sign in alone, and "Sign up" is still refused.
+    for (const env of [{}, { AZURE_AD_CLIENT_ID: 'id' }, { GOOGLE_CLIENT_SECRET: 'secret' }]) {
+      expect(signInOpen(env), JSON.stringify(env)).toBe(false)
+    }
+    const closed = frameButtons(false)
+    expect(closed).toContain('Sign in')
+    expect(closed).not.toContain(SIGN_UP.t)
+    expect(frameCopy(false)).not.toContain(SIGN_UP.t)
+    expect(promisesAnAccount(closed)).toEqual([])
+    expect(promisesAnAccount([SIGN_UP.t])).toHaveLength(1)
+  })
+
+  it('once Microsoft or Google sign-in is configured, the header offers Sign up beside Sign in', () => {
+    // First sign-in with a corporate tenant creates the company, so a
+    // Sign up that goes to the sign-in page is a promise that holds.
+    expect(signInOpen({ AZURE_AD_CLIENT_ID: 'id', AZURE_AD_CLIENT_SECRET: 'secret' })).toBe(true)
+    expect(signInOpen({ GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 'secret' })).toBe(true)
+    const open = frameButtons(true)
+    expect(open.indexOf(SIGN_UP.t)).toBe(open.indexOf('Sign in') + 1)
+    expect(SIGN_UP.href).toBe('/login')
+    expect(promisesAnAccount(open, { signInOpen: true })).toEqual([])
+    // Only the plain sign-up is freed; a free start or a trial is not.
+    expect(promisesAnAccount(['Start free', 'Start your free trial', 'Get started'], { signInOpen: true })).toHaveLength(3)
+    // And the header draws it only on that condition, beside Sign in.
+    const header = FRAME.slice(FRAME.indexOf('export function SiteHeader'), FRAME.indexOf('export function SiteFooter'))
+    expect(header).toContain('const open = signInOpen()')
+    const signIn = header.indexOf('href="/login"')
+    const signUp = header.indexOf('{open && (', signIn)
+    expect(signUp).toBeGreaterThan(signIn)
+    expect(header.slice(signUp, signUp + 400)).toContain('href={SIGN_UP.href}')
+    expect(signUp).toBeLessThan(header.indexOf('href={PRIMARY.href}'))
   })
 
   it('catches the button the marketing thread shipped, and the ways it would come back', () => {

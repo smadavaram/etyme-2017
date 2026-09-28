@@ -983,11 +983,19 @@ const ACCOUNT_PROMISES: { pattern: RegExp; says: string }[] = [
  * Empty is the only acceptable answer while sign-in for a real tenant is
  * not open. Each hit is the label and what it promised, so somebody can
  * find the button rather than read every page.
+ *
+ * Once Microsoft or Google sign-in is configured (`signInOpen` in
+ * lib/public-site/nav), a plain "Sign up" is a true promise: the first
+ * sign-in with a corporate tenant creates the company. So with
+ * `signInOpen` the sign-up label alone is allowed. Everything else here
+ * — a free start, a trial, "get started" — stays refused either way,
+ * because each promises more than an account.
  */
-export function promisesAnAccount(labels: string[]): string[] {
+export function promisesAnAccount(labels: string[], opts: { signInOpen?: boolean } = {}): string[] {
   const out: string[] = []
   for (const label of labels) {
     for (const { pattern, says } of ACCOUNT_PROMISES) {
+      if (opts.signInOpen && says === 'a sign-up') continue
       if (pattern.test(label)) {
         out.push(`"${label.trim()}" — ${says}`)
         break
