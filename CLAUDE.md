@@ -186,6 +186,15 @@ follow:
   because the party who issues a document names it — so "bill"
   replaces "invoice" only where the firm is the one billing. Machine
   names, routes, models and event names do not move.
+  **Stated plainly by the founder, the same day:** *"When you receive a
+  bill from the layer down, we call it invoice receipt. When you issue
+  an invoice to the layer up, call it bill."* So on every screen and
+  page: what a firm **issues upward** to whoever pays it is a **bill**;
+  what a firm **receives from below** is an **invoice receipt** — the
+  client's screen of what its suppliers sent is "Invoice receipts", not
+  "Supplier invoices". The supplier's own document may still be called
+  its invoice in a sentence ("CloudEPA sends its invoice"); the list, the
+  heading and the step are "invoice receipt".
 - **The reader is a technical IT buyer, and the goal is trust, not a
   pitch. Decided by the founder, 2026-09-28:** *"You are targeting
   well-versed IT people; they rarely buy anything because of claims. Our
