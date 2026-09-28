@@ -69,7 +69,7 @@ export default function LoginPage() {
         <div className="flex items-center gap-6 text-xs text-white/20">
           <span>Etyme Inc.</span>
           <span>·</span>
-          <span>SAP/ERP Staffing</span>
+          <span>Contingent Workforce</span>
           <span>·</span>
           <span>System of Record</span>
         </div>

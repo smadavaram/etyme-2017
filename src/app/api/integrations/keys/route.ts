@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'VALIDATION',
-          message: 'Name it after the thing that will use it — "SAP AP feed", not "key 2"',
+          message: 'Name it after the thing that will use it — "ERP AP feed", not "key 2"',
           field: 'name',
         },
       },

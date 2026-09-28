@@ -4,9 +4,9 @@
  *
  * ── Why this exists ──────────────────────────────────────────────────
  *
- * Every enterprise buyer evaluating an agentic product right now is being
- * taught SAP's autonomy ladder: Observe, Recommend, Draft, Execute (low
- * risk), Execute (with approval), Fully autonomous (within policy). We
+ * Every enterprise buyer evaluating an agentic product right now is asking
+ * where it sits on an autonomy ladder: Observe, Recommend, Draft, Execute
+ * (low risk), Execute (with approval), Fully autonomous (within policy). We
  * already had the behavior and no word for it, so a procurement officer
  * asking "what autonomy level is your auto-approval?" got a paragraph
  * instead of a level and a log.

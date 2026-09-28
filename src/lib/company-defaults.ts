@@ -429,7 +429,7 @@ export function packFor(kind: CompanyKind, country: string | null): string {
   if (c === 'IN') return 'IN_DELIVERY'
   if (c === 'GB' || c === 'UK') return 'UK'
   // A GSI in the US is nearly always ERP delivery work, which has its own
-  // cycle shape — SAP and Oracle programs bill and roll differently
+  // cycle shape — ERP programs bill and roll differently
   // from general IT contract staffing.
   if (kind === 'GSI') return 'US_SAP'
   return 'US_IT'

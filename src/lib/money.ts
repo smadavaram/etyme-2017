@@ -6,15 +6,14 @@
  * dollars while another held cents and nothing said which. It looked
  * plausible on screen and nothing threw.
  *
- * SAP solves this in its data dictionary and the idea is worth copying:
+ * The rule that fixes it:
  *
- *   An amount field must point at a currency field. The table will not
- *   activate without it, so no amount can exist without saying what it is
- *   denominated in.
+ *   An amount field must point at a currency field, so no amount can
+ *   exist without saying what it is denominated in.
  *
  *   The number of decimal places comes from the currency, not from code.
  *   Most currencies have two. Japanese yen has none. Kuwaiti dinar has
- *   three. SAP looks it up; it never hardcodes a division by a hundred.
+ *   three. Look it up; never hardcode a division by a hundred.
  *
  *   One routine converts between what is stored and what is displayed.
  *   Application code never does the arithmetic by hand.

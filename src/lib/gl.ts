@@ -14,8 +14,8 @@
  * ── Why bother, rather than exporting the postings directly ──────────
  *
  * Because without it, every integration is its own transformation of our
- * posting shapes into somebody else's — SAP for a client, Oracle for
- * another, NetSuite for a vendor, QuickBooks for a smaller one, and a CSV
+ * posting shapes into somebody else's — an enterprise ERP for a client,
+ * a mid-market one for a vendor, a small-business one for a smaller one, and a CSV
  * for the firm with no system at all. Five transformations, each able to
  * be wrong on its own, drifting apart as the posting kinds grow.
  *
@@ -313,8 +313,9 @@ export type ErpSystem =
 /**
  * Which accounting systems each side of the market actually runs.
  *
- * Not a preference. A client running SAP will not adopt our chart of
- * accounts and a two-person vendor on QuickBooks has no chart to adopt.
+ * Not a preference. A client running an enterprise ERP will not adopt our
+ * chart of accounts and a two-person vendor on a small-business ledger has
+ * no chart to adopt.
  * The mapping goes to them.
  */
 export const TYPICALLY: Record<ErpSystem, 'CLIENT' | 'VENDOR' | 'EITHER'> = {

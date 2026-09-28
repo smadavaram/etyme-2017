@@ -174,7 +174,7 @@ const LABEL: Record<string, string> = {
   SALARY_PAY: 'Pay day',
   // Wrong twice over until 2026-09-17: we do not raise it — the supplier
   // issues its invoice and we receive it — and "bill" now belongs to the
-  // customer direction. SAP calls this invoice receipt; an AP clerk calls
+  // customer direction. The step is an invoice receipt; an AP clerk calls
   // it recording the supplier's invoice, and CLAUDE.md says use theirs.
   VENDOR_BILL_GENERATE: 'Invoice receipt to record',
   // "Vendor bill due" until 2026-09-17, and wrong in the same two ways as

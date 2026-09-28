@@ -25,8 +25,8 @@ import { DEFAULT_BURDEN, type ContractType } from '@/lib/profitability'
 /**
  * The order a placement belongs to, opened on first use.
  *
- * One per project or statement of work, which is how SAP actually uses an
- * internal order and how a client actually thinks: a project may run
+ * One per project or statement of work, which is what an internal order
+ * is for and how a client actually thinks: a project may run
  * across several openings and several months, and everybody on it belongs
  * to the same piece of work.
  *

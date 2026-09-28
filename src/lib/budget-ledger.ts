@@ -8,9 +8,8 @@
  * **budget** a cost center was given, and everything below it is a
  * claim against it at a different stage of certainty.
  *
- * Asked for directly, and settled on SAP's terms: "do what SAP project
- * systems or internal order does." So this is availability control as
- * SAP does it, in the trade's words rather than SAP's:
+ * Asked for directly, and settled as availability control against a
+ * project or internal order, in the trade's words:
  *
  *     Available = Budget − Commitment − Actual
  *
@@ -21,9 +20,9 @@
  *
  * ── Where the cost is recognized ─────────────────────────────────────
  *
- * At acceptance, not at payment. This is the one place SAP's answer
+ * At acceptance, not at payment. This is the one place the answer
  * differs from the way the question is usually asked ("actuals means
- * what is paid already"), and following SAP here is right: the client
+ * what is paid already"), and acceptance is right: the client
  * incurred the cost the moment it signed for the week. What the invoice
  * and the payment then do is settle a liability that already exists.
  *

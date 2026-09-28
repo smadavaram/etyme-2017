@@ -15,7 +15,7 @@ import { partiesOf } from '@/lib/money/invoice-parties'
  * team needs to post it.
  *
  * Etyme is not the general ledger. This produces coded data their ERP
- * imports — SAP, Oracle, Workday all take a flat file of exactly this shape.
+ * imports — an enterprise ERP takes a flat file of exactly this shape.
  *
  * Amounts are split by largest remainder (src/lib/cost-allocation.ts) so the
  * coded rows sum back to the invoice total to the cent. An AP team that

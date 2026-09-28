@@ -434,8 +434,8 @@ export function threeWayMatch(input: MatchInput): MatchResult {
   // client's book failed on this check and on nothing else. A bill for
   // the weeks signed so far, or for the days a placement was live in
   // its first or last month, is a PART-PERIOD bill — the ordinary
-  // thing, and SAP's shape, where the receipt is what a bill is matched
-  // to and the receipt here is the signed week.
+  // thing, because the receipt is what a bill is matched to and the
+  // receipt here is the signed week.
   //
   // What is genuinely wrong is a bill whose dates CROSS a boundary.
   // Four weekly sheets producing "28 July to 24 August" is a period in

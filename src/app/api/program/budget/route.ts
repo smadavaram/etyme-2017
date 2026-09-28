@@ -19,7 +19,7 @@ import { policyOf, splitWeeks } from '@/lib/overtime'
  * the commitment, and what is left is the answer to the only question
  * this screen exists for — can I afford the next one.
  *
- * The arithmetic is all in `lib/budget-ledger`, on SAP's terms. This
+ * The arithmetic is all in `lib/budget-ledger`, as availability control. This
  * route's whole job is gathering honest facts to hand it.
  */
 

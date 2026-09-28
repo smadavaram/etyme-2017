@@ -8,7 +8,7 @@
  * than any connector.
  *
  * So this is not four integrations. It is four ways of writing down the
- * same rows, because SAP, Oracle, QuickBooks and Workday each take a flat
+ * same rows, because each of the four accounting systems takes a flat
  * file and each disagrees about column names, date formats and how a
  * negative number is written.
  *
@@ -17,7 +17,7 @@
  *   - This produces a file. Somebody's finance team loads it, or their
  *     middleware picks it up. Nothing here posts to a ledger directly.
  *   - Every profile needs the receiving system's own codes to already be
- *     right. A cost center that does not exist in SAP is a rejected file,
+ *     right. A cost center that does not exist in the ERP is a rejected file,
  *     which is why the import engine exists.
  *   - A file that sums to a cent off is rejected whole. The totals are
  *     checked here before anything is written out.
