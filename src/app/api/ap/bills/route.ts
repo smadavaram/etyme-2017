@@ -4,7 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { notifyBulk } from '@/lib/notify'
 import { completeCycle } from '@/lib/cycle-complete'
-import { fractionFor } from '@/lib/contract-links'
+import { acceptedByPayer } from '@/lib/money/payers-acceptance-read'
 import { staffOnly } from '@/lib/seat'
 import {
   mayOpen, refusal, mayRecordSupplierInvoice, PAYABLE, NOT_THE_PAYING_DESK,
@@ -337,78 +337,37 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // What we actually accepted for pay over the billed period. Employer
-  // acceptance, not client approval — the client approves forty, we
-  // accept thirty-eight, and the margin sits between them. Matching a
-  // supplier bill against the client's number makes that disagreement
-  // invisible.
+  // What WE accepted for pay over the billed period — the paying firm's
+  // own signature on each week, and nobody else's. Not the client's
+  // approval: the client approves forty, we accept thirty-eight, and the
+  // margin sits between them. And not the supplier's acceptance either:
+  // in a chain the week is filed on the supplier's contract below us,
+  // and what the supplier accepted to pay its own person is not what we
+  // accepted to pay the supplier (CLAUDE.md, "The signed week travels
+  // down the chain": no rung pays on a week it has not accepted).
+  // `lib/money/payers-acceptance` decides which signature is ours; the
+  // week spanning two buy contracts is divided, never counted twice.
   let accepted: AcceptedWork | null = null
   let expectedCents: number | null = null
 
   if (buyContractId && periodStart && periodEnd) {
-    const assertions = await prisma.workAssertion.findMany({
-      where: {
-        state: 'LIVE',
-        role: 'EMPLOYER_ACCEPTANCE',
-        timesheet: {
-          periodEnd: { gte: periodStart },
-          periodStart: { lte: periodEnd },
-          sellContract: { buyLinks: { some: { buyContractId } } },
-        },
-      },
-      select: {
-        hours: true, rateCents: true,
-        timesheet: {
-          select: {
-            periodStart: true, periodEnd: true,
-            // The day breakdown and the link windows, so a week spanning
-            // two buy contracts is divided rather than counted twice.
-            days: true,
-            sellContract: {
-              select: {
-                buyLinks: {
-                  select: { buyContractId: true, sellContractId: true, effectiveFrom: true, effectiveTo: true },
-                },
-              },
-            },
-          },
-        },
-      },
-      take: 2_000,
-    })
+    const ours = await acceptedByPayer({ buyContractId, periodStart, periodEnd })
 
     const candidate = await prisma.buyContractCandidate.findFirst({
       where: { buyContractId },
       select: { payRate: true, payCurrency: true },
     })
 
-    if (assertions.length > 0) {
-      // `buyLinks: { some: { buyContractId } }` matched any link that
-      // ever existed, with no regard for the window it was in force
-      // for — the same defect payroll had, and worse here, because this
-      // is the number the three-way match compares a vendor's invoice
-      // against. The system vouched for a figure that was too big and
-      // somebody approved the overbill on its word.
-      //
-      // The employer's acceptance is not the raw day total — they may
-      // have stood behind 36 of 40 — so it is apportioned by the day
-      // breakdown rather than recomputed from it.
-      const hours = assertions.reduce((n, a) => {
-        const days = (a.timesheet.days as Record<string, number>) ?? {}
-        const links = a.timesheet.sellContract?.buyLinks ?? []
-        return n + Number(a.hours) * fractionFor(buyContractId, links, days)
-      }, 0)
+    if (ours) {
       accepted = {
-        hours,
-        contractRateCents: candidate?.payRate ?? assertions[0].rateCents,
-        firstDay: new Date(
-          Math.min(...assertions.map((a) => a.timesheet.periodStart.getTime()))
-        ),
-        lastDay: new Date(Math.max(...assertions.map((a) => a.timesheet.periodEnd.getTime()))),
-        count: assertions.length,
+        hours: ours.hours,
+        contractRateCents: candidate?.payRate ?? ours.firstRateCents,
+        firstDay: ours.firstDay,
+        lastDay: ours.lastDay,
+        count: ours.count,
       }
       if (candidate && candidate.payCurrency.toUpperCase() === currency) {
-        expectedCents = Math.round(hours * candidate.payRate)
+        expectedCents = Math.round(ours.hours * candidate.payRate)
       }
     }
   }
@@ -458,7 +417,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'MATCH_FAILED',
           message:
-            `${unwaivable[0].reason}. Nobody can wave this through: ` +
+            `${unwaivable[0].reason.replace(/\.$/, '')}. Nobody can wave this through: ` +
             `${unwaivable.map((c) => CHECK_PHRASE[c.code]).join(' and ')} ` +
             `${unwaivable.length === 1 ? 'is' : 'are'} not a judgment call.`,
           checks: match.checks,
@@ -794,33 +753,21 @@ export async function GET(request: NextRequest) {
   for (const b of bills) {
     let accepted: AcceptedWork | null = null
     if (b.buyContractId && b.periodStart && b.periodEnd) {
-      const assertions = await prisma.workAssertion.findMany({
-        where: {
-          state: 'LIVE',
-          role: 'EMPLOYER_ACCEPTANCE',
-          timesheet: {
-            periodEnd: { gte: b.periodStart },
-            periodStart: { lte: b.periodEnd },
-            sellContract: { buyLinks: { some: { buyContractId: b.buyContractId } } },
-          },
-        },
-        select: {
-          hours: true, rateCents: true,
-          timesheet: { select: { periodStart: true, periodEnd: true } },
-        },
-        take: 500,
+      // The same question intake asked: what this firm itself accepted.
+      const ours = await acceptedByPayer({
+        buyContractId: b.buyContractId, periodStart: b.periodStart, periodEnd: b.periodEnd,
       })
-      if (assertions.length > 0) {
+      if (ours) {
         const candidate = await prisma.buyContractCandidate.findFirst({
           where: { buyContractId: b.buyContractId },
           select: { payRate: true },
         })
         accepted = {
-          hours: assertions.reduce((n, a) => n + Number(a.hours), 0),
-          contractRateCents: candidate?.payRate ?? assertions[0].rateCents,
-          firstDay: new Date(Math.min(...assertions.map((a) => a.timesheet.periodStart.getTime()))),
-          lastDay: new Date(Math.max(...assertions.map((a) => a.timesheet.periodEnd.getTime()))),
-          count: assertions.length,
+          hours: ours.hours,
+          contractRateCents: candidate?.payRate ?? ours.firstRateCents,
+          firstDay: ours.firstDay,
+          lastDay: ours.lastDay,
+          count: ours.count,
         }
       }
     }
