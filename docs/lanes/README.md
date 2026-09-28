@@ -10,6 +10,7 @@ production code.
 node docs/lanes/build-all.mjs     # ten party pages + the artifact page → docs/lanes/out/
 node docs/lanes/render-pdfs.mjs   # one 17×11in PDF per party (Playwright, Chromium preinstalled)
 node docs/lanes/compete.mjs       # the competitive landscape page, from the same renderer
+node docs/lanes/render-model.mjs  # every drawing to the PNGs the public documentation shows (public/model/)
 ```
 
 ## How it is built

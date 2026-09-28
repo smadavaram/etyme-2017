@@ -142,7 +142,7 @@ export const streams = [
     steps: [
       { id: 'file', lane: 'candidate', col: 0, label: 'File the week', note: 'your own hours', refuse: 'nobody else may file it' },
       { id: 'exp', lane: 'candidate', col: 1, label: 'Expense', note: 'receipt attached' },
-      { id: 'rcpt', lane: 'customer', col: 2, label: 'Timesheet receipt', note: 'the goods receipt, here', refuse: 'nobody signs their own hours', desk: { client: 'hiring', msp: 'coord' } },
+      { id: 'rcpt', lane: 'customer', col: 2, label: 'Timesheet receipt', note: 'proof the work happened', refuse: 'nobody signs their own hours', desk: { client: 'hiring', msp: 'coord' } },
       { id: 'auto', lane: 'customer', col: 3, label: 'Silence counts?', note: 'if the order says so', hollow: true, desk: { client: 'programme', msp: 'supmgr' } },
       { id: 'pass', lane: 'supply', col: 4, label: 'Pass-through', note: 'every rung, same hours', desk: { sub: 'ap' } },
       { id: 'flag', lane: 'ap', col: 4, label: 'Checked vs contract', note: 'over hours · past end' },
@@ -161,7 +161,7 @@ export const streams = [
     caption: 'The receipt of a staffing firm is the signed week — the proof the work happened. The founder named it a timesheet receipt, and the screens use his word. Two signatures from two companies, one row of hours, never one per hop.',
     table: [
       ['Timesheet', 'The worker files their own week; the agency may enter on their behalf, nobody may sign for them.'],
-      ['Timesheet receipt — client approval', 'The proof the work happened. “Our goods receipt equivalent is timesheet receipt or expense receipt.” The trade’s word is on the screen.'],
+      ['Timesheet receipt — client approval', 'The proof the work happened: the client signed the week. The founder’s word, timesheet receipt, is the one on the screen.'],
       ['Employer acceptance', 'Two signatures, because the client says the work happened and the employer says what it will pay for — different statements.'],
       ['Pass-through', 'Each rung between the client and the worker sees the same hours it will bill and be billed for.'],
       ['Expense receipt', 'An approved, client-billable expense rides the next bill as a line of its own.'],
@@ -282,7 +282,7 @@ export const streams = [
     caption: 'An expense is the second kind of receipt. The person files it with the paper behind it; the customer approves it or refuses it with a reason that travels with the record; an approved, client-billable expense rides the next bill as a line of its own, and the three-way match takes the approved expense as the receipt — an expense nobody approved never reaches a bill. It is paid with the bill, and reimbursed by whoever pays the person: payroll for an employee, the sub-vendor’s own invoice where a sub is below.',
     table: [
       ['Expense', 'Filed by the person against the placement, with the receipt attached. Nobody else may file it.'],
-      ['Expense receipt — the customer’s approval', 'The founder’s word: “our goods receipt equivalent is timesheet receipt or expense receipt.” The approval is the receipt.'],
+      ['Expense receipt — the customer’s approval', 'The proof the expense was incurred and accepted: the approval is the receipt, the founder’s word for it.'],
       ['Refusal, with a reason', 'The reason travels with the record and reaches the person on their own channel.'],
       ['Expense line on the bill', 'Rides the next bill as a line of its own, beside the hours lines, and is PAID with it.'],
       ['Match: line ↔ approved expense', 'Order ↔ approved expense ↔ bill line. An expense nobody approved never bills.'],
