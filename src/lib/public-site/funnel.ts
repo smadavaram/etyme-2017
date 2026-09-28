@@ -62,8 +62,10 @@ export const SEE_IT: Way = {
  * 2026-09-27, read it as a riddle: send what, and to where? So it says
  * what the census actually takes, in words a CFO already uses — the
  * contractor list (the template is one row per contractor, and a CSV or
- * an Excel file both open) or the supplier bills they hold (option B;
- * "invoices" until the founder's plain-words list of 2026-09-28)
+ * an Excel file both open) or the supplier invoices they hold (option B;
+ * briefly "bills" on 2026-09-28, until the founder's SAP rule settled
+ * that the party who issues a document names it, so a supplier's is its
+ * invoice)
  * — and the order it happens in on the page the button leads to: ask
  * first, then upload.
  *
@@ -74,7 +76,7 @@ export const SEE_IT: Way = {
  */
 export const GET_THE_AUDIT: Way = {
   t: 'Get your contractor spend audit',
-  d: 'Ask on the audit page, then upload your contractor list — a spreadsheet is fine — or the supplier bills you hold. ' +
+  d: 'Ask on the audit page, then upload your contractor list — a spreadsheet is fine — or the supplier invoices you hold. ' +
     'A named person sends back one page inside five working days.',
   href: '/census',
 }

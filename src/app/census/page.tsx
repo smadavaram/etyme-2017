@@ -52,7 +52,7 @@ import {
 export const metadata: Metadata = {
   title: 'Contractor census',
   description:
-    'Upload your contractor list or the supplier bills you hold. A named person at Etyme sends back ' +
+    'Upload your contractor list or the supplier invoices you hold. A named person at Etyme sends back ' +
     'one page inside five working days: who is on your sites by supplier, what you spend, ' +
     'where two suppliers charge differently for one skill, and what we could not see.',
 }

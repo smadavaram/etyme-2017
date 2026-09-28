@@ -2440,19 +2440,36 @@ function inOurWords(text: string): string {
 }
 
 /**
- * A documentation page's words with what a supplier sends set aside, and
- * the ERP's own words in the crosswalk. Everything left is the page's own
- * voice, and holds to the same plain words as the rest of the site.
+ * A public page's words with what a supplier sends set aside. SAP's rule,
+ * which the founder adopted for every page and screen on 2026-09-28: the
+ * party who issues a document names it, so a supplier sends its invoice
+ * and the firm paying it takes an invoice receipt. Everything left is
+ * the page's own voice, where "bill" is what a firm sends its customer
+ * and "invoice" is refused.
  */
-function supplierSideSetAside(text: string): string {
+/** "Supplier bill" as a document, which is the supplier's invoice; not "a supplier bills", the verb. */
+const SUPPLIER_BILL_AS_NOUN = /\bsupplier(?:’s|'s) bills?\b|\bsuppliers’ bills\b|\bsupplier bill\b|\bsupplier bills (?:you hold|and|open|with|a client)\b/gi
+
+function supplierSide(text: string): string {
   let t = inOurWords(text)
   for (const kept of [
-    // SAP's rule: the supplier issues its invoice; the firm paying it receives it.
     /\binvoice[- ]receipts?\b/gi,
     /\b(?:its|its own|its matched|the sub’s|a sub-vendor’s own|the sub-vendor’s own)\s+invoice\b/gi,
     /\bsupplier(?:’s)?\s+invoices?\b/gi,
     /\bthe invoice a supplier is paid on\b/gi,
     /\bnever invoiced\b/gi,
+  ]) t = t.replace(kept, ' ')
+  return t
+}
+
+/**
+ * A documentation page's words with what a supplier sends set aside, and
+ * the ERP's own words in the crosswalk. Everything left is the page's own
+ * voice, and holds to the same plain words as the rest of the site.
+ */
+function supplierSideSetAside(text: string): string {
+  let t = supplierSide(text)
+  for (const kept of [
     // What an ERP calls each thing, in the crosswalk column that says so.
     /\ba purchase requisition\b/gi,
     /\ba customer invoice\b/gi,
@@ -2484,11 +2501,11 @@ describe('Plain words on public pages, defined once', () => {
     }
   })
 
-  it('the home page, the header, the footer and every product and company page say job, job request and bill, never role, requisition or invoice', () => {
+  it('the home page, the header, the footer and every product and company page say job, job request and bill, never role or requisition, and invoice only for what a supplier sends', () => {
     const pages = everyPublicPage().filter(([route]) => !route.startsWith('/docs') && route !== '/census')
     expect(pages.length).toBeGreaterThan(10)
     for (const [route, text] of pages) {
-      const found = inOurWords(text).match(/\b(?:roles?|requisitions?|invoic\w*)\b/gi) ?? []
+      const found = supplierSide(text).match(/\b(?:roles?|requisitions?|invoic\w*)\b/gi) ?? []
       expect(found, route).toEqual([])
     }
     expect(all).toContain('Post a job to the suppliers you cleared')
@@ -2558,9 +2575,25 @@ describe('Plain words on public pages, defined once', () => {
     }
   })
 
-  it('the spend audit asks for the supplier bills a client holds, never its invoices', () => {
+  it('the spend audit asks for the supplier invoices a client holds, because the supplier issued them', () => {
     for (const said of [GET_THE_AUDIT.d, JSON.stringify(CENSUS_COPY)]) {
-      expect(said).not.toMatch(/\binvoic/i)
+      expect(said).toContain('supplier invoices')
+      expect(supplierSide(said), said.slice(0, 60)).not.toMatch(/\binvoic/i)
+    }
+  })
+
+  it('no public page calls what a supplier sends a bill', () => {
+    // Coordinator's ruling on the founder's SAP rule, 2026-09-28: "bill,
+    // never invoice" governs only what a firm sends its customer.
+    for (const [route, text] of everyPublicPage()) {
+      expect(text.match(SUPPLIER_BILL_AS_NOUN) ?? [], route).toEqual([])
+    }
+    // The noun is caught; the verb is not — a supplier still bills.
+    for (const noun of ['the supplier bills you hold', 'A supplier’s bill is paid', 'a row per supplier bill', 'Two supplier bills open']) {
+      expect(noun.match(SUPPLIER_BILL_AS_NOUN), noun).not.toBeNull()
+    }
+    for (const verb of ['Each supplier bills, and you pay what matched', 'A supplier bills only from weeks the client already signed.']) {
+      expect(verb.match(SUPPLIER_BILL_AS_NOUN), verb).toBeNull()
     }
   })
 

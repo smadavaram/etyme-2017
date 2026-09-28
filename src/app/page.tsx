@@ -166,7 +166,7 @@ const STEPS: { n: string; t: string; href: string }[] = [
  */
 const STEP_SCREEN = {
   img: '/screens/invoices.png',
-  alt: 'A bills screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
+  alt: 'A bills screen: the outstanding total, an aging breakdown, and a table of supplier invoices with the period, the total and what is paid.',
   caption: 'A bill with no signed week behind it is not paid. Every firm on this screen is a demo company — not a customer.',
   from: '/dashboard/invoices, what we owe, as the AP clerk',
   /**
