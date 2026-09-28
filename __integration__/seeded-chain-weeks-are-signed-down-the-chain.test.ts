@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { signersOf, topDown, turnOf, type LadderRung } from '@/app/api/timesheets/chain-turn'
+import { acceptedByPayer } from '@/lib/money/payers-acceptance-read'
 
 /**
  * A signed week in a seeded program, or in the world under the programs,
@@ -140,6 +141,76 @@ describe('a seeded week on a chain is signed down the chain', () => {
     }
     // Six world placements run through a firm in the middle, four weeks each.
     expect(chained).toBeGreaterThanOrEqual(24)
+  })
+
+  it('every seeded signature is made by somebody seated at the firm that signs', async () => {
+    const all = await prisma.workAssertion.findMany({
+      select: { id: true, companyId: true, byId: true, auto: true, role: true, company: { select: { slug: true } } },
+    })
+    expect(all.length).toBeGreaterThan(0)
+    const seats = await prisma.context.findMany({
+      where: { type: 'EMPLOYEE' },
+      select: { personId: true, companyId: true },
+    })
+    const seated = new Set(seats.map((c) => `${c.personId}:${c.companyId}`))
+    const invented = all.filter((a) =>
+      // A signature with nobody behind it is the system approving on its
+      // own, and says so; one with a person names somebody at that firm.
+      a.byId == null ? !a.auto : !seated.has(`${a.byId}:${a.companyId}`)
+    )
+    expect(
+      invented.map((a) => `${a.company.slug} ${a.role}`),
+      'these signatures were made by somebody not seated at the firm that signs'
+    ).toEqual([])
+  })
+
+  it('a firm nobody has joined signs nothing, and the firm above it carries the hours and the paper it was handed', async () => {
+    const bluecrest = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-bluecrest' } })
+    const pinnacle = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' } })
+    expect(await prisma.workAssertion.count({ where: { companyId: bluecrest.id } })).toBe(0)
+    expect(await prisma.sellContract.count({ where: { companyId: bluecrest.id } })).toBe(0)
+
+    // Pinnacle buys from the shell with nothing below it, so the hours
+    // are on Pinnacle's own contract and Pinnacle accepts what it pays.
+    const buy = await prisma.buyContract.findFirstOrThrow({
+      where: { companyId: pinnacle.id, vendorCompanyId: bluecrest.id },
+      select: { supplierSellContractId: true, sellLinks: { select: { sellContractId: true } } },
+    })
+    expect(buy.supplierSellContractId).toBeNull()
+    const weeks = await prisma.timesheet.findMany({
+      where: { sellContractId: buy.sellLinks[0].sellContractId, status: 'APPROVED' },
+      select: { id: true },
+    })
+    expect(weeks.length).toBeGreaterThan(0)
+    for (const w of weeks) {
+      const signed = await signaturesOn(w.id)
+      expect(signed.map((s) => s.role)).toEqual(['CLIENT_APPROVAL', 'EMPLOYER_ACCEPTANCE'])
+      expect(signed[1].companyId).toBe(pinnacle.id)
+    }
+
+    // And money's existing reader finds them there: an invoice receipt
+    // from the shell is matched against Pinnacle's own acceptance, with
+    // nothing changed on money's side.
+    const buyId = (await prisma.buyContract.findFirstOrThrow({
+      where: { companyId: pinnacle.id, vendorCompanyId: bluecrest.id }, select: { id: true },
+    })).id
+    const accepted = await acceptedByPayer({ buyContractId: buyId, periodStart: new Date(Date.now() - 60 * 86_400_000), periodEnd: new Date() })
+    expect(accepted, 'Pinnacle’s acceptance is what its invoice receipt from Bluecrest is matched against').not.toBeNull()
+    expect(accepted!.count).toBe(weeks.length)
+    expect(accepted!.waiting).toBe(0)
+
+    // The shell's paper is on file, put there by somebody at Pinnacle —
+    // the firm actually holding it — and the shell's name stays on what
+    // the shell did.
+    const pinnacleSeats = new Set(
+      (await prisma.context.findMany({ where: { companyId: pinnacle.id, type: 'EMPLOYEE' }, select: { personId: true } }))
+        .map((c) => c.personId)
+    )
+    const cover = await prisma.verification.findMany({
+      where: { companyId: bluecrest.id }, select: { uploadedById: true },
+    })
+    expect(cover.length).toBeGreaterThan(0)
+    for (const v of cover) expect(pinnacleSeats.has(v.uploadedById!)).toBe(true)
   })
 
   it('signs nothing twice when the world is seeded again', async () => {

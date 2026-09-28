@@ -434,6 +434,20 @@ export async function seedWorld(): Promise<{
   const employerSlug = suppliers[suppliers.length - 1]
   const client = firmBySlug.get(clientSlug)!
 
+  // Where the chain on the system stops. An employer nobody has joined
+  // (Bluecrest) is not a rung here: it signs nothing, files nothing and
+  // holds no contract of its own, because nobody is at it to do any of
+  // that. The firm above it carries the person's hours itself — the
+  // product's own path for a supplier that is not on the platform
+  // (`lib/off-system`, and the "payer carries the hours itself" branch
+  // of `lib/money/payers-acceptance-read`) — and buys from the shell on
+  // a buy contract with nothing below it. So every signature on these
+  // weeks is made by somebody seated at the firm that signs.
+  const offSystemBelow = suppliers.length > 1 && !seatBySlug.has(employerSlug) ? employerSlug : null
+  const onChain = offSystemBelow ? suppliers.slice(0, -1) : suppliers
+  /** The lowest firm on the system: it carries the hours and accepts them. */
+  const carrierSlug = onChain[onChain.length - 1]
+
   // The person, and the bench they sit on.
   const email = `${personName.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
   const person = await db.person.upsert({
@@ -472,12 +486,13 @@ export async function seedWorld(): Promise<{
       },
     }))
 
-  // A contract pair per supplier, each buying from the one below it.
+  // A contract pair per supplier on the system, each buying from the one
+  // below it. The lowest buys from the shell, where there is one.
   let supplierSellContractId = null
   const contracts: any[] = []
-  for (let i = suppliers.length - 1; i >= 0; i--) {
-    const sellerSlug = suppliers[i]
-    const buyerSlug = i === 0 ? clientSlug : suppliers[i - 1]
+  for (let i = onChain.length - 1; i >= 0; i--) {
+    const sellerSlug = onChain[i]
+    const buyerSlug = i === 0 ? clientSlug : onChain[i - 1]
     const seller = firmBySlug.get(sellerSlug)!, buyer = firmBySlug.get(buyerSlug)!
     const sellRate = spec.rates[i + 1] !== undefined && i > 0 ? spec.rates[i] : spec.rates[i]
     const payRate = spec.rates[i + 1]
@@ -496,15 +511,17 @@ export async function seedWorld(): Promise<{
         startDate: day(-90), endDate: day(275),
       },
     })
-    const employsThem = i === suppliers.length - 1
+    const lowest = i === onChain.length - 1
+    const employsThem = lowest && !offSystemBelow
     const buy = await db.buyContract.create({
       data: {
         companyId: seller.id,
-        vendorCompanyId: employsThem ? null : firmBySlug.get(suppliers[i + 1])!.id,
+        vendorCompanyId: employsThem ? null : firmBySlug.get(lowest ? offSystemBelow! : onChain[i + 1])!.id,
         payCurrency: 'USD', contractType: employsThem ? 'W2' : 'C2C',
         state: 'IN_PROGRESS', startDate: day(-90), endDate: day(275),
         // The rung below — what makes the hours reachable from up here.
-        supplierSellContractId: employsThem ? null : supplierSellContractId,
+        // None below a shell: the hours are on this firm's own contract.
+        supplierSellContractId: lowest ? null : supplierSellContractId,
       },
     })
     await db.buyContractCandidate.create({
@@ -557,12 +574,14 @@ export async function seedWorld(): Promise<{
 
   // Cleared to work.
   // Whoever at the employing firm files its paperwork — or, where that
-  // firm never joined, the firm above it, which is who actually holds
-  // the certificate it was handed. A seatless firm files nothing itself
-  // because there is nobody at it to file anything.
-  const employerSeat =
-    seatBySlug.get(employerSlug)?.personId ??
-    seatBySlug.get(suppliers[suppliers.length - 2] ?? clientSlug)!.personId
+  // firm never joined, the firm that carries the hours above it, which
+  // is who actually holds the certificates it was handed. The rows say
+  // so: the employer's name stays on what the employer did (it ordered
+  // the background check, it holds the cover), and the person who put
+  // each paper on file is seated at the firm holding it. A seatless firm
+  // files nothing itself because there is nobody at it to file anything.
+  const carrierSeat = seatBySlug.get(carrierSlug)!.personId
+  const employerSeat = seatBySlug.get(employerSlug)?.personId ?? carrierSeat
   // Two on the person — the one that blocks and the one that warns — and
   // the supplier's cover, which is what lets it place anybody at all.
   const clearances: {
@@ -623,7 +642,7 @@ export async function seedWorld(): Promise<{
   // Step 0 is the client; each firm below an hour after the one above;
   // the employer the next day.
   const signedAt = (w: number, step: number): Date =>
-    step >= suppliers.length
+    step >= onChain.length
       ? day(-(w * 7 - 3))
       : new Date(day(-(w * 7 - 2)).getTime() + step * 3_600_000)
 
@@ -632,7 +651,8 @@ export async function seedWorld(): Promise<{
   // ledger means the system approved on its own — which no rule here
   // says it may. So a seatless firm in the middle of a chain is refused
   // at seeding rather than given a signature the product could not
-  // produce. None exists today: the one seatless firm employs.
+  // produce. None exists today: the one seatless firm employs, and an
+  // employer nobody has joined is off the chain altogether (above).
   const middleSigner = (slug: string): string => {
     const seat = seatBySlug.get(slug)
     if (!seat) {
@@ -645,13 +665,13 @@ export async function seedWorld(): Promise<{
   }
 
   const passThroughFor = async (timesheetId: string, w: number) => {
-    for (let i = 0; i < suppliers.length - 1; i++) {
-      const firm = firmBySlug.get(suppliers[i])!
+    for (let i = 0; i < onChain.length - 1; i++) {
+      const firm = firmBySlug.get(onChain[i])!
       if (await db.workAssertion.findFirst({ where: { timesheetId, companyId: firm.id, role: 'PASS_THROUGH' } })) continue
       await db.workAssertion.create({
         data: {
           timesheetId, companyId: firm.id, role: 'PASS_THROUGH', hours: 40, rateCents: spec.rates[i + 1],
-          state: 'LIVE', byId: middleSigner(suppliers[i]), at: signedAt(w, i + 1),
+          state: 'LIVE', byId: middleSigner(onChain[i]), at: signedAt(w, i + 1),
         },
       })
     }
@@ -661,7 +681,11 @@ export async function seedWorld(): Promise<{
     const start = day(-(w * 7 + 4)), end = day(-(w * 7))
     const days: Record<string, number> = {}
     for (let d = 0; d < 5; d++) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = 8
-    const already = await db.timesheet.findFirst({ where: { sellContractId: bottom.id, periodStart: start } })
+    // By the person, not the contract: a world seeded before the hours
+    // moved up to the carrier has this week on the shell's old contract,
+    // and must not be given a second copy of it. It is left as it was —
+    // drop and reseed is the way to move an older world.
+    const already = await db.timesheet.findFirst({ where: { personId: person.id, periodStart: start } })
     if (already) {
       // A world seeded before the middle firms signed gets their
       // acceptance once; a world that has it is untouched.
@@ -681,10 +705,12 @@ export async function seedWorld(): Promise<{
         at: signedAt(w, 0) },
     })
     await passThroughFor(ts.id, w)
+    // The firm the hours are filed with accepts last, at its own rung's
+    // rate: the employer, or the firm carrying them above a shell.
     await db.workAssertion.create({
-      data: { timesheetId: ts.id, companyId: employer.id, role: 'EMPLOYER_ACCEPTANCE',
-        hours: 40, rateCents: spec.rates[spec.rates.length - 1], state: 'LIVE', byId: employerSeat,
-        at: signedAt(w, suppliers.length) },
+      data: { timesheetId: ts.id, companyId: firmBySlug.get(carrierSlug)!.id, role: 'EMPLOYER_ACCEPTANCE',
+        hours: 40, rateCents: spec.rates[onChain.length - 1], state: 'LIVE', byId: carrierSeat,
+        at: signedAt(w, onChain.length) },
     })
     sheets.push(ts)
   }
