@@ -111,7 +111,7 @@ export interface ModulePage {
  * ── Why the module pages grew one section each, 2026-09-27 ────────────
  *
  * The founder: the home page is too long and should read like a
- * Microsoft or SAP product page, not an essay. It was 3,771 words in
+ * product page, not an essay. It was 3,771 words in
  * twelve bands. A product page can be short because every band links to
  * depth, and the depth went live the day before — these eight pages,
  * the documentation, the security position and About.

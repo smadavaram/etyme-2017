@@ -129,9 +129,9 @@ export const TIME_AND_MONEY: ReferenceDoc = {
     },
     {
       id: 'words',
-      title: 'Three words, used the way an ERP uses them',
+      title: 'Three words, named by who issues each',
       items: [
-        { t: 'Bill', d: 'What a firm sends its customer. An ERP calls it a customer invoice; Etyme says bill, because the firm is the one billing.' },
+        { t: 'Bill', d: 'What a firm sends its customer. The party who issues a document names it, and the firm is the one billing.' },
         { t: 'Invoice receipt', d: 'A supplier’s invoice, received and matched. The supplier issues it; the buyer receives it.' },
         { t: 'Payroll', d: 'How an employee is paid. Never billed and never invoiced.' },
       ],

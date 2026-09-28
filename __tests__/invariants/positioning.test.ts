@@ -50,6 +50,7 @@ import {
   headlinesFrom, withoutVerb, longSentences, settingTheOfferAside,
   readsAsAimedAtSuppliers, offersTheProgramOffice, sizesAgainstIncumbents,
   sizesTheBuyer, unverifiableClaims, vendorManagementSystem, promisesAnAccount,
+  incumbentComparison,
   type Copy,
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
@@ -68,7 +69,7 @@ import { MODULE_ICON } from '@/lib/public-site/module-icons'
 import { ASK_COPY } from '@/lib/public-site/leads'
 import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, closeBandCopy } from '@/lib/public-site/funnel'
 import { FOOTER as SITE_FOOTER, frameCopy } from '@/lib/public-site/nav'
-import { DOCS_SLUGS } from '@/lib/public-site/pages'
+import { DOCS_SLUGS, PUBLIC_PAGES } from '@/lib/public-site/pages'
 import { settleTarget, AHEAD, BEHIND } from '@/lib/public-site/settle'
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
@@ -118,7 +119,7 @@ describe('The live home page still says what we agreed it says', () => {
   })
 
   it('names contractors or suppliers before it says anything clever', () => {
-    // The way Concur says travel and expense first.
+    // The category first, before anything clever.
     expect(check(live).map((f) => f.rule)).not.toContain('category-first')
   })
 
@@ -1215,7 +1216,7 @@ describe('The record is the product, and the program office is offered quietly',
 // two-billion-dollar company with forty to fifty IT contractors bought
 // through staffing firms — the exact buyer. He said he did not
 // understand what the app does, and that it looked like an AI app.
-// "We are SAP Fieldglass" connected at once.
+// Naming the category by comparison, in conversation, connected at once.
 //
 // Nothing in this file could have caught that. The page named the
 // category, kept AI out of the hero, placed nobody and stayed
@@ -1229,12 +1230,12 @@ describe('The record is the product, and the program office is offered quietly',
 // on the prose above it, four steps a CTO recognizes, and a subhead
 // that names the category and the size.
 //
-// The comparison itself lasted one evening. The page said "If you know
-// SAP Fieldglass or Beeline, it is the same job, sized for a company
-// with fifty contractors rather than five thousand" and the founder
-// read it on his phone and struck it: "Invoking SAP Fieldglass and
-// Beeline will trigger more questions than answers." It is a sentence
-// he says in a conversation, where he can answer the next question.
+// The comparison itself lasted one evening. The page named two
+// enterprise VMS products and said it was the same job, sized for a
+// company with fifty contractors rather than five thousand, and the
+// founder read it on his phone and struck it: naming them "will trigger
+// more questions than answers." It is a sentence he says in a
+// conversation, where he can answer the next question.
 
 /** Every screenshot the page draws, in source order. */
 const SCREENS = [...PAGE.matchAll(/\/screens\/[\w-]+\.png/g)].map((m) => m[0])
@@ -1378,7 +1379,7 @@ describe('The page shows the product before it describes it', () => {
   })
 
   it('names the category, no size of company, and no company at all', () => {
-    // The subhead named SAP Fieldglass and Beeline for one evening, and
+    // The subhead named two enterprise VMS products for one evening, and
     // the founder struck it: a rival's name invites "how are you
     // different" and "who else uses you", and a page cannot finish that
     // argument. For a day after that it named a size — "for companies
@@ -1392,7 +1393,8 @@ describe('The page shows the product before it describes it', () => {
     expect(sizesTheBuyer(all), sizesTheBuyer(all).join('; ')).toEqual([])
     expect(words.filter((w) => /20 to 200|sized for|rather than five thousand/.test(w))).toEqual([])
     // Nobody is named anywhere, with nothing set aside — no customer,
-    // no logo, no comparison.
+    // no logo, no comparison. The second sentence below is the one that was
+    // struck, kept as a fixture so the guard is seen to refuse it.
     expect(namedCompanies(all)).toEqual([])
     expect(namedCompanies(
       'If you know SAP Fieldglass or Beeline, it is the same job.'
@@ -1850,9 +1852,9 @@ describe('A price on a page is caught by its unit, not by its dollar sign', () =
 // ── A product page, not an essay ──────────────────────────────────────
 //
 // Added 2026-09-27. The founder: the home page is too long and should
-// read like a Microsoft or SAP product page, not a long essay. Measured
-// on production that day it was 3,771 words in twelve bands and the file
-// was 1,709 lines. A product page from either company is roughly six
+// read like a large software company's product page, not a long essay.
+// Measured on production that day it was 3,771 words in twelve bands and
+// the file was 1,709 lines. Such a product page is roughly six
 // hundred to nine hundred words in five or six bands, and it can be that
 // short because every band links to a page that goes deeper — which, on
 // this site, went live the day before.
@@ -2444,8 +2446,8 @@ function inOurWords(text: string): string {
 }
 
 /**
- * A public page's words with what a supplier sends set aside. SAP's rule,
- * which the founder adopted for every page and screen on 2026-09-28: the
+ * A public page's words with what a supplier sends set aside. The rule
+ * the founder adopted for every page and screen on 2026-09-28: the
  * party who issues a document names it, so a supplier sends its invoice
  * and the firm paying it takes an invoice receipt. Everything left is
  * the page's own voice, where "bill" is what a firm sends its customer
@@ -2474,22 +2476,14 @@ function supplierSide(text: string): string {
 }
 
 /**
- * A documentation page's words with what a supplier sends set aside, and
- * the ERP's own words in the crosswalk. Everything left is the page's own
- * voice, and holds to the same plain words as the rest of the site.
+ * A documentation page's words with what a supplier sends set aside.
+ * Everything left is the page's own voice, and holds to the same plain
+ * words as the rest of the site. Until 2026-09-28 this also set aside the
+ * words in a column saying what an ERP calls each thing; the column is
+ * gone (see `incumbentComparison`), so nothing else is excused.
  */
 function supplierSideSetAside(text: string): string {
-  let t = supplierSide(text)
-  for (const kept of [
-    // What an ERP calls each thing, in the crosswalk column that says so.
-    /\ba purchase requisition\b/gi,
-    /\ba customer invoice\b/gi,
-    /\binvoice verification\b/gi,
-    /\ba blocked invoice\b/gi,
-    // The one sentence mapping an accounting package's words onto ours.
-    /say Invoice for the customer document and Bill for the received one: their Invoice is our bill/g,
-  ]) t = t.replace(kept, ' ')
-  return t
+  return supplierSide(text)
 }
 
 describe('Plain words on public pages, defined once', () => {
@@ -2531,10 +2525,8 @@ describe('Plain words on public pages, defined once', () => {
     // The founder extended the plain words to the product screens on
     // 2026-09-28, so the documentation that describes them follows.
     // What a supplier sends is its invoice and what the firm paying it
-    // does is an invoice receipt — SAP's rule, the party who issues a
-    // document names it — so those survive. So do the ERP's own words in
-    // the column that says what an ERP calls each thing, and the one
-    // sentence mapping an accounting package's words onto ours.
+    // does is an invoice receipt — the party who issues a document
+    // names it — so those survive, and nothing else does.
     const docs = everyPublicPage().filter(([route]) => route.startsWith('/docs'))
     expect(docs.length).toBe(docSlugs().length + 1)
     for (const [route, text] of docs) {
@@ -2543,10 +2535,9 @@ describe('Plain words on public pages, defined once', () => {
     }
   })
 
-  it('the documentation calls it the three-way check, as the screens do, and “three-way match” only where it gives the ERP’s own term', () => {
+  it('the documentation calls it the three-way check, as the screens do, and never “three-way match”', () => {
     for (const [route, text] of everyPublicPage().filter(([r]) => r.startsWith('/docs'))) {
-      const own = text.replace(/\ba three-way match · order ↔ goods receipt ↔ invoice receipt\b/g, ' ')
-      expect(own, route).not.toMatch(/three-way match/i)
+      expect(text, route).not.toMatch(/three-way match/i)
     }
     expect(JSON.stringify(PARTIES.map((p) => p.doc.html))).toContain('Three-way check')
     // The census template's column is job now, and the page says so.
@@ -2784,4 +2775,101 @@ describe('The line about teams around the world, on a dark band', () => {
     expect(ART_SRC).not.toContain("'var(--violet-p)'")
     expect(contrast(channels(cssVar('violet')), ink)).toBeGreaterThan(contrast(channels(cssVar('violet-p')), ink))
   })
+})
+
+// ── Never name the incumbents, and never translate from them ─────────
+//
+// The founder, 2026-09-28: naming the enterprise ERP and VMS vendors in
+// documentation or content "makes it sound like we copied them". Every
+// party page in the documentation carried a column saying what an ERP
+// calls each thing, and captions explaining a term by another system's
+// word. Those are gone; each term says what it is and why, in Etyme's
+// own words. "ERP" stays only as a place a document crosses to the books
+// a client already keeps.
+
+/**
+ * Every page a reader reaches without signing in, as words: the pages the
+ * rest of this file reads, and also the legal pages, the demo's door and
+ * its seats, the layout's description, and each party page's raw HTML so
+ * a table cell or a caption cannot slip past a text extractor.
+ */
+function everyPublicWord(): [string, string][] {
+  const out = everyPublicPage()
+  for (const page of PUBLIC_PAGES.filter((p) => p.kind === 'LEGAL' || p.route === '/demo')) {
+    const file = join(process.cwd(), page.routeFile)
+    if (existsSync(file)) out.push([page.route, copyFrom(readFileSync(file, 'utf8')).join(' ')])
+  }
+  out.push(['/demo seats', copyFrom(readFileSync(join(process.cwd(), 'src/app/demo/seats.ts'), 'utf8')).join(' ')])
+  out.push(['the layout', copyFrom(readFileSync(join(process.cwd(), 'src/app/layout.tsx'), 'utf8')).join(' ')])
+  for (const p of PARTIES) out.push([`/docs/${p.doc.slug} (html)`, p.doc.html])
+  return out
+}
+
+describe('Etyme names no enterprise incumbent, and explains its words by their own reason', () => {
+
+  it('no public page or documentation page names SAP, Fieldglass, Beeline, Magnit, Ariba, Oracle or Workday, or says what an ERP calls a thing', () => {
+    const pages = everyPublicWord()
+    expect(pages.length).toBeGreaterThan(30)
+    for (const [route, text] of pages) {
+      const found = incumbentComparison(text)
+      expect(found, `${route}: ${found.join('; ')}`).toEqual([])
+    }
+  })
+
+  it('catches every incumbent written as a name, and every way of saying what another system calls a thing', () => {
+    for (const said of [
+      'Etyme is the same job as SAP Fieldglass.',
+      'If you know Beeline, this will feel familiar.',
+      'Unlike Magnit, we are sized for you.',
+      'The order goes to Ariba.',
+      'Export to Oracle or to WORKDAY.',
+      'Etyme says · what an ERP calls it',
+      'An ERP calls it a service entry sheet.',
+      'The firm bills its customer — an ERP’s process is called billing.',
+      'In an ERP the award is the order.',
+      'Not a commercial document; nobody signs one — same in an ERP.',
+      'No ERP word. A firm holding back against bench time.',
+      'The term is the ERP’s own.',
+      'Small-business accounting packages say Invoice for the customer document.',
+      'What a VMS would call a worker profile.',
+    ]) {
+      expect(incumbentComparison(said), said).not.toEqual([])
+    }
+  })
+
+  it('leaves ERP alone where it is a plain fact about integration: a station where a document crosses to the books the client already keeps', () => {
+    for (const said of [
+      'A marked station is where a document would cross to a system you already run: your ERP, your HCM or your expense system.',
+      '3 Purchase order → ERP',
+      'Etyme keeps the record for contractors and suppliers, and your ERP, HCM and expense systems keep theirs.',
+      'No named connector to a particular ERP, HCM, payroll, expense, signature or background-check product is built.',
+      'Every posting becomes a balanced journal entry, exported once to the accounting system you already run.',
+      'Keep your ATS, your VMS and every supplier you already use.',
+      'Apparel · ERP finance lead',
+      // Ordinary words are not the name: a sapling, an oracle, a workday.
+      'The sapling and the oracles of Delphi at the workday’s end.',
+    ]) {
+      expect(incumbentComparison(said), said).toEqual([])
+    }
+  })
+
+  it('every party page keeps its glossary under each drawing, headed in its own words, with two columns and no column for another system', () => {
+    for (const p of PARTIES) {
+      expect(p.doc.html, p.doc.slug).not.toMatch(/What an ERP calls it/i)
+      expect(p.doc.html, p.doc.slug).not.toMatch(/Where they meet, and where they part/)
+      expect(p.doc.html, p.doc.slug).toContain('Etyme says · what it means')
+      expect(p.doc.html, p.doc.slug).toContain('<th>Etyme says</th><th>What it is, and why</th>')
+      // The drawings and their stations table and integration points stay.
+      expect(p.doc.html, p.doc.slug).toContain('Integration points')
+      expect(p.doc.html, p.doc.slug).toMatch(/Stations · L3/)
+    }
+  })
+
+  it('names the three-way check by what it checks, and the bill by who issues it, never by what another system calls them', () => {
+    const client = PARTIES.find((p) => p.doc.slug === 'client')!.doc.html
+    expect(client).toContain('The hours, the bill, and the contract rate must all agree: work order ↔ timesheet receipt ↔ invoice receipt.')
+    expect(client).toContain('The party who issues a document names it, so a firm bills its customer.')
+    expect(client).not.toMatch(/goods receipt|service entry sheet/)
+  })
+
 })

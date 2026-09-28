@@ -17,7 +17,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import {
-  check, copyFrom, priceClaims, namedCompanies, longSentences,
+  check, copyFrom, priceClaims, namedCompanies, longSentences, incumbentComparison,
   readsAsAimedAtSuppliers, offersTheProgramOffice, sizesAgainstIncumbents,
   type Copy,
 } from '@/lib/positioning'
@@ -337,9 +337,14 @@ describe('The documentation is public', () => {
     }
   })
 
-  it('the documentation says what an ERP calls a thing without naming anybody’s ERP', () => {
+  it('the documentation explains every term in Etyme’s own words, and says nowhere what an ERP or any other system calls it', () => {
+    // The founder, 2026-09-28: naming the incumbents, or explaining the
+    // model as a translation of an ERP's, "makes it sound like we copied
+    // them". ERP survives only as a place a document crosses to the books.
     for (const p of PARTIES) {
-      expect(p.doc.html, p.doc.slug).toContain('What an ERP calls it')
+      expect(p.doc.html, p.doc.slug).not.toMatch(/What an ERP calls it/i)
+      expect(p.doc.html, p.doc.slug).toContain('Etyme says · what it means')
+      expect(incumbentComparison(textOfHtml(p.doc.html)), p.doc.slug).toEqual([])
       expect(namedCompanies(textOfHtml(p.doc.html)), p.doc.slug).toEqual([])
     }
   })

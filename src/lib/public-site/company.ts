@@ -138,8 +138,8 @@ export const ABOUT: CompanyPage = {
     },
     // ── Four blocks moved from the home page, 2026-09-27 ──────────────
     //
-    // The founder asked for the home page to read like a Microsoft or SAP
-    // product page rather than an essay. It was 3,771 words. What was on
+    // The founder asked for the home page to read like a product page
+    // rather than an essay. It was 3,771 words. What was on
     // it and belonged to no one station came here, word for word where
     // the words had already been read against the code: why nobody can
     // answer the four questions (#gap's long form), how one hire moves

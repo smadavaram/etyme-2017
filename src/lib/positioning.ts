@@ -167,24 +167,24 @@ const THE_OFFER = [
  * This is instead the specific set that has been on this page, plus the
  * ones somebody would reach for next: the household names, the peer
  * systems a comparison would name, and the large staffing firms. A
- * comparison is caught too, deliberately — "unlike Fieldglass" is a
- * claim about somebody else's product that nobody here has tested.
+ * comparison is caught too, deliberately — "unlike" and a rival's name is
+ * a claim about somebody else's product that nobody here has tested.
  *
  * Two-word names are matched whole, so "General Electric" is caught and
  * a sentence about electric vehicles is not. Nothing shorter than four
- * letters is listed, because "GE" and "SAP" appear inside ordinary words
- * and a guard that cries wolf gets deleted.
+ * letters is listed, because two- and three-letter names appear inside
+ * ordinary words and a guard that cries wolf gets deleted.
  *
  * ── The exception that lasted an evening, 2026-09-20 ─────────────────
  *
  * The founder gave the home page to the CTO of a two-billion-dollar
  * company with forty to fifty contractors — the exact buyer. He said he
- * did not understand what the app does. The founder said "we are SAP
- * Fieldglass" and it connected at once, so for a few hours this file
- * carried one allowed sentence naming SAP Fieldglass and Beeline.
+ * did not understand what the app does. The founder named an enterprise
+ * VMS the buyer knew and it connected at once, so for a few hours this
+ * file carried one allowed sentence naming two of them.
  *
- * The founder then read the page on his phone and struck it: "Invoking
- * SAP Fieldglass and Beeline will trigger more questions than answers."
+ * The founder then read the page on his phone and struck it: naming
+ * them "will trigger more questions than answers."
  * A rival's name on a page invites "how are you different", "are you
  * certified like them", "who else uses you", and a page cannot finish
  * that argument — a conversation can, which is where the comparison
@@ -205,14 +205,15 @@ const TRADEMARKED = [
   'bullhorn', 'greenhouse', 'ceipal', 'icims', 'taleo', 'successfactors',
   'linkedin', 'indeed', 'ziprecruiter',
   // Added 2026-09-26, when the documentation came across from the static
-  // site with a column headed "What SAP calls it" on every page and an
-  // integrations table marking SAP, Concur and a dozen others as
-  // connected. None of them has agreed to appear, and none of those
-  // connectors exists. "SAP" is three letters and breaks the four-letter
-  // floor below on purpose: it is matched as a whole word, the brief
-  // named it, and an ERP's name in a crosswalk is exactly the comparison
-  // the founder struck on 2026-09-20.
-  'sap', 'concur', 'magnit', 'netsuite', 'quickbooks', 'xero', 'docusign',
+  // site with a column headed with an ERP's name on every page and an
+  // integrations table marking a dozen systems as connected. None of
+  // them has agreed to appear, and none of those connectors exists. The
+  // first entry below is three letters and breaks the four-letter floor
+  // on purpose: it is matched as a whole word, the brief named it, and
+  // an ERP's name in a crosswalk is exactly the comparison the founder
+  // struck on 2026-09-20.
+  // Ariba joined on 2026-09-28 with `incumbentComparison` below.
+  'sap', 'ariba', 'concur', 'magnit', 'netsuite', 'quickbooks', 'xero', 'docusign',
   'okta', 'checkr', 'hireright', 'adobe', 'dynamics 365', 'computer futures',
   // The large staffing and consulting firms.
   'accenture', 'deloitte', 'infosys', 'wipro', 'cognizant', 'capgemini',
@@ -273,9 +274,8 @@ export function check(copy: Copy): Finding[] {
 
   // ── Category first ──────────────────────────────────────────────────
   //
-  // The way Concur says travel and expense before it says anything
-  // clever. A visitor should know what kind of thing this is before
-  // they know what is good about it.
+  // Say the category before anything clever. A visitor should know
+  // what kind of thing this is before they know what is good about it.
   const category = hits(hero, CATEGORY)
   if (category.length === 0) {
     findings.push({
@@ -285,7 +285,7 @@ export function check(copy: Copy): Finding[] {
       says:
         'Nothing above the fold says what category this is. A visitor has to know ' +
         'it is about contractors and the suppliers who provide them before they know ' +
-        'what is good about it — the way Concur says travel and expense first.',
+        'what is good about it — the category first.',
     })
   }
 
@@ -895,6 +895,69 @@ const VMS_PHRASE = /\bvendor[\s-]+management[\s-]+systems?\b/gi
  */
 export function vendorManagementSystem(text: string): string[] {
   return [...text.matchAll(VMS_PHRASE)].map((m) => m[0])
+}
+
+// ── Never name the incumbents, and never translate from them ─────────
+//
+// Decided by the founder, 2026-09-28: naming the enterprise ERP and VMS
+// vendors in documentation or any other content "makes it sound like we
+// copied them". The public pages already named none; the documentation
+// carried something that reads the same way without a name — a column
+// on every party page saying what an ERP calls each thing, and captions
+// explaining a term by what another system calls it. Etyme's model
+// explained as a translation of somebody else's is Etyme described as a
+// copy.
+//
+// So every term on a public page stands on its own reason — the party
+// who issues a document names it; the signed week is the proof the work
+// happened — and this refuses the two ways a comparison comes back:
+//
+//   - an incumbent's name, as a whole word, written as a name (Workday
+//     or WORKDAY) — never the lowercase word, because "a workday" and
+//     "an oracle" are English and a guard that cries wolf gets deleted
+//   - a sentence that takes a word from another kind of system: "an ERP
+//     calls", "what an ERP calls it", "in an ERP", "no ERP word", "the
+//     ERP's own term", "accounting packages say Invoice for"
+//
+// "ERP" alone is not refused. It is a plain fact about integration — a
+// station marked ERP is where a document crosses to the books the client
+// already keeps, and Etyme exports to the accounting system it already
+// runs — and a buyer needs to read that. What is refused is another
+// system as the authority for a word. No vendor is named even there.
+
+const INCUMBENTS = ['SAP', 'Fieldglass', 'Beeline', 'Magnit', 'Ariba', 'Oracle', 'Workday']
+
+const OTHER_SYSTEM = String.raw`(?:ERP|VMS|HCM|accounting (?:system|package|software|product)s?)`
+
+const TRANSLATED: RegExp[] = [
+  // "an ERP calls it", "the ERP names", "an ERP would call", "an ERP's process is called"
+  new RegExp(String.raw`\b(?:an?|the|any|every|most)\s+${OTHER_SYSTEM}(?:’s|'s)?\s+(?:would\s+|might\s+)?(?:calls?|names?|terms?|process is called)\b`, 'gi'),
+  // "what an ERP calls it", "what an ERP would call"
+  new RegExp(String.raw`\bwhat\s+(?:an?|the|your)\s+${OTHER_SYSTEM}\s+(?:would\s+)?calls?\b`, 'gi'),
+  // "In an ERP the award is the order", "same in an ERP"
+  new RegExp(String.raw`\bin\s+an?\s+${OTHER_SYSTEM}\b`, 'gi'),
+  // "No ERP word", "the ERP's own term", "the term is the ERP's own"
+  new RegExp(String.raw`\bno\s+${OTHER_SYSTEM}\s+word\b|\bthe\s+${OTHER_SYSTEM}(?:’s|'s)\s+own\b`, 'gi'),
+  // "accounting packages say Invoice for the customer document"
+  new RegExp(String.raw`\b${OTHER_SYSTEM}\s+(?:says?|calls?)\s+\w+\s+for\b`, 'gi'),
+]
+
+/**
+ * Every incumbent named, and every phrase taking a word from another
+ * system, in a piece of public copy. Each hit is the words as found, so
+ * somebody can search for them. Empty is the only acceptable answer on a
+ * public page or in the documentation.
+ */
+export function incumbentComparison(text: string): string[] {
+  const found: string[] = []
+  for (const name of INCUMBENTS) {
+    const asName = new RegExp(String.raw`\b(?:${name}|${name.toUpperCase()})\b`, 'g')
+    for (const m of text.matchAll(asName)) found.push(m[0])
+  }
+  for (const pattern of TRANSLATED) {
+    for (const m of text.matchAll(pattern)) found.push(m[0])
+  }
+  return found
 }
 
 // ── A claim the reader cannot check. Decided 2026-09-28 ───────────────
