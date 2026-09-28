@@ -411,7 +411,7 @@ export const HELD: HeldCategory[] = [
       'of numbers about their own contingent workforce: the company name, the contact name ' +
       'and work address typed on a page with no login behind it, the desk they sit at, who ' +
       'accepted the one-page census agreement and which edition, and the files themselves — ' +
-      'a filled template or their own supplier invoices and timesheets. The files are ' +
+      'a filled template or their own invoice receipts and timesheets. The files are ' +
       'deleted on a day fixed when they arrived; the row saying how many there were and ' +
       'when they went outlives them, because it is the proof we did it on the day we said.',
     about: 'Business users',
