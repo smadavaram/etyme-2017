@@ -157,8 +157,21 @@ follow:
   that set Etyme apart from the enterprise vendors, who now share the
   category word. The difference has to be carried by what the page shows
   — every supplier on one record, the program office option, set up in
-  days — rather than by a number. "Vendor management system" may still
-  appear as the word procurement searches for.
+  days — rather than by a number. ~~"Vendor management system" may still
+  appear as the word procurement searches for.~~ **Superseded the same
+  day: "vendor management system" is banned on public pages** (founder,
+  2026-09-28, via the go-to-market review). The category is
+  "enterprise contingent workforce management" and nothing else.
+- **Plain words on public pages, defined once. Decided by the founder,
+  2026-09-28.** The page says *job*, not role or requisition; *job
+  request* where the object is meant; *bill*, never invoice, with the
+  three-way *check* defined on first use as "the hours, the bill, and
+  the contract rate must all agree"; *time limit*, not tenure cap. A
+  trade term a US IT buyer may not know is glossed on first use and
+  then used plainly: "US work visa (H-1B)", "US work form (I-9)", "paid
+  through her own company" for corp-to-corp, and "bench" as "workers
+  waiting for a project". This governs the public site and the demo
+  hub, not the product screens, whose words stay the trade's.
 - **The reader is a technical IT buyer, and the goal is trust, not a
   pitch. Decided by the founder, 2026-09-28:** *"You are targeting
   well-versed IT people; they rarely buy anything because of claims. Our
