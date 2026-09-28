@@ -33,6 +33,18 @@
  * On a phone it does not shrink to a sliver: the band keeps a fixed
  * height and the drawing is cropped to its middle (`xMidYMid slice`), so
  * the record and the straightened lanes stay at a readable size.
+ *
+ * ── "I don't see the mural", 2026-09-28 ─────────────────────────────
+ *
+ * Measured on `next start` the same day, it drew at both widths: 1440 by
+ * 384 on a desktop, 390 by 210 on a phone, in ink, directly under the
+ * heading and its two sentences. What a reader could fairly call "not
+ * there": on a phone the crop keeps only the middle half of the drawing,
+ * so no firm and no person is in it and it reads as a strip of lines;
+ * and above the phone width the drawing had no intrinsic size, only a
+ * viewBox, so its height depended on the browser inferring one. The
+ * `width` and `height` attributes now give it the 15:4 ratio every
+ * browser honors under `h-auto`; CSS still sets the size it is drawn at.
  */
 
 const W = 2400
@@ -127,6 +139,8 @@ export function JoinMural() {
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
+      width={W}
+      height={H}
       preserveAspectRatio="xMidYMid slice"
       role="img"
       aria-label="A wide line drawing. Firms stand on both sides with their people beside them: a supplier and a smaller sub-vendor on the left, two clients on the right. From each side four lanes of work start out broken and tangled, with papers scattered across them, then straighten, evenly spaced and with their steps aligned, as they reach one shared record in the middle, and pass through it a lane to a row. Two clocks set to different hours sit above the firms."

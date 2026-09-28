@@ -4,6 +4,8 @@ import { JoinMural } from '@/lib/public-site/join-mural'
 import { SiteHeader, SiteFooter } from '@/lib/public-site/frame'
 import { CloseBand } from '@/lib/public-site/close-band'
 import { SEE_IT, GET_THE_AUDIT } from '@/lib/public-site/funnel'
+import { PRODUCT_STAGES } from '@/lib/public-site/nav'
+import { ModuleIcon } from '@/lib/public-site/module-icons'
 import Link from 'next/link'
 // Typed routes widen a string in an array to `string`, which Link will not
 // take. The cast is at the render rather than on the data so the lists
@@ -13,73 +15,80 @@ import type { Route } from 'next'
 /**
  * The front door.
  *
- * ── Four bands and two screens. Rewritten 2026-09-27, twice ─────────
+ * ── Five bands, and a hero that reads in five seconds. 2026-09-28 ─────
  *
- * The founder, the day after the page became a product page: it is
- * still too big. It was 1,280 words in seven bands, then five. The same
- * evening a CRO he showed it to said "the website seems too much data,
- * and you are already giving screenshots in the main page", and asked
- * whether the companies named were real customers. So it is four bands,
- * each saying one thing and leading to the page that says the rest:
+ * The founder, the day after the page went to four bands: "Add mural
+ * back near join with global teams. Sections — it was one section that
+ * was nice and also made quick sense. Hero section can still be compact
+ * and impactful. Less theory there. Declare category as Enterprise
+ * Contingent workforce mgmt. Don't limit to 50–500 consultants — keep the
+ * business open for all." And, the same day, on who reads it: "You are
+ * targeting well-versed IT people; they rarely buy anything because of
+ * claims. Our main goal is registering as a trustworthy brand."
  *
- *   1. what is this      the hero — the founder's headline, the category
- *                        line he decided, the outcome, one hook line, the
- *                        two ways in, and the program dashboard
+ *   1. what is this      the hero — the founder's headline, the category,
+ *                        one line saying what the software does, the two
+ *                        ways in, and the program dashboard. Nothing else
  *   2. what does it do   #steps — four steps a line each, every one a
  *                        link to its part's page, beside one screen
- *   3. where it reaches  #join — the founder's line and the mural, quietly
- *   4. the door          #close — see it, get the audit, ask a person;
- *                        the program office offered once, quietly; one
- *                        line on price; the supplier's and the
- *                        contractor's doors as whole questions
+ *   3. what is in it     #modules — the eight parts under the four stages
+ *                        of the Product menu, a name, an icon and one
+ *                        line each, and no screenshots
+ *   4. where it reaches  #join — the founder's line, its two sentences,
+ *                        and the mural under them, full width
+ *   5. the door          #close — see it, get the audit, ask a person;
+ *                        the program office once, quietly; one line on
+ *                        price; where to check us before trusting us;
+ *                        the supplier's and the contractor's doors as
+ *                        whole questions
  *
  * Where each band that left went, so nobody re-adds it here:
  *
+ *   the hook line (how many contractors, three weeks of asking)
+ *          → /about#unanswered, where it was already said in full.
+ *          "Less theory" in the hero, and a claim about what "most
+ *          companies" cannot do is not one a reader can check
  *   #gap   the four questions, each answered on a screen → /about#answered
- *          (why nobody can answer today was already /about#unanswered)
  *   #ways  VMS software or MSP provider, and the supplier's paragraph
  *                                                          → /about#ways
  *   the hero's record and span lines                       → /about#build
- *   #modules  the eight parts under four stages → the header's Product
- *          menu, on every page, grouped the same way; each step here
- *          links to its own part's page
  *   three of the four step screens → their module pages, each opening
  *          on its screen
  *
- * The earlier moves, 2026-09-27 morning, are unchanged: #exposure to
+ * The earlier moves, 2026-09-27, are unchanged: #exposure to
  * /compliance#cost, #lifecycle to /about#hire, #alongside to
  * /about#alongside, #who to /chain#down-the-chain, #compliance to
  * /governance#rules, #why to /about#price with one line kept here.
  * `positioning.test.ts` holds a word ceiling and a band count, and finds
  * each moved phrase where it went.
  *
- * ── The category, decided 2026-09-27 ─────────────────────────────────
+ * ── The category, decided 2026-09-28 ─────────────────────────────────
  *
- * "Contingent workforce management for companies with 20 to 200
- * contractors. The vendor management system, sized for fifty contractors
- * rather than five thousand." The product spans the whole of contingent
- * work, requisition to invoice to compliance, so the category names the
- * whole. "Vendor management system" stays in the second sentence because
- * it is what a buyer's procurement searches for and the word that made
- * the CTO understand it. The niche is the size, not the label. It
- * replaced the eyebrow and the size sentence at once, so the page does
- * not say "vendor management system" twice above the fold.
+ * "Enterprise contingent workforce management", open to every size. The
+ * line it replaces named a range of 20 to 200 contractors and "sized for
+ * fifty contractors rather than five thousand"; the founder struck the
+ * range, and `sizesTheBuyer` in `lib/positioning` refuses one coming
+ * back. "Vendor management system" stays on the page once, as the word a
+ * buyer's procurement searches for, over the eight parts — never as a
+ * size.
+ *
+ * ── Show, don't claim ─────────────────────────────────────────────────
+ *
+ * The reader is an engineer or an IT leader who discounts adjectives. So
+ * every sentence is either a plain description of what the software does
+ * or a fact a reader can check on this site: the demo with no account,
+ * the screens, the public documentation, the security position that says
+ * what is not done yet. `unverifiableClaims` in `lib/positioning` refuses
+ * the hype words and the time promises nobody has measured.
  *
  * ── A real buyer read it. Rewritten 2026-09-20 ───────────────────────
  *
  * The CTO of a two-billion-dollar company with forty to fifty IT
  * contractors — the exact buyer — said he did not understand what the
  * app does, and that it looked like an AI app. So: screens before
- * sentences, and the category and the size with no company named. The
- * comparison to the incumbents is a sentence the founder says in a
- * conversation, where he can answer the next question.
- *
- * ── The hook is the not-knowing ──────────────────────────────────────
- *
- * Nobody is fined at month nineteen. Being asked how many contractors
- * you have and not knowing happens monthly. So the hero's one hook line
- * is the question and the three weeks, and tenure is not in it: it is
- * the moat, not the wedge (corrected 2026-09-17).
+ * sentences, and the category with no company named. The comparison to
+ * the incumbents is a sentence the founder says in a conversation, where
+ * he can answer the next question.
  *
  * ── The program office is offered quietly. Decided 2026-09-20 ────────
  *
@@ -95,11 +104,16 @@ import type { Route } from 'next'
  * leads to something a stranger can open today.
  */
 
+/**
+ * The title only. The description is the layout's, inherited, so the home
+ * page and every other page say one sentence in a search result and a
+ * link preview and cannot disagree — until 2026-09-28 the two carried the
+ * same literal twice, and a category change had to be made in two files
+ * owned by two agents. `site-description.test.ts` holds that the home
+ * page declares none of its own.
+ */
 export const metadata: Metadata = {
-  title: { absolute: 'Etyme | Contingent workforce management' },
-  description:
-    'Contingent workforce management for companies with 20 to 200 contractors. ' +
-    'The vendor management system, sized for fifty contractors rather than five thousand.',
+  title: { absolute: 'Etyme | Enterprise contingent workforce management' },
 }
 
 /**
@@ -188,35 +202,27 @@ export default function LandingPage() {
 
       <main>
       {/* ── Hero ─────────────────────────────────────────────── */}
-      {/* The founder's headline, then the category line he decided on
-          2026-09-27, then one hook line, then the two ways in, then the
-          product itself. The first sentence under the headline is set in
-          ink and the second in the same paragraph, so the category and
-          the word a buyer searches for read as one thought. */}
+      {/* Five seconds, decided 2026-09-28: the founder's headline, the
+          category, one line saying what the software does, the two ways
+          in, and the product itself. "Less theory there." The hook line
+          that sat here went to /about#unanswered. */}
       <section className="border-b border-etyme-rule">
         <div className="mx-auto max-w-6xl px-4 pb-14 pt-12 sm:px-6 md:pb-20 md:pt-16">
-          <h1 className="mb-6 max-w-[18ch] text-balance font-serif text-[40px] font-normal
+          <h1 className="mb-5 max-w-[18ch] text-balance font-serif text-[40px] font-normal
                          leading-[1.03] tracking-[-0.02em] text-etyme-ink md:text-[60px]">
             Every contractor. Every supplier. One record.
           </h1>
-          <p className="mb-4 max-w-[62ch] text-[19px] leading-relaxed text-etyme-muted md:text-[21px]">
-            <span className="font-medium text-etyme-ink">Contingent workforce management for companies with 20 to 200 contractors.</span> The vendor management system, sized for fifty contractors rather than five thousand.
+          <p className="mb-3 text-[19px] font-medium leading-snug text-etyme-ink md:text-[22px]">
+            Enterprise contingent workforce management.
           </p>
-          {/* The outcome, added 2026-09-27 on a buyer-side review: the
-              reader is an operations leader or a CFO with a dozen
-              suppliers and no procurement team to watch them. It comes
-              after the category, never before it, because a visitor knows
-              what kind of thing this is before they know what is good
-              about it. It sells control, never outsourcing, and it is
-              about the software in the hands of the client's own people —
-              "your own people" is what keeps it from reading as the quiet
-              program office offer in the close. */}
-          <p className="mb-4 max-w-[62ch] text-[17px] font-medium leading-relaxed text-etyme-ink">
-            Your own people get a procurement team’s control over every contractor and every supplier, without hiring one.
-          </p>
-          <p className="mb-8 max-w-[62ch] text-[17px] leading-relaxed text-etyme-ink">
-            How many contractors are on your sites, which suppliers sent them, and what are
-            they costing you? Most companies cannot answer without three weeks of asking.
+          {/* What the software does, as a description rather than a
+              promise, 2026-09-28: the reader is an engineer who discounts
+              "control" and checks verbs. Each verb is a screen in the
+              demo under the buttons. "Your own people" keeps it from
+              reading as the program office offered quietly in the close,
+              and it sells control, never outsourcing. */}
+          <p className="mb-8 max-w-[62ch] text-[17px] leading-relaxed text-etyme-muted">
+            Your own people approve the roles, sign the timesheets and pay only matched invoices, across every supplier.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -269,11 +275,7 @@ export default function LandingPage() {
           steps a line each, every one leading to its own page, and one
           screen beside them. The caption sits inside the screen's frame,
           under the image and after the steps in reading order, so a
-          caption and a step never read as one paragraph.
-
-          The eight-part tile band that stood under this until 2026-09-27
-          is gone: the Product menu in the header carries all eight,
-          grouped by stage, on every page. */}
+          caption and a step never read as one paragraph. */}
       <section id="steps" className="scroll-mt-6 border-b border-etyme-rule bg-etyme-surface">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
           <p className="eyebrow mb-3">What it does, in four steps</p>
@@ -315,6 +317,55 @@ export default function LandingPage() {
             </figure>
           </div>
 
+        </div>
+      </section>
+
+      {/* ── The eight parts ─────────────────────────────────────── */}
+      {/* Back on the page 2026-09-28, in the founder's words: "it was one
+          section that was nice and also made quick sense." The same four
+          stages and eight parts as the header's Product menu, drawn from
+          the same data (PRODUCT_STAGES), so the menu and the page teach
+          one map and cannot drift. Each tile is a name, the kit's icon and
+          one line, and opens its part's page. No screenshots in the tiles:
+          the CRO who read the page on 2026-09-27 said it had too many
+          screens, and the two it keeps are the hero's and the steps'.
+          "Vendor management system" is said here, once, as the word a
+          buyer's procurement searches for — never as a size. */}
+      <section id="modules" className="scroll-mt-6 border-b border-etyme-rule">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
+          <p className="eyebrow mb-3">What is in it</p>
+          <h2 className="max-w-[30ch] text-balance font-serif text-3xl leading-tight
+                         tracking-[-0.02em] text-etyme-ink md:text-[40px]">
+            One vendor management system, in the order a hire moves through it
+          </h2>
+
+          <div className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+            {PRODUCT_STAGES.map((stage) => (
+              <div key={stage.heading}>
+                <p className="stat-label border-b border-etyme-rule pb-2">{stage.heading}</p>
+                <ul className="mt-3 space-y-3">
+                  {stage.items.map((m) => (
+                    <li key={m.href}>
+                      <Link
+                        href={m.href as Route}
+                        className="group flex gap-3 rounded-xl border border-etyme-rule bg-etyme-raised px-4 py-3.5
+                                   transition-shadow hover:shadow-md"
+                      >
+                        <ModuleIcon href={m.href} className="mt-0.5 shrink-0 text-etyme-action" />
+                        <span>
+                          <span className="block text-[15px] font-semibold leading-snug text-etyme-ink
+                                           group-hover:text-etyme-action">
+                            {m.t}
+                          </span>
+                          <span className="mt-1 block text-[13px] leading-snug text-etyme-muted">{m.d}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -368,6 +419,30 @@ export default function LandingPage() {
           >
             Why it’s free for the first five firms →
           </Link>
+        </p>
+        {/* Where to check us, added 2026-09-28 on the founder's "our main
+            goal is registering as a trustworthy brand". An engineer
+            trusts what he can read, so this points at the two things on
+            the site that say more than a page can: every flow in public
+            documentation, and a security position that says what is not
+            done yet. No certification, no uptime and no customer count,
+            because none of them exists to point at. */}
+        <p className="mt-3 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
+          Before you trust us:{' '}
+          <Link
+            href={'/docs' as Route}
+            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
+          >
+            the documentation is public
+          </Link>
+          , and{' '}
+          <Link
+            href={'/security' as Route}
+            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
+          >
+            the security position says what is not built yet
+          </Link>
+          .
         </p>
         {/* The two quieter doors, as whole sentences. A buyer-side review,
             2026-09-27, read "If you supply into a program instead" as a

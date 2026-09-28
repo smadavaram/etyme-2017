@@ -45,9 +45,17 @@ describe('what the site says it is, outside the home page', () => {
 
   it('every page but the home page describes Etyme by the category the founder chose', () => {
     expect(description).toBe(CATEGORY_SENTENCE)
-    // The home page says the same, so a tab and a search result never
-    // disagree about what the product is depending on which page was hit.
-    expect(descriptionIn(read('src/app/page.tsx'))).toBe(CATEGORY_SENTENCE)
+  })
+
+  it('the home page declares no description of its own, so it inherits the layout’s and the two can never disagree', () => {
+    // Until 2026-09-28 the home page carried the same literal as the
+    // layout, and this test held the two equal. The category changed that
+    // day and the two files have two owners, so the page stopped carrying
+    // a copy: a tab and a search result read one sentence, declared once.
+    const home = read('src/app/page.tsx')
+    const metadata = home.slice(home.indexOf('export const metadata'), home.indexOf('\n}\n', home.indexOf('export const metadata')))
+    expect(metadata).toContain('title:')
+    expect(metadata).not.toMatch(/\bdescription:/)
   })
 
   it('the site-wide description never calls Etyme a hiring tool or claims something is verified', () => {

@@ -66,34 +66,39 @@ export interface NavMenu {
  * The eight parts of the product, grouped by the stage a hire reaches
  * them in. The home page's module band draws these same four groups, so
  * the menu and the page teach one map.
+ *
+ * One sentence per line, since 2026-09-28, when the band came back to
+ * the home page: a CRO had called the page "too much data", so a tile is
+ * a name and one line. Each line describes what the part does, in words
+ * a reader can check on its page; none promises a result.
  */
 export const PRODUCT_STAGES: NavGroup[] = [
   {
     heading: 'Source',
     items: [
-      { t: 'Requisitions & suppliers', d: 'Raised, cleared by rule or by a desk, released to the suppliers Procurement named.', href: '/requisitions' },
-      { t: 'Submissions & screening', d: 'Every supplier against the same role, on one screen, each at its own rate.', href: '/submissions' },
+      { t: 'Requisitions & suppliers', d: 'Sent only to the suppliers Procurement cleared.', href: '/requisitions' },
+      { t: 'Submissions & screening', d: 'Every supplier’s people for one role, side by side.', href: '/submissions' },
     ],
   },
   {
     heading: 'Start',
     items: [
-      { t: 'Contracts & onboarding', d: 'The award writes the contract. The papers are checked before day one.', href: '/contracts' },
+      { t: 'Contracts & onboarding', d: 'Written by the award, papers checked before day one.', href: '/contracts' },
     ],
   },
   {
     heading: 'Work and pay',
     items: [
-      { t: 'Timesheets & expenses', d: 'Filed once, signed twice, flagged first. Nobody approves their own.', href: '/timesheets' },
+      { t: 'Timesheets & expenses', d: 'The worker files the week; nobody approves their own.', href: '/timesheets' },
       { t: 'Invoices & the three-way match', d: 'An invoice with no signed week behind it is not paid.', href: '/invoices' },
     ],
   },
   {
     heading: 'Govern',
     items: [
-      { t: 'Compliance & tenure', d: 'Counted per person across suppliers, warned at three quarters, blocked at your cap.', href: '/compliance' },
-      { t: 'The chain', d: 'Each firm sees its own level. Insurance and authorization are visible at every depth.', href: '/chain' },
-      { t: 'Governance', d: 'Blocks where the law is behind it, warns everywhere else, records even a pass.', href: '/governance' },
+      { t: 'Compliance & tenure', d: 'Time on site per person, across every supplier.', href: '/compliance' },
+      { t: 'The chain', d: 'Each firm sees its own level; insurance shows at every depth.', href: '/chain' },
+      { t: 'Governance', d: 'Blocks where the law is behind it; warns elsewhere.', href: '/governance' },
     ],
   },
 ]

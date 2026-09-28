@@ -829,6 +829,101 @@ export function sizesAgainstIncumbents(text: string): string[] {
   return out
 }
 
+// ── Open to every size. Decided 2026-09-28 ────────────────────────────
+//
+// For a day the category line read "Contingent workforce management for
+// companies with 20 to 200 contractors. The vendor management system,
+// sized for fifty contractors rather than five thousand." The founder
+// struck the range: "Declare category as Enterprise Contingent workforce
+// mgmt. Don't limit to 50–500 consultants — keep the business open for
+// all." So a public page may describe what the product does for any
+// company and may not tell a reader which size of company it is for.
+//
+// This is a different rule from the one above. That one catches Etyme
+// measured against the incumbents; this one catches the reader measured
+// against a range, which turns away everybody outside it. A worked
+// example with a count in it ("a company with a dozen suppliers") is not
+// caught: it names a situation, not a limit.
+
+const BUYER_SIZE: { pattern: RegExp; says: string }[] = [
+  { pattern: /\b(?:\d[\d,]*|twenty|thirty|forty|fifty|a hundred|one hundred)\s*(?:to|–|—|-)\s*(?:\d[\d,]*|(?:one |two |three |five )?hundred|(?:one |two |five )?thousand)\s+(?:contractors|consultants|contract workers|workers)\b/i,
+    says: 'a range of contractors the product is for' },
+  { pattern: /\bsized for\b/i, says: 'the size of company the product is for' },
+  { pattern: /\brather than (?:\d[\d,]*|five|ten|a|one|two) (?:hundred|thousand)\b/i, says: 'a size the product is not for' },
+  { pattern: /\b(?:too big|too large) for a spreadsheet\b|\btoo small for the enterprise\b/i,
+    says: 'a band of company sizes, stated as its two edges' },
+  { pattern: /\b(?:only )?for (?:companies|firms|clients|businesses) (?:with|of) (?:\d|twenty|thirty|forty|fifty|a hundred|hundreds|thousands|up to|under|over|fewer|more)/i,
+    says: 'the number of contractors a buyer must have' },
+]
+
+/**
+ * Anything on a page that limits who may buy by how many contractors
+ * they have. Empty is the only acceptable answer since 2026-09-28.
+ */
+export function sizesTheBuyer(text: string): string[] {
+  const out: string[] = []
+  for (const { pattern, says } of BUYER_SIZE) {
+    const m = text.match(pattern)
+    if (m) out.push(`${m[0].trim()} — ${says}`)
+  }
+  return out
+}
+
+// ── A claim the reader cannot check. Decided 2026-09-28 ───────────────
+//
+// The founder: "You are targeting well-versed IT people; they rarely buy
+// anything because of claims. Our main goal is registering as a
+// trustworthy brand." An engineer discounts an adjective the moment he
+// reads it, and discounts the page with it. So a public page says what
+// the software does, plainly, or states a fact a reader can check on the
+// site — the demo with no account, a screen, the public documentation,
+// the security position — and never:
+//
+//   - a hype adjective or a superlative ("seamless", "powerful",
+//     "best-in-class"), which nobody can check and everybody discounts
+//   - a speed nobody measured ("in minutes", "set up in days"), which is
+//     a promise about a client we have not onboarded
+//   - a badge the company has not earned ("enterprise-grade",
+//     "bank-level security", "trusted by", "industry-leading"), which the
+//     security position would contradict on the next click
+//
+// The list is words, not meaning, on purpose: it is the part of the rule
+// a machine can hold. The other part — is this sentence checkable — is
+// the founder's to read, and the test names say so.
+
+const UNVERIFIABLE: { pattern: RegExp; says: string }[] = [
+  { pattern: /\b(?:seamless(?:ly)?|effortless(?:ly)?|powerful|revolutionary|game[- ]chang(?:er|ing)|cutting[- ]edge|state[- ]of[- ]the[- ]art|next[- ]generation|world[- ]class|best[- ]in[- ]class|robust|blazing(?:ly)?|lightning[- ]fast|supercharge[sd]?|unparalleled|unrivall?ed|magic(?:al|ally)?|delightful|intuitive|frictionless|turnkey)\b/i,
+    says: 'a hype adjective nobody can check' },
+  { pattern: /\b(?:the )?(?:best|fastest|easiest|smartest|simplest|most (?:powerful|advanced|complete|comprehensive|trusted|secure))\b(?! practice)/i,
+    says: 'a superlative nobody can check' },
+  { pattern: /\b(?:industry[- ]leading|market[- ]leading|leading provider|enterprise[- ]grade|bank[- ](?:level|grade)|military[- ]grade|trusted by|loved by|used by (?:thousands|hundreds|leading))\b/i,
+    says: 'a badge nobody has awarded' },
+  { pattern: /\b(?:in|within|under) (?:minutes|seconds|hours|days|a few (?:minutes|hours|days)|an (?:afternoon|hour)|\d+ (?:minutes|seconds))\b/i,
+    says: 'a speed nobody has measured' },
+  { pattern: /\b(?:set ?up|live|up and running|onboard(?:ed)?|deploy(?:ed)?) (?:in|within) \w+/i,
+    says: 'a set-up time nobody has measured' },
+  { pattern: /\b(?:save|cut|reduce|lower)s?\b[^.]{0,40}?\d+\s*%|\b\d+x (?:faster|cheaper|more)\b/i,
+    says: 'a result nobody has measured' },
+  { pattern: /\b(?:guaranteed|100% (?:compliant|accurate|secure)|never miss(?:es)? a)\b/i,
+    says: 'a guarantee the software cannot give' },
+  { pattern: /!/, says: 'an exclamation' },
+]
+
+/**
+ * Every phrase on a page that claims what a reader cannot check.
+ *
+ * Empty is the only acceptable answer on a public page. Each hit is the
+ * words and why they were refused, so somebody can find the sentence.
+ */
+export function unverifiableClaims(text: string): string[] {
+  const out: string[] = []
+  for (const { pattern, says } of UNVERIFIABLE) {
+    const m = text.match(pattern)
+    if (m) out.push(`${m[0].trim()} — ${says}`)
+  }
+  return out
+}
+
 // ── A button that promises an account the site cannot open ────────────
 //
 // Added 2026-09-27, with the lead funnel. The marketing thread's primary
