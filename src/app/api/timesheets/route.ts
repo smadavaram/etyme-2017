@@ -8,6 +8,7 @@ import { payerRung } from '@/lib/chain-top'
 import { isConsultantSeat } from '@/lib/seat'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { mayFile, rungVerdict } from './filing'
+import { weekFlag, flaggedFirst } from '@/lib/timesheet-flag'
 import { rungsToFile, openWeeks } from '@/lib/consultant-portfolio'
 import { maySign, type Sheet } from '@/lib/timesheet-signatures'
 import {
@@ -84,9 +85,41 @@ export async function GET(request: NextRequest) {
   if (status) where.status = status.toUpperCase()
   if (sellContractId) where.sellContractId = sellContractId
 
-  const [timesheets, total] = await Promise.all([
-    prisma.timesheet.findMany({
-      where,
+  // ── Flagged first, across the whole list ──────────────────────────
+  //
+  // The page says "Flagged entries are shown first" and the list was
+  // ordered by date alone. A week's flag is read against its contract
+  // (`weekFlag`), which the database cannot order by, so every matching
+  // week is ranked on a few columns and the page is cut from that.
+  const ranked = flaggedFirst(
+    (
+      await prisma.timesheet.findMany({
+        where,
+        select: {
+          id: true, totalHours: true, periodStart: true, periodEnd: true, anomalyScore: true, anomalyReason: true,
+          sellContract: { select: { endDate: true, requirement: { select: { hoursPerWeek: true } } } },
+        },
+      })
+    ).map((t) => ({
+      id: t.id,
+      periodStart: t.periodStart,
+      flag: weekFlag({
+        hours: Number(t.totalHours),
+        hoursPerWeek: t.sellContract.requirement?.hoursPerWeek ?? null,
+        periodEnd: t.periodEnd,
+        contractEnd: t.sellContract.endDate,
+        anomalyScore: t.anomalyScore,
+        anomalyReason: t.anomalyReason,
+      }),
+    }))
+  )
+  const pageIds = ranked.slice((page - 1) * limit, page * limit).map((r) => r.id)
+  const flagOf = new Map(ranked.map((r) => [r.id, r.flag]))
+  const total = ranked.length
+
+  const timesheets = (
+    await prisma.timesheet.findMany({
+      where: { id: { in: pageIds } },
       include: {
         person: { select: { id: true, name: true } },
         sellContract: {
@@ -117,12 +150,8 @@ export async function GET(request: NextRequest) {
           select: { weekOf: true, treatment: true, appliedBps: true, overtimeHours: true },
         },
       },
-      orderBy: { periodStart: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.timesheet.count({ where }),
-  ])
+    })
+  ).sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id))
 
   const priced = await priceFor(caller, timesheets, { asClient, onBench, buyerCompanyId })
 
@@ -236,6 +265,9 @@ export async function GET(request: NextRequest) {
           status: t.status,
           anomalyScore: t.anomalyScore,
           anomalyReason: t.anomalyReason,
+          // What is wrong with the week, in a sentence, or null. The
+          // reason it is listed first.
+          flag: flagOf.get(t.id) ?? null,
           approvedAt: t.approvedAt?.toISOString() ?? null,
           mayApprove: approve.ok,
           mayApproveWhyNot: approve.ok ? null : approve.reason,

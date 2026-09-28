@@ -60,6 +60,8 @@ interface Timesheet {
   totalHours: number
   status: string
   anomalyScore: number | null
+  /** What is wrong with the week against its contract, or its filing anomaly; null when plain. Listed first. */
+  flag: string | null
   anomalyReason: string | null
   approvedAt: string | null
   /** Whether the server would let this seat sign this week. */
@@ -767,8 +769,8 @@ export default function TimesheetsPage() {
       render: (row) => (
         <span className="tabular-nums font-medium">
           {row.totalHours.toFixed(1)}
-          {row.anomalyScore != null && row.anomalyScore > 0 && (
-            <span className="ml-1.5 text-etyme-attention" title={row.anomalyReason ?? 'Anomaly detected'}>
+          {row.flag && (
+            <span className="ml-1.5 text-etyme-attention" title={row.flag}>
               ⚠
             </span>
           )}
@@ -1069,7 +1071,7 @@ export default function TimesheetsPage() {
           </>
         )}
         rowClassName={(row) =>
-          row.anomalyScore != null && row.anomalyScore > 0
+          row.flag
             ? 'bg-amber-50/30'
             : ''
         }

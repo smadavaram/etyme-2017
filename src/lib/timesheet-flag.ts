@@ -28,3 +28,41 @@ export function shortDate(d: Date): string {
 export function periodWord(from: Date, to: Date): string {
   return `${shortDate(from)} – ${shortDate(to)}`
 }
+
+/**
+ * What is wrong with a week, if anything, in one sentence: the contract's
+ * exception first (over the role's hours, past the last day), else the
+ * anomaly the door recorded when the week was filed (a day over twelve
+ * hours, a week over sixty). Null where the week is plain.
+ */
+export function weekFlag(input: {
+  hours: number
+  hoursPerWeek: number | null
+  periodEnd: Date
+  contractEnd: Date | null
+  anomalyScore: number | null
+  anomalyReason: string | null
+}): string | null {
+  return (
+    timesheetFlag(input) ??
+    (input.anomalyScore != null && input.anomalyScore > 0 ? input.anomalyReason ?? 'Flagged when it was filed.' : null)
+  )
+}
+
+/**
+ * The order a list of weeks is read in: every flagged week before every
+ * plain one, newest first within each.
+ *
+ * The client's timesheet page says "Flagged entries are shown first"
+ * (`lib/page-framing`) and the list was ordered by date alone, so
+ * Northbend's 44-hour week sat third behind two plain ones. Across the
+ * whole list, not within a page: a flagged week on page two is exactly
+ * the one nobody reads.
+ */
+export function flaggedFirst<T extends { id: string; periodStart: Date; flag: string | null }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    if ((a.flag !== null) !== (b.flag !== null)) return a.flag !== null ? -1 : 1
+    const d = b.periodStart.getTime() - a.periodStart.getTime()
+    return d !== 0 ? d : a.id.localeCompare(b.id)
+  })
+}
