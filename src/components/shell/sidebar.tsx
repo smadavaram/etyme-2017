@@ -308,7 +308,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Leads', href: '/dashboard/leads', icon: '⌁' },
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -368,7 +368,7 @@ const GSI_NAV: NavSection[] = [
       // What the end client sent — a GSI is prime here, the same seat a
       // vendor sits in when it receives a role.
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -428,7 +428,7 @@ const MSP_NAV: NavSection[] = [
     label: 'Demand',
     items: [
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },

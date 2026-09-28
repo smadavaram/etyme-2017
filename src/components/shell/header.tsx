@@ -75,8 +75,12 @@ const PLUS_MENU: PlusMenuSection[] = [
     label: 'Sell',
     items: [
       {
-        label: 'New job request',
-        description: 'Open a job for client submissions',
+        // A supplier's requirement is its record of a client's job, and
+        // keeps its word; the page it opens is headed Requirements and its
+        // own button says New requirement (lib/page-framing). The client's
+        // menu below says New job request, the client's own document.
+        label: 'New requirement',
+        description: 'Record a client’s job for submissions',
         href: '/dashboard/requirements?new=1',
         icon: '◈',
       },
