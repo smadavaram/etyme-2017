@@ -170,8 +170,18 @@ follow:
   trade term a US IT buyer may not know is glossed on first use and
   then used plainly: "US work visa (H-1B)", "US work form (I-9)", "paid
   through her own company" for corp-to-corp, and "bench" as "workers
-  waiting for a project". This governs the public site and the demo
-  hub, not the product screens, whose words stay the trade's.
+  waiting for a project". ~~This governs the public site and the demo
+  hub, not the product screens, whose words stay the trade's.~~
+  **Extended to the product screens the same day** (founder: "the
+  product screens change too"), so the documentation and the screens it
+  describes say the same words. On a screen: *job request* for
+  requisition, *job* where a position is meant (an access role stays a
+  role), *bill* for the document sent to a customer. The supplier side
+  keeps SAP's rule from "Bill, invoice receipt, payroll": what a
+  supplier sends is *its invoice*, received as an *invoice receipt*,
+  because the party who issues a document names it — so "bill"
+  replaces "invoice" only where the firm is the one billing. Machine
+  names, routes, models and event names do not move.
 - **The reader is a technical IT buyer, and the goal is trust, not a
   pitch. Decided by the founder, 2026-09-28:** *"You are targeting
   well-versed IT people; they rarely buy anything because of claims. Our
