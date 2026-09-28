@@ -6,7 +6,7 @@ import { clientOf, releaseAllAt } from '@/lib/holds'
 import { emit } from '@/lib/events'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { evaluateGovernance } from '@/lib/governance'
-import { assessAward, awardDoor, buySide, orderCeiling, lineAgreesWithHeader, type AwardFacts } from '@/lib/award'
+import { assessAward, awardDoor, buySide, orderCeiling, lineAgreesWithHeader, tellPlaced, awardTellsThePerson, type AwardFacts } from '@/lib/award'
 import { annualValue } from '@/lib/requisition-approval'
 import { headerFor, lineTermsFrom } from '../../order-header'
 import { orderFor } from '@/lib/order-postings'
@@ -964,6 +964,48 @@ export async function POST(
         : `${decision.seatsAfter} position(s) still open.`,
       entityId: req.id,
       data: { requirementId: req.id, contractId: result.contract.id },
+    })
+  }
+
+  // ── The person ──────────────────────────────────────────────────────
+  //
+  // Told everybody above and never them. Only where this is the top of the
+  // chain — the rung nobody sent any further — because the award of a rung
+  // below is a prime settling with its sub-vendor, and the client may not
+  // have decided yet (`awardTellsThePerson`). They are told by the firm
+  // nearest them, at the bottom of the chain, which is who will call, and
+  // at the site they will work at, which is the end client where there is
+  // one. No rate: see `tellPlaced`.
+  const sentOnward = (await prisma.submission.count({ where: { parentSubmissionId: id } })) > 0
+  if (awardTellsThePerson({ sentOnward })) {
+    let nearest = submission.fromCompany.name
+    let down = submission.parentSubmissionId
+    for (let hop = 0; down && hop < 5; hop++) {
+      const below = await prisma.submission.findUnique({
+        where: { id: down },
+        select: { parentSubmissionId: true, fromCompany: { select: { name: true } } },
+      })
+      if (!below) break
+      nearest = below.fromCompany.name
+      down = below.parentSubmissionId
+    }
+    const site = await prisma.company.findUnique({
+      where: { id: req.endClientCompanyId ?? req.companyId },
+      select: { name: true },
+    })
+    const placed = tellPlaced({
+      siteName: site?.name ?? submission.toCompany.name,
+      supplierName: nearest,
+      roleTitle: req.title,
+    })
+    void notify({
+      personId: submission.personId,
+      type: 'CONTRACT',
+      channel: 'EMAIL',
+      title: placed.title,
+      body: placed.body,
+      entityId: result.contract.id,
+      data: { contractId: result.contract.id, requirementId: req.id },
     })
   }
 

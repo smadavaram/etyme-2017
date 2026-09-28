@@ -765,3 +765,41 @@ export function placeByAward(personName: string, byBuyer: boolean, buyerName: st
     ? `${personName} is placed by awarding the position, which writes the contract, the order and the billing dates in the same step. Press Place on their row.`
     : `${personName} is placed when ${buyerName} awards the position, which writes the contract and its billing dates in the same step.`
 }
+
+/**
+ * What the person placed reads.
+ *
+ * The award told the requisition raiser and the supplier's desks
+ * (`lib/papering`) and never the one person the whole thing was about.
+ * Neutral on purpose, and no rate: what the person is paid is their
+ * employer's conversation with them, and a rate here would be the client's
+ * bill rate or a rung's, neither of which is theirs.
+ *
+ * `supplierName` is the firm nearest the person — the one holding their
+ * consent or their payroll, at the bottom of a chain — because that is the
+ * firm that will actually call them. They already know every firm above it:
+ * each rung told them when it put them forward.
+ */
+export function tellPlaced(i: { siteName: string; supplierName: string; roleTitle: string }): {
+  title: string
+  body: string
+} {
+  return {
+    title: `You are placed at ${i.siteName}`,
+    body:
+      `You are placed at ${i.siteName} through ${i.supplierName}, for ${i.roleTitle}. ` +
+      `${i.supplierName} will be in touch about your start date.`,
+  }
+}
+
+/**
+ * Whether this award is the one that tells the person.
+ *
+ * Only the top of a chain. A prime can settle with its sub-vendor before
+ * the client has decided — the award of the rung below — and telling the
+ * person "you are placed" then would announce a placement the client has
+ * not made. The rung that nobody sent any further is the client's decision.
+ */
+export function awardTellsThePerson(f: { sentOnward: boolean }): boolean {
+  return !f.sentOnward
+}

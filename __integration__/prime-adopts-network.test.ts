@@ -200,3 +200,19 @@ describe('a prime puts forward somebody its network offered it', () => {
     expect((await prisma.requirement.findUniqueOrThrow({ where: { id: it_.requisition } })).status).toBe('FILLED')
   })
 })
+
+describe('the person placed is told, by the firm nearest them', () => {
+  it('Grace is told she is placed at Northbend Athletic through CloudEPA, with no rate named', async () => {
+    let told = null as null | { title: string; body: string | null }
+    for (let i = 0; i < 20 && !told; i++) {
+      told = await prisma.notification.findFirst({
+        where: { personId: it_.grace, title: 'You are placed at Northbend Athletic' },
+        select: { title: true, body: true },
+      })
+      if (!told) await new Promise((r) => setTimeout(r, 100))
+    }
+    expect(told?.body).toBe(
+      'You are placed at Northbend Athletic through CloudEPA, for Demand planning analyst. CloudEPA will be in touch about your start date.'
+    )
+  })
+})
