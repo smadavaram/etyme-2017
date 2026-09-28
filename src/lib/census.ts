@@ -62,7 +62,22 @@ import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
  * "which wording was that" and a date answers it against the history of
  * this file.
  */
-export const AGREEMENT_VERSION = '2026-09-20'
+export const AGREEMENT_VERSION = '2026-09-28'
+
+/**
+ * What changed between editions, newest first, said on the agreement
+ * itself. A row keeps the edition it accepted, so a reader holding an
+ * older acceptance can see what the difference was without a diff.
+ */
+export const AGREEMENT_CHANGES: { edition: string; previous: string; says: string }[] = [
+  {
+    edition: '2026-09-28',
+    previous: '2026-09-20',
+    says:
+      'The wording is plainer — "invoice receipts" where it said "supplier invoices" — ' +
+      'and the meaning is unchanged.',
+  },
+]
 
 /** How long the upload link lives once the agreement is accepted. */
 export const UPLOAD_WINDOW_DAYS = 14

@@ -583,6 +583,52 @@ describe('A client asks for a contractor census, and the file goes on the day we
     }
   })
 
+  it('a client who accepted the earlier edition keeps it; a client accepting now accepts 2026-09-28', async () => {
+    const post = captureMail()
+    try {
+      // One census accepted under the 2026-09-20 wording, before the
+      // edition moved. Written the way that acceptance left the row.
+      const earlierContact = 'june.harlow@okenfield.invalid'
+      const earlier = await json(await askForCensus(req('POST', '/api/census/request', {
+        companyName: 'Okenfield Tools', contactName: 'June Harlow', workEmail: earlierContact, desk: 'FINANCE',
+      })))
+      const earlierId = earlier.body.data.id
+      await acceptAgreement(req('POST', '/api/census/agree', { id: earlierId, acceptedBy: 'June Harlow' }))
+      await prisma.censusRequest.update({ where: { id: earlierId }, data: { agreementVersion: '2026-09-20' } })
+
+      // And one still pending: asked, not yet accepted.
+      const pendingContact = 'omar.vance@brisk.invalid'
+      const pending = await json(await askForCensus(req('POST', '/api/census/request', {
+        companyName: 'Brisk Cartage', contactName: 'Omar Vance', workEmail: pendingContact, desk: 'PROCUREMENT',
+      })))
+      const pendingId = pending.body.data.id
+
+      // Pending: shown the current edition, and nothing is recorded
+      // against it until somebody accepts.
+      expect(pending.body.data.agreement.version).toBe('2026-09-28')
+      const asked = post.to(pendingContact)[0]
+      expect(asked.body).toContain('the 2026-09-28 edition')
+      const beforeAccepting = await prisma.censusRequest.findUniqueOrThrow({ where: { id: pendingId } })
+      expect(beforeAccepting.agreementVersion).toBeNull()
+
+      // The earlier acceptance keeps its own edition, even when accept is
+      // pressed again to get the link back; it is not asked to accept anew.
+      const again = await json(await acceptAgreement(req('POST', '/api/census/agree', { id: earlierId, acceptedBy: 'June Harlow' })))
+      expect(again.status).toBe(200)
+      expect(again.body.data.version).toBe('2026-09-20')
+      expect((await prisma.censusRequest.findUniqueOrThrow({ where: { id: earlierId } })).agreementVersion).toBe('2026-09-20')
+      const relinked = post.to(earlierContact).filter((m) => m.subject.includes('here is where to send your files'))
+      expect(relinked[relinked.length - 1].body).toContain('against the 2026-09-20 edition')
+
+      // Accepting now accepts the current edition, and the row says so.
+      const now = await json(await acceptAgreement(req('POST', '/api/census/agree', { id: pendingId, acceptedBy: 'Omar Vance' })))
+      expect(now.status).toBe(200)
+      expect((await prisma.censusRequest.findUniqueOrThrow({ where: { id: pendingId } })).agreementVersion).toBe('2026-09-28')
+    } finally {
+      post.stop()
+    }
+  })
+
   it('a file opened before any import leaves a record that outlives the file', async () => {
     const asked = await json(await askForCensus(req('POST', '/api/census/request', {
       companyName: 'Quillane Rail',

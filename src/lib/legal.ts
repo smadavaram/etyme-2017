@@ -27,6 +27,8 @@
  * Owned by etyme-regulatory (`lib/legal` in `lib/domains.ts`).
  */
 
+import { AGREEMENT_CHANGES, AGREEMENT_VERSION } from '@/lib/census'
+
 // ── The banner every page carries ─────────────────────────────────────
 
 export const DRAFT_BANNER = {
@@ -1197,7 +1199,11 @@ export const CENSUS_AGREEMENT: { title: string; intro: string; sections: Section
     'You are about to send us data about your own contingent workforce so that we can ' +
     'give you one page of numbers back. This is the whole of what we undertake about ' +
     'that data. It is one page on purpose: six things get asked before a file moves, and ' +
-    'they are the six headings below.',
+    'they are the six headings below. ' +
+    `This is the ${AGREEMENT_VERSION} edition. ` +
+    AGREEMENT_CHANGES.filter((c) => c.edition === AGREEMENT_VERSION)
+      .map((c) => `Since the ${c.previous} edition: ${c.says}`)
+      .join(' '),
   sections: [
     {
       heading: 'What we receive',
@@ -1205,7 +1211,7 @@ export const CENSUS_AGREEMENT: { title: string; intro: string; sections: Section
         'Whatever you choose to send, and nothing we go and get. There are two ways to ' +
           'send it and the lighter one is the default: a filled template with one row per ' +
           'contractor — supplier, role, site, start date, end date, rate, hours a week — or ' +
-          'your own supplier invoices and timesheets where you have nothing tidier.',
+          'your own invoice receipts and timesheets where you have nothing tidier.',
         'The template asks for no names. A reference number of your own is enough, and a ' +
           'census sent that way holds no personal data at all beyond the work address of ' +
           'whoever asked for it. That is the point of offering it first.',
@@ -1391,7 +1397,7 @@ export const SUMMARY: Record<DocKey, SummaryLine[]> = {
       ask: 'What you receive',
       answer:
         'Whatever you send and nothing we go and get: a filled template with one row per ' +
-        'contractor, or your own supplier invoices and timesheets. The template asks for no ' +
+        'contractor, or your own invoice receipts and timesheets. The template asks for no ' +
         'names, and a census sent that way holds no personal data at all.',
       href: '#what-we-receive',
     },
