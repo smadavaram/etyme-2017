@@ -50,7 +50,7 @@ export interface Way {
 /** The first rung: the example program. The primary button, everywhere. */
 export const SEE_IT: Way = {
   t: 'See it with a month of data',
-  d: 'A demo company — not a customer — with a month of contractors, suppliers, timesheets and invoices. No card. No sign-up.',
+  d: 'A demo company — not a customer — with a month of contractors, suppliers, timesheets and bills. No card. No sign-up.',
   href: '/demo',
 }
 
@@ -62,7 +62,8 @@ export const SEE_IT: Way = {
  * 2026-09-27, read it as a riddle: send what, and to where? So it says
  * what the census actually takes, in words a CFO already uses — the
  * contractor list (the template is one row per contractor, and a CSV or
- * an Excel file both open) or the supplier invoices they hold (option B)
+ * an Excel file both open) or the supplier bills they hold (option B;
+ * "invoices" until the founder's plain-words list of 2026-09-28)
  * — and the order it happens in on the page the button leads to: ask
  * first, then upload.
  *
@@ -73,7 +74,7 @@ export const SEE_IT: Way = {
  */
 export const GET_THE_AUDIT: Way = {
   t: 'Get your contractor spend audit',
-  d: 'Ask on the audit page, then upload your contractor list — a spreadsheet is fine — or the supplier invoices you hold. ' +
+  d: 'Ask on the audit page, then upload your contractor list — a spreadsheet is fine — or the supplier bills you hold. ' +
     'A named person sends back one page inside five working days.',
   href: '/census',
 }

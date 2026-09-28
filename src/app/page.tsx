@@ -15,16 +15,25 @@ import type { Route } from 'next'
 /**
  * The front door.
  *
- * ── Five bands, and a hero that reads in five seconds. 2026-09-28 ─────
+ * ── Five bands, in plain words. 2026-09-28, evening ──────────────────
  *
- * The founder, the day after the page went to four bands: "Add mural
- * back near join with global teams. Sections — it was one section that
- * was nice and also made quick sense. Hero section can still be compact
- * and impactful. Less theory there. Declare category as Enterprise
- * Contingent workforce mgmt. Don't limit to 50–500 consultants — keep the
- * business open for all." And, the same day, on who reads it: "You are
- * targeting well-versed IT people; they rarely buy anything because of
- * claims. Our main goal is registering as a trustworthy brand."
+ * The founder's go-to-market edit list, the same day the tiles came
+ * back: "vendor management system" is banned on public pages, and the
+ * words are plain and defined once — a job, not a role or a requisition;
+ * a job request where the object is meant; a bill, never an invoice;
+ * the three-way check, defined where it is first named; a time limit,
+ * not a tenure cap. See CLAUDE.md, "Plain words on public pages, defined
+ * once". The tiles stay (the founder, the same evening, reversing a
+ * brief that removed them); their heading no longer names the category
+ * by a word the page may not use.
+ *
+ * The morning's direction still holds: "Hero section can still be
+ * compact and impactful. Less theory there. Declare category as
+ * Enterprise Contingent workforce mgmt. Don't limit to 50–500
+ * consultants — keep the business open for all." And on who reads it:
+ * "You are targeting well-versed IT people; they rarely buy anything
+ * because of claims. Our main goal is registering as a trustworthy
+ * brand."
  *
  *   1. what is this      the hero — the founder's headline, the category,
  *                        one line saying what the software does, the two
@@ -34,13 +43,19 @@ import type { Route } from 'next'
  *   3. what is in it     #modules — the eight parts under the four stages
  *                        of the Product menu, a name, an icon and one
  *                        line each, and no screenshots
- *   4. where it reaches  #join — the founder's line, its two sentences,
- *                        and the mural under them, full width
+ *   4. where it reaches  #join — the founder's line and its two
+ *                        sentences on a dark band, the mural drawn for
+ *                        the dark under them, full width
  *   5. the door          #close — see it, get the audit, ask a person;
  *                        the program office once, quietly; one line on
  *                        price; where to check us before trusting us;
  *                        the supplier's and the contractor's doors as
  *                        whole questions
+ *
+ * The header stays on screen as the page scrolls (lib/public-site/frame),
+ * and each band is a snap point, by proximity rather than mandatory, so a
+ * long band or a phone never traps the reader; a reader who asked for
+ * reduced motion gets no snapping at all.
  *
  * Where each band that left went, so nobody re-adds it here:
  *
@@ -68,9 +83,10 @@ import type { Route } from 'next'
  * line it replaces named a range of 20 to 200 contractors and "sized for
  * fifty contractors rather than five thousand"; the founder struck the
  * range, and `sizesTheBuyer` in `lib/positioning` refuses one coming
- * back. "Vendor management system" stays on the page once, as the word a
- * buyer's procurement searches for, over the eight parts — never as a
- * size.
+ * back. "Vendor management system" was said once more, over the eight
+ * parts, until the evening of the same day, when the founder banned it
+ * on public pages; `vendorManagementSystem` in `lib/positioning` refuses
+ * it coming back.
  *
  * ── Show, don't claim ─────────────────────────────────────────────────
  *
@@ -135,7 +151,7 @@ export const metadata: Metadata = {
  * names them, so nothing left the site.
  */
 const STEPS: { n: string; t: string; href: string }[] = [
-  { n: '01', t: 'Post a role to the suppliers you cleared', href: '/requisitions' },
+  { n: '01', t: 'Post a job to the suppliers you cleared', href: '/requisitions' },
   { n: '02', t: 'Interview, choose, and the paperwork is written', href: '/contracts' },
   { n: '03', t: 'Contractors file their weeks and your manager approves them', href: '/timesheets' },
   { n: '04', t: 'Each supplier bills, and you pay what matched', href: '/invoices' },
@@ -150,7 +166,7 @@ const STEPS: { n: string; t: string; href: string }[] = [
  */
 const STEP_SCREEN = {
   img: '/screens/invoices.png',
-  alt: 'An invoices screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
+  alt: 'A bills screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
   caption: 'A bill with no signed week behind it is not paid. Every firm on this screen is a demo company — not a customer.',
   from: '/dashboard/invoices, what we owe, as the AP clerk',
   /**
@@ -158,16 +174,17 @@ const STEP_SCREEN = {
    * was photographed from is renamed from time to time, and a PNG cannot
    * be read by a test. The date is what catches a stale shot.
    */
-  capturedAt: '2026-09-21T15:15:28Z',
+  capturedAt: '2026-09-28T19:09:20Z',
 }
 
 /**
- * The founder's line, in a quiet band. Added 2026-09-27.
+ * The founder's line, in a dark band. Added 2026-09-27.
  *
- * "Join forces with global teams around the world" — his words, exactly,
- * and he was clear it is subtle and not a hero. So it is a heading in a
- * band below the four steps, with two sentences and a mural, and no
- * button of its own.
+ * "Join forces with global teams around the world" — his words, exactly.
+ * He was clear it is subtle and not a sales pitch, so it has no button of
+ * its own; on 2026-09-28 he asked for the band to read like a second hero,
+ * so it sits on the brand's ink with the heading at hero weight, the two
+ * sentences beside it and the mural drawn for the dark under them.
  *
  * It reads to both sides of the trade at once: a client reads suppliers
  * it can bring in from anywhere, a supplier reads clients it can serve
@@ -195,9 +212,22 @@ const JOIN = {
   ],
 }
 
+/**
+ * One scroll lands on one band. The snap is set on the document from the
+ * page's own wrapper — `[html:has(&)]` reaches the root element only while
+ * this page is drawn, so no other page snaps and globals.css (shared, the
+ * architect's) is not touched. `motion-safe` leaves it off for a reader who
+ * asked for reduced motion, and proximity rather than mandatory never
+ * holds a reader inside a band taller than the screen, which on a phone is
+ * most of them. The header sets the scroll padding (lib/public-site/frame),
+ * so a snapped band starts under it rather than behind it.
+ */
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-etyme-canvas">
+    <div
+      className="min-h-screen bg-etyme-canvas
+                 [html:has(&)]:motion-safe:snap-y [html:has(&)]:motion-safe:snap-proximity"
+    >
       <SiteHeader />
 
       <main>
@@ -206,7 +236,7 @@ export default function LandingPage() {
           category, one line saying what the software does, the two ways
           in, and the product itself. "Less theory there." The hook line
           that sat here went to /about#unanswered. */}
-      <section className="border-b border-etyme-rule">
+      <section className="snap-start border-b border-etyme-rule">
         <div className="mx-auto max-w-6xl px-4 pb-14 pt-12 sm:px-6 md:pb-20 md:pt-16">
           <h1 className="mb-5 max-w-[18ch] text-balance font-serif text-[40px] font-normal
                          leading-[1.03] tracking-[-0.02em] text-etyme-ink md:text-[60px]">
@@ -222,7 +252,7 @@ export default function LandingPage() {
               reading as the program office offered quietly in the close,
               and it sells control, never outsourcing. */}
           <p className="mb-8 max-w-[62ch] text-[17px] leading-relaxed text-etyme-muted">
-            Your own people approve the roles, sign the timesheets and pay only matched invoices, across every supplier.
+            Your own people approve the jobs, sign the timesheets and pay only matched bills, across every supplier.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -251,8 +281,8 @@ export default function LandingPage() {
                 demo world from one taken after it. */}
             <img
               src="/screens/program-dashboard.png"
-              data-captured-at="2026-09-21T15:15:03Z"
-              alt="The program dashboard: a sentence saying whether anything needs the reader today, then six numbers — on site, suppliers, this month, ending soon, the tenure cap and requirements — over a list of who is starting soon and which suppliers are on site."
+              data-captured-at="2026-09-28T19:09:17Z"
+              alt="The program dashboard: a sentence saying whether anything needs the reader today, then six numbers — on site, suppliers, this month, ending soon, the time limit and requirements — over a list of who is starting soon and which suppliers are on site."
               width={1440}
               height={900}
               className="block h-auto w-full border-b border-etyme-rule"
@@ -276,12 +306,12 @@ export default function LandingPage() {
           screen beside them. The caption sits inside the screen's frame,
           under the image and after the steps in reading order, so a
           caption and a step never read as one paragraph. */}
-      <section id="steps" className="scroll-mt-6 border-b border-etyme-rule bg-etyme-surface">
+      <section id="steps" className="snap-start border-b border-etyme-rule bg-etyme-surface">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
           <p className="eyebrow mb-3">What it does, in four steps</p>
           <h2 className="max-w-[30ch] text-balance font-serif text-3xl leading-tight
                          tracking-[-0.02em] text-etyme-ink md:text-[40px]">
-            A role goes out, a person starts, a week is signed, a bill is paid
+            A job goes out, a person starts, a week is signed, a bill is paid
           </h2>
 
           <div className="mt-10 grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
@@ -329,14 +359,17 @@ export default function LandingPage() {
           one line, and opens its part's page. No screenshots in the tiles:
           the CRO who read the page on 2026-09-27 said it had too many
           screens, and the two it keeps are the hero's and the steps'.
-          "Vendor management system" is said here, once, as the word a
-          buyer's procurement searches for — never as a size. */}
-      <section id="modules" className="scroll-mt-6 border-b border-etyme-rule">
+          The heading said "One vendor management system" until the
+          founder banned the phrase on public pages the same evening; it
+          now says what the band is in plain words. The tile for bills
+          carries the three-way check's definition as its line, which is
+          where the home page first names the check. */}
+      <section id="modules" className="snap-start border-b border-etyme-rule">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
           <p className="eyebrow mb-3">What is in it</p>
           <h2 className="max-w-[30ch] text-balance font-serif text-3xl leading-tight
                          tracking-[-0.02em] text-etyme-ink md:text-[40px]">
-            One vendor management system, in the order a hire moves through it
+            Everything in it, in the order a hire moves through it
           </h2>
 
           <div className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
@@ -370,26 +403,31 @@ export default function LandingPage() {
       </section>
 
       {/* ── Join forces ──────────────────────────────────────────── */}
-      {/* The founder's line, 2026-09-27, and he was clear: subtle, not a
-          hero. A heading a size under the others and two sentences, on
-          the plain canvas, with no button of its own, over a mural that
-          runs the full width of the band in the kit's mural style
-          (lib/public-site/join-mural). */}
-      <section id="join" className="scroll-mt-6 border-b border-etyme-rule">
-        <div className="mx-auto grid max-w-6xl gap-x-12 gap-y-4 px-4 pt-12 sm:px-6 md:grid-cols-[1fr_1fr] md:pt-16">
-          <h2 className="max-w-[22ch] text-balance font-serif text-[26px] leading-snug
-                         tracking-[-0.02em] text-etyme-ink md:text-[32px]">
+      {/* The founder's line, 2026-09-27, in a dark band since the evening
+          of 2026-09-28: "a dark band that reads like a second hero", with
+          more presence than the plain canvas gave it, and still subtle —
+          his words unchanged, no button of its own, nothing sold. The
+          ground is the brand's ink, not a chosen color. The heading is in
+          the canvas color on it, 14.3 to 1, and the two sentences in the
+          canvas at 78% over the ink, 9.2 to 1 — both computed, both held in
+          positioning.test.ts. The mural under them is drawn for the dark
+          (lib/public-site/join-mural): canvas line work on the ink, with
+          the kit's brighter violet and its orange as the two touches. */}
+      <section id="join" className="snap-start border-b border-etyme-ink bg-etyme-ink">
+        <div className="mx-auto grid max-w-6xl gap-x-12 gap-y-5 px-4 pt-16 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:items-end md:pt-24">
+          <h2 className="max-w-[20ch] text-balance font-serif text-[32px] leading-[1.08]
+                         tracking-[-0.02em] text-etyme-canvas md:text-[48px]">
             {JOIN.heading}
           </h2>
           <div>
             {JOIN.lines.map((line) => (
-              <p key={line} className="mb-4 max-w-[48ch] text-[16px] leading-relaxed text-etyme-muted">
+              <p key={line} className="mb-4 max-w-[48ch] text-[16px] leading-relaxed text-etyme-canvas/[0.78] md:text-[17px]">
                 {line}
               </p>
             ))}
           </div>
         </div>
-        <div className="mt-6 w-full overflow-hidden md:mt-8">
+        <div className="mt-8 w-full overflow-hidden md:mt-12">
           <JoinMural />
         </div>
       </section>

@@ -185,7 +185,7 @@ export const CENSUS_COPY = {
   headline: 'Find out how many contractors are on your sites, across every supplier',
 
   standfirst:
-    'Upload your contractor list — a spreadsheet is fine — or the supplier invoices you hold. ' +
+    'Upload your contractor list — a spreadsheet is fine — or the supplier bills you hold. ' +
     'A named person at Etyme reads it and sends back one page, inside five working days. ' +
     'It is free and you create no account.',
 
@@ -222,7 +222,7 @@ export const CENSUS_COPY = {
       },
       {
         label: 'Same skill, different price',
-        says: 'Where two suppliers fill one role, the lowest rate, the highest rate and the gap between them.',
+        says: 'Where two suppliers fill one job, the lowest rate, the highest rate and the gap between them.',
       },
       {
         label: 'Longest on site, counting every supplier',
@@ -254,7 +254,7 @@ export const CENSUS_COPY = {
     optionB: {
       label: 'Option B. The files you already have',
       says:
-        'Send the supplier invoices and timesheets you hold, where you have nothing tidier than that.',
+        'Send the supplier bills and timesheets you hold, where you have nothing tidier than that.',
       how: 'We read them and write down every gap we hit, rather than guessing at a number.',
     },
   },
@@ -324,7 +324,7 @@ export const CENSUS_COPY = {
 
   options: [
     { value: 'TEMPLATE', label: 'The template, filled in' },
-    { value: 'FILES', label: 'My own invoices and timesheets' },
+    { value: 'FILES', label: 'My own bills and timesheets' },
   ],
 } as const
 
@@ -360,7 +360,7 @@ const STEPS: Step[] = [
   {
     key: 'UPLOAD',
     heading: 'You send your files through the link',
-    says: 'Choose the filled template, or the invoices and timesheets you hold.',
+    says: 'Choose the filled template, or the bills and timesheets you hold.',
     button: 'Send the files',
   },
   {

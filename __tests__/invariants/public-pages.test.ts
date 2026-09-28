@@ -442,10 +442,13 @@ describe('One header and footer on every new page', () => {
     for (const m of MODULES) {
       expect(PRODUCT_ITEMS.find((i) => i.href === m.route), m.route).toBeTruthy()
     }
-    // The invoices line says only what nobody can waive: a named person can
-    // override the order's balance, so "no room on the order" is not in it.
-    const invoices = PRODUCT_ITEMS.find((i) => i.href === '/invoices')!
-    expect(invoices.d).toBe('An invoice with no signed week behind it is not paid.')
+    // The bills line is the three-way check's definition, in the founder's
+    // words (2026-09-28), because the header is where most readers first
+    // meet the term. It still says nothing about room on the order, which
+    // a named person can override with a reason.
+    const bills = PRODUCT_ITEMS.find((i) => i.href === '/invoices')!
+    expect(bills.t).toBe('Bills & the three-way check')
+    expect(bills.d).toBe('The three-way check: the hours, the bill, and the contract rate must all agree.')
     expect(frameCopy().join(' ')).not.toMatch(/room on the order/i)
   })
 

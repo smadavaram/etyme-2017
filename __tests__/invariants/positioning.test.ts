@@ -49,7 +49,7 @@ import {
   check, verdict, copyFrom, gridsWithoutBreakpoint, priceClaims, namedCompanies,
   headlinesFrom, withoutVerb, longSentences, settingTheOfferAside,
   readsAsAimedAtSuppliers, offersTheProgramOffice, sizesAgainstIncumbents,
-  sizesTheBuyer, unverifiableClaims,
+  sizesTheBuyer, unverifiableClaims, vendorManagementSystem,
   type Copy,
 } from '@/lib/positioning'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
@@ -71,6 +71,12 @@ import { FOOTER as SITE_FOOTER, frameCopy } from '@/lib/public-site/nav'
 import { DOCS_SLUGS } from '@/lib/public-site/pages'
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
+
+/**
+ * The three-way check, defined in the founder's words on his go-to-market
+ * list, 2026-09-28. Said once, where a reader first meets the term.
+ */
+const THREE_WAY_CHECK = 'The three-way check: the hours, the bill, and the contract rate must all agree.'
 const ICONS_SRC = readFileSync(join(process.cwd(), 'src/lib/public-site/module-icons.tsx'), 'utf8')
 
 /** Every word on a module page, as the public-pages guard reads it. */
@@ -403,9 +409,11 @@ describe('Below the hero, the page says what the business is', () => {
     // was a line in the hero until 2026-09-27; the hero is the headline,
     // the category and the hook now, and the span is said on About. The
     // header's Product menu teaches it as four stages, on every page.
+    // In plain words since the founder's list of 2026-09-28: a job
+    // request, not a requisition; bills, not invoices.
     expect(ABOUT_PAGE).toContain(
-      'Requisition, suppliers, submissions, screening, interviews, ' +
-      'onboarding, timesheets, invoices, compliance'
+      'Job request, suppliers, submissions, screening, interviews, ' +
+      'onboarding, timesheets, bills, compliance'
     )
     expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Source', 'Start', 'Work and pay', 'Govern'])
   })
@@ -564,7 +572,7 @@ describe('Below the hero, the page says what the business is', () => {
   it('says what the chain costs the client, in outcomes rather than in a warning', () => {
     // On the chain page, as its own section, and the header's Suppliers
     // role leads straight to it.
-    expect(moreOn('chain')?.title).toBe('Etyme sends your role down the chain and records what each supplier sees')
+    expect(moreOn('chain')?.title).toBe('Etyme sends your job down the chain and records what each supplier sees')
     expect(CHAIN_PAGE).toContain('past the agreement that covers them')
     expect(CHAIN_PAGE).toContain('The same resume reaches you from more than one supplier')
     expect(CHAIN_PAGE).toContain('Etyme describes the end client where the agreement forbids naming it')
@@ -592,7 +600,7 @@ describe('Below the hero, the page says what the business is', () => {
   })
 
   it('walks the hire from every desk, so no one desk reads as the whole product', () => {
-    expect(ABOUT_PAGE).toContain('The hiring manager raises it, HR reads the role, procurement audits')
+    expect(ABOUT_PAGE).toContain('The hiring manager raises it, HR reads the job, procurement audits')
     expect(ABOUT_PAGE).toContain('Nobody signs their own')
   })
 
@@ -690,8 +698,9 @@ describe('Below the hero, the page says what the business is', () => {
     // The founder's line first, then the category he declared on
     // 2026-09-28: "Enterprise contingent workforce management", with no
     // size after it — "keep the business open for all". It names the
-    // whole span; "vendor management system" is said once further down,
-    // over the eight parts, as the word procurement searches for.
+    // whole span. "Vendor management system" was said once further down
+    // until the evening of the same day, when the founder banned it on
+    // public pages; see `vendorManagementSystem`.
     expect(words[0]).toBe('Every contractor. Every supplier. One record.')
     expect(words[1]).toBe('Enterprise contingent workforce management.')
   })
@@ -710,7 +719,7 @@ describe('Below the hero, the page says what the business is', () => {
     // a supplier.
     const outcome = words[2]
     expect(outcome).toBe(
-      'Your own people approve the roles, sign the timesheets and pay only matched invoices, across every supplier.'
+      'Your own people approve the jobs, sign the timesheets and pay only matched bills, across every supplier.'
     )
     expect(words[1]).toBe('Enterprise contingent workforce management.')
     expect(outcome).toMatch(/\byour own people\b/i)
@@ -730,11 +739,13 @@ describe('Below the hero, the page says what the business is', () => {
     // there." — the founder, 2026-09-28. The hook line about three weeks
     // of asking left for About, where it was already said in full. What
     // is left reads in five seconds, in nouns a reader can picture —
-    // roles, timesheets, invoices, suppliers — and nothing about a
-    // record, which is abstract until the list is seen.
+    // jobs, timesheets, bills, suppliers (plain words since the founder's
+    // list of 2026-09-28) — and nothing about a record, which is abstract
+    // until the list is seen.
     expect(live.hero).toHaveLength(4)
     const outcome = words[2]
-    for (const noun of ['roles', 'timesheets', 'invoices', 'supplier']) expect(outcome, noun).toContain(noun)
+    for (const noun of ['jobs', 'timesheets', 'bills', 'supplier']) expect(outcome, noun).toContain(noun)
+    expect(outcome).not.toMatch(/\b(?:roles?|invoices?|requisitions?)\b/i)
     expect(outcome).not.toMatch(/\brecord\b/i)
     expect(hero).not.toContain('How many contractors are on your sites')
     expect(hero).not.toContain('three weeks')
@@ -1129,7 +1140,7 @@ describe('The record is the product, and the program office is offered quietly',
     // neutral and is not this. The client is sold control, never
     // outsourcing, so this stays beside the offer.
     expect(ABOUT_PAGE).toContain(
-      'Your people keep the decisions that are yours: which roles to open, who to hire, and what to approve.'
+      'Your people keep the decisions that are yours: which jobs to open, who to hire, and what to approve.'
     )
   })
 
@@ -1188,7 +1199,9 @@ describe('The record is the product, and the program office is offered quietly',
     // to tell it apart from a page about engineers.
     expect(ABOUT_PAGE).toContain('VMS software')
     expect(check(copyOfCompanyPage(ABOUT)).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
-    expect(all).toContain('vendor management system')
+    // "Vendor management system" itself left the home page on 2026-09-28;
+    // the founder's label "VMS software" is kept on About.
+    expect(vendorManagementSystem(all)).toEqual([])
     expect(check(live).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
   })
 
@@ -1347,7 +1360,7 @@ describe('The page shows the product before it describes it', () => {
     for (const route of leads) expect(MODULES.map((m) => m.route), route).toContain(route)
     // The four verbs, in the order the work happens in.
     const said = copyFrom(steps).join(' ')
-    expect(said).toContain('Post a role to the suppliers you cleared')
+    expect(said).toContain('Post a job to the suppliers you cleared')
     expect(said).toContain('Interview, choose, and the paperwork is written')
     expect(said).toContain('Contractors file their weeks and your manager approves them')
     expect(said).toContain('Each supplier bills, and you pay what matched')
@@ -1356,7 +1369,7 @@ describe('The page shows the product before it describes it', () => {
     expect(at('steps')).toBeLessThan(at('join'))
     // One line each: the step, and nothing under it.
     expect(steps).not.toMatch(/\n    says: '/)
-    expect(body).toContain('A role goes out, a person starts, a week is signed, a bill is paid')
+    expect(body).toContain('A job goes out, a person starts, a week is signed, a bill is paid')
     // Every image says where it was taken, so it can be retaken after a
     // redesign rather than quietly going stale.
     expect([...steps.matchAll(/from: '([^']+)'/g)].length).toBe(1)
@@ -1522,7 +1535,7 @@ describe('The claim about how much of this is a model is computed, not asserted'
     const notARule = unprompted.filter((a) => a.basis !== 'RULE')
     expect(notARule.length).toBe(1)
     expect(notARule[0].says.toLowerCase()).toContain('scored people against an open role')
-    expect(GOVERNANCE_PAGE).toContain('scores a person against a role')
+    expect(GOVERNANCE_PAGE).toContain('scores a person against a job')
     expect(GOVERNANCE_PAGE).toContain('falls back to arithmetic')
   })
 
@@ -1915,6 +1928,13 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // close, fifteen words. 549, against 582 the last time the tiles were
     // on the page.
     //
+    // The same evening the founder's go-to-market list put the page into
+    // plain words. A brief to delete the tiles was reversed by him within
+    // the hour, so they stayed: the band's heading lost "vendor management
+    // system" (a word shorter), and the bills tile carries the three-way
+    // check's definition in his words, fourteen words where the old line
+    // had ten. 552, under the same ceiling of 555.
+    //
     // The CRO's "too much data" still binds: the tiles carry no
     // screenshots, and each is a name and one line.
     //
@@ -1939,9 +1959,14 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect((PAGE.match(/<h2/g) ?? []).length, 'one headline per band under the hero').toBe(3)
     for (const gone of ['gap', 'ways']) expect(PAGE, `#${gone} is still on the home page`).not.toContain(`id="${gone}"`)
     // Each tile is one line: one sentence of description under its name.
+    // The one exception is the three-way check's definition, in the
+    // founder's words (2026-09-28): the tile is where the page first
+    // names the check, so it carries the definition whole rather than an
+    // eleven-word paraphrase of it.
     for (const item of PRODUCT_ITEMS) {
       expect(item.d, item.t).toBeTruthy()
       expect(item.d!.split(/(?<=[.!?])\s+/).length, item.d).toBe(1)
+      if (item.d === THREE_WAY_CHECK) continue
       expect(longSentences(item.d!, 11), item.d).toEqual([])
     }
 
@@ -2108,7 +2133,7 @@ describe('The line about teams around the world', () => {
     expect(said).toMatch(/a supplier can serve clients/)
   })
 
-  it('the band carries the founder’s line exactly, quietly, below the module tiles and with no button of its own', () => {
+  it('the band carries the founder’s line exactly, below the module tiles and with no button of its own', () => {
     expect(at('join')).toBeGreaterThan(at('modules'))
     expect(JOIN_SRC).toContain("heading: 'Join forces with global teams around the world.'")
     const join = band('join')
@@ -2116,8 +2141,9 @@ describe('The line about teams around the world', () => {
     expect(join).toContain('<h2')
     expect(join).toContain('{JOIN.heading}')
     expect(join).not.toContain('<h1')
-    // Quieter than the other bands: a size under their headlines.
-    expect(join).not.toMatch(/md:text-\[40px\]/)
+    // It was a size under the other headlines until 2026-09-28, when the
+    // founder asked for the band to read like a second hero. It is not a
+    // pitch: still no button, and the words are his, unchanged.
     // No button, no link and no demo door of its own.
     expect(join).not.toMatch(/<Link|href=|<button|<TryDemo|bg-etyme-action/)
     // Below the tiles, above the two ways.
@@ -2138,9 +2164,10 @@ describe('The line about teams around the world', () => {
     expect(label).toMatch(/people/i)
     expect(label).toMatch(/one shared record/i)
     // Colors come through the kit's variables, never hand-typed, so the
-    // mural moves with the kit: ink line work on the canvas, and at most
-    // a violet touch and an orange one. Never the logo's vivid green,
-    // never the navy the kit removed from its tokens.
+    // mural moves with the kit: canvas line work on the ink since the band
+    // went dark on 2026-09-28, and at most a violet touch and an orange
+    // one. Never the logo's vivid green, never the navy the kit removed
+    // from its tokens.
     expect(ART_SRC).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/)
     expect(ART_SRC).not.toMatch(/00C800|0D1426/i)
     const vars = [...ART_SRC.matchAll(/var\(--([a-z-]+)\)/g)].map((m) => m[1])
@@ -2156,8 +2183,8 @@ describe('The line about teams around the world', () => {
     expect(accents.size, 'at most two accent colors').toBeLessThanOrEqual(2)
     expect([...accents].some((v) => v.startsWith('violet')), 'a violet touch on the supply side').toBe(true)
     expect([...accents].some((v) => v.startsWith('orange')), 'an orange touch on the demand side').toBe(true)
-    // Only the ink color is ever a fill or stroke by name: everything else
-    // is currentColor off the root, which is set to the ink variable.
+    // No color is ever a fill or stroke attribute by name: everything is
+    // currentColor off the root, which is set to the canvas variable.
     expect(ART_SRC).not.toMatch(/(fill|stroke)="(?!currentColor|none)[a-z#]/i)
     // It does not move, so there is nothing for reduced motion to stop.
     expect(ART_SRC).not.toMatch(/<animate|animation|transition|@keyframes/)
@@ -2359,5 +2386,211 @@ describe('The site says what it does and shows it, and claims nothing a reader c
     ]) {
       expect(sizesTheBuyer(open), open).toEqual([])
     }
+  })
+})
+
+// ── Plain words on public pages, defined once. Decided 2026-09-28 ─────
+//
+// The founder's go-to-market edit list. "Vendor management system" is
+// banned on public pages; the page says job, not role or requisition; job
+// request where the object is meant; bill, never invoice, with the
+// three-way check defined where it is first named; time limit, not tenure
+// cap. The rule governs the public site and the demo hub, not the product
+// screens, whose words stay the trade's — so a product sentence quoted on
+// a public page, or a product screen named by its own title, keeps the
+// product's word and is set aside here rather than rewritten into a
+// sentence the screen does not say.
+
+/** The canvas and the ink, read from the kit's variables rather than retyped. */
+const cssVar = (name: string): string => {
+  const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8')
+  return css.match(new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`))![1]
+}
+const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+const luminance = (rgb: number[]) => {
+  const [r, g, b] = rgb.map((c) => {
+    const x = c / 255
+    return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+const contrast = (a: number[], b: number[]) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+/** A color at some opacity over a ground, the way the browser blends it. */
+const over = (fg: number[], alpha: number, ground: number[]) => fg.map((c, i) => c * alpha + ground[i] * (1 - alpha))
+
+/** A public page's words with the product's own sentences set aside. */
+function inOurWords(text: string): string {
+  let t = text
+  for (const m of MODULES) for (const r of m.refuses) t = t.split(r.says).join(' ')
+  // A product screen named by its own title is the product's word.
+  t = t.replace(/\bthe Invoices screen\b/g, ' ')
+  // "By role" is the reader's own job, heading the Solutions menu.
+  t = t.replace(/\bBy role\b/g, ' ')
+  // "A role for every seat" is an access role, on the security page.
+  t = t.replace(/\bA role for every seat\b/g, ' ')
+  return t
+}
+
+describe('Plain words on public pages, defined once', () => {
+
+  it('no public page says “vendor management system”, and the guard catches it in any case, hyphenated or plural', () => {
+    for (const [route, text] of everyPublicPage()) {
+      expect(vendorManagementSystem(text), route).toEqual([])
+    }
+    for (const said of [
+      'One vendor management system, in the order a hire moves through it',
+      'The Vendor Management System for every supplier.',
+      'Unlike other vendor-management systems, it is sized for you.',
+    ]) {
+      expect(vendorManagementSystem(said), said).not.toEqual([])
+    }
+    // The acronym is not the phrase: a buyer's own VMS, and the founder's
+    // label for the first way to run a program, are left alone.
+    for (const said of ['Keep your ATS, your VMS and every supplier you already use', 'VMS software']) {
+      expect(vendorManagementSystem(said), said).toEqual([])
+    }
+  })
+
+  it('the home page, the header, the footer and every product and company page say job, job request and bill, never role, requisition or invoice', () => {
+    const pages = everyPublicPage().filter(([route]) => !route.startsWith('/docs') && route !== '/census')
+    expect(pages.length).toBeGreaterThan(10)
+    for (const [route, text] of pages) {
+      const found = inOurWords(text).match(/\b(?:roles?|requisitions?|invoic\w*)\b/gi) ?? []
+      expect(found, route).toEqual([])
+    }
+    expect(all).toContain('Post a job to the suppliers you cleared')
+    expect(all).toContain('A job goes out, a person starts, a week is signed, a bill is paid')
+    expect(PRODUCT_ITEMS.map((i) => i.t)).toContain('Job requests & suppliers')
+    expect(PRODUCT_ITEMS.map((i) => i.t)).toContain('Bills & the three-way check')
+    // The addresses stay: an address is not a word anybody reads.
+    expect(PRODUCT_ITEMS.map((i) => i.href)).toEqual(expect.arrayContaining(['/requisitions', '/invoices']))
+  })
+
+  it('the spend audit asks for the supplier bills a client holds, never its invoices', () => {
+    for (const said of [GET_THE_AUDIT.d, JSON.stringify(CENSUS_COPY)]) {
+      expect(said).not.toMatch(/\binvoic/i)
+    }
+  })
+
+  it('the three-way check is defined in the founder’s words where the header first names it, and first thing on the bills page', () => {
+    const bills = PRODUCT_ITEMS.find((i) => i.href === '/invoices')!
+    expect(bills.t).toBe('Bills & the three-way check')
+    expect(bills.d).toBe(THREE_WAY_CHECK)
+    // On the bills page the definition is in the opening paragraph,
+    // before any other sentence uses the term.
+    const page = copyOfModule(MODULES.find((m) => m.route === '/invoices')!)
+    expect(page.hero[0]).toBe('Bills & the three-way check')
+    expect(page.hero[1]).toContain(THREE_WAY_CHECK)
+    // And it is said once: every other mention uses the term plainly.
+    // The documentation is set aside: it documents the product's screens
+    // in the product's words, and it was held back from the plain-words
+    // pass for the founder to decide (see the matrix row L3.1.4.1).
+    const everywhere = everyPublicPage().filter(([r]) => !r.startsWith('/docs')).map(([, t]) => t).join(' ')
+    const definitions = everywhere.split('the hours, the bill, and the contract rate must all agree').length - 1
+    expect(definitions, 'the menu line, drawn on every page, and the bills page').toBeLessThanOrEqual(3)
+    expect(everywhere).not.toMatch(/three-way match/i)
+  })
+
+  it('a time limit is defined where it is first named, and no public page calls it a tenure cap', () => {
+    for (const [route, text] of everyPublicPage()) {
+      expect(text, route).not.toMatch(/\btenure caps?\b/i)
+    }
+    const compliance = copyOfModule(MODULES.find((m) => m.route === '/compliance')!)
+    expect(compliance.hero[1]).toContain('Your time limit is how long one person may work at your company.')
+    expect(GOVERNANCE_PAGE).toContain('The time limit on how long one person may stay')
+    expect(ABOUT_PAGE).toContain('Time limits on how long one person may stay')
+  })
+
+  it('a trade word a buyer may not know is glossed where the public site first uses it', () => {
+    // The I-9 on the contracts page, and the bench in the header's
+    // Solutions menu, which every page draws.
+    const contracts = copyOfModule(MODULES.find((m) => m.route === '/contracts')!)
+    expect(contracts.hero[1]).toContain('a missing US work form (I-9)')
+    const suppliers = SITE_ROLES.find((r) => r.t === 'Suppliers')!
+    expect(suppliers.d).toContain('a bench vendor, a firm with workers waiting for a project')
+    expect(CHAIN_PAGE).toContain('its bench, its workers waiting for a project')
+  })
+})
+
+describe('The header stays, and one scroll lands on one band', () => {
+
+  it('the header stays on screen as the page scrolls, and lands a link to an anchor under itself rather than behind it', () => {
+    const header = FRAME_SRC.slice(FRAME_SRC.indexOf('export function SiteHeader'))
+    const cls = header.match(/<header\s+className="([^"]+)"/)![1]
+    expect(cls).toMatch(/\bsticky\b/)
+    expect(cls).toMatch(/\btop-0\b/)
+    expect(cls).toMatch(/\bz-\d+\b/)
+    // Opaque, so the page does not read through it.
+    expect(cls).toMatch(/\bbg-etyme-canvas\b/)
+    // The scroll padding is the header's own height, at both widths.
+    expect(cls).toMatch(/\[html:has\(&\)\]:scroll-pt-\[\d+px\]/)
+    expect(cls).toMatch(/lg:\[html:has\(&\)\]:scroll-pt-\[\d+px\]/)
+    // A phone's drawer scrolls inside itself, so no link is out of reach.
+    expect(header).toMatch(/max-h-\[calc\(100dvh-[\d.]+rem\)\][^"]*overflow-y-auto/)
+  })
+
+  it('one scroll lands on one band of the home page, by proximity, and never for a reader who asked for reduced motion', () => {
+    const root = PAGE.slice(PAGE.indexOf('export default function LandingPage'))
+    const wrapper = root.match(/<div\s+className="([^"]+)"/)![1]
+    expect(wrapper).toContain('[html:has(&)]:motion-safe:snap-y')
+    expect(wrapper).toContain('[html:has(&)]:motion-safe:snap-proximity')
+    expect(wrapper).not.toMatch(/snap-mandatory/)
+    // Snapping only for a reader who has not asked for reduced motion.
+    expect(wrapper).not.toMatch(/(?:^|\s)\[html:has\(&\)\]:snap-/)
+    // Every band is a snap point: the four sections here, and the close.
+    const sections = [...PAGE.matchAll(/<section[^>]*className="([^"]+)"/g)].map((m) => m[1])
+    expect(sections).toHaveLength(4)
+    for (const c of sections) expect(c).toMatch(/\bsnap-start\b/)
+    expect(CLOSE_SRC).toMatch(/<section[^>]*className="snap-start\b/)
+    // And nothing outside the home page snaps: the frame sets no snap type.
+    expect(FRAME_SRC).not.toMatch(/snap-y|snap-mandatory|snap-proximity/)
+  })
+})
+
+describe('The line about teams around the world, on a dark band', () => {
+
+  it('the line about teams around the world sits on a dark band in the brand’s ink, and its words clear AA against it by computation', () => {
+    const join = band('join')
+    const section = join.match(/^id="join" className="([^"]+)"/)![1]
+    expect(section).toMatch(/\bbg-etyme-ink\b/)
+    const ink = channels(cssVar('ink'))
+    const canvas = channels(cssVar('canvas'))
+    // The kit's ink, or darker: never a color chosen for this band.
+    expect(luminance(ink)).toBeLessThanOrEqual(luminance(channels('#1F1E1D')))
+    // The heading in the canvas color on it.
+    const heading = join.slice(join.lastIndexOf('<h2', join.indexOf('{JOIN.heading}')), join.indexOf('{JOIN.heading}'))
+    expect(heading).toMatch(/\btext-etyme-canvas\b(?!\/)/)
+    const headingRatio = contrast(canvas, ink)
+    expect(headingRatio).toBeGreaterThanOrEqual(7)
+    // The two sentences in the canvas at an opacity over the ink, and
+    // what the eye reads is the blend, so the blend is what is measured.
+    const body = join.slice(join.indexOf('JOIN.lines.map'))
+    const alpha = Number(body.match(/text-etyme-canvas\/\[(0\.\d+)\]/)![1])
+    const bodyRatio = contrast(over(canvas, alpha, ink), ink)
+    expect(bodyRatio, `${bodyRatio.toFixed(2)} to 1`).toBeGreaterThanOrEqual(4.5)
+    // No muted gray from the light theme, which would sink into the ink.
+    expect(join).not.toMatch(/text-etyme-(?:muted|faint|ink)\b/)
+  })
+
+  it('the mural is redrawn for the dark ground, not the light drawing placed on it', () => {
+    // The line work is the canvas color on the ink, and every shape drawn
+    // hollow is filled with the ink, so no card glares off the band.
+    expect(ART_SRC).toContain("style={{ color: 'var(--canvas)', background: 'var(--ink)' }}")
+    expect(ART_SRC).not.toMatch(/fill:\s*'var\(--canvas\)'/)
+    expect(ART_SRC).toMatch(/fill:\s*'var\(--ink\)'/)
+    // The two touches are the kit's own, and they are seen on the ink:
+    // the orange as a graphic should be, at least three to one; the
+    // violet is the kit's brighter one, which reads better on the dark
+    // than the deeper text violet does, and the lane it colors is
+    // decoration the label describes.
+    const ink = channels(cssVar('ink'))
+    expect(ART_SRC).toContain("'var(--orange)'")
+    expect(contrast(channels(cssVar('orange')), ink)).toBeGreaterThanOrEqual(3)
+    expect(ART_SRC).toContain("'var(--violet)'")
+    expect(ART_SRC).not.toContain("'var(--violet-p)'")
+    expect(contrast(channels(cssVar('violet')), ink)).toBeGreaterThan(contrast(channels(cssVar('violet-p')), ink))
   })
 })

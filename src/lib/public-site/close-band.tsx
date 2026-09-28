@@ -28,7 +28,7 @@ export function CloseBand({
 }) {
   const ask = withForm ? { ...ASK_A_PERSON, href: '#contact' } : ASK_A_PERSON
   return (
-    <section id={id} className="scroll-mt-6 border-t border-etyme-rule bg-etyme-surface" data-close-band="">
+    <section id={id} className="snap-start border-t border-etyme-rule bg-etyme-surface" data-close-band="">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
         <div className={withForm ? 'grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-start' : ''}>
           <div>

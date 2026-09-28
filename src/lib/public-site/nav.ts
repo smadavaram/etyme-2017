@@ -67,17 +67,25 @@ export interface NavMenu {
  * them in. The home page's module band draws these same four groups, so
  * the menu and the page teach one map.
  *
- * One sentence per line, since 2026-09-28, when the band came back to
- * the home page: a CRO had called the page "too much data", so a tile is
- * a name and one line. Each line describes what the part does, in words
- * a reader can check on its page; none promises a result.
+ * One sentence per line, since 2026-09-28. Each line describes what the
+ * part does, in words a reader can check on its page; none promises a
+ * result. The home page drew these as a band of tiles for one day and
+ * dropped them again the same evening, on the founder's go-to-market
+ * list: they repeated the four steps and this menu.
+ *
+ * Plain words, defined once (CLAUDE.md, the same list): a job request,
+ * not a requisition; a bill, never an invoice. "Bills & the three-way
+ * check" carries the check's definition as its line, because the header
+ * is where most readers meet the term first. The routes keep their
+ * addresses — `/requisitions`, `/invoices` — because an address is not a
+ * word anybody reads.
  */
 export const PRODUCT_STAGES: NavGroup[] = [
   {
     heading: 'Source',
     items: [
-      { t: 'Requisitions & suppliers', d: 'Sent only to the suppliers Procurement cleared.', href: '/requisitions' },
-      { t: 'Submissions & screening', d: 'Every supplier’s people for one role, side by side.', href: '/submissions' },
+      { t: 'Job requests & suppliers', d: 'Sent only to the suppliers Procurement cleared.', href: '/requisitions' },
+      { t: 'Submissions & screening', d: 'Every supplier’s people for one job, side by side.', href: '/submissions' },
     ],
   },
   {
@@ -90,7 +98,7 @@ export const PRODUCT_STAGES: NavGroup[] = [
     heading: 'Work and pay',
     items: [
       { t: 'Timesheets & expenses', d: 'The worker files the week; nobody approves their own.', href: '/timesheets' },
-      { t: 'Invoices & the three-way match', d: 'An invoice with no signed week behind it is not paid.', href: '/invoices' },
+      { t: 'Bills & the three-way check', d: 'The three-way check: the hours, the bill, and the contract rate must all agree.', href: '/invoices' },
     ],
   },
   {
@@ -118,11 +126,11 @@ export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
  */
 export const ROLES: NavItem[] = [
   { t: 'The program office', d: 'One hire walked from every desk, and who acts at each.', href: '/docs/client#one-hire' },
-  { t: 'Procurement', d: 'Procurement audits the suppliers, and a role goes only to the ones it cleared.', href: '/docs/client#l1-1' },
+  { t: 'Procurement', d: 'Procurement audits the suppliers, and a job goes only to the ones it cleared.', href: '/docs/client#l1-1' },
   { t: 'HR and compliance', d: 'Two gates before day one. A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/docs/client#l1-2' },
-  { t: 'Finance', d: 'Seven steps from a filed week to a paid invoice, and which checks can be waived.', href: '/docs/time-and-money' },
+  { t: 'Finance', d: 'Seven steps from a filed week to a paid bill, and which checks can be waived.', href: '/docs/time-and-money' },
   { t: 'Hiring managers', d: 'The worker files the week and you sign it. A week over the hours is flagged first.', href: '/docs/client#l1-3' },
-  { t: 'Suppliers', d: 'What a prime, a sub and a bench vendor each see, and what stays theirs.', href: '/chain#down-the-chain' },
+  { t: 'Suppliers', d: 'What a prime, a sub and a bench vendor, a firm with workers waiting for a project, each see, and what stays theirs.', href: '/chain#down-the-chain' },
 ]
 
 export const DOCS_LINK: NavItem = {

@@ -97,9 +97,9 @@ export const TIME_AND_MONEY: ReferenceDoc = {
     'One signed week is the receipt, and every firm in the chain bills from it.',
   screen: {
     img: '/screens/timesheets.png',
-    alt: 'A timesheets screen at a client: one week flagged at 168 hours with an overtime decision on it, and approved weeks under it.',
+    alt: 'A timesheets screen at a client: weeks waiting for a signature and weeks approved, one of them a 44-hour week over the hours.',
     caption:
-      'The hiring manager at Northbend Athletic, a demo company — not a customer. The flagged week is on top; the weeks under it are signed, at their bill rates.',
+      'The hiring manager at Northbend Athletic, a demo company — not a customer. Weeks waiting for a signature sit beside weeks already signed, at their bill rates.',
   },
   blocks: [
     {

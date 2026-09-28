@@ -869,6 +869,34 @@ export function sizesTheBuyer(text: string): string[] {
   return out
 }
 
+// ── "Vendor management system", banned. Decided 2026-09-28 ───────────
+//
+// On the morning of 2026-09-28 the category became "Enterprise contingent
+// workforce management", and "vendor management system" was allowed to
+// stay once, as the word a buyer's procurement searches for. The same
+// evening, in his go-to-market edit list, the founder struck that too:
+// the phrase is banned on public pages, and the category is the one
+// sentence and nothing else. A buyer who reads "vendor management system"
+// files Etyme beside the enterprise suites and asks the questions a page
+// cannot finish — the same reason no competitor is named.
+//
+// Matched on the words, in any case, with or without a hyphen or a plural,
+// so "Vendor-management systems" is caught too. "VMS" alone is not: it is
+// the acronym a buyer uses for the system already on their desk ("keep
+// your ATS, your VMS"), and "VMS software" is one of the founder's two
+// labels for the ways to run a program (2026-09-20). If those go too, the
+// founder says so and the pattern widens here.
+
+const VMS_PHRASE = /\bvendor[\s-]+management[\s-]+systems?\b/gi
+
+/**
+ * Every "vendor management system" on a page. Empty is the only
+ * acceptable answer on a public page since 2026-09-28.
+ */
+export function vendorManagementSystem(text: string): string[] {
+  return [...text.matchAll(VMS_PHRASE)].map((m) => m[0])
+}
+
 // ── A claim the reader cannot check. Decided 2026-09-28 ───────────────
 //
 // The founder: "You are targeting well-versed IT people; they rarely buy

@@ -71,7 +71,7 @@ export const FOUR_ANSWERS: { q: string; screen: string; route: string; etyme: st
     q: 'Are we paying two suppliers different money for the same work?',
     screen: 'Rates',
     route: 'rate-history',
-    etyme: 'The Program screen puts two suppliers’ rates for one role side by side. The Rates screen keeps who agreed each.',
+    etyme: 'The Program screen puts two suppliers’ rates for one job side by side. The Rates screen keeps who agreed each.',
   },
   {
     q: 'Who has been here longest?',
@@ -121,9 +121,9 @@ export const ABOUT: CompanyPage = {
       id: 'build',
       title: 'What we build',
       paragraphs: [
-        'Companies that use staffing suppliers know their employees by name and their contractors by invoice. ' +
+        'Companies that use staffing suppliers know their employees by name and their contractors by bill. ' +
           'Etyme keeps one record across that gap.',
-        'The role that was raised, the supplier that filled it, the contract it wrote, the weeks that were signed, the invoices that matched, and the papers checked before day one. ' +
+        'The job that was raised, the supplier that filled it, the contract it wrote, the weeks that were signed, the bills that matched, and the papers checked before day one. ' +
           'Eight areas, in the order the work happens.',
         'Nobody sees a rate that is not theirs, and everybody sees what is waiting on them.',
         // The note under the header's Industries menu, kept when the menu
@@ -132,7 +132,7 @@ export const ABOUT: CompanyPage = {
         // The hero's span line, 2026-09-27. Naming every station once, in
         // the trade's order, is what stops any one of them reading as the
         // product.
-        'Requisition, suppliers, submissions, screening, interviews, onboarding, timesheets, invoices, compliance. ' +
+        'Job request, suppliers, submissions, screening, interviews, onboarding, timesheets, bills, compliance. ' +
           'One record holds all of it, and each desk opens the part that is its own.',
       ],
     },
@@ -184,14 +184,14 @@ export const ABOUT: CompanyPage = {
         alt: 'A contractors table: one row per person, with the supplier that sent them, their status, where they are and their months on site.',
         caption: 'Every contractor at Northbend Athletic, a demo company — not a customer, whichever supplier sent them.',
         from: '/dashboard/people, table view, as the program manager',
-        capturedAt: '2026-09-21T15:17:41Z',
+        capturedAt: '2026-09-28T19:09:48Z',
       },
     },
     {
       id: 'hire',
       title: 'One hire moves through six milestones, and three of them can stop it',
       paragraphs: [
-        'The hiring manager raises it, HR reads the role, procurement audits the suppliers, and the lead who owns the cost center signs the money.',
+        'The hiring manager raises it, HR reads the job, procurement audits the suppliers, and the lead who owns the cost center signs the money.',
         'The supplier submits, you award, compliance clears the start, the plant signs the week, and accounts payable pays what matched. Nobody signs their own.',
         'Raised, awarded and cleared can stop the deal. Released, working and ended record what happened. ' +
           'Each product page quotes the sentence its screen shows when it stops something.',
@@ -218,11 +218,11 @@ export const ABOUT: CompanyPage = {
       items: [
         {
           t: 'Work arrives the way it already does',
-          d: 'Paste in a forwarded email, a role description, or five of them at once. They come back as seats, with duplicates already merged. Nobody has to change how they send you work.',
+          d: 'Paste in a forwarded email, a job description, or five of them at once. They come back as seats, with duplicates already merged. Nobody has to change how they send you work.',
         },
         {
           t: 'Your suppliers do not need to sign up first',
-          d: 'Paste the distribution list you already use. You can send a role today to every firm on it, whether or not it has an Etyme account. A hop to a company that is not on Etyme leaves the record, and the screen says so.',
+          d: 'Paste the distribution list you already use. You can send a job today to every firm on it, whether or not it has an Etyme account. A hop to a company that is not on Etyme leaves the record, and the screen says so.',
         },
         {
           t: 'What is yours stays yours',
@@ -235,7 +235,7 @@ export const ABOUT: CompanyPage = {
       title: 'How we work',
       items: [
         { t: 'Rules before people', d: 'A requirement clears by rule first and goes to a person only when a rule fails. Where the law is behind a rule, the product blocks.' },
-        { t: 'Nobody signs their own', d: 'A contractor never approves their own week, and whoever raised a requisition cannot approve it. An invoice with no signed week behind it is not paid.' },
+        { t: 'Nobody signs their own', d: 'A contractor never approves their own week, and whoever raised a job request cannot approve it. A bill with no signed week behind it is not paid.' },
         { t: 'Nothing we would take back', d: 'No borrowed customer logos, no analyst quadrant, and no price we have not settled. What is on this site is checkable today.' },
         { t: 'Free while testing', d: 'Etyme is free while it is tested with its first firms. Governance is part of every program and never a paid tier.' },
       ],
@@ -247,7 +247,7 @@ export const ABOUT: CompanyPage = {
       paragraphs: [
         'Most clients staff the program office themselves. The record is the same either way and it stays yours.',
         'In either way, Etyme never supplies a contractor and never runs a bench, so it has no reason to favor one supplier. ' +
-          'Your people keep the decisions that are yours: which roles to open, who to hire, and what to approve.',
+          'Your people keep the decisions that are yours: which jobs to open, who to hire, and what to approve.',
         'If you are a staffing supplier, you are on it because your client is. ' +
           'Your rates and your sub-vendors’ names stay private, and your client stays your client. ' +
           'Where Etyme runs a client’s program, approvals come back faster and your bills are matched and paid without chasing.',
@@ -282,7 +282,7 @@ export const ABOUT: CompanyPage = {
       items: [
         {
           t: 'Governance is never a paid tier',
-          d: 'Tenure caps, approval chains and the record of who approved what are included for everybody. Any company with two hiring managers needs them. Charging extra for them loses the deal before the negotiation starts.',
+          d: 'Time limits on how long one person may stay, approval chains and the record of who approved what are included for everybody. Any company with two hiring managers needs them. Charging extra for them loses the deal before the negotiation starts.',
         },
         {
           t: 'Looking around costs nothing and needs no card',
@@ -362,7 +362,7 @@ export const SECURITY: CompanyPage = {
         { t: 'Sign-in through your own tenant', d: 'Business users sign in through their own company’s sign-in. A personal email address cannot register a company.' },
         { t: 'A role for every seat, in the trade’s words', d: 'Account manager, contract manager, accounts receivable, AP and payroll, compliance officer. Each sees what its job needs.' },
         { t: 'Every read of a person, logged', d: 'The routes that read a named person write who read it, why, and whether it was allowed. Refusals are logged as carefully as reads.' },
-        { t: 'Segregation of duties, enforced', d: 'Nobody approves their own hours or their own requisition, and whoever recommended a supplier cannot decide it. Each refusal is a sentence.' },
+        { t: 'Segregation of duties, enforced', d: 'Nobody approves their own hours or their own job request, and whoever recommended a supplier cannot decide it. Each refusal is a sentence.' },
         { t: 'Attestations, not verdicts', d: 'A check is recorded as who ran it, when, and when it expires. Etyme never declares a person cleared to work.' },
         { t: 'Automation on a declared ladder', d: 'Everything the system does on its own carries a level from L0 to L5, a plain-English reason, and an honest flag for whether it can be undone.' },
         { t: 'Erasure that keeps the books', d: 'A person can export and erase their own data. Erasure anonymizes the person and leaves signed hours and amounts as they were.' },

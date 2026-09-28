@@ -51,9 +51,28 @@ function MenuPanel({ menu }: { menu: NavMenu }) {
   )
 }
 
+/**
+ * The header stays on screen as the page scrolls. Decided 2026-09-28, on
+ * the founder's go-to-market list.
+ *
+ * `sticky` rather than `fixed`, so it keeps its own place in the flow and
+ * nothing under it has to be pushed down by a guessed height. It sets the
+ * document's scroll padding to its own height, from here, so a link to an
+ * anchor — and a snap point on the home page — lands under the header
+ * rather than behind it, on every page that draws it. The height is two
+ * rows on a phone (the logo and buttons, then Menu) and one from `lg`:
+ * 101 and 69 pixels, measured on `next start` at 390 and 1440 wide on
+ * 2026-09-28. A change to the header's padding or its rows changes these.
+ *
+ * The phone drawer scrolls inside itself, because a sticky header taller
+ * than the screen would leave its last links out of reach.
+ */
 export function SiteHeader() {
   return (
-    <header className="border-b border-etyme-rule bg-etyme-canvas">
+    <header
+      className="sticky top-0 z-40 border-b border-etyme-rule bg-etyme-canvas
+                 [html:has(&)]:scroll-pt-[101px] lg:[html:has(&)]:scroll-pt-[69px]"
+    >
       <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-3 px-4 py-4 sm:px-6">
         <a href="/" aria-label="Etyme — home">
           <EtymeLogo size="md" />
@@ -104,7 +123,7 @@ export function SiteHeader() {
           <summary className="cursor-pointer list-none text-sm font-medium text-etyme-muted">
             {'Menu'}
           </summary>
-          <div className="mt-3 space-y-6 border-t border-etyme-rule pt-4">
+          <div className="mt-3 max-h-[calc(100dvh-7rem)] space-y-6 overflow-y-auto overscroll-contain border-t border-etyme-rule pb-4 pt-4">
             {NAV_MENUS.map((menu) => (
               <div key={menu.label}>
                 <p className="eyebrow">{menu.label}</p>

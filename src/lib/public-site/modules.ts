@@ -174,30 +174,30 @@ export const MODULES: ModulePage[] = [
     slug: 'requisitions',
     route: '/requisitions',
     n: 1,
-    title: 'Requisitions & suppliers',
+    title: 'Job requests & suppliers',
     lede:
       'A manager says what they need, and most requirements clear the moment they are raised. ' +
-      'Once approved, a role goes only to the suppliers Procurement cleared, each at its own rate band.',
+      'Once approved, a job goes only to the suppliers Procurement cleared, each at its own rate band.',
     screen: {
       img: '/screens/requisitions.png',
-      alt: 'A requirements screen: one open role, seven cleared by rule with no human needed, one waiting on a person, and a role over plan waiting on approval.',
+      alt: 'A requirements screen: one open job, seven cleared by rule with no human needed, one waiting on a person, and a job over plan waiting on approval.',
       caption:
-        `The program manager at ${NORTHBEND}. Eight requisitions: seven cleared by rule with nobody approving them, ` +
+        `The program manager at ${NORTHBEND}. Eight job requests: seven cleared by rule with nobody approving them, ` +
         'and one over plan waiting on a person, with the reason on the row.',
       from: '/dashboard/requisitions as the program manager',
-      capturedAt: '2026-09-26T21:13:49Z',
+      capturedAt: '2026-09-28T19:09:23Z',
     },
     capabilities: [
-      { t: 'Raise in plain terms', d: 'A role, a budget, a rate band and a cost center. Most open the moment they are raised.' },
+      { t: 'Raise in plain terms', d: 'A job, a budget, a rate band and a cost center. Most open the moment they are raised.' },
       { t: 'Rules clear first', d: 'Headcount plan, budget and the going rate are checked by rule. A person sees it only when one fails.' },
-      { t: 'Three desks, in order', d: 'HR reads the role, Procurement audits the suppliers, the cost-center lead signs the money last.' },
+      { t: 'Three desks, in order', d: 'HR reads the job, Procurement audits the suppliers, the cost-center lead signs the money last.' },
       { t: 'Released to cleared suppliers only', d: 'Procurement names the firms. Each gets its own rate band and cannot see anyone else’s.' },
-      { t: 'Invitations that expire', d: 'Fourteen days unless somebody sets another date, so a role never sits with a firm that went quiet.' },
+      { t: 'Invitations that expire', d: 'Fourteen days unless somebody sets another date, so a job never sits with a firm that went quiet.' },
       { t: 'A supplier, cleared by four desks', d: 'Your lead, Procurement, HR and Finance each verify their own items, and the recommender is none of them.' },
     ],
     complaint: {
       text:
-        'A hiring manager emails three agencies she likes. Procurement finds out when the invoices arrive, ' +
+        'A hiring manager emails three agencies she likes. Procurement finds out when the bills arrive, ' +
         'and one of the three was never approved to work with the company at all.',
       whose: 'Procurement, at a company with more suppliers than it thinks it has.',
       gloss:
@@ -207,9 +207,9 @@ export const MODULES: ModulePage[] = [
     does: [
       'A requirement is raised with a budget, a rate band and a cost center. Rules read it first: the headcount plan, the budget, and the rate against the going rate. ' +
         'If every check passes it opens straight away.',
-      'If one fails, it goes to the desk that owns that check. HR reads the role, Procurement audits the sourcing, and the cost-center lead signs the money last. ' +
+      'If one fails, it goes to the desk that owns that check. HR reads the job, Procurement audits the sourcing, and the cost-center lead signs the money last. ' +
         'Whoever raised it cannot approve it.',
-      'When Procurement approves, it names the suppliers it cleared, and only those firms can be sent the role. ' +
+      'When Procurement approves, it names the suppliers it cleared, and only those firms can be sent the job. ' +
         'Each supplier gets its own rate band and cannot see anyone else’s.',
       'A firm becomes a supplier the same way. Your lead confirms the need, Procurement qualifies it, HR clears compliance and Finance approves it. ' +
         'Whoever recommended the firm decides none of it.',
@@ -217,13 +217,13 @@ export const MODULES: ModulePage[] = [
     stages: { steps: ['Raised', 'Cleared', 'Released'], under: 'to the suppliers Procurement named, and nobody else' },
     looks: [
       'The counts across the top say how much of the work nobody had to touch: cleared automatically, against waiting on a person.',
-      'A role over plan says so on its own row, in a sentence, with the name of the person it is waiting on.',
+      'A job over plan says so on its own row, in a sentence, with the name of the person it is waiting on.',
       'Open the example program to raise one yourself as the hiring manager, then approve it from another desk.',
     ],
     refuses: [
       {
         says: 'Pinnacle Resourcing was not among the suppliers Procurement cleared for this requirement.',
-        then: 'Pinnacle Resourcing is a demo company — not a customer. Not sent. Ask Procurement to add them, or leave them out. A hiring manager cannot choose who sees a role.',
+        then: 'Pinnacle Resourcing is a demo company — not a customer. Not sent. Ask Procurement to add them, or leave them out. A hiring manager cannot choose who sees a job.',
         kind: 'BLOCK',
         source: 'src/app/api/requisitions/[id]/distribute/route.ts',
         phrase: 'not among the suppliers Procurement cleared for this requirement',
@@ -248,16 +248,16 @@ export const MODULES: ModulePage[] = [
     n: 2,
     title: 'Submissions & screening',
     lede:
-      'Every supplier submits against the same role, and each person arrives on one screen with the firm that sent them and the rate it asked. ' +
+      'Every supplier submits against the same job, and each person arrives on one screen with the firm that sent them and the rate it asked. ' +
       'Two firms sending the same person is caught before anyone is interviewed.',
     screen: {
       img: '/screens/submissions.png',
-      alt: 'A candidates screen: nine people from three suppliers, each row naming the consultant, the role, the supplier, the rate and the stage.',
+      alt: 'A candidates screen: nine people from three suppliers, each row naming the consultant, the job, the supplier, the rate and the stage.',
       caption:
         `The hiring manager at ${NORTHBEND}. Nine people from three suppliers, each row carrying the firm that sent them, ` +
         'the rate it asked and where the person has got to.',
       from: '/dashboard/submissions as the hiring manager',
-      capturedAt: '2026-09-21T15:15:10Z',
+      capturedAt: '2026-09-28T19:09:26Z',
     },
     capabilities: [
       { t: 'One screen for every supplier', d: 'Each candidate arrives with the firm that sent them and the rate it asked.' },
@@ -274,10 +274,10 @@ export const MODULES: ModulePage[] = [
       whose: 'A hiring manager at a company with more than one supplier.',
       gloss:
         'Suppliers compete, and that is the point of having more than one. But when each submission is an email, the client does the reconciling. ' +
-        'Which person is which, who sent them first, and whether the rate on the résumé is the rate on the invoice.',
+        'Which person is which, who sent them first, and whether the rate on the résumé is the rate on the bill.',
     },
     does: [
-      'A supplier can submit only to a role it was sent, only while its insurance is in date, and only a person who agreed to be represented by it. ' +
+      'A supplier can submit only to a job it was sent, only while its insurance is in date, and only a person who agreed to be represented by it. ' +
         'Its own employee is the one exception, and the employee is told.',
       'The submission lands on one screen for the client, with the firm that sent it and the rate it asked. ' +
         'The same person submitted twice to a requirement is held: the first submission wins.',
@@ -318,7 +318,7 @@ export const MODULES: ModulePage[] = [
     title: 'Contracts & onboarding',
     lede:
       'The award writes the contract, with the contractor, the rate and the dates on it, against the order that holds the ceiling. ' +
-      'Before day one the papers are checked: a missing I-9 or lapsed insurance blocks a start, and the rest warns and takes a reason.',
+      'Before day one the papers are checked: a missing US work form (I-9) or lapsed insurance blocks a start, and the rest warns and takes a reason.',
     screen: {
       img: '/screens/contracts.png',
       alt: 'A contracts table: six contracts at one client, each naming the order it sits on, the consultant, the bill rate, the dates and the status.',
@@ -326,13 +326,13 @@ export const MODULES: ModulePage[] = [
         `The program manager at ${NORTHBEND}. Six contracts, three active, each on the order it bills against, ` +
         'with the bill rate, the dates, and whether it is tagged to a master contract.',
       from: '/dashboard/contracts, table view, as the program manager',
-      capturedAt: '2026-09-26T21:13:51Z',
+      capturedAt: '2026-09-28T19:09:31Z',
     },
     capabilities: [
-      { t: 'The award writes the contract', d: 'The person, the bill rate, the dates and the requisition, on a sell line and a buy line.' },
+      { t: 'The award writes the contract', d: 'The person, the bill rate, the dates and the job request, on a sell line and a buy line.' },
       { t: 'An order with a ceiling', d: 'One order per supplier, a line per person. The order carries the ceiling; the line carries the rate.' },
       { t: 'Ways to be engaged', d: 'W-2 through the supplier, their own company, independent, or contract to hire. A type your company does not accept is a block.' },
-      { t: 'Papers that block a start', d: 'An I-9, general liability and workers’ compensation cover, and a professional license where the role needs one.' },
+      { t: 'Papers that block a start', d: 'An I-9, general liability and workers’ compensation cover, and a professional license where the job needs one.' },
       { t: 'Papers that warn', d: 'A background check or an NDA still outstanding. The contract can start with a reason recorded.' },
       { t: 'The MSA is optional', d: 'A client that sends one order and one contractor is never made to paper an agreement first.' },
     ],
@@ -346,11 +346,11 @@ export const MODULES: ModulePage[] = [
         'Nothing tied them to each other, so nothing noticed when they drifted.',
     },
     does: [
-      'Awarding a candidate writes the paperwork. The sell line carries the person, the bill rate, the dates and the requisition. ' +
+      'Awarding a candidate writes the paperwork. The sell line carries the person, the bill rate, the dates and the job request. ' +
         'The buy line carries how the person is engaged, and the rate on it is the rate that was awarded.',
       'An order is one document with a line per person. The client calls it a purchase order and the supplier calls it a sales order. ' +
         'There is no second copy to drift.',
-      'A contract is activated only when the papers clear. An I-9, liability and workers’ compensation cover, and a license where the role needs one block a start until they are on file.',
+      'A contract is activated only when the papers clear. An I-9, liability and workers’ compensation cover, and a license where the job needs one block a start until they are on file.',
       'A background check or an NDA still outstanding warns, and the contract can start with a reason recorded against the name of whoever gave it.',
     ],
     stages: { steps: ['Award', 'Contract', 'Order'], under: 'written together, never re-keyed' },
@@ -390,35 +390,35 @@ export const MODULES: ModulePage[] = [
       'The manager who owns the work signs it, nobody approves their own hours, and a week that looks wrong is flagged before anybody signs.',
     screen: {
       img: '/screens/timesheets.png',
-      alt: 'A timesheets screen: one week flagged at 168 hours with an overtime decision on it, and approved weeks under it with the person, the period, the hours, the bill rate and the value.',
+      alt: 'A timesheets screen: weeks waiting for a signature and weeks approved, each with the person, the period, the hours, the bill rate and the value, one of them a 44-hour week over the hours.',
       caption:
-        `The hiring manager at ${NORTHBEND}. One week is flagged at 168 hours, with 128 of them waiting on a decision. ` +
-        'Under it, weeks already approved at their bill rates, and a signed 44 hour week waiting on the supplier to accept it.',
+        `The hiring manager at ${NORTHBEND}. Weeks waiting for a signature sit beside weeks already approved, each at its bill rate, ` +
+        'and one 44-hour week runs over the job’s hours and waits on a decision.',
       from: '/dashboard/timesheets as the hiring manager',
-      capturedAt: '2026-09-21T15:15:22Z',
+      capturedAt: '2026-09-28T19:09:34Z',
     },
     capabilities: [
       { t: 'Filed once, against the contract', d: 'By the person or their employer. Never twice for one week.' },
       { t: 'Nobody signs their own', d: 'Only the company being billed approves, and a rejection says why.' },
       { t: 'Signed twice', d: 'The client signs so the supplier may bill. The employer accepts so the person is paid.' },
-      { t: 'Flagged before anyone signs', d: 'Over twelve hours a day, over sixty a week, over the role, or past the contract’s end. Warns, never blocks.' },
+      { t: 'Flagged before anyone signs', d: 'Over twelve hours a day, over sixty a week, over the job’s hours, or past the contract’s end. Warns, never blocks.' },
       { t: 'Reminders before it is due', d: 'At seven, three and one day out.' },
       { t: 'Quiet weeks, approved on a term', d: 'Only if your agreement turns it on, and never a week with a question over it.' },
     ],
     complaint: {
       text:
         'Every Monday the manager gets four spreadsheets in four formats and signs what she is sent. ' +
-        'Then the invoice arrives with different hours.',
+        'Then the bill arrives with different hours.',
       whose: 'A hiring manager who signs for contractors from three suppliers.',
       gloss:
-        'The hours were right when the person wrote them down. They were re-keyed by the supplier, summarized by the prime and copied into the invoice. ' +
+        'The hours were right when the person wrote them down. They were re-keyed by the supplier, summarized by the prime and copied into the bill. ' +
         'Each copy was a chance to be wrong.',
     },
     does: [
       'A week is filed once, against the contract, by the person or by the supplier that employs them. Submitting locks it. ' +
         'Only the company being billed can approve it, and nobody approves their own hours.',
       'The signed week carries two signatures. The client approves it, so the supplier may bill. The employer accepts it, so the person can be paid.',
-      'Before anyone signs, the sheet is read. More than twelve hours in a day, sixty in a week, more than the role allows, or a day past the contract’s end is flagged and shown first.',
+      'Before anyone signs, the sheet is read. More than twelve hours in a day, sixty in a week, more than the job allows, or a day past the contract’s end is flagged and shown first.',
       'Expenses are filed against the contract in six categories, and only approved, billable expenses reach a bill.',
     ],
     stages: { steps: ['Filed once', 'Signed twice', 'Flagged first'], under: 'nobody approves their own' },
@@ -452,44 +452,44 @@ export const MODULES: ModulePage[] = [
     slug: 'invoices',
     route: '/invoices',
     n: 5,
-    title: 'Invoices & the three-way match',
+    title: 'Bills & the three-way check',
     lede:
-      'A supplier’s invoice is paid when three things agree: the hours a manager signed, the order those hours were bought against, and the invoice itself. ' +
-      'Where they do not agree, nothing is paid and the reason is a sentence.',
+      'A supplier’s bill is paid only when it passes. The three-way check: the hours, the bill, and the contract rate must all agree. ' +
+      'Where they do not, nothing is paid and the reason is a sentence.',
     screen: {
       img: '/screens/invoices.png',
-      alt: 'An invoices screen: the outstanding total, an aging breakdown, and a table of supplier invoices with the period, the total and what is paid.',
+      alt: 'A bills screen: the outstanding total, an aging breakdown, and a table of supplier bills with the period, the total and what is paid.',
       caption:
-        `The accounts payable clerk at ${NORTHBEND}. Two supplier invoices open, one paid this period, ` +
+        `The accounts payable clerk at ${NORTHBEND}. Two supplier bills open, one paid this period, ` +
         '$17,400 outstanding and none of it overdue.',
       from: '/dashboard/invoices, what we owe, as the AP clerk',
-      capturedAt: '2026-09-21T15:15:28Z',
+      capturedAt: '2026-09-28T19:09:20Z',
     },
     capabilities: [
-      { t: 'Billed from signed hours', d: 'A supplier invoices only from weeks the client already signed.' },
-      { t: 'The three-way match', d: 'Signed week, order, invoice. A line with no signed week behind it is never paid.' },
-      { t: 'Room on the order', d: 'An invoice past what is left on the order waits for the order to be raised, or a reason with a name on it.' },
-      { t: 'The rate is the contract’s', d: 'A rate that differs from the contract is not waived on an invoice. It is a contract change.' },
-      { t: 'Never paid twice', d: 'A week already billed on another invoice fails the match, and nobody can override it.' },
-      { t: 'Money moves two ways', d: 'A supplier is paid against its invoice. An employee is paid by payroll. Nobody sees a rate above their own.' },
+      { t: 'Billed from signed hours', d: 'A supplier bills only from weeks the client already signed.' },
+      { t: 'The three-way check', d: 'Signed hours, bill, contract rate. A line with no signed week behind it is never paid.' },
+      { t: 'Room on the order', d: 'A bill past what is left on the order waits for the order to be raised, or a reason with a name on it.' },
+      { t: 'The rate is the contract’s', d: 'A rate that differs from the contract is not waived on a bill. It is a contract change.' },
+      { t: 'Never paid twice', d: 'A week already on another bill fails the check, and nobody can override it.' },
+      { t: 'Money moves two ways', d: 'A supplier is paid against its bill. An employee is paid by payroll. Nobody sees a rate above their own.' },
     ],
     complaint: {
       text:
         'Three suppliers bill on three cycles into two inboxes. By the time finance has the quarter assembled, the quarter is over. ' +
-        'Nobody can say which invoice belongs to which signed week.',
+        'Nobody can say which bill belongs to which signed week.',
       whose: 'The finance team, at a company buying through more than one staffing supplier.',
       gloss:
-        'Every supplier’s invoice is right by its own lights. Each was built from its own copy of the hours, keyed in again at each level of the chain.',
+        'Every supplier’s bill is right by its own lights. Each was built from its own copy of the hours, keyed in again at each level of the chain.',
     },
     does: [
       'The signed week is the receipt. Two companies sign it, and one row of hours travels the whole chain, so the hours the client approved are the hours everybody bills from.',
-      'An invoice is matched line by line: a signed week behind each line, hours billed against hours approved, the rate against the contract, and room on the order.',
-      'Where a check fails, the invoice is not paid and the screen says which check and why. Some checks take a reason and a name; the missing week and the double billing never do.',
+      'A bill is checked line by line: a signed week behind each line, hours billed against hours approved, the rate against the contract, and room on the order.',
+      'Where a check fails, the bill is not paid and the screen says which check and why. Some checks take a reason and a name; the missing week and the double billing never do.',
     ],
-    stages: { steps: ['Signed week', 'Order', 'Invoice'], under: 'all three, or not paid' },
+    stages: { steps: ['Signed hours', 'Bill', 'Contract rate'], under: 'all three agree, or not paid' },
     looks: [
-      'What is outstanding, how old it is, and a row per supplier invoice with its period, total and what has been paid.',
-      'Open any invoice for the match itself: each check, passed or failed, in a sentence.',
+      'What is outstanding, how old it is, and a row per supplier bill with its period, total and what has been paid.',
+      'Open any bill for the check itself: each test, passed or failed, in a sentence.',
       'Open the example program as the AP clerk to see what is waiting on a decision.',
     ],
     refuses: [
@@ -509,7 +509,7 @@ export const MODULES: ModulePage[] = [
       },
     ],
     refusesNote:
-      'Money leaves in two directions. A supplier’s invoice is received and matched against the order behind it. An employee is paid by payroll instead, and sees what they are paid, never what a firm above them charges.',
+      'Money leaves in two directions. A supplier’s bill is received and checked against the order behind it. An employee is paid by payroll instead, and sees what they are paid, never what a firm above them charges.',
     flow: { href: '/docs/client#l1-5', label: 'Approve to pay, from the client’s desk' },
   },
 
@@ -520,23 +520,23 @@ export const MODULES: ModulePage[] = [
     title: 'Compliance & tenure',
     lede:
       'Tenure is counted per contractor at your company, across every supplier and every assignment, and a day on site counts once. ' +
-      'At your cap Etyme blocks. Before it, it warns.',
+      'Your time limit is how long one person may work at your company. Etyme blocks at the time limit and warns before it.',
     screen: {
       img: '/screens/compliance.png',
-      alt: 'A tenure table: four people, the suppliers each came through, the months counted across all of them against an 18 month cap, and whether each is fine, approaching, or in a break.',
+      alt: 'A tenure table: four people, the suppliers each came through, the months counted across all of them against an 18 month time limit, and whether each is fine, approaching, or in a break.',
       caption:
-        `The program manager at ${NORTHBEND}. Fourteen months through two suppliers, counted as one person at 78% of an eighteen month cap. ` +
-        'One person is in a break until 5 November.',
+        `The program manager at ${NORTHBEND}. Fourteen months through two suppliers, counted as one person at 78% of an eighteen month time limit. ` +
+        'One person is in a break until 7 November.',
       from: '/dashboard/tenure as the program manager',
-      capturedAt: '2026-09-26T21:13:53Z',
+      capturedAt: '2026-09-28T19:09:37Z',
     },
     capabilities: [
       { t: 'Tenure per person', d: 'Across every supplier and assignment. A day on site counts once, and only days already served count.' },
-      { t: 'Warns at three quarters', d: 'Of your cap. The default cap is eighteen months and the default break in service is thirty days.' },
-      { t: 'Blocks at the cap', d: 'No new award, extension or start until the break is served, and the screen shows the date.' },
+      { t: 'Warns at three quarters', d: 'Of your time limit. The default time limit is eighteen months and the default break in service is thirty days.' },
+      { t: 'Blocks at the time limit', d: 'No new award, extension or start until the break is served, and the screen shows the date.' },
       { t: 'Insurance that stops submissions', d: 'A supplier with no current liability or workers’ compensation cover on file can submit nobody.' },
       { t: 'Visas watched', d: 'A visa inside ninety days of running out is marked as expiring.' },
-      { t: 'Rate parity, reported', d: 'The same role filled by two suppliers at two prices, and how far apart. Reported, not enforced.' },
+      { t: 'Rate parity, reported', d: 'The same job filled by two suppliers at two prices, and how far apart. Reported, not enforced.' },
     ],
     complaint: {
       text:
@@ -549,11 +549,11 @@ export const MODULES: ModulePage[] = [
     },
     does: [
       'Tenure belongs to the person, not the assignment. Etyme adds up every day on site at your company across all suppliers, counts an overlapping day once, and counts only days already served.',
-      'The cap and the break in service are your settings. At three quarters of the cap the row turns to a warning.',
-      'At the cap, a new award, extension or start is blocked with a sentence that says why. A returning person inside a break is shown the date they are eligible, instead of a button.',
+      'The time limit and the break in service are your settings. At three quarters of the time limit the row turns to a warning.',
+      'At the time limit, a new award, extension or start is blocked with a sentence that says why. A returning person inside a break is shown the date they are eligible, instead of a button.',
       'The same desk watches the papers. A supplier whose cover has lapsed can submit nobody until it is back in date, and every check writes a row with its outcome.',
     ],
-    stages: { steps: ['Counted per person', 'Warns at three quarters', 'Blocks at the cap'], under: 'and says why' },
+    stages: { steps: ['Counted per person', 'Warns at three quarters', 'Blocks at the time limit'], under: 'and says why' },
     looks: [
       'One row per person, with every supplier they came through on the same row, and the months counted across all of them.',
       'The status says fine, approaching, or in a break, and a break shows the date the person is eligible again.',
@@ -569,14 +569,14 @@ export const MODULES: ModulePage[] = [
       },
       {
         says: 'Lucía Fernández is at 14 of 18 months (78% of cap)',
-        then: 'A warning at three quarters of the cap, so the manager sees the end coming with four months to plan rather than four days.',
+        then: 'A warning at three quarters of the time limit, so the manager sees the end coming with four months to plan rather than four days.',
         kind: 'WARN',
         source: 'src/lib/governance.ts',
         phrase: '% of cap)',
       },
     ],
     refusesNote:
-      'Rate parity is reported, not enforced. What to do about two prices for one role is your call, and a rate above the band is a warning that takes a reason.',
+      'Rate parity is reported, not enforced. What to do about two prices for one job is your call, and a rate above the band is a warning that takes a reason.',
     flow: { href: '/docs/client#l1-7', label: 'Govern and protect, from the client’s desk' },
     // Moved from the home page's #exposure, 2026-09-27. The business case
     // follows the hook and never leads, so it sits on the station whose
@@ -626,12 +626,12 @@ export const MODULES: ModulePage[] = [
       'Each firm sees only the level it buys and sells at, and hours are filed once and billed up the chain from the same signed week.',
     screen: {
       img: '/screens/chain.png',
-      alt: 'A contractor’s page at a client: seven months into an eighteen month cap across every supplier, supplied through the supplier the client pays, with one firm below it that is not named.',
+      alt: 'A contractor’s page at a client: seven months into an eighteen month time limit across every supplier, supplied through the supplier the client pays, with one firm below it that is not named.',
       caption:
         `The program manager at ${NORTHBEND}, reading one contractor. She is here through the supplier the client pays, at the rate the client pays, ` +
         'with one firm below them that the page does not name.',
       from: '/dashboard/people/[id] for a contractor supplied through a chain, as the program manager',
-      capturedAt: '2026-09-26T21:13:56Z',
+      capturedAt: '2026-09-28T19:09:40Z',
     },
     capabilities: [
       { t: 'Every step recorded', d: 'Client, supplier, the firm it buys from, the employer. Each firm buys from the one below it.' },
@@ -679,7 +679,7 @@ export const MODULES: ModulePage[] = [
       },
     ],
     refusesNote:
-      'A firm cannot submit a person who has not put themselves on its bench, unless it employs them. A chain deeper than eight firms is treated as a fault in the data, not as a business model.',
+      'A firm cannot submit a person who has not put themselves on its bench, its workers waiting for a project, unless it employs them. A chain deeper than eight firms is treated as a fault in the data, not as a business model.',
     flow: { href: '/docs/prime-vendor', label: 'The chain, from the prime vendor’s desk' },
     // Moved from the home page's #who, 2026-09-27, with the line each for
     // a prime, a sub and a bench vendor. The home page keeps the one
@@ -688,9 +688,9 @@ export const MODULES: ModulePage[] = [
     // its client.
     more: {
       id: 'down-the-chain',
-      title: 'Etyme sends your role down the chain and records what each supplier sees',
+      title: 'Etyme sends your job down the chain and records what each supplier sees',
       paragraphs: [
-        'You send a role to one supplier. That supplier sends it to another, and that one sends it to the firm that has the person. ' +
+        'You send a job to one supplier. That supplier sends it to another, and that one sends it to the firm that has the person. ' +
           'Today every hop is an email forwarded as it arrived, because editing it takes longer than anybody has. ' +
           'Your company name, your rate and your manager’s words end up two firms past the agreement that covers them.',
         'Etyme describes the end client where the agreement forbids naming it. ' +
@@ -706,11 +706,11 @@ export const MODULES: ModulePage[] = [
       items: [
         {
           t: 'A prime',
-          d: 'Send a role to your sub without giving up the client’s name, and see a duplicate submission before your client sees it.',
+          d: 'Send a job to your sub without giving up the client’s name, and see a duplicate submission before your client sees it.',
         },
         {
           t: 'A sub',
-          d: 'Price a role against the real band before you answer, and get paid on the hours the client approved.',
+          d: 'Price a job against the real band before you answer, and get paid on the hours the client approved.',
         },
         {
           t: 'A bench vendor',
@@ -730,15 +730,15 @@ export const MODULES: ModulePage[] = [
       'Everywhere else it warns, takes a reason and lets you proceed. Nothing is silently allowed.',
     screen: {
       img: '/screens/governance.png',
-      alt: 'A compliance overview: the client’s contingent workforce policy, with a tenure cap, a break in service and supplier insurance set to block, and a rate band set to warn.',
+      alt: 'A compliance overview: the client’s contingent workforce policy, with a time limit, a break in service and supplier insurance set to block, and a rate band set to warn.',
       caption:
-        `The policy of ${NORTHBEND}, as its program manager reads it. The tenure cap, the break in service and supplier insurance block; ` +
+        `The policy of ${NORTHBEND}, as its program manager reads it. The time limit on how long one person may stay, the break in service and supplier insurance block; ` +
         'the rate band warns and asks for a reason.',
       from: '/dashboard/compliance as the program manager',
-      capturedAt: '2026-09-26T21:13:58Z',
+      capturedAt: '2026-09-28T19:09:43Z',
     },
     capabilities: [
-      { t: 'Blocks where the law is behind it', d: 'Tenure cap, break in service, work authorization, lapsed supplier insurance, a person signing their own.' },
+      { t: 'Blocks where the law is behind it', d: 'Time limit, break in service, work authorization, lapsed supplier insurance, a person signing their own.' },
       { t: 'Warns everywhere else', d: 'Rate band, headcount plan, supplier tier. A reason is recorded and the work proceeds.' },
       { t: 'Every decision written down', d: 'Rule, subject, outcome and reason, even a pass. An override keeps the name of whoever gave it.' },
       { t: 'L0 to L5', d: 'Every action the system takes on its own is graded, from observing and telling somebody to acting on a written rule.' },
@@ -762,7 +762,7 @@ export const MODULES: ModulePage[] = [
     stages: { steps: ['Blocks', 'Warns', 'Records'], under: 'where the law is behind it, everywhere else, and even a pass' },
     looks: [
       'Your own policy, one rule per row, with whether it blocks or warns and the parameters it runs on.',
-      'The settings are yours: the cap, the break, the band. The kind of check is not, because a legal limit that warns is not a limit.',
+      'The settings are yours: the time limit, the break, the band. The kind of check is not, because a legal limit that warns is not a limit.',
       'Open the example program as the compliance officer to read the checks recorded on people and firms.',
     ],
     refuses: [
@@ -795,7 +795,7 @@ export const MODULES: ModulePage[] = [
         `${capital(spelled(UNPROMPTED.length))} things in here happen without anybody asking for them. ` +
           `${capital(spelled(BY_RULE.length))} of the ${spelled(UNPROMPTED.length)} are a date, a threshold or a count: ` +
           'a permit running out, an agreement past its term, a retention period that has ended.',
-        'The one that is left scores a person against a role, and it falls back to arithmetic when there is no model to call.',
+        'The one that is left scores a person against a job, and it falls back to arithmetic when there is no model to call.',
       ],
       items: [
         {
@@ -807,7 +807,7 @@ export const MODULES: ModulePage[] = [
         {
           t: 'A model, on what is left',
           d:
-            'It reads CVs, drafts messages and scores a person against a role. Never decides whether someone can legally work. ' +
+            'It reads CVs, drafts messages and scores a person against a job. Never decides whether someone can legally work. ' +
             'Every score carries what it is made of and what it could not find. A bare number with no explanation is a bug here.',
         },
       ],
