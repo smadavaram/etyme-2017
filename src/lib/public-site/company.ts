@@ -65,7 +65,7 @@ export const FOUR_ANSWERS: { q: string; screen: string; route: string; etyme: st
     q: 'What are we spending on them this quarter, and with whom?',
     screen: 'Program',
     route: 'program',
-    etyme: 'The Program screen shows this month by supplier, and the Invoices screen what each one billed.',
+    etyme: 'The Program screen shows this month by supplier, and the Supplier invoices screen what each one billed.',
   },
   {
     q: 'Are we paying two suppliers different money for the same work?',

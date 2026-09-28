@@ -928,7 +928,7 @@ describe('Every claim about a screen is a thing that screen does', () => {
     }
   })
 
-  it('says the program dashboard shows this month from rates, and names the invoices screen for what was billed', () => {
+  it('says the program dashboard shows this month from rates, and names the supplier invoices screen for what was billed', () => {
     // The dashboard's spend is a forward estimate — a bill rate times a
     // flat 160-hour month — and `lib/program-spend` says so out loud
     // beside the number. A page claiming that figure came off matched
@@ -938,7 +938,7 @@ describe('Every claim about a screen is a thing that screen does', () => {
     const spendAnswer = FOUR_ANSWERS.map((a) => a.etyme).find((line) => /spend|month|billed/i.test(line))
     expect(spendAnswer, 'the page answers the spend question').toBeTruthy()
     expect(spendAnswer).toContain('Program screen')
-    expect(spendAnswer).toContain('Invoices screen')
+    expect(spendAnswer).toContain('Supplier invoices screen')
     // And it does not put the match behind the dashboard's figure.
     expect(spendAnswer, 'the dashboard figure is not from matched bills').not.toMatch(/matched/i)
   })
@@ -2428,8 +2428,10 @@ const over = (fg: number[], alpha: number, ground: number[]) => fg.map((c, i) =>
 function inOurWords(text: string): string {
   let t = text
   for (const m of MODULES) for (const r of m.refuses) t = t.split(r.says).join(' ')
-  // A product screen named by its own title is the product's word.
-  t = t.replace(/\bthe Invoices screen\b/g, ' ')
+  // A product screen named by its own title is the product's word. The
+  // client's own screen for what its suppliers send is titled "Supplier
+  // invoices", because the supplier issues them (lib/page-framing).
+  t = t.replace(/\bthe Supplier invoices screen\b/g, ' ')
   // "By role" is the reader's own job, heading the Solutions menu.
   t = t.replace(/\bBy role\b/g, ' ')
   // "A role for every seat" is an access role, on the security page.
