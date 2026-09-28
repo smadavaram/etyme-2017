@@ -1154,6 +1154,41 @@ invariant in "Invariants the database must enforce" reads accordingly.
 
 ---
 
+## One week, filed once by the worker, signed at the top — decided 2026-09-28
+
+The founder, asked whether a supplier may file hours on a worker's
+behalf and whether a new consultant is marketed by default:
+
+> Yes to marketed by default, worker files their own week only or
+> worker take the one approved at highest level can be attributed to
+> another lower level contracts in another company. Worker knows the
+> complete chain.
+
+Three rules follow:
+
+- **Only the worker files the week.** No supplier, prime or client desk
+  enters hours for somebody else. `mayEnter`'s allowance for a vendor
+  holding `timesheets.read` to file on the worker's behalf is withdrawn.
+  CLAUDE.md station 6 already said this; the code did not.
+- **One week, one filing, one signature at the top, attributed down.**
+  In a chain the worker files once, and the week the client approves at
+  the highest rung is the same week every lower rung bills and pays
+  from, in every company below it. Nobody re-keys it per rung and no
+  rung holds a second copy. That is what `lib/money` already does —
+  each rung bills the same signed hours — and it is now the stated rule
+  rather than an implementation detail. A week filed on a rung that is
+  not the worker's own is refused (`rungsToFile` in
+  `lib/consultant-portfolio`).
+- **The worker knows the complete chain.** Their own page shows every
+  firm between them and the client, by name. The NDA protecting a
+  sub-vendor's name is about the *client* not learning it; the worker
+  is employed through it and already knows. Rates of rungs the worker
+  is not party to stay closed.
+
+And: **a consultant a firm adds is marketed by default**; the firm may
+choose to retain them, and nothing reaches past the firm until the
+consultant grants it.
+
 ## Agreement, order, contract — one document, a header and its lines
 
 A recurring confusion, settled here so nobody has to guess: **a sell
