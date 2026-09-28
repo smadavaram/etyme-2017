@@ -8,6 +8,7 @@ import {
   promisesAnAccount,
   sizesAgainstIncumbents,
   sizesTheBuyer,
+  vendorManagementSystem,
   unverifiableClaims,
   readsAsAimedAtSuppliers,
 } from '@/lib/positioning'
@@ -29,9 +30,13 @@ import { NEXT_STEP_LEAD } from '@/app/demo/seats'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
-/** The founder's category sentence, decided 2026-09-27 (CLAUDE.md). */
+/**
+ * The founder's category sentence, decided 2026-09-27 (CLAUDE.md), in plain
+ * words since 2026-09-28: no "vendor management system" on a public page,
+ * a job request rather than a requisition, a bill rather than an invoice.
+ */
 const CATEGORY_SENTENCE =
-  'Enterprise contingent workforce management. One vendor management system for every contractor and every supplier, from requisition to paid invoice.'
+  'Enterprise contingent workforce management. One record for every contractor and every supplier, from job request to paid bill.'
 
 /** The one literal `description:` in a metadata object, joined if concatenated. */
 function descriptionIn(source: string): string {
@@ -75,6 +80,8 @@ describe('what the site says it is, outside the home page', () => {
     expect(sizesTheBuyer(description)).toEqual([])
     expect(unverifiableClaims(description)).toEqual([])
     expect(readsAsAimedAtSuppliers(description)).toEqual([])
+    // 2026-09-28: the phrase the founder banned on public pages.
+    expect(vendorManagementSystem(description)).toEqual([])
   })
 
   it('the layout still adds the product name to every tab, so no page has to', () => {

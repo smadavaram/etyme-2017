@@ -69,8 +69,8 @@ export default function DemoPage() {
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-etyme-muted">
           Three companies, each buying contract work from several suppliers, each with a year
           of history behind it and something waiting at every desk this morning — a week of
-          hours to sign, a requisition to clear, an invoice that matched, somebody past the
-          tenure cap. Pick the desk that is yours. Nothing to set up and nothing to sign; the
+          hours to sign, a job request to clear, a bill that matched, somebody past the
+          time limit on how long one person may stay. Pick the desk that is yours. Nothing to set up and nothing to sign; the
           data is shared, and what you change, everybody else at that company sees.
         </p>
         <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-etyme-faint">
@@ -80,14 +80,20 @@ export default function DemoPage() {
           puts it all back the way it was.
         </p>
 
-        <div className="mt-10">
+        {/* Which desk to sit at, not which kind of firm the visitor is:
+            every door under it is a desk at a client program, so the
+            question picks a seat and never asks anybody to classify their
+            company as buyer or seller (the "one door" rule). Added
+            2026-09-28 on the founder's go-to-market list. */}
+        <p className="mt-10 font-serif text-[20px] tracking-[-0.02em] text-etyme-ink">Which one are you?</p>
+        <div className="mt-4">
           <ProgramDoors programs={CLIENT_PROGRAMS} />
         </div>
 
         <p className="mt-6 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
           A program is not one seat. The manager who needs somebody, the lead who signs for
           the money, the clerk who pays what matched and the officer who answers for tenure
-          each open on their own queue — and the clerk cannot raise a requisition, which is
+          each open on their own queue — and the clerk cannot raise a job request, which is
           the point of having a clerk.
         </p>
 
@@ -121,8 +127,9 @@ export default function DemoPage() {
           </h2>
           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
             Five consultants in five industries on five kinds of paper: an integrator&rsquo;s own
-            employee, a bench listing sold on through a prime, an H1B two rungs down a chain, a
-            travel nurse paid corp to corp through the company she owns — and somebody with no
+            employee, a bench listing sold on through a prime, a consultant on a US work visa
+            (H-1B) two rungs down a chain, a travel nurse paid corp to corp — paid through her
+            own company — and somebody with no
             bench and no employer yet, which is what this product leaves a consultant holding on
             the day they sign in. Each door opens on that person&rsquo;s own work — their hours,
             their placement, what has been asked of them, or the sentence that says there is

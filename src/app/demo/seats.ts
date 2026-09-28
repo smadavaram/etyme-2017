@@ -73,10 +73,11 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
     name: 'Northbend Athletic',
     where: 'Tualatin, OR',
     waiting:
-      'A 44-hour week is waiting for a signature — four hours over what the role allows.',
+      'A 44-hour week is waiting for a signature — four hours over what the job allows.',
     about:
-      'Three suppliers, one of them supplying through a bench vendor it never names. ' +
-      'A planning analyst on her second supplier here, fourteen months into an eighteen-month cap.',
+      'Three suppliers, one of them supplying through a bench vendor it never names — a firm ' +
+      'whose bench is its workers waiting for a project. ' +
+      'A planning analyst on her second supplier here, fourteen months into an eighteen-month time limit.',
   },
   {
     slug: 'world-corning',
@@ -93,7 +94,7 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
     // seed is the fix, and it is not this change's.
     waiting:
       'One contractor is on site on a purchase order with no agreement behind it at all, and ' +
-      'somebody starts in ten days with no I-9 on file.',
+      'somebody starts in ten days with no US work form (I-9) on file.',
     about:
       'A glass plant hiring validation, MES and quality people. A week of a validation ' +
       'engineer’s hours is waiting on the plant to sign it, and a past contractor is out long ' +
@@ -104,14 +105,14 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
     name: 'Talvern Medical',
     where: 'Westminster, CO',
     waiting:
-      'One consultant is twenty-three months on site across two suppliers, against a cap of ' +
+      'One consultant is twenty-three months on site across two suppliers, against a time limit of ' +
       'eighteen — a number neither supplier can produce.',
     // The tenure number is the line above; repeating it here put the same
     // sentence twice on one card, which a reader notices before anything
     // else on it. This says what else is on the desks.
     about:
       'A medical device maker hiring finance, validation and regulatory people through three ' +
-      'suppliers. A week of hours is filed and waiting, an invoice is out, and somebody ' +
+      'suppliers. A week of hours is filed and waiting, a bill is out, and somebody ' +
       'starts in five days with no I-9 on file.',
   },
 ]
@@ -152,13 +153,13 @@ export const CLIENT_DESKS: ClientDesk[] = [
   { desk: 'hiring', label: 'Hiring manager',
     waiting: 'Needs somebody. A week of hours is waiting for your signature.' },
   { desk: 'hr', label: 'HR partner',
-    waiting: 'A requisition over the headcount plan is waiting for your read of the role.' },
+    waiting: 'A job request over the headcount plan is waiting for your read of the job.' },
   { desk: 'procurement', label: 'Procurement lead',
-    waiting: 'A requisition is waiting for you to say which suppliers may see it.' },
+    waiting: 'A job request is waiting for you to say which suppliers may see it.' },
   { desk: 'vp', label: 'Approver',
-    waiting: 'A requisition over the $250k line is in your queue — and your yes is one of two.' },
+    waiting: 'A job request over the $250k line is in your queue — and your yes is one of two.' },
   { desk: 'ap', label: 'AP clerk',
-    waiting: 'An invoice has matched the hours and is waiting to be paid.' },
+    waiting: 'A bill has matched the hours and is waiting to be paid.' },
   { desk: 'compliance', label: 'Compliance officer',
     waiting: 'Tenure across every supplier, and whose paperwork is not on file.' },
   // The second half of the final word, said out loud.
@@ -178,7 +179,7 @@ export const CLIENT_DESKS: ClientDesk[] = [
   // published requisition, so a desk that stops being the last yes
   // breaks the build rather than the founder's walk.
   { desk: '', label: 'Account owner',
-    waiting: 'People, roles and desks — and the last yes on the requisition over the $250k line, after the approver.' },
+    waiting: 'People, roles and desks — and the last yes on the job request over the $250k line, after the approver.' },
 ]
 
 /**
@@ -205,7 +206,7 @@ export const CLIENT_DESKS: ClientDesk[] = [
  */
 export const SUPPLIER_DESKS: ClientDesk[] = [
   { desk: 'account', label: 'Account manager',
-    waiting: 'Owns the client. Roles, rates, submissions, and what was billed — never payroll.' },
+    waiting: 'Owns the client. Jobs, rates, submissions, and what was billed — never payroll.' },
   { desk: 'recruiter', label: 'Recruiter',
     waiting: 'Finds and submits people. Cannot see what anybody costs.' },
   { desk: 'resourcing', label: 'Resource manager',
@@ -217,7 +218,7 @@ export const SUPPLIER_DESKS: ClientDesk[] = [
   { desk: 'ar', label: 'Accounts receivable',
     waiting: 'Bills the client and records what came in. Never runs payroll.' },
   { desk: 'payroll', label: 'AP & payroll',
-    waiting: 'Pays the consultant and the sub-vendor. Never issues a client invoice.' },
+    waiting: 'Pays the consultant and the sub-vendor. Never issues a client bill.' },
   { desk: 'finance', label: 'Finance',
     waiting: 'Bills, pays and closes the month — the whole desk at a small firm.' },
   { desk: 'compliance', label: 'Compliance officer',
@@ -305,7 +306,7 @@ export const PROGRAM_OFFICE_SEATS: Program[] = [
     where: 'Managed program office',
     about:
       'Runs a hospital’s contingent program and staffs part of it off its own payroll. Sell side: ' +
-      'two weeks of its analyst’s hours are signed by both parties and nobody has invoiced them. ' +
+      'two weeks of its analyst’s hours are signed by both parties and nobody has billed them. ' +
       'Buy side: a third week the hospital has signed is waiting on Aptiva to accept it as the employer.',
   },
 ]
@@ -412,7 +413,7 @@ export const CANDIDATE_SEATS: CandidateSeat[] = [
     about:
       'Listed on a bench vendor’s books and sold on to a sportswear company by the prime above ' +
       'it, which is the firm the client thinks employs you. Two hundred days on site against an ' +
-      'eighteen-month cap, and the week you filed is still waiting for somebody to sign it.',
+      'eighteen-month time limit, and the week you filed is still waiting for somebody to sign it.',
   },
   {
     slug: 'chidi-okafor',
@@ -420,7 +421,7 @@ export const CANDIDATE_SEATS: CandidateSeat[] = [
     where: 'Medical device · CSV and 21 CFR Part 11',
     email: 'chidi.okafor@seed.etyme.invalid',
     about:
-      'Two rungs down a chain on an H1B: a bench vendor employs you, an integrator sells you, a ' +
+      'Two rungs down a chain on an H-1B: a bench vendor employs you, an integrator sells you, a ' +
       'device maker signs your hours. Three weeks are signed and billed, and the client has asked ' +
       'you for a site access and data integrity attestation nobody else can sign for you.',
   },
