@@ -188,7 +188,7 @@ export const DOCS_HOME = {
     'It is public, and none of it needs an account.',
   inside: [
     { t: 'Job request to start', d: 'A job request raised, cleared by three desks in order, released only to the suppliers Procurement approved, and awarded. The award writes the contract.', href: '/docs/client#l1-1' },
-    { t: 'Time and money', d: 'The signed week as the receipt, one row of hours through the chain, the three-way match, and payroll for employees.', href: '/docs/time-and-money' },
+    { t: 'Time and money', d: 'The signed week as the receipt, one row of hours through the chain, the three-way check, and payroll for employees.', href: '/docs/time-and-money' },
     { t: 'The autonomy ladder', d: 'Everything the system does on its own carries a level, from L0 observe to L5 autonomous within policy, and a row saying whether it can be undone.', href: '/security#done' },
   ],
   example:

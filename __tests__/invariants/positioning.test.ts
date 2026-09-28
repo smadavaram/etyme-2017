@@ -2543,6 +2543,16 @@ describe('Plain words on public pages, defined once', () => {
     }
   })
 
+  it('the documentation calls it the three-way check, as the screens do, and “three-way match” only where it gives the ERP’s own term', () => {
+    for (const [route, text] of everyPublicPage().filter(([r]) => r.startsWith('/docs'))) {
+      const own = text.replace(/\ba three-way match · order ↔ goods receipt ↔ invoice receipt\b/g, ' ')
+      expect(own, route).not.toMatch(/three-way match/i)
+    }
+    expect(JSON.stringify(PARTIES.map((p) => p.doc.html))).toContain('Three-way check')
+    // The census template's column is job now, and the page says so.
+    expect(CENSUS_COPY.send.optionA.says).toContain('supplier, job, site')
+  })
+
   it('the set-aside for a supplier’s invoice is narrow: a bill to a customer called an invoice is still caught', () => {
     for (const kept of [
       'Issues its invoice', 'Invoice receipt', 'the supplier’s invoice, received and matched',
@@ -2620,8 +2630,9 @@ describe('Plain words on public pages, defined once', () => {
     expect(page.hero[0]).toBe('Bills & the three-way check')
     expect(page.hero[1]).toContain(THREE_WAY_CHECK)
     // And it is said once: every other mention uses the term plainly.
-    // The documentation is set aside: it documents the product's screens,
-    // and the screens call the check the three-way match.
+    // The documentation is set aside from the count: it names the check
+    // on every party page. It calls it the three-way check too, since the
+    // screens do (test below).
     const everywhere = everyPublicPage().filter(([r]) => !r.startsWith('/docs')).map(([, t]) => t).join(' ')
     const definitions = everywhere.split('the hours, the bill, and the contract rate must all agree').length - 1
     expect(definitions, 'the menu line, drawn on every page, and the bills page').toBeLessThanOrEqual(3)

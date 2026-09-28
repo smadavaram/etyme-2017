@@ -244,7 +244,7 @@ export const CENSUS_COPY = {
     optionA: {
       label: 'Option A. The template',
       says:
-        'One row per contractor: supplier, role, site, start date, end date, rate, hours a week.',
+        'One row per contractor: supplier, job, site, start date, end date, rate, hours a week.',
       names:
         'No names. Your own reference number for each person is enough, so the file holds almost nothing personal.',
       how: 'Open it in Excel, fill it, save as CSV.',
