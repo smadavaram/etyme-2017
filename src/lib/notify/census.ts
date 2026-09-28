@@ -121,7 +121,7 @@ function namedPerson(assignedTo: string | null, what: string): string {
 function sending(option: Option): string {
   return option === 'TEMPLATE'
     ? 'the template, which is one row per contractor'
-    : 'your own supplier invoices and timesheets'
+    : 'your own invoice receipts and timesheets'
 }
 
 /** CSV, PDF, XLSX and DOCX — read off what the upload route accepts. */
@@ -218,7 +218,7 @@ export function censusAgreedNotice(input: CensusAgreed): Notice {
       'end date, rate and hours a week. No names are needed; your own reference number is ' +
       'enough, and that is the point of the template.' +
       (input.templateUrl ? ` The template is at ${input.templateUrl}.` : '')
-    : 'Send your own supplier invoices and timesheets as they are. We will read them; you do ' +
+    : 'Send your own invoice receipts and timesheets as they are. We will read them; you do ' +
       'not have to tidy them first.'
 
   const body = paragraphs(
@@ -522,7 +522,7 @@ export function censusArrivedStaffNotice(input: CensusArrivedStaff): CensusStaff
     `${input.contact.name} (${input.contact.workEmail}) at ${input.companyName} has asked for a ` +
       'contractor census.',
     bullets([
-      `Sending: ${input.option === 'TEMPLATE' ? 'the template' : 'their own supplier invoices and timesheets'}.`,
+      `Sending: ${input.option === 'TEMPLATE' ? 'the template' : 'their own invoice receipts and timesheets'}.`,
       `Desk: ${input.desk ?? 'not said'}.`,
       `Suppliers they think they buy from: ${input.supplierCount ?? 'not said'}.`,
       `Place in the line: ${input.queuePosition}.`,

@@ -199,7 +199,7 @@ describe('the asked and agreed letters say what happens next and nothing more', 
       uploadExpires, uploadUrl: 'https://etyme.example/census/send/abc123',
       option: 'FILES', templateUrl: 'https://etyme.example/census-template.csv',
     }).body)
-    expect(body).toContain('Send your own supplier invoices and timesheets as they are.')
+    expect(body).toContain('Send your own invoice receipts and timesheets as they are.')
     expect(body).not.toContain('census-template.csv')
   })
 })

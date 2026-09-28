@@ -259,8 +259,10 @@ const CLIENT: Record<PageKey, Words> = {
   },
   invoices: {
     // What a supplier sends is its invoice: the supplier issues it, so
-    // the supplier names it, and a client reads it as such.
-    title: 'Supplier invoices',
+    // the supplier names it. What the client holds is that invoice
+    // received and matched, so its list is its invoice receipts
+    // (CLAUDE.md, "Bill, invoice receipt, payroll").
+    title: 'Invoice receipts',
     subtitle: 'What your vendors have billed you, and what is outstanding.',
     // A client receives and matches its suppliers' invoices. Generating
     // one would be raising a bill to itself.

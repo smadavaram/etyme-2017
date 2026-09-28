@@ -244,11 +244,12 @@ describe('a client sees demand-side framing', () => {
     expect(f.subtitle).toContain('vendors have billed you')
   })
 
-  it('a supplier reads what it sends its client as bills, and the client reads them as its supplier invoices', () => {
+  it('a supplier reads what it sends its client as bills, and the client reads them as its invoice receipts', () => {
     // The party who issues a document names it: the supplier bills, and
-    // what arrives at the client is the supplier's invoice.
+    // what arrives at the client is the supplier's invoice, received —
+    // an invoice receipt.
     expect(pageFraming('VENDOR', 'invoices').title).toBe('Bills')
-    expect(pageFraming('CLIENT', 'invoices').title).toBe('Supplier invoices')
+    expect(pageFraming('CLIENT', 'invoices').title).toBe('Invoice receipts')
   })
 })
 
