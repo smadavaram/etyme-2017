@@ -47,9 +47,21 @@ describe('a supplier whose cover has not begun is chased for the weeks nobody is
     process.env.CRON_SECRET = 'cover-chase-test'
 
     // A placement bought through a firm below us — the only case where a
-    // sub-vendor's cover appears on the thread at all.
+    // sub-vendor's cover appears on the thread at all — chosen on purpose:
+    // a live placement, from a sub-vendor somebody is seated at. It used
+    // to be whichever such row the database returned first, and once the
+    // world's one shell firm (Bluecrest, nobody at it) sat on a buy line
+    // it came back first, and the chase had nobody to address — the
+    // shell's own case, which is its own describe below.
     const link = await prisma.contractLink.findFirstOrThrow({
-      where: { buyContract: { vendorCompanyId: { not: null } } },
+      where: {
+        buyContract: {
+          state: 'IN_PROGRESS',
+          vendorCompanyId: { not: null },
+          vendorCompany: { claimedAt: { not: null }, contexts: { some: { revokedAt: null } } },
+        },
+      },
+      orderBy: { sellContractId: 'asc' },
       select: {
         sellContractId: true,
         buyContract: { select: { vendorCompanyId: true, vendorCompany: { select: { name: true } } } },
@@ -252,5 +264,60 @@ describe('a supplier whose cover has not begun is chased for the weeks nobody is
       (f: any) => f.kind === 'COVER_NOT_STARTED' && f.headline.includes(ctx.subVendorName)
     )
     expect(gaps).toEqual([])
+  }, 120_000)
+})
+
+describe('a supplier nobody has joined is chased through the firm that buys from it, at the contact that firm keeps for them', () => {
+  // Bluecrest is on Pinnacle's register and paid on Pinnacle's buy line,
+  // and nobody at Bluecrest has ever signed in. Its cover still stops
+  // Pinnacle's placement when it lapses, so it is still chased — by
+  // Pinnacle, the firm the lapse stops, at the address Pinnacle keeps for
+  // somebody there. The refusal always said "add a contact for them";
+  // until this, adding one changed nothing, because only a seat was read.
+  const shell: Record<string, string> = {}
+
+  beforeAll(async () => {
+    process.env.CRON_SECRET = 'cover-chase-test'
+    shell.bluecrest = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-bluecrest' } })).id
+    shell.pinnacle = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' } })).id
+    await coverFrom(shell.bluecrest, day(21), day(386))
+    await prisma.documentPacket.deleteMany({ where: { subjectCompanyId: shell.bluecrest } })
+    await prisma.companyContact.deleteMany({ where: { companyId: shell.pinnacle, atCompanyId: shell.bluecrest } })
+  }, 120_000)
+
+  afterAll(() => {
+    if (secretBefore === undefined) delete process.env.CRON_SECRET
+    else process.env.CRON_SECRET = secretBefore
+  })
+
+  const runChase = async () => {
+    const res = await json(
+      await nightlyWatch(req('GET', '/api/cron/watch', undefined, { authorization: 'Bearer cover-chase-test' }))
+    )
+    expect(res.status, JSON.stringify(res.body)).toBe(200)
+  }
+
+  it('with nobody there and no contact kept for them, nothing is sent to an address nobody has', async () => {
+    await runChase()
+    expect(await prisma.documentPacket.count({ where: { subjectCompanyId: shell.bluecrest } })).toBe(0)
+  }, 120_000)
+
+  it('once the buyer keeps a contact for them, the certificate is asked for there, by the buyer', async () => {
+    await prisma.companyContact.create({
+      data: {
+        companyId: shell.pinnacle, atCompanyId: shell.bluecrest,
+        name: 'Hollis Grant', email: 'hollis@bluecrest.example', kind: 'OTHER',
+      },
+    })
+    await runChase()
+    const asked = await prisma.documentPacket.findFirst({
+      where: { subjectCompanyId: shell.bluecrest, cancelledAt: null },
+      select: { companyId: true, recipientEmail: true, recipientName: true, items: { select: { key: true } } },
+    })
+    expect(asked, 'nobody asked Bluecrest for anything').toBeTruthy()
+    expect(asked!.companyId).toBe(shell.pinnacle)
+    expect(asked!.recipientEmail).toBe('hollis@bluecrest.example')
+    expect(asked!.recipientName).toBe('Hollis Grant')
+    expect(asked!.items.map((i) => i.key)).toContain('INSURANCE_GL')
   }, 120_000)
 })

@@ -442,11 +442,31 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
   }
 
   // Somebody to send it to, and somebody to record as having created it.
-  const contact = await prisma.context.findFirst({
+  //
+  // Somebody seated at the supplier first. Where nobody is — a firm on
+  // the register that has never joined — the buyer's own record of
+  // somebody there: the contact it keeps for them. The refusal below has
+  // always said "add a contact for them", and until 2026-09-28 adding one
+  // changed nothing, because only a seat was read. A packet is answered
+  // through its own link and needs no sign-in, so a firm that is not on
+  // the platform can still send its certificate back.
+  const seated = await prisma.context.findFirst({
     where: { companyId: verification.companyId, revokedAt: null },
     orderBy: { grantedAt: 'asc' },
-    select: { person: { select: { id: true, primaryEmail: true, name: true } } },
+    select: { person: { select: { primaryEmail: true, name: true } } },
   })
+  const kept = seated || chasingSelf
+    ? null
+    : await prisma.companyContact.findFirst({
+        where: { companyId: askingCompanyId, atCompanyId: verification.companyId, email: { not: null } },
+        orderBy: { createdAt: 'asc' },
+        select: { email: true, name: true },
+      })
+  const contact = seated
+    ? { email: seated.person.primaryEmail, name: seated.person.name }
+    : kept
+      ? { email: kept.email!, name: kept.name }
+      : null
   const creator = await prisma.context.findFirst({
     where: { companyId: askingCompanyId, revokedAt: null, role: { permissions: { hasSome: ['*', 'vendors.manage'] } } },
     select: { personId: true },
@@ -472,8 +492,8 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
       purpose: spec.purpose,
       direction: 'COLLECT',
       subjectCompanyId: verification.companyId,
-      recipientEmail: contact.person.primaryEmail,
-      recipientName: contact.person.name,
+      recipientEmail: contact.email,
+      recipientName: contact.name,
       token: randomBytes(32).toString('base64url'),
       expiresAt: new Date(now.getTime() + 45 * 86_400_000),
       createdById: creator.personId,
