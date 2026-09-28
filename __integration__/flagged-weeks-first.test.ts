@@ -24,7 +24,7 @@ describe('Northbend reads its flagged weeks first', () => {
     expect(rows.length).toBeGreaterThan(2)
     const over = rows.findIndex((t) => t.totalHours === 44)
     expect(over, 'the seeded 44-hour week is on the list').toBeGreaterThanOrEqual(0)
-    expect(rows[over].flag).toMatch(/^44h claimed on a \d+h-a-week role\.$/)
+    expect(rows[over].flag).toMatch(/^44h claimed on a \d+h-a-week job\.$/)
     const firstPlain = rows.findIndex((t) => t.flag === null)
     const lastFlagged = rows.map((t) => t.flag !== null).lastIndexOf(true)
     expect(firstPlain === -1 || lastFlagged < firstPlain).toBe(true)
