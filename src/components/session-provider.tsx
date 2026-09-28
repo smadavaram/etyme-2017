@@ -73,6 +73,14 @@ export interface SessionState {
    * and Supply over somebody else's workforce.
    */
   seat: SessionSeat | null
+  /**
+   * The company this person is signed in at is a made-up one — the
+   * seeded world or a visitor's own sandbox. The shell says "Demo" in
+   * front of its name. Answered on the server (`demoCompanyFor` in
+   * lib/demo-company) for the reason `isWorker` is: a chip that appears
+   * one fetch late is a name that changes under the reader.
+   */
+  isDemo: boolean
   loading: boolean
   error: string | null
 }
@@ -85,6 +93,7 @@ const EMPTY: SessionState = {
   permissions: [],
   isWorker: false,
   seat: null,
+  isDemo: false,
   loading: true,
   error: null,
 }
@@ -106,6 +115,7 @@ export function SessionProvider({
   children,
   worker = false,
   seat = null,
+  demo = false,
 }: {
   children: ReactNode
   /**
@@ -116,8 +126,10 @@ export function SessionProvider({
   worker?: boolean
   /** The client desk this firm holds, read on the server for the same reason. */
   seat?: SessionSeat | null
+  /** The company is a made-up one. Read on the server, never from /api/me. */
+  demo?: boolean
 }) {
-  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat })
+  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo })
 
   useEffect(() => {
     let cancelled = false
@@ -158,6 +170,7 @@ export function SessionProvider({
           permissions: active?.role?.permissions ?? [],
           isWorker: worker,
           seat,
+          isDemo: demo,
           loading: false,
           error: null,
         })
@@ -165,7 +178,7 @@ export function SessionProvider({
         if (cancelled) return
         // A failed session read must not blank the app — fall back to the
         // vendor shell and let the individual pages surface their own errors.
-        setState({ ...EMPTY, isWorker: worker, seat, loading: false, error: err.message })
+        setState({ ...EMPTY, isWorker: worker, seat, isDemo: demo, loading: false, error: err.message })
       }
     }
 
@@ -178,7 +191,7 @@ export function SessionProvider({
     // session forever. A seat granted or revoked mid-session is picked
     // up on the next page load, which is how the client granted it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [worker])
+  }, [worker, demo])
 
   return <SessionContext.Provider value={state}>{children}</SessionContext.Provider>
 }

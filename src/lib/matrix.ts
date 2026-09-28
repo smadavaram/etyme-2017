@@ -674,6 +674,7 @@ export const MATRIX: L1[] = [
             'Every desk a requisition is still waiting on is somebody a door on the page seats, read off the approvals themselves rather than off the seat list',
             'Every certificate the seeded world puts on a compliance record is replayed through the one door that writes one, so a demo cannot hold a verdict the product would refuse',
             'BUILT 2026-09-27: one quiet line at the foot of the page offers the next step in the funnel\u2019s own words \u2014 get your contractor spend audit, or ask a person \u2014 imported from lib/public-site/funnel, and never an account (read against promisesAnAccount)',
+            'BUILT 2026-09-28: inside a made-up company the shell says Demo in front of its name \u2014 on the rail, in the phone header, in the phone\u2019s menu sheet and in the account menu \u2014 decided on the server from who is seated there (every seat at a domain nobody can register, or the sandbox flag), never from the slug or a list of names, and a verified registrable domain is never called a demo',
           ],
           implementedBy: [
             'src/app/demo/seats.ts', 'src/app/demo/page.tsx', 'src/app/demo/desk-picker.tsx',
@@ -686,8 +687,10 @@ export const MATRIX: L1[] = [
             // verdict, the route that carries it, and the screen.
             'src/lib/consultant-portfolio.ts', 'src/app/api/me/work/route.ts',
             'src/app/dashboard/my-work/page.tsx',
+            'src/lib/demo-company.ts', 'src/components/shell/demo-chip.tsx',
           ],
           testedBy: [
+            '__tests__/invariants/demo-chip.test.ts',
             '__integration__/demo-seats.test.ts', '__integration__/reseed-gate.test.ts',
             '__integration__/reseed-across-days.test.ts', '__tests__/invariants/demo-names.test.ts',
             '__tests__/invariants/demo-door.test.ts',

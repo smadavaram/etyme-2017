@@ -35,6 +35,7 @@ import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
 import { getNavForKind, mayOpen } from '@/components/shell/sidebar'
+import { DemoChip } from '@/components/shell/demo-chip'
 
 type HeaderProps = {
   title?: string
@@ -289,7 +290,10 @@ const ICON_BUTTON =
 
 export function Header({ title }: HeaderProps) {
   const router = useRouter()
-  const { company, person, roleName, contextType, isWorker, permissions } = useSession()
+  const { company, person, roleName, contextType, isWorker, permissions, isDemo } = useSession()
+  // "Demo" goes in front of a made-up company's name, and only a
+  // company's: a consultant with no firm is a person, never a demo of one.
+  const demoChip = isDemo && company ? <DemoChip /> : null
   const isClient = company?.kind === 'CLIENT'
   const plusMenu = plusMenuFor(company?.kind ?? null, contextType === 'CONSULTANT', permissions)
   const [plusOpen, setPlusOpen] = useState(false)
@@ -462,8 +466,14 @@ export function Header({ title }: HeaderProps) {
         <Link href={home as any} className="md:hidden flex items-center gap-2.5 min-w-0">
           <EtymeMark size={26} />
           <span className="min-w-0">
-            <span className="block text-[13px] font-medium text-etyme-ink truncate leading-tight">
-              {company?.name ?? person?.name ?? 'etyme'}
+            {/* The chip first and never shrinking, the name truncating
+                after it, so at 390 wide a long name loses letters and
+                the chip loses none. */}
+            <span className="flex items-center gap-1.5 min-w-0 leading-tight">
+              {demoChip}
+              <span className="block text-[13px] font-medium text-etyme-ink truncate leading-tight">
+                {company?.name ?? person?.name ?? 'etyme'}
+              </span>
             </span>
             {(roleName || contextType === 'CONSULTANT') && (
               <span className="block text-[10.5px] text-etyme-faint truncate leading-tight">
@@ -623,8 +633,9 @@ export function Header({ title }: HeaderProps) {
                   <p className="text-[12px] text-etyme-muted truncate">{person.email}</p>
                 )}
                 {company && (
-                  <p className="text-[12px] text-etyme-faint truncate mt-0.5">
-                    {company.name}
+                  <p className="flex items-center gap-1.5 min-w-0 text-[12px] text-etyme-faint mt-0.5">
+                    {demoChip}
+                    <span className="truncate">{company.name}</span>
                   </p>
                 )}
               </div>

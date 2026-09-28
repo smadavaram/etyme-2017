@@ -96,7 +96,7 @@ export function reservedAddress(email: string): boolean {
 }
 
 /** The suffixes a signed demo cookie may name. None of them can be bought. */
-const RESERVED_SUFFIXES = ['.invalid', '.example', '.local']
+export const RESERVED_SUFFIXES = ['.invalid', '.example', '.local'] as const
 
 /** The address a demo person is given. */
 export function addressFor(handle: string): string {

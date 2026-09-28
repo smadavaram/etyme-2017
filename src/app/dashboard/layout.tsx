@@ -9,6 +9,7 @@ import { DeniedScreen } from '@/components/denied'
 import { ownPageFor } from '@/lib/portfolio-data'
 import { seatFor } from '@/lib/program-seat'
 import { prisma } from '@/lib/db'
+import { demoCompanyFor } from '@/lib/demo-company'
 
 /**
  * Authenticated dashboard shell — sidebar + header + content.
@@ -95,6 +96,24 @@ async function deskHeldAtAClient(): Promise<SessionSeat | null> {
 }
 
 /**
+ * Is the company this person is signed in at a made-up one?
+ *
+ * Asked here, on the server, so "Demo" is in front of the company's name
+ * on the first paint rather than a fetch later. The rule — who is seated
+ * there, not what it is called — is lib/demo-company's. Never throws: a
+ * failed read is "not a demo", so a real company can never be labeled
+ * one by an outage.
+ */
+async function companyIsADemo(): Promise<boolean> {
+  try {
+    const { caller } = await getCallerContext()
+    return await demoCompanyFor(caller?.company?.id)
+  } catch {
+    return false
+  }
+}
+
+/**
  * Can the app seat whoever is reading this at all?
  *
  * Asked once, here, rather than thirty times in thirty pages. Every
@@ -144,10 +163,10 @@ export default async function DashboardLayout({
   const denied = await whyNotSeated()
   if (denied) return <DeniedScreen denied={denied} />
 
-  const [worker, seat] = await Promise.all([readerIsAWorker(), deskHeldAtAClient()])
+  const [worker, seat, demo] = await Promise.all([readerIsAWorker(), deskHeldAtAClient(), companyIsADemo()])
 
   return (
-    <SessionProvider worker={worker} seat={seat}>
+    <SessionProvider worker={worker} seat={seat} demo={demo}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* Sidebar — the rail, from md up. Below that the same navigation
             slides in from the ☰ in the header (components/shell/mobile-nav). */}

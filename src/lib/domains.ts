@@ -429,6 +429,9 @@ export const DOMAINS: Domain[] = [
       'lib/service-accounts', 'lib/import-mapper', 'lib/importable',
       'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-chain', 'lib/demo-volume', 'lib/demo-seed-client',
       'lib/demo-seed-consultant', 'lib/demo-session',
+      // Whether the company somebody is signed in at is a made-up one, so
+      // the shell can say Demo in front of its name. Company identity.
+      'lib/demo-company',
       'app/layout', 'app/login', 'app/start',
       // The tab icon: the kit's mark, square. Next links both from app/.
       'app/icon', 'app/apple-icon',

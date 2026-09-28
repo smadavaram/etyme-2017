@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeLogo } from '@/components/logo'
+import { DemoChip } from '@/components/shell/demo-chip'
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
 import { consoleHome } from '@/lib/console-home'
 /**
@@ -922,7 +923,10 @@ export function Sidebar({
   sheet = false,
   onDismiss,
   footer,
+  demo = false,
 }: {
+  /** The company is a made-up one; its name reads "Demo" in front. */
+  demo?: boolean
   /** Absent for a consultant, who has no company. */
   companyKind?: CompanyKind | null
   companyName?: string
@@ -1074,13 +1078,17 @@ export function Sidebar({
           </>
         ) : (
           <>
-            <div className="text-[11px] font-medium text-etyme-ink truncate">
-              {/* A company, or the person themselves. This said
-                  "Cloudepa Inc." for anybody with no firm — a design
-                  placeholder that survived into production and named a
-                  bench vendor from the seeded world under the page of a
-                  consultant who has never heard of it. */}
-              {companyName ?? personName ?? 'Your workspace'}
+            <div className="flex items-center gap-1.5 min-w-0">
+              {/* In front of a made-up company's name, never a person's. */}
+              {demo && companyName && <DemoChip />}
+              <div className="text-[11px] font-medium text-etyme-ink truncate">
+                {/* A company, or the person themselves. This said
+                    "Cloudepa Inc." for anybody with no firm — a design
+                    placeholder that survived into production and named a
+                    bench vendor from the seeded world under the page of a
+                    consultant who has never heard of it. */}
+                {companyName ?? personName ?? 'Your workspace'}
+              </div>
             </div>
             <div className="text-[10px] text-etyme-faint">
               {companyLabel ?? (companyKind === 'CLIENT' ? 'Client · Enterprise' : 'Vendor · US IT')}

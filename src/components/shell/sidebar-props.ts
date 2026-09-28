@@ -34,6 +34,8 @@ export type SidebarIdentity = {
    * firm printed under somebody's own name is worse than a blank.
    */
   personName?: string
+  /** The company is a made-up one, decided on the server (lib/demo-company). */
+  demo?: boolean
   pending: boolean
 }
 
@@ -44,7 +46,7 @@ export function sidebarPropsFrom(
     // company to name.
     // Optional too: a fixture describing a seat need not know about a
     // program office's desk, and almost nobody holds one.
-    Partial<Pick<SessionState, 'person' | 'seat'>>
+    Partial<Pick<SessionState, 'person' | 'seat' | 'isDemo'>>
 ): SidebarIdentity {
   // While the session loads, the frame without nav items — rather than
   // flashing the wrong company's navigation.
@@ -74,6 +76,8 @@ export function sidebarPropsFrom(
     // seat, and calling him a consultant would be the mirror image of
     // the bug this fixes.
     companyName: session.company?.name,
+    // "Demo" in front of a made-up company's name, never a person's.
+    demo: Boolean(session.isDemo && session.company),
     // The client this firm is acting at, if a client granted it a desk.
     // The menu follows the book: a program office at somebody else's
     // desk reads that client's sections, under that client's own role.
