@@ -905,3 +905,234 @@ function rosterSentence(f: {
 
   return `${head}${middle}${tail}.`
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// The worker files their own week
+// ─────────────────────────────────────────────────────────────────────
+//
+// CLAUDE.md, Phase 1 station 6: "the worker files their own week; nobody
+// else may". Found broken on the founder's lifecycle walk, 2026-09-28:
+// a consultant's own page listed their weeks and offered "Send for
+// approval" on an open one, and nothing anywhere let them write a week
+// in the first place. The route would have taken it — `mayEnter` admits
+// the person whose hours they are — and the page never asked.
+//
+// Three questions, answered here with no database so every branch can
+// be tested: which contract the hours go on, which days are still open to
+// file, and whether what they typed is a week anybody can sign.
+
+/** One of the worker's own contracts, as their page reads it. */
+export interface WorkRung {
+  id: string
+  personId: string
+  /** The firm selling the work on this rung. */
+  companyId: string
+  /** The firm buying it on this rung. */
+  clientCompanyId: string
+  state: string
+  /** YYYY-MM-DD. */
+  startDate: string
+  /** YYYY-MM-DD, or null where the placement is open-ended. */
+  endDate: string | null
+}
+
+/** How long after the last day the final week may still be filed. */
+export const FINAL_WEEK_GRACE_DAYS = 14
+
+const DAY_MS = 86_400_000
+
+function toDay(iso: string): number {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  return Date.UTC(y, m - 1, d)
+}
+
+function fromDay(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10)
+}
+
+/** The Monday of the week a day falls in. Weeks run Monday to Sunday. */
+export function mondayOf(iso: string): string {
+  const ms = toDay(iso)
+  const dow = new Date(ms).getUTCDay() // 0 Sunday … 6 Saturday
+  return fromDay(ms - ((dow + 6) % 7) * DAY_MS)
+}
+
+/**
+ * The contracts a worker files hours against.
+ *
+ * In a chain every rung is a sell contract with their name on it — the
+ * sub-vendor selling them to the prime, the prime selling them to the
+ * client. The hours hang off the **bottom** rung, where the employer is
+ * (`lib/chain-top` says the same from the client's side), and every rung
+ * above bills on those same signed hours. A week filed on a rung above
+ * would be the prime's contract carrying hours its supplier never saw,
+ * and the supplier's invoice would have nothing to match.
+ *
+ * So: the rungs whose seller is not itself buying this person on another
+ * of their rungs. A person with no chain has one rung and it is that.
+ *
+ * Live means in progress, or ended within the grace period — somebody
+ * whose placement ended on a Wednesday still owes the Monday to
+ * Wednesday, and the nightly job marks it ended before they have sat
+ * down to file it. A paused placement takes no hours.
+ */
+export function rungsToFile(all: WorkRung[], today: string): WorkRung[] {
+  const t = toDay(today)
+  const live = all.filter((c) => {
+    if (c.state === 'IN_PROGRESS') return true
+    if (c.state === 'ENDED' && c.endDate) {
+      return t - toDay(c.endDate) <= FINAL_WEEK_GRACE_DAYS * DAY_MS
+    }
+    return false
+  })
+  return live.filter((c) => {
+    const buyers = all.filter((o) => o.id !== c.id && o.personId === c.personId).map((o) => o.clientCompanyId)
+    return !buyers.includes(c.companyId)
+  })
+}
+
+/** A week already on the record for this contract: its period, as filed. */
+export interface FiledWeek {
+  periodStart: string
+  periodEnd: string
+}
+
+/** A run of days the worker may still file, as one sheet. */
+export interface OpenWeek {
+  periodStart: string
+  periodEnd: string
+  /** Every day in the run, oldest first. */
+  days: string[]
+  /** "Mon 21 Sep – Sun 27 Sep", for the picker. */
+  label: string
+}
+
+/** How many weeks back the page offers. Older than this is a conversation with the employer. */
+export const WEEKS_BACK = 6
+
+export type ClosedBecause = 'FUTURE' | 'BEFORE_START' | 'AFTER_END' | 'ALREADY_FILED' | 'OPEN'
+
+/** Why a single day can or cannot carry hours on this contract. */
+export function dayStanding(
+  day: string,
+  c: { startDate: string; endDate: string | null },
+  filed: FiledWeek[],
+  today: string
+): ClosedBecause {
+  const d = toDay(day)
+  if (d > toDay(today)) return 'FUTURE'
+  if (d < toDay(c.startDate)) return 'BEFORE_START'
+  if (c.endDate && d > toDay(c.endDate)) return 'AFTER_END'
+  if (filed.some((f) => toDay(f.periodStart) <= d && d <= toDay(f.periodEnd))) return 'ALREADY_FILED'
+  return 'OPEN'
+}
+
+function label(from: string, to: string): string {
+  const f = (iso: string) =>
+    new Date(toDay(iso)).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+  return from === to ? f(from) : `${f(from)} – ${f(to)}`
+}
+
+/**
+ * The weeks a worker can still file on one contract, newest first.
+ *
+ * A week is Monday to Sunday, trimmed to the days that have happened,
+ * that the placement covers, and that no filed sheet already covers — so
+ * two sheets never claim the same day, and a week filed on a Wednesday
+ * leaves Thursday to Sunday for the next one rather than swallowing them.
+ * Where a filed sheet sits in the middle of a week, the days either side
+ * are offered as separate runs rather than one period spanning it.
+ */
+export function openWeeks(
+  c: { startDate: string; endDate: string | null },
+  filed: FiledWeek[],
+  today: string
+): OpenWeek[] {
+  const out: OpenWeek[] = []
+  const lastMonday = toDay(mondayOf(today))
+  const firstMonday = Math.max(toDay(mondayOf(c.startDate)), lastMonday - (WEEKS_BACK - 1) * 7 * DAY_MS)
+
+  for (let mon = lastMonday; mon >= firstMonday; mon -= 7 * DAY_MS) {
+    let run: string[] = []
+    const runs: string[][] = []
+    for (let i = 0; i < 7; i++) {
+      const day = fromDay(mon + i * DAY_MS)
+      if (dayStanding(day, c, filed, today) === 'OPEN') {
+        run.push(day)
+      } else if (run.length > 0) {
+        runs.push(run)
+        run = []
+      }
+    }
+    if (run.length > 0) runs.push(run)
+    for (const r of runs.reverse()) {
+      out.push({ periodStart: r[0], periodEnd: r[r.length - 1], days: r, label: label(r[0], r[r.length - 1]) })
+    }
+  }
+  return out
+}
+
+export interface WeekCheck {
+  ok: boolean
+  /** Said to the worker, naming the day where it is about a day. */
+  says: string
+  /** The days with hours on them, cleaned, where ok. */
+  days?: Record<string, number>
+  totalHours?: number
+}
+
+const REFUSE: Record<Exclude<ClosedBecause, 'OPEN'>, (day: string, c: { startDate: string; endDate: string | null }) => string> = {
+  FUTURE: (day) => `${label(day, day)} has not happened yet. Send hours for days you have worked.`,
+  BEFORE_START: (day, c) => `${label(day, day)} is before your placement starts on ${label(c.startDate, c.startDate)}.`,
+  AFTER_END: (day, c) => `${label(day, day)} is after your placement ended on ${label(c.endDate!, c.endDate!)}.`,
+  ALREADY_FILED: (day) => `${label(day, day)} is already on a week you filed.`,
+}
+
+/**
+ * Whether what the worker typed is a week somebody can sign.
+ *
+ * Every refusal is a sentence about a day, never a code. Nothing here
+ * decides pay or overtime: those are the signer's, on the approval, and
+ * the route flags a long day for them to look at rather than refusing it.
+ */
+export function checkWeek(input: {
+  week: OpenWeek
+  hours: Record<string, number | string | null | undefined>
+  contract: { startDate: string; endDate: string | null }
+  filed: FiledWeek[]
+  today: string
+}): WeekCheck {
+  const days: Record<string, number> = {}
+  for (const [day, raw] of Object.entries(input.hours)) {
+    if (raw === null || raw === undefined || raw === '') continue
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+      return { ok: false, says: 'A day came through without a date. Reload the page and try again.' }
+    }
+    const h = Number(raw)
+    if (!Number.isFinite(h) || h < 0) {
+      return { ok: false, says: `${label(day, day)}: hours are a number of zero or more.` }
+    }
+    if (h === 0) continue
+    if (h > 24) {
+      return { ok: false, says: `${label(day, day)}: a day holds at most 24 hours.` }
+    }
+    const standing = dayStanding(day, input.contract, input.filed, input.today)
+    if (standing !== 'OPEN') return { ok: false, says: REFUSE[standing](day, input.contract) }
+    if (!input.week.days.includes(day)) {
+      return { ok: false, says: `${label(day, day)} is not in the week you are sending (${input.week.label}).` }
+    }
+    days[day] = h
+  }
+
+  const totalHours = Object.values(days).reduce((n, h) => n + h, 0)
+  if (totalHours === 0) {
+    return { ok: false, says: `There are no hours on ${input.week.label}. Enter the hours you worked, then send.` }
+  }
+
+  return {
+    ok: true,
+    says: `${totalHours} ${totalHours === 1 ? 'hour' : 'hours'} for ${input.week.label}, ready to send for approval.`,
+    days,
+    totalHours,
+  }
+}

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { ownPageFor } from '@/lib/portfolio-data'
+import { rungsToFile, openWeeks, checkWeek } from '@/lib/consultant-portfolio'
+import { POST as createTimesheet } from '@/app/api/timesheets/route'
+import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 
 /**
  * GET /api/me/work
@@ -82,6 +85,52 @@ export async function GET(request: NextRequest) {
 
   const live = contracts.filter(c => c.state === 'IN_PROGRESS' || c.state === 'VERIFIED')
 
+  // What they can file, and against which contract.
+  //
+  // Station 6: the worker files their own week. This page listed weeks
+  // and offered to send an open one, and nothing let them write one —
+  // so a consultant's view was read-only and every approval downstream
+  // waited on a week somebody else typed. In a chain only the bottom
+  // rung takes hours (`rungsToFile`), so Helena files on CloudEPA's
+  // contract and never on the one Computer Systems sells to Northbend.
+  const today = now.toISOString().slice(0, 10)
+  const toFile = rungsToFile(
+    contracts.map((c) => ({
+      id: c.id,
+      personId: c.personId,
+      companyId: c.companyId,
+      clientCompanyId: c.clientCompanyId,
+      state: c.state,
+      startDate: c.startDate.toISOString().slice(0, 10),
+      endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
+    })),
+    today
+  )
+  const filedOn = toFile.length
+    ? await prisma.timesheet.findMany({
+        where: { sellContractId: { in: toFile.map((c) => c.id) }, personId },
+        select: { sellContractId: true, periodStart: true, periodEnd: true },
+      })
+    : []
+  const filing = toFile.map((r) => {
+    const c = contracts.find((x) => x.id === r.id)!
+    const filed = filedOn
+      .filter((t) => t.sellContractId === r.id)
+      .map((t) => ({
+        periodStart: t.periodStart.toISOString().slice(0, 10),
+        periodEnd: t.periodEnd.toISOString().slice(0, 10),
+      }))
+    return {
+      contractId: r.id,
+      site: c.endClientCompany?.name ?? c.company.name,
+      payer: c.company.name,
+      startDate: r.startDate,
+      endDate: r.endDate,
+      filed,
+      weeks: openWeeks(r, filed, today),
+    }
+  })
+
   // What they are actually paid, from the agreement that pays them.
   //
   // This screen showed billRate — what the vendor charges the client. It
@@ -153,6 +202,11 @@ export async function GET(request: NextRequest) {
           ? Math.ceil((c.endDate.getTime() - now.getTime()) / 86_400_000)
           : null,
       })),
+      // One entry per contract they file on, with the weeks still open.
+      // Empty where they have nothing to file, which the page says in a
+      // sentence rather than showing an empty form.
+      filing,
+      today,
       timesheets: timesheets.map(t => ({
         id: t.id,
         period: `${t.periodStart.toISOString().slice(0, 10)} → ${t.periodEnd.toISOString().slice(0, 10)}`,
@@ -240,4 +294,167 @@ export async function GET(request: NextRequest) {
       })(),
     },
   })
+}
+
+/**
+ * POST /api/me/work — the worker files their own week and sends it.
+ *
+ * Body: { contractId, periodStart, hours: { "2026-09-22": 8, … } }
+ *
+ * ── Why this is here and not a form over POST /api/timesheets ─────────
+ *
+ * The timesheets door is the one place a week is written, and it stays
+ * that: this route writes nothing itself and hands the week to it, then
+ * to its submit step, so the anomaly flag, the cycle completion and every
+ * other rule on that door run exactly as they do for anybody else.
+ *
+ * What it adds is the worker's side of the rules, checked by the server
+ * rather than trusted from a page: only their own contract, only the rung
+ * of a chain that takes hours, only days that have happened, that the
+ * placement covers and that no sheet already claims (`checkWeek` in
+ * lib/consultant-portfolio). The timesheets door checks who may enter; it
+ * does not check any of those, and says so in the report back.
+ *
+ * Scoped to the signed-in person. A contract that is not theirs answers
+ * 404, the same as one that does not exist.
+ */
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const body = await request.json().catch(() => ({}))
+  const contractId = typeof body.contractId === 'string' ? body.contractId : ''
+  const periodStart = typeof body.periodStart === 'string' ? body.periodStart.slice(0, 10) : ''
+  const hours = body.hours && typeof body.hours === 'object' ? (body.hours as Record<string, number>) : {}
+
+  const personId = caller.person.id
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+
+  const mine = await prisma.sellContract.findMany({
+    where: { personId },
+    select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, startDate: true, endDate: true },
+  })
+  const rungs = mine.map((c) => ({
+    id: c.id,
+    personId: c.personId,
+    companyId: c.companyId,
+    clientCompanyId: c.clientCompanyId,
+    state: c.state,
+    startDate: c.startDate.toISOString().slice(0, 10),
+    endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
+  }))
+
+  if (!rungs.some((r) => r.id === contractId)) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'That is not one of your placements.' } },
+      { status: 404 }
+    )
+  }
+
+  const rung = rungsToFile(rungs, today).find((r) => r.id === contractId)
+  if (!rung) {
+    const r = rungs.find((x) => x.id === contractId)!
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_THIS_CONTRACT',
+          message:
+            r.state === 'IN_PROGRESS' || r.state === 'ENDED'
+              ? 'Your hours go on the contract with the firm that employs you, not this one. Choose that placement.'
+              : 'This placement is not taking hours. Ask the firm that employs you.',
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  const filed = (
+    await prisma.timesheet.findMany({
+      where: { sellContractId: contractId, personId },
+      select: { periodStart: true, periodEnd: true },
+    })
+  ).map((t) => ({
+    periodStart: t.periodStart.toISOString().slice(0, 10),
+    periodEnd: t.periodEnd.toISOString().slice(0, 10),
+  }))
+
+  const week = openWeeks(rung, filed, today).find((w) => w.periodStart === periodStart)
+  if (!week) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'WEEK_CLOSED',
+          message: 'That week is not open to file — it is already filed, not yet started, or outside your placement. Reload to see the weeks you can send.',
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  const check = checkWeek({ week, hours, contract: rung, filed, today })
+  if (!check.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: check.says, field: 'hours' } }, { status: 422 })
+  }
+
+  // The one door that writes a week, then the one that sends it.
+  // The caller's own headers — their session cookie and the seat they
+  // chose — so the door asks the same "who is this" and gets the same
+  // answer. The length is the new body's, not theirs.
+  const headers = new Headers(request.headers)
+  headers.delete('content-length')
+  headers.set('content-type', 'application/json')
+  const forward = (url: string, payload: unknown) =>
+    new NextRequest(new URL(url, request.url), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    })
+
+  const created = await createTimesheet(
+    forward('/api/timesheets', {
+      sellContractId: contractId,
+      periodStart: week.periodStart,
+      periodEnd: week.periodEnd,
+      days: check.days,
+    })
+  )
+  const createdBody = await created.json().catch(() => null)
+  if (!created.ok) {
+    return NextResponse.json(createdBody ?? { error: { code: 'INTERNAL', message: 'The week could not be saved.' } }, {
+      status: created.status,
+    })
+  }
+  const timesheetId: string = createdBody.data.timesheet.id
+
+  const sent = await submitTimesheet(forward(`/api/timesheets/${timesheetId}/submit`, {}), {
+    params: Promise.resolve({ id: timesheetId }),
+  })
+  const sentBody = await sent.json().catch(() => null)
+  if (!sent.ok) {
+    // Saved and not sent: say both, so they know the week exists and
+    // what is left to do. The page offers Send on an open week.
+    return NextResponse.json(
+      {
+        data: {
+          timesheetId,
+          status: 'OPEN',
+          message: `Saved ${check.totalHours} hours for ${week.label}, but it was not sent: ${sentBody?.error?.message ?? 'try Send for approval below.'}`,
+        },
+      },
+      { status: 201 }
+    )
+  }
+
+  return NextResponse.json(
+    {
+      data: {
+        timesheetId,
+        status: 'SUBMITTED',
+        anomaly: createdBody.data.timesheet.anomalyReason ?? null,
+        message: `Sent ${check.totalHours} hours for ${week.label} for approval.`,
+      },
+    },
+    { status: 201 }
+  )
 }

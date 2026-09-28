@@ -212,6 +212,8 @@ export const MATRIX: L1[] = [
             'How far a listing reaches is read from two facts owned by two people (`whoSees` in lib/shared-consultant): the consent is the consultant\u2019s and nothing reaches past the firm that asked until it is granted; the tier is the firm\u2019s \u2014 retained keeps them to the firm, marketing shows them to the firms on its register. The bench says it per row, as \u201cWho sees them\u201d, and no longer shows the profile\u2019s visibility field, which one vendor sets for every vendor',
             'A firm moves its own listing between retained and marketing (PATCH /api/bench/listings/:id); it cannot move one the person declined or took back, cannot retain somebody another firm already retains, and the refusal names nobody. A consultant a firm adds is marketed unless the firm chooses to retain them',
             'The consultant answers a firm that asked from their own page, and only a yes is counted under \u201cAgencies marketing you\u201d; taking a listing back takes them off every partner\u2019s network bench at once and is written on the firm\u2019s record. A listing shared to a partner is an invitation the person answers, never born granted, and nobody is passed on who has not agreed; granting through the listing door records the state the submission gate reads',
+            'FIXED 2026-09-28, break #5 of the founder\u2019s lifecycle walk (station 6, \u201cthe worker files their own week\u201d): a consultant\u2019s own page listed weeks and offered to send an open one, and nothing let anybody write one, so the worker\u2019s view was read-only. The timesheets door already admitted the person; the page never asked it. Your work now offers File your hours: the weeks still open, Monday to Sunday, trimmed to days that have happened, that the placement covers and that no filed sheet claims, and Send for approval writes the week through the timesheets door and sends it',
+            'In a chain the hours go on the bottom rung, where the employer is (`rungsToFile`), never on a rung above it; the final week of a placement that ended in the last fortnight can still be filed; a day in the future, before the start, after the end or already filed is refused in a sentence naming the day, by the server (`checkWeek`, POST /api/me/work) and not only by the form',
             'STILL OWED: `BuyContractState` already carries BENCH_PAID, INTERNAL and TRAINING, the exact three states a roster wants, and nothing in the product has ever written one of them (nought rows in the seeded world). When something does, the roster reads them instead of inferring, and the inference becomes the fallback. Writing them is a contract-lifecycle change and belongs to etyme-money.',
           ],
           implementedBy: [
@@ -223,6 +225,7 @@ export const MATRIX: L1[] = [
             'src/lib/shared-consultant.ts', 'src/app/api/bench/listings/[id]/route.ts',
             'src/app/api/bench/listings/[id]/grant/route.ts', 'src/app/api/bench/share/route.ts',
             'src/app/api/consultants/route.ts', 'src/app/api/me/benches/route.ts',
+            'src/app/api/me/work/route.ts', 'src/app/dashboard/my-work/page.tsx',
           ],
           testedBy: [
             '__tests__/invariants/own-page.test.ts', '__integration__/own-page.test.ts',
@@ -231,6 +234,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/bench-scope.test.ts',
             '__integration__/employers-roster.test.ts',
             '__tests__/invariants/bench-reach.test.ts', '__integration__/bench-reach.test.ts',
+            '__tests__/invariants/worker-files-own-week.test.ts', '__integration__/worker-files-own-week.test.ts',
           ] },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [

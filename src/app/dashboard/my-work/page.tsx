@@ -590,13 +590,173 @@ function NothingYet({ says }: { says: string }) {
   )
 }
 
+interface OpenWeek {
+  periodStart: string
+  periodEnd: string
+  days: string[]
+  label: string
+}
+interface Filing {
+  contractId: string
+  site: string
+  payer: string
+  weeks: OpenWeek[]
+}
+
+function dayLabel(iso: string): string {
+  return new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
+  })
+}
+
+/**
+ * Their own week, written by them.
+ *
+ * CLAUDE.md, Phase 1 station 6: "the worker files their own week; nobody
+ * else may". Until 2026-09-28 this page listed weeks and offered to send
+ * an open one, and nothing on it let anybody write one — the consultant's
+ * view was read-only, and the founder's lifecycle walk stopped here.
+ *
+ * The server decides which contract and which days are open
+ * (`/api/me/work`, from `lib/consultant-portfolio`), and checks what is
+ * typed again when it arrives; this form only offers what it was told is
+ * open, so a day that has not happened, or is already on a filed week,
+ * has no box at all.
+ */
+function FileYourWeek({ filing, onSent }: { filing: Filing[]; onSent: () => Promise<void> }) {
+  const [contractId, setContractId] = useState(filing[0]?.contractId ?? '')
+  const current = filing.find((f) => f.contractId === contractId) ?? filing[0]
+  const [periodStart, setPeriodStart] = useState(current?.weeks[0]?.periodStart ?? '')
+  const week = current?.weeks.find((w) => w.periodStart === periodStart) ?? current?.weeks[0]
+  const [hours, setHours] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+
+  if (!current) return null
+
+  if (current.weeks.length === 0) {
+    return (
+      <section className="mb-8">
+        <h2 className="font-serif text-lg text-etyme-ink mb-3">File your hours</h2>
+        <p className="text-sm text-etyme-muted">
+          Every day you have worked at {current.site} is on a week you filed. The next one opens tomorrow.
+        </p>
+      </section>
+    )
+  }
+
+  const total = Object.values(hours).reduce((n, h) => n + (Number(h) || 0), 0)
+
+  async function send() {
+    if (!week) return
+    setBusy(true); setError(null); setFlash(null)
+    try {
+      const res = await fetch('/api/me/work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractId: current!.contractId, periodStart: week.periodStart, hours }),
+      })
+      const j = await readJson(res)
+      setFlash(j.data?.message ?? 'Sent.')
+      setHours({})
+      await onSent()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="mb-8">
+      <h2 className="font-serif text-lg text-etyme-ink mb-1">File your hours</h2>
+      <p className="text-xs text-etyme-muted mb-3">
+        Your hours, in your words. {current.payer} and the client each sign them after you send.
+      </p>
+      <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 space-y-4">
+        <div className="flex flex-wrap gap-3">
+          {filing.length > 1 && (
+            <label className="text-xs text-etyme-muted">
+              <span className="block mb-1">Placement</span>
+              <select
+                value={current.contractId}
+                onChange={(e) => {
+                  const next = filing.find((f) => f.contractId === e.target.value)
+                  setContractId(e.target.value)
+                  setPeriodStart(next?.weeks[0]?.periodStart ?? '')
+                  setHours({})
+                }}
+                className="px-2 py-1.5 text-sm border border-etyme-rule rounded bg-white text-etyme-ink"
+              >
+                {filing.map((f) => (
+                  <option key={f.contractId} value={f.contractId}>{f.site} · through {f.payer}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="text-xs text-etyme-muted">
+            <span className="block mb-1">Week</span>
+            <select
+              value={week?.periodStart ?? ''}
+              onChange={(e) => { setPeriodStart(e.target.value); setHours({}) }}
+              className="px-2 py-1.5 text-sm border border-etyme-rule rounded bg-white text-etyme-ink"
+            >
+              {current.weeks.map((w) => (
+                <option key={w.periodStart} value={w.periodStart}>{w.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {week && (
+          <div className="grid grid-cols-1 sm:grid-cols-4 md:grid-cols-7 gap-2">
+            {week.days.map((d) => (
+              <label key={d} className="text-xs text-etyme-muted">
+                <span className="block mb-1">{dayLabel(d)}</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="24"
+                  step="0.25"
+                  inputMode="decimal"
+                  value={hours[d] ?? ''}
+                  onChange={(e) => setHours({ ...hours, [d]: e.target.value })}
+                  className="w-full px-2 py-1.5 text-sm border border-etyme-rule rounded tabular-nums text-etyme-ink"
+                  placeholder="0"
+                />
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm text-etyme-muted tabular-nums">{total} hours</span>
+          <button
+            onClick={send}
+            disabled={busy || total <= 0}
+            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-40"
+          >
+            Send for approval
+          </button>
+        </div>
+        {error && <p className="text-sm text-etyme-attention">{error}</p>}
+        {flash && <p className="text-sm text-etyme-verified">{flash}</p>}
+      </div>
+    </section>
+  )
+}
+
 export default function MyWorkPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(null)
+  // Quiet on a refresh after sending, so the form's own sentence about
+  // what was sent stays on the screen instead of a loading line.
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/me/work')
       const j = await readJson(res)
@@ -624,7 +784,7 @@ export default function MyWorkPage() {
   if (error) return (
     <div className="max-w-2xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
       <div className="text-etyme-attention font-medium">{error}</div>
-      <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
+      <button onClick={() => load()} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
     </div>
   )
   if (!data) return null
@@ -674,6 +834,11 @@ export default function MyWorkPage() {
       <YourInterviews />
 
       <YourPapers />
+
+      {/* Their own week. The one thing on this page that only they may do. */}
+      {(data.filing?.length ?? 0) > 0 && (
+        <FileYourWeek filing={data.filing} onSent={() => load(true)} />
+      )}
 
       {/* Anything not yet sent, first. It is the only thing on this page
           that is actually theirs to do. */}
