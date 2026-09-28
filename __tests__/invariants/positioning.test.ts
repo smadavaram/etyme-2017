@@ -69,6 +69,7 @@ import { ASK_COPY } from '@/lib/public-site/leads'
 import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, closeBandCopy } from '@/lib/public-site/funnel'
 import { FOOTER as SITE_FOOTER, frameCopy } from '@/lib/public-site/nav'
 import { DOCS_SLUGS } from '@/lib/public-site/pages'
+import { settleTarget, AHEAD, BEHIND } from '@/lib/public-site/settle'
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
 
@@ -1436,7 +1437,7 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     // company says it is invented.
     expect(SEE_IT.href).toBe('/demo')
     expect(PAGE).toContain('href={SEE_IT.href as Route}')
-    expect(CLOSE_BAND.line).toContain('a demo company — not a customer')
+    expect(CLOSE_BAND.cards.see).toContain('a demo company — not a customer')
     expect(PAGE).toContain('Northbend Athletic; every firm on this screen is a demo company — not a customer.')
     expect(namedCompanies(all)).toEqual([])
   })
@@ -1884,7 +1885,9 @@ function readerWords(): number {
     .join('\n')
   const labels = [...jsx.matchAll(/label="([^"]+)"/g)].map((m) => m[1])
   const hero = [SEE_IT.t, GET_THE_AUDIT.t]
-  const close = [...closeBandCopy(), GET_THE_AUDIT.d]
+  // The close is three cards since 2026-09-28 (night); the audit's long
+  // line lives in the menus, not on this page.
+  const close = [...closeBandCopy()]
   const ask = [ASK_COPY.eyebrow, ASK_COPY.heading, ASK_COPY.body,
     ASK_COPY.emailLabel, ASK_COPY.emailHint, ASK_COPY.askLabel, ASK_COPY.askHint, ASK_COPY.button]
   return [copyFrom(jsx), copyFrom(data), labels, hero, close, ask, TILE_COPY].reduce((n, part) => n + count(part.join(' ')), 0)
@@ -2680,21 +2683,50 @@ describe('The header stays, and one scroll lands on one band', () => {
     expect(drawer).toMatch(/className="absolute inset-x-0 top-full/)
   })
 
-  it('one scroll lands on one band of the home page, by proximity, and never for a reader who asked for reduced motion', () => {
+  it('one scroll settles on one band of the home page, on a phone and a desktop, and never for a reader who asked for reduced motion', () => {
+    // The founder, 2026-09-28 (night): proximity snapping did nothing he
+    // could feel on his phone. CSS mandatory was measured in WebKit and
+    // Chromium and held a reader in the hero, skipped the bottom of tall
+    // bands and stopped short of the footer's end, so the page settles in
+    // script instead (lib/public-site/settle) and sets no snap type at all.
     const root = PAGE.slice(PAGE.indexOf('export default function LandingPage'))
     const wrapper = root.match(/<div\s+className="([^"]+)"/)![1]
-    expect(wrapper).toContain('[html:has(&)]:motion-safe:snap-y')
-    expect(wrapper).toContain('[html:has(&)]:motion-safe:snap-proximity')
-    expect(wrapper).not.toMatch(/snap-mandatory/)
-    // Snapping only for a reader who has not asked for reduced motion.
-    expect(wrapper).not.toMatch(/(?:^|\s)\[html:has\(&\)\]:snap-/)
-    // Every band is a snap point: the four sections here, and the close.
-    const sections = [...PAGE.matchAll(/<section[^>]*className="([^"]+)"/g)].map((m) => m[1])
-    expect(sections).toHaveLength(4)
-    for (const c of sections) expect(c).toMatch(/\bsnap-start\b/)
-    expect(CLOSE_SRC).toMatch(/<section[^>]*className="snap-start\b/)
-    // And nothing outside the home page snaps: the frame sets no snap type.
+    expect(wrapper).not.toMatch(/snap-/)
+    expect(root).toContain('<SettleOnBands />')
+    expect(PAGE).not.toMatch(/\bsnap-(?:y|mandatory|proximity|start)\b/)
+    expect(CLOSE_SRC).not.toMatch(/\bsnap-/)
     expect(FRAME_SRC).not.toMatch(/snap-y|snap-mandatory|snap-proximity/)
+    const SETTLE = readFileSync(join(process.cwd(), 'src/lib/public-site/settle.tsx'), 'utf8')
+    expect(SETTLE).toContain("matchMedia('(prefers-reduced-motion: reduce)')")
+  })
+
+  it('a reader who stops within a third of a screen of the next band glides to it, and anywhere else nothing moves', () => {
+    // The home page at 390 by 844, as measured: the hero, the steps, the
+    // tiles, the dark band and the close, each start under the header.
+    const starts = [0, 916, 1940, 3231, 3841]
+    const view = 844
+    const max = 5283
+    expect(settleTarget(starts, 700, 1, view, max)).toBe(916)
+    expect(settleTarget(starts, 3000, 1, view, max)).toBe(3231)
+    // In the middle of a band taller than the screen: free.
+    expect(settleTarget(starts, 1300, 1, view, max)).toBeNull()
+    expect(settleTarget(starts, 250, 1, view, max)).toBeNull()
+    // Scrolling up, the band above is the one ahead.
+    expect(settleTarget(starts, 1100, -1, view, max)).toBe(916)
+    // Only just past a band's start: back to it, never further.
+    expect(settleTarget(starts, 960, 1, view, max)).toBe(916)
+    expect(settleTarget(starts, 916 + view * BEHIND + 5, 1, view, max)).toBeNull()
+    expect(AHEAD).toBeLessThanOrEqual(1 / 3)
+  })
+
+  it('never holds a reader: nothing moves at the top, at the end of the page, or in the footer', () => {
+    const starts = [0, 916, 1940, 3231, 3841]
+    expect(settleTarget(starts, 0, 1, 844, 5283)).toBeNull()
+    expect(settleTarget(starts, 5283, 1, 844, 5283)).toBeNull()
+    // The footer starts at 4675 and is not a band: below the close's
+    // reach, the reader scrolls on to the end untouched.
+    expect(settleTarget(starts, 4800, 1, 844, 5283)).toBeNull()
+    expect(settleTarget(starts, 4800, -1, 844, 5283)).toBeNull()
   })
 })
 

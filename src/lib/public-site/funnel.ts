@@ -100,15 +100,25 @@ export const WAYS_FORWARD: Way[] = [SEE_IT, GET_THE_AUDIT, ASK_A_PERSON]
 
 /**
  * The band every public page ends in. The heading is a sentence with a
- * verb, like every other headline on the site, and the line under it
- * says what the first rung actually is before anybody presses it.
+ * verb, like every other headline on the site.
+ *
+ * Three cards since 2026-09-28 (night), on the founder reading it on his
+ * phone as too big and too wordy: everything the band does is send a
+ * reader to the demo, the audit or a person, so each rung is a card with
+ * one line and one button, and the ask form waits behind its button. The
+ * line on each card is `CLOSE_BAND.cards`, a rung's own `d` being the
+ * longer line the menus carry.
  */
 export const CLOSE_BAND = {
   heading: 'See it working before you talk to anybody',
-  line: 'The example program is a demo company — not a customer — with a month of work in it and no account to open.',
+  cards: {
+    see: 'A month of work in a demo company — not a customer. No card. No sign-up.',
+    audit: 'Send your contractor list. One page back from a named person inside five working days.',
+    ask: 'An email and a sentence. A person reads it and writes back.',
+  },
 } as const
 
 /** Every word the close band shows, for the guard. */
 export function closeBandCopy(): string[] {
-  return [CLOSE_BAND.heading, CLOSE_BAND.line, ...WAYS_FORWARD.map((w) => w.t)]
+  return [CLOSE_BAND.heading, ...Object.values(CLOSE_BAND.cards), ...WAYS_FORWARD.map((w) => w.t)]
 }

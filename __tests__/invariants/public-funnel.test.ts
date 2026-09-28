@@ -221,7 +221,10 @@ describe('The spend audit is where a lead is captured', () => {
     // One wording wherever the audit is offered: the menu's line is the
     // funnel's, the close band draws the funnel's, and the riddle is gone.
     expect(SPEND_AUDIT.d).toBe(offer)
-    expect(CLOSE).toContain('{GET_THE_AUDIT.d}')
+    // The close band carries the audit as a card with one short line
+    // since 2026-09-28 (night), saying the same promise.
+    expect(CLOSE).toContain('{CLOSE_BAND.cards.audit}')
+    expect(CLOSE_BAND.cards.audit).toContain('five working days')
     const everywhere = [...frameCopy(), ...closeBandCopy(), offer, CENSUS_COPY.standfirst, CENSUS].join(' ')
     expect(everywhere).not.toContain('what you already hold')
     expect(longSentences(offer, 30)).toEqual([])
@@ -257,7 +260,7 @@ describe('The close band and the header are held to the same rules as every page
   const text = said.join(' ')
 
   it('the close band names the category, places nobody and does not lead with AI', () => {
-    const rules = check({ hero: [CLOSE_BAND.heading, CLOSE_BAND.line], body: said }).map((f) => f.rule)
+    const rules = check({ hero: [CLOSE_BAND.heading, CLOSE_BAND.cards.see], body: said }).map((f) => f.rule)
     expect(rules).not.toContain('neutrality')
     expect(rules).not.toContain('never-lead-with-ai')
     expect(rules).not.toContain('horizontal-not-vertical')

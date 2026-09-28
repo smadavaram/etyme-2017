@@ -58,7 +58,7 @@ function MenuPanel({ menu }: { menu: NavMenu }) {
  * `sticky` rather than `fixed`, so it keeps its own place in the flow and
  * nothing under it has to be pushed down by a guessed height. It sets the
  * document's scroll padding to its own height, from here, so a link to an
- * anchor — and a snap point on the home page — lands under the header
+ * anchor — and a band the home page settles on — lands under the header
  * rather than behind it, on every page that draws it.
  *
  * One row at every width since 2026-09-28 (night): the founder read the

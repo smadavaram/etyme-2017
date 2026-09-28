@@ -3,6 +3,7 @@ import { TryDemo } from '@/components/try-demo'
 import { JoinMural } from '@/lib/public-site/join-mural'
 import { SiteHeader, SiteFooter } from '@/lib/public-site/frame'
 import { CloseBand } from '@/lib/public-site/close-band'
+import { SettleOnBands } from '@/lib/public-site/settle'
 import { SEE_IT, GET_THE_AUDIT } from '@/lib/public-site/funnel'
 import { PRODUCT_STAGES } from '@/lib/public-site/nav'
 import { ModuleIcon } from '@/lib/public-site/module-icons'
@@ -53,9 +54,10 @@ import type { Route } from 'next'
  *                        whole questions
  *
  * The header stays on screen as the page scrolls (lib/public-site/frame),
- * and each band is a snap point, by proximity rather than mandatory, so a
- * long band or a phone never traps the reader; a reader who asked for
- * reduced motion gets no snapping at all.
+ * and the page settles on a band when the reader stops scrolling near
+ * one (lib/public-site/settle), on a phone and on a desktop, and never
+ * holds anybody inside or short of the end of the page. A reader who
+ * asked for reduced motion gets no settling at all.
  *
  * Where each band that left went, so nobody re-adds it here:
  *
@@ -213,22 +215,20 @@ const JOIN = {
 }
 
 /**
- * One scroll lands on one band. The snap is set on the document from the
- * page's own wrapper — `[html:has(&)]` reaches the root element only while
- * this page is drawn, so no other page snaps and globals.css (shared, the
- * architect's) is not touched. `motion-safe` leaves it off for a reader who
- * asked for reduced motion, and proximity rather than mandatory never
- * holds a reader inside a band taller than the screen, which on a phone is
- * most of them. The header sets the scroll padding (lib/public-site/frame),
- * so a snapped band starts under it rather than behind it.
+ * One scroll settles on one band. Not CSS scroll snapping: `proximity` did
+ * nothing the founder could feel on his phone, and `mandatory`, measured
+ * in WebKit and Chromium, held a reader in the hero and skipped the lower
+ * half of tall bands. `SettleOnBands` (lib/public-site/settle) glides to a
+ * band's start when the reader stops within a third of a screen of it,
+ * and does nothing anywhere else, nor for a reader who asked for reduced
+ * motion. The header sets the scroll padding (lib/public-site/frame), so a
+ * band settles under it rather than behind it.
  */
 export default function LandingPage() {
   return (
-    <div
-      className="min-h-screen bg-etyme-canvas
-                 [html:has(&)]:motion-safe:snap-y [html:has(&)]:motion-safe:snap-proximity"
-    >
+    <div className="min-h-screen bg-etyme-canvas">
       <SiteHeader />
+      <SettleOnBands />
 
       <main>
       {/* ── Hero ─────────────────────────────────────────────── */}
@@ -236,7 +236,7 @@ export default function LandingPage() {
           category, one line saying what the software does, the two ways
           in, and the product itself. "Less theory there." The hook line
           that sat here went to /about#unanswered. */}
-      <section className="snap-start border-b border-etyme-rule">
+      <section className="border-b border-etyme-rule">
         <div className="mx-auto max-w-6xl px-4 pb-14 pt-12 sm:px-6 md:pb-20 md:pt-16">
           <h1 className="mb-5 max-w-[18ch] text-balance font-serif text-[40px] font-normal
                          leading-[1.03] tracking-[-0.02em] text-etyme-ink md:text-[60px]">
@@ -306,7 +306,7 @@ export default function LandingPage() {
           screen beside them. The caption sits inside the screen's frame,
           under the image and after the steps in reading order, so a
           caption and a step never read as one paragraph. */}
-      <section id="steps" className="snap-start border-b border-etyme-rule bg-etyme-surface">
+      <section id="steps" className="border-b border-etyme-rule bg-etyme-surface">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
           <p className="eyebrow mb-3">What it does, in four steps</p>
           <h2 className="max-w-[30ch] text-balance font-serif text-3xl leading-tight
@@ -364,7 +364,7 @@ export default function LandingPage() {
           now says what the band is in plain words. The tile for bills
           carries the three-way check's definition as its line, which is
           where the home page first names the check. */}
-      <section id="modules" className="snap-start border-b border-etyme-rule">
+      <section id="modules" className="border-b border-etyme-rule">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
           <p className="eyebrow mb-3">What is in it</p>
           <h2 className="max-w-[30ch] text-balance font-serif text-3xl leading-tight
@@ -413,7 +413,7 @@ export default function LandingPage() {
           positioning.test.ts. The mural under them is drawn for the dark
           (lib/public-site/join-mural): canvas line work on the ink, with
           the kit's brighter violet and its orange as the two touches. */}
-      <section id="join" className="snap-start border-b border-etyme-ink bg-etyme-ink">
+      <section id="join" className="border-b border-etyme-ink bg-etyme-ink">
         <div className="mx-auto grid max-w-6xl gap-x-12 gap-y-5 px-4 pt-16 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:items-end md:pt-24">
           <h2 className="max-w-[20ch] text-balance font-serif text-[32px] leading-[1.08]
                          tracking-[-0.02em] text-etyme-canvas md:text-[48px]">
@@ -440,32 +440,15 @@ export default function LandingPage() {
           desk and a contractor's own page, as text links rather than
           buttons, because this page is written to the company hiring. */}
       <CloseBand id="close" withForm>
-        <p className="mt-6 max-w-[54ch] border-t border-etyme-rule pt-5 text-[14px] leading-relaxed text-etyme-muted">
-          If you would rather not staff a program office, Etyme can run it for you on the same record.{' '}
-          <Link
-            href={'/about#ways' as Route}
-            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-          >
-            How that works →
-          </Link>
-        </p>
-        <p id="why" className="mt-3 max-w-[54ch] scroll-mt-6 text-[14px] leading-relaxed text-etyme-muted">
-          There is no price on this page because we have not settled one. Etyme is free while we prove it out with the first five firms.{' '}
-          <Link
-            href={'/about#price' as Route}
-            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-          >
-            Why it’s free for the first five firms →
-          </Link>
-        </p>
         {/* Where to check us, added 2026-09-28 on the founder's "our main
             goal is registering as a trustworthy brand". An engineer
             trusts what he can read, so this points at the two things on
             the site that say more than a page can: every flow in public
             documentation, and a security position that says what is not
             done yet. No certification, no uptime and no customer count,
-            because none of them exists to point at. */}
-        <p className="mt-3 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
+            because none of them exists to point at. First of the small
+            print since the close became three cards (2026-09-28, night). */}
+        <p className="text-etyme-ink">
           Before you trust us:{' '}
           <Link
             href={'/docs' as Route}
@@ -482,33 +465,52 @@ export default function LandingPage() {
           </Link>
           .
         </p>
+        <p className="whitespace-normal">
+          If you would rather not staff a program office, Etyme can run it for you on the same record.{' '}
+          <Link
+            href={'/about#ways' as Route}
+            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
+          >
+            How that works →
+          </Link>
+        </p>
+        <p id="why" className="scroll-mt-6">
+          There is no price on this page because we have not settled one. Etyme is free while we prove it out with the first five firms.{' '}
+          <Link
+            href={'/about#price' as Route}
+            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
+          >
+            Why it’s free for the first five firms →
+          </Link>
+        </p>
         {/* The two quieter doors, as whole sentences. A buyer-side review,
             2026-09-27, read "If you supply into a program instead" as a
             page that had broken: it had no verb, and the two doors after
             it were buttons, which a reader mode or a text extract drops.
-            So each door is now a question that stands on its own, with the
-            door as its answer, so a reader who never sees the door still
-            reads two finished sentences.
+            So each door is a question that stands on its own, with the
+            door as its answer. Side by side on one line from sm.
 
             Each door is a real link since e83e8797: TryDemo draws an <a>
             with an address every reader sees, and a click still seats the
             visitor at a desk in one step by posting to /api/demo. */}
-        <p className="mt-3 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
-          <span className="font-semibold text-etyme-ink">Supply people to a program instead?</span>{' '}
-          <TryDemo
-            side="BENCH"
-            label="Sit at a supplier’s desk →"
-            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-          />
-        </p>
-        <p className="mt-2 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
-          <span className="font-semibold text-etyme-ink">Work in a program as a contractor?</span>{' '}
-          <TryDemo
-            side="CANDIDATE"
-            label="See it as a candidate →"
-            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-          />
-        </p>
+        <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+          <p className="whitespace-normal">
+            <span className="font-semibold text-etyme-ink">Supply people to a program instead?</span>{' '}
+            <TryDemo
+              side="BENCH"
+              label="Sit at a supplier’s desk →"
+              className="text-etyme-action underline underline-offset-4 hover:opacity-80"
+            />
+          </p>
+          <p className="whitespace-normal">
+            <span className="font-semibold text-etyme-ink">Work in a program as a contractor?</span>{' '}
+            <TryDemo
+              side="CANDIDATE"
+              label="See it as a candidate →"
+              className="text-etyme-action underline underline-offset-4 hover:opacity-80"
+            />
+          </p>
+        </div>
       </CloseBand>
       </main>
 
