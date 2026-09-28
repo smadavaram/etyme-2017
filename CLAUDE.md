@@ -159,6 +159,17 @@ follow:
   — every supplier on one record, the program office option, set up in
   days — rather than by a number. "Vendor management system" may still
   appear as the word procurement searches for.
+- **The reader is a technical IT buyer, and the goal is trust, not a
+  pitch. Decided by the founder, 2026-09-28:** *"You are targeting
+  well-versed IT people; they rarely buy anything because of claims. Our
+  main goal is registering as a trustworthy brand."* So every public
+  sentence is either something the reader can check on the site — the
+  demo with no account, the real screens, public documentation, the
+  security position that says what is not done yet, the DPA — or a plain
+  description of what the product does. No superlatives, no hype
+  adjectives, no promised speed or result, no certification, uptime or
+  customer count Etyme cannot show. The honest security page is an
+  asset to this reader, not a weakness to hide.
 - **Concrete nouns only above the fold**: contractors, suppliers,
   timesheets, invoices, rates, months on site. "Record" is allowed once
   the reader has seen the list it refers to.
