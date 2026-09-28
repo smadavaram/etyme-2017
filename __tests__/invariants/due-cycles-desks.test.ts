@@ -227,7 +227,7 @@ describe('In the trade’s words, never the engine’s', () => {
   })
 
   it('accounts payable is told to record the supplier’s invoice, never to raise a vendor bill', () => {
-    expect(labelOf('VENDOR_BILL_GENERATE')).toBe('Supplier invoice to record')
+    expect(labelOf('VENDOR_BILL_GENERATE')).toBe('Invoice receipt to record')
     expect(titleFor('VENDOR_BILL_GENERATE', 3).toLowerCase()).not.toContain('vendor bill')
   })
 

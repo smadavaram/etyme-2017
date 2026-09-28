@@ -406,7 +406,7 @@ export async function GET(request: NextRequest) {
         gaps,
         says:
           'What we are owed and what we owe are shown apart and never summed. A prime that ' +
-          'both sells and buys used to see its own supplier invoices raise the bar labeled ' +
+          'both sells and buys used to see its own invoice receipts raise the bar labeled ' +
           'money owed to us.',
       },
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },

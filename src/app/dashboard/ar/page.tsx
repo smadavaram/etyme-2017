@@ -480,7 +480,7 @@ function Invoices({ book }: { book: any }) {
   const columns: Column<any>[] = [
     {
       key: 'number',
-      label: 'Bill',
+      label: 'Bill #',
       render: (r) => (
         <div>
           <span className="font-medium text-etyme-ink">{r.number}</span>

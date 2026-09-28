@@ -769,7 +769,7 @@ export default function ReportsPage() {
 
             {/* Invoice aging summary */}
             <div className="panel">
-              <p className="stat-label mb-4">Bills and invoices</p>
+              <p className="stat-label mb-4">Bills and invoice receipts</p>
               {invoiceStatusEntries.length > 0 ? (
                 <>
                   <div className="space-y-2.5">
@@ -823,11 +823,11 @@ export default function ReportsPage() {
 
                   <p className="text-[11px] text-etyme-faint mt-3"
                      style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {invoices.length} loaded — what we billed and what we were invoiced
+                    {invoices.length} loaded — bills we sent and invoice receipts
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-etyme-faint">No bills or invoices yet.</p>
+                <p className="text-sm text-etyme-faint">No bills or invoice receipts yet.</p>
               )}
             </div>
           </div>

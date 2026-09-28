@@ -27,12 +27,12 @@ describe('a holiday belongs to a place', () => {
   })
 })
 
-describe('a supplier invoice that did not match is a decision for the desk that pays', () => {
-  it('recording a disputed supplier invoice tells everybody who can record a payment which check failed', () => {
+describe('an invoice receipt that did not match is a decision for the desk that pays', () => {
+  it('recording a disputed invoice receipt tells everybody who can record a payment which check failed', () => {
     const bills = read('src/app/api/ap/bills/route.ts')
     expect(bills).toContain("if (statusAfterMatch === 'DISPUTED') {")
     expect(bills).toContain("role: { permissions: { has: 'payments.record' } }")
-    expect(bills).toContain('title: `An invoice from ${vendor?.name ?? \'a supplier\'} does not match`')
+    expect(bills).toContain('title: `An invoice receipt from ${vendor?.name ?? \'a supplier\'} does not match`')
   })
   it('the decisions queue lists disputed bills for the AP desk, held out of payment runs', () => {
     const d = read('src/app/api/decisions/route.ts')

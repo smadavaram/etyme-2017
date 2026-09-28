@@ -108,7 +108,7 @@ export const PAYABLE: MoneyPage = {
   opensFor: ['invoices.read'],
   desks: ['AP & Payroll', 'Finance', 'AP Clerk', 'Owner', 'Admin'],
   refusal:
-    'Accounts payable is the book of supplier invoices: what suppliers have invoiced, when each falls due, ' +
+    'Accounts payable is the book of invoice receipts: what suppliers have invoiced, when each falls due, ' +
     'and how long the firm is taking to pay. Reading it belongs to the desk that pays them ' +
     '— AP & Payroll, Finance, or an AP clerk. Ask whoever manages roles at your company to ' +
     'seat you there.',

@@ -130,7 +130,7 @@ function sentence(books: PayableBook[], recorded: number, openCount: number): st
 
   if (openCount === 0) {
     return (
-      `${recorded} supplier invoice${recorded === 1 ? ' has' : 's have'} been recorded and ` +
+      `${recorded} invoice receipt${recorded === 1 ? ' has' : 's have'} been recorded and ` +
       'every one is paid. Nothing is open.'
     )
   }
@@ -146,7 +146,7 @@ function sentence(books: PayableBook[], recorded: number, openCount: number): st
     : ''
 
   return (
-    `${openCount} supplier invoice${openCount === 1 ? '' : 's'} open, ${money}.${late} ` +
+    `${openCount} invoice receipt${openCount === 1 ? '' : 's'} open, ${money}.${late} ` +
     'These are the invoices your suppliers raised to you — each one is on Invoices, ' +
     'under “We owe”, where it can be matched and paid.'
   )

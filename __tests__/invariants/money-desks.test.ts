@@ -119,7 +119,7 @@ describe('A money gate never refuses the desk the page is for', () => {
     expect(refused, refused.join('\n  ')).toEqual([])
   })
 
-  it('every role whose job description says it pays suppliers can read the book of supplier invoices', () => {
+  it('every role whose job description says it pays suppliers can read the book of invoice receipts', () => {
     const refused: string[] = []
     for (const { kind, role } of everySeat()) {
       const b = role.blurb.toLowerCase()
@@ -143,7 +143,7 @@ describe('A money gate never refuses the desk the page is for', () => {
       }
       const writesAP = role.permissions.includes('payments.record')
       if (writesAP && !mayOpen(role.permissions, PAYABLE)) {
-        wrong.push(`${kind} “${role.name}” may pay a supplier invoice and may not read the book of supplier invoices`)
+        wrong.push(`${kind} “${role.name}” may pay an invoice receipt and may not read the book of invoice receipts`)
       }
     }
     expect(wrong, wrong.join('\n  ')).toEqual([])

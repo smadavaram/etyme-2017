@@ -45,7 +45,7 @@ describe("a client's accounts payable is the invoices its suppliers raised to it
     ], NOW)
     expect(l.openCount).toBe(2)
     expect(l.books[0].owedMinor).toBe(820_000)
-    expect(l.says).toContain('2 supplier invoices open, $8,200.00')
+    expect(l.says).toContain('2 invoice receipts open, $8,200.00')
   })
 
   it('says where the rows are, so nobody is left on an empty page', () => {

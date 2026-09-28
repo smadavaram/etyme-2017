@@ -66,12 +66,12 @@ export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Supplier invoices')
+  const notStaff = staffOnly(caller, 'Invoice receipts')
   if (notStaff) return notStaff
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A supplier invoice is owed by a company' } },
+      { error: { code: 'NO_COMPANY', message: 'An invoice receipt is owed by a company' } },
       { status: 403 }
     )
   }
@@ -472,7 +472,7 @@ export async function POST(request: NextRequest) {
       personId: d.personId,
       companyId,
       type: 'INVOICE' as const,
-      title: `An invoice from ${vendor?.name ?? 'a supplier'} does not match`,
+      title: `An invoice receipt from ${vendor?.name ?? 'a supplier'} does not match`,
       body: failedSoft.map((c) => c.reason).join(' ') || 'A check failed.',
       entityId: bill.id,
       data: { vendorBillId: bill.id, href: '/dashboard/ap' },
@@ -522,12 +522,12 @@ export async function PATCH(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Supplier invoices')
+  const notStaff = staffOnly(caller, 'Invoice receipts')
   if (notStaff) return notStaff
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A supplier invoice is owed by a company' } },
+      { error: { code: 'NO_COMPANY', message: 'An invoice receipt is owed by a company' } },
       { status: 403 }
     )
   }
@@ -559,7 +559,7 @@ export async function PATCH(request: NextRequest) {
   const id = String(body.id ?? '')
   if (!id) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Which invoice?', field: 'id' } },
+      { error: { code: 'VALIDATION', message: 'Which invoice receipt?', field: 'id' } },
       { status: 422 }
     )
   }
@@ -569,7 +569,7 @@ export async function PATCH(request: NextRequest) {
     select: { id: true, companyId: true, currency: true, totalCents: true, paidCents: true, receivedAt: true },
   })
   if (!bill || bill.companyId !== reading.companyId) {
-    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such supplier invoice here' } }, { status: 404 })
+    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such invoice receipt here' } }, { status: 404 })
   }
 
   const paidAt = body.paidAt ? new Date(String(body.paidAt)) : new Date()
@@ -640,9 +640,9 @@ export async function PATCH(request: NextRequest) {
         // cannot land in this commit.
         action: 'PAYMENT_RECORDED',
         summary:
-          `${settled ? 'Paid in full' : 'Part paid'}: supplier invoice ${bill.id} on ` +
+          `${settled ? 'Paid in full' : 'Part paid'}: invoice receipt ${bill.id} on ` +
           `${reading.companyName}'s books.`,
-        reason: moneyTrailFor(reading.seat, 'Supplier invoice paid') ?? '',
+        reason: moneyTrailFor(reading.seat, 'Invoice receipt paid') ?? '',
         payload: {
           vendorBillId: bill.id,
           paidCents: addCents,
@@ -691,11 +691,11 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Supplier invoices')
+  const notStaff = staffOnly(caller, 'Invoice receipts')
   if (notStaff) return notStaff
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A supplier invoice is owed by a company' } },
+      { error: { code: 'NO_COMPANY', message: 'An invoice receipt is owed by a company' } },
       { status: 403 }
     )
   }
@@ -716,7 +716,7 @@ export async function GET(request: NextRequest) {
   }
 
   const companyId = reading.companyId
-  noteMoneyRead(reading, 'Supplier invoice exceptions read')
+  noteMoneyRead(reading, 'Invoice receipt exceptions read')
   const now = new Date()
 
   const bills = await prisma.vendorBill.findMany({
@@ -839,7 +839,7 @@ export async function GET(request: NextRequest) {
         says: e.says,
       })),
       note:
-        'Every open supplier invoice re-matched against what is true now rather than against a verdict ' +
+        'Every open invoice receipt re-checked against what is true now rather than against a verdict ' +
         'stored on Tuesday. Worst first, and worst is not largest — a duplicate nobody can ' +
         'wave through sorts above a rate query ten times its size.',
     },

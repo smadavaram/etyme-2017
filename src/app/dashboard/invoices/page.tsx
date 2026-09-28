@@ -990,7 +990,7 @@ export default function InvoicesPage() {
     if (rows.length === 0) return
 
     const headers = [
-      side === 'RECEIVABLE' ? 'Bill Number' : 'Invoice Number', counterpartyLabel, 'Engagement', 'Period Start', 'Period End',
+      side === 'RECEIVABLE' ? 'Bill Number' : 'Invoice Receipt Number', counterpartyLabel, 'Engagement', 'Period Start', 'Period End',
       'Total', 'Paid', 'Outstanding', 'Status', 'Due Date',
     ]
 
@@ -1024,7 +1024,7 @@ export default function InvoicesPage() {
     a.click()
     URL.revokeObjectURL(url)
 
-    showToast(`Exported ${rows.length} ${side === 'RECEIVABLE' ? 'bill' : 'invoice'}${rows.length !== 1 ? 's' : ''}`)
+    showToast(`Exported ${rows.length} ${side === 'RECEIVABLE' ? 'bill' : 'invoice receipt'}${rows.length !== 1 ? 's' : ''}`)
   }, [invoices, showToast, side])
 
   // ── Computed stats ────────────────────────────────
@@ -1062,7 +1062,7 @@ export default function InvoicesPage() {
   const columns: Column<Invoice>[] = [
     {
       key: 'number',
-      label: side === 'RECEIVABLE' ? 'Bill' : 'Invoice',
+      label: side === 'RECEIVABLE' ? 'Bill #' : 'Invoice receipt #',
       render: (row) => (
         <div>
           <a href={`/dashboard/invoices/${row.id}`}
@@ -1216,7 +1216,7 @@ export default function InvoicesPage() {
           <p className="text-[13px] text-etyme-ink">
             {reading?.inASeat
               ? reading.says
-              : 'Your own bills and invoices. The program you run is on this same page.'}
+              : 'Your own bills and invoice receipts. The program you run is on this same page.'}
           </p>
           <button
             type="button"
@@ -1275,7 +1275,7 @@ export default function InvoicesPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">{overdueMinor > 0 ? 'past due date' : 'none overdue'}</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">{side === 'RECEIVABLE' ? 'Open bills' : 'Open invoices'}</p>
+          <p className="stat-label">{side === 'RECEIVABLE' ? 'Open bills' : 'Open invoice receipts'}</p>
           <p className="stat-value text-etyme-ink">{issuedCount}</p>
           <p className="text-[11px] text-etyme-faint mt-0.5">awaiting payment</p>
         </div>
@@ -1354,14 +1354,14 @@ export default function InvoicesPage() {
         loading={loading}
         error={error}
         searchFilter={searchFilter}
-        searchPlaceholder={`Search by ${side === 'RECEIVABLE' ? 'bill' : 'invoice'} number, engagement, or ${counterpartyLabel.toLowerCase()}…`}
+        searchPlaceholder={`Search by ${side === 'RECEIVABLE' ? 'bill' : 'invoice receipt'} number, engagement, or ${counterpartyLabel.toLowerCase()}…`}
         emptyMessage={
           statusFilter !== 'ALL'
-            ? `No ${statusFilter.toLowerCase()} ${side === 'PAYABLE' ? 'invoices to pay' : 'bills to collect'}.`
+            ? `No ${statusFilter.toLowerCase()} ${side === 'PAYABLE' ? 'invoice receipts to pay' : 'bills to collect'}.`
             : side === 'PAYABLE' ? 'Nothing to pay.' : 'No bills yet.'
         }
         emptyDetail={isClient
-          ? 'Your suppliers raise invoices from the hours you approve. They appear here once submitted, matched against the timesheets and the purchase order.'
+          ? 'Your suppliers send their invoices from the hours you approve. Each appears here as an invoice receipt once submitted, checked against the timesheets and the purchase order.'
           : 'Bills are generated from approved timesheets. Approve timesheets first, then generate bills here.'}
         exportName="invoices"
         selectable
@@ -1398,7 +1398,7 @@ export default function InvoicesPage() {
       {/* Footer */}
       {!loading && shown.length > 0 && (
         <p className="text-xs text-etyme-faint mt-3 tabular-nums">
-          {shown.length} {side === 'PAYABLE' ? 'invoice' : 'bill'}{shown.length !== 1 ? 's' : ''}
+          {shown.length} {side === 'PAYABLE' ? 'invoice receipt' : 'bill'}{shown.length !== 1 ? 's' : ''}
           {side === 'PAYABLE' ? ' to pay' : ' to collect'}
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase().replace('_', ' ')}`}
         </p>
