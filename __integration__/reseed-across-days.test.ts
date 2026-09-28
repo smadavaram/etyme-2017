@@ -39,6 +39,9 @@ const census = async () => ({
   requirements: await prisma.requirement.count(),
   submissions: await prisma.submission.count(),
   timesheets: await prisma.timesheet.count(),
+  // Every signature on every week, the firms in the middle of a chain
+  // among them: a second seeding signs nothing twice.
+  workAssertions: await prisma.workAssertion.count(),
   invoices: await prisma.invoice.count(),
   invoiceLines: await prisma.invoiceLine.count(),
   payments: await prisma.payment.count(),

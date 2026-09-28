@@ -817,6 +817,39 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
       if (!pl.weeks) continue
       const bottom = contracts[0]
       const signed: { id: string; periodStart: Date; periodEnd: Date }[] = []
+
+      // When each signature on week `w` landed: the client on the day it
+      // signed, each firm below an hour after the one above, the employer
+      // the next day. Step 0 is the client; `chain.length` is the employer.
+      // The employer used to be dated the day BEFORE the client — the
+      // order the founder's rule forbids, and nobody could see it while
+      // there were only two signatures to compare.
+      const signedAt = (w: number, step: number): Date =>
+        step >= chain.length
+          ? day(-(w * 7 - 3))
+          : new Date(day(-(w * 7 - 2)).getTime() + step * 3_600_000)
+
+      // Every firm between the client and the employer accepts what it
+      // pays the firm below it — PASS_THROUGH, at the rate of the rung it
+      // pays on, which is `chain[i + 1]`'s bill rate. Without it a prime's
+      // bill from its sub-vendor has no receipt of the prime's own behind
+      // it, and the invoice-receipt match (`lib/money/payers-acceptance`)
+      // rightly finds nothing to match. `onlyIfMissing` makes a second
+      // seeding write nothing.
+      const passThroughFor = async (timesheetId: string, w: number, onlyIfMissing: boolean) => {
+        for (let i = 0; i < chain.length - 1; i++) {
+          const firm = firmBySlug.get(chain[i])!
+          if (onlyIfMissing && (await db.workAssertion.findFirst({
+            where: { timesheetId, companyId: firm.id, role: 'PASS_THROUGH' },
+          }))) continue
+          await db.workAssertion.create({
+            data: {
+              timesheetId, companyId: firm.id, role: 'PASS_THROUGH', hours: 40, rateCents: pl.rates[i + 1],
+              state: 'LIVE', byId: seatBySlug.get(chain[i])?.personId ?? null, at: signedAt(w, i + 1),
+            },
+          })
+        }
+      }
       const total = pl.weeks.approved + pl.weeks.awaiting
       for (let w = total; w >= 1; w--) {
         const awaiting = w <= pl.weeks.awaiting
@@ -826,7 +859,15 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
         const longHours = awaiting && w === 1 ? pl.exceptionHours ?? null : null
         const { start: ws, end: we, days } = week(w, longHours ?? 40)
         const already = await db.timesheet.findFirst({ where: { sellContractId: bottom.id, periodStart: ws } })
-        if (already) { if (!awaiting) signed.push(already); continue }
+        if (already) {
+          if (!awaiting) {
+            // A world seeded before the firms in the middle signed gets
+            // their acceptance now, once; a world that has it is untouched.
+            await passThroughFor(already.id, w, true)
+            signed.push(already)
+          }
+          continue
+        }
         const ts = await db.timesheet.create({
           data: {
             sellContractId: bottom.id, personId: who.id, periodStart: ws, periodEnd: we, days,
@@ -838,18 +879,25 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             ...(awaiting ? {} : {
               approvedAt: day(-(w * 7 - 2)), approvedById: desk.hiring.personId,
               clientApprovedAt: day(-(w * 7 - 2)), clientApprovedById: desk.hiring.personId,
-              employerAcceptedAt: day(-(w * 7 - 1)), employerAcceptedById: seatBySlug.get(employerSlug)!.personId,
+              employerAcceptedAt: day(-(w * 7 - 3)), employerAcceptedById: seatBySlug.get(employerSlug)!.personId,
             }),
           },
         })
         if (!awaiting) {
-          await db.workAssertion.createMany({
-            data: [
-              { timesheetId: ts.id, companyId: client.id, role: 'CLIENT_APPROVAL', hours: 40, rateCents: pl.rates[0],
-                state: 'LIVE', byId: desk.hiring.personId },
-              { timesheetId: ts.id, companyId: employer.id, role: 'EMPLOYER_ACCEPTANCE', hours: 40,
-                rateCents: pl.rates[pl.rates.length - 1], state: 'LIVE', byId: seatBySlug.get(employerSlug)!.personId },
-            ],
+          // In the order the week travels (CLAUDE.md, "The signed week
+          // travels down the chain"): the client signs, each firm in the
+          // middle accepts what it pays the firm below, the employer
+          // accepts last — the same three roles `api/timesheets/chain-turn`
+          // asks for, stamped in that order.
+          await db.workAssertion.create({
+            data: { timesheetId: ts.id, companyId: client.id, role: 'CLIENT_APPROVAL', hours: 40, rateCents: pl.rates[0],
+              state: 'LIVE', byId: desk.hiring.personId, at: signedAt(w, 0) },
+          })
+          await passThroughFor(ts.id, w, false)
+          await db.workAssertion.create({
+            data: { timesheetId: ts.id, companyId: employer.id, role: 'EMPLOYER_ACCEPTANCE', hours: 40,
+              rateCents: pl.rates[pl.rates.length - 1], state: 'LIVE', byId: seatBySlug.get(employerSlug)!.personId,
+              at: signedAt(w, chain.length) },
           })
           signed.push(ts)
         }
