@@ -133,8 +133,14 @@ describe('a submission belongs to the supplier that sent it and the client decid
   })
 
   it('will not let a supplier place its own candidate', () => {
-    expect(SUBMISSION_STATUS).toMatch(/status === 'PLACED' && !isClient/)
-    expect(SUBMISSION_STATUS).toContain('Only the client can place a candidate')
+    // Nobody places by a status change any more — PLACED is the award's,
+    // and the award refuses a supplier its own candidate
+    // (one-road-to-placed.test.ts).
+    expect(SUBMISSION_STATUS).toContain("if (status === 'PLACED') {")
+    expect(SUBMISSION_STATUS).toContain("code: 'PLACE_BY_AWARD'")
+    const door = read('src/lib/award.ts')
+    expect(door).toContain("code: 'OWN_CANDIDATE'")
+    expect(door).toContain('A supplier never awards its own candidate.')
   })
 
   it('records who changed it rather than saying it happened via the UI', () => {

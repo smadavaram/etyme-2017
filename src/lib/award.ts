@@ -624,3 +624,144 @@ export function lineAgreesWithHeader(
     unreadable: withHeader.unreadable,
   }
 }
+
+// ── The one road to PLACED ─────────────────────────────────────────────
+//
+// A placement is a contract, an order and the dates behind them, written
+// in one transaction by `POST /api/submissions/[id]/award`. It used to
+// have a second road: `PATCH /api/submissions/[id]/status` would flip a
+// submission to PLACED as a bare word, writing nothing behind it, and the
+// Submissions list then offered "→ Contract" on the row as a separate
+// step. A tester walking from an interview offer took the second road
+// every time and got a PLACED candidate with no contract, no timesheet
+// and no invoice — the whole work-and-pay half of the product
+// unreachable from the way people actually hire.
+//
+// So PLACED is written by the award and by nothing else, and every screen
+// that offers "Place" asks this function first, with the same facts the
+// route reads, so a button is never offered that the route would refuse.
+
+/**
+ * Where a candidate may be awarded from: still in the running.
+ *
+ * Straight from SUBMITTED is allowed on purpose — a client may hire
+ * without an interview, and the requisition page always let it.
+ * `INTERVIEWING` is the spelling the volume seed writes where the routes
+ * write `INTERVIEW`; both mean somebody being interviewed.
+ */
+export const AWARDABLE_FROM: readonly string[] = [
+  'SUBMITTED', 'SHORTLISTED', 'INTERVIEW', 'INTERVIEWING', 'OFFERED',
+]
+
+export interface AwardDoorFacts {
+  /** The company the caller is acting for. */
+  callerCompanyId: string | null
+  callerCompanyName: string | null
+  /** Holds `requirements.write` — the hiring desk. */
+  mayHire: boolean
+  /** The company that raised the requisition. */
+  requirementCompanyId: string
+  /** The firm that put the person forward. */
+  fromCompanyId: string
+  fromCompanyName: string
+  /** The firm the person was put forward to — who pays. */
+  toCompanyId: string
+  toCompanyName: string
+  personName: string
+  status: string
+  /** A contract already written for this person on this requisition. */
+  contractId: string | null
+}
+
+export type AwardDoor =
+  | { open: true; says: string }
+  | {
+      open: false
+      code: 'OWN_CANDIDATE' | 'NOT_THE_BUYER' | 'NOT_HIRING' | 'ALREADY_AWARDED' | 'NOT_IN_THE_RUNNING'
+      httpStatus: 403 | 409
+      says: string
+      contractId?: string
+    }
+
+/** Why somebody is out of the running, in the words a hiring manager uses. */
+const OUT_BECAUSE: Record<string, string> = {
+  REJECTED: 'was turned down',
+  WITHDRAWN: 'was withdrawn',
+  NOT_SELECTED: 'was stood down when the role was filled',
+}
+
+/**
+ * Whether this caller may award this submission, and the sentence either
+ * way. The route refuses on exactly these answers and the lists offer
+ * "Place" on exactly these answers.
+ */
+export function awardDoor(f: AwardDoorFacts): AwardDoor {
+  // Neutrality before anything else. A supplier handing its own candidate
+  // the job is the supplier awarding itself the role.
+  if (f.callerCompanyId !== null && f.callerCompanyId === f.fromCompanyId) {
+    return {
+      open: false,
+      code: 'OWN_CANDIDATE',
+      httpStatus: 403,
+      says: `A supplier never awards its own candidate. ${f.toCompanyName} decides whether ${f.personName} is placed.`,
+    }
+  }
+
+  if (f.callerCompanyId === null ||
+      (f.callerCompanyId !== f.requirementCompanyId && f.callerCompanyId !== f.toCompanyId)) {
+    return {
+      open: false,
+      code: 'NOT_THE_BUYER',
+      httpStatus: 403,
+      says: `Only ${f.toCompanyName}, who ${f.personName} was put forward to, can award this position.`,
+    }
+  }
+
+  if (!f.mayHire) {
+    return {
+      open: false,
+      code: 'NOT_HIRING',
+      httpStatus: 403,
+      says:
+        `Awarding a position is for whoever is hiring at ${f.callerCompanyName ?? 'your company'} — ` +
+        `a hiring or program manager. Ask them to award ${f.personName}.`,
+    }
+  }
+
+  if (f.contractId) {
+    return {
+      open: false,
+      code: 'ALREADY_AWARDED',
+      httpStatus: 409,
+      says: `${f.personName} already holds a position on this requisition`,
+      contractId: f.contractId,
+    }
+  }
+
+  // PLACED with no contract behind it is what the old status flip left
+  // behind. The award is how it is repaired, so it stays open here.
+  if (!AWARDABLE_FROM.includes(f.status) && f.status !== 'PLACED') {
+    const why = OUT_BECAUSE[f.status] ?? `is ${f.status.toLowerCase().replace(/_/g, ' ')}`
+    return {
+      open: false,
+      code: 'NOT_IN_THE_RUNNING',
+      httpStatus: 409,
+      says: `${f.personName} ${why}, so there is no position to award them.`,
+    }
+  }
+
+  return {
+    open: true,
+    says: `Place ${f.personName}: this writes the contract, the order and the billing dates in one step.`,
+  }
+}
+
+/**
+ * The refusal a bare status change to PLACED gets. The buyer is pointed at
+ * the button; the supplier is told who presses it.
+ */
+export function placeByAward(personName: string, byBuyer: boolean, buyerName: string): string {
+  return byBuyer
+    ? `${personName} is placed by awarding the position, which writes the contract, the order and the billing dates in the same step. Press Place on their row.`
+    : `${personName} is placed when ${buyerName} awards the position, which writes the contract and its billing dates in the same step.`
+}

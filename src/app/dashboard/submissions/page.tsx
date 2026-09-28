@@ -56,6 +56,13 @@ interface Submission {
   forwardedToEmail: string | null
   /** Rounds so far, oldest first. Absent on an older cached response. */
   interviews?: RoundBrief[]
+  /** The line the award wrote for this person on this requisition. */
+  contractId?: string | null
+  /**
+   * Whether this reader may place this candidate — computed by the route
+   * with the same function the award refuses on (`awardDoor`).
+   */
+  award?: { open: boolean; says: string }
 }
 
 type StatusFilter = 'ALL' | 'SUBMITTED' | 'SHORTLISTED' | 'INTERVIEW' | 'OFFERED' | 'PLACED' | 'REJECTED' | 'WITHDRAWN'
@@ -552,7 +559,7 @@ function SubmitToRequirementModal({
   )
 }
 
-// ── Convert to Contract Modal ────────────────────────
+// ── Place (the award) ────────────────────────────────
 
 
 // ── Send on ────────────────────────────────────────────────
@@ -733,22 +740,32 @@ function SendOnModal({
   )
 }
 
-function ConvertToContractModal({
+/**
+ * Placing somebody, from their row.
+ *
+ * This is the award — `POST /api/submissions/:id/award` — and nothing
+ * else. It used to be a two-step: flip the row to PLACED, then "→
+ * Contract" as a separate act, and the flip wrote nothing behind it. The
+ * award writes the contract, the order and the billing dates in one
+ * transaction and closes the seat, so there is one button and one road.
+ * What the supplier pays its person is the supplier's business and is not
+ * asked here.
+ */
+function AwardModal({
   submission,
-  converting,
+  placing,
   onClose,
-  onConvert,
+  onPlace,
 }: {
   submission: Submission
-  converting: boolean
+  placing: boolean
   onClose: () => void
-  onConvert: (billRate: number, startDate: string, payRate?: number) => void
+  onPlace: (rateDollars: number, startDate: string) => void
 }) {
-  // Dollars, because that is what the field says and what onConvert
+  // Dollars, because that is what the field says and what onPlace
   // multiplies back up. Seeded from cents, one click made a $130/hr
   // submission into a $13,000/hr contract.
-  const [billRate, setBillRate] = useState(submission.rate / 100)
-  const [payRate, setPayRate] = useState('')
+  const [rate, setRate] = useState(submission.rate / 100)
   const [startDate, setStartDate] = useState(
     new Date().toISOString().slice(0, 10)
   )
@@ -756,20 +773,20 @@ function ConvertToContractModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 mx-4">
-        <h3 className="headline-serif text-[18px] text-etyme-ink mb-4">
-          Convert to contract
+        <h3 className="headline-serif text-[18px] text-etyme-ink mb-1">
+          Place {submission.person.name}
         </h3>
+        <p className="text-[12px] text-etyme-muted mb-4">
+          {submission.award?.says ?? 'This writes the contract, the order and the billing dates in one step.'}
+        </p>
 
         <div className="mb-4 px-3 py-2 bg-etyme-canvas rounded-lg">
           <p className="text-[12px] text-etyme-muted">
-            <span className="font-medium text-etyme-ink">{submission.person.name}</span>
-            {' → '}
-            {submission.toCompany.name}
-            {' · '}
+            <span className="font-medium text-etyme-ink">{submission.requirement.title}</span>
+            {' · via '}
+            {submission.kind === 'INTERNAL' ? 'their own employer' : submission.fromCompany.name}
+            {' · asked '}
             {showRate(submission.rate)}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">
-            {submission.requirement.title}
           </p>
         </div>
 
@@ -779,24 +796,10 @@ function ConvertToContractModal({
             <input
               type="number"
               step="0.01"
-              value={billRate}
-              onChange={(e) => setBillRate(Number(e.target.value))}
+              value={rate}
+              onChange={(e) => setRate(Number(e.target.value))}
               className="w-full px-3 py-2 border border-etyme-rule rounded-md text-sm
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
-            />
-          </div>
-
-          <div>
-            <label className="eyebrow mb-1 block">Pay rate ($/hr, optional)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={payRate}
-              onChange={(e) => setPayRate(e.target.value)}
-              placeholder="Leave blank for sell-only contract"
-              className="w-full px-3 py-2 border border-etyme-rule rounded-md text-sm
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20
-                         placeholder:text-etyme-faint"
             />
           </div>
 
@@ -810,31 +813,22 @@ function ConvertToContractModal({
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
             />
           </div>
-
-          {billRate > 0 && payRate && Number(payRate) > 0 && (
-            <div className="px-3 py-2 bg-emerald-50 rounded-lg text-[12px]">
-              <span className="text-etyme-verified font-medium">
-                Margin: ${(billRate - Number(payRate)).toFixed(2)}/hr
-                ({((1 - Number(payRate) / billRate) * 100).toFixed(1)}%)
-              </span>
-            </div>
-          )}
         </div>
 
         <div className="flex gap-2 mt-6">
           <button
             onClick={onClose}
-            disabled={converting}
+            disabled={placing}
             className="btn-secondary flex-1 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
-            onClick={() => onConvert(billRate, startDate, payRate ? Number(payRate) : undefined)}
-            disabled={converting || billRate <= 0 || !startDate}
+            onClick={() => onPlace(rate, startDate)}
+            disabled={placing || !(rate > 0) || !startDate}
             className="btn-primary flex-1 disabled:opacity-50"
           >
-            {converting ? 'Creating…' : 'Create contract'}
+            {placing ? 'Placing…' : 'Place'}
           </button>
         </div>
       </div>
@@ -865,7 +859,7 @@ export default function SubmissionsPage() {
   const [acting, setActing] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
-  const [convertSubmission, setConvertSubmission] = useState<Submission | null>(null)
+  const [placeSubmission, setPlaceSubmission] = useState<Submission | null>(null)
   const [sendOn, setSendOn] = useState<Submission | null>(null)
   // Who the client is asking to meet, and which round it will be.
   const [propose, setPropose] = useState<{ row: Submission; round: number } | null>(null)
@@ -873,7 +867,7 @@ export default function SubmissionsPage() {
   // side, the client's question and the box to answer it in.
   const [talk, setTalk] = useState<Submission | null>(null)
   const [said, setSaid] = useState<string | null>(null)
-  const [converting, setConverting] = useState(false)
+  const [placing, setPlacing] = useState(false)
 
   const [companyId, setCompanyId] = useState<string | null>(null)
   // Whose pipeline the server answered about. Null until the first read.
@@ -1105,18 +1099,30 @@ export default function SubmissionsPage() {
       render: (row) => (
         <div className="flex items-center gap-2">
           <span className={`chip ${statusChipClass(row.status)}`}>{row.status}</span>
-          {row.status === 'PLACED' && (
+          {/* Placing is the award, and the route said whether this reader
+              may do it for this row — the same answer it would give on
+              the click. Once placed, the row leads to the placement. */}
+          {row.award?.open && (
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                setConvertSubmission(row)
+                setPlaceSubmission(row)
               }}
-              className="text-[10px] font-medium text-etyme-action hover:text-etyme-action/80
-                         border border-etyme-action/30 rounded px-2 py-0.5 hover:bg-etyme-action/5
-                         transition-colors whitespace-nowrap"
+              title={row.award.says}
+              className="text-[10px] font-medium text-white bg-etyme-action hover:bg-etyme-action/90
+                         rounded px-2 py-0.5 transition-colors whitespace-nowrap"
             >
-              → Contract
+              Place
             </button>
+          )}
+          {row.contractId && (
+            <Link
+              href={`/dashboard/placements/${row.contractId}` as any}
+              onClick={(e) => e.stopPropagation()}
+              className="text-[11px] text-etyme-action hover:underline whitespace-nowrap"
+            >
+              Placement →
+            </Link>
           )}
 
           {/* Only on what was sent to you, and only while it is still
@@ -1421,7 +1427,7 @@ export default function SubmissionsPage() {
         />
       )}
 
-      {/* Convert to Contract modal */}
+      {/* Send on */}
       {sendOn && (
         <SendOnModal
           submission={sendOn}
@@ -1494,34 +1500,39 @@ export default function SubmissionsPage() {
         />
       )}
 
-      {convertSubmission && (
-        <ConvertToContractModal
-          submission={convertSubmission}
-          converting={converting}
-          onClose={() => setConvertSubmission(null)}
-          onConvert={async (billRate, startDate, payRate) => {
-            setConverting(true)
+      {placeSubmission && (
+        <AwardModal
+          submission={placeSubmission}
+          placing={placing}
+          onClose={() => setPlaceSubmission(null)}
+          onPlace={async (rateDollars, startDate) => {
+            setPlacing(true)
             try {
-              const res = await fetch(`/api/submissions/${convertSubmission.id}/convert`, {
+              // The one road to a placement: the award.
+              const res = await fetch(`/api/submissions/${placeSubmission.id}/award`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  billRate: Math.round(billRate * 100), // dollars → cents
+                  rate: Math.round(rateDollars * 100), // dollars → cents
                   startDate,
-                  ...(payRate ? { payRate: Math.round(payRate * 100) } : {}),
                 }),
               })
-              const body = await readJson(res)
-
-              setToast({ message: body.data?.message ?? 'Contract created', type: 'success' })
-              setTimeout(() => setToast(null), 3500)
-              setConvertSubmission(null)
+              // A safe parse rather than readJson: a blocked award lists
+              // the checks that failed, and those are the sentence.
+              const body = await res.json().catch(() => ({}) as any)
+              if (!res.ok) {
+                const checks = (body.error?.checks ?? []).map((x: any) => x.reason).join(' · ')
+                throw new Error(`${body.error?.message ?? 'Could not place them'}${checks ? ` — ${checks}` : ''}`)
+              }
+              const notes: string[] = body.data?.notes ?? []
+              setSaid([body.data?.message, ...notes].filter(Boolean).join(' '))
+              setPlaceSubmission(null)
               fetchSubmissions()
             } catch (err: any) {
-              setToast({ message: `Error: ${err.message}`, type: 'error' })
-              setTimeout(() => setToast(null), 5000)
+              setToast({ message: err.message, type: 'error' })
+              setTimeout(() => setToast(null), 6000)
             } finally {
-              setConverting(false)
+              setPlacing(false)
             }
           }}
         />

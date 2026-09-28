@@ -6,6 +6,7 @@ import { suppliersOnRole } from '@/lib/threads'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { compact as money } from '@/lib/money-display'
 import {
   Chain, DecideModal, EditRequisition, clearedForSentence, deskOf, myRow, whoFor,
@@ -57,6 +58,10 @@ interface Candidate {
   kind: string
   status: string
   submittedAt: string
+  /** The line the award wrote for this person, once placed. */
+  contractId?: string | null
+  /** Whether this reader may place them — the award route's own answer. */
+  award?: { open: boolean; says: string }
 }
 
 function Lbl({ children }: { children: React.ReactNode }) {
@@ -682,22 +687,27 @@ export default function RequisitionDetail() {
                     }>
                       {c.status.toLowerCase().replace(/_/g, ' ')}
                     </Chip>
-                    {c.status !== 'PLACED' && c.status !== 'NOT_SELECTED' && s.remaining > 0 && (
-                      /* Placing somebody is the hiring desk's, and a desk
-                         that may not do it is told so here rather than
-                         after it has clicked. A refusal the route makes
-                         and the screen does not is a button that lies. */
-                      hasPermission(permissions, 'requirements.write') ? (
-                        <button onClick={() => award(c)}
-                          className="px-3 py-1 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
-                          Place
-                        </button>
-                      ) : (
-                        <span className="text-xs text-etyme-muted">
-                          Placing is the hiring manager&rsquo;s call.
-                        </span>
-                      )
-                    )}
+                    {c.contractId ? (
+                      <Link href={`/dashboard/placements/${c.contractId}` as any}
+                        className="text-xs text-etyme-action hover:underline">
+                        Placement →
+                      </Link>
+                    ) : c.award?.open && s.remaining > 0 ? (
+                      /* Placing is the award, and the route said whether
+                         this desk may do it for this candidate — the same
+                         answer it gives on the click. A refusal the route
+                         makes and the screen does not is a button that
+                         lies. */
+                      <button onClick={() => award(c)} title={c.award.says}
+                        className="px-3 py-1 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
+                        Place
+                      </button>
+                    ) : !hasPermission(permissions, 'requirements.write') &&
+                        c.status !== 'PLACED' && c.status !== 'NOT_SELECTED' && s.remaining > 0 ? (
+                      <span className="text-xs text-etyme-muted">
+                        Placing is the hiring manager&rsquo;s call.
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="shrink-0 w-56"><Why fit={c.fit} /></div>

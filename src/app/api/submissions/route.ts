@@ -17,6 +17,7 @@ import { orderedOfSupplier } from '@/lib/supplier-desks'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { submissionKind, tellEmployee, blockedSays } from './kind'
+import { awardDoor } from '@/lib/award'
 
 /**
  * POST /api/submissions
@@ -1090,6 +1091,18 @@ export async function GET(request: NextRequest) {
     prisma.submission.count({ where }),
   ])
 
+  // The contract behind each row, keyed the way the award keys its own
+  // idempotency — one person, one requisition — so a row that already
+  // has a line says so and one that has none can still be placed.
+  const lines = submissions.length
+    ? await prisma.sellContract.findMany({
+        where: { OR: submissions.map((s) => ({ requirementId: s.requirementId, personId: s.personId })) },
+        select: { id: true, requirementId: true, personId: true },
+      })
+    : []
+  const lineFor = new Map(lines.map((l) => [`${l.requirementId}:${l.personId}`, l.id]))
+  const mayHire = hasPermission(caller.permissions, 'requirements.write')
+
   return NextResponse.json({
     data: {
       submissions: submissions.map((s) => ({
@@ -1127,6 +1140,28 @@ export async function GET(request: NextRequest) {
           outcome: i.outcome,
           scheduledAt: i.scheduledAt?.toISOString() ?? null,
         })),
+        // The line the award wrote for this person on this requisition,
+        // where there is one — the row links to the placement.
+        contractId: lineFor.get(`${s.requirementId}:${s.personId}`) ?? null,
+        // Whether this reader may place this candidate, asked of the
+        // same function the award route refuses on, so "Place" is never
+        // offered to a desk the route would turn away.
+        award: (() => {
+          const door = awardDoor({
+            callerCompanyId: caller.company?.id ?? null,
+            callerCompanyName: caller.company?.name ?? null,
+            mayHire,
+            requirementCompanyId: s.requirement.companyId,
+            fromCompanyId: s.fromCompanyId,
+            fromCompanyName: s.fromCompany.name,
+            toCompanyId: s.toCompanyId,
+            toCompanyName: s.toCompany.name,
+            personName: s.person.name,
+            status: s.status,
+            contractId: lineFor.get(`${s.requirementId}:${s.personId}`) ?? null,
+          })
+          return { open: door.open, says: door.says }
+        })(),
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       // Whose book was read. Said out loud so the screen can say it too:

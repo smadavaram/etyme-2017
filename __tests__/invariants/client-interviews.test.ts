@@ -271,10 +271,12 @@ describe('the route refuses what the screen would not offer', () => {
 })
 
 describe('a candidate who is interviewing can still be decided', () => {
-  it('a submission that reached interview or offer can be placed, rejected or withdrawn', () => {
+  it('a submission that reached interview or offer can be rejected or withdrawn, and is placed only by the award', () => {
+    // Placing used to be in this table as a bare word, and wrote no
+    // contract. It is the award's now — one-road-to-placed.test.ts.
     const table = block(STATUS_ROUTE, 'const transitions')
-    expect(table).toContain("INTERVIEW: ['PLACED', 'REJECTED', 'WITHDRAWN']")
-    expect(table).toContain("OFFERED: ['PLACED', 'REJECTED', 'WITHDRAWN']")
+    expect(table).toContain("INTERVIEW: ['REJECTED', 'WITHDRAWN']")
+    expect(table).toContain("OFFERED: ['REJECTED', 'WITHDRAWN']")
   })
 
   it('still refuses to move anybody on from a decision already taken', () => {

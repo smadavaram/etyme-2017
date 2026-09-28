@@ -6,7 +6,7 @@ import { clientOf, releaseAllAt } from '@/lib/holds'
 import { emit } from '@/lib/events'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { evaluateGovernance } from '@/lib/governance'
-import { assessAward, buySide, orderCeiling, lineAgreesWithHeader, type AwardFacts } from '@/lib/award'
+import { assessAward, awardDoor, buySide, orderCeiling, lineAgreesWithHeader, type AwardFacts } from '@/lib/award'
 import { annualValue } from '@/lib/requisition-approval'
 import { headerFor, lineTermsFrom } from '../../order-header'
 import { orderFor } from '@/lib/order-postings'
@@ -91,65 +91,55 @@ export async function POST(
   }
 
   const req = submission.requirement
-  // The buyer awards. A vendor cannot place its own candidate.
-  if (caller.company?.id !== req.companyId && caller.company?.id !== submission.toCompanyId) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Only the company that raised this requisition can award it' } },
-      { status: 403 }
-    )
-  }
 
-  // And within the buying company, the desk that owns the requisition.
+  // Who may award, and whether this candidate can be awarded at all, is
+  // decided by `awardDoor` in lib/award — the same function the lists ask
+  // before they offer "Place", so a button is never offered that this
+  // route would refuse.
   //
-  // The line above asks which company. It does not ask which seat, so a
-  // client's Viewer — a role whose entire blurb is "Reads the program.
-  // Changes nothing." — could award a placement worth six figures, and so
-  // could the AP clerk and the compliance officer. The governance chain
-  // that runs a few lines below is about the money on the requisition,
-  // never about who is clicking.
-  //
-  // `requirements.write` is the permission because awarding is an act on
-  // the requisition rather than on the person: it consumes one of the
-  // seats, closes the role when the last one goes and stands the other
+  // Which company: the buyer awards, and a supplier never awards its own
+  // candidate. Which seat: `requirements.write`, because awarding is an
+  // act on the requisition rather than on the person — it consumes one of
+  // the seats, closes the role when the last one goes and stands the other
   // suppliers down. The same permission already gates the two decisions
-  // before it on the same candidate — proposing a round
-  // (`submissions/[id]/interviews`) and deciding one (`interviews/[id]`) —
-  // and this is the last and heaviest decision in that sequence, so a
-  // desk that may not book the interview may not hand out the job.
-  //
+  // before it on the same candidate, proposing a round and deciding one.
   // At a client that is the hiring manager and the program manager, and
   // deliberately not the approver, the HR partner, the procurement lead,
   // the AP clerk, the compliance officer or the viewer
   // (`lib/company-defaults`).
-  if (!hasPermission(caller.permissions, 'requirements.write')) {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'NOT_HIRING',
-          message:
-            `Awarding a position is for whoever is hiring at ${caller.company?.name ?? 'your company'} — ` +
-            `a hiring or program manager. Ask them to award ${submission.person.name}.`,
-        },
-      },
-      { status: 403 }
-    )
-  }
-
-  // Idempotency — awarding twice must not place the person twice.
+  //
+  // Idempotency — awarding twice must not place the person twice — and
+  // standing: somebody turned down, withdrawn or stood down is out of the
+  // running. A submission marked PLACED with nothing behind it, which the
+  // old bare status flip used to leave, is awardable, because this is how
+  // it gets its contract.
   const existing = await prisma.sellContract.findFirst({
     where: { requirementId: req.id, personId: submission.personId },
     select: { id: true },
   })
-  if (existing) {
+  const door = awardDoor({
+    callerCompanyId: caller.company?.id ?? null,
+    callerCompanyName: caller.company?.name ?? null,
+    mayHire: hasPermission(caller.permissions, 'requirements.write'),
+    requirementCompanyId: req.companyId,
+    fromCompanyId: submission.fromCompanyId,
+    fromCompanyName: submission.fromCompany.name,
+    toCompanyId: submission.toCompanyId,
+    toCompanyName: submission.toCompany.name,
+    personName: submission.person.name,
+    status: submission.status,
+    contractId: existing?.id ?? null,
+  })
+  if (!door.open) {
     return NextResponse.json(
       {
         error: {
-          code: 'ALREADY_AWARDED',
-          message: `${submission.person.name} already holds a position on this requisition`,
-          contractId: existing.id,
+          code: door.code,
+          message: door.says,
+          ...(door.contractId ? { contractId: door.contractId } : {}),
         },
       },
-      { status: 409 }
+      { status: door.httpStatus }
     )
   }
 

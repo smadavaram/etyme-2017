@@ -4,19 +4,22 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { clientOf, endHoldsForSubmission } from '@/lib/holds'
 import { notify } from '@/lib/notify'
+import { placeByAward } from '@/lib/award'
 
 /**
  * PATCH /api/submissions/:id/status
  *
  * Transitions a submission's status.
- * Body: { status: "SHORTLISTED" | "PLACED" | "REJECTED" | "WITHDRAWN" }
+ * Body: { status: "SHORTLISTED" | "REJECTED" | "WITHDRAWN" }
  *
  * Valid transitions:
  *   SUBMITTED   → SHORTLISTED, REJECTED, WITHDRAWN
- *   SHORTLISTED → PLACED, REJECTED, WITHDRAWN
- *   INTERVIEW   → PLACED, REJECTED, WITHDRAWN
- *   OFFERED     → PLACED, REJECTED, WITHDRAWN
- *   PLACED      → (terminal — no further transitions)
+ *   SHORTLISTED → REJECTED, WITHDRAWN
+ *   INTERVIEW   → REJECTED, WITHDRAWN
+ *   OFFERED     → REJECTED, WITHDRAWN
+ *   PLACED      → written only by POST /api/submissions/:id/award, which
+ *                 writes the contract with it; asked for here it is
+ *                 refused with a sentence pointing there
  *   REJECTED    → (terminal)
  *   WITHDRAWN   → (terminal)
  *
@@ -42,8 +45,10 @@ export async function PATCH(
   const rejectReason: string | null = typeof body.reason === 'string' ? body.reason : null
   const rejectNote: string | null = typeof body.note === 'string' ? body.note.trim() || null : null
 
-  const validStatuses = ['SHORTLISTED', 'PLACED', 'REJECTED', 'WITHDRAWN']
-  if (!status || !validStatuses.includes(status)) {
+  // PLACED is let through this gate only to be refused below in a
+  // sentence that names the award, rather than as a bare validation error.
+  const validStatuses = ['SHORTLISTED', 'REJECTED', 'WITHDRAWN']
+  if (!status || (!validStatuses.includes(status) && status !== 'PLACED')) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}`, field: 'status' } },
       { status: 422 }
@@ -56,6 +61,7 @@ export async function PATCH(
       person: { select: { id: true, name: true } },
       requirement: { select: { id: true, title: true, companyId: true, endClientCompanyId: true } },
       fromCompany: { select: { id: true, name: true } },
+      toCompany: { select: { id: true, name: true } },
     },
   })
 
@@ -83,32 +89,42 @@ export async function PATCH(
     )
   }
 
-  // And a supplier cannot place its own candidate. Placing is the client's
-  // word, written by the award; a vendor marking its own submission PLACED
-  // is the vendor awarding itself the role.
-  if (status === 'PLACED' && !isClient) {
+  // PLACED is not a status anybody sets. It is what the award writes, in
+  // the same transaction as the contract, the order and the billing
+  // dates. This route used to flip it as a bare word from SHORTLISTED,
+  // INTERVIEW or OFFERED and write nothing behind it, so the candidate a
+  // client had just offered read "Placed" and had no contract, no
+  // timesheet and no invoice. Refused for both sides, in a sentence that
+  // names the award: the buyer is pointed at Place, the supplier is told
+  // who presses it. Routing it through the award from here instead would
+  // mean a second caller of a route that needs a rate and a start date
+  // this body does not carry.
+  if (status === 'PLACED') {
+    const buyer = submission.requirement.companyId === caller.company?.id || isClient
     return NextResponse.json(
       {
         error: {
-          code: 'FORBIDDEN',
-          message: 'Only the client can place a candidate. Await their award.',
+          code: 'PLACE_BY_AWARD',
+          message: placeByAward(submission.person.name, buyer, submission.toCompany.name),
+          award: `/api/submissions/${id}/award`,
         },
       },
-      { status: 403 }
+      { status: 409 }
     )
   }
 
   // Check valid transitions
   const transitions: Record<string, string[]> = {
     SUBMITTED: ['SHORTLISTED', 'REJECTED', 'WITHDRAWN'],
-    SHORTLISTED: ['PLACED', 'REJECTED', 'WITHDRAWN'],
+    SHORTLISTED: ['REJECTED', 'WITHDRAWN'],
     // Somebody who is being interviewed, or who has an offer out, is
-    // still somebody who can be hired, passed over or pulled. Leaving
+    // still somebody who can be passed over or pulled — hiring them is
+    // the award's, above. Leaving
     // these two out meant that the moment a client booked a round the
     // candidate could no longer be rejected from this screen at all —
     // and a rejection that cannot be recorded is a reason nobody gets.
-    INTERVIEW: ['PLACED', 'REJECTED', 'WITHDRAWN'],
-    OFFERED: ['PLACED', 'REJECTED', 'WITHDRAWN'],
+    INTERVIEW: ['REJECTED', 'WITHDRAWN'],
+    OFFERED: ['REJECTED', 'WITHDRAWN'],
   }
 
   // A rejection with no reason is a state change with no information in
@@ -163,7 +179,8 @@ export async function PATCH(
           from: submission.status,
           to: status,
         },
-        reversible: status !== 'PLACED', // Placement is not easily reversible
+        // Nothing this route writes is final: PLACED is the award's.
+        reversible: true,
       },
     }),
   ])

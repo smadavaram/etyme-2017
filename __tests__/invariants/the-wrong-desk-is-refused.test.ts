@@ -39,7 +39,10 @@ import { hasPermission } from '@/lib/permissions'
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 const SUBMIT = read('src/app/api/submissions/route.ts')
-const AWARD = read('src/app/api/submissions/[id]/award/route.ts')
+// The award asks its gate through `awardDoor` in lib/award, the same
+// function the lists ask before offering "Place" (2026-09-28), so the
+// refusal and its sentence live there and the route passes the desk in.
+const AWARD = read('src/app/api/submissions/[id]/award/route.ts') + read('src/lib/award.ts')
 const REQUISITIONS = read('src/app/api/requisitions/route.ts')
 const REQUIREMENTS = read('src/app/api/requirements/route.ts')
 
@@ -144,8 +147,13 @@ describe('a route that acts asks which desk is calling, not only which company',
     })
 
     it(`${what} refuses the wrong desk outright rather than warning and proceeding`, () => {
-      expect(source).toMatch(new RegExp(`!hasPermission\\(${DESK}, '${permission}'\\)`))
-      expect(source).toContain('status: 403')
+      // Either the route refuses inline, or it hands the desk to a pure
+      // door that refuses with a 403 — the award's shape.
+      const inline = new RegExp(`!hasPermission\\(${DESK}, '${permission}'\\)`).test(source)
+      const door = new RegExp(`mayHire: hasPermission\\(${DESK}, '${permission}'\\)`).test(source) &&
+        source.includes('if (!f.mayHire)') && source.includes('httpStatus: 403')
+      expect(inline || door).toBe(true)
+      expect(source).toMatch(/status: 403|httpStatus: 403/)
     })
   }
 

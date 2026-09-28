@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { assessFit } from '@/lib/candidate-fit'
+import { awardDoor } from '@/lib/award'
 import { hasPermission } from '@/lib/permissions'
 import { diff, mayChange, said, noticeForSuppliers } from '@/lib/requisition-change'
 import { mayEdit, stageOf } from '@/lib/requisition-stage'
@@ -87,9 +88,20 @@ export async function GET(
         },
       },
       fromCompany: { select: { id: true, name: true } },
+      toCompany: { select: { id: true, name: true } },
     },
     orderBy: { submittedAt: 'asc' },
   })
+
+  // The line the award wrote, per person, and whether this reader may
+  // place each candidate — asked of the same function the award route
+  // refuses on, so "Place" is never offered where the click would fail.
+  const lines = await prisma.sellContract.findMany({
+    where: { requirementId: id },
+    select: { id: true, personId: true },
+  })
+  const lineFor = new Map(lines.map((l) => [l.personId, l.id]))
+  const mayHire = hasPermission(caller.permissions, 'requirements.write')
 
   const now = new Date()
 
@@ -169,6 +181,23 @@ export async function GET(
         kind: s.kind,
         status: s.status,
         submittedAt: s.submittedAt.toISOString(),
+        contractId: lineFor.get(s.personId) ?? null,
+        award: (() => {
+          const door = awardDoor({
+            callerCompanyId: caller.company?.id ?? null,
+            callerCompanyName: caller.company?.name ?? null,
+            mayHire,
+            requirementCompanyId: req.companyId,
+            fromCompanyId: s.fromCompanyId,
+            fromCompanyName: s.fromCompany.name,
+            toCompanyId: s.toCompanyId,
+            toCompanyName: s.toCompany.name,
+            personName: s.person.name,
+            status: s.status,
+            contractId: lineFor.get(s.personId) ?? null,
+          })
+          return { open: door.open, says: door.says }
+        })(),
       })),
       summary: {
         invited: req.invitations.length,
