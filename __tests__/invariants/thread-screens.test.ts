@@ -86,7 +86,7 @@ describe('the door is where the thing is', () => {
 
   it('a supplier is offered a firm by name and told what will happen — they answer, they cannot start', () => {
     expect(REQ_PAGE).toContain('They answer on the same thread; they cannot start one.')
-    expect(REQ_PAGE).toContain('Nobody is on this job yet. Send it to suppliers and you can write to each of them here.')
+    expect(REQ_PAGE).toContain('Nobody is on this role yet. Send it to suppliers and you can write to each of them here.')
   })
 
   it('a candidate row opens a thread with the firm that sent them; the firm that sent them gets an answer box, not a start button', () => {
