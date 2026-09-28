@@ -454,42 +454,42 @@ export const MODULES: ModulePage[] = [
     n: 5,
     title: 'Bills & the three-way check',
     lede:
-      'A supplier’s invoice is paid only when it passes. The three-way check: the hours, the bill, and the contract rate must all agree. ' +
+      'A supplier sends its invoice, and you pay the invoice receipt only when it passes. The three-way check: the hours, the bill, and the contract rate must all agree. ' +
       'Where they do not, nothing is paid and the reason is a sentence.',
     screen: {
       img: '/screens/invoices.png',
-      alt: 'A supplier invoices screen: the outstanding total, an aging breakdown, and a table of supplier invoices with the period, the total and what is paid.',
+      alt: 'An invoice receipts screen: the outstanding total, an aging breakdown, and a table of invoice receipts with the period, the total and what is paid.',
       caption:
-        `The accounts payable clerk at ${NORTHBEND}. Two supplier invoices open, one paid this period, ` +
+        `The accounts payable clerk at ${NORTHBEND}. Two invoice receipts open, one paid this period, ` +
         '$17,400 outstanding and none of it overdue.',
       from: '/dashboard/invoices, what we owe, as the AP clerk',
       capturedAt: '2026-09-28T19:09:20Z',
     },
     capabilities: [
       { t: 'Billed from signed hours', d: 'A supplier bills only from weeks the client already signed.' },
-      { t: 'The three-way check', d: 'Signed hours, the supplier’s invoice, the contract rate. A line with no signed week behind it is never paid.' },
-      { t: 'Room on the order', d: 'A supplier’s invoice past what is left on the order waits for the order to be raised, or a reason with a name on it.' },
-      { t: 'The rate is the contract’s', d: 'A rate that differs from the contract is not waived on a supplier’s invoice. It is a contract change.' },
-      { t: 'Never paid twice', d: 'A week already on another supplier invoice fails the check, and nobody can override it.' },
+      { t: 'The three-way check', d: 'Signed hours, the invoice receipt, the contract rate. A line with no signed week behind it is never paid.' },
+      { t: 'Room on the order', d: 'An invoice receipt past what is left on the order waits for the order to be raised, or a reason with a name on it.' },
+      { t: 'The rate is the contract’s', d: 'A rate that differs from the contract is not waived on an invoice receipt. It is a contract change.' },
+      { t: 'Never paid twice', d: 'A week already on another invoice receipt fails the check, and nobody can override it.' },
       { t: 'Money moves two ways', d: 'A supplier is paid against its invoice. An employee is paid by payroll. Nobody sees a rate above their own.' },
     ],
     complaint: {
       text:
         'Three suppliers bill on three cycles into two inboxes. By the time finance has the quarter assembled, the quarter is over. ' +
-        'Nobody can say which supplier invoice belongs to which signed week.',
+        'Nobody can say which supplier’s invoice belongs to which signed week.',
       whose: 'The finance team, at a company buying through more than one staffing supplier.',
       gloss:
         'Every supplier’s invoice is right by its own lights. Each was built from its own copy of the hours, keyed in again at each level of the chain.',
     },
     does: [
       'The signed week is the receipt. Two companies sign it, and one row of hours travels the whole chain, so the hours the client approved are the hours everybody bills from.',
-      'A supplier’s invoice is checked line by line: a signed week behind each line, hours billed against hours approved, the rate against the contract, and room on the order.',
-      'Where a check fails, the supplier’s invoice is not paid and the screen says which check and why. Some checks take a reason and a name; the missing week and the double billing never do.',
+      'An invoice receipt is checked line by line: a signed week behind each line, hours billed against hours approved, the rate against the contract, and room on the order.',
+      'Where a check fails, the invoice receipt is not paid and the screen says which check and why. Some checks take a reason and a name; the missing week and the double billing never do.',
     ],
     stages: { steps: ['Signed hours', 'Bill', 'Contract rate'], under: 'all three agree, or not paid' },
     looks: [
-      'What is outstanding, how old it is, and a row per supplier invoice with its period, total and what has been paid.',
-      'Open any supplier invoice for the check itself: each test, passed or failed, in a sentence.',
+      'What is outstanding, how old it is, and a row per invoice receipt with its period, total and what has been paid.',
+      'Open any invoice receipt for the check itself: each test, passed or failed, in a sentence.',
       'Open the example program as the AP clerk to see what is waiting on a decision.',
     ],
     refuses: [
@@ -509,7 +509,7 @@ export const MODULES: ModulePage[] = [
       },
     ],
     refusesNote:
-      'Money leaves in two directions. A supplier’s invoice is received and checked against the order behind it. An employee is paid by payroll instead, and sees what they are paid, never what a firm above them charges.',
+      'Money leaves in two directions. A supplier’s invoice is received as an invoice receipt and checked against the order behind it. An employee is paid by payroll instead, and sees what they are paid, never what a firm above them charges.',
     flow: { href: '/docs/client#l1-5', label: 'Approve to pay, from the client’s desk' },
   },
 

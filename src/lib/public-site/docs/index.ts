@@ -110,7 +110,7 @@ export const TIME_AND_MONEY: ReferenceDoc = {
         { t: '2 · It is read before anyone signs', d: 'Over twelve hours a day, over sixty a week, over the job’s hours, or past the contract’s end is flagged and shown first. Flags warn; they never block.' },
         { t: '3 · The client signs', d: 'The manager who owns the work approves it. The person who filed it cannot, and a rejection needs a reason.' },
         { t: '4 · The employer accepts', d: 'The firm that pays the person says what it will pay for. That is a second signature, because it is a different statement. In a chain the signed week goes down it, and each firm accepts it in turn, never before the firm above it has.' },
-        { t: '5 · The supplier invoices', d: 'Only from weeks the client already signed. The same week travels up the chain, and each firm bills it at its own rate.' },
+        { t: '5 · The supplier sends its invoice', d: 'Only from weeks the client already signed. The same week travels up the chain, and each firm bills it at its own rate.' },
         { t: '6 · The supplier’s invoice is matched', d: 'A signed week behind every line, the hours billed against the hours approved, the rate against the contract, and room left on the order.' },
         { t: '7 · Money moves two ways', d: 'A supplier is paid against its matched invoice. An employee is paid by payroll, and sees what they are paid, never a rate above it.' },
       ],

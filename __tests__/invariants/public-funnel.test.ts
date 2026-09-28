@@ -202,22 +202,21 @@ describe('The spend audit is where a lead is captured', () => {
     expect(offer).toContain('the audit page')
     expect(GET_THE_AUDIT.href).toBe('/census')
     expect(offer).toContain('upload your contractor list')
-    // What a supplier sends is its invoice: the party who issues a
-    // document names it (the founder's SAP rule, 2026-09-28). "Bill" is
-    // what a firm sends its own customer.
-    expect(offer).toContain('supplier invoices')
+    // What a firm receives from below is an invoice receipt; what it
+    // issues upward is a bill (CLAUDE.md, 2026-09-28).
+    expect(offer).toContain('invoice receipts')
     expect(offer).toContain('a spreadsheet is fine')
     expect(offer).toContain('five working days')
 
     // Every one of those is something the census really takes: a list of
-    // contractors is its template, one row per contractor; supplier invoices are
+    // contractors is its template, one row per contractor; invoice receipts are
     // its second option; and a spreadsheet opens, whether CSV or Excel.
     expect(CENSUS_COPY.send.optionA.says).toContain('One row per contractor')
-    expect(CENSUS_COPY.send.optionB.says).toContain('supplier invoices')
+    expect(CENSUS_COPY.send.optionB.says).toContain('invoice receipts')
     expect(acceptedKinds()).toEqual(expect.arrayContaining(['CSV', 'XLSX']))
     // And the page the button leads to says the same thing first.
     expect(CENSUS_COPY.standfirst).toMatch(/^Upload your contractor list/)
-    expect(CENSUS_COPY.standfirst).toContain('supplier invoices you hold')
+    expect(CENSUS_COPY.standfirst).toContain('invoice receipts you hold')
 
     // One wording wherever the audit is offered: the menu's line is the
     // funnel's, the close band draws the funnel's, and the riddle is gone.

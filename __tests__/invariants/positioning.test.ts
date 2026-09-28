@@ -928,7 +928,7 @@ describe('Every claim about a screen is a thing that screen does', () => {
     }
   })
 
-  it('says the program dashboard shows this month from rates, and names the supplier invoices screen for what was billed', () => {
+  it('says the program dashboard shows this month from rates, and names the invoice receipts screen for what was billed', () => {
     // The dashboard's spend is a forward estimate — a bill rate times a
     // flat 160-hour month — and `lib/program-spend` says so out loud
     // beside the number. A page claiming that figure came off matched
@@ -938,7 +938,7 @@ describe('Every claim about a screen is a thing that screen does', () => {
     const spendAnswer = FOUR_ANSWERS.map((a) => a.etyme).find((line) => /spend|month|billed/i.test(line))
     expect(spendAnswer, 'the page answers the spend question').toBeTruthy()
     expect(spendAnswer).toContain('Program screen')
-    expect(spendAnswer).toContain('Supplier invoices screen')
+    expect(spendAnswer).toContain('Invoice receipts screen')
     // And it does not put the match behind the dashboard's figure.
     expect(spendAnswer, 'the dashboard figure is not from matched bills').not.toMatch(/matched/i)
   })
@@ -2429,9 +2429,9 @@ function inOurWords(text: string): string {
   let t = text
   for (const m of MODULES) for (const r of m.refuses) t = t.split(r.says).join(' ')
   // A product screen named by its own title is the product's word. The
-  // client's own screen for what its suppliers send is titled "Supplier
-  // invoices", because the supplier issues them (lib/page-framing).
-  t = t.replace(/\bthe Supplier invoices screen\b/g, ' ')
+  // client's own screen for what its suppliers send is titled "Invoice
+  // receipts": what a firm receives from below (lib/page-framing).
+  t = t.replace(/\bthe Invoice receipts screen\b/g, ' ')
   // "By role" is the reader's own job, heading the Solutions menu.
   t = t.replace(/\bBy role\b/g, ' ')
   // "A role for every seat" is an access role, on the security page.
@@ -2447,15 +2447,22 @@ function inOurWords(text: string): string {
  * the page's own voice, where "bill" is what a firm sends its customer
  * and "invoice" is refused.
  */
-/** "Supplier bill" as a document, which is the supplier's invoice; not "a supplier bills", the verb. */
-const SUPPLIER_BILL_AS_NOUN = /\bsupplier(?:’s|'s) bills?\b|\bsuppliers’ bills\b|\bsupplier bill\b|\bsupplier bills (?:you hold|and|open|with|a client)\b/gi
+/**
+ * What a supplier sends, named as a document by anything but "invoice
+ * receipt": "supplier bill" or "supplier invoice". Not "a supplier
+ * bills", the verb, and not "the supplier's invoice" or "its invoice",
+ * which a sentence may still say (CLAUDE.md, 2026-09-28: what a firm
+ * receives from below is an invoice receipt; what it issues upward is a
+ * bill).
+ */
+const SUPPLIER_DOCUMENT_MISNAMED = /\bsupplier(?:’s|'s) bills?\b|\bsuppliers’ bills\b|\bsupplier bill\b|\bsupplier bills (?:you hold|and|open|with|a client)\b|\bsupplier invoices?\b/gi
 
 function supplierSide(text: string): string {
   let t = inOurWords(text)
   for (const kept of [
     /\binvoice[- ]receipts?\b/gi,
     /\b(?:its|its own|its matched|the sub’s|a sub-vendor’s own|the sub-vendor’s own)\s+invoice\b/gi,
-    /\bsupplier(?:’s)?\s+invoices?\b/gi,
+    /\bsupplier’s\s+invoice\b/gi,
     /\bthe invoice a supplier is paid on\b/gi,
     /\bnever invoiced\b/gi,
   ]) t = t.replace(kept, ' ')
@@ -2535,8 +2542,8 @@ describe('Plain words on public pages, defined once', () => {
   it('the set-aside for a supplier’s invoice is narrow: a bill to a customer called an invoice is still caught', () => {
     for (const kept of [
       'Issues its invoice', 'Invoice receipt', 'the supplier’s invoice, received and matched',
-      'order ↔ receipt ↔ supplier invoice', 'payroll, or the sub’s invoice',
-      'A supplier is paid against its matched invoice.', '5 · The supplier invoices',
+      'order ↔ receipt ↔ invoice receipt', 'payroll, or the sub’s invoice',
+      'A supplier is paid against its matched invoice.', '6 · The supplier’s invoice is matched',
     ]) {
       expect(supplierSideSetAside(kept), kept).not.toMatch(/invoic/i)
     }
@@ -2570,30 +2577,32 @@ describe('Plain words on public pages, defined once', () => {
   it('the legend under every drawing ends on a whole sentence, never cut mid-word', () => {
     for (const { doc } of PARTIES) {
       const legend = doc.html.match(/Labeled arrow[^<]*/)?.[0] ?? ''
-      expect(legend, doc.slug).toContain('job request, submission, order, timesheet receipt, bill, supplier invoice.')
+      expect(legend, doc.slug).toContain('job request, submission, order, timesheet receipt, bill, invoice receipt.')
       expect(legend.trim(), doc.slug).toMatch(/[.]$/)
     }
   })
 
-  it('the spend audit asks for the supplier invoices a client holds, because the supplier issued them', () => {
+  it('the spend audit asks for the invoice receipts a client holds, what it received from its suppliers', () => {
     for (const said of [GET_THE_AUDIT.d, JSON.stringify(CENSUS_COPY)]) {
-      expect(said).toContain('supplier invoices')
+      expect(said).toContain('invoice receipts')
       expect(supplierSide(said), said.slice(0, 60)).not.toMatch(/\binvoic/i)
     }
   })
 
-  it('no public page calls what a supplier sends a bill', () => {
-    // Coordinator's ruling on the founder's SAP rule, 2026-09-28: "bill,
-    // never invoice" governs only what a firm sends its customer.
+  it('what a supplier sends is an invoice receipt on every public page, never a supplier bill or a supplier invoice', () => {
+    // CLAUDE.md, 2026-09-28: what a firm receives from below is an
+    // invoice receipt; what it issues upward is a bill. A sentence may
+    // still say the supplier sends its invoice.
     for (const [route, text] of everyPublicPage()) {
-      expect(text.match(SUPPLIER_BILL_AS_NOUN) ?? [], route).toEqual([])
+      expect(text.match(SUPPLIER_DOCUMENT_MISNAMED) ?? [], route).toEqual([])
     }
-    // The noun is caught; the verb is not — a supplier still bills.
-    for (const noun of ['the supplier bills you hold', 'A supplier’s bill is paid', 'a row per supplier bill', 'Two supplier bills open']) {
-      expect(noun.match(SUPPLIER_BILL_AS_NOUN), noun).not.toBeNull()
+    for (const noun of ['the supplier bills you hold', 'A supplier’s bill is paid', 'a row per supplier bill',
+      'Two supplier invoices open', 'the supplier invoices you hold']) {
+      expect(noun.match(SUPPLIER_DOCUMENT_MISNAMED), noun).not.toBeNull()
     }
-    for (const verb of ['Each supplier bills, and you pay what matched', 'A supplier bills only from weeks the client already signed.']) {
-      expect(verb.match(SUPPLIER_BILL_AS_NOUN), verb).toBeNull()
+    for (const said of ['Each supplier bills, and you pay what matched', 'A supplier bills only from weeks the client already signed.',
+      'A supplier sends its invoice', 'Every supplier’s invoice is right by its own lights.', 'Two invoice receipts open']) {
+      expect(said.match(SUPPLIER_DOCUMENT_MISNAMED), said).toBeNull()
     }
   })
 
