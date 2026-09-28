@@ -5,6 +5,8 @@ import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { mayForward, onwardRate, mirrorRole, type Via } from '@/lib/forwarding'
 import { clientOf, takeHold } from '@/lib/holds'
+import { whyNotOpen } from '../../words'
+import { landingFor } from './landing'
 
 /**
  * POST /api/submissions/:id/forward
@@ -49,7 +51,7 @@ export async function POST(
       requirement: {
         select: {
           id: true, title: true, companyId: true, endClientCompanyId: true,
-          openingId: true, skills: true, location: true,
+          openingId: true, skills: true, location: true, mirroredFromId: true,
         },
       },
     },
@@ -103,56 +105,176 @@ export async function POST(
     }
     toName = destination.name
 
-    // The destination's own record of the role.
+    // ── Which of the destination's roles it lands on ──────────────────
     //
-    // A submission is unique on (requirement, person) — the rule that stops
-    // one name reaching a client twice — so the hop cannot reuse the
-    // sender's row. 2017 called these sub-jobs and pointed them at a
-    // parent; this mirrors the role onto the destination's books and
-    // remembers where it came from.
-    const mirrored = mirrorRole(
-      {
-        id: submission.requirement.id,
-        title: submission.requirement.title,
-        skills: submission.requirement.skills,
-        location: submission.requirement.location,
+    // The role the destination actually sent this firm, where there is
+    // one — the requisition it raised, had approved and released to us.
+    // It used to be a fresh copy of our own record written onto the
+    // destination's books every time, so a prime's candidate never
+    // reached the client's requisition: it sat on a role the client had
+    // not raised, beside the one it had. `landing.ts` says why, in order.
+    const ancestors: Array<{ id: string; companyId: string }> = []
+    let up = submission.requirement.mirroredFromId
+    for (let hop = 0; up && hop < 5; hop++) {
+      const r = await prisma.requirement.findUnique({
+        where: { id: up },
+        select: { id: true, companyId: true, mirroredFromId: true },
+      })
+      if (!r) break
+      ancestors.push({ id: r.id, companyId: r.companyId })
+      up = r.mirroredFromId
+    }
+    // Every role the destination sent us that we have not turned down.
+    // A closed or expired invitation still names the role — landing there
+    // and being told it is filled beats a copy nobody will ever read.
+    const sent = await prisma.requirementInvitation.findMany({
+      where: {
+        toCompanyId: caller.company!.id,
+        status: { not: 'DECLINED' },
+        requirement: { companyId: destination.id },
       },
-      destination.id
-    )
-
-    const role =
-      (await prisma.requirement.findFirst({
-        where: { companyId: destination.id, mirroredFromId: submission.requirementId },
-        select: { id: true },
-      })) ??
-      (await prisma.requirement.create({
-        data: {
-          companyId: mirrored.companyId,
-          title: mirrored.title,
-          skills: mirrored.skills,
-          location: mirrored.location,
-          // Carried, not inferred. Dropping it here made every forwarded
-          // role look like a direct placement one hop down, and tenure
-          // then aggregated against the prime instead of the client.
-          endClientCompanyId: mirrored.endClientCompanyId,
-          status: 'OPEN',
-          // Nobody approves a role that arrives from a supplier — the
-          // budget was signed off wherever the demand started, not here.
-          //
-          // Left at the default of DRAFT, which is what happened, the
-          // award route's own approval gate then refused every single
-          // forwarded candidate with "Requisition is draft — nobody can
-          // be placed against it yet". So a chain could be built all the
-          // way to the client and then never closed. The manual
-          // requirement path already sets this and says why; the
-          // forwarding path is the same case and was missed.
-          approvalState: 'AUTO_APPROVED',
-          source: 'NETWORK',
-          mirroredFromId: mirrored.mirroredFromRequirementId,
-          openingId: submission.requirement.openingId,
+      select: { requirementId: true, requirement: { select: { title: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+    const landing = landingFor({
+      destinationName: destination.name,
+      destinationId: destination.id,
+      source: { id: submission.requirement.id, title: submission.requirement.title },
+      ancestors,
+      sent: sent.map((i) => ({ requirementId: i.requirementId, title: i.requirement.title })),
+      requested: typeof body.requirementId === 'string' ? body.requirementId : null,
+    })
+    if (landing.kind === 'REFUSE') {
+      return NextResponse.json(
+        { error: { code: 'NOT_SENT_TO_YOU', message: landing.says } },
+        { status: 403 }
+      )
+    }
+    if (landing.kind === 'CHOOSE') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'WHICH_ROLE',
+            message: landing.says,
+            field: 'requirementId',
+            options: landing.options,
+          },
         },
-        select: { id: true },
-      }))
+        { status: 409 }
+      )
+    }
+
+    let role: { id: string }
+    if (landing.kind === 'REQUISITION') {
+      // The destination's own requisition, so its own door applies: open,
+      // not paused, and one name once. The same words POST
+      // /api/submissions uses, because it is the same door reached from
+      // one rung down.
+      const target = await prisma.requirement.findUniqueOrThrow({
+        where: { id: landing.requirementId },
+        select: {
+          id: true, title: true, status: true, approvalState: true, cancelReason: true,
+          company: { select: { name: true } },
+        },
+      })
+      const shut = whyNotOpen({
+        title: target.title,
+        status: target.status,
+        approvalState: target.approvalState,
+        buyerName: target.company.name,
+        cancelReason: target.cancelReason,
+      })
+      if (shut) return NextResponse.json({ error: shut }, { status: 409 })
+      if (target.approvalState === 'PENDING_APPROVAL') {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'PAUSED',
+              message:
+                `${target.title} is paused while ${target.company.name} re-approves the money. ` +
+                'You will be told when it is open again.',
+            },
+          },
+          { status: 409 }
+        )
+      }
+      // First in wins, and it is news rather than a fault: the same person
+      // already reached this role, from us or from somebody else.
+      const already = await prisma.submission.findFirst({
+        where: { requirementId: target.id, personId: submission.personId },
+        select: { fromCompanyId: true },
+      })
+      if (already) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'ALREADY_SUBMITTED',
+              message:
+                already.fromCompanyId === caller.company!.id
+                  ? `You already put ${submission.person.name} forward for ${target.title}.`
+                  : `${submission.person.name} has already been put forward for ${target.title} by another firm. First in wins.`,
+            },
+          },
+          { status: 409 }
+        )
+      }
+      role = { id: target.id }
+      // Answering a role accepts the invitation, as submitting does.
+      await prisma.requirementInvitation.updateMany({
+        where: { requirementId: target.id, toCompanyId: caller.company!.id, status: 'SENT' },
+        data: { status: 'ACCEPTED' },
+      })
+    } else {
+      // Nothing on the destination's books was ever sent to us, so the
+      // role is written there as a copy of ours — the case the copy was
+      // built for. The end client travels with it: it was read and then
+      // not passed, so every copy said "direct placement".
+      const mirrored = mirrorRole(
+        {
+          id: submission.requirement.id,
+          title: submission.requirement.title,
+          skills: submission.requirement.skills,
+          location: submission.requirement.location,
+          endClientCompanyId: submission.requirement.endClientCompanyId,
+          companyId: submission.requirement.companyId,
+        },
+        destination.id
+      )
+
+      role =
+        (await prisma.requirement.findFirst({
+          where: { companyId: destination.id, mirroredFromId: submission.requirementId },
+          select: { id: true },
+        })) ??
+        (await prisma.requirement.create({
+          data: {
+            companyId: mirrored.companyId,
+            title: mirrored.title,
+            skills: mirrored.skills,
+            location: mirrored.location,
+            // Carried, not inferred. Dropping it here made every forwarded
+            // role look like a direct placement one hop down, and tenure
+            // then aggregated against the prime instead of the client.
+            endClientCompanyId: mirrored.endClientCompanyId,
+            status: 'OPEN',
+            // Nobody approves a role that arrives from a supplier — the
+            // budget was signed off wherever the demand started, not here.
+            //
+            // Left at the default of DRAFT, which is what happened, the
+            // award route's own approval gate then refused every single
+            // forwarded candidate with "Requisition is draft — nobody can
+            // be placed against it yet". So a chain could be built all the
+            // way to the client and then never closed. The manual
+            // requirement path already sets this and says why; the
+            // forwarding path is the same case and was missed.
+            approvalState: 'AUTO_APPROVED',
+            source: 'NETWORK',
+            mirroredFromId: mirrored.mirroredFromRequirementId,
+            openingId: submission.requirement.openingId,
+          },
+          select: { id: true },
+        }))
+    }
 
     // The hop is a submission of its own. Same person, a new sender, a new
     // rate, the destination's role — and a link back, so the chain can be

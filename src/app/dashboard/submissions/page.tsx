@@ -596,6 +596,10 @@ function SendOnModal({
   const [rate, setRate] = useState(String(submission.rate / 100))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Where the company chosen sent us more than one role and nothing on
+  // our record says which, the route asks — and these are its options.
+  const [roles, setRoles] = useState<{ requirementId: string; title: string }[]>([])
+  const [roleId, setRoleId] = useState('')
 
   useEffect(() => {
     fetch('/api/companies')
@@ -627,9 +631,19 @@ function SendOnModal({
           toCompanyId: via === 'ONWARD' ? toCompanyId : null,
           email: via === 'EMAIL' ? email : null,
           rate: onwardCents,
+          ...(via === 'ONWARD' && roleId ? { requirementId: roleId } : {}),
         }),
       })
-      const body = await readJson(res)
+      // "Which role?" carries its options on the error, and those are the
+      // next question, so the body is read here; anything without a
+      // message of its own goes through readJson for its words.
+      const copy = res.clone()
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok || !body?.data) {
+        if (body.error?.code === 'WHICH_ROLE') setRoles(body.error.options ?? [])
+        if (body.error?.message) throw new Error(body.error.message)
+        await readJson(copy)
+      }
       onSent(
         body.data?.message ??
           `${submission.person.name} sent on to ${body.data?.to ?? 'them'}.`
@@ -640,7 +654,7 @@ function SendOnModal({
     }
   }
 
-  const ready = via === 'ONWARD' ? toCompanyId !== '' : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  const ready = via === 'ONWARD' ? toCompanyId !== '' && (roles.length === 0 || roleId !== '') : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -671,7 +685,7 @@ function SendOnModal({
               <label className="eyebrow mb-1 block">Send to</label>
               <select
                 value={toCompanyId}
-                onChange={(e) => setToCompanyId(e.target.value)}
+                onChange={(e) => { setToCompanyId(e.target.value); setRoles([]); setRoleId('') }}
                 className="w-full rounded-md border border-etyme-rule px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
               >
                 <option value="">Pick a company…</option>
@@ -681,6 +695,21 @@ function SendOnModal({
                   </option>
                 ))}
               </select>
+              {roles.length > 0 && (
+                <>
+                  <label className="eyebrow mb-1 mt-3 block">For which of their roles</label>
+                  <select
+                    value={roleId}
+                    onChange={(e) => setRoleId(e.target.value)}
+                    className="w-full rounded-md border border-etyme-rule px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
+                  >
+                    <option value="">Pick the role…</option>
+                    {roles.map((r) => (
+                      <option key={r.requirementId} value={r.requirementId}>{r.title}</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
           ) : (
             <div>
@@ -1517,12 +1546,16 @@ export default function SubmissionsPage() {
                   startDate,
                 }),
               })
-              // A safe parse rather than readJson: a blocked award lists
+              // Read here rather than with readJson: a blocked award lists
               // the checks that failed, and those are the sentence.
+              // Anything without a message of its own goes through
+              // readJson for its words.
+              const copy = res.clone()
               const body = await res.json().catch(() => ({}) as any)
-              if (!res.ok) {
+              if (!res.ok || !body?.data) {
                 const checks = (body.error?.checks ?? []).map((x: any) => x.reason).join(' · ')
-                throw new Error(`${body.error?.message ?? 'Could not place them'}${checks ? ` — ${checks}` : ''}`)
+                if (body.error?.message) throw new Error(`${body.error.message}${checks ? ` — ${checks}` : ''}`)
+                await readJson(copy)
               }
               const notes: string[] = body.data?.notes ?? []
               setSaid([body.data?.message, ...notes].filter(Boolean).join(' '))
