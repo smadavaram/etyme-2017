@@ -161,7 +161,11 @@ follow:
   appear as the word procurement searches for.~~ **Superseded the same
   day: "vendor management system" is banned on public pages** (founder,
   2026-09-28, via the go-to-market review). The category is
-  "enterprise contingent workforce management" and nothing else.
+  "enterprise contingent workforce management" and nothing else. The
+  bare acronym **VMS stays** in exactly two uses: the founder's label
+  for the choice ("Etyme as VMS software" beside "Etyme as MSP
+  provider"), because a buyer knows those two words, and the buyer's
+  own systems ("your ATS, your VMS"). It never names Etyme's category.
 - **Plain words on public pages, defined once. Decided by the founder,
   2026-09-28.** The page says *job*, not role or requisition; *job
   request* where the object is meant; *bill*, never invoice, with the
