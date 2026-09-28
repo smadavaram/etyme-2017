@@ -17,7 +17,9 @@ import { orderedOfSupplier } from '@/lib/supplier-desks'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { submissionKind, tellEmployee, blockedSays } from './kind'
+import { networkOffer, adoptedKinds, tellAdoptedPerson, tellSupplier, supplierWallSays, ourBarSays } from './adopt'
 import { awardDoor } from '@/lib/award'
+import { maySeeOutside } from '@/lib/walls'
 
 /**
  * POST /api/submissions
@@ -184,6 +186,9 @@ export async function POST(request: NextRequest) {
     select: {
       id: true, companyId: true, status: true, approvalState: true, title: true, cancelReason: true,
       endClientCompanyId: true, payerCompanyId: true, openToNetwork: true,
+      // For the prime's own record of this role, where it puts forward
+      // somebody its network offered it. See `./adopt`.
+      skills: true, openingId: true,
       // For the consent text: enough detail that somebody can answer
       // without a phone call.
       location: true, startDate: true,
@@ -487,6 +492,14 @@ export async function POST(request: NextRequest) {
       // person here for another 12 days", and the like. There is no such
       // sentence for an employee, because none of it applies.
       let representationNote: string | undefined
+      // Set where the person comes from a supplier on our network rather
+      // than from a listing we hold. See `./adopt`.
+      let adopted: {
+        supplierId: string
+        supplierName: string
+        payRate: number
+        kinds: ReturnType<typeof adoptedKinds>
+      } | null = null
 
       if (employedByUs) {
         // An employer may skip the listing. It may not skip a block.
@@ -545,95 +558,203 @@ export async function POST(request: NextRequest) {
         })
 
         if (!benchListing) {
-          item.status = 'error'
-          item.error = 'No active bench listing from this company. The consultant must grant a listing first.'
-          results.push(item)
-          continue
-        }
+          // ── Offered by our network ─────────────────────────────────
+          //
+          // We hold no listing on them. That used to end here, with "the
+          // consultant must grant a listing first" — said to a prime
+          // reading this person on Bench → Your network, where a supplier
+          // had offered them, on a listing they had granted that
+          // supplier. The consent exists; it is the supplier's, and the
+          // chain already rests on it when the supplier submits to us and
+          // we send them on. So it is read here, and every wall is asked
+          // about the supplier whose consent it is. `./adopt` says why.
+          const offers = await prisma.benchListing.findMany({
+            where: { consultantId: consultant.id, companyId: { not: fromCompanyId } },
+            select: {
+              companyId: true, tier: true, state: true, revokedAt: true,
+              company: { select: { name: true } },
+            },
+          })
+          const partners = await networkOf(fromCompanyId)
+          const offer = networkOffer({
+            personName: person.name,
+            ourName: vendorName,
+            offers: offers.map((o) => ({
+              companyId: o.companyId,
+              companyName: o.company.name,
+              tier: o.tier,
+              state: o.state,
+              revokedAt: o.revokedAt,
+              onOurNetwork: partners.has(o.companyId),
+            })),
+            requested: typeof body.offeredBy === 'string' ? body.offeredBy : null,
+            payRateCents: typeof body.payRate === 'number' ? body.payRate : null,
+          })
 
-        // And has the consultant actually agreed to it.
-        //
-        // The listing existing was never the point. `grantedAt` used to be
-        // stamped the moment a vendor created the row, so this check
-        // passed on a listing nobody had ever been asked about — which
-        // made CLAUDE.md's firmest invariant true in letter and empty in
-        // substance. A listing now starts INVITED and only the consultant
-        // moves it.
-        const consented = mayMarket({ state: benchListing.state as State, revokedAt: benchListing.revokedAt })
-        if (!consented.ok) {
-          item.status = 'error'
-          item.error = consented.reason
-          results.push(item)
-          continue
-        }
-
-        // 2b. May this vendor put this person in front of this client at all?
-        //
-        // A listing is permission to market somebody. It is not permission to
-        // send them anywhere, and the difference is what stops a consultant
-        // being burned: two vendors submitting the same name to the same
-        // client in the same week gets both rejected, and the person never
-        // finds out why.
-        //
-        // The refusal never says who else is involved. A consultant is on ten
-        // benches and that is nobody's business but theirs.
-        const verdict = await maySubmit({
-          personId,
-          companyId: fromCompanyId,
-          clientCompanyId,
-        })
-
-        if (!verdict.ok) {
-          item.status = verdict.code === 'HELD_ELSEWHERE' ? 'held' : 'error'
-          item.code = verdict.code
-          item.error = verdict.message
-
-          // Somebody who wants to be asked gets asked, here, once.
-          if (verdict.code === 'ASK_FIRST') {
-            const asked = await askFor({
-              personId,
-              companyId: fromCompanyId,
-              clientCompanyId,
-              requirementId,
-            })
-            if (asked) {
-              void emit({
-                type: 'representation.requested',
-                companyId: fromCompanyId,
-                subjectType: 'Representation',
-                subjectId: asked.id,
-                actorPersonId: submitter?.id ?? null,
-                payload: { personId, clientCompanyId, requirementId },
+          let refusedSays: string | null = null
+          let refusedCode: string | null = null
+          let isHeld = false
+          // The same wall Bench → Your network puts up before it shows
+          // anybody: a firm that closed its door to other firms' people
+          // does not reach them through this one instead.
+          const outside = maySeeOutside({
+            posture: caller.company?.outsideAccess ?? 'NAMED_ONLY',
+            permissions: caller.permissions,
+          })
+          if (offer.ok && !outside.ok) {
+            refusedSays = outside.reason
+            refusedCode = 'OUTSIDE_CLOSED'
+          } else if (!offer.ok) {
+            refusedSays = offer.says
+            refusedCode = offer.code
+            if (offer.options) item.options = offer.options
+          } else {
+            const wall = supplierWallSays(
+              await maySubmit({ personId, companyId: offer.offeredBy.companyId, clientCompanyId }),
+              { supplierName: offer.offeredBy.companyName, personName: person.name, clientName }
+            )
+            const ourBar = wall
+              ? null
+              : await prisma.blacklist.findFirst({
+                  where: {
+                    companyId: fromCompanyId,
+                    targetType: 'PERSON',
+                    targetId: personId,
+                    liftedAt: null,
+                    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+                  },
+                  select: { id: true },
+                })
+            if (wall) {
+              refusedSays = wall.says
+              refusedCode = wall.code
+              isHeld = wall.held
+            } else if (ourBar) {
+              refusedSays = ourBarSays()
+              refusedCode = 'ON_OUR_DNR_LIST'
+            } else {
+              const supplierEmploys = await prisma.context.findFirst({
+                where: {
+                  personId,
+                  companyId: offer.offeredBy.companyId,
+                  type: 'EMPLOYEE',
+                  revokedAt: null,
+                  suspendedAt: null,
+                  OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+                },
+                select: { id: true },
               })
-              void notify({
-                personId,
-                type: 'SUBMISSION',
-                title: 'An agency wants to put you forward',
-                body: `${vendorName} would like to submit you to ${clientName} for ${requirement.title}. They cannot until you say yes.`,
-                entityId: asked.id,
-                data: { representationId: asked.id, clientCompanyId, requirementId },
-              })
+              adopted = {
+                supplierId: offer.offeredBy.companyId,
+                supplierName: offer.offeredBy.companyName,
+                payRate: body.payRate as number,
+                kinds: adoptedKinds({ employsThem: supplierEmploys !== null, listingTier: 'MARKETING' }),
+              }
             }
           }
 
-          // A refused submission is still a read of somebody's data, and
-          // CLAUDE.md says refusals are logged too.
-          await prisma.accessLog.create({
-            data: {
-              subjectId: personId,
-              actorCompanyId: fromCompanyId,
-              action: 'SUBMIT',
-              allowed: false,
-              reason: verdict.message,
-            },
+          if (refusedSays) {
+            item.status = isHeld ? 'held' : 'error'
+            item.code = refusedCode
+            item.error = refusedSays
+            await prisma.accessLog.create({
+              data: {
+                subjectId: personId,
+                actorCompanyId: fromCompanyId,
+                action: 'SUBMIT',
+                allowed: false,
+                reason: refusedSays,
+              },
+            })
+            results.push(item)
+            continue
+          }
+        } else {
+
+          // And has the consultant actually agreed to it.
+          //
+          // The listing existing was never the point. `grantedAt` used to be
+          // stamped the moment a vendor created the row, so this check
+          // passed on a listing nobody had ever been asked about — which
+          // made CLAUDE.md's firmest invariant true in letter and empty in
+          // substance. A listing now starts INVITED and only the consultant
+          // moves it.
+          const consented = mayMarket({ state: benchListing.state as State, revokedAt: benchListing.revokedAt })
+          if (!consented.ok) {
+            item.status = 'error'
+            item.error = consented.reason
+            results.push(item)
+            continue
+          }
+
+          // 2b. May this vendor put this person in front of this client at all?
+          //
+          // A listing is permission to market somebody. It is not permission to
+          // send them anywhere, and the difference is what stops a consultant
+          // being burned: two vendors submitting the same name to the same
+          // client in the same week gets both rejected, and the person never
+          // finds out why.
+          //
+          // The refusal never says who else is involved. A consultant is on ten
+          // benches and that is nobody's business but theirs.
+          const verdict = await maySubmit({
+            personId,
+            companyId: fromCompanyId,
+            clientCompanyId,
           })
 
-          results.push(item)
-          continue
-        }
+          if (!verdict.ok) {
+            item.status = verdict.code === 'HELD_ELSEWHERE' ? 'held' : 'error'
+            item.code = verdict.code
+            item.error = verdict.message
 
-        listing = benchListing
-        representationNote = verdict.note
+            // Somebody who wants to be asked gets asked, here, once.
+            if (verdict.code === 'ASK_FIRST') {
+              const asked = await askFor({
+                personId,
+                companyId: fromCompanyId,
+                clientCompanyId,
+                requirementId,
+              })
+              if (asked) {
+                void emit({
+                  type: 'representation.requested',
+                  companyId: fromCompanyId,
+                  subjectType: 'Representation',
+                  subjectId: asked.id,
+                  actorPersonId: submitter?.id ?? null,
+                  payload: { personId, clientCompanyId, requirementId },
+                })
+                void notify({
+                  personId,
+                  type: 'SUBMISSION',
+                  title: 'An agency wants to put you forward',
+                  body: `${vendorName} would like to submit you to ${clientName} for ${requirement.title}. They cannot until you say yes.`,
+                  entityId: asked.id,
+                  data: { representationId: asked.id, clientCompanyId, requirementId },
+                })
+              }
+            }
+
+            // A refused submission is still a read of somebody's data, and
+            // CLAUDE.md says refusals are logged too.
+            await prisma.accessLog.create({
+              data: {
+                subjectId: personId,
+                actorCompanyId: fromCompanyId,
+                action: 'SUBMIT',
+                allowed: false,
+                reason: verdict.message,
+              },
+            })
+
+            results.push(item)
+            continue
+          }
+
+          listing = benchListing
+          representationNote = verdict.note
+        }
       }
 
       // 3. Check for duplicate — unique on (requirementId, personId)
@@ -659,7 +780,62 @@ export async function POST(request: NextRequest) {
       // yourself several screens above — and meant the wrong thing
       // besides. INTERNAL is about the person, not the recipient. See
       // `./kind`.
-      const kind = submissionKind({ employedByUs, listingTier: listing?.tier ?? null })
+      const kind = adopted
+        ? adopted.kinds.ours
+        : submissionKind({ employedByUs, listingTier: listing?.tier ?? null })
+
+      // 4b. The rung below, where the person came from our network.
+      //
+      // The award buys from whoever is on the hop below, so it is written
+      // here, with ours: the supplier to us, on our own record of this
+      // role, at what we say we pay them, already sent on. First in wins
+      // on it too — somebody another firm already put forward to us on
+      // that record is theirs, and is sent on from Submissions.
+      let ourRole: { id: string } | null = null
+      let reuseBelow: string | null = null
+      if (adopted) {
+        ourRole =
+          (await prisma.requirement.findFirst({
+            where: { companyId: fromCompanyId, mirroredFromId: requirementId },
+            select: { id: true },
+          })) ??
+          (await prisma.requirement.create({
+            data: {
+              companyId: fromCompanyId,
+              title: requirement.title,
+              skills: requirement.skills,
+              location: requirement.location,
+              // Whose site it is, carried, never inferred: tenure is the
+              // person's at the client, and a null here reads as direct.
+              endClientCompanyId: clientCompanyId,
+              status: 'OPEN',
+              // The client's own chain approved the money; this is our
+              // record of its role, not a new requisition. Left at DRAFT
+              // the award would refuse the hop below.
+              approvalState: 'AUTO_APPROVED',
+              source: 'NETWORK',
+              mirroredFromId: requirementId,
+              openingId: requirement.openingId,
+              // No band. Rate bands live on an invitation, never on a
+              // requirement another firm could read.
+            },
+            select: { id: true },
+          }))
+        const below = await prisma.submission.findUnique({
+          where: { requirementId_personId: { requirementId: ourRole.id, personId } },
+          select: { id: true, fromCompanyId: true },
+        })
+        if (below && below.fromCompanyId !== adopted.supplierId) {
+          item.status = 'duplicate'
+          item.error =
+            `${person.name} was already put forward to you for this role by another firm. First in wins: ` +
+            'send theirs on from Submissions.'
+          item.existingSubmissionId = below.id
+          results.push(item)
+          continue
+        }
+        reuseBelow = below?.id ?? null
+      }
 
       // 5. Create the submission, with the CV that is current right now.
       //
@@ -671,17 +847,46 @@ export async function POST(request: NextRequest) {
         select: { id: true, label: true },
       })
 
-      const submission = await prisma.submission.create({
-        data: {
-          requirementId,
-          personId,
-          fromCompanyId,
-          toCompanyId,
-          kind,
-          rate,
-          status: 'SUBMITTED',
-          resumeId: cv?.id ?? null,
-        },
+      const submission = await prisma.$transaction(async (tx) => {
+        // The hop below and ours, together or not at all: a hop below
+        // with nothing above it is a supplier's submission nobody made.
+        let parentSubmissionId: string | null = null
+        if (adopted && ourRole) {
+          parentSubmissionId =
+            reuseBelow ??
+            (
+              await tx.submission.create({
+                data: {
+                  requirementId: ourRole.id,
+                  personId,
+                  fromCompanyId: adopted.supplierId,
+                  toCompanyId: fromCompanyId,
+                  kind: adopted.kinds.below,
+                  rate: adopted.payRate,
+                  status: 'SUBMITTED',
+                  resumeId: cv?.id ?? null,
+                },
+                select: { id: true },
+              })
+            ).id
+          await tx.submission.update({
+            where: { id: parentSubmissionId },
+            data: { forwardedAt: new Date(), forwardedVia: 'ONWARD', forwardedById: submitter?.id ?? null },
+          })
+        }
+        return tx.submission.create({
+          data: {
+            requirementId,
+            personId,
+            fromCompanyId,
+            toCompanyId,
+            kind,
+            rate,
+            status: 'SUBMITTED',
+            resumeId: cv?.id ?? null,
+            parentSubmissionId,
+          },
+        })
       })
 
       // Putting somebody forward is the answer to the invitation. The
@@ -712,12 +917,71 @@ export async function POST(request: NextRequest) {
         ? null
         : await takeHold({
             personId,
-            companyId: fromCompanyId,
+            // The firm whose listing it is. Where a supplier offered them
+            // to us, the representation is the supplier's, exactly as when
+            // a supplier submits to us and we send them on.
+            companyId: adopted?.supplierId ?? fromCompanyId,
             clientCompanyId,
             requirementId,
           })
 
-      if (held) {
+      if (adopted) {
+        // Told by us, with the supplier named: the person knows both
+        // firms, and is never the one kept in the dark. No consent ask —
+        // the consent is theirs to the supplier, and asking again in our
+        // name would be a second firm asking for a permission already
+        // given to somebody else.
+        if (held) item.heldUntil = held.expiresAt.toISOString().slice(0, 10)
+        await notify({
+          personId,
+          type: 'SUBMISSION',
+          title: `${vendorName} put you forward to ${clientName}`,
+          body: tellAdoptedPerson({
+            ourName: vendorName,
+            supplierName: adopted.supplierName,
+            clientName,
+            roleTitle: requirement.title,
+          }),
+          entityId: submission.id,
+          data: { submissionId: submission.id, clientCompanyId, requirementId },
+        })
+        const supplierDesk = await prisma.context.findMany({
+          where: {
+            companyId: adopted.supplierId,
+            revokedAt: null,
+            role: { permissions: { hasSome: ['submissions.read'] } },
+          },
+          select: { personId: true },
+          take: 5,
+        })
+        for (const d of supplierDesk) {
+          void notify({
+            personId: d.personId,
+            companyId: adopted.supplierId,
+            type: 'SUBMISSION',
+            title: `${person.name} went forward to ${clientName}`,
+            body: tellSupplier({
+              ourName: vendorName,
+              personName: person.name,
+              clientName,
+              roleTitle: requirement.title,
+              payRateCents: adopted.payRate,
+            }),
+            entityId: submission.parentSubmissionId ?? submission.id,
+          })
+        }
+        void emit({
+          type: 'submission.forwarded',
+          companyId: fromCompanyId,
+          subjectType: 'Submission',
+          subjectId: submission.parentSubmissionId ?? submission.id,
+          actorPersonId: submitter?.id ?? null,
+          payload: { via: 'ONWARD', adoptedFromNetwork: true, toCompanyId, childId: submission.id, rateCents: rate },
+        })
+        item.offeredBy = adopted.supplierName
+      }
+
+      if (held && !adopted) {
         item.heldUntil = held.expiresAt.toISOString().slice(0, 10)
         item.note = representationNote
 
@@ -1177,4 +1441,21 @@ export async function GET(request: NextRequest) {
       },
     },
   })
+}
+
+/**
+ * The firms on this firm's network: its own active counterparties and the
+ * firms that hold it on theirs.
+ *
+ * The same rule Bench → Your network reads (`app/api/bench`, scope
+ * network), so a person offered on that screen is a person this door will
+ * take, and one it will not is not offered there either. Read here rather
+ * than imported because that rule lives inside etyme-supply's route.
+ */
+async function networkOf(companyId: string): Promise<Set<string>> {
+  const [mine, theirs] = await Promise.all([
+    prisma.counterparty.findMany({ where: { companyId, status: 'ACTIVE' }, select: { otherCompanyId: true } }),
+    prisma.counterparty.findMany({ where: { otherCompanyId: companyId, status: 'ACTIVE' }, select: { companyId: true } }),
+  ])
+  return new Set([...mine.map((c) => c.otherCompanyId), ...theirs.map((c) => c.companyId)])
 }

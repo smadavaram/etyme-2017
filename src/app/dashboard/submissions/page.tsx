@@ -202,24 +202,49 @@ interface OwnEmployee {
   skills: string[]
 }
 
+/**
+ * Somebody a supplier on our network offered us.
+ *
+ * Break #4: a prime read these people on Bench → Your network and could
+ * not put one of them forward, because the picker offered only its own
+ * bench and its own payroll and the door refused anybody it held no
+ * listing on. The consent is the supplier's, and the award buys from that
+ * supplier at what we say we pay them, so choosing one asks for that rate.
+ */
+interface NetworkOffer {
+  personId: string
+  name: string
+  skills: string[]
+  supplierId: string
+  supplierName: string
+}
+
 function SubmitToRequirementModal({
   companyId,
+  initialPersonId,
   onClose,
   onCreated,
 }: {
   companyId: string
+  /** Somebody already chosen elsewhere — Bench, a person's page. */
+  initialPersonId?: string | null
   onClose: () => void
   onCreated: () => void
 }) {
   const [requirements, setRequirements] = useState<RequirementOption[]>([])
   const [consultants, setConsultants] = useState<BenchConsultant[]>([])
+  const [network, setNetwork] = useState<NetworkOffer[]>([])
   const [ourPeople, setOurPeople] = useState<OwnEmployee[]>([])
   const [ourPeopleSays, setOurPeopleSays] = useState<string | null>(null)
   const [loadingOptions, setLoadingOptions] = useState(true)
 
   const [form, setForm] = useState({
     requirementId: '',
-    personId: '',
+    personId: initialPersonId ?? '',
+    // The supplier who offered them, where they came from our network.
+    offeredBy: '',
+    // What that supplier charges us, in dollars an hour.
+    payRate: '',
     rate: '',
     rateCurrency: 'USD',
     coverNote: '',
@@ -232,11 +257,40 @@ function SubmitToRequirementModal({
     async function loadOptions() {
       setLoadingOptions(true)
       try {
-        const [reqRes, benchRes, ownRes] = await Promise.all([
+        const [reqRes, benchRes, ownRes, netRes] = await Promise.all([
           fetch('/api/requirements?status=OPEN&limit=50'),
           fetch('/api/bench?limit=100'),
           fetch('/api/submissions/own-people'),
+          // Refused where this firm keeps to its own people; then the
+          // group is simply not offered.
+          fetch('/api/bench?scope=network&limit=100'),
         ])
+
+        if (netRes.ok) {
+          const body = await netRes.json()
+          const offers: NetworkOffer[] = []
+          for (const tier of Object.values(body.data?.tiers ?? {}) as any[][]) {
+            for (const l of tier) {
+              const personId = l.consultant?.personId ?? l.consultant?.person?.id
+              if (!personId || !l.company?.id) continue
+              if (offers.some((o) => o.personId === personId && o.supplierId === l.company.id)) continue
+              offers.push({
+                personId,
+                name: l.consultant?.person?.name ?? 'Unknown',
+                skills: l.consultant?.skills ?? [],
+                supplierId: l.company.id,
+                supplierName: l.company.name,
+              })
+            }
+          }
+          setNetwork(offers)
+          // Chosen on Bench → Your network: the one supplier who offered
+          // them, where there is exactly one.
+          if (initialPersonId) {
+            const from = offers.filter((o) => o.personId === initialPersonId)
+            if (from.length === 1) setForm((f) => ({ ...f, offeredBy: from[0].supplierId }))
+          }
+        }
 
         if (reqRes.ok) {
           const body = await reqRes.json()
@@ -287,7 +341,13 @@ function SubmitToRequirementModal({
   // Selected items for match preview
   const selectedReq = requirements.find((r) => r.id === form.requirementId)
   const selectedOwn = ourPeople.find((p) => p.personId === form.personId)
+  const selectedOffer = form.offeredBy
+    ? network.find((o) => o.personId === form.personId && o.supplierId === form.offeredBy)
+    : undefined
   const selectedConsultant =
+    (selectedOffer
+      ? { listingId: '', personId: selectedOffer.personId, name: selectedOffer.name, skills: selectedOffer.skills }
+      : undefined) ??
     consultants.find((c) => c.personId === form.personId) ??
     (selectedOwn ? { listingId: '', personId: selectedOwn.personId, name: selectedOwn.name, skills: selectedOwn.skills } : undefined)
 
@@ -309,6 +369,12 @@ function SubmitToRequirementModal({
       setSubmitting(false)
       return
     }
+    const payNum = parseFloat(form.payRate)
+    if (selectedOffer && (isNaN(payNum) || payNum <= 0)) {
+      setError(`Say what ${selectedOffer.supplierName} charges you for ${selectedOffer.name}, an hour.`)
+      setSubmitting(false)
+      return
+    }
 
     try {
       const res = await fetch('/api/submissions', {
@@ -321,6 +387,9 @@ function SubmitToRequirementModal({
           fromCompanyId: companyId,
           rateCurrency: form.rateCurrency,
           coverNote: form.coverNote || undefined,
+          ...(selectedOffer
+            ? { offeredBy: selectedOffer.supplierId, payRate: Math.round(payNum * 100) }
+            : {}),
         }),
       })
 
@@ -410,8 +479,11 @@ function SubmitToRequirementModal({
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Who *</label>
               <select
                 required
-                value={form.personId}
-                onChange={(e) => setForm({ ...form, personId: e.target.value })}
+                value={form.offeredBy ? `${form.personId}|${form.offeredBy}` : form.personId}
+                onChange={(e) => {
+                  const [personId, offeredBy = ''] = e.target.value.split('|')
+                  setForm({ ...form, personId, offeredBy })
+                }}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
@@ -439,13 +511,44 @@ function SubmitToRequirementModal({
                     ))}
                   </optgroup>
                 )}
+                {network.length > 0 && (
+                  <optgroup label="Offered by your suppliers">
+                    {network.map((o) => (
+                      <option key={`${o.personId}|${o.supplierId}`} value={`${o.personId}|${o.supplierId}`}>
+                        {o.name} — from {o.supplierName}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
+              {selectedOffer && (
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold text-etyme-muted mb-1">
+                    What {selectedOffer.supplierName} charges you ($/hr) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    step="0.01"
+                    value={form.payRate}
+                    onChange={(e) => setForm({ ...form, payRate: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                               focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                    placeholder="90"
+                  />
+                  <p className="text-[11px] text-etyme-muted mt-1">
+                    {selectedOffer.supplierName} holds {selectedOffer.name}’s consent and supplies them to you at this
+                    rate. The client sees your rate and your name, never {selectedOffer.supplierName}’s.
+                  </p>
+                </div>
+              )}
               {selectedOwn && ourPeopleSays && (
                 <p className="text-[11px] text-etyme-muted mt-1">{ourPeopleSays}</p>
               )}
-              {consultants.length === 0 && ourPeople.length === 0 && (
+              {consultants.length === 0 && ourPeople.length === 0 && network.length === 0 && (
                 <p className="text-[11px] text-etyme-faint mt-1">
-                  Nobody to put forward yet. Invite your own team, or ask a consultant for a bench listing.
+                  Nobody to put forward yet. Invite your own team, ask a consultant for a bench listing, or add a supplier who offers its people.
                 </p>
               )}
             </div>
@@ -888,6 +991,7 @@ export default function SubmissionsPage() {
   const [acting, setActing] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
+  const [preselectedPerson, setPreselectedPerson] = useState<string | null>(null)
   const [placeSubmission, setPlaceSubmission] = useState<Submission | null>(null)
   const [sendOn, setSendOn] = useState<Submission | null>(null)
   // Who the client is asking to meet, and which round it will be.
@@ -920,6 +1024,8 @@ export default function SubmissionsPage() {
   // Open the submit modal when navigated with ?new=1
   useEffect(() => {
     if (searchParams.get('new') === '1') {
+      // Somebody chosen elsewhere — Bench passes who.
+      setPreselectedPerson(searchParams.get('person'))
       setShowSubmitModal(true)
       router.replace('/dashboard/submissions', { scroll: false })
     }
@@ -1447,7 +1553,8 @@ export default function SubmissionsPage() {
       {showSubmitModal && companyId && (
         <SubmitToRequirementModal
           companyId={companyId}
-          onClose={() => setShowSubmitModal(false)}
+          initialPersonId={preselectedPerson}
+          onClose={() => { setShowSubmitModal(false); setPreselectedPerson(null) }}
           onCreated={() => {
             setToast({ message: 'Consultant submitted successfully', type: 'success' })
             setTimeout(() => setToast(null), 3500)
