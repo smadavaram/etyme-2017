@@ -141,8 +141,10 @@ describe('finding a slot', () => {
 })
 
 describe('what happens after it', () => {
-  it('sends an offer through and says what to do next', () => {
-    expect(settle(2, 'OFFER', 'Rohan Menon').says).toBe('Rohan Menon is through. Raise the contract.')
+  it('an offer tells the client to place the candidate, which writes the contract in the same step', () => {
+    expect(settle(2, 'OFFER', 'Rohan Menon').says).toBe(
+      'Rohan Menon has an offer. Place them to write the contract, the order and the billing dates in one step.'
+    )
   })
 
   it('asks for a reason on a rejection, because that is how the next one is better', () => {

@@ -85,8 +85,10 @@ describe('when the client decides', () => {
     expect(notices.find((n) => n.personId === 'p-bench')!.title).toContain('round 3')
   })
 
-  it('an offer: the supplier hears; the award follows from the submission', () => {
-    expect(to('OFFERED')).toEqual(['p-bench', 'p-recruiter'])
+  it('an offer: the supplier and the candidate both hear, and the candidate by email', () => {
+    expect(to('OFFERED')).toEqual(['p-bench', 'p-priya', 'p-recruiter'])
+    const candidate = noticesFor('OFFERED', ctx).find((n) => n.personId === 'p-priya')!
+    expect(candidate.channel).toBe('EMAIL')
   })
 
   it('not going forward: the supplier hears the outcome and is asked to tell the candidate', () => {

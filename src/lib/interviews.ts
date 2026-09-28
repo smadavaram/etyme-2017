@@ -247,7 +247,10 @@ export function settle(
       state: 'DONE',
       outcome,
       closed: true,
-      says: `${personName} is through. Raise the contract.`,
+      // Placing is the award, and the award is one step: the contract,
+      // the order and the billing dates together. "Raise the contract"
+      // sent a client looking for a second road that no longer exists.
+      says: `${personName} has an offer. Place them to write the contract, the order and the billing dates in one step.`,
     }
   }
 
@@ -414,4 +417,62 @@ export function rowToInterview(row: any): Interview {
     noShowBy: row.noShowBy,
     outcome: row.outcome,
   }
+}
+
+// ── From an offer to a placement ──────────────────────────────────────
+
+/**
+ * What the award rule said about one submission — `awardDoor` in
+ * lib/award, asked by the route with the reader's own seat. Only the
+ * two fields the screen needs, so this file does not reach into demand's.
+ */
+export interface AwardAnswer {
+  open: boolean
+  says: string
+}
+
+/**
+ * What an interview row offers once the client has made an offer.
+ *
+ *   PLACE   the reader may award: a Place button, in the award's words
+ *   PLACED  the award already happened: a link to the placement
+ *   SAID    the reader may not award: the rule's sentence, no button
+ *   NONE    this round did not end in an offer, so there is nothing to place
+ */
+export type PlaceMove =
+  | { kind: 'NONE' }
+  | { kind: 'PLACE'; says: string }
+  | { kind: 'PLACED'; says: string; contractId: string }
+  | { kind: 'SAID'; says: string }
+
+/**
+ * The interview page asks this and nothing else before it draws Place.
+ *
+ * "Make an offer" used to be the end of the road on this page: the
+ * submission became OFFERED and nothing here led to the award, so an
+ * offered candidate went nowhere unless somebody knew to open
+ * Submissions. Place is offered exactly where the award would accept the
+ * click — `award.open` is the award route's own answer — and anybody it
+ * would refuse reads the refusal as a sentence rather than a button that
+ * only ever fails.
+ *
+ * A contract already written wins over everything: the person is placed,
+ * and the row leads to the placement for every reader, the supplier
+ * included, rather than repeating a rule about who may award.
+ */
+export function placeFromRound(f: {
+  outcome: string | null
+  personName: string
+  contractId: string | null
+  award: AwardAnswer | null
+}): PlaceMove {
+  if (f.outcome !== 'OFFER') return { kind: 'NONE' }
+  if (f.contractId) {
+    return { kind: 'PLACED', says: `${f.personName} is placed.`, contractId: f.contractId }
+  }
+  // No answer from the rule is not a yes. A row the route could not
+  // judge offers nothing rather than a button the award may refuse.
+  if (!f.award) return { kind: 'NONE' }
+  if (f.award.open) return { kind: 'PLACE', says: f.award.says }
+  return { kind: 'SAID', says: f.award.says }
 }

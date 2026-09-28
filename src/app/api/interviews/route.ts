@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { hasPermission } from '@/lib/permissions'
+import { awardDoor } from '@/lib/award'
 import {
-  headline, waitingOn, shapeRow as shape, rowToInterview as asInterview,
+  headline, waitingOn, placeFromRound, shapeRow as shape, rowToInterview as asInterview,
 } from '@/lib/interviews'
 
 /**
@@ -43,9 +45,10 @@ export async function GET(request: NextRequest) {
     include: {
       submission: {
         select: {
-          id: true, rate: true,
+          id: true, rate: true, status: true, personId: true, requirementId: true,
+          fromCompanyId: true, toCompanyId: true,
           person: { select: { name: true } },
-          requirement: { select: { id: true, title: true, interviewers: true } },
+          requirement: { select: { id: true, title: true, interviewers: true, companyId: true } },
           fromCompany: { select: { name: true } },
           toCompany: { select: { name: true } },
         },
@@ -54,6 +57,25 @@ export async function GET(request: NextRequest) {
     orderBy: { proposedAt: 'desc' },
     take: 200,
   })
+
+  // The contract behind each offered candidate, keyed the way the award
+  // keys its own idempotency — one person, one requisition — so a row
+  // already placed leads to its placement rather than offering Place
+  // twice. Only offered rounds are looked up: nothing else offers Place.
+  const offered = rows.filter((r) => r.outcome === 'OFFER')
+  const lines = offered.length
+    ? await prisma.sellContract.findMany({
+        where: {
+          OR: offered.map((r) => ({
+            requirementId: r.submission.requirementId,
+            personId: r.submission.personId,
+          })),
+        },
+        select: { id: true, requirementId: true, personId: true },
+      })
+    : []
+  const lineFor = new Map(lines.map((l) => [`${l.requirementId}:${l.personId}`, l.id]))
+  const mayHire = hasPermission(caller.permissions, 'requirements.write')
 
   const items = rows.map((row) => {
     const names = {
@@ -83,6 +105,34 @@ export async function GET(request: NextRequest) {
         row.state === 'PROPOSED' &&
         (you === 'CLIENT' ? w.on.includes('CLIENT') : w.on.some((p) => p !== 'CLIENT')),
       overdue: w.overdue,
+      // Once a round ends in an offer: whether this reader may place the
+      // candidate, asked of `awardDoor` — the function the award route
+      // refuses on — so the page never offers a Place the click would
+      // be turned away from, and reads the refusal as a sentence.
+      place: (() => {
+        if (row.outcome !== 'OFFER') return placeFromRound({ outcome: row.outcome, personName: names.consultant, contractId: null, award: null })
+        const s = row.submission
+        const contractId = lineFor.get(`${s.requirementId}:${s.personId}`) ?? null
+        const door = awardDoor({
+          callerCompanyId: caller.company?.id ?? null,
+          callerCompanyName: caller.company?.name ?? null,
+          mayHire,
+          requirementCompanyId: s.requirement.companyId,
+          fromCompanyId: s.fromCompanyId,
+          fromCompanyName: s.fromCompany.name,
+          toCompanyId: s.toCompanyId,
+          toCompanyName: s.toCompany.name,
+          personName: s.person.name,
+          status: s.status,
+          contractId,
+        })
+        return placeFromRound({
+          outcome: row.outcome,
+          personName: names.consultant,
+          contractId,
+          award: { open: door.open, says: door.says },
+        })
+      })(),
     }
   })
 

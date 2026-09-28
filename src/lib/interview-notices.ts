@@ -129,9 +129,24 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
       toVendorStaff(`${c.consultant.name} goes through to round ${c.round + 1} at ${c.client.name}`, `For ${c.role}. ${c.client.name} will propose times.`)
       toConsultant(`You are through to round ${c.round + 1} with ${c.client.name}`, `For ${c.role}. They will propose times; ${c.vendor.name} will let you know.`)
       break
-    case 'OFFERED':
-      toVendorStaff(`${c.client.name} is making ${c.consultant.name} an offer`, `After ${round} for ${c.role}. The award follows from the submission.`)
+    case 'OFFERED': {
+      // An offer is not a placement. The client places somebody by
+      // awarding the position, which writes the contract in the same
+      // step, and both readers are told that in those words so nobody
+      // mistakes the offer for the start. The candidate hears it from us
+      // because they are the person it is about; the terms stay the
+      // supplier's to agree with them, so no rate is named.
+      const first = c.consultant.name.split(' ')[0]
+      toVendorStaff(
+        `${c.client.name} is making ${c.consultant.name} an offer`,
+        `After ${round} for ${c.role}. ${first} is placed when ${c.client.name} awards the position, which writes the contract in the same step. Nothing is needed from you until then.`
+      )
+      toConsultant(
+        `${c.client.name} is making you an offer`,
+        `For ${c.role}, after ${round}. You are placed when ${c.client.name} awards the position. ${c.vendor.name} will be in touch about your start date and terms.`
+      )
       break
+    }
     case 'REJECTED':
       // The outcome, never the notes. The supplier tells the candidate.
       toVendorStaff(`${c.consultant.name} is not going forward at ${c.client.name}`, `After ${round} for ${c.role}. Please let ${c.consultant.name.split(' ')[0]} know.`)

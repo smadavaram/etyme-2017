@@ -6,6 +6,8 @@ import { readJson } from '@/lib/read-response'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
+import type { PlaceMove } from '@/lib/interviews'
+import { PlaceDialog } from './place-dialog'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -40,6 +42,13 @@ interface Row {
   overdue: boolean
   outcome: string | null
   feedback: string | null
+  /** What the supplier asked, in cents. */
+  rateCents: number
+  /**
+   * Once the round ended in an offer: Place, the placement, or the award
+   * rule's sentence — the route asked `awardDoor` for this reader.
+   */
+  place?: PlaceMove
   confirmed: {
     client: string | null
     vendor: string | null
@@ -80,6 +89,9 @@ export default function InterviewsPage() {
   // from.
   const [proposingFor, setProposingFor] = useState<Row | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  // "Make an offer" used to be the end of the road here. The round that
+  // ended in one now offers Place, which is the award and nothing else.
+  const [placingFor, setPlacingFor] = useState<Row | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -303,6 +315,41 @@ export default function InterviewsPage() {
             </div>
           )}
 
+          {/* ── From the offer to the placement ──
+              Place is drawn only where the route said the award would
+              accept this reader's click (`place.kind === 'PLACE'`). A
+              reader the award would refuse — the supplier, a desk that
+              is not hiring — reads the rule's sentence instead of a
+              button that only ever fails. Once placed, the row leads to
+              the placement. */}
+          {r.place?.kind === 'PLACE' && (
+            <div className="mt-4 border-t border-etyme-rule pt-3">
+              <button
+                onClick={() => setPlacingFor(r)}
+                className="rounded bg-etyme-action px-3 py-1.5 text-[12px] font-semibold text-white"
+              >
+                Place {r.names.consultant.split(' ')[0]}
+              </button>
+              <p className="mt-2 text-[11px] text-etyme-faint">{r.place.says}</p>
+            </div>
+          )}
+          {r.place?.kind === 'SAID' && (
+            <p className="mt-4 border-t border-etyme-rule pt-3 text-[12px] text-etyme-muted">
+              {r.place.says}
+            </p>
+          )}
+          {r.place?.kind === 'PLACED' && (
+            <p className="mt-4 border-t border-etyme-rule pt-3 text-[12px] text-etyme-muted">
+              {r.place.says}{' '}
+              <Link
+                href={`/dashboard/placements/${r.place.contractId}` as any}
+                className="text-etyme-action hover:underline"
+              >
+                Placement →
+              </Link>
+            </p>
+          )}
+
           {/* ── Who is in the room ──
               Only the side running the round decides its panel, and only
               while the round is still ahead of them. Names, not seats:
@@ -365,6 +412,23 @@ export default function InterviewsPage() {
         </article>
       )
       })}
+
+      {placingFor && placingFor.place?.kind === 'PLACE' && (
+        <PlaceDialog
+          submissionId={placingFor.submissionId}
+          candidate={placingFor.names.consultant}
+          role={placingFor.role}
+          supplier={placingFor.names.vendor}
+          askedCents={placingFor.rateCents}
+          says={placingFor.place.says}
+          onDone={(said) => {
+            setPlacingFor(null)
+            setNote(said)
+            load()
+          }}
+          onCancel={() => setPlacingFor(null)}
+        />
+      )}
 
       {proposingFor && (
         <ProposeInterviewDialog
