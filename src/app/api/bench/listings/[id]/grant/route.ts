@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { getCallerContext } from '@/lib/api-context'
+import { answer, type State } from '@/lib/bench-consent'
 
 /**
  * PATCH /api/bench/listings/:id/grant
@@ -63,12 +64,48 @@ export async function PATCH(
     )
   }
 
+  // Already granted: saying yes twice is still yes.
+  if (listing.state === 'GRANTED') {
+    return NextResponse.json({
+      data: {
+        listing: {
+          id: listing.id,
+          consultantId: listing.consultantId,
+          companyId: listing.companyId,
+          tier: listing.tier,
+          rateMin: listing.rateMin,
+          rateMax: listing.rateMax,
+          grantedAt: listing.grantedAt.toISOString(),
+          status: 'GRANTED',
+        },
+        message: `You already agreed to be marketed by "${listing.company.name}".`,
+      },
+    })
+  }
+
+  // The same answer the invitation link and the consultant's own page
+  // give, through the same rule. This door used to stamp grantedAt and
+  // leave the state at INVITED, so a consultant who granted here was
+  // still refused at the submission gate — which reads the state — and a
+  // declined listing could be granted by the back door.
+  const outcome = answer(
+    { state: listing.state as State, revokedAt: listing.revokedAt },
+    'ACCEPT',
+    new Date()
+  )
+  if (!outcome.ok) {
+    return NextResponse.json(
+      { error: { code: 'INVALID_STATE', message: outcome.reason } },
+      { status: 409 }
+    )
+  }
+
   try {
     const updated = await prisma.$transaction(async (tx) => {
-      // Set grantedAt to now — this is the moment the listing becomes live
+      // The moment the listing becomes live, and the state that says so.
       const result = await tx.benchListing.update({
         where: { id },
-        data: { grantedAt: new Date() },
+        data: outcome.data!,
       })
 
       // AutomationLog on the company that owns the listing

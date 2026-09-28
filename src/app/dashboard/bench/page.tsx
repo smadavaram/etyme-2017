@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { range, compact } from '@/lib/money-display'
 import { readBench } from '@/lib/bench-filter'
+import { readJson } from '@/lib/read-response'
 import { useCompanyKind } from '@/components/session-provider'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
@@ -46,7 +47,9 @@ interface BenchEntry {
   rateMin: number | null
   rateMax: number | null
   availableFrom: string | null
-  visibility: string
+  /** NOBODY · FIRM_ONLY · NETWORK — from the consent and the tier. */
+  reach: string | null
+  reachSays: string | null
   grantedAt: string
   /** Whose bench this listing actually lives on. Always your own company
    *  in scope=company; a partner's, in scope=network. */
@@ -149,13 +152,19 @@ function workAuthLabel(auth: string | null): string {
   return auth ? labels[auth] ?? auth : '—'
 }
 
-function visibilityChip(v: string): { text: string; cls: string } {
-  switch (v) {
-    case 'VERIFIED':       return { text: 'Verified',  cls: 'chip--verified' }
-    case 'CLIENT_VISIBLE': return { text: 'Visible',   cls: 'chip--action' }
-    case 'FEED':           return { text: 'Feed',      cls: 'chip--passive' }
-    case 'INTERNAL':       return { text: 'Internal',  cls: 'chip--attention' }
-    default:               return { text: v,           cls: 'chip--passive' }
+/**
+ * Who sees this person, read from the listing — the consent they gave and
+ * the tier the firm chose — and never from `ConsultantProfile.visibility`.
+ * That field is one value per person, set by whichever vendor last
+ * touched it, and it read "Internal" on somebody who had agreed to be
+ * marketed and was already on a partner's bench.
+ */
+function reachChip(reach: string | null): { text: string; cls: string } {
+  switch (reach) {
+    case 'NETWORK':   return { text: 'Your network', cls: 'chip--verified' }
+    case 'FIRM_ONLY': return { text: 'Only you',     cls: 'chip--passive' }
+    case 'NOBODY':    return { text: 'Nobody',       cls: 'chip--attention' }
+    default:          return { text: '—',            cls: 'chip--passive' }
   }
 }
 
@@ -188,7 +197,7 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
   const [searching, setSearching] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const [selectedConsultant, setSelectedConsultant] = useState<ConsultantOption | null>(null)
-  const [tier, setTier] = useState<'RETAINED' | 'MARKETING'>('RETAINED')
+  const [tier, setTier] = useState<'RETAINED' | 'MARKETING'>('MARKETING')
   const [rateMin, setRateMin] = useState('')
   const [rateMax, setRateMax] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -391,8 +400,8 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
             >
-              <option value="RETAINED">Retained</option>
-              <option value="MARKETING">Marketing</option>
+              <option value="MARKETING">Marketing — the firms you work with see them once they agree</option>
+              <option value="RETAINED">Retained — only you; you carry them between assignments</option>
             </select>
           </div>
 
@@ -469,6 +478,7 @@ export default function BenchPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [burnData, setBurnData] = useState<BurnData | null>(null)
   const [burnLoading, setBurnLoading] = useState(true)
+  const [busyRow, setBusyRow] = useState<string | null>(null)
 
   // Guards against a slower "your team" response landing after a faster
   // "your network" one (or the reverse) and silently overwriting it —
@@ -540,7 +550,8 @@ export default function BenchPage() {
         rateMin: r.rateMin,
         rateMax: r.rateMax,
         availableFrom: r.availableFrom,
-        visibility: r.visibility,
+        reach: r.reach,
+        reachSays: r.reachSays,
         grantedAt: r.grantedAt,
         consent: r.consent ?? undefined,
         companyId: r.companyId,
@@ -731,16 +742,103 @@ export default function BenchPage() {
       sortValue: (row) => row.tier,
     },
     {
-      key: 'visibility',
-      label: 'Status',
+      key: 'reach',
+      label: 'Who sees them',
       render: (row) => {
-        const { text, cls } = visibilityChip(row.visibility)
-        return <span className={`chip text-[9px] ${cls}`}>{text}</span>
+        const { text, cls } = reachChip(row.reach)
+        return (
+          <span className={`chip text-[9px] ${cls}`} title={row.reachSays ?? undefined}>
+            {text}
+          </span>
+        )
       },
-      sortValue: (row) => row.visibility,
+      sortValue: (row) => row.reach ?? '',
       hideOnMobile: true,
     },
+    // What a firm can do about the row, said as the thing it does.
+    //
+    // On your own bench: move the listing between retained and marketing.
+    // Before 2026-09-28 the tier was written once, at creation, and never
+    // again — so somebody added as Retained could never reach a partner.
+    //
+    // On a partner's: ask the person to let you represent them too. The
+    // partner's listing is the partner's consent; yours is a second
+    // question the person answers, never an inheritance.
+    ...(scope === 'company'
+      ? [
+          {
+            key: 'actions',
+            label: '',
+            render: (row: BenchEntry) =>
+              row.consent === 'DECLINED' || row.reach === 'NOBODY' ? null : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); changeTier(row) }}
+                  disabled={busyRow === row.id}
+                  className="text-[11px] text-etyme-action hover:underline disabled:opacity-40 whitespace-nowrap"
+                >
+                  {row.tier === 'RETAINED' ? 'Show to your network' : 'Keep to yourself'}
+                </button>
+              ),
+          } as Column<BenchEntry>,
+        ]
+      : scope === 'network'
+        ? [
+            {
+              key: 'actions',
+              label: '',
+              render: (row: BenchEntry) => (
+                <button
+                  onClick={(e) => { e.stopPropagation(); askToRepresent(row) }}
+                  disabled={busyRow === row.id}
+                  className="text-[11px] text-etyme-action hover:underline disabled:opacity-40 whitespace-nowrap"
+                >
+                  Ask to represent
+                </button>
+              ),
+            } as Column<BenchEntry>,
+          ]
+        : []),
   ]
+
+  async function changeTier(row: BenchEntry) {
+    setBusyRow(row.id)
+    try {
+      const res = await fetch(`/api/bench/listings/${row.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier: row.tier === 'RETAINED' ? 'MARKETING' : 'RETAINED' }),
+      })
+      const body = await readJson(res)
+      setToast({ message: body.data?.message ?? 'Saved.', type: 'success' })
+      await fetchBench(scope)
+    } catch (e: any) {
+      setToast({ message: e.message, type: 'error' })
+    } finally {
+      setBusyRow(null)
+      setTimeout(() => setToast(null), 5000)
+    }
+  }
+
+  async function askToRepresent(row: BenchEntry) {
+    setBusyRow(row.id)
+    try {
+      const res = await fetch('/api/bench/listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consultantId: row.consultantId, tier: 'MARKETING' }),
+      })
+      await readJson(res)
+      setToast({
+        message: `${row.name} has been asked. They are on your bench once they say yes, and you can put them forward then.`,
+        type: 'success',
+      })
+    } catch (e: any) {
+      setToast({ message: e.message, type: 'error' })
+    } finally {
+      setBusyRow(null)
+      setTimeout(() => setToast(null), 6000)
+    }
+  }
 
   // ── Render ─────────────────────────────────────────
 
@@ -767,7 +865,7 @@ export default function BenchPage() {
               ? 'People who granted you a listing — retained and marketing. Their consent is what lets you market them.'
               : scope === 'payroll'
                 ? 'People you employ, and what each of them is on. You need no listing to staff your own — and nothing here markets them.'
-                : 'What your suppliers have offered to show you — marketing-tier only, and only from firms on Your suppliers.'}
+                : 'People the firms you work with are marketing, who agreed to it. To put one forward yourself, ask to represent them — they answer, not their firm.'}
           </p>
         </div>
         {scope !== 'payroll' && (
@@ -858,7 +956,7 @@ export default function BenchPage() {
         emptyDetail={
           scope === 'company'
             ? 'Import consultant data or add them manually to start building your bench.'
-            : 'Add a firm under Your suppliers, and whatever they mark as marketing-visible shows up here — nothing does until then.'
+            : 'Add a firm under Your suppliers. Anybody it markets who has agreed to be marketed shows up here — nobody does until then.'
         }
         exportName="etyme-bench"
         bulkActions={(selected) => (

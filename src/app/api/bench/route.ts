@@ -16,6 +16,7 @@ import {
   mayMarket,
   type RosterPerson,
 } from '@/lib/consultant-portfolio'
+import { NETWORK_VISIBLE, whoSees } from '@/lib/shared-consultant'
 
 /**
  * GET /api/bench
@@ -186,8 +187,11 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Network scope shows only MARKETING tier listings from partners
-    where.companyId = { in: partnerIds }
+    // Network scope shows partners what the person agreed to and the
+    // partner chose to market: granted, live, MARKETING. It used to read
+    // the tier alone, so a listing nobody had answered — or one the
+    // person had declined — was shown to every firm on the register.
+    where = { ...where, ...NETWORK_VISIBLE, companyId: { in: partnerIds } }
     where.tier = 'MARKETING'
   }
 
@@ -247,6 +251,11 @@ export async function GET(request: NextRequest) {
       // the row looked identical to a consented one and the refusal
       // arrived later, at the submission, phrased as a surprise.
       consent: l.state,
+      // How far this listing reaches, from its consent and its tier —
+      // never from the profile's `visibility`, which one vendor sets for
+      // every vendor and which nothing on this screen may read as consent.
+      reach: whoSees({ tier: l.tier, state: l.state, revokedAt: l.revokedAt }).reach,
+      reachSays: whoSees({ tier: l.tier, state: l.state, revokedAt: l.revokedAt }).says,
       invitedAt: l.invitedAt?.toISOString() ?? null,
       rateMin: showRate ? l.rateMin : undefined,
       rateMax: showRate ? l.rateMax : undefined,

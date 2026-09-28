@@ -202,6 +202,10 @@ export const MATRIX: L1[] = [
             'A roster is not consent to sell anybody: nothing on the surface markets, shares or lists somebody who granted no listing, and the refusal is a sentence naming where it does happen rather than a disabled control with no words',
             'Skills are reported, never filled in \u2014 a firm that cannot describe its own engineer reads \u201cnone on record\u201d, which is the fact the Training page used to hide behind a zero',
             'Bench reads three benches with three consents behind them \u2014 On your bench, On your payroll, Your network \u2014 and an integrator, a program office or a one-person corporation opens on its payroll, because that is where its people are',
+            'FIXED 2026-09-28, break #2 of the founder\u2019s lifecycle walk: a consultant a bench vendor added landed Retained and could never reach a prime, and saying yes changed nothing anybody could see. Three causes: the Consultants page added everybody as Retained, nothing ever wrote a listing\u2019s tier again, and the network bench read the tier and ignored the consent \u2014 so a person who said yes reached nobody while a person who had said nothing, or no, reached every partner',
+            'How far a listing reaches is read from two facts owned by two people (`whoSees` in lib/shared-consultant): the consent is the consultant\u2019s and nothing reaches past the firm that asked until it is granted; the tier is the firm\u2019s \u2014 retained keeps them to the firm, marketing shows them to the firms on its register. The bench says it per row, as \u201cWho sees them\u201d, and no longer shows the profile\u2019s visibility field, which one vendor sets for every vendor',
+            'A firm moves its own listing between retained and marketing (PATCH /api/bench/listings/:id); it cannot move one the person declined or took back, cannot retain somebody another firm already retains, and the refusal names nobody. A consultant a firm adds is marketed unless the firm chooses to retain them',
+            'The consultant answers a firm that asked from their own page, and only a yes is counted under \u201cAgencies marketing you\u201d; taking a listing back takes them off every partner\u2019s network bench at once and is written on the firm\u2019s record. A listing shared to a partner is an invitation the person answers, never born granted, and nobody is passed on who has not agreed; granting through the listing door records the state the submission gate reads',
             'STILL OWED: `BuyContractState` already carries BENCH_PAID, INTERNAL and TRAINING, the exact three states a roster wants, and nothing in the product has ever written one of them (nought rows in the seeded world). When something does, the roster reads them instead of inferring, and the inference becomes the fallback. Writing them is a contract-lifecycle change and belongs to etyme-money.',
           ],
           implementedBy: [
@@ -210,6 +214,9 @@ export const MATRIX: L1[] = [
             'src/app/api/me/portfolio/route.ts',
             'src/app/api/bench/route.ts', 'src/app/dashboard/bench/page.tsx',
             'src/app/dashboard/consultants/page.tsx',
+            'src/lib/shared-consultant.ts', 'src/app/api/bench/listings/[id]/route.ts',
+            'src/app/api/bench/listings/[id]/grant/route.ts', 'src/app/api/bench/share/route.ts',
+            'src/app/api/consultants/route.ts', 'src/app/api/me/benches/route.ts',
           ],
           testedBy: [
             '__tests__/invariants/own-page.test.ts', '__integration__/own-page.test.ts',
@@ -217,6 +224,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/employers-roster.test.ts',
             '__tests__/invariants/bench-scope.test.ts',
             '__integration__/employers-roster.test.ts',
+            '__tests__/invariants/bench-reach.test.ts', '__integration__/bench-reach.test.ts',
           ] },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [

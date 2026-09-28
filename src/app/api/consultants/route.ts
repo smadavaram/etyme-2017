@@ -246,7 +246,13 @@ export async function POST(request: NextRequest) {
     workAuth,
     rateFloor,
     availableFrom,
-    tier = 'RETAINED',
+    // Marketing unless the firm says otherwise. Retaining is a claim to
+    // carry somebody between assignments, and a person has one retained
+    // bench — so it is a choice a firm makes, not a default it falls
+    // into. As the silent default it kept every new consultant from ever
+    // reaching a partner, and the listing door already defaulted the
+    // other way, so one firm got two answers.
+    tier = 'MARKETING',
     rateMin,
     rateMax,
   } = body

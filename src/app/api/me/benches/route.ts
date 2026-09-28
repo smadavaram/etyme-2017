@@ -45,6 +45,31 @@ export async function GET(_request: NextRequest) {
   if (!person) return unauthenticated
 
   const data = await whoHasMe(person.id)
+
+  // Which of those listings they have actually agreed to.
+  //
+  // `whoHasMe` lists every live listing, answered or not, so a firm that
+  // had only *asked* sat under "Agencies marketing you" — and the person
+  // had no button to answer it from their own page, only the emailed
+  // link. Split here: an unanswered ask is a question for them, a
+  // declined one is nobody marketing them, and only a yes is a bench.
+  const states = new Map(
+    (
+      await prisma.benchListing.findMany({
+        where: { consultant: { personId: person.id }, revokedAt: null },
+        select: { id: true, state: true, invitedAt: true },
+      })
+    ).map((l) => [l.id, l])
+  )
+  const invitedToo = data.benches
+    .filter((b) => states.get(b.listingId)?.state === 'INVITED')
+    .map((b) => ({
+      listingId: b.listingId,
+      company: b.company,
+      askedAt: (states.get(b.listingId)?.invitedAt ?? null)?.toISOString().slice(0, 10) ?? null,
+    }))
+  data.benches = data.benches.filter((b) => (states.get(b.listingId)?.state ?? 'GRANTED') === 'GRANTED')
+
   // Who employs them, which is the other way somebody is staffed. Without
   // it a person on no bench read "No agency is marketing you" as "nobody
   // has you" — said to an integrator's own W2 with a finished placement
@@ -54,6 +79,7 @@ export async function GET(_request: NextRequest) {
   return NextResponse.json({
     data: {
       ...data,
+      invited: invitedToo,
       employers: life.employers,
       note: whoHasYouNote({ benches: data.benches.length, employers: life.employers }),
     },
@@ -297,10 +323,26 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    await prisma.benchListing.update({
-      where: { id: listing.id },
-      data: { revokedAt: new Date() },
-    })
+    await prisma.$transaction([
+      prisma.benchListing.update({
+        where: { id: listing.id },
+        data: { revokedAt: new Date() },
+      }),
+      // On the firm's record, the way the listing door's own revoke
+      // writes it: the firm finds the person gone from its bench and from
+      // every partner's network bench, and the reason is here.
+      prisma.automationLog.create({
+        data: {
+          companyId: listing.companyId,
+          action: 'BENCH_LISTING_REVOKED',
+          summary: `${person.name} took back their listing at ${listing.company.name}. Effective immediately.`,
+          reason: 'The consultant withdrew their consent from their own page.',
+          payload: { listingId: listing.id, personId: person.id },
+          // Their withdrawal. A firm reversing it would be consenting for them.
+          reversible: false,
+        },
+      }),
+    ])
 
     // Holds go with it. A revoked listing that left live holds standing
     // would let an agency they have just left keep them out of clients.
@@ -314,7 +356,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       data: {
-        message: `${listing.company.name} can no longer market you.${holds.length > 0 ? ` ${holds.length} ${holds.length === 1 ? 'hold' : 'holds'} went back with it.` : ''}`,
+        message: `${listing.company.name} can no longer market you, and no firm it works with sees you through it.${holds.length > 0 ? ` ${holds.length} ${holds.length === 1 ? 'hold' : 'holds'} went back with it.` : ''}`,
       },
     })
   }

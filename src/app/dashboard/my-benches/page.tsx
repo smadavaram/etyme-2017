@@ -43,6 +43,11 @@ interface Data {
     company: string; client: string; role: string; when: string
     status: string; sentOnTo: string | null
   }[]
+  /**
+   * Firms that asked to market them and are waiting on an answer. Not a
+   * bench yet: nothing reaches anybody until they say yes.
+   */
+  invited?: { listingId: string; company: string; askedAt: string | null }[]
   /** Firms that employ them. They need no listing to staff somebody. */
   employers: string[]
   note: string
@@ -126,6 +131,30 @@ export default function MyBenchesPage() {
     }
   }
 
+  // Their answer to a firm that asked to market them. The same rule the
+  // emailed link runs, from their own page: until this existed the only
+  // way to say yes was the link, and a signed-in consultant read the
+  // firm under "Agencies marketing you" without having agreed to anything.
+  async function answerAsk(listingId: string, said: 'ACCEPT' | 'DECLINE') {
+    setBusy(true)
+    setError(null)
+    setFlash(null)
+    try {
+      const res = await fetch(`/api/me/benches/${listingId}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ said }),
+      })
+      const body = await readJson(res)
+      setFlash(body.data?.says ?? 'Saved.')
+      await load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (loading) return <div className="p-8 text-[14px] text-etyme-muted">Loading…</div>
   if (error && !data) {
     return (
@@ -179,6 +208,35 @@ export default function MyBenchesPage() {
                       disabled={busy}
                       onClick={() => send({ answer: a.id, yes: false })}
                     >
+                      No
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        )}
+
+        {/* ── Firms asking to market them ─────────────────────────── */}
+        {(data.invited?.length ?? 0) > 0 && (
+          <Panel
+            title="Asking to market you"
+            subtitle="Say yes and the firm can put you forward, and the firms it works with can see you. Say no and that is the end of it. You can take a yes back at any time."
+          >
+            <div className="space-y-3">
+              {data.invited!.map((a) => (
+                <div key={a.listingId} className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[15px] text-etyme-ink">{a.company}</p>
+                    {a.askedAt && (
+                      <p className="text-[13px] text-etyme-muted mt-0.5 tabular-nums">asked {a.askedAt}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button className={primary} disabled={busy} onClick={() => answerAsk(a.listingId, 'ACCEPT')}>
+                      Yes, market me
+                    </button>
+                    <button className={quiet} disabled={busy} onClick={() => answerAsk(a.listingId, 'DECLINE')}>
                       No
                     </button>
                   </div>

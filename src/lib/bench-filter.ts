@@ -368,6 +368,14 @@ export interface BenchRow {
   tier: 'RETAINED' | 'MARKETING'
   /** INVITED · GRANTED · DECLINED — whether they agreed to be marketed. */
   consent: string | null
+  /**
+   * How far the listing reaches — NOBODY · FIRM_ONLY · NETWORK — and the
+   * sentence that says so, as the route computed them from the consent
+   * and the tier (`whoSees` in lib/shared-consultant). Null where the
+   * route did not say, which a screen shows as a blank, never a guess.
+   */
+  reach: string | null
+  reachSays: string | null
   consultantId: string
   personId: string
   name: string
@@ -448,6 +456,8 @@ export function readBench(payload: unknown): BenchReading {
         listingId: String(l.id),
         tier: tier as 'RETAINED' | 'MARKETING',
         consent: typeof l.consent === 'string' ? l.consent : null,
+        reach: typeof l.reach === 'string' ? l.reach : null,
+        reachSays: typeof l.reachSays === 'string' ? l.reachSays : null,
         consultantId: String(l.consultant.id),
         personId: String(person.id),
         name: person.name,

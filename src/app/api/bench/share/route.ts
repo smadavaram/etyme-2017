@@ -3,6 +3,9 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { invitation } from '@/lib/bench-consent'
+import { inviteUrl, inviteText } from '@/lib/bench-invite'
+import { send } from '@/lib/messages'
 
 /**
  * POST /api/bench/share
@@ -85,7 +88,7 @@ export async function POST(request: NextRequest) {
         select: {
           id: true,
           personId: true,
-          person: { select: { id: true, name: true } },
+          person: { select: { id: true, name: true, primaryEmail: true } },
         },
       },
     },
@@ -93,12 +96,14 @@ export async function POST(request: NextRequest) {
 
   const sourceMap = new Map(sourceListings.map((l) => [l.id, l]))
 
+  const now = new Date()
+  const toAsk: { listingId: string; personId: string; name: string; email: string | null }[] = []
   let shared = 0
   let errors = 0
   const results: Array<{
     listingId: string
     consultantId: string | null
-    status: 'shared' | 'not_found' | 'already_exists' | 'error'
+    status: 'shared' | 'not_found' | 'already_exists' | 'not_consented' | 'error'
     newListingId?: string
     reason?: string
   }> = []
@@ -115,6 +120,21 @@ export async function POST(request: NextRequest) {
             consultantId: null,
             status: 'not_found',
             reason: 'Listing not found or not owned by your company',
+          })
+          continue
+        }
+
+        // Only somebody who agreed to be marketed by the sharing firm may
+        // be offered on. Passing an unanswered or declined person to a
+        // second firm is exactly the use of their record they never
+        // allowed.
+        if (source.state !== 'GRANTED') {
+          errors++
+          results.push({
+            listingId,
+            consultantId: source.consultantId,
+            status: 'not_consented',
+            reason: `${source.consultant.person.name} has not agreed to be marketed by you, so you cannot offer them on.`,
           })
           continue
         }
@@ -150,7 +170,10 @@ export async function POST(request: NextRequest) {
               tier: 'MARKETING',
               rateMin: source.rateMin,
               rateMax: source.rateMax,
-              grantedAt: new Date(), // will be updated when consultant grants
+              // Asked again, never re-granted. This used to stamp a
+              // grant nobody gave and leave the old state standing.
+              ...invitation(now),
+              declinedNote: null,
               revokedAt: null,
             },
           })
@@ -162,6 +185,10 @@ export async function POST(request: NextRequest) {
               tier: 'MARKETING',
               rateMin: source.rateMin,
               rateMax: source.rateMax,
+              // An invitation the person answers. This was born GRANTED
+              // by the column default, so a firm the consultant had never
+              // heard of could submit them the moment it was shared.
+              ...invitation(now),
             },
           })
         }
@@ -176,6 +203,13 @@ export async function POST(request: NextRequest) {
             allowed: true,
             reason: `Bench listing shared to "${targetCompany.name}" by ${caller.person.name}`,
           },
+        })
+
+        toAsk.push({
+          listingId: newListing.id,
+          personId: source.consultant.personId,
+          name: source.consultant.person.name,
+          email: source.consultant.person.primaryEmail,
         })
 
         shared++
@@ -193,6 +227,25 @@ export async function POST(request: NextRequest) {
       { error: { code: 'INTERNAL', message: 'Bench share failed' } },
       { status: 500 }
     )
+  }
+
+  // And ask each of them, in the name of the firm that now holds the
+  // invitation — outside the transaction, so a slow mail provider cannot
+  // roll back a listing that was correctly written.
+  for (const a of toAsk) {
+    const url = inviteUrl(a.listingId)
+    if (!url || !a.email) continue
+    const msg = inviteText({ personName: a.name, vendorName: targetCompany.name, url })
+    void send({
+      companyId: toCompanyId,
+      personId: a.personId,
+      kind: 'LINK',
+      to: a.email,
+      subject: msg.subject,
+      body: msg.body,
+      aboutType: 'LISTING',
+      aboutId: a.listingId,
+    })
   }
 
   return NextResponse.json({
