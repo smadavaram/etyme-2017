@@ -68,7 +68,7 @@ describe('Tenure caps are dated, not vague', () => {
   it('someone six months short is given the date they cross', () => {
     const item = projectTenure({ ...person, monthsAccrued: 12 }, NOW, 200)!
     expect(item.date).toBe('2027-02-16')
-    expect(item.headline).toContain('reaches the 18-month cap on 2027-02-16')
+    expect(item.headline).toContain('reaches the 18-month time limit on 2027-02-16')
   })
 
   it('a cap is a block, because it is legally grounded', () => {
@@ -80,7 +80,7 @@ describe('Tenure caps are dated, not vague', () => {
   it('somebody already past the cap is a live breach, not a projection', () => {
     const item = projectTenure({ ...person, monthsAccrued: 19 }, NOW, WINDOW)!
     expect(item.daysAway).toBe(0)
-    expect(item.headline).toContain('is past the 18-month cap')
+    expect(item.headline).toContain('is past the 18-month time limit')
   })
 
   it('a cap inside two months says the extension will be blocked', () => {

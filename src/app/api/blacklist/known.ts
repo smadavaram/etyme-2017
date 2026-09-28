@@ -236,7 +236,7 @@ export async function firmsKnownTo(companyId: string): Promise<KnownSubject[]> {
   for (const s of subsIn) rows.push({ id: s.fromCompanyId, name: s.fromCompany?.name ?? '', note: 'Has put people forward here', rank: 2 })
   for (const s of subsOut) rows.push({ id: s.toCompanyId, name: s.toCompany?.name ?? '', note: 'This firm has put people forward there', rank: 2 })
   for (const i of invitations) {
-    other(i.fromCompanyId, i.fromCompany?.name, i.toCompanyId, i.toCompany?.name, 'Invited to a role', 3)
+    other(i.fromCompanyId, i.fromCompany?.name, i.toCompanyId, i.toCompany?.name, 'Invited to a job', 3)
   }
 
   return mergeKnown(rows.filter((r) => r.id !== companyId))

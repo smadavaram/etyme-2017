@@ -169,7 +169,7 @@ export interface TemplatePack {
 const COMMON_CYCLES: CycleDefinition[] = [
   { kind: 'TIMESHEET_SUBMIT', label: 'Timesheet submission', frequency: 'WEEKLY', dayOfWeek: 5 },
   { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 3 },
-  { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'SEMIMONTHLY', dayOfMonth: 15 },
+  { kind: 'INVOICE_GENERATE', label: 'Bill generation', frequency: 'SEMIMONTHLY', dayOfMonth: 15 },
   { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'BIWEEKLY', dayOfWeek: 3 },
   { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'BIWEEKLY', dayOfWeek: 5 },
 ]
@@ -186,7 +186,7 @@ const US_IT: TemplatePack = {
   ],
   cycleDefinitions: [
     ...COMMON_CYCLES,
-    { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'SEMIMONTHLY', dayOfMonth: 15 },
+    { kind: 'VENDOR_BILL_GENERATE', label: 'Supplier invoice receipt', frequency: 'SEMIMONTHLY', dayOfMonth: 15 },
   ],
   docTemplates: [
     { name: 'Employment Agreement (W-2)', audience: 'CANDIDATE', needsSignature: true },
@@ -249,7 +249,7 @@ const IN_DELIVERY: TemplatePack = {
     { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'MONTHLY', dayOfMonth: 28 },
     // Still the 1st, and now the 1st AFTER the month it closes rather
     // than the 1st inside it. See the monthly note above COMMON_CYCLES.
-    { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 1 },
+    { kind: 'INVOICE_GENERATE', label: 'Bill generation', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 1 },
   ],
   docTemplates: [
     { name: 'Appointment Letter', audience: 'CANDIDATE', needsSignature: true },
@@ -282,8 +282,8 @@ const UK: TemplatePack = {
     // they close. The vendor side was the worse of the two because a PAY
     // kind shifts BACKWARD off a weekend — see the monthly note above
     // COMMON_CYCLES.
-    { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 1 },
-    { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 1 },
+    { kind: 'INVOICE_GENERATE', label: 'Bill generation', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 1 },
+    { kind: 'VENDOR_BILL_GENERATE', label: 'Supplier invoice receipt', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 1 },
   ],
   docTemplates: [
     { name: 'Contract for Services (Ltd)', audience: 'VENDOR', needsSignature: true },

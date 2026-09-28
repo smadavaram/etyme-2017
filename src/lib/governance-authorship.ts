@@ -67,7 +67,7 @@ export function assessRule(draft: RuleDraft, existing: Existing): Assessment {
     checks.push({
       code: 'NO_APPROVER',
       outcome: 'BLOCK',
-      reason: 'A rule with no approver sends requisitions nowhere and clears everything, which is the same as having no rule but harder to notice.',
+      reason: 'A rule with no approver sends job requests nowhere and clears everything, which is the same as having no rule but harder to notice.',
     })
   }
 
@@ -125,7 +125,7 @@ export function assessRule(draft: RuleDraft, existing: Existing): Assessment {
     checks.push({
       code: 'CATCHES_EVERYTHING',
       outcome: 'WARN',
-      reason: 'This rule has no threshold, so every requisition will wait for a person. Most should clear without one — consider a value above which it applies.',
+      reason: 'This rule has no threshold, so every job request will wait for a person. Most should clear without one — consider a value above which it applies.',
     })
   }
 
@@ -164,7 +164,7 @@ export function assessDeletion(existing: { otherActiveRules: number }): Check {
     return {
       code: 'LAST_RULE',
       outcome: 'WARN',
-      reason: 'This is your last approval rule. Removing it means every requisition clears without anybody approving it. That is a valid choice — it is being recorded as one.',
+      reason: 'This is your last approval rule. Removing it means every job request clears without anybody approving it. That is a valid choice — it is being recorded as one.',
     }
   }
   return {

@@ -401,7 +401,7 @@ export function worthNudging(
     ok: true,
     refusal: null,
     reason:
-      'An open role, nobody nearer to hand, and a person whose recorded work fits it. ' +
+      'An open job, nobody nearer to hand, and a person whose recorded work fits it. ' +
       'If they answer, they join this vendor\'s bench — never ours.',
   }
 }

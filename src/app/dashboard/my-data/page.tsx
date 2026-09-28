@@ -188,7 +188,7 @@ export default function MyDataPage() {
           )}
           {youAre.includes('business') && (
             <p className="text-sm text-etyme-muted mt-2">
-              Your seat and what you decided from it stay under a marker: a requisition you
+              Your seat and what you decided from it stay under a marker: a job request you
               raised, an approval you gave with its reason, a week of somebody&rsquo;s hours you
               signed. Those are your company&rsquo;s record of its own decisions, and they keep
               their dates and their reasons while they stop naming you. An approval with nobody

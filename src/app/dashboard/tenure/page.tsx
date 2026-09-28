@@ -159,7 +159,7 @@ export default function TenurePage() {
                   />
                 </div>
                 <div className="text-[9px] text-etyme-faint mt-0.5 tabular-nums">
-                  {pct}% of {capMonths}mo cap
+                  {pct}% of {capMonths}-month time limit
                 </div>
               </div>
             )}
@@ -218,7 +218,7 @@ export default function TenurePage() {
             : ''}
           Aggregated across all vendors — twelve months via one
           plus twelve via another is twenty-four months of exposure.
-          {capMonths != null && ` Cap: ${capMonths} months.`}
+          {capMonths != null && ` Time limit: ${capMonths} months.`}
           {data?.breakDays != null && ` Break: ${data.breakDays} days.`}
         </p>
       </div>

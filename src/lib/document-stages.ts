@@ -164,10 +164,10 @@ const RULES: Record<string, Rule> = {
         'Most states and cities bar asking about criminal history before a ' +
         'conditional offer. Run it at award, on the offer.',
       UK:
-        'A DBS check is made against a role that has been offered, and only where ' +
-        'the role is eligible for one.',
+        'A DBS check is made against a job that has been offered, and only where ' +
+        'the job is eligible for one.',
       EU:
-        'A criminal record check needs a lawful basis tied to the specific role. ' +
+        'A criminal record check needs a lawful basis tied to the specific job. ' +
         'Before an offer there is not one.',
       DEFAULT:
         'Criminal record checks run against an offer, not an application.',

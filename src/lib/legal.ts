@@ -63,7 +63,7 @@ export const COUNSEL_QUESTIONS: CounselQuestion[] = [
       'Is Etyme a controller or a processor, and is the answer the same for a client ' +
       'workforce record and for a candidate profile?',
     whatTheCodeDoes:
-      'A client company writes requisitions, approvals, timesheet decisions and tenure ' +
+      'A client company writes job requests, approvals, timesheet decisions and tenure ' +
       'reads about workers it did not employ, and Etyme holds them on the client behalf. ' +
       'A candidate separately signs in with their own consumer email, keeps their own ' +
       'profile, uploads their own resumes, grants or declines each bench listing, and ' +
@@ -364,7 +364,7 @@ export const HELD: HeldCategory[] = [
     category: 'Money about a person',
     examples:
       'Pay rates and bill rates on contracts, timesheets and the hours accepted, ' +
-      'expenses, invoice lines and payments.',
+      'expenses, bill lines and payments.',
     about: 'Candidates',
     provenBy: 'SellContract, BuyContractCandidate, Timesheet, Expense, InvoiceLine, Payment',
   },
@@ -381,7 +381,7 @@ export const HELD: HeldCategory[] = [
     examples:
       'The seat itself — which company granted it, the role and the permissions on it, ' +
       'the org unit it sits in, why it was granted, when it was last used and whether it ' +
-      'is suspended or ended — and every act taken from it: a requisition raised, an ' +
+      'is suspended or ended — and every act taken from it: a job request raised, an ' +
       'approval given or refused with the reason in words, somebody else week of hours ' +
       'signed off, an overtime call, a position taken on how a worker is engaged, a ' +
       'supplier decided at a desk, a payment run approved, a legal hold placed, an ' +
@@ -421,7 +421,7 @@ export const HELD: HeldCategory[] = [
     category: 'Company and supplier records',
     examples:
       'Legal name, addresses, tax registration, org units, cost centers, roles, ' +
-      'contacts, agreements, orders, invoices, and a supplier own application — its ' +
+      'contacts, agreements, orders, bills and invoices, and a supplier own application — its ' +
       'legal name, address, D-U-N-S number, website, experience and named references ' +
       'with their contact details.',
     about: 'Companies',
@@ -493,7 +493,7 @@ export const SUB_PROCESSORS: SubProcessor[] = [
   {
     name: 'Anthropic',
     purpose:
-      'Matching a candidate to a role, checking a resume against the skills claimed ' +
+      'Matching a candidate to a job, checking a resume against the skills claimed ' +
       'for it, reading an imported file into records, and writing a company or ' +
       'consultant public page.',
     reaches:
@@ -664,9 +664,9 @@ export const TERMS: { title: string; intro: string; sections: Section[] } = {
       heading: 'What Etyme is',
       paragraphs: [
         'Etyme is the system of record for contingent workers: the layer between a ' +
-          'company and every staffing supplier it uses. It spans the requisition, the ' +
+          'company and every staffing supplier it uses. It spans the job request, the ' +
           'suppliers who see it, submissions, screening, interviews, onboarding, ' +
-          'timesheets, invoices and compliance.',
+          'timesheets, bills and compliance.',
         'Etyme is not a staffing agency. It runs no bench, employs no consultant and ' +
           'places nobody. Every placement ends with a supplier holding the paper and ' +
           'carrying the employment relationship. Neutrality is not a policy here, it is ' +
@@ -720,7 +720,7 @@ export const TERMS: { title: string; intro: string; sections: Section[] } = {
       heading: 'What the software does on its own',
       paragraphs: [
         'Some things happen without anybody asking: a contract whose last day has ' +
-          'passed is ended, an invitation nobody answered expires, a requisition inside ' +
+          'passed is ended, an invitation nobody answered expires, a job request inside ' +
           'policy clears itself, a timesheet inside tolerance is approved, a visa ' +
           'nearing its expiry raises a flag. Each of them writes a row saying what was ' +
           'done, in plain English, with an honest flag for whether it can be undone.',
@@ -733,7 +733,7 @@ export const TERMS: { title: string; intro: string; sections: Section[] } = {
     {
       heading: 'Where a model is used',
       paragraphs: [
-        'A model helps with matching a candidate to a role, checking a resume against ' +
+        'A model helps with matching a candidate to a job, checking a resume against ' +
           'the skills claimed for it, reading an imported file into records, and ' +
           'drafting the words on a public page. A score always carries its factors, its ' +
           'basis, a confidence and what it could not assess; a bare number is treated as ' +
@@ -827,7 +827,7 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
           'which.',
         'Matching sends a candidate name, skills, headline, location, work ' +
           'authorization class, rate floor and availability date, together with the ' +
-          'role being matched against. The evidence check — run by a supplier on its ' +
+          'job being matched against. The evidence check — run by a supplier on its ' +
           'own submission, and again by the client screening it — sends the extracted ' +
           'text of the resume with the skills claimed for it. An import sends up to ' +
           'sixty thousand characters of the file being loaded, whatever it contains. A ' +
@@ -890,7 +890,7 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
     {
       heading: 'A consultant permission is per supplier, and theirs to move',
       paragraphs: [
-        'No supplier may submit a consultant to a role without a bench listing the ' +
+        'No supplier may submit a consultant to a job without a bench listing the ' +
           'consultant granted. The database requires it, not the screen.',
         'A listing is granted or declined by the consultant, one per supplier. It can ' +
           'be revoked. Separately, a consultant can require a supplier to ask before ' +
@@ -981,7 +981,7 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
     {
       heading: 'The unsettled question, stated before anything else',
       paragraphs: [
-        'For a client own workforce data — its requisitions, its approvals, its ' +
+        'For a client own workforce data — its job requests, its approvals, its ' +
           'timesheet decisions, the records it keeps about workers it did not employ — ' +
           'Etyme looks like a processor acting on the client instructions.',
         'For a candidate own profile — an account they hold themselves, a profile they ' +
@@ -999,8 +999,8 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
       heading: 'Subject matter, duration, nature and purpose',
       paragraphs: [
         'Subject matter: running a contingent workforce across multiple staffing ' +
-          'suppliers — requisition, supplier release, submission, screening, interview, ' +
-          'award, onboarding, time, invoicing and compliance.',
+          'suppliers — job request, supplier release, submission, screening, interview, ' +
+          'award, onboarding, time, billing and compliance.',
         'Duration: for as long as the customer has an account, and after it for as long ' +
           'as the retention schedule says of each category — which for several of them ' +
           'is a statutory minimum measured in years, and for a few is no stated period ' +

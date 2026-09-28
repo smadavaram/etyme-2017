@@ -370,7 +370,7 @@ export default function CompliancePage() {
         <h1>Compliance overview</h1>
         <p>
           Governance policies, enforcement evaluations, and verification status at {data?.client.name ?? '…'}.
-          Every cleared requisition records the basis on which it cleared.
+          Every cleared job request records the basis on which it cleared.
         </p>
       </div>
 

@@ -72,7 +72,7 @@ function evaluateTenureCap(
       ruleType: 'TENURE_CAP',
       enforcementMode,
       outcome: enforcementMode,
-      reason: `${personName} has ${totalMonths} months tenure (cap: ${capMonths})`,
+      reason: `${personName} has ${totalMonths} months tenure (time limit: ${capMonths})`,
       overridable: enforcementMode === 'WARN',
     }
   }
@@ -83,7 +83,7 @@ function evaluateTenureCap(
       ruleType: 'TENURE_CAP',
       enforcementMode,
       outcome: 'WARN',
-      reason: `${personName} is at ${totalMonths} of ${capMonths} months (${Math.round(pctUsed * 100)}% of cap)`,
+      reason: `${personName} is at ${totalMonths} of ${capMonths} months (${Math.round(pctUsed * 100)}% of the time limit)`,
       overridable: true,
     }
   }
@@ -202,7 +202,7 @@ describe('Governance enforcement — Addendum E', () => {
       const result = evaluateTenureCap('Ravi Patel', 580, 18) // ~19 months
       expect(result.outcome).toBe('BLOCK')
       expect(result.reason).toContain('tenure')
-      expect(result.reason).toContain('cap: 18')
+      expect(result.reason).toContain('time limit: 18')
     })
 
     it('a WARN enforcement mode tenure cap can be overridden', () => {

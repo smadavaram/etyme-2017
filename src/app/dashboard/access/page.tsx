@@ -131,7 +131,7 @@ function CanTheySeeForm({ people }: { people: Person[] }) {
     setErr(null)
     setAnswer(null)
     if (!parsed) {
-      setErr('Paste the link they were on — a contract, a consultant or an open role.')
+      setErr('Paste the link they were on — a contract, a consultant or an open job.')
       return
     }
     setAsking(true)

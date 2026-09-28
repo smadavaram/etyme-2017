@@ -86,7 +86,7 @@ export function inviteText(o: {
     body:
       `Hi ${first} — ${o.vendorName} here.\n\n` +
       `We would like to add you to our bench, which means we can put you forward ` +
-      `for contract roles. Nothing happens without you: we will ask you before every ` +
+      `for contract jobs. Nothing happens without you: we will ask you before every ` +
       `single submission, and you can take this back whenever you like.\n\n` +
       `Say yes or no here — no password, no account:\n${o.url}\n\n` +
       `If you would rather not, saying no is the end of it. We will not ask again.`,

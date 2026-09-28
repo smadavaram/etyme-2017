@@ -159,7 +159,7 @@ export function permittedBy(basis: LawfulBasis): readonly WorkAuth[] | 'ALL' {
  */
 export function authDecision(r: Restriction | null, has: WorkAuth | null): Decision {
   if (!r || r.requires.length === 0) {
-    return { verdict: 'PASS', reason: 'The role does not restrict work authorization.', restrictionSuspect: false }
+    return { verdict: 'PASS', reason: 'The job does not restrict work authorization.', restrictionSuspect: false }
   }
 
   if (!has) {
@@ -171,7 +171,7 @@ export function authDecision(r: Restriction | null, has: WorkAuth | null): Decis
   }
 
   if (r.requires.includes(has)) {
-    return { verdict: 'PASS', reason: 'Their permission to work meets what the role states.', restrictionSuspect: false }
+    return { verdict: 'PASS', reason: 'Their permission to work meets what the job states.', restrictionSuspect: false }
   }
 
   // No recorded basis. The restriction is not grounded, so it cannot
@@ -181,7 +181,7 @@ export function authDecision(r: Restriction | null, has: WorkAuth | null): Decis
     return {
       verdict: 'WARN',
       reason:
-        'This role restricts who can hold it by their permission to work, and no lawful reason is recorded. ' +
+        'This job restricts who can hold it by their permission to work, and no lawful reason is recorded. ' +
         'They stay on the list. Record a reason before turning anybody away for this.',
       restrictionSuspect: true,
     }
@@ -207,7 +207,7 @@ export function authDecision(r: Restriction | null, has: WorkAuth | null): Decis
     return {
       verdict: 'WARN',
       reason:
-        `The role names ${r.requires.map(label).join(' or ')}, but ${basisLabel(r.basis)} permits ${label(has)} too. ` +
+        `The job names ${r.requires.map(label).join(' or ')}, but ${basisLabel(r.basis)} permits ${label(has)} too. ` +
         'The restriction is narrower than the reason given for it.',
       restrictionSuspect: true,
     }
@@ -216,7 +216,7 @@ export function authDecision(r: Restriction | null, has: WorkAuth | null): Decis
   return {
     verdict: 'BLOCK',
     reason:
-      `${basisLabel(r.basis)}${r.cite ? ` (${r.cite})` : ''} limits this role to ` +
+      `${basisLabel(r.basis)}${r.cite ? ` (${r.cite})` : ''} limits this job to ` +
       `${r.requires.map(label).join(' or ')}. They are ${label(has)}.`,
     restrictionSuspect: false,
   }

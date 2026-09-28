@@ -108,14 +108,14 @@ export function readiness(r: Record_, now: Date): Readiness {
     {
       key: 'SKILLS',
       label: 'What you do',
-      why: 'Nobody can match you to a role without it. This is the one that matters most.',
+      why: 'Nobody can match you to a job without it. This is the one that matters most.',
       weight: 'BLOCKS',
       done: r.skills.filter((s) => s.trim()).length > 0,
     },
     {
       key: 'LOCATION',
       label: 'Where you can work',
-      why: 'Most roles are filtered by location before anybody reads a profile.',
+      why: 'Most jobs are filtered by location before anybody reads a profile.',
       weight: 'BLOCKS',
       done: has(r.location),
     },
@@ -150,7 +150,7 @@ export function readiness(r: Record_, now: Date): Readiness {
     {
       key: 'AVAILABILITY',
       label: 'When you are free',
-      why: 'A role starting before you are free is a wasted conversation for both of you.',
+      why: 'A job starting before you are free is a wasted conversation for both of you.',
       weight: 'ADVISES',
       done: r.availableFrom !== null,
     },

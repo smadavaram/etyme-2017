@@ -26,7 +26,7 @@ describe("a supplier's standing with a client", () => {
 
   it('a rule that needs preferred refuses a merely approved supplier, and says what would do', () => {
     expect(meets({ supplierName: 'Pinnacle', tier: 'APPROVED', hasAgreement: true, required: 'PREFERRED' })).toEqual({
-      ok: false, reason: 'Pinnacle is approved. This role needs a supplier that is preferred or better.',
+      ok: false, reason: 'Pinnacle is approved. This job needs a supplier that is preferred or better.',
     })
   })
 

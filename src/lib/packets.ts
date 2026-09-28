@@ -141,11 +141,11 @@ export const PACKETS: PacketSpec[] = [
     // how a required item stops being required. Which of the two a start
     // uses is `startPacketFor` below, off the role.
     key: 'CONTRACT_START_LICENSED',
-    label: 'Starting somebody in a licensed role',
+    label: 'Starting somebody in a licensed job',
     purpose: 'CONTRACT_START',
     subject: 'PERSON',
     preamble:
-      'Before the first day. This role cannot lawfully be worked without a current license, so that one is not optional.',
+      'Before the first day. This job cannot lawfully be worked without a current license, so that one is not optional.',
     items: [
       { key: 'PROFESSIONAL_LICENSE', label: 'State license', hint: 'The license you practice on — the number, the state that issued it, and the day it runs out.', required: true, validMonths: null },
       { key: 'RIGHT_TO_WORK', label: 'Proof of right to work', hint: 'Now that there is an offer, we take the document. You choose which one from the acceptable list — we do not.', required: true, validMonths: null },

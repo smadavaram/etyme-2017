@@ -1140,7 +1140,7 @@ export function hrNotice(
 
   const parts: string[] = [preview.says]
   if (preview.fix) parts.push(preview.fix)
-  if (about.roleTitle) parts.push(`The role is ${about.roleTitle}.`)
+  if (about.roleTitle) parts.push(`The job is ${about.roleTitle}.`)
 
   const asked = about.askedOfPerson ?? []
   if (asked.length > 0) {

@@ -152,8 +152,8 @@ export default function GovernancePage() {
           What is coming
         </h1>
         <p className="text-etyme-muted mt-2 max-w-2xl">
-          Not what happened — what lands next, and whose decision it is. A cap
-          reached in eleven weeks is a plan; the same cap reached on the day
+          Not what happened — what lands next, and whose decision it is. A time limit
+          reached in eleven weeks is a plan; the same limit reached on the day
           somebody asks for an extension is an argument.
         </p>
       </div>
@@ -226,7 +226,7 @@ export default function GovernancePage() {
           <p className="text-sm text-etyme-muted mt-2 max-w-md mx-auto">
             {q
               ? 'Try another name.'
-              : `No caps, certificates or endings land in the next ${data?.windowDays ?? 120} days for this team. Widen the window to look further out.`}
+              : `No time limits, certificates or endings land in the next ${data?.windowDays ?? 120} days for this team. Widen the window to look further out.`}
           </p>
         </div>
       )}
@@ -259,7 +259,7 @@ export default function GovernancePage() {
         <p className="text-xs text-etyme-faint mt-8 pt-6 border-t border-etyme-rule">
           Measured against this client&apos;s own policy: {[8, 11, 18].includes(data.policy.tenureCapMonths) ? 'an' : 'a'}{' '}
           {data.policy.tenureCapMonths}-month
-          tenure cap counted across every vendor, and a {data.policy.breakDays}-day break in
+          time limit counted across every vendor, and a {data.policy.breakDays}-day break in
           service. Tenure follows the person, not the assignment.
         </p>
       )}

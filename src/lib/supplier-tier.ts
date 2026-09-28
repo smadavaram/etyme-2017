@@ -43,6 +43,6 @@ export function meets(input: {
   const need = TIERS.indexOf(required)
   const word = tierWord(input.tier, input.hasAgreement).toLowerCase()
   if (have >= need) return { ok: true, reason: `${input.supplierName} is ${word}.` }
-  if (have < 0) return { ok: false, reason: `${input.supplierName} has no agreement with this client and no standing. This role needs a supplier that is ${required.toLowerCase()} or better.` }
-  return { ok: false, reason: `${input.supplierName} is ${word}. This role needs a supplier that is ${required.toLowerCase()} or better.` }
+  if (have < 0) return { ok: false, reason: `${input.supplierName} has no agreement with this client and no standing. This job needs a supplier that is ${required.toLowerCase()} or better.` }
+  return { ok: false, reason: `${input.supplierName} is ${word}. This job needs a supplier that is ${required.toLowerCase()} or better.` }
 }

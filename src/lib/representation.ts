@@ -186,7 +186,7 @@ export function decideSubmission(s: Situation): Verdict {
     return {
       ok: false,
       code: 'HELD_ELSEWHERE',
-      message: `Somebody is already representing this person at this client for the next ${daysLeft(theirs, s.now)} days. Submitting them again would put the same name in front of the client twice, which usually loses them the role.`,
+      message: `Somebody is already representing this person at this client for the next ${daysLeft(theirs, s.now)} days. Submitting them again would put the same name in front of the client twice, which usually loses them the job.`,
     }
   }
 

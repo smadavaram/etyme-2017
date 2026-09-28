@@ -257,7 +257,7 @@ async function evaluateTenureCap(
       ruleType: 'TENURE_CAP',
       enforcementMode,
       outcome: enforcementMode,
-      reason: `${personName} has ${totalMonths} months tenure (cap: ${maxMonths}). ${description}`,
+      reason: `${personName} has ${totalMonths} months tenure (time limit: ${maxMonths}). ${description}`,
       overridable: enforcementMode === 'WARN',
     }
   }
@@ -269,7 +269,7 @@ async function evaluateTenureCap(
       ruleType: 'TENURE_CAP',
       enforcementMode,
       outcome: 'WARN',
-      reason: `${personName} is at ${totalMonths} of ${maxMonths} months (${Math.round(pctUsed * 100)}% of cap)`,
+      reason: `${personName} is at ${totalMonths} of ${maxMonths} months (${Math.round(pctUsed * 100)}% of the time limit)`,
       overridable: true,
     }
   }

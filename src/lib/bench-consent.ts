@@ -96,7 +96,7 @@ export function answer(
   if (said === 'ACCEPT') {
     return {
       ok: true,
-      reason: 'They can put you forward for roles now. You can take it back at any time.',
+      reason: 'They can put you forward for jobs now. You can take it back at any time.',
       // grantedAt is stamped here and only here, which is the whole
       // point: it now means the moment somebody agreed rather than the
       // moment a vendor typed their name.

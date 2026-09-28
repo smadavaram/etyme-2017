@@ -143,7 +143,7 @@ describe('what a person sees on their own paperwork page', () => {
     const papers = mine({
       packets: [
         packet({
-          label: 'Starting somebody in a licensed role',
+          label: 'Starting somebody in a licensed job',
           items: [
             { id: 'b', label: 'i-9 and e-verify', state: 'PENDING', required: true, receivedAt: null, position: 1 },
             { id: 'a', label: 'state license', state: 'PENDING', required: true, receivedAt: null, position: 0 },

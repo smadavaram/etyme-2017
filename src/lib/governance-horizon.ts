@@ -163,7 +163,7 @@ export function projectTenure(fact: TenureFact, now: Date, windowDays: number): 
       date: fmt(now),
       daysAway: 0,
       subject: { kind: 'PERSON', id: fact.personId, name: fact.personName },
-      headline: `${fact.personName} is past the ${fact.capMonths}-month cap at ${Math.round(fact.monthsAccrued)} months`,
+      headline: `${fact.personName} is past the ${fact.capMonths}-month time limit at ${Math.round(fact.monthsAccrued)} months`,
       action: 'End the engagement or record an exception',
       actionable: true,
     }
@@ -180,10 +180,10 @@ export function projectTenure(fact: TenureFact, now: Date, windowDays: number): 
     date: fmt(crossesAt),
     daysAway,
     subject: { kind: 'PERSON', id: fact.personId, name: fact.personName },
-    headline: `${fact.personName} reaches the ${fact.capMonths}-month cap on ${fmt(crossesAt)}`,
+    headline: `${fact.personName} reaches the ${fact.capMonths}-month time limit on ${fmt(crossesAt)}`,
     action: daysAway <= 60
       ? 'Plan the handover or convert them now — after this date an extension is blocked'
-      : 'Decide whether this role continues past the cap',
+      : 'Decide whether this job continues past the time limit',
     actionable: true,
   }
 }
@@ -216,7 +216,7 @@ export function projectBreakInService(
     daysAway,
     subject: { kind: 'PERSON', id: fact.personId, name: fact.personName },
     headline: `${fact.personName} becomes eligible to return on ${fmt(eligibleAt)}`,
-    action: daysAway === 0 ? 'Eligible now — you can ask them back' : 'Line up a role for when the break ends',
+    action: daysAway === 0 ? 'Eligible now — you can ask them back' : 'Line up a job for when the break ends',
     actionable: true,
   }
 }

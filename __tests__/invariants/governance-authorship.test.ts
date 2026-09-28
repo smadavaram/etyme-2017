@@ -68,7 +68,7 @@ describe('writing an approval rule', () => {
     expect(a.allowed).toBe(false)
   })
 
-  it('warns when a company’s only rule would send every requisition to a person', () => {
+  it('warns when a company’s only rule would send every job request to a person', () => {
     // Most requisitions must clear without a human. Governance slower than
     // the workaround produces the workaround.
     const a = assessRule(
@@ -102,7 +102,7 @@ describe('removing an approval rule', () => {
     // entitled to discover that by accident six months later.
     const c = assessDeletion({ otherActiveRules: 0 })
     expect(c.outcome).toBe('WARN')
-    expect(c.reason).toMatch(/every requisition clears/i)
+    expect(c.reason).toMatch(/every job request clears/i)
   })
 
   it('says nothing special about removing one rule of several', () => {
