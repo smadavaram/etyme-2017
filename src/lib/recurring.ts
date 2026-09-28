@@ -60,17 +60,17 @@ export interface Pattern {
  */
 const UPSTREAM: Record<string, string> = {
   CV_ATTACHED:
-    'Ask for a CV when somebody joins the bench, not when a role turns up. The recruiter is doing it at submission time because nothing asked earlier.',
+    'Ask for a CV when somebody joins the bench, not when a job turns up. The recruiter is doing it at submission time because nothing asked earlier.',
   CONSENT:
     'The consent ask is not reaching people. Check who has an email address on file — somebody without one is asked by nobody.',
   DOCS_PRESENT:
-    'The paperwork is being chased per submission. Move it to onboarding and it stops being a per-role problem.',
+    'The paperwork is being chased per submission. Move it to onboarding and it stops being a per-job problem.',
   RATE_IN_RANGE:
-    'Rates are being set above what these roles pay. Either the bench rate floors are out of date or the roles being worked are the wrong ones.',
+    'Rates are being set above what these jobs pay. Either the bench rate floors are out of date or the jobs being worked are the wrong ones.',
   WORK_AUTH:
     'Work authorization is not recorded for enough of the bench. It is one field and it decides whether somebody can be submitted at all.',
   AVAILABLE_IN_WINDOW:
-    'People are being put forward for roles that start before they are free. The availability dates on the bench are probably stale — the fortnightly check-in is what fixes that.',
+    'People are being put forward for jobs that start before they are free. The availability dates on the bench are probably stale — the fortnightly check-in is what fixes that.',
   SKILLS_EVIDENCED:
     'Profiles claim skills the CVs do not evidence. Either the profiles are aspirational or the CVs are out of date, and a client will notice before you do.',
 }
@@ -121,7 +121,7 @@ function label(code: string): string {
     CV_ATTACHED: 'No CV attached',
     CONSENT: 'Nobody asked the consultant',
     DOCS_PRESENT: 'Missing documents',
-    RATE_IN_RANGE: 'Rate above the role',
+    RATE_IN_RANGE: 'Rate above the job',
     WORK_AUTH: 'Work authorization',
     AVAILABLE_IN_WINDOW: 'Not free in time',
     SKILLS_EVIDENCED: 'Skills not in the CV',

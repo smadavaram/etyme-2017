@@ -152,12 +152,18 @@ export async function POST(
   // every seated payment look like a supplier recording a receipt, which
   // skips the control that an invoice must clear the match first.
   const payer = (reading?.companyId ?? caller.company!.id) === billedTo.id
+  // The reader's word for the document: the payer holds its supplier's
+  // invoice, the firm that raised it holds its own bill. The party who
+  // issues a document names it (CLAUDE.md, "Bill, invoice receipt,
+  // payroll").
+  const doc = payer ? 'invoice' : 'bill'
+  const Doc = payer ? 'Invoice' : 'Bill'
   if (payer && invoice.status === 'ISSUED') {
     return NextResponse.json(
       {
         error: {
           code: 'NOT_SUBMITTED',
-          message: `Invoice ${invoice.number} has not been submitted yet. Your supplier sends it through the three-way match first; it can be paid once it has.`,
+          message: `Invoice ${invoice.number} has not been submitted yet. Your supplier sends it through the three-way check first; it can be paid once it has.`,
         },
       },
       { status: 409 }
@@ -166,14 +172,14 @@ export async function POST(
 
   if (invoice.status === 'CANCELLED') {
     return NextResponse.json(
-      { error: { code: 'INVALID_STATE', message: 'Cannot record payment on a cancelled invoice' } },
+      { error: { code: 'INVALID_STATE', message: `Cannot record payment on a cancelled ${doc}` } },
       { status: 409 }
     )
   }
 
   if (invoice.status === 'PAID') {
     return NextResponse.json(
-      { error: { code: 'INVALID_STATE', message: 'Invoice is already fully paid' } },
+      { error: { code: 'INVALID_STATE', message: `${Doc} is already fully paid` } },
       { status: 409 }
     )
   }
@@ -189,7 +195,7 @@ export async function POST(
         code: 'OVERPAYMENT',
         message:
           `${fromUnits(amount, invoice.currency)} is more than the ${fromUnits(outstanding, invoice.currency)} still owed on ` +
-          `invoice ${invoice.number}. Record what actually arrived, or raise a credit note for the difference.`,
+          `${doc} ${invoice.number}. Record what actually arrived, or raise a credit note for the difference.`,
         field: 'amount',
       }},
       { status: 422 }
@@ -242,7 +248,7 @@ export async function POST(
         data: {
           companyId: reading?.companyId ?? caller.company!.id,
           action: 'PAYMENT_RECORDED',
-          summary: `Payment of ${fromUnits(amount, invoice.currency)} recorded on invoice ${invoice.number}. ${newStatus === 'PAID' ? 'Invoice now fully paid.' : `${fromUnits(totalNum - newPaid, invoice.currency)} outstanding.`}`,
+          summary: `Payment of ${fromUnits(amount, invoice.currency)} recorded on ${doc} ${invoice.number}. ${newStatus === 'PAID' ? `${Doc} now fully paid.` : `${fromUnits(totalNum - newPaid, invoice.currency)} outstanding.`}`,
           reason:
             moneyTrailFor(reading?.seat ?? null, `Payment of ${fromUnits(amount, invoice.currency)} recorded`) ??
             `Recorded by ${caller.person.name} at ${caller.company!.name}, ${payer ? 'paying' : 'receiving'}`,
@@ -311,7 +317,7 @@ export async function POST(
           status: newStatus,
         },
         message: newStatus === 'PAID'
-          ? `Invoice ${invoice.number} fully paid`
+          ? `${Doc} ${invoice.number} fully paid`
           : `Payment recorded — ${fromUnits(totalNum - newPaid, invoice.currency)} remaining`,
       },
     }, { status: 201 })

@@ -284,7 +284,7 @@ export function exposureOf(input: ExposureInput): Exposure {
 
   if (input.unbilledMinor == null) {
     gaps.push(
-      'Work delivered but not yet invoiced could not be read, so it is not in this figure. ' +
+      'Work delivered but not yet billed could not be read, so it is not in this figure. ' +
         'On a monthly billing cycle that is routinely a month of revenue.'
     )
   }
@@ -322,7 +322,7 @@ export function exposureOf(input: ExposureInput): Exposure {
       says:
         input.unbilledMinor == null
           ? 'Not read. Left out rather than shown as nothing, because nothing is a claim.'
-          : 'Hours approved by the client and not yet on an invoice. The wages behind them are already owed.',
+          : 'Hours approved by the client and not yet on a bill. The wages behind them are already owed.',
     },
     {
       key: 'COMMITTED',
@@ -339,7 +339,7 @@ export function exposureOf(input: ExposureInput): Exposure {
           ? 'The receipt queue was not read, so nothing is taken off for cash already in hand.'
           : held === 0
             ? 'Nothing of theirs is sitting unplaced.'
-            : 'Money from this customer that no invoice has claimed. It comes off the ' +
+            : 'Money from this customer that no bill has claimed. It comes off the ' +
               'exposure because we have it — but it is not netted into the receivable, ' +
               'because nobody has yet said which debt it settles.',
     },

@@ -55,6 +55,34 @@ export const TEMPLATE_COLUMNS = [
 ] as const
 
 /**
+ * Other names a column answers to, keyed by the name the importer asks
+ * for.
+ *
+ * The column the template once headed `role` is the **job** — the
+ * founder's plain word on every screen since 2026-09-28. A client who
+ * downloaded the template before that still has `role` at the top of
+ * their file, and that file keeps working: both headers are the same
+ * question, and neither is refused. Whichever the file uses, gaps and
+ * refusals say "job".
+ *
+ * The template itself (`TEMPLATE_COLUMNS`, `TEMPLATE_CSV` and the copy at
+ * `public/census-template.csv`) still heads the column `role` until the
+ * static file is changed with it; the test that holds the two together
+ * keeps them from drifting apart meanwhile.
+ */
+export const COLUMN_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  job: ['job', 'role'],
+}
+
+/** The name the importer asks by, for a template column. */
+function askedAs(column: string): string {
+  for (const [name, also] of Object.entries(COLUMN_ALIASES)) {
+    if (also.includes(column)) return name
+  }
+  return column
+}
+
+/**
  * The file a client downloads: a header row and one example row.
  *
  * **No names.** The example is a reference number, which is the whole
@@ -259,12 +287,18 @@ export function parseCensusCsv(text: string, opts: ParseOptions = {}): ParsedCen
   }
 
   const headers = splitLine(lines[firstData]).map(normalizeHeader)
-  const at = (name: string) => headers.indexOf(name)
+  const at = (name: string) => {
+    for (const n of COLUMN_ALIASES[name] ?? [name]) {
+      const idx = headers.indexOf(n)
+      if (idx !== -1) return idx
+    }
+    return -1
+  }
 
   // A column that is not there is a question nobody was asked, and it is
   // said once against the header rather than once per row.
   const required = ['supplier', 'start date', 'reference number']
-  for (const name of [...TEMPLATE_COLUMNS]) {
+  for (const name of TEMPLATE_COLUMNS.map(askedAs)) {
     if (at(name) !== -1) continue
     gaps.push({
       line: firstData + 1, reference: null, kind: 'MISSING_COLUMN',
@@ -390,10 +424,10 @@ export function parseCensusCsv(text: string, opts: ParseOptions = {}): ParsedCen
     }
 
     // ── What it is, and where ────────────────────────────────────────
-    const role = cell('role') || null
+    const role = cell('job') || null
     if (!role) {
       note('NO_ROLE', false,
-        `Line ${line} names no role, so this contractor cannot be compared with anybody else's price for the ` +
+        `Line ${line} names no job, so this contractor cannot be compared with anybody else's price for the ` +
         'same skill.')
     }
     const site = cell('site') || null

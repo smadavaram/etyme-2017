@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
       advice: remittanceAdvice(proposed, caller.company.name),
       runs,
       note:
-        'One currency, one day, one advice per supplier. A bill that misses a run is ' +
+        'One currency, one day, one advice per supplier. An invoice that misses a run is ' +
         'listed with the reason — "it was not picked up" is not an answer anybody can act on.',
     },
   })
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'NOTHING_TO_PAY',
           message:
-            'None of the bills named are payable in this run. Every one of them is on the ' +
+            'None of the invoices named are payable in this run. Every one of them is on the ' +
             'excluded list with a reason.',
         },
       },
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
         run,
         advice,
         note:
-          `Draft run of ${lines.length} bill${lines.length === 1 ? '' : 's'} in ` +
+          `Draft run of ${lines.length} supplier invoice${lines.length === 1 ? '' : 's'} in ` +
           `${proposed.currency}. It releases nothing until somebody other than you ` +
           `approves it — one person who can both assemble and release a payment file is ` +
           `the entire control on money leaving the building.`,
@@ -282,7 +282,7 @@ export async function PATCH(request: NextRequest) {
     }
     await prisma.paymentRun.update({ where: { id }, data: { status: 'CANCELLED' } })
     return NextResponse.json({
-      data: { id, status: 'CANCELLED', note: 'Cancelled. Every bill in it is payable again.' },
+      data: { id, status: 'CANCELLED', note: 'Cancelled. Every invoice in it is payable again.' },
     })
   }
 
@@ -363,7 +363,7 @@ export async function PATCH(request: NextRequest) {
       bills: outcomes.length,
       settled,
       note:
-        `${settled} of ${outcomes.length} bill${outcomes.length === 1 ? '' : 's'} settled in ` +
+        `${settled} of ${outcomes.length} supplier invoice${outcomes.length === 1 ? '' : 's'} settled in ` +
         `full and carry the paid date. A part payment carries none — the obligation is ` +
         `still open, and dating it now would report the first installment as the day the ` +
         `supplier was paid, which is the figure every float number counts to.`,

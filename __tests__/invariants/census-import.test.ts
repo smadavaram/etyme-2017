@@ -66,6 +66,32 @@ describe('A client fills the template their own way and it still imports', () =>
     expect(row.rateMinor).toBe(8000)
   })
 
+  it('a file with its column headed job imports the same as one headed role, and both carry the job onto the row', () => {
+    const byJob =
+      'supplier,job,site,start date,end date,bill rate,hours per week,reference number\n' +
+      'Veritan Talent,Validation Engineer,Tualatin OR,2025-01-01,2026-01-01,92.50,40,C-7\n'
+    const byRole = byJob.replace(',job,', ',role,')
+    const asJob = parseCensusCsv(byJob)
+    const asRole = parseCensusCsv(byRole)
+    expect(asJob.gaps).toEqual([])
+    expect(asRole.gaps).toEqual([])
+    expect(asJob.rows[0].role).toBe('Validation Engineer')
+    expect(asRole.rows[0].role).toBe('Validation Engineer')
+  })
+
+  it('a file with neither a job nor a role column is told the job column is missing, in the word the screens use', () => {
+    const text =
+      'supplier,site,start date,end date,bill rate,hours per week,reference number\n' +
+      'Veritan Talent,Tualatin OR,2025-01-01,2026-01-01,92.50,40,C-8\n'
+    const parsed = parseCensusCsv(text)
+    const missing = parsed.gaps.find((g) => g.kind === 'MISSING_COLUMN')
+    expect(missing?.says).toContain('no "job" column')
+    expect(missing?.says).not.toContain('"role"')
+    // It is a gap, not a refusal: the row still imports and says it names no job.
+    expect(parsed.rows).toHaveLength(1)
+    expect(parsed.gaps.find((g) => g.kind === 'NO_ROLE')?.says).toContain('names no job')
+  })
+
   it('"Start Date", "start_date" and "START DATE" are one question, not three', () => {
     const text =
       'Supplier,Role,Site,START DATE,End_Date,Bill Rate,Hours Per Week,Reference Number\n' +

@@ -188,7 +188,7 @@ export default function PurchaseOrdersPage() {
           <h1>What you have authorized</h1>
           <p>
             One document, a header and its lines. The header is the ceiling — what a supplier may
-            bill you in total, and an invoice that quotes an exhausted one will not match. Each
+            invoice you in total, and an invoice that quotes an exhausted one will not match. Each
             line is one person, at one rate, at one site.
           </p>
         </div>

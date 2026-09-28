@@ -106,7 +106,7 @@ const NOTHING: InvoiceParties = {
   client: null,
   basis: null,
   says:
-    'Nothing behind this invoice says who it is between — no agreement, no order and no ' +
+    'Nothing behind this bill says who it is between — no agreement, no order and no ' +
     'line. Put it on an order, or bill it from a contract, before it is sent.',
 }
 

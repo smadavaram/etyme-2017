@@ -363,7 +363,7 @@ function saysOf(
     case 'SHORT_PAID':
       return (
         `${inv.customerName} paid and stopped short. That is a query about ` +
-        `something on the invoice, not arrears — it goes to a person, not to a reminder.`
+        `something on the bill, not arrears — it goes to a person, not to a reminder.`
       )
     case 'PART_PAID':
       return days > 0
@@ -519,17 +519,17 @@ function concentrationSays(
   switch (c) {
     case 'ONE_BIG_INVOICE':
       return (
-        `Almost all of it is ${largestNumber ?? 'one invoice'} — ${pct} of the overdue ` +
-        `balance, ${oldest} days out. One conversation about one invoice, not a chase.`
+        `Almost all of it is ${largestNumber ?? 'one bill'} — ${pct} of the overdue ` +
+        `balance, ${oldest} days out. One conversation about one bill, not a chase.`
       )
     case 'SPREAD_THIN':
       return (
-        `${overdueCount} invoices and none of them dominant, the largest ${pct} of the ` +
+        `${overdueCount} bills and none of them dominant, the largest ${pct} of the ` +
         `balance. That pattern is usually a process fault at their end — a wrong ` +
         `bill-to, a portal nobody submits to — rather than a decision not to pay.`
       )
     case 'MIXED':
-      return `${overdueCount} overdue invoice${overdueCount === 1 ? '' : 's'}, the largest ${pct} of the balance.`
+      return `${overdueCount} overdue bill${overdueCount === 1 ? '' : 's'}, the largest ${pct} of the balance.`
     default:
       return 'Nothing overdue.'
   }
@@ -794,7 +794,7 @@ export const LADDER: Rung[] = [
     automated: true,
     to: 'AP_CONTACT',
     channel: 'EMAIL',
-    why: 'Most late invoices were never entered. A week before is when that is still cheap to fix.',
+    why: 'Most late bills were never entered. A week before is when that is still cheap to fix.',
   },
   {
     step: 'FIRST',
@@ -917,7 +917,7 @@ export function dunningForCustomer(
       reason: 'NOT_WORTH_A_LETTER',
       says:
         `The balance is below what a chase costs in goodwill. Let it ride to the next ` +
-        `invoice rather than spend a relationship on it.`,
+        `bill rather than spend a relationship on it.`,
     }
   }
 
@@ -987,7 +987,7 @@ function label(step: DunningStep): string {
 }
 
 function subjectOf(step: DunningStep, customer: string, count: number): string {
-  const n = `${count} invoice${count === 1 ? '' : 's'}`
+  const n = `${count} bill${count === 1 ? '' : 's'}`
   switch (step) {
     case 'COURTESY':
       return `${n} falling due next week`
@@ -1012,13 +1012,13 @@ function actionSays(step: DunningStep, count: number, maxDays: number): string {
   }
   if (step === 'COURTESY') {
     return (
-      `Due in a few days. Sent early on purpose: an invoice that was never entered ` +
+      `Due in a few days. Sent early on purpose: a bill that was never entered ` +
       `into their system can still be fixed this week and cannot be fixed afterwards.`
     )
   }
   const name = label(step)
   return (
-    `${name.charAt(0).toUpperCase()}${name.slice(1)} — ${count} invoice` +
+    `${name.charAt(0).toUpperCase()}${name.slice(1)} — ${count} bill` +
     `${count === 1 ? '' : 's'}, oldest ${maxDays} days past due.`
   )
 }
@@ -1169,7 +1169,7 @@ export function unappliedCash(receipts: Receipt[], now: Date): UnappliedCash[] {
         oldestDays: oldest,
         says:
           `${sorted.length} receipt${sorted.length === 1 ? '' : 's'} arrived and ` +
-          `${sorted.length === 1 ? 'was' : 'were'} never placed against an invoice` +
+          `${sorted.length === 1 ? 'was' : 'were'} never placed against a bill` +
           (oldest != null ? `, the oldest ${oldest} day${oldest === 1 ? '' : 's'} ago` : '') +
           `. ` +
           (unknownPayer > 0
@@ -1272,7 +1272,7 @@ export function applyReceipt(
       invoiceOwesAfterMinor: owed,
       says:
         `${invoice.number} is owed ${minor(owed)} and this receipt is ${minor(receipt.amountMinor)}. ` +
-        `Placing all of it would mark the invoice paid and lose the extra ` +
+        `Placing all of it would mark the bill paid and lose the extra ` +
         `${minor(receipt.amountMinor - owed)} — it would exist on no record. Split the ` +
         `receipt: ${minor(owed)} here and ${minor(receipt.amountMinor - owed)} left to place.`,
     }
@@ -1405,7 +1405,7 @@ export function checkCreditNote(i: CreditNoteInput): CreditNoteVerdict {
   const room = i.invoiceTotalMinor - i.alreadyCreditedMinor
   if (i.amountMinor > room) {
     problems.push(
-      `That is more than is left on the invoice. It is for ${minor(i.invoiceTotalMinor)}, ` +
+      `That is more than is left on the bill. It is for ${minor(i.invoiceTotalMinor)}, ` +
         `${minor(i.alreadyCreditedMinor)} has already been credited, and ${minor(room)} ` +
         `remains. A credit note reduces a debt; paying money back to a client is a refund, ` +
         `which is a different act with different authority behind it.`
@@ -1749,8 +1749,8 @@ export function collectionStage(c: CollectionCase, now: Date): CollectionVerdict
     recommendStopWork: false,
     factorable,
     says:
-      `${c.oldestDaysOverdue} days on the oldest invoice and the ladder has not finished. ` +
-      `Most late invoices are late because they were never entered, and a letter still ` +
+      `${c.oldestDaysOverdue} days on the oldest bill and the ladder has not finished. ` +
+      `Most late bills are late because they were never entered, and a letter still ` +
       `fixes that.`,
   }
 }
@@ -1806,7 +1806,7 @@ export type WriteOffReason =
 export const WRITE_OFF_LABEL: Record<WriteOffReason, string> = {
   CUSTOMER_INSOLVENT: 'The customer has gone under',
   UNECONOMIC_TO_PURSUE: 'Costs more to chase than it is worth',
-  SETTLED_FOR_LESS: 'Settled for less than the invoice',
+  SETTLED_FOR_LESS: 'Settled for less than the bill',
   DISPUTE_CONCEDED: 'We conceded the argument',
   TIME_BARRED: 'Out of time to sue for it',
 }

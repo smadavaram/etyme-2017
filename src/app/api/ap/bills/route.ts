@@ -66,12 +66,12 @@ export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Supplier bills')
+  const notStaff = staffOnly(caller, 'Supplier invoices')
   if (notStaff) return notStaff
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A supplier bill is owed by a company' } },
+      { error: { code: 'NO_COMPANY', message: 'A supplier invoice is owed by a company' } },
       { status: 403 }
     )
   }
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 
   if (!vendorCompanyId) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'A bill comes from a named supplier', field: 'vendorCompanyId' } },
+      { error: { code: 'VALIDATION', message: 'An invoice comes from a named supplier', field: 'vendorCompanyId' } },
       { status: 422 }
     )
   }
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'VALIDATION',
-          message: 'A company cannot bill itself. A bill has two parties.',
+          message: 'A company cannot invoice itself. An invoice has two parties.',
           field: 'vendorCompanyId',
         },
       },
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'VALIDATION',
-          message: 'A bill needs the supplier’s own number — it is how they will chase it',
+          message: 'An invoice needs the supplier’s own number — it is how they will chase it',
           field: 'number',
         },
       },
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
   const totalValue = Number(body.total)
   if (!Number.isFinite(totalValue) || totalValue <= 0) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'A bill is for a positive amount', field: 'total' } },
+      { error: { code: 'VALIDATION', message: 'An invoice is for a positive amount', field: 'total' } },
       { status: 422 }
     )
   }
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'VALIDATION',
           message:
-            'A bill needs a due date. Without one there are no terms to measure against, ' +
+            'An invoice needs a due date. Without one there are no terms to measure against, ' +
             'and every delay figure on this supplier becomes a gap rather than a number.',
           field: 'dueAt',
         },
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'VALIDATION',
-          message: 'A bill cannot fall due before it arrived',
+          message: 'An invoice cannot fall due before it arrived',
           field: 'dueAt',
         },
       },
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'DUPLICATE',
           message:
-            `${vendor.name} bill ${number} is already recorded, received on ` +
+            `${vendor.name} invoice ${number} is already recorded, received on ` +
             `${duplicate.receivedAt.toISOString().slice(0, 10)}. Paying the same invoice ` +
             `twice is the commonest and most expensive mistake on this side of the ledger, ` +
             `so it is refused rather than added.`,
@@ -472,7 +472,7 @@ export async function POST(request: NextRequest) {
       personId: d.personId,
       companyId,
       type: 'INVOICE' as const,
-      title: `A bill from ${vendor?.name ?? 'a supplier'} does not match`,
+      title: `An invoice from ${vendor?.name ?? 'a supplier'} does not match`,
       body: failedSoft.map((c) => c.reason).join(' ') || 'A check failed.',
       entityId: bill.id,
       data: { vendorBillId: bill.id, href: '/dashboard/ap' },
@@ -522,12 +522,12 @@ export async function PATCH(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Supplier bills')
+  const notStaff = staffOnly(caller, 'Supplier invoices')
   if (notStaff) return notStaff
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A supplier bill is owed by a company' } },
+      { error: { code: 'NO_COMPANY', message: 'A supplier invoice is owed by a company' } },
       { status: 403 }
     )
   }
@@ -559,7 +559,7 @@ export async function PATCH(request: NextRequest) {
   const id = String(body.id ?? '')
   if (!id) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Which bill?', field: 'id' } },
+      { error: { code: 'VALIDATION', message: 'Which invoice?', field: 'id' } },
       { status: 422 }
     )
   }
@@ -569,7 +569,7 @@ export async function PATCH(request: NextRequest) {
     select: { id: true, companyId: true, currency: true, totalCents: true, paidCents: true, receivedAt: true },
   })
   if (!bill || bill.companyId !== reading.companyId) {
-    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such bill here' } }, { status: 404 })
+    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such supplier invoice here' } }, { status: 404 })
   }
 
   const paidAt = body.paidAt ? new Date(String(body.paidAt)) : new Date()
@@ -584,7 +584,7 @@ export async function PATCH(request: NextRequest) {
       {
         error: {
           code: 'VALIDATION',
-          message: 'A bill cannot be paid before it arrived',
+          message: 'An invoice cannot be paid before it arrived',
           field: 'paidAt',
         },
       },
@@ -640,9 +640,9 @@ export async function PATCH(request: NextRequest) {
         // cannot land in this commit.
         action: 'PAYMENT_RECORDED',
         summary:
-          `${settled ? 'Paid in full' : 'Part paid'}: bill ${bill.id} on ` +
+          `${settled ? 'Paid in full' : 'Part paid'}: supplier invoice ${bill.id} on ` +
           `${reading.companyName}'s books.`,
-        reason: moneyTrailFor(reading.seat, 'Supplier bill paid') ?? '',
+        reason: moneyTrailFor(reading.seat, 'Supplier invoice paid') ?? '',
         payload: {
           vendorBillId: bill.id,
           paidCents: addCents,
@@ -691,11 +691,11 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Supplier bills')
+  const notStaff = staffOnly(caller, 'Supplier invoices')
   if (notStaff) return notStaff
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A supplier bill is owed by a company' } },
+      { error: { code: 'NO_COMPANY', message: 'A supplier invoice is owed by a company' } },
       { status: 403 }
     )
   }
@@ -716,7 +716,7 @@ export async function GET(request: NextRequest) {
   }
 
   const companyId = reading.companyId
-  noteMoneyRead(reading, 'Supplier bill exceptions read')
+  noteMoneyRead(reading, 'Supplier invoice exceptions read')
   const now = new Date()
 
   const bills = await prisma.vendorBill.findMany({
@@ -839,7 +839,7 @@ export async function GET(request: NextRequest) {
         says: e.says,
       })),
       note:
-        'Every open bill re-matched against what is true now rather than against a verdict ' +
+        'Every open supplier invoice re-matched against what is true now rather than against a verdict ' +
         'stored on Tuesday. Worst first, and worst is not largest — a duplicate nobody can ' +
         'wave through sorts above a rate query ten times its size.',
     },

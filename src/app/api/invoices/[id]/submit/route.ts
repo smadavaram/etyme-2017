@@ -66,8 +66,8 @@ export async function POST(
         error: {
           code: 'NOT_FOUND',
           message: companyId
-            ? 'No such invoice of yours. A bill is submitted by the firm that raised it.'
-            : 'An invoice is a bill between two companies, and your seat is not at one.',
+            ? 'No such bill of yours. A bill is submitted by the firm that raised it.'
+            : 'A bill is between two companies, and your seat is not at one.',
         },
       },
       { status: 404 }
@@ -78,7 +78,7 @@ export async function POST(
     return NextResponse.json(
       { error: {
         code: 'INVALID_STATE',
-        message: `Cannot submit invoice in "${invoice.status}" status — only ISSUED invoices can be submitted`,
+        message: `Cannot submit a bill in "${invoice.status}" status — only ISSUED bills can be submitted`,
       }},
       { status: 409 }
     )
@@ -107,7 +107,7 @@ export async function POST(
         {
           error: {
             code: 'MATCH_FAILED',
-            message: `This invoice does not match its timesheets or purchase order: ${match.summary}`,
+            message: `This bill does not match its timesheets or purchase order: ${match.summary}`,
             checks: match.checks.filter(c => c.outcome === 'FAIL'),
           },
         },
@@ -132,8 +132,8 @@ export async function POST(
         data: {
           companyId: caller.company!.id,
           action: 'INVOICE_SUBMITTED',
-          summary: `Invoice ${invoice.number} submitted for client review`,
-          reason: `Invoice ${invoice.number} submitted for client review`,
+          summary: `Bill ${invoice.number} submitted for client review`,
+          reason: `Bill ${invoice.number} submitted for client review`,
           payload: {
             invoiceId: invoice.id,
             invoiceNumber: invoice.number,
@@ -161,13 +161,13 @@ export async function POST(
           submittedAt: result.submittedAt?.toISOString() ?? null,
           dueAt: result.dueAt.toISOString(),
         },
-        message: `Invoice ${result.number} submitted for client review`,
+        message: `Bill ${result.number} submitted for client review`,
       },
     })
   } catch (err: any) {
     reportError('Invoice submission failed:', err)
     return NextResponse.json(
-      { error: { code: 'INTERNAL', message: 'Invoice submission failed' } },
+      { error: { code: 'INTERNAL', message: 'The bill could not be submitted' } },
       { status: 500 }
     )
   }

@@ -329,7 +329,7 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 />
                 <span>
                   <span className="text-sm font-medium text-etyme-ink">Client-billable</span>
-                  <span className="block text-[11px] text-etyme-faint">(appears on invoices)</span>
+                  <span className="block text-[11px] text-etyme-faint">(appears on bills)</span>
                 </span>
               </label>
             </div>
@@ -693,7 +693,7 @@ export default function ExpensesPage() {
     { key: 'DRAFT', label: 'Draft', count: expenses.filter((e) => e.status === 'DRAFT').length },
     { key: 'SUBMITTED', label: 'Submitted', count: expenses.filter((e) => e.status === 'SUBMITTED').length },
     { key: 'APPROVED', label: 'Approved', count: expenses.filter((e) => e.status === 'APPROVED').length },
-    { key: 'INVOICED', label: 'Invoiced' },
+    { key: 'INVOICED', label: 'Billed' },
     { key: 'PAID', label: 'Paid' },
     { key: 'REJECTED', label: 'Rejected' },
   ]

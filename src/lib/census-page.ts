@@ -426,7 +426,7 @@ export function rateSpread(all: Placement[], now: Date): RateSpread {
       highSupplier: high.supplier,
       suppliers: pricedSuppliers.size,
       caveat: unpricedSuppliers.length > 0
-        ? `${unpricedSuppliers.join(' and ')} also fill this role and sent no rate, so the real gap can only be ` +
+        ? `${unpricedSuppliers.join(' and ')} also fill this job and sent no rate, so the real gap can only be ` +
           'wider than this one.'
         : null,
     })
@@ -665,7 +665,7 @@ export function renderCensusPage(args: {
     'Same skill, different price',
     '',
     (spread.roles.length === 0
-      ? `<p class="note">No role on your sites is filled by two suppliers we could both price, so there is no
+      ? `<p class="note">No job on your sites is filled by two suppliers we could both price, so there is no
          price to compare. That is a finding rather than a blank: it means every skill here has one source.</p>`
       : list(spread.roles.map((r) =>
           `<span>${esc(r.role)}</span>` +

@@ -212,7 +212,7 @@ export async function POST(
         summary: `${contract.person.name}'s contract at ${contract.endClientCompany?.name ?? contract.clientCompany.name} extended by ${months} month${months !== 1 ? 's' : ''} to ${newEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
         reason:
           cycles.sell + cycles.buy > 0
-            ? `Extended by ${caller.person.name}. ${cycles.sell + cycles.buy} new due dates written — hours, pay and invoices for the added months.`
+            ? `Extended by ${caller.person.name}. ${cycles.sell + cycles.buy} new due dates written — hours, pay and bills for the added months.`
             : `Extended by ${caller.person.name}. No new due dates: the contract has no start date, or every date in the new period was already on the books.`,
         payload: {
           contractId: id,

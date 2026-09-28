@@ -110,8 +110,8 @@ export async function GET(request: NextRequest) {
         currencies: [],
         gaps,
         note:
-          'Nothing has been invoiced yet, so there is nothing to age. This screen fills ' +
-          'as invoices are raised against approved timesheets.',
+          'Nothing has been billed yet, so there is nothing to age. This screen fills ' +
+          'as bills are raised against approved timesheets.',
       },
     })
   }
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
     // Left null rather than zero. Zero is a claim that there is none.
     unbilledByCustomer = null
     gaps.push(
-      'Work delivered but not yet invoiced could not be read, so exposure below is a floor.'
+      'Work delivered but not yet billed could not be read, so exposure below is a floor.'
     )
   }
 
@@ -261,7 +261,7 @@ export async function GET(request: NextRequest) {
 
   if (datedByProxy > 0) {
     gaps.push(
-      `${datedByProxy} of ${raw.length} invoice${raw.length === 1 ? '' : 's'} carry no ` +
+      `${datedByProxy} of ${raw.length} bill${raw.length === 1 ? '' : 's'} carry no ` +
         `issued-at date, so the billing history behind DSO dates ${
           datedByProxy === 1 ? 'that one' : 'those'
         } by the end of the period covered instead. Close, not the same thing, and it ` +

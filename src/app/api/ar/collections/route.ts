@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
   const { raw, book } = await loadBook(companyId, now)
   if (raw.length === 0) {
     return NextResponse.json({
-      data: { asOf: now.toISOString(), cases: [], gaps, note: 'Nothing has been invoiced yet.' },
+      data: { asOf: now.toISOString(), cases: [], gaps, note: 'Nothing has been billed yet.' },
     })
   }
 
@@ -355,7 +355,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'VALIDATION',
           message:
-            'Name the invoices this covers. An event naming none belongs to no run of ' +
+            'Name the bills this covers. An event naming none belongs to no run of ' +
             'arrears and suppresses nothing, which makes it a row nobody can act on.',
           field: 'invoiceIds',
         },
@@ -451,7 +451,7 @@ export async function POST(request: NextRequest) {
   // value now and reads branch positions only, so the test and the name
   // it writes can sit beside each other where a person can check one
   // against the other.
-  const many = `${mine.length} invoice${mine.length === 1 ? '' : 's'}`
+  const many = `${mine.length} bill${mine.length === 1 ? '' : 's'}`
   await prisma.automationLog.create({
     data: {
       companyId,

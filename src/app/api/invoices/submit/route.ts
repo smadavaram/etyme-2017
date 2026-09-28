@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   // Cap bulk operations at a reasonable size
   if (invoiceIds.length > 100) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Cannot submit more than 100 invoices at once', field: 'invoiceIds' } },
+      { error: { code: 'VALIDATION', message: 'Cannot submit more than 100 bills at once', field: 'invoiceIds' } },
       { status: 422 }
     )
   }
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
             invoiceId,
             number: null,
             status: 'not_found',
-            reason: 'Invoice not found',
+            reason: 'Bill not found',
           })
           continue
         }
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
             invoiceId,
             number: invoice.number,
             status: 'skipped',
-            reason: `Current status is "${invoice.status}" — only ISSUED invoices can be submitted`,
+            reason: `Current status is "${invoice.status}" — only ISSUED bills can be submitted`,
           })
           continue
         }
@@ -110,8 +110,8 @@ export async function POST(request: NextRequest) {
           data: {
             companyId: caller.company!.id,
             action: 'INVOICE_SUBMITTED',
-            summary: `Invoice ${invoice.number} submitted for client review`,
-            reason: `Invoice ${invoice.number} submitted for client review`,
+            summary: `Bill ${invoice.number} submitted for client review`,
+            reason: `Bill ${invoice.number} submitted for client review`,
             payload: {
               invoiceId: invoice.id,
               invoiceNumber: invoice.number,
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     reportError('Bulk invoice submission failed:', err)
     return NextResponse.json(
-      { error: { code: 'INTERNAL', message: 'Bulk invoice submission failed' } },
+      { error: { code: 'INTERNAL', message: 'The bills could not be submitted' } },
       { status: 500 }
     )
   }

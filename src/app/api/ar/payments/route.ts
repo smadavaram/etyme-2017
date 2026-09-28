@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
         })),
       })),
       note:
-        'Money that arrived and was never keyed against an invoice. It is not netted ' +
+        'Money that arrived and was never keyed against a bill. It is not netted ' +
         'against what you are owed — until somebody says these are the same money, they ' +
         'are two separate facts, and netting them hides both.',
     },
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
     const inv = await loadInvoice(invoiceId, companyId)
     if (!inv) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'No such invoice of ours', field: 'invoiceId' } },
+        { error: { code: 'NOT_FOUND', message: 'No such bill of ours', field: 'invoiceId' } },
         { status: 404 }
       )
     }
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
       data: {
         payment: created,
         note: invoiceId
-          ? 'Recorded and placed against the invoice.'
+          ? 'Recorded and placed against the bill.'
           : 'Recorded as unapplied cash. It is on the queue with the payer, the amount and ' +
             'the date — which is what somebody matches by hand — and it is counted as money ' +
             'held rather than money owed.',
@@ -254,7 +254,7 @@ export async function PATCH(request: NextRequest) {
       {
         error: {
           code: 'VALIDATION',
-          message: 'Which receipt, and against which invoice?',
+          message: 'Which receipt, and against which bill?',
           field: paymentId ? 'invoiceId' : 'paymentId',
         },
       },
@@ -279,7 +279,7 @@ export async function PATCH(request: NextRequest) {
   const inv = await loadInvoice(invoiceId, companyId)
   if (!inv) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No such invoice of ours', field: 'invoiceId' } },
+      { error: { code: 'NOT_FOUND', message: 'No such bill of ours', field: 'invoiceId' } },
       { status: 404 }
     )
   }

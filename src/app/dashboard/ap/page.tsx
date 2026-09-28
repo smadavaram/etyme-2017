@@ -42,7 +42,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'chains', label: 'Accounts payable' },
   { key: 'hops', label: 'Every hop' },
   { key: 'clause', label: 'Pay when paid' },
-  { key: 'exceptions', label: 'Bills that did not match' },
+  { key: 'exceptions', label: 'Invoices that did not match' },
   { key: 'runs', label: 'Payment runs' },
 ]
 
@@ -367,7 +367,7 @@ function Mirror({ book }: { book: any }) {
           <p className="stat-label">We owe</p>
           <p className="stat-value tabular-nums">{compact(book.payableMinor, ccy)}</p>
           <p className="mt-0.5 text-[11px] text-etyme-faint">
-            {book.billCount} bill{book.billCount === 1 ? '' : 's'} · {compact(book.overdueMinor, ccy)} past due
+            {book.billCount} invoice{book.billCount === 1 ? '' : 's'} · {compact(book.overdueMinor, ccy)} past due
           </p>
         </div>
         {bothSides && (
@@ -413,7 +413,7 @@ function Chains({ data }: { data: any; book: any }) {
           A chain lays what a client paid beside what its supplier was paid for the same
           work, and the gap between those two numbers is the margin on that placement. So
           the chains are not drawn for this desk. Everything the firm owes, and when each
-          bill falls due, is above.
+          supplier invoice falls due, is above.
         </p>
       </div>
     )
@@ -423,8 +423,8 @@ function Chains({ data }: { data: any; book: any }) {
     return (
       <div className="panel">
         <p className="text-[13px] text-etyme-muted">
-          No supplier bill here can be tied to the client invoice that funds it, so there
-          is no chain to lay out. A bill needs a buy contract, and that buy contract needs
+          No supplier invoice here can be tied to the bill to the client that funds it, so
+          there is no chain to lay out. An invoice needs a buy contract, and that buy contract needs
           a linked sell contract — without both, a cost has no revenue beside it and a
           float figure would be invented rather than measured.
         </p>
@@ -435,7 +435,7 @@ function Chains({ data }: { data: any; book: any }) {
   return (
     <div className="space-y-4">
       <p className="max-w-[72ch] text-[13px] text-etyme-muted">
-        One chain per supplier bill we can trace back to the client invoice funding it.
+        One chain per supplier invoice we can trace back to the bill to the client funding it.
         The gap between paying out and being paid in is the number nobody has, because
         each party can only see its own hop.
       </p>
@@ -715,7 +715,7 @@ function Exceptions() {
   if (loading) {
     return (
       <div className="panel">
-        <p className="text-[13px] text-etyme-muted">Re-matching every open bill…</p>
+        <p className="text-[13px] text-etyme-muted">Re-matching every open supplier invoice…</p>
       </div>
     )
   }
@@ -736,9 +736,9 @@ function Exceptions() {
       {rows.length === 0 && (
         <div className="panel">
           <p className="text-[13px] text-etyme-muted">
-            All {data?.open ?? 0} open bills match the purchase order and the hours
+            All {data?.open ?? 0} open supplier invoices match the purchase order and the hours
             somebody here accepted for pay. That is the client&rsquo;s approval and ours
-            being two different numbers, and both agreeing with the bill.
+            being two different numbers, and both agreeing with the invoice.
           </p>
         </div>
       )}
@@ -918,7 +918,7 @@ function PaymentRuns({ currency }: { currency: string }) {
               <p className="stat-value tabular-nums">{proposed.vendors}</p>
             </div>
             <div>
-              <p className="stat-label">Bills</p>
+              <p className="stat-label">Invoices</p>
               <p className="stat-value tabular-nums">{proposed.lines.length}</p>
             </div>
           </div>
@@ -939,7 +939,7 @@ function PaymentRuns({ currency }: { currency: string }) {
             ))}
           </ul>
           <p className="mt-2 text-[11px] text-etyme-faint">
-            A bill that silently misses a run is a supplier who telephones, and &ldquo;it
+            An invoice that silently misses a run is a supplier who telephones, and &ldquo;it
             was not picked up&rdquo; is not an answer anybody can act on.
           </p>
         </div>
@@ -967,7 +967,7 @@ function PaymentRuns({ currency }: { currency: string }) {
             <article key={r.id} className="panel">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <p className="text-[15px] font-semibold text-etyme-ink">
-                  {r.currency} {compact(r.totalCents, r.currency)} · {r._count.items} bill
+                  {r.currency} {compact(r.totalCents, r.currency)} · {r._count.items} invoice
                   {r._count.items === 1 ? '' : 's'}
                 </p>
                 <span

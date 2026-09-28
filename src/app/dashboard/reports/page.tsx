@@ -526,7 +526,7 @@ export default function ReportsPage() {
         <div className="panel text-center py-16">
           <p className="text-lg font-serif text-etyme-ink mb-2">No data yet</p>
           <p className="text-sm text-etyme-muted max-w-md mx-auto">
-            Reports will populate as you add contracts, bench listings, and invoices.
+            Reports will populate as you add contracts, bench listings, and bills.
             Start by creating a contract or importing consultant data.
           </p>
         </div>
@@ -592,11 +592,11 @@ export default function ReportsPage() {
               </p>
               <p className="text-[11px] text-etyme-faint mt-0.5">
                 {arBook
-                  ? `${arBook.invoiceCount} invoice${arBook.invoiceCount !== 1 ? 's' : ''} · ${arCurrency}` +
+                  ? `${arBook.invoiceCount} bill${arBook.invoiceCount !== 1 ? 's' : ''} · ${arCurrency}` +
                     (otherArBooks.length > 0
                       ? ` · ${otherArBooks.length} other book${otherArBooks.length !== 1 ? 's' : ''} not added in`
                       : '')
-                  : 'no invoices'}
+                  : 'no bills'}
               </p>
             </div>
           </div>
@@ -769,7 +769,7 @@ export default function ReportsPage() {
 
             {/* Invoice aging summary */}
             <div className="panel">
-              <p className="stat-label mb-4">Invoice Summary</p>
+              <p className="stat-label mb-4">Bills and invoices</p>
               {invoiceStatusEntries.length > 0 ? (
                 <>
                   <div className="space-y-2.5">
@@ -823,11 +823,11 @@ export default function ReportsPage() {
 
                   <p className="text-[11px] text-etyme-faint mt-3"
                      style={{ fontVariantNumeric: 'tabular-nums' }}>
-                    {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} loaded
+                    {invoices.length} loaded — what we billed and what we were invoiced
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-etyme-faint">No invoices yet.</p>
+                <p className="text-sm text-etyme-faint">No bills or invoices yet.</p>
               )}
             </div>
           </div>

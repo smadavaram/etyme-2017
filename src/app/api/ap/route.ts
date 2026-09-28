@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
             })),
           },
           note:
-            'Days to pay and chain float are measured from bills keyed in against a ' +
+            'Days to pay and chain float are measured from supplier invoices keyed in against a ' +
             'supplier contract. Nothing here has been, so this page shows what is owed ' +
             'and where to pay it rather than a figure with nothing behind it.',
         },
@@ -208,8 +208,8 @@ export async function GET(request: NextRequest) {
         gaps,
         supplierInvoices: { says: owed.says, openCount: 0, books: [], rows: [] },
         note:
-          'No supplier bills have been recorded, so there is nothing to measure on the way ' +
-          'out. This screen fills as bills from sub-vendors are entered against their ' +
+          'No supplier invoices have been recorded, so there is nothing to measure on the way ' +
+          'out. This screen fills as invoices from sub-vendors are entered against their ' +
           'contracts. Until then the only half of the chain visible is what clients owe us, ' +
           'which is on AR.',
       },
@@ -285,7 +285,7 @@ export async function GET(request: NextRequest) {
   // Only says anything to a reader who is shown the incoming hops.
   if (arDatedByProxy > 0 && bothSides) {
     gaps.push(
-      `${arDatedByProxy} of ${receivables.length} invoice${receivables.length === 1 ? '' : 's'} ` +
+      `${arDatedByProxy} of ${receivables.length} bill${receivables.length === 1 ? '' : 's'} to clients ` +
         `carry no issued-at date, so the incoming hops date ${
           arDatedByProxy === 1 ? 'that one' : 'those'
         } by the end of the period billed. That always understates how long the client took.`
@@ -512,9 +512,9 @@ export async function GET(request: NextRequest) {
         pairingInferred: candidates.length > 1,
         pairingSays:
           candidates.length > 1
-            ? `${candidates.length} client invoices overlap this bill's period, so the ` +
+            ? `${candidates.length} bills to the client overlap this invoice's period, so the ` +
               `largest was taken. The pairing is inferred and the float below rests on it.`
-            : 'One client invoice covers this bill\'s period, so the pairing is unambiguous.',
+            : 'One bill to the client covers this invoice\'s period, so the pairing is unambiguous.',
         float: chainFloat(chain),
         blindSpot: chainBlindSpot(chain),
         beyond: beyondLastParty(b.vendorCompany.name, b.vendorCompany.claimedAt != null),
@@ -525,10 +525,10 @@ export async function GET(request: NextRequest) {
   const unlinked = bills.filter((b) => (b.buyContract?.sellLinks.length ?? 0) === 0).length
   if (unlinked > 0 && bothSides) {
     gaps.push(
-      `${unlinked} supplier bill${unlinked === 1 ? '' : 's'} cannot be tied to the client ` +
-        `invoice that funds ${unlinked === 1 ? 'it' : 'them'}, so ${
+      `${unlinked} supplier invoice${unlinked === 1 ? '' : 's'} cannot be tied to the bill ` +
+        `to the client that funds ${unlinked === 1 ? 'it' : 'them'}, so ${
           unlinked === 1 ? 'it has' : 'they have'
-        } no chain. A bill with no buy contract, or a buy contract with no linked sell ` +
+        } no chain. An invoice with no buy contract, or a buy contract with no linked sell ` +
         `contract, is a cost with no revenue beside it — which is also why it cannot be ` +
         `included in any float figure.`
     )

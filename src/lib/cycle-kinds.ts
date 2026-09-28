@@ -166,8 +166,10 @@ const CATEGORY: Record<string, Category> = {
 const LABEL: Record<string, string> = {
   TIMESHEET_SUBMIT: 'Hours due',
   TIMESHEET_APPROVE: 'Hours to approve',
-  INVOICE_GENERATE: 'Invoice to raise',
-  INVOICE_DUE: 'Invoice due',
+  // The customer direction: we issue it, so it is a bill (the founder,
+  // 2026-09-28, extending the plain words to the product screens).
+  INVOICE_GENERATE: 'Bill to raise',
+  INVOICE_DUE: 'Bill due',
   SALARY_CALCULATE: 'Pay to calculate',
   SALARY_PAY: 'Pay day',
   // Wrong twice over until 2026-09-17: we do not raise it — the supplier

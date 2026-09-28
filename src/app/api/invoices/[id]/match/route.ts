@@ -54,7 +54,7 @@ export async function GET(
     )
   }
 
-  if (reading) noteMoneyRead(reading, `Three-way match read on invoice ${id}`)
+  if (reading) noteMoneyRead(reading, `Three-way check read on invoice ${id}`)
 
   const result = await matchInvoice(id)
 

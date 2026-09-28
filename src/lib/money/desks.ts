@@ -97,7 +97,7 @@ export const RECEIVABLE: MoneyPage = {
   opensFor: ['invoices.read'],
   desks: ['Accounts Receivable', 'Finance', 'Account Manager', 'Owner', 'Admin'],
   refusal:
-    'Accounts receivable is the invoice book: what has been billed, what came in, and how ' +
+    'Accounts receivable is the book of bills: what has been billed, what came in, and how ' +
     'old the rest is. Reading it belongs to the desk that bills clients — Accounts ' +
     'Receivable or Finance. Ask whoever manages roles at your company to seat you there.',
 }
@@ -108,7 +108,7 @@ export const PAYABLE: MoneyPage = {
   opensFor: ['invoices.read'],
   desks: ['AP & Payroll', 'Finance', 'AP Clerk', 'Owner', 'Admin'],
   refusal:
-    'Accounts payable is the bill book: what suppliers have invoiced, when each falls due, ' +
+    'Accounts payable is the book of supplier invoices: what suppliers have invoiced, when each falls due, ' +
     'and how long the firm is taking to pay. Reading it belongs to the desk that pays them ' +
     '— AP & Payroll, Finance, or an AP clerk. Ask whoever manages roles at your company to ' +
     'seat you there.',

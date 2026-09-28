@@ -232,7 +232,7 @@ describe('In the trade’s words, never the engine’s', () => {
   })
 
   it('a row written by an older engine still reads as a sentence and tells nobody', () => {
-    expect(titleFor('INVOICE_DUE', 3)).toBe('Invoice due — in 3 days')
+    expect(titleFor('INVOICE_DUE', 3)).toBe('Bill due — in 3 days')
     expect(desksFor('INVOICE_DUE')).toEqual([])
     expect(desksFor('VENDOR_BILL_DUE')).toEqual([])
     expect(companiesHearing('INVOICE_DUE', legs())).toEqual([])

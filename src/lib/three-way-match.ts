@@ -752,7 +752,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
           outcome: 'FAIL',
           reason: `${bill.number} is already recorded from this supplier`,
         }
-      : { code: 'DUPLICATE', outcome: 'PASS', reason: 'No other bill carries this number' }
+      : { code: 'DUPLICATE', outcome: 'PASS', reason: 'No other invoice carries this number' }
   )
 
   // ── RECEIPT — did anybody here accept this work? ──
@@ -767,7 +767,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
           code: 'RECEIPT',
           outcome: 'FAIL',
           reason:
-            'Nothing here accepted any hours for this supplier over this period. The bill ' +
+            'Nothing here accepted any hours for this supplier over this period. The invoice ' +
             'is the only record that the work happened.',
         }
   )
@@ -777,12 +777,12 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
     if (bill.hours != null) {
       checks.push(
         hoursEqual(bill.hours, accepted.hours)
-          ? { code: 'QUANTITY', outcome: 'PASS', reason: 'Billed hours match the hours we accepted' }
+          ? { code: 'QUANTITY', outcome: 'PASS', reason: 'Invoiced hours match the hours we accepted' }
           : {
               code: 'QUANTITY',
               outcome: 'FAIL',
               reason:
-                `Billed ${bill.hours}h, we accepted ${accepted.hours}h. The client's ` +
+                `Invoiced ${bill.hours}h, we accepted ${accepted.hours}h. The client's ` +
                 `approval is a different number again — this one is what we agreed to pay for.`,
             }
       )
@@ -792,12 +792,12 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
     if (bill.rateCents != null) {
       checks.push(
         bill.rateCents === accepted.contractRateCents
-          ? { code: 'PRICE', outcome: 'PASS', reason: 'Billed at the contracted pay rate' }
+          ? { code: 'PRICE', outcome: 'PASS', reason: 'Invoiced at the contracted pay rate' }
           : {
               code: 'PRICE',
               outcome: 'FAIL',
               reason:
-                `Billed ${money(bill.rateCents)}/hr, the buy contract says ` +
+                `Invoiced ${money(bill.rateCents)}/hr, the buy contract says ` +
                 `${money(accepted.contractRateCents)}/hr`,
             }
       )
@@ -808,12 +808,12 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
       const expected = Math.round(bill.hours * bill.rateCents)
       checks.push(
         Math.abs(expected - bill.totalCents) <= EXTENSION_TOLERANCE_CENTS
-          ? { code: 'EXTENSION', outcome: 'PASS', reason: 'The bill multiplies out correctly' }
+          ? { code: 'EXTENSION', outcome: 'PASS', reason: 'The invoice multiplies out correctly' }
           : {
               code: 'EXTENSION',
               outcome: 'FAIL',
               reason:
-                `${bill.hours}h × ${money(bill.rateCents)} is ${money(expected)}, billed ` +
+                `${bill.hours}h × ${money(bill.rateCents)} is ${money(expected)}, invoiced ` +
                 `${money(bill.totalCents)}`,
             }
       )
@@ -830,10 +830,10 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
               outcome: 'FAIL',
               reason:
                 `The work we accepted runs ${day(accepted.firstDay)} to ` +
-                `${day(accepted.lastDay)}, and the bill covers ${day(bill.periodStart)} to ` +
+                `${day(accepted.lastDay)}, and the invoice covers ${day(bill.periodStart)} to ` +
                 `${day(bill.periodEnd)}. Those do not meet.`,
             }
-          : { code: 'PERIOD', outcome: 'PASS', reason: 'The accepted work falls in the billed period' }
+          : { code: 'PERIOD', outcome: 'PASS', reason: 'The accepted work falls in the invoiced period' }
       )
     }
   }
@@ -848,7 +848,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
             code: 'PO_REQUIRED',
             outcome: 'FAIL',
             reason:
-              'This supplier bills against a purchase order and none is on this bill. ' +
+              'This supplier invoices against a purchase order and none is on this invoice. ' +
               'Without one there is no ceiling to draw down and no record of what was ' +
               'authorized.',
           }
@@ -888,13 +888,13 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
         ? {
             code: 'PO_BALANCE',
             outcome: 'PASS',
-            reason: `${money(remainingAfter)} left on PO ${po.number} after this bill`,
+            reason: `${money(remainingAfter)} left on PO ${po.number} after this invoice`,
           }
         : {
             code: 'PO_BALANCE',
             outcome: 'FAIL',
             reason:
-              `PO ${po.number} has ${money(remainingBefore)} left; this bill is ` +
+              `PO ${po.number} has ${money(remainingBefore)} left; this invoice is ` +
               `${money(bill.totalCents)}, over by ${money(-remainingAfter)}`,
           }
     )

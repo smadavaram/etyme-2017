@@ -76,7 +76,7 @@ function said(
     return {
       summary: `Approved ${many}`,
       reason:
-        `${by} approved ${many}. A client-billable one rides on the next invoice ` +
+        `${by} approved ${many}. A client-billable one rides on the next bill ` +
         `raised for its engagement.`,
     }
   }

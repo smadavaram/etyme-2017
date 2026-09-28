@@ -100,7 +100,7 @@ describe('what falls due because somebody accepted it', () => {
 
   it('does not bill the same milestone twice', () => {
     const done = milestone({ acceptedAt: d('2026-02-20'), status: 'INVOICED' })
-    expect(mayBill(done, d('2026-03-01')).says).toBe('Design sign-off has already been invoiced.')
+    expect(mayBill(done, d('2026-03-01')).says).toBe('Design sign-off has already been billed.')
     expect(billableBy(order({ basis: 'MILESTONE' }), [done], d('2026-03-01'))).toHaveLength(0)
   })
 })

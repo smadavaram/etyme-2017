@@ -184,7 +184,7 @@ export function seatMayPay(seat: SeatFacts): PayVerdict {
     ok: false,
     says:
       `${seat.officeCompany.name} sits at ${seat.clientCompany.name}'s ${seat.role.name} desk, ` +
-      `and that desk does not pay bills. ${seat.clientCompany.name} decides what the seat may ` +
+      `and that desk does not pay supplier invoices. ${seat.clientCompany.name} decides what the seat may ` +
       `do — ask an owner or the program manager there to seat ${seat.officeCompany.name} at a ` +
       `desk that pays, such as an AP clerk's, or have ${seat.clientCompany.name} record this ` +
       `payment itself.`,

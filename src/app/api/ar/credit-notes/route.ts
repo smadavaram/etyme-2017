@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
   if (notStaff) return notStaff
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Credit notes belong to the firm that issued the invoice' } },
+      { error: { code: 'NO_COMPANY', message: 'Credit notes belong to the firm that issued the bill' } },
       { status: 403 }
     )
   }
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
   const invoiceId = String(body.invoiceId ?? '')
   if (!invoiceId) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Which invoice?', field: 'invoiceId' } },
+      { error: { code: 'VALIDATION', message: 'Which bill?', field: 'invoiceId' } },
       { status: 422 }
     )
   }
@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
   })
   if (!invoice) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No such invoice of ours', field: 'invoiceId' } },
+      { error: { code: 'NOT_FOUND', message: 'No such bill of ours', field: 'invoiceId' } },
       { status: 404 }
     )
   }
@@ -307,7 +307,7 @@ export async function POST(request: NextRequest) {
         },
         note:
           `${verdict.says} Posted to ${postedAt.toISOString().slice(0, 10)} — the period ` +
-          `the invoice belonged to, not the month somebody noticed.` +
+          `the bill belonged to, not the month somebody noticed.` +
           (created.appliedAt
             ? ''
             : ' Held rather than applied, so it does not reduce the debt yet.'),

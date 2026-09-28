@@ -150,7 +150,7 @@ describe('A roll-up must not hide which kind of problem it is', () => {
     )
     expect(oneBig.concentration).toBe('ONE_BIG_INVOICE')
     expect(oneBig.largestOverdueMinor).toBe(40_000_000)
-    expect(oneBig.says).toContain('One conversation about one invoice')
+    expect(oneBig.says).toContain('One conversation about one bill')
 
     const thin = forCustomer(
       aged(Array.from({ length: 8 }, (_, n) => ({ totalMinor: 500_000, dueAt: dueAgo(20 + n) })))
@@ -311,7 +311,7 @@ describe('Four letters and then a person, because the fifth is filed by a rule',
     if (out.kind === 'SEND') {
       expect(out.invoiceIds).toHaveLength(8)
       expect(out.amountMinor).toBe(8 * 500_000)
-      expect(out.subject).toContain('8 invoices')
+      expect(out.subject).toContain('8 bills')
     }
   })
 

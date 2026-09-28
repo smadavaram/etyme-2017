@@ -69,7 +69,7 @@ describe('naming the real fix', () => {
     // "Attach a CV" is what the check already said, and it is not what
     // this screen is for.
     const found = patterns(['a', 'b', 'c', 'd'].map((s) => fail('CV_ATTACHED', s)), 8)
-    expect(found[0].reallyFix).toMatch(/when somebody joins the bench, not when a role turns up/)
+    expect(found[0].reallyFix).toMatch(/when somebody joins the bench, not when a job turns up/)
     expect(found[0].reallyFix).not.toMatch(/^Attach a CV/)
   })
 

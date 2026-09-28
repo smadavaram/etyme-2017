@@ -66,7 +66,7 @@ type Tab =
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'customers', label: 'By customer' },
-  { key: 'invoices', label: 'Invoices' },
+  { key: 'invoices', label: 'Bills' },
   { key: 'disputes', label: 'Arguments' },
   { key: 'unapplied', label: 'Cash we cannot place' },
   { key: 'reminders', label: 'What to send' },
@@ -108,7 +108,7 @@ export default function ArPage() {
         <p className="eyebrow">Operate</p>
         <h1 className="headline-serif text-[30px] leading-tight">Accounts receivable</h1>
         <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
-          Aged from the day each invoice fell due, so a client on sixty-day terms is
+          Aged from the day each bill fell due, so a client on sixty-day terms is
           not shown as late on day forty-five. A part payment is chased for the
           balance. A short payment is a question for a person, not arrears.
         </p>
@@ -128,7 +128,7 @@ export default function ArPage() {
       {/* ── Loading ────────────────────────────────────────────────── */}
       {loading && !denied && (
         <div className="panel">
-          <p className="text-[13px] text-etyme-muted">Reading the invoice book…</p>
+          <p className="text-[13px] text-etyme-muted">Reading what has been billed…</p>
         </div>
       )}
 
@@ -262,7 +262,7 @@ function StatRow({ book }: { book: any }) {
           {compact(ninety, ccy)}
         </p>
         <p className="mt-0.5 text-[11px] text-etyme-faint">
-          {book.buckets.D90_PLUS.count} invoice{book.buckets.D90_PLUS.count === 1 ? '' : 's'}
+          {book.buckets.D90_PLUS.count} bill{book.buckets.D90_PLUS.count === 1 ? '' : 's'}
         </p>
       </div>
       <div>
@@ -382,7 +382,7 @@ function Customers({ book }: { book: any }) {
             className={`chip ${r.concentration === 'ONE_BIG_INVOICE' ? 'chip--attention' : 'chip--passive'}`}
           >
             {r.concentration === 'ONE_BIG_INVOICE'
-              ? `one invoice · ${Math.round((r.largestShareBps ?? 0) / 100)}%`
+              ? `one bill · ${Math.round((r.largestShareBps ?? 0) / 100)}%`
               : r.concentration === 'SPREAD_THIN'
                 ? `${r.overdueCount} small`
                 : `${r.overdueCount} mixed`}
@@ -454,7 +454,7 @@ function Customers({ book }: { book: any }) {
   return (
     <div className="space-y-3">
       <p className="text-[13px] text-etyme-muted">
-        Exposure is not the unpaid invoices. It is those plus work delivered and not
+        Exposure is not the unpaid bills. It is those plus work delivered and not
         yet billed plus what is committed for the rest of every running assignment —
         which is why a client owing a little can be the riskiest name on the list.
       </p>
@@ -480,7 +480,7 @@ function Invoices({ book }: { book: any }) {
   const columns: Column<any>[] = [
     {
       key: 'number',
-      label: 'Invoice',
+      label: 'Bill',
       render: (r) => (
         <div>
           <span className="font-medium text-etyme-ink">{r.number}</span>
@@ -524,7 +524,7 @@ function Invoices({ book }: { book: any }) {
     },
     {
       key: 'totalMinor',
-      label: 'Invoiced',
+      label: 'Billed',
       align: 'right',
       sortValue: (r) => r.totalMinor,
       render: (r) => <span className="tabular-nums">{compact(r.totalMinor, ccy)}</span>,
@@ -574,11 +574,11 @@ function Invoices({ book }: { book: any }) {
       columns={columns}
       data={book.invoices}
       rowKey={(r) => r.id}
-      searchPlaceholder="Search invoice number or customer…"
+      searchPlaceholder="Search bill number or customer…"
       searchFilter={(r, q) =>
         r.number.toLowerCase().includes(q) || r.customerName.toLowerCase().includes(q)
       }
-      emptyMessage="No invoices on the book."
+      emptyMessage="No bills on the book."
       exportName="money-owed-by-invoice"
       defaultPageSize={50}
     />
@@ -680,9 +680,9 @@ function Disputes({ book }: { book: any }) {
       <div className="space-y-4">
         <div className="panel">
           <p className="text-[13px] text-etyme-muted">
-            Nobody has paid part of an invoice and stopped. When somebody does, it appears
+            Nobody has paid part of a bill and stopped. When somebody does, it appears
             here rather than in the reminder queue — a shortfall is a question about the
-            invoice, and a reminder answers a question nobody asked.
+            bill, and a reminder answers a question nobody asked.
           </p>
         </div>
         <CreditNotes />
@@ -694,7 +694,7 @@ function Disputes({ book }: { book: any }) {
     <div className="space-y-3">
       <p className="text-[13px] text-etyme-muted">
         Each of these was paid, deliberately, short. That is a query about something on
-        the invoice — a rate, an expense line, an hour somebody did not approve — and it
+        the bill — a rate, an expense line, an hour somebody did not approve — and it
         is answered by a person. None of them are chased automatically.
       </p>
       <CreditNotes />
@@ -711,7 +711,7 @@ function Disputes({ book }: { book: any }) {
           <p className="mt-2 text-[13px] text-etyme-ink">{d.says}</p>
           <div className="mt-3 flex flex-wrap gap-4 border-t border-etyme-rule pt-3 text-[11px] text-etyme-faint">
             <span className="tabular-nums">
-              invoiced {amount(d.totalMinor, book.currency)}
+              billed {amount(d.totalMinor, book.currency)}
             </span>
             <span className="tabular-nums">
               received {amount(d.paidMinor, book.currency)}
@@ -749,8 +749,8 @@ function OrphanReceipts({ book }: { book: any }) {
     const invoice = invoicesById.get(invoiceNumber.trim())
     if (!invoice) {
       setFailed(
-        `No open invoice numbered "${invoiceNumber.trim()}" in this book. A receipt is ` +
-          `placed against an invoice, not against a customer.`
+        `No open bill numbered "${invoiceNumber.trim()}" in this book. A receipt is ` +
+          `placed against a bill, not against a customer.`
       )
       return
     }
@@ -777,7 +777,7 @@ function OrphanReceipts({ book }: { book: any }) {
     <div className="space-y-3">
       <p className="max-w-[70ch] text-[13px] text-etyme-muted">
         {book.orphanSays ??
-          'Money that arrived and was never keyed against an invoice. It is not netted ' +
+          'Money that arrived and was never keyed against a bill. It is not netted ' +
             'against what you are owed — until somebody says these are the same money, they ' +
             'are two separate facts.'}
       </p>
@@ -822,12 +822,12 @@ function OrphanReceipts({ book }: { book: any }) {
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-etyme-rule pt-3">
               <input
                 className="rounded border border-etyme-rule bg-etyme-surface px-2 py-1 text-[13px]"
-                placeholder="Invoice number"
+                placeholder="Bill number"
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
               />
               <button className="btn-primary" disabled={busy} onClick={() => place(r.id)}>
-                {busy ? 'Placing…' : 'Place against this invoice'}
+                {busy ? 'Placing…' : 'Place against this bill'}
               </button>
               <span className="text-[11px] text-etyme-faint">
                 A receipt bigger than the balance is refused rather than absorbed — the
@@ -852,7 +852,7 @@ function Unapplied({ book }: { book: any }) {
       <div className="panel">
         <p className="text-[13px] text-etyme-muted">
           Every receipt matches something owed. When one does not — money arrives beyond
-          an invoice total, or the receipts and the invoice header disagree — it appears
+          a bill total, or the receipts and the bill header disagree — it appears
           here. It is money we hold and cannot count, and most systems never show it.
         </p>
       </div>
@@ -893,7 +893,7 @@ function Unapplied({ book }: { book: any }) {
       {book.unreconciled.length > 0 && (
         <div className="space-y-3">
           <p className="text-[13px] text-etyme-muted">
-            The receipts and the invoice header disagree. One of the two is wrong and
+            The receipts and the bill header disagree. One of the two is wrong and
             neither should be trusted until somebody looks.
           </p>
           {book.unreconciled.map((u: any) => (
@@ -958,8 +958,8 @@ function Reminders({ book }: { book: any }) {
   return (
     <div className="space-y-4">
       <p className="max-w-[70ch] text-[13px] text-etyme-muted">
-        Four letters and then a person. One message per customer listing every invoice,
-        never one message per invoice — eight emails on the same morning is not eight
+        Four letters and then a person. One message per customer listing every bill,
+        never one message per bill — eight emails on the same morning is not eight
         times the pressure, it is one filter rule. Past sixty days nothing automated
         goes out at all.
       </p>
@@ -971,7 +971,7 @@ function Reminders({ book }: { book: any }) {
           </button>
           <span className="text-[11px] text-etyme-faint">
             Each letter is recorded, so the same rung will not go out again while an
-            invoice it named is still open.
+            bill it named is still open.
           </span>
         </div>
       )}

@@ -158,7 +158,7 @@ export function onInvoice(amountCents: number, postedAt: Date, ref: string): Ent
   const n = Math.abs(amountCents)
   return {
     postedAt,
-    memo: `Invoiced ${ref}`,
+    memo: `Billed ${ref}`,
     lines: [
       { accountCode: '1100', debitCents: n, creditCents: 0, memo: 'Receivable raised' },
       { accountCode: '1150', debitCents: 0, creditCents: n, memo: 'Unbilled revenue cleared' },

@@ -890,7 +890,7 @@ export function partnerFunctions(i: PartnerInputs): PartnerFunctions {
     says: split
       ? `Sold to ${soldTo.party.name}, billed to ${billTo.party.name}, settled by ` +
         `${payer.party.name}. They are not all the same company, which is ordinary at ` +
-        `this size and is the commonest reason an invoice ages without anybody chasing it.`
+        `this size and is the commonest reason a bill ages without anybody chasing it.`
       : `${client.name} throughout — signs, is billed, and pays.`,
   }
 }
@@ -922,7 +922,7 @@ export interface ConsolidationVerdict {
 
 export function mayConsolidate(rows: ConsolidationCandidate[]): ConsolidationVerdict {
   if (rows.length === 0) {
-    return { ok: false, together: [], says: 'Nothing to invoice.' }
+    return { ok: false, together: [], says: 'Nothing to bill.' }
   }
 
   const billTos = [...new Set(rows.map((r) => r.billToId))]
@@ -935,7 +935,7 @@ export function mayConsolidate(rows: ConsolidationCandidate[]): ConsolidationVer
       ok: false,
       together: [],
       says:
-        `These contracts are billed to ${names.join(' and ')}. One invoice can only be ` +
+        `These contracts are billed to ${names.join(' and ')}. One bill can only be ` +
         `addressed to one company — raise one per bill-to rather than a document neither ` +
         `of them will accept.`,
     }
@@ -946,7 +946,7 @@ export function mayConsolidate(rows: ConsolidationCandidate[]): ConsolidationVer
       together: [],
       says:
         `These contracts are settled by different payers. Consolidating them produces an ` +
-        `invoice that two AP departments each think belongs to the other.`,
+        `bill that two AP departments each think belongs to the other.`,
     }
   }
   if (currencies.length > 1) {
@@ -964,7 +964,7 @@ export function mayConsolidate(rows: ConsolidationCandidate[]): ConsolidationVer
     together: rows.map((r) => r.sellContractId),
     says:
       `${rows.length} contract${rows.length === 1 ? '' : 's'} to ${rows[0].billToName} in ` +
-      `${currencies[0]}, on one invoice.`,
+      `${currencies[0]}, on one bill.`,
   }
 }
 
@@ -1001,7 +1001,7 @@ export function selfBilling(i: SelfBillingInput): SelfBillingVerdict {
       selfBilled: false,
       mayNumberOurselves: true,
       number: null,
-      says: 'We raise this invoice, so it takes the next number in our own sequence.',
+      says: 'We raise this bill, so it takes the next number in our own sequence.',
     }
   }
 
@@ -1224,7 +1224,7 @@ export function taxFor(i: TaxInput): TaxVerdict {
       'NONE',
       'No place of supply on the record',
       'Nobody has said where this work was done, and the place of supply is what decides ' +
-        'the tax. No rate is shown rather than a plausible zero — an under-taxed invoice ' +
+        'the tax. No rate is shown rather than a plausible zero — an under-taxed bill ' +
         'surfaces two years later with interest, and nobody audits a number that looked fine.'
     )
   }
@@ -1246,7 +1246,7 @@ export function taxFor(i: TaxInput): TaxVerdict {
       return unknown(
         'US_SALES_TAX',
         'Sales tax is a state question and no state is on the ship-to',
-        'Sales tax in the United States is decided state by state and this invoice does ' +
+        'Sales tax in the United States is decided state by state and this bill does ' +
           'not say which state the work was done in. Set the ship-to before billing — ' +
           'guessing the state guesses the rate.'
       )
@@ -1309,7 +1309,7 @@ export function taxFor(i: TaxInput): TaxVerdict {
         'EU_VAT', 'REVERSE_CHARGE', [], net, customerCountry,
         'Article 196 — reverse charge on cross-border B2B services',
         `${i.customer.country.toUpperCase()} customer with a VAT number, supplier in ` +
-          `${supplierCountry}. The customer accounts for the VAT, not us, and the invoice ` +
+          `${supplierCountry}. The customer accounts for the VAT, not us, and the bill ` +
           `has to say "reverse charge" on its face.`
       )
     }
@@ -1348,7 +1348,7 @@ export function taxFor(i: TaxInput): TaxVerdict {
         'IN_GST', 'OUT_OF_SCOPE', [], net, 'IN',
         'Supplier not registered in India',
         'The supplier is not registered in India, so Indian GST is not charged on this ' +
-          'invoice. Reverse charge may fall on the recipient, which is their filing.'
+          'bill. Reverse charge may fall on the recipient, which is their filing.'
       )
     }
     if (customerCountry !== 'IN') {
@@ -1463,7 +1463,7 @@ export function withholdingFor(i: WithholdingInput): Withholding {
       says:
         'Ten per cent is deducted at source and paid to the revenue authority in the ' +
         'supplier’s name. The supplier still earned the whole amount — this is a ' +
-        'prepayment of their tax, not a reduction of the invoice, and it must never be ' +
+        'prepayment of their tax, not a reduction of the bill, and it must never be ' +
         'netted into revenue.',
     }
   }
@@ -1490,6 +1490,6 @@ export function withholdingFor(i: WithholdingInput): Withholding {
     withheldMinor: 0,
     netOfWithholdingMinor: net,
     basis: 'No withholding rule reaches this pair',
-    says: 'Nothing is held back — the payer remits the full invoice.',
+    says: 'Nothing is held back — the payer remits the full bill.',
   }
 }

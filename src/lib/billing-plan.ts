@@ -232,7 +232,7 @@ function positionSays(
  */
 export function mayBill(m: Milestone, now: Date): { ok: boolean; says: string } {
   if (m.status === 'CANCELLED') return { ok: false, says: `${m.name} was cancelled.` }
-  if (m.status === 'INVOICED') return { ok: false, says: `${m.name} has already been invoiced.` }
+  if (m.status === 'INVOICED') return { ok: false, says: `${m.name} has already been billed.` }
 
   if (!m.acceptedAt) {
     const late = m.dueOn && m.dueOn.getTime() < now.getTime()

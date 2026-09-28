@@ -90,7 +90,7 @@ describe('A run is one currency, and everything else is left out with a reason',
   it('a bill nobody has approved is left out, because a run releases money rather than deciding', () => {
     const run = proposeRun([bill({ status: 'RECEIVED' })], 'USD', PAY_DAY)
     expect(run.excluded[0].reason).toBe('NOT_APPROVED')
-    expect(run.excluded[0].says).toContain('not the place to decide whether a bill is right')
+    expect(run.excluded[0].says).toContain('not the place to decide whether an invoice is right')
   })
 
   it('a bill already in a live run cannot enter a second one', () => {

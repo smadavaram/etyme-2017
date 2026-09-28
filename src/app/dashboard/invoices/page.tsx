@@ -235,12 +235,12 @@ function GenerateInvoiceModal({
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        setError(body.error?.message ?? 'Failed to generate invoice')
+        setError(body.error?.message ?? 'Failed to generate the bill')
         return
       }
 
       const body = await res.json()
-      const msg = body.data?.message ?? 'Invoice generated'
+      const msg = body.data?.message ?? 'Bill generated'
       onGenerated(msg)
       onClose()
     } catch {
@@ -254,7 +254,7 @@ function GenerateInvoiceModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Generate invoice</h2>
+          <h2 className="text-lg font-semibold">Generate bill</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -336,7 +336,7 @@ function GenerateInvoiceModal({
           </div>
 
           <div className="rounded-lg bg-etyme-canvas px-4 py-3 text-[12px] text-etyme-muted">
-            Generates an invoice from all approved, uninvoiced timesheets under the selected engagement.
+            Generates a bill from all approved timesheets under the selected engagement that are not yet billed.
             {periodStart || periodEnd ? ' Filtered to the specified period.' : ' Covers all available periods.'}
           </div>
           </>
@@ -353,7 +353,7 @@ function GenerateInvoiceModal({
                 disabled={submitting || !engagementId}
                 className="btn-primary disabled:opacity-50"
               >
-                {submitting ? 'Generating…' : 'Generate invoice'}
+                {submitting ? 'Generating…' : 'Generate bill'}
               </button>
             )}
           </div>
@@ -674,7 +674,7 @@ function InvoiceDetailDrawer({
                   {coding.reconciliation.codedForEndClient && (
                     <p className="text-[11px] text-etyme-muted mt-1.5 italic">
                       These are the end client&rsquo;s cost centers. {coding.billTo.name} codes
-                      its own onward invoice separately.
+                      its own onward bill separately.
                     </p>
                   )}
                 </div>
@@ -961,7 +961,7 @@ export default function InvoicesPage() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        showToast(body.error?.message ?? 'Failed to submit invoices', 'error')
+        showToast(body.error?.message ?? 'Failed to submit bills', 'error')
         return
       }
 
@@ -969,11 +969,11 @@ export default function InvoicesPage() {
       const { submitted, skipped } = body.data ?? {}
 
       if (submitted > 0) {
-        const parts = [`${submitted} invoice${submitted !== 1 ? 's' : ''} submitted`]
+        const parts = [`${submitted} bill${submitted !== 1 ? 's' : ''} submitted`]
         if (skipped > 0) parts.push(`${skipped} skipped (not in ISSUED status)`)
         showToast(parts.join('. '))
       } else {
-        showToast(`No invoices were submitted — ${skipped ?? 0} skipped (not in ISSUED status)`, 'error')
+        showToast(`No bills were submitted — ${skipped ?? 0} skipped (not in ISSUED status)`, 'error')
       }
 
       clearSelection()
@@ -990,7 +990,7 @@ export default function InvoicesPage() {
     if (rows.length === 0) return
 
     const headers = [
-      'Invoice Number', counterpartyLabel, 'Engagement', 'Period Start', 'Period End',
+      side === 'RECEIVABLE' ? 'Bill Number' : 'Invoice Number', counterpartyLabel, 'Engagement', 'Period Start', 'Period End',
       'Total', 'Paid', 'Outstanding', 'Status', 'Due Date',
     ]
 
@@ -1024,8 +1024,8 @@ export default function InvoicesPage() {
     a.click()
     URL.revokeObjectURL(url)
 
-    showToast(`Exported ${rows.length} invoice${rows.length !== 1 ? 's' : ''}`)
-  }, [invoices, showToast])
+    showToast(`Exported ${rows.length} ${side === 'RECEIVABLE' ? 'bill' : 'invoice'}${rows.length !== 1 ? 's' : ''}`)
+  }, [invoices, showToast, side])
 
   // ── Computed stats ────────────────────────────────
   //
@@ -1062,7 +1062,7 @@ export default function InvoicesPage() {
   const columns: Column<Invoice>[] = [
     {
       key: 'number',
-      label: 'Invoice',
+      label: side === 'RECEIVABLE' ? 'Bill' : 'Invoice',
       render: (row) => (
         <div>
           <a href={`/dashboard/invoices/${row.id}`}
@@ -1216,7 +1216,7 @@ export default function InvoicesPage() {
           <p className="text-[13px] text-etyme-ink">
             {reading?.inASeat
               ? reading.says
-              : 'Your own invoice book. The program you run is on this same page.'}
+              : 'Your own bills and invoices. The program you run is on this same page.'}
           </p>
           <button
             type="button"
@@ -1275,7 +1275,7 @@ export default function InvoicesPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">{overdueMinor > 0 ? 'past due date' : 'none overdue'}</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Open invoices</p>
+          <p className="stat-label">{side === 'RECEIVABLE' ? 'Open bills' : 'Open invoices'}</p>
           <p className="stat-value text-etyme-ink">{issuedCount}</p>
           <p className="text-[11px] text-etyme-faint mt-0.5">awaiting payment</p>
         </div>
@@ -1354,15 +1354,15 @@ export default function InvoicesPage() {
         loading={loading}
         error={error}
         searchFilter={searchFilter}
-        searchPlaceholder={`Search by invoice number, engagement, or ${counterpartyLabel.toLowerCase()}…`}
+        searchPlaceholder={`Search by ${side === 'RECEIVABLE' ? 'bill' : 'invoice'} number, engagement, or ${counterpartyLabel.toLowerCase()}…`}
         emptyMessage={
           statusFilter !== 'ALL'
-            ? `No ${statusFilter.toLowerCase()} invoices ${side === 'PAYABLE' ? 'to pay' : 'to collect'}.`
-            : side === 'PAYABLE' ? 'Nothing to pay.' : 'No invoices yet.'
+            ? `No ${statusFilter.toLowerCase()} ${side === 'PAYABLE' ? 'invoices to pay' : 'bills to collect'}.`
+            : side === 'PAYABLE' ? 'Nothing to pay.' : 'No bills yet.'
         }
         emptyDetail={isClient
           ? 'Your suppliers raise invoices from the hours you approve. They appear here once submitted, matched against the timesheets and the purchase order.'
-          : 'Invoices are generated from approved timesheets. Approve timesheets first, then generate invoices here.'}
+          : 'Bills are generated from approved timesheets. Approve timesheets first, then generate bills here.'}
         exportName="invoices"
         selectable
         onRowClick={(row) => setSelectedInvoice(row)}
@@ -1398,7 +1398,7 @@ export default function InvoicesPage() {
       {/* Footer */}
       {!loading && shown.length > 0 && (
         <p className="text-xs text-etyme-faint mt-3 tabular-nums">
-          {shown.length} invoice{shown.length !== 1 ? 's' : ''}
+          {shown.length} {side === 'PAYABLE' ? 'invoice' : 'bill'}{shown.length !== 1 ? 's' : ''}
           {side === 'PAYABLE' ? ' to pay' : ' to collect'}
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase().replace('_', ' ')}`}
         </p>

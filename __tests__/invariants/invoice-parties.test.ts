@@ -227,7 +227,7 @@ describe('an invoice with no agreement is still found by the scope that lists it
       'utf8'
     )
     expect(src).toContain('...invoicesRaisedBy(companyId)')
-    expect(src).toContain('No such invoice of yours')
+    expect(src).toContain('No such bill of yours')
   })
 
   it('an accounts receivable book is what this firm billed, and never what it was billed', () => {
@@ -300,7 +300,7 @@ describe("an invoice list is read from the side of the book the reader is on", (
     expect(c.firm).toBeNull()
   })
 
-  it('a book of bills to pay heads the column Supplier', () => {
+  it('a book of invoices to pay heads the column Supplier', () => {
     expect(counterpartyHeading(['PAYABLE', 'PAYABLE'], 'PAYABLE')).toBe('Supplier')
   })
 

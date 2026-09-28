@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
           companyId,
           action: 'DUNNING_SENT',
           summary:
-            `${action.subject} — ${action.customerName}, ${action.invoiceIds.length} invoice` +
+            `${action.subject} — ${action.customerName}, ${action.invoiceIds.length} bill` +
             `${action.invoiceIds.length === 1 ? '' : 's'}.`,
           reason: action.why,
           payload: {
@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
       note: dryRun
         ? 'Nothing was recorded. This is what would go out.'
         : `${sent.length} letter${sent.length === 1 ? '' : 's'} raised and recorded. The ` +
-          `same rung will not go out again while an invoice it named is still open.`,
+          `same rung will not go out again while a bill it named is still open.`,
     },
   })
 }
@@ -301,7 +301,7 @@ export async function GET(request: NextRequest) {
         sentBy: r.sentBy?.name ?? null,
       })),
       note:
-        'A letter suppresses its rung only while an invoice it named is still open. When ' +
+        'A letter suppresses its rung only while a bill it named is still open. When ' +
         'the last of them settles the ladder starts again from the bottom.',
     },
   })

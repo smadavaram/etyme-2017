@@ -254,7 +254,7 @@ export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBil
         code: 'PO_CURRENCY',
         overridable: false,
         says:
-          `PO ${po.number} authorizes spend in ${po.currency.toUpperCase()} and this bill ` +
+          `PO ${po.number} authorizes spend in ${po.currency.toUpperCase()} and this invoice ` +
           `is in ${i.billCurrency.toUpperCase()}. Drawing one down with the other would ` +
           `bury an exchange rate inside a ceiling, where nobody would find it.`,
       })
@@ -275,7 +275,7 @@ export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBil
           code: 'PO_CLOSED',
           overridable: true,
           says:
-            `PO ${po.number} is ${po.status.toLowerCase()}. A bill against it needs the ` +
+            `PO ${po.number} is ${po.status.toLowerCase()}. An invoice against it needs the ` +
             `order reopened, or somebody saying in writing why it is being paid anyway.`,
         })
       }
@@ -306,7 +306,7 @@ export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBil
           code: 'PO_CEILING',
           overridable: true,
           says:
-            `PO ${po.number} has ${money(balance.remainingCents)} left and this bill is ` +
+            `PO ${po.number} has ${money(balance.remainingCents)} left and this invoice is ` +
             `${money(i.billCents)} — over by ${money(-remainingAfter)}. The ceiling is what ` +
             `the payer actually authorized; going past it is a change order, not a rounding ` +
             `question.`,
@@ -323,7 +323,7 @@ export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBil
         code: 'CONTRACT_CURRENCY',
         overridable: false,
         says:
-          `The buy contract is in ${contractCurrency} and the bill is in ` +
+          `The buy contract is in ${contractCurrency} and the invoice is in ` +
           `${i.billCurrency.toUpperCase()}. Those two numbers are not comparable, so the ` +
           `contract check is refused rather than made.`,
       })
@@ -335,7 +335,7 @@ export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBil
           overridable: true,
           says:
             `The buy contract produces about ${money(expected)} for this period and the ` +
-            `bill is ${money(i.billCents)} — ${Math.round(((i.billCents - expected) / expected) * 100)}% ` +
+            `invoice is ${money(i.billCents)} — ${Math.round(((i.billCents - expected) / expected) * 100)}% ` +
             `above it. That is either hours nobody worked or a rate nobody agreed, and both ` +
             `are cheaper to settle at the door than in a margin report three months later.`,
         })
@@ -350,7 +350,7 @@ export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBil
     says:
       problems.length === 0
         ? i.po
-          ? `Within PO ${i.po.number} — ${money(remainingAfter ?? 0)} left after this bill.`
+          ? `Within PO ${i.po.number} — ${money(remainingAfter ?? 0)} left after this invoice.`
           : 'Nothing to check it against, and nothing wrong with it.'
         : problems[0].says,
   }

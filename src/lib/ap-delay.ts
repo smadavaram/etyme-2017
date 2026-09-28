@@ -1098,7 +1098,7 @@ export function proposeRun(
       refuse(
         'NOT_APPROVED',
         `${b.number} is ${b.status.toLowerCase()} and has not been approved for payment. ` +
-          `A run releases money; it is not the place to decide whether a bill is right.`
+          `A run releases money; it is not the place to decide whether an invoice is right.`
       )
       continue
     }
@@ -1143,9 +1143,9 @@ export function proposeRun(
       lines.length === 0
         ? `Nothing to pay in ${ccy} on ${iso(scheduledFor)}.` +
           (excluded.length > 0
-            ? ` ${excluded.length} bill${excluded.length === 1 ? '' : 's'} looked at and left out, each with a reason.`
+            ? ` ${excluded.length} invoice${excluded.length === 1 ? '' : 's'} looked at and left out, each with a reason.`
             : '')
-        : `${lines.length} bill${lines.length === 1 ? '' : 's'} to ${vendors} ` +
+        : `${lines.length} invoice${lines.length === 1 ? '' : 's'} to ${vendors} ` +
           `supplier${vendors === 1 ? '' : 's'}, ${ccy} ${cents(total)}, paying ` +
           `${iso(scheduledFor)}.` +
           (excluded.length > 0

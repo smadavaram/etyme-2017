@@ -87,7 +87,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     const r = await invoice('CE-HM-0', 40)
     expect(r.status).toBe(422)
     expect(r.body.error.code).toBe('MATCH_FAILED')
-    expect(r.body.error.message).toMatch(/^Nothing here accepted any hours for this supplier over this period\. The bill is the only record that the work happened\. Nobody can wave this through/)
+    expect(r.body.error.message).toMatch(/^Nothing here accepted any hours for this supplier over this period\. The invoice is the only record that the work happened\. Nobody can wave this through/)
     expect(r.body.error.checks.find((c: any) => c.code === 'RECEIPT').outcome).toBe('FAIL')
   })
 
@@ -129,7 +129,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     const r = await invoice('CE-HM-3', 40)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.bill.status).toBe('DISPUTED')
-    expect(r.body.data.match.checks.find((c: any) => c.code === 'QUANTITY').reason).toMatch(/^Billed 40h, we accepted 38h\./)
+    expect(r.body.data.match.checks.find((c: any) => c.code === 'QUANTITY').reason).toMatch(/^Invoiced 40h, we accepted 38h\./)
   })
 
   it('once CloudEPA has accepted too, the exception queue re-matches CloudEPA’s invoices on Computer Systems’ own acceptance and finds a receipt behind each', async () => {
