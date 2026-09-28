@@ -436,11 +436,11 @@ export const MODULES: ModulePage[] = [
         phrase: 'Nobody approves their own hours.',
       },
       {
-        says: '44h claimed on a 40h-a-week role.',
+        says: '44h claimed on a 40h-a-week job.',
         then: 'Flagged and shown first. The manager who owns the work decides, and an approval anyway carries the reason on the signature.',
         kind: 'WARN',
         source: 'src/lib/timesheet-flag.ts',
-        phrase: 'h-a-week role.',
+        phrase: 'h-a-week job.',
       },
     ],
     refusesNote:

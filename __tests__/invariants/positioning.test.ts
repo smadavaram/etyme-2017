@@ -944,13 +944,14 @@ describe('Every claim about a screen is a thing that screen does', () => {
   })
 
   it('sends the comparison of two suppliers to the screen that draws it', () => {
-    // "Same role, two suppliers" is a panel on the Program screen's
+    // "Same job, two suppliers" is a panel on the Program screen's
     // suppliers tab. The Rates screen is the history of what a rate was
     // and who agreed it, one contract at a time.
     const dashboard = readFileSync(
       join(process.cwd(), 'src/app/dashboard/program/page.tsx'), 'utf8'
     )
-    expect(dashboard).toContain('Same role, two suppliers')
+    // The heading as drawn, between tags — not a code comment.
+    expect(dashboard).toMatch(/>\s*Same job, two suppliers\s*</)
     const rateAnswer = FOUR_ANSWERS.map((a) => a.etyme).find((line) => /side by side/i.test(line))
     expect(rateAnswer).toContain('Program screen')
   })
