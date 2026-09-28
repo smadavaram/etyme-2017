@@ -353,8 +353,12 @@ export async function addVolume(input: VolumeInput): Promise<VolumeResult> {
 
     const profile = byPerson.get(person.id)
     const fits = profile?.skills.some((s) => req.skills.includes(s)) ?? false
+    // INTERVIEW, the value the interview route writes and the Submissions
+    // screen filters and colors on. `Submission.status` is a string with
+    // no enum behind it, so this wrote INTERVIEWING for months and every
+    // one of those rows fell out of the Interview tab and its count.
     const status = weighted(r, [
-      ['SUBMITTED', 40], ['SHORTLISTED', 22], ['INTERVIEWING', 10],
+      ['SUBMITTED', 40], ['SHORTLISTED', 22], ['INTERVIEW', 10],
       ['OFFERED', 4], ['PLACED', 8], ['REJECTED', 16],
     ])
     const submittedAt = new Date(
