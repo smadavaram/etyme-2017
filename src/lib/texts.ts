@@ -250,7 +250,7 @@ export interface Outcome {
  * a code.
  */
 export function outcomeText(o: Outcome): Message {
-  const role = o.location ? `the ${o.location} ${o.title} role` : `the ${o.title} role`
+  const job = o.location ? `the ${o.location} ${o.title} job` : `the ${o.title} job`
 
   const said: Record<string, string> = {
     RATE: 'they went with someone at a lower rate',
@@ -258,7 +258,7 @@ export function outcomeText(o: Outcome): Message {
     WORK_AUTH: 'they needed a different work authorization',
     AVAILABILITY: 'they needed somebody who could start sooner',
     INTERVIEW: 'they went with another candidate after the interviews',
-    TIMING: 'the role was filled before we got there',
+    TIMING: 'the job was filled before we got there',
     CANDIDATE_WITHDREW: 'we have taken you off it',
     NO_REPLY: 'we have not heard back and are treating it as closed',
   }
@@ -266,9 +266,9 @@ export function outcomeText(o: Outcome): Message {
   const why = o.reason ? said[o.reason] ?? 'they went a different way' : 'they went a different way'
 
   return {
-    subject: `Update on ${role} — ${o.vendorName}`,
+    subject: `Update on ${job} — ${o.vendorName}`,
     body:
-      `Update on ${role} — ${why}.\n` +
+      `Update on ${job} — ${why}.\n` +
       `Your profile stays active with ${o.vendorName}. We'll be in touch when something fits.`,
   }
 }
@@ -280,11 +280,11 @@ export function outcomeText(o: Outcome): Message {
  * news is a product people learn to dread.
  */
 export function placedText(o: Omit<Outcome, 'reason'>): Message {
-  const role = o.location ? `the ${o.location} ${o.title} role` : `the ${o.title} role`
+  const job = o.location ? `the ${o.location} ${o.title} job` : `the ${o.title} job`
   return {
-    subject: `You got ${role}`,
+    subject: `You got ${job}`,
     body:
-      `You got ${role}. ${o.vendorName} will be in touch today with start details.\n` +
+      `You got ${job}. ${o.vendorName} will be in touch today with start details.\n` +
       `Congratulations.`,
   }
 }

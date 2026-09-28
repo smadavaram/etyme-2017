@@ -163,7 +163,7 @@ describe('the interviews page, from the client chair', () => {
 
   it('the empty state leads somewhere', () => {
     expect(PAGE).toMatch(/Nothing booked\. Interviews start from/)
-    expect(PAGE).toMatch(/<Link href="\/dashboard\/submissions"[\s\S]{0,120}a candidate on a role/)
+    expect(PAGE).toMatch(/<Link href="\/dashboard\/submissions"[\s\S]{0,120}a candidate on a job/)
   })
 
   it("the supplier's side still confirms a time from the row", () => {

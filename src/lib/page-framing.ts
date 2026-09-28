@@ -192,13 +192,16 @@ const SUPPLIER: Record<PageKey, Words> = {
     create: 'New',
   },
   invoices: {
-    title: 'Invoices',
+    // The firm issues these to its client, so they are its bills.
+    // CLAUDE.md, "Bill, invoice receipt, payroll": the party who issues
+    // a document names it. The route stays /dashboard/invoices.
+    title: 'Bills',
     subtitle: 'What you have billed and what is outstanding. Track aging and record payments.',
     create: 'Generate',
   },
   expenses: {
     title: 'Expenses',
-    subtitle: 'Travel, equipment, and training. Client-billable items flow through to invoices.',
+    subtitle: 'Travel, equipment, and training. Client-billable items flow through to bills.',
     create: 'New',
   },
   consultants: {
@@ -226,8 +229,8 @@ const CLIENT: Record<PageKey, Words> = {
     create: null,
   },
   requirements: {
-    title: 'Open roles',
-    subtitle: 'Roles you have opened to your vendors. Track how many candidates each has drawn.',
+    title: 'Open jobs',
+    subtitle: 'Jobs you have opened to your vendors. Track how many candidates each has drawn.',
     // A client opens roles to its vendors, so the button stands here
     // too, and a seated program office inherits it. The word is the
     // page's own — if a client's desk should read "New role" to match
@@ -255,7 +258,9 @@ const CLIENT: Record<PageKey, Words> = {
     create: null,
   },
   invoices: {
-    title: 'Invoices',
+    // What a supplier sends is its invoice: the supplier issues it, so
+    // the supplier names it, and a client reads it as such.
+    title: 'Supplier invoices',
     subtitle: 'What your vendors have billed you, and what is outstanding.',
     // A client receives and matches its suppliers' invoices. Generating
     // one would be raising a bill to itself.
@@ -284,7 +289,7 @@ const CLIENT: Record<PageKey, Words> = {
 const BOOK: Record<PageKey, string> = {
   'contracts.sell': 'contracts',
   'contracts.buy': 'contracts',
-  requirements: 'open roles',
+  requirements: 'open jobs',
   submissions: 'candidates',
   rolloff: 'contractors ending soon',
   timesheets: 'hours',

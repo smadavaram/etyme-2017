@@ -104,8 +104,8 @@ function said(
   if (waiting.length === 1) {
     const who = waiting[0] === 'CLIENT' ? names.client : names.employer
     return waiting[0] === 'CLIENT'
-      ? `${names.employer} has accepted ${payable} hours for pay. Cannot invoice until ${who} approves.`
-      : `${names.client} approved ${billable} hours, so this can be invoiced. Cannot pay until ${who} accepts.`
+      ? `${names.employer} has accepted ${payable} hours for pay. Cannot bill until ${who} approves.`
+      : `${names.client} approved ${billable} hours, so this can be billed. Cannot pay until ${who} accepts.`
   }
 
   // Both in. The interesting case is where they disagree.
@@ -116,7 +116,7 @@ function said(
     )
   }
 
-  return `${billable} hours, approved and accepted. Ready to invoice and to pay.`
+  return `${billable} hours, approved and accepted. Ready to bill and to pay.`
 }
 
 /**

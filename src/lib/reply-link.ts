@@ -111,7 +111,7 @@ export function questionFor(asked: Kind): string {
     case 'FRESHNESS':
       return 'Are you still looking for your next contract?'
     case 'CONSENT':
-      return 'Is it OK to put you forward for this role?'
+      return 'Is it OK to put you forward for this job?'
     case 'OUTCOME':
       return ''
   }

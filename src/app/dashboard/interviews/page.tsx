@@ -170,7 +170,7 @@ export default function InterviewsPage() {
           <p className="text-[13px] text-etyme-muted">
             Nothing booked. Interviews start from{' '}
             <Link href="/dashboard/submissions" className="text-etyme-action underline">
-              a candidate on a role
+              a candidate on a job
             </Link>
             .
           </p>

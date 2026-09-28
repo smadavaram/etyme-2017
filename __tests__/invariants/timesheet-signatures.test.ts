@@ -52,7 +52,7 @@ describe('what each signature unlocks', () => {
     expect(g.mayPay).toBe(true)
     expect(g.mayInvoice).toBe(false)
     expect(g.payableHours).toBe(40)
-    expect(g.says).toMatch(/Cannot invoice until Calder Manufacturing approves/)
+    expect(g.says).toMatch(/Cannot bill until Calder Manufacturing approves/)
   })
 
   it('bills nothing on an unapproved sheet, rather than billing the submitted number', () => {
@@ -89,7 +89,7 @@ describe('when the two numbers disagree', () => {
       NAMES
     )
     expect(g.payableHours).toBe(40)
-    expect(g.says).toBe('40 hours, approved and accepted. Ready to invoice and to pay.')
+    expect(g.says).toBe('40 hours, approved and accepted. Ready to bill and to pay.')
   })
 })
 

@@ -89,7 +89,7 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
               </h1>
 
               <p className="mt-3 max-w-[46ch] text-[14px] text-etyme-muted">
-                {ask.name}, being on a bench means they can put your name to roles.
+                {ask.name}, being on a bench means they can put your name to jobs.
                 Nothing happens without you — they will ask before every single
                 submission, and you can take this back whenever you like.
               </p>

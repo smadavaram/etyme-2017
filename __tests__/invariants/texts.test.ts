@@ -200,10 +200,10 @@ describe('the outcome notice, always, even when it is bad', () => {
     // A product that only writes to people with bad news is one people
     // learn to dread.
     const t = placedText({
-      personName: 'Ravi', vendorName: 'Cloudepa', title: 'Java role', location: 'Dallas',
+      personName: 'Ravi', vendorName: 'Cloudepa', title: 'Java Developer', location: 'Dallas',
     })
-    expect(t.subject).toMatch(/^You got the Dallas Java role/)
-    expect(t.body).toMatch(/You got the Dallas Java role/)
+    expect(t.subject).toMatch(/^You got the Dallas Java Developer job/)
+    expect(t.body).toMatch(/You got the Dallas Java Developer job/)
     expect(t.body).toMatch(/Congratulations/)
   })
 })

@@ -53,7 +53,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
           ? `You already said yes to ${listing.company.name}.`
           : listing.state === 'DECLINED'
             ? `You already said no to ${listing.company.name}. They have not been able to put you forward.`
-            : `${listing.company.name} would like to put you forward for contract roles.`,
+            : `${listing.company.name} would like to put you forward for contract jobs.`,
     },
   })
 }
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           said === 'DECLINE' && body.note
             ? `They said: ${String(body.note).slice(0, 300)}`
             : said === 'ACCEPT'
-              ? 'You can put them forward for roles now.'
+              ? 'You can put them forward for jobs now.'
               : 'No reason given.',
         entityId: listing.id,
         channel: 'IN_APP',

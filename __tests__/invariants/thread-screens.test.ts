@@ -38,9 +38,9 @@ describe('the routes ask the rule, and answer in its words', () => {
     expect(OPEN).toContain('...(r.clearedSupplierIds ?? [])')
   })
 
-  it('a thread across a deal is about a role or a candidate — never a free message to a company', () => {
+  it('a thread across a deal is about a job or a candidate — never a free message to a company', () => {
     expect(OPEN).toContain("if ((topic !== 'REQUIREMENT' && topic !== 'SUBMISSION') || typeof topicId !== 'string' || !topicId)")
-    expect(OPEN).toContain('A conversation with another company is about a role or a candidate. Open it from there.')
+    expect(OPEN).toContain('A conversation with another company is about a job or a candidate. Open it from there.')
   })
 
   it('reading and writing a thread checks both companies on it, and a stranger is told nothing is there', () => {
@@ -86,7 +86,7 @@ describe('the door is where the thing is', () => {
 
   it('a supplier is offered a firm by name and told what will happen — they answer, they cannot start', () => {
     expect(REQ_PAGE).toContain('They answer on the same thread; they cannot start one.')
-    expect(REQ_PAGE).toContain('Nobody is on this role yet. Send it to suppliers and you can write to each of them here.')
+    expect(REQ_PAGE).toContain('Nobody is on this job yet. Send it to suppliers and you can write to each of them here.')
   })
 
   it('a candidate row opens a thread with the firm that sent them; the firm that sent them gets an answer box, not a start button', () => {
@@ -117,13 +117,13 @@ describe('the Conversations page and the plus menu tell the truth', () => {
   })
 
   it('the form says how the other kind of conversation starts, from each side', () => {
-    expect(CONVOS).toContain('To write to a supplier, open the role or the candidate and message them from there')
+    expect(CONVOS).toContain('To write to a supplier, open the job or the candidate and message them from there')
     expect(CONVOS).toContain('a supplier does not start one')
   })
 
   it('a thread across a deal is marked with the firm on the far end, and the topic is said in trade words', () => {
     expect(CONVOS).toContain('with {c.otherCompany.name}')
-    expect(CONVOS).toContain("REQUIREMENT: 'a role'")
+    expect(CONVOS).toContain("REQUIREMENT: 'a job'")
     expect(CONVOS).toContain("SUBMISSION:  'a candidate'")
     // The enum used to sit on the chip.
     expect(CONVOS).not.toMatch(/\{c\.topic\}<\/span>/)

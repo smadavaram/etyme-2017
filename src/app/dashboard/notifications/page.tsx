@@ -174,7 +174,7 @@ export default function NotificationsPage() {
     { key: 'all', label: 'All' },
     { key: 'SUBMISSION', label: 'Submissions' },
     { key: 'TIMESHEET', label: 'Timesheets' },
-    { key: 'INVOICE', label: 'Invoices' },
+    { key: 'INVOICE', label: 'Bills and invoices' },
     { key: 'EXPENSE', label: 'Expenses' },
     { key: 'CONTRACT', label: 'Contracts' },
     { key: 'ROLLOFF', label: 'Rolloff' },
@@ -189,7 +189,7 @@ export default function NotificationsPage() {
         <div className="page-head">
           <p className="eyebrow">Today</p>
           <h1>Notifications</h1>
-          <p>Activity across your submissions, timesheets, invoices, expenses, and contracts.</p>
+          <p>Activity across your submissions, timesheets, bills and invoices, expenses, and contracts.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 md:mt-3 md:shrink-0">

@@ -96,7 +96,7 @@ export default function ClaimPage() {
                   <>
                     There {claim.rolesWaiting === 1 ? 'is' : 'are'}{' '}
                     <strong className="text-etyme-ink">
-                      {claim.rolesWaiting} {claim.rolesWaiting === 1 ? 'role' : 'roles'}
+                      {claim.rolesWaiting} {claim.rolesWaiting === 1 ? 'job' : 'jobs'}
                     </strong>{' '}
                     waiting for you from {claim.invitedBy}. Sign in and you can answer
                     {claim.rolesWaiting === 1 ? ' it' : ' them'} straight away — no bench
@@ -105,7 +105,7 @@ export default function ClaimPage() {
                 ) : (
                   <>
                     {claim.invitedBy} added you to their supplier list. Take the account
-                    and their roles come straight to you as they open.
+                    and their jobs come straight to you as they open.
                   </>
                 )}
               </p>

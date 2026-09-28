@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
         {
           error: {
             code: 'VALIDATION',
-            message: 'A conversation with another company is about a role or a candidate. Open it from there.',
+            message: 'A conversation with another company is about a job or a candidate. Open it from there.',
           },
         },
         { status: 422 }
@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
     ])
     if (!facts) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'That role or candidate is not here any more.' } },
+        { error: { code: 'NOT_FOUND', message: 'That job or candidate is not here any more.' } },
         { status: 404 }
       )
     }

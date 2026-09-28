@@ -135,7 +135,7 @@ export default function AnswerPage() {
                 </p>
                 {sent.takeAccount && (
                   <p className="mt-3 text-[13px] text-etyme-muted">
-                    Want to see what happens to it, and get their next role
+                    Want to see what happens to it, and get their next job
                     directly?{' '}
                     <Link href={`/claim/${token}`} className="underline">
                       Take the {d.supplier} account
@@ -149,7 +149,7 @@ export default function AnswerPage() {
             {d.roles.length === 0 && (
               <div className="panel">
                 <p className="text-[13px] text-etyme-muted">
-                  Nothing open right now. Their next role will reach you at this
+                  Nothing open right now. Their next job will reach you at this
                   same address.
                 </p>
               </div>

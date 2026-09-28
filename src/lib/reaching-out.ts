@@ -51,10 +51,10 @@ export function inviteLetter(i: Invite): Letter {
   const opening =
     i.rolesWaiting === 0
       ? `${i.clientName} has added ${i.supplierName} to their supplier list on Etyme. ` +
-        `Their roles will come straight to you as they open.`
+        `Their jobs will come straight to you as they open.`
       : i.rolesWaiting === 1
-        ? `${i.clientName} has sent ${i.supplierName} a role: ${i.firstRole}.`
-        : `${i.clientName} has sent ${i.supplierName} ${i.rolesWaiting} roles, ` +
+        ? `${i.clientName} has sent ${i.supplierName} a job: ${i.firstRole}.`
+        : `${i.clientName} has sent ${i.supplierName} ${i.rolesWaiting} jobs, ` +
           `starting with ${i.firstRole}.`
 
   const body = [
@@ -64,7 +64,7 @@ export function inviteLetter(i: Invite): Letter {
     '',
     i.rolesWaiting > 0
       ? 'You can answer it from this link — paste a CV and send. No account to set up, no bench to build first:'
-      : 'Take your account here so their roles reach you:',
+      : 'Take your account here so their jobs reach you:',
     i.claimUrl,
     '',
     'Etyme is where they manage their contract staff. Your bench, your rates and',
@@ -86,11 +86,11 @@ export function inviteLetter(i: Invite): Letter {
  */
 export function nudgeLetter(i: Invite): Letter {
   return {
-    subject: `Still open: ${i.firstRole ?? 'a role'} at ${i.clientName}`,
+    subject: `Still open: ${i.firstRole ?? 'a job'} at ${i.clientName}`,
     body: [
       i.contactName ? `${i.contactName.split(' ')[0]},` : 'Hello,',
       '',
-      `${i.clientName} is still looking for somebody on ${i.firstRole ?? 'this role'}, ` +
+      `${i.clientName} is still looking for somebody on ${i.firstRole ?? 'this job'}, ` +
         `and nothing has come from ${i.supplierName} yet.`,
       '',
       'Answer it here, or decline it — a decline is genuinely useful to them and',
@@ -129,5 +129,5 @@ export function shouldNudge(
     return { yes: false, why: `Sent ${Math.floor(days)} days ago. Give it ${NUDGE_AFTER_DAYS}.` }
   }
 
-  return { yes: true, why: `${Math.floor(days)} days, a role waiting, and nothing back.` }
+  return { yes: true, why: `${Math.floor(days)} days, a job waiting, and nothing back.` }
 }

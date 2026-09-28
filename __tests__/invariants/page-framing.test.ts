@@ -217,8 +217,8 @@ describe('a client sees demand-side framing', () => {
     expect(f.subtitle).not.toContain('Revenue')
   })
 
-  it('requirements are the roles the client has opened', () => {
-    expect(pageFraming('CLIENT', 'requirements').title).toBe('Open roles')
+  it('requirements are the jobs the client has opened', () => {
+    expect(pageFraming('CLIENT', 'requirements').title).toBe('Open jobs')
   })
 
   it('a client\'s roles are headed by the section that holds its own requirements screen', () => {
@@ -242,6 +242,13 @@ describe('a client sees demand-side framing', () => {
   it('invoices are what the client is billed, not what they bill', () => {
     const f = pageFraming('CLIENT', 'invoices')
     expect(f.subtitle).toContain('vendors have billed you')
+  })
+
+  it('a supplier reads what it sends its client as bills, and the client reads them as its supplier invoices', () => {
+    // The party who issues a document names it: the supplier bills, and
+    // what arrives at the client is the supplier's invoice.
+    expect(pageFraming('VENDOR', 'invoices').title).toBe('Bills')
+    expect(pageFraming('CLIENT', 'invoices').title).toBe('Supplier invoices')
   })
 })
 

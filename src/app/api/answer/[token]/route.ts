@@ -109,10 +109,10 @@ export async function GET(
       })),
       says:
         invitations.length === 0
-          ? `${invite.by.name} has not sent ${invite.company.name} a role yet.`
+          ? `${invite.by.name} has not sent ${invite.company.name} a job yet.`
           : invitations.length === 1
-            ? `${invite.by.name} sent you one role.`
-            : `${invite.by.name} sent you ${invitations.length} roles.`,
+            ? `${invite.by.name} sent you one job.`
+            : `${invite.by.name} sent you ${invitations.length} jobs.`,
     },
   })
 }
@@ -160,7 +160,7 @@ export async function POST(
 
   if (!invitation) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No role by that id was sent to you.' } },
+      { error: { code: 'NOT_FOUND', message: 'No job by that id was sent to you.' } },
       { status: 404 }
     )
   }
@@ -170,7 +170,7 @@ export async function POST(
       {
         error: {
           code: 'CLOSED',
-          message: 'That role is closed. Nothing sent now would be read.',
+          message: 'That job is closed. Nothing sent now would be read.',
         },
       },
       { status: 409 }
@@ -315,7 +315,7 @@ export async function POST(
           message:
             already.fromCompanyId === invite.companyId
               ? `You already put ${name} forward for this one.`
-              : `${name} has already been put forward for this role by somebody else. First in wins.`,
+              : `${name} has already been put forward for this job by somebody else. First in wins.`,
         },
       },
       { status: 409 }

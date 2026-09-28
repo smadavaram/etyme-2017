@@ -39,21 +39,21 @@ describe('the subject line', () => {
 })
 
 describe('the opening line', () => {
-  it('leads with the role when there is one', () => {
+  it('leads with the job when there is one', () => {
     expect(inviteLetter(invite()).body).toContain(
-      'Calder Manufacturing has sent Apex Softech a role: Senior Java Developer.'
+      'Calder Manufacturing has sent Apex Softech a job: Senior Java Developer.'
     )
   })
 
   it('counts them when there are several', () => {
     expect(inviteLetter(invite({ rolesWaiting: 3 })).body).toContain(
-      'has sent Apex Softech 3 roles, starting with Senior Java Developer'
+      'has sent Apex Softech 3 jobs, starting with Senior Java Developer'
     )
   })
 
-  it('promises roles rather than pretending there are some', () => {
+  it('promises jobs rather than pretending there are some', () => {
     expect(inviteLetter(invite({ rolesWaiting: 0, firstRole: null })).body).toContain(
-      'Their roles will come straight to you as they open.'
+      'Their jobs will come straight to you as they open.'
     )
   })
 
@@ -103,7 +103,7 @@ describe('the nudge', () => {
   it('sends once nothing has come back', () => {
     const v = shouldNudge({ sentAt: daysAgo(4), remindedAt: null, state: 'PENDING' }, 1, 0, NOW)
     expect(v.yes).toBe(true)
-    expect(v.why).toBe('4 days, a role waiting, and nothing back.')
+    expect(v.why).toBe('4 days, a job waiting, and nothing back.')
   })
 
   it('never nudges twice, because twice is a mailing list', () => {

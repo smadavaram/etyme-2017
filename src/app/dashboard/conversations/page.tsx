@@ -83,11 +83,11 @@ function topicIcon(topic: string): string {
 /** The trade's word for what a thread is about — never the enum. */
 function topicLabel(topic: string): string {
   const map: Record<string, string> = {
-    REQUIREMENT: 'a role',
+    REQUIREMENT: 'a job',
     CONTRACT:    'a contract',
     SUBMISSION:  'a candidate',
     DOCUMENT:    'paperwork',
-    INVOICE:     'an invoice',
+    INVOICE:     'a bill or an invoice',
     EXPENSE:     'an expense',
     DIRECT:      'direct',
     GENERAL:     'general',
@@ -185,8 +185,8 @@ function NewConversationModal({ isClient, onClose, onCreated }: {
         </div>
         <p className="text-sm text-etyme-muted mb-5">
           {isClient
-            ? 'Among your own people. To write to a supplier, open the role or the candidate and message them from there — they answer on that thread.'
-            : 'Among your own people. A client writes to you from their role or your candidate, and you answer on that thread; a supplier does not start one.'}
+            ? 'Among your own people. To write to a supplier, open the job or the candidate and message them from there — they answer on that thread.'
+            : 'Among your own people. A client writes to you from their job or your candidate, and you answer on that thread; a supplier does not start one.'}
         </p>
 
         {error && (
@@ -457,8 +457,8 @@ export default function ConversationsPage() {
                   <p className="text-sm text-etyme-muted">No conversations yet.</p>
                   <p className="text-xs text-etyme-faint mt-1 px-6">
                     {isClient
-                      ? 'Write to a supplier from a role or a candidate, or start a note among your own people.'
-                      : 'A client writes to you from their role or your candidate; it appears here. Notes among your own people start with + New.'}
+                      ? 'Write to a supplier from a job or a candidate, or start a note among your own people.'
+                      : 'A client writes to you from their job or your candidate; it appears here. Notes among your own people start with + New.'}
                   </p>
                 </div>
               )}

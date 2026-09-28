@@ -152,13 +152,13 @@ export const FATES: CategoryFate[] = [
     // The fate itself was never in doubt.
     category: 'A seat at a company, and what was decided from it',
     fate: 'UNDER_A_MARKER',
-    why: 'Your seat is closed and your name comes off it. The approvals you gave, the requisitions you raised and the weeks of somebody else\'s hours you signed stay as your company\'s record of its own decisions, under a marker instead of your name — a decision with nobody behind it is worse for everybody than one nobody is named on.',
+    why: 'Your seat is closed and your name comes off it. The approvals you gave, the job requests you raised and the weeks of somebody else\'s hours you signed stay as your company\'s record of its own decisions, under a marker instead of your name — a decision with nobody behind it is worse for everybody than one nobody is named on.',
     until: null,
   },
   {
     category: 'Money about a person',
     fate: 'KEPT',
-    why: 'Payroll, tax, the hours signed and the invoices between two firms. Whoever paid you is required to keep these, and two firms\' books have to go on adding up.',
+    why: 'Payroll, tax, the hours signed and the bills between two firms. Whoever paid you is required to keep these, and two firms\' books have to go on adding up.',
     until: 'the period the tax and payroll law sets where you were paid',
   },
   {
@@ -496,10 +496,10 @@ const WHAT_STAYS: Record<Holding, string> = {
   EMPLOYER:
     'Your payroll, tax and I-9 records are yours and are untouched — the law says keep ' +
     'them, and nothing here has changed them. In Etyme, the contracts, timesheets and ' +
-    'invoices keep their hours and their amounts under a marker instead of a name.',
+    'bills keep their hours and their amounts under a marker instead of a name.',
   SUPPLIER:
     'Their bench listing with you is closed and their profile and resumes are gone from ' +
-    'your searches. Contracts, timesheets and invoices keep their hours and their amounts ' +
+    'your searches. Contracts, timesheets and bills keep their hours and their amounts ' +
     'under a marker instead of a name, so your books go on adding up.',
   CLIENT:
     'The days they worked on your sites stay in your tenure ledger, counted once per day, ' +
