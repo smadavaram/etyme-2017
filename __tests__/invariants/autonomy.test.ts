@@ -11,8 +11,8 @@ import {
 /**
  * We do a lot unprompted, and now there is a word for how much.
  *
- * The ladder is SAP's, on purpose — L0 Observe through L5 Fully
- * autonomous — because every enterprise buyer is being taught that
+ * The ladder is the common one, on purpose — L0 Observe through L5
+ * Fully autonomous — because every enterprise buyer is asking in that
  * vocabulary right now and inventing our own would cost us the only
  * thing this naming buys.
  *

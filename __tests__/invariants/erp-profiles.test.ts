@@ -10,7 +10,7 @@ import {
 
 /**
  * Etyme is not the general ledger. These are four ways of writing down the
- * same coded rows, because SAP, Oracle, QuickBooks and Workday each take a
+ * same coded rows, because each of the four accounting systems takes a
  * flat file and each disagrees about column names and date formats.
  *
  * The tests that matter most are the refusals. An AP team that finds a

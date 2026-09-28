@@ -6,8 +6,8 @@
  * another held cents and nothing said which.
  *
  * The deeper problem is that sixteen screens each wrote their own division
- * by a hundred, and a hundred is only right for some currencies. SAP looks
- * the number up from the currency and never hardcodes it. So does this.
+ * by a hundred, and a hundred is only right for some currencies. This
+ * looks the number up from the currency and never hardcodes it.
  */
 
 import { describe, it, expect } from 'vitest'

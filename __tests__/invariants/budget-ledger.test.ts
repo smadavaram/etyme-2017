@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { ledgerFor, commitmentOf, contractValueOf, type ContractFact } from '@/lib/budget-ledger'
 
 /**
- * A client's budget, on SAP's terms.
+ * A client's budget, as availability control.
  *
- * Asked for directly — "do what SAP project systems or internal order
- * does" — which settles the one question that decides every figure
+ * Asked for directly — availability control against a project or an
+ * internal order — which settles the one question that decides every figure
  * here: a commitment is relieved as it is consumed, so the four numbers
  * add up and no work is counted twice.
  *

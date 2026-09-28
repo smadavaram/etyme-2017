@@ -3,8 +3,9 @@
  *
  * Not a general ledger — no trial balance, no period close, no statutory
  * reporting. One canonical double-entry journal and a mapping per
- * accounting system, so that a client on SAP and a vendor on QuickBooks
- * read the same numbers through their own chart of accounts.
+ * accounting system, so that a client on an enterprise ERP and a vendor on
+ * a small-business ledger read the same numbers through their own chart
+ * of accounts.
  *
  * The one rule is that debits equal credits, checked before writing
  * rather than reconciled afterwards. Reconciling afterwards means finding
@@ -168,8 +169,8 @@ describe('The same journal reads into anybody’s accounting system', () => {
   })
 
   it('knows which side of the market runs which system', () => {
-    // A client on SAP will not adopt our chart of accounts, and a
-    // two-person vendor on QuickBooks has no chart to adopt. The mapping
+    // A client on an enterprise ERP will not adopt our chart of accounts,
+    // and a two-person vendor on a small ledger has no chart to adopt. The mapping
     // goes to them either way.
     expect(TYPICALLY.SAP).toBe('CLIENT')
     expect(TYPICALLY.QUICKBOOKS).toBe('VENDOR')

@@ -187,9 +187,9 @@ describe('The demo names no real company, on any surface a visitor reaches', () 
  * Decided 2026-09-20, after the home page was rebuilt to show real
  * screens from the seeded demo under the hero and beside each of the
  * four steps. Four of the seven images carried a vendor's product on
- * them — "SAP S/4 finance lead", "Workday HCM integration lead",
- * "Kinaxis consultants", a skill chip reading Splunk — because that is
- * what the seeded titles said.
+ * them — an ERP finance lead, an HCM integration lead and a planning
+ * team each carrying a product's name, and a log-analytics skill chip —
+ * because that is what the seeded titles said.
  *
  * `lib/positioning` reads words and cannot see inside a PNG. So the
  * guard has to sit where the words are written, which is the seed, one
@@ -199,18 +199,16 @@ describe('The demo names no real company, on any surface a visitor reaches', () 
  *
  * The same reasoning as the sheet above: there is no way to tell a
  * trademark from an invented word by looking at a string, and a rule
- * that tried would refuse "Etyme". These ten are the ones that were
- * actually on the seeded screens, plus the two VMS products Etyme is
- * measured against, which belong on the competitive page and nowhere
- * near a consultant's skill chip.
+ * that tried would refuse "Etyme". These are the ones that were
+ * actually on the seeded screens, plus two enterprise VMS products,
+ * which belong nowhere near a consultant's skill chip.
  *
  * Naming a customer and naming a product are different wrongs. A
  * customer has not agreed to appear; a product has not agreed to be
  * implied as a specialism of a firm that does not exist. Both read, to
  * a buyer looking at a screenshot, as a claim.
  *
- * The home page's one factual comparison is the single place two of
- * these may appear, and it is not a seed.
+ * The list is a guard, so it has to spell the names it refuses.
  */
 
 const PRODUCTS = [

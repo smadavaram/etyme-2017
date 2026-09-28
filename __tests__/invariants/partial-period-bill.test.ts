@@ -17,7 +17,7 @@
  *
  * ── The rule it should have asked ────────────────────────────────────
  *
- * SAP's shape, which is the one CLAUDE.md settles on: the receipt is
+ * The shape CLAUDE.md settles on: the receipt is
  * what a bill is matched to. Signed weeks are the receipt. A bill for
  * the weeks signed so far, inside one billing period, is a partial bill
  * — ordinary, and the thing a supplier does when a placement starts

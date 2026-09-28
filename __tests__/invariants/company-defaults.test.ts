@@ -134,7 +134,7 @@ describe('choosing a template pack', () => {
     expect(packFor('VENDOR', 'UK')).toBe('UK')
   })
 
-  it('gives a US delivery partner the ERP pack, because SAP programs bill differently', () => {
+  it('gives a US delivery partner the ERP pack, because ERP programs bill differently', () => {
     expect(packFor('GSI', 'US')).toBe('US_SAP')
   })
 
