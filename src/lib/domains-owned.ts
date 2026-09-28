@@ -235,7 +235,7 @@ export function assessSubdomainChange(
 
   const consequences = [
     `${current}.etyme.com will keep working and send people to ${next}.etyme.com, so saved links do not break.`,
-    'Anything you have already sent — invitations, document requests, invoices — keeps working.',
+    'Anything you have already sent — invitations, document requests, bills — keeps working.',
   ]
 
   // A company changing address repeatedly is usually confused rather than

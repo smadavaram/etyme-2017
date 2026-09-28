@@ -588,8 +588,8 @@ export async function seedStanding(ctx: SeedContext): Promise<Standing> {
         code: 'RATE_IN_RANGE', checker: 'RULE',
         verdict: inRange ? 'PASS' : 'FAIL',
         reason: inRange
-          ? `Asked $${(s.rate / 100).toFixed(2)} an hour, inside the band on the role.`
-          : `Asked $${(s.rate / 100).toFixed(2)} an hour, above the $${((band?.billMax ?? 0) / 100).toFixed(2)} ceiling on the role.`,
+          ? `Asked $${(s.rate / 100).toFixed(2)} an hour, inside the band on the job.`
+          : `Asked $${(s.rate / 100).toFixed(2)} an hour, above the $${((band?.billMax ?? 0) / 100).toFixed(2)} ceiling on the job.`,
         evidence: `rate ${s.rate} against band ${band?.billMin ?? '—'}–${band?.billMax ?? '—'}`,
       },
       {
@@ -603,7 +603,7 @@ export async function seedStanding(ctx: SeedContext): Promise<Standing> {
       {
         code: 'SKILLS_EVIDENCED', checker: 'MODEL',
         verdict: 'PASS',
-        reason: `The CV evidences the skills the role asks for.`,
+        reason: `The CV evidences the skills the job asks for.`,
         evidence: (s.person?.consultant?.skills ?? []).slice(0, 3).join(', ') || 'skills on profile',
       },
     ]
@@ -619,7 +619,7 @@ export async function seedStanding(ctx: SeedContext): Promise<Standing> {
             ? {
                 checkedById: ctx.seatBySlug.get('computer-systems')?.personId ?? null,
                 agreed: false,
-                disagreedNote: 'The Epic experience is Ambulatory, not Beaker. The CV does not evidence what the role asks for.',
+                disagreedNote: 'The Epic experience is Ambulatory, not Beaker. The CV does not evidence what the job asks for.',
               }
             : {}),
           at: day(-100 + i),

@@ -216,7 +216,7 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
         ? {
             key: 'teams', name: 'Teams', state: 'SET', required: true,
             says: `${count(f.teams.channels, 'company has', 'companies have')} a channel saved. Nothing has been posted to it yet.`,
-            fix: 'Do something that notifies that company — approve a timesheet, raise a requisition — and look at the channel.',
+            fix: 'Do something that notifies that company — approve a timesheet, raise a job request — and look at the channel.',
           }
         : {
             key: 'teams', name: 'Teams', state: 'PROVEN', required: true,

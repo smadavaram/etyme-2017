@@ -79,10 +79,18 @@ function actionIcon(action: string): string {
   return map[action] ?? '●'
 }
 
+/**
+ * The machine's word, said the way a reader says it. The action names are
+ * enum values and do not move; what a person reads does (CLAUDE.md, "Plain
+ * words"): a requisition is a job request, and what the firm raises to
+ * its customer is a bill.
+ */
+const PLAIN_WORD: Record<string, string> = { REQUISITION: 'Job request', INVOICE: 'Bill' }
+
 function actionLabel(action: string): string {
   return action
     .split('_')
-    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+    .map((w) => PLAIN_WORD[w] ?? w.charAt(0) + w.slice(1).toLowerCase())
     .join(' ')
 }
 
@@ -91,8 +99,8 @@ function actionCategory(action: string): string {
   if (action.startsWith('BENCH')) return 'Bench'
   if (action.startsWith('CONTRACT')) return 'Contracts'
   if (action.startsWith('CONSULTANT')) return 'People'
-  if (action.startsWith('REQUIREMENT')) return 'Requirements'
-  if (action.startsWith('INVOICE') || action.startsWith('PAYMENT')) return 'Invoicing'
+  if (action.startsWith('REQUIREMENT') || action.startsWith('REQUISITION')) return 'Job requests'
+  if (action.startsWith('INVOICE') || action.startsWith('PAYMENT')) return 'Billing'
   if (action.startsWith('TIMESHEET')) return 'Timesheets'
   if (action.startsWith('EXPENSE')) return 'Expenses'
   if (action.startsWith('PAYROLL')) return 'Payroll'

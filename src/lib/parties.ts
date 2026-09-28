@@ -74,7 +74,7 @@ export const PARTIES: readonly Position[] = [
     buys: true,
     supplies: false,
     hosts: false,
-    says: 'Runs the program for the client: chooses which suppliers see a role, and never supplies one itself.',
+    says: 'Runs the program for the client: chooses which suppliers see a job, and never supplies one itself.',
   },
   {
     party: 'GSI',
@@ -101,7 +101,7 @@ export const PARTIES: readonly Position[] = [
     buys: true,
     supplies: true,
     hosts: false,
-    says: 'Holds the paper on a person it may not have sourced, and invoices the prime, never the client.',
+    says: 'Holds the paper on a person it may not have sourced, and bills the prime, never the client.',
   },
   {
     party: 'BENCH_VENDOR',
@@ -119,7 +119,7 @@ export const PARTIES: readonly Position[] = [
     buys: false,
     supplies: true,
     hosts: false,
-    says: 'The consultant’s own limited company: it signs, invoices and insures, and supplies exactly one person — itself.',
+    says: 'The consultant’s own limited company: it signs, bills and insures, and supplies exactly one person — itself.',
   },
   {
     party: 'CANDIDATE',

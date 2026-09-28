@@ -159,7 +159,12 @@ describe('a client\'s nav reads as the sequence of a placement, not a wall of li
     // So there is one entry now and the stage is a filter on the screen.
     // Asserted as an absence, because that is the thing that must not
     // come back.
-    expect(program).toContain("label: 'Requirements'")
+    //
+    // The one entry reads "Job requests" since 2026-09-28: the founder's
+    // plain word for the row, where "requirement" and "requisition" were
+    // the trade's.
+    expect(program).toContain("label: 'Job requests'")
+    expect(program).not.toContain("label: 'Requirements'")
     expect(program).not.toContain("label: 'Open roles'")
     expect(program).not.toContain("label: 'Requisitions'")
   })
@@ -861,11 +866,11 @@ describe('a menu offers only what this seat can actually open', () => {
     expect(wrong, `these promise something the route does not:\n  ${wrong.join('\n  ')}`).toEqual([])
   })
 
-  it('shows a delivery engineer no payroll, no invoices and no profit', () => {
+  it('shows a delivery engineer no payroll, no bills and no profit', () => {
     const labels = itemsOf(getNavForKind('GSI', false, {
       worker: true, permissions: ['assignments.read', 'timesheets.read'],
     })).map((i) => i.label)
-    for (const refused of ['Payroll', 'Commissions', 'Invoices', 'Profitability', 'POs', 'Expenses', 'Bench', 'Consultants']) {
+    for (const refused of ['Payroll', 'Commissions', 'Bills', 'Profitability', 'POs', 'Expenses', 'Bench', 'Consultants']) {
       expect(labels, `${refused} would answer him with a permission error`).not.toContain(refused)
     }
     // And he keeps the week he files and the contracts he is on.

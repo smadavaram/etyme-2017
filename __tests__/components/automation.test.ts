@@ -52,10 +52,11 @@ describe('Action type classification', () => {
     return KNOWN_ACTIONS.includes(action)
   }
 
+  const PLAIN_WORD: Record<string, string> = { REQUISITION: 'Job request', INVOICE: 'Bill' }
   function actionLabel(action: string): string {
     return action
       .split('_')
-      .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+      .map((w) => PLAIN_WORD[w] ?? w.charAt(0) + w.slice(1).toLowerCase())
       .join(' ')
   }
 
@@ -75,9 +76,10 @@ describe('Action type classification', () => {
     expect(isKnownAction('UNKNOWN_ACTION')).toBe(false)
   })
 
-  it('action labels are human-readable', () => {
+  it('action labels are human-readable, and say bill and job request where the machine says invoice and requisition', () => {
     expect(actionLabel('ROLLOFF_CLAIMED')).toBe('Rolloff Claimed')
-    expect(actionLabel('INVOICE_GENERATED')).toBe('Invoice Generated')
+    expect(actionLabel('INVOICE_GENERATED')).toBe('Bill Generated')
+    expect(actionLabel('REQUISITION_DISTRIBUTED')).toBe('Job request Distributed')
     expect(actionLabel('BENCH_LISTING_CREATED')).toBe('Bench Listing Created')
   })
 })
@@ -90,8 +92,8 @@ describe('Action category grouping', () => {
     if (action.startsWith('BENCH')) return 'Bench'
     if (action.startsWith('CONTRACT')) return 'Contracts'
     if (action.startsWith('CONSULTANT')) return 'People'
-    if (action.startsWith('REQUIREMENT')) return 'Requirements'
-    if (action.startsWith('INVOICE') || action.startsWith('PAYMENT')) return 'Invoicing'
+    if (action.startsWith('REQUIREMENT') || action.startsWith('REQUISITION')) return 'Job requests'
+    if (action.startsWith('INVOICE') || action.startsWith('PAYMENT')) return 'Billing'
     if (action.startsWith('TIMESHEET')) return 'Timesheets'
     if (action.startsWith('EXPENSE')) return 'Expenses'
     if (action.startsWith('PAYROLL')) return 'Payroll'
@@ -112,9 +114,9 @@ describe('Action category grouping', () => {
     expect(actionCategory('BENCH_LISTING_REVOKED')).toBe('Bench')
   })
 
-  it('invoice and payment actions belong to Invoicing', () => {
-    expect(actionCategory('INVOICE_GENERATED')).toBe('Invoicing')
-    expect(actionCategory('PAYMENT_RECORDED')).toBe('Invoicing')
+  it('bill and payment actions belong to Billing', () => {
+    expect(actionCategory('INVOICE_GENERATED')).toBe('Billing')
+    expect(actionCategory('PAYMENT_RECORDED')).toBe('Billing')
   })
 
   it('blacklist actions belong to Compliance', () => {
@@ -261,7 +263,7 @@ describe('Action counting', () => {
     function actionCategory(action: string): string {
       if (action.startsWith('ROLLOFF')) return 'Rolloff'
       if (action.startsWith('BENCH')) return 'Bench'
-      if (action.startsWith('INVOICE') || action.startsWith('PAYMENT')) return 'Invoicing'
+      if (action.startsWith('INVOICE') || action.startsWith('PAYMENT')) return 'Billing'
       if (action.startsWith('TIMESHEET')) return 'Timesheets'
       if (action.startsWith('BLACKLIST')) return 'Compliance'
       return 'Other'
@@ -301,7 +303,7 @@ describe('Action counting', () => {
     const cats = countByCategory(entries)
     expect(cats.Rolloff).toBe(2)
     expect(cats.Timesheets).toBe(3)
-    expect(cats.Invoicing).toBe(1)
+    expect(cats.Billing).toBe(1)
     expect(cats.Compliance).toBe(1)
   })
 })

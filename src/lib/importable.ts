@@ -128,7 +128,7 @@ export const IMPORTABLE: EntitySpec[] = [
     permission: 'settings.manage',
     naturalKey: 'date',
     blurb:
-      'Days your cycle dates shift off. An empty calendar means an invoice run can fire on Christmas Day.',
+      'Days your cycle dates shift off. An empty calendar means a billing run can fire on Christmas Day.',
     fields: [
       { key: 'date', label: 'Date', aliases: ['date', 'day', 'holiday date'], required: true, kind: 'date' },
       { key: 'name', label: 'Name', aliases: ['name', 'holiday', 'description', 'occasion'], required: true, kind: 'string' },

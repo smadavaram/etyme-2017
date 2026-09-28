@@ -47,15 +47,15 @@ export type ContactKind =
  * letting somebody guess.
  */
 export const KINDS: Record<ContactKind, { label: string; callAbout: string }> = {
-  HIRING_MANAGER: { label: 'Hiring manager', callAbout: 'open roles, interview feedback, extensions' },
-  PROGRAM: { label: 'Program office', callAbout: 'the program itself — who may supply, which roles go out, the rules' },
+  HIRING_MANAGER: { label: 'Hiring manager', callAbout: 'open jobs, interview feedback, extensions' },
+  PROGRAM: { label: 'Program office', callAbout: 'the program itself — who may supply, which jobs go out, the rules' },
   PROCUREMENT: { label: 'Procurement', callAbout: 'agreements, rate cards, onboarding as a supplier' },
-  AP: { label: 'Accounts payable', callAbout: 'unpaid invoices and remittance — they pay' },
+  AP: { label: 'Accounts payable', callAbout: 'unpaid bills and remittance — they pay' },
   BILLING: { label: 'Billing', callAbout: 'the invoices they send and what is still unpaid — they bill' },
   RECRUITING: { label: 'Recruiting', callAbout: 'submissions and candidate logistics' },
   EXECUTIVE: { label: 'Executive', callAbout: 'the relationship itself, and escalations' },
   DELIVERY: { label: 'Delivery', callAbout: 'the work on the ground, rolloffs, replacements' },
-  HR: { label: 'HR', callAbout: 'whether a role is in the plan, and a firm’s own people’s paperwork' },
+  HR: { label: 'HR', callAbout: 'whether a job is in the plan, and a firm’s own people’s paperwork' },
   COMPLIANCE: { label: 'Compliance', callAbout: 'insurance, work authorization, background checks, tenure' },
   OTHER: { label: 'Contact', callAbout: 'whatever they were saved for — add a note' },
 }

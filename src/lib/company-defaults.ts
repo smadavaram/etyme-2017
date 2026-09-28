@@ -134,7 +134,7 @@ const SUPPLIER_ROLES: RoleSeed[] = [
     // The client relationship: the roles, the rates, the submissions,
     // what has been billed. Not payroll, not P&L.
     name: 'Account Manager',
-    blurb: 'Owns the client relationship — roles, rates, submissions, and what was billed.',
+    blurb: 'Owns the client relationship — jobs, rates, submissions, and what was billed.',
     // `requirements.write` because a prime is both sell and buy.
     //
     // A prime or a GSI raises its own requisition and buys against it from
@@ -214,7 +214,7 @@ const CLIENT_ROLES: RoleSeed[] = [
   },
   {
     name: 'Hiring Manager',
-    blurb: 'Raises requisitions and approves their own team’s hours.',
+    blurb: 'Raises job requests and approves their own team’s hours.',
     // Deliberately cannot distribute. Choosing which suppliers see a
     // requisition is a program decision, not a hiring one — that is the
     // control that stops a manager routing work to a friend.
@@ -238,7 +238,7 @@ const CLIENT_ROLES: RoleSeed[] = [
     // stage — who may supply a requisition, at what rate — and releases
     // it to the suppliers it cleared.
     name: 'Procurement Lead',
-    blurb: 'Manages the suppliers: who may supply, at what rate. Releases a requisition to the suppliers it cleared.',
+    blurb: 'Manages the suppliers: who may supply, at what rate. Releases a job request to the suppliers it cleared.',
     permissions: uniq(SEE_DEMAND, ['requirements.distribute'], SEE_SUPPLY, OWN_PRICE, SEE_RULES, ['vendors.read', 'vendors.manage']),
   },
   {
@@ -281,7 +281,7 @@ const MSP_ROLES: RoleSeed[] = [
   },
   {
     name: 'Coordinator',
-    blurb: 'Moves requisitions and submissions through the day.',
+    blurb: 'Moves job requests and submissions through the day.',
     permissions: uniq(SEE_PEOPLE, RUN_DEMAND, SEE_SUPPLY, SEE_WORK),
   },
   {
@@ -355,7 +355,7 @@ export const GRANTED_SINCE: {
     role: 'Account Manager',
     kinds: ['VENDOR', 'GSI'],
     permissions: ['requirements.write'],
-    why: 'A prime buys as well as sells, and the desk that sold the person awards them onto the prime\u2019s own requisition.',
+    why: 'A prime buys as well as sells, and the desk that sold the person awards them onto the prime\u2019s own job request.',
   },
   {
     role: 'Resource Manager',

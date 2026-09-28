@@ -160,7 +160,7 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   PROACTIVE_MATCH: {
     rung: 'L1',
     basis: 'RECORDED',
-    says: 'It scored people against an open role nobody had matched yet. Scores only — nobody is submitted until a recruiter does it.',
+    says: 'It scored people against an open job nobody had matched yet. Scores only — nobody is submitted until a recruiter does it.',
   },
   ROLLOFF_SCAN: {
     rung: 'L2',
@@ -194,12 +194,12 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   REQUISITION_ROUTED: {
     rung: 'L2',
     basis: 'RULE',
-    says: 'It worked out which desks have to sign this requisition and put it in front of each of them. Every decision is still a person’s.',
+    says: 'It worked out which desks have to sign this job request and put it in front of each of them. Every decision is still a person’s.',
   },
   INVITATIONS_EXPIRED: {
     rung: 'L3',
     basis: 'RULE',
-    says: 'An invitation nobody answered by the date on it is marked expired. The role can be sent out again.',
+    says: 'An invitation nobody answered by the date on it is marked expired. The job can be sent out again.',
   },
   OPENINGS_COLD: {
     rung: 'L3',
@@ -226,7 +226,7 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   REQUISITION_AUTO_CLEARED: {
     rung: 'L4',
     basis: 'RULE',
-    says: 'This requisition published itself because it sat inside the plan already approved — every desk cleared by rule and by name, nobody signing their own.',
+    says: 'This job request published itself because it sat inside the plan already approved — every desk cleared by rule and by name, nobody signing their own.',
   },
   AGREEMENT_TERM_WATCH: {
     rung: 'L5',
@@ -484,7 +484,7 @@ export const PLANNED: Record<string, PlannedAct> = {
     rung: 'L5',
     basis: 'RULE',
     says:
-      'A record that has to survive for the money or for the client — an invoice line, a signed week, a day on site — kept its amounts and forgot whose they were, because the period for holding the name ran out. The arithmetic still foots and the person is gone from it, and it cannot be put back.',
+      'A record that has to survive for the money or for the client — a bill line, a signed week, a day on site — kept its amounts and forgot whose they were, because the period for holding the name ran out. The arithmetic still foots and the person is gone from it, and it cannot be put back.',
     willBeWrittenBy: 'etyme-regulatory',
   },
 
@@ -589,7 +589,7 @@ export const JOBS: Record<string, Job> = {
     job: 'proactive-match',
     rung: 'L1',
     basis: 'RECORDED',
-    says: 'Scores people against open roles nobody has matched. Suggestions only; nobody is submitted.',
+    says: 'Scores people against open jobs nobody has matched. Suggestions only; nobody is submitted.',
     writes: ['PROACTIVE_MATCH'],
   },
   'rolloff-scan': {

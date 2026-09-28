@@ -85,7 +85,7 @@ describe('An assignment stands on one fact: somebody confirmed the start', () =>
       label: 'Priya at Talvern Medical', contractActive: true, cleared: true,
       startConfirmed: false, firstTimesheetIn: false,
     })
-    expect(a.items.find((i) => i.key === 'start')!.why).toContain('every invoice stands on')
+    expect(a.items.find((i) => i.key === 'start')!.why).toContain('every bill stands on')
     expect(a.ready).toBe(false)
   })
 

@@ -72,7 +72,7 @@ describe('no model surface ships without evals', () => {
     // a decision somebody should take knowingly, and this is where it is
     // written down rather than discovered.
     const noFallback = SURFACES.filter((s) => s.fallback === 'NONE').map((s) => s.what)
-    expect(noFallback).toEqual(['Scoring a consultant against a role'])
+    expect(noFallback).toEqual(['Scoring a consultant against a job'])
   })
 })
 

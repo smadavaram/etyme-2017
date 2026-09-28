@@ -102,7 +102,7 @@ export function clientChecklist(f: ClientFacts): Checklist {
     {
       key: 'costCenters', label: 'Cost objects recorded',
       state: f.costCenters > 0 ? 'DONE' : 'MISSING',
-      why: 'Their finance team reconciles against their own codes. Captured now, or chased at invoice time.',
+      why: 'Their finance team reconciles against their own codes. Captured now, or chased at billing time.',
       href: '/dashboard/settings',
     },
     {
@@ -114,7 +114,7 @@ export function clientChecklist(f: ClientFacts): Checklist {
     {
       key: 'approvals', label: 'Approval rules set',
       state: f.approvalRules ? 'DONE' : 'MISSING',
-      why: 'Most requisitions must clear without a human. No rules means every one waits on one.',
+      why: 'Most job requests must clear without a human. No rules means every one waits on one.',
       href: '/dashboard/settings',
     },
   ]
@@ -251,7 +251,7 @@ export function assignmentChecklist(f: AssignmentFacts): Checklist {
     {
       key: 'start', label: 'Start confirmed',
       state: f.startConfirmed ? 'DONE' : 'MISSING',
-      why: 'Somebody said they actually walked in. The fact every invoice stands on.',
+      why: 'Somebody said they actually walked in. The fact every bill stands on.',
       href: '/dashboard/onboarding',
     },
     {

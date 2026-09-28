@@ -29,7 +29,7 @@ export type Relationship = 'CLIENT' | 'SUPPLIER' | 'PRIME' | 'MSP'
 export type Status = 'PROSPECT' | 'ACTIVE' | 'DORMANT' | 'BLOCKED'
 
 export const RELATIONSHIPS: Record<Relationship, { label: string; means: string }> = {
-  CLIENT: { label: 'Client', means: 'They buy from us. Our invoices go to them.' },
+  CLIENT: { label: 'Client', means: 'They buy from us. Our bills go to them.' },
   SUPPLIER: { label: 'Supplier', means: 'We buy from them. Their people, our placements.' },
   PRIME: { label: 'Prime', means: 'They hold the client relationship; our work flows through them.' },
   MSP: { label: 'MSP', means: 'They run the program our work goes into.' },

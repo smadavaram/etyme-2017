@@ -75,10 +75,10 @@ export async function GET(request: NextRequest) {
       // An invoice with no remit-to says nothing about where to pay it, and
       // the customer finds out by asking.
       warning: rows.length === 0
-        ? 'No payment details. Invoices will not say where to send money.'
+        ? 'No payment details. Bills will not say where to send money.'
         : rows.some((r) => r.isDefault)
           ? null
-          : 'None of these is the default, so new invoices will not pick one automatically.',
+          : 'None of these is the default, so new bills will not pick one automatically.',
     },
   })
 }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'VALIDATION',
-          message: 'The legal entity name that goes on the invoice. It is often not your trading name.',
+          message: 'The legal entity name that goes on the bill. It is often not your trading name.',
           field: 'legalName',
         },
       },
@@ -235,7 +235,7 @@ export async function DELETE(request: NextRequest) {
       {
         error: {
           code: 'IN_USE',
-          message: `${existing.legalName} is on ${existing._count.invoices} invoice(s) already sent. Removing it would leave those invoices pointing at nothing.`,
+          message: `${existing.legalName} is on ${existing._count.invoices} bill(s) already sent. Removing it would leave those bills pointing at nothing.`,
         },
       },
       { status: 409 }
@@ -247,7 +247,7 @@ export async function DELETE(request: NextRequest) {
   return NextResponse.json({
     data: {
       removed: existing.legalName,
-      warning: existing.isDefault ? 'That was your default. New invoices will not pick one until you set another.' : null,
+      warning: existing.isDefault ? 'That was your default. New bills will not pick one until you set another.' : null,
     },
   })
 }

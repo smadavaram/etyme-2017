@@ -163,8 +163,13 @@ const CONTRACTS_AND_TIME: NavItem[] = [
 
 /** What was billed, what came back, what went out. */
 const MONEY: NavItem[] = [
-  { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
-  // Next to Invoices deliberately: same money, different question. One
+  { label: 'Bills', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
+  // "Bills", not "Invoices": the firm is the one billing here, and the
+  // party who issues a document names it (CLAUDE.md, "Bill, invoice
+  // receipt, payroll"). A client's own menu keeps "Invoices", because
+  // what reaches a client is its suppliers' invoices.
+  //
+  // Next to Bills deliberately: same money, different question. One
   // is what we sent, the other is what came back.
   // Deliberately unannotated, and it is not an oversight. /api/ar and
   // /api/ap gate their GET on margin.read or pnl.read, which the
@@ -303,7 +308,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Leads', href: '/dashboard/leads', icon: '⌁' },
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
+      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -363,7 +368,7 @@ const GSI_NAV: NavSection[] = [
       // What the end client sent — a GSI is prime here, the same seat a
       // vendor sits in when it receives a role.
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
+      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -423,7 +428,7 @@ const MSP_NAV: NavSection[] = [
     label: 'Demand',
     items: [
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
+      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -501,7 +506,7 @@ const SOLO_NAV: NavSection[] = [
       { label: 'Contracts', href: '/dashboard/contracts', icon: '▤' },
       { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', needs: ['invoices.read'] },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
-      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', needs: ['invoices.read'] },
+      { label: 'Bills', href: '/dashboard/invoices', icon: '▧', needs: ['invoices.read'] },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', needs: ['invoices.read'] },
       // What came back and what is late. For somebody invoicing one or
       // two firms this is the whole of finance, and chasing it is the
@@ -634,7 +639,11 @@ const CLIENT_NAV: NavSection[] = [
       // thinks in one list of roles it is hiring for, with a status on
       // each, so that is what it gets: the stage is a filter on the
       // screen rather than a fork in the menu.
-      { label: 'Requirements', href: '/dashboard/requisitions', icon: '⊞', group: 'Hire' },
+      //
+      // "Job requests", the founder's word on 2026-09-28: a buyer asks
+      // for a job to be filled; "requirement" and "requisition" are the
+      // trade's words for the same row and not the reader's.
+      { label: 'Job requests', href: '/dashboard/requisitions', icon: '⊞', group: 'Hire' },
       // The step where people actually arrive.
       //
       // Hire read Requirements → Interviews → Placements, which skips
@@ -700,7 +709,9 @@ const CLIENT_NAV: NavSection[] = [
       // money for contract labor, and the supplier employs the
       // contractor — so both would be a menu entry with nothing behind
       // it, which this nav already has a rule against.
-      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
+      // A client receives what its suppliers send, so it reads their
+      // word for it: an invoice, received. A firm that bills reads Bills.
+      { label: 'Supplier invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
       { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
       { label: 'Budget', href: '/dashboard/program/budget', icon: '◱', group: 'Money' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard' },

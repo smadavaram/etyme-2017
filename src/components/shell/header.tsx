@@ -75,8 +75,8 @@ const PLUS_MENU: PlusMenuSection[] = [
     label: 'Sell',
     items: [
       {
-        label: 'New requirement',
-        description: 'Open a role for client submissions',
+        label: 'New job request',
+        description: 'Open a job for client submissions',
         href: '/dashboard/requirements?new=1',
         icon: '◈',
       },
@@ -137,8 +137,8 @@ const PLUS_MENU: PlusMenuSection[] = [
         icon: '◫',
       },
       {
-        label: 'Generate invoice',
-        description: 'Create an invoice for approved timesheets',
+        label: 'Generate bill',
+        description: 'Bill the customer for approved timesheets',
         href: '/dashboard/invoices?new=1',
         icon: '▧',
       },
@@ -166,8 +166,8 @@ const CLIENT_PLUS_MENU: PlusMenuSection[] = [
     label: 'Workforce',
     items: [
       {
-        label: 'New role',
-        description: 'Open a requisition for your vendors',
+        label: 'New job request',
+        description: 'Post a job to your suppliers',
         href: '/dashboard/requirements?new=1',
         icon: '◈',
       },

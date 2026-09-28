@@ -13,7 +13,7 @@ describe('The register is typed, because Wipro is not a fact about a relationshi
 
   it('carries what each relationship means, in one sentence', () => {
     expect(RELATIONSHIPS.PRIME.means).toContain('our work flows through them')
-    expect(RELATIONSHIPS.CLIENT.means).toContain('Our invoices go to them')
+    expect(RELATIONSHIPS.CLIENT.means).toContain('Our bills go to them')
   })
 
   it('one firm may be a client and a prime at once, as two rows', () => {

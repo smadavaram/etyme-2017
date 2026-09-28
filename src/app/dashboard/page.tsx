@@ -154,7 +154,7 @@ function TheBar() {
               {bar.rate ?? '—'}
             </span>
             <span className="text-[13px] text-etyme-faint">
-              good submissions a day, per role · target {target}
+              good submissions a day, per job · target {target}
             </span>
           </div>
           <p className="mt-2 max-w-[52ch] text-[13px] text-etyme-muted">{bar.says}</p>

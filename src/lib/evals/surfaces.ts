@@ -265,7 +265,7 @@ const documentReading: Surface<string, { records: ExtractedRecord[]; parsed: boo
 
 const matchScoring: Surface<string, { ok: boolean }> = {
   key: 'match-scoring',
-  what: 'Scoring a consultant against a role',
+  what: 'Scoring a consultant against a job',
   // No rules path at all: with no key, matching does not run. That is a
   // decision somebody should take knowingly, so the scorecard says it.
   fallback: 'NONE',

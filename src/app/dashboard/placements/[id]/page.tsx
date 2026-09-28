@@ -469,7 +469,7 @@ export default function PlacementPage() {
         subtitle={
           p.interviews.length
             ? `${p.interviews.length} round${p.interviews.length === 1 ? '' : 's'}, in order.`
-            : 'Nobody has interviewed them for this role.'
+            : 'Nobody has interviewed them for this job.'
         }
       >
         {p.interviews.length > 0 && (
@@ -682,7 +682,11 @@ export default function PlacementPage() {
         {p.money.says ? (
           <p className="text-[13px] text-etyme-muted">{p.money.says}</p>
         ) : p.money.invoices.length === 0 ? (
-          <p className="text-[13px] text-etyme-muted">Nothing invoiced against this placement yet.</p>
+          <p className="text-[13px] text-etyme-muted">
+            {/* The party who issues the document names it: the supplier bills,
+                the client receives its invoice. */}
+            {p.viewer.isSupplier ? 'Nothing billed against this placement yet.' : 'No invoice against this placement yet.'}
+          </p>
         ) : (
           <ul className="space-y-2">
             {p.money.invoices.map((inv) => (

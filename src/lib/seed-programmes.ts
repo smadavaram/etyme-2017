@@ -621,7 +621,7 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
           recommendedById: desk.hiring.personId, state: 'IN_REVIEW', stage: 'HR', createdAt: day(-4), linkSentAt: day(-4),
           token: newApplyToken(),
           decisions: [
-            { stage: 'LEAD', outcome: 'APPROVED', byId: lead?.personId ?? desk.programme.personId, byName: lead?.person.name ?? p.people.programme, at: day(-3).toISOString(), note: 'Two planning roles open next quarter and Pinnacle is at capacity.' },
+            { stage: 'LEAD', outcome: 'APPROVED', byId: lead?.personId ?? desk.programme.personId, byName: lead?.person.name ?? p.people.programme, at: day(-3).toISOString(), note: 'Two planning jobs open next quarter and Pinnacle is at capacity.' },
             { stage: 'PROCUREMENT', outcome: 'APPROVED', byId: desk.procurement.personId, byName: p.people.procurement, at: day(-2).toISOString(), note: 'References confirmed; D&B rating acceptable.' },
           ] as unknown as object,
           application: {
@@ -1376,7 +1376,7 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
       await db.requirementApproval.createMany({
         data: [
           { requirementId: routed.id, approverId: desk.hr.personId, rank: 1, stage: 'ROLE', outcome: 'PENDING',
-            reason: `${p.routed.headcount} heads against Apps' plan — over it. Is this a role the plan meant?` },
+            reason: `${p.routed.headcount} heads against Apps' plan — over it. Is this a job the plan meant?` },
           { requirementId: routed.id, approverId: null, rank: 1, stage: 'SOURCING', outcome: 'AUTO_CLEARED', decidedAt: day(-2),
             reason: `Within the going rate — $${Math.round(p.routed.billMax / 100)}/hr is in line with what Apps already pays. Procurement not needed.` },
           { requirementId: routed.id, approverId: vp.id, rank: 2, stage: 'FINAL', outcome: 'PENDING',

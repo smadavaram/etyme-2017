@@ -166,7 +166,7 @@ describe('changing an address', () => {
 
   it('says that everything already sent keeps working', () => {
     const a = assessSubdomainChange('old', 'new', 0)
-    expect(a.consequences.join(' ')).toMatch(/invitations, document requests, invoices/i)
+    expect(a.consequences.join(' ')).toMatch(/invitations, document requests, bills/i)
   })
 
   it('refuses a change to the address you already have', () => {

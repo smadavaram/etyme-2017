@@ -235,7 +235,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({
       data: {
         retired: existing.code,
-        message: `${existing.code} is retired. It stays on ${existing._count.allocations} allocation(s) and ${existing._count.requisitions} requisition(s) so last year's spend still explains itself, and it will not be offered on new work.`,
+        message: `${existing.code} is retired. It stays on ${existing._count.allocations} allocation(s) and ${existing._count.requisitions} job request(s) so last year's spend still explains itself, and it will not be offered on new work.`,
       },
     })
   }

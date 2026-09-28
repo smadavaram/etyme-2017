@@ -110,8 +110,8 @@ export async function GET(request: NextRequest) {
       // clears without a human, which is a choice and not a failure.
       summary:
         active.length === 0
-          ? 'No approval rules. Every requisition clears without anybody approving it.'
-          : `${active.length} rule(s). A requisition waits for a person when it matches one.`,
+          ? 'No approval rules. Every job request clears without anybody approving it.'
+          : `${active.length} rule(s). A job request waits for a person when it matches one.`,
     },
   })
 }
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'NOT_HERE',
-          message: 'One of the approvers is not at this company, so requisitions would route into silence.',
+          message: 'One of the approvers is not at this company, so job requests would route into silence.',
           field: 'approverIds',
         },
       },
@@ -505,7 +505,7 @@ export async function DELETE(request: NextRequest) {
       rulesRemaining: otherActive,
       message:
         otherActive === 0
-          ? `"${existing.name}" is off. Every requisition now clears without approval.`
+          ? `"${existing.name}" is off. Every job request now clears without approval.`
           : `"${existing.name}" is off. ${otherActive} rule(s) still apply.`,
     },
   })

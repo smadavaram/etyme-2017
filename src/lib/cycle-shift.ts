@@ -104,7 +104,7 @@ export const SHIFT_WORDS: Record<ShiftDirection, { label: string; means: string 
 export const SHIFT_CATEGORIES: { key: keyof CycleShiftPolicy; label: string; covers: string }[] = [
   { key: 'hours', label: 'Hours', covers: 'When hours are due, and when they must be approved.' },
   { key: 'pay', label: 'Pay', covers: 'Pay day, pay to calculate, and a supplier invoice to record.' },
-  { key: 'bill', label: 'Bill', covers: 'The day an invoice is raised.' },
+  { key: 'bill', label: 'Bill', covers: 'The day a bill is raised.' },
 ]
 
 export function isShiftDirection(value: unknown): value is ShiftDirection {

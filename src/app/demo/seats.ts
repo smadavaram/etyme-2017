@@ -332,7 +332,7 @@ export const INTEGRATOR_SEATS: Program[] = [
       'Sunil Raghavan runs delivery, with four people on his own payroll between projects. Sell ' +
       'side: Corveldt Aerospace has an open DO-178C seat and Karthik Menon, three weeks off an ' +
       'avionics program, fits it — submit him with no bench listing anywhere. Buy side: the ' +
-      'engineer already on that program is bought from a bench vendor, whose bill is unpaid.',
+      'engineer already on that program is bought from a bench vendor, whose invoice is unpaid.',
   },
   {
     slug: 'world-sundara',

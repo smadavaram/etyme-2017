@@ -20,8 +20,8 @@ describe('A contact says what you would call them about, not just who they are',
     }
   })
 
-  it('accounts payable is the one you chase an unpaid invoice through', () => {
-    expect(KINDS.AP.callAbout).toContain('unpaid invoices')
+  it('accounts payable is the one you chase an unpaid bill through', () => {
+    expect(KINDS.AP.callAbout).toContain('unpaid bills')
   })
 })
 

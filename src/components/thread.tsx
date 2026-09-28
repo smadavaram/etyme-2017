@@ -203,7 +203,7 @@ export function Thread({ topic, topicId, title, withCompany, canOpen, words, onC
 export const OWN_NOTES_ON_A_ROLE: ThreadWords = {
   empty: 'Nothing said yet. Notes here stay with your own people — no supplier sees them.',
   foot: 'Your own people only. Suppliers never see this.',
-  placeholder: 'Anything your own people should know about this role.',
+  placeholder: 'Anything your own people should know about this job.',
 }
 
 /** The words for writing to one supplier about a role, from the demand side. */
@@ -211,7 +211,7 @@ export function toSupplierAboutRole(supplier: string): ThreadWords {
   return {
     empty: `Nothing said to ${supplier} yet. Ask them here and they are told; their answer comes back to this thread.`,
     foot: `${supplier} sees this. Nobody else does.`,
-    placeholder: `Anything ${supplier} should know about this role.`,
+    placeholder: `Anything ${supplier} should know about this job.`,
   }
 }
 

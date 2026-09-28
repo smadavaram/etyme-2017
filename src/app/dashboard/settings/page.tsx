@@ -569,7 +569,7 @@ function HolidaysTab({ data, send, busy }: { data: Settings; send: SendFn; busy:
   return (
     <Panel
       title="Holiday calendar"
-      subtitle="Cycle dates shift off weekends and off these days. An empty calendar means due dates land on public holidays and nobody notices until an invoice run fires on Christmas Day."
+      subtitle="Cycle dates shift off weekends and off these days. An empty calendar means due dates land on public holidays and nobody notices until a billing run fires on Christmas Day."
       action={
         data.canEdit ? (
           <button
@@ -643,11 +643,11 @@ function CostCentersTab({ data, send, busy }: { data: Settings; send: SendFn; bu
   return (
     <Panel
       title="Cost centers"
-      subtitle="Who owns the spend. A requisition with no cost center is spend nobody owns, so it goes to a human for approval — which is why a company with none routes everything to a human. The code must match your ERP exactly; the coded invoice export posts straight into it."
+      subtitle="Who owns the spend. A job request with no cost center is spend nobody owns, so it goes to a human for approval — which is why a company with none routes everything to a human. The code must match your ERP exactly; the coded bill export posts straight into it."
     >
       {data.costCenters.length === 0 ? (
         <Empty>
-          None yet. Every requisition will be routed for approval because nobody owns the budget.
+          None yet. Every job request will be routed for approval because nobody owns the budget.
         </Empty>
       ) : (
         <div className="divide-y divide-etyme-rule mb-4">
@@ -711,7 +711,7 @@ function CyclesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: b
     <>
     <Panel
       title="Your cycle calendar"
-      subtitle="Chosen at sign-up from where you are and what you do. It decides when timesheets are due, when invoices generate, and when payroll runs — every date a contract produces comes from here."
+      subtitle="Chosen at sign-up from where you are and what you do. It decides when timesheets are due, when bills generate, and when payroll runs — every date a contract produces comes from here."
     >
       {!pack ? (
         <Empty>
@@ -857,12 +857,12 @@ function ApprovalsTab({ send, busy }: { send: SendFn; busy: boolean }) {
   return (
     <Panel
       title="Who has to say yes"
-      subtitle="Above what value a requisition waits for a person. Most should clear without one — governance slower than the workaround produces the workaround. Every change here is recorded with a name against it."
+      subtitle="Above what value a job request waits for a person. Most should clear without one — governance slower than the workaround produces the workaround. Every change here is recorded with a name against it."
     >
       <p className="text-[13px] text-etyme-ink mb-4">{summary}</p>
 
       {active.length === 0 ? (
-        <Empty>No rules. Every requisition clears without approval.</Empty>
+        <Empty>No rules. Every job request clears without approval.</Empty>
       ) : (
         <div className="divide-y divide-etyme-rule">
           {active.map((r) => (
