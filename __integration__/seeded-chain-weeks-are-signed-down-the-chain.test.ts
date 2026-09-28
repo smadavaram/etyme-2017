@@ -4,7 +4,8 @@ import { seedWorld } from '@/lib/seed-world'
 import { signersOf, topDown, turnOf, type LadderRung } from '@/app/api/timesheets/chain-turn'
 
 /**
- * A signed week in a seeded program carries every signature the product
+ * A signed week in a seeded program, or in the world under the programs,
+ * carries every signature the product
  * would have asked for, in the order it asks for them.
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
@@ -32,6 +33,33 @@ beforeAll(async () => {
     ids[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug: `world-${slug}` } })).id
   }
 }, 600_000)
+
+/**
+ * The ladder, read the way the route reads it: the worker's rung and
+ * every rung above it that buys from the one below.
+ */
+const ladderUp = async (sellContractId: string): Promise<LadderRung[]> => {
+  const rungs: LadderRung[] = []
+  let at: string | null = sellContractId
+  while (at) {
+    const c: { id: string; companyId: string; clientCompanyId: string; endClientCompanyId: string | null } =
+      await prisma.sellContract.findUniqueOrThrow({
+        where: { id: at },
+        select: { id: true, companyId: true, clientCompanyId: true, endClientCompanyId: true },
+      })
+    const below = rungs[rungs.length - 1]
+    rungs.push({
+      sellContractId: c.id, companyId: c.companyId, clientCompanyId: c.clientCompanyId,
+      endClientCompanyId: c.endClientCompanyId, supplierSellContractId: below?.sellContractId ?? null,
+    })
+    const above = await prisma.buyContract.findFirst({
+      where: { supplierSellContractId: c.id },
+      select: { sellLinks: { select: { sellContractId: true } } },
+    })
+    at = above?.sellLinks[0]?.sellContractId ?? null
+  }
+  return rungs
+}
 
 const signaturesOn = (timesheetId: string) =>
   prisma.workAssertion.findMany({
@@ -71,28 +99,7 @@ describe('a seeded week on a chain is signed down the chain', () => {
       where: { id: helenaWeeks[0].id },
       select: { sellContractId: true },
     })
-    // The ladder, read the way the route reads it: the worker's rung and
-    // every rung above it that buys from the one below.
-    const rungs: LadderRung[] = []
-    let at: string | null = week.sellContractId
-    while (at) {
-      const c: { id: string; companyId: string; clientCompanyId: string; endClientCompanyId: string | null } =
-        await prisma.sellContract.findUniqueOrThrow({
-          where: { id: at },
-          select: { id: true, companyId: true, clientCompanyId: true, endClientCompanyId: true },
-        })
-      const below = rungs[rungs.length - 1]
-      rungs.push({
-        sellContractId: c.id, companyId: c.companyId, clientCompanyId: c.clientCompanyId,
-        endClientCompanyId: c.endClientCompanyId, supplierSellContractId: below?.sellContractId ?? null,
-      })
-      const above = await prisma.buyContract.findFirst({
-        where: { supplierSellContractId: c.id },
-        select: { companyId: true, sellLinks: { select: { sellContractId: true } } },
-      })
-      at = above?.sellLinks[0]?.sellContractId ?? null
-    }
-    const signers = signersOf(topDown(rungs))
+    const signers = signersOf(topDown(await ladderUp(week.sellContractId)))
     expect(signers.map((s) => s.role)).toEqual(['CLIENT_APPROVAL', 'PASS_THROUGH', 'EMPLOYER_ACCEPTANCE'])
 
     const signed = await signaturesOn(helenaWeeks[0].id)
@@ -102,6 +109,37 @@ describe('a seeded week on a chain is signed down the chain', () => {
       const turn = turnOf(signers, firm, has, () => 'somebody')
       expect(turn.ok ? 'still to sign' : turn.code, firm).toBe('ALREADY_SIGNED')
     }
+  })
+
+  it('signs every seeded chain week in the world down its chain in turn, not only the programs’ weeks', async () => {
+    // The world seed's own placements — Harlow Health through Computer
+    // Systems, Meridian Bank through Vertex Global, Nordway through
+    // Pinnacle to a firm nobody has joined, and the rest — each walked
+    // against the signers the approve route would ask for.
+    const worldPeople = await prisma.person.findMany({
+      where: { primaryEmail: { endsWith: '@seed.etyme.invalid' } },
+      select: { id: true, name: true },
+    })
+    let chained = 0
+    for (const p of worldPeople) {
+      const weeks = await prisma.timesheet.findMany({
+        where: { personId: p.id, status: 'APPROVED' },
+        select: { id: true, sellContractId: true },
+      })
+      for (const w of weeks) {
+        const signers = signersOf(topDown(await ladderUp(w.sellContractId)))
+        if (signers.length < 3) continue
+        chained++
+        const signed = await signaturesOn(w.id)
+        expect(signed.map((s) => [s.companyId, s.role]), p.name).toEqual(signers.map((s) => [s.companyId, s.role]))
+        for (let i = 1; i < signed.length; i++) {
+          expect(signed[i - 1].at.getTime(), `${p.name}: signature ${i} before the one above it`)
+            .toBeLessThan(signed[i].at.getTime())
+        }
+      }
+    }
+    // Six world placements run through a firm in the middle, four weeks each.
+    expect(chained).toBeGreaterThanOrEqual(24)
   })
 
   it('signs nothing twice when the world is seeded again', async () => {

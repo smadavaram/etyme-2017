@@ -611,28 +611,80 @@ export async function seedWorld(): Promise<{
   }
 
   // Hours, filed once against the contract of the firm that employs them,
-  // and signed by the client above and the employer below.
+  // and signed down the chain in turn (CLAUDE.md, "The signed week
+  // travels down the chain"): the client signs, each firm in the middle
+  // accepts what it pays the firm below, the employer accepts last — the
+  // three roles `api/timesheets/chain-turn` asks for, stamped in that
+  // order. Until 2026-09-28 the middle firm had no signature here, so a
+  // prime's bill from its sub-vendor had no receipt of its own behind it.
   const bottom = contracts[0]
   const sheets: any[] = []
+
+  // Step 0 is the client; each firm below an hour after the one above;
+  // the employer the next day.
+  const signedAt = (w: number, step: number): Date =>
+    step >= suppliers.length
+      ? day(-(w * 7 - 3))
+      : new Date(day(-(w * 7 - 2)).getTime() + step * 3_600_000)
+
+  // A firm in the middle signs through its own seated person. A firm
+  // nobody has joined cannot press a button, and a null signer on the
+  // ledger means the system approved on its own — which no rule here
+  // says it may. So a seatless firm in the middle of a chain is refused
+  // at seeding rather than given a signature the product could not
+  // produce. None exists today: the one seatless firm employs.
+  const middleSigner = (slug: string): string => {
+    const seat = seatBySlug.get(slug)
+    if (!seat) {
+      throw new Error(
+        `${slug} sits in the middle of a seeded chain and nobody is seated at it, so nobody there ` +
+        'could accept a week. Seat it, or move it to the bottom of the chain.'
+      )
+    }
+    return seat.personId
+  }
+
+  const passThroughFor = async (timesheetId: string, w: number) => {
+    for (let i = 0; i < suppliers.length - 1; i++) {
+      const firm = firmBySlug.get(suppliers[i])!
+      if (await db.workAssertion.findFirst({ where: { timesheetId, companyId: firm.id, role: 'PASS_THROUGH' } })) continue
+      await db.workAssertion.create({
+        data: {
+          timesheetId, companyId: firm.id, role: 'PASS_THROUGH', hours: 40, rateCents: spec.rates[i + 1],
+          state: 'LIVE', byId: middleSigner(suppliers[i]), at: signedAt(w, i + 1),
+        },
+      })
+    }
+  }
+
   for (let w = 4; w >= 1; w--) {
     const start = day(-(w * 7 + 4)), end = day(-(w * 7))
     const days: Record<string, number> = {}
     for (let d = 0; d < 5; d++) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = 8
     const already = await db.timesheet.findFirst({ where: { sellContractId: bottom.id, periodStart: start } })
-    if (already) { sheets.push(already); continue }
+    if (already) {
+      // A world seeded before the middle firms signed gets their
+      // acceptance once; a world that has it is untouched.
+      await passThroughFor(already.id, w)
+      sheets.push(already)
+      continue
+    }
     const ts = await db.timesheet.create({
       data: {
         sellContractId: bottom.id, personId: person.id, periodStart: start, periodEnd: end,
         days, totalHours: 40, status: 'APPROVED', submittedAt: end, approvedAt: day(-(w * 7 - 2)),
       },
     })
-    await db.workAssertion.createMany({
-      data: [
-        { timesheetId: ts.id, companyId: client.id, role: 'CLIENT_APPROVAL',
-          hours: 40, rateCents: spec.rates[0], state: 'LIVE', byId: seatBySlug.get(clientSlug)!.personId },
-        { timesheetId: ts.id, companyId: employer.id, role: 'EMPLOYER_ACCEPTANCE',
-          hours: 40, rateCents: spec.rates[spec.rates.length - 1], state: 'LIVE', byId: employerSeat },
-      ],
+    await db.workAssertion.create({
+      data: { timesheetId: ts.id, companyId: client.id, role: 'CLIENT_APPROVAL',
+        hours: 40, rateCents: spec.rates[0], state: 'LIVE', byId: seatBySlug.get(clientSlug)!.personId,
+        at: signedAt(w, 0) },
+    })
+    await passThroughFor(ts.id, w)
+    await db.workAssertion.create({
+      data: { timesheetId: ts.id, companyId: employer.id, role: 'EMPLOYER_ACCEPTANCE',
+        hours: 40, rateCents: spec.rates[spec.rates.length - 1], state: 'LIVE', byId: employerSeat,
+        at: signedAt(w, suppliers.length) },
     })
     sheets.push(ts)
   }
