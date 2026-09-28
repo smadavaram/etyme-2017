@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { pipelineSays } from '@/lib/consultant-portfolio'
 
 /**
  * GET /api/me/pipeline
@@ -40,7 +41,15 @@ export async function GET(request: NextRequest) {
     include: {
       fromCompany: { select: { id: true, name: true } },
       toCompany: { select: { id: true, name: true } },
-      requirement: { select: { title: true, location: true } },
+      requirement: {
+        select: {
+          title: true, location: true,
+          // Who awards the position: the end client where the role names
+          // one, else the firm that raised it.
+          company: { select: { name: true } },
+          endClientCompany: { select: { name: true } },
+        },
+      },
       interviews: {
         select: {
           id: true, round: true, stage: true, mode: true, state: true,
@@ -69,7 +78,10 @@ export async function GET(request: NextRequest) {
     submittedTo: s.toCompany.name,
     submittedOn: s.submittedAt.toISOString().slice(0, 10),
     status: s.status,
-    says: saysOf(s.status, s.interviews.length),
+    says: pipelineSays(s.status, s.interviews.length, {
+      client: s.requirement.endClientCompany?.name ?? s.requirement.company.name,
+      supplier: s.fromCompany.name,
+    }),
     // ── No rate on this row, and that is the point ───────────────
     //
     // This used to send `s.rate` as "their own rate on this
@@ -154,34 +166,6 @@ export async function GET(request: NextRequest) {
       asOf: now.toISOString(),
     },
   })
-}
-
-/**
- * What a status means, said to the person it happened to.
- *
- * Never the code. "SUBMITTED" on a screen is a database column; "your
- * name is with them and they have not come back yet" is what somebody
- * actually wants to know.
- */
-function saysOf(status: string, interviews: number): string {
-  switch (status) {
-    case 'SUBMITTED':
-      return 'With them now. Nobody has come back yet.'
-    case 'SHORTLISTED':
-      return 'They shortlisted you.'
-    case 'INTERVIEWING':
-      return interviews > 0 ? `Interviewing — ${interviews} arranged.` : 'Interviewing.'
-    case 'OFFERED':
-      return 'They made an offer.'
-    case 'PLACED':
-      return 'You got it.'
-    case 'REJECTED':
-      return 'They went a different way.'
-    case 'WITHDRAWN':
-      return 'Taken off it.'
-    default:
-      return status
-  }
 }
 
 /**

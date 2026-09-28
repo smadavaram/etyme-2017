@@ -1136,3 +1136,50 @@ export function checkWeek(input: {
     totalHours,
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Where they were put forward, in their words
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * What a submission's status means, said to the person it happened to.
+ *
+ * Never the code. "SUBMITTED" on a screen is a database column; "your
+ * name is with them and they have not come back yet" is what somebody
+ * actually wants to know.
+ *
+ * OFFERED says what happens next and who does it, in the same words the
+ * candidate's email uses (`lib/interview-notices`): they are placed when
+ * the client awards the position, and the firm that put them forward is
+ * in touch about start and terms. It used to say "They made an offer."
+ * and nothing else, which read as a job offer the person could accept —
+ * and there is nothing for them to accept; the award is the client's.
+ * No rate, ever: the price on a submission is between two firms.
+ */
+export function pipelineSays(
+  status: string,
+  interviews: number,
+  names: { client: string; supplier: string }
+): string {
+  switch (status) {
+    case 'SUBMITTED':
+      return 'With them now. Nobody has come back yet.'
+    case 'SHORTLISTED':
+      return 'They shortlisted you.'
+    case 'INTERVIEWING':
+      return interviews > 0 ? `Interviewing — ${interviews} arranged.` : 'Interviewing.'
+    case 'OFFERED':
+      return (
+        `You are placed when ${names.client} awards the position. ` +
+        `${names.supplier} will be in touch about your start date and terms.`
+      )
+    case 'PLACED':
+      return 'You got it.'
+    case 'REJECTED':
+      return 'They went a different way.'
+    case 'WITHDRAWN':
+      return 'Taken off it.'
+    default:
+      return status
+  }
+}
