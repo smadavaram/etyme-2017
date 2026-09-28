@@ -70,7 +70,7 @@ export const REASONS: { code: Reason; label: string; hint: string }[] = [
   { code: 'WORK_AUTH', label: 'Work authorization', hint: 'Wrong permit, or expiring too soon' },
   { code: 'AVAILABILITY', label: 'Availability', hint: 'Could not start when they needed' },
   { code: 'INTERVIEW', label: 'Interview', hint: 'Interviewed and did not land it' },
-  { code: 'TIMING', label: 'Timing', hint: 'Beaten to it, or the role was pulled' },
+  { code: 'TIMING', label: 'Timing', hint: 'Beaten to it, or the job was pulled' },
   { code: 'CANDIDATE_WITHDREW', label: 'They withdrew', hint: 'Took something else, or stopped answering' },
   { code: 'NO_REPLY', label: 'No reply', hint: 'The client never came back' },
 ]
@@ -161,7 +161,7 @@ export function bar(subs: Sub[], days: number): Bar {
       sent: subs.length,
       requirements,
       days,
-      says: 'Nothing open yet. The number starts when the first role does.',
+      says: 'Nothing open yet. The number starts when the first job does.',
       hit: false,
     }
   }
@@ -191,7 +191,7 @@ function said(
   requirements: number,
   hit: boolean
 ): string {
-  const roles = `${requirements} role${requirements === 1 ? '' : 's'}`
+  const roles = `${requirements} job${requirements === 1 ? '' : 's'}`
 
   if (hit) {
     return `${rate} good submissions a day across ${roles}. That is the bar.`

@@ -12,7 +12,7 @@ export function timesheetFlag(input: {
   contractEnd: Date | null
 }): string | null {
   const cap = input.hoursPerWeek ?? 40
-  if (input.hours > cap) return `${input.hours}h claimed on a ${cap}h-a-week role.`
+  if (input.hours > cap) return `${input.hours}h claimed on a ${cap}h-a-week job.`
   if (input.contractEnd && input.periodEnd > input.contractEnd) {
     return `The week runs past the contract's last day, ${shortDate(input.contractEnd)}.`
   }

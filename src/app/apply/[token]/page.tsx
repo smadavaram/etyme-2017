@@ -155,7 +155,7 @@ export default function ApplyPage() {
                     <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="Website" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
                     <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Registered address" className="rounded border border-etyme-rule px-3 py-2 text-[13px] sm:col-span-2" />
                     <input value={form.duns} onChange={(e) => setForm({ ...form, duns: e.target.value })} placeholder="D-U-N-S number (if you have one)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-                    <input value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} placeholder="What you supply — roles, skills" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+                    <input value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} placeholder="What you supply — jobs, skills" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
                   </div>
                   <textarea value={form.experience} onChange={(e) => setForm({ ...form, experience: e.target.value })} rows={4} placeholder="Past experience and delivery — who you have placed, where, how long they stayed" className="w-full rounded border border-etyme-rule px-3 py-2 text-[13px]" />
                 </section>

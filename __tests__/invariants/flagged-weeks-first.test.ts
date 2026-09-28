@@ -17,7 +17,7 @@ describe('flagged weeks are read first', () => {
     const out = flaggedFirst([
       row('plain-new', '2026-09-21', null),
       row('plain-mid', '2026-09-14', null),
-      row('over-hours', '2026-09-07', '44h claimed on a 40h-a-week role.'),
+      row('over-hours', '2026-09-07', '44h claimed on a 40h-a-week job.'),
       row('plain-old', '2026-08-31', null),
     ])
     expect(out.map((r) => r.id)).toEqual(['over-hours', 'plain-new', 'plain-mid', 'plain-old'])
@@ -33,7 +33,7 @@ describe('flagged weeks are read first', () => {
 
   it('a week over the role’s hours is flagged, in a sentence', () => {
     expect(weekFlag({ hours: 44, hoursPerWeek: 40, periodEnd: d('2026-09-13'), contractEnd: null, anomalyScore: null, anomalyReason: null }))
-      .toBe('44h claimed on a 40h-a-week role.')
+      .toBe('44h claimed on a 40h-a-week job.')
   })
 
   it('a week running past the contract’s last day is flagged', () => {

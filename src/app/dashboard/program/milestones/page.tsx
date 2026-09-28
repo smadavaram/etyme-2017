@@ -169,7 +169,7 @@ export default function MilestonesPage() {
         <h1 className="text-2xl font-semibold tracking-[-0.02em] font-serif">Milestones</h1>
         <p className="text-sm text-etyme-muted mt-1 max-w-2xl">
           A milestone bills because somebody accepted it, never because a date passed. What
-          is waiting here is money that cannot be invoiced yet, split by whose move it is.
+          is waiting here is money that cannot be billed yet, split by whose move it is.
         </p>
       </div>
 
@@ -177,7 +177,7 @@ export default function MilestonesPage() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-6 mb-4">
             <Stat
-              label="Ready to invoice"
+              label="Ready to bill"
               value={money(data.overall.billableCents)}
               sub={`${data.overall.billableCount} accepted`}
               tone="verified"

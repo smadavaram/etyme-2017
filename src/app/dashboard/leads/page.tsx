@@ -227,7 +227,7 @@ function Seat({ seat, onWrittenUp }: { seat: Opening; onWrittenUp: (note: string
             disabled={busy}
             className="rounded-md bg-etyme-action px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50"
           >
-            {busy ? 'Writing it up…' : 'Write it up as a role'}
+            {busy ? 'Writing it up…' : 'Write it up as a job'}
           </button>
         )}
         {written && (
@@ -235,7 +235,7 @@ function Seat({ seat, onWrittenUp }: { seat: Opening; onWrittenUp: (note: string
             href={`/dashboard/requirements?id=${seat.requirements[0].id}`}
             className="text-[12px] font-medium text-etyme-action hover:underline"
           >
-            Open the role →
+            Open the job →
           </a>
         )}
         <button
@@ -308,7 +308,7 @@ export default function LeadsPage() {
           Leads
         </h1>
         <p className="mt-1 max-w-[62ch] text-[13px] text-etyme-muted">
-          Demand does not arrive as a requisition. It arrives as adverts, and
+          Demand does not arrive as a job request. It arrives as adverts, and
           the same seat arrives four times. This puts them together.
         </p>
       </header>

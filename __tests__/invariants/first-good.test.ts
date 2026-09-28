@@ -119,14 +119,14 @@ describe('the number across roles', () => {
   it('hits the bar at two days', () => {
     const n = theNumber([filled('a', 10), filled('b', 20), filled('c', 30)], NOW)
     expect(n.hit).toBe(true)
-    expect(n.says).toBe('20 hours to the first one worth reading, across 3 roles.')
+    expect(n.says).toBe('20 hours to the first one worth reading, across 3 jobs.')
   })
 
   it('names the bar when it misses', () => {
     const n = theNumber([filled('a', 100), filled('b', 120), filled('c', 140)], NOW)
     expect(n.hit).toBe(false)
     expect(n.says).toBe(
-      '5 days to the first one worth reading, across 3 roles. The bar is 2 days.'
+      '5 days to the first one worth reading, across 3 jobs. The bar is 2 days.'
     )
   })
 
@@ -143,7 +143,7 @@ describe('the number across roles', () => {
     )
     expect(n.of).toBe(3)
     expect(n.waiting).toBe(1)
-    expect(n.says).toMatch(/1 role still waiting for a first good one\.$/)
+    expect(n.says).toMatch(/1 job still waiting for a first good one\.$/)
   })
 
   it('puts the role with the most unread CVs at the top of the stuck list', () => {
@@ -163,12 +163,12 @@ describe('the number across roles', () => {
   })
 
   it('says the number has not started rather than showing a zero', () => {
-    expect(theNumber([], NOW).says).toBe('No roles open yet. The number starts with the first one.')
+    expect(theNumber([], NOW).says).toBe('No jobs open yet. The number starts with the first one.')
   })
 
   it('says plainly when roles are open and nothing good has landed', () => {
     expect(theNumber([role(), role({ requirementId: 'r2' })], NOW).says).toBe(
-      'Nothing worth reading has arrived yet on the 2 roles open.'
+      'Nothing worth reading has arrived yet on the 2 jobs open.'
     )
   })
 
@@ -181,30 +181,30 @@ describe('the number across roles', () => {
    * being printed over a list that was not empty.
    */
   it('a first-run sentence is only shown where the list it is about is actually empty', () => {
-    expect(theNumber([], NOW, { openNow: 2, windowDays: 30 }).says).not.toContain('No roles open yet')
+    expect(theNumber([], NOW, { openNow: 2, windowDays: 30 }).says).not.toContain('No jobs open yet')
     expect(theNumber([], NOW, { openNow: 0, windowDays: 30 }).says).toBe(
-      'No roles open yet. The number starts with the first one.'
+      'No jobs open yet. The number starts with the first one.'
     )
   })
 
   it('says roles are open but not yet inside the window the number reads', () => {
     expect(theNumber([], NOW, { openNow: 2, windowDays: 30 }).says).toBe(
-      '2 roles open, and none of them are in the number yet. It reads roles published in the last 30 days.'
+      '2 jobs open, and none of them are in the number yet. It reads jobs published in the last 30 days.'
     )
   })
 
   it('one role waiting is one role, not "1 open roles"', () => {
     expect(theNumber([], NOW, { openNow: 1, windowDays: 30 }).says).toBe(
-      '1 role open, and it is not in the number yet. It reads roles published in the last 30 days.'
+      '1 job open, and it is not in the number yet. It reads jobs published in the last 30 days.'
     )
     expect(theNumber([role()], NOW, { openNow: 1, windowDays: 30 }).says).toBe(
-      'Nothing worth reading has arrived yet on the 1 role opened in the last 30 days.'
+      'Nothing worth reading has arrived yet on the 1 job opened in the last 30 days.'
     )
   })
 
   it('the number names its own window rather than a count the list beside it disagrees with', () => {
     expect(theNumber([role(), role({ requirementId: 'r2' })], NOW, { openNow: 7, windowDays: 30 }).says).toBe(
-      'Nothing worth reading has arrived yet on the 2 roles opened in the last 30 days.'
+      'Nothing worth reading has arrived yet on the 2 jobs opened in the last 30 days.'
     )
   })
 })

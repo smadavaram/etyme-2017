@@ -238,7 +238,7 @@ export function merge(p: Person, now: Date): Merged {
     unknowns.push(`${unscreened} have never been screened.`)
   }
   if (p.capMonths == null && monthsHere > 0) {
-    unknowns.push('No tenure cap set, so there is nothing to measure the time against.')
+    unknowns.push('No time limit set, so there is nothing to measure the time against.')
   }
 
   return {

@@ -263,7 +263,7 @@ describe('A client awards, and the order it will quote exists the same second', 
     })
     expect(logged.summary).toContain('$260,000')
     expect(logged.summary).toContain('Veritan Talent')
-    expect(logged.reason).toContain('budget stated on the requisition')
+    expect(logged.reason).toContain('budget stated on the job request')
     expect((logged.payload as any).basis).toBe('BUDGET')
   })
 

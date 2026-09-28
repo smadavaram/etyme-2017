@@ -358,7 +358,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     })
     void notify({
       personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
-      title: `${row.name} is approved`, body: `${caller.person.name} (Finance) approved ${row.name}, after your lead, Procurement and HR. You can send them a role now.`, data: { href: '/dashboard/suppliers' },
+      title: `${row.name} is approved`, body: `${caller.person.name} (Finance) approved ${row.name}, after your lead, Procurement and HR. You can send them a job now.`, data: { href: '/dashboard/suppliers' },
     })
     await prisma.automationLog.create({
       data: {
@@ -379,7 +379,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           notRecorded: notOurs,
         },
         says:
-          `${row.name} is a supplier now, at approved standing. Send them a role.` +
+          `${row.name} is a supplier now, at approved standing. Send them a job.` +
           (recorded > 0
             ? ` ${recorded === 1 ? 'The certificate' : `All ${recorded} certificates`} your desks verified ` +
               `${recorded === 1 ? 'is' : 'are'} on their compliance record, and the nightly watch will chase ` +

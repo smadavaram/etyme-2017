@@ -69,7 +69,7 @@ async function whoIsHiring(
           error: {
             code: 'NOT_HIRING',
             message:
-              'A role belongs to the company that is hiring. You are signed in as a person ' +
+              'A job belongs to the company that is hiring. You are signed in as a person ' +
               'rather than at a firm, so there is no company to open one for.',
           },
         },
@@ -90,7 +90,7 @@ async function whoIsHiring(
           error: {
             code: 'NOT_HIRING',
             message:
-              'Roles a firm is hiring for are the firm\'s own. Yours are on your page — ' +
+              'Jobs a firm is hiring for are the firm\'s own. Yours are on your page — ' +
               'what you have been put forward for, and where each one stands.',
           },
         },
@@ -117,8 +117,8 @@ async function whoIsHiring(
             code: 'FORBIDDEN',
             message:
               caller.company.kind === 'CLIENT'
-                ? "You may only read your own company's roles."
-                : `Those roles belong to the company that opened them. ${caller.company.name} reads ` +
+                ? "You may only read your own company's jobs."
+                : `Those jobs belong to the company that opened them. ${caller.company.name} reads ` +
                   'its own, and a client\'s from a seat that client granted it — ask an owner or the ' +
                   'program manager there for one.',
           },
@@ -140,7 +140,7 @@ async function whoIsHiring(
             code: 'NOT_HIRING',
             message:
               `${caller.company.name} is not tied to a client yet. A program office places ` +
-              `nobody, so the roles it opens are a client's — and it opens them from a seat ` +
+              `nobody, so the jobs it opens are a client's — and it opens them from a seat ` +
               `the client granted it. Ask an owner or the program manager at that client to ` +
               `grant ${caller.company.name} a seat in their program office.`,
           },
@@ -297,8 +297,8 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'NOT_HIRING',
           message:
-            `Raising a requisition is for whoever is hiring at ${client.name} — ` +
-            'a hiring manager or the program office. Ask them to open the role.',
+            `Raising a job request is for whoever is hiring at ${client.name} — ` +
+            'a hiring manager or the program office. Ask them to open the job.',
         },
       },
       { status: 403 }
@@ -497,7 +497,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'OUTSIDE_YOUR_SEAT',
           message:
-            `${caller.company!.name}'s desk at ${client.name} covers one part of the program, and this role ` +
+            `${caller.company!.name}'s desk at ${client.name} covers one part of the program, and this job ` +
             `sits outside it. Raise it in a team your seat covers, or ask ${client.name} to widen the seat.`,
         },
       },
@@ -614,7 +614,7 @@ export async function POST(request: NextRequest) {
       personId: r.approverId,
       companyId: client.id,
       type: 'SYSTEM',
-      title: `Requisition needs your approval: ${title.trim()}`,
+      title: `Job request needs your approval: ${title.trim()}`,
       body: decision.summary,
       entityId: requisition.id,
       data: { requirementId: requisition.id, checks: decision.checks as any },
@@ -649,8 +649,8 @@ export async function POST(request: NextRequest) {
         valueBasis: value.basis,
         valueSays: value.says,
         message: decision.state === 'AUTO_APPROVED'
-          ? `Requisition open — ${decision.summary}`
-          : `Requisition raised — ${decision.summary}`,
+          ? `Job request open — ${decision.summary}`
+          : `Job request raised — ${decision.summary}`,
       },
     },
     { status: 201 }

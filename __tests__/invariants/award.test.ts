@@ -55,7 +55,7 @@ describe('A requisition is a number of positions, not a yes or no', () => {
     const d = assessAward(facts({ headcount: 2, alreadyAwarded: 1 }))
     expect(d.fillsRequisition).toBe(true)
     expect(d.seatsAfter).toBe(0)
-    expect(d.summary).toContain('fills the requisition')
+    expect(d.summary).toContain('fills the job')
   })
 
   it('a fifth person cannot be placed against a one-position requisition', () => {

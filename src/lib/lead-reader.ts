@@ -114,7 +114,7 @@ export function readTitle(text: string): { title: string; sure: boolean } {
     return { title: tidy(l), sure: false }
   }
 
-  return { title: 'Untitled role', sure: false }
+  return { title: 'Untitled job', sure: false }
 }
 
 /** Kept in step with the requirement parser by a test, not by hope. */

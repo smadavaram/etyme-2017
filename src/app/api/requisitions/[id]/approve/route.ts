@@ -83,14 +83,14 @@ export async function POST(
 
   if (!requisition) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Requisition not found' } },
+      { error: { code: 'NOT_FOUND', message: 'Job request not found' } },
       { status: 404 }
     )
   }
 
   if (requisition.approvalState !== 'PENDING_APPROVAL') {
     return NextResponse.json(
-      { error: { code: 'INVALID_STATE', message: `Requisition is ${requisition.approvalState}, nothing to decide` } },
+      { error: { code: 'INVALID_STATE', message: `Job request is ${requisition.approvalState}, nothing to decide` } },
       { status: 409 }
     )
   }
@@ -107,7 +107,7 @@ export async function POST(
 
   if (advance.refusal === 'NOTHING_PENDING') {
     return NextResponse.json(
-      { error: { code: 'INVALID_STATE', message: 'No pending approval on this requisition' } },
+      { error: { code: 'INVALID_STATE', message: 'No pending approval on this job request' } },
       { status: 409 }
     )
   }
@@ -223,8 +223,8 @@ export async function POST(
       title:
         action === 'changes' ? `Changes wanted on: ${requisition.title}`
         : action === 'approve'
-          ? (result.fullyApproved ? `Requisition approved: ${requisition.title}` : `Requisition cleared one approval: ${requisition.title}`)
-          : `Requisition rejected: ${requisition.title}`,
+          ? (result.fullyApproved ? `Job request approved: ${requisition.title}` : `Job request cleared one approval: ${requisition.title}`)
+          : `Job request rejected: ${requisition.title}`,
       body:
         action === 'changes'
           ? `${caller.person.name} wants a change before approving: ${decisionReason}. Edit it and send it back — it returns to them, not to the start.`
@@ -250,7 +250,7 @@ export async function POST(
         personId: a.approverId!,
         companyId: requisition.companyId,
         type: 'SYSTEM',
-        title: `Requisition needs your approval: ${requisition.title}`,
+        title: `Job request needs your approval: ${requisition.title}`,
         body: `${caller.person.name} said yes. Your approval is next.`,
         entityId: id,
         data: { requirementId: id },
@@ -303,9 +303,9 @@ export async function POST(
       message:
         action === 'changes' ? `Sent back to ${requisition.raisedBy?.name ?? 'whoever raised it'}: ${decisionReason}`
         : action === 'reject'
-        ? `Requisition rejected: ${decisionReason}`
+        ? `Job request rejected: ${decisionReason}`
         : result.fullyApproved
-          ? 'Requisition approved — now open to vendors'
+          ? 'Job request approved — now open to vendors'
           : `Approved. ${approvalsToGo(result.remaining)}`,
     },
   })

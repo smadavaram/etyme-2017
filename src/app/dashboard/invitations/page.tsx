@@ -239,7 +239,7 @@ function AnswerBox({ inv, onSent }: { inv: Invitation; onSent: () => void }) {
           className="mt-0.5"
         />
         <span className="text-xs text-etyme-muted">
-          This person knows I am putting them forward for this role. Recorded
+          This person knows I am putting them forward for this job. Recorded
           against you — being submitted blind is what makes consultants stop
           answering, and when two vendors send the same person the client
           rejects both.
@@ -517,7 +517,7 @@ export default function InvitationsPage() {
         <input
           value={q}
           onChange={e => setQ(e.target.value)}
-          placeholder="Search by role, client, skill or location…"
+          placeholder="Search by job, client, skill or location…"
           className="flex-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-surface text-sm text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action"
         />
         <button
@@ -551,7 +551,7 @@ export default function InvitationsPage() {
           </p>
           <p className="text-sm text-etyme-muted mt-2 max-w-md mx-auto">
             {term
-              ? 'Try a different role, client or skill.'
+              ? 'Try a different job, client or skill.'
               : 'When a client sends you a requirement it arrives here, with the rate band they are offering you.'}
           </p>
         </div>

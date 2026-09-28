@@ -62,7 +62,7 @@ export async function POST(
 
   if (!requisition) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Requisition not found' } },
+      { error: { code: 'NOT_FOUND', message: 'Job request not found' } },
       { status: 404 }
     )
   }
@@ -81,7 +81,7 @@ export async function POST(
 
   if (!seat && caller.company?.id !== requisition.companyId) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Only the raising company may distribute this requisition' } },
+      { error: { code: 'FORBIDDEN', message: 'Only the raising company may distribute this job request' } },
       { status: 403 }
     )
   }
@@ -100,7 +100,7 @@ export async function POST(
             code: 'OUTSIDE_YOUR_SEAT',
             message:
               `${caller.company!.name}'s desk at ${requisition.company.name} covers one part of the program, ` +
-              'and this role sits outside it.',
+              'and this job sits outside it.',
           },
         },
         { status: 403 }
@@ -117,7 +117,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'Choosing which suppliers see a requisition is the program office\'s call. Ask them to send it out.',
+          message: 'Choosing which suppliers see a job request is the program office\'s call. Ask them to send it out.',
         },
       },
       { status: 403 }
@@ -130,7 +130,7 @@ export async function POST(
       {
         error: {
           code: 'NOT_APPROVED',
-          message: `Requisition is ${requisition.approvalState} — it must be approved before vendors see it`,
+          message: `Job request is ${requisition.approvalState} — it must be approved before vendors see it`,
         },
       },
       { status: 409 }
@@ -158,7 +158,7 @@ export async function POST(
         {
           error: {
             code: 'VALIDATION',
-            message: `Band for ${v.companyId} exceeds the requisition ceiling of $${Math.round(requisition.billMax / 100)}/hr`,
+            message: `Band for ${v.companyId} exceeds the job request ceiling of $${Math.round(requisition.billMax / 100)}/hr`,
           },
         },
         { status: 422 }

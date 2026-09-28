@@ -79,29 +79,29 @@ export function landingFor(f: LandingFacts): Landing {
     }
     return {
       kind: 'REFUSE',
-      says: `${f.destinationName} did not send you that role, so nobody can be put forward on it from here.`,
+      says: `${f.destinationName} did not send you that job, so nobody can be put forward on it from here.`,
     }
   }
 
   const upward = f.ancestors.find((a) => a.companyId === f.destinationId)
   if (upward) {
-    return { kind: 'REQUISITION', requirementId: upward.id, because: 'the role your record was copied from' }
+    return { kind: 'REQUISITION', requirementId: upward.id, because: 'the job your record was copied from' }
   }
 
   if (f.sent.length === 1) {
-    return { kind: 'REQUISITION', requirementId: f.sent[0].requirementId, because: 'the one role they sent you' }
+    return { kind: 'REQUISITION', requirementId: f.sent[0].requirementId, because: 'the one job they sent you' }
   }
 
   if (f.sent.length > 1) {
     const titled = f.sent.filter((r) => same(r.title, f.source.title))
     if (titled.length === 1) {
-      return { kind: 'REQUISITION', requirementId: titled[0].requirementId, because: 'the role they sent you under the same title' }
+      return { kind: 'REQUISITION', requirementId: titled[0].requirementId, because: 'the job they sent you under the same title' }
     }
     return {
       kind: 'CHOOSE',
       options: f.sent,
       says:
-        `${f.destinationName} sent you ${f.sent.length} roles: ` +
+        `${f.destinationName} sent you ${f.sent.length} jobs: ` +
         f.sent.map((r) => `“${r.title}”`).join(', ') +
         '. Say which one this candidate is for.',
     }

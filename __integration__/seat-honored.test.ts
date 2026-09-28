@@ -237,7 +237,7 @@ describe('a program office acts at the client’s desk', () => {
     const { body } = await json(await firstGood(req('GET', '/api/first-good')))
     const panel = await json(await program(req('GET', '/api/program')))
     if (panel.body.data.openRoles.length > 0) {
-      expect(body.data.says).not.toContain('No roles open yet')
+      expect(body.data.says).not.toContain('No jobs open yet')
     }
   })
 

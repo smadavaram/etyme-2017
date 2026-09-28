@@ -411,7 +411,7 @@ export default function PeoplePage() {
           columns={columns}
           data={shown}
           rowKey={(r) => r.personId}
-          searchPlaceholder="Search by name, supplier or role…"
+          searchPlaceholder="Search by name, supplier or job…"
           searchFilter={(r, q) => `${r.name} ${r.vendorNames.join(' ')} ${r.firms?.says ?? ''} ${r.roles.join(' ')} ${r.location ?? ''}`.toLowerCase().includes(q.toLowerCase())}
           onRowClick={(r) => router.push(`/dashboard/people/${r.personId}` as any)}
           exportName="contractors"

@@ -81,7 +81,7 @@ export type Desk = 'ROLE' | 'SOURCING' | 'FINAL'
 
 /** The desks, in the order they are asked, in the words of the trade. */
 export const DESKS: Array<{ key: Desk; heading: string; asks: string }> = [
-  { key: 'ROLE', heading: 'Role — HR', asks: 'Is this a role, and is it in the plan?' },
+  { key: 'ROLE', heading: 'Job — HR', asks: 'Is this a job, and is it in the plan?' },
   { key: 'SOURCING', heading: 'Sourcing — Procurement', asks: 'Who may supply it, and at what rate?' },
   { key: 'FINAL', heading: 'The money — the lead', asks: 'The one yes on the spend.' },
 ]
@@ -510,7 +510,7 @@ export function DecideModal({ req, action, sourcing, suppliers, onClose, onDone 
       return
     }
     if (offerSuppliers && chosen.length === 0) {
-      setErr('Leave at least one supplier ticked, or this role can be sent to nobody.')
+      setErr('Leave at least one supplier ticked, or this job can be sent to nobody.')
       return
     }
     setBusy(true); setErr(null)
@@ -551,7 +551,7 @@ export function DecideModal({ req, action, sourcing, suppliers, onClose, onDone 
           <div className="mt-5">
             <p className="text-sm text-etyme-ink">Which suppliers may see this?</p>
             <p className="text-xs text-etyme-muted mt-0.5">
-              All of them, unless you say otherwise. Whoever releases the role
+              All of them, unless you say otherwise. Whoever releases the job
               afterwards can only go to the ones left ticked.
             </p>
             <div className="mt-3 divide-y divide-etyme-rule border border-etyme-rule rounded">
@@ -726,7 +726,7 @@ export function EditRequisition({
         className="bg-etyme-surface rounded-lg border border-etyme-rule w-full max-w-lg my-8 p-6"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="font-serif text-xl text-etyme-ink">Edit requisition</h2>
+        <h2 className="font-serif text-xl text-etyme-ink">Edit job request</h2>
 
         {said ? (
           /* What happened, said once, rather than a modal that shuts and
@@ -760,7 +760,7 @@ export function EditRequisition({
 
         <div className="mt-4 space-y-3">
           <div>
-            <label className={label}>Role</label>
+            <label className={label}>Job</label>
             <input className={field} value={title} onChange={e => setTitle(e.target.value)} />
           </div>
           <div>
@@ -803,7 +803,7 @@ export function EditRequisition({
             </div>
           </div>
           <div>
-            <label className={label}>The role, in your own words</label>
+            <label className={label}>The job, in your own words</label>
             <textarea className={field} rows={6} value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="What the team does, what the person will actually work on, and what somebody who has done it before would recognize." />

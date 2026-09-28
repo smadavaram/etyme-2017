@@ -157,7 +157,7 @@ export async function POST(
     data: {
       companyId,
       action: 'OPENING_WRITTEN_UP',
-      summary: `"${opening.title}" is now a role`,
+      summary: `"${opening.title}" is now a job`,
       reason: `${caller.person.name} wrote up a seat first seen on ${opening.firstSeen.toISOString().slice(0, 10)}`,
       payload: { openingId: opening.id, requirementId: requirement.id, leadId: chosen.id },
       reversible: true,

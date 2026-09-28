@@ -125,7 +125,7 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
       code: 'RATE_IN_RANGE',
       checker: 'RULE',
       verdict: 'FAIL',
-      reason: `Asking $${cents(p.rateCents)} on a role that tops out at $${cents(p.billMax)}. Drop the rate or say why it is worth more.`,
+      reason: `Asking $${cents(p.rateCents)} on a job that tops out at $${cents(p.billMax)}. Drop the rate or say why it is worth more.`,
       evidence: `${p.rateCents} > ${p.billMax}`,
     })
   } else if (p.billMin != null && p.rateCents < p.billMin) {
@@ -203,7 +203,7 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
       verdict: days > 30 ? 'FAIL' : 'PASS',
       reason:
         days > 30
-          ? `Free ${days} days after the role starts. Say so in the note, or send somebody else.`
+          ? `Free ${days} days after the job starts. Say so in the note, or send somebody else.`
           : `Free ${days} days late, which usually holds.`,
       evidence: `${p.availableFrom.toISOString().slice(0, 10)} vs ${p.startDate.toISOString().slice(0, 10)}`,
     })
@@ -212,7 +212,7 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
       code: 'AVAILABLE_IN_WINDOW',
       checker: 'RULE',
       verdict: 'PASS',
-      reason: 'Free when the role starts.',
+      reason: 'Free when the job starts.',
     })
   }
 
@@ -251,14 +251,14 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
       code: 'WORK_AUTH',
       checker: 'RULE',
       verdict: 'WARN',
-      reason: `The role names ${p.workAuthRequired} and nothing is recorded for them. Ask before sending.`,
+      reason: `The job names ${p.workAuthRequired} and nothing is recorded for them. Ask before sending.`,
     })
   } else {
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
       verdict: 'PASS',
-      reason: p.workAuthRequired ? `${p.workAuth} matches.` : 'Role does not specify one.',
+      reason: p.workAuthRequired ? `${p.workAuth} matches.` : 'Job does not specify one.',
     })
   }
 

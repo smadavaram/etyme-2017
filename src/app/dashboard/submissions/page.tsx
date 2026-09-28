@@ -648,7 +648,7 @@ function SubmitToRequirementModal({
                 onChange={(e) => setForm({ ...form, coverNote: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg resize-y
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                placeholder="Why this consultant is a good fit for this role."
+                placeholder="Why this consultant is a good fit for this job."
               />
             </div>
 
@@ -800,13 +800,13 @@ function SendOnModal({
               </select>
               {roles.length > 0 && (
                 <>
-                  <label className="eyebrow mb-1 mt-3 block">For which of their roles</label>
+                  <label className="eyebrow mb-1 mt-3 block">For which of their jobs</label>
                   <select
                     value={roleId}
                     onChange={(e) => setRoleId(e.target.value)}
                     className="w-full rounded-md border border-etyme-rule px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
                   >
-                    <option value="">Pick the role…</option>
+                    <option value="">Pick the job…</option>
                     {roles.map((r) => (
                       <option key={r.requirementId} value={r.requirementId}>{r.title}</option>
                     ))}

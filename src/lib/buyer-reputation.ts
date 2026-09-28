@@ -164,7 +164,7 @@ export function paymentBehaviour(invoices: InvoiceRecord[], now: Date): Measure 
       confidence,
       said: due.length === 0
         ? 'Nothing has come due yet.'
-        : `Only ${due.length} invoice${due.length === 1 ? '' : 's'} so far — ${ENOUGH} before this is published.`,
+        : `Only ${due.length} bill${due.length === 1 ? '' : 's'} so far — ${ENOUGH} before this is published.`,
       unknown: null,
     }
   }
@@ -186,7 +186,7 @@ export function paymentBehaviour(invoices: InvoiceRecord[], now: Date): Measure 
         ? m === 0 ? 'Pays on the due date.' : `Pays ${Math.abs(m)} day${Math.abs(m) === 1 ? '' : 's'} early.`
         : `Pays ${m} day${m === 1 ? '' : 's'} late.`,
     unknown: unpaidPastDue > 0
-      ? `${unpaidPastDue} invoice${unpaidPastDue === 1 ? ' is' : 's are'} past due and still unpaid, counted as late-so-far rather than settled.`
+      ? `${unpaidPastDue} bill${unpaidPastDue === 1 ? ' is' : 's are'} past due and still unpaid, counted as late-so-far rather than settled.`
       : null,
   }
 }

@@ -61,7 +61,7 @@ export async function POST(
 
   if (!requirement) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No role by that id.' } },
+      { error: { code: 'NOT_FOUND', message: 'No job by that id.' } },
       { status: 404 }
     )
   }
@@ -98,7 +98,7 @@ export async function POST(
     })
     if (!ours) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'No role by that id.' } },
+        { error: { code: 'NOT_FOUND', message: 'No job by that id.' } },
         { status: 404 }
       )
     }
@@ -407,7 +407,7 @@ export async function GET(
 
   if (!requirement) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No role by that id.' } },
+      { error: { code: 'NOT_FOUND', message: 'No job by that id.' } },
       { status: 404 }
     )
   }
@@ -432,7 +432,7 @@ export async function GET(
     })
     if (!ours) {
       return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'No role by that id.' } },
+        { error: { code: 'NOT_FOUND', message: 'No job by that id.' } },
         { status: 404 }
       )
     }

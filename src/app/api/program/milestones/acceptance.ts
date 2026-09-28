@@ -172,7 +172,7 @@ export function mayDeliver(m: Milestone): Move {
     case 'CANCELLED':
       return { ok: false, says: `${m.name} was cancelled. Nothing to deliver.` }
     case 'INVOICED':
-      return { ok: false, says: `${m.name} has already been invoiced.` }
+      return { ok: false, says: `${m.name} has already been billed.` }
     case 'ACCEPTED':
       return { ok: false, says: `${m.name} was already accepted.` }
     case 'DELIVERED':
@@ -201,7 +201,7 @@ export function mayDecide(
     case 'CANCELLED':
       return { ok: false, says: `${m.name} was cancelled.` }
     case 'INVOICED':
-      return { ok: false, says: `${m.name} has already been invoiced.` }
+      return { ok: false, says: `${m.name} has already been billed.` }
     case 'ACCEPTED':
       return { ok: false, says: `${m.name} was already accepted. Reversing that is a credit note, not a rejection.` }
     case 'DELIVERED':
@@ -391,7 +391,7 @@ function standingSays(
   const m = (c: number) => `$${Math.round(c / 100).toLocaleString('en-US')}`
   const parts: string[] = []
 
-  if (billable > 0) parts.push(`${m(billable)} accepted and ready to invoice.`)
+  if (billable > 0) parts.push(`${m(billable)} accepted and ready to bill.`)
 
   if (awaitingCount > 0) {
     parts.push(

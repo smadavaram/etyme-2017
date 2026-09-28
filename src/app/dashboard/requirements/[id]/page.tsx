@@ -357,14 +357,14 @@ export default function RequirementDetailPage() {
                 out by submitting into it. */}
             {stoppedBecause && (
               <p className="text-[12px] text-etyme-muted">
-                {requirement.company.name} withdrew this role — {stoppedBecause}
+                {requirement.company.name} withdrew this job — {stoppedBecause}
               </p>
             )}
           </div>
           <div className="flex items-center gap-2">
             <span className={`chip ${statusCls}`}>{statusText}</span>
             {/* What arrived, and what is worth reading. The buyer's half of
-                the same role — matching finds people, screening decides
+                the same job — matching finds people, screening decides
                 which of the ones sent are worth an afternoon. */}
             <Link
               href={`/dashboard/requirements/${requirement.id}/pile` as any}
@@ -373,7 +373,7 @@ export default function RequirementDetailPage() {
               The pile
             </Link>
             {/* A button the role will refuse is a button that lies. The
-                status column still says OPEN on a role the client put
+                status column still says OPEN on a job the client put
                 away, so both of these were offered on a dead role —
                 matching against it and sending it to more suppliers.
                 `mayEdit` is the one place that decides what is past
@@ -479,7 +479,7 @@ export default function RequirementDetailPage() {
       {/* Match results — the decision surface. Deliberately your own
           bench only (see match-engine.ts) and deliberately placed above
           Distribute: the question this answers is whether you already
-          have somebody, before a role goes to anyone outside. */}
+          have somebody, before a job goes to anyone outside. */}
       <div className="mb-4">
         <h2 className="headline-serif text-[18px] text-etyme-ink mb-1">
           Your own bench, checked first

@@ -584,9 +584,9 @@ export async function GET(request: NextRequest) {
         refused: spreadBySupplier.refused,
         basis:
           spreadBySupplier.roles.length === 0 && spreadBySupplier.oneSupplierOnly.length === 0
-            ? 'Nobody is on site under a named role yet, so there is nothing to compare.'
+            ? 'Nobody is on site under a named job yet, so there is nothing to compare.'
             : `Compared across ${spreadBySupplier.roles.length + spreadBySupplier.oneSupplierOnly.length} ` +
-              `role${spreadBySupplier.roles.length + spreadBySupplier.oneSupplierOnly.length === 1 ? '' : 's'} ` +
+              `job${spreadBySupplier.roles.length + spreadBySupplier.oneSupplierOnly.length === 1 ? '' : 's'} ` +
               `filled today, at the contract ${clientCompany.name} is itself billed on. What a supplier pays ` +
               'its own supplier is not this price and is never in this comparison.',
       },

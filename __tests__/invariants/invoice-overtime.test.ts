@@ -267,7 +267,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
 
     expect(mayChange({ billedAt: null }).ok).toBe(true)
     expect(mayChange({ billedAt: new Date('2026-09-30T00:00:00.000Z') }).ok).toBe(false)
-    expect(mayChange({ billedAt: new Date() }).says).toContain('already been invoiced')
+    expect(mayChange({ billedAt: new Date() }).says).toContain('already been billed')
 
     // The route writes that stamp in the same transaction as the lines.
     const route = read(ROUTE)

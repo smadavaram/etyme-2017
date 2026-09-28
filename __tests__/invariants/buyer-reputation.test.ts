@@ -104,7 +104,7 @@ describe('whether a buyer pays on time', () => {
       ...Array.from({ length: 2 }, () => inv(90, null)),
     ]
     const m = paymentBehaviour(rows, NOW)
-    expect(m.unknown).toMatch(/2 invoices are past due and still unpaid/i)
+    expect(m.unknown).toMatch(/2 bills are past due and still unpaid/i)
   })
 
   it('holds back on two invoices', () => {

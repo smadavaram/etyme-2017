@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'NO_RECIPIENT',
           message:
-            'This role has nobody to submit to. Name the prime or the client it is worked through, then submit.',
+            'This job has nobody to submit to. Name the prime or the client it is worked through, then submit.',
         },
       },
       { status: 409 }
@@ -828,7 +828,7 @@ export async function POST(request: NextRequest) {
         if (below && below.fromCompanyId !== adopted.supplierId) {
           item.status = 'duplicate'
           item.error =
-            `${person.name} was already put forward to you for this role by another firm. First in wins: ` +
+            `${person.name} was already put forward to you for this job by another firm. First in wins: ` +
             'send theirs on from Submissions.'
           item.existingSubmissionId = below.id
           results.push(item)

@@ -231,7 +231,7 @@ function nothingYet(measured: number, scope?: Scope): string {
     const window = scope ? ` opened in the last ${scope.windowDays} days` : ' open'
     return (
       `Nothing worth reading has arrived yet on the ${measured} ` +
-      `role${measured === 1 ? '' : 's'}${window}.`
+      `job${measured === 1 ? '' : 's'}${window}.`
     )
   }
 
@@ -241,33 +241,33 @@ function nothingYet(measured: number, scope?: Scope): string {
   // cannot know from here.
   if (scope && scope.openNow > 0) {
     return (
-      `${scope.openNow} role${scope.openNow === 1 ? '' : 's'} open, ` +
+      `${scope.openNow} job${scope.openNow === 1 ? '' : 's'} open, ` +
       `${scope.openNow === 1 ? 'and it is not' : 'and none of them are'} in the number yet. ` +
-      `It reads roles published in the last ${scope.windowDays} days.`
+      `It reads jobs published in the last ${scope.windowDays} days.`
     )
   }
 
-  return 'No roles open yet. The number starts with the first one.'
+  return 'No jobs open yet. The number starts with the first one.'
 }
 
 function numberSays(median: number, of: number, waiting: number, hit: boolean): string {
   const tail = waiting
-    ? ` ${waiting} role${waiting === 1 ? '' : 's'} still waiting for a first good one.`
+    ? ` ${waiting} job${waiting === 1 ? '' : 's'} still waiting for a first good one.`
     : ''
 
   if (of < ENOUGH_ROLES) {
     return (
       `${plain(median)} to the first one worth reading, from ${of} ` +
-      `role${of === 1 ? '' : 's'}. Too few to call it a pattern.${tail}`
+      `job${of === 1 ? '' : 's'}. Too few to call it a pattern.${tail}`
     )
   }
 
   if (hit) {
-    return `${plain(median)} to the first one worth reading, across ${of} roles.${tail}`
+    return `${plain(median)} to the first one worth reading, across ${of} jobs.${tail}`
   }
 
   return (
-    `${plain(median)} to the first one worth reading, across ${of} roles. ` +
+    `${plain(median)} to the first one worth reading, across ${of} jobs. ` +
     `The bar is ${plain(TARGET_HOURS)}.${tail}`
   )
 }

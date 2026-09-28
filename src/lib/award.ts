@@ -87,11 +87,11 @@ export function assessAward(f: AwardFacts): AwardDecision {
   // decorative, exactly as distributing without approval would.
   const approved = f.requisitionApprovalState === 'APPROVED' || f.requisitionApprovalState === 'AUTO_APPROVED'
   checks.push(approved
-    ? { code: 'APPROVAL', outcome: 'PASS', reason: 'Requisition is approved' }
+    ? { code: 'APPROVAL', outcome: 'PASS', reason: 'Job request is approved' }
     : {
         code: 'APPROVAL',
         outcome: 'BLOCK',
-        reason: `Requisition is ${f.requisitionApprovalState.toLowerCase().replace(/_/g, ' ')} — nobody can be placed against it yet`,
+        reason: `Job request is ${f.requisitionApprovalState.toLowerCase().replace(/_/g, ' ')} — nobody can be placed against it yet`,
       })
 
   // ── A seat must exist ──
@@ -100,13 +100,13 @@ export function assessAward(f: AwardFacts): AwardDecision {
         code: 'SEATS',
         outcome: 'PASS',
         reason: remaining === 1
-          ? 'The last position on this requisition'
+          ? 'The last position on this job request'
           : `${remaining} of ${f.headcount} positions still open`,
       }
     : {
         code: 'SEATS',
         outcome: 'BLOCK',
-        reason: `All ${f.headcount} position${f.headcount === 1 ? '' : 's'} on this requisition are already filled`,
+        reason: `All ${f.headcount} position${f.headcount === 1 ? '' : 's'} on this job request are already filled`,
       })
 
   // ── One person, one seat ──
@@ -114,7 +114,7 @@ export function assessAward(f: AwardFacts): AwardDecision {
     ? {
         code: 'DUPLICATE',
         outcome: 'BLOCK',
-        reason: `${f.personName} already holds a position on this requisition`,
+        reason: `${f.personName} already holds a position on this job request`,
       }
     : { code: 'DUPLICATE', outcome: 'PASS', reason: 'Not already placed here' })
 
@@ -172,10 +172,10 @@ export function assessAward(f: AwardFacts): AwardDecision {
     checks.push({
       code: 'CEILING',
       outcome: 'WARN',
-      reason: `${money(f.awardedRateCents)}/hr is above the ${money(f.ceilingCents)}/hr ceiling on this requisition`,
+      reason: `${money(f.awardedRateCents)}/hr is above the ${money(f.ceilingCents)}/hr ceiling on this job request`,
     })
   } else {
-    checks.push({ code: 'CEILING', outcome: 'PASS', reason: 'Within the requisition ceiling' })
+    checks.push({ code: 'CEILING', outcome: 'PASS', reason: 'Within the ceiling on this job request' })
   }
 
   const blocks = checks.filter(c => c.outcome === 'BLOCK')
@@ -192,7 +192,7 @@ export function assessAward(f: AwardFacts): AwardDecision {
       : warnings.length > 0
         ? `${f.personName} placed with ${warnings.length} note(s) — ${warnings[0].reason}`
         : fills
-          ? `${f.personName} placed — this fills the requisition`
+          ? `${f.personName} placed — this fills the job`
           : `${f.personName} placed — ${remaining - 1} position(s) still open`,
   }
 }
@@ -413,10 +413,10 @@ export function orderCeiling(input: {
   const over = months > 12 ? ` over ${months} months` : ''
   const says =
     basis === 'BUDGET'
-      ? `$${dollars.toLocaleString()} authorized — the budget stated on the requisition${over}, rounded up to the thousand`
+      ? `$${dollars.toLocaleString()} authorized — the budget stated on the job request${over}, rounded up to the thousand`
       : basis === 'ESTIMATE'
         ? `$${dollars.toLocaleString()} authorized — ${value.says}${over ? ` extended${over}` : ''}, rounded up to the thousand`
-        : `$${dollars.toLocaleString()} authorized — no budget and no rate ceiling on the requisition, so ${value.says}`
+        : `$${dollars.toLocaleString()} authorized — no budget and no rate ceiling on the job request, so ${value.says}`
 
   return { dollars, rawCents, basis, says }
 }
@@ -669,7 +669,7 @@ export interface AwardDoorFacts {
   toCompanyName: string
   personName: string
   status: string
-  /** A contract already written for this person on this requisition. */
+  /** A contract already written for this person on this job request. */
   contractId: string | null
 }
 
@@ -687,7 +687,7 @@ export type AwardDoor =
 const OUT_BECAUSE: Record<string, string> = {
   REJECTED: 'was turned down',
   WITHDRAWN: 'was withdrawn',
-  NOT_SELECTED: 'was stood down when the role was filled',
+  NOT_SELECTED: 'was stood down when the job was filled',
 }
 
 /**
@@ -733,7 +733,7 @@ export function awardDoor(f: AwardDoorFacts): AwardDoor {
       open: false,
       code: 'ALREADY_AWARDED',
       httpStatus: 409,
-      says: `${f.personName} already holds a position on this requisition`,
+      says: `${f.personName} already holds a position on this job request`,
       contractId: f.contractId,
     }
   }

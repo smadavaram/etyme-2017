@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const body = await request.json().catch(() => ({}))
   const requirementId = typeof body?.requirementId === 'string' ? body.requirementId : null
   const note = typeof body?.note === 'string' ? body.note.trim() : ''
-  if (!requirementId) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Which role? Pick a published requirement.', field: 'requirementId' } }, { status: 422 })
+  if (!requirementId) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Which job? Pick a published requirement.', field: 'requirementId' } }, { status: 422 })
 
   // Every rung of this person's chains standing here, and the firms
   // holding their consent — both as ids only. Neither read asks a

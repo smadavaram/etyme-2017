@@ -263,7 +263,7 @@ describe('a decision that no longer describes the week it was made about', () =>
 
   it('a decision that has reached an invoice cannot be changed', () => {
     expect(mayChange({ billedAt: new Date('2026-09-30') }).ok).toBe(false)
-    expect(mayChange({ billedAt: new Date('2026-09-30') }).says).toMatch(/already been invoiced/)
+    expect(mayChange({ billedAt: new Date('2026-09-30') }).says).toMatch(/already been billed/)
     expect(mayChange({ billedAt: null }).ok).toBe(true)
     expect(mayChange(null).ok).toBe(true)
   })

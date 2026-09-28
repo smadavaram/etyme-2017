@@ -97,7 +97,7 @@ describe('who may award, and from where', () => {
     const words: Record<string, string> = {
       REJECTED: 'Tariq Al-Amin was turned down, so there is no position to award them.',
       WITHDRAWN: 'Tariq Al-Amin was withdrawn, so there is no position to award them.',
-      NOT_SELECTED: 'Tariq Al-Amin was stood down when the role was filled, so there is no position to award them.',
+      NOT_SELECTED: 'Tariq Al-Amin was stood down when the job was filled, so there is no position to award them.',
     }
     for (const [status, says] of Object.entries(words)) {
       const d = awardDoor(facts({ status }))

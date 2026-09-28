@@ -114,7 +114,7 @@ export function askableSkills(r: Role): Finding {
       code: 'SKILLS_ASKABLE',
       checker: 'RULE',
       verdict: 'FAIL',
-      reason: 'No skills on this role. Nothing can be matched against it and nobody can be scored.',
+      reason: 'No skills on this job. Nothing can be matched against it and nobody can be scored.',
     }
   }
 
@@ -190,7 +190,7 @@ export function timeToFill(r: Role): Finding | null {
       code: 'TIME_TO_FILL',
       checker: 'RULE',
       verdict: 'FAIL',
-      reason: `The start date was ${Math.abs(days)} days ago. Move it or close the role.`,
+      reason: `The start date was ${Math.abs(days)} days ago. Move it or close the job.`,
       evidence: r.startDate.toISOString().slice(0, 10),
     }
   }
@@ -274,5 +274,5 @@ export function grade(n: number): string {
   if (n === 100) return 'Nothing wrong with this one.'
   if (n >= 80) return 'Mostly fine, one thing to look at.'
   if (n >= 60) return 'This will be slow unless something changes.'
-  return 'This role is unlikely to be filled as written.'
+  return 'This job is unlikely to be filled as written.'
 }

@@ -151,7 +151,7 @@ describe('The chain is read by desk, not as a list of names', () => {
   it('the chain reads by desk, in the order asked', () => {
     const grouped = byDesk(rows({ headcount: 8, billMaxCents: 17_000 }), DESK_IDS)
     expect(grouped.map((g) => g.heading)).toEqual([
-      'Role — HR',
+      'Job — HR',
       'Sourcing — Procurement',
       'The money — the lead',
     ])
@@ -159,7 +159,7 @@ describe('The chain is read by desk, not as a list of names', () => {
 
   it('each desk carries the question it is there to answer', () => {
     expect(DESKS.map((d) => d.asks)).toEqual([
-      'Is this a role, and is it in the plan?',
+      'Is this a job, and is it in the plan?',
       'Who may supply it, and at what rate?',
       'The one yes on the spend.',
     ])
@@ -418,7 +418,7 @@ describe("Procurement's yes names the suppliers it cleared", () => {
 
 describe('The program team names a desk per unit and says what is missing', () => {
   it('the program team page names HR and Procurement per unit and says what is missing', () => {
-    expect(TEAM_PAGE).toContain('Role — HR')
+    expect(TEAM_PAGE).toContain('Job — HR')
     expect(TEAM_PAGE).toContain('Sourcing — Procurement')
     expect(TEAM_PAGE).toContain('Name one')
     // "Name one" opens the same form with the desk and the unit set.
@@ -427,10 +427,10 @@ describe('The program team names a desk per unit and says what is missing', () =
 
   it('a unit with no HR desk is told what that means for a requisition over the plan', () => {
     expect(TEAM_ROUTE).toContain(
-      'Requisitions over the plan in ${u.name} clear with a note — name an HR desk for ${u.name}, or for the unit above it.'
+      'Job requests over the plan in ${u.name} clear with a note — name an HR desk for ${u.name}, or for the unit above it.'
     )
     expect(TEAM_ROUTE).toContain(
-      'Requisitions above the going rate in ${u.name} clear with a note — name a Procurement desk for ${u.name}, or for the unit above it.'
+      'Job requests above the going rate in ${u.name} clear with a note — name a Procurement desk for ${u.name}, or for the unit above it.'
     )
     expect(TEAM_ROUTE).toContain(
       '${c.code} has nobody answerable for it, so nothing charged to it has a lead to give the final word.'

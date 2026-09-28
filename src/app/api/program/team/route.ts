@@ -209,10 +209,10 @@ export async function GET(request: NextRequest) {
           return [
             ...(d.hr
               ? []
-              : [`Requisitions over the plan in ${u.name} clear with a note — name an HR desk for ${u.name}, or for the unit above it.`]),
+              : [`Job requests over the plan in ${u.name} clear with a note — name an HR desk for ${u.name}, or for the unit above it.`]),
             ...(d.procurement
               ? []
-              : [`Requisitions above the going rate in ${u.name} clear with a note — name a Procurement desk for ${u.name}, or for the unit above it.`]),
+              : [`Job requests above the going rate in ${u.name} clear with a note — name a Procurement desk for ${u.name}, or for the unit above it.`]),
           ]
         }),
         ...costCentres

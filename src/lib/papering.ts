@@ -189,7 +189,7 @@ export function mayPaper(held: Held, desks: readonly Seat[]): { ok: boolean; say
   return {
     ok: false,
     says:
-      'Winning the role and papering it are two desks here, which is why nobody ' +
+      'Winning the job and papering it are two desks here, which is why nobody ' +
       `can do both. ${deskPhraseFor(desks)} papers this one` +
       (desks.length > 0 ? ' and has already been told it is waiting.' : '.'),
   }
@@ -251,7 +251,7 @@ export function paperingRow(c: WaitingContract, now: Date): QueueRow | null {
 
   const waitedDays = daysWaiting(c.waitingSince, now)
   const money = rateWords(c.rateCents, c.currency)
-  const role = c.roleTitle ?? 'a role'
+  const role = c.roleTitle ?? 'a job'
 
   // Days until they are meant to start. Negative means the start date has
   // already passed, which is the case that costs somebody money: work is

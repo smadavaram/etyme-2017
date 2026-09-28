@@ -223,7 +223,7 @@ describe('4 · One is placed, and the seats run out', () => {
   it('the second fills the requisition', () => {
     const d = assessAward({ ...clean, alreadyAwarded: 1, personName: 'Meera Krishnan' })
     expect(d.fillsRequisition).toBe(true)
-    expect(d.summary).toContain('fills the requisition')
+    expect(d.summary).toContain('fills the job')
   })
 
   it('a third cannot be placed, however good they are', () => {

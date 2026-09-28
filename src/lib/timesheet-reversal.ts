@@ -132,13 +132,13 @@ export function planFor(s: Sheet): Plan {
         remedy: 'CREDIT_NOTE',
         immediate: false,
         steps: [
-          `Raise a credit note against ${s.invoiceNumber ?? 'the invoice'}.`,
+          `Raise a credit note against ${s.invoiceNumber ?? 'the bill'}.`,
           'Once the credit is issued, the timesheet reopens.',
-          'The corrected hours bill on the next invoice.',
+          'The corrected hours go on the next bill.',
         ],
         tellThem: ['whoever owns billing', s.personName],
         says:
-          `This is on ${s.invoiceNumber ?? 'an invoice'} that has gone to the client. ` +
+          `This is on ${s.invoiceNumber ?? 'a bill'} that has gone to the client. ` +
           `The timesheet cannot change underneath a document somebody has already read — ` +
           `it needs a credit note first.`,
         needsReason: true,
@@ -149,9 +149,9 @@ export function planFor(s: Sheet): Plan {
         remedy: 'ADJUST_NEXT_CYCLE',
         immediate: false,
         steps: [
-          `Raise a credit note against ${s.invoiceNumber ?? 'the invoice'}.`,
+          `Raise a credit note against ${s.invoiceNumber ?? 'the bill'}.`,
           'Agree the correction with the client — they have paid it.',
-          'Carry the difference onto the next invoice as an adjustment line.',
+          'Carry the difference onto the next bill as an adjustment line.',
         ],
         tellThem: ['whoever owns billing', 'the client', s.personName],
         says:
@@ -243,7 +243,7 @@ export function logLine(r: Reversal, s: Sheet): string {
 
   const where =
     r.remedy === 'CREDIT_NOTE'
-      ? ` A credit note is needed against ${s.invoiceNumber ?? 'the invoice'}.`
+      ? ` A credit note is needed against ${s.invoiceNumber ?? 'the bill'}.`
       : r.remedy === 'ADJUST_NEXT_CYCLE'
         ? ' The correction carries to the next cycle.'
         : ''

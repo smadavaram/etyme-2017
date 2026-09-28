@@ -157,7 +157,7 @@ function refusal(why: ReturnType<typeof standing>, o: Offer, who: string, us: st
         code: 'NOT_OFFERED_TO_NETWORK',
         says:
           `${o.companyName} keeps ${who} on its own bench and has not offered them to its network. ` +
-          `Ask ${o.companyName} to put ${who} forward to you on your role.`,
+          `Ask ${o.companyName} to put ${who} forward to you on your job.`,
       }
     case 'OFF_NETWORK':
       return {

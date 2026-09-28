@@ -219,7 +219,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
                            resize-y"
-                placeholder={"Role: Senior SAP BRIM Consultant\nLocation: Remote\nSkills: SAP BRIM, Revenue Accounting, S/4HANA\nRate: $85-$120/hr\nDuration: 12 months\n\nLooking for a consultant with 5+ years of SAP BRIM experience..."}
+                placeholder={"Job title: Senior SAP BRIM Consultant\nLocation: Remote\nSkills: SAP BRIM, Revenue Accounting, S/4HANA\nRate: $85-$120/hr\nDuration: 12 months\n\nLooking for a consultant with 5+ years of SAP BRIM experience..."}
               />
               <p className="text-[10px] text-etyme-faint mt-1">
                 Extracts title, skills, rate, location, duration. Flagged fields show low confidence — review before submitting.
@@ -347,7 +347,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
                   <option value="ARBITRAGE">Arbitrage — opacity-based</option>
                 </select>
                 <p className="text-[9px] text-etyme-faint mt-0.5">
-                  Distinguishes how margin is earned on this role
+                  Distinguishes how margin is earned on this job
                 </p>
               </div>
               <div className="flex items-end pb-1">

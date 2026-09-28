@@ -249,7 +249,7 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       code: 'VENDOR_ENGAGED',
       checker: 'RULE',
       verdict: 'PASS',
-      reason: a.invited ? `${a.vendorName} was invited to this role.` : 'This role is open to the network.',
+      reason: a.invited ? `${a.vendorName} was invited to this job.` : 'This job is open to the network.',
     })
   } else if (a.msaActive) {
     // An agreement without an invitation. Not noise — a supplier you
@@ -266,7 +266,7 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       checker: 'RULE',
       verdict: 'FAIL',
       reason:
-        `${a.vendorName} was not invited to this role and there is no agreement with them on file. ` +
+        `${a.vendorName} was not invited to this job and there is no agreement with them on file. ` +
         `Held back until somebody decides to work with them.`,
     })
   }
@@ -278,7 +278,7 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
   // which was used — a vendor told "over budget" when they are inside
   // the band they signed will argue, and be right.
   const ceiling = a.bandMaxCents ?? a.budgetMaxCents
-  const against = a.bandMaxCents != null ? 'the band you gave them' : 'the budget on this role'
+  const against = a.bandMaxCents != null ? 'the band you gave them' : 'the budget on this job'
 
   if (a.rateCents == null) {
     out.push({
@@ -292,7 +292,7 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       code: 'IN_BUDGET',
       checker: 'RULE',
       verdict: 'PASS',
-      reason: `Asking ${hourly(a.rateCents)}. No ceiling set on this role, so nothing to check it against.`,
+      reason: `Asking ${hourly(a.rateCents)}. No ceiling set on this job, so nothing to check it against.`,
     })
   } else if (a.rateCents > ceiling) {
     out.push({
@@ -322,7 +322,7 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       code: 'WORK_AUTH',
       checker: 'RULE',
       verdict: 'PASS',
-      reason: 'This role does not name a work authorization.',
+      reason: 'This job does not name a work authorization.',
     })
   } else if (a.workAuth == null) {
     out.push({
@@ -330,7 +330,7 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       checker: 'RULE',
       verdict: 'FAIL',
       reason:
-        `This role needs ${a.workAuthRequired} and ${a.vendorName} has not said what ${a.personName} holds. ` +
+        `This job needs ${a.workAuthRequired} and ${a.vendorName} has not said what ${a.personName} holds. ` +
         `Ask them before an interview is booked.`,
     })
   } else if (a.workAuth !== a.workAuthRequired) {
@@ -338,14 +338,14 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       code: 'WORK_AUTH',
       checker: 'RULE',
       verdict: 'FAIL',
-      reason: `This role needs ${a.workAuthRequired}; ${a.personName} holds ${a.workAuth}. Held back.`,
+      reason: `This job needs ${a.workAuthRequired}; ${a.personName} holds ${a.workAuth}. Held back.`,
     })
   } else {
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
       verdict: 'PASS',
-      reason: `Holds ${a.workAuth}, which is what the role needs.`,
+      reason: `Holds ${a.workAuth}, which is what the job needs.`,
     })
   }
 
@@ -515,7 +515,7 @@ export function shortlist(all: Screened[], size: number = SHORTLIST): Shortlist 
  * arrived, 4 worth reading" is the product in nine words.
  */
 export function summarize(arrived: number, cleared: number, heldBack: Screened[]): string {
-  if (arrived === 0) return 'Nothing has arrived for this role yet.'
+  if (arrived === 0) return 'Nothing has arrived for this job yet.'
   if (heldBack.length === 0) {
     return `${arrived} arrived, and all of them are worth reading.`
   }

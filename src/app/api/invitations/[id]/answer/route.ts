@@ -41,7 +41,7 @@ export async function POST(
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Answering a role')
+  const notStaff = staffOnly(caller, 'Answering a job')
   if (notStaff) return notStaff
 
   const { id } = await params
@@ -74,7 +74,7 @@ export async function POST(
       {
         error: {
           code: 'CLOSED',
-          message: 'That role is closed. Nothing sent now would be read.',
+          message: 'That job is closed. Nothing sent now would be read.',
         },
       },
       { status: 409 }
@@ -256,7 +256,7 @@ export async function POST(
           message:
             already.fromCompanyId === companyId
               ? `You already put ${name} forward for this one.`
-              : `${name} has already been put forward for this role by somebody else. First in wins.`,
+              : `${name} has already been put forward for this job by somebody else. First in wins.`,
         },
       },
       { status: 409 }

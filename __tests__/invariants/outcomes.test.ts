@@ -103,7 +103,7 @@ describe('the number', () => {
     const b = bar(five, 5)
     expect(b.rate).toBe(5)
     expect(b.hit).toBe(true)
-    expect(b.says).toBe('5 good submissions a day across 1 role. That is the bar.')
+    expect(b.says).toBe('5 good submissions a day across 1 job. That is the bar.')
   })
 
   it('divides across every open role', () => {
@@ -118,7 +118,7 @@ describe('the number', () => {
   })
 
   it('says the bar out loud when it has not been hit', () => {
-    expect(bar([sub()], 1).says).toBe(`1 a day across 1 role. The bar is ${TARGET_PER_DAY}.`)
+    expect(bar([sub()], 1).says).toBe(`1 a day across 1 job. The bar is ${TARGET_PER_DAY}.`)
   })
 
   it('names the waste when most of what went out did not count', () => {
@@ -129,7 +129,7 @@ describe('the number', () => {
       ...Array.from({ length: 6 }, () => sub({ rejectReason: 'RATE' })),
     ]
     expect(bar(mostly, 1).says).toBe(
-      '1 a day across 1 role. 6 of 7 did not count — fix those before sending more.'
+      '1 a day across 1 job. 6 of 7 did not count — fix those before sending more.'
     )
   })
 
@@ -146,7 +146,7 @@ describe('the number', () => {
   it('says nothing rather than dividing by no roles', () => {
     const b = bar([], 7)
     expect(b.rate).toBeNull()
-    expect(b.says).toBe('Nothing open yet. The number starts when the first role does.')
+    expect(b.says).toBe('Nothing open yet. The number starts when the first job does.')
   })
 })
 

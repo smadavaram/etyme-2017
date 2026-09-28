@@ -221,7 +221,7 @@ function SupplierThreads({ requisitionId, title, suppliers, canOpen }: {
     <Panel title="Suppliers" count={suppliers.length > 0 ? suppliers.length : undefined}>
       {suppliers.length === 0 ? (
         <p className="p-4 text-sm text-etyme-muted">
-          Nobody is on this role yet. Send it to suppliers and you can write to each of them here.
+          Nobody is on this job yet. Send it to suppliers and you can write to each of them here.
         </p>
       ) : (
         <>

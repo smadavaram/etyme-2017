@@ -80,7 +80,7 @@ describe('The submit door says why a role is shut, in a sentence', () => {
   it('a role turned down inside the client says it was turned down, not that it is closed', () => {
     const no = whyNotOpen({ ...ROLE, status: 'CLOSED', approvalState: 'REJECTED' })!
     expect(no.message).toContain('was turned down inside Cavanaugh Glassworks and never opened')
-    expect(no.message).toContain('it will reach you as a new role')
+    expect(no.message).toContain('it will reach you as a new job')
   })
 
   it('a published role is not refused at all', () => {

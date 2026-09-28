@@ -201,9 +201,9 @@ export async function GET(request: NextRequest) {
     blockedReason: blockedBy.get(r.companyId) ?? null,
     location: placeOf.get(r.companyId) ?? null,
     where: r.joined
-      ? 'Signed in. Can be sent a role.'
+      ? 'Signed in. Can be sent a job.'
       : r.invitedAt
-        ? 'Invited. Can still be sent a role — they will find out when one arrives.'
+        ? 'Invited. Can still be sent a job — they will find out when one arrives.'
         : 'Listed by you. Not invited yet.',
   }))
 
@@ -452,7 +452,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     data: {
       added: made,
-      summary: `${firms} ${firms === 1 ? 'supplier' : 'suppliers'} on your list. You can send them a role now — they will find out when one arrives.`,
+      summary: `${firms} ${firms === 1 ? 'supplier' : 'suppliers'} on your list. You can send them a job now — they will find out when one arrives.`,
     },
   })
 }

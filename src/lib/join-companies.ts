@@ -162,7 +162,7 @@ export function whatMoves(fold: Side): string[] {
 
   if (submissions) out.push(`${submissions} submission${submissions === 1 ? '' : 's'}`)
   if (contracts) out.push(`${contracts} contract${contracts === 1 ? '' : 's'}`)
-  if (invites) out.push(`${invites} role invitation${invites === 1 ? '' : 's'}`)
+  if (invites) out.push(`${invites} job invitation${invites === 1 ? '' : 's'}`)
   if (people) out.push(`${people} seat${people === 1 ? '' : 's'}`)
 
   return out

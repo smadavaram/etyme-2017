@@ -249,7 +249,7 @@ describe('time already served here', () => {
     )
     expect(m.headroomMonths).toBeNull()
     expect(m.unknowns).toContain(
-      'No tenure cap set, so there is nothing to measure the time against.'
+      'No time limit set, so there is nothing to measure the time against.'
     )
   })
 })

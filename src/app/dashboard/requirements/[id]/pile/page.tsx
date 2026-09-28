@@ -190,7 +190,7 @@ export default function PilePage() {
       {!loading && pile && arrived === 0 && (
         <div className="panel">
           <p className="text-[13px] text-etyme-muted">
-            Nothing has arrived for this role yet. Nothing to screen.
+            Nothing has arrived for this job yet. Nothing to screen.
           </p>
         </div>
       )}
@@ -316,7 +316,7 @@ export default function PilePage() {
 
       <p className="pt-2 text-[12px] text-etyme-faint">
         <Link href="/dashboard/requirements" className="underline">
-          Back to open roles
+          Back to open jobs
         </Link>
       </p>
     </div>

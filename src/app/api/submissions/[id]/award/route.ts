@@ -311,7 +311,7 @@ export async function POST(
         error: {
           code: 'NO_COUNTERPARTY',
           message:
-            'This was submitted to your own company, so there is nobody to bill. Send it on to the client first, or record the role against the company paying for it.',
+            'This was submitted to your own company, so there is nobody to bill. Send it on to the client first, or record the job against the company paying for it.',
         },
       },
       { status: 409 }
@@ -960,7 +960,7 @@ export async function POST(
       type: 'SYSTEM',
       title: `${submission.person.name} placed on ${req.title}`,
       body: decision.fillsRequisition
-        ? 'This fills the requisition. The other vendors have been stood down.'
+        ? 'This fills the job. The other vendors have been stood down.'
         : `${decision.seatsAfter} position(s) still open.`,
       entityId: req.id,
       data: { requirementId: req.id, contractId: result.contract.id },
@@ -1108,7 +1108,7 @@ export async function POST(
               id: null,
               raised: false,
               says:
-                'No ceiling could be stated — the requisition carries no budget, no rate ceiling and no rate ' +
+                'No ceiling could be stated — the job request carries no budget, no rate ceiling and no rate ' +
                 'on the award — so no purchase order was raised. Raise one from the purchase orders screen.',
               ceiling: null,
               differsFromLine: [],

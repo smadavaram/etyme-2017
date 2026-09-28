@@ -87,7 +87,7 @@ export function tellEmployee(input: {
   return (
     `${input.employerName} has put you forward to ${input.clientName} for ${input.roleTitle}. ` +
     `You are on ${input.employerName}'s payroll, so this is part of how you are staffed and ` +
-    `there is nothing for you to accept. Ask your manager if you have questions about the role.`
+    `there is nothing for you to accept. Ask your manager if you have questions about the job.`
   )
 }
 

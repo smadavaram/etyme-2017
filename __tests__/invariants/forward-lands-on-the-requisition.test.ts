@@ -29,7 +29,7 @@ function facts(over: Partial<LandingFacts> = {}): LandingFacts {
 describe('where a candidate sent on to a client lands', () => {
   it('a candidate a prime sends on lands on the requisition the client sent the prime', () => {
     const l = landingFor(facts())
-    expect(l).toEqual({ kind: 'REQUISITION', requirementId: 'nb-req', because: 'the one role they sent you' })
+    expect(l).toEqual({ kind: 'REQUISITION', requirementId: 'nb-req', because: 'the one job they sent you' })
   })
 
   it('a prime whose own record was copied from the client’s role lands on that role, whatever else it was sent', () => {
@@ -61,7 +61,7 @@ describe('where a candidate sent on to a client lands', () => {
     }))
     expect(l.kind).toBe('CHOOSE')
     if (l.kind !== 'CHOOSE') return
-    expect(l.says).toBe('Northbend Athletic sent you 2 roles: “Supply planning analyst”, “Demand planner”. Say which one this candidate is for.')
+    expect(l.says).toBe('Northbend Athletic sent you 2 jobs: “Supply planning analyst”, “Demand planner”. Say which one this candidate is for.')
     expect(l.options.map((o) => o.requirementId)).toEqual(['nb-req', 'nb-other'])
   })
 
@@ -77,7 +77,7 @@ describe('where a candidate sent on to a client lands', () => {
     const l = landingFor(facts({ requested: 'somebody-elses-req' }))
     expect(l).toEqual({
       kind: 'REFUSE',
-      says: 'Northbend Athletic did not send you that role, so nobody can be put forward on it from here.',
+      says: 'Northbend Athletic did not send you that job, so nobody can be put forward on it from here.',
     })
   })
 

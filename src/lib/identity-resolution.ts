@@ -395,7 +395,7 @@ export function summarize(matches: Match[], capMonths: number | null): string {
   if (rest) bits.push(`${rest} worth checking`)
 
   const tail = overCap
-    ? ` ${overCap} of them would be past your tenure cap if confirmed.`
+    ? ` ${overCap} of them would be past your time limit if confirmed.`
     : ''
 
   return `${bits.join(', ')}.${tail}`

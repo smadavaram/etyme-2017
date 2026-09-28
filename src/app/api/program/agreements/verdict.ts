@@ -533,7 +533,7 @@ export function summarize(findings: Finding[]): string | null {
  */
 export function paymentDaysSays(days: number): string {
   if (days <= 0) return 'Due on receipt.'
-  return `Net ${days} — an invoice falls due ${days} days after it is issued.`
+  return `Net ${days} — a bill falls due ${days} days after it is issued.`
 }
 
 /** The floor, said. Null where the agreement sets none. */

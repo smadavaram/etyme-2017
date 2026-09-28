@@ -93,7 +93,7 @@ export function whyNotOpen(r: DoorRow): DoorRefusal | null {
         code: 'CLOSED',
         message:
           `${r.title} was turned down inside ${buyer} and never opened. ` +
-          'If it comes back it will reach you as a new role.',
+          'If it comes back it will reach you as a new job.',
       }
     }
     return {

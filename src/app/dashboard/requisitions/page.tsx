@@ -263,7 +263,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
 
   async function submit() {
     if (form.title.trim().length < 3) {
-      setError('Give the role a title')
+      setError('Give the job a title')
       return
     }
     setBusy(true)
@@ -310,18 +310,18 @@ function RaiseModal({ onClose, onRaised, team, me }: {
   return (
     <div className="fixed inset-0 bg-etyme-ink/30 flex items-start justify-center p-6 z-50 overflow-y-auto">
       <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-6 max-w-xl w-full my-8">
-        <Lbl>New requisition</Lbl>
+        <Lbl>New job request</Lbl>
         <h2 className="font-serif text-2xl text-etyme-ink mt-1 mb-1 tracking-[-0.02em]">
           What do you need?
         </h2>
         <p className="text-sm text-etyme-muted mb-5">
-          Most requisitions clear without anyone having to approve them. You will
+          Most job requests clear without anyone having to approve them. You will
           see which, and why, as soon as you raise it.
         </p>
 
         <div className="space-y-4">
           <label className="block">
-            <Lbl>Role</Lbl>
+            <Lbl>Job</Lbl>
             <input autoFocus value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
               placeholder="SAP MM Consultant" className={`${field} mt-1`} />
           </label>
@@ -342,7 +342,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
 
           {/* A range, not a ceiling.
               Requirement carries billMin and billMax and the form only
-              ever sent the max, so every requisition was raised with no
+              ever sent the max, so every job request was raised with no
               floor — and a supplier reading one could not tell whether
               $60/hr was welcome or insulting. The floor is also what
               makes the rate check on approval mean anything. */}
@@ -446,7 +446,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
               )}
               <ul className="mt-2 space-y-1.5">
                 <li className="text-[13px] text-etyme-muted">
-                  <span className="text-etyme-ink">Role — HR.</span>{' '}
+                  <span className="text-etyme-ink">Job — HR.</span>{' '}
                   {asked.hr
                     ? <>{asked.hr.person.name}{asked.hr.inherited ? ` (named for ${asked.hr.from.name})` : ''} — if it is over the plan.</>
                     : 'Nobody named, so anything over the plan clears with a note instead.'}
@@ -493,7 +493,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
           </label>
 
           <label className="block">
-            <Lbl>The role, in your own words (optional)</Lbl>
+            <Lbl>The job, in your own words (optional)</Lbl>
             <textarea value={form.description} rows={5}
               onChange={e => setForm({ ...form, description: e.target.value })}
               placeholder="What the team does, what this person will actually work on, and what somebody who has done it before would recognize."
@@ -518,7 +518,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
         <div className="mt-6 flex items-center gap-3">
           <button onClick={submit} disabled={busy}
             className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
-            {busy ? 'Raising…' : 'Raise requisition'}
+            {busy ? 'Raising…' : 'Raise job request'}
           </button>
           <button onClick={onClose} className="text-sm text-etyme-muted hover:text-etyme-ink">
             Cancel
@@ -737,7 +737,7 @@ export default function RequisitionsPage() {
           </button>
         ) : (
           <p className="text-xs text-etyme-muted shrink-0 max-w-[14rem] text-right">
-            Raising a role is a hiring manager&rsquo;s. You are reading theirs.
+            Raising a job is a hiring manager&rsquo;s. You are reading theirs.
           </p>
         )}
       </div>
@@ -751,7 +751,7 @@ export default function RequisitionsPage() {
             sub="no human needed" />
           <Stat label="Waiting on a person" value={summary.awaitingApproval}
             tone={summary.awaitingApproval > 0 ? 'attention' : 'default'} />
-          <Stat label="All requisitions" value={summary.total} />
+          <Stat label="All job requests" value={summary.total} />
         </div>
       )}
 
@@ -777,7 +777,7 @@ export default function RequisitionsPage() {
       <input
         value={q}
         onChange={e => setQ(e.target.value)}
-        placeholder="Search by role, budget code, skill or location…"
+        placeholder="Search by job, budget code, skill or location…"
         className="w-full px-3 py-2 mb-6 border border-etyme-rule rounded bg-etyme-surface text-sm text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action"
       />
 
@@ -793,10 +793,10 @@ export default function RequisitionsPage() {
       {!loading && !error && visible.length === 0 && (
         <div className="border border-etyme-rule rounded-lg p-12 text-center">
           <p className="font-serif text-lg text-etyme-ink">
-            {term ? 'Nothing matches that search' : 'No requisitions yet'}
+            {term ? 'Nothing matches that search' : 'No job requests yet'}
           </p>
           <p className="text-sm text-etyme-muted mt-2 max-w-md mx-auto">
-            {term ? 'Try a different role or budget code.'
+            {term ? 'Try a different job or budget code.'
                   : 'Raise one and it will either open straight away or go to whoever needs to see it.'}
           </p>
         </div>
@@ -866,7 +866,7 @@ export default function RequisitionsPage() {
                     {' · '}{r.counts.submissions} candidate{r.counts.submissions === 1 ? '' : 's'} submitted
                   </div>
                   {/* Change it, call it off, or put it away.
-                      Editing used to hide the moment a requisition went
+                      Editing used to hide the moment a job request went
                       out, which forced a cancel-and-re-raise to add a
                       missing skill. It now shows wherever the rule allows
                       a change — a draft, one waiting on a desk, one handed

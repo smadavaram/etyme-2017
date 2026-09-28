@@ -60,7 +60,7 @@ export async function GET(
 
   if (!req) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Requisition not found' } },
+      { error: { code: 'NOT_FOUND', message: 'Job request not found' } },
       { status: 404 }
     )
   }
@@ -68,7 +68,7 @@ export async function GET(
   // Only the raising company may open the working view of its own demand.
   if (caller.company?.id !== req.companyId) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'This requisition belongs to another company' } },
+      { error: { code: 'FORBIDDEN', message: 'This job request belongs to another company' } },
       { status: 403 }
     )
   }
@@ -283,7 +283,7 @@ export async function PATCH(
 
   if (!requisition) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No requisition by that id.' } },
+      { error: { code: 'NOT_FOUND', message: 'No job request by that id.' } },
       { status: 404 }
     )
   }
@@ -292,7 +292,7 @@ export async function PATCH(
   // another client's requisition exists is itself a leak.
   if (caller.company?.id !== requisition.companyId) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No requisition by that id.' } },
+      { error: { code: 'NOT_FOUND', message: 'No job request by that id.' } },
       { status: 404 }
     )
   }
@@ -401,7 +401,7 @@ export async function PATCH(
       // asked to approve something that no longer exists.
       await tx.requirementApproval.updateMany({
         where: { requirementId: id, outcome: 'PENDING' },
-        data: { outcome: 'REJECTED', reason: `Requisition cancelled: ${reason}`, decidedAt: new Date() },
+        data: { outcome: 'REJECTED', reason: `Job request cancelled: ${reason}`, decidedAt: new Date() },
       })
       return { updated, standDown: stood.count }
     })
@@ -490,7 +490,7 @@ export async function PATCH(
           error: {
             code: 'NOT_YOURS_TO_HAND_ON',
             message:
-              'Only the manager it is for, whoever raised it, or somebody who releases roles can hand this to somebody else.',
+              'Only the manager it is for, whoever raised it, or somebody who releases jobs can hand this to somebody else.',
           },
         },
         { status: 403 }
@@ -505,7 +505,7 @@ export async function PATCH(
         {
           error: {
             code: 'NOT_A_SEAT_HERE',
-            message: 'That person does not hold a seat here, so the role cannot be theirs.',
+            message: 'That person does not hold a seat here, so the job cannot be theirs.',
           },
         },
         { status: 422 }

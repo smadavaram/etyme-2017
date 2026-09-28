@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
           // "needs requirements.read" tells somebody the name of a thing
           // they cannot grant themselves and nothing about what to do.
           message:
-            `Open roles are not part of your seat at ${desk?.companyName ?? caller.company?.name ?? 'this company'}. ` +
+            `Open jobs are not part of your seat at ${desk?.companyName ?? caller.company?.name ?? 'this company'}. ` +
             'Whoever set up your access can add them.',
         },
       },
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         companyName: desk?.companyName ?? caller.company?.name ?? null,
         seated: !!desk?.seat,
         says: desk?.seat
-          ? `You are at ${desk.companyName}'s desk. These are ${desk.companyName}'s roles, not ${caller.company?.name ?? 'your firm'}'s.`
+          ? `You are at ${desk.companyName}'s desk. These are ${desk.companyName}'s jobs, not ${caller.company?.name ?? 'your firm'}'s.`
           : null,
       },
       },
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
         companyName: desk?.companyName ?? caller.company?.name ?? null,
         seated: !!desk?.seat,
         says: desk?.seat
-          ? `You are at ${desk.companyName}'s desk. These are ${desk.companyName}'s roles, not ${caller.company?.name ?? 'your firm'}'s.`
+          ? `You are at ${desk.companyName}'s desk. These are ${desk.companyName}'s jobs, not ${caller.company?.name ?? 'your firm'}'s.`
           : null,
       },
     },
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'NOT_HIRING',
           message:
-            `Opening a role is for whoever is hiring at ${caller.company?.name ?? 'your company'} — ` +
+            `Opening a job is for whoever is hiring at ${caller.company?.name ?? 'your company'} — ` +
             'a hiring manager, or the desk that owns the account. Ask them to raise it.',
         },
       },

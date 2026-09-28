@@ -60,13 +60,13 @@ function typeLabel(type: string): string {
     TIMESHEET_APPROVAL: 'Timesheet',
     // The menu's own word for these is Requirements; "Requisitions" is a
     // retired name and __tests__/invariants/sidebar-nav fails on it.
-    REQUISITION_APPROVAL: 'Role',
+    REQUISITION_APPROVAL: 'Job request',
     EXPENSE_APPROVAL:   'Expense',
     ROLLOFF_ACTION:     'Rolloff',
     SUBMISSION_REVIEW:  'Submission',
     CONTRACT_PAPERING:  'To paper',
     CONTRACT_START:     'To start',
-    INVOICE_OVERDUE:    'Invoice',
+    INVOICE_OVERDUE:    'Bill',
     RATE_CONFIRMATION:  'Rate',
   }
   return map[type] ?? type
@@ -232,13 +232,13 @@ export default function DecisionsPage() {
   const filterOptions: { key: TypeFilter; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: decisions.length },
     { key: 'TIMESHEET_APPROVAL', label: 'Timesheets', count: counts.TIMESHEET_APPROVAL ?? 0 },
-    { key: 'REQUISITION_APPROVAL', label: 'Roles', count: counts.REQUISITION_APPROVAL ?? 0 },
+    { key: 'REQUISITION_APPROVAL', label: 'Job requests', count: counts.REQUISITION_APPROVAL ?? 0 },
     { key: 'EXPENSE_APPROVAL', label: 'Expenses', count: counts.EXPENSE_APPROVAL ?? 0 },
     { key: 'ROLLOFF_ACTION', label: 'Rolloff', count: counts.ROLLOFF_ACTION ?? 0 },
     { key: 'SUBMISSION_REVIEW', label: 'Submissions', count: counts.SUBMISSION_REVIEW ?? 0 },
     { key: 'CONTRACT_PAPERING', label: 'To paper', count: counts.CONTRACT_PAPERING ?? 0 },
     { key: 'CONTRACT_START', label: 'To start', count: counts.CONTRACT_START ?? 0 },
-    { key: 'INVOICE_OVERDUE', label: 'Invoices', count: counts.INVOICE_OVERDUE ?? 0 },
+    { key: 'INVOICE_OVERDUE', label: 'Bills', count: counts.INVOICE_OVERDUE ?? 0 },
   ]
 
   return (

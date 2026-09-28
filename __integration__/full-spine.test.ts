@@ -322,7 +322,7 @@ describe('Step 3 — Auralis puts it in front of its MSP, with a band', () => {
       { params: Promise.resolve({ id: it_.requisition }) }
     ))
     expect(r.status).toBe(422)
-    expect(r.body.error.message).toContain('exceeds the requisition ceiling')
+    expect(r.body.error.message).toContain('exceeds the job request ceiling')
   })
 })
 

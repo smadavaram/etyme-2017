@@ -159,14 +159,14 @@ const KIND_WORD: Record<string, string> = {
   TIMESHEET_APPROVAL: 'Hours',
   // A requisition routed to this desk. One word, in the reader's own
   // vocabulary — never the type.
-  REQUISITION_APPROVAL: 'Role',
+  REQUISITION_APPROVAL: 'Job request',
   EXPENSE_APPROVAL: 'Expense',
   ROLLOFF_ACTION: 'Ending',
   SUBMISSION_REVIEW: 'Candidate',
   SUPPLIER_REVIEW: 'Supplier',
   CONTRACT_PAPERING: 'To paper',
   CONTRACT_START: 'To start',
-  INVOICE_OVERDUE: 'Invoice',
+  INVOICE_OVERDUE: 'Bill',
   RATE_CONFIRMATION: 'Rate',
   BILL_DISPUTED: 'Bill',
 }
@@ -417,7 +417,7 @@ export default function ProgramPage() {
             {plural(s.activeContractors, 'contractor')} on site through {plural(s.vendors, 'supplier')}.
             {' '}{compact(s.monthlySpend)} this month.
             {s.endingSoon > 0 && ` ${plural(s.endingSoon, 'contract')} ending within 60 days.`}
-            {watch != null && watch > 0 && ` ${plural(watch, 'person', 'people')} at or near the tenure cap.`}
+            {watch != null && watch > 0 && ` ${plural(watch, 'person', 'people')} at or near the time limit.`}
             {urgent > 0 && ` ${urgent} of yours ${urgent === 1 ? 'has' : 'have'} waited more than five days.`}
           </p>
         </div>
@@ -995,7 +995,7 @@ const CONTRACTOR_COLUMNS: Column<Contractor>[] = [
   },
   {
     key: 'role',
-    label: 'Role / Engagement',
+    label: 'Job / Engagement',
     render: (row) => (
       <span className="text-etyme-muted">{row.engagement?.title ?? row.role ?? '—'}</span>
     ),
@@ -1076,7 +1076,7 @@ function ContractorsTab({ contractors }: { contractors: ProgramData['contractors
         columns={CONTRACTOR_COLUMNS}
         data={contractors}
         rowKey={(row) => row.contractId}
-        searchPlaceholder="Search by name, vendor, role…"
+        searchPlaceholder="Search by name, vendor, job…"
         searchFilter={(row, q) =>
           row.person.name.toLowerCase().includes(q) ||
           row.vendor.name.toLowerCase().includes(q) ||
@@ -1113,13 +1113,13 @@ function RateSpread({ spread }: { spread: ProgramData['rateSpread'] | undefined 
   return (
     <div className="card mb-6">
       <h3 className="text-sm font-serif font-semibold text-etyme-ink mb-0.5">
-        Same role, two suppliers
+        Same job, two suppliers
       </h3>
       <p className="text-xs text-etyme-muted mb-4">{spread.basis}</p>
 
       {roles.length === 0 ? (
         <p className="text-sm text-etyme-muted">
-          Every role on site today is filled by one supplier, so there is no second price to compare.
+          Every job on site today is filled by one supplier, so there is no second price to compare.
         </p>
       ) : (
         <div className="divide-y divide-etyme-rule">
@@ -1259,7 +1259,7 @@ function RolesTab({ roles }: { roles: ProgramData['openRoles'] }) {
   if (roles.length === 0) {
     return (
       <div className="card text-center py-12">
-        <p className="text-sm text-etyme-muted">No open roles.</p>
+        <p className="text-sm text-etyme-muted">No open jobs.</p>
       </div>
     )
   }
@@ -1267,7 +1267,7 @@ function RolesTab({ roles }: { roles: ProgramData['openRoles'] }) {
   return (
     <div>
       <h2 className="text-lg font-serif font-semibold mb-1">
-        {roles.length} open role{roles.length !== 1 ? 's' : ''}
+        {roles.length} open job{roles.length !== 1 ? 's' : ''}
       </h2>
       <p className="text-sm text-etyme-muted mb-6">
         Requirements distributed to your vendor panel.

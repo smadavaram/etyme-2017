@@ -443,7 +443,7 @@ export async function GET(request: NextRequest) {
       const cc = a.requirement.costCenter?.code ? ` · ${a.requirement.costCenter.code}` : ''
       decisions.push({
         type: 'REQUISITION_APPROVAL',
-        title: `Approve requisition — ${a.requirement.title}`,
+        title: `Approve job request — ${a.requirement.title}`,
         // What it is waiting for, in the engine's own words — the reason
         // the rule wrote when it routed this to this desk, which is the
         // question this desk is being asked.
@@ -660,7 +660,7 @@ export async function GET(request: NextRequest) {
 
       decisions.push({
         type: 'INVOICE_OVERDUE',
-        title: `Overdue invoice — ${inv.number}`,
+        title: `Overdue bill — ${inv.number}`,
         // Same again, and worse here: a $7,600 overdue invoice read
         // "$76.00 outstanding", which is an amount nobody chases.
         subtitle:

@@ -180,7 +180,7 @@ describe('a prime puts forward somebody its network offered it', () => {
     const item = r.body.data.results[0]
     expect(item.status).toBe('error')
     expect(item.code).toBe('NOT_OFFERED_TO_NETWORK')
-    expect(item.error).toBe('CloudEPA keeps Ilse Brandt on its own bench and has not offered them to its network. Ask CloudEPA to put Ilse Brandt forward to you on your role.')
+    expect(item.error).toBe('CloudEPA keeps Ilse Brandt on its own bench and has not offered them to its network. Ask CloudEPA to put Ilse Brandt forward to you on your job.')
     expect(await prisma.submission.count({ where: { personId: it_.retained } })).toBe(0)
     const logged = await prisma.accessLog.findFirst({ where: { subjectId: it_.retained, actorCompanyId: co['world-computer-systems'], allowed: false } })
     expect(logged).not.toBeNull()

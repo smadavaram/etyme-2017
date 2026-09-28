@@ -410,7 +410,7 @@ export function priceChoice(chosen: Chosen, policy: OvertimePolicy): Priced {
     if (!reason) {
       return {
         ok: false,
-        says: 'Say why these hours are going into the bank rather than onto the invoice.',
+        says: 'Say why these hours are going into the bank rather than onto the bill.',
         appliedBps: 0,
         accrualBps: 10_000,
       }
@@ -454,8 +454,8 @@ export function mayChange(prior: { billedAt?: Date | string | null } | null | un
     return {
       ok: false,
       says:
-        'This week has already been invoiced, so what was decided about it cannot change. ' +
-        'Put the correction on the next invoice.',
+        'This week has already been billed, so what was decided about it cannot change. ' +
+        'Put the correction on the next bill.',
     }
   }
   return { ok: true, says: 'Not billed yet, so it can still be changed.' }

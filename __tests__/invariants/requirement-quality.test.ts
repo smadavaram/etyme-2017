@@ -117,7 +117,7 @@ describe('is there time', () => {
   it('fails a start date in the past', () => {
     const f = timeToFill(role({ startDate: new Date('2026-08-01') }))!
     expect(f.verdict).toBe('FAIL')
-    expect(f.reason).toMatch(/was 20 days ago. Move it or close the role/)
+    expect(f.reason).toMatch(/was 20 days ago. Move it or close the job/)
   })
 
   it('fails a week, because that is not enough to source and clear paperwork', () => {
@@ -160,7 +160,7 @@ describe('the score', () => {
     const bad = role({ billMin: 6000, billMax: 8000, skills: [], plausibleOnBench: 0 })
     const findings = STEPS.map((s) => s.run(bad)).filter(Boolean) as any[]
     expect(score(findings)).toBeLessThan(50)
-    expect(grade(score(findings))).toBe('This role is unlikely to be filled as written.')
+    expect(grade(score(findings))).toBe('This job is unlikely to be filled as written.')
   })
 
   it('does not count a check that could not run against the role', () => {

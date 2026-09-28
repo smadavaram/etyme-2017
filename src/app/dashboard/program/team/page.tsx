@@ -240,9 +240,9 @@ export default function ProgramTeamPage() {
                 rule on the money answers to a figure. */}
             <p className="sm:col-span-2 text-[13px] text-etyme-ink">
               {draft.kind === 'HR'
-                ? 'Naming the HR desk. One person, for one business unit — they read whether a role is a role and whether it is in the plan.'
+                ? 'Naming the HR desk. One person, for one business unit — they read whether a job is a real job and whether it is in the plan.'
                 : draft.kind === 'PROCUREMENT'
-                  ? 'Naming the Procurement desk. One person, for one business unit — they read who may supply a role and at what rate.'
+                  ? 'Naming the Procurement desk. One person, for one business unit — they read who may supply a job and at what rate.'
                   : 'A rule on the money. Somebody asked on top of whoever owns the budget, above a figure or whenever a check routes something.'}
             </p>
             <label className="block">
@@ -327,8 +327,8 @@ export default function ProgramTeamPage() {
         <div className="eyebrow">{team.company.name}</div>
         <h1 className="headline-serif text-heading text-etyme-ink">Program team</h1>
         <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
-          Who reads the role, who reads the suppliers, and who is answerable
-          for each budget. Most requisitions clear without any of them.
+          Who reads the job, who reads the suppliers, and who is answerable
+          for each budget. Most job requests clear without any of them.
         </p>
       </div>
 
@@ -347,13 +347,13 @@ export default function ProgramTeamPage() {
           Three questions, and two of them have a standing answer per
           business unit. This screen used to show only a ranked list of
           people with thresholds against them, which could not say who
-          reads the role or who audits the suppliers — so "who is HR for
+          reads the job or who audits the suppliers — so "who is HR for
           Apps" had no screen that answered it, and the chain quietly
           cleared those stages with a note nobody read. */}
       <section className="panel mb-6">
         <h2 className="headline-serif text-[17px] text-etyme-ink">Desks</h2>
         <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
-          HR reads the role — is this a contingent role, and is it in the plan.
+          HR reads the job — is this a job for a contractor, and is it in the plan.
           Procurement reads the suppliers and the rate. One person each, per
           business unit; a unit with none inherits the one above it, and a unit
           with none anywhere clears those questions with a note instead.
@@ -363,7 +363,7 @@ export default function ProgramTeamPage() {
             <thead>
               <tr className="border-b border-etyme-rule text-left">
                 <th className="lbl pb-2">Business unit</th>
-                <th className="lbl pb-2">Role — HR</th>
+                <th className="lbl pb-2">Job — HR</th>
                 <th className="lbl pb-2">Sourcing — Procurement</th>
               </tr>
             </thead>
@@ -429,7 +429,7 @@ export default function ProgramTeamPage() {
         <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
           The final word on spend belongs to whoever owns the budget. These are
           the extra people a figure brings in on top — a dollar line, or somebody
-          asked whenever a check routes anything. Most requisitions match none of
+          asked whenever a check routes anything. Most job requests match none of
           them and clear themselves.
         </p>
         <div className="mt-4 overflow-scroll-x">
@@ -487,7 +487,7 @@ export default function ProgramTeamPage() {
       <section className="panel mb-6">
         <h2 className="headline-serif text-[17px] text-etyme-ink">Whose budget</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-etyme-muted">
-          A requisition charged to a budget nobody owns has nobody to ask
+          A job request charged to a budget nobody owns has nobody to ask
           about it, so it goes for approval instead.
         </p>
         <div className="mt-4 overflow-scroll-x">

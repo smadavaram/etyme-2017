@@ -11,7 +11,7 @@ const d = (s: string) => new Date(`${s}T00:00:00Z`)
 describe('a week is checked against the contract it bills to', () => {
   it('forty-eight hours on a forty-hour role is an exception, said in a sentence', () => {
     expect(timesheetFlag({ hours: 48, hoursPerWeek: 40, periodEnd: d('2026-09-05'), contractEnd: d('2026-12-31') }))
-      .toBe('48h claimed on a 40h-a-week role.')
+      .toBe('48h claimed on a 40h-a-week job.')
   })
   it('forty on forty is not', () => {
     expect(timesheetFlag({ hours: 40, hoursPerWeek: 40, periodEnd: d('2026-09-05'), contractEnd: d('2026-12-31') })).toBeNull()

@@ -185,7 +185,7 @@ export async function GET(
           invitations: { select: { toCompanyId: true } },
         },
       })
-      if (!r) return notFound('role')
+      if (!r) return notFound('job')
       const why = whyRequirement(viewer, {
         companyId: r.companyId,
         openToNetwork: r.openToNetwork,

@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
   // invoiced is worse than one that could not be added.
   if (order.billingBasis === 'TIME') {
     return bad(
-      'This order bills on time, so a milestone on it would never reach an invoice. Change the basis to MILESTONE or BOTH first.',
+      'This order bills on time, so a milestone on it would never reach a bill. Change the basis to MILESTONE or BOTH first.',
       'orderId'
     )
   }

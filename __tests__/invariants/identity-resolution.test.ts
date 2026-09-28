@@ -236,7 +236,7 @@ describe('the line above the queue', () => {
       person({ personId: 'p2', mobile: '3035552000', stints: [{ start: d('2025-06-01'), end: d('2026-06-01'), vendorName: 'Vertex', months: 12 }] })
     )
     expect(summarize([certain], 18)).toBe(
-      '1 certain. 1 of them would be past your tenure cap if confirmed.'
+      '1 certain. 1 of them would be past your time limit if confirmed.'
     )
   })
 

@@ -200,8 +200,8 @@ describe('the refusal says what the desk is and who to ask, never a code', () =>
   })
 
   it('a client’s wrong desk is told that raising a requisition belongs to whoever is hiring', () => {
-    expect(REQUISITIONS).toContain('Raising a requisition is for whoever is hiring at')
-    expect(REQUIREMENTS).toContain('Opening a role is for whoever is hiring at')
+    expect(REQUISITIONS).toContain('Raising a job request is for whoever is hiring at')
+    expect(REQUIREMENTS).toContain('Opening a job is for whoever is hiring at')
   })
 
   it('no refusal on these four routes hands somebody a permission string to read', () => {

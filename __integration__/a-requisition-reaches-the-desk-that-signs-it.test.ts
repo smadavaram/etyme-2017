@@ -97,7 +97,7 @@ describe('A requisition waiting on a desk is in the queue that desk reads', () =
   it('the row says which role it is and what the desk is being asked', async () => {
     const who = await prisma.person.findUniqueOrThrow({ where: { id: it_.firstApprover } })
     const row = (await queue(who.primaryEmail)).find((d) => d.entityId === it_.requisition)!
-    expect(row.title).toBe('Approve requisition — Annealing lehr controls lead')
+    expect(row.title).toBe('Approve job request — Annealing lehr controls lead')
     // The engine's own reason, which is the question this desk was asked.
     const asked = await prisma.requirementApproval.findFirstOrThrow({
       where: { requirementId: it_.requisition, approverId: it_.firstApprover },

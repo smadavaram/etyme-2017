@@ -246,7 +246,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     : onSite
       ? capMonths
         ? `${person.name} is on site now, ${months} months into a ${capMonths}-month cap across every supplier.`
-        : `${person.name} is on site now, ${months} months here across every supplier. No tenure cap is set, so there is nothing to measure it against.`
+        : `${person.name} is on site now, ${months} months here across every supplier. No time limit is set, so there is nothing to measure it against.`
       : status === 'IN_BREAK'
         ? `${person.name} is in a break in service and can come back on ${eligibleDate}.`
         : `${person.name} is not on site. ${months > 0 ? `${months} months here before, across every supplier; ` : ''}${supplierWord}.`

@@ -53,7 +53,7 @@ describe('the rate', () => {
     const f = find(ruleChecks(pkg({ rateCents: 16000 }), NOW), 'RATE_IN_RANGE')
     expect(f.verdict).toBe('FAIL')
     expect(f.reason).toBe(
-      'Asking $160 on a role that tops out at $140. Drop the rate or say why it is worth more.'
+      'Asking $160 on a job that tops out at $140. Drop the rate or say why it is worth more.'
     )
   })
 

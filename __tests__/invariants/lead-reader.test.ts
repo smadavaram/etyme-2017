@@ -98,7 +98,7 @@ describe('reading the role out of it', () => {
   })
 
   it('says so plainly when there is no title to find', () => {
-    expect(readTitle('hi').title).toBe('Untitled role')
+    expect(readTitle('hi').title).toBe('Untitled job')
   })
 })
 

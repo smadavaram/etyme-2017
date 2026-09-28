@@ -103,7 +103,7 @@ describe('saying what will move before it moves', () => {
   it('names what is in the box', () => {
     // A dialog that says "this cannot be undone" and nothing else is a
     // dialog people click through.
-    expect(whatMoves(side())).toEqual(['4 submissions', '1 contract', '2 role invitations'])
+    expect(whatMoves(side())).toEqual(['4 submissions', '1 contract', '2 job invitations'])
   })
 
   it('does not list things there are none of', () => {

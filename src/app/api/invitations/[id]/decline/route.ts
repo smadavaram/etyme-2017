@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Declining a role')
+  const notStaff = staffOnly(caller, 'Declining a job')
   if (notStaff) return notStaff
 
   const { id } = await params

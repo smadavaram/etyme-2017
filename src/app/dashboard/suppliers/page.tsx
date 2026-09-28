@@ -482,7 +482,7 @@ export default function SuppliersPage() {
             <input value={rec.name} onChange={(e) => setRec({ ...rec, name: e.target.value })} placeholder="Firm" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
             <input value={rec.contactEmail} onChange={(e) => setRec({ ...rec, contactEmail: e.target.value })} placeholder="Contact email (optional)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
             <input value={rec.contactName} onChange={(e) => setRec({ ...rec, contactName: e.target.value })} placeholder="Contact name (optional)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-            <input value={rec.skills} onChange={(e) => setRec({ ...rec, skills: e.target.value })} placeholder="What they supply — roles, skills (HR reads this)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+            <input value={rec.skills} onChange={(e) => setRec({ ...rec, skills: e.target.value })} placeholder="What they supply — jobs, skills (HR reads this)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
             <input value={rec.reason} onChange={(e) => setRec({ ...rec, reason: e.target.value })} placeholder="Why — who they placed for you, what they are good at" className="rounded border border-etyme-rule px-3 py-2 text-[13px] sm:col-span-2" />
           </div>
           <div className="flex items-center gap-3">

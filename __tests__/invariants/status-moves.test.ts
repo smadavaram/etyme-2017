@@ -66,7 +66,7 @@ describe('a supplier can say no to a role', () => {
   })
 
   it('only staff at the invited firm may answer for it', () => {
-    expect(DECLINE).toContain("staffOnly(caller, 'Declining a role')")
+    expect(DECLINE).toContain("staffOnly(caller, 'Declining a job')")
     expect(DECLINE).toContain('where: { id, toCompanyId: caller.company!.id }')
   })
 })

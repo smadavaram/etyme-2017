@@ -130,7 +130,7 @@ export async function PATCH(
           code: 'NOT_ALLOWED',
           message:
             'Changing the terms of an agreement is the contracting desk’s work — payment ' +
-            'days decide when every invoice under it falls due, and the margin floor decides ' +
+            'days decide when every bill under it falls due, and the margin floor decides ' +
             'what anybody may price at. Ask an owner to give you rate permissions, or ask ' +
             'your contract manager to make the change.',
         },

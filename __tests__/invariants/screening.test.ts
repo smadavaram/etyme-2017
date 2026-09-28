@@ -140,7 +140,7 @@ describe('the rate', () => {
   it('falls back to the role budget when that vendor has no band', () => {
     const f = find(screenRules(arriving({ bandMaxCents: null, rateCents: 9500 }), NOW), 'IN_BUDGET')
     expect(f.verdict).toBe('FAIL')
-    expect(f.reason).toMatch(/over the budget on this role/)
+    expect(f.reason).toMatch(/over the budget on this job/)
   })
 
   it('says how much is left under the ceiling when it passes', () => {
@@ -161,7 +161,7 @@ describe('the rate', () => {
       'IN_BUDGET'
     )
     expect(f.verdict).toBe('PASS')
-    expect(f.reason).toMatch(/No ceiling set on this role/)
+    expect(f.reason).toMatch(/No ceiling set on this job/)
   })
 })
 
@@ -241,7 +241,7 @@ describe('the work permit', () => {
       'WORK_AUTH'
     )
     expect(f.verdict).toBe('FAIL')
-    expect(f.reason).toBe('This role needs US_CITIZEN; R. Menon holds H1B. Held back.')
+    expect(f.reason).toBe('This job needs US_CITIZEN; R. Menon holds H1B. Held back.')
   })
 
   it('holds back a submission where the vendor never said, before an interview is booked', () => {
@@ -329,7 +329,7 @@ describe('the pile', () => {
   })
 
   it('says so plainly when nothing has arrived', () => {
-    expect(summarize(0, 0, [])).toBe('Nothing has arrived for this role yet.')
+    expect(summarize(0, 0, [])).toBe('Nothing has arrived for this job yet.')
   })
 
   it('does not pretend to have filtered when everything was fine', () => {
