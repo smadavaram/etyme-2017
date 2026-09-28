@@ -217,8 +217,8 @@ describe('a client sees demand-side framing', () => {
     expect(f.subtitle).not.toContain('Revenue')
   })
 
-  it('requirements are the jobs the client has opened', () => {
-    expect(pageFraming('CLIENT', 'requirements').title).toBe('Open jobs')
+  it('a client reads its requirements as job requests, the word on its menu', () => {
+    expect(pageFraming('CLIENT', 'requirements').title).toBe('Job requests')
   })
 
   it('a client\'s roles are headed by the section that holds its own requirements screen', () => {

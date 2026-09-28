@@ -229,7 +229,7 @@ const CLIENT: Record<PageKey, Words> = {
     create: null,
   },
   requirements: {
-    title: 'Open jobs',
+    title: 'Job requests',
     subtitle: 'Jobs you have opened to your vendors. Track how many candidates each has drawn.',
     // A client opens roles to its vendors, so the button stands here
     // too, and a seated program office inherits it. The word is the
@@ -289,7 +289,7 @@ const CLIENT: Record<PageKey, Words> = {
 const BOOK: Record<PageKey, string> = {
   'contracts.sell': 'contracts',
   'contracts.buy': 'contracts',
-  requirements: 'open jobs',
+  requirements: 'job requests',
   submissions: 'candidates',
   rolloff: 'contractors ending soon',
   timesheets: 'hours',
