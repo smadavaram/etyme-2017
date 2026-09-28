@@ -107,8 +107,8 @@ AI is plain rules, and that is a feature.
 page to the CTO of a two-billion-dollar company with forty to fifty IT
 contractors, the exact buyer. He said he did not understand what the app
 does, and that the page looked like an AI app and did not connect. The
-founder said "we are SAP Fieldglass" and it connected at once. Two rules
-follow:
+founder named the category it belongs to, and it connected at once. Two
+rules follow:
 
 - **Screens before sentences.** A buyer understands a product by seeing it
   used. The page shows the real product, from the seeded demo: the list of
@@ -117,19 +117,28 @@ follow:
   questions answered on the dashboard. Dense tables with numbers read as
   enterprise software. Prose about "a record" reads as a pitch deck.
 - **Name the category and the size, and no company. Corrected the same
-  evening.** The page briefly said "If you know SAP Fieldglass or Beeline,
-  it is the same job, sized for a company with fifty contractors rather
-  than five thousand." The founder read it on his phone and struck it:
-  "Invoking SAP Fieldglass and Beeline will trigger more questions than
-  answers." A competitor's name on a page invites "how are you different",
+  evening.** The page briefly compared Etyme to two named enterprise
+  vendors. The founder read it on his phone and struck it: naming them
+  "will trigger more questions than answers." A competitor's name on a page invites "how are you different",
   "are you certified like them", "who else uses you", and the page cannot
   finish that argument. So the page says the category and the size: "A
   vendor management system for companies with twenty to two hundred
   contractors, sized for a company with fifty contractors rather than five
-  thousand." The comparison to Fieldglass stays a sentence the founder
-  says in a conversation, where he can answer the next question. The guard
+  thousand." The guard
   in `lib/positioning` refuses any named company on the page again, with
   no exception.
+- **Never name the enterprise incumbents anywhere. Decided by the
+  founder, 2026-09-28:** naming the enterprise ERP and VMS vendors in
+  documentation or any other content "makes it sound like we copied
+  them." No page, document, letter, screen, test name, code comment,
+  commit message or reply to the founder names one as the source or the
+  model for a rule. A rule
+  here stands on its own reason — the party who issues a document names
+  it; an order is a header and its lines; the timesheet is the receipt —
+  never on "because a vendor does it". The one exception is a functional
+  integration target a customer picks by name (an export format for the
+  accounting system they already run), which is a label on a setting,
+  never an argument.
 - **The category is contingent workforce management; VMS is the word
   beside it. Decided by the founder, 2026-09-27.** The sentence above is
   replaced by: *"Contingent workforce management for companies with 20
@@ -181,7 +190,7 @@ follow:
   describes say the same words. On a screen: *job request* for
   requisition, *job* where a position is meant (an access role stays a
   role), *bill* for the document sent to a customer. The supplier side
-  keeps SAP's rule from "Bill, invoice receipt, payroll": what a
+  keeps the rule from "Bill, invoice receipt, payroll": what a
   supplier sends is *its invoice*, received as an *invoice receipt*,
   because the party who issues a document names it — so "bill"
   replaces "invoice" only where the firm is the one billing. Machine
@@ -245,7 +254,7 @@ Three rules follow, and none of them changes the page:
   placements). The word "push" appears nowhere a supplier reads; every
   line about them says what the record takes off their plate.
 - **The page still sells the category.** This future is the sentence for
-  the room, like the Fieldglass comparison, and never with the word AI in
+  the room, and never with the word AI in
   front of it. The future is the record; what runs on it is the least
   defensible part.
 
@@ -434,7 +443,7 @@ What it means, stated so nobody re-derives the old plan:
 - **The record stays the product underneath.** Everything in "Who pays"
   below still holds: the client is the customer, every supplier's
   contractors on one record. The program office is the service sold on top
-  of it, to clients too small for Magnit, Beeline or Fieldglass to want.
+  of it, to clients too small for the enterprise program vendors to want.
 - **Vendor-neutral only. Neutrality is still absolute.** Etyme places
   nobody and runs no bench. A program office decides who may supply and at
   what band, releases roles, coordinates rounds, matches bills and watches
@@ -492,7 +501,7 @@ companies.
 What follows, so nobody models a group as two companies:
 
 - **The legal entity is a layer under the tenant, not a tenant of its
-  own.** SAP's company code. It is what signs an agreement, raises an
+  own.** It is what signs an agreement, raises an
   order, receives and pays an invoice, and employs or engages a person. It
   carries a country, a currency, a tax regime, registration numbers and a
   bank. Every money document names exactly one legal entity. A person's
@@ -1321,13 +1330,13 @@ in the tables and wrong in the product. The evidence is in the schema:
   `engagementId`, `workOrderId`, `projectOrderId` — four different
   attempts at "which deal is this part of."
 
-**The resolution is SAP's, and the swim-lane drawing already had it
-before the prose did:** a purchase order is a **header and its lines**.
+**The resolution — and the swim-lane drawing already had it before the
+prose did:** a purchase order is a **header and its lines**.
 The header is the commitment to a counterparty — who, ceiling, dates,
 terms, the four partner functions, whether silence approves a week. A
-line is one person at one rate at one site. SAP has no "buy contract"
-beside the PO item; the item *is* the contract for that service, and
-the Service Entry Sheet (our timesheet receipt) posts against it. The sell side is
+line is one person at one rate at one site. There is no "buy contract"
+beside the order's line; the line *is* the contract for that service,
+and the timesheet receipt posts against it. The sell side is
 the mirror: a sales contract as the header, sales order items as the
 lines, one item per worker.
 
@@ -1366,8 +1375,8 @@ standalone has reintroduced the second document.
    them — is a header with one line, and the person never meets two
    things. Five people on one PO is one header, five lines. A W2 is a
    line whose header is the firm's own, with no external number,
-   because you do not raise a PO to your own employee — SAP agrees; an
-   employee is HCM master data, not a vendor.
+   because you do not raise a PO to your own employee; an employee is
+   a person on the payroll, not a vendor.
 2. **Four of the six fields are the header's; the two dates are the
    line's.** Corrected by `etyme-money` on 2026-09-19 against the
    seeded world, and ratified. The billing rhythm and the net days —
@@ -1526,7 +1535,7 @@ update. It belongs in `etyme-money`'s next piece of work.
 
 ---
 
-## Bill, invoice receipt, payroll — say it the way SAP says it
+## Bill, invoice receipt, payroll — the party who issues a document names it
 
 **Decided 2026-09-17, by the founder**, over three statements. The
 first:
@@ -1536,26 +1545,22 @@ first:
 
 Read alone that sounds like an inversion of what accounting software
 says, and it was briefly written down here as one. It is not. The second
-statement corrected the reading, and the third named the authority:
+statement corrected the reading:
 
 > Companies bill (also called invoice) a customer. Companies do
 > invoice-receipt for supplier and payroll for employees.
 
-> Do what SAP would do.
+**"Invoice receipt" is the word an enterprise finance team already
+uses** for the step where a supplier's invoice is received and matched,
+so the vocabulary settles on words the buyer already knows:
 
-**"Invoice receipt" is not a coinage — it is SAP's own term** for the
-step where a supplier's invoice is received and matched, and using it
-settles the whole vocabulary by pointing at a system every enterprise
-buyer already has. So the words are SAP's:
+| Direction | Etyme says |
+|---|---|
+| **Out to the customer** | **bill** |
+| **In from a supplier** | **invoice receipt**; the supplier issues its invoice, we receive it |
+| **To our own employee** | **payroll** — never billed, never invoiced |
 
-| Direction | SAP calls it | Etyme says |
-|---|---|---|
-| **Out to the customer** | Billing — the process is *billing*, the document a *billing document*, the output a *customer invoice* | **bill**, and "invoice" is a correct synonym, not a mistake |
-| **In from a supplier** | **Invoice receipt** — the supplier's invoice, received and matched | **invoice receipt**; the supplier issues its invoice, we receive it |
-| **To our own employee** | Payroll | **payroll** — never billed, never invoiced |
-
-**The rule underneath, which is the real answer to "what would SAP
-do":** the party who *issues* a document names it. We issue the bill, so
+**The rule underneath:** the party who *issues* a document names it. We issue the bill, so
 we bill. The supplier issues its invoice, so we do not raise one — we
 receive it. An employee issues nothing, so payroll is neither.
 
@@ -1566,24 +1571,21 @@ over: what a sub-vendor sends is **its invoice**, not a bill, and "bill"
 now belongs to the customer direction. A screen reading "Vendor bill to
 raise" has the wrong party doing the wrong thing.
 
-### The receipt is the timesheet — and the match is already SAP's
+### The receipt is the timesheet
 
 Worth stating because it falls straight out and the app half-built it
-already. SAP matches a purchase order against a **goods receipt** and an
-**invoice receipt**. Nothing is delivered in a staffing firm, so the
-founder named the equivalent, 2026-09-17:
+already. A three-way check matches an order against a **receipt** of
+what was delivered and an **invoice receipt**. Nothing is delivered in a
+staffing firm, so the founder named the equivalent, 2026-09-17:
 
 > Our goods receipt equivalent is timesheet receipt or expense receipt.
 
-That is the right word and it is the trade's, not the system's. SAP
-would call it a service entry sheet; nobody at a staffing firm says
-that, and CLAUDE.md is explicit that a screen uses the reader's word.
-So the match is:
+That is the right word and it is the trade's, not a system's; CLAUDE.md
+is explicit that a screen uses the reader's word. So the check is:
 
 **work order ↔ timesheet receipt (or expense receipt) ↔ supplier invoice**
 
-exactly SAP's purchase order ↔ goods receipt ↔ invoice receipt, with the
-approved timesheet standing where the goods receipt stands: the proof that what was ordered actually
+with the approved timesheet as the receipt: the proof that what was ordered actually
 happened, signed by the party who received it.
 
 Three things can be the receipt, and the app already treats all three
@@ -1598,7 +1600,7 @@ the same way, which is the sign the shape is right:
 `WorkOrder` is the ceiling, the receipt is the proof, the supplier's
 invoice is what gets matched against both — and a client pays what came
 through the match, never an invoice with no receipt behind it. The
-three-way match exceptions that route to the AP desk are SAP's
+three-way check exceptions that route to the AP desk are the
 receipt-against-invoice exception queue, in the trade's words.
 
 **Accounting integrations.** QuickBooks and Xero say *Invoice* for the
