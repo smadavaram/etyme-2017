@@ -231,12 +231,12 @@ const CLIENT: Record<PageKey, Words> = {
   requirements: {
     title: 'Job requests',
     subtitle: 'Jobs you have opened to your vendors. Track how many candidates each has drawn.',
-    // A client opens roles to its vendors, so the button stands here
-    // too, and a seated program office inherits it. The word is the
-    // page's own — if a client's desk should read "New role" to match
-    // "Open roles" above it, that is a change to make on purpose rather
-    // than while fixing a missing button.
-    create: 'New requirement',
+    // A client opens jobs to its vendors, so the button stands here
+    // too, and a seated program office inherits it. It says "New job
+    // request" because the document is the client's own and that is its
+    // word on the client's menu; a supplier's "requirement" is its record
+    // of a client's job, and keeps its word.
+    create: 'New job request',
   },
   submissions: {
     title: 'Candidates',
