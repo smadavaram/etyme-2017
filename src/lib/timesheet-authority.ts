@@ -11,12 +11,15 @@
  * Three parties have a legitimate claim on a timesheet and they want
  * different things:
  *
- *   The person who worked the hours enters them. Nobody else's word about
- *   what somebody did is worth more than theirs.
+ *   The person who worked the hours enters them, and nobody else does.
+ *   Nobody else's word about what somebody did is worth more than theirs.
  *
- *   The vendor who employs them may enter on their behalf — a consultant
- *   on a client site with no laptop is a real case, and the alternative is
- *   the hours arriving by email and being typed in anyway.
+ *   The vendor who employs them used to be allowed to enter on their
+ *   behalf. Withdrawn by the founder, 2026-09-28 — "worker files their own
+ *   week only" (CLAUDE.md, "One week, filed once by the worker, signed at
+ *   the top"). A week typed in by the firm that is paid on it is the firm
+ *   vouching for its own invoice, and in a chain it was also how one week
+ *   came to be keyed twice, once per rung.
  *
  *   The buyer approves. Approval is the client saying the work happened,
  *   which is the whole point of the control, so a vendor approving their
@@ -28,6 +31,8 @@ import { askTheDesk } from '@/lib/permissions'
 export interface Parties {
   /** The person the timesheet belongs to. */
   personId: string
+  /** Their name, for the refusal. Optional: without it the sentence says "the person who worked them". */
+  personName?: string | null
   /** The vendor selling the work. */
   vendorCompanyId: string
   /** Who is billed. */
@@ -64,16 +69,16 @@ function holds(a: Actor, p: string): boolean {
 export function mayEnter(a: Actor, t: Parties): Verdict {
   if (a.personId === t.personId) return { ok: true, reason: 'Their own hours.' }
 
-  if (a.companyId === t.vendorCompanyId && holds(a, 'timesheets.read')) {
-    // On behalf of somebody on their own bench. Recorded as such, because
-    // "who said these hours happened" is the first question asked when a
-    // timesheet is disputed.
-    return { ok: true, reason: 'Entered by their agency on their behalf.' }
-  }
-
+  // Everybody else, the employer included, whatever they hold. The
+  // sentence says who can and where, because "you may not" alone sends a
+  // recruiter back to typing the hours into an email instead.
+  const who = t.personName?.trim() || 'the person who worked them'
   return {
     ok: false,
-    reason: 'Only the person who worked these hours, or the agency that employs them, can enter them.',
+    reason:
+      t.personName?.trim()
+        ? `Only ${who} can file their week. Ask them to file it from their own page.`
+        : 'Only the person who worked these hours can file them. Ask them to file the week from their own page.',
   }
 }
 

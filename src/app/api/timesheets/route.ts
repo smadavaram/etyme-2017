@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { payerScope, seatedDesk } from '@/lib/resolve-client-company'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
 import { isConsultantSeat } from '@/lib/seat'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
+import { mayFile, rungVerdict } from './filing'
+import { rungsToFile, openWeeks } from '@/lib/consultant-portfolio'
 import { maySign, type Sheet } from '@/lib/timesheet-signatures'
 import {
   policyOf, splitWeeks, valueOf, weeksAwaitingDecision, saysAwaiting, treatmentSays,
@@ -138,6 +141,8 @@ export async function GET(request: NextRequest) {
     companyName: desk?.companyName ?? caller.company?.name ?? null,
   }
 
+  const filingFor = await ownFiling(caller.person.id)
+
   return NextResponse.json({
     data: {
       timesheets: timesheets.map((t) => {
@@ -259,12 +264,24 @@ export async function GET(request: NextRequest) {
           ? `You are at ${desk.companyName}'s desk. These are the weeks worked at ${desk.companyName}'s sites, not ${caller.company?.name ?? 'your firm'}'s.`
           : null,
       },
+      // ── Whether this reader files a week at all ─────────────────
+      //
+      // Only the worker files, and only on the rung the door will take:
+      // their own contracts `rungsToFile` lists, with the weeks still
+      // open on each and the weeks sent back to them, which they file
+      // again over themselves. A firm is told who files, not offered a
+      // form the door would refuse.
       filing: {
-        may: !asClient,
-        says: asClient
-          ? `Hours are filed by the person who worked them, or by the agency that employs them. ` +
-            `${desk?.companyName ?? caller.company?.name ?? 'This desk'} buys the work and signs for it.`
-          : null,
+        may: filingFor.length > 0,
+        rungs: filingFor,
+        says:
+          filingFor.length > 0
+            ? null
+            : asClient
+              ? `Hours are filed by the person who worked them, from their own page. ` +
+                `${desk?.companyName ?? caller.company?.name ?? 'This desk'} buys the work and signs for it.`
+              : `Hours are filed by the person who worked them, from their own page. ` +
+                `${caller.company?.name ?? 'Your firm'} accepts them once the client has signed.`,
       },
     },
   })
@@ -530,6 +547,8 @@ export async function POST(request: NextRequest) {
     select: {
       id: true, personId: true, state: true, billRate: true,
       companyId: true, clientCompanyId: true, endClientCompanyId: true,
+      startDate: true, endDate: true,
+      person: { select: { name: true } },
     },
   })
 
@@ -540,14 +559,14 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Whose hours these are. The submit step asked; this one, which is
-  // where the week is actually written, did not — so anybody signed in
-  // could open a week against any contract in the database, and the
-  // approver would see hours the person never entered.
+  // Whose hours these are. The worker's, and nobody else files them —
+  // not the firm that employs them either (founder, 2026-09-28; CLAUDE.md
+  // "One week, filed once by the worker, signed at the top").
   const allowed = mayEnter(
     { personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions },
     {
       personId: sellContract.personId,
+      personName: sellContract.person.name,
       vendorCompanyId: sellContract.companyId,
       clientCompanyId: sellContract.clientCompanyId,
       endClientCompanyId: sellContract.endClientCompanyId,
@@ -560,11 +579,68 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Calculate total hours
-  const totalHours = Object.values(days as Record<string, number>).reduce(
-    (sum: number, h) => sum + (typeof h === 'number' ? h : 0),
-    0
+  // ── Which rung, which days ──────────────────────────────────────────
+  //
+  // Asked here, at the door, and not only on the worker's page: the page
+  // asked and the door did not, so a week could go on a rung above the
+  // worker's employer — a second copy of one week, billed twice — or onto
+  // days that had not happened, fell outside the placement, or another
+  // week already held. `./filing` says why, and reuses supply's rules.
+  const today = new Date().toISOString().slice(0, 10)
+  const theirs = await prisma.sellContract.findMany({
+    where: { personId: sellContract.personId },
+    select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, startDate: true, endDate: true },
+  })
+  const wrongRung = rungVerdict(
+    theirs.map((c) => ({
+      id: c.id,
+      personId: c.personId,
+      companyId: c.companyId,
+      clientCompanyId: c.clientCompanyId,
+      state: c.state,
+      startDate: c.startDate.toISOString().slice(0, 10),
+      endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
+    })),
+    sellContract.id,
+    today
   )
+  if (wrongRung && !wrongRung.ok) {
+    return NextResponse.json({ error: { code: wrongRung.code, message: wrongRung.says } }, { status: 409 })
+  }
+
+  const onFile = await prisma.timesheet.findMany({
+    where: { sellContractId: sellContract.id },
+    select: {
+      id: true, periodStart: true, periodEnd: true, status: true,
+      _count: { select: { invoiceLines: true, overtimeDecisions: true, timeOffDraws: true } },
+    },
+  })
+  const filing = mayFile({
+    periodStart: String(periodStart).slice(0, 10),
+    periodEnd: String(periodEnd).slice(0, 10),
+    hours: days as Record<string, number>,
+    contract: {
+      startDate: sellContract.startDate.toISOString().slice(0, 10),
+      endDate: sellContract.endDate?.toISOString().slice(0, 10) ?? null,
+    },
+    onFile: onFile.map((t) => ({
+      id: t.id,
+      status: t.status,
+      periodStart: t.periodStart.toISOString().slice(0, 10),
+      periodEnd: t.periodEnd.toISOString().slice(0, 10),
+      actedOn: t._count.invoiceLines + t._count.overtimeDecisions + t._count.timeOffDraws > 0,
+    })),
+    today,
+  })
+  if (!filing.ok) {
+    return NextResponse.json(
+      { error: { code: filing.code, message: filing.says, field: filing.code === 'VALIDATION' ? 'days' : 'periodStart' } },
+      { status: filing.code === 'ALREADY_FILED' ? 409 : 422 }
+    )
+  }
+
+  // The hours as checked: blanks and zeros dropped, every day open.
+  const totalHours = filing.totalHours
 
   // ── Which of those hours were paid leave ────────────────────────────
   //
@@ -578,7 +654,7 @@ export async function POST(request: NextRequest) {
   for (const [dayKey, h] of Object.entries((leaveDays ?? {}) as Record<string, unknown>)) {
     const n = Number(h)
     if (!Number.isFinite(n) || n <= 0) continue
-    const worked = Number((days as Record<string, number>)[dayKey] ?? 0)
+    const worked = Number(filing.days[dayKey] ?? 0)
     if (worked <= 0) {
       return err(`There are no hours on ${dayKey} for the leave to come out of.`, 'leaveDays')
     }
@@ -589,7 +665,7 @@ export async function POST(request: NextRequest) {
   let anomalyScore: number | null = null
   let anomalyReason: string | null = null
 
-  const dayValues = Object.values(days as Record<string, number>)
+  const dayValues = Object.values(filing.days)
   const maxDay = Math.max(...dayValues.map((v) => (typeof v === 'number' ? v : 0)))
 
   if (maxDay > 12) {
@@ -601,20 +677,42 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const timesheet = await prisma.timesheet.create({
-      data: {
-        sellContractId,
-        personId: sellContract.personId,
-        periodStart: new Date(periodStart),
-        periodEnd: new Date(periodEnd),
-        days: days as any,
-        leaveDays: Object.keys(leave).length > 0 ? (leave as any) : undefined,
-        totalHours,
-        status: 'OPEN',
-        anomalyScore,
-        anomalyReason,
-      },
-    })
+    const timesheet = filing.replaces
+      ? // Filed again over a week that was sent back. The same row, so
+        // the rejection on the log still points at it; both signatures
+        // cleared, because they were given on hours that are no longer
+        // the hours. `./filing` says why this and not a reopen step.
+        await prisma.timesheet.update({
+          where: { id: filing.replaces },
+          data: {
+            periodEnd: new Date(periodEnd),
+            days: filing.days as any,
+            leaveDays: Object.keys(leave).length > 0 ? (leave as any) : Prisma.DbNull,
+            totalHours,
+            status: 'OPEN',
+            anomalyScore,
+            anomalyReason,
+            submittedAt: null,
+            clientApprovedById: null, clientApprovedAt: null, autoApproved: false,
+            employerAcceptedById: null, employerAcceptedAt: null,
+            acceptedHours: null, acceptedNote: null,
+            approvedById: null, approvedAt: null,
+          },
+        })
+      : await prisma.timesheet.create({
+          data: {
+            sellContractId,
+            personId: sellContract.personId,
+            periodStart: new Date(periodStart),
+            periodEnd: new Date(periodEnd),
+            days: filing.days as any,
+            leaveDays: Object.keys(leave).length > 0 ? (leave as any) : undefined,
+            totalHours,
+            status: 'OPEN',
+            anomalyScore,
+            anomalyReason,
+          },
+        })
 
     return NextResponse.json({
       data: {
@@ -627,11 +725,14 @@ export async function POST(request: NextRequest) {
           periodStart: timesheet.periodStart.toISOString(),
           periodEnd: timesheet.periodEnd.toISOString(),
         },
+        replaced: filing.replaces !== null,
         message: anomalyReason
-          ? `Timesheet created with anomaly detected: ${anomalyReason}`
-          : `Timesheet created: ${totalHours} hours`,
+          ? `Timesheet ${filing.replaces ? 'filed again' : 'created'} with anomaly detected: ${anomalyReason}`
+          : filing.replaces
+            ? `Filed again: ${totalHours} hours. Send it for approval when it is right.`
+            : `Timesheet created: ${totalHours} hours`,
       },
-    }, { status: 201 })
+    }, { status: filing.replaces ? 200 : 201 })
   } catch (e: any) {
     if (e?.code === 'P2002') {
       return NextResponse.json(
@@ -648,4 +749,72 @@ function err(message: string, field: string) {
     { error: { code: 'VALIDATION', message, field } },
     { status: 422 }
   )
+}
+
+/**
+ * The rungs this person files on, each with the weeks still open and the
+ * weeks sent back to them.
+ *
+ * The same answer the door gives: `rungsToFile` for the rung, `openWeeks`
+ * for the days, and a week sent back (OPEN, nothing acted on it) offered
+ * to be filed again over itself. Empty for anybody who is not a worker,
+ * which is every firm's desk.
+ */
+async function ownFiling(personId: string) {
+  const today = new Date().toISOString().slice(0, 10)
+  const mine = await prisma.sellContract.findMany({
+    where: { personId },
+    select: {
+      id: true, personId: true, companyId: true, clientCompanyId: true, state: true, startDate: true, endDate: true,
+      company: { select: { name: true } },
+      endClientCompany: { select: { name: true } },
+      clientCompany: { select: { name: true } },
+    },
+  })
+  if (mine.length === 0) return []
+  const rungs = rungsToFile(
+    mine.map((c) => ({
+      id: c.id,
+      personId: c.personId,
+      companyId: c.companyId,
+      clientCompanyId: c.clientCompanyId,
+      state: c.state,
+      startDate: c.startDate.toISOString().slice(0, 10),
+      endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
+    })),
+    today
+  )
+  if (rungs.length === 0) return []
+  const weeks = await prisma.timesheet.findMany({
+    where: { sellContractId: { in: rungs.map((r) => r.id) } },
+    select: {
+      id: true, sellContractId: true, periodStart: true, periodEnd: true, status: true,
+      _count: { select: { invoiceLines: true, overtimeDecisions: true, timeOffDraws: true } },
+    },
+  })
+  return rungs.map((r) => {
+    const c = mine.find((x) => x.id === r.id)!
+    const here = weeks.filter((w) => w.sellContractId === r.id)
+    const filed = here.map((w) => ({
+      periodStart: w.periodStart.toISOString().slice(0, 10),
+      periodEnd: w.periodEnd.toISOString().slice(0, 10),
+    }))
+    const sentBack = here
+      .filter((w) => w.status === 'OPEN' && w._count.invoiceLines + w._count.overtimeDecisions + w._count.timeOffDraws === 0)
+      .map((w) => {
+        const periodStart = w.periodStart.toISOString().slice(0, 10)
+        const periodEnd = w.periodEnd.toISOString().slice(0, 10)
+        const days: string[] = []
+        for (let d = Date.parse(periodStart); d <= Date.parse(periodEnd); d += 86_400_000) {
+          days.push(new Date(d).toISOString().slice(0, 10))
+        }
+        return { periodStart, periodEnd, days, label: `${periodStart} – ${periodEnd}`, again: true }
+      })
+    return {
+      contractId: r.id,
+      site: c.endClientCompany?.name ?? c.clientCompany?.name ?? c.company.name,
+      employer: c.company.name,
+      weeks: [...sentBack, ...openWeeks(r, filed, today).map((w) => ({ ...w, again: false }))],
+    }
+  })
 }

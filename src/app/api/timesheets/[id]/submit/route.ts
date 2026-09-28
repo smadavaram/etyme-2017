@@ -22,6 +22,7 @@ export async function POST(
     where: { id },
     select: {
       id: true, status: true, totalHours: true, personId: true, sellContractId: true, periodEnd: true,
+      person: { select: { name: true } },
       sellContract: {
         select: { companyId: true, clientCompanyId: true, endClientCompanyId: true },
       },
@@ -36,11 +37,14 @@ export async function POST(
   }
 
   // Whose hours these are. Anybody signed in could submit anybody's week,
-  // which is somebody else's word about what they did.
+  // which is somebody else's word about what they did. The worker's, and
+  // since 2026-09-28 the worker's alone — the employer no longer sends a
+  // week on their behalf (`lib/timesheet-authority`).
   const allowed = mayEnter(
     { personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions },
     {
       personId: timesheet.personId,
+      personName: timesheet.person.name,
       vendorCompanyId: timesheet.sellContract.companyId,
       clientCompanyId: timesheet.sellContract.clientCompanyId,
       endClientCompanyId: timesheet.sellContract.endClientCompanyId,

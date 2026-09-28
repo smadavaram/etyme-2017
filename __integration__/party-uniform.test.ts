@@ -453,7 +453,7 @@ describe('6 · the week is filed', () => {
     refusalsAreSentences(grid)
   })
 
-  it('she files her own week; her agency files the week before on her behalf, and the record says which of them said the hours happened', async () => {
+  it('she files her own week, and her agency cannot file one for her — only the worker says the hours happened', async () => {
     as(SEAT.CANDIDATE)
     const hers = await json(await fileTimesheet(req('POST', '/api/timesheets', { sellContractId: it_.contract, ...WEEK, days })))
     expect(hers.body?.error, JSON.stringify(hers.body)).toBeUndefined()
@@ -463,13 +463,17 @@ describe('6 · the week is filed', () => {
 
     const before: Record<string, number> = {}
     for (let i = 0; i < 5; i++) before[day(-14 + i).toISOString().slice(0, 10)] = 8
+    // Allowed until 2026-09-28, when the founder withdrew it: "worker
+    // files their own week only". The firm paid on a week does not vouch
+    // for it by typing it in.
     as(SEAT.PRIME)
     const theirs = await json(await fileTimesheet(req('POST', '/api/timesheets', {
       sellContractId: it_.contract,
       periodStart: day(-14).toISOString().slice(0, 10), periodEnd: day(-10).toISOString().slice(0, 10),
       days: before,
     })))
-    expect(theirs.body?.error, JSON.stringify(theirs.body)).toBeUndefined()
+    expect(theirs.status).toBe(403)
+    expect(theirs.body.error.message).toMatch(/^Only .+ can file their week\. Ask them to file it from their own page\.$/)
   })
 })
 

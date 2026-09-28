@@ -8,7 +8,9 @@ import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authori
  * could approve any timesheet at any company.
  *
  * Three parties, wanting three different things: the person enters their
- * hours, their agency may enter on their behalf, and the buyer approves.
+ * hours, and nobody else does — their agency's allowance to enter on their
+ * behalf was withdrawn by the founder on 2026-09-28 — and the buyer
+ * approves.
  */
 
 const CONTRACT = {
@@ -34,12 +36,16 @@ describe('entering hours', () => {
     expect(mayEnter(actor({ personId: 'anita', companyId: null, permissions: [] }), CONTRACT).ok).toBe(true)
   })
 
-  it('lets their agency enter on their behalf', () => {
-    // A consultant on a client site with no laptop is a real case, and the
-    // alternative is the hours arriving by email and being typed in anyway.
-    const v = mayEnter(actor({ companyId: 'cloudepa', permissions: ['timesheets.read'] }), CONTRACT)
-    expect(v.ok).toBe(true)
-    expect(v.reason).toMatch(/on their behalf/i)
+  it('refuses their agency, which is paid on the week and so does not file it for them', () => {
+    // Was allowed until 2026-09-28. The founder: "worker files their own
+    // week only". A week typed in by the firm paid on it is the firm
+    // vouching for its own invoice.
+    const v = mayEnter(
+      actor({ companyId: 'cloudepa', permissions: ['*'] }),
+      { ...CONTRACT, personName: 'Anita Rao' }
+    )
+    expect(v.ok).toBe(false)
+    expect(v.reason).toBe('Only Anita Rao can file their week. Ask them to file it from their own page.')
   })
 
   it('refuses a stranger signed in at another company', () => {
@@ -53,7 +59,7 @@ describe('entering hours', () => {
 
   it('says who may, rather than just refusing', () => {
     const v = mayEnter(actor({ companyId: 'rival' }), CONTRACT)
-    expect(v.reason).toMatch(/the person who worked these hours, or the agency/i)
+    expect(v.reason).toBe('Only the person who worked these hours can file them. Ask them to file the week from their own page.')
   })
 })
 

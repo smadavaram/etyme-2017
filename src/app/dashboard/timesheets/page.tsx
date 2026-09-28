@@ -157,46 +157,52 @@ function formatPeriod(start: string, end: string): string {
 
 // ── Create Timesheet Modal ──────────────────────────
 
-interface ContractOption {
-  id: string
-  personName: string
-  clientName: string
-  billRate: number
+/**
+ * One of the reader's own rungs, as the server offers it to be filed on.
+ *
+ * Only the worker files, and only on the rung the door takes — the one
+ * where their employer is (`rungsToFile`). The form used to list every
+ * live sell contract the reader could read, so a staffing desk was
+ * offered every consultant's contract and a worker in a chain was
+ * offered the prime's rung above their own: one week, keyed twice.
+ */
+interface FilingWeek {
+  periodStart: string
+  periodEnd: string
+  days: string[]
+  label: string
+  /** A week sent back to them, filed again over itself. */
+  again: boolean
 }
 
-function getWeekDates(start: Date): string[] {
-  const dates: string[] = []
-  const d = new Date(start)
-  for (let i = 0; i < 7; i++) {
-    dates.push(d.toISOString().slice(0, 10))
-    d.setDate(d.getDate() + 1)
+interface FilingRung {
+  contractId: string
+  site: string
+  employer: string
+  weeks: FilingWeek[]
+}
+
+function dayHead(iso: string): { dow: string; date: string } {
+  const d = new Date(iso + 'T00:00:00Z')
+  return {
+    dow: d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }),
+    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
   }
-  return dates
 }
-
-function getMonday(d: Date): Date {
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  const monday = new Date(d)
-  monday.setDate(diff)
-  return monday
-}
-
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 function CreateTimesheetModal({
+  rungs,
   onClose,
   onCreated,
 }: {
+  rungs: FilingRung[]
   onClose: () => void
   onCreated: (msg: string) => void
 }) {
-  const [contracts, setContracts] = useState<ContractOption[]>([])
-  const [contractId, setContractId] = useState('')
-  const [weekStart, setWeekStart] = useState(() => {
-    const mon = getMonday(new Date())
-    return mon.toISOString().slice(0, 10)
-  })
+  const [contractId, setContractId] = useState(rungs.length === 1 ? rungs[0].contractId : '')
+  const rung = rungs.find((r) => r.contractId === contractId)
+  const [weekKey, setWeekKey] = useState('')
+  const week = rung?.weeks.find((w) => w.periodStart === weekKey) ?? rung?.weeks[0]
   const [hours, setHours] = useState<Record<string, number>>({})
   // Which of those hours were paid time off taken out of the bank,
   // rather than worked. Per day, because the overtime threshold is a
@@ -206,29 +212,8 @@ function CreateTimesheetModal({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch active sell contracts for the dropdown
-  useEffect(() => {
-    fetch('/api/contracts?side=sell&state=IN_PROGRESS&limit=100')
-      .then((r) => r.json())
-      .then((body) => {
-        const list = (body.data?.contracts ?? []).map((c: any) => ({
-          id: c.id,
-          personName: c.person?.name ?? 'Unknown',
-          clientName: c.endClientCompany?.name ?? c.clientCompany?.name ?? 'Unknown',
-          billRate: c.billRate,
-        }))
-        setContracts(list)
-        if (list.length === 1) setContractId(list[0].id)
-      })
-      .catch(() => {})
-  }, [])
-
-  const weekDates = getWeekDates(new Date(weekStart + 'T00:00:00'))
-  const totalHrs = Object.values(hours).reduce((s, h) => s + h, 0)
-  const selectedContract = contracts.find((c) => c.id === contractId)
-  const estimatedValue = selectedContract
-    ? totalHrs * (selectedContract.billRate / 100)
-    : 0
+  const weekDates = week?.days ?? []
+  const totalHrs = weekDates.reduce((s, d) => s + (hours[d] ?? 0), 0)
 
   function setDayHours(date: string, val: string) {
     const num = parseFloat(val)
@@ -243,53 +228,45 @@ function CreateTimesheetModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!contractId) {
-      setError('Select a sell contract')
+    if (!rung || !week) {
+      setError('Choose the placement and the week.')
       return
     }
     if (totalHrs === 0) {
-      setError('Enter at least some hours')
+      setError(`There are no hours on ${week.label}. Enter the hours you worked, then save.`)
       return
     }
 
     setSubmitting(true)
     setError(null)
 
-    // Build days object — only include dates with hours > 0
     const days: Record<string, number> = {}
-    for (const [date, h] of Object.entries(hours)) {
-      if (h > 0) days[date] = h
-    }
+    for (const d of weekDates) if ((hours[d] ?? 0) > 0) days[d] = hours[d]
 
     const leaveDays: Record<string, number> = {}
     for (const [date, h] of Object.entries(leave)) {
       if (h > 0 && (days[date] ?? 0) > 0) leaveDays[date] = Math.min(h, days[date])
     }
 
-    const periodEnd = weekDates[weekDates.length - 1]
-
     try {
       const res = await fetch('/api/timesheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sellContractId: contractId,
-          periodStart: weekStart,
-          periodEnd,
+          sellContractId: rung.contractId,
+          periodStart: week.periodStart,
+          periodEnd: week.periodEnd,
           days,
           leaveDays,
         }),
       })
 
+      const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        setError(body.error?.message ?? 'Failed to create timesheet')
+        setError(body.error?.message ?? 'The week could not be saved.')
         return
       }
-
-      const body = await res.json()
-      const msg = body.data?.message ?? `Timesheet created: ${totalHrs}h`
-      onCreated(msg)
+      onCreated(body.data?.message ?? `Saved ${totalHrs} hours.`)
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -302,7 +279,7 @@ function CreateTimesheetModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-2xl mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Create timesheet</h2>
+          <h2 className="text-lg font-semibold">File your hours</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -317,55 +294,65 @@ function CreateTimesheetModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Contract selector */}
+          {/* Placement — only the rungs the door takes */}
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Sell contract *</label>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Placement *</label>
             <select
               required
               value={contractId}
-              onChange={(e) => setContractId(e.target.value)}
+              onChange={(e) => { setContractId(e.target.value); setWeekKey(''); setHours({}); setLeave({}) }}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
             >
-              <option value="">Select a contract…</option>
-              {contracts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.personName} — {c.clientName} ({compact(c.billRate)}/hr)
+              <option value="">Choose a placement…</option>
+              {rungs.map((r) => (
+                <option key={r.contractId} value={r.contractId}>
+                  {r.site} — employed by {r.employer}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Week selector */}
-          <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Week starting</label>
-            <input
-              type="date"
-              value={weekStart}
-              onChange={(e) => {
-                const d = new Date(e.target.value + 'T00:00:00')
-                const mon = getMonday(d)
-                setWeekStart(mon.toISOString().slice(0, 10))
-                setHours({})
-              }}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-            />
-          </div>
+          {/* Week — only the weeks still open, and any sent back */}
+          {rung && (
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Week *</label>
+              {rung.weeks.length === 0 ? (
+                <p className="text-[12px] text-etyme-muted">
+                  Every week on this placement is filed. The next one opens once its first day is over.
+                </p>
+              ) : (
+                <select
+                  value={week?.periodStart ?? ''}
+                  onChange={(e) => { setWeekKey(e.target.value); setHours({}); setLeave({}) }}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                >
+                  {rung.weeks.map((w) => (
+                    <option key={w.periodStart} value={w.periodStart}>
+                      {w.again ? `${w.label} — sent back to you, file it again` : w.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
-          {/* Daily hours grid */}
+          {/* Daily hours — the open days of that week, and no others */}
+          {week && (
           <div>
             <label className="block text-xs font-semibold text-etyme-muted mb-2">Hours per day</label>
             <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-              {weekDates.map((date, i) => {
-                const isWeekend = i >= 5
+              {weekDates.map((date) => {
+                const head = dayHead(date)
+                const isWeekend = head.dow === 'Sat' || head.dow === 'Sun'
                 return (
                   <div key={date} className="text-center">
                     <div className={`text-[10px] font-semibold mb-1 ${isWeekend ? 'text-etyme-faint' : 'text-etyme-muted'}`}>
-                      {DAY_LABELS[i]}
+                      {head.dow}
                     </div>
                     <div className={`text-[10px] tabular-nums mb-1.5 ${isWeekend ? 'text-etyme-faint' : 'text-etyme-muted'}`}>
-                      {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {head.date}
                     </div>
                     <input
                       type="number"
@@ -400,9 +387,9 @@ function CreateTimesheetModal({
                     Of those, paid time off
                   </label>
                   <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                    {weekDates.map((date, i) => (
+                    {weekDates.map((date) => (
                       <div key={date} className="text-center">
-                        <div className="text-[10px] text-etyme-faint mb-1">{DAY_LABELS[i]}</div>
+                        <div className="text-[10px] text-etyme-faint mb-1">{dayHead(date).dow}</div>
                         <input
                           type="number"
                           min="0"
@@ -430,19 +417,7 @@ function CreateTimesheetModal({
               )}
             </div>
 
-            {/* Quick fill buttons */}
             <div className="flex gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const filled: Record<string, number> = {}
-                  weekDates.forEach((d, i) => { if (i < 5) filled[d] = 8 })
-                  setHours(filled)
-                }}
-                className="text-[11px] text-etyme-action hover:underline"
-              >
-                Fill 40h (8×5)
-              </button>
               <button
                 type="button"
                 onClick={() => setHours({})}
@@ -452,35 +427,26 @@ function CreateTimesheetModal({
               </button>
             </div>
           </div>
+          )}
 
-          {/* Summary */}
+          {/* Summary. Hours only: what the week is billed at is between two firms. */}
           <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-etyme-canvas">
             <div>
               <span className="text-sm font-medium tabular-nums">{totalHrs.toFixed(1)}h</span>
               <span className="text-etyme-muted text-sm ml-1">total</span>
             </div>
-            {selectedContract && totalHrs > 0 && (
-              <div className="text-sm text-etyme-verified font-medium tabular-nums">
-                ≈ ${estimatedValue.toLocaleString('en-US', { maximumFractionDigits: 0 })} billable
-              </div>
-            )}
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-secondary flex-1"
-            >
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">
               Cancel
             </button>
             <button
               type="submit"
-              disabled={submitting || !contractId || totalHrs === 0}
+              disabled={submitting || !rung || !week || totalHrs === 0}
               className="btn-primary flex-1 disabled:opacity-50"
             >
-              {submitting ? 'Creating…' : 'Create timesheet'}
+              {submitting ? 'Saving…' : week?.again ? 'File it again' : 'Save the week'}
             </button>
           </div>
         </form>
@@ -496,7 +462,6 @@ export default function TimesheetsPage() {
   const searchParams = useSearchParams()
 
   const { company } = useSession()
-  const isClient = company?.kind === 'CLIENT'
 
   const [timesheets, setTimesheets] = useState<Timesheet[]>([])
   const [loading, setLoading] = useState(true)
@@ -509,7 +474,7 @@ export default function TimesheetsPage() {
   // Whether this reader files a week at all, as the server sees it. A
   // seated program office is on the buying side and never does, and the
   // session alone cannot tell — its company is an MSP.
-  const [filing, setFiling] = useState<{ may: boolean; says: string | null } | null>(null)
+  const [filing, setFiling] = useState<{ may: boolean; says: string | null; rungs?: FilingRung[] } | null>(null)
   // Whose weeks the server answered about. A program office in a seat is
   // reading the client's, and the page heads itself accordingly.
   const [atDesk, setAtDesk] = useState<{ companyName: string | null; says: string | null } | null>(null)
@@ -954,13 +919,16 @@ export default function TimesheetsPage() {
           <h1>{framing.title}</h1>
           <p>{framing.subtitle}</p>
         </div>
-        {/* A client approves hours; the consultant's vendor raises them.
-            A program office at a client's desk is on the client's side of
-            that sentence, which the session alone cannot see. */}
-        {(filing ? filing.may : !isClient) && framing.create && (
+        {/* Only the worker files a week, and only the server knows who
+            is one — a firm's desk is told who files instead of being
+            offered a form the door would refuse. */}
+        {filing?.may && framing.create && (
           <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
             + {framing.create}
           </button>
+        )}
+        {filing && !filing.may && filing.says && (
+          <p className="text-[12px] text-etyme-muted mt-3 max-w-xs">{filing.says}</p>
         )}
       </div>
 
@@ -1119,6 +1087,7 @@ export default function TimesheetsPage() {
       {/* Create timesheet modal */}
       {showCreate && (
         <CreateTimesheetModal
+          rungs={filing?.rungs ?? []}
           onClose={() => setShowCreate(false)}
           onCreated={(msg) => {
             setToast({ message: msg, type: 'success' })
