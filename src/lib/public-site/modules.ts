@@ -561,18 +561,18 @@ export const MODULES: ModulePage[] = [
     ],
     refuses: [
       {
-        says: 'Kwame Mensah has 24 months tenure (cap: 18).',
+        says: 'Kwame Mensah has 24 months tenure (time limit: 18).',
         then: 'Blocked. No extension, award or start until the break is served. The screen shows the date, and nobody can wave it through.',
         kind: 'BLOCK',
         source: 'src/lib/governance.ts',
-        phrase: 'months tenure (cap: ',
+        phrase: 'months tenure (time limit: ',
       },
       {
-        says: 'Lucía Fernández is at 14 of 18 months (78% of cap)',
+        says: 'Lucía Fernández is at 14 of 18 months (78% of the time limit)',
         then: 'A warning at three quarters of the time limit, so the manager sees the end coming with four months to plan rather than four days.',
         kind: 'WARN',
         source: 'src/lib/governance.ts',
-        phrase: '% of cap)',
+        phrase: '% of the time limit)',
       },
     ],
     refusesNote:
