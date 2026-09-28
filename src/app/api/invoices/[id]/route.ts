@@ -106,6 +106,14 @@ export async function GET(
       invoiceLines: {
         include: {
           person: { select: { id: true, name: true } },
+          // The contract this line bills, whose terms priced it. In a
+          // chain it is not the timesheet's (lib/invoice-match).
+          sellContract: {
+            select: {
+              overtimeAfterHours: true, overtimeMultiplierBps: true, billStraddle: true,
+              workOrder: { select: ORDER_HEADER_SELECT },
+            },
+          },
           timesheet: {
             select: {
               id: true, status: true, totalHours: true, periodStart: true, periodEnd: true,

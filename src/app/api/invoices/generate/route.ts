@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 import { completeCycle } from '@/lib/cycle-complete'
 import { billableNow, expenseLine, expenseTotal } from '@/lib/expense-billing'
 import { emit } from '@/lib/events'
-import { periodFor, billableInPeriod, bandsOf, type Terms } from '@/lib/periods'
+import { billableInPeriod, bandsOf, type Terms } from '@/lib/periods'
 import {
   partnerFunctions, mayConsolidate, selfBilling, taxFor, dueOn, resolveBillingTerms,
   type Place, type Party,
@@ -18,6 +18,7 @@ import { ladderFor } from '@/lib/work-chain-read'
 import { policyOf, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
+import { readWindow, billingWindow, inWindow } from '@/lib/money/invoice-window'
 
 /**
  * GET /api/invoices/generate — the engagements this firm may bill.
@@ -188,7 +189,20 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { engagementId, periodStart, periodEnd } = body
+  const { engagementId } = body
+
+  // The dates asked for, read and checked before anything is loaded. A
+  // period under a name this route does not read used to be dropped
+  // without a word, and the run billed every signed week there was
+  // (lib/money/invoice-window).
+  const asked = readWindow(body)
+  if (!asked.ok) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: asked.says, field: asked.field } },
+      { status: 422 }
+    )
+  }
+  const bounded = Boolean(asked.start || asked.end)
 
   if (!engagementId) {
     return NextResponse.json(
@@ -339,11 +353,16 @@ export async function POST(request: NextRequest) {
   // A week running 27 July to 2 August has four days that belong to July,
   // and `periodEnd <= 31 July` excluded it entirely — so a month billed
   // from weekly timesheets quietly lost its first few days every time.
-  if (periodStart) {
-    timesheetWhere.periodEnd = { gte: new Date(periodStart) }
+  //
+  // This is what to LOAD, and only that. Which of the loaded weeks this
+  // bill actually takes is decided below, against the window, by the
+  // straddle rule — a week that touches the dates asked for by one day
+  // is loaded here and billed only if it belongs.
+  if (asked.start) {
+    timesheetWhere.periodEnd = { gte: asked.start }
   }
-  if (periodEnd) {
-    timesheetWhere.periodStart = { lte: new Date(periodEnd) }
+  if (asked.end) {
+    timesheetWhere.periodStart = { lte: asked.end }
   }
 
   const timesheets = await prisma.timesheet.findMany({
@@ -416,12 +435,12 @@ export async function POST(request: NextRequest) {
   // contracts. They become lines of their own with the expense behind
   // them (src/lib/expense-billing.ts). An invoice may carry only expenses
   // — a month with no hours and one flight is still a month to bill.
-  const expenseRows = await prisma.expense.findMany({
+  let expenseRows = await prisma.expense.findMany({
     where: {
       sellContractId: { in: ownIds },
       status: 'APPROVED', billable: true, invoiceId: null,
-      ...(periodStart ? { periodEnd: { gte: new Date(periodStart) } } : {}),
-      ...(periodEnd ? { periodStart: { lte: new Date(periodEnd) } } : {}),
+      ...(asked.start ? { periodEnd: { gte: asked.start } } : {}),
+      ...(asked.end ? { periodStart: { lte: asked.end } } : {}),
     },
     include: {
       person: { select: { name: true } },
@@ -441,7 +460,7 @@ export async function POST(request: NextRequest) {
   // A fixed sum the client has accepted, on a work order for this
   // engagement, not yet billed. No person and no contract behind it —
   // the acceptance is the receipt.
-  const milestones = await prisma.orderMilestone.findMany({
+  let milestones = await prisma.orderMilestone.findMany({
     where: { status: 'ACCEPTED', order: { engagementId, issuedToId: caller.company!.id } },
     include: { order: { select: { id: true, number: true, title: true } } },
     orderBy: { acceptedAt: 'asc' },
@@ -504,9 +523,25 @@ export async function POST(request: NextRequest) {
 
   const latestWork = [...billing.map((t) => t.periodEnd), ...expenseRows.map((e) => e.periodEnd), ...milestones.map((m) => m.acceptedAt ?? new Date())]
     .reduce((latest, d) => (d > latest ? d : latest))
-  const askedAbout = periodStart ? new Date(periodStart) : latestWork
 
-  const period = periodFor(askedAbout, terms)
+  // The contract says what a period is; the dates asked for narrow it
+  // and never widen it. `period` from here on is what this bill covers —
+  // the header's dates, what every week is judged against, and what the
+  // due date counts from where the terms count from the end of the work
+  // period. It used to be the whole contract period whatever was asked,
+  // so a week grazing a one-week window on its last day was billed
+  // whole under a header reading "September 2026".
+  const bill = billingWindow(asked, latestWork, terms)
+  const period = bill.window
+
+  // An expense or a milestone rides on a bill asked for particular dates
+  // only when it falls inside them — by the day its period ends, and the
+  // day the client accepted it. With no dates asked for, both still ride
+  // on the next bill, as they always have.
+  if (bounded) {
+    expenseRows = expenseRows.filter((e) => inWindow(e.periodEnd, period))
+    milestones = milestones.filter((m) => inWindow(m.acceptedAt ?? new Date(), period))
+  }
 
   /**
    * What each timesheet is worth to this invoice, priced once and read
@@ -643,7 +678,16 @@ export async function POST(request: NextRequest) {
 
   if (linesByContract.size === 0 && expenseRows.length === 0 && milestones.length === 0) {
     return NextResponse.json(
-      { error: { code: 'ZERO_VALUE', message: 'All timesheets have zero hours or zero rate' } },
+      {
+        error: {
+          code: 'ZERO_VALUE',
+          message: bounded
+            ? `Nothing signed and unbilled belongs to ${period.label}. A week crossing the ` +
+              `edge of those dates bills whole in the period it ${terms.straddle === 'START' ? 'starts' : 'ends'} ` +
+              'in, so it may be on the bill either side of them.'
+            : 'All timesheets have zero hours or zero rate',
+        },
+      },
       { status: 422 }
     )
   }
@@ -1118,6 +1162,15 @@ export async function POST(request: NextRequest) {
           says: partners.says,
         },
         consolidation: { count: lines.length, says: consolidation.says },
+        // What the bill covers, said where it is less than the contract
+        // period or the dates asked for were cut at its end.
+        window: {
+          periodStart: period.start.toISOString(),
+          periodEnd: period.end.toISOString(),
+          partOf: bill.contractPeriod.label,
+          narrowed: bill.narrowed,
+          says: bill.clipped ?? (bill.narrowed ? `Bills ${period.label}.` : null),
+        },
         // What the due date counts from, said rather than assumed. An AR
         // clerk who sees "net 30 from the end of the work period" on a
         // client whose agreement says receipt knows which document to go

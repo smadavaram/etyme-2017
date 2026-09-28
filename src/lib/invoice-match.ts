@@ -17,6 +17,19 @@ export interface PricedLine {
   rateCents: number
   amountCents: number
   sellContractId: string | null
+  /**
+   * The contract this line bills — which, in a chain, is not the one
+   * the hours were filed on. Its terms price the line: a prime's
+   * overtime and straddle with its client are its own, exactly as its
+   * rate is. Optional so a caller that has not loaded it falls back to
+   * the timesheet's, which is the same row on every direct placement.
+   */
+  sellContract?: {
+    overtimeAfterHours: number | null
+    overtimeMultiplierBps: number
+    billStraddle: string
+    workOrder?: OrderHeader | null
+  } | null
   timesheet: {
     id: string
     periodStart: Date
@@ -90,6 +103,12 @@ export function recompute(line: PricedLine, period: Period): Working | null {
     accrualBps: d.accrualBps,
   }))
 
+  // Priced on the terms of the contract being billed, the way the
+  // generator priced it (`ours` in api/invoices/generate). Reading the
+  // timesheet's own contract here judged a prime's line by its sub's
+  // agreement.
+  const billed = line.sellContract ?? ts.sellContract
+
   const billable = billableInPeriod(
     {
       id: ts.id,
@@ -102,11 +121,11 @@ export function recompute(line: PricedLine, period: Period): Working | null {
     period,
     periodTermsFor('SELL', {
       startDate: ts.periodStart,
-      billStraddle: ts.sellContract.billStraddle,
-      workOrder: ts.sellContract.workOrder ?? null,
+      billStraddle: billed.billStraddle,
+      workOrder: billed.workOrder ?? null,
     }).straddle,
     line.rateCents,
-    policyOf(ts.sellContract),
+    policyOf(billed),
     decisions
   )
   if (!billable) return null
@@ -139,6 +158,21 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       invoiceLines: {
         include: {
           person: { select: { name: true } },
+          // The contract the line bills. In a chain the hours are filed
+          // once, on the rung that employs the person, and every rung
+          // above bills them at its own rate — so the timesheet's
+          // contract is the wrong place to read what this line should
+          // cost. It carried the sub's rate: Helena Marsh's $145 line to
+          // Northbend Athletic was held to CloudEPA's $118 wherever no
+          // opening rate-history row happened to mask it.
+          sellContract: {
+            select: {
+              billRate: true, startDate: true,
+              overtimeAfterHours: true, overtimeMultiplierBps: true,
+              billFrequency: true, billAnchor: true, billStraddle: true,
+              workOrder: { select: ORDER_HEADER_SELECT },
+            },
+          },
           expense: { select: { id: true, status: true, total: true } },
           milestone: { select: { id: true, status: true, amountCents: true } },
           timesheet: {
@@ -224,7 +258,8 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
   // one engagement, and an engagement carries one billing cycle. Null when
   // no line has a contract to ask, in which case the check stays silent
   // rather than inventing an opinion.
-  const terms = invoice.invoiceLines.find(l => l.timesheet)?.timesheet?.sellContract
+  const withHours = invoice.invoiceLines.find(l => l.timesheet)
+  const terms = withHours?.sellContract ?? withHours?.timesheet?.sellContract
   const contractPeriod = terms ? periodFor(invoice.periodStart, periodTermsFor('SELL', terms)) : null
 
   const premiumOn = (line: PricedLine): number | null =>
@@ -277,7 +312,9 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
             // every invoice already paid.
             contractRateCents: contractedRateFor(
               l.sellContractId ?? l.timesheet.sellContractId,
-              l.timesheet.sellContract.billRate,
+              // The billed contract's own rate where no amendment is in
+              // force — never the rung underneath it.
+              l.sellContract?.billRate ?? l.timesheet.sellContract.billRate,
               l.timesheet.periodStart
             ),
             // The unique constraint on InvoiceLine.timesheetId means a
