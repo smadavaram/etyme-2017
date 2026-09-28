@@ -405,3 +405,7 @@ A client comparing Etyme against a VMS does not experience policy enforcement as
 The enterprise tier differentiates on integration depth, single sign-on, dedicated environment, data residency and support commitments --- not on whether the platform enforces the client\'s own policy.
 
 *Recorded against Master BRD v3.7 --- Frozen Baseline. On ratification, increment to v3.9 or consolidate at the next major revision.*
+
+---
+
+**Change log — 2026-09-28.** Wording only, meaning unchanged: named enterprise vendors are no longer cited as the model for a rule (founder decision, CLAUDE.md "Never name the enterprise incumbents anywhere"). Connectors a client selects by name stay as integration targets.

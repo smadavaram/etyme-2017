@@ -149,3 +149,7 @@ C5.2 Phase Plan Impact (Amends B4)
 **END OF ADDENDUM C**
 
 Document set: BRD v2.0 + Addendum A + Addendum B + Addendum C
+
+---
+
+**Change log — 2026-09-28.** Wording only, meaning unchanged: named enterprise vendors are no longer cited as the model for a rule (founder decision, CLAUDE.md "Never name the enterprise incumbents anywhere"). Connectors a client selects by name stay as integration targets.

@@ -210,7 +210,7 @@ const US_IT: TemplatePack = {
 
 const US_SAP: TemplatePack = {
   id: 'US_SAP',
-  label: 'US SAP/ERP Staffing',
+  label: 'US ERP Staffing',
   country: 'US',
   contractTypes: [
     ...US_IT.contractTypes,

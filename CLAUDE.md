@@ -25,8 +25,7 @@ optional.
 **Etyme is the system of record for contingent workers: the layer between
 a company and every staffing supplier it uses.**
 
-Category first, the way Concur says Travel and Expense before it says
-anything clever. The span is requisition → suppliers → submissions →
+Category first, before anything clever. The span is requisition → suppliers → submissions →
 screening → interviews → onboarding → timesheets → invoices →
 compliance. Naming one station makes the whole product read as that
 station.

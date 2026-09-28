@@ -429,3 +429,7 @@ Actors: Owner (company owner/admin), Recruiter (company staff with recruiting pe
 *Etyme --- The Enterprise Layer for Contingent Talent*
 
 Companion to Master BRD v3.7 FINAL \| July 2026
+
+---
+
+**Change log — 2026-09-28.** Wording only, meaning unchanged: named enterprise vendors are no longer cited as the model for a rule (founder decision, CLAUDE.md "Never name the enterprise incumbents anywhere"). Connectors a client selects by name stay as integration targets.
