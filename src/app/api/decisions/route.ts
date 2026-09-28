@@ -7,6 +7,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung, viaPhrase } from '@/lib/chain-top'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
+import { weekTurn } from '@/app/api/timesheets/ladder'
 import { desksFor } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-onboarding'
 import { paperingRow } from '@/lib/papering'
@@ -154,6 +155,13 @@ export async function GET(request: NextRequest) {
       )
       const sc = ts.sellContract
       const asClient = sc.companyId !== companyId
+      // The employer's turn comes last, once every firm above it has
+      // signed (`app/api/timesheets/chain-turn`). Offering it sooner put
+      // a week on its desk that the approve route now refuses.
+      if (!asClient && sc.companyId !== (sc.endClientCompanyId ?? sc.clientCompanyId)) {
+        const { turn } = await weekTurn(ts, companyId)
+        if (!turn.ok) continue
+      }
       // Inside a sentence, so the phrase and not the cell: "through
       // Computer Systems" where the name is this reader's to read, and
       // "through a firm Computer Systems arranged" where it is not
@@ -205,6 +213,60 @@ export async function GET(request: NextRequest) {
         actionUrl: '/dashboard/timesheets',
         amount,
         flag,
+        createdAt: ts.periodEnd.toISOString(),
+      })
+    }
+
+    // ── The firm in the middle, when the week reaches it ──────────────
+    //
+    // A prime between the client and the employer accepts what it pays
+    // the firm below it, after the client has signed and before the
+    // employer may. It had no step and heard nothing, so the week sat
+    // until somebody noticed a vendor bill with no acceptance behind it.
+    const reached = await prisma.timesheet.findMany({
+      where: {
+        status: 'SUBMITTED',
+        clientApprovedAt: { not: null },
+        employerAcceptedAt: null,
+        sellContract: { companyId: { not: companyId } },
+        person: { sellContracts: { some: { companyId } } },
+        id: { notIn: pendingTimesheets.map((t) => t.id) },
+      },
+      include: {
+        person: { select: { name: true } },
+        sellContract: {
+          select: {
+            companyId: true, clientCompanyId: true, endClientCompanyId: true, endDate: true,
+            requirement: { select: { hoursPerWeek: true } },
+          },
+        },
+      },
+      orderBy: { periodEnd: 'asc' },
+      take: 20,
+    })
+    for (const ts of reached) {
+      const { turn } = await weekTurn(ts, companyId)
+      if (!turn.ok || turn.signer.role !== 'PASS_THROUGH') continue
+      const paysOn = await prisma.sellContract.findUnique({
+        where: { id: turn.signer.rungId },
+        select: { billRate: true, company: { select: { name: true } } },
+      })
+      const daysSinceSigned = Math.floor((now.getTime() - (ts.clientApprovedAt ?? ts.periodEnd).getTime()) / 86_400_000)
+      decisions.push({
+        type: 'TIMESHEET_APPROVAL',
+        title: `Accept timesheet — ${ts.person.name}`,
+        subtitle: `${ts.totalHours}h · from ${paysOn?.company.name ?? 'your supplier'} · ${periodWord(ts.periodStart, ts.periodEnd)} · signed above you`,
+        urgency: daysSinceSigned >= 5 ? 'HIGH' : daysSinceSigned >= 2 ? 'MEDIUM' : 'LOW',
+        entityType: 'TIMESHEET',
+        entityId: ts.id,
+        dueDate: null,
+        actionUrl: '/dashboard/timesheets',
+        // What this firm pays on the rung it is accepting — its own contract.
+        amount: paysOn ? Number(ts.totalHours) * (paysOn.billRate / 100) : null,
+        flag: timesheetFlag({
+          hours: Number(ts.totalHours), hoursPerWeek: ts.sellContract.requirement?.hoursPerWeek ?? null,
+          periodEnd: ts.periodEnd, contractEnd: ts.sellContract.endDate,
+        }),
         createdAt: ts.periodEnd.toISOString(),
       })
     }

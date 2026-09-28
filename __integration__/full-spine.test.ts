@@ -1359,17 +1359,18 @@ describe('Step 15a — the week waiting on Auralis’s desk, and whose name is o
     ))
   })
 
-  it('leaves CloudEPA’s own desk reading the same week under its own name', async () => {
+  it('keeps the week off CloudEPA’s desk until every firm above it has signed', async () => {
+    // Founder, 2026-09-28: the signed week travels down the chain and
+    // each rung accepts it in turn. Until then this step put the week on
+    // CloudEPA's desk before Auralis had said the work happened.
     as(SUB)
     const r = await json(await decisionQueue(req('GET', '/api/decisions')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
-    expect(week, 'the employer is asked to accept what it will pay for').toBeTruthy()
-    expect(week.subtitle).toContain('Computer Systems')
+    expect(r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')).toBeUndefined()
   })
 })
 
-describe('Step 16 — two signatures, from two different companies', () => {
+describe('Step 16 — a signature from every rung, in turn down the chain', () => {
   it('has Auralis say the work happened', async () => {
     as(ADOBE_PM)
     const r = await json(await signTimesheet(
@@ -1382,6 +1383,28 @@ describe('Step 16 — two signatures, from two different companies', () => {
     })
     expect(a.companyId).toBe(co.adobe)
     expect(a.state).toBe('LIVE')
+  })
+
+  it('has Computer Systems accept what it pays CloudEPA, once Auralis has signed and before CloudEPA may', async () => {
+    as(PRIME)
+    const r = await json(await signTimesheet(
+      req('POST', `/api/timesheets/${it_.timesheet}/approve`, {}),
+      { params: Promise.resolve({ id: it_.timesheet }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const a = await prisma.workAssertion.findFirstOrThrow({
+      where: { timesheetId: it_.timesheet, role: 'PASS_THROUGH' },
+    })
+    expect(a.companyId).toBe(co.prime)
+  })
+
+  it('leaves CloudEPA’s own desk reading the same week under its own name, now that it has reached it', async () => {
+    as(SUB)
+    const r = await json(await decisionQueue(req('GET', '/api/decisions')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const week = r.body.data.decisions.find((d: any) => d.type === 'TIMESHEET_APPROVAL')
+    expect(week, 'the employer is asked to accept what it will pay for').toBeTruthy()
+    expect(week.subtitle).toContain('Computer Systems')
   })
 
   it('has CloudEPA accept what it will pay for, which is a different statement', async () => {

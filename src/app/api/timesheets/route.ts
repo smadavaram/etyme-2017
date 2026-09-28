@@ -9,6 +9,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { mayFile, rungVerdict } from './filing'
 import { weekFlag, flaggedFirst } from '@/lib/timesheet-flag'
+import { weekTurn } from './ladder'
 import { rungsToFile, openWeeks } from '@/lib/consultant-portfolio'
 import { maySign, type Sheet } from '@/lib/timesheet-signatures'
 import {
@@ -172,6 +173,22 @@ export async function GET(request: NextRequest) {
 
   const filingFor = await ownFiling(caller.person.id)
 
+  // Whose turn it is on each chain week, for this reader — the approve
+  // route's own question (`./chain-turn`), so the list never offers a
+  // firm a button before the week has reached it, and offers the firm in
+  // the middle the one it now has. A week with one firm on each side
+  // needs no walk.
+  const turnFirm = asClient && buyerCompanyId ? buyerCompanyId : caller.company?.id ?? null
+  const turns = new Map<string, Awaited<ReturnType<typeof weekTurn>>['turn']>()
+  if (turnFirm && !onBench) {
+    await Promise.all(
+      timesheets
+        .filter((t) => t.status === 'SUBMITTED')
+        .filter((t) => t.sellContract.companyId !== (t.sellContract.endClientCompanyId ?? t.sellContract.clientCompanyId))
+        .map(async (t) => turns.set(t.id, (await weekTurn(t, turnFirm)).turn))
+    )
+  }
+
   return NextResponse.json({
     data: {
       timesheets: timesheets.map((t) => {
@@ -221,7 +238,12 @@ export async function GET(request: NextRequest) {
         // The same choice the approve route makes, so the screen and the
         // server cannot disagree about which signature this press is.
         const asParty = isClientSide ? 'CLIENT' : 'EMPLOYER'
-        const signable = maySign(asParty, sheet, isClientSide, isEmployerSide)
+        const turn = turns.get(t.id)
+        // In a chain the turn decides, not the two-party rule: a firm in
+        // the middle has no column to sign and an employer waits its turn.
+        const signable = turn
+          ? { ok: turn.ok, reason: turn.ok ? 'Your turn.' : turn.says }
+          : maySign(asParty, sheet, isClientSide, isEmployerSide)
         const otherParty = isClientSide
           ? t.sellContract.company?.name ?? 'the supplier'
           : seen.clientCompany.name
@@ -229,9 +251,13 @@ export async function GET(request: NextRequest) {
         // A tick this side has already given is not offered again, and
         // the row says who it is now waiting on in their own name.
         const approve =
-          entitled.ok && !signable.ok && mine
-            ? { ok: false, reason: waitingSentence(isClientSide, otherParty) }
-            : entitled
+          turn && entitled.ok
+            ? turn.ok
+              ? { ok: true, reason: turn.signer.role === 'PASS_THROUGH' ? 'Accepting what you pay, in your turn.' : entitled.reason }
+              : { ok: false, reason: turn.says }
+            : entitled.ok && !signable.ok && mine
+              ? { ok: false, reason: waitingSentence(isClientSide, otherParty) }
+              : entitled
         const signature = {
           youSigned: mine != null,
           youSignedAt: mine?.at.toISOString() ?? null,

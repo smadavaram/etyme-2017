@@ -142,8 +142,12 @@ describe('in a chain, nobody decides their own leg', () => {
 
   it('a direct placement asks the database nothing extra, because the walk stops where nobody bought', () => {
     // One query for the rung above, which returns nothing, and the walk
-    // ends. The ordinary case stays the ordinary case.
-    expect(APPROVE).toContain('if (wanted.length === 0) break')
-    expect(APPROVE).toContain('for (let depth = 0; depth < 8 && frontier.length > 0; depth++)')
+    // ends. The ordinary case stays the ordinary case. The walk moved
+    // beside the route on 2026-09-28, so the decisions queue and the
+    // timesheet list ask whose turn it is the same way the route does.
+    const LADDER = readFileSync(join(process.cwd(), 'src/app/api/timesheets/ladder.ts'), 'utf8')
+    expect(APPROVE).toContain("import { ladderAbove, type LegContract } from '../../ladder'")
+    expect(LADDER).toContain('if (wanted.length === 0) break')
+    expect(LADDER).toContain('for (let depth = 0; depth < 8 && frontier.length > 0; depth++)')
   })
 })

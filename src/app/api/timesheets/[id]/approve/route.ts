@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
@@ -13,6 +14,8 @@ import {
   type Decision, type Treatment, type ChainRung,
 } from '@/lib/overtime'
 import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
+import { ladderAbove, type LegContract } from '../../ladder'
+import { topDown, signersOf, turnOf, tellNext, signedBy, type Signer } from '../../chain-turn'
 
 /**
  * POST /api/timesheets/:id/approve
@@ -130,7 +133,42 @@ export async function POST(
     )
   }
 
-  const allowed = mayApprove(signingAs, parties)
+  // ── Whose turn it is, down the chain ────────────────────────────────
+  //
+  // The client signs first; the week then goes down the chain, each firm
+  // accepting what it pays, the employer last (`../../chain-turn`). The
+  // ladder is walked here, before anything is signed, because the order
+  // is the first question: a firm whose turn has not come is told who it
+  // is waiting on, and the firm in the middle — which had no step at all
+  // — accepts as PASS_THROUGH on the ledger.
+  const rungs = await ladderAbove(timesheet.sellContractId, {
+    sellContractId: timesheet.sellContractId,
+    companyId: timesheet.sellContract.companyId,
+    clientCompanyId: timesheet.sellContract.clientCompanyId,
+    endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+    supplierSellContractId: null,
+  })
+  const ladder = topDown(rungs.map((r) => r.rung))
+  const signers = signersOf(ladder)
+  const names = new Map(
+    (
+      await prisma.company.findMany({
+        where: { id: { in: [...new Set([...signers.map((x) => x.companyId), ...ladder.map((r) => r.companyId)])] } },
+        select: { id: true, name: true },
+      })
+    ).map((c) => [c.id, c.name])
+  )
+  const nameOf = (companyId: string) => names.get(companyId) ?? 'The firm above you'
+
+  // Every firm on the chain signs its own turn. `mayApprove` knows the
+  // buyer and the seller on the contract the hours sit on; a firm two
+  // rungs up is on the chain too, and is asked its turn below rather
+  // than refused here as a stranger. The permission still has to be held.
+  const onTheChain =
+    signers.some((x) => x.companyId === onBehalfOf) &&
+    hasPermission(signingAs.permissions, 'timesheets.approve')
+  const verdict = mayApprove(signingAs, parties)
+  const allowed = verdict.ok || !onTheChain ? verdict : { ok: true, reason: 'Accepting what it pays, in its turn down the chain.' }
   if (!allowed.ok) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: allowed.reason } },
@@ -174,13 +212,32 @@ export async function POST(
     direct,
   }
 
-  const asParty = body?.as === 'EMPLOYER' ? 'EMPLOYER' : isClient ? 'CLIENT' : 'EMPLOYER'
-  const may = maySign(asParty, sheet, isClient, isEmployer)
-  if (!may.ok) {
-    return NextResponse.json(
-      { error: { code: 'CANNOT_SIGN', message: may.reason } },
-      { status: 409 }
-    )
+  let asParty: 'CLIENT' | 'EMPLOYER' | 'PASS'
+  let nextSigner: Signer | null = null
+  if (direct) {
+    // One firm on both sides: one press signs both, as it always has.
+    asParty = body?.as === 'EMPLOYER' ? 'EMPLOYER' : isClient ? 'CLIENT' : 'EMPLOYER'
+    const may = maySign(asParty, sheet, isClient, isEmployer)
+    if (!may.ok) {
+      return NextResponse.json(
+        { error: { code: 'CANNOT_SIGN', message: may.reason } },
+        { status: 409 }
+      )
+    }
+  } else {
+    const live = await prisma.workAssertion.findMany({
+      where: { timesheetId: id, state: 'LIVE' },
+      select: { companyId: true, role: true },
+    })
+    const turn = turnOf(signers, onBehalfOf, (x) => signedBy(x, timesheet, live), nameOf)
+    if (!turn.ok) {
+      return NextResponse.json(
+        { error: { code: turn.code === 'NOT_YOUR_TURN' ? 'NOT_YOUR_TURN' : 'CANNOT_SIGN', message: turn.says } },
+        { status: 409 }
+      )
+    }
+    asParty = turn.signer.role === 'CLIENT_APPROVAL' ? 'CLIENT' : turn.signer.role === 'EMPLOYER_ACCEPTANCE' ? 'EMPLOYER' : 'PASS'
+    nextSigner = turn.next
   }
 
   // Accepting a different number needs a reason. Somebody finding out
@@ -216,13 +273,6 @@ export async function POST(
   // the hours sit on, whoever gave it — which left a prime with no
   // answer of its own to bill from, and put the client's agreement on
   // its supplier's row where the supplier could read it.
-  const rungs = await ladderAbove(timesheet.sellContractId, {
-    sellContractId: timesheet.sellContractId,
-    companyId: timesheet.sellContract.companyId,
-    clientCompanyId: timesheet.sellContract.clientCompanyId,
-    endClientCompanyId: timesheet.sellContract.endClientCompanyId,
-    supplierSellContractId: null,
-  })
   const leg = decidingLeg(onBehalfOf, rungs.map((r) => r.rung), timesheet.sellContractId)
 
   // The terms, the rate and the names of the leg being answered. On a
@@ -433,7 +483,11 @@ export async function POST(
         clientApprovedById: person.id, clientApprovedAt: now,
         employerAcceptedById: person.id, employerAcceptedAt: now,
       }
-    : asParty === 'CLIENT'
+    : asParty === 'PASS'
+      ? // The firm in the middle has no column; its acceptance is the
+        // PASS_THROUGH assertion below, which is the ledger's own shape.
+        {}
+      : asParty === 'CLIENT'
       ? { clientApprovedById: person.id, clientApprovedAt: now }
       : {
           employerAcceptedById: person.id, employerAcceptedAt: now,
@@ -474,7 +528,7 @@ export async function POST(
       companyId: onBehalfOf,
       role: direct
         ? asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE'
-        : asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE',
+        : asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : asParty === 'PASS' ? 'PASS_THROUGH' : 'EMPLOYER_ACCEPTANCE',
       hours: accepted.hours ?? hours,
       rateCents: deciding.billRate,
       state: 'LIVE',
@@ -796,6 +850,47 @@ export async function POST(
   // Hours going into the bank instead of onto the invoice are the
   // consultant's money changing shape, so they hear it in their own
   // words rather than finding out from a balance.
+  // ── The week goes down to the next rung ─────────────────────────────
+  //
+  // Told on its desk and by email, because a rung that only hears when it
+  // opens the app is a rung that pays late — and nobody below it pays at
+  // all until it has accepted.
+  if (nextSigner) {
+    const pays =
+      nextSigner.role === 'EMPLOYER_ACCEPTANCE'
+        ? timesheet.person.name
+        : nameOf(ladder.find((r) => r.sellContractId === nextSigner!.rungId)?.companyId ?? '')
+    const said = tellNext({
+      personName: timesheet.person.name,
+      period: `${timesheet.periodStart.toISOString().slice(0, 10)} – ${timesheet.periodEnd.toISOString().slice(0, 10)}`,
+      hours: accepted.hours ?? hours,
+      signedBy: nameOf(onBehalfOf),
+      signedRole: asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : asParty === 'PASS' ? 'PASS_THROUGH' : 'EMPLOYER_ACCEPTANCE',
+      paysName: pays,
+    })
+    const desk = await prisma.context.findMany({
+      where: {
+        companyId: nextSigner.companyId,
+        revokedAt: null,
+        role: { permissions: { hasSome: ['timesheets.approve', '*'] } },
+      },
+      select: { personId: true },
+      take: 5,
+    })
+    for (const d of desk) {
+      void notify({
+        personId: d.personId,
+        companyId: nextSigner.companyId,
+        type: 'TIMESHEET',
+        channel: 'EMAIL',
+        title: said.title,
+        body: said.body,
+        entityId: id,
+        data: { timesheetId: id, href: '/dashboard/timesheets' },
+      })
+    }
+  }
+
   if (bankedNow > 0 || drewNow > 0) {
     const lines: string[] = []
     if (bankedNow > 0) lines.push(`${bankedNow}h of overtime went into your time-off bank`)
@@ -831,104 +926,4 @@ export async function POST(
           : `Approved ${hours}h — $${billAmount.toFixed(2)} billable`,
     },
   })
-}
-
-/** One contract as answering a leg needs it: its terms, its rate, its two firms. */
-interface LegContract {
-  id: string
-  billRate: number
-  overtimeAfterHours: number | null
-  overtimeMultiplierBps: number | null
-  companyId: string
-  clientCompanyId: string
-  endClientCompanyId: string | null
-  companyName: string | null
-  clientName: string | null
-}
-
-/**
- * The rungs above the contract the hours are filed against.
- *
- * `lib/work-chain-read` descends, because a firm billing for hours needs
- * to find them underneath it. This is the opposite question and it is
- * asked by the approver, not about them: which of the contracts on this
- * ladder is the one I buy on. A client cannot find its own leg by
- * descending, because its leg is at the top.
- *
- * `BuyContract.supplierSellContractId` is the edge in both directions —
- * followed downward it finds the hours; followed upward it finds
- * whoever bought them from us. Two queries per rung above, and none at
- * all on a direct placement, which is the ordinary case: the walk stops
- * the first time nobody has bought this contract's person from us.
- *
- * It returns nothing a firm is not entitled to on its own leg: the
- * caller reads the rate off the one rung it is a party to, and
- * `decidingLeg` picks that rung before anything is priced.
- */
-async function ladderAbove(
-  hoursOn: string,
-  bottom: ChainRung
-): Promise<{ rung: ChainRung; contract: LegContract | null }[]> {
-  const out: { rung: ChainRung; contract: LegContract | null }[] = []
-  const seen = new Set<string>([hoursOn])
-  let frontier = [hoursOn]
-
-  // A chain deeper than eight firms is a data fault rather than a
-  // business arrangement, and stopping beats looping forever on one.
-  for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {
-    const links = await prisma.contractLink.findMany({
-      where: { buyContract: { supplierSellContractId: { in: frontier } } },
-      select: {
-        sellContractId: true,
-        buyContract: { select: { supplierSellContractId: true } },
-      },
-    })
-
-    const wanted = [...new Set(links.map((l) => l.sellContractId))].filter((id) => !seen.has(id))
-    if (wanted.length === 0) break
-    wanted.forEach((id) => seen.add(id))
-
-    const rows = await prisma.sellContract.findMany({
-      where: { id: { in: wanted } },
-      select: {
-        id: true, billRate: true, companyId: true,
-        clientCompanyId: true, endClientCompanyId: true,
-        overtimeAfterHours: true, overtimeMultiplierBps: true,
-        company: { select: { name: true } },
-        clientCompany: { select: { name: true } },
-        endClientCompany: { select: { name: true } },
-      },
-    })
-
-    for (const row of rows) {
-      const below = links.find((l) => l.sellContractId === row.id)?.buyContract.supplierSellContractId ?? null
-      out.push({
-        rung: {
-          sellContractId: row.id,
-          companyId: row.companyId,
-          clientCompanyId: row.clientCompanyId,
-          endClientCompanyId: row.endClientCompanyId,
-          supplierSellContractId: below,
-        },
-        contract: {
-          id: row.id,
-          billRate: row.billRate,
-          overtimeAfterHours: row.overtimeAfterHours,
-          overtimeMultiplierBps: row.overtimeMultiplierBps,
-          companyId: row.companyId,
-          clientCompanyId: row.clientCompanyId,
-          endClientCompanyId: row.endClientCompanyId,
-          companyName: row.company?.name ?? null,
-          clientName: row.endClientCompany?.name ?? row.clientCompany?.name ?? null,
-        },
-      })
-    }
-
-    frontier = wanted
-  }
-
-  // The bottom rung comes back too, with no contract of its own: the
-  // caller already holds that row, and handing it back a second copy is
-  // how two readings of one contract drift apart.
-  return [...out, { rung: bottom, contract: null }]
 }
