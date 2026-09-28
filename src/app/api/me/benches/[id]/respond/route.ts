@@ -82,7 +82,7 @@ export async function POST(
           said === 'DECLINE' && body.note
             ? `They said: ${String(body.note).slice(0, 300)}`
             : said === 'ACCEPT'
-              ? 'You can put them forward for roles now.'
+              ? 'You can put them forward for jobs now.'
               : 'No reason given.',
         entityId: id,
         channel: 'IN_APP',

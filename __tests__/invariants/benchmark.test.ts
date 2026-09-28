@@ -175,7 +175,7 @@ describe('the same figure, told to the consultant', () => {
     // their own record current without being asked, which is the
     // freshness loop paying for itself.
     expect(forTheConsultant(b, FICO)).toBe(
-      'SAP FICO roles in Denver, CO paid between $110 and $140 an hour last quarter, based on 6 real submissions.'
+      'SAP FICO jobs in Denver, CO paid between $110 and $140 an hour last quarter, based on 6 real submissions.'
     )
   })
 

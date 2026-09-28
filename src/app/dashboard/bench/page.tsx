@@ -1221,7 +1221,7 @@ function RosterSurface({
             <p className="text-[12px] text-etyme-muted mt-3">
               {summary.skillsUnknown} of {summary.total}{' '}
               {summary.skillsUnknown === 1 ? 'has' : 'have'} no skills on record, so nothing can be
-              matched to a role for {summary.skillsUnknown === 1 ? 'them' : 'them'} yet.
+              matched to a job for them yet.
             </p>
           )}
         </div>
@@ -1339,7 +1339,7 @@ function BenchBurnPanel({ data }: { data: BurnData }) {
           {data.openRequirements > 0 && (
             <div className="flex items-center gap-1.5 ml-auto">
               <span className="text-etyme-verified font-medium">
-                {data.openRequirements} open req{data.openRequirements !== 1 ? 's' : ''}
+                {data.openRequirements} open requirement{data.openRequirements !== 1 ? 's' : ''}
               </span>
               <span className="text-etyme-faint">for matching</span>
             </div>

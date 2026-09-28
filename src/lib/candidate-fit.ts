@@ -107,7 +107,7 @@ export function assessFit(input: FitInput): FitAssessment {
   let skillValue: number
   if (required.skills.length === 0) {
     skillValue = 50
-    unknowns.push('the requisition lists no skills, so there is nothing to match against')
+    unknowns.push('the job request lists no skills, so there is nothing to match against')
   } else if (candidate.skills.length === 0) {
     skillValue = 0
     unknowns.push('no skills on this candidate’s profile — the score assumes none, which is probably unfair to them')
@@ -164,7 +164,7 @@ export function assessFit(input: FitInput): FitAssessment {
     locDetail = 'No location required'
   } else if (!candidate.location) {
     unknowns.push('where this candidate is based')
-    locDetail = `Requisition is ${required.location}; candidate location unknown`
+    locDetail = `The job is in ${required.location}; candidate location unknown`
   } else {
     const r = norm(required.location)
     const c = norm(candidate.location)
@@ -216,7 +216,7 @@ export function assessFit(input: FitInput): FitAssessment {
     unknowns.length === 0 ? 'HIGH' : unknowns.length <= 2 ? 'MODERATE' : 'LOW'
 
   const basis = required.skills.length === 0
-    ? 'Rate, location and availability only — the requisition names no skills'
+    ? 'Rate, location and availability only — the job request names no skills'
     : `${matched.length} of ${required.skills.length} required skill(s), rate against the stated ceiling, location and start date`
 
   return {

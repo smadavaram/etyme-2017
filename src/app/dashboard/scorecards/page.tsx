@@ -231,7 +231,7 @@ export default function ScorecardsPage() {
         <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
           Built from what actually happened here — not from who emails you
           most. None of your suppliers can work these out about themselves:
-          they cannot see what the other eleven did with the same role.
+          they cannot see what the other eleven did with the same job.
         </p>
       </header>
 
@@ -453,7 +453,7 @@ export default function ScorecardsPage() {
       {!loading && cards.length === 0 && !error && (
         <div className="panel">
           <p className="text-[13px] text-etyme-muted">
-            Nothing to score yet. Send a role to a supplier and this fills in.
+            Nothing to score yet. Send a job to a supplier and this fills in.
           </p>
         </div>
       )}

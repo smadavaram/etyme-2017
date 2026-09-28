@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
   const noIssueDate = inWindow.filter((i) => i.issuedAt == null).length
   if (noIssueDate > 0) {
     gaps.push(
-      `${noIssueDate} invoice${noIssueDate === 1 ? '' : 's'} have no issue date, so the end ` +
+      `${noIssueDate} bill${noIssueDate === 1 ? '' : 's'} have no issue date, so the end ` +
         `of the period they bill is used instead. Close, and not the same thing.`
     )
   }
@@ -299,7 +299,7 @@ export async function GET(request: NextRequest) {
     })
     if (bySupplier.size > 0) {
       gaps.push(
-        'No sub-vendor bills on record in this window, so supplier concentration is ' +
+        'No supplier invoices on record in this window, so supplier concentration is ' +
           'counted in people supplied rather than in money.'
       )
     }
@@ -329,7 +329,7 @@ export async function GET(request: NextRequest) {
 
   if (inWindow.length > 0 && linesInWindow.length === 0) {
     gaps.push(
-      'None of the invoices in this window carry line-level detail, so nothing can be ' +
+      'None of the bills in this window carry line-level detail, so nothing can be ' +
         'attributed to a named person. The client figures are unaffected.'
     )
   }
@@ -343,8 +343,8 @@ export async function GET(request: NextRequest) {
       report,
       gaps,
       howJudged:
-        'Invoices for the client share, sub-vendor bills for the supplier share, invoice ' +
-        'lines for the person share. An invoice is attributed to its client through the ' +
+        'Bills for the client share, supplier invoices for the supplier share, bill ' +
+        'lines for the person share. A bill is attributed to its client through the ' +
         'agreement, the order or the lines billed on it, in that order, and one that none ' +
         'of the three can name is counted in the gaps rather than given to somebody. ' +
         'Thresholds are published beside the figures — a line somebody chose is one the ' +

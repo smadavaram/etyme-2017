@@ -174,7 +174,7 @@ export default function TrainingPage() {
         <h1>Training</h1>
         <p>
           What clients are asking for, against the people you could field — your bench
-          and your own payroll. Invest where more roles want a skill than you have people for.
+          and your own payroll. Invest where more jobs want a skill than you have people for.
         </p>
       </div>
 
@@ -210,7 +210,7 @@ export default function TrainingPage() {
           <p className="stat-label">Skills tracked</p>
           <p className="stat-value text-etyme-action">{figure(gap?.skillsTracked ?? null)}</p>
           <p className="text-[11px] text-etyme-faint mt-0.5">
-            {gap?.skillsTracked == null ? 'both sides, or neither' : 'across roles and people'}
+            {gap?.skillsTracked == null ? 'both sides, or neither' : 'across jobs and people'}
           </p>
         </div>
         <div className="panel">
@@ -219,7 +219,7 @@ export default function TrainingPage() {
             {figure(gap?.inDeficit ?? null)}
           </p>
           <p className="text-[11px] text-etyme-faint mt-0.5">
-            {gap?.inDeficit == null ? 'not comparable' : 'more roles than people'}
+            {gap?.inDeficit == null ? 'not comparable' : 'more jobs than people'}
           </p>
         </div>
       </div>
@@ -261,13 +261,13 @@ export default function TrainingPage() {
           <div>
             <p className="stat-label">Skill gap</p>
             <p className="text-[11px] text-etyme-faint mt-0.5">
-              What open roles ask for, against the people you could field — your bench and your own payroll
+              What open jobs ask for, against the people you could field — your bench and your own payroll
             </p>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-etyme-attention" />
-              Roles asking
+              Jobs asking
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-etyme-verified" />
@@ -279,7 +279,7 @@ export default function TrainingPage() {
         {top.length === 0 ? (
           <p className="text-sm text-etyme-muted text-center py-6">
             {gap?.says ??
-              'No skill data yet. Put skills on your roles and on your people, and the comparison appears here.'}
+              'No skill data yet. Put skills on your jobs and on your people, and the comparison appears here.'}
           </p>
         ) : (
           <div className="space-y-2.5">
@@ -292,7 +292,7 @@ export default function TrainingPage() {
                   <div
                     className="h-3 rounded-l bg-etyme-attention/70 transition-all"
                     style={{ width: `${(row.demand / maxDemand) * 50}%`, minWidth: row.demand > 0 ? '4px' : '0' }}
-                    title={`${row.demand} open ${row.demand === 1 ? 'role asks' : 'roles ask'} for it`}
+                    title={`${row.demand} open ${row.demand === 1 ? 'job asks' : 'jobs ask'} for it`}
                   />
                   <div
                     className="h-3 rounded-r bg-etyme-verified/70 transition-all"

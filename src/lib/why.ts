@@ -286,7 +286,7 @@ export function whyRequirement(v: Viewer, r: RequirementFacts): Why {
     passed: canRead,
     said: canRead ? 'Their role includes requirements.read.' : 'Their role does not include requirements.read.',
   })
-  if (!canRead) return no(checks, 'Reading open roles needs requirements.read.', askFor('requirements.read'))
+  if (!canRead) return no(checks, 'Reading open jobs needs requirements.read.', askFor('requirements.read'))
 
   const own = v.companyId === r.companyId
   checks.push({

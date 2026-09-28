@@ -74,7 +74,7 @@ export default function MyStandingPage() {
         <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
           The same numbers they read. You are not shown anybody else&rsquo;s, and
           you are not ranked against them — but this is what decides who gets
-          the next role, so it should not be a secret from you.
+          the next job, so it should not be a secret from you.
         </p>
       </header>
 
@@ -91,7 +91,7 @@ export default function MyStandingPage() {
       {!loading && cards.length === 0 && !error && (
         <div className="panel">
           <p className="text-[13px] text-etyme-muted">
-            No client has sent you a role yet. Nothing to show.
+            No client has sent you a job yet. Nothing to show.
           </p>
         </div>
       )}

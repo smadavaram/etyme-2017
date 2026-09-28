@@ -268,7 +268,7 @@ export default function AlumniPage() {
             {clientName && (
               <p>
                 Institutional memory at {clientName} — every person who has held a contract here,
-                across all vendors. Re-engagement is gated by tenure policy.
+                across all vendors. Asking somebody back is checked against the time limit and the break rules first.
               </p>
             )}
           </>

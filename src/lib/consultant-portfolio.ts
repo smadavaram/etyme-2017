@@ -829,7 +829,7 @@ export function mayMarket(p: { name: string; listed: boolean }): { ok: boolean; 
     ok: false,
     says:
       `${p.name} has granted no bench listing, so nothing here markets, shares or lists them. ` +
-      'Putting your own employee in front of a client happens from the role itself, where the ' +
+      'Putting your own employee in front of a client happens from the job itself, where the ' +
       'employment is the consent and they are told where they went.',
   }
 }

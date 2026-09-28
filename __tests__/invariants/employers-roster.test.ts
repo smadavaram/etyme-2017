@@ -121,7 +121,7 @@ describe('a firm sees the people it employs', () => {
     expect(no.says).toMatch(/granted no bench listing/)
     expect(no.says).toMatch(/nothing here markets, shares or lists them/)
     // And it says where it does happen, rather than leaving a dead end.
-    expect(no.says).toMatch(/from the role itself/)
+    expect(no.says).toMatch(/from the job itself/)
   })
 
   it('somebody who did grant a listing may be marketed, and the roster says which', () => {

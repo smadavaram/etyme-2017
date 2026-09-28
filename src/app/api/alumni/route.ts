@@ -279,7 +279,7 @@ export async function GET(request: NextRequest) {
         }
       } else {
         canReengage = false
-        reengageBlockReason = 'Tenure limit exceeded, no end date recorded'
+        reengageBlockReason = 'Time limit on site reached, and no end date is recorded'
       }
     }
 

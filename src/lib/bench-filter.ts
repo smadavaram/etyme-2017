@@ -234,7 +234,7 @@ export function sift(
         personId: c.personId,
         name: c.name,
         code: 'RATE',
-        because: `wants $${Math.round((c.rateFloor ?? 0) / 100)}, the role tops out at $${Math.round((role.billMax ?? 0) / 100)}`,
+        because: `wants $${Math.round((c.rateFloor ?? 0) / 100)}, the job tops out at $${Math.round((role.billMax ?? 0) / 100)}`,
       })
       continue
     }
@@ -256,7 +256,7 @@ export function sift(
         personId: c.personId,
         name: c.name,
         code: 'WORK_AUTH',
-        because: `role needs ${role.workAuth}, they are ${c.workAuth}`,
+        because: `the job needs ${role.workAuth}, they are ${c.workAuth}`,
       })
       continue
     }
@@ -309,7 +309,7 @@ export function summarize(considered: number, kept: number, dropped: Dropped[]):
   const said: string[] = []
   const label: Record<string, string> = {
     SKILLS: 'no overlapping skills',
-    RATE: 'priced above the role',
+    RATE: 'priced above the job',
     AVAILABILITY: 'not free in time',
     WORK_AUTH: 'wrong work authorization',
     SHORTLIST: 'ranked below the cut',
@@ -522,7 +522,7 @@ export function submitLink(
     return {
       ok: false,
       says:
-        `You chose ${chosen.length} people. A submission is one person to one role, so put them forward ` +
+        `You chose ${chosen.length} people. A submission is one person to one job, so put them forward ` +
         'one at a time: choose one and press Submit.',
     }
   }

@@ -267,8 +267,8 @@ function gapSentence(f: {
 }): string {
   if (f.people === 0) {
     return f.roles === 0
-      ? 'No open roles and nobody to field yet, so there is nothing to compare.'
-      : `Nobody on your bench or your payroll, so all ${f.roles} open ${f.roles === 1 ? 'role' : 'roles'} are unmet.`
+      ? 'No open jobs and nobody to field yet, so there is nothing to compare.'
+      : `Nobody on your bench or your payroll, so all ${f.roles} open ${f.roles === 1 ? 'job' : 'jobs'} are unmet.`
   }
   if (!f.describable) {
     return (
@@ -283,10 +283,10 @@ function gapSentence(f: {
       ? ` ${unknown} of them ${unknown === 1 ? 'has' : 'have'} no skills on record, so the real supply can only be wider.`
       : ''
   if (f.roles === 0) {
-    return `No open roles to compare against. ${f.peopleWithSkills} of ${f.people} you could field ${f.peopleWithSkills === 1 ? 'has' : 'have'} skills on record.${caveat}`
+    return `No open jobs to compare against. ${f.peopleWithSkills} of ${f.people} you could field ${f.peopleWithSkills === 1 ? 'has' : 'have'} skills on record.${caveat}`
   }
   return (
-    `${f.roles} open ${f.roles === 1 ? 'role' : 'roles'} against ${f.people} ${f.people === 1 ? 'person' : 'people'} you could field. ` +
-    `${f.inDeficit} ${f.inDeficit === 1 ? 'skill is' : 'skills are'} wanted by more roles than you have people for.${caveat}`
+    `${f.roles} open ${f.roles === 1 ? 'job' : 'jobs'} against ${f.people} ${f.people === 1 ? 'person' : 'people'} you could field. ` +
+    `${f.inDeficit} ${f.inDeficit === 1 ? 'skill is' : 'skills are'} wanted by more jobs than you have people for.${caveat}`
   )
 }

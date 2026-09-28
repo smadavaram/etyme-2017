@@ -378,7 +378,7 @@ export async function GET(request: NextRequest) {
   const gaps: string[] = []
   if (unattributed > 0) {
     gaps.push(
-      `${unattributed} invoice${unattributed === 1 ? '' : 's'} could not be attributed to a ` +
+      `${unattributed} bill${unattributed === 1 ? '' : 's'} could not be attributed to a ` +
         `counterparty — no agreement, no order and no line behind ` +
         `${unattributed === 1 ? 'it' : 'them'}. ` +
         `${unattributed === 1 ? 'It is' : 'They are'} left out of the payment records here ` +
@@ -405,8 +405,8 @@ export async function GET(request: NextRequest) {
       // account for is one nobody acts on.
       howJudged:
         'Certificates on file, what they did with money they owed us, what we did with ' +
-        'money we owed them, and whatever somebody last recorded in the register. An ' +
-        'invoice is charged to a counterparty through the agreement, the order or the ' +
+        'money we owed them, and whatever somebody last recorded in the register. A ' +
+        'bill we raised is charged to a counterparty through the agreement, the order or the ' +
         'lines billed on it, in that order. Where none of those exist the answer is that ' +
         'nobody has looked — never a clean bill.',
       neverBlocks:

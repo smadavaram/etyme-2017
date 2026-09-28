@@ -227,7 +227,7 @@ export function scorecard(
     says:
       where == null
         ? positions.length === 0
-          ? 'No band on the roles you sent them, so there is nothing to compare.'
+          ? 'No band on the jobs you sent them, so there is nothing to compare.'
           : `Only ${positions.length} priced against a band. Too few to say.`
         : where > 100
           ? 'They usually ask above the band you give them.'
@@ -283,11 +283,11 @@ export function summarize(
     // four of their CVs reads as a contradiction, so say the real thing.
     return subs.length === 0
       ? `You have not sent ${vendorName} anything yet.`
-      : `You have not sent ${vendorName} a role, and ${subs.length} ` +
+      : `You have not sent ${vendorName} a job, and ${subs.length} ` +
         `submission${subs.length === 1 ? '' : 's'} came in anyway.`
   }
   if (subs.length === 0) {
-    return `${sent} role${sent === 1 ? '' : 's'} sent, nothing back. Worth asking why.`
+    return `${sent} job${sent === 1 ? '' : 's'} sent, nothing back. Worth asking why.`
   }
   if (!enough) {
     return (
@@ -340,7 +340,7 @@ export function whatToFix(card: Scorecard): string[] {
   const out: string[] = []
 
   if (card.sent > 0 && card.received === 0) {
-    out.push('They have sent you roles and had nothing back. Even a decline is worth sending.')
+    out.push('They have sent you jobs and had nothing back. Even a decline is worth sending.')
     return out
   }
 
@@ -352,7 +352,7 @@ export function whatToFix(card: Scorecard): string[] {
 
   if (card.firstReplyHours.value != null && card.firstReplyHours.value > 48) {
     out.push(
-      `Your first CV takes about ${Math.round(card.firstReplyHours.value / 24)} days. Most roles are decided in the first week.`
+      `Your first CV takes about ${Math.round(card.firstReplyHours.value / 24)} days. Most jobs are decided in the first week.`
     )
   }
 
@@ -421,13 +421,13 @@ function heldSays(code: string, count: number, total: number): string {
     case 'WORK_AUTH':
       return `${count} came without a work permit recorded. One field, and it holds up the whole submission.`
     case 'CAN_START':
-      return `${count} could not start when the role needed somebody.`
+      return `${count} could not start when the job needed somebody.`
     case 'GOVERNANCE':
       return `${count} hit a tenure or break-in-service limit. Nothing they can do about those.`
     case 'NOT_BARRED':
       return `${count} ${many ? 'were people' : 'was somebody'} the client has asked not to see again.`
     case 'VENDOR_ENGAGED':
-      return `${count} came in on roles nobody invited them to.`
+      return `${count} came in on jobs nobody invited them to.`
     case 'SKILLS_EVIDENCED':
       return `${count} claimed skills the CV does not back up.`
     default:

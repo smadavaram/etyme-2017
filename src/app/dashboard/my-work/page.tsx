@@ -908,7 +908,7 @@ export default function MyWorkPage() {
         <div>
           <Lbl>Approved, not billed</Lbl>
           <div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.approvedNotBilled}</div>
-          <div className="text-xs text-etyme-muted">your vendor invoices these</div>
+          <div className="text-xs text-etyme-muted">your vendor bills these</div>
         </div>
         <div>
           <Lbl>Ending within 60 days</Lbl>

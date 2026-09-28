@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
       clients: cards,
       summary:
         cards.length === 0
-          ? 'No client has sent you a role yet.'
+          ? 'No client has sent you a job yet.'
           : `${cards.length} ${cards.length === 1 ? 'client' : 'clients'}.` +
             (worst?.holdsThemUp ? ` ${worst.holdsThemUp.says}` : ''),
       windowDays: WINDOW_DAYS,

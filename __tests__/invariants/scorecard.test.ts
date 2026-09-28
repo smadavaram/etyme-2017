@@ -65,7 +65,7 @@ describe('a supplier nobody has sent anything to', () => {
 describe('a supplier who never answers', () => {
   it('is the one finding worth surfacing on its own', () => {
     const c = scorecard('Kestrel', [sent(), sent({ requirementId: 'r2' })], [], NOW)
-    expect(c.summary).toBe('2 roles sent, nothing back. Worth asking why.')
+    expect(c.summary).toBe('2 jobs sent, nothing back. Worth asking why.')
   })
 
   it('tells them so on their own card', () => {
@@ -235,7 +235,7 @@ describe('where they price inside the band', () => {
   it('says plainly when there was no band to compare against', () => {
     const { roles, subs } = six({ bandMinCents: null, bandMaxCents: null })
     expect(scorecard('Apex', roles, subs, NOW).asks.says).toBe(
-      'No band on the roles you sent them, so there is nothing to compare.'
+      'No band on the jobs you sent them, so there is nothing to compare.'
     )
   })
 })
@@ -297,7 +297,7 @@ describe('ordering twelve suppliers', () => {
 })
 
 describe('what a supplier is told to fix', () => {
-  it('tells a slow one that roles are decided in the first week', () => {
+  it('tells a slow one that jobs are decided in the first week', () => {
     const roles = Array.from({ length: 6 }, (_, i) =>
       sent({ requirementId: `r${i}`, invitedAt: daysAgo(30) })
     )
@@ -305,7 +305,7 @@ describe('what a supplier is told to fix', () => {
       put({ requirementId: `r${i}`, submittedAt: daysAgo(25) })
     )
     expect(whatToFix(scorecard('Vertex', roles, subs, NOW))).toContain(
-      'Your first CV takes about 5 days. Most roles are decided in the first week.'
+      'Your first CV takes about 5 days. Most jobs are decided in the first week.'
     )
   })
 
@@ -346,7 +346,7 @@ describe('a supplier who was never invited but sent something anyway', () => {
     // is the kind of sentence that makes somebody stop trusting a page.
     const c = scorecard('Kestrel', [], [put(), put({ requirementId: 'r2' })], NOW)
     expect(c.summary).toBe(
-      'You have not sent Kestrel a role, and 2 submissions came in anyway.'
+      'You have not sent Kestrel a job, and 2 submissions came in anyway.'
     )
   })
 

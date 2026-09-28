@@ -108,7 +108,7 @@ export const COMPANY_TYPES: CompanyTypeOption[] = [
     kind: 'VENDOR',
     posture: 'PRIME',
     label: 'We supply people to clients directly',
-    blurb: 'You hold the agreement with the client and place your own consultants against their roles.',
+    blurb: 'You hold the agreement with the client and place your own consultants against their jobs.',
     example: 'A staffing firm with its own MSAs',
   },
   {

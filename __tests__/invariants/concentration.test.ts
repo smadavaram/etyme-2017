@@ -347,7 +347,7 @@ describe('An invoice with no agreement behind it still belongs to somebody', () 
 
   it('the sentence about what was dropped says what is missing and what was done with it', () => {
     const out = clientExposures([billed({ amountMinor: 12_345_00 })])
-    expect(out.says).toContain('1 invoice')
+    expect(out.says).toContain('1 bill')
     expect(out.says).toContain('$12,345')
     expect(out.says).toContain('no agreement, no order and no line')
     expect(out.says).toContain('left out of the shares above')
@@ -366,7 +366,7 @@ describe('An invoice with no agreement behind it still belongs to somebody', () 
     ])
     expect(out.unattributed).toBe(2)
     expect(out.unattributedMinor).toBeNull()
-    expect(out.says).toContain('2 invoices')
+    expect(out.says).toContain('2 bills')
     expect(out.says).not.toContain('in all')
   })
 

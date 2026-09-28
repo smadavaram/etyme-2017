@@ -231,5 +231,5 @@ export function forTheConsultant(b: Band | null, q: { skills: string[]; location
   const where = q.location ? ` in ${q.location}` : ''
   const d = (c: number) => `$${Math.round(c / 100)}`
 
-  return `${what} roles${where} paid between ${d(b.p25)} and ${d(b.p75)} an hour last quarter, based on ${b.sample} real submissions.`
+  return `${what} jobs${where} paid between ${d(b.p25)} and ${d(b.p75)} an hour last quarter, based on ${b.sample} real submissions.`
 }

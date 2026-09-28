@@ -524,7 +524,7 @@ export function clientExposures(rows: readonly BilledRow[]): ClientExposures {
     says:
       unattributed === 0
         ? null
-        : `${unattributed} invoice${unattributed === 1 ? '' : 's'}${size} could not be ` +
+        : `${unattributed} bill${unattributed === 1 ? '' : 's'}${size} could not be ` +
           `attributed to a client: no agreement, no order and no line behind ${they}. ` +
           `${unattributed === 1 ? 'It is' : 'They are'} left out of the shares above, ` +
           `rather than added to whichever client was loaded first.`,

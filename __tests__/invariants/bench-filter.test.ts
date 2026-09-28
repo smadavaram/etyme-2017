@@ -162,7 +162,7 @@ describe('the sift', () => {
   it('says why each person went, in words a recruiter would use', () => {
     // "Nobody matched" is not an answer anybody can act on.
     const out = sift(role(), [person({ personId: 'p2', rateFloor: 9500 })], { now: NOW })
-    expect(out.dropped[0].because).toBe('wants $95, the role tops out at $68')
+    expect(out.dropped[0].because).toBe('wants $95, the job tops out at $68')
   })
 
   it('cuts two hundred down to fifteen', () => {
@@ -219,7 +219,7 @@ describe('the sift', () => {
     )
     expect(out.kept).toHaveLength(0)
     expect(out.summary).toBe(
-      'Nobody fits out of 3: 1 no overlapping skills, 2 priced above the role.'
+      'Nobody fits out of 3: 1 no overlapping skills, 2 priced above the job.'
     )
   })
 
@@ -236,7 +236,7 @@ describe('what the screen says', () => {
       ...Array.from({ length: 25 }, () => ({ personId: 'x', name: 'x', code: 'SHORTLIST', because: '' })),
     ])
     expect(said).toBe(
-      '15 of 200 worth scoring — 120 no overlapping skills, 40 priced above the role, 25 ranked below the cut.'
+      '15 of 200 worth scoring — 120 no overlapping skills, 40 priced above the job, 25 ranked below the cut.'
     )
   })
 })
