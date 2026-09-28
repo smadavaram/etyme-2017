@@ -215,6 +215,20 @@ const JOIN = {
 }
 
 /**
+ * The page's rhythm, decided once on 2026-09-28 (night), the founder's
+ * "make the home page beautiful": every band has the same inner width and
+ * the same vertical padding, every section heading the same size, and
+ * both screenshots the same frame — the kit's figure corner (12px), a
+ * hairline, and its lift shadow — with the same caption under each.
+ * Phone gutters are 20px rather than 16, so nothing sits against the
+ * glass at 390.
+ */
+const BAND = 'mx-auto max-w-6xl px-5 py-16 sm:px-6 md:py-24'
+const H2 = 'max-w-[30ch] text-balance font-serif text-[30px] leading-[1.12] tracking-[-0.02em] text-etyme-ink md:text-[40px]'
+const FIGURE = 'overflow-hidden rounded-r-lg border border-etyme-rule bg-etyme-raised shadow-lift'
+const CAPTION = 'px-4 py-3 text-[13px] leading-relaxed text-etyme-muted md:px-5'
+
+/**
  * One scroll settles on one band. Not CSS scroll snapping: `proximity` did
  * nothing the founder could feel on his phone, and `mandatory`, measured
  * in WebKit and Chromium, held a reader in the hero and skipped the lower
@@ -237,9 +251,9 @@ export default function LandingPage() {
           in, and the product itself. "Less theory there." The hook line
           that sat here went to /about#unanswered. */}
       <section className="border-b border-etyme-rule">
-        <div className="mx-auto max-w-6xl px-4 pb-14 pt-12 sm:px-6 md:pb-20 md:pt-16">
+        <div className="mx-auto max-w-6xl px-5 pb-16 pt-12 sm:px-6 md:pb-24 md:pt-20">
           <h1 className="mb-5 max-w-[18ch] text-balance font-serif text-[40px] font-normal
-                         leading-[1.03] tracking-[-0.02em] text-etyme-ink md:text-[60px]">
+                         leading-[1.04] tracking-[-0.02em] text-etyme-ink md:text-[64px]">
             Every contractor. Every supplier. One record.
           </h1>
           <p className="mb-3 text-[19px] font-medium leading-snug text-etyme-ink md:text-[22px]">
@@ -251,29 +265,28 @@ export default function LandingPage() {
               demo under the buttons. "Your own people" keeps it from
               reading as the program office offered quietly in the close,
               and it sells control, never outsourcing. */}
-          <p className="mb-8 max-w-[62ch] text-[17px] leading-relaxed text-etyme-muted">
+          <p className="mb-8 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted md:text-[18px]">
             Your own people approve the jobs, sign the timesheets and pay only matched bills, across every supplier.
           </p>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <Link
               href={SEE_IT.href as Route}
-              className="rounded-lg bg-etyme-action px-6 py-3.5 text-sm font-semibold text-white
+              className="rounded-lg bg-etyme-action px-6 py-3.5 text-center text-sm font-semibold text-white
                          shadow-sm transition-opacity hover:opacity-90"
             >
               {`${SEE_IT.t} →`}
             </Link>
             <Link
               href={GET_THE_AUDIT.href as Route}
-              className="rounded-lg border border-etyme-rule bg-etyme-raised px-6 py-3.5 text-sm
+              className="rounded-lg border border-etyme-rule bg-etyme-raised px-6 py-3.5 text-center text-sm
                          font-semibold text-etyme-ink transition-colors hover:border-etyme-ink"
             >
               {GET_THE_AUDIT.t}
             </Link>
           </div>
 
-          <figure className="mt-10 overflow-hidden rounded-xl border border-etyme-rule
-                             bg-etyme-raised shadow-sm">
+          <figure className={`mt-12 md:mt-16 ${FIGURE}`}>
             {/* Taken from the seeded demo world on the date stamped on the
                 image, UTC — the same stamp the step screens carry beside
                 `from`. A test cannot read a PNG, so the date is the only
@@ -293,7 +306,7 @@ export default function LandingPage() {
                 here, onto the screen it is about, the way every module
                 page's caption says the example program opens without an
                 account. */}
-            <figcaption className="px-5 py-3.5 text-[13px] leading-relaxed text-etyme-muted">
+            <figcaption className={CAPTION}>
               The program manager’s desk at Northbend Athletic; every firm on this screen is a demo company — not a customer. Open it yourself. No card. No sign-up.
             </figcaption>
           </figure>
@@ -307,15 +320,14 @@ export default function LandingPage() {
           under the image and after the steps in reading order, so a
           caption and a step never read as one paragraph. */}
       <section id="steps" className="border-b border-etyme-rule bg-etyme-surface">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
+        <div className={BAND}>
           <p className="eyebrow mb-3">What it does, in four steps</p>
-          <h2 className="max-w-[30ch] text-balance font-serif text-3xl leading-tight
-                         tracking-[-0.02em] text-etyme-ink md:text-[40px]">
+          <h2 className={H2}>
             A job goes out, a person starts, a week is signed, a bill is paid
           </h2>
 
-          <div className="mt-10 grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-            <ol className="divide-y divide-etyme-rule border-y border-etyme-rule">
+          <div className="mt-10 grid gap-10 md:mt-12 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-0">
+            <ol className="divide-y divide-etyme-rule self-start border-y border-etyme-rule lg:col-span-5">
               {STEPS.map((s) => (
                 <li key={s.n}>
                   <Link
@@ -332,7 +344,7 @@ export default function LandingPage() {
               ))}
             </ol>
 
-            <figure className="overflow-hidden rounded-xl border border-etyme-rule bg-etyme-raised shadow-sm">
+            <figure className={`self-start lg:col-span-6 lg:col-start-7 ${FIGURE}`}>
               <img
                 src={STEP_SCREEN.img}
                 alt={STEP_SCREEN.alt}
@@ -341,7 +353,7 @@ export default function LandingPage() {
                 loading="lazy"
                 className="block h-auto w-full border-b border-etyme-rule"
               />
-              <figcaption className="px-4 py-2.5 text-[12.5px] italic leading-relaxed text-etyme-muted">
+              <figcaption className={CAPTION}>
                 {STEP_SCREEN.caption}
               </figcaption>
             </figure>
@@ -364,15 +376,14 @@ export default function LandingPage() {
           now says what the band is in plain words. The tile for bills
           carries the three-way check's definition as its line, which is
           where the home page first names the check. */}
-      <section id="modules" className="border-b border-etyme-rule">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
+      <section id="modules">
+        <div className={BAND}>
           <p className="eyebrow mb-3">What is in it</p>
-          <h2 className="max-w-[30ch] text-balance font-serif text-3xl leading-tight
-                         tracking-[-0.02em] text-etyme-ink md:text-[40px]">
+          <h2 className={H2}>
             Everything in it, in the order a hire moves through it
           </h2>
 
-          <div className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 md:mt-12 lg:grid-cols-4">
             {PRODUCT_STAGES.map((stage) => (
               <div key={stage.heading}>
                 <p className="stat-label border-b border-etyme-rule pb-2">{stage.heading}</p>
@@ -381,8 +392,8 @@ export default function LandingPage() {
                     <li key={m.href}>
                       <Link
                         href={m.href as Route}
-                        className="group flex gap-3 rounded-xl border border-etyme-rule bg-etyme-raised px-4 py-3.5
-                                   transition-shadow hover:shadow-md"
+                        className="group flex gap-3 rounded-panel border border-etyme-rule bg-etyme-raised px-4 py-3.5
+                                   transition-shadow hover:shadow-lift"
                       >
                         <ModuleIcon href={m.href} className="mt-0.5 shrink-0 text-etyme-action" />
                         <span>
@@ -414,12 +425,12 @@ export default function LandingPage() {
           (lib/public-site/join-mural): canvas line work on the ink, with
           the kit's brighter violet and its orange as the two touches. */}
       <section id="join" className="border-b border-etyme-ink bg-etyme-ink">
-        <div className="mx-auto grid max-w-6xl gap-x-12 gap-y-5 px-4 pt-16 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:items-end md:pt-24">
+        <div className="mx-auto grid max-w-6xl gap-x-6 gap-y-5 px-5 pt-16 sm:px-6 md:grid-cols-12 md:items-end md:pt-24">
           <h2 className="max-w-[20ch] text-balance font-serif text-[32px] leading-[1.08]
-                         tracking-[-0.02em] text-etyme-canvas md:text-[48px]">
+                         tracking-[-0.02em] text-etyme-canvas md:col-span-6 md:text-[48px]">
             {JOIN.heading}
           </h2>
-          <div>
+          <div className="md:col-span-5 md:col-start-8">
             {JOIN.lines.map((line) => (
               <p key={line} className="mb-4 max-w-[48ch] text-[16px] leading-relaxed text-etyme-canvas/[0.78] md:text-[17px]">
                 {line}

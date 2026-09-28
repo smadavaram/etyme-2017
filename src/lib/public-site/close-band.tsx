@@ -44,7 +44,7 @@ export function CloseBand({
   const ask = ASK_A_PERSON
   return (
     <section id={id} className="border-t border-etyme-rule bg-etyme-surface" data-close-band="">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 md:py-16">
+      <div className="mx-auto max-w-6xl px-5 py-9 sm:px-6 md:py-20">
         <h2 className="max-w-[26ch] text-balance font-serif text-[24px] leading-tight tracking-[-0.02em] text-etyme-ink md:text-[34px]">
           {CLOSE_BAND.heading}
         </h2>
