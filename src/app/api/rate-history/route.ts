@@ -5,6 +5,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { assessRateChange, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { proposeBackPay } from '@/lib/money/back-pay'
+import { tellWorkerOfPayChange } from '@/lib/money/pay-change-notice'
 import { lineFor, settleApproved } from '@/lib/rate-line'
 import { prisma } from '@/lib/db'
 
@@ -538,6 +539,8 @@ export async function POST(request: NextRequest) {
   // reaches days already paid exactly as an approved one does: the back
   // pay is worked out and proposed, never paid (lib/money/back-pay).
   const backPay = approvalState === 'APPROVED' && type === 'BUY' ? await proposeBackPay(entry.id) : null
+  // Approved on the spot is approved: the worker the line pays is told.
+  const told = approvalState === 'APPROVED' && type === 'BUY' ? await tellWorkerOfPayChange(entry.id, backPay) : null
 
   return NextResponse.json(
     {
@@ -550,6 +553,7 @@ export async function POST(request: NextRequest) {
               says: backPay.says,
             }
           : null,
+        workerTold: told ? { personId: told.personId, why: told.why } : null,
       },
     },
     { status: 201 }

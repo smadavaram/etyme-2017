@@ -216,6 +216,22 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
     approval = a.body.data
   })
 
+  it("tells Priya, in the app and by email, \"Your pay rate changes from $66 to $70 an hour from Wednesday, July 1.\" — and nobody else", async () => {
+    const told = await prisma.notification.findMany({ where: { entityId: rise } })
+    expect(told.map((n) => n.personId)).toEqual([personId])
+    expect(told[0].body.startsWith('Your pay rate changes from $66 to $70 an hour from Wednesday, July 1.')).toBe(true)
+    expect(told[0].channel).toBe('EMAIL')
+    expect(approval.workerTold.personId).toBe(personId)
+  })
+
+  it("never tells Priya the $112 the client is billed for her", async () => {
+    const told = await prisma.notification.findMany({ where: { personId } })
+    for (const n of told) {
+      expect(n.body).not.toContain('$112')
+      expect(JSON.stringify(n.data ?? {})).not.toContain('11200')
+    }
+  })
+
   // ── How the change sits in the line's history ──────────────────────
 
   let approval: any

@@ -142,6 +142,15 @@ describe('back pay for a raise dated before days already paid', () => {
     expect(a.body.data.message).toContain('nothing is paid until then')
   })
 
+  it('tells Priya her new rate, and that $414.00 of back pay was put to the payroll desk and is not paid yet', async () => {
+    const told = await prisma.notification.findMany({ where: { entityId: rise } })
+    expect(told.map((n) => n.personId)).toEqual([personId])
+    expect(told[0].body).toContain('Your pay rate changes from $66 to $70 an hour from Monday, June 15.')
+    expect(told[0].body).toContain('back pay of $414.00')
+    expect(told[0].body).toContain('It is not paid yet.')
+    expect(told[0].body).not.toContain('$112')
+  })
+
   it('pays nothing until a payroll desk approves it', async () => {
     const posted = await prisma.orderPosting.count({ where: { sellContractId: sellId, sourceId: { startsWith: 'offcycle:' } } })
     expect(posted).toBe(0)
@@ -202,6 +211,10 @@ describe('back pay for a raise dated before days already paid', () => {
     // 56 hours from 22 to 30 June, $2 each.
     expect(p.body.data.backPay.totalCents).toBe(56 * 200)
     expect(p.body.data.backPay.says).toContain('$112.00')
+    // Cleared on its own is approved, so Priya is told this one too.
+    expect(p.body.data.workerTold.personId).toBe(personId)
+    const told = await prisma.notification.findFirstOrThrow({ where: { entityId: p.body.data.rateHistory.id } })
+    expect(told.body).toContain('from $70 to $72 an hour from Monday, June 22.')
   })
 
   it('pays July at the new rate in the ordinary run, with no back pay in it', async () => {

@@ -186,6 +186,13 @@ describe('a rate is changed and decided only by the firms it is between', () => 
     expect(r.body.data.approvalState).toBe('APPROVED')
   })
 
+  it('tells the worker the pay line pays that their rate changed, and nobody else', async () => {
+    const told = await prisma.notification.findMany({ where: { entityId: proposal } })
+    expect(told.map((n) => n.personId)).toEqual([worker.personId])
+    expect(told[0].title).toBe('Your pay rate has changed')
+    expect(told[0].body).toMatch(/^Your pay rate changes from \$[\d,.]+ to \$[\d,.]+ an hour from /)
+  })
+
   it('lets the client on a sell line propose a change to what it is billed, and the firm selling decide it', async () => {
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: sellId } })
     const p = await call(client, proposeRate, 'POST', '/api/rate-history', {
@@ -196,6 +203,19 @@ describe('a rate is changed and decided only by the firms it is between', () => 
     const d = await call(payer, decideRate, 'POST', `/api/rate-history/${id}/approve`, { action: 'reject', reason: 'Not this year' }, { id })
     expect(d.status).toBe(200)
     expect(d.body.data.approvalState).toBe('REJECTED')
+  })
+
+  it('tells no worker when what the client is billed for them changes', async () => {
+    const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: sellId } })
+    const p = await call(client, proposeRate, 'POST', '/api/rate-history', {
+      contractType: 'SELL', contractId: sellId, rate: Math.round(sell.billRate * 1.2), fromDate: '2031-03-03',
+    })
+    expect(p.status).toBe(201)
+    const id = p.body.data.rateHistory.id
+    const d = await call(payer, decideRate, 'POST', `/api/rate-history/${id}/approve`, { action: 'approve', reason: 'agreed' }, { id })
+    expect(d.status).toBe(200)
+    expect(await prisma.notification.count({ where: { entityId: id } })).toBe(0)
+    expect(d.body.data.workerTold).toBeNull()
   })
 
   it('shows a worker the movements on the line that pays them, and never what the client is billed for them', async () => {

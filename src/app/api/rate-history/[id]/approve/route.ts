@@ -8,6 +8,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { lineFor, settleApproved, payPeriodsReached } from '@/lib/rate-line'
 import { assessRateChange } from '@/lib/contract-rate'
 import { proposeBackPay } from '@/lib/money/back-pay'
+import { tellWorkerOfPayChange } from '@/lib/money/pay-change-notice'
 
 /**
  * POST /api/rate-history/:id/approve   { action: 'approve' | 'reject', reason? }
@@ -205,6 +206,9 @@ export async function POST(
   // worked out and proposed — never paid. A payroll desk approves it as
   // an off-cycle payment (lib/money/back-pay).
   const backPay = onBuy && action === 'approve' && paidAlready.length > 0 ? await proposeBackPay(id) : null
+  // And the worker the line pays is told, in the app and by email — their
+  // own rate, never the client's (lib/money/pay-change-notice).
+  const told = onBuy && action === 'approve' ? await tellWorkerOfPayChange(id, backPay) : null
 
   await prisma.automationLog.create({
     data: {
@@ -221,6 +225,7 @@ export async function POST(
         invoiceLinesAffected: affected,
         payPeriodsAffected: reached.map((p) => p.label),
         backPayProposedCents: backPay?.applies ? backPay.figure.totalCents : null,
+        workerTold: told?.personId ?? null,
       },
       // An approval can be withdrawn while nothing has been paid against it.
       reversible: action === 'approve',
@@ -256,6 +261,8 @@ export async function POST(
       payPeriodsAffected: onBuy ? reached : null,
       // What is owed on days already paid at the old rate, proposed for a
       // payroll desk to approve. Null where nothing was paid yet.
+      // Who was told their pay changed, or why nobody was.
+      workerTold: told ? { personId: told.personId, why: told.why } : null,
       backPay: backPay
         ? backPay.applies
           ? {
