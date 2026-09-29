@@ -78,7 +78,7 @@ const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
  * The three-way check, defined in the founder's words on his go-to-market
  * list, 2026-09-28. Said once, where a reader first meets the term.
  */
-const THREE_WAY_CHECK = 'The three-way check: the hours, the bill, and the contract rate must all agree.'
+const THREE_WAY_CHECK = 'The three-way check: the hours, the invoice receipt, and the contract rate must all agree.'
 const ICONS_SRC = readFileSync(join(process.cwd(), 'src/lib/public-site/module-icons.tsx'), 'utf8')
 
 /** Every word on a module page, as the public-pages guard reads it. */
@@ -2625,7 +2625,7 @@ describe('Plain words on public pages, defined once', () => {
     // on every party page. It calls it the three-way check too, since the
     // screens do (test below).
     const everywhere = everyPublicPage().filter(([r]) => !r.startsWith('/docs')).map(([, t]) => t).join(' ')
-    const definitions = everywhere.split('the hours, the bill, and the contract rate must all agree').length - 1
+    const definitions = everywhere.split('the hours, the invoice receipt, and the contract rate must all agree').length - 1
     expect(definitions, 'the menu line, drawn on every page, and the bills page').toBeLessThanOrEqual(3)
     expect(everywhere).not.toMatch(/three-way match/i)
   })
@@ -2867,7 +2867,7 @@ describe('Etyme names no enterprise incumbent, and explains its words by their o
 
   it('names the three-way check by what it checks, and the bill by who issues it, never by what another system calls them', () => {
     const client = PARTIES.find((p) => p.doc.slug === 'client')!.doc.html
-    expect(client).toContain('The hours, the bill, and the contract rate must all agree: work order ↔ timesheet receipt ↔ invoice receipt.')
+    expect(client).toContain('The hours, the invoice receipt, and the contract rate must all agree: work order ↔ timesheet receipt ↔ invoice receipt.')
     expect(client).toContain('The party who issues a document names it, so a firm bills its customer.')
     expect(client).not.toMatch(/goods receipt|service entry sheet/)
   })

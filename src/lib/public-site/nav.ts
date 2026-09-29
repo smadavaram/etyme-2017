@@ -98,7 +98,7 @@ export const PRODUCT_STAGES: NavGroup[] = [
     heading: 'Work and pay',
     items: [
       { t: 'Timesheets & expenses', d: 'The worker files the week; nobody approves their own.', href: '/timesheets' },
-      { t: 'Bills & the three-way check', d: 'The three-way check: the hours, the bill, and the contract rate must all agree.', href: '/invoices' },
+      { t: 'Bills & the three-way check', d: 'The three-way check: the hours, the invoice receipt, and the contract rate must all agree.', href: '/invoices' },
     ],
   },
   {

@@ -177,8 +177,9 @@ rules follow:
 - **Plain words on public pages, defined once. Decided by the founder,
   2026-09-28.** The page says *job*, not role or requisition; *job
   request* where the object is meant; *bill*, never invoice, with the
-  three-way *check* defined on first use as "the hours, the bill, and
-  the contract rate must all agree"; *time limit*, not tenure cap. A
+  three-way *check* defined on first use as "the hours, the invoice
+  receipt, and the contract rate must all agree" (founder, 2026-09-29 —
+  the check is made on what a supplier sends); *time limit*, not tenure cap. A
   trade term a US IT buyer may not know is glossed on first use and
   then used plainly: "US work visa (H-1B)", "US work form (I-9)", "paid
   through her own company" for corp-to-corp, and "bench" as "workers
@@ -1256,6 +1257,21 @@ Three rules follow:
      it: accept the week first. Addendum E's WARN-and-proceed does not
      apply, because paying for hours nobody accepted is what the check
      exists to stop.
+  4. **When fewer hours are accepted than were worked, the cut comes off
+     overtime first, and off the later bill first.** Decided by the
+     founder, 2026-09-29. An acceptance records a week's total, not
+     which hours; this rule prices the cases that were left off the bill
+     rather than guessed at — a week over the overtime line, a week
+     crossing a bill's edge. A partial acceptance covering only some days
+     is priced on the days it covers.
+
+- **Months served are whole months, never rounded up. Decided by the
+  founder, 2026-09-29.** Rounding to the nearest month read 533 days as
+  18 months, so three screens said "past the limit" two weeks before the
+  block fired. A person has served n months once their days on site
+  reach the fewest days any n consecutive calendar months can hold (28,
+  181 for six, 365 for twelve). The block itself still counts days
+  against the limit and is unchanged.
 
 And: **a consultant a firm adds is marketed by default**; the firm may
 choose to retain them, and nothing reaches past the firm until the

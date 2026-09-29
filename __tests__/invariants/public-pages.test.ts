@@ -453,7 +453,7 @@ describe('One header and footer on every new page', () => {
     // a named person can override with a reason.
     const bills = PRODUCT_ITEMS.find((i) => i.href === '/invoices')!
     expect(bills.t).toBe('Bills & the three-way check')
-    expect(bills.d).toBe('The three-way check: the hours, the bill, and the contract rate must all agree.')
+    expect(bills.d).toBe('The three-way check: the hours, the invoice receipt, and the contract rate must all agree.')
     expect(frameCopy().join(' ')).not.toMatch(/room on the order/i)
   })
 

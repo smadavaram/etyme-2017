@@ -454,7 +454,7 @@ export const MODULES: ModulePage[] = [
     n: 5,
     title: 'Bills & the three-way check',
     lede:
-      'A supplier sends its invoice, and you pay the invoice receipt only when it passes. The three-way check: the hours, the bill, and the contract rate must all agree. ' +
+      'A supplier sends its invoice, and you pay the invoice receipt only when it passes. The three-way check: the hours, the invoice receipt, and the contract rate must all agree. ' +
       'Where they do not, nothing is paid and the reason is a sentence.',
     screen: {
       img: '/screens/invoices.png',
