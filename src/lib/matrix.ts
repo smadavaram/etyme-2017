@@ -661,7 +661,8 @@ export const MATRIX: L1[] = [
             'No real company is named on a door, or in any seed a door reads',
             'Seeding the world again on a later day makes no second copy of anything and no error',
             'Every seeded company holds a domain nobody can register, so a real sign-in is never seated at a demo tenant',
-            'A door for the person, not only for the firm: five consultants in five industries, each landing on their own work and never on a company dashboard',
+            'A door for the person, not only for the firm: six consultants in six industries, each landing on their own work and never on a company dashboard',
+            'BUILT 2026-09-29: one of the six had a pay rise in month six — five months of signed weeks at $66, an approved $70 from a Wednesday, proposed and approved by two different desks, one month already paid, and the week of the rise paid at both rates on their own days',
             'One of the five is not IT staffing — a travel nurse on three twelve-hour shifts, paid corp to corp through the company she owns, with a state license that runs out inside the assignment',
             'A program office that sells to its client and buys below it, including its own W2 employee with no bench listing and no purchase order',
             'Both halves of a supplying firm’s book are named on its door: what it sells upward and what it owes downward',
@@ -689,7 +690,7 @@ export const MATRIX: L1[] = [
             'src/app/api/demo/route.ts', 'src/app/api/seed-world/route.ts', 'src/lib/demo-session.ts',
             'src/lib/seed-world.ts', 'src/lib/seed-programmes.ts', 'src/lib/seed-doors.ts', 'src/lib/seed-days.ts',
             'src/lib/seed-calendar.ts', 'src/lib/seed-standing.ts', 'src/lib/seed-order-to-cash.ts',
-            'src/lib/seed-pipeline.ts', 'src/lib/demo-seed-consultant.ts',
+            'src/lib/seed-rate-change.ts', 'src/lib/seed-pipeline.ts', 'src/lib/demo-seed-consultant.ts',
             // The fifth person's door lands on a page with nothing on
             // it, so what that page says is part of the door: the
             // verdict, the route that carries it, and the screen.
@@ -705,6 +706,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/site-description.test.ts',
             '__tests__/invariants/independent-candidate.test.ts',
             '__integration__/seed-covers-the-matrix.test.ts',
+            '__integration__/seeded-pay-rise.test.ts',
             '__integration__/seat-compliance.test.ts',
             '__integration__/supplier-onboarding.test.ts',
           ] },

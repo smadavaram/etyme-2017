@@ -41,6 +41,7 @@ import { anchorSeed, day, at } from '@/lib/seed-days'
 import { seedCalendar, holidayKeys } from '@/lib/seed-calendar'
 import { seedStanding } from '@/lib/seed-standing'
 import { seedOrderToCash } from '@/lib/seed-order-to-cash'
+import { seedRateChange } from '@/lib/seed-rate-change'
 import { seedPipeline } from '@/lib/seed-pipeline'
 import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
 import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
@@ -1456,6 +1457,13 @@ export async function seedWorld(): Promise<{
   // writes the locations first.
   const ctx = { firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX, roster: [...WORLD_SLUGS] }
   const standing = await seedStanding(ctx)
+  // A pay rise in the middle of a placement (lib/seed-rate-change).
+  // Before the order-to-cash layer rather than after it, because that
+  // layer reads every running line: it raises the order her line sits
+  // on, posts her signed weeks to the books and writes her opening bill
+  // rate. Written after it, all three would land on the second seeding
+  // instead of the first, and a second seeding must write nothing.
+  await seedRateChange(ctx)
   const cash = await seedOrderToCash(ctx)
   const pipeline = await seedPipeline(ctx)
   // What each order asks for on paper. Last of all, because it hangs off

@@ -349,7 +349,7 @@ export const DOMAINS: Domain[] = [
       // shifted against, what a firm can prove, the order that
       // authorized the spend and the books under it, and the pipeline
       // either side of a placement.
-      'lib/seed-calendar', 'lib/seed-standing', 'lib/seed-order-to-cash', 'lib/seed-pipeline',
+      'lib/seed-calendar', 'lib/seed-standing', 'lib/seed-order-to-cash', 'lib/seed-rate-change', 'lib/seed-pipeline',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
       // A desk a client grants a firm that is not the client, so a

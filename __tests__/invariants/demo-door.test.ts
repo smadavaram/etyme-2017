@@ -45,14 +45,14 @@ describe('the demo door opens on the client', () => {
     }
   })
 
-  it('offers three programs, eight supplying firms and five people', () => {
+  it('offers three programs, eight supplying firms and six people', () => {
     // Eight since 2026-09-21: Brightmoor Staffing, whose nine desks are
     // the only place a supplier's own roles can be walked, and Kestrel
     // MSP, which sits at a client's compliance desk rather than its
     // program manager's.
     expect(CLIENT_PROGRAMS).toHaveLength(3)
     expect([...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]).toHaveLength(8)
-    expect(CANDIDATE_SEATS).toHaveLength(5)
+    expect(CANDIDATE_SEATS).toHaveLength(6)
   })
 
   it('says what is waiting at each client program today, as a finished sentence rather than a label', () => {
@@ -316,6 +316,6 @@ describe('the demo shows the spread of industries', () => {
   it('the client programs and the people are not all one industry', () => {
     const first = (x: string) => x.split('·')[0].trim()
     expect(new Set(CLIENT_PROGRAMS.map((p) => first(p.industry))).size).toBe(3)
-    expect(new Set(CANDIDATE_SEATS.map((c) => first(c.industry))).size).toBe(5)
+    expect(new Set(CANDIDATE_SEATS.map((c) => first(c.industry))).size).toBe(6)
   })
 })

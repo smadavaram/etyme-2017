@@ -163,13 +163,14 @@ export default function DemoPage() {
             See it as the person, not the firm
           </h2>
           <div className="mt-3 max-w-2xl space-y-2 text-[14px] leading-relaxed text-etyme-muted">
-            <p>Five consultants in five industries, each on a different kind of contract:</p>
+            <p>Six consultants in six industries, each on a different kind of contract:</p>
             <ul className="list-disc space-y-0.5 pl-5">
               <li>an integrator&rsquo;s own employee</li>
               <li>a consultant on a bench, sold through a prime</li>
               <li>a consultant on a US work visa (H-1B), two firms below the client</li>
               <li>a travel nurse paid through her own company</li>
               <li>somebody with no bench and no employer yet, which is where every consultant starts</li>
+              <li>a staffing firm&rsquo;s hourly employee, whose pay rose from $66 to $70 in month six</li>
             </ul>
             <p>
               Each door opens on that person&rsquo;s own work. That is their hours, their

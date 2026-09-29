@@ -60,7 +60,7 @@ async function sit(slug: string, desk?: string, cookie?: string) {
   return { body, cookie: m?.[1] ?? cookie }
 }
 
-/** POST /api/demo asking to sit as one of the five people. */
+/** POST /api/demo asking to sit as one of the six people. */
 async function sitAs(handle: string, cookie?: string) {
   const r = req('POST', '/api/demo', { person: handle }, cookie ? { cookie: `${DEMO_COOKIE}=${cookie}` } : {})
   const res = await demo(r as NextRequest)
@@ -169,12 +169,13 @@ describe('every seat on the demo page opens', () => {
     await seedWorld()
   }, 600_000)
 
-  it('offers eleven company doors and five people — three programs, four suppliers, two program offices, two integrators', () => {
+  it('offers eleven company doors and six people — three programs, four suppliers, two program offices, two integrators', () => {
     // Eleven since 2026-09-21: Brightmoor Staffing, the one firm whose
     // nine supplier desks are seated, and Kestrel MSP, which sits at a
     // client's compliance desk rather than its program manager's.
     expect(ALL_SEATS).toHaveLength(11)
-    expect(CANDIDATE_SEATS).toHaveLength(5)
+    // Six since 2026-09-29: Rosa Delgado, whose pay rose in month six.
+    expect(CANDIDATE_SEATS).toHaveLength(6)
   })
 
   it('names a company the seed actually builds, for every one of the seven', async () => {
@@ -252,7 +253,7 @@ describe('every seat on the demo page opens', () => {
 })
 
 /**
- * The five people, and the two firms whose door led to an empty book.
+ * The six people, and the two firms whose door led to an empty book.
  *
  * ── Why a person is a door at all ────────────────────────────────────
  *
@@ -269,7 +270,7 @@ describe('every seat on the demo page opens', () => {
  * kind sells to its client and buys below it, including from itself when
  * the person on the seat is its own employee.
  */
-describe('the five people the demo can be walked as', () => {
+describe('the six people the demo can be walked as', () => {
   beforeAll(async () => {
     await seedWorld()
   }, 600_000)
@@ -295,10 +296,10 @@ describe('the five people the demo can be walked as', () => {
     }[]
   }
 
-  it('offers five people, in five industries, and not one of them a company', () => {
-    expect(CANDIDATE_SEATS).toHaveLength(5)
+  it('offers six people, in six industries, and not one of them a company', () => {
+    expect(CANDIDATE_SEATS).toHaveLength(6)
     const trades = new Set(CANDIDATE_SEATS.map((c) => c.industry.split('·')[0].trim()))
-    expect(trades.size, [...trades].join(', ')).toBe(5)
+    expect(trades.size, [...trades].join(', ')).toBe(6)
     for (const c of CANDIDATE_SEATS) {
       expect(c.email, c.name).toMatch(/@seed\.etyme\.invalid$/)
       expect(c.about.trim().endsWith('.'), `${c.name}: ${c.about}`).toBe(true)
@@ -330,18 +331,18 @@ describe('the five people the demo can be walked as', () => {
   /**
    * The one door with nothing behind it, and why that is not a bug.
    *
-   * Four of the five open on work. The fifth is party 8B — a person
+   * Five of the six open on work. The sixth is party 8B — a person
    * with a profile, a page of her own and nothing else — and the whole
    * point of her door is that the page is empty. So the sentence that
-   * used to cover all four is split: one for the four who have work,
-   * one for the one who does not, because a single assertion over five
+   * used to cover all of them is split: one for those who have work,
+   * one for the one who does not, because a single assertion over every
    * rows can only be satisfied by giving her work she must not have.
    */
   const WITH_WORK = CANDIDATE_SEATS.filter((c) => c.slug !== 'marisol-quintero')
   const INDEPENDENT = CANDIDATE_SEATS.find((c) => c.slug === 'marisol-quintero')!
 
-  it('the four who have work open their page on something real — a placement, a week, or a paper asked of them', async () => {
-    expect(WITH_WORK).toHaveLength(4)
+  it('the five who have work open their page on something real — a placement, a week, or a paper asked of them', async () => {
+    expect(WITH_WORK).toHaveLength(5)
     for (const c of WITH_WORK) {
       const work = await ownWork(c.email)
       const papers = await ownPapers(c.email)

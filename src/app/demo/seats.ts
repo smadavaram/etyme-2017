@@ -262,7 +262,7 @@ export const SUPPLIER_SEATS: Program[] = [
     waiting:
       'Its liability insurance runs out in twenty days. That is the compliance officer’s work today.',
     about:
-      'Sells two contractors to Northbend Athletic from its own payroll. Buys an engineer from ' +
+      'Sells three contractors to Northbend Athletic from its own payroll. Buys an engineer from ' +
       'a bench vendor and sells them to a retailer. A person sits at each of its nine desks.',
     desks: SUPPLIER_DESKS,
   },
@@ -392,7 +392,7 @@ export const INTEGRATOR_SEATS: Program[] = [
 ]
 
 /**
- * The five people, each a door of their own.
+ * The six people, each a door of their own.
  *
  * ── Why a person is a door ───────────────────────────────────────────
  *
@@ -404,12 +404,13 @@ export const INTEGRATOR_SEATS: Program[] = [
  * third side of this market could not be shown against the same
  * placement the client and the supplier were looking at.
  *
- * These five are people the world already holds, in five industries, on
- * five different kinds of paper:
+ * These six are people the world already holds, in six industries, on
+ * six different kinds of paper:
  *
  *   employed by an integrator (W2) · listed on a bench through a prime ·
  *   two rungs down a chain on an H1B · nothing at all, yet · corp to corp
- *   through a limited company she owns
+ *   through a limited company she owns · a staffing firm's own hourly
+ *   employee, whose pay rose in month six
  *
  * The travel nurse is the one that proves the horizontal claim. A nurse
  * is not IT staffing, and CLAUDE.md has said since the beginning that
@@ -501,6 +502,21 @@ export const CANDIDATE_SEATS: CandidateSeat[] = [
     about:
       'Thirteen weeks in a hospital ICU, three twelve-hour shifts a week. You are paid through ' +
       'the company you own, so it carries the liability insurance, not the agency.',
+  },
+  // The pay rise the founder asked to see (lib/seed-rate-change): five
+  // months at $66, then $70 from the first Wednesday of month six, and
+  // the week it happened paid at both rates, each on its own days.
+  {
+    slug: 'rosa-delgado',
+    name: 'Rosa Delgado',
+    where: 'A staffing firm’s hourly employee (W2)',
+    industry: 'Logistics · warehouse systems',
+    email: 'rosa.delgado@seed.etyme.invalid',
+    waiting:
+      'A raise from $66 to $70 an hour came through in month six. See the week it happened.',
+    about:
+      'A staffing firm employs you and bills your hours to a sportswear company. You are paid by ' +
+      'the hour, with time and a half after forty. One month is already paid.',
   },
 ]
 

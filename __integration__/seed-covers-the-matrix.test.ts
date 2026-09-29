@@ -50,6 +50,13 @@ import { partiesOf } from '@/lib/money/invoice-parties'
  * vendor's own bench, and the engine records its own run and its own
  * cost. That is an agent loop that actually ran, which is precisely what
  * the line said. Nothing was invented; the row is the matcher's receipt.
+ *
+ * `exemptAssertion` left on 2026-09-29, for the demo's pay rise
+ * (lib/seed-rate-change). Rosa Delgado is paid by the hour with time and
+ * a half after forty, and her employer saying she is non-exempt is part
+ * of that story in the same way her signed weeks are: a position taken
+ * on a seeded placement, screened by the same `screenExemption` the
+ * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
   accessLog: 'written by a real read of somebody else’s data, including refusals',
@@ -85,7 +92,6 @@ const RUNTIME: Record<string, string> = {
   documentShareItem: 'written when a person shares a document',
   dunningSend: 'written when a chase actually goes out',
   erpAccountMap: 'written when a customer wires up their own ERP',
-  exemptAssertion: 'written when somebody asserts an exemption, with a reason',
   fxRate: 'fetched from a rate source, not invented',
   governanceEvaluation: 'written at the moment a decision is evaluated',
   identityMatch: 'written when cross-vendor resolution actually runs',
