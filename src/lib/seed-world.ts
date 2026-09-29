@@ -37,7 +37,7 @@ import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes } from '@/lib/seed-programmes'
 import { seedDoors, NURSE_CORP_SLUG } from '@/lib/seed-doors'
-import { anchorSeed, day, at } from '@/lib/seed-days'
+import { anchorSeed, day, at, seedPlanYear } from '@/lib/seed-days'
 import { seedCalendar, holidayKeys } from '@/lib/seed-calendar'
 import { seedStanding } from '@/lib/seed-standing'
 import { seedOrderToCash } from '@/lib/seed-order-to-cash'
@@ -382,10 +382,13 @@ export async function seedWorld(): Promise<{
             ownerId: p.id,
           },
         }))
-      if (!(await db.headcountPlan.findFirst({ where: { costCenterId: cc.id, period: '2026' } }))) {
+      // The year the world was born, which is the year its weeks are in
+      // (lib/seed-days). It was the literal '2026'.
+      const period = seedPlanYear()
+      if (!(await db.headcountPlan.findFirst({ where: { costCenterId: cc.id, period } }))) {
         await db.headcountPlan.create({
           data: {
-            costCenterId: cc.id, period: '2026',
+            costCenterId: cc.id, period,
             approvedHeads: d.code === 'APPS' ? 6 : 3,
             annualBudget: d.code === 'APPS' ? 2_400_000 : 900_000,
             currency: 'USD',

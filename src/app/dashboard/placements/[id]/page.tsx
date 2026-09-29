@@ -113,6 +113,8 @@ interface Placement {
       id: string; contractType: string; state: string
       vendor: { id: string; name: string } | null; payRate: number | null
       document: LineDoc | null
+      // Null where this reader may not read the pay rate.
+      overtime: OvertimeOnLine | null
     } | null
     lines: Array<{
       id: string; position: number; person: string; isThisOne: boolean
@@ -295,6 +297,108 @@ function Station({
       {subtitle && <p className="mt-1 text-[13px] leading-relaxed text-etyme-muted">{subtitle}</p>}
       <div className="mt-3">{children}</div>
     </section>
+  )
+}
+
+/** How overtime is priced on our pay line, as `lib/overtime-method-choice` says it. */
+interface OvertimeOnLine {
+  method: string
+  chosen: boolean
+  says: string
+  chosenBy: string | null
+  chosenAt: string | null
+  reason: string | null
+  mayChange: boolean
+}
+
+const OVERTIME_CHOICES: Array<{ value: string; label: string }> = [
+  { value: 'US_REGULAR_RATE', label: "The US regular rate (the law's default)" },
+  { value: 'RATE_ON_THE_DAY', label: 'The rate in force on each overtime day' },
+  { value: 'HIGHER_RATE', label: 'The higher of the rates worked that week' },
+]
+
+/**
+ * One sentence about how overtime is paid on our pay line, and — for the
+ * desk that may change it — a small form. The route refuses what the
+ * form does not; the form only saves a trip.
+ */
+function OvertimeMethod({ placementId, overtime, person }: { placementId: string; overtime: OvertimeOnLine; person: string }) {
+  const [now, setNow] = useState(overtime)
+  const [open, setOpen] = useState(false)
+  const [method, setMethod] = useState(overtime.method)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const needsReason = method !== 'US_REGULAR_RATE'
+
+  async function save() {
+    setBusy(true)
+    setError(null)
+    const res = await fetch(`/api/placements/${placementId}/overtime-method`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method, reason }),
+    })
+    const body = await readJson(res)
+    setBusy(false)
+    if (!res.ok) {
+      setError(body?.error?.message ?? 'The overtime method could not be saved.')
+      return
+    }
+    setNow({ ...body.data, mayChange: now.mayChange })
+    setReason('')
+    setOpen(false)
+  }
+
+  return (
+    <div className="mt-3 text-[13px] leading-relaxed text-etyme-muted">
+      <p>
+        {now.says}
+        {now.reason && <span className="text-etyme-ink"> Why: {now.reason}</span>}
+        {now.mayChange && !open && (
+          <button type="button" className="ml-2 text-etyme-action hover:underline" onClick={() => setOpen(true)}>
+            Change
+          </button>
+        )}
+      </p>
+      {open && (
+        <div className="mt-2 space-y-2">
+          <label className="lbl block" htmlFor="ot-method">How {person}&rsquo;s overtime is paid in a week paid at two rates</label>
+          <select
+            id="ot-method"
+            className="max-w-[360px] px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink"
+            value={method}
+            onChange={(e) => setMethod(e.target.value)}
+          >
+            {OVERTIME_CHOICES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            aria-label="Why"
+            placeholder={needsReason ? 'Why (required): what was agreed with the worker' : 'Why (optional)'}
+            className="w-full px-3 py-2 text-[13px] text-etyme-ink border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none resize-none"
+          />
+          {needsReason && (
+            <p className="text-[12px]">
+              A worker the law entitles to overtime is never paid less than the regular-rate premium, whatever is chosen.
+            </p>
+          )}
+          {error && <p className="text-[12px] text-etyme-danger">{error}</p>}
+          <div className="flex gap-2">
+            <button type="button" className="btn-primary text-[13px] disabled:opacity-50" disabled={busy} onClick={save}>
+              Save
+            </button>
+            <button type="button" className="btn-secondary text-[13px]" onClick={() => { setOpen(false); setError(null) }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -542,6 +646,9 @@ export default function PlacementPage() {
                   : `${p.contracts.buy.contractType} · this side has no paper yet.`
                 : 'Nothing is bought against this line yet, so this placement has a price and no cost.'}
             </p>
+            {p.contracts.buy?.overtime && (
+              <OvertimeMethod placementId={p.id} overtime={p.contracts.buy.overtime} person={p.person.name} />
+            )}
           </div>
           )}
         </div>

@@ -67,6 +67,26 @@ export function seedToday(): Date {
 }
 
 /**
+ * The plan year a seeded budget is written for: the year the world was
+ * born, never a literal.
+ *
+ * It was the literal '2026' in the world seed, which is right for a world
+ * born in 2026 and wrong for one rebuilt on 2 January 2027 — its weeks
+ * are 2027's and its plan would have been last year's. The birthday is
+ * what every other seeded date counts from, so the plan follows it.
+ *
+ * Why not also the year after, so a world born in September still reads
+ * a budget in January: `/api/program/budget` reads the plan for the
+ * current calendar year and sums every signed week ever, not the plan
+ * year's. A next-year plan seeded today would, from 1 January, be read
+ * against the whole of this year's work — a plausible wrong number where
+ * "no budget" is at least a true blank. Rebuilding the world
+ * (`/api/seed-world/rebuild`) gives it a new birthday and a plan for the
+ * new year.
+ */
+export const seedPlanYear = (): string => String(seedToday().getUTCFullYear())
+
+/**
  * Whole days from this world's birthday, at midnight UTC.
  *
  * This was `Date.now() + n * 86_400_000`, which made every date carry the

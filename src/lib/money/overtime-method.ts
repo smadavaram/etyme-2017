@@ -54,22 +54,16 @@
  * floor is paid and the week says so. A firm's choice is an agreement
  * with its worker; it is not a waiver of a statute.
  *
- * ── Where the choice would be kept, and why it is not kept yet ─────────
+ * ── Where the choice is kept ──────────────────────────────────────────
  *
- * Nothing on a buy line can hold it. `overtimeAfterHours` and
- * `overtimeMultiplierBps` are the line's terms and say nothing about a
- * method; `payModel` is how pay is derived from the bill; and
- * `OvertimeDecision` is the client's per-week billing decision on the
- * SELL leg. The founder asked that the choice be recorded with who made
- * it and why, and a choice with no record of who made it is exactly the
- * silent application he ruled out. So `methodFor` answers the default
- * for every line and says why, and the columns it needs are a schema
- * request for the architect:
- *
- *   BuyContract.overtimeMethod        String   @default("US_REGULAR_RATE")
- *   BuyContract.overtimeMethodById    String?  — the person who chose it
- *   BuyContract.overtimeMethodAt      DateTime?
- *   BuyContract.overtimeMethodReason  String?  — required when not the default
+ * On the buy line, with who chose it, when and why (`overtimeMethod`,
+ * `overtimeMethodById`, `overtimeMethodAt`, `overtimeMethodReason`,
+ * added 2026-09-29). `overtimeAfterHours` and `overtimeMultiplierBps` are
+ * the line's terms and say nothing about a method; `OvertimeDecision` is
+ * the client's per-week billing decision on the SELL leg. `methodFor`
+ * reads the line, and applies a method other than the default only where
+ * the line also says who chose it and why — a choice with no record of
+ * who made it is the silent application the founder ruled out.
  *
  * ── Rounding ──────────────────────────────────────────────────────────
  *
@@ -269,21 +263,55 @@ export function firstFortyAtDayRates(worked: DayHours[], overHours: number, mult
   return straight - overStraight + (multiplierBps / 10_000) * rr * o
 }
 
+/** What `methodFor` reads off a buy line. Every field optional: a caller that did not load them gets the default. */
+export interface OvertimeMethodOnLine {
+  overtimeMethod?: string | null
+  overtimeMethodById?: string | null
+  overtimeMethodReason?: string | null
+}
+
+const isMethod = (m: unknown): m is OvertimeMethod => typeof m === 'string' && (OVERTIME_METHODS as string[]).includes(m)
+
 /**
  * The method a line is paid on, and why.
  *
- * Always the default today: there is nowhere on a buy line to record a
- * different choice with who made it and why, and applying one without
- * that record is what the founder ruled out. See the note at the top.
+ * The line's own choice where somebody made one and said why; the US
+ * regular rate otherwise. Whatever this answers, `weekOvertime` still
+ * pays the law's floor on the regular rate where one applies.
  */
-export function methodFor(_line?: unknown): { method: OvertimeMethod; chosen: false; says: string } {
-  return {
-    method: DEFAULT_OVERTIME_METHOD,
-    chosen: false,
-    says:
-      'Overtime in a week paid at two rates is priced on the US regular rate (29 CFR §778.115). ' +
-      'No other method has been chosen for this line.',
+export function methodFor(line?: object | null): { method: OvertimeMethod; chosen: boolean; says: string } {
+  // Any buy line, whatever else it was loaded with. A caller whose query
+  // did not select these columns reads the default — see the note above.
+  const l = (line ?? {}) as OvertimeMethodOnLine
+  const stored = l.overtimeMethod
+  const byWhom = l.overtimeMethodById ?? null
+  const why = l.overtimeMethodReason?.trim() || null
+  const defaultSays =
+    'Overtime in a week paid at two rates is priced on the US regular rate (29 CFR §778.115). '
+
+  if (isMethod(stored) && stored !== DEFAULT_OVERTIME_METHOD && byWhom && why) {
+    return {
+      method: stored,
+      chosen: true,
+      says:
+        `Overtime in a week paid at two rates is priced on ${OVERTIME_METHOD_LABEL[stored].toLowerCase()}, ` +
+        `as the paying firm chose: ${why}. A nonexempt US worker is never paid less than the regular-rate premium.`,
+    }
   }
+  if (stored != null && stored !== DEFAULT_OVERTIME_METHOD) {
+    // A value outside the set, or another method with nobody named or no
+    // reason. Neither is a choice anybody can stand behind, so the law's
+    // default is paid and the sentence says why.
+    return {
+      method: DEFAULT_OVERTIME_METHOD,
+      chosen: false,
+      says: defaultSays + 'The line names another method without saying who chose it and why, so the default is paid.',
+    }
+  }
+  if (byWhom) {
+    return { method: DEFAULT_OVERTIME_METHOD, chosen: true, says: defaultSays + 'The paying firm chose it.' }
+  }
+  return { method: DEFAULT_OVERTIME_METHOD, chosen: false, says: defaultSays + 'No other method has been chosen for this line.' }
 }
 
 /**

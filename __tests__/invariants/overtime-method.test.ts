@@ -121,7 +121,7 @@ describe('a paying firm may choose another method, and the law is still the floo
     }
   })
 
-  it('uses the US regular rate on every line today, and says no other method has been chosen, because nothing on a buy line can record who chose it', () => {
+  it('uses the US regular rate on a line where nobody chose another method, and says no other method has been chosen', () => {
     const m = methodFor({ id: 'any buy line' })
     expect(m.method).toBe('US_REGULAR_RATE')
     expect(m.chosen).toBe(false)

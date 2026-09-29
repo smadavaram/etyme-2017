@@ -92,6 +92,8 @@ model Person {
   classificationsMade  ClassificationCall[]  @relation("classificationDecider")
   exemptAbout          ExemptAssertion[]     @relation("exemptSubject")
   exemptAsserted       ExemptAssertion[]     @relation("exemptDecider")
+  /// Pay lines whose overtime method they chose.
+  otMethodsChosen      BuyContract[]         @relation("overtimeMethodChooser")
   reconRunsMade        ReconciliationRun[]   @relation("reconRunner")
   /// Contracts whose timesheets they were named to approve.
   approvesContracts    SellContract[]        @relation("contractApprover")
@@ -3010,6 +3012,37 @@ model BuyContract {
   /// their pay rate. 15000 is time and a half.
   overtimeMultiplierBps Int  @default(15000)
 
+  // ── Which rate an overtime hour is "at", in a week paid at two ──────
+  //
+  // Decided by the founder, 2026-09-29: "Follow US law as recommendation,
+  // but allow for user input if they want to change" — then "yes to all"
+  // to storing the choice on the pay line with who chose it and why. The
+  // arithmetic is `lib/money/overtime-method`; this is only the record of
+  // the choice. It only ever changes a number in a week that crossed a
+  // rate change and went over the line — a week at one rate prices the
+  // same under all three.
+  //
+  // The default is the law's (29 CFR §778.115), so a line nobody touched
+  // reads as the default and the three who/when/why columns stay null:
+  // null there means "nobody chose", which is the honest reading of a
+  // schema default. A firm's choice is an agreement with its worker, not
+  // a waiver of a statute: payroll never pays a nonexempt US worker less
+  // than the regular-rate premium whatever this says.
+  //
+  // A string with a documented set rather than an enum, by the same
+  // reasoning as `Requirement.status`. `OVERTIME_METHODS` in
+  // lib/money/overtime-method is the list the write door checks against,
+  // and anything outside it is read as the default.
+
+  /// US_REGULAR_RATE · RATE_ON_THE_DAY · HIGHER_RATE
+  overtimeMethod       String    @default("US_REGULAR_RATE")
+  /// The person who chose it. Null where nobody has chosen.
+  overtimeMethodById   String?
+  overtimeMethodBy     Person?   @relation("overtimeMethodChooser", fields: [overtimeMethodById], references: [id])
+  overtimeMethodAt     DateTime?
+  /// Why. The write door requires it for anything but the default.
+  overtimeMethodReason String?
+
   state     BuyContractState @default(DRAFT)
   startDate DateTime
   endDate   DateTime?
@@ -3106,6 +3139,7 @@ model BuyContract {
   @@index([supplierSellContractId])
   @@index([internalOrderId])
   @@index([projectOrderId])
+  @@index([overtimeMethodById])
 }
 
 // One person on a buy contract, at their own rate and dates.

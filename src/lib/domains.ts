@@ -341,6 +341,10 @@ export const DOMAINS: Domain[] = [
       'app/api/placements', 'app/dashboard/placements',
       // Somebody else in the seat: a new contract on the same terms, the old one ended.
       'lib/replacement',
+      // The door a paying firm's choice of overtime method goes through,
+      // on the placement's pay line. The arithmetic and the reading of the
+      // stored value stay money's (lib/money/overtime-method).
+      'lib/overtime-method-choice',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // Deleting the demo world so it can be seeded again from today.
       'lib/seed-rebuild',

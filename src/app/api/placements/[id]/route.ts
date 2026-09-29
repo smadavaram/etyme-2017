@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { logAccess } from '@/lib/access-log'
-import { canReadPayRate, canReadBillRate, canReadMargin } from '@/lib/permissions'
+import { canReadPayRate, canReadBillRate, canReadMargin, hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
@@ -13,6 +13,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 import { describeLine, masterContractLine, pairLine } from '@/lib/order-naming'
 import { poBalance } from '@/lib/purchase-order'
+import { CHOOSES_OVERTIME_METHOD, overtimeMethodSays } from '@/lib/overtime-method-choice'
 
 /**
  * GET /api/placements/:id
@@ -393,8 +394,13 @@ export async function GET(
             buyContract: {
               select: {
                 id: true, contractType: true, state: true, payCurrency: true,
-                supplierSellContractId: true,
+                supplierSellContractId: true, companyId: true,
                 vendorCompany: { select: { id: true, name: true } },
+                // Which rate an overtime hour is "at" in a week paid at
+                // two, and who chose it (lib/overtime-method-choice).
+                overtimeMethod: true, overtimeMethodById: true,
+                overtimeMethodAt: true, overtimeMethodReason: true,
+                overtimeMethodBy: { select: { name: true } },
                 // Our own order to the firm below us, where we raised
                 // one. A W2 buy line has none and never will.
                 workOrder: {
@@ -884,6 +890,18 @@ export async function GET(
               // Null means we employ them. That is the fact, not a gap.
               vendor: ourBuy.vendorCompany,
               payRate: seePay && seat ? money(seat.payRate) : null,
+              // How overtime is priced on this pay line, read the way
+              // payroll reads it. A pay term, so it follows the pay rate's
+              // gate; changing it needs the same permission and to be the
+              // firm that pays (PATCH ./overtime-method).
+              overtime: seePay
+                ? {
+                    ...overtimeMethodSays(ourBuy),
+                    mayChange:
+                      ourBuy.companyId === mine &&
+                      hasPermission(caller.permissions, CHOOSES_OVERTIME_METHOD),
+                  }
+                : null,
               // Our own order to the firm below us, where there is one.
               // A W2 line has none and says so in a sentence.
               document: buyDocument,

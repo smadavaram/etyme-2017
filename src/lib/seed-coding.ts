@@ -39,7 +39,7 @@
  */
 
 import { prisma as db } from '@/lib/db'
-import { seedToday } from '@/lib/seed-days'
+import { seedPlanYear } from '@/lib/seed-days'
 
 /** The business unit the non-technology departments sit under. */
 export const OPERATIONS = 'Operations'
@@ -99,7 +99,7 @@ export async function departmentAt(input: {
       data: { companyId: clientId, code, name: `${dept.name} — contingent`, orgUnitId: unit.id, ownerId },
     }))
 
-  const period = String(seedToday().getUTCFullYear())
+  const period = seedPlanYear()
   if (!(await db.headcountPlan.findFirst({ where: { costCenterId: cc.id, period } }))) {
     await db.headcountPlan.create({
       data: { costCenterId: cc.id, period, approvedHeads: 1, annualBudget: planFor(billCents), currency: 'USD' },
