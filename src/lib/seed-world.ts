@@ -38,9 +38,10 @@ import { writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes } from '@/lib/seed-programmes'
 import { seedDoors, NURSE_CORP_SLUG } from '@/lib/seed-doors'
 import { anchorSeed, day, at, seedPlanYear } from '@/lib/seed-days'
-import { seedCalendar, holidayKeys } from '@/lib/seed-calendar'
+import { finishedSteps, recordStep, seedVersion } from '@/lib/seed-steps'
+import { seedCalendar, holidayKeys, primeCalendar } from '@/lib/seed-calendar'
 import { seedStanding } from '@/lib/seed-standing'
-import { seedOrderToCash } from '@/lib/seed-order-to-cash'
+import { seedOrderToCash, ORDER_TO_CASH_PARTS, type OrderToCashPart } from '@/lib/seed-order-to-cash'
 import { seedRateChange } from '@/lib/seed-rate-change'
 import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
 import { seedPipeline } from '@/lib/seed-pipeline'
@@ -198,7 +199,108 @@ const NAMES: string[] = [
   'Vikram Joshi', 'Naomi Adeyemi', 'Peter Halloran', 'Divya Rangan',
 ]
 
-export async function seedWorld(): Promise<{
+/**
+ * How a call walks the steps: which are already done, and when to stop
+ * starting new ones. With no plan every step runs, as it always has.
+ */
+export interface SeedPlan {
+  /** Steps finished earlier for this world at this version; skipped. */
+  skip?: Set<string>
+  /** Epoch milliseconds after which no new step starts. */
+  deadline?: number | null
+}
+
+/**
+ * Every step, in the order `seedWorld` runs them. A step is one unit
+ * that finishes inside a function call and is safe to run again.
+ * `__integration__/seed-in-steps.test.ts` holds this list to what the
+ * seed actually runs.
+ */
+export function worldStepNames(): string[] {
+  return [
+    ...FIRMS.map((f) => `firm:${f.slug}`),
+    'calendar', 'counterparties',
+    ...PLACEMENTS.map((_, i) => `placement:${i}`),
+    'bench', 'in-flight', 'payroll', 'payroll-invitations',
+    'programs', 'program-office-seat', 'supplier-desks', 'compliance-desk', 'doors',
+    'rate-change', 'sector-suppliers', 'standing',
+    ...orderToCashSteps().map((s) => s.name),
+    'pipeline',
+    'document-requirements', 'sector-papers', 'claim',
+  ]
+}
+
+/** Shares the signed weeks are posted in, one step each. */
+const POSTING_SHARES = 4
+
+/** The order-to-cash layer as steps: its four parts, the postings cut again into shares. */
+type OrderToCashStep = { name: string; part: OrderToCashPart; slice?: { index: number; of: number } }
+function orderToCashSteps(): OrderToCashStep[] {
+  return ORDER_TO_CASH_PARTS.flatMap((part): OrderToCashStep[] =>
+    part === 'postings'
+      ? Array.from({ length: POSTING_SHARES }, (_, index) => ({
+          name: `order-to-cash:postings:${index + 1}-of-${POSTING_SHARES}`, part, slice: { index, of: POSTING_SHARES },
+        }))
+      : [{ name: `order-to-cash:${part}`, part }]
+  )
+}
+
+/** The earliest company on the roster: the day this world was born. Null before it exists. */
+async function worldAnchor(): Promise<{ createdAt: Date } | null> {
+  // By the roster, never the prefix: a real firm with a `world-` slug
+  // signed up before the world was seeded must not become its birthday.
+  return db.company.findFirst({
+    where: { slug: { in: [...WORLD_SLUGS] } },
+    orderBy: { createdAt: 'asc' },
+    select: { createdAt: true },
+  })
+}
+
+/**
+ * Which world a step marker belongs to: the id of the first firm the
+ * seed writes. A rebuild deletes that row and the next seed writes a new
+ * one, so the old world's markers stop matching on their own.
+ */
+async function worldId(): Promise<string | null> {
+  const first = await db.company.findUnique({ where: { slug: PREFIX + FIRMS[0].slug }, select: { id: true } })
+  return first?.id ?? null
+}
+
+/**
+ * Seed as much of the world as fits before `budgetMs` runs out, and say
+ * what is left. Call it again until `done`.
+ *
+ * Every step already finished for this world and this deployment is
+ * skipped without a query of its own; a world that is complete costs two
+ * queries and writes nothing.
+ */
+export async function seedWorldInSteps(opts: { budgetMs: number }): Promise<{
+  done: boolean
+  ran: string[]
+  skipped: number
+  next: string | null
+  remaining: number
+  version: string
+}> {
+  const started = Date.now()
+  const version = seedVersion()
+  const skip = await finishedSteps(await worldId(), version)
+  const all = worldStepNames()
+  if (all.every((n) => skip.has(n))) {
+    return { done: true, ran: [], skipped: all.length, next: null, remaining: 0, version }
+  }
+  const r = await seedWorld({ skip, deadline: started + opts.budgetMs })
+  return {
+    done: r.steps.pending.length === 0,
+    ran: r.steps.ran,
+    skipped: r.steps.skipped.length,
+    next: r.steps.pending[0] ?? null,
+    remaining: r.steps.pending.length,
+    version,
+  }
+}
+
+export async function seedWorld(plan: SeedPlan = {}): Promise<{
   firms: number; placements: number; consultants: number
   /// The integrators' own employees — a live EMPLOYEE seat, no bench listing.
   onPayroll: number
@@ -223,6 +325,8 @@ export async function seedWorld(): Promise<{
   resumes: number
   threads: number
   roster: { kind: string; name: string; slug: string }[]
+  /// Which steps this call ran, found already done, and left for the next.
+  steps: { ran: string[]; skipped: string[]; pending: string[] }
   }> {
   // ── The day this world counts from ──────────────────────────────────
   //
@@ -238,12 +342,11 @@ export async function seedWorld(): Promise<{
   // otherwise be the answer.
   // By the roster, never the prefix: a real firm with a `world-` slug
   // signed up before the world was seeded must not become its birthday.
-  const born = await db.company.findFirst({
-    where: { slug: { in: [...WORLD_SLUGS] } },
-    orderBy: { createdAt: 'asc' },
-    select: { createdAt: true },
-  })
+  const born = await worldAnchor()
   anchorSeed(born?.createdAt)
+  // The days off every contract below is generated against, in memory,
+  // whether or not this call is the one that writes the calendar's rows.
+  primeCalendar()
 
   // Scoped to the call, not the module: a long-lived server would
   // otherwise carry one run's ids into the next.
@@ -832,9 +935,74 @@ export async function seedWorld(): Promise<{
   return { person, requirement }
   }
 
-  // ── Build it ─────────────────────────────────────────────────────────
+  // ── Build it, a step at a time ───────────────────────────────────────
+  //
+  // Each step below is one unit that finishes well inside a function
+  // call and is safe to run again (lib/seed-steps). A step in `plan.skip`
+  // finished on an earlier call for this world and this deployment, and is
+  // passed over without a query. Once `plan.deadline` has passed no new
+  // step starts; the ones left are named for the next call. Every step
+  // runs in order, so a step never runs before the ones it reads from.
+  const counts = {
+    placed: 0, placements: 0, people: 0, holidays: 0,
+    orders: 0, postings: 0, journalEntries: 0,
+    documentRequirementOrders: 0, documentRequirements: 0,
+    petitions: 0, backings: 0, resumes: 0, threads: 0,
+  }
+  let claimed = 0
+  const steps = { ran: [] as string[], skipped: [] as string[], pending: [] as string[] }
+  // Markers already written, so a full seeding after a stepped one does
+  // not write a second marker for a step.
+  let world: string | null = await worldId()
+  const version = seedVersion()
+  const marked = plan.skip ?? (await finishedSteps(world, version))
 
-  for (const f of FIRMS) await firm(f)
+  async function step(name: string, fn: () => Promise<unknown>): Promise<void> {
+    if (plan.skip?.has(name)) {
+      steps.skipped.push(name)
+      return
+    }
+    // At least one step per call, however short the budget, so repeating
+    // the call always makes progress.
+    const outOfTime = plan.deadline != null && steps.ran.length > 0 && Date.now() >= plan.deadline
+    if (steps.pending.length > 0 || outOfTime) {
+      steps.pending.push(name)
+      return
+    }
+    await fn()
+    steps.ran.push(name)
+    // The first firm step is what gives an empty database its world.
+    world ??= await worldId()
+    if (world && !marked.has(name)) {
+      await recordStep(name, world, version)
+      marked.add(name)
+    }
+  }
+
+  // A firm whose step finished on an earlier call is not walked again,
+  // and the steps after it still need to know it. Two reads rebuild what
+  // `firm` would have put in the two maps.
+  {
+    const rows = await db.company.findMany({
+      where: { slug: { in: FIRMS.map((f) => PREFIX + f.slug) } },
+      select: { id: true, slug: true },
+    })
+    const bySlug = new Map(rows.map((r) => [r.slug, r]))
+    const emails = FIRMS.filter((f) => !f.seatless).map((f) => `${PREFIX + f.slug}@${DOMAIN}`)
+    const owners = await db.person.findMany({ where: { primaryEmail: { in: emails } }, select: { id: true, primaryEmail: true } })
+    const ownerBy = new Map(owners.map((o) => [o.primaryEmail, o.id]))
+    for (const f of FIRMS) {
+      const c = bySlug.get(PREFIX + f.slug)
+      if (!c) continue
+      firmBySlug.set(f.slug, c)
+      const email = `${PREFIX + f.slug}@${DOMAIN}`
+      const personId = f.seatless ? undefined : ownerBy.get(email)
+      if (personId) seatBySlug.set(f.slug, { personId, email })
+    }
+  }
+
+
+  for (const f of FIRMS) await step(`firm:${f.slug}`, () => firm(f))
 
   // The days nobody works, before anybody is placed.
   //
@@ -844,27 +1012,35 @@ export async function seedWorld(): Promise<{
   // before the first contract or no due date in this world will ever have
   // been shifted off a holiday. A world seeded before this existed keeps
   // its dates; to move them, drop the world and seed it again.
-  const calendar = await seedCalendar(firmBySlug)
+  await step('calendar', async () => {
+    counts.holidays = (await seedCalendar(firmBySlug)).days
+  })
 
   // Who trades with whom. An MSP routes and holds no contract, so it is a
   // counterparty of the client and of the primes, and of nobody's money.
-  for (const p of PLACEMENTS) {
-    const [client, ...suppliers] = p.via
-    for (let i = 0; i < suppliers.length; i++) {
-      const above = i === 0 ? client : suppliers[i - 1]
-      await trade(suppliers[i], above, i === 0 ? 'CLIENT' : 'PRIME')
-      await trade(above, suppliers[i], 'SUPPLIER')
+  await step('counterparties', async () => {
+    for (const p of PLACEMENTS) {
+      const [client, ...suppliers] = p.via
+      for (let i = 0; i < suppliers.length; i++) {
+        const above = i === 0 ? client : suppliers[i - 1]
+        await trade(suppliers[i], above, i === 0 ? 'CLIENT' : 'PRIME')
+        await trade(above, suppliers[i], 'SUPPLIER')
+      }
+      if (p.routedBy) {
+        await trade(client, p.routedBy, 'MSP')
+        await trade(p.routedBy, client, 'CLIENT')
+        await trade(p.routedBy, suppliers[0], 'SUPPLIER')
+        await trade(suppliers[0], p.routedBy, 'MSP')
+      }
     }
-    if (p.routedBy) {
-      await trade(client, p.routedBy, 'MSP')
-      await trade(p.routedBy, client, 'CLIENT')
-      await trade(p.routedBy, suppliers[0], 'SUPPLIER')
-      await trade(suppliers[0], p.routedBy, 'MSP')
-    }
-  }
+  })
 
-  const placed = []
-  for (const [i, p] of PLACEMENTS.entries()) placed.push(await place(p, NAMES[i], i))
+  for (const [i, p] of PLACEMENTS.entries()) {
+    await step(`placement:${i}`, async () => {
+      await place(p, NAMES[i], i)
+      counts.placed++
+    })
+  }
 
   // Bench nobody has placed yet, so a bench vendor's list is not just the
   // one person who is already out.
@@ -872,32 +1048,34 @@ export async function seedWorld(): Promise<{
   // consultant's consent granted to a firm, and a firm nobody has joined
   // has nobody to grant it to. Halcyon takes the sixth slot so the
   // rotation is the same length and everybody else lands where they did.
-  const benchVendors = ['cloudepa', 'consultis', 'nimbus', 'sahasra', 'orchid', 'halcyon']
-  for (const [i, name] of NAMES.slice(PLACEMENTS.length).entries()) {
-    const co = firmBySlug.get(benchVendors[i % benchVendors.length])!
-    const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
-    const person = await db.person.upsert({
-      where: { primaryEmail: email }, update: {}, create: { name, primaryEmail: email },
-    })
-    const profile =
-      (await db.consultantProfile.findFirst({ where: { personId: person.id } })) ??
-      (await db.consultantProfile.create({
-        data: {
-          personId: person.id,
-          skills: PLACEMENTS[i % PLACEMENTS.length].skills,
-          location: PLACEMENTS[i % PLACEMENTS.length].loc,
-          visibility: 'VERIFIED', workAuth: i % 2 ? 'H1B' : 'GC',
-        },
-      }))
-    if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: co.id } }))) {
-      await db.benchListing.create({
-        data: {
-          consultantId: profile.id, companyId: co.id, tier: 'MARKETING', state: 'GRANTED',
-          invitedAt: day(-60), respondedAt: day(-59), grantedAt: day(-59),
-        },
+  await step('bench', async () => {
+    const benchVendors = ['cloudepa', 'consultis', 'nimbus', 'sahasra', 'orchid', 'halcyon']
+    for (const [i, name] of NAMES.slice(PLACEMENTS.length).entries()) {
+      const co = firmBySlug.get(benchVendors[i % benchVendors.length])!
+      const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
+      const person = await db.person.upsert({
+        where: { primaryEmail: email }, update: {}, create: { name, primaryEmail: email },
       })
+      const profile =
+        (await db.consultantProfile.findFirst({ where: { personId: person.id } })) ??
+        (await db.consultantProfile.create({
+          data: {
+            personId: person.id,
+            skills: PLACEMENTS[i % PLACEMENTS.length].skills,
+            location: PLACEMENTS[i % PLACEMENTS.length].loc,
+            visibility: 'VERIFIED', workAuth: i % 2 ? 'H1B' : 'GC',
+          },
+        }))
+      if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: co.id } }))) {
+        await db.benchListing.create({
+          data: {
+            consultantId: profile.id, companyId: co.id, tier: 'MARKETING', state: 'GRANTED',
+            invitedAt: day(-60), respondedAt: day(-59), grantedAt: day(-59),
+          },
+        })
+      }
     }
-  }
+  })
 
 
   // ── Work still in flight ─────────────────────────────────────────────
@@ -1003,128 +1181,130 @@ export async function seedWorld(): Promise<{
     },
   ]
 
-  for (const l of LIVE) {
-    const client = firmBySlug.get(l.client)!
-    const prime = firmBySlug.get(l.prime)!
-    const bench = firmBySlug.get(l.bench)!
+  await step('in-flight', async () => {
+    for (const l of LIVE) {
+      const client = firmBySlug.get(l.client)!
+      const prime = firmBySlug.get(l.prime)!
+      const bench = firmBySlug.get(l.bench)!
 
-    const email = `${l.name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
-    const person = await db.person.upsert({
-      where: { primaryEmail: email }, update: {}, create: { name: l.name, primaryEmail: email },
-    })
-    const profile =
-      (await db.consultantProfile.findFirst({ where: { personId: person.id } })) ??
-      (await db.consultantProfile.create({
-        data: {
-          personId: person.id, skills: l.skills, location: l.loc,
-          visibility: 'VERIFIED', workAuth: 'H1B',
-        },
-      }))
-    // RETAINED, because the kind of a submission is computed from the
-    // tier: their own bench reads BENCH, anybody else's reads NETWORK.
-    if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: bench.id } }))) {
-      await db.benchListing.create({
-        data: {
-          consultantId: profile.id, companyId: bench.id, tier: 'RETAINED', state: 'GRANTED',
-          invitedAt: day(-45), respondedAt: day(-44), grantedAt: day(-44),
-        },
+      const email = `${l.name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
+      const person = await db.person.upsert({
+        where: { primaryEmail: email }, update: {}, create: { name: l.name, primaryEmail: email },
       })
+      const profile =
+        (await db.consultantProfile.findFirst({ where: { personId: person.id } })) ??
+        (await db.consultantProfile.create({
+          data: {
+            personId: person.id, skills: l.skills, location: l.loc,
+            visibility: 'VERIFIED', workAuth: 'H1B',
+          },
+        }))
+      // RETAINED, because the kind of a submission is computed from the
+      // tier: their own bench reads BENCH, anybody else's reads NETWORK.
+      if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: bench.id } }))) {
+        await db.benchListing.create({
+          data: {
+            consultantId: profile.id, companyId: bench.id, tier: 'RETAINED', state: 'GRANTED',
+            invitedAt: day(-45), respondedAt: day(-44), grantedAt: day(-44),
+          },
+        })
+      }
+
+      // The client's own requirement, still open.
+      const req =
+        (await db.requirement.findFirst({ where: { companyId: client.id, title: l.role } })) ??
+        (await db.requirement.create({
+          data: {
+            companyId: client.id, title: l.role, skills: l.skills, location: l.loc,
+            billMin: l.band[0], billMax: l.band[1], months: 12, headcount: 1,
+            status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', neededBy: day(30),
+          },
+        }))
+
+      // The prime's mirror. Its band is what it will pay a supplier, which
+      // is not what the client pays it — the whole reason this is a second
+      // row and not a flag on the first.
+      const mirror =
+        (await db.requirement.findFirst({ where: { companyId: prime.id, title: l.role } })) ??
+        (await db.requirement.create({
+          data: {
+            companyId: prime.id, title: l.role, skills: l.skills, location: l.loc,
+            billMin: l.benchRate - 800, billMax: l.benchRate + 400, months: 12, headcount: 1,
+            status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'NETWORK', neededBy: day(30),
+            endClientCompanyId: client.id,
+          },
+        }))
+
+      const up =
+        (await db.submission.findFirst({ where: { requirementId: mirror.id, personId: person.id } })) ??
+        (await db.submission.create({
+          data: {
+            requirementId: mirror.id, personId: person.id,
+            fromCompanyId: bench.id, toCompanyId: prime.id, kind: 'BENCH',
+            rate: l.benchRate, status: 'SHORTLISTED', checkState: 'SENT', screenState: 'READY',
+            submittedAt: day(-14), forwardedAt: day(-12), forwardedVia: 'ONWARD',
+            forwardedById: seatBySlug.get(l.bench)!.personId,
+          },
+        }))
+
+      // The hop onward, carrying the prime's rate and the prime's decision
+      // date. A flag on the first row could carry neither.
+      const sub =
+        (await db.submission.findFirst({ where: { requirementId: req.id, personId: person.id } })) ??
+        (await db.submission.create({
+          data: {
+            requirementId: req.id, personId: person.id,
+            fromCompanyId: prime.id, toCompanyId: client.id, kind: 'NETWORK',
+            rate: l.primeRate, status: 'SHORTLISTED', checkState: 'SENT', screenState: 'READY',
+            submittedAt: day(-12), parentSubmissionId: up.id,
+          },
+        }))
+
+      for (const r of l.rounds) {
+        if (await db.interview.findFirst({ where: { submissionId: sub.id, round: r.round } })) continue
+        const when = at(r.inDays, r.atHourUtc)
+        const proposed = r.state === 'PROPOSED'
+        await db.interview.create({
+          data: {
+            submissionId: sub.id, companyId: client.id, vendorId: prime.id,
+            round: r.round, stage: r.stage, mode: r.mode, state: r.state,
+            // A proposal is slots and no time; anything further along is a
+            // time and no slots. Setting both would say the diary is booked
+            // and still asking.
+            proposedSlots: proposed
+              ? [
+                  { start: when.toISOString(), end: at(r.inDays, r.atHourUtc + 1).toISOString() },
+                  // Three days apart, not one: a nudge off a weekend moves a
+                  // date by at most two, so a one-day gap can collapse to
+                  // the same slot offered twice.
+                  {
+                    start: at(r.inDays + 3, r.atHourUtc).toISOString(),
+                    end: at(r.inDays + 3, r.atHourUtc + 1).toISOString(),
+                  },
+                ]
+              : [],
+            scheduledAt: proposed ? null : when,
+            durationMins: r.stage === 'SCREEN' ? 30 : 60,
+            location: r.mode === 'ONSITE' ? l.loc : 'https://meet.example.invalid/etyme-demo',
+            requestedById: seatBySlug.get(l.client)!.personId,
+            interviewers: r.interviewers,
+            // A proposal nobody has answered in nine days reads as neglect
+            // rather than a live queue; a confirmed round was arranged a
+            // while back, which is ordinary.
+            proposedAt: proposed ? day(-3) : day(-9),
+            clientConfirmedAt: proposed ? null : day(-8),
+            vendorConfirmedAt: proposed ? null : day(-8),
+            consultantConfirmedAt: proposed ? null : day(-8),
+            consultantConfirmedVia: proposed ? null : 'VENDOR_ASSERTED',
+            outcome: r.outcome ?? null,
+            feedback: r.feedback ?? null,
+            decidedAt: r.state === 'DONE' ? when : null,
+            decidedById: r.state === 'DONE' ? seatBySlug.get(l.client)!.personId : null,
+          },
+        })
+      }
     }
-
-    // The client's own requirement, still open.
-    const req =
-      (await db.requirement.findFirst({ where: { companyId: client.id, title: l.role } })) ??
-      (await db.requirement.create({
-        data: {
-          companyId: client.id, title: l.role, skills: l.skills, location: l.loc,
-          billMin: l.band[0], billMax: l.band[1], months: 12, headcount: 1,
-          status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', neededBy: day(30),
-        },
-      }))
-
-    // The prime's mirror. Its band is what it will pay a supplier, which
-    // is not what the client pays it — the whole reason this is a second
-    // row and not a flag on the first.
-    const mirror =
-      (await db.requirement.findFirst({ where: { companyId: prime.id, title: l.role } })) ??
-      (await db.requirement.create({
-        data: {
-          companyId: prime.id, title: l.role, skills: l.skills, location: l.loc,
-          billMin: l.benchRate - 800, billMax: l.benchRate + 400, months: 12, headcount: 1,
-          status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'NETWORK', neededBy: day(30),
-          endClientCompanyId: client.id,
-        },
-      }))
-
-    const up =
-      (await db.submission.findFirst({ where: { requirementId: mirror.id, personId: person.id } })) ??
-      (await db.submission.create({
-        data: {
-          requirementId: mirror.id, personId: person.id,
-          fromCompanyId: bench.id, toCompanyId: prime.id, kind: 'BENCH',
-          rate: l.benchRate, status: 'SHORTLISTED', checkState: 'SENT', screenState: 'READY',
-          submittedAt: day(-14), forwardedAt: day(-12), forwardedVia: 'ONWARD',
-          forwardedById: seatBySlug.get(l.bench)!.personId,
-        },
-      }))
-
-    // The hop onward, carrying the prime's rate and the prime's decision
-    // date. A flag on the first row could carry neither.
-    const sub =
-      (await db.submission.findFirst({ where: { requirementId: req.id, personId: person.id } })) ??
-      (await db.submission.create({
-        data: {
-          requirementId: req.id, personId: person.id,
-          fromCompanyId: prime.id, toCompanyId: client.id, kind: 'NETWORK',
-          rate: l.primeRate, status: 'SHORTLISTED', checkState: 'SENT', screenState: 'READY',
-          submittedAt: day(-12), parentSubmissionId: up.id,
-        },
-      }))
-
-    for (const r of l.rounds) {
-      if (await db.interview.findFirst({ where: { submissionId: sub.id, round: r.round } })) continue
-      const when = at(r.inDays, r.atHourUtc)
-      const proposed = r.state === 'PROPOSED'
-      await db.interview.create({
-        data: {
-          submissionId: sub.id, companyId: client.id, vendorId: prime.id,
-          round: r.round, stage: r.stage, mode: r.mode, state: r.state,
-          // A proposal is slots and no time; anything further along is a
-          // time and no slots. Setting both would say the diary is booked
-          // and still asking.
-          proposedSlots: proposed
-            ? [
-                { start: when.toISOString(), end: at(r.inDays, r.atHourUtc + 1).toISOString() },
-                // Three days apart, not one: a nudge off a weekend moves a
-                // date by at most two, so a one-day gap can collapse to
-                // the same slot offered twice.
-                {
-                  start: at(r.inDays + 3, r.atHourUtc).toISOString(),
-                  end: at(r.inDays + 3, r.atHourUtc + 1).toISOString(),
-                },
-              ]
-            : [],
-          scheduledAt: proposed ? null : when,
-          durationMins: r.stage === 'SCREEN' ? 30 : 60,
-          location: r.mode === 'ONSITE' ? l.loc : 'https://meet.example.invalid/etyme-demo',
-          requestedById: seatBySlug.get(l.client)!.personId,
-          interviewers: r.interviewers,
-          // A proposal nobody has answered in nine days reads as neglect
-          // rather than a live queue; a confirmed round was arranged a
-          // while back, which is ordinary.
-          proposedAt: proposed ? day(-3) : day(-9),
-          clientConfirmedAt: proposed ? null : day(-8),
-          vendorConfirmedAt: proposed ? null : day(-8),
-          consultantConfirmedAt: proposed ? null : day(-8),
-          consultantConfirmedVia: proposed ? null : 'VENDOR_ASSERTED',
-          outcome: r.outcome ?? null,
-          feedback: r.feedback ?? null,
-          decidedAt: r.state === 'DONE' ? when : null,
-          decidedById: r.state === 'DONE' ? seatBySlug.get(l.client)!.personId : null,
-        },
-      })
-    }
-  }
+  })
 
 
 
@@ -1173,58 +1353,60 @@ export async function seedWorld(): Promise<{
   ]
 
   let onPayroll = 0
-  for (const { slug, team } of PAYROLL) {
-    const co = firmBySlug.get(slug)!
-    for (const s of team) {
-      const email = `${s.name
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
-      const person = await db.person.upsert({
-        where: { primaryEmail: email }, update: { name: s.name }, create: { name: s.name, primaryEmail: email },
-      })
-      const role =
-        (await db.role.findFirst({ where: { companyId: co.id, name: s.discipline } })) ??
-        (await db.role.create({
+  await step('payroll', async () => {
+    for (const { slug, team } of PAYROLL) {
+      const co = firmBySlug.get(slug)!
+      for (const s of team) {
+        const email = `${s.name
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
+        const person = await db.person.upsert({
+          where: { primaryEmail: email }, update: { name: s.name }, create: { name: s.name, primaryEmail: email },
+        })
+        const role =
+          (await db.role.findFirst({ where: { companyId: co.id, name: s.discipline } })) ??
+          (await db.role.create({
+            data: {
+              companyId: co.id, name: s.discipline, isDefault: false,
+              // A delivery engineer reads the work they are on and files
+              // their own week. Nothing else — they staff nobody, sell
+              // nobody, and see no money.
+              permissions: ['assignments.read', 'timesheets.read'],
+            },
+          }))
+        if (!(await db.context.findFirst({ where: { personId: person.id, companyId: co.id } }))) {
+          await db.context.create({
+            data: {
+              personId: person.id, companyId: co.id, roleId: role.id, type: 'EMPLOYEE',
+              grantReason: s.practice,
+            },
+          })
+        }
+        onPayroll++
+      }
+
+      // Cover on file, which is what lets a firm put anybody in front of a
+      // client at all. Neither integrator had any: `place` writes a
+      // certificate for whoever employs the consultant, and on every chain
+      // in this world these two sit in the middle. So the submit door
+      // refused them on COVER_LAPSED one screen before the payroll
+      // carve-out was ever reached.
+      for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+        if (await db.verification.findFirst({ where: { companyId: co.id, type } })) continue
+        await db.verification.create({
           data: {
-            companyId: co.id, name: s.discipline, isDefault: false,
-            // A delivery engineer reads the work they are on and files
-            // their own week. Nothing else — they staff nobody, sell
-            // nobody, and see no money.
-            permissions: ['assignments.read', 'timesheets.read'],
-          },
-        }))
-      if (!(await db.context.findFirst({ where: { personId: person.id, companyId: co.id } }))) {
-        await db.context.create({
-          data: {
-            personId: person.id, companyId: co.id, roleId: role.id, type: 'EMPLOYEE',
-            grantReason: s.practice,
+            companyId: co.id, type, status: 'CLEAR', provider: 'Hartford',
+            issuedAt: day(-300), validFrom: day(-300), expiresAt: day(200),
+            uploadedById: seatBySlug.get(slug)!.personId,
+            verifiedById: seatBySlug.get(slug)!.personId, verifiedAt: day(-299),
+            result: { outcome: 'CLEAR' },
           },
         })
       }
-      onPayroll++
     }
-
-    // Cover on file, which is what lets a firm put anybody in front of a
-    // client at all. Neither integrator had any: `place` writes a
-    // certificate for whoever employs the consultant, and on every chain
-    // in this world these two sit in the middle. So the submit door
-    // refused them on COVER_LAPSED one screen before the payroll
-    // carve-out was ever reached.
-    for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
-      if (await db.verification.findFirst({ where: { companyId: co.id, type } })) continue
-      await db.verification.create({
-        data: {
-          companyId: co.id, type, status: 'CLEAR', provider: 'Hartford',
-          issuedAt: day(-300), validFrom: day(-300), expiresAt: day(200),
-          uploadedById: seatBySlug.get(slug)!.personId,
-          verifiedById: seatBySlug.get(slug)!.personId, verifiedAt: day(-299),
-          result: { outcome: 'CLEAR' },
-        },
-      })
-    }
-  }
+  })
 
   // And a seat one of them can actually answer with somebody off that
   // payroll. Corveldt's DO-178C verification engineer is open and
@@ -1233,25 +1415,27 @@ export async function seedWorld(): Promise<{
   // leads nowhere. Both already supply Corveldt — Teleworld on avionics,
   // Sundara on PLM — and Karthik Menon and Aditi Ramaswamy are the two
   // people on this list who could do the work.
-  const corveldt = firmBySlug.get('corveldt')!
-  const avionics = await db.requirement.findFirst({
-    where: { companyId: corveldt.id, title: 'DO-178C verification engineer' },
-    select: { id: true },
-  })
-  if (avionics) {
-    for (const slug of ['teleworld', 'sundara']) {
-      const to = firmBySlug.get(slug)!
-      if (await db.requirementInvitation.findFirst({ where: { requirementId: avionics.id, toCompanyId: to.id } })) continue
-      await db.requirementInvitation.create({
-        data: {
-          requirementId: avionics.id, fromCompanyId: corveldt.id, toCompanyId: to.id,
-          // Under the client's own ceiling, and not the same for both.
-          payMin: 13_000, payMax: slug === 'teleworld' ? 14_500 : 14_000,
-          expiresAt: day(12), status: 'SENT', createdAt: day(-9),
-        },
-      })
+  await step('payroll-invitations', async () => {
+    const corveldt = firmBySlug.get('corveldt')!
+    const avionics = await db.requirement.findFirst({
+      where: { companyId: corveldt.id, title: 'DO-178C verification engineer' },
+      select: { id: true },
+    })
+    if (avionics) {
+      for (const slug of ['teleworld', 'sundara']) {
+        const to = firmBySlug.get(slug)!
+        if (await db.requirementInvitation.findFirst({ where: { requirementId: avionics.id, toCompanyId: to.id } })) continue
+        await db.requirementInvitation.create({
+          data: {
+            requirementId: avionics.id, fromCompanyId: corveldt.id, toCompanyId: to.id,
+            // Under the client's own ceiling, and not the same for both.
+            payMin: 13_000, payMax: slug === 'teleworld' ? 14_500 : 14_000,
+            expiresAt: day(12), status: 'SENT', createdAt: day(-9),
+          },
+        })
+      }
     }
-  }
+  })
 
   // ── The three client programs ──────────────────────────────────────
   //
@@ -1260,7 +1444,11 @@ export async function seedWorld(): Promise<{
   // history, and a desk for each job — the office that runs it, the
   // manager who needs somebody, the VP who signs, the clerk who pays,
   // the officer who answers for tenure and paperwork.
-  const programs = await seedProgrammes({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
+  await step('programs', async () => {
+    const programs = await seedProgrammes({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
+    counts.placements += programs.placements
+    counts.people += programs.people
+  })
 
   // ── A program office in a seat, at one of the three programs ───────
   //
@@ -1278,34 +1466,36 @@ export async function seedWorld(): Promise<{
   //
   // Granted by Cavanaugh's account owner, because a seat is an owner's or
   // the program manager's to give and nobody else's.
-  const cavanaugh = firmBySlug.get('corning')
-  const aptiva = firmBySlug.get('aptiva')
-  const cavanaughOwner = seatBySlug.get('corning')
-  if (cavanaugh && aptiva && cavanaughOwner) {
-    const pmRole = await db.role.findFirst({
-      where: { companyId: cavanaugh.id, name: 'Program Manager' },
-      select: { id: true },
-    })
-    const already = await db.programSeat.findFirst({
-      where: { clientCompanyId: cavanaugh.id, officeCompanyId: aptiva.id },
-      select: { id: true },
-    })
-    if (pmRole && !already) {
-      await db.programSeat.create({
-        data: {
-          clientCompanyId: cavanaugh.id,
-          officeCompanyId: aptiva.id,
-          roleId: pmRole.id,
-          grantedById: cavanaughOwner.personId,
-          grantedAt: day(-210),
-          validFrom: day(-210),
-          reason:
-            'Aptiva runs our contingent program. We have no workforce office of our own and they ' +
-            'place nobody here, so they sit at our program manager desk under our own rules.',
-        },
+  await step('program-office-seat', async () => {
+    const cavanaugh = firmBySlug.get('corning')
+    const aptiva = firmBySlug.get('aptiva')
+    const cavanaughOwner = seatBySlug.get('corning')
+    if (cavanaugh && aptiva && cavanaughOwner) {
+      const pmRole = await db.role.findFirst({
+        where: { companyId: cavanaugh.id, name: 'Program Manager' },
+        select: { id: true },
       })
+      const already = await db.programSeat.findFirst({
+        where: { clientCompanyId: cavanaugh.id, officeCompanyId: aptiva.id },
+        select: { id: true },
+      })
+      if (pmRole && !already) {
+        await db.programSeat.create({
+          data: {
+            clientCompanyId: cavanaugh.id,
+            officeCompanyId: aptiva.id,
+            roleId: pmRole.id,
+            grantedById: cavanaughOwner.personId,
+            grantedAt: day(-210),
+            validFrom: day(-210),
+            reason:
+              'Aptiva runs our contingent program. We have no workforce office of our own and they ' +
+              'place nobody here, so they sit at our program manager desk under our own rules.',
+          },
+        })
+      }
     }
-  }
+  })
 
   // ── A supplier's own desks ─────────────────────────────────────────
   //
@@ -1340,43 +1530,45 @@ export async function seedWorld(): Promise<{
     { desk: 'compliance', role: 'Compliance Officer',  name: 'Anneke Roosevelt' },
   ]
   let supplierDesks = 0
-  const brightmoor = firmBySlug.get('brightmoor')
-  if (brightmoor) {
-    for (const [was, now] of Object.entries(RENAMED_ROLES)) {
-      await db.role.updateMany({ where: { companyId: brightmoor.id, name: was }, data: { name: now } })
-    }
-    for (const seed of rolesFor('VENDOR')) {
-      const existing = await db.role.findFirst({ where: { companyId: brightmoor.id, name: seed.name } })
-      if (!existing) {
-        await db.role.create({
-          data: {
-            companyId: brightmoor.id, name: seed.name,
-            permissions: seed.permissions, isDefault: !!seed.isOwner,
-          },
+  await step('supplier-desks', async () => {
+    const brightmoor = firmBySlug.get('brightmoor')
+    if (brightmoor) {
+      for (const [was, now] of Object.entries(RENAMED_ROLES)) {
+        await db.role.updateMany({ where: { companyId: brightmoor.id, name: was }, data: { name: now } })
+      }
+      for (const seed of rolesFor('VENDOR')) {
+        const existing = await db.role.findFirst({ where: { companyId: brightmoor.id, name: seed.name } })
+        if (!existing) {
+          await db.role.create({
+            data: {
+              companyId: brightmoor.id, name: seed.name,
+              permissions: seed.permissions, isDefault: !!seed.isOwner,
+            },
+          })
+        }
+      }
+      for (const d of SUPPLIER_TEAM) {
+        const role = await db.role.findFirst({ where: { companyId: brightmoor.id, name: d.role }, select: { id: true } })
+        if (!role) continue
+        // The same address shape the client desks use: the firm's slug
+        // with the desk after it. Nobody reads it — it is a sign-in
+        // handle, and no screen prints one (lib/contacts).
+        const email = `${PREFIX}brightmoor-${d.desk}@${DOMAIN}`
+        const who = await db.person.upsert({
+          where: { primaryEmail: email }, update: { name: d.name }, create: { name: d.name, primaryEmail: email },
         })
+        if (!(await db.context.findFirst({ where: { personId: who.id, companyId: brightmoor.id } }))) {
+          await db.context.create({
+            data: {
+              personId: who.id, companyId: brightmoor.id, roleId: role.id, type: 'EMPLOYEE',
+              grantReason: `Seeded supplier desk — ${d.role}`,
+            },
+          })
+        }
+        supplierDesks++
       }
     }
-    for (const d of SUPPLIER_TEAM) {
-      const role = await db.role.findFirst({ where: { companyId: brightmoor.id, name: d.role }, select: { id: true } })
-      if (!role) continue
-      // The same address shape the client desks use: the firm's slug
-      // with the desk after it. Nobody reads it — it is a sign-in
-      // handle, and no screen prints one (lib/contacts).
-      const email = `${PREFIX}brightmoor-${d.desk}@${DOMAIN}`
-      const who = await db.person.upsert({
-        where: { primaryEmail: email }, update: { name: d.name }, create: { name: d.name, primaryEmail: email },
-      })
-      if (!(await db.context.findFirst({ where: { personId: who.id, companyId: brightmoor.id } }))) {
-        await db.context.create({
-          data: {
-            personId: who.id, companyId: brightmoor.id, roleId: role.id, type: 'EMPLOYEE',
-            grantReason: `Seeded supplier desk — ${d.role}`,
-          },
-        })
-      }
-      supplierDesks++
-    }
-  }
+  })
 
   // ── A compliance desk a program office sits at ─────────────────────
   //
@@ -1390,67 +1582,73 @@ export async function seedWorld(): Promise<{
   // are read by a firm that is not the client, which is exactly the
   // read a client would most want accounted for afterwards — and until
   // this existed there was nowhere on the demo to walk it.
-  const talvern = firmBySlug.get('terumo-bct')
-  const kestrel = firmBySlug.get('kestrel')
-  const talvernOwner = seatBySlug.get('terumo-bct')
-  if (talvern && kestrel && talvernOwner) {
-    const coRole = await db.role.findFirst({
-      where: { companyId: talvern.id, name: 'Compliance Officer' },
-      select: { id: true },
-    })
-    const already = await db.programSeat.findFirst({
-      where: { clientCompanyId: talvern.id, officeCompanyId: kestrel.id },
-      select: { id: true },
-    })
-    if (coRole && !already) {
-      await db.programSeat.create({
-        data: {
-          clientCompanyId: talvern.id,
-          officeCompanyId: kestrel.id,
-          roleId: coRole.id,
-          grantedById: talvernOwner.personId,
-          grantedAt: day(-150),
-          validFrom: day(-150),
-          reason:
-            'Kestrel answers for compliance across our suppliers — tenure, work authorization and ' +
-            'cover — so they sit at our own compliance desk under our rules, and every read of a ' +
-            'contractor’s record is logged against them.',
-        },
+  await step('compliance-desk', async () => {
+    const talvern = firmBySlug.get('terumo-bct')
+    const kestrel = firmBySlug.get('kestrel')
+    const talvernOwner = seatBySlug.get('terumo-bct')
+    if (talvern && kestrel && talvernOwner) {
+      const coRole = await db.role.findFirst({
+        where: { companyId: talvern.id, name: 'Compliance Officer' },
+        select: { id: true },
       })
-    }
-    // And somebody at Kestrel to sit in it. A program office with one
-    // owner and nobody else cannot show a desk doing a desk's job.
-    const kestrelRole =
-      (await db.role.findFirst({ where: { companyId: kestrel.id, name: 'Compliance Officer' } })) ??
-      (await db.role.create({
-        data: {
-          companyId: kestrel.id, name: 'Compliance Officer', isDefault: false,
-          permissions: rolesFor('MSP').find((r) => r.name === 'Compliance Officer')!.permissions,
-        },
-      }))
-    const email = `${PREFIX}kestrel-compliance@${DOMAIN}`
-    const who = await db.person.upsert({
-      where: { primaryEmail: email },
-      update: { name: 'Yvonne Achterberg' },
-      create: { name: 'Yvonne Achterberg', primaryEmail: email },
-    })
-    if (!(await db.context.findFirst({ where: { personId: who.id, companyId: kestrel.id } }))) {
-      await db.context.create({
-        data: {
-          personId: who.id, companyId: kestrel.id, roleId: kestrelRole.id, type: 'EMPLOYEE',
-          grantReason: 'Seeded program office desk — Compliance Officer',
-        },
+      const already = await db.programSeat.findFirst({
+        where: { clientCompanyId: talvern.id, officeCompanyId: kestrel.id },
+        select: { id: true },
       })
+      if (coRole && !already) {
+        await db.programSeat.create({
+          data: {
+            clientCompanyId: talvern.id,
+            officeCompanyId: kestrel.id,
+            roleId: coRole.id,
+            grantedById: talvernOwner.personId,
+            grantedAt: day(-150),
+            validFrom: day(-150),
+            reason:
+              'Kestrel answers for compliance across our suppliers — tenure, work authorization and ' +
+              'cover — so they sit at our own compliance desk under our rules, and every read of a ' +
+              'contractor’s record is logged against them.',
+          },
+        })
+      }
+      // And somebody at Kestrel to sit in it. A program office with one
+      // owner and nobody else cannot show a desk doing a desk's job.
+      const kestrelRole =
+        (await db.role.findFirst({ where: { companyId: kestrel.id, name: 'Compliance Officer' } })) ??
+        (await db.role.create({
+          data: {
+            companyId: kestrel.id, name: 'Compliance Officer', isDefault: false,
+            permissions: rolesFor('MSP').find((r) => r.name === 'Compliance Officer')!.permissions,
+          },
+        }))
+      const email = `${PREFIX}kestrel-compliance@${DOMAIN}`
+      const who = await db.person.upsert({
+        where: { primaryEmail: email },
+        update: { name: 'Yvonne Achterberg' },
+        create: { name: 'Yvonne Achterberg', primaryEmail: email },
+      })
+      if (!(await db.context.findFirst({ where: { personId: who.id, companyId: kestrel.id } }))) {
+        await db.context.create({
+          data: {
+            personId: who.id, companyId: kestrel.id, roleId: kestrelRole.id, type: 'EMPLOYEE',
+            grantReason: 'Seeded program office desk — Compliance Officer',
+          },
+        })
+      }
+      supplierDesks++
     }
-    supplierDesks++
-  }
+  })
 
   // ── The last mile: the doors themselves ────────────────────────────
   //
   // Four people with a seat of their own and something waiting on it,
   // and the two firms whose door on /demo led to an empty book. Runs
   // last because two of the four are placed by the program seed above.
-  const doors = await seedDoors({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
+  await step('doors', async () => {
+    const doors = await seedDoors({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
+    counts.placements += doors.placements
+    counts.people += doors.people
+  })
 
   // ── The layers above and below the placement ───────────────────────
   //
@@ -1479,19 +1677,40 @@ export async function seedWorld(): Promise<{
   // puts the document an I-9 was completed from behind every I-9 it
   // finds, so an I-9 written after it gained its passport on the second
   // seeding instead of the first.
-  await seedRateChange(ctx)
+  await step('rate-change', () => seedRateChange(ctx))
   // The two suppliers outside IT (lib/seed-sector-suppliers), before
   // standing and the order-to-cash layer for the same two reasons.
-  await seedSectorSuppliers(ctx)
-  const standing = await seedStanding(ctx)
-  const cash = await seedOrderToCash(ctx)
-  const pipeline = await seedPipeline(ctx)
+  await step('sector-suppliers', () => seedSectorSuppliers(ctx))
+  await step('standing', async () => {
+    const standing = await seedStanding(ctx)
+    counts.petitions = standing.petitions
+    counts.backings = standing.backings
+  })
+  // In four parts, because on a fresh world this layer alone is more
+  // queries than one call can make against a distant database.
+  for (const { name, part, slice } of orderToCashSteps()) {
+    await step(name, async () => {
+      const cash = await seedOrderToCash(ctx, [part], slice)
+      counts.orders += cash.orders
+      counts.postings += cash.postings
+      counts.journalEntries += cash.journalEntries
+    })
+  }
+  await step('pipeline', async () => {
+    const pipeline = await seedPipeline(ctx)
+    counts.resumes = pipeline.resumes
+    counts.threads = pipeline.threads
+  })
   // What each order asks for on paper. Last of all, because it hangs off
   // the orders `seedOrderToCash` raised a moment ago.
-  const paperwork = await seedDocumentRequirements(ctx)
+  await step('document-requirements', async () => {
+    const paperwork = await seedDocumentRequirements(ctx)
+    counts.documentRequirementOrders = paperwork.orders
+    counts.documentRequirements = paperwork.items
+  })
   // The papers those two workers owe on their lines, signed. After the
   // order's set exists, because the set is what says which papers.
-  await seedSectorPapers(ctx)
+  await step('sector-papers', () => seedSectorPapers(ctx))
 
   // ── A firm with a seat took possession of itself ───────────────────
   //
@@ -1515,39 +1734,43 @@ export async function seedWorld(): Promise<{
   // them and is a no-op on the second run. The roster rather than the
   // prefix, because a real firm named World Wide Technology is
   // `world-wide-technology` and this sweep once claimed it on its behalf.
-  const unclaimed = await db.company.findMany({
-    where: { slug: { in: [...WORLD_SLUGS] }, claimedAt: null, contexts: { some: {} } },
-    select: { id: true, createdAt: true },
+  await step('claim', async () => {
+    const unclaimed = await db.company.findMany({
+      where: { slug: { in: [...WORLD_SLUGS] }, claimedAt: null, contexts: { some: {} } },
+      select: { id: true, createdAt: true },
+    })
+    for (const c of unclaimed) {
+      await db.company.update({ where: { id: c.id }, data: { claimedAt: c.createdAt } })
+    }
+    claimed = unclaimed.length
   })
-  for (const c of unclaimed) {
-    await db.company.update({ where: { id: c.id }, data: { claimedAt: c.createdAt } })
-  }
 
   return {
     firms: FIRMS.length,
-    placements: placed.length + programs.placements + doors.placements,
+    placements: counts.placed + counts.placements,
     /// Employees of the two integrators, on payroll and on nobody's bench.
     onPayroll,
     /// Desks seated at a supplier and at a program office, one per job.
     supplierDesks,
-    consultants: NAMES.length + LIVE.length + programs.people + doors.people,
+    consultants: NAMES.length + LIVE.length + counts.people,
     live: LIVE.length,
     /// Days off on every firm's calendar, so a due date can be shifted.
-    holidays: calendar.days,
+    holidays: counts.holidays,
     /// Orders raised, project orders opened, postings and entries written.
-    orders: cash.orders,
-    postings: cash.postings,
-    journalEntries: cash.journalEntries,
+    orders: counts.orders,
+    postings: counts.postings,
+    journalEntries: counts.journalEntries,
     /// Firms that hold a seat and were still on the register as shells.
-    claimed: unclaimed.length,
+    claimed,
     /// Orders carrying a required set of documents, and the rows on them.
-    documentRequirementOrders: paperwork.orders,
-    documentRequirements: paperwork.items,
+    documentRequirementOrders: counts.documentRequirementOrders,
+    documentRequirements: counts.documentRequirements,
     /// Petitions walked, backings recorded, CVs and threads on file.
-    petitions: standing.petitions,
-    backings: standing.backings,
-    resumes: pipeline.resumes,
-    threads: pipeline.threads,
+    petitions: counts.petitions,
+    backings: counts.backings,
+    resumes: counts.resumes,
+    threads: counts.threads,
     roster: FIRMS.map((f) => ({ kind: f.kind as string, name: f.name, slug: PREFIX + f.slug })),
+    steps: { ran: steps.ran, skipped: steps.skipped, pending: steps.pending },
   }
 }

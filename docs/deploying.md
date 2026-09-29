@@ -171,22 +171,56 @@ curl -s -X POST https://etyme2040.vercel.app/api/seed-world/rebuild \
   -d '{"confirm":"delete the demo world"}' | python3 -m json.tool
 ```
 
-Then, always, run the seed once more:
+Then run the seed until it says the world is complete:
 
 ```
-curl -s -X POST https://etyme2040.vercel.app/api/seed-world \
-  -H "authorization: Bearer $CRON_SECRET" | python3 -m json.tool
+until curl -s -X POST https://etyme2040.vercel.app/api/seed-world \
+    -H "authorization: Bearer $CRON_SECRET" | tee /dev/stderr \
+  | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin)["data"]["done"] else 1)'
+do sleep 2; done
 ```
 
-**Why the second command.** The rebuild deletes in one transaction —
-about a second locally for ten thousand rows — and then seeds, which
-took eighteen to twenty-five seconds locally and can run past the
-sixty-second limit against the production database. If it is cut off
-(a 504, or `SEED_FAILED`), the delete has already happened and the
-seed is idempotent, so the second command finishes the world where the
-first stopped. If the rebuild finished, the second command changes
-nothing. Run the seed again, not the rebuild: a second rebuild would
-delete the half-built world and start over, and never catch up.
+Each call prints one line of JSON: `done`, the steps it `ran`, how many
+it `skipped` as already finished, the `next` step and how many are
+`remaining`. The loop stops on `"done": true`. A call that fails prints
+an error with no `data`, the check fails, and the loop calls again —
+which is safe, because every step is idempotent. If it goes on failing
+with the same error, stop it (Ctrl-C) and read the error.
+
+**Why a loop.** The world is about 12,000 queries on an empty database
+and about 7,000 to walk again once it exists, measured locally on
+2026-09-29. Against the production database in another building that is
+more than one function call's sixty seconds, and until 2026-09-29 every
+call started from the top, re-checked what was already there, and was
+cut off before it reached what was not — eight calls in a row timed out
+and the world never finished. Now the seed is a list of named steps
+(`worldStepNames` in `lib/seed-world`). A call skips every step already
+finished for this world at this deployment, runs the next ones until
+thirty seconds have passed, and says what is left. Each finished step
+leaves a `DEMO_SEED_STEP` row in the automation log, with no company,
+which the next call reads. Expect three to six calls for a fresh world
+and two to four after a deploy. Once it is done, a call costs two
+queries and writes nothing.
+
+**A new deployment walks every step again**, because the marker carries
+the deployment's commit and a new commit may seed more than the last
+one did. That is the same bounded loop, not a timeout.
+
+**Run the seed again, not the rebuild.** The rebuild starts the seed
+itself and returns part way with `"done": false`; that is expected. A
+second rebuild would delete the half-built world and start over.
+
+**The time limit.** Both seed routes declare `maxDuration = 60`.
+Checked on 2026-09-29: the repository has no `.vercel` project link and
+`vercel.json` sets no function limits, so the plan could not be read
+from here. With Fluid compute on (Project Settings → Functions) Vercel
+allows 300 seconds on every plan; without it Hobby stops at 60, and a
+deployment whose `maxDuration` is above what its plan allows fails to
+build. So 60 stays until somebody confirms Fluid compute is on. Then
+raise it in both `app/api/seed-world/route.ts` and
+`app/api/seed-world/rebuild/route.ts`; the budget is read off it
+(`seedBudgetMs` in `lib/seed-steps`), so each call does more and the
+loop above is shorter, with no other change.
 
 **What it deletes.** Every company on the seed's own roster (never by
 the `world-` prefix — a real firm can have that slug), every other
@@ -194,7 +228,8 @@ company whose seats are all at reserved addresses (`.example`,
 `.invalid`, `.local`), the people at reserved addresses, and every row
 that points at any of them. It never touches a visitor's own sandbox,
 a lead from the site, an incident or a run of the nightly job, and it
-writes one `DEMO_WORLD_REBUILT` row to the automation log.
+writes one `DEMO_WORLD_REBUILT` row to the automation log. The old
+world's `DEMO_SEED_STEP` markers go with it, counted on that row.
 
 **When it refuses.** `409 TIED_TO_REAL_DATA` means something real
 points into the demo world — a real firm's contract with a demo

@@ -4,6 +4,7 @@ import { seedWorld, WORLD_SLUGS } from '@/lib/seed-world'
 import { reservedAddress } from '@/lib/demo-session'
 import { DELETE_ORDER } from '@/lib/seed-rebuild'
 import { POST as rebuild } from '@/app/api/seed-world/rebuild/route'
+import { POST as seed } from '@/app/api/seed-world/route'
 import { GET as tenure } from '@/app/api/tenure/route'
 
 /**
@@ -31,6 +32,19 @@ const TALVERN_COMPLIANCE = 'world-terumo-bct-compliance@demo.etyme.local'
 
 const call = (body?: unknown, authorization: string | null = `Bearer ${SECRET}`) =>
   rebuild(req('POST', '/api/seed-world/rebuild', body, authorization ? { authorization } : {}))
+
+/**
+ * What the deploy notes say to run after a rebuild: the seed route, again
+ * and again, until it says the world is complete (lib/seed-steps).
+ */
+async function finishSeeding(): Promise<number> {
+  for (let calls = 1; calls <= 20; calls++) {
+    const r = await json(await seed(req('POST', '/api/seed-world', undefined, { authorization: `Bearer ${SECRET}` })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    if (r.body.data.done) return calls
+  }
+  throw new Error('The seed did not finish in twenty calls.')
+}
 
 /** Every row in every table, by model. */
 async function census(): Promise<Record<string, number>> {
@@ -253,6 +267,7 @@ describe('rebuilding the demo world', () => {
     )
     expect(r.body.data.deletedCompanies).toBe(WORLD_SLUGS.length)
     expect(r.body.data.sparedPeople).toBe(1)
+    console.log(`and finished seeding in ${await finishSeeding()} more call(s) of POST /api/seed-world`)
 
     // Everything real, row for row.
     expect(await realRows()).toEqual(snapshot)
@@ -289,6 +304,7 @@ describe('rebuilding the demo world', () => {
   it('is safe to run twice: the second rebuild writes the same world again and touches nothing real', async () => {
     const r = await json(await call(CONFIRM))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
+    await finishSeeding()
     expect(await realRows()).toEqual(snapshot)
     const now = await census()
     // The shape of the world, table by table. Not every table: the seed

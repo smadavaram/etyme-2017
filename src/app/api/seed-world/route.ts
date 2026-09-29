@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { callerIsStaff } from '@/lib/staff'
 import { timingSafeEqual } from 'node:crypto'
-import { seedWorld } from '@/lib/seed-world'
+import { seedWorldInSteps } from '@/lib/seed-world'
+import { seedBudgetMs } from '@/lib/seed-steps'
 
 /**
  * A minute, not the default ten seconds.
@@ -18,6 +19,18 @@ import { seedWorld } from '@/lib/seed-world'
  * reached Northbend Athletic. Sixty is the most a Hobby deployment allows.
  */
 export const maxDuration = 60
+
+/**
+ * How long a call keeps starting new steps. The rest of the minute is
+ * left for the step already running when the budget runs out, because a
+ * step is never cut off part way by us — only by the platform, and then
+ * it simply runs again on the next call (lib/seed-steps).
+ *
+ * Read off `maxDuration`, so raising that on a plan that allows more
+ * (Fluid compute gives 300 seconds) lets every call do more with no
+ * other change.
+ */
+const SEED_BUDGET_MS = seedBudgetMs(maxDuration)
 
 /**
  * POST /api/seed-world
@@ -56,12 +69,19 @@ export const maxDuration = 60
  * missing secret refuses everything outside development instead, which
  * is the direction to fail in for a route that writes.
  *
- * ── Safe to call twice ───────────────────────────────────────────────
+ * ── Safe to call twice, and it finishes in steps ─────────────────────
  *
- * The seed is idempotent by slug, so a second call adds nothing. That
- * also makes it safe to retry after a serverless timeout: it resumes
- * rather than duplicating, and the roster it returns is the same either
- * way.
+ * The seed is idempotent by slug, so a second call adds nothing. It is
+ * also resumable: each call runs the steps not yet finished for this
+ * world and this deployment until `SEED_BUDGET_MS` has passed, and
+ * answers `{ done: false, next, remaining }` while any are left. Call it
+ * again until `done` is true. A call on a finished world costs two
+ * queries and writes nothing.
+ *
+ * Until 2026-09-29 one call walked the whole world from the top. On
+ * production that took longer than the function was allowed, so every
+ * retry spent its minute re-checking what was there and was cut off
+ * before reaching what was not.
  */
 
 /**
@@ -131,16 +151,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await seedWorld()
+    const r = await seedWorldInSteps({ budgetMs: SEED_BUDGET_MS })
     return NextResponse.json({
       data: {
-        ...result,
-        says:
-          `${result.firms} firms, ${result.placements} placements, ` +
-          `${result.consultants} consultants, ${result.onPayroll} integrator employees ` +
-          `on payroll and on nobody's bench. Enter one with ` +
-          `POST /api/demo {"as":"world-cloudepa"}, or sit at a client desk at /demo — ` +
-          `POST /api/demo {"as":"world-nike","desk":"ap"}.`,
+        ...r,
+        says: r.done
+          ? r.ran.length
+            ? `The demo world is complete: this call finished ${r.ran.length} step${r.ran.length === 1 ? '' : 's'} ` +
+              `and the rest were already done. Enter one with POST /api/demo {"as":"world-cloudepa"}, or sit at a ` +
+              `client desk at /demo — POST /api/demo {"as":"world-nike","desk":"ap"}.`
+            : 'The demo world is complete. Nothing was left to do, so nothing was written.'
+          : `Seeded ${r.ran.length} step${r.ran.length === 1 ? '' : 's'} of the demo world; ${r.remaining} ` +
+            `${r.remaining === 1 ? 'is' : 'are'} left, starting with "${r.next}". Call this again until it says complete.`,
       },
     })
   } catch (err: any) {

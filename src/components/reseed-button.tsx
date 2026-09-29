@@ -51,14 +51,19 @@ export function ReseedButton({ proven = false }: { proven?: boolean }) {
     setSaid(null)
     setFailed(false)
     try {
-      const res = await fetch('/api/seed-world', { method: 'POST' })
-      const body = await res.json().catch(() => null)
-      if (!res.ok) {
-        setFailed(true)
-        setSaid(body?.error?.message ?? 'That did not finish. It is safe to press again.')
-        return
+      // The world seeds in steps, a minute at most each (lib/seed-steps):
+      // keep asking until the route says it is complete.
+      for (let call = 1; call <= 20; call++) {
+        const res = await fetch('/api/seed-world', { method: 'POST' })
+        const body = await res.json().catch(() => null)
+        if (!res.ok) {
+          setFailed(true)
+          setSaid(body?.error?.message ?? 'That did not finish. It is safe to press again.')
+          return
+        }
+        setSaid(body?.data?.says ?? 'The world is seeded.')
+        if (body?.data?.done !== false) break
       }
-      setSaid(body?.data?.says ?? 'The world is seeded.')
       router.refresh()
     } catch {
       // A timeout at the edge does not mean it failed — the work may
@@ -83,7 +88,7 @@ export function ReseedButton({ proven = false }: { proven?: boolean }) {
       </button>
       <p className="mt-1.5 text-xs text-etyme-faint">
         {busy
-          ? 'Up to a minute — twenty firms and three client programs. Leave this page open.'
+          ? 'A few minutes — twenty firms and three client programs, a step at a time. Leave this page open.'
           : 'Adds what is missing and renames what moved. It never makes a second copy, so pressing it twice is safe.'}
       </p>
       {said && (

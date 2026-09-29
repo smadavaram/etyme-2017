@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 import { reportError } from '@/lib/alerts'
-import { seedWorld } from '@/lib/seed-world'
+import { seedWorldInSteps } from '@/lib/seed-world'
+import { seedBudgetMs } from '@/lib/seed-steps'
 import { CONFIRM_PHRASE, deleteDemoWorld } from '@/lib/seed-rebuild'
 
 /**
@@ -54,6 +55,7 @@ const refuse = (status: number, code: string, message: string, extra: Record<str
   NextResponse.json({ error: { code, message, ...extra } }, { status })
 
 export async function POST(request: NextRequest) {
+  const began = Date.now()
   const secret = process.env.CRON_SECRET
   if (!secret) {
     return refuse(
@@ -100,9 +102,12 @@ export async function POST(request: NextRequest) {
     return refuse(409, 'TIED_TO_REAL_DATA', deleted.says, { threads: deleted.threads })
   }
 
+  // What is left of this call's budget after the delete. The seed runs
+  // in steps (lib/seed-steps) and says what is left; POST /api/seed-world
+  // carries on from there, because a whole world does not fit in one call.
   const seeding = Date.now()
   try {
-    const seeded = await seedWorld()
+    const seeded = await seedWorldInSteps({ budgetMs: Math.max(0, seedBudgetMs(maxDuration) - (seeding - began)) })
     return NextResponse.json({
       data: {
         deleted: deleted.deleted,
@@ -115,8 +120,11 @@ export async function POST(request: NextRequest) {
         seeded,
         says:
           `Deleted the demo world — ${deleted.companies} companies, ${deleted.people} people, ` +
-          `${deleted.total} rows — and seeded it again, counting from today: ${seeded.firms} firms, ` +
-          `${seeded.placements} placements. Nothing outside the demo world was touched.`,
+          `${deleted.total} rows. Nothing outside the demo world was touched. ` +
+          (seeded.done
+            ? 'It is seeded again, counting from today.'
+            : `Seeding it again has begun: ${seeded.ran.length} steps done, ${seeded.remaining} left. ` +
+              'POST /api/seed-world with the same secret until it says complete.'),
       },
     })
   } catch (err: any) {

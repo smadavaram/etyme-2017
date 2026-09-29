@@ -348,6 +348,8 @@ export const DOMAINS: Domain[] = [
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // Deleting the demo world so it can be seeded again from today.
       'lib/seed-rebuild',
+      // Seeding the demo world in steps that each fit one function call.
+      'lib/seed-steps',
       // The layers above and below the placement, each read off the
       // spine the three files above wrote: the calendar the dates are
       // shifted against, what a firm can prove, the order that

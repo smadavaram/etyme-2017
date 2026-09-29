@@ -101,38 +101,63 @@ export function forgetCalendar(): void {
  * behind for the placements that have ended, three ahead for the ones
  * that run on.
  */
+/** The years the seeded world spans: two behind for what has ended, three ahead for what runs on. */
+function calendarYears(): number[] {
+  const born = seedToday().getUTCFullYear()
+  return [born - 2, born - 1, born, born + 1, born + 2, born + 3]
+}
+
+/**
+ * The days off every seeded contract is generated against, worked out
+ * without reading the database.
+ *
+ * The world seeds in steps (lib/seed-steps), and a later step may run in
+ * a different function call — a different process — from the one that
+ * wrote the calendar. The rows are in the database; the set the cycle
+ * generator reads is in memory, and would be empty there. So the set is
+ * primed at the top of every run from the same arithmetic the rows are
+ * written from, and a contract seeded on the fifth call shifts off the
+ * same holidays as one seeded on the first.
+ */
+export function primeCalendar(): Set<string> {
+  const keys = new Set<string>()
+  for (const y of calendarYears()) for (const h of federalHolidays(y)) keys.add(key(h.date))
+  // Merged, never replaced. The world seed writes the calendar once; a
+  // demo seeded afterwards in the same process adds its own firms' days
+  // without taking the world's away.
+  for (const k of keys) calendar.add(k)
+  return keys
+}
+
+/**
+ * Every seeded firm's calendar, and the keys to generate against.
+ *
+ * Read once and written once: what each firm already has comes back in
+ * one query and what is missing goes in one insert. It was a lookup and
+ * an insert per firm per day — three and a half thousand round trips,
+ * which is most of a minute against a database in another building.
+ */
 export async function seedCalendar(
   firmBySlug: Map<string, { id: string }>
 ): Promise<{ days: number; keys: Set<string> }> {
-  const born = seedToday().getUTCFullYear()
-  const years = [born - 2, born - 1, born, born + 1, born + 2, born + 3]
+  const years = calendarYears()
+  const keys = primeCalendar()
 
-  const keys = new Set<string>()
-  let days = 0
-
+  const wanted: { companyId: string; date: Date; name: string; isRecurring: boolean; country: string }[] = []
   for (const firm of firmBySlug.values()) {
     for (const y of years) {
       for (const h of federalHolidays(y)) {
-        keys.add(key(h.date))
-        const already = await db.holiday.findFirst({
-          where: { companyId: firm.id, date: h.date },
-          select: { id: true },
+        wanted.push({
+          companyId: firm.id, date: h.date, name: h.name,
+          // Not recurring, even for the ones that fall on the same date
+          // every year. Expanding a recurring row builds the date in
+          // local time and looks it up by UTC key, which under
+          // `TZ=Asia/Kolkata` matches nothing — the timezone fragility
+          // `lib/cycle-generator` documents. An explicit date per year
+          // is exact everywhere and costs eleven rows.
+          isRecurring: false,
+          country: 'US',
         })
-        if (already) continue
-        await db.holiday.create({
-          data: {
-            companyId: firm.id, date: h.date, name: h.name,
-            // Not recurring, even for the ones that fall on the same date
-            // every year. Expanding a recurring row builds the date in
-            // local time and looks it up by UTC key, which under
-            // `TZ=Asia/Kolkata` matches nothing — the timezone fragility
-            // `lib/cycle-generator` documents. An explicit date per year
-            // is exact everywhere and costs eleven rows.
-            isRecurring: false,
-            country: 'US',
-          },
-        })
-        days++
       }
     }
   }
@@ -143,18 +168,21 @@ export async function seedCalendar(
   const offshore = firmBySlug.get('sundara')
   if (offshore) {
     for (const y of years) {
-      const date = utc(y, 1, 26)
-      if (await db.holiday.findFirst({ where: { companyId: offshore.id, date } })) continue
-      await db.holiday.create({
-        data: { companyId: offshore.id, date, name: 'Republic Day', isRecurring: false, country: 'IN' },
-      })
-      days++
+      wanted.push({ companyId: offshore.id, date: utc(y, 1, 26), name: 'Republic Day', isRecurring: false, country: 'IN' })
     }
   }
 
-  // Merged, never replaced. The world seed writes the calendar once; a
-  // demo seeded afterwards in the same process adds its own firms' days
-  // without taking the world's away.
-  for (const k of keys) calendar.add(k)
+  // A day a firm already has is left exactly as it is — never renamed,
+  // never rewritten — which is what the lookup-then-insert did.
+  const have = await db.holiday.findMany({
+    where: { companyId: { in: [...new Set(wanted.map((w) => w.companyId))] } },
+    select: { companyId: true, date: true },
+  })
+  const held = new Set(have.map((h) => `${h.companyId}|${key(h.date)}`))
+  const missing = wanted.filter((w) => !held.has(`${w.companyId}|${key(w.date)}`))
+  const days = missing.length
+    ? (await db.holiday.createMany({ data: missing, skipDuplicates: true })).count
+    : 0
+
   return { days, keys }
 }

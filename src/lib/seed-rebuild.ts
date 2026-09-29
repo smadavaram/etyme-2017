@@ -687,6 +687,13 @@ export async function deleteDemoWorld(opts: { by?: string } = {}): Promise<Delet
         deleted[model] = n
       }
       const total = Object.values(deleted).reduce((a, b) => a + b, 0)
+      // The markers the old world's seeding left, one per finished step
+      // (lib/seed-steps). They describe a world that is now gone; left
+      // behind they would match nothing, and a count of them is kept on
+      // the row below.
+      const stepMarkers = (
+        await tx.automationLog.deleteMany({ where: { companyId: null, action: 'DEMO_SEED_STEP' } })
+      ).count
       await tx.automationLog.create({
         data: {
           companyId: null,
@@ -705,6 +712,7 @@ export async function deleteDemoWorld(opts: { by?: string } = {}): Promise<Delet
             spared: plan.spared.map((s) => s.email),
             rows: deleted,
             total,
+            stepMarkers,
           },
           reversible: false,
         },

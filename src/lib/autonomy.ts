@@ -421,6 +421,11 @@ ATTRIBUTED.DATA_IMPORTED = { basis: 'RECORDED' }
 // ours; `RULE` because what went is decided by lib/seed-rebuild's scope
 // and nothing else. Never reversible: the rows are gone.
 ATTRIBUTED.DEMO_WORLD_REBUILT = { basis: 'RULE' }
+// One step of seeding the demo world finished (lib/seed-steps). Asked
+// for by somebody holding the deployment secret or a member of staff;
+// the row is the marker the next call reads to start after it. Not
+// reversible: the rows the step wrote stay.
+ATTRIBUTED.DEMO_SEED_STEP = { basis: 'RULE' }
 
 // ── Named before anything writes them ────────────────
 //

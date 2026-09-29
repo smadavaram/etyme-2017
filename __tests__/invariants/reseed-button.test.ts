@@ -72,9 +72,14 @@ describe('the button itself', () => {
     expect(button).toContain('if (!may) return null')
   })
 
-  it('says the work takes a minute, because a button that looks hung gets pressed twice', () => {
-    expect(button).toMatch(/Up to a minute/)
+  it('says the work takes a few minutes, a step at a time, because a button that looks hung gets pressed twice', () => {
+    expect(button).toMatch(/A few minutes/)
+    expect(button).toMatch(/a step at a time/)
     expect(button).toMatch(/Building the world/)
+  })
+
+  it('keeps asking the seed route until it says the world is complete', () => {
+    expect(button).toMatch(/body\?\.data\?\.done !== false/)
   })
 
   it('says pressing it twice is safe, which is true because the seed is idempotent by slug', () => {
