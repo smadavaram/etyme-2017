@@ -82,13 +82,14 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     expect(s.hours).toBe(40)
   }, 240_000)
 
-  it('an invoice from CloudEPA to Computer Systems cannot be matched while nobody has signed the week', async () => {
+  it('an invoice from CloudEPA to Computer Systems cannot be recorded while nobody has signed the week, and the refusal names the week and who must accept it', async () => {
     as(CS)
     const r = await invoice('CE-HM-0', 40)
     expect(r.status).toBe(422)
-    expect(r.body.error.code).toBe('MATCH_FAILED')
-    expect(r.body.error.message).toMatch(/^Nothing here accepted any hours for this supplier over this period\. The invoice is the only record that the work happened\. Nobody can wave this through/)
-    expect(r.body.error.checks.find((c: any) => c.code === 'RECEIPT').outcome).toBe('FAIL')
+    // Rule 3 of 2026-09-28: a week the payer has not accepted blocks the
+    // invoice, in a sentence, before the match is even asked.
+    expect(r.body.error.code).toBe('WEEK_NOT_ACCEPTED')
+    expect(r.body.error.message).toMatch(/^Computer Systems[^.]* has not accepted Helena Marsh\u2019s week of [A-Z][a-z]+ \d+\. Accept it first, then record this invoice\.$/)
   })
 
   it('Northbend’s signature is not Computer Systems’ acceptance: the invoice still cannot be matched once the client has signed', async () => {
@@ -99,7 +100,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     as(CS)
     const r = await invoice('CE-HM-1', 40)
     expect(r.status).toBe(422)
-    expect(r.body.error.checks.find((c: any) => c.code === 'RECEIPT').outcome).toBe('FAIL')
+    expect(r.body.error.code).toBe('WEEK_NOT_ACCEPTED')
     expect(await prisma.vendorBill.count({ where: { companyId: s.cs, vendorCompanyId: s.cloudepa, number: { startsWith: 'CE-HM' } } })).toBe(0)
   })
 

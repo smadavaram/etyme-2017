@@ -732,6 +732,14 @@ export interface VendorBillMatchInput {
   po: PurchaseOrderFacts | null
   poRequired: boolean
   overrides?: MatchOverride[]
+  /**
+   * Where the invoice covers a week the paying firm has not accepted, the
+   * sentence naming it and who must accept it (`notAcceptedSays` in
+   * lib/money/payers-acceptance). It fails the receipt check, which no
+   * signature can waive — the founder's rule of 2026-09-28: accept the
+   * week first. Empty or absent where every week is accepted.
+   */
+  notAccepted?: string | null
 }
 
 /**
@@ -756,8 +764,15 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
   )
 
   // ── RECEIPT — did anybody here accept this work? ──
+  //
+  // Every week of it. One accepted week beside one nobody here accepted
+  // used to pass this check and fail only the quantity one, which is
+  // waivable — so a clerk could say why and pay for the week nobody had
+  // accepted. A week the payer has not accepted is a missing receipt.
   checks.push(
-    accepted && accepted.count > 0
+    input.notAccepted
+      ? { code: 'RECEIPT', outcome: 'FAIL', reason: input.notAccepted }
+      : accepted && accepted.count > 0
       ? {
           code: 'RECEIPT',
           outcome: 'PASS',

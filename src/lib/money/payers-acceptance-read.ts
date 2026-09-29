@@ -20,16 +20,40 @@
 import { prisma } from '@/lib/db'
 import { ladderFor } from '@/lib/work-chain-read'
 import { descend } from '@/lib/work-chain'
-import { payersAcceptance, type PayersAcceptance, type PayableWeek } from '@/lib/money/payers-acceptance'
+import {
+  payersAcceptance, weeksAwaitingPayer, notAcceptedSays,
+  type PayersAcceptance, type PayableWeek, type WaitingWeek,
+} from '@/lib/money/payers-acceptance'
 
 export async function acceptedByPayer(i: {
   buyContractId: string
   periodStart: Date
   periodEnd: Date
 }): Promise<PayersAcceptance | null> {
+  return (await payersBook(i))?.accepted ?? null
+}
+
+/**
+ * What the payer accepted over the period, and every week in it that it
+ * has not — with the sentence refusing an invoice over them, ending in
+ * what the reader was doing. The invoice-receipt intake, the exception
+ * queue and a payment all ask this, so the three cannot disagree about
+ * which weeks are missing.
+ */
+export async function payersBook(i: {
+  buyContractId: string
+  periodStart: Date
+  periodEnd: Date
+  then?: 'record' | 'pay'
+}): Promise<{
+  accepted: PayersAcceptance | null
+  waiting: WaitingWeek[]
+  /** Empty where every week is accepted. */
+  notAccepted: string
+} | null> {
   const buy = await prisma.buyContract.findUnique({
     where: { id: i.buyContractId },
-    select: { companyId: true, supplierSellContractId: true },
+    select: { companyId: true, supplierSellContractId: true, company: { select: { name: true } } },
   })
   if (!buy) return null
 
@@ -50,6 +74,7 @@ export async function acceptedByPayer(i: {
     },
     select: {
       id: true, periodStart: true, periodEnd: true, days: true,
+      person: { select: { name: true } },
       sellContract: {
         select: {
           companyId: true, clientCompanyId: true, endClientCompanyId: true,
@@ -75,10 +100,20 @@ export async function acceptedByPayer(i: {
     select: { buyContractId: true, sellContractId: true, effectiveFrom: true, effectiveTo: true },
   })
 
-  return payersAcceptance({
+  const read = {
     payerCompanyId: buy.companyId,
     buyContractId: i.buyContractId,
-    weeks: weeks.map((w) => ({ ...w, days: (w.days as PayableWeek['days']) ?? null })),
+    weeks: weeks.map(({ person, ...w }) => ({
+      ...w,
+      personName: person?.name ?? null,
+      days: (w.days as PayableWeek['days']) ?? null,
+    })),
     payerLinks,
-  })
+  }
+  const waiting = weeksAwaitingPayer(read)
+  return {
+    accepted: payersAcceptance(read),
+    waiting,
+    notAccepted: notAcceptedSays(buy.company.name, waiting, i.then ?? 'record'),
+  }
 }

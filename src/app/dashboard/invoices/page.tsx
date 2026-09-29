@@ -240,7 +240,14 @@ function GenerateInvoiceModal({
       }
 
       const body = await res.json()
-      const msg = body.data?.message ?? 'Bill generated'
+      // What the run left off is part of the answer: undecided overtime,
+      // and weeks the firm above has not accepted. A short bill read
+      // without those sentences reads as a short month.
+      const msg = [
+        body.data?.message ?? 'Bill generated',
+        body.data?.overtime?.says,
+        body.data?.heldBack?.says,
+      ].filter(Boolean).join(' ')
       onGenerated(msg)
       onClose()
     } catch {

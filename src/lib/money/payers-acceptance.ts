@@ -51,6 +51,8 @@ export type AcceptanceRole = 'CLIENT_APPROVAL' | 'PASS_THROUGH' | 'EMPLOYER_ACCE
 /** One week, as matching a supplier's invoice needs to read it. */
 export interface PayableWeek {
   id: string
+  /** Whose week it is, for the sentence that refuses an invoice over it. */
+  personName?: string | null
   periodStart: Date
   periodEnd: Date
   days: Days | null
@@ -67,7 +69,10 @@ export interface PayableWeek {
 }
 
 /** Which of the payer's signatures counts on this week. */
-export function payersRole(payerCompanyId: string, week: Pick<PayableWeek, 'sellContract'>): AcceptanceRole {
+export function payersRole(
+  payerCompanyId: string,
+  week: { sellContract: Pick<PayableWeek['sellContract'], 'companyId' | 'clientCompanyId' | 'endClientCompanyId'> }
+): AcceptanceRole {
   return (
     roleOf({
       companyId: payerCompanyId,
@@ -132,22 +137,13 @@ export function payersAcceptance(i: {
   let last: Date | null = null
   let firstRateCents = 0
 
-  const payerKnowsThisContract = i.payerLinks.some((l) => l.buyContractId === i.buyContractId)
-
   for (const w of i.weeks) {
     const mine = payersAcceptanceOn(i.payerCompanyId, w)
     if (!mine) {
       waiting++
       continue
     }
-    const days = w.days ?? {}
-    const onOwnContract = w.sellContract.companyId === i.payerCompanyId
-    const fraction = onOwnContract
-      ? fractionFor(i.buyContractId, w.sellContract.buyLinks, days)
-      : payerKnowsThisContract
-        ? fractionFor(i.buyContractId, i.payerLinks, days)
-        : 1
-    hours += Number(mine.hours) * fraction
+    hours += Number(mine.hours) * shareOf(i, w)
     if (count === 0) firstRateCents = mine.rateCents
     count++
     if (!first || w.periodStart < first) first = w.periodStart
@@ -156,4 +152,99 @@ export function payersAcceptance(i: {
 
   if (count === 0 || !first || !last) return null
   return { hours, count, firstDay: first, lastDay: last, firstRateCents, waiting }
+}
+
+/**
+ * How much of one week the buy contract being billed pays for: the whole
+ * of it, or the days that contract was in force where a week spans two.
+ */
+function shareOf(
+  i: { payerCompanyId: string; buyContractId: string; payerLinks: Link[] },
+  w: PayableWeek
+): number {
+  const days = w.days ?? {}
+  if (w.sellContract.companyId === i.payerCompanyId) {
+    return fractionFor(i.buyContractId, w.sellContract.buyLinks, days)
+  }
+  return i.payerLinks.some((l) => l.buyContractId === i.buyContractId)
+    ? fractionFor(i.buyContractId, i.payerLinks, days)
+    : 1
+}
+
+// ── A week the payer has not accepted blocks the invoice over it ──────
+//
+// The founder, 2026-09-28 (CLAUDE.md, "What each rung may bill, and
+// when", rule 3): a week the paying firm has not accepted blocks the
+// invoice receipt that includes it. No "approve anyway with a reason":
+// accept the week first. Addendum E's warn-and-proceed does not apply,
+// because paying for hours nobody accepted is what the check exists to
+// stop.
+//
+// It used to be counted in `waiting` and nothing read it, so an invoice
+// covering one accepted week and one unaccepted one failed only the
+// quantity check — which is waivable — and a clerk could record why and
+// pay for the week nobody here had accepted.
+
+/** One week inside an invoice that the firm paying it has not accepted. */
+export interface WaitingWeek {
+  id: string
+  periodStart: Date
+  personName: string | null
+}
+
+/**
+ * Every week inside the invoiced period that the payer has not accepted
+ * and that the buy contract being billed pays some part of. A week the
+ * contract was not in force for at all is not this invoice's business.
+ */
+export function weeksAwaitingPayer(i: {
+  payerCompanyId: string
+  buyContractId: string
+  weeks: PayableWeek[]
+  payerLinks: Link[]
+}): WaitingWeek[] {
+  return i.weeks
+    .filter((w) => !payersAcceptanceOn(i.payerCompanyId, w) && shareOf(i, w) > 0)
+    .sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime())
+    .map((w) => ({ id: w.id, periodStart: w.periodStart, personName: w.personName ?? null }))
+}
+
+/** "September 14" — the way the rest of the product says a week. */
+export function weekWord(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })
+}
+
+function listed(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? ''
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+}
+
+/**
+ * The refusal, as a sentence naming the week and who must accept it:
+ * "Computer Systems has not accepted Helena Marsh's week of September 14.
+ * Accept it first, then record this invoice."
+ *
+ * `then` is what the reader was trying to do — record the invoice at
+ * intake, or pay one already recorded.
+ */
+export function notAcceptedSays(
+  payerName: string,
+  waiting: readonly WaitingWeek[],
+  then: 'record' | 'pay'
+): string {
+  if (waiting.length === 0) return ''
+  const byPerson = new Map<string, Date[]>()
+  for (const w of waiting) {
+    const who = w.personName ?? ''
+    byPerson.set(who, [...(byPerson.get(who) ?? []), w.periodStart])
+  }
+  const phrases = [...byPerson.entries()].map(([who, starts]) => {
+    const whose = who ? `${who}\u2019s` : 'the'
+    return `${whose} ${starts.length === 1 ? 'week' : 'weeks'} of ${listed(starts.map(weekWord))}`
+  })
+  const it = waiting.length === 1 ? 'it' : 'them'
+  return (
+    `${payerName} has not accepted ${listed(phrases)}. ` +
+    `Accept ${it} first, then ${then} this invoice.`
+  )
 }

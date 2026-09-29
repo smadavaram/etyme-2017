@@ -137,7 +137,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
 
   it('the supplier-invoice route reads the paying firm’s acceptance through one door, and names no single role of its own', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/ap/bills/route.ts'), 'utf8')
-    expect(route).toContain('acceptedByPayer(')
+    expect(route).toContain('payersBook(')
     expect(route).not.toMatch(/role:\s*'EMPLOYER_ACCEPTANCE'/)
   })
 })

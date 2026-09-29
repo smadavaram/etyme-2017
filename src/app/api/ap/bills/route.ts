@@ -4,7 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { notifyBulk } from '@/lib/notify'
 import { completeCycle } from '@/lib/cycle-complete'
-import { acceptedByPayer } from '@/lib/money/payers-acceptance-read'
+import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { staffOnly } from '@/lib/seat'
 import {
   mayOpen, refusal, mayRecordSupplierInvoice, PAYABLE, NOT_THE_PAYING_DESK,
@@ -351,7 +351,33 @@ export async function POST(request: NextRequest) {
   let expectedCents: number | null = null
 
   if (buyContractId && periodStart && periodEnd) {
-    const ours = await acceptedByPayer({ buyContractId, periodStart, periodEnd })
+    const book = await payersBook({ buyContractId, periodStart, periodEnd, then: 'record' })
+
+    // ── A week we have not accepted blocks the invoice ─────────────────
+    //
+    // The founder, 2026-09-28 (CLAUDE.md, "What each rung may bill, and
+    // when", rule 3). Refused here, before anything is written, and not
+    // recorded as disputed: a disputed invoice is one somebody may still
+    // wave through with a reason, and this one nobody may. Accept the
+    // week, then record the invoice. The sentence names the week and the
+    // firm that must accept it.
+    if (book && book.waiting.length > 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'WEEK_NOT_ACCEPTED',
+            message: book.notAccepted,
+            weeks: book.waiting.map((w) => ({
+              timesheetId: w.id,
+              weekOf: w.periodStart.toISOString().slice(0, 10),
+              personName: w.personName,
+            })),
+          },
+        },
+        { status: 422 }
+      )
+    }
+    const ours = book?.accepted ?? null
 
     const candidate = await prisma.buyContractCandidate.findFirst({
       where: { buyContractId },
@@ -566,10 +592,29 @@ export async function PATCH(request: NextRequest) {
 
   const bill = await prisma.vendorBill.findUnique({
     where: { id },
-    select: { id: true, companyId: true, currency: true, totalCents: true, paidCents: true, receivedAt: true },
+    select: {
+      id: true, companyId: true, currency: true, totalCents: true, paidCents: true, receivedAt: true,
+      buyContractId: true, periodStart: true, periodEnd: true,
+    },
   })
   if (!bill || bill.companyId !== reading.companyId) {
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such invoice receipt here' } }, { status: 404 })
+  }
+
+  // Paying is the last way round the rule, and the one that cannot be
+  // undone. An invoice recorded before 2026-09-28, or one whose week was
+  // withdrawn after it was recorded, covers hours nobody here accepted;
+  // it is not paid until they are.
+  if (bill.buyContractId && bill.periodStart && bill.periodEnd) {
+    const book = await payersBook({
+      buyContractId: bill.buyContractId, periodStart: bill.periodStart, periodEnd: bill.periodEnd, then: 'pay',
+    })
+    if (book && book.waiting.length > 0) {
+      return NextResponse.json(
+        { error: { code: 'WEEK_NOT_ACCEPTED', message: book.notAccepted } },
+        { status: 422 }
+      )
+    }
   }
 
   const paidAt = body.paidAt ? new Date(String(body.paidAt)) : new Date()
@@ -752,11 +797,17 @@ export async function GET(request: NextRequest) {
   const items = []
   for (const b of bills) {
     let accepted: AcceptedWork | null = null
+    let notAccepted: string | null = null
     if (b.buyContractId && b.periodStart && b.periodEnd) {
-      // The same question intake asked: what this firm itself accepted.
-      const ours = await acceptedByPayer({
-        buyContractId: b.buyContractId, periodStart: b.periodStart, periodEnd: b.periodEnd,
+      // The same question intake asked: what this firm itself accepted,
+      // and which weeks it has not. An invoice recorded before the rule,
+      // or before a week was withdrawn, is refused here in the same
+      // sentence intake would give — as a failure nobody can waive.
+      const book = await payersBook({
+        buyContractId: b.buyContractId, periodStart: b.periodStart, periodEnd: b.periodEnd, then: 'pay',
       })
+      notAccepted = book?.notAccepted || null
+      const ours = book?.accepted ?? null
       if (ours) {
         const candidate = await prisma.buyContractCandidate.findFirst({
           where: { buyContractId: b.buyContractId },
@@ -804,6 +855,7 @@ export async function GET(request: NextRequest) {
       accepted,
       po,
       poRequired: false,
+      notAccepted,
     })
 
     items.push({

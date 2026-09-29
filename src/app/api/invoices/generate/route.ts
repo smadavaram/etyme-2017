@@ -19,6 +19,7 @@ import { policyOf, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
 import { readWindow, billingWindow, inWindow } from '@/lib/money/invoice-window'
+import { whatTheRungBills } from '@/lib/money/rung-billing'
 
 /**
  * GET /api/invoices/generate — the engagements this firm may bill.
@@ -375,9 +376,19 @@ export async function POST(request: NextRequest) {
       // this week's was, and a week nobody has answered is not billable
       // at any price.
       overtimeDecisions: true,
+      // Every live signature on the week. A rung below the top bills
+      // only what the firm above it accepted, so the payer's own
+      // signature is read in the loop below (lib/money/rung-billing).
+      assertions: {
+        where: { state: 'LIVE' },
+        select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+      },
       sellContract: {
         select: {
           id: true, billRate: true, billCurrency: true, workOrderId: true,
+          // Who the hours are filed with and for — which of a payer's
+          // signatures is its own is decided from these.
+          companyId: true, clientCompanyId: true, endClientCompanyId: true,
           overtimeAfterHours: true, overtimeMultiplierBps: true,
           startDate: true,
           // The contract says what a period is — unless it is on an
@@ -402,9 +413,19 @@ export async function POST(request: NextRequest) {
   const ourContract = new Map(engagement.sellContracts.map((sc) => [sc.id, sc]))
   const billing = timesheets.map((ts) => {
     const ours = ourContract.get(billedBy.get(ts.sellContractId) ?? ts.sellContractId)
-    if (!ours) return ts
+    // The contract the hours are filed on, kept before it is replaced:
+    // it says whose signature on the week is the payer's.
+    const hoursContract = {
+      companyId: ts.sellContract.companyId,
+      clientCompanyId: ts.sellContract.clientCompanyId,
+      endClientCompanyId: ts.sellContract.endClientCompanyId,
+    }
+    if (!ours) return { ...ts, hoursContract, payer: null }
     return {
       ...ts,
+      hoursContract,
+      // Who pays this bill: the customer on the contract being billed.
+      payer: { id: ours.clientCompanyId, name: ours.clientCompany?.name ?? 'the firm above' },
       sellContractId: ours.id,
       sellContract: {
         id: ours.id,
@@ -563,6 +584,13 @@ export async function POST(request: NextRequest) {
   /** Over the line and nobody has answered. Left off, and said out loud. */
   let pendingHours = 0
 
+  /**
+   * Weeks a rung below the top may not bill yet: the firm above has not
+   * accepted them, or it accepted a number nobody has said how to price.
+   * Left off, and said out loud, the same way as undecided overtime.
+   */
+  const heldBack: { timesheetId: string; kind: 'WAITING' | 'HELD'; says: string }[] = []
+
   for (const ts of billing) {
     const rate = ts.sellContract.billRate // cents per hour
 
@@ -616,6 +644,75 @@ export async function POST(request: NextRequest) {
     )
 
     if (!billable) continue
+
+    // ── What the firm above accepted ──────────────────────────────────
+    //
+    // The founder, 2026-09-28: a firm bills only the hours the firm above
+    // it accepted. At the top of a chain, and on every direct placement,
+    // the firm above is the client and its signature is the week this
+    // route already filtered on — nothing below changes. A rung under the
+    // top bills its payer's accepted hours: the days where the payer
+    // accepted what was worked, the accepted number straight where it
+    // accepted less, and nothing, said out loud, where it has not
+    // accepted or where the arithmetic would be a guess.
+    const rung = ts.payer
+      ? whatTheRungBills({
+          payerCompanyId: ts.payer.id,
+          payerName: ts.payer.name,
+          week: {
+            periodStart: ts.periodStart,
+            periodEnd: ts.periodEnd,
+            totalHours: Number(ts.totalHours),
+            personName: ts.person.name,
+            hoursContract: ts.hoursContract,
+            assertions: ts.assertions,
+          },
+          worked: {
+            partial: billable.share.partial,
+            overtimeHours: billable.split.overtimeHours,
+            pendingHours: billable.split.pendingHours,
+            bankedHours: billable.split.bankedHours,
+          },
+          afterHours: policy.afterHours ?? null,
+        })
+      : ({ kind: 'AS_WORKED' } as const)
+
+    if (rung.kind === 'WAITING' || rung.kind === 'HELD') {
+      heldBack.push({ timesheetId: ts.id, kind: rung.kind, says: rung.says })
+      continue
+    }
+
+    if (rung.kind === 'ACCEPTED') {
+      // Straight time, by construction: `whatTheRungBills` refuses any
+      // week with an hour over the line. Rounded once, the way the
+      // three-way check's extension rounds it.
+      if (rung.hours <= 0 || rate <= 0) continue
+      const cents = Math.round(rung.hours * rate)
+      priced.set(ts.id, { hours: rung.hours, cents, working: null })
+      const key = ts.sellContractId
+      const existing = linesByContract.get(key)
+      if (existing) {
+        existing.totalHours = Math.round((existing.totalHours + rung.hours) * 100) / 100
+        existing.amountCents += cents
+        existing.timesheetIds.push(ts.id)
+        if (ts.periodEnd > existing.periodEnd) existing.periodEnd = ts.periodEnd
+      } else {
+        linesByContract.set(key, {
+          sellContractId: ts.sellContractId,
+          personId: ts.person.id,
+          personName: ts.person.name,
+          billRate: rate,
+          currency: ts.sellContract.billCurrency,
+          totalHours: rung.hours,
+          overtimeHours: 0,
+          pendingHours: 0,
+          amountCents: cents,
+          timesheetIds: [ts.id],
+          periodEnd: ts.periodEnd,
+        })
+      }
+      continue
+    }
 
     // Hours over the line that nobody has answered are not on this
     // invoice at any price — not as a zero-valued line and not folded
@@ -674,6 +771,23 @@ export async function POST(request: NextRequest) {
       })
     }
 
+  }
+
+  // Said, never swallowed: the weeks a rung may not bill yet, each in a
+  // sentence naming the week and the firm whose acceptance it waits on.
+  const heldSays = heldBack.length > 0 ? heldBack.map((h) => h.says).join(' ') : null
+
+  if (linesByContract.size === 0 && expenseRows.length === 0 && milestones.length === 0 && heldBack.length > 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_ACCEPTED_ABOVE',
+          message: heldSays,
+          heldBack,
+        },
+      },
+      { status: 422 }
+    )
   }
 
   if (linesByContract.size === 0 && expenseRows.length === 0 && milestones.length === 0) {
@@ -1101,7 +1215,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId: caller.company!.id,
           action: 'INVOICE_GENERATED',
-          summary: `Bill ${number} generated: ${lines.length} line item(s), ${allTimesheetIds.length} timesheet(s)${expLines.length ? `, ${expLines.length} expense(s)` : ''}${milestones.length ? `, ${milestones.length} milestone(s)` : ''}, ${fromUnits(total, currency)} total, due ${dueAt.toISOString().slice(0, 10)}${pendingSays ? `. ${pendingSays}` : ''}`,
+          summary: `Bill ${number} generated: ${lines.length} line item(s), ${allTimesheetIds.length} timesheet(s)${expLines.length ? `, ${expLines.length} expense(s)` : ''}${milestones.length ? `, ${milestones.length} milestone(s)` : ''}, ${fromUnits(total, currency)} total, due ${dueAt.toISOString().slice(0, 10)}${pendingSays ? `. ${pendingSays}` : ''}${heldSays ? ` ${heldSays}` : ''}`,
           reason: `Generated by ${caller.person.name}`,
           payload: {
             invoiceId: invoice.id,
@@ -1187,6 +1301,11 @@ export async function POST(request: NextRequest) {
         // What was left off, and why. A blank is an answer here: nothing
         // was waiting.
         overtime: { pendingHours, says: pendingSays },
+        // The weeks a rung below the top left off because the firm above
+        // it has not accepted them, or accepted a number nobody has said
+        // how to price. Empty at the top of a chain and on a direct
+        // placement.
+        heldBack: { weeks: heldBack, says: heldSays },
         selfBilling: { selfBilled: self.selfBilled, says: self.says },
         // Determined and shown. It is NOT a queryable field on the
         // invoice — `Invoice` carries no tax columns, so this lives with

@@ -4,6 +4,7 @@ import { rateInForce } from '@/lib/contract-rate'
 import { bandsOf, billableInPeriod, periodFor, type Band, type Period } from '@/lib/periods'
 import { policyOf, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, periodTermsFor, type OrderHeader } from '@/lib/money/order-terms'
+import { receiptFor } from '@/lib/money/rung-billing'
 
 /**
  * A line as this file needs to read it: the money on it, and the records
@@ -168,6 +169,9 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
           sellContract: {
             select: {
               billRate: true, startDate: true,
+              // Who pays this line — whose signature on the week is its
+              // receipt.
+              clientCompanyId: true,
               overtimeAfterHours: true, overtimeMultiplierBps: true,
               billFrequency: true, billAnchor: true, billStraddle: true,
               workOrder: { select: ORDER_HEADER_SELECT },
@@ -188,9 +192,16 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
               // arithmetic.
               days: true, leaveDays: true,
               overtimeDecisions: true,
+              // Every live signature on the week. The receipt behind a
+              // line is the payer's own, and nobody else's.
+              assertions: {
+                where: { state: 'LIVE' },
+                select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+              },
               sellContract: {
                 select: {
                   billRate: true, startDate: true,
+                  companyId: true, clientCompanyId: true, endClientCompanyId: true,
                   overtimeAfterHours: true, overtimeMultiplierBps: true,
                   billFrequency: true, billAnchor: true, billStraddle: true,
                   workOrder: { select: ORDER_HEADER_SELECT },
@@ -265,6 +276,36 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
   const premiumOn = (line: PricedLine): number | null =>
     recompute(line, { start: inv.periodStart, end: inv.periodEnd, label: '' })?.premiumCents ?? null
 
+  // ── The receipt is the payer's signature ────────────────────────────
+  //
+  // The founder, 2026-09-28 (CLAUDE.md, "What each rung may bill, and
+  // when"). A bill upward is matched against the signature of the firm
+  // it is addressed to — the client's at the top of a chain and on a
+  // direct placement, the firm above's on a rung below — and never
+  // against `Timesheet.status`, which turns APPROVED only once the
+  // employer at the bottom has accepted. That column held Computer
+  // Systems' bill to Northbend, raised on Northbend's signature, until
+  // CloudEPA two rungs below it had signed.
+  //
+  // On a rung below the top the hours checked are the payer's accepted
+  // hours: CloudEPA's bill for forty where Computer Systems accepted
+  // thirty-eight fails the hours check.
+  const receiptOf = (l: (typeof invoice.invoiceLines)[number]) => {
+    const ts = l.timesheet!
+    return receiptFor(l.sellContract?.clientCompanyId ?? ts.sellContract.clientCompanyId, {
+      periodStart: ts.periodStart,
+      periodEnd: ts.periodEnd,
+      totalHours: Number(ts.totalHours),
+      personName: l.person?.name ?? '',
+      hoursContract: {
+        companyId: ts.sellContract.companyId,
+        clientCompanyId: ts.sellContract.clientCompanyId,
+        endClientCompanyId: ts.sellContract.endClientCompanyId,
+      },
+      assertions: ts.assertions,
+    })
+  }
+
   const input: MatchInput = {
     invoice: {
       id: invoice.id,
@@ -282,7 +323,11 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       hours: Number(l.hours),
       rateCents: l.rateCents,
       amountCents: l.amountCents,
-      premiumCents: premiumOn(l),
+      // A line priced on a payer's accepted hours that differ from the
+      // hours worked was priced straight, hours × rate, because
+      // `whatTheRungBills` refuses any such week with overtime in it —
+      // so no premium is recomputed from the days onto it.
+      premiumCents: l.timesheet && receiptOf(l).straight ? 0 : premiumOn(l),
     })),
     milestones: Object.fromEntries(
       invoice.invoiceLines
@@ -303,8 +348,10 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
           l.timesheet.id,
           {
             id: l.timesheet.id,
-            status: l.timesheet.status,
-            approvedHours: Number(l.timesheet.totalHours),
+            // APPROVED to the engine where the payer has signed, whatever
+            // the rungs below have or have not done.
+            status: receiptOf(l).signed ? 'APPROVED' : l.timesheet.status === 'APPROVED' ? 'SUBMITTED' : l.timesheet.status,
+            approvedHours: receiptOf(l).hours,
             periodStart: l.timesheet.periodStart,
             periodEnd: l.timesheet.periodEnd,
             // Resolved as of the work period, not "whatever the contract

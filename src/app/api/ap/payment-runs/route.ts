@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { staffOnly } from '@/lib/seat'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
@@ -379,7 +380,7 @@ async function loadPayable(companyId: string) {
       where: { companyId, status: { notIn: ['CANCELLED'] } },
       select: {
         id: true, number: true, currency: true, totalCents: true, paidCents: true,
-        dueAt: true, status: true,
+        dueAt: true, status: true, buyContractId: true, periodStart: true, periodEnd: true,
         vendorCompany: { select: { id: true, name: true } },
         paymentRunItems: {
           where: { run: { status: { in: ['DRAFT', 'APPROVED'] } } },
@@ -403,7 +404,21 @@ async function loadPayable(companyId: string) {
     }),
   ])
 
+  // A week the payer has not accepted keeps the invoice over it out of
+  // every run. Asked only of what a run could otherwise pay — approved,
+  // with something left owing, against a buy contract and a period.
+  const notAccepted = new Map<string, string>()
+  for (const b of bills) {
+    if (b.status !== 'APPROVED' || b.totalCents - b.paidCents <= 0) continue
+    if (!b.buyContractId || !b.periodStart || !b.periodEnd) continue
+    const book = await payersBook({
+      buyContractId: b.buyContractId, periodStart: b.periodStart, periodEnd: b.periodEnd, then: 'pay',
+    })
+    if (book && book.waiting.length > 0) notAccepted.set(b.id, book.notAccepted)
+  }
+
   const payable: PayableBill[] = bills.map((b) => ({
+    notAccepted: notAccepted.get(b.id) ?? null,
     id: b.id,
     number: b.number,
     vendorCompanyId: b.vendorCompany.id,

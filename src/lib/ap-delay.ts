@@ -1010,6 +1010,12 @@ export interface PayableBill {
   status: string
   /** Set where this bill is already in a live run. */
   inRunId?: string | null
+  /**
+   * Where the invoice covers a week the firm paying it has not accepted,
+   * the sentence naming it and who must accept it. Such a bill is never
+   * paid, in a run or otherwise (the founder, 2026-09-28).
+   */
+  notAccepted?: string | null
 }
 
 export type ExclusionReason =
@@ -1020,6 +1026,7 @@ export type ExclusionReason =
   | 'ALREADY_IN_A_RUN'
   | 'NOT_DUE_YET'
   | 'NOTHING_LEFT'
+  | 'WEEK_NOT_ACCEPTED'
 
 export interface Excluded {
   bill: PayableBill
@@ -1092,6 +1099,10 @@ export function proposeRun(
         outstanding <= 0 ? 'NOTHING_LEFT' : 'ALREADY_PAID',
         `${b.number} has nothing left owing on it.`
       )
+      continue
+    }
+    if (b.notAccepted) {
+      refuse('WEEK_NOT_ACCEPTED', b.notAccepted)
       continue
     }
     if (b.status !== 'APPROVED') {
