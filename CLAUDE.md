@@ -204,6 +204,15 @@ rules follow:
   "Supplier invoices". The supplier's own document may still be called
   its invoice in a sentence ("CloudEPA sends its invoice"); the list, the
   heading and the step are "invoice receipt".
+- **Plain English for a global reader. Decided by the founder,
+  2026-09-29:** *"Simple plain English that people in India, the US, the
+  UK and Australia, and even non-native readers, can read and
+  understand. Don't throw prose."* Every public page, the demo page and
+  the documentation read like the home page: a short heading, then
+  cards, steps, lists and tables — not paragraphs. One idea per line,
+  sentences of about fifteen words and never past twenty-five, common
+  words, no idioms or metaphors, and who-does-what said plainly. Cut
+  words, never facts.
 - **The reader is a technical IT buyer, and the goal is trust, not a
   pitch. Decided by the founder, 2026-09-28:** *"You are targeting
   well-versed IT people; they rarely buy anything because of claims. Our
