@@ -1274,6 +1274,17 @@ Three rules follow:
      crossing a bill's edge. A partial acceptance covering only some days
      is priced on the days it covers.
 
+- **A pay change mid-contract. Decided by the founder, 2026-09-29:**
+  *"Follow US law as recommendation, but allow for user input if they
+  want to change."* Every hour is paid at the rate in force on the day
+  it was worked. Overtime in a week paid at two rates uses the US
+  regular rate — the week's straight-time pay divided by its hours
+  (29 CFR §778.115) — as the default; a paying firm may choose another
+  method for a line, and the choice is recorded with who made it and
+  why. A raise dated in the past has its back pay worked out and put
+  forward as a one-off payment for a desk to approve, never paid
+  silently. The worker is told when a new rate is approved.
+
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
   18 months, so three screens said "past the limit" two weeks before the
