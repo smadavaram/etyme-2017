@@ -52,8 +52,10 @@ export function ReseedButton({ proven = false }: { proven?: boolean }) {
     setFailed(false)
     try {
       // The world seeds in steps, a minute at most each (lib/seed-steps):
-      // keep asking until the route says it is complete.
-      for (let call = 1; call <= 20; call++) {
+      // keep asking until the route says it is complete. A fresh world is
+      // about eighty steps, a dozen calls at production's pace and more
+      // on a slow day; the loop stops the moment the route says done.
+      for (let call = 1; call <= 40; call++) {
         const res = await fetch('/api/seed-world', { method: 'POST' })
         const body = await res.json().catch(() => null)
         if (!res.ok) {

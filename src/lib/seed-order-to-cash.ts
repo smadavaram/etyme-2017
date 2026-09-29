@@ -42,8 +42,9 @@
 import type { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
+import { shareOf, lastShare, type Share } from '@/lib/seed-steps'
 import { postAssertion } from '@/lib/order-postings'
-import { DEFAULT_ACCOUNTS, entryFor, onInvoice, onCreditNote, onReceipt } from '@/lib/gl'
+import { DEFAULT_ACCOUNTS, entryFor, onInvoice, onCreditNote, onReceipt, type Entry } from '@/lib/gl'
 
 export interface SeedContext {
   firmBySlug: Map<string, { id: string }>
@@ -79,6 +80,23 @@ async function deskAt(ctx: SeedContext, clientSlug: string, key: string) {
 const whole = (cents: number) => cents / 100
 
 /**
+ * The ids of every company on the world's roster.
+ *
+ * Every read in this layer is bounded by it and every write lands inside
+ * it. A production database holds real firms and every visitor's demo
+ * sandbox beside the world, and until 2026-09-29 the books read every
+ * posting, invoice and payment in the database and opened a ledger for any
+ * firm with a posting — so on production the step was both more than one
+ * function call could finish and a seed writing journal entries into
+ * books that were not the world's. The postings and the pipeline were
+ * unbounded the same way. A seed writes the demo world and nothing else.
+ */
+async function worldCompanyIds(ctx: SeedContext): Promise<string[]> {
+  const rows = await db.company.findMany({ where: { slug: { in: ctx.roster } }, select: { id: true } })
+  return rows.map((r) => r.id)
+}
+
+/**
  * The four parts of this layer, each able to run on its own call.
  *
  * The world seeds in steps that each fit inside one function call
@@ -97,21 +115,38 @@ const whole = (cents: number) => cents / 100
 export const ORDER_TO_CASH_PARTS = ['orders', 'postings', 'books', 'rest'] as const
 export type OrderToCashPart = (typeof ORDER_TO_CASH_PARTS)[number]
 
+/**
+ * The parts cut again into shares, and how many — one step each, because
+ * one function call cannot hold them whole against a distant database.
+ *
+ *   postings  fourteen. Each signed week goes through the product's own
+ *             `postAssertion`, about twenty queries a week, so a share is
+ *             the one thing here whose cost grows with the world. Fourteen
+ *             keeps a share near three hundred queries on a fresh world.
+ *   books     four. Written in batches a share costs a few dozen queries
+ *             whatever it holds; the cut keeps each share's transaction
+ *             short and a share lost to a timeout small.
+ */
+export const PART_SHARES: Partial<Record<OrderToCashPart, number>> = { postings: 14, books: 4 }
+
 export async function seedOrderToCash(
   ctx: SeedContext,
   parts: readonly OrderToCashPart[] = ORDER_TO_CASH_PARTS,
   /**
-   * Postings only: which share of the signed weeks to post — the
-   * `index`th of `of` contiguous shares, by id. Posting a week reads its
-   * order, its rates and what is already posted, about forty queries a
-   * week, so the part is cut again to keep a share inside one call.
+   * Postings and books only: which share to do — the `index`th of `of`
+   * contiguous shares, by id. Posting a week goes through the product's
+   * own `postAssertion`, about twenty queries a week, so the postings are
+   * cut to keep a share inside one call; the books are cut so a share's
+   * writes stay one short transaction.
    */
-  slice?: { index: number; of: number }
+  slice?: Share
 ): Promise<OrderToCash> {
   const want = (part: OrderToCashPart) => parts.includes(part)
   const out: OrderToCash = {
     orders: 0, milestones: 0, projectOrders: 0, postings: 0, journalEntries: 0, expenses: 0,
   }
+  let worldIds: string[] | null = null
+  const world = async () => (worldIds ??= await worldCompanyIds(ctx))
 
   if (want('orders')) {
     // ── 1. The client's own coding ──────────────────────────────────────
@@ -198,10 +233,21 @@ export async function seedOrderToCash(
     // Where the work happens, for the order's ship-to. Seeded by
     // `seed-standing`, which runs before this.
     const sites = await db.companyLocation.findMany({
-      where: { isPrimary: true },
+      where: { isPrimary: true, companyId: { in: await world() } },
       select: { id: true, companyId: true },
     })
     const siteOf = new Map(sites.map((s) => [s.companyId, s.id]))
+
+    // Every order the world's buyers have raised, read once and kept
+    // current as this loop raises and renames them — rather than three
+    // lookups a pair. A number is unique at its buyer, so each lookup below
+    // has at most one answer, exactly as the query it replaces did.
+    const raisedBy = await db.workOrder.findMany({
+      where: { issuedById: { in: [...new Set([...pairs.values()].map((p) => p.buyerId))] } },
+      select: { id: true, issuedById: true, issuedToId: true, number: true },
+    })
+    const orderAt = (buyerId: string, number: string, to: (sellerId: string) => boolean) =>
+      raisedBy.find((o) => o.issuedById === buyerId && o.number === number && to(o.issuedToId))
 
     for (const p of pairs.values()) {
       // Deterministic from the two ids, so a second seeding finds the order
@@ -226,9 +272,7 @@ export async function seedOrderToCash(
       const short =
         `PO-${day(0).getUTCFullYear()}-` +
         `${p.buyerId.slice(-3)}${p.sellerId.slice(-2)}`.toUpperCase()
-      const taken = await db.workOrder.findFirst({
-        where: { issuedById: p.buyerId, number: short, NOT: { issuedToId: p.sellerId } }, select: { id: true },
-      })
+      const taken = orderAt(p.buyerId, short, (to) => to !== p.sellerId)
       const number = taken
         ? `PO-${day(0).getUTCFullYear()}-${p.buyerId.slice(-3)}${p.sellerId.slice(-4)}`.toUpperCase()
         : short
@@ -236,14 +280,13 @@ export async function seedOrderToCash(
       // rather than given a second order, so a re-seed stays a no-op.
       const legacyNumber = `PO-${day(0).getUTCFullYear()}-${p.sellerId.slice(-5).toUpperCase()}`
       if (legacyNumber !== number) {
-        const legacy = await db.workOrder.findFirst({
-          where: { issuedById: p.buyerId, issuedToId: p.sellerId, number: legacyNumber }, select: { id: true },
-        })
-        if (legacy) await db.workOrder.update({ where: { id: legacy.id }, data: { number } })
+        const legacy = orderAt(p.buyerId, legacyNumber, (to) => to === p.sellerId)
+        if (legacy) {
+          await db.workOrder.update({ where: { id: legacy.id }, data: { number } })
+          legacy.number = number
+        }
       }
-      const already = await db.workOrder.findFirst({
-        where: { issuedById: p.buyerId, issuedToId: p.sellerId, number }, select: { id: true },
-      })
+      const already = orderAt(p.buyerId, number, (to) => to === p.sellerId)
       let orderId = already?.id ?? null
       if (!orderId) {
         // A year of the placements underneath it at full time, rounded up
@@ -286,6 +329,7 @@ export async function seedOrderToCash(
           select: { id: true },
         })
         orderId = raised.id
+        raisedBy.push({ id: raised.id, issuedById: p.buyerId, issuedToId: p.sellerId, number })
         out.orders++
       }
 
@@ -313,9 +357,13 @@ export async function seedOrderToCash(
     }
 
     // Every invoice quotes the order its contract bills against, so the
-    // three-way match has a PO to check rather than a blank.
+    // three-way match has a PO to check rather than a blank. The world's
+    // invoices only: a real firm's invoice is its own to put an order on.
     const linesToOrder = await db.invoiceLine.findMany({
-      where: { sellContract: { workOrderId: { not: null } }, invoice: { workOrderId: null } },
+      where: {
+        sellContract: { workOrderId: { not: null }, companyId: { in: await world() } },
+        invoice: { workOrderId: null },
+      },
       select: { invoiceId: true, sellContract: { select: { workOrderId: true } } },
     })
     const invoiceOrder = new Map<string, string>()
@@ -454,16 +502,48 @@ export async function seedOrderToCash(
     // The seed wrote 104 assertions directly and none of them had ever been
     // posted, so every margin screen read zero on a world with 38 live
     // placements.
+    //
+    // The world's signatures only. A real firm's weeks were posted by the
+    // route that signed them, and a seed has no business in its books.
     const assertions = await db.workAssertion.findMany({
-      where: { state: 'LIVE', role: { not: 'PASS_THROUGH' } },
-      select: { id: true, byId: true },
+      where: { state: 'LIVE', role: { not: 'PASS_THROUGH' }, companyId: { in: await world() } },
+      select: { id: true, byId: true, role: true },
       orderBy: { id: 'asc' },
     })
     // A contiguous share of them where the caller asked for one, so the
     // shares run in the same order one pass would.
-    const from = slice ? Math.floor((assertions.length * slice.index) / slice.of) : 0
-    const to = slice ? Math.floor((assertions.length * (slice.index + 1)) / slice.of) : assertions.length
-    for (const a of assertions.slice(from, to)) {
+    const share = shareOf(assertions, slice)
+
+    // A week whose every posting is already written is passed over rather
+    // than posted again. `postAssertion` would only read its way to the
+    // same rows — its writes are upserts that change nothing — and those
+    // reads were nearly all of a re-walk's cost: about twenty queries a
+    // week, every week, on every new deployment. Complete means every
+    // kind the signature writes: revenue for the client's, pay and burden
+    // for the employer's. An acceptance with pay and no burden is posted
+    // again, because only `postAssertion` knows whether its firm carries
+    // burden, and a week cut off between the two must still get it.
+    const written = new Map<string, Set<string>>()
+    for (const p of await db.orderPosting.findMany({
+      where: { source: 'TIMESHEET', sourceId: { in: share.map((a) => a.id) } },
+      select: { sourceId: true, kind: true },
+    })) {
+      if (!p.sourceId) continue
+      written.set(p.sourceId, (written.get(p.sourceId) ?? new Set()).add(p.kind))
+    }
+    const complete = (a: { id: string; role: string }) => {
+      const kinds = written.get(a.id)
+      if (!kinds) return false
+      if (a.role === 'CLIENT_APPROVAL') return kinds.has('REVENUE')
+      if (a.role === 'EMPLOYER_ACCEPTANCE') return kinds.has('PAY') && kinds.has('BURDEN')
+      return false
+    }
+
+    for (const a of share) {
+      if (complete(a)) {
+        out.postings += written.get(a.id)!.size
+        continue
+      }
       try {
         const posted = await postAssertion(a.id, a.byId)
         out.postings += (posted ?? []).filter(Boolean).length
@@ -473,7 +553,7 @@ export async function seedOrderToCash(
         // rest of the world.
       }
     }
-    out.projectOrders = await db.projectOrder.count()
+    out.projectOrders = await db.projectOrder.count({ where: { companyId: { in: await world() } } })
   }
 
   if (want('books')) {
@@ -483,7 +563,22 @@ export async function seedOrderToCash(
     // balanced entry per posting, through `lib/gl`'s own table. Plus the
     // move an invoice makes — out of unbilled revenue, into receivable —
     // and the one a receipt makes, out of receivable into cash.
+    //
+    // ── Why it is written as it is ─────────────────────────────────────
+    //
+    // On 2026-09-29 this part timed out on production six calls running.
+    // It read every posting, invoice and payment in the database — real
+    // firms and demo sandboxes included — and wrote each entry as its own
+    // transaction, five round trips apiece: 1,728 queries for the world
+    // alone, and more for everything that was not the world. Now it reads
+    // the world's rows only, lists every entry it would book in the order
+    // one pass books them, takes its share of that list, and writes the
+    // share's entries and lines together in one short transaction. A share
+    // is a few dozen queries however many entries it holds, and a share
+    // cut off half way leaves no entry without its lines.
+    const ids = await world()
     const posted = await db.orderPosting.findMany({
+      where: { companyId: { in: ids } },
       select: {
         id: true, companyId: true, kind: true, amountCents: true, currency: true,
         postedAt: true, says: true, source: true, projectOrderId: true,
@@ -492,19 +587,20 @@ export async function seedOrderToCash(
       orderBy: { id: 'asc' },
     })
     const firmsWithBooks = new Set(posted.map((p) => p.companyId))
+    const booksOf = [...firmsWithBooks]
     const accountOf = new Map<string, string>() // `${companyId}:${code}` → id
     // Read once, the missing ones written once, read again: three round
     // trips for the whole chart rather than two per account per firm. An
     // account a firm already has is left exactly as it is.
     const readAccounts = async () => {
       for (const a of await db.ledgerAccount.findMany({
-        where: { companyId: { in: [...firmsWithBooks] } }, select: { id: true, companyId: true, code: true },
+        where: { companyId: { in: booksOf } }, select: { id: true, companyId: true, code: true },
       })) {
         accountOf.set(`${a.companyId}:${a.code}`, a.id)
       }
     }
     await readAccounts()
-    const missingAccounts = [...firmsWithBooks].flatMap((companyId) =>
+    const missingAccounts = booksOf.flatMap((companyId) =>
       DEFAULT_ACCOUNTS.filter((a) => !accountOf.has(`${companyId}:${a.code}`)).map((a) => ({
         companyId, code: a.code, name: a.name,
         type: a.type as never, normalSide: a.normalSide as never,
@@ -515,105 +611,147 @@ export async function seedOrderToCash(
       await readAccounts()
     }
 
-    // Every entry already on the books, by its key, in one read — so a
-    // second seeding asks nothing per posting and writes nothing.
-    const booked = new Set(
-      (await db.journalEntry.findMany({ select: { source: true, sourceId: true } }))
-        .map((e) => `${e.source}:${e.sourceId}`)
-    )
+    /** One entry this layer books, keyed the way the journal's unique key is. */
+    interface Booking {
+      companyId: string
+      source: string
+      sourceId: string
+      entry: Entry
+      dims: { projectOrderId?: string | null; personId?: string | null; clientCompanyId?: string | null }
+    }
 
-    /** One balanced entry, keyed so a second seeding writes nothing. */
-    async function post(
-      companyId: string,
-      source: string,
-      sourceId: string,
-      entry: { postedAt: Date; memo: string; lines: { accountCode: string; debitCents: number; creditCents: number; memo?: string }[] },
-      dims: { projectOrderId?: string | null; personId?: string | null; clientCompanyId?: string | null } = {}
-    ) {
-      if (booked.has(`${source}:${sourceId}`)) return
-      const lines: Prisma.JournalLineCreateManyEntryInput[] = []
-      for (const l of entry.lines) {
-        const accountId = accountOf.get(`${companyId}:${l.accountCode}`)
-        if (!accountId) return
-        // Ids rather than `connect`: the same rows, without a lookup per
-        // line to confirm an account this function just read.
-        lines.push({
-          accountId,
-          debitCents: l.debitCents, creditCents: l.creditCents, currency: 'USD',
-          personId: dims.personId ?? null,
-          clientCompanyId: dims.clientCompanyId ?? null,
-          memo: l.memo ?? null,
+    /**
+     * Book what is not on the books yet: one read to find what is, then
+     * every new entry and every line under it in one transaction. Keyed
+     * on (source, sourceId), so a second seeding writes nothing.
+     */
+    async function book(items: Booking[]): Promise<void> {
+      if (items.length === 0) return
+      const onBooks = new Set(
+        (await db.journalEntry.findMany({
+          where: { sourceId: { in: items.map((i) => i.sourceId) } },
+          select: { source: true, sourceId: true },
+        })).map((e) => `${e.source}:${e.sourceId}`)
+      )
+      const fresh: { key: string; head: Prisma.JournalEntryCreateManyInput; lines: Omit<Prisma.JournalLineCreateManyInput, 'entryId'>[] }[] = []
+      for (const it of items) {
+        const key = `${it.source}:${it.sourceId}`
+        if (onBooks.has(key)) continue
+        const lines: Omit<Prisma.JournalLineCreateManyInput, 'entryId'>[] = []
+        for (const l of it.entry.lines) {
+          const accountId = accountOf.get(`${it.companyId}:${l.accountCode}`)
+          if (!accountId) break
+          lines.push({
+            accountId,
+            debitCents: l.debitCents, creditCents: l.creditCents, currency: 'USD',
+            personId: it.dims.personId ?? null,
+            clientCompanyId: it.dims.clientCompanyId ?? null,
+            memo: l.memo ?? null,
+          })
+        }
+        // An entry with a line whose account is missing is not booked at
+        // all, rather than booked lopsided.
+        if (lines.length !== it.entry.lines.length) continue
+        onBooks.add(key)
+        fresh.push({
+          key,
+          head: {
+            companyId: it.companyId, postedAt: it.entry.postedAt, source: it.source as never, sourceId: it.sourceId,
+            memo: it.entry.memo,
+            projectOrderId: it.dims.projectOrderId ?? null,
+          },
+          lines,
         })
       }
-      await db.journalEntry.create({
-        data: {
-          companyId, postedAt: entry.postedAt, source: source as never, sourceId,
-          memo: entry.memo,
-          projectOrderId: dims.projectOrderId ?? null,
-          lines: { createMany: { data: lines } },
+      if (fresh.length === 0) return
+      // Both inserts or neither: an entry on the books with no lines would
+      // read as booked to the next call and never be finished.
+      await db.$transaction(
+        async (tx) => {
+          const heads = await tx.journalEntry.createManyAndReturn({
+            data: fresh.map((f) => f.head),
+            select: { id: true, source: true, sourceId: true },
+          })
+          const idOf = new Map(heads.map((h) => [`${h.source}:${h.sourceId}`, h.id]))
+          await tx.journalLine.createMany({
+            data: fresh.flatMap((f) => f.lines.map((l) => ({ ...l, entryId: idOf.get(f.key)! }))),
+          })
         },
-        select: { id: true },
-      })
-      booked.add(`${source}:${sourceId}`)
-      out.journalEntries++
-    }
-
-    for (const p of posted) {
-      await post(
-        p.companyId, p.source, p.id,
-        entryFor({ kind: p.kind as never, amountCents: p.amountCents, postedAt: p.postedAt, says: p.says }),
-        { projectOrderId: p.projectOrderId, personId: p.personId, clientCompanyId: p.clientCompanyId }
+        // Two statements, however long the list. The allowance is for a
+        // database in another building, not for the work.
+        { maxWait: 10_000, timeout: 20_000 }
       )
+      out.journalEntries += fresh.length
     }
 
-    const issued = await db.invoice.findMany({
-      where: { status: { in: ['SUBMITTED', 'APPROVED', 'PAID'] } },
+    const issued = booksOf.length === 0 ? [] : await db.invoice.findMany({
+      where: {
+        status: { in: ['SUBMITTED', 'APPROVED', 'PAID'] },
+        invoiceLines: { some: { sellContract: { companyId: { in: booksOf } } } },
+      },
       select: {
         id: true, number: true, total: true, issuedAt: true, periodEnd: true,
         invoiceLines: { select: { sellContract: { select: { companyId: true, clientCompanyId: true } } }, take: 1 },
       },
       orderBy: { id: 'asc' },
     })
-    for (const inv of issued) {
-      const sell = inv.invoiceLines[0]?.sellContract
-      if (!sell) continue
-      if (!firmsWithBooks.has(sell.companyId)) continue
-      const cents = Math.round(Number(inv.total) * 100)
-      await post(
-        sell.companyId, 'INVOICE', inv.id,
-        onInvoice(cents, inv.issuedAt ?? inv.periodEnd, inv.number),
-        { clientCompanyId: sell.clientCompanyId }
-      )
-    }
-
-    const receipts = await db.payment.findMany({
+    const receipts = booksOf.length === 0 ? [] : await db.payment.findMany({
       // Applied cash only. Unapplied cash is ordinary and belongs in the
       // queue somebody works, not in the books against an invoice nobody
       // has decided on yet.
-      where: { appliedAt: { not: null }, invoiceId: { not: null }, receivedByCompanyId: { not: null } },
+      where: {
+        appliedAt: { not: null }, invoiceId: { not: null },
+        receivedByCompanyId: { in: booksOf },
+      },
       select: {
         id: true, amount: true, appliedAt: true, receivedByCompanyId: true, payerCompanyId: true,
         invoice: { select: { number: true } },
       },
       orderBy: { id: 'asc' },
     })
-    for (const r of receipts) {
-      if (!r.receivedByCompanyId || !r.invoice) continue
-      if (!firmsWithBooks.has(r.receivedByCompanyId)) continue
-      await post(
-        r.receivedByCompanyId, 'MANUAL', r.id,
-        onReceipt(Math.round(Number(r.amount) * 100), r.appliedAt!, r.invoice.number),
-        { clientCompanyId: r.payerCompanyId }
-      )
-    }
+
+    // Every entry this layer books, in the order one pass books them: the
+    // postings, then the invoices, then the receipts.
+    const all: Booking[] = [
+      ...posted.map((p): Booking => ({
+        companyId: p.companyId, source: p.source, sourceId: p.id,
+        entry: entryFor({ kind: p.kind as never, amountCents: p.amountCents, postedAt: p.postedAt, says: p.says }),
+        dims: { projectOrderId: p.projectOrderId, personId: p.personId, clientCompanyId: p.clientCompanyId },
+      })),
+      ...issued.flatMap((inv): Booking[] => {
+        const sell = inv.invoiceLines[0]?.sellContract
+        if (!sell || !firmsWithBooks.has(sell.companyId)) return []
+        return [{
+          companyId: sell.companyId, source: 'INVOICE', sourceId: inv.id,
+          entry: onInvoice(Math.round(Number(inv.total) * 100), inv.issuedAt ?? inv.periodEnd, inv.number),
+          dims: { clientCompanyId: sell.clientCompanyId },
+        }]
+      }),
+      ...receipts.flatMap((r): Booking[] => {
+        if (!r.receivedByCompanyId || !r.invoice || !firmsWithBooks.has(r.receivedByCompanyId)) return []
+        return [{
+          companyId: r.receivedByCompanyId, source: 'MANUAL', sourceId: r.id,
+          entry: onReceipt(Math.round(Number(r.amount) * 100), r.appliedAt!, r.invoice.number),
+          dims: { clientCompanyId: r.payerCompanyId },
+        }]
+      }),
+    ]
+    await book(shareOf(all, slice))
 
     // ── 6. A credit note, and the exception somebody signed for ─────────
     //
     // Both are AP and AR facts a finance desk meets in its first week, and
     // both were unreachable: nothing had ever been credited back and the
     // three-way match exception queue was empty.
-    const toCredit = await db.invoice.findFirst({
-      where: { status: 'PAID', invoiceLines: { some: { timesheetId: { not: null } } } },
+    //
+    // Once, with the last share, so it lands after every entry above as it
+    // does in one pass. Against the world's own invoice: this used to take
+    // the first paid invoice in the database, whoever's it was.
+    const toCredit = !lastShare(slice) ? null : await db.invoice.findFirst({
+      where: {
+        status: 'PAID',
+        invoiceLines: { some: { timesheetId: { not: null }, sellContract: { companyId: { in: ids } } } },
+      },
       select: {
         id: true, number: true, total: true, issuedAt: true, periodEnd: true,
         invoiceLines: { select: { rateCents: true, sellContract: { select: { companyId: true, clientCompanyId: true } } }, take: 1 },
@@ -643,11 +781,11 @@ export async function seedOrderToCash(
         // Into the period the invoice belonged to, not today. March revenue
         // credited in June is a March correction.
         if (firmsWithBooks.has(seller.companyId)) {
-          await post(
-            seller.companyId, 'REVERSAL', `credit:${toCredit.id}`,
-            onCreditNote(cents, toCredit.issuedAt ?? toCredit.periodEnd, toCredit.number, 'HOURS_DISPUTED'),
-            { clientCompanyId: seller.clientCompanyId }
-          )
+          await book([{
+            companyId: seller.companyId, source: 'REVERSAL', sourceId: `credit:${toCredit.id}`,
+            entry: onCreditNote(cents, toCredit.issuedAt ?? toCredit.periodEnd, toCredit.number, 'HOURS_DISPUTED'),
+            dims: { clientCompanyId: seller.clientCompanyId },
+          }])
         }
       }
     }
@@ -705,28 +843,40 @@ export async function seedOrderToCash(
       select: { id: true, billRate: true, startDate: true, companyId: true, personId: true },
       orderBy: { id: 'asc' },
     })
+    // Two reads and one write for every contract at once, rather than
+    // three queries a contract: which already have a rate on file, and the
+    // first seat at each firm, who records it.
+    const rated = new Set(
+      (await db.rateHistory.findMany({
+        where: { contractType: 'SELL', contractId: { in: contracts.map((c) => c.id) } },
+        select: { contractId: true },
+      })).map((r) => r.contractId)
+    )
+    const firstSeat = new Map<string, { personId: string }>()
+    for (const s of await db.context.findMany({
+      where: { companyId: { in: [...new Set(contracts.map((c) => c.companyId))] }, type: 'EMPLOYEE' },
+      select: { companyId: true, personId: true },
+      orderBy: [{ grantedAt: 'asc' }, { id: 'asc' }],
+    })) {
+      if (s.companyId && !firstSeat.has(s.companyId)) firstSeat.set(s.companyId, { personId: s.personId })
+    }
+    const opening: Prisma.RateHistoryCreateManyInput[] = []
     for (const c of contracts) {
-      if (!c.startDate) continue
-      if (await db.rateHistory.findFirst({ where: { contractType: 'SELL', contractId: c.id } })) continue
-      const seat = await db.context.findFirst({
-        where: { companyId: c.companyId, type: 'EMPLOYEE' },
-        select: { personId: true },
-        orderBy: { grantedAt: 'asc' },
-      })
+      if (!c.startDate || rated.has(c.id)) continue
+      const seat = firstSeat.get(c.companyId)
       if (!seat) continue
-      await db.rateHistory.create({
-        data: {
-          contractType: 'SELL', contractId: c.id,
-          rate: c.billRate, rateType: 'HOURLY',
-          fromDate: c.startDate, toDate: null,
-          reason: 'Agreed at award',
-          changedById: seat.personId,
-          approvalState: 'APPROVED',
-          approvedById: seat.personId, approvedAt: c.startDate,
-          createdAt: c.startDate,
-        },
+      opening.push({
+        contractType: 'SELL', contractId: c.id,
+        rate: c.billRate, rateType: 'HOURLY',
+        fromDate: c.startDate, toDate: null,
+        reason: 'Agreed at award',
+        changedById: seat.personId,
+        approvalState: 'APPROVED',
+        approvedById: seat.personId, approvedAt: c.startDate,
+        createdAt: c.startDate,
       })
     }
+    if (opening.length) await db.rateHistory.createMany({ data: opening })
     // One asked-for rise, waiting on somebody. Five per cent, on the
     // longest-running placement in the world — which is the conversation
     // that actually happens at renewal.
@@ -870,10 +1020,13 @@ export async function seedOrderToCash(
       })
     }
 
-    // The run itself, on the desk of the firm with the most to pay.
+    // The run itself, on the desk of the firm with the most to pay — in
+    // the world. Across the whole database this once picked whichever firm
+    // had the most approved bills, and a real firm's AP desk would have
+    // found a payment run it never assembled.
     const payers = await db.vendorBill.groupBy({
       by: ['companyId'],
-      where: { status: 'APPROVED', paidAt: null },
+      where: { status: 'APPROVED', paidAt: null, companyId: { in: await world() } },
       _count: { _all: true },
       orderBy: { _count: { companyId: 'desc' } },
       take: 1,
@@ -894,7 +1047,7 @@ export async function seedOrderToCash(
           where: { companyId: payerId, type: 'EMPLOYEE' },
           select: { personId: true }, orderBy: { grantedAt: 'asc' },
         })
-        const run = await db.paymentRun.create({
+        await db.paymentRun.create({
           data: {
             companyId: payerId, currency: 'USD', status: 'APPROVED',
             scheduledFor: day(3),
@@ -902,19 +1055,21 @@ export async function seedOrderToCash(
             createdById: seat?.personId ?? null,
             approvedById: seat?.personId ?? null,
             createdAt: day(-1),
+            // With the run, in one write: a run cut off before its items
+            // would be found by the next call and never filled.
+            items: {
+              createMany: {
+                data: bills.map((b) => ({
+                  vendorBillId: b.id, amountCents: b.totalCents,
+                  // What the remittance advice says it covers. A supplier
+                  // reading a bank line with no reference has to ring somebody.
+                  remittance: `${b.number} — ${b.vendorCompany.name}`,
+                })),
+              },
+            },
           },
           select: { id: true },
         })
-        for (const b of bills) {
-          await db.paymentRunItem.create({
-            data: {
-              runId: run.id, vendorBillId: b.id, amountCents: b.totalCents,
-              // What the remittance advice says it covers. A supplier
-              // reading a bank line with no reference has to ring somebody.
-              remittance: `${b.number} — ${b.vendorCompany.name}`,
-            },
-          })
-        }
       }
     }
   }

@@ -28,6 +28,7 @@
  * `etyme-regulatory`'s next piece of work.
  */
 
+import type { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
 
@@ -146,6 +147,17 @@ export async function seedDocumentRequirements(ctx: SeedContext): Promise<Docume
     orderBy: { number: 'asc' },
   })
 
+  // What every order already asks for, in one read, and every missing row
+  // in one write at the end — rather than a read and a write per document
+  // per order, which was nearly four hundred queries on a fresh world.
+  const asked = new Set(
+    (await db.documentRequirement.findMany({
+      where: { workOrderId: { in: orders.map((o) => o.id) } },
+      select: { workOrderId: true, documentTypeKey: true },
+    })).map((r) => `${r.workOrderId}:${r.documentTypeKey}`)
+  )
+  const rows: Prisma.DocumentRequirementCreateManyInput[] = []
+
   for (const order of orders) {
     const issuer = firmById.get(order.issuedById)
     if (!issuer) continue
@@ -165,30 +177,27 @@ export async function seedDocumentRequirements(ctx: SeedContext): Promise<Docume
 
     let wrote = 0
     for (const ask of asks) {
-      const already = await db.documentRequirement.findFirst({
-        where: { workOrderId: order.id, documentTypeKey: ask.key },
-        select: { id: true },
-      })
-      if (already) continue
-      await db.documentRequirement.create({
-        data: {
-          workOrderId: order.id,
-          documentTypeKey: ask.key,
-          required: ask.required ?? true,
-          owedBy: ask.owedBy,
-          blocks: ask.blocks ?? null,
-          note:
-            ask.key === 'MSA' && noAgreement
-              ? 'Required on this order, and no agreement was ever signed. One purchase order for one season.'
-              : (ask.note ?? null),
-          createdAt: order.startDate,
-        },
+      const key = `${order.id}:${ask.key}`
+      if (asked.has(key)) continue
+      asked.add(key)
+      rows.push({
+        workOrderId: order.id,
+        documentTypeKey: ask.key,
+        required: ask.required ?? true,
+        owedBy: ask.owedBy,
+        blocks: ask.blocks ?? null,
+        note:
+          ask.key === 'MSA' && noAgreement
+            ? 'Required on this order, and no agreement was ever signed. One purchase order for one season.'
+            : (ask.note ?? null),
+        createdAt: order.startDate,
       })
       wrote++
     }
     if (wrote > 0) out.orders++
     out.items += wrote
   }
+  if (rows.length) await db.documentRequirement.createMany({ data: rows, skipDuplicates: true })
 
   // ── The one line that answers differently ──────────────────────────
   //

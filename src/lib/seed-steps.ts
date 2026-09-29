@@ -46,16 +46,48 @@ export const SEED_STEP_ACTION = 'DEMO_SEED_STEP'
  * is allowed. Thirty seconds are held back for the step already running
  * when the budget runs out.
  *
- * Measured locally on 2026-09-29, the heaviest step on a fresh world is
- * about 1,700 queries (the books) and the next about 1,300; the whole
- * world is about 12,000, and walking a finished one again about 7,000.
- * Production answers each query from another building, so a step costs
- * its query count times that round trip: under thirty seconds for the
- * heaviest step up to roughly 17 ms a query. A step the platform cuts off
- * anyway is not marked, and runs again on the next call.
+ * So every step has to finish inside those thirty seconds on its own. A
+ * step costs its query count times what one query takes production, and
+ * production answers from another building: on 2026-09-29 a step of 1,307
+ * queries finished inside one sixty-second call, and the books, at 1,728
+ * queries for the world plus every posting outside it, timed out six
+ * calls running. So a query there takes at most about 46 ms, counted the
+ * way `__integration__/seed-step-size.test.ts` counts them — and this
+ * file's first version, which assumed 17 ms and a heaviest step of 1,700
+ * queries, was wrong on both.
+ *
+ * That test holds every step, fresh and walked again after a deploy,
+ * under 350 queries: sixteen seconds at 46 ms. Timed through a local proxy
+ * that adds 40 ms to every round trip — a query then costs more than
+ * production has ever shown — the slowest step took seventeen seconds. A
+ * step that grows past the line is cut into shares (`shareOf` below) on
+ * the commit that grew it, rather than found by a timeout on production.
+ * A step the platform cuts off anyway is not marked, and runs again first
+ * on the next call.
  */
 export function seedBudgetMs(maxDurationSeconds: number): number {
   return Math.max(10, maxDurationSeconds - 30) * 1000
+}
+
+/**
+ * A contiguous piece of a list: the `index`th of `of`. A step too heavy for
+ * one call is cut into shares of what it walks — signed weeks, entries, a
+ * program's placements — one step each, run in order, so the shares do in
+ * several calls exactly what one pass would do in one.
+ */
+export type Share = { index: number; of: number }
+
+/** The rows in one share, in their order; all of them where no share is asked for. Every row lands in exactly one share. */
+export function shareOf<T>(rows: readonly T[], share?: Share): T[] {
+  if (!share) return [...rows]
+  const from = Math.floor((rows.length * share.index) / share.of)
+  const to = Math.floor((rows.length * (share.index + 1)) / share.of)
+  return rows.slice(from, to)
+}
+
+/** Whether this is the last share, or no share at all: where the work after a list happens, once. */
+export function lastShare(share?: Share): boolean {
+  return !share || share.index === share.of - 1
 }
 
 /** The code a marker was written by. A new deployment re-walks every step. */

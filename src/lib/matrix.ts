@@ -694,6 +694,7 @@ export const MATRIX: L1[] = [
             'BUILT 2026-09-27: one quiet line at the foot of the page offers the next step in the funnel\u2019s own words \u2014 get your contractor spend audit, or ask a person \u2014 imported from lib/public-site/funnel, and never an account (read against promisesAnAccount)',
             'BUILT 2026-09-28: inside a made-up company the shell says Demo in front of its name \u2014 on the rail, in the phone header, in the phone\u2019s menu sheet and in the account menu \u2014 decided on the server from who is seated there (every seat at a domain nobody can register, or the sandbox flag), never from the slug or a list of names, and a verified registrable domain is never called a demo',
             'BUILT 2026-09-29: the world seeds in named steps that each fit one function call. A call skips every step already finished for this world at this deployment, runs the next ones until thirty seconds have passed, and answers done, next and remaining, so repeating POST /api/seed-world converges where eight calls in a row had timed out on production. A finished world costs two queries and writes nothing; a new deployment walks every step again. The contracts every step writes shift off the same holidays whichever call writes them, because the calendar is worked out in memory at the top of every call. Found on the way and fixed: two suppliers at one client could share an order number and the second got no order of its own, at random',
+            'BUILT 2026-09-29: every step fits the thirty seconds a call holds back for it, against a database production showed answering at up to 46 ms a query. The books, which timed out six calls running at 1,728 queries, are four shares that each write their entries and lines in one transaction; the postings are fourteen shares, and a week already posted in full is passed over rather than read again; each client program is two steps, cut between its placements, and standing is three. No step makes more than about 320 queries on a fresh world or 215 walked again after a deploy — about fifteen seconds at that rate — and a step past 350 fails the build. And the seed writes the demo world and nothing else: the books, postings, invoice orders, payment run, CVs, holds, verification files, I-9 evidence and visa petitions each read the whole database before and now read the roster, or an address nobody can register, so a real firm’s books and a real person’s papers are never written by a seed',
           ],
           implementedBy: [
             'src/app/demo/seats.ts', 'src/app/demo/page.tsx', 'src/app/demo/desk-picker.tsx',
@@ -708,9 +709,12 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/my-work/page.tsx',
             'src/lib/demo-company.ts', 'src/components/shell/demo-chip.tsx',
             'src/lib/seed-steps.ts', 'src/app/api/seed-world/rebuild/route.ts', 'src/components/reseed-button.tsx',
+            'src/lib/seed-document-requirements.ts',
           ],
           testedBy: [
             '__integration__/seed-in-steps.test.ts', '__integration__/rebuild-demo.test.ts',
+            '__integration__/seed-step-size.test.ts', '__integration__/seed-stays-in-its-world.test.ts',
+            '__tests__/invariants/seed-shares.test.ts',
             '__tests__/invariants/demo-chip.test.ts',
             '__integration__/demo-seats.test.ts', '__integration__/reseed-gate.test.ts',
             '__integration__/reseed-across-days.test.ts', '__tests__/invariants/demo-names.test.ts',

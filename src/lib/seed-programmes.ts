@@ -41,6 +41,7 @@ import { dueOn } from '@/lib/billing-cascade'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
 import { day, at } from '@/lib/seed-days'
+import { shareOf, lastShare, type Share } from '@/lib/seed-steps'
 import { newChecklist } from '@/lib/supplier-onboarding'
 import { newApplyToken } from '@/lib/supplier-link'
 
@@ -414,7 +415,27 @@ export function mondayWeek(back: number, hours: number) {
   return { start, end: new Date(start.getTime() + 4 * 86_400_000), days }
 }
 
-export async function seedProgrammes(world: World): Promise<{ placements: number; people: number }> {
+/** Shares each program's placements are cut into, one step each. */
+export const PROGRAM_SHARES = 2
+
+/**
+ * Seed the three client programs — or one of them, or one share of one.
+ *
+ * The stepped seed (lib/seed-steps) runs a program in `PROGRAM_SHARES`
+ * shares of its placements: all three programs in one step were about
+ * 1,300 queries on a fresh world, far past what one function call can
+ * make against a distant database, and one program whole was still about
+ * 450. Each share walks the program's desks, rules and suppliers first —
+ * idempotent, and nearly all reads after the first share — then its own
+ * placements; the direct order and the two roles come once, with the last
+ * share. A placement carries nothing in memory to the next but a count,
+ * each reads what it needs from the database, and every share runs in the
+ * same order a single pass would.
+ */
+export async function seedProgrammes(
+  world: World,
+  pick: { program?: string; share?: Share } = {}
+): Promise<{ placements: number; people: number }> {
   const { firmBySlug, seatBySlug, domain, prefix } = world
   const people = new Set<string>()
   let placements = 0
@@ -492,7 +513,7 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
     }
   }
 
-  for (const p of PROGRAMMES) {
+  for (const p of PROGRAMMES.filter((x) => pick.program == null || x.client === pick.program)) {
     const client = firmBySlug.get(p.client)!
     const slug = prefix + p.client
     const office = seatBySlug.get(p.client)!
@@ -652,7 +673,7 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
     }
 
     // ── The placements ─────────────────────────────────────────────
-    for (const pl of p.placements) {
+    for (const pl of shareOf(p.placements, pick.share)) {
       const [, ...chain] = pl.via
       const employerSlug = chain[chain.length - 1]
       const employer = firmBySlug.get(employerSlug)!
@@ -1093,6 +1114,9 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
         }
       }
     }
+
+    // Everything below happens once per program, with its last share.
+    if (!lastShare(pick.share)) continue
 
     // ── One order, one contractor, no agreement ────────────────────
     //

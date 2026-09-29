@@ -35,13 +35,13 @@
 
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
-import { seedProgrammes } from '@/lib/seed-programmes'
+import { seedProgrammes, PROGRAMMES, PROGRAM_SHARES } from '@/lib/seed-programmes'
 import { seedDoors, NURSE_CORP_SLUG } from '@/lib/seed-doors'
 import { anchorSeed, day, at, seedPlanYear } from '@/lib/seed-days'
 import { finishedSteps, recordStep, seedVersion } from '@/lib/seed-steps'
 import { seedCalendar, holidayKeys, primeCalendar } from '@/lib/seed-calendar'
-import { seedStanding } from '@/lib/seed-standing'
-import { seedOrderToCash, ORDER_TO_CASH_PARTS, type OrderToCashPart } from '@/lib/seed-order-to-cash'
+import { seedStanding, STANDING_PARTS } from '@/lib/seed-standing'
+import { seedOrderToCash, ORDER_TO_CASH_PARTS, PART_SHARES, type OrderToCashPart } from '@/lib/seed-order-to-cash'
 import { seedRateChange } from '@/lib/seed-rate-change'
 import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
 import { seedPipeline } from '@/lib/seed-pipeline'
@@ -222,27 +222,39 @@ export function worldStepNames(): string[] {
     'calendar', 'counterparties',
     ...PLACEMENTS.map((_, i) => `placement:${i}`),
     'bench', 'in-flight', 'payroll', 'payroll-invitations',
-    'programs', 'program-office-seat', 'supplier-desks', 'compliance-desk', 'doors',
-    'rate-change', 'sector-suppliers', 'standing',
+    ...programSteps().map((s) => s.name),
+    'program-office-seat', 'supplier-desks', 'compliance-desk', 'doors',
+    'rate-change', 'sector-suppliers',
+    ...STANDING_PARTS.map((part) => `standing:${part}`),
     ...orderToCashSteps().map((s) => s.name),
     'pipeline',
     'document-requirements', 'sector-papers', 'claim',
   ]
 }
 
-/** Shares the signed weeks are posted in, one step each. */
-const POSTING_SHARES = 4
+/** The three client programs as steps: one per share of each program's placements. */
+function programSteps(): { name: string; program: string; share: { index: number; of: number } }[] {
+  return PROGRAMMES.flatMap((p) =>
+    Array.from({ length: PROGRAM_SHARES }, (_, index) => ({
+      name: `programs:${p.client}:${index + 1}-of-${PROGRAM_SHARES}`, program: p.client, share: { index, of: PROGRAM_SHARES },
+    }))
+  )
+}
 
-/** The order-to-cash layer as steps: its four parts, the postings cut again into shares. */
+/**
+ * The order-to-cash layer as steps: its four parts, the postings and the
+ * books cut again into shares (`PART_SHARES`), one step per share.
+ */
 type OrderToCashStep = { name: string; part: OrderToCashPart; slice?: { index: number; of: number } }
 function orderToCashSteps(): OrderToCashStep[] {
-  return ORDER_TO_CASH_PARTS.flatMap((part): OrderToCashStep[] =>
-    part === 'postings'
-      ? Array.from({ length: POSTING_SHARES }, (_, index) => ({
-          name: `order-to-cash:postings:${index + 1}-of-${POSTING_SHARES}`, part, slice: { index, of: POSTING_SHARES },
+  return ORDER_TO_CASH_PARTS.flatMap((part): OrderToCashStep[] => {
+    const of = PART_SHARES[part]
+    return of
+      ? Array.from({ length: of }, (_, index) => ({
+          name: `order-to-cash:${part}:${index + 1}-of-${of}`, part, slice: { index, of },
         }))
       : [{ name: `order-to-cash:${part}`, part }]
-  )
+  })
 }
 
 /** The earliest company on the roster: the day this world was born. Null before it exists. */
@@ -1444,11 +1456,17 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // history, and a desk for each job — the office that runs it, the
   // manager who needs somebody, the VP who signs, the clerk who pays,
   // the officer who answers for tenure and paperwork.
-  await step('programs', async () => {
-    const programs = await seedProgrammes({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
-    counts.placements += programs.placements
-    counts.people += programs.people
-  })
+  //
+  // A step per share of each program's placements, because the three
+  // together were more queries than one call can make against a distant
+  // database (`PROGRAM_SHARES` in lib/seed-programmes).
+  for (const { name, program, share } of programSteps()) {
+    await step(name, async () => {
+      const programs = await seedProgrammes({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX }, { program, share })
+      counts.placements += programs.placements
+      counts.people += programs.people
+    })
+  }
 
   // ── A program office in a seat, at one of the three programs ───────
   //
@@ -1681,13 +1699,17 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // The two suppliers outside IT (lib/seed-sector-suppliers), before
   // standing and the order-to-cash layer for the same two reasons.
   await step('sector-suppliers', () => seedSectorSuppliers(ctx))
-  await step('standing', async () => {
-    const standing = await seedStanding(ctx)
-    counts.petitions = standing.petitions
-    counts.backings = standing.backings
-  })
-  // In four parts, because on a fresh world this layer alone is more
-  // queries than one call can make against a distant database.
+  // In three parts, for the same reason as the programs.
+  for (const part of STANDING_PARTS) {
+    await step(`standing:${part}`, async () => {
+      const standing = await seedStanding(ctx, [part])
+      counts.petitions += standing.petitions
+      counts.backings += standing.backings
+    })
+  }
+  // In four parts, the postings and the books cut again into shares,
+  // because on a fresh world this layer alone is more queries than one
+  // call can make against a distant database.
   for (const { name, part, slice } of orderToCashSteps()) {
     await step(name, async () => {
       const cash = await seedOrderToCash(ctx, [part], slice)

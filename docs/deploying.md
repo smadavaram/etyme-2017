@@ -187,8 +187,8 @@ an error with no `data`, the check fails, and the loop calls again —
 which is safe, because every step is idempotent. If it goes on failing
 with the same error, stop it (Ctrl-C) and read the error.
 
-**Why a loop.** The world is about 12,000 queries on an empty database
-and about 7,000 to walk again once it exists, measured locally on
+**Why a loop.** The world is about 9,600 queries on an empty database
+and about 3,000 to walk again once it exists, measured locally on
 2026-09-29. Against the production database in another building that is
 more than one function call's sixty seconds, and until 2026-09-29 every
 call started from the top, re-checked what was already there, and was
@@ -198,9 +198,30 @@ and the world never finished. Now the seed is a list of named steps
 finished for this world at this deployment, runs the next ones until
 thirty seconds have passed, and says what is left. Each finished step
 leaves a `DEMO_SEED_STEP` row in the automation log, with no company,
-which the next call reads. Expect three to six calls for a fresh world
-and two to four after a deploy. Once it is done, a call costs two
-queries and writes nothing.
+which the next call reads. Expect about a dozen calls for a fresh world
+and about five after a deploy — timed on 2026-09-29 through a proxy
+adding 40 ms to every round trip, which is slower than production has
+shown. Once it is done, a call costs two queries and writes nothing.
+
+**Every step fits in the thirty seconds held back for it.** The first
+stepped deploy stuck on `order-to-cash:books`, which timed out six calls
+running: it read every posting, invoice and payment in the database —
+not only the world's — and wrote each journal entry as its own
+transaction, 1,728 queries for the world alone. The books are now four
+shares that each write in one transaction; the postings are fourteen
+shares, each client program two steps, and standing three. No step
+makes more than about 320 queries on a fresh world or 215 walked again
+— about fifteen seconds at the slowest production has shown, 46 ms a
+query — and `__integration__/seed-step-size.test.ts` fails on any step
+past 350.
+
+**The seed writes the demo world and nothing else.** Every read in it is
+bounded by the roster or by an address nobody can register, so a real
+firm's postings, books, invoices, bills and submissions, and a real
+person's CV and paperwork, are never touched
+(`__integration__/seed-stays-in-its-world.test.ts`). Until 2026-09-29
+several steps read the whole database; see that test for what each one
+used to reach.
 
 **A new deployment walks every step again**, because the marker carries
 the deployment's commit and a new commit may seed more than the last

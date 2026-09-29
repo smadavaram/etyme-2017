@@ -24,7 +24,9 @@
  * resolution follows for people.
  */
 
+import type { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
+import { RESERVED_SUFFIXES } from '@/lib/demo-session'
 import { day, at } from '@/lib/seed-days'
 import { runMatchEngine } from '@/lib/match-engine'
 
@@ -60,20 +62,39 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
   // The text is what a reader would actually see; it is extracted here
   // rather than left null, because null means "could not be read" and
   // that is a different fact.
+  //
+  // The world's consultants only: people at an address nobody can
+  // register (`lib/demo-session`). Every profile in the database was the
+  // old reading, and on production that includes every visitor who tried
+  // the candidate demo, under their own address — a seed writing a CV for
+  // a real person, and three queries a profile besides.
   const consultants = await db.consultantProfile.findMany({
+    where: { person: { OR: RESERVED_SUFFIXES.map((suffix) => ({ primaryEmail: { endsWith: suffix, mode: 'insensitive' as const } })) } },
     select: {
       id: true, personId: true, skills: true, location: true, workAuth: true,
       person: { select: { name: true } },
     },
     orderBy: { id: 'asc' },
   })
+  // Who has a CV already, and which firm markets each, in two reads for
+  // everybody rather than two queries a person.
+  const withCv = new Set(
+    (await db.resume.findMany({
+      where: { personId: { in: consultants.map((c) => c.personId) }, deletedAt: null },
+      select: { personId: true },
+    })).map((r) => r.personId)
+  )
+  const marketedBy = new Map<string, string>()
+  for (const l of await db.benchListing.findMany({
+    where: { consultantId: { in: consultants.map((c) => c.id) }, state: 'GRANTED' },
+    select: { consultantId: true, companyId: true },
+    orderBy: [{ grantedAt: 'desc' }, { id: 'asc' }],
+  })) {
+    if (!marketedBy.has(l.consultantId)) marketedBy.set(l.consultantId, l.companyId)
+  }
+  const cvs: Prisma.ResumeCreateManyInput[] = []
   for (const c of consultants) {
-    if (await db.resume.findFirst({ where: { personId: c.personId, deletedAt: null } })) continue
-    const listing = await db.benchListing.findFirst({
-      where: { consultantId: c.id, state: 'GRANTED' },
-      select: { companyId: true },
-      orderBy: { grantedAt: 'desc' },
-    })
+    if (withCv.has(c.personId)) continue
     const headline = c.skills[0] ?? 'Consultant'
     const text =
       `${c.person.name}\n${headline}${c.location ? ` — ${c.location}` : ''}\n\n` +
@@ -83,22 +104,20 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
       `Contract assignments delivering ${c.skills.slice(0, 2).join(' and ')} work for enterprise clients.\n`
     const label = `${headline} ${day(0).getUTCFullYear()}`
     const fileName = `${c.person.name.toLowerCase().replace(/[^a-z]+/g, '-')}-cv.pdf`
-    await db.resume.create({
-      data: {
-        personId: c.personId, label, fileName,
-        contentType: 'application/pdf',
-        sizeBytes: Buffer.byteLength(text),
-        storage: 'DB', bytes: Buffer.from(text, 'utf8'),
-        textExtract: text,
-        uploadedByCompanyId: listing?.companyId ?? null,
-        // While this is the current one. The unique on (personId,
-        // currentKey) is what stops two versions both claiming to be it.
-        currentKey: c.personId,
-        createdAt: day(-60),
-      },
+    cvs.push({
+      personId: c.personId, label, fileName,
+      contentType: 'application/pdf',
+      sizeBytes: Buffer.byteLength(text),
+      storage: 'DB', bytes: Buffer.from(text, 'utf8'),
+      textExtract: text,
+      uploadedByCompanyId: marketedBy.get(c.id) ?? null,
+      // While this is the current one. The unique on (personId,
+      // currentKey) is what stops two versions both claiming to be it.
+      currentKey: c.personId,
+      createdAt: day(-60),
     })
-    out.resumes++
   }
+  if (cvs.length) out.resumes += (await db.resume.createMany({ data: cvs, skipDuplicates: true })).count
 
   // ── 2. Held at a client, with the person's own yes recorded ─────────
   //
@@ -106,31 +125,44 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
   // consultant saying yes, and they are different facts — holding
   // somebody who never agreed is the blind submission that makes
   // consultants stop answering the phone.
+  //
+  // Submissions the world's firms made, and no others: a consent recorded
+  // by a seed against a real firm's submission is a consent nobody gave.
   const live = await db.submission.findMany({
-    where: { status: { in: ['SHORTLISTED', 'SUBMITTED'] } },
+    where: { status: { in: ['SHORTLISTED', 'SUBMITTED'] }, fromCompany: { slug: { in: ctx.roster } } },
     select: {
       id: true, personId: true, fromCompanyId: true, requirementId: true, submittedAt: true,
       requirement: { select: { companyId: true, endClientCompanyId: true } },
     },
     orderBy: { id: 'asc' },
   })
+  // One hold per person per client: the first submission takes it, as the
+  // unique on (personId, holdKey) says.
+  const held = new Set(
+    (await db.representation.findMany({
+      where: { personId: { in: live.map((s) => s.personId) } },
+      select: { personId: true, holdKey: true },
+    })).map((r) => `${r.personId}:${r.holdKey}`)
+  )
+  const holds: Prisma.RepresentationCreateManyInput[] = []
   for (const s of live) {
     const clientId = s.requirement.endClientCompanyId ?? s.requirement.companyId
-    if (await db.representation.findFirst({ where: { personId: s.personId, holdKey: clientId } })) continue
-    await db.representation.create({
-      data: {
-        personId: s.personId, companyId: s.fromCompanyId,
-        clientCompanyId: clientId, requirementId: s.requirementId,
-        state: 'HELD',
-        takenAt: s.submittedAt ?? day(-14),
-        consentAskedAt: s.submittedAt ?? day(-15),
-        consentedAt: s.submittedAt ?? day(-14),
-        consentVia: 'EMAIL',
-        expiresAt: day(21),
-        holdKey: clientId,
-      },
+    const key = `${s.personId}:${clientId}`
+    if (held.has(key)) continue
+    held.add(key)
+    holds.push({
+      personId: s.personId, companyId: s.fromCompanyId,
+      clientCompanyId: clientId, requirementId: s.requirementId,
+      state: 'HELD',
+      takenAt: s.submittedAt ?? day(-14),
+      consentAskedAt: s.submittedAt ?? day(-15),
+      consentedAt: s.submittedAt ?? day(-14),
+      consentVia: 'EMAIL',
+      expiresAt: day(21),
+      holdKey: clientId,
     })
   }
+  if (holds.length) await db.representation.createMany({ data: holds, skipDuplicates: true })
 
   // ── 3. The two kinds of "no" ────────────────────────────────────────
   //
