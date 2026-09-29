@@ -42,6 +42,12 @@ export interface SeedContext {
   seatBySlug: Map<string, { personId: string; email: string }>
   domain: string
   prefix: string
+  /**
+   * Every company the world seed writes, by slug. Read instead of the
+   * prefix, because a real firm can be born with a `world-` slug and a
+   * seed must never write into it.
+   */
+  roster: string[]
 }
 
 export interface Standing {
@@ -63,7 +69,7 @@ export async function seedStanding(ctx: SeedContext): Promise<Standing> {
   const out: Standing = { locations: 0, petitions: 0, backings: 0, documentTypes: 0, checks: 0 }
 
   const firms = await db.company.findMany({
-    where: { slug: { startsWith: ctx.prefix } },
+    where: { slug: { in: ctx.roster } },
     select: { id: true, slug: true, name: true, kind: true, currency: true },
   })
 
@@ -106,7 +112,7 @@ export async function seedStanding(ctx: SeedContext): Promise<Standing> {
   // everybody corp-to-corp has no payroll to run through one, and giving
   // it an entity anyway would be a row nothing produced.
   const employers = await db.buyContract.findMany({
-    where: { contractType: 'W2', company: { slug: { startsWith: ctx.prefix } } },
+    where: { contractType: 'W2', company: { slug: { in: ctx.roster } } },
     select: { id: true, companyId: true, entityId: true },
     orderBy: { id: 'asc' },
   })
@@ -192,7 +198,7 @@ export async function seedStanding(ctx: SeedContext): Promise<Standing> {
   const msas = await db.masterAgreement.findMany({
     where: {
       signedAt: { not: null },
-      vendor: { slug: { startsWith: ctx.prefix } },
+      vendor: { slug: { in: ctx.roster } },
       client: { slug: { notIn: PROGRAM_CLIENTS } },
     },
     select: {
@@ -242,8 +248,8 @@ export async function seedStanding(ctx: SeedContext): Promise<Standing> {
   // the account are one record rather than two that drift.
   const counterparties = await db.counterparty.findMany({
     where: {
-      company: { slug: { startsWith: ctx.prefix } },
-      otherCompany: { slug: { startsWith: ctx.prefix } },
+      company: { slug: { in: ctx.roster } },
+      otherCompany: { slug: { in: ctx.roster } },
     },
     select: {
       companyId: true, otherCompanyId: true, relationship: true,
@@ -289,7 +295,7 @@ export async function seedStanding(ctx: SeedContext): Promise<Standing> {
   // ── 6. What a supplier will carry, and what it gives for early cash ─
   const topSuppliers = await db.sellContract.groupBy({
     by: ['companyId', 'clientCompanyId'],
-    where: { state: 'IN_PROGRESS', company: { slug: { startsWith: ctx.prefix } } },
+    where: { state: 'IN_PROGRESS', company: { slug: { in: ctx.roster } } },
     _count: { _all: true },
     orderBy: { _count: { companyId: 'desc' } },
     take: 4,
@@ -569,7 +575,7 @@ export async function seedStanding(ctx: SeedContext): Promise<Standing> {
   // One of them fails, and one machine check has been looked at by a
   // person — which is the only thing that improves an agent.
   const subs = await db.submission.findMany({
-    where: { toCompany: { slug: { startsWith: ctx.prefix } }, status: { in: ['PLACED', 'SHORTLISTED'] } },
+    where: { toCompany: { slug: { in: ctx.roster } }, status: { in: ['PLACED', 'SHORTLISTED'] } },
     select: {
       id: true, rate: true, toCompanyId: true, personId: true,
       requirement: { select: { billMin: true, billMax: true, title: true } },

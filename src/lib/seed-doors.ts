@@ -93,6 +93,14 @@ function nurseWeek(w: number) {
   return { start, end, days, hours: 36 }
 }
 
+/**
+ * The one company this file writes, by the slug the world's prefix goes
+ * in front of. Exported because the rebuild (lib/seed-rebuild) deletes
+ * the world by its roster rather than by a slug pattern, and a roster
+ * that forgot a company would leave it behind to be found by nobody.
+ */
+export const NURSE_CORP_SLUG = 'byrne-critical-care'
+
 export async function seedDoors(w: World): Promise<{ people: number; placements: number }> {
   const { firmBySlug, seatBySlug } = w
   const co = (slug: string) => firmBySlug.get(slug)!
@@ -387,10 +395,10 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // consultant's own company carries the liability cover, not the
   // staffing firm — had never been true of any row in this world.
   const nurseCorp = await db.company.upsert({
-    where: { slug: w.prefix + 'byrne-critical-care' },
+    where: { slug: w.prefix + NURSE_CORP_SLUG },
     update: { name: 'Byrne Critical Care LLC', kind: 'CONSULTANT_CORP' },
     create: {
-      slug: w.prefix + 'byrne-critical-care',
+      slug: w.prefix + NURSE_CORP_SLUG,
       name: 'Byrne Critical Care LLC',
       kind: 'CONSULTANT_CORP',
       currency: 'USD',

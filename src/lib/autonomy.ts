@@ -416,6 +416,12 @@ ATTRIBUTED.MATCH_RUN = { basis: 'RECORDED' }
 ATTRIBUTED.SITE_WRITTEN = { basis: 'RECORDED' }
 ATTRIBUTED.DATA_IMPORTED = { basis: 'RECORDED' }
 
+// Somebody holding the deployment secret asked for the demo world to be
+// deleted and seeded again, and typed the phrase. A person's act, not
+// ours; `RULE` because what went is decided by lib/seed-rebuild's scope
+// and nothing else. Never reversible: the rows are gone.
+ATTRIBUTED.DEMO_WORLD_REBUILT = { basis: 'RULE' }
+
 // ── Named before anything writes them ────────────────
 //
 // The ladder's own test holds two promises, and they pull in opposite

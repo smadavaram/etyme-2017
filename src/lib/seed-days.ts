@@ -35,7 +35,9 @@
  * seeded in March still reads as March; the fix for that is to drop the
  * world and seed it again, which is what the re-seed button on `/ready`
  * does not do and deliberately so — a re-seed must never be able to
- * delete a company somebody has been using.
+ * delete a company somebody has been using. Dropping it is
+ * `POST /api/seed-world/rebuild` (lib/seed-rebuild): the secret, a typed
+ * phrase, and a refusal whenever anything real is tied to the world.
  *
  * `__integration__/reseed-across-days.test.ts` is the sentence.
  */

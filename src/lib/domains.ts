@@ -342,6 +342,8 @@ export const DOMAINS: Domain[] = [
       // Somebody else in the seat: a new contract on the same terms, the old one ended.
       'lib/replacement',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
+      // Deleting the demo world so it can be seeded again from today.
+      'lib/seed-rebuild',
       // The layers above and below the placement, each read off the
       // spine the three files above wrote: the calendar the dates are
       // shifted against, what a firm can prove, the order that

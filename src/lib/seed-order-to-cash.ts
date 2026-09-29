@@ -50,6 +50,12 @@ export interface SeedContext {
   seatBySlug: Map<string, { personId: string; email: string }>
   domain: string
   prefix: string
+  /**
+   * Every company the world seed writes, by slug. Read instead of the
+   * prefix, because a real firm can be born with a `world-` slug and a
+   * seed must never write into it.
+   */
+  roster: string[]
 }
 
 export interface OrderToCash {
@@ -84,7 +90,7 @@ export async function seedOrderToCash(ctx: SeedContext): Promise<OrderToCash> {
   // project order opened underneath it. Written before the orders below,
   // because `orderFor` copies it off the requirement.
   const clients = await db.company.findMany({
-    where: { slug: { startsWith: ctx.prefix }, kind: 'CLIENT' },
+    where: { slug: { in: ctx.roster }, kind: 'CLIENT' },
     select: { id: true, slug: true, name: true },
   })
   for (const client of clients) {
@@ -121,8 +127,8 @@ export async function seedOrderToCash(ctx: SeedContext): Promise<OrderToCash> {
   const running = await db.sellContract.findMany({
     where: {
       state: { in: ['IN_PROGRESS', 'PAUSED'] },
-      company: { slug: { startsWith: ctx.prefix } },
-      clientCompany: { slug: { startsWith: ctx.prefix } },
+      company: { slug: { in: ctx.roster } },
+      clientCompany: { slug: { in: ctx.roster } },
     },
     select: {
       id: true, companyId: true, clientCompanyId: true, billRate: true,
@@ -626,7 +632,7 @@ export async function seedOrderToCash(ctx: SeedContext): Promise<OrderToCash> {
   // therefore does not bill — which is the whole point of it being a
   // separate state.
   const contracts = await db.sellContract.findMany({
-    where: { state: 'IN_PROGRESS', company: { slug: { startsWith: ctx.prefix } } },
+    where: { state: 'IN_PROGRESS', company: { slug: { in: ctx.roster } } },
     select: { id: true, billRate: true, startDate: true, companyId: true, personId: true },
     orderBy: { id: 'asc' },
   })
@@ -684,7 +690,7 @@ export async function seedOrderToCash(ctx: SeedContext): Promise<OrderToCash> {
   // billable — the firm's own cost, which is the case that proves
   // `billable` is doing work.
   const forExpenses = await db.sellContract.findMany({
-    where: { state: 'IN_PROGRESS', company: { slug: { startsWith: ctx.prefix } } },
+    where: { state: 'IN_PROGRESS', company: { slug: { in: ctx.roster } } },
     select: { id: true, companyId: true, personId: true },
     orderBy: { id: 'asc' },
     take: 3,
@@ -759,8 +765,8 @@ export async function seedOrderToCash(ctx: SeedContext): Promise<OrderToCash> {
     where: {
       state: 'IN_PROGRESS',
       vendorCompanyId: { not: null },
-      company: { slug: { startsWith: ctx.prefix } },
-      vendorCompany: { slug: { startsWith: ctx.prefix } },
+      company: { slug: { in: ctx.roster } },
+      vendorCompany: { slug: { in: ctx.roster } },
     },
     select: {
       id: true, companyId: true, vendorCompanyId: true, workOrderId: true,

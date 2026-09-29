@@ -33,6 +33,12 @@ export interface SeedContext {
   seatBySlug: Map<string, { personId: string; email: string }>
   domain: string
   prefix: string
+  /**
+   * Every company the world seed writes, by slug. Read instead of the
+   * prefix, because a real firm can be born with a `world-` slug and a
+   * seed must never write into it.
+   */
+  roster: string[]
 }
 
 export interface Pipeline {
@@ -170,7 +176,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
   const openRoles = await db.requirement.findMany({
     where: {
       status: 'OPEN',
-      company: { slug: { startsWith: ctx.prefix }, kind: 'CLIENT' },
+      company: { slug: { in: ctx.roster }, kind: 'CLIENT' },
     },
     select: { id: true, title: true, companyId: true },
     orderBy: { createdAt: 'asc' },
@@ -439,7 +445,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
       state: 'IN_PROGRESS',
       endDate: { gte: day(0), lte: day(56) },
       rolloff: null,
-      company: { slug: { startsWith: ctx.prefix } },
+      company: { slug: { in: ctx.roster } },
     },
     select: {
       id: true, personId: true, endDate: true,

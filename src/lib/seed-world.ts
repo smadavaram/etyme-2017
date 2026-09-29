@@ -36,7 +36,7 @@
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes } from '@/lib/seed-programmes'
-import { seedDoors } from '@/lib/seed-doors'
+import { seedDoors, NURSE_CORP_SLUG } from '@/lib/seed-doors'
 import { anchorSeed, day, at } from '@/lib/seed-days'
 import { seedCalendar, holidayKeys } from '@/lib/seed-calendar'
 import { seedStanding } from '@/lib/seed-standing'
@@ -135,6 +135,22 @@ const FIRMS: Firm[] = [
   { slug: 'wrenfield',        name: 'Wrenfield Technical',  kind: 'VENDOR',  seat: 'Account manager', who: 'Dale Kirkbride' },
 ]
 
+/**
+ * Every company this seed writes, by slug.
+ *
+ * The rebuild (lib/seed-rebuild) deletes the demo world from this list
+ * and never from the `world-` prefix: a real firm called World Wide
+ * Technology slugifies to `world-wide-technology`, and a prefix anybody
+ * can be born with is not a reason to delete them. The twenty-odd firms
+ * above, the shell among them, and the one company a door writes — the
+ * travel nurse's own LLC. `__integration__/rebuild-demo.test.ts` fails
+ * if a seed writes a company that is not on it.
+ */
+export const WORLD_SLUGS: readonly string[] = [
+  ...FIRMS.map((f) => PREFIX + f.slug),
+  PREFIX + NURSE_CORP_SLUG,
+]
+
 // ── The placements ───────────────────────────────────────────────────
 //
 // `via` is the chain from the client down to whoever employs the person.
@@ -210,8 +226,10 @@ export async function seedWorld(): Promise<{
   //
   // Read before anything is written, because the first write would
   // otherwise be the answer.
+  // By the roster, never the prefix: a real firm with a `world-` slug
+  // signed up before the world was seeded must not become its birthday.
   const born = await db.company.findFirst({
-    where: { slug: { startsWith: PREFIX } },
+    where: { slug: { in: [...WORLD_SLUGS] } },
     orderBy: { createdAt: 'asc' },
     select: { createdAt: true },
   })
@@ -1436,7 +1454,7 @@ export async function seedWorld(): Promise<{
   //
   // Order matters once: the orders need somewhere to ship to, so standing
   // writes the locations first.
-  const ctx = { firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX }
+  const ctx = { firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX, roster: [...WORLD_SLUGS] }
   const standing = await seedStanding(ctx)
   const cash = await seedOrderToCash(ctx)
   const pipeline = await seedPipeline(ctx)
@@ -1463,9 +1481,11 @@ export async function seedWorld(): Promise<{
   //
   // Not the upsert above, because clients, program offices and doors are
   // written by three other files, and a sweep at the end catches all of
-  // them and is a no-op on the second run.
+  // them and is a no-op on the second run. The roster rather than the
+  // prefix, because a real firm named World Wide Technology is
+  // `world-wide-technology` and this sweep once claimed it on its behalf.
   const unclaimed = await db.company.findMany({
-    where: { slug: { startsWith: PREFIX }, claimedAt: null, contexts: { some: {} } },
+    where: { slug: { in: [...WORLD_SLUGS] }, claimedAt: null, contexts: { some: {} } },
     select: { id: true, createdAt: true },
   })
   for (const c of unclaimed) {

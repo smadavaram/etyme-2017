@@ -36,6 +36,12 @@ export interface SeedContext {
   seatBySlug: Map<string, { personId: string; email: string }>
   domain: string
   prefix: string
+  /**
+   * Every company the world seed writes, by slug. Read instead of the
+   * prefix, because a real firm can be born with a `world-` slug and a
+   * seed must never write into it.
+   */
+  roster: string[]
 }
 
 export interface DocumentRequirements {
@@ -127,7 +133,7 @@ export async function seedDocumentRequirements(ctx: SeedContext): Promise<Docume
   const out: DocumentRequirements = { orders: 0, items: 0, lineOverrides: 0 }
 
   const firms = await db.company.findMany({
-    where: { slug: { startsWith: ctx.prefix } },
+    where: { slug: { in: ctx.roster } },
     select: { id: true, slug: true, kind: true },
   })
   const firmById = new Map(firms.map((f) => [f.id, f]))
@@ -135,7 +141,7 @@ export async function seedDocumentRequirements(ctx: SeedContext): Promise<Docume
   const bare = (slug: string) => slug.slice(ctx.prefix.length)
 
   const orders = await db.workOrder.findMany({
-    where: { issuedBy: { slug: { startsWith: ctx.prefix } } },
+    where: { issuedBy: { slug: { in: ctx.roster } } },
     select: { id: true, issuedById: true, msaId: true, startDate: true },
     orderBy: { number: 'asc' },
   })

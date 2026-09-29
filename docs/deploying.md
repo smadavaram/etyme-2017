@@ -155,3 +155,51 @@ passes against a stale schema. Beyond the commit:
   ```
 
 `scripts/seed-placement-demo.mjs` creates one complete placement to open.
+
+## Rebuilding the demo world after a deploy
+
+`POST /api/seed-world` only ever adds: a world seeded in March goes on
+reading as March, and a fix to how the seed writes something never
+reaches rows that already exist. To carry a deploy's seed fixes and
+today's dates into the live demo, rebuild it — once, after the deploy
+has landed (check `/api/health` first):
+
+```
+curl -s -X POST https://etyme2040.vercel.app/api/seed-world/rebuild \
+  -H "authorization: Bearer $CRON_SECRET" \
+  -H 'content-type: application/json' \
+  -d '{"confirm":"delete the demo world"}' | python3 -m json.tool
+```
+
+Then, always, run the seed once more:
+
+```
+curl -s -X POST https://etyme2040.vercel.app/api/seed-world \
+  -H "authorization: Bearer $CRON_SECRET" | python3 -m json.tool
+```
+
+**Why the second command.** The rebuild deletes in one transaction —
+about a second locally for ten thousand rows — and then seeds, which
+took eighteen to twenty-five seconds locally and can run past the
+sixty-second limit against the production database. If it is cut off
+(a 504, or `SEED_FAILED`), the delete has already happened and the
+seed is idempotent, so the second command finishes the world where the
+first stopped. If the rebuild finished, the second command changes
+nothing. Run the seed again, not the rebuild: a second rebuild would
+delete the half-built world and start over, and never catch up.
+
+**What it deletes.** Every company on the seed's own roster (never by
+the `world-` prefix — a real firm can have that slug), every other
+company whose seats are all at reserved addresses (`.example`,
+`.invalid`, `.local`), the people at reserved addresses, and every row
+that points at any of them. It never touches a visitor's own sandbox,
+a lead from the site, an incident or a run of the nightly job, and it
+writes one `DEMO_WORLD_REBUILT` row to the automation log.
+
+**When it refuses.** `409 TIED_TO_REAL_DATA` means something real
+points into the demo world — a real firm's contract with a demo
+client, somebody at a real address seated at a demo firm, a real firm
+that starred a demo person. Nothing was deleted; the message names
+each tie. End or remove the tie, or leave the demo world as it is. No
+secret is `401`, no secret configured is `503`, and a body without the
+exact phrase is `400` — none of them deletes anything.
