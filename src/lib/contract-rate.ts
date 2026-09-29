@@ -214,7 +214,13 @@ const dayDate = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`)
  * `days` is the sheet's daily hours. Where the hours to pay differ from
  * what the days add up to — an employer accepting thirty-eight of forty —
  * the cut comes off the latest days first, the same way the founder's
- * rule of 2026-09-29 takes a cut off the later bill first. `within`
+ * rule of 2026-09-29 takes a cut off the later bill first.
+ *
+ * That is the BILL's shape, and pay is cut the other way: ordinary hours
+ * first, so the worker keeps their overtime (founder, 2026-09-29). The
+ * payroll run, the payroll screen, the payroll file and back pay cut the
+ * days in lib/money/pay-hours and hand this function the days already
+ * cut, never `hours` beside daily hours. `within`
  * narrows the days to a pay period after the cut, so a week crossing
  * two periods is cut once and each period gets its own days of what is
  * left.

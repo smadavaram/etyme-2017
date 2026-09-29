@@ -12,6 +12,7 @@ import { paidBook, paidKey, type PaidLine } from '@/lib/payroll-paid'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
+import { acceptanceForPay, paySheet, payCutSays } from '@/lib/money/pay-hours'
 
 /**
  * POST /api/payroll/run
@@ -111,7 +112,16 @@ export async function POST(request: NextRequest) {
                 // lists. `days`, because a week is divided by day: by the
                 // link window, by the pay period and by the rate in force.
                 where: { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } },
-                select: { id: true, personId: true, totalHours: true, days: true, leaveDays: true, periodStart: true, periodEnd: true },
+                select: {
+                  id: true, personId: true, totalHours: true, days: true, leaveDays: true, periodStart: true, periodEnd: true,
+                  // What the employer accepted for pay — the hours paid,
+                  // never the hours filed (lib/money/pay-hours).
+                  acceptedHours: true,
+                  assertions: {
+                    where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+                    select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+                  },
+                },
               },
             },
           },
@@ -124,7 +134,16 @@ export async function POST(request: NextRequest) {
           workLocation: { select: { country: true } },
           timesheets: {
             where: { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } },
-            select: { id: true, personId: true, totalHours: true, days: true, leaveDays: true, periodStart: true, periodEnd: true },
+            select: {
+                  id: true, personId: true, totalHours: true, days: true, leaveDays: true, periodStart: true, periodEnd: true,
+                  // What the employer accepted for pay — the hours paid,
+                  // never the hours filed (lib/money/pay-hours).
+                  acceptedHours: true,
+                  assertions: {
+                    where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+                    select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+                  },
+                },
           },
         },
       },
@@ -177,6 +196,8 @@ export async function POST(request: NextRequest) {
         overtime: string | null
         /** Which weekly line pay was judged on, where that needs saying. */
         payLine: string | null
+        /** Where fewer hours were accepted than filed, which hours were paid, in a sentence. */
+        accepted: string | null
         /** Why nothing was paid for this person, where nothing was. */
         refused: string | null
         paid: PaidLine[]
@@ -224,17 +245,31 @@ export async function POST(request: NextRequest) {
             .filter((x) => x.ts.personId === cand.personId)
             .map(({ ts, narrow, sell }) => {
               const all = (ts.days as Record<string, number>) ?? {}
-              const days = narrow && Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
+              const filed = narrow && Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
+              const line = payLineOn(bc, sell, { name: cand.person.name, payCurrency: cand.payCurrency }, row)
+              const leaveDays = (ts.leaveDays as Record<string, number>) ?? {}
+              // The hours the employer accepted, cut off the days the way
+              // pay is always cut: ordinary hours first, latest day first.
+              const acceptance = acceptanceForPay(ts.assertions, ts, bc.companyId)
+              const pay = acceptance === 'MANY'
+                ? null
+                : paySheet({ all, mine: filed, leaveDays, afterHours: line.afterHours, accepted: acceptance })
               return {
                 id: ts.id,
-                line: payLineOn(bc, sell, cand.person, row),
-                leaveDays: (ts.leaveDays as Record<string, number>) ?? {},
+                line,
+                leaveDays,
                 periodStart: ts.periodStart,
                 periodEnd: ts.periodEnd,
-                days,
-                totalHours: Object.keys(days).length > 0
-                  ? Object.values(days).reduce((a, b) => a + Number(b || 0), 0)
-                  : Number(ts.totalHours),
+                /** As filed, narrowed to this line — what overtime is judged on. */
+                filed,
+                /** As accepted — what is paid. Empty where nothing may be paid on a guess. */
+                days: pay?.days ?? {},
+                accepted: pay?.accepted ?? null,
+                cut: pay?.cut ?? null,
+                many: acceptance === 'MANY',
+                totalHours: Object.keys(filed).length > 0
+                  ? (pay ? pay.cut.paid : 0)
+                  : acceptance && acceptance !== 'MANY' ? acceptance.hours : acceptance === 'MANY' ? 0 : Number(ts.totalHours),
               }
             })
 
@@ -267,6 +302,7 @@ export async function POST(request: NextRequest) {
               premiumCents: 0,
               overtime: null,
               payLine: null,
+              accepted: null,
               refused:
                 `A payroll run on ${unrecorded} paid ${cand.person.name} without recording which hours it ` +
                 `covered, so Etyme cannot tell what is still owed. Settle this contract by hand before ` +
@@ -284,15 +320,37 @@ export async function POST(request: NextRequest) {
           let premiumExact = 0
           const said: string[] = []
           const lineSaid: string[] = []
+          const acceptedSaid: string[] = []
           const wageLine = wageLineFor(bc, cand.person.name, row)
           if (payPeriod) {
             for (const t of mine) {
+              // More than one acceptance standing on the week: nothing
+              // says which governs, so it is not paid on a guess.
+              if (t.many) {
+                const filedShare = hoursInPeriod(
+                  { id: t.id, periodStart: t.periodStart, periodEnd: t.periodEnd, days: t.filed, totalHours: 0 },
+                  payPeriod,
+                  terms.straddle
+                )
+                if (filedShare && filedShare.hours > 0) {
+                  acceptedSaid.push(
+                    `${bc.company?.name ?? 'The employer'} has more than one acceptance standing on ${cand.person.name}'s ` +
+                      `week of ${t.periodStart.toISOString().slice(0, 10)}, and nothing says which of them governs, so that ` +
+                      `week is not paid here rather than paid on a guess. It is paid once all but one are withdrawn.`
+                  )
+                }
+                continue
+              }
               const share = hoursInPeriod(
                 { id: t.id, periodStart: t.periodStart, periodEnd: t.periodEnd, days: t.days, totalHours: t.totalHours },
                 payPeriod,
                 terms.straddle
               )
               if (!share || share.hours <= 0) continue
+              if (t.cut) {
+                const cutNote = payCutSays(t.cut, { personName: cand.person.name, employerName: bc.company?.name ?? null })
+                if (cutNote && !acceptedSaid.includes(cutNote)) acceptedSaid.push(cutNote)
+              }
               const priced = priceByDay({
                 contractRateCents: cand.payRate,
                 periods,
@@ -318,8 +376,9 @@ export async function POST(request: NextRequest) {
               // paid on the days in this period that carry it, less any
               // premium an earlier run already paid on them.
               const weeks = sheetOvertime({
-                days: t.days,
+                days: t.filed,
                 leaveDays: t.leaveDays,
+                accepted: t.accepted,
                 afterHours: t.line.afterHours,
                 contractRateCents: cand.payRate,
                 periods,
@@ -332,7 +391,7 @@ export async function POST(request: NextRequest) {
               const lineNote = payLineSays(
                 t.line,
                 { personName: cand.person.name, employerName: bc.company?.name ?? null },
-                weeklyWorked(Object.fromEntries(Object.entries(t.days).filter(([d]) => inPeriod.has(d.slice(0, 10)))), t.leaveDays)
+                weeklyWorked(Object.fromEntries(Object.entries(t.filed).filter(([d]) => inPeriod.has(d.slice(0, 10)))), t.leaveDays)
               )
               if (lineNote && !lineSaid.includes(lineNote)) lineSaid.push(lineNote)
               const note = overtimeSaysFor(weeks, inPeriod)
@@ -386,6 +445,7 @@ export async function POST(request: NextRequest) {
             premiumCents,
             overtime: said.length ? said.join(' ') : null,
             payLine: lineSaid.length ? lineSaid.join(' ') : null,
+            accepted: acceptedSaid.length ? acceptedSaid.join(' ') : null,
             refused: payPeriod ? null : `No accepted hours for ${cand.person.name}, so there is no period to pay.`,
             paid: lines,
           })

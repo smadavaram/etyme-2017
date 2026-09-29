@@ -25,6 +25,8 @@ import {
   type WageRuleName,
 } from '@/lib/worker-classification'
 import { weekOvertime, overDaysOf, type DayHours, type OvertimeMethod, type WeekOvertime } from '@/lib/money/overtime-method'
+import { payBands, payCut, paidDayMaps, heldSays } from '@/lib/money/pay-hours'
+import type { AcceptedCut } from '@/lib/periods'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 const dayDate = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`)
@@ -147,6 +149,13 @@ export interface SheetWeek {
  *
  * `afterHours` null is straight time: no week goes over a line nobody
  * drew. Weeks under the line are not returned — they have no premium.
+ *
+ * `accepted`, where the employer accepted something other than every
+ * hour filed, is cut the way pay is always cut (lib/money/pay-hours):
+ * ordinary hours first, latest day first, so the hours over the line
+ * keep their premium. The week is judged whole against the line before
+ * the cut. A week that, as accepted, no longer goes over the line is
+ * returned with its premium held and a sentence saying why.
  */
 export function sheetOvertime(input: {
   days: Record<string, number> | null | undefined
@@ -156,21 +165,36 @@ export function sheetOvertime(input: {
   periods: RatePeriod[]
   method: OvertimeMethod
   line: WageLine
+  accepted?: AcceptedCut | null
 }): SheetWeek[] {
   if (input.afterHours == null) return []
-  const weeks = workedByWeek(input)
+  const cut = payCut(payBands(input.days, input.leaveDays, input.afterHours), input.accepted ?? null, input.afterHours)
+  const paid = paidDayMaps(cut)
+  const weeks = workedByWeek({ ...input, days: paid.days, leaveDays: paid.leaveDays })
   const out: SheetWeek[] = []
-  for (const [weekOf, worked] of [...weeks.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const hours = round2(worked.reduce((n, d) => n + d.hours, 0))
-    const overHours = round2(Math.max(0, hours - input.afterHours))
-    if (overHours <= 0) continue
-    const leaveHours = round2(
-      Object.entries(input.leaveDays ?? {})
-        .filter(([day]) => weekStart(day.slice(0, 10)) === weekOf)
-        .reduce((n, [, h]) => n + (Number(h) || 0), 0)
-    )
+  for (const w of cut.weeks) {
+    // Only a week the hours FILED took over the line has overtime to speak of.
+    if (w.filedOver <= 0) continue
+    const overHours = w.over
+    const worked = weeks.get(w.weekOf) ?? []
+    if (overHours <= 0 || worked.length === 0) continue
+    if (w.underTheLine) {
+      out.push({
+        weekOf: w.weekOf,
+        overHours,
+        overDays: overDaysOf(worked, overHours),
+        terms: {
+          priced: false,
+          multiplierBps: 10_000,
+          floorBps: null,
+          says: heldSays(w, { personName: input.line.personName, employerName: input.line.employerName }, input.afterHours),
+        },
+        overtime: null,
+      })
+      continue
+    }
     const verdict = weekWage(
-      { weekOf, regularHours: round2(hours - overHours), leaveHours, overHours },
+      { weekOf: w.weekOf, regularHours: w.regular, leaveHours: w.leave, overHours },
       {
         personName: input.line.personName,
         contractType: input.line.contractType,
@@ -186,7 +210,7 @@ export function sheetOvertime(input: {
     )
     const terms = premiumTerms(verdict, input.line.contractPremiumBps)
     out.push({
-      weekOf,
+      weekOf: w.weekOf,
       overHours,
       overDays: overDaysOf(worked, overHours),
       terms,

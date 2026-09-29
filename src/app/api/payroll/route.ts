@@ -10,6 +10,7 @@ import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
+import { acceptanceForPay, paySheet, payCutSays } from '@/lib/money/pay-hours'
 import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
 
 /**
@@ -83,10 +84,12 @@ export async function GET(request: NextRequest) {
             select: {
               id: true, personId: true, totalHours: true, acceptedHours: true,
               periodStart: true, periodEnd: true, days: true, leaveDays: true, approvedAt: true,
+              // Every live acceptance: the hours paid are the employer's
+              // accepted hours, cut the way pay is cut (lib/money/pay-hours),
+              // and two standing acceptances are not paid on a guess.
               assertions: {
                 where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
-                select: { hours: true, rateCents: true },
-                take: 1,
+                select: { companyId: true, role: true, hours: true, rateCents: true, coversFrom: true, coversTo: true },
               },
             },
           },
@@ -120,8 +123,7 @@ export async function GET(request: NextRequest) {
                   // own rate. Not the client's number and never was.
                   assertions: {
                     where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
-                    select: { hours: true, rateCents: true },
-                    take: 1,
+                    select: { companyId: true, role: true, hours: true, rateCents: true, coversFrom: true, coversTo: true },
                   },
                   periodStart: true,
                   periodEnd: true,
@@ -237,16 +239,30 @@ export async function GET(request: NextRequest) {
             // calculation below re-derives hours from `days` — handing
             // it a corrected total would lose the correction on the
             // next line.
-            const mineDays = Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
-            const mineHours = Object.keys(all).length > 0
-              ? Object.values(mineDays).reduce((a, b) => a + Number(b || 0), 0)
-              : Number(ts.assertions[0]?.hours ?? ts.acceptedHours ?? ts.totalHours)
-            return {
-            id: ts.id,
+            const filedDays = Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
             // The weekly line: the employer's own, else the sell line's,
             // else the law's forty for a nonexempt US worker.
-            line: payLineOn(bc, link.sellContract, { name: cand.person.name, payCurrency: cand.payCurrency }, row),
-            leaveDays: ((ts as { leaveDays?: unknown }).leaveDays ?? {}) as Record<string, number>,
+            const line = payLineOn(bc, link.sellContract, { name: cand.person.name, payCurrency: cand.payCurrency }, row)
+            const leaveDays = ((ts as { leaveDays?: unknown }).leaveDays ?? {}) as Record<string, number>
+            // What the employer accepted, cut the way the run cuts it:
+            // ordinary hours first, latest day first. The screen shows
+            // the hours the run will pay, never the hours filed.
+            const acceptance = acceptanceForPay(ts.assertions, ts, bc.companyId)
+            const pay = acceptance === 'MANY'
+              ? null
+              : paySheet({ all, mine: filedDays, leaveDays, afterHours: line.afterHours, accepted: acceptance })
+            const mineDays = pay?.days ?? {}
+            const mineHours = Object.keys(all).length > 0
+              ? (pay ? pay.cut.paid : 0)
+              : acceptance === 'MANY' ? 0 : Number(acceptance?.hours ?? ts.totalHours)
+            return {
+            id: ts.id,
+            line,
+            filed: filedDays,
+            accepted: pay?.accepted ?? null,
+            cut: pay?.cut ?? null,
+            many: acceptance === 'MANY',
+            leaveDays,
             totalHours: mineHours,
             rawStart: ts.periodStart,
             rawEnd: ts.periodEnd,
@@ -312,11 +328,12 @@ export async function GET(request: NextRequest) {
             .filter((x) => x.share !== null && x.share.hours > 0)
         : []
 
-      const filteredTimesheets = shares.map((x) => ({
-        ...x.ts,
-        totalHours: x.share!.hours,
-        partPeriod: x.share!.partial,
-        note: x.share!.note,
+      // The working of the cut stays here; the row carries its sentence.
+      const filteredTimesheets = shares.map(({ ts: { cut: _cut, filed: _filed, line: _line, ...ts }, share }) => ({
+        ...ts,
+        totalHours: share!.hours,
+        partPeriod: share!.partial,
+        note: share!.note,
       }))
 
       const totalApprovedHours =
@@ -357,8 +374,9 @@ export async function GET(request: NextRequest) {
       const lineSaid: string[] = []
       shares.forEach((x, i) => {
         const weeks = sheetOvertime({
-          days: x.ts.days,
+          days: x.ts.filed,
           leaveDays: x.ts.leaveDays,
+          accepted: x.ts.accepted,
           afterHours: x.ts.line.afterHours,
           contractRateCents: cand.payRate,
           periods,
@@ -377,10 +395,35 @@ export async function GET(request: NextRequest) {
         const lineNote = payLineSays(
           x.ts.line,
           { personName: cand.person.name, employerName: bc.company?.name ?? null },
-          weeklyWorked(Object.fromEntries(Object.entries(x.ts.days).filter(([d]) => inPeriod.has(d.slice(0, 10)))), x.ts.leaveDays)
+          weeklyWorked(Object.fromEntries(Object.entries(x.ts.filed).filter(([d]) => inPeriod.has(d.slice(0, 10)))), x.ts.leaveDays)
         )
         if (lineNote && !lineSaid.includes(lineNote)) lineSaid.push(lineNote)
       })
+      // Where the employer accepted fewer hours than were filed, which
+      // hours are paid; and a week with two standing acceptances, which is
+      // not paid on a guess. The same sentences the run says.
+      const acceptedSaid: string[] = []
+      for (const x of shares) {
+        if (!x.ts.cut) continue
+        const note = payCutSays(x.ts.cut, { personName: cand.person.name, employerName: bc.company?.name ?? null })
+        if (note && !acceptedSaid.includes(note)) acceptedSaid.push(note)
+      }
+      if (payPeriod) {
+        for (const ts of linkedTimesheets.filter((t) => t.many)) {
+          const filedShare = hoursInPeriod(
+            { id: ts.id, periodStart: ts.rawStart, periodEnd: ts.rawEnd, days: ts.filed, totalHours: 0 },
+            payPeriod,
+            terms.straddle
+          )
+          if (!filedShare || filedShare.hours <= 0) continue
+          acceptedSaid.push(
+            `${bc.company?.name ?? 'The employer'} has more than one acceptance standing on ${cand.person.name}'s ` +
+              `week of ${ts.periodStart.slice(0, 10)}, and nothing says which of them governs, so that ` +
+              `week is not paid here rather than paid on a guess. It is paid once all but one are withdrawn.`
+          )
+        }
+      }
+
       // Rounded once for the row.
       const premiumCents = Math.round(premiumExact)
       const grossPay =
@@ -439,6 +482,8 @@ export async function GET(request: NextRequest) {
         // Which weekly line the period was judged on, where that needs
         // saying: the law's forty, or why the law's forty does not apply.
         payLine: lineSaid.length ? lineSaid.join(' ') : null,
+        // Where fewer hours were accepted than filed, which were paid.
+        accepted: acceptedSaid.length ? acceptedSaid.join(' ') : null,
         payStatus,
         nextPayDate: comingPay?.dueOn.toISOString() ?? null,
         nextCalcDate: comingCalc?.dueOn.toISOString() ?? null,

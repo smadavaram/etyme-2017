@@ -56,6 +56,7 @@ import { weekStart } from '@/lib/overtime'
 import { sheetOvertime, premiumByDay, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn } from '@/lib/money/pay-line'
+import { acceptanceForPay, paySheet } from '@/lib/money/pay-hours'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 const dayDate = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`)
@@ -263,7 +264,16 @@ export async function proposeBackPay(rateHistoryId: string): Promise<BackPayProp
               workLocation: { select: { country: true } },
               timesheets: {
                 where: { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } },
-                select: { id: true, personId: true, days: true, leaveDays: true },
+                select: {
+                  id: true, personId: true, days: true, leaveDays: true, periodStart: true, periodEnd: true,
+                  // What the employer accepted: the premium now is priced on
+                  // the accepted week, the way the run paid it.
+                  acceptedHours: true,
+                  assertions: {
+                    where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+                    select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+                  },
+                },
               },
             },
           },
@@ -324,12 +334,18 @@ export async function proposeBackPay(rateHistoryId: string): Promise<BackPayProp
         if (t.personId !== cand.personId) continue
         const all = (t.days ?? {}) as Record<string, number>
         const mine = Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
+        // The same line the run paid on: the buy line's, the sell line's,
+        // or the law's forty for a nonexempt US worker.
+        const afterHours = payLineOn(bc, l.sellContract, { name: cand.person.name, payCurrency: cand.payCurrency }, row).afterHours
+        const acceptance = acceptanceForPay(t.assertions, t, bc.companyId)
+        // Two standing acceptances: the run paid nothing on the week, so
+        // there is nothing to measure back pay from.
+        if (acceptance === 'MANY') continue
         const weeks = sheetOvertime({
           days: mine,
           leaveDays: (t.leaveDays ?? {}) as Record<string, number>,
-          // The same line the run paid on: the buy line's, the sell
-          // line's, or the law's forty for a nonexempt US worker.
-          afterHours: payLineOn(bc, l.sellContract, { name: cand.person.name, payCurrency: cand.payCurrency }, row).afterHours,
+          accepted: paySheet({ all, mine, leaveDays: (t.leaveDays ?? {}) as Record<string, number>, afterHours, accepted: acceptance }).accepted,
+          afterHours,
           contractRateCents: cand.payRate,
           periods,
           method,

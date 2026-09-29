@@ -9,6 +9,7 @@ import type { ExemptAssertion, ExemptionBasis, ExemptStatus, WageRuleName } from
 import { workedByWeek } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineFor, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
+import { acceptanceForPay, payBands, payCut, paidDayMaps, heldSays } from '@/lib/money/pay-hours'
 
 /**
  * GET /api/payroll/export?provider=ADP&from=&to=
@@ -56,6 +57,12 @@ export async function GET(request: NextRequest) {
     select: {
       periodStart: true, periodEnd: true, totalHours: true,
       acceptedHours: true, employerAcceptedAt: true,
+      // The employer's acceptance in the ledger: the hours paid, cut the
+      // way pay is always cut (lib/money/pay-hours).
+      assertions: {
+        where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+        select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+      },
       // The daily hours and what the client decided about the weeks that
       // went over the line. Overtime is a weekly fact and a semi-monthly
       // sheet holds two of them, so the file is built from weeks.
@@ -204,6 +211,25 @@ export async function GET(request: NextRequest) {
       decisions,
     })
 
+    // ── The hours accepted, not the hours filed ─────────────────────
+    //
+    // Cut here, on the days, by the same allocation the run and the
+    // screen use: ordinary hours first, latest day first, the hours over
+    // the line kept. A week that as accepted no longer goes over the line
+    // has its premium held, and the whole sheet is left off in a sentence.
+    const acceptance = acceptanceForPay(s.assertions, s, companyId)
+    const cut =
+      acceptance === 'MANY'
+        ? null
+        : payCut(
+            payBands((s.days as Record<string, number>) ?? {}, (s.leaveDays as Record<string, number>) ?? {}, payLine.afterHours),
+            acceptance,
+            payLine.afterHours
+          )
+    const paidMaps = cut ? paidDayMaps(cut) : { days: {}, leaveDays: {} }
+    const cutWeeks = new Map((cut?.weeks ?? []).map((w) => [w.weekOf, w]))
+    const daysKnown = Object.keys((s.days as Record<string, number>) ?? {}).length > 0
+
     // ── Each week at the rate in force over it ─────────────────────
     const periods = buy ? ratePeriods(rateRows.filter((r) => r.contractId === buy.id)) : []
     const recorded = candidate?.payRate ?? null
@@ -212,7 +238,7 @@ export async function GET(request: NextRequest) {
       if (recorded == null || recorded <= 0) return { payRateCents: null, rates: null }
       // The week's ordinary hours are its earliest ones: the overtime line
       // is crossed at the end of a week, not the start.
-      const mine = Object.entries(allDays)
+      const mine = Object.entries(daysKnown ? paidMaps.days : allDays)
         .filter(([day, h]) => weekStart(day.slice(0, 10)) === weekOf && Number(h) > 0)
         .sort((a, b) => a[0].localeCompare(b[0]))
       let budget = regularAndLeave
@@ -239,8 +265,8 @@ export async function GET(request: NextRequest) {
     const workedWeeks =
       recorded != null && recorded > 0
         ? workedByWeek({
-            days: allDays,
-            leaveDays: (s.leaveDays as Record<string, number>) ?? {},
+            days: daysKnown ? paidMaps.days : allDays,
+            leaveDays: daysKnown ? paidMaps.leaveDays : (s.leaveDays as Record<string, number>) ?? {},
             contractRateCents: recorded,
             periods,
           })
@@ -261,17 +287,34 @@ export async function GET(request: NextRequest) {
       weAreTheEmployer: buy?.companyId === companyId,
       periodStart: s.periodStart,
       periodEnd: s.periodEnd,
-      weeks: split.weeks.map((w) => ({
-        weekOf: w.weekOf,
-        regularHours: w.regularHours,
-        leaveHours: w.leaveHours,
-        overHours: w.overHours,
-        client: { treatment: w.treatment, appliedBps: w.appliedBps },
-        ...weekRate(w.weekOf, w.regularHours + w.leaveHours),
-        worked: workedWeeks.get(w.weekOf) ?? null,
-      })),
+      weeks: split.weeks.map((w) => {
+        // As accepted, where the days say; as filed where a sheet carries
+        // no daily hours and the acceptance is cut from the weeks below.
+        const c = daysKnown ? cutWeeks.get(w.weekOf) : null
+        const regularHours = c ? c.regular : w.regularHours
+        const leaveHours = c ? c.leave : w.leaveHours
+        return {
+          weekOf: w.weekOf,
+          regularHours,
+          leaveHours,
+          overHours: c ? c.over : w.overHours,
+          client: { treatment: w.treatment, appliedBps: w.appliedBps },
+          ...weekRate(w.weekOf, regularHours + leaveHours),
+          worked: workedWeeks.get(w.weekOf) ?? null,
+          held: c?.underTheLine
+            ? heldSays(c, { personName: s.person.name, employerName: s.sellContract.company?.name ?? null }, payLine.afterHours)
+            : null,
+        }
+      }),
+      // Already the hours accepted where the days were cut above.
+      weeksAreAccepted: daysKnown && acceptance !== 'MANY',
+      cannotPay:
+        acceptance === 'MANY'
+          ? `${s.sellContract.company?.name ?? 'The employer'} has more than one acceptance standing on ${s.person.name}'s ` +
+            `week, and nothing says which of them governs, so it is not paid on a guess.`
+          : null,
       submittedHours: Number(s.totalHours),
-      acceptedHours: s.acceptedHours ? Number(s.acceptedHours) : null,
+      acceptedHours: acceptance && acceptance !== 'MANY' ? acceptance.hours : s.acceptedHours ? Number(s.acceptedHours) : null,
       employerAcceptedAt: s.employerAcceptedAt,
       // The rate in force when the sheet began — what a week with no
       // rate of its own falls back to. The line's recorded rate is its

@@ -72,6 +72,8 @@ interface PayItem {
   overtime?: string | null
   /** Which weekly line the period was judged on, where that needs saying. */
   payLine?: string | null
+  /** Where fewer hours were accepted than filed, which hours are paid. */
+  accepted?: string | null
   payStatus: string
   nextPayDate: string | null
   nextCalcDate: string | null
@@ -391,6 +393,12 @@ export default function PayrollPage() {
       render: (row) => (
         <span className={`tabular-nums ${row.totalApprovedHours > 0 ? 'text-etyme-ink' : 'text-etyme-faint'}`}>
           {row.totalApprovedHours > 0 ? row.totalApprovedHours.toFixed(1) : '—'}
+          {/* The hours accepted, not the hours filed — and why they differ. */}
+          {row.accepted && (
+            <span className="block text-[11px] text-etyme-muted" title={row.accepted}>
+              Accepted hours, not the hours filed
+            </span>
+          )}
         </span>
       ),
       sortValue: (row) => row.totalApprovedHours,
