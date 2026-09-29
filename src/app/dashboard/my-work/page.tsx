@@ -35,23 +35,45 @@ interface Placement {
   daysLeft: number | null
 }
 /**
- * One week of what they are owed, as `/api/me/work` prices it — with
- * payroll's own functions, so the premium on hours over the line is here
- * exactly as it is on their pay. No rate of any rung is on it.
+ * One of their weeks as `/api/me/work` reads it, in one of four places.
+ *
+ * Waiting for the client, or waiting for their employer: hours and a
+ * sentence, and never a figure, because nobody owes them anything for a
+ * week their employer has not accepted (the founder, 2026-09-29). Owed:
+ * accepted, priced with payroll's own functions, and the pay day it falls
+ * due on. Paid: what was paid, and the day. No rate of any rung is on it.
  */
+type WeekStage = 'WAITING_FOR_CLIENT' | 'WAITING_FOR_EMPLOYER' | 'OWED' | 'PAID'
 interface OwedWeek {
   weekOf: string
+  stage: WeekStage
+  /** "Week of Sep 14", or "Sep 18 to Sep 24" for a sheet that is not one week. */
+  label: string
   payer: string
-  currency: string
-  priced: boolean
-  hours: number | null
-  ordinaryHours: number | null
-  overtimeHours: number | null
-  premiumCents: number | null
-  owedCents: number | null
-  paidCents: number
-  stillOwedCents: number | null
   says: string
+  hours: number | null
+  // Only on a week their employer accepted.
+  currency?: string
+  priced?: boolean
+  ordinaryHours?: number | null
+  overtimeHours?: number | null
+  premiumCents?: number | null
+  owedCents?: number | null
+  paidCents?: number
+  stillOwedCents?: number | null
+  dueOn?: string | null
+  overdue?: boolean
+  paidOn?: string | null
+  // Only on a week still waiting.
+  sheetId?: string
+  waitingOn?: string
+}
+interface Owed {
+  cents: number
+  currency: string | null
+  says: string
+  waiting?: { weeks: number; hours: number; says: string | null }
+  weeks?: OwedWeek[]
 }
 interface Timesheet {
   id: string
@@ -851,63 +873,97 @@ function FileYourWeek({ filing, onSent }: { filing: Filing[]; onSent: () => Prom
 }
 
 /**
- * What they are owed, week by week.
+ * What they are owed, week by week, and what is not owed yet.
  *
  * The first of the three questions this page exists to answer. Each week
- * says its ordinary hours, its overtime hours and the extra the overtime
- * earns, in words, then what payroll pays for it less what has been paid.
- * Until 2026-09-29 the route worked out a straight-time total and the
- * page showed none of it; a non-exempt worker's long week was worth more
- * on her pay than anywhere she could see.
+ * is in one of four places, in plain words: sent and waiting for the
+ * client to sign it; signed and waiting for their employer to accept it;
+ * owed to them, with what payroll pays for it and the pay day it falls
+ * due on; or paid, with the day. Only the last two carry money. A week
+ * the client has signed and the employer has not accepted is not owed
+ * yet, and never shows a figure as owed — the founder, 2026-09-29.
  *
- * Weeks still owed come first. Weeks paid in full are one line, opened on
- * a tap, because a year of paid weeks is not what somebody opens this for.
+ * Weeks still waiting or owed come first. Weeks paid in full are one
+ * line, opened on a tap, because a year of paid weeks is not what
+ * somebody opens this for.
  */
-function YourPay({ owed }: { owed: { cents: number; currency: string | null; says: string; weeks?: OwedWeek[] } }) {
+const STAGE: Record<WeekStage, (w: OwedWeek) => { word: string; tone: 'attention' | 'verified' | 'action' | 'passive' }> = {
+  WAITING_FOR_CLIENT: (w) => ({ word: `Waiting for ${w.waitingOn ?? 'the client'}`, tone: 'passive' }),
+  WAITING_FOR_EMPLOYER: (w) => ({ word: `Waiting for ${w.waitingOn ?? w.payer}`, tone: 'action' }),
+  OWED: (w) => (w.overdue ? { word: 'Past its pay day', tone: 'attention' } : { word: 'Owed to you', tone: 'attention' }),
+  PAID: () => ({ word: 'Paid', tone: 'verified' }),
+}
+
+function Line({ label, children, tone }: { label: string; children: React.ReactNode; tone?: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-etyme-muted">{label}</span>
+      <span className={tone ?? 'text-etyme-ink'}>{children}</span>
+    </div>
+  )
+}
+
+function YourPay({ owed }: { owed: Owed }) {
   const [showPaid, setShowPaid] = useState(false)
   const weeks = owed.weeks ?? []
-  const open = weeks.filter((w) => !w.priced || (w.stillOwedCents ?? 0) > 0)
-  const paid = weeks.filter((w) => w.priced && (w.stillOwedCents ?? 0) === 0)
+  const open = weeks.filter((w) => w.stage !== 'PAID')
+  const paid = weeks.filter((w) => w.stage === 'PAID')
   const shown = showPaid ? [...open, ...paid].sort((a, b) => b.weekOf.localeCompare(a.weekOf)) : open
 
   return (
     <section className="mb-8">
       <h2 className="font-serif text-lg text-etyme-ink mb-1">What you are owed</h2>
-      <p className="text-xs text-etyme-muted mb-3">
-        {owed.cents > 0 && <span className="text-etyme-ink tabular-nums">{amount(owed.cents, owed.currency ?? undefined)} still owed. </span>}
-        {owed.says}
-      </p>
+      {/* The sentence carries the figure: what is owed, for which hours,
+          and whether any of it is past its pay day. */}
+      <p className={`text-sm mb-1 ${owed.cents > 0 ? 'text-etyme-ink' : 'text-etyme-muted'}`}>{owed.says}</p>
+      {/* Not owed yet, said on a line of its own and with no money on it. */}
+      {owed.waiting?.says && (
+        <p className="text-xs text-etyme-muted mb-3">{owed.waiting.says}</p>
+      )}
       {shown.length > 0 && (
-        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
-          {shown.map((w) => (
-            <div key={`${w.payer}-${w.weekOf}`} className="p-4 flex flex-col sm:flex-row sm:items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="text-etyme-ink">Week of {dayLabel(w.weekOf)}</div>
-                <div className="text-xs text-etyme-muted">paid by {w.payer}</div>
-                <p className="text-[13px] text-etyme-ink mt-1 leading-relaxed">{w.says}</p>
-              </div>
-              <div className="shrink-0 sm:w-44 space-y-0.5 text-[13px] tabular-nums">
-                {w.priced && (
-                  <div className="flex justify-between gap-3">
-                    <span className="text-etyme-muted">Owed</span>
-                    <span className="text-etyme-ink">{amount(w.owedCents, w.currency)}</span>
+        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule mt-3">
+          {shown.map((w, i) => {
+            const chip = STAGE[w.stage](w)
+            const waiting = w.stage === 'WAITING_FOR_CLIENT' || w.stage === 'WAITING_FOR_EMPLOYER'
+            return (
+              <div key={`${w.payer}-${w.stage}-${w.sheetId ?? w.weekOf}-${i}`} className="p-4 flex flex-col sm:flex-row sm:items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-etyme-ink">{w.label}</span>
+                    <Chip tone={chip.tone}>{chip.word}</Chip>
                   </div>
-                )}
-                <div className="flex justify-between gap-3">
-                  <span className="text-etyme-muted">Paid</span>
-                  <span className="text-etyme-ink">{amount(w.paidCents, w.currency)}</span>
+                  <div className="text-xs text-etyme-muted">paid by {w.payer}</div>
+                  <p className="text-[13px] text-etyme-ink mt-1 leading-relaxed">{w.says}</p>
                 </div>
-                {w.priced && (
-                  <div className="flex justify-between gap-3">
-                    <span className="text-etyme-muted">Still owed</span>
-                    <span className={(w.stillOwedCents ?? 0) > 0 ? 'text-etyme-attention font-medium' : 'text-etyme-verified'}>
-                      {amount(w.stillOwedCents, w.currency)}
-                    </span>
-                  </div>
-                )}
+                <div className="shrink-0 sm:w-48 space-y-0.5 text-[13px] tabular-nums">
+                  {waiting ? (
+                    // Hours only. Nothing is owed on a week nobody has accepted.
+                    <Line label="Hours sent">{w.hours ?? 0}</Line>
+                  ) : w.stage === 'PAID' ? (
+                    <>
+                      <Line label="Paid">{amount(w.paidCents ?? 0, w.currency)}</Line>
+                      <Line label="On">{w.paidOn ? dayLabel(w.paidOn) : 'not recorded'}</Line>
+                    </>
+                  ) : (
+                    <>
+                      {w.priced && <Line label="For the week">{amount(w.owedCents ?? 0, w.currency)}</Line>}
+                      {(w.paidCents ?? 0) > 0 && <Line label="Paid">{amount(w.paidCents ?? 0, w.currency)}</Line>}
+                      {w.priced && (
+                        <Line label="Owed to you" tone="text-etyme-attention font-medium">
+                          {amount(w.stillOwedCents ?? 0, w.currency)}
+                        </Line>
+                      )}
+                      {w.priced && (
+                        <Line label="Due" tone={w.overdue ? 'text-etyme-attention' : undefined}>
+                          {w.dueOn ? dayLabel(w.dueOn) : 'no pay date set'}
+                        </Line>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
       {paid.length > 0 && (

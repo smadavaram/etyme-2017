@@ -21,8 +21,10 @@
  * off and stays off until they turn it on.
  */
 
-import { sheetOvertime, premiumByDay, type WageLine } from '@/lib/money/sheet-overtime'
+import { sheetPay, type WageLine, type DayPremium } from '@/lib/money/sheet-overtime'
 import type { OvertimeMethod } from '@/lib/money/overtime-method'
+import { nextOpen } from '@/lib/money/next-cycle'
+import type { AcceptedCut } from '@/lib/periods'
 import { priceByDay, type RatePeriod } from '@/lib/contract-rate'
 import { weekStart } from '@/lib/overtime'
 import { amount } from '@/lib/money-display'
@@ -1363,6 +1365,7 @@ export function returnedWeek(
   }
 }
 
+
 // ── What the worker is owed, week by week ──────────────────────────────
 //
 // Money reported on 2026-09-29 that a non-exempt worker's own page figured
@@ -1371,11 +1374,35 @@ export function returnedWeek(
 // over the line. Two answers to one question, and the worker's was wrong.
 //
 // So this asks payroll's own functions the question payroll asks —
-// `priceByDay` for each day at the rate in force, `sheetOvertime` and
-// `premiumByDay` for the premium, on the weekly line and the wage facts
-// payroll reads — and restates none of the arithmetic. When payroll's
+// `sheetPay` for which hours the employer's acceptance pays and the
+// premium on the ones over the line, `priceByDay` for each paid hour at
+// the rate in force, on the weekly line and the wage facts payroll reads
+// — and restates none of the arithmetic. When payroll's
 // rules move (a legal line where the contract names none, a method a firm
-// chose), they move inside those functions and this page follows.
+// chose, a cut week accepted at or under the line), they move inside
+// those functions and this page follows.
+//
+// ── Who owes what, and when — the founder, 2026-09-29 ────────────────
+//
+// Once the client approves a week, the client owes it — to the firm it
+// pays, on that firm's bill. Once the employer (or the vendor above the
+// worker) accepts it, having checked the client's approval, the employer
+// owes the worker, due on the worker's own payment terms.
+//
+// So a week on her page is in one of four places, and only the last two
+// are money she is owed:
+//
+//   waiting for the client    filed and sent; nobody has signed it
+//   waiting for the employer  the client signed; her employer has not
+//                             accepted it, so nothing is owed yet and no
+//                             figure is shown as owed
+//   owed to you               the employer accepted it: what payroll pays
+//                             for it, less what has been paid, and the pay
+//                             day it falls due on from her own pay line
+//   paid                      what was paid, and the day
+//
+// A week that was owed until 2026-09-29 the moment the client signed it
+// told a worker she was owed money her employer had not agreed to pay.
 //
 // No bill rate is anywhere in it. The inputs are the worker's own pay
 // line and her own weeks.
@@ -1385,14 +1412,33 @@ export interface OwedSheet {
   id: string
   /** ISO day → hours, leave included, already narrowed to this pay line. */
   days: Record<string, number> | null
+  /**
+   * The whole sheet's days, where this pay line covers only some of them.
+   * The employer accepted the whole sheet, so its acceptance is cut on the
+   * whole sheet before the days of this line are read. Defaults to `days`.
+   */
+  allDays?: Record<string, number> | null
   /** ISO day → hours of paid leave, a subset of `days`. */
   leaveDays?: Record<string, number> | null
-  /** What the employer accepted, where it differs from what was filed. */
-  acceptedHours: number | null
+  /**
+   * The employer's acceptance, as payroll reads it (`acceptanceForPay` in
+   * lib/money/pay-hours): null pays every hour filed, 'MANY' is more than
+   * one acceptance standing with nothing to say which governs.
+   */
+  accepted: AcceptedCut | null | 'MANY'
+  /** When the employer accepted it: the day the debt to the worker starts. */
+  acceptedAt: Date | null
   /** Used only where no daily hours were recorded. */
   totalHours: number
   periodStart: Date
   periodEnd: Date
+}
+
+/** A date on the pay line's own schedule. */
+export interface PayDate {
+  kind: string
+  dueOn: Date
+  completedAt: Date | null
 }
 
 /** The pay line the weeks are paid from — the worker's own, never a rung above. */
@@ -1406,6 +1452,14 @@ export interface OwedPayLine {
   method: OvertimeMethod
   wage: WageLine
   currency: string
+  /**
+   * The line's pay days: its SALARY_PAY cycles, the same dates the payroll
+   * screen reads "next pay" from (`nextOpen` in lib/money/next-cycle). A
+   * week falls due on the first one on or after both its last day and the
+   * day the employer accepted it, whether or not payroll has run that day
+   * — never a date worked out here.
+   */
+  payDates: PayDate[]
 }
 
 /** What payroll has already paid for one day of one sheet. */
@@ -1414,17 +1468,24 @@ export interface PaidSoFar {
   straightCents: number
   premiumHours: number
   premiumCents: number
+  /** The last day a run or an approved back payment paid this day, where the record says. */
+  paidOn?: string | null
 }
+
+/** Owed: the employer accepted it and some of it is unpaid. Paid: all of it is. */
+export type OwedStage = 'OWED' | 'PAID'
 
 export interface OwedWeek {
   /** The Monday of the week. */
   weekOf: string
+  stage: OwedStage
   currency: string
   /**
    * False where this page cannot stand behind a figure for the week, and
    * `says` names why. Every money field below is then null.
    */
   priced: boolean
+  /** The hours paid for the week: what the employer accepted, never what was filed. */
   hours: number | null
   ordinaryHours: number | null
   overtimeHours: number | null
@@ -1439,12 +1500,40 @@ export interface OwedWeek {
   stillOwedCents: number | null
   unpaidHours: number | null
   unpaidOvertimeHours: number | null
+  /** The hours filed on this pay line in the week. */
+  filedHours: number
+  /**
+   * The pay day the unpaid part falls due on, from the pay line's own
+   * dates. Null where nothing is owed, or where the line has no pay day
+   * after the week — which `says` states rather than guessing one.
+   */
+  dueOn: string | null
+  /** True where that pay day has passed and something is still owed. */
+  overdue: boolean
+  /** The last day anything for this week was paid, where the record says. */
+  paidOn: string | null
   /** The week in plain words. Never a rate, never a code. */
   says: string
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 const hoursWord = (n: number) => `${r2(n)} hour${r2(n) === 1 ? '' : 's'}`
+const isoDay = (d: Date) => d.toISOString().slice(0, 10)
+const later = (a: string | null, b: string | null) => (!a ? b : !b ? a : a > b ? a : b)
+
+/**
+ * "Sep 14", and "Sep 14, 2025" where the year is not this one. Read in
+ * UTC, because every date here is a calendar day stored at midnight UTC
+ * and a reader west of London would otherwise see the day before.
+ */
+export function shortDay(iso: string, today?: Date): string {
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00Z`)
+  const thisYear = (today ?? new Date()).getUTCFullYear()
+  return d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', timeZone: 'UTC',
+    ...(d.getUTCFullYear() !== thisYear ? { year: 'numeric' } : {}),
+  })
+}
 
 interface WeekTally {
   hours: number
@@ -1457,87 +1546,126 @@ interface WeekTally {
   unpaidOver: number
   twoRates: boolean
   unclassified: number
-  withheld: { filed: number; accepted: number } | null
+  filed: number
+  lastDay: string | null
+  acceptedOn: string | null
+  paidOn: string | null
+  many: boolean
+  /** Sheets touching the week whose acceptance differs from what was filed on this line. */
+  cuts: Array<{ filed: number; accepted: number; moreThanFiled: boolean }>
+  /** Worked over the line and accepted at or under it: paid at straight time. */
+  straightTime: boolean
 }
 
 /**
  * Every week of the worker's accepted work on one pay line, what payroll
- * pays for it, what has been paid, and what is still owed.
+ * pays for it, what has been paid, what is still owed, and the pay day it
+ * falls due on.
  *
- * `paidOn` answers what has already been paid for a day of a sheet — the
- * payroll book (`paidBook` in lib/payroll-paid), passed in so this stays
- * free of the database.
+ * Only sheets the employer accepted belong here: `waitingWeek` answers for
+ * the rest, and never with a figure. `paidOn` answers what has already
+ * been paid for a day of a sheet — the payroll book (`paidBook` in
+ * lib/payroll-paid), passed in so this stays free of the database.
  *
- * A week the employer cut, that also went over the line, is not priced:
- * which hours come off decides the overtime, that is payroll's decision
- * to make, and a plausible figure here would be a guess at it.
+ * A week the employer cut is priced on the hours it accepted, cut the way
+ * payroll cuts them (`sheetPay`): ordinary hours first, so the worker
+ * keeps her overtime, and a week accepted at or under the line paid at
+ * straight time. A week with more than one acceptance standing shows no
+ * figure, because payroll pays it on none of them.
  */
 export function owedByWeek(
   sheets: OwedSheet[],
   line: OwedPayLine,
-  paidOn: (sheetId: string, day: string) => PaidSoFar | undefined
+  paidOn: (sheetId: string, day: string) => PaidSoFar | undefined,
+  today: Date = new Date()
 ): OwedWeek[] {
   const tally = new Map<string, WeekTally>()
   const at = (weekOf: string): WeekTally => {
     if (!tally.has(weekOf)) {
       tally.set(weekOf, {
         hours: 0, straight: 0, over: 0, premium: 0, paidHours: 0, paidCents: 0,
-        unpaidHours: 0, unpaidOver: 0, twoRates: false, unclassified: 0, withheld: null,
+        unpaidHours: 0, unpaidOver: 0, twoRates: false, unclassified: 0,
+        filed: 0, lastDay: null, acceptedOn: null, paidOn: null, many: false, cuts: [], straightTime: false,
       })
     }
     return tally.get(weekOf)!
   }
+  const clean = (m: Record<string, number> | null | undefined) =>
+    Object.fromEntries(
+      Object.entries(m ?? {})
+        .map(([d, h]) => [d.slice(0, 10), Number(h) || 0] as const)
+        .filter(([, h]) => h > 0)
+    ) as Record<string, number>
 
   for (const s of sheets) {
-    const days = Object.fromEntries(
-      Object.entries(s.days ?? {}).map(([d, h]) => [d.slice(0, 10), Number(h) || 0])
-    ) as Record<string, number>
+    const days = clean(s.days)
     const hasDays = Object.keys(days).length > 0
-    const filed = r2(Object.values(days).reduce((n, h) => n + h, 0))
+    const acceptedOn = s.acceptedAt ? isoDay(s.acceptedAt) : null
 
-    // The overtime, as payroll prices it: the same call, the same inputs.
-    const weeks = hasDays
-      ? sheetOvertime({
+    // What was filed on this line, week by week — so a week the employer
+    // accepted none of still shows, and says so.
+    const filedDays: Record<string, number> = hasDays ? days : { [isoDay(s.periodStart)]: s.totalHours }
+    const touched = new Set<string>()
+    for (const [day, h] of Object.entries(filedDays)) {
+      const w = at(weekStart(day))
+      touched.add(weekStart(day))
+      w.filed += h
+      w.lastDay = later(w.lastDay, hasDays ? day : isoDay(s.periodEnd))
+      w.acceptedOn = later(w.acceptedOn, acceptedOn)
+    }
+
+    // More than one acceptance standing: payroll pays none of them, so
+    // this page prices none of them.
+    if (s.accepted === 'MANY') {
+      for (const weekOf of touched) at(weekOf).many = true
+      for (const [day, h] of Object.entries(filedDays)) {
+        const paid = paidOn(s.id, day)
+        const w = at(weekStart(day))
+        w.paidHours += Math.min(paid?.hours ?? 0, h)
+        w.paidCents += (paid?.straightCents ?? 0) + (paid?.premiumCents ?? 0)
+        if (paid && (paid.hours > 0 || paid.straightCents > 0)) w.paidOn = later(w.paidOn, paid.paidOn ?? null)
+      }
+      continue
+    }
+
+    // Which hours the acceptance pays, cut the way payroll cuts them, and
+    // the premium on the hours over the line — payroll's one call for it.
+    const pay = hasDays
+      ? sheetPay({
+          all: clean(s.allDays ?? s.days),
           days,
-          leaveDays: s.leaveDays ?? null,
+          leaveDays: s.leaveDays ?? {},
           afterHours: line.afterHours,
+          accepted: s.accepted,
           contractRateCents: line.contractRateCents,
           periods: line.periods,
           method: line.method,
           line: line.wage,
         })
-      : []
+      : null
 
-    const cut = hasDays && s.acceptedHours != null && r2(filed - s.acceptedHours) > 0
-    if (cut && weeks.length > 0) {
-      // The sheet's own filed and accepted totals, said once on every week
-      // it touches — an acceptance records a sheet's total, not a week's.
-      const touched = new Set<string>()
-      for (const [day, h] of Object.entries(days)) {
-        if (h <= 0) continue
-        const w = at(weekStart(day))
-        touched.add(weekStart(day))
-        const paid = paidOn(s.id, day)
-        w.paidHours += Math.min(paid?.hours ?? 0, h)
-        w.paidCents += (paid?.straightCents ?? 0) + (paid?.premiumCents ?? 0)
-      }
+    if (pay && pay.cut.accepted != null && (pay.cut.moreThanFiled || r2(pay.cut.filed - pay.cut.paid) > 0)) {
+      // An acceptance records a sheet's total, not a week's: said once on
+      // every week the sheet touches.
       for (const weekOf of touched) {
-        const w = at(weekOf)
-        const was = w.withheld ?? { filed: 0, accepted: 0 }
-        w.withheld = { filed: r2(was.filed + filed), accepted: r2(was.accepted + s.acceptedHours!) }
+        at(weekOf).cuts.push({ filed: pay.cut.filed, accepted: pay.cut.accepted, moreThanFiled: pay.cut.moreThanFiled })
       }
-      continue
     }
+    if (pay) for (const st of pay.straightTime) at(st.weekOf).straightTime = true
 
+    // The straight time, each paid day at the rate in force that day.
     const priced = priceByDay({
       contractRateCents: line.contractRateCents,
       periods: line.periods,
-      days,
-      hours: s.acceptedHours != null ? s.acceptedHours : hasDays ? null : s.totalHours,
+      days: pay ? pay.days : {},
+      hours: pay ? null : s.accepted ? s.accepted.hours : s.totalHours,
       periodStart: s.periodStart,
       periodEnd: s.periodEnd,
     })
-    const premiums = premiumByDay(weeks)
+
+    // The overtime, as payroll prices it.
+    const weeks = pay?.weeks ?? []
+    const premiums = pay?.premiums ?? new Map<string, DayPremium>()
 
     for (const d of priced.days) {
       const w = at(weekStart(d.day))
@@ -1551,6 +1679,9 @@ export function owedByWeek(
       const paid = paidOn(s.id, d.day)
       w.paidHours += Math.min(paid?.hours ?? 0, d.hours)
       w.paidCents += (paid?.straightCents ?? 0) + (paid?.premiumCents ?? 0)
+      if (paid && (paid.hours > 0 || paid.straightCents > 0 || paid.premiumCents > 0)) {
+        w.paidOn = later(w.paidOn, paid.paidOn ?? null)
+      }
       w.unpaidHours += Math.max(0, d.hours - (paid?.hours ?? 0))
       w.unpaidOver += Math.max(0, (p?.hours ?? 0) - (paid?.premiumHours ?? 0))
     }
@@ -1563,22 +1694,25 @@ export function owedByWeek(
 
   const employer = line.wage.employerName ?? 'your employer'
   const Employer = employer.charAt(0).toUpperCase() + employer.slice(1)
+  const todayIso = isoDay(today)
+  const day = (iso: string) => shortDay(iso, today)
 
   return [...tally.entries()]
     .sort((a, b) => b[0].localeCompare(a[0]))
     .map(([weekOf, w]): OwedWeek => {
       const paidCents = Math.round(w.paidCents)
       const paidHours = r2(w.paidHours)
-      if (w.withheld) {
+      const filedHours = r2(w.filed)
+
+      if (w.many) {
         return {
-          weekOf, currency: line.currency, priced: false,
+          weekOf, stage: 'OWED', currency: line.currency, priced: false,
           hours: null, ordinaryHours: null, overtimeHours: null, premiumCents: null,
           owedCents: null, stillOwedCents: null, unpaidHours: null, unpaidOvertimeHours: null,
-          paidCents, paidHours,
+          paidCents, paidHours, filedHours, dueOn: null, overdue: false, paidOn: w.paidOn,
           says:
-            `You filed ${hoursWord(w.withheld.filed)} and ${employer} accepted ${hoursWord(w.withheld.accepted)}. ` +
-            `Which hours come off changes your overtime, so this page shows no figure for this week. ` +
-            `${Employer}'s payroll has it.`,
+            `${Employer} has accepted this week more than once, and nothing says which acceptance stands, ` +
+            `so its payroll pays it once all but one are withdrawn. This page shows no figure for it until then.`,
         }
       }
 
@@ -1589,15 +1723,35 @@ export function owedByWeek(
       const straightCents = Math.round(w.straight)
       const premiumCents = Math.round(w.premium)
       const owedCents = straightCents + premiumCents
+      const stillOwedCents = Math.max(0, owedCents - paidCents)
       const paidTooMuch = paidCents > owedCents
+      const stage: OwedStage = stillOwedCents === 0 && paidCents > 0 ? 'PAID' : 'OWED'
 
       const parts: string[] = []
-      if (over > 0) {
+
+      // What the employer accepted, where it is not what was filed.
+      for (const c of w.cuts) {
+        if (c.moreThanFiled) {
+          parts.push(`${Employer} accepted ${hoursWord(c.accepted)} and you filed ${hoursWord(c.filed)}, so the ${r2(c.filed)} you filed are paid.`)
+        } else if (c.accepted <= 0) {
+          parts.push(`You filed ${hoursWord(c.filed)} and ${employer} accepted none of them.`)
+        } else {
+          parts.push(`You filed ${hoursWord(c.filed)} and ${employer} accepted ${r2(c.accepted)}.`)
+        }
+      }
+
+      if (hours <= 0) {
+        if (w.cuts.length === 0) parts.push('No hours to pay this week.')
+      } else if (over > 0) {
         parts.push(
           `${hoursWord(hours)}: ${r2(hours - over)} ordinary and ${r2(over)} overtime. ` +
             `The ${hoursWord(over)} of overtime earn an extra ${amount(premiumCents, line.currency)} on top of your usual pay.`
         )
         if (w.twoRates) parts.push('You were paid at two rates that week, so the extra is worked out on the average of the two.')
+      } else if (w.straightTime) {
+        parts.push(
+          `${hoursWord(hours)}, all at your usual pay, because the week as accepted is not over ${line.afterHours} hours.`
+        )
       } else if (w.unclassified > 0) {
         parts.push(
           `${hoursWord(hours)}, ${hoursWord(w.unclassified)} of them over ${line.afterHours} in the week. ` +
@@ -1608,8 +1762,42 @@ export function owedByWeek(
       }
       if (paidTooMuch) parts.push(`More has been paid for this week than this page works out. ${Employer} has the record.`)
 
+      // When: the day it was paid, or the pay day it falls due on.
+      let dueOn: string | null = null
+      let overdue = false
+      if (stage === 'PAID') {
+        parts.push(w.paidOn ? `${Employer} paid it on ${day(w.paidOn)}.` : `${Employer} paid it. The record does not say which day.`)
+      } else if (stillOwedCents > 0) {
+        if (paidCents > 0) {
+          parts.push(w.paidOn ? `${Employer} paid part of it on ${day(w.paidOn)}.` : `${Employer} has paid part of it.`)
+        }
+        // The first pay day on her own line after the week ended and after
+        // her employer accepted it. A pay day before the acceptance was
+        // never this week's. A pay day payroll ran without paying this week
+        // still counts — it was the day the week fell due, and a run that
+        // left it out does not move that day later — so every pay day on
+        // the line is read, run or not.
+        const from = later(w.lastDay, w.acceptedOn) ?? weekOf
+        const next = nextOpen(
+          line.payDates.map((p) => ({ ...p, completedAt: null })),
+          'SALARY_PAY',
+          new Date(`${from}T00:00:00Z`)
+        )
+        if (next) {
+          dueOn = isoDay(next.dueOn)
+          overdue = dueOn < todayIso
+          parts.push(
+            overdue
+              ? `It fell due on your pay day of ${day(dueOn)} and has not been paid.`
+              : `It is due on your pay day, ${day(dueOn)}.`
+          )
+        } else {
+          parts.push(`${Employer} has not set a pay date for this week.`)
+        }
+      }
+
       return {
-        weekOf, currency: line.currency, priced: true,
+        weekOf, stage, currency: line.currency, priced: true,
         hours,
         ordinaryHours: r2(hours - over),
         overtimeHours: over,
@@ -1617,10 +1805,203 @@ export function owedByWeek(
         owedCents,
         paidCents,
         paidHours,
-        stillOwedCents: Math.max(0, owedCents - paidCents),
+        stillOwedCents,
         unpaidHours: r2(w.unpaidHours),
         unpaidOvertimeHours: r2(w.unpaidOver),
+        filedHours,
+        dueOn,
+        overdue,
+        paidOn: paidCents > 0 ? w.paidOn : null,
         says: parts.join(' '),
       }
     })
+}
+
+// ── A week that is not owed yet ──────────────────────────────────────────
+//
+// Filed and sent, and waiting on somebody: the client to sign it, or —
+// once it has — each firm below the client to accept it in turn, down to
+// her employer (CLAUDE.md, "The signed week travels down the chain").
+// None of it is owed to her until her employer accepts it, so a waiting
+// week carries hours and a sentence and never a figure.
+
+export type SignRole = 'CLIENT_APPROVAL' | 'PASS_THROUGH' | 'EMPLOYER_ACCEPTANCE'
+
+/** One signature a week needs, in the order it is needed. */
+export interface WeekSigner {
+  companyId: string
+  name: string
+  role: SignRole
+}
+
+/**
+ * Every signature the worker's week needs, in order: the client where the
+ * work is, each firm between it and her employer (nearest the client
+ * first), and her employer last. The order the timesheet approve route
+ * walks (`signersOf` in its chain-turn), read off her own placement line.
+ *
+ * `line.rungs` is bottom first, as `placementLines` returns it; `client`
+ * is the company where the work happens, which on the top rung is its end
+ * client where one is named and its buyer where not.
+ */
+export function weekSigners(
+  line: { rungs: Array<{ companyId: string; companyName: string }> },
+  client: { id: string; name: string }
+): WeekSigner[] {
+  if (line.rungs.length === 0) return []
+  const [own, ...above] = line.rungs
+  return [
+    { companyId: client.id, name: client.name, role: 'CLIENT_APPROVAL' },
+    ...above.reverse().map((r) => ({ companyId: r.companyId, name: r.companyName, role: 'PASS_THROUGH' as const })),
+    { companyId: own.companyId, name: own.companyName, role: 'EMPLOYER_ACCEPTANCE' },
+  ]
+}
+
+/**
+ * When a signer signed this week, or null. The ledger first; the client's
+ * and the employer's columns as well, because weeks signed before the
+ * ledger existed carry only those (the same reading as the approve
+ * route's `signedBy`).
+ */
+export function signedAtOf(
+  s: WeekSigner,
+  week: { clientApprovedAt: Date | null; employerAcceptedAt: Date | null },
+  live: Array<{ companyId: string; role: string; at: Date }>
+): Date | null {
+  const onLedger = live.find((a) => a.companyId === s.companyId && a.role === s.role)
+  if (onLedger) return onLedger.at
+  if (s.role === 'CLIENT_APPROVAL') return week.clientApprovedAt
+  if (s.role === 'EMPLOYER_ACCEPTANCE') return week.employerAcceptedAt
+  return null
+}
+
+export interface WaitingSheet {
+  id: string
+  periodStart: Date
+  periodEnd: Date
+  /** The hours filed. */
+  hours: number
+  submittedAt: Date | null
+  /** Every signature the week needs, in order, with when each was given. */
+  signers: Array<WeekSigner & { signedAt: Date | null }>
+}
+
+export type WaitingStage = 'WAITING_FOR_CLIENT' | 'WAITING_FOR_EMPLOYER'
+
+export interface WaitingWeek {
+  sheetId: string
+  /** The Monday of the week the sheet starts in, so it sorts beside the weeks owed. */
+  weekOf: string
+  periodStart: string
+  periodEnd: string
+  /** "Week of Sep 14", or "Sep 1 to Sep 15" for a sheet longer than a week. */
+  label: string
+  stage: WaitingStage
+  hours: number
+  /** The firm it is with now. */
+  waitingOn: string
+  /** The firm that pays her. */
+  employer: string
+  says: string
+}
+
+/**
+ * Where a filed week stands, where it is not owed yet. Null where her
+ * employer has accepted it — it is owed then, and `owedByWeek` prices it.
+ */
+export function waitingWeek(s: WaitingSheet, today: Date = new Date()): WaitingWeek | null {
+  const employer = [...s.signers].reverse().find((x) => x.role === 'EMPLOYER_ACCEPTANCE')
+  if (!employer || employer.signedAt) return null
+  const client = s.signers.find((x) => x.role === 'CLIENT_APPROVAL')
+  const next = s.signers.find((x) => !x.signedAt) ?? employer
+  const day = (d: Date) => shortDay(isoDay(d), today)
+
+  const start = isoDay(s.periodStart)
+  const end = isoDay(s.periodEnd)
+  const spanDays = Math.round((+s.periodEnd - +s.periodStart) / DAY_MS)
+  const label = spanDays <= 6 && weekStart(start) === weekStart(end) ? `Week of ${shortDay(weekStart(start), today)}` : `${shortDay(start, today)} to ${shortDay(end, today)}`
+
+  let stage: WaitingStage
+  let says: string
+  if (client && !client.signedAt) {
+    stage = 'WAITING_FOR_CLIENT'
+    says = `Sent to ${client.name}${s.submittedAt ? ` on ${day(s.submittedAt)}` : ''}. Waiting for them to sign.`
+  } else {
+    stage = 'WAITING_FOR_EMPLOYER'
+    const done = s.signers.filter((x) => x.signedAt && x.role !== 'EMPLOYER_ACCEPTANCE')
+    const signed = done.map((x) =>
+      `${x.name} ${x.role === 'CLIENT_APPROVAL' ? 'signed' : 'accepted'} it on ${day(x.signedAt!)}.`
+    )
+    const then = next.companyId === employer.companyId ? '' : `, then ${employer.name}`
+    says =
+      [...signed, `Waiting for ${next.name} to accept it${then}.`].join(' ') +
+      ` It is owed to you once ${employer.name} accepts it.`
+  }
+
+  return {
+    sheetId: s.id,
+    weekOf: weekStart(start),
+    periodStart: start,
+    periodEnd: end,
+    label,
+    stage,
+    hours: r2(s.hours),
+    waitingOn: stage === 'WAITING_FOR_CLIENT' ? client!.name : next.name,
+    employer: employer.name,
+    says,
+  }
+}
+
+// ── When a day was paid ──────────────────────────────────────────────────
+//
+// `paidBook` (lib/payroll-paid) says how much of each day has been paid
+// and not when. A worker asking "was I paid for that week" wants the day,
+// so this reads the date off the same rows: a processed PAYROLL_RUN's own
+// time for each line it paid, and an approved back payment's time for each
+// day it raised. The latest one is the day a week was last paid. The
+// amounts stay paidBook's; only the date is read here, and where a day is
+// on no row this says nothing rather than a guess.
+
+/**
+ * The latest day each paid day was paid on, keyed as `paidKey` keys it
+ * (`buyContractId|personId|timesheetId|day`), for these buy contracts.
+ *
+ * Only a processed run pays, and a row the run refused paid nothing — the
+ * same two rules `paidBook` reads by.
+ */
+export function paidDatesFrom(
+  runs: ReadonlyArray<{ at: Date; payload: unknown }>,
+  backPaid: ReadonlyArray<{ at: Date; payload: unknown }>,
+  buyContractIds: readonly string[],
+  key: (buyContractId: string, personId: string, timesheetId: string, day: string) => string
+): Map<string, string> {
+  const wanted = new Set(buyContractIds)
+  const out = new Map<string, string>()
+  const mark = (k: string, at: Date) => {
+    const d = isoDay(at)
+    const was = out.get(k)
+    if (!was || d > was) out.set(k, d)
+  }
+  for (const run of runs) {
+    const p = (run.payload ?? {}) as {
+      action?: string
+      contracts?: Array<{ buyContractId?: string; refused?: string | null; paid?: Array<{ personId: string; timesheetId: string; day: string }> }>
+    }
+    if (p.action !== 'process') continue
+    for (const c of p.contracts ?? []) {
+      if (!c.buyContractId || !wanted.has(c.buyContractId) || c.refused || !Array.isArray(c.paid)) continue
+      for (const l of c.paid) mark(key(c.buyContractId, l.personId, l.timesheetId, l.day), run.at)
+    }
+  }
+  for (const row of backPaid) {
+    const lines = ((row.payload ?? {}) as {
+      backPay?: Array<{ buyContractId: string; personId: string; timesheetId: string; day: string }>
+    }).backPay
+    if (!Array.isArray(lines)) continue
+    for (const l of lines) {
+      if (!wanted.has(l.buyContractId)) continue
+      mark(key(l.buyContractId, l.personId, l.timesheetId, l.day), row.at)
+    }
+  }
+  return out
 }
