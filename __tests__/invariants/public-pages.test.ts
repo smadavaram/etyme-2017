@@ -564,3 +564,49 @@ describe('One header and footer on every new page', () => {
     }
   })
 })
+
+describe('The documentation is written in plain English for a reader anywhere', () => {
+  // The founder, 2026-09-29: plain English that people in India, the US,
+  // the UK and Australia, and non-native readers, can read. Short blocks,
+  // one idea per line. The chips are labels, not sentences, so they are
+  // left out of the count.
+  const words = (html: string) => textOfHtml(html.replace(/<span class="chip[^"]*"[^>]*>[^<]*<\/span>/g, ' '))
+
+  for (const p of PARTIES) {
+    it(`no sentence on the ${p.doc.title} documentation page runs past twenty-five words`, () => {
+      expect(longSentences(p.doc.lede, 25), p.doc.slug).toEqual([])
+      expect(longSentences(words(p.doc.html), 25), p.doc.slug).toEqual([])
+    })
+  }
+
+  it('no sentence on the documentation home runs past twenty-five words', () => {
+    const home = copyOfDocsHome()
+    expect([...home.hero, ...home.body].flatMap((l) => longSentences(l, 25))).toEqual([])
+  })
+
+  it('every party page says its position on a deal as short lines, and how to read a drawing as a list', () => {
+    for (const p of PARTIES) {
+      const first = p.doc.html.slice(0, p.doc.html.indexOf('</section>'))
+      expect(first, p.doc.slug).toMatch(/<h2>Position on a deal<\/h2><ul class="lines">/)
+      expect(first, p.doc.slug).toContain('<h3 class="sub">How to read a drawing</h3><ul class="lines legend">')
+      // No paragraph of prose is left in the opening section.
+      expect(first.replace(/<p class="eyebrow"[^>]*>[^<]*<\/p>|<p style="margin-top:10px">[\s\S]*?<\/p>/g, ''), p.doc.slug).not.toMatch(/<p[ >]/)
+    }
+  })
+
+  it('every station in the documentation’s tables is drawn in the same words, so the table and the drawing cannot drift', () => {
+    const streams = read('docs/lanes/streams.mjs')
+    const drawn = (s: string) => streams.includes(`'${s.replace(/&amp;/g, '&')}'`)
+    for (const p of PARTIES) {
+      for (const [, label, what, rule] of p.doc.html.matchAll(
+        /<tr><td><span class="num">[^<]*<\/span><\/td><td><b>((?:(?!<\/b>).)*)<\/b>.*?<\/td><td>.*?<\/td><td>((?:(?!<\/td>).)*)<\/td><td>((?:(?!<\/td>).)*)<\/td><\/tr>/g,
+      )) {
+        expect(drawn(label), `${p.doc.slug}: station “${label}” is not drawn`).toBe(true)
+        expect(drawn(what), `${p.doc.slug}: “${what}” is not drawn`).toBe(true)
+        for (const [, r] of rule.matchAll(/<span class="chip chip--danger">([^<]*)<\/span>/g)) {
+          expect(drawn(r), `${p.doc.slug}: refusal “${r}” is not drawn`).toBe(true)
+        }
+      }
+    }
+  })
+})

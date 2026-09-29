@@ -30,6 +30,21 @@
  *     API keys that cannot outrank the person who issued them, webhooks,
  *     statement reconciliation, and CSV from every list.
  *
+ * ── Plain English, 2026-09-29 ────────────────────────────────────────
+ *
+ * The founder asked for words a reader in India, the US, the UK or
+ * Australia reads without effort, native or not. Each party page opens
+ * on short lines, not paragraphs: its position on a deal, what the
+ * drawings show from that desk, and how to read a drawing. No sentence
+ * runs past twenty-five words, and a test counts them.
+ *
+ * The party pages' HTML is hand-edited here; it is not generated. The
+ * drawings are: `docs/lanes/streams.mjs` draws them and
+ * `docs/lanes/render-model.mjs` writes `public/model/*.png`. So a
+ * station's words live in two places, and a test fails when the stations
+ * table here says something the drawing's source does not. Change both,
+ * then run `node docs/lanes/build-all.mjs && node docs/lanes/render-model.mjs`.
+ *
  * ── What was held back ───────────────────────────────────────────────
  *
  * "Held for everybody" (`docs-held-for-everybody.html`) is not brought
@@ -184,15 +199,15 @@ export const DOCS_HOME = {
   eyebrow: 'Documentation',
   title: 'How contractors and suppliers move through Etyme',
   lede:
-    'Every flow station by station, drawn from each party’s desk, including the stations not built yet. ' +
+    'Every flow, station by station, drawn from each party’s desk. It includes the stations not built yet. ' +
     'It is public, and none of it needs an account.',
   inside: [
-    { t: 'Job request to start', d: 'A job request raised, cleared by three desks in order, released only to the suppliers Procurement approved, and awarded. The award writes the contract.', href: '/docs/client#l1-1' },
-    { t: 'Time and money', d: 'The signed week as the receipt, one row of hours through the chain, the three-way check, and payroll for employees.', href: '/docs/time-and-money' },
-    { t: 'The autonomy ladder', d: 'Everything the system does on its own carries a level, from L0 observe to L5 autonomous within policy, and a row saying whether it can be undone.', href: '/security#done' },
+    { t: 'Job request to start', d: 'A hiring manager raises a job request, and three desks clear it in order. Only the suppliers Procurement approved see it. The award writes the contract.', href: '/docs/client#l1-1' },
+    { t: 'Time and money', d: 'The signed week is the receipt. One row of hours runs through the chain, then the three-way check, and payroll for employees.', href: '/docs/time-and-money' },
+    { t: 'The autonomy ladder', d: 'Everything the system does on its own has a level, from L0 observe to L5 autonomous within policy. A row says whether it can be undone.', href: '/security#done' },
   ],
   example:
-    'The example program is the same flows with a month of data in them. Open it without an account, at any desk.',
+    'The example program is the same flows with a month of data in them. Open it at any desk, with no account.',
 }
 
 export type AnyDocSlug = string

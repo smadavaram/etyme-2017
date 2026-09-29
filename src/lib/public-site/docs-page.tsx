@@ -26,6 +26,11 @@ const DOCS_CSS = `
 .etyme-docs .ch-sec>p{margin-top:14px;font-size:15.5px;line-height:1.68;max-width:70ch}
 .etyme-docs .ch-sec>p.eyebrow{font-size:10px;line-height:1.4;margin-top:22px}
 .etyme-docs .ch-sec>p.note{font-size:13.5px;color:#6B6862}
+.etyme-docs .ch-sec>h3.sub{margin-top:30px}
+.etyme-docs .ch-sec>ul.lines{margin-top:12px;max-width:70ch;padding-left:1.15em;list-style:disc;font-size:15.5px;line-height:1.6}
+.etyme-docs .ch-sec>ul.lines li{margin-top:6px}
+.etyme-docs .ch-sec>ul.lines li::marker{color:#9C9891}
+.etyme-docs .ch-sec>ul.legend{font-size:14px;color:#6B6862}
 .etyme-docs .fig{margin:24px 0 0;border:1px solid #E3DFD5;border-radius:12px;overflow:hidden;background:#fff}
 .etyme-docs .fig img{display:block;width:100%;height:auto}
 .etyme-docs .fig figcaption{padding:11px 16px;border-top:1px solid #E3DFD5;background:#FBFAF7;font-size:13px;line-height:1.55;color:#6B6862}
