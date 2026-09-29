@@ -23,8 +23,9 @@
  * One placement each, of the firm's own W2 employee, so the submission is
  * INTERNAL: the employment is the consent and there is no bench listing.
  *
- *   the award      a filled job at the client, and the firm's submission
- *                  of its own employee, placed
+ *   the award      a filled job at the client, charged to a department
+ *                  of the client's own under Operations, and the firm's
+ *                  submission of its own employee, placed
  *   the line       a sell line at the bill rate, a W2 buy line at the pay
  *                  rate, joined, with the pack's hours-due and pay dates
  *   the paper      what the line requires, on file: the I-9, the
@@ -61,6 +62,7 @@ import { writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
 import { requirementsFor } from '@/lib/document-requirements'
 import type { SeedContext } from '@/lib/seed-order-to-cash'
+import { departmentAt, codeTheLine, type SeedDepartment } from '@/lib/seed-coding'
 
 const DAY = 86_400_000
 const iso = (d: Date) => d.toISOString().slice(0, 10)
@@ -86,6 +88,12 @@ export interface SectorSupplier {
   startedDaysAgo: number
   /** Days after the world's birthday the placement ends. */
   endsInDays: number
+  /**
+   * The client's own department the job is charged to, under Operations.
+   * A nurse is not charged to the Apps department, and the budget screen
+   * names the department beside her.
+   */
+  department: SeedDepartment
   /** Whether the latest week is filed and still waiting for the client. */
   lastWeekAwaiting: boolean
   /** The state license, where the role is a licensed occupation. */
@@ -109,6 +117,7 @@ export const SECTOR_SUPPLIERS: SectorSupplier[] = [
     pay: 6_200,
     startedDaysAgo: 38,
     endsInDays: 145,
+    department: { name: 'Employee Health', code: 'EHS' },
     lastWeekAwaiting: true,
     license: { issuer: 'Colorado Board of Nursing', number: 'RN 1.721904', state: 'CO', issuedDaysAgo: 1_460, expiresInDays: 425 },
   },
@@ -124,6 +133,7 @@ export const SECTOR_SUPPLIERS: SectorSupplier[] = [
     pay: 5_200,
     startedDaysAgo: 52,
     endsInDays: 130,
+    department: { name: 'Plant Maintenance', code: 'MAINT' },
     lastWeekAwaiting: false,
   },
 ]
@@ -165,7 +175,8 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
     const firm = ctx.firmBySlug.get(s.slug)
     const client = ctx.firmBySlug.get(s.client)
     const owner = ctx.seatBySlug.get(s.slug)
-    if (!firm || !client || !owner) continue
+    const clientOwner = ctx.seatBySlug.get(s.client)
+    if (!firm || !client || !owner || !clientOwner) continue
     const hiring = await db.person.findUnique({
       where: { primaryEmail: `${ctx.prefix}${s.client}-hiring@${ctx.domain}` },
       select: { id: true },
@@ -229,6 +240,14 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
     }
 
     // ── The award ─────────────────────────────────────────────────────
+    //
+    // The job is charged to a department of the client's own, the way
+    // the client coded it when it raised the job; the award carries that
+    // coding onto the line below.
+    const coding = await departmentAt({
+      clientId: client.id, clientSlug: s.client, ownerId: clientOwner.personId,
+      dept: s.department, billCents: s.bill,
+    })
     const requirement =
       (await db.requirement.findFirst({ where: { companyId: client.id, title: s.role } })) ??
       (await db.requirement.create({
@@ -237,6 +256,7 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
           billMin: s.bill - 1_000, billMax: s.bill + 500, months: 6, headcount: 1, hoursPerWeek: 40,
           status: 'FILLED', approvalState: 'AUTO_APPROVED', source: 'MANUAL',
           neededBy: start, raisedById: hiring.id, createdAt: plus(start, -30),
+          costCenterId: coding.costCenterId, orgUnitId: coding.orgUnitId,
         },
       }))
     // The firm's own employee, so INTERNAL: the employment is the
@@ -304,7 +324,7 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
         data: {
           companyId: firm.id, clientCompanyId: client.id, endClientCompanyId: client.id,
           personId: person.id, requirementId: requirement.id, engagementId: eng.id, msaId: msa.id,
-          hiringManagerId: hiring.id,
+          hiringManagerId: hiring.id, orgUnitId: coding.orgUnitId,
           billRate: s.bill, billCurrency: 'USD', paymentTerms: 45, state: 'IN_PROGRESS',
           startDate: start, endDate: end,
         },
@@ -323,6 +343,10 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
       })
       await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays })
     }
+    // The coding the award writes: without the allocation the client
+    // signed every week and its budget counted none of them. Here as
+    // well as on create, so a world seeded before it gains it.
+    await codeTheLine({ requirementId: requirement.id, sellContractId: sell.id, ...coding })
     out.placements++
 
     // ── The weeks, signed top to bottom ───────────────────────────────

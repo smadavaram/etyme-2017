@@ -4,10 +4,12 @@ import { seedWorld, WORLD_SLUGS } from '@/lib/seed-world'
 import { SECTOR_SUPPLIERS, sectorStart } from '@/lib/seed-sector-suppliers'
 import { SUPPLIER_SEATS } from '@/app/demo/seats'
 import { requirementsFor } from '@/lib/document-requirements'
+import { costCenterCode } from '@/lib/seed-coding'
 
 import { POST as demo } from '@/app/api/demo/route'
 import { GET as myPapers } from '@/app/api/me/papers/route'
 import { GET as myWork } from '@/app/api/me/work/route'
+import { GET as budget } from '@/app/api/program/budget/route'
 
 /**
  * Two suppliers outside IT, on the seeded world.
@@ -46,6 +48,9 @@ async function census() {
     papers: await prisma.docInstance.count({ where: { template: { companyId: { in: ids } } } }),
     submissions: await prisma.submission.count({ where: { fromCompanyId: { in: ids } } }),
     cycles: await prisma.cycle.count({ where: { OR: [{ sellContract: { companyId: { in: ids } } }, { buyContract: { companyId: { in: ids } } }] } }),
+    allocations: await prisma.contractCostAllocation.count({ where: { sellContract: { companyId: { in: ids } } } }),
+    costCenters: await prisma.costCenter.count({ where: { code: { in: SECTOR_SUPPLIERS.map((x) => costCenterCode(x.department, x.client)) } } }),
+    units: await prisma.orgUnit.count({ where: { name: { in: ['Operations', ...SECTOR_SUPPLIERS.map((x) => x.department.name)] } } }),
   }
 }
 
@@ -183,6 +188,47 @@ describe('two suppliers outside IT on the seeded world', () => {
       const line = r.body.data.placements.find((p: any) => p.id === sell.id)
       expect(line, JSON.stringify(r.body.data.placements)).toBeTruthy()
       expect(line.payRate).toBe(s.pay)
+    }
+  })
+
+  it('each job is charged to a department of the client’s own that fits the work, and the award carries that coding onto the line', async () => {
+    const want = { sorrelwood: 'Employee Health', quarrystone: 'Plant Maintenance' } as Record<string, string>
+    for (const s of SECTOR_SUPPLIERS) {
+      const { sell } = await lineOf(s)
+      const line = await prisma.sellContract.findUniqueOrThrow({
+        where: { id: sell.id },
+        include: {
+          requirement: { include: { costCenter: true, orgUnit: { include: { parent: true } } } },
+          costAllocations: { include: { costCenter: true } },
+        },
+      })
+      const job = line.requirement!
+      expect(job.orgUnit?.name, s.name).toBe(want[s.slug])
+      expect(job.orgUnit?.parent?.name, s.name).toBe('Operations')
+      expect(job.costCenter?.code, s.name).toBe(costCenterCode(s.department, s.client))
+      expect(job.costCenter?.companyId, s.name).toBe(line.clientCompanyId)
+      expect(line.orgUnitId, s.name).toBe(job.orgUnitId)
+      expect(line.costAllocations.map((a) => [a.costCenter.code, a.shareBps]), s.name)
+        .toEqual([[costCenterCode(s.department, s.client), 10_000]])
+    }
+  })
+
+  it('every week the client signed for is spent against that cost center at the bill rate, and a week still waiting is not', async () => {
+    for (const s of SECTOR_SUPPLIERS) {
+      const { sell } = await lineOf(s)
+      const signed = await prisma.timesheet.findMany({
+        where: { sellContractId: sell.id, clientApprovedAt: { not: null } },
+        select: { totalHours: true },
+      })
+      const hours = signed.reduce((n, t) => n + Number(t.totalHours), 0)
+      expect(hours, s.name).toBeGreaterThan(0)
+
+      as(`world-${s.client}-hiring@demo.etyme.local`)
+      const r = await json(await budget(req('GET', '/api/program/budget')))
+      expect(r.status, s.name).toBe(200)
+      const center = r.body.data.centers.find((c: any) => c.code === costCenterCode(s.department, s.client))
+      expect(center, s.name).toBeDefined()
+      expect(center.actualCents, s.name).toBe(Math.round(hours * s.bill))
     }
   })
 

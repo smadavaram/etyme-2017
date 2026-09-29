@@ -666,6 +666,7 @@ export const MATRIX: L1[] = [
             'One of the five is not IT staffing — a travel nurse on three twelve-hour shifts, paid corp to corp through the company she owns, with a state license that runs out inside the assignment',
             'A program office that sells to its client and buys below it, including its own W2 employee with no bench listing and no purchase order',
             'BUILT 2026-09-29: the suppliers are not all IT — a clinical staffing firm places an occupational health nurse at Talvern Medical with her state license on file, and an industrial staffing firm places a maintenance technician at Cavanaugh Glassworks, each its own W2, cleared on paper and with weeks signed top to bottom',
+            'BUILT 2026-09-29: a placement a seed writes directly carries the coding its award would — the job charged to a cost center and department of the client\u2019s own, the department on the line, the whole line allocated to the cost center — so the client\u2019s budget counts every week it signed; the pay rise and the two non-IT placements are charged to Operations departments, never to Apps',
             'Both halves of a supplying firm’s book are named on its door: what it sells upward and what it owes downward',
             'Every table in the schema either carries seeded rows or is named, in one place, as written only when somebody acts — and the list fails when it goes stale in either direction',
             'The layers above and below a placement are seeded too: the order that authorized the spend and its ceiling, the project that accumulates it, the books it posts to, and the AP run that settles it',
@@ -691,7 +692,7 @@ export const MATRIX: L1[] = [
             'src/app/api/demo/route.ts', 'src/app/api/seed-world/route.ts', 'src/lib/demo-session.ts',
             'src/lib/seed-world.ts', 'src/lib/seed-programmes.ts', 'src/lib/seed-doors.ts', 'src/lib/seed-days.ts',
             'src/lib/seed-calendar.ts', 'src/lib/seed-standing.ts', 'src/lib/seed-order-to-cash.ts',
-            'src/lib/seed-rate-change.ts', 'src/lib/seed-sector-suppliers.ts', 'src/lib/seed-pipeline.ts', 'src/lib/demo-seed-consultant.ts',
+            'src/lib/seed-rate-change.ts', 'src/lib/seed-sector-suppliers.ts', 'src/lib/seed-coding.ts', 'src/lib/seed-pipeline.ts', 'src/lib/demo-seed-consultant.ts',
             // The fifth person's door lands on a page with nothing on
             // it, so what that page says is part of the door: the
             // verdict, the route that carries it, and the screen.
@@ -709,6 +710,7 @@ export const MATRIX: L1[] = [
             '__integration__/seed-covers-the-matrix.test.ts',
             '__integration__/seeded-pay-rise.test.ts',
             '__integration__/seeded-sector-suppliers.test.ts',
+            '__integration__/whose-rate.test.ts',
             '__integration__/seat-compliance.test.ts',
             '__integration__/supplier-onboarding.test.ts',
           ] },

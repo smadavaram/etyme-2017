@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
-import { rateChangeDates, RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
+import { rateChangeDates, RATE_CHANGE_PERSON, RATE_CHANGE_DEPARTMENT } from '@/lib/seed-rate-change'
+import { costCenterCode } from '@/lib/seed-coding'
 
 import { GET as payrollExport } from '@/app/api/payroll/export/route'
 import { GET as profitability } from '@/app/api/profitability/route'
 import { GET as myWork } from '@/app/api/me/work/route'
 import { GET as rateHistory } from '@/app/api/rate-history/route'
+import { GET as budget } from '@/app/api/program/budget/route'
 
 /**
  * The pay rise the founder asked to see, on the seeded world.
@@ -24,6 +26,9 @@ const DAY = 86_400_000
 
 const PAYROLL_DESK = 'world-brightmoor-payroll@demo.etyme.local'
 const OWNER = 'world-brightmoor@demo.etyme.local'
+const NORTHBEND_HIRING = 'world-nike-hiring@demo.etyme.local'
+const NORTHBEND_OWNER = 'world-nike@demo.etyme.local'
+const DISTRIBUTION = costCenterCode(RATE_CHANGE_DEPARTMENT, 'nike')
 
 let personId = ''
 let sellId = ''
@@ -49,6 +54,9 @@ async function census() {
     cycles: await prisma.cycle.count({ where: { OR: [{ sellContractId: sellId }, { buyContractId: buyId }] } }),
     people: await prisma.person.count(),
     verifications: await prisma.verification.count({ where: { personId } }),
+    allocations: await prisma.contractCostAllocation.count({ where: { sellContractId: sellId } }),
+    costCenters: await prisma.costCenter.count({ where: { code: DISTRIBUTION } }),
+    plans: await prisma.headcountPlan.count({ where: { costCenter: { code: DISTRIBUTION } } }),
   }
 }
 
@@ -197,6 +205,44 @@ describe('a pay rise on the seeded world', () => {
     expect(r.body.data.owed.paidHours).toBe(paidHours)
     expect(r.body.data.owed.hours).toBe(allHours - paidHours)
     expect(r.body.data.owed.cents).toBe(allCents - paidCents)
+  })
+
+  it('her job is charged to Northbend’s Distribution cost center, and the award carries that coding onto her line', async () => {
+    const line = await prisma.sellContract.findUniqueOrThrow({
+      where: { id: sellId },
+      include: {
+        requirement: { include: { costCenter: { include: { owner: true } }, orgUnit: { include: { parent: true } } } },
+        costAllocations: { include: { costCenter: true } },
+      },
+    })
+    const job = line.requirement!
+    expect(job.companyId).toBe(line.clientCompanyId)
+    expect(job.costCenter?.code).toBe(DISTRIBUTION)
+    expect(job.costCenter?.companyId).toBe(line.clientCompanyId)
+    expect(job.costCenter?.owner?.primaryEmail).toBe(NORTHBEND_OWNER)
+    expect(job.orgUnit?.name).toBe('Distribution')
+    expect(job.orgUnit?.parent?.name).toBe('Operations')
+    // As the award writes it: the line's department is the job's, and
+    // the whole line is allocated to the job's cost center.
+    expect(line.orgUnitId).toBe(job.orgUnitId)
+    expect(line.costAllocations.map((a) => [a.costCenter.code, a.shareBps])).toEqual([[DISTRIBUTION, 10_000]])
+  })
+
+  it('every week Northbend signed for her is spent against that cost center’s budget, at $112 an hour', async () => {
+    const signed = await prisma.timesheet.findMany({
+      where: { sellContractId: sellId, clientApprovedAt: { not: null } },
+      select: { totalHours: true },
+    })
+    const hours = signed.reduce((n, t) => n + Number(t.totalHours), 0)
+    expect(hours).toBeGreaterThan(0)
+
+    as(NORTHBEND_HIRING)
+    const r = await json(await budget(req('GET', '/api/program/budget')))
+    expect(r.status).toBe(200)
+    const center = r.body.data.centers.find((c: any) => c.code === DISTRIBUTION)
+    expect(center).toBeDefined()
+    expect(center.unit).toBe('Distribution')
+    expect(center.actualCents).toBe(Math.round(hours * 11_200))
   })
 
   it('seeding the world twice writes her history once', async () => {

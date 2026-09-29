@@ -31,6 +31,9 @@
  * As the product writes it today, and through the product's own
  * functions where one exists:
  *
+ *   the job        raised by Northbend and charged to its Distribution
+ *                  department, which the award carries onto her line as
+ *                  a whole-line allocation (lib/seed-coding)
  *   the week       filed by her, signed by Northbend's hiring manager
  *                  at the bill rate, then accepted by Brightmoor at the
  *                  pay rate in force on the first day worked — never the
@@ -71,6 +74,7 @@ import { periodTermsFor } from '@/lib/money/order-terms'
 import { paidBook, paidKey, type PaidLine } from '@/lib/payroll-paid'
 import { screenExemption, checkAssertion } from '@/lib/worker-classification'
 import { rate as perHour, totals } from '@/lib/money-display'
+import { departmentAt, codeTheLine, type SeedDepartment } from '@/lib/seed-coding'
 import type { SeedContext } from '@/lib/seed-order-to-cash'
 
 const DAY = 86_400_000
@@ -92,6 +96,12 @@ const ROLE = {
   skills: ['Warehouse management', 'RF scanning', 'SQL'],
   loc: 'Tualatin, OR',
 }
+
+/**
+ * Where her job is charged at Northbend: the distribution center's own
+ * department, under Operations. Not Apps — she works at the warehouse.
+ */
+export const RATE_CHANGE_DEPARTMENT: SeedDepartment = { name: 'Distribution', code: 'DIST' }
 
 /** The desk that proposes the rise. Brightmoor's Admin role, which nobody else holds. */
 const ADMIN = { desk: 'admin', name: 'Harriet Mwangi', role: 'Admin' }
@@ -145,7 +155,8 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
   const firm = ctx.firmBySlug.get('brightmoor')
   const client = ctx.firmBySlug.get('nike')
   const owner = ctx.seatBySlug.get('brightmoor')
-  if (!firm || !client || !owner) return { weeks: 0, written: false }
+  const clientOwner = ctx.seatBySlug.get('nike')
+  if (!firm || !client || !owner || !clientOwner) return { weeks: 0, written: false }
 
   const deskAt = (slug: string, desk: string) =>
     db.person.findUnique({ where: { primaryEmail: `${ctx.prefix}${slug}-${desk}@${ctx.domain}` }, select: { id: true, name: true } })
@@ -201,6 +212,12 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
     })
   }
 
+  // The budget the job is charged to, as Northbend coded it when the
+  // job was raised. The award carries it onto the line below.
+  const coding = await departmentAt({
+    clientId: client.id, clientSlug: 'nike', ownerId: clientOwner.personId,
+    dept: RATE_CHANGE_DEPARTMENT, billCents: RATE_CHANGE_RATES.bill,
+  })
   const requirement =
     (await db.requirement.findFirst({ where: { companyId: client.id, title: ROLE.title } })) ??
     (await db.requirement.create({
@@ -209,6 +226,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
         billMin: 10_000, billMax: 12_000, months: 12, headcount: 1,
         status: 'FILLED', approvalState: 'AUTO_APPROVED', source: 'MANUAL',
         neededBy: d.start, raisedById: hiring.id, hoursPerWeek: 40,
+        costCenterId: coding.costCenterId, orgUnitId: coding.orgUnitId,
         createdAt: plus(d.start, -30),
       },
     }))
@@ -261,7 +279,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
       data: {
         companyId: firm.id, clientCompanyId: client.id, endClientCompanyId: client.id,
         personId: person.id, requirementId: requirement.id, engagementId: eng.id, msaId: msa.id,
-        hiringManagerId: hiring.id,
+        hiringManagerId: hiring.id, orgUnitId: coding.orgUnitId,
         billRate: RATE_CHANGE_RATES.bill, billCurrency: 'USD', paymentTerms: 45, state: 'IN_PROGRESS',
         startDate: d.start, endDate: d.end,
       },
@@ -289,6 +307,13 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
   }
   const sellId = sell.id
   const buyId = buy.id
+
+  // The coding the award writes: the job's cost center and department,
+  // the department on the line, and the whole line allocated to the cost
+  // center. Without the allocation Northbend signed every one of her
+  // weeks and its budget counted none of them. Written here as well as
+  // on create, so a world seeded before the coding existed gains it.
+  await codeTheLine({ requirementId: requirement.id, sellContractId: sellId, ...coding })
 
   // ── Non-exempt, as the employer asserts it ──────────────────────────
   if (!(await db.exemptAssertion.findFirst({ where: { buyContractId: buyId, personId: person.id } }))) {
