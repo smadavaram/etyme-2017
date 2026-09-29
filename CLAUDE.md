@@ -1241,6 +1241,22 @@ Three rules follow:
   same week — never a re-keyed copy. Each rung is told when the week
   reaches it.
 
+- **What each rung may bill, and when. Decided by the founder,
+  2026-09-28** ("1 yes, 2 A, 3 block"):
+  1. **A firm bills only the hours the firm above it accepted.** If
+     Computer Systems accepts 38 of Helena's 40, CloudEPA's bill to
+     Computer Systems — generated in Etyme or uploaded — is for 38.
+     Generation prices the payer's accepted hours, not the hours worked.
+  2. **A firm bills upward on the client's signature**, without waiting
+     for the rungs below it to accept. Its own invoice receipts from
+     below clear the three-way check when those rungs have accepted; the
+     bill upward is not held for them.
+  3. **A week the paying firm has not accepted blocks the invoice
+     receipt that includes it.** No "approve anyway with a reason" for
+     it: accept the week first. Addendum E's WARN-and-proceed does not
+     apply, because paying for hours nobody accepted is what the check
+     exists to stop.
+
 And: **a consultant a firm adds is marketed by default**; the firm may
 choose to retain them, and nothing reaches past the firm until the
 consultant grants it.
