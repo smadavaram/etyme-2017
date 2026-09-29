@@ -9,9 +9,8 @@ import { periodFor, hoursInPeriod, type Period, type Terms } from '@/lib/periods
 import { priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { paidBook, paidKey, type PaidLine } from '@/lib/payroll-paid'
-import { sheetOvertime, premiumByDay, overtimeSaysFor, assertionOf } from '@/lib/money/sheet-overtime'
+import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
-import type { WageRuleName } from '@/lib/worker-classification'
 
 /**
  * POST /api/payroll/run
@@ -95,14 +94,7 @@ export async function POST(request: NextRequest) {
       workOrder: { select: ORDER_HEADER_SELECT },
       // What the employer asserted about exemption, which decides whether
       // an hour over the line is owed a premium at all.
-      exemptAssertions: {
-        select: {
-          personId: true, status: true, basis: true, wageRule: true, note: true,
-          assertedAt: true, reviewBy: true, assertedByCompanyId: true,
-          assertedByCompany: { select: { name: true } },
-          assertedBy: { select: { name: true } },
-        },
-      },
+      exemptAssertions: { select: EXEMPT_SELECT },
       company: { select: { name: true } },
       sellLinks: {
         include: {
@@ -281,18 +273,7 @@ export async function POST(request: NextRequest) {
           let premiumExact = 0
           const said: string[] = []
           const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
-          const wageLine = {
-            personName: cand.person.name,
-            contractType: bc.contractType,
-            // Ours to pay as a wage only where nobody sits between us and
-            // the worker.
-            weAreTheEmployer: !bc.vendorCompanyId && !bc.supplierSellContractId,
-            payModel: bc.payModel,
-            rule: (row?.wageRule as WageRuleName) ?? 'US_FLSA',
-            assertion: assertionOf(row),
-            contractPremiumBps: bc.overtimeAfterHours != null ? bc.overtimeMultiplierBps : null,
-            employerName: bc.company?.name ?? null,
-          }
+          const wageLine = wageLineFor(bc, cand.person.name, row)
           if (payPeriod) {
             for (const t of mine) {
               const share = hoursInPeriod(
@@ -438,7 +419,9 @@ export async function POST(request: NextRequest) {
               grossPay: p.grossPay,
               currency: p.currency,
               refused: p.refused,
-              ...(action === 'process' && !p.refused ? { paid: p.paid } : {}),
+              // `premiumsPriced` says this run priced overtime, so a day
+              // with no premium on it had none owed — not "unknown".
+              ...(action === 'process' && !p.refused ? { paid: p.paid, premiumsPriced: true } : {}),
             })),
             runBy: caller.person.id,
             runAt: now.toISOString(),

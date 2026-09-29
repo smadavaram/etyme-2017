@@ -31,6 +31,8 @@ import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { checkOffCycle, carryLedger, OFF_CYCLE_LABEL, type CarryPeriod } from '@/lib/pay-model'
 import { orderFor } from '@/lib/order-postings'
+import { proposeBackPay, type BackPayLine } from '@/lib/money/back-pay'
+import { amount } from '@/lib/money-display'
 
 /**
  * Off-cycle payments, and the carry they interact with.
@@ -246,6 +248,72 @@ export async function POST(request: NextRequest) {
   const periodStart = body.periodStart ? new Date(String(body.periodStart)) : new Date(NaN)
   const payOn = body.payOn ? new Date(String(body.payOn)) : new Date()
 
+  // ── Back pay a pay change proposed ───────────────────────────────
+  //
+  // Paid only as proposed. The figure is worked out again here from the
+  // books, and a desk paying a different number — or a period that owes
+  // nothing any more because it was paid — is refused in a sentence,
+  // because a back payment typed in by hand is how the same difference
+  // gets paid twice.
+  const rateHistoryId = body.rateHistoryId ? String(body.rateHistoryId) : null
+  let backPayLines: BackPayLine[] | null = null
+  if (rateHistoryId) {
+    const proposal = await proposeBackPay(rateHistoryId)
+    const payerOk = proposal?.applies
+      ? (await prisma.buyContract.findFirst({ where: { id: proposal.buyContractId, companyId }, select: { id: true } })) != null
+      : false
+    if (!proposal || !proposal.applies || !payerOk) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NO_BACK_PAY',
+            message: proposal && !proposal.applies ? proposal.says : 'There is no back pay proposed on a line your company pays.',
+          },
+        },
+        { status: 409 }
+      )
+    }
+    const day = Number.isNaN(periodStart.getTime()) ? '' : periodStart.toISOString().slice(0, 10)
+    const payment = proposal.figure.periods.find(
+      (p) => p.periodStart === day && p.sellContractId === sellContractId && p.personId === personId
+    )
+    if (!payment) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NO_BACK_PAY',
+            message:
+              `No back pay is owed for the period starting ${day || 'on that day'} on this change any more — ` +
+              `it may already have been paid. ${proposal.says}`,
+          },
+        },
+        { status: 409 }
+      )
+    }
+    if (Math.round(Number(body.amountCents)) !== payment.amountCents) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'BACK_PAY_MOVED',
+            message:
+              `The back pay for ${payment.label} is ${amount(payment.amountCents, proposal.currency)}, not ` +
+              `${amount(Math.round(Number(body.amountCents)), proposal.currency)}. Pay what the books say, or ` +
+              `record a correction for the difference with its own reason.`,
+          },
+        },
+        { status: 409 }
+      )
+    }
+    if (String(body.reason ?? 'RATE_AMENDMENT_LATE') !== 'RATE_AMENDMENT_LATE') {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'Back pay for a pay change is paid as a rate change that landed after the cut-off.', field: 'reason' } },
+        { status: 422 }
+      )
+    }
+    body.reason = 'RATE_AMENDMENT_LATE'
+    backPayLines = payment.lines
+  }
+
   const verdict = checkOffCycle({
     amountCents: Math.round(Number(body.amountCents)),
     reason: String(body.reason ?? ''),
@@ -282,9 +350,11 @@ export async function POST(request: NextRequest) {
   // Deterministic, so a retried request does not pay somebody twice. The
   // pay day is part of the key because two off-cycle payments in one
   // period are legitimate — a correction and then a final settlement.
-  const sourceId = `offcycle:${sellContractId}:${personId}:${payOn
-    .toISOString()
-    .slice(0, 10)}:${String(body.reason)}`
+  const sourceId =
+    `offcycle:${sellContractId}:${personId}:${payOn.toISOString().slice(0, 10)}:${String(body.reason)}` +
+    // Back pay for two changes, or two periods, paid on one day is two
+    // payments, never one.
+    (rateHistoryId ? `:${rateHistoryId}:${periodStart.toISOString().slice(0, 10)}` : '')
 
   const written = await prisma.orderPosting.upsert({
     where: { source_sourceId_kind: { source: 'PAYROLL', sourceId, kind: 'PAY' } },
@@ -329,6 +399,19 @@ export async function POST(request: NextRequest) {
         reason: String(body.reason),
         periodStart: verdict.postedAt!.toISOString(),
         payOn: payOn.toISOString(),
+        // The days this back pay settles and by how much, exact — what
+        // the paid book reads so the next change is measured from here
+        // (lib/payroll-paid).
+        ...(backPayLines
+          ? {
+              rateHistoryId,
+              approvedById: realPersonId(caller),
+              backPay: backPayLines.map((l) => ({
+                buyContractId: l.buyContractId, personId: l.personId, timesheetId: l.timesheetId,
+                day: l.day, straightCents: l.straightCents, premiumCents: l.premiumCents,
+              })),
+            }
+          : {}),
       },
       reversible: true,
     },

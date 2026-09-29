@@ -7,6 +7,7 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { isConsultantSeat } from '@/lib/seat'
 import { lineFor, settleApproved, payPeriodsReached } from '@/lib/rate-line'
 import { assessRateChange } from '@/lib/contract-rate'
+import { proposeBackPay } from '@/lib/money/back-pay'
 
 /**
  * POST /api/rate-history/:id/approve   { action: 'approve' | 'reject', reason? }
@@ -200,6 +201,10 @@ export async function POST(
     ? await payPeriodsReached(amendment.contractId, amendment.fromDate, amendment.toDate)
     : []
   const paidAlready = reached.filter((p) => p.paid)
+  // Where a period was already paid at the old rate, the difference is
+  // worked out and proposed — never paid. A payroll desk approves it as
+  // an off-cycle payment (lib/money/back-pay).
+  const backPay = onBuy && action === 'approve' && paidAlready.length > 0 ? await proposeBackPay(id) : null
 
   await prisma.automationLog.create({
     data: {
@@ -215,6 +220,7 @@ export async function POST(
         effectiveFrom: amendment.fromDate.toISOString(),
         invoiceLinesAffected: affected,
         payPeriodsAffected: reached.map((p) => p.label),
+        backPayProposedCents: backPay?.applies ? backPay.figure.totalCents : null,
       },
       // An approval can be withdrawn while nothing has been paid against it.
       reversible: action === 'approve',
@@ -248,6 +254,22 @@ export async function POST(
       // On a pay line: every pay period the change reaches with hours in
       // it, and whether a run already paid it at the old rate.
       payPeriodsAffected: onBuy ? reached : null,
+      // What is owed on days already paid at the old rate, proposed for a
+      // payroll desk to approve. Null where nothing was paid yet.
+      backPay: backPay
+        ? backPay.applies
+          ? {
+              totalCents: backPay.figure.totalCents,
+              currency: backPay.currency,
+              weeks: backPay.figure.weeks,
+              payments: backPay.figure.periods.map((p) => ({
+                periodStart: p.periodStart, label: p.label, amountCents: p.amountCents,
+                sellContractId: p.sellContractId, personId: p.personId, weeks: p.weeks,
+              })),
+              says: backPay.says,
+            }
+          : { totalCents: null, currency, weeks: [], payments: [], says: backPay.says }
+        : null,
       message: action === 'approve'
         ? onBuy
           ? reached.length === 0
@@ -255,8 +277,8 @@ export async function POST(
             : `Approved. ${rate(amendment.rate, currency)} is paid from ${amendment.fromDate.toISOString().slice(0, 10)}, which reaches ` +
               `${reached.length} pay period${reached.length === 1 ? '' : 's'} already worked: ${reached.map((p) => p.label).join(', ')}.` +
               (paidAlready.length > 0
-                ? ` ${paidAlready.map((p) => p.label).join(', ')} ${paidAlready.length === 1 ? 'was' : 'were'} already paid at the old rate, ` +
-                  `and the difference is not paid by Etyme yet — settle it with your payroll provider.`
+                ? ` ${paidAlready.map((p) => p.label).join(', ')} ${paidAlready.length === 1 ? 'was' : 'were'} already paid at the old rate. ` +
+                  (backPay?.says ?? '')
                 : ' None of them has been paid yet, so each is paid at the new rate when it runs.')
           : affected > 0
           ? `Approved. ${rate(amendment.rate, currency)} applies from ${amendment.fromDate.toISOString().slice(0, 10)}, and ${affected} unpaid invoice ${affected === 1 ? 'line now bills' : 'lines now bill'} at it.`

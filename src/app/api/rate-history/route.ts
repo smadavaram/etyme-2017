@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { assessRateChange, rateInForce, ratePeriods } from '@/lib/contract-rate'
+import { proposeBackPay } from '@/lib/money/back-pay'
 import { lineFor, settleApproved } from '@/lib/rate-line'
 import { prisma } from '@/lib/db'
 
@@ -533,8 +534,24 @@ export async function POST(request: NextRequest) {
     return row
   })
 
+  // A change small enough to clear on its own is approved here, so it
+  // reaches days already paid exactly as an approved one does: the back
+  // pay is worked out and proposed, never paid (lib/money/back-pay).
+  const backPay = approvalState === 'APPROVED' && type === 'BUY' ? await proposeBackPay(entry.id) : null
+
   return NextResponse.json(
-    { data: { rateHistory: { id: entry.id, rate: entry.rate, fromDate: entry.fromDate.toISOString() } } },
+    {
+      data: {
+        rateHistory: { id: entry.id, rate: entry.rate, fromDate: entry.fromDate.toISOString(), approvalState },
+        backPay: backPay
+          ? {
+              totalCents: backPay.applies ? backPay.figure.totalCents : null,
+              weeks: backPay.applies ? backPay.figure.weeks : [],
+              says: backPay.says,
+            }
+          : null,
+      },
+    },
     { status: 201 }
   )
 }

@@ -261,3 +261,41 @@ export function overtimeSaysFor(weeks: SheetWeek[], only?: Set<string> | null): 
   }
   return parts.length ? parts.join(' ') : null
 }
+
+/**
+ * The wage facts for one person on one buy line, read the same way by
+ * every reader that prices their overtime.
+ */
+export function wageLineFor(
+  bc: {
+    contractType: string
+    vendorCompanyId: string | null
+    supplierSellContractId: string | null
+    payModel: string
+    overtimeAfterHours: number | null
+    overtimeMultiplierBps: number
+    company?: { name: string } | null
+  },
+  personName: string,
+  row: (Parameters<typeof assertionOf>[0] & { wageRule?: string | null }) | null | undefined
+): WageLine {
+  return {
+    personName,
+    contractType: bc.contractType,
+    // Ours to pay as a wage only where nobody sits between us and the worker.
+    weAreTheEmployer: !bc.vendorCompanyId && !bc.supplierSellContractId,
+    payModel: bc.payModel,
+    rule: ((row?.wageRule as WageRuleName | null | undefined) ?? 'US_FLSA'),
+    assertion: assertionOf(row),
+    contractPremiumBps: bc.overtimeAfterHours != null ? bc.overtimeMultiplierBps : null,
+    employerName: bc.company?.name ?? null,
+  }
+}
+
+/** The exempt position and the names a sentence needs, for a Prisma select. */
+export const EXEMPT_SELECT = {
+  personId: true, status: true, basis: true, wageRule: true, note: true,
+  assertedAt: true, reviewBy: true, assertedByCompanyId: true,
+  assertedByCompany: { select: { name: true } },
+  assertedBy: { select: { name: true } },
+} as const

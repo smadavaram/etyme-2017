@@ -7,9 +7,8 @@ import { daysFor } from '@/lib/contract-links'
 import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
 import { rateInForce, priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
-import { sheetOvertime, premiumByDay, overtimeSaysFor, assertionOf } from '@/lib/money/sheet-overtime'
+import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
-import type { WageRuleName } from '@/lib/worker-classification'
 
 /**
  * GET /api/payroll
@@ -66,14 +65,7 @@ export async function GET(request: NextRequest) {
       // and then the line's own columns answer, as they always did.
       workOrder: { select: ORDER_HEADER_SELECT },
       // Whether an hour over the line is owed a premium at all.
-      exemptAssertions: {
-        select: {
-          personId: true, status: true, basis: true, wageRule: true, note: true,
-          assertedAt: true, reviewBy: true, assertedByCompanyId: true,
-          assertedByCompany: { select: { name: true } },
-          assertedBy: { select: { name: true } },
-        },
-      },
+      exemptAssertions: { select: EXEMPT_SELECT },
       company: { select: { name: true } },
       // The rung below, where this firm buys from another. The hours are
       // filed on the supplier's contract, so a corp-to-corp buy contract
@@ -344,16 +336,7 @@ export async function GET(request: NextRequest) {
       // otherwise — and counted on the days in this period that carry
       // it. The same call the run makes, so the two show one figure.
       const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
-      const wageLine = {
-        personName: cand.person.name,
-        contractType: bc.contractType,
-        weAreTheEmployer: !bc.vendorCompanyId && !bc.supplierSellContractId,
-        payModel: bc.payModel,
-        rule: (row?.wageRule as WageRuleName) ?? 'US_FLSA',
-        assertion: assertionOf(row),
-        contractPremiumBps: bc.overtimeAfterHours != null ? bc.overtimeMultiplierBps : null,
-        employerName: bc.company?.name ?? null,
-      }
+      const wageLine = wageLineFor(bc, cand.person.name, row)
       const method = methodFor(bc).method
       let premiumExact = 0
       let overtimeHours = 0

@@ -58,11 +58,42 @@ export function paidKey(buyContractId: string, personId: string, timesheetId: st
   return `${buyContractId}|${personId}|${timesheetId}|${day}`
 }
 
+/** What a day has been paid in all, by every run and every back payment. */
+export interface PaidEntry {
+  hours: number
+  /** Exact cents for the straight time on `hours`, back pay included. */
+  straightCents: number
+  /** Hours over the line whose premium was paid. */
+  premiumHours: number
+  /** Exact cents of premium on them, back pay included. */
+  premiumCents: number
+  /**
+   * False where a run paid this day before the run priced overtime at
+   * all, so it paid no premium — and what premium the day should have
+   * carried is not a rate change's back pay to work out.
+   */
+  premiumRecorded: boolean
+}
+
+/** One day's back pay as a desk approved it, in the off-cycle log row. */
+export interface BackPaidLine {
+  buyContractId: string
+  personId: string
+  timesheetId: string
+  day: string
+  straightCents: number
+  premiumCents: number
+}
+
+export const PAYROLL_OFF_CYCLE = 'PAYROLL_OFF_CYCLE'
+
 export interface PaidBook {
   /** Hours already paid, by `paidKey`. */
   paid: Map<string, number>
   /** Overtime hours whose premium was already paid, by `paidKey`. */
   premiumHours: Map<string, number>
+  /** What each paid day has been paid in all, by `paidKey`. */
+  entries: Map<string, PaidEntry>
   /** Contracts with a run behind them that recorded no lines, and when it ran. */
   unrecorded: Map<string, string>
 }
@@ -83,11 +114,16 @@ export async function paidBook(companyId: string, buyContractIds: string[]): Pro
 
   const paid = new Map<string, number>()
   const premiumHours = new Map<string, number>()
+  const entries = new Map<string, PaidEntry>()
   const unrecorded = new Map<string, string>()
+  const entry = (k: string) => {
+    if (!entries.has(k)) entries.set(k, { hours: 0, straightCents: 0, premiumHours: 0, premiumCents: 0, premiumRecorded: true })
+    return entries.get(k)!
+  }
 
   for (const run of runs) {
     const p = (run.payload ?? {}) as {
-      contracts?: Array<{ buyContractId?: string; paid?: PaidLine[]; refused?: string | null }>
+      contracts?: Array<{ buyContractId?: string; paid?: PaidLine[]; refused?: string | null; premiumsPriced?: boolean }>
     }
     for (const c of p.contracts ?? []) {
       if (!c.buyContractId || !wanted.has(c.buyContractId)) continue
@@ -101,9 +137,34 @@ export async function paidBook(companyId: string, buyContractIds: string[]): Pro
         const k = paidKey(c.buyContractId, l.personId, l.timesheetId, l.day)
         paid.set(k, (paid.get(k) ?? 0) + Number(l.hours))
         if (l.overtimeHours) premiumHours.set(k, (premiumHours.get(k) ?? 0) + Number(l.overtimeHours))
+        const e = entry(k)
+        e.hours += Number(l.hours)
+        e.straightCents += Number(l.hours) * Number(l.rateCents)
+        e.premiumHours += Number(l.overtimeHours ?? 0)
+        e.premiumCents += Number(l.premiumCents ?? 0)
+        if (!c.premiumsPriced) e.premiumRecorded = false
       }
     }
   }
 
-  return { paid, premiumHours, unrecorded }
+  // Back pay a desk approved, as off-cycle payments. It raised what those
+  // days have been paid, so the next change is measured from here and
+  // the same difference is never proposed twice.
+  const backPaid = await prisma.automationLog.findMany({
+    where: { companyId, action: PAYROLL_OFF_CYCLE },
+    select: { payload: true },
+    orderBy: { at: 'asc' },
+  })
+  for (const row of backPaid) {
+    const lines = ((row.payload ?? {}) as { backPay?: BackPaidLine[] }).backPay
+    if (!Array.isArray(lines)) continue
+    for (const l of lines) {
+      if (!wanted.has(l.buyContractId)) continue
+      const e = entry(paidKey(l.buyContractId, l.personId, l.timesheetId, l.day))
+      e.straightCents += Number(l.straightCents) || 0
+      e.premiumCents += Number(l.premiumCents) || 0
+    }
+  }
+
+  return { paid, premiumHours, entries, unrecorded }
 }

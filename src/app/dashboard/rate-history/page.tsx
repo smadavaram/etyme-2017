@@ -214,6 +214,17 @@ export default function RateHistoryPage() {
       sortValue: (row) => new Date(row.fromDate).getTime(),
     },
     {
+      key: 'backPay',
+      label: 'Back pay',
+      render: (row) =>
+        row.contractType === 'BUY' && row.approvalState === 'APPROVED' ? (
+          <BackPayCell id={row.id} onPaid={fetchHistory} />
+        ) : (
+          <span className="text-etyme-faint">—</span>
+        ),
+      hideOnMobile: true,
+    },
+    {
       key: 'reason',
       label: 'Reason',
       render: (row) => (
@@ -512,5 +523,101 @@ function ChangeRate({ lines, onDone }: { lines: ChangeableLine[]; onDone: () => 
         )}
       </div>
     </form>
+  )
+}
+
+// ── Back pay ───────────────────────────────────────────────
+
+interface BackPayAnswer {
+  applies: boolean
+  totalCents: number | null
+  currency?: string
+  weeks: string[]
+  payments: Array<{ periodStart: string; label: string; amountCents: number; sellContractId: string; personId: string; weeks: string[] }>
+  says: string
+  mayPay: boolean
+}
+
+/**
+ * What an approved pay change owes on days already paid at the old rate.
+ *
+ * Proposed, never paid: a desk that runs payroll pays it as an off-cycle
+ * payment, one per pay period, and the route pays only the figure it
+ * works out itself.
+ */
+function BackPayCell({ id, onPaid }: { id: string; onPaid: () => void }) {
+  const [answer, setAnswer] = useState<BackPayAnswer | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+  const [paying, setPaying] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      const j = await readJson(await fetch(`/api/rate-history/${id}/back-pay`))
+      setAnswer(j.data)
+    } catch (e: any) {
+      setFailed(e.message)
+    }
+  }, [id])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function pay() {
+    if (!answer) return
+    if (!window.confirm(`${answer.says}\n\nPay it now as ${answer.payments.length === 1 ? 'an off-cycle payment' : `${answer.payments.length} off-cycle payments`}?`)) return
+    setPaying(true)
+    try {
+      for (const p of answer.payments) {
+        await readJson(
+          await fetch('/api/payroll/off-cycle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              rateHistoryId: id,
+              sellContractId: p.sellContractId,
+              personId: p.personId,
+              amountCents: p.amountCents,
+              reason: 'RATE_AMENDMENT_LATE',
+              periodStart: p.periodStart,
+              note: `Back pay for ${p.label}`,
+            }),
+          })
+        )
+      }
+      await load()
+      onPaid()
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setPaying(false)
+    }
+  }
+
+  if (failed) return <span className="text-[12px] text-etyme-faint" title={failed}>Not available</span>
+  if (!answer) return <span className="text-[12px] text-etyme-faint">…</span>
+  if (!answer.applies || !answer.totalCents) {
+    return (
+      <span className="text-[12px] text-etyme-muted block max-w-[260px]" title={answer.says}>
+        None
+      </span>
+    )
+  }
+  return (
+    <span className="block max-w-[260px]">
+      <span className="text-[12px] text-etyme-attention block" title={answer.says}>
+        {formatRate(answer.totalCents, answer.currency)} proposed
+      </span>
+      <span className="text-[11px] text-etyme-muted block">{answer.says}</span>
+      {answer.mayPay && (
+        <button
+          onClick={pay}
+          disabled={paying}
+          className="mt-1 px-2 py-1 bg-etyme-action text-white rounded text-[11px] font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {paying ? 'Paying…' : 'Pay off cycle'}
+        </button>
+      )}
+    </span>
   )
 }
