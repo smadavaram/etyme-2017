@@ -137,7 +137,7 @@ describe('No button promises what the site cannot give', () => {
     ]
     expect(labels.length, 'the guard reads real buttons').toBeGreaterThan(20)
     expect(labels).toContain('See it with a month of data')
-    expect(labels).toContain('Sit at a supplier’s desk →')
+    expect(labels).toContain('A supplier’s desk →')
     const promised = promisesAnAccount(labels)
     expect(promised, promised.join('\n')).toEqual([])
   })
@@ -169,10 +169,11 @@ describe('No button promises what the site cannot give', () => {
   it('the line about the price says why it is free, and still leads to what is settled', () => {
     // "What is settled →" read as a riddle beside "free while we prove it
     // out with the first five firms". The link now says what it answers,
-    // and it still goes to the paragraph on About that answers it.
-    expect(HOME).toContain('Why it’s free for the first five firms →')
+    // and it still goes to the paragraph on About that answers it. Since
+    // 2026-09-29 it is a row of the close's quick links.
+    expect(HOME).toContain('None set yet. Free for the first five firms →')
     expect(HOME).not.toContain('What is settled →')
-    const link = HOME.slice(HOME.lastIndexOf('<Link', HOME.indexOf('Why it’s free for the first five firms')))
+    const link = HOME.slice(HOME.lastIndexOf('<Link', HOME.indexOf('None set yet. Free for the first five firms')))
     expect(link).toMatch(/^<Link\s+href=\{'\/about#price' as Route\}/)
     expect(priceClaims(copyFrom(HOME).join(' '))).toEqual([])
   })

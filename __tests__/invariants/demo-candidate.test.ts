@@ -48,6 +48,6 @@ describe('the candidate demo is a real third door, not just the other two relabe
     const candidateDoors = doors.filter((d) => /side="CANDIDATE"/.test(d))
     expect(candidateDoors.length).toBeGreaterThanOrEqual(1)
     for (const door of candidateDoors) expect(door).not.toContain('bg-etyme-action')
-    expect(PAGE).toContain('See it as a candidate')
+    expect(PAGE).toContain('See it as a contractor')
   })
 })

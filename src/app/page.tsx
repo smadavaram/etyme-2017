@@ -227,6 +227,8 @@ const BAND = 'mx-auto max-w-6xl px-5 py-16 sm:px-6 md:py-24'
 const H2 = 'max-w-[30ch] text-balance font-serif text-[30px] leading-[1.12] tracking-[-0.02em] text-etyme-ink md:text-[40px]'
 const FIGURE = 'overflow-hidden rounded-r-lg border border-etyme-rule bg-etyme-raised shadow-lift'
 const CAPTION = 'px-4 py-3 text-[13px] leading-relaxed text-etyme-muted md:px-5'
+/** A link in the close's quick-links table: a text link, never a button. */
+const QUICK_LINK = 'text-etyme-action underline underline-offset-4 hover:opacity-80'
 
 /**
  * One scroll settles on one band. Not CSS scroll snapping: `proximity` did
@@ -446,82 +448,85 @@ export default function LandingPage() {
       {/* ── The close ───────────────────────────────────────────── */}
       {/* The same close every public page ends in (lib/public-site/
           close-band), with the ask form beside it here. What only this
-          page says at its close: the program office, once and quietly;
-          the price, in one line; and the two quieter doors, a supplier's
-          desk and a contractor's own page, as text links rather than
-          buttons, because this page is written to the company hiring. */}
+          page says at its close, as a table of quick links: where to
+          check us, the program office once and quietly, the price in one
+          row, and the two quieter doors — a supplier's desk and a
+          contractor's own page — as text links rather than buttons,
+          because this page is written to the company hiring. */}
       <CloseBand id="close" withForm>
-        {/* Where to check us, added 2026-09-28 on the founder's "our main
-            goal is registering as a trustworthy brand". An engineer
-            trusts what he can read, so this points at the two things on
-            the site that say more than a page can: every flow in public
-            documentation, and a security position that says what is not
-            done yet. No certification, no uptime and no customer count,
-            because none of them exists to point at. First of the small
-            print since the close became three cards (2026-09-28, night). */}
-        <p className="text-etyme-ink">
-          Before you trust us:{' '}
-          <Link
-            href={'/docs' as Route}
-            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-          >
-            the documentation is public
-          </Link>
-          , and{' '}
-          <Link
-            href={'/security' as Route}
-            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-          >
-            the security position says what is not built yet
-          </Link>
-          .
-        </p>
-        <p className="whitespace-normal">
-          If you would rather not staff a program office, Etyme can run it for you on the same record.{' '}
-          <Link
-            href={'/about#ways' as Route}
-            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-          >
-            How that works →
-          </Link>
-        </p>
-        <p id="why" className="scroll-mt-6">
-          There is no price on this page because we have not settled one. Etyme is free while we prove it out with the first five firms.{' '}
-          <Link
-            href={'/about#price' as Route}
-            className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-          >
-            Why it’s free for the first five firms →
-          </Link>
-        </p>
-        {/* The two quieter doors, as whole sentences. A buyer-side review,
-            2026-09-27, read "If you supply into a program instead" as a
-            page that had broken: it had no verb, and the two doors after
-            it were buttons, which a reader mode or a text extract drops.
-            So each door is a question that stands on its own, with the
-            door as its answer. Side by side on one line from sm.
-
-            Each door is a real link since e83e8797: TryDemo draws an <a>
-            with an address every reader sees, and a click still seats the
-            visitor at a desk in one step by posting to /api/demo. */}
-        <div className="flex flex-wrap gap-x-5 gap-y-1.5">
-          <p className="whitespace-normal">
-            <span className="font-semibold text-etyme-ink">Supply people to a program instead?</span>{' '}
-            <TryDemo
-              side="BENCH"
-              label="Sit at a supplier’s desk →"
-              className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-            />
-          </p>
-          <p className="whitespace-normal">
-            <span className="font-semibold text-etyme-ink">Work in a program as a contractor?</span>{' '}
-            <TryDemo
-              side="CANDIDATE"
-              label="See it as a candidate →"
-              className="text-etyme-action underline underline-offset-4 hover:opacity-80"
-            />
-          </p>
-        </div>
+        {/* The small print as quick links. Decided by the founder,
+            2026-09-29: "less prose" under the three cards. It was five
+            sentences; it is now a table of what a reader may want and
+            where it is, a few words a row and no sentences. The facts
+            stay, each on its own row:
+            - where to check us: the public documentation, and a security
+              position that says what is not built yet (the trust rule,
+              2026-09-28 — no certification, uptime or customer count,
+              because none exists to point at);
+            - the program office, once and quietly, as one row among six;
+            - the price: none set yet, free for the first five firms, and
+              never a number;
+            - the two quieter doors, a supplier's desk and a contractor's
+              own page, as text links, because this page is written to the
+              company hiring. Each is a real link (TryDemo draws an <a> to
+              /demo#supplier or /demo#candidate), and a click still seats
+              the visitor in one step.
+            It stays a table on a phone: two narrow columns whose cells
+            wrap, so nothing scrolls sideways at 390. */}
+        <table className="w-full table-fixed border-collapse text-left text-[13px] leading-snug">
+          <thead>
+            <tr className="border-b border-etyme-rule text-[10.5px] uppercase tracking-[0.08em] text-etyme-faint">
+              <th scope="col" className="w-1/2 py-1.5 pr-3 font-medium">If you want to…</th>
+              <th scope="col" className="w-1/2 py-1.5 font-medium">Go to</th>
+            </tr>
+          </thead>
+          <tbody className="text-etyme-ink">
+            <tr className="border-b border-etyme-rule/70">
+              <td className="py-1.5 pr-3 align-top">Read how it works</td>
+              <td className="py-1.5 align-top">
+                <Link href={'/docs' as Route} className={QUICK_LINK}>
+                  Documentation →
+                </Link>
+              </td>
+            </tr>
+            <tr className="border-b border-etyme-rule/70">
+              <td className="py-1.5 pr-3 align-top">See what is not built yet</td>
+              <td className="py-1.5 align-top">
+                <Link href={'/security' as Route} className={QUICK_LINK}>
+                  Security position →
+                </Link>
+              </td>
+            </tr>
+            <tr className="border-b border-etyme-rule/70">
+              <td className="py-1.5 pr-3 align-top">Have Etyme run your program office</td>
+              <td className="py-1.5 align-top">
+                <Link href={'/about#ways' as Route} className={QUICK_LINK}>
+                  How that works →
+                </Link>
+              </td>
+            </tr>
+            <tr id="why" className="scroll-mt-6 border-b border-etyme-rule/70">
+              <td className="py-1.5 pr-3 align-top">Know the price</td>
+              <td className="py-1.5 align-top">
+                <Link href={'/about#price' as Route} className={QUICK_LINK}>
+                  None set yet. Free for the first five firms →
+                </Link>
+              </td>
+            </tr>
+            <tr className="border-b border-etyme-rule/70">
+              <td className="py-1.5 pr-3 align-top">See it as a supplier</td>
+              <td className="py-1.5 align-top">
+                <TryDemo side="BENCH" label="A supplier’s desk →" className={QUICK_LINK} />
+              </td>
+            </tr>
+            <tr>
+              <td className="py-1.5 pr-3 align-top">See it as a contractor</td>
+              <td className="py-1.5 align-top">
+                <TryDemo side="CANDIDATE" label="A contractor’s own page →" className={QUICK_LINK} />
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </CloseBand>
       </main>
 

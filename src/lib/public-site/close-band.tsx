@@ -19,9 +19,10 @@ import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, ASK_A_PERSON } from './funnel'
  * the form on the contact page.
  *
  * `children` is for what one page must say at its close and no other
- * page should: the home page's small print — where to check us, the
- * program office once and quietly, the one line on price, and the two
- * quieter doors. Anything that belongs on every page belongs in
+ * page should: the home page's quick-links table (2026-09-29, "less
+ * prose") — where to check us, the program office once and quietly, the
+ * one row on price, and the two quieter doors. Anything that belongs on
+ * every page belongs in
  * `./funnel`, where the guard reads it.
  */
 
@@ -95,7 +96,7 @@ export function CloseBand({
         </div>
 
         {children && (
-          <div className="mt-5 space-y-1.5 border-t border-etyme-rule pt-4 text-[13px] leading-snug text-etyme-muted md:mt-8">
+          <div className="mt-5 max-w-2xl border-t border-etyme-rule pt-3 text-[13px] leading-snug text-etyme-muted md:mt-8">
             {children}
           </div>
         )}

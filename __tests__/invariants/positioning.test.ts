@@ -525,10 +525,11 @@ describe('Below the hero, the page says what the business is', () => {
     // Addressing hiring companies, primes, subs and bench operators as
     // four equals is the plan from before the client became the customer
     // on 2026-09-10. The home page gives a supplier one quiet door in its
-    // close; the paragraph written to a supplier is on About beside the
-    // two ways to run it, and prime, sub and bench on the chain page.
+    // close — a row of its quick links since 2026-09-29; the paragraph
+    // written to a supplier is on About beside the two ways to run it,
+    // and prime, sub and bench on the chain page.
     expect(ABOUT_PAGE).toContain('you are on it because your client is')
-    expect(PAGE).toContain('Supply people to a program instead?')
+    expect(PAGE).toContain('See it as a supplier')
     for (const position of ['prime', 'sub', 'bench']) {
       expect(CHAIN_PAGE.toLowerCase(), position).toContain(position)
     }
@@ -537,9 +538,9 @@ describe('Below the hero, the page says what the business is', () => {
   it('writes to the client before it writes to anybody who supplies the client', () => {
     // On the home page, the client's doors come before the supplier's.
     // On About, the client's answers come before the supplier's paragraph.
-    expect(PAGE.indexOf('withForm')).toBeLessThan(PAGE.indexOf('Supply people to a program instead?'))
+    expect(PAGE.indexOf('withForm')).toBeLessThan(PAGE.indexOf('See it as a supplier'))
     for (const first of ['steps', 'join']) {
-      expect(at(first), `#${first} should come before the supplier's door`).toBeLessThan(PAGE.indexOf('Supply people to a program instead?'))
+      expect(at(first), `#${first} should come before the supplier's door`).toBeLessThan(PAGE.indexOf('See it as a supplier'))
     }
     expect(aboutAt('answered')).toBeLessThan(aboutAt('ways'))
   })
@@ -659,10 +660,13 @@ describe('Below the hero, the page says what the business is', () => {
   it('says plainly that the price is not settled, rather than saying nothing about money', () => {
     // A page with no price makes a reader assume enterprise sales and
     // leave. Silence is worse than "we are still deciding". One short
-    // line near the close since 2026-09-27, and the rest on About.
-    expect(body).toContain('There is no price on this page because we have not settled one')
-    expect(body).toContain('Etyme is free while we prove it out with the first five firms')
-    expect(at('why')).toBeGreaterThan(at('ways'))
+    // line near the close since 2026-09-27, and the rest on About. Since
+    // 2026-09-29 it is one row of the close's quick links: the reader
+    // wants to know the price, and the answer is that none is set yet
+    // and it is free for the first five firms.
+    expect(body).toContain('Know the price')
+    expect(body).toContain('None set yet. Free for the first five firms')
+    expect(at('why')).toBeGreaterThan(at('close'))
   })
 
   it('says the things about the commercials that are settled, on About', () => {
@@ -1032,9 +1036,11 @@ describe('The record is the product, and the program office is offered quietly',
   it('leads with the record and offers the program office in one quiet sentence under it', () => {
     // Since 2026-09-27 the hero is the headline, the category and the hook,
     // and the offer is one quiet sentence in the close, after the three
-    // ways forward — never in the hero.
-    const offer = 'If you would rather not staff a program office, Etyme can run it for you on the same record.'
+    // ways forward — never in the hero. Since 2026-09-29 the sentence is
+    // one row of the close's quick links, the same offer in six words.
+    const offer = 'Have Etyme run your program office'
     expect(all).toContain(offer)
+    expect(offersTheProgramOffice(offer)).toEqual([offer])
     expect(offersTheProgramOffice(hero)).toEqual([])
     expect(PAGE.indexOf(offer)).toBeGreaterThan(at('close'))
     // And the sentence it replaced is gone. "You choose how to use it"
@@ -1152,7 +1158,7 @@ describe('The record is the product, and the program office is offered quietly',
     // is going to do something about it. On the home page the offer is in
     // the close, after the line about teams; on About the two ways come
     // after the answers.
-    const offer = PAGE.indexOf('If you would rather not staff a program office')
+    const offer = PAGE.indexOf('Have Etyme run your program office')
     expect(offer).toBeGreaterThan(at('join'))
     expect(aboutAt('ways')).toBeGreaterThan(aboutAt('answered'))
   })
@@ -1172,7 +1178,7 @@ describe('The record is the product, and the program office is offered quietly',
       const found = priceClaims(text)
       expect(found, found.join('; ')).toEqual([])
     }
-    expect(body).toContain('There is no price on this page because we have not settled one')
+    expect(body).toContain('None set yet. Free for the first five firms')
   })
 
   it('tells a supplier what a program Etyme runs changes for them, in outcomes', () => {
@@ -1466,29 +1472,31 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     expect(PAGE).not.toMatch(/side="CANDIDATE"[\s\S]{0,240}bg-etyme-action/)
   })
 
-  it('says each quieter door as a whole question, so a reader who never sees the button still reads a finished sentence', () => {
+  it('says what each quieter door is for beside it, so a reader who never sees the link still reads what it was for', () => {
     // A buyer-side review, 2026-09-27: "If you supply into a program
     // instead" had no verb, and the two buttons after it are skipped by a
     // reader mode or a text extract, so the page read as if it had broken.
+    // Since 2026-09-29 each door is a row of the close's quick links, and
+    // the row's first cell says, with a verb, what the reader wants.
     const door = (side: string) => {
       const i = PAGE.indexOf(`side="${side}"`)
-      const para = PAGE.lastIndexOf('<p ', i)
-      return copyFrom(PAGE.slice(para, i)).join(' ')
+      const row = PAGE.lastIndexOf('<tr', i)
+      return copyFrom(PAGE.slice(row, i)).join(' ')
     }
-    expect(door('BENCH')).toBe('Supply people to a program instead?')
-    expect(door('CANDIDATE')).toBe('Work in a program as a contractor?')
+    expect(door('BENCH')).toBe('See it as a supplier')
+    expect(door('CANDIDATE')).toBe('See it as a contractor')
     for (const side of ['BENCH', 'CANDIDATE']) {
-      expect(withoutVerb([door(side).replace(/\?$/, '')]), side).toEqual([])
+      expect(withoutVerb([door(side)]), side).toEqual([])
     }
     expect(copyFrom(PAGE).join(' ')).not.toContain('If you supply into a program instead')
   })
 
   it('keeps the supplier door second and quieter than the client one', () => {
     // A supplier is welcome and is not who this page is written to.
-    expect(PAGE).toContain('Supply people to a program instead?')
+    expect(PAGE).toContain('See it as a supplier')
     expect(PAGE).toContain('side="BENCH"')
     expect(PAGE.indexOf('{`${SEE_IT.t} →`}'))
-      .toBeLessThan(PAGE.indexOf('Supply people to a program instead?'))
+      .toBeLessThan(PAGE.indexOf('See it as a supplier'))
     expect(PAGE).not.toMatch(/side="BENCH"[\s\S]{0,240}bg-etyme-action/)
   })
 
@@ -1804,7 +1812,7 @@ describe('The public page still says the four things it may not stop saying', ()
     // is a figure we have to walk back.
     const found = priceClaims(all)
     expect(found, found.join('; ')).toEqual([])
-    expect(body).toContain('There is no price on this page because we have not settled one')
+    expect(body).toContain('None set yet. Free for the first five firms')
   })
 
   it('nothing on the public page claims Etyme places anybody', () => {
@@ -1896,7 +1904,7 @@ function readerWords(): number {
 }
 
 /** The most words the home page may carry between its header and footer. */
-const CEILING = 555
+const CEILING = 505
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -1909,8 +1917,8 @@ function band(id: string): string {
 
 describe('The home page reads as a product page, and every band leads deeper', () => {
 
-  it('the home page is five bands and under 560 words, and the eight parts are one band of tiles a line each', () => {
-    // The ceiling is 555 words between the header and the footer, and
+  it('the home page is five bands and under 510 words, and the eight parts are one band of tiles a line each', () => {
+    // The ceiling is 505 words between the header and the footer, and
     // this is the arithmetic. On 2026-09-27 the founder said the page was
     // still too big at 1,280 words in seven bands, and the target he was
     // given is about five hundred. It went to five bands at 582 words the
@@ -1940,6 +1948,12 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // system" (a word shorter), and the bills tile carries the three-way
     // check's definition in his words, fourteen words where the old line
     // had ten. 552, under the same ceiling of 555.
+    //
+    // On 2026-09-29 the founder asked for less prose under the close's
+    // three cards. The five sentences there — where to check us, the
+    // program office, the price, and the two quieter doors — became a
+    // table of six quick links, a few words a row. 542 before, 502 after,
+    // and the ceiling came down from 555 to 505.
     //
     // The CRO's "too much data" still binds: the tiles carry no
     // screenshots, and each is a name and one line.
@@ -2361,7 +2375,8 @@ describe('The site says what it does and shows it, and claims nothing a reader c
     const close = PAGE.slice(PAGE.indexOf('<CloseBand'))
     expect(close).toContain("href={'/docs' as Route}")
     expect(close).toContain("href={'/security' as Route}")
-    expect(all).toContain('the security position says what is not built yet')
+    expect(all).toContain('See what is not built yet')
+    expect(all).toContain('Security position')
     expect(existsSync(join(process.cwd(), 'src/app/(site)/security/page.tsx'))).toBe(true)
     expect(existsSync(join(process.cwd(), 'src/app/(site)/docs/page.tsx'))).toBe(true)
     expect(PAGE).not.toMatch(/href=\{?['"]\/ready/)
