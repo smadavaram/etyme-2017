@@ -142,6 +142,7 @@ export default function DemoPage() {
             </p>
             <ul className="list-disc space-y-0.5 pl-5">
               <li>Primes: the suppliers the client pays.</li>
+              <li>Not only IT: a nurse staffing firm and a plant maintenance staffing firm.</li>
               <li>A bench vendor below a prime. The client never learns its name.</li>
               <li>Two program offices, which work inside a client&rsquo;s program without being the client.</li>
               <li>Two integrators, which staff a job with their own employees.</li>

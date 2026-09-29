@@ -301,6 +301,31 @@ export const SUPPLIER_SEATS: Program[] = [
       'Sells only to the prime above it, and never learns which hospital the job is at. Buys ' +
       'from nobody: it employs its own people.',
   },
+  // Two suppliers outside IT, 2026-09-29 (lib/seed-sector-suppliers).
+  // CLAUDE.md: horizontal, never vertical. Until these, every supplier
+  // door on the page sold software people.
+  {
+    slug: 'world-sorrelwood',
+    name: 'Sorrelwood Clinical Staffing',
+    where: 'Healthcare supplier, direct to the client',
+    industry: 'Healthcare staffing · occupational health nursing',
+    waiting:
+      'Its nurse’s latest week at Talvern Medical is filed. It waits for Talvern’s hiring manager to sign it.',
+    about:
+      'Supplies nurses and allied health staff. Sells an occupational health nurse to Talvern ' +
+      'Medical. It employs her, so it buys from nobody. Her state nursing license is on file.',
+  },
+  {
+    slug: 'world-quarrystone',
+    name: 'Quarrystone Industrial Staffing',
+    where: 'Industrial supplier, direct to the client',
+    industry: 'Engineering and industrial staffing · plant maintenance',
+    waiting:
+      'Its technician’s weeks at the glass plant are signed by both sides. None of them is billed yet.',
+    about:
+      'Supplies maintenance and quality staff to plants. Sells a forming line maintenance ' +
+      'technician to Cavanaugh Glassworks. It employs him, so it buys from nobody.',
+  },
 ]
 
 /**

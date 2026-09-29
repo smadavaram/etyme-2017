@@ -48,6 +48,7 @@ async function census() {
     postings: await prisma.orderPosting.count({ where: { personId } }),
     cycles: await prisma.cycle.count({ where: { OR: [{ sellContractId: sellId }, { buyContractId: buyId }] } }),
     people: await prisma.person.count(),
+    verifications: await prisma.verification.count({ where: { personId } }),
   }
 }
 

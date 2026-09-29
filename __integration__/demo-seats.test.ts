@@ -169,16 +169,18 @@ describe('every seat on the demo page opens', () => {
     await seedWorld()
   }, 600_000)
 
-  it('offers eleven company doors and six people — three programs, four suppliers, two program offices, two integrators', () => {
+  it('offers thirteen company doors and six people — three programs, six suppliers, two program offices, two integrators', () => {
     // Eleven since 2026-09-21: Brightmoor Staffing, the one firm whose
     // nine supplier desks are seated, and Kestrel MSP, which sits at a
     // client's compliance desk rather than its program manager's.
-    expect(ALL_SEATS).toHaveLength(11)
+    // Thirteen since 2026-09-29: Sorrelwood Clinical Staffing and
+    // Quarrystone Industrial Staffing, so the suppliers are not all IT.
+    expect(ALL_SEATS).toHaveLength(13)
     // Six since 2026-09-29: Rosa Delgado, whose pay rose in month six.
     expect(CANDIDATE_SEATS).toHaveLength(6)
   })
 
-  it('names a company the seed actually builds, for every one of the seven', async () => {
+  it('names a company the seed actually builds, for every door on the page', async () => {
     for (const s of ALL_SEATS) {
       const company = await prisma.company.findUnique({ where: { slug: s.slug } })
       expect(company, `${s.name} (${s.slug}) is on the page and not in the world`).toBeTruthy()

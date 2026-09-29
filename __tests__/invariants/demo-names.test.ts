@@ -72,6 +72,10 @@ const SURFACES: Record<string, string> = {
   'src/lib/seed-standing.ts': read('src/lib/seed-standing.ts'),
   'src/lib/seed-order-to-cash.ts': read('src/lib/seed-order-to-cash.ts'),
   'src/lib/seed-pipeline.ts': read('src/lib/seed-pipeline.ts'),
+  // 2026-09-29: the pay rise and the two suppliers outside IT name their
+  // own firms and people, so the wall reads them too.
+  'src/lib/seed-rate-change.ts': read('src/lib/seed-rate-change.ts'),
+  'src/lib/seed-sector-suppliers.ts': read('src/lib/seed-sector-suppliers.ts'),
   'src/lib/demo-seed.ts': read('src/lib/demo-seed.ts'),
   'src/lib/demo-seed-client.ts': read('src/lib/demo-seed-client.ts'),
   'src/lib/demo-seed-consultant.ts': read('src/lib/demo-seed-consultant.ts'),

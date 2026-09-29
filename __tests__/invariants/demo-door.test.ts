@@ -45,13 +45,14 @@ describe('the demo door opens on the client', () => {
     }
   })
 
-  it('offers three programs, eight supplying firms and six people', () => {
+  it('offers three programs, ten supplying firms and six people', () => {
     // Eight since 2026-09-21: Brightmoor Staffing, whose nine desks are
     // the only place a supplier's own roles can be walked, and Kestrel
     // MSP, which sits at a client's compliance desk rather than its
-    // program manager's.
+    // program manager's. Ten since 2026-09-29: a clinical staffing firm
+    // and an industrial one, so the suppliers are not all IT.
     expect(CLIENT_PROGRAMS).toHaveLength(3)
-    expect([...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]).toHaveLength(8)
+    expect([...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]).toHaveLength(10)
     expect(CANDIDATE_SEATS).toHaveLength(6)
   })
 
@@ -317,5 +318,15 @@ describe('the demo shows the spread of industries', () => {
     const first = (x: string) => x.split('·')[0].trim()
     expect(new Set(CLIENT_PROGRAMS.map((p) => first(p.industry))).size).toBe(3)
     expect(new Set(CANDIDATE_SEATS.map((c) => first(c.industry))).size).toBe(6)
+  })
+
+  // CLAUDE.md: horizontal, never vertical. Until 2026-09-29 every
+  // supplier door sold software people, so a reader took the product for
+  // IT staffing software.
+  it("the demo's suppliers cover healthcare and engineering as well as IT", () => {
+    const lines = SUPPLIER_SEATS.map((s) => s.industry)
+    expect(lines.some((l) => /^Healthcare staffing/.test(l)), lines.join(' | ')).toBe(true)
+    expect(lines.some((l) => /^Engineering and industrial staffing/.test(l)), lines.join(' | ')).toBe(true)
+    expect(lines.some((l) => /\bIT\b/.test(l)), lines.join(' | ')).toBe(true)
   })
 })

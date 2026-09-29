@@ -42,6 +42,7 @@ import { seedCalendar, holidayKeys } from '@/lib/seed-calendar'
 import { seedStanding } from '@/lib/seed-standing'
 import { seedOrderToCash } from '@/lib/seed-order-to-cash'
 import { seedRateChange } from '@/lib/seed-rate-change'
+import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
 import { seedPipeline } from '@/lib/seed-pipeline'
 import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
 import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
@@ -134,6 +135,14 @@ const FIRMS: Firm[] = [
   // papered an MSA first, and nothing in the product asks them to. What
   // it has on its books is the `direct` block in lib/seed-programmes.
   { slug: 'wrenfield',        name: 'Wrenfield Technical',  kind: 'VENDOR',  seat: 'Account manager', who: 'Dale Kirkbride' },
+
+  // Two suppliers that are not IT staffing, 2026-09-29: a clinical
+  // staffing firm at Talvern Medical and an industrial one at Cavanaugh
+  // Glassworks. Horizontal, never vertical. What each has on its books
+  // is in lib/seed-sector-suppliers.
+  ...SECTOR_SUPPLIERS.map((s): Firm => ({
+    slug: s.slug, name: s.name, kind: 'VENDOR', seat: 'Owner', who: SECTOR_OWNERS[s.slug],
+  })),
 ]
 
 /**
@@ -1456,19 +1465,30 @@ export async function seedWorld(): Promise<{
   // Order matters once: the orders need somewhere to ship to, so standing
   // writes the locations first.
   const ctx = { firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX, roster: [...WORLD_SLUGS] }
-  const standing = await seedStanding(ctx)
   // A pay rise in the middle of a placement (lib/seed-rate-change).
   // Before the order-to-cash layer rather than after it, because that
   // layer reads every running line: it raises the order her line sits
   // on, posts her signed weeks to the books and writes her opening bill
   // rate. Written after it, all three would land on the second seeding
   // instead of the first, and a second seeding must write nothing.
+  //
+  // And before standing, for the same reason one layer earlier: standing
+  // puts the document an I-9 was completed from behind every I-9 it
+  // finds, so an I-9 written after it gained its passport on the second
+  // seeding instead of the first.
   await seedRateChange(ctx)
+  // The two suppliers outside IT (lib/seed-sector-suppliers), before
+  // standing and the order-to-cash layer for the same two reasons.
+  await seedSectorSuppliers(ctx)
+  const standing = await seedStanding(ctx)
   const cash = await seedOrderToCash(ctx)
   const pipeline = await seedPipeline(ctx)
   // What each order asks for on paper. Last of all, because it hangs off
   // the orders `seedOrderToCash` raised a moment ago.
   const paperwork = await seedDocumentRequirements(ctx)
+  // The papers those two workers owe on their lines, signed. After the
+  // order's set exists, because the set is what says which papers.
+  await seedSectorPapers(ctx)
 
   // ── A firm with a seat took possession of itself ───────────────────
   //
