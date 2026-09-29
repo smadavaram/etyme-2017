@@ -85,11 +85,18 @@ describe('a deployment with staff named', () => {
     expect(r.body.data.mayReseed).toBe(true)
   })
 
-  it('and can actually seed the world, with no secret anywhere near the browser', async () => {
+  it('and can actually seed the world, with no secret anywhere near the browser, pressing until it says complete', async () => {
     as(STAFF)
-    const r = await json(await seed(req('POST', '/api/seed-world')))
-    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect(r.body.data.firms).toBeGreaterThan(0)
+    // The world seeds in steps, each call as many as fit (lib/seed-steps),
+    // so the button keeps asking until the answer says done.
+    let done = false
+    for (let call = 0; call < 20 && !done; call++) {
+      const r = await json(await seed(req('POST', '/api/seed-world')))
+      expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+      if (call === 0) expect(r.body.data.ran.length).toBeGreaterThan(0)
+      done = r.body.data.done
+    }
+    expect(done).toBe(true)
     expect(await prisma.company.count({ where: { slug: { startsWith: 'world-' } } })).toBeGreaterThan(0)
   }, 240_000)
 
@@ -98,6 +105,8 @@ describe('a deployment with staff named', () => {
     as(STAFF)
     const r = await json(await seed(req('POST', '/api/seed-world')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    // Nothing left to do, so nothing is done.
+    expect(r.body.data).toMatchObject({ done: true, ran: [] })
     expect(await prisma.company.count({ where: { slug: { startsWith: 'world-' } } })).toBe(firms)
   }, 240_000)
 
