@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 
-import { POST as proposeRate } from '@/app/api/rate-history/route'
+import { POST as proposeRate, GET as rateHistory } from '@/app/api/rate-history/route'
 import { POST as decideRate } from '@/app/api/rate-history/[id]/approve/route'
 import { POST as runPayroll } from '@/app/api/payroll/run/route'
 import { GET as payroll } from '@/app/api/payroll/route'
@@ -292,6 +292,30 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
     const item = r.body.data.payItems.find((x: any) => x.buyContractId === buyId)
     expect(item.grossPay).toBe(expected('2026-07-01', '2026-07-31').cents)
     expect(item.payRate).toBe(7_000)
+  })
+
+  it("reads no next pay date for Priya once her last one has passed, and names every one before today still open as overdue, oldest first", async () => {
+    // Pay dates at the end of February to August; only June's was run.
+    // Today is past all of them, so none is "next" — and the six left
+    // open are overdue, oldest 27 February. Never the last one generated.
+    const r = await call(owner, payroll, 'GET', `/api/payroll?period=2026-07&companyId=${firmId}`)
+    const item = r.body.data.payItems.find((x: any) => x.buyContractId === buyId)
+    const today = new Date().toISOString().slice(0, 10)
+    const open = ['2026-02-27', '2026-03-31', '2026-04-30', '2026-05-29', '2026-07-31', '2026-08-31']
+    const late = open.filter((x) => x < today)
+    expect(item.nextPayDate?.slice(0, 10) ?? null).toBe(open.find((x) => x >= today) ?? null)
+    expect(item.payDatesOverdue.count).toBe(late.length)
+    expect(item.payDatesOverdue.earliest.slice(0, 10)).toBe('2026-02-27')
+  })
+
+  it('shows on Rate History that one desk proposed the rise and a different desk approved it', async () => {
+    const r = await call(owner, rateHistory, 'GET', '/api/rate-history')
+    expect(r.status).toBe(200)
+    const row = r.body.data.rateHistory.find((x: any) => x.id === rise)
+    expect(row.changedById).toBe(owner.personId)
+    expect(row.approvedById).toBe(second.personId)
+    expect(row.approvedByName).toBe('Marta Oyelaran')
+    expect(row.approvedByName).not.toBe(row.changedByName)
   })
 
   it('puts the week of the rise on the payroll file as sixteen hours at $66 and twenty-four at $70', async () => {

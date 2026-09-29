@@ -181,8 +181,12 @@ export async function GET(request: NextRequest) {
       orderBy: { fromDate: 'desc' },
     })
 
-    // Resolve changedBy person names
-    const changedByIds = Array.from(new Set(history.map((h) => h.changedById)))
+    // Resolve who proposed each change and who decided it. The two are
+    // different desks by rule — nobody approves their own — and a screen
+    // naming only the proposer cannot show that a second desk said yes.
+    const changedByIds = Array.from(
+      new Set(history.flatMap((h) => [h.changedById, ...(h.approvedById ? [h.approvedById] : [])]))
+    )
     const changedByPersons = changedByIds.length > 0
       ? await prisma.person.findMany({
           where: { id: { in: changedByIds } },
@@ -213,6 +217,9 @@ export async function GET(request: NextRequest) {
             // which is the whole point of putting it behind approval.
             approvalState: h.approvalState,
             approvedAt: h.approvedAt?.toISOString() ?? null,
+            // Who approved or rejected it. Null while it waits.
+            approvedById: h.approvedById,
+            approvedByName: h.approvedById ? personNameMap.get(h.approvedById) ?? 'Unknown' : null,
             createdAt: h.createdAt.toISOString(),
             personName: info?.personName ?? 'Unknown',
             contractLabel: info?.contractLabel ?? `${h.contractType} contract`,

@@ -221,6 +221,7 @@ export async function GET(request: NextRequest) {
         : new Map()
 
     return {
+      personId: s.personId,
       personName: s.person.name,
       // No payroll id model yet — reported as missing rather than
       // guessed, because ADP matches on their file number and a row

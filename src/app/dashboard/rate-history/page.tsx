@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { amount as formatRate, rate as perHour, rateMovement } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { decimalsFor } from '@/lib/money'
+import { decidedBy } from '@/lib/money/pay-words'
 
 /**
  * Rate History working surface.
@@ -35,6 +36,8 @@ interface RateHistoryRecord {
   previousRate: number | null  // cents
   approvalState: string        // PROPOSED · APPROVED · REJECTED
   approvedAt: string | null
+  /** Who approved or rejected it; null while it waits. */
+  approvedByName?: string | null
   createdAt: string
   personName: string
   contractLabel: string
@@ -192,11 +195,20 @@ export default function RateHistoryPage() {
     },
     {
       key: 'changedByName',
-      label: 'Changed By',
+      label: 'Proposed by',
       render: (row) => (
         <span className="text-etyme-muted text-[12px]">{row.changedByName}</span>
       ),
       sortValue: (row) => row.changedByName,
+      hideOnMobile: true,
+    },
+    {
+      key: 'approvedByName',
+      label: 'Decided by',
+      render: (row) => (
+        <span className="text-etyme-muted text-[12px]">{decidedBy(row)}</span>
+      ),
+      sortValue: (row) => row.approvedByName ?? '',
       hideOnMobile: true,
     },
     {

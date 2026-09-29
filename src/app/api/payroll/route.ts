@@ -9,6 +9,7 @@ import { rateInForce, priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
+import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
 
 /**
  * GET /api/payroll
@@ -169,12 +170,16 @@ export async function GET(request: NextRequest) {
   }
 
   const payItems = buyContracts.flatMap((bc) => {
-    const nextSalaryCycle = bc.buyCycles.find(
-      (c) => c.kind === 'SALARY_PAY' && !c.completedAt
-    )
-    const nextCalcCycle = bc.buyCycles.find(
-      (c) => c.kind === 'SALARY_CALCULATE' && !c.completedAt
-    )
+    // Whether anything is still open decides the status, as it always
+    // did. What the screen calls "next" is the earliest open date from
+    // today on — never the last one generated — and open dates before
+    // today are overdue, said beside it (lib/money/next-cycle).
+    const nextSalaryCycle = nextOpen(bc.buyCycles, 'SALARY_PAY')
+    const nextCalcCycle = nextOpen(bc.buyCycles, 'SALARY_CALCULATE')
+    const today = todayUtc()
+    const comingPay = nextOpen(bc.buyCycles, 'SALARY_PAY', today)
+    const comingCalc = nextOpen(bc.buyCycles, 'SALARY_CALCULATE', today)
+    const overduePay = overdueOpen(bc.buyCycles, 'SALARY_PAY', today)
 
     return bc.candidates.map((cand) => {
       // The link windows, so a timesheet is only counted for the period
@@ -415,8 +420,13 @@ export async function GET(request: NextRequest) {
         premiumCents,
         overtime: said.length ? said.join(' ') : null,
         payStatus,
-        nextPayDate: nextSalaryCycle?.dueOn.toISOString() ?? null,
-        nextCalcDate: nextCalcCycle?.dueOn.toISOString() ?? null,
+        nextPayDate: comingPay?.dueOn.toISOString() ?? null,
+        nextCalcDate: comingCalc?.dueOn.toISOString() ?? null,
+        // Pay dates before today still open: how many, and the oldest.
+        payDatesOverdue: {
+          count: overduePay.count,
+          earliest: overduePay.earliest?.toISOString() ?? null,
+        },
       }
     })
   })

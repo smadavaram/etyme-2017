@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { ratesSay } from '@/lib/money/pay-words'
 
 import { useEffect, useState, useCallback } from 'react'
 import { compact as formatRate } from '@/lib/money-display'
@@ -46,6 +47,8 @@ interface PayItem {
   contractType: string
   state: string
   payRate: number
+  /** Each rate and its hours, where the rate changed inside the period. */
+  rates?: Array<{ rateCents: number; hours: number }> | null
   payCurrency: string
   vendorCompany: { id: string; name: string } | null
   entity: { id: string; name: string } | null
@@ -70,6 +73,8 @@ interface PayItem {
   payStatus: string
   nextPayDate: string | null
   nextCalcDate: string | null
+  /** Pay dates before today still open. */
+  payDatesOverdue?: { count: number; earliest: string | null }
 }
 
 interface PayrollSummary {
@@ -126,6 +131,14 @@ function stateLabel(state: string): string {
 }
 
 // ── Format helpers ───────────────────────────────────
+
+/**
+ * A cycle date as the day it is. Cycle dates are midnight UTC, and
+ * `toLocaleDateString()` in a US browser showed each one a day early.
+ */
+function utcDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
 
 function formatCents(cents: number): string {
   return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -360,6 +373,11 @@ export default function PayrollPage() {
       render: (row) => (
         <span className="tabular-nums">
           {formatRate(row.payRate)}<span className="text-etyme-faint">/hr</span>
+          {/* A period paid at two rates says both, the way the payroll
+              file splits it — never one rate over the whole period. */}
+          {ratesSay(row.rates, row.payCurrency) && (
+            <span className="block text-[11px] text-etyme-muted">{ratesSay(row.rates, row.payCurrency)}</span>
+          )}
         </span>
       ),
       sortValue: (row) => row.payRate,
@@ -447,13 +465,18 @@ export default function PayrollPage() {
       key: 'nextPay',
       label: 'Next pay',
       render: (row) => (
-        row.nextPayDate ? (
-          <span className="text-etyme-muted text-[12px] tabular-nums">
-            {new Date(row.nextPayDate).toLocaleDateString()}
-          </span>
-        ) : (
-          <span className="text-etyme-faint">—</span>
-        )
+        <span className="text-[12px] tabular-nums">
+          {row.nextPayDate ? (
+            <span className="text-etyme-muted">{utcDay(row.nextPayDate)}</span>
+          ) : (
+            <span className="text-etyme-faint">—</span>
+          )}
+          {(row.payDatesOverdue?.count ?? 0) > 0 && row.payDatesOverdue!.earliest && (
+            <span className="block text-[11px] text-etyme-attention">
+              {row.payDatesOverdue!.count} overdue, from {utcDay(row.payDatesOverdue!.earliest)}
+            </span>
+          )}
+        </span>
       ),
       sortValue: (row) => row.nextPayDate ? new Date(row.nextPayDate).getTime() : 0,
       align: 'right' as const,

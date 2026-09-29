@@ -66,6 +66,12 @@ export type Provider = 'ADP' | 'PAYCHEX' | 'GENERIC'
 export interface Line {
   /** The provider's own id for this person, where the client has set one. */
   payrollId: string | null
+  /**
+   * Who the line pays, where the caller knows. One person paid at two
+   * rates is two lines and still one person, so a count of people is a
+   * count of these, never of lines.
+   */
+  personId?: string | null
   personName: string
   /** W2 · C2C · IND_1099 — the provider needs to know which. */
   contractType: string
@@ -163,6 +169,8 @@ export interface WeekToPay extends WeekOfHours {
 }
 
 export interface SheetToPay {
+  /** Who the sheet pays. Absent in callers that only have a name. */
+  personId?: string | null
   personName: string
   payrollId: string | null
   /** From the buy contract. Never assumed: assuming W2 is how a company lands on a wage file. */
@@ -409,6 +417,7 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
       const overtimeCents = Math.round(b.overtimeExact)
       lines.push({
         payrollId: s.payrollId,
+        personId: s.personId ?? null,
         personName: s.personName,
         contractType: s.contractType,
         periodStart: s.periodStart,
@@ -441,7 +450,8 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
     totalOvertimeHours,
     totalCents,
     uncoveredPremiumCents,
-    says: exportSays(lines.length, skipped.length, totalHours, totalOvertimeHours, totalCents, provider),
+    // People, not lines: somebody paid at two rates is two lines.
+    says: exportSays(new Set(lines.map(whoIs)).size, skipped.length, totalHours, totalOvertimeHours, totalCents, provider),
     caveats: [...new Set(lines.flatMap((l) => l.notes))],
   }
 }
@@ -580,7 +590,20 @@ function cell(v: string): string {
  * import drops silently.
  */
 export function missingIds(e: Export): string[] {
-  return e.lines.filter((l) => !l.payrollId).map((l) => l.personName)
+  // Once per person, however many rates they were paid at.
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const l of e.lines) {
+    if (l.payrollId || seen.has(whoIs(l))) continue
+    seen.add(whoIs(l))
+    out.push(l.personName)
+  }
+  return out
+}
+
+/** One person, whatever lines they are on: their id where known, else their payroll id and name. */
+function whoIs(l: Line): string {
+  return l.personId ?? `${l.payrollId ?? ''}|${l.personName}`
 }
 
 // ═════════════════════════════════════════════════════════════════════
