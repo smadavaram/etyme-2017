@@ -164,8 +164,14 @@ export async function GET(request: NextRequest) {
       whereConditions.push({ contractType: 'BUY', contractId: { in: buyIds } })
     }
 
+    // The lines this seat may change a rate on — exactly the ones POST
+    // below accepts from it, so the form offers nothing the route would
+    // refuse. Live lines only: a rate on a placement that has ended is
+    // not a change anybody makes.
+    const changeable = await changeableLines(caller)
+
     if (whereConditions.length === 0) {
-      return NextResponse.json({ data: { rateHistory: [] } })
+      return NextResponse.json({ data: { rateHistory: [], changeable } })
     }
 
     const history = await prisma.rateHistory.findMany({
@@ -185,6 +191,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: {
+        changeable,
         rateHistory: history.map((h) => {
           const info = contractMap.get(`${h.contractType}:${h.contractId}`)
           return {
@@ -533,3 +540,76 @@ export async function POST(request: NextRequest) {
 }
 
 
+const LIVE_STATES = ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED', 'IN_PROGRESS', 'PAUSED'] as const
+const LIVE_BUY_STATES = ['DRAFT', 'IN_PROGRESS', 'BENCH_PAID', 'INTERNAL', 'TRAINING'] as const
+
+/**
+ * Every live line this seat may change a rate on, with the rate in force
+ * today. The same rule as POST: a desk that writes placements, at the
+ * payer of a BUY line (and able to read what people cost), or at either
+ * end of a SELL line. A worker's own seat changes nothing.
+ */
+async function changeableLines(caller: Awaited<ReturnType<typeof getCallerContext>>['caller'] & object) {
+  const mine = caller.company?.id
+  if (!mine || isConsultantSeat(caller) || !hasPermission(caller.permissions, 'assignments.write')) return []
+  const seesCost = hasPermission(caller.permissions, 'consultants.cost')
+  const [sells, buys] = await Promise.all([
+    prisma.sellContract.findMany({
+      where: { OR: [{ companyId: mine }, { clientCompanyId: mine }], state: { in: [...LIVE_STATES] } },
+      select: {
+        id: true, billRate: true, billCurrency: true, companyId: true,
+        person: { select: { name: true } },
+        company: { select: { name: true } },
+        clientCompany: { select: { name: true } },
+      },
+      take: 500,
+    }),
+    seesCost
+      ? prisma.buyContract.findMany({
+          where: { companyId: mine, state: { in: [...LIVE_BUY_STATES] } },
+          select: {
+            id: true, payCurrency: true,
+            candidates: { select: { payRate: true, person: { select: { name: true } } } },
+            vendorCompany: { select: { name: true } },
+          },
+          take: 500,
+        })
+      : Promise.resolve([]),
+  ])
+  const rows = await prisma.rateHistory.findMany({
+    where: {
+      approvalState: 'APPROVED',
+      OR: [
+        { contractType: 'SELL', contractId: { in: sells.map((c) => c.id) } },
+        { contractType: 'BUY', contractId: { in: buys.map((c) => c.id) } },
+      ],
+    },
+  })
+  const now = new Date()
+  const inForce = (type: string, id: string, recorded: number) =>
+    rateInForce(recorded, ratePeriods(rows.filter((r) => r.contractType === type && r.contractId === id)), now).rateCents
+
+  return [
+    ...buys
+      .filter((b) => b.candidates.length > 0)
+      .map((b) => ({
+        contractType: 'BUY' as const,
+        contractId: b.id,
+        label:
+          `Pay — ${b.candidates.map((c) => c.person.name).join(', ')}` +
+          (b.vendorCompany ? ` through ${b.vendorCompany.name}` : ''),
+        rateCents: inForce('BUY', b.id, b.candidates[0].payRate),
+        currency: b.payCurrency,
+      })),
+    ...sells.map((c) => ({
+      contractType: 'SELL' as const,
+      contractId: c.id,
+      label:
+        c.companyId === mine
+          ? `Bill — ${c.person.name} at ${c.clientCompany?.name ?? 'the client'}`
+          : `Bill — ${c.person.name} from ${c.company.name}`,
+      rateCents: inForce('SELL', c.id, c.billRate),
+      currency: c.billCurrency,
+    })),
+  ].sort((a, b) => a.label.localeCompare(b.label))
+}

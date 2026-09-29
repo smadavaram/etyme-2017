@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { amount as formatRate, rate as perHour, rateMovement } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { decimalsFor } from '@/lib/money'
 
 /**
  * Rate History working surface.
@@ -41,6 +42,15 @@ interface RateHistoryRecord {
 
 type FilterTab = 'all' | 'increases' | 'decreases'
 
+/** A line this seat may change a rate on, as the route says. */
+interface ChangeableLine {
+  contractType: 'SELL' | 'BUY'
+  contractId: string
+  label: string
+  rateCents: number
+  currency: string
+}
+
 // ── Helpers ────────────────────────────────────────────────
 
 
@@ -59,6 +69,7 @@ export default function RateHistoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterTab>('all')
+  const [changeable, setChangeable] = useState<ChangeableLine[]>([])
 
   const fetchHistory = useCallback(async () => {
     setLoading(true)
@@ -71,6 +82,7 @@ export default function RateHistoryPage() {
       }
       const body = await res.json()
       setRecords(body.data?.rateHistory ?? [])
+      setChangeable(body.data?.changeable ?? [])
     } catch (err: any) {
       setError(err.message)
       setRecords([])
@@ -265,6 +277,10 @@ export default function RateHistoryPage() {
         </p>
       </div>
 
+      {/* Only desks the route would accept see this, and only the lines it
+          would accept from them. The server says which. */}
+      {changeable.length > 0 && <ChangeRate lines={changeable} onDone={fetchHistory} />}
+
       {/* Waiting on procurement.
           The invoice match refuses a rate variance and tells the clerk to
           amend the contract instead. That instruction is only honest if the
@@ -373,5 +389,128 @@ export default function RateHistoryPage() {
         }
       />
     </div>
+  )
+}
+
+// ── Change a rate ──────────────────────────────────────────────────────
+//
+// The line, the new rate, the day it takes effect and why. A change
+// within five per cent clears on its own; anything larger waits above for
+// a second desk, and the one who proposed it cannot approve it.
+
+function ChangeRate({ lines, onDone }: { lines: ChangeableLine[]; onDone: () => Promise<void> }) {
+  const [lineKey, setLineKey] = useState('')
+  const [newRate, setNewRate] = useState('')
+  const [fromDate, setFromDate] = useState('')
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [said, setSaid] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const line = lines.find((l) => `${l.contractType}:${l.contractId}` === lineKey) ?? null
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!line) return
+    const units = Number(newRate)
+    if (!Number.isFinite(units) || units <= 0) {
+      setSaid({ ok: false, text: 'Say the new rate per hour as a number, for example 70 or 70.50.' })
+      return
+    }
+    setBusy(true)
+    setSaid(null)
+    try {
+      const res = await fetch('/api/rate-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contractType: line.contractType,
+          contractId: line.contractId,
+          rate: Math.round(units * 10 ** decimalsFor(line.currency)),
+          fromDate,
+          reason: reason.trim() || null,
+        }),
+      })
+      await readJson(res)
+      setSaid({
+        ok: true,
+        text: `Recorded. A change of more than five per cent waits for a second desk to approve it; a smaller one applies from ${fromDate}.`,
+      })
+      setNewRate('')
+      setReason('')
+      await onDone()
+    } catch (err: any) {
+      setSaid({ ok: false, text: err.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="panel mb-6">
+      <p className="stat-label">Change a rate</p>
+      <p className="text-sm text-etyme-muted mt-1 mb-3">
+        Every day before the date keeps the old rate. Every day from it is paid or billed at the new one.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-xs text-etyme-muted sm:col-span-2">
+          Line
+          <select
+            required
+            value={lineKey}
+            onChange={(e) => setLineKey(e.target.value)}
+            className="mt-1 w-full border border-etyme-rule rounded px-2 py-1.5 text-sm text-etyme-ink bg-etyme-raised"
+          >
+            <option value="">Choose a line…</option>
+            {lines.map((l) => (
+              <option key={`${l.contractType}:${l.contractId}`} value={`${l.contractType}:${l.contractId}`}>
+                {l.label} — now {perHour(l.rateCents, l.currency)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs text-etyme-muted">
+          New rate per hour{line ? ` (${line.currency})` : ''}
+          <input
+            required
+            inputMode="decimal"
+            value={newRate}
+            onChange={(e) => setNewRate(e.target.value)}
+            placeholder="70.00"
+            className="mt-1 w-full border border-etyme-rule rounded px-2 py-1.5 text-sm tabular-nums text-etyme-ink bg-etyme-raised"
+          />
+        </label>
+        <label className="text-xs text-etyme-muted">
+          Effective from
+          <input
+            required
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="mt-1 w-full border border-etyme-rule rounded px-2 py-1.5 text-sm tabular-nums text-etyme-ink bg-etyme-raised"
+          />
+        </label>
+        <label className="text-xs text-etyme-muted sm:col-span-2">
+          Reason
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Six-month review"
+            className="mt-1 w-full border border-etyme-rule rounded px-2 py-1.5 text-sm text-etyme-ink bg-etyme-raised"
+          />
+        </label>
+      </div>
+      <div className="flex items-center gap-3 mt-3">
+        <button
+          type="submit"
+          disabled={busy || !line || !fromDate}
+          className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {busy ? 'Recording…' : 'Record the change'}
+        </button>
+        {said && (
+          <p className={`text-xs ${said.ok ? 'text-etyme-verified' : 'text-etyme-danger'}`}>{said.text}</p>
+        )}
+      </div>
+    </form>
   )
 }

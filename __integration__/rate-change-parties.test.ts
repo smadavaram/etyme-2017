@@ -26,6 +26,7 @@ import { POST as decideRate } from '@/app/api/rate-history/[id]/approve/route'
 type Seat = { id: string; personId: string; email: string }
 
 let buyId = ''
+let payerCompanyId = ''
 let sellId = ''
 let payer: Seat
 let payerSecond: Seat
@@ -88,6 +89,7 @@ describe('a rate is changed and decided only by the firms it is between', () => 
         b.sellLinks.some((l) => l.sellContract.companyId === b.companyId && l.sellContract.clientCompanyId !== b.companyId)
     )!
     buyId = pick.id
+    payerCompanyId = pick.companyId
     const sell = pick.sellLinks.find((l) => l.sellContract.companyId === pick.companyId)!.sellContract
     sellId = sell.id
     // A line with no history of its own, so the changes below are the
@@ -230,5 +232,35 @@ describe('a rate is changed and decided only by the firms it is between', () => 
       contractType: 'BUY', contractId: buyId, rate: 99_999, fromDate: '2032-01-01',
     })
     expect([403, 404]).toContain(r.status)
+  })
+
+  // ── The form that changes a rate is offered only where it would work ──
+
+  it('offers the "Change a rate" form the lines the paying firm may change, the pay line and the sell line both', async () => {
+    const r = await call(payer, rateHistory, 'GET', '/api/rate-history')
+    expect(r.status).toBe(200)
+    const lines = r.body.data.changeable.map((l: any) => `${l.contractType}:${l.contractId}`)
+    expect(lines).toContain(`BUY:${buyId}`)
+    expect(lines).toContain(`SELL:${sellId}`)
+  })
+
+  it('offers it to no desk that may only read rates', async () => {
+    const reader = await newDesk(payerCompanyId, 'Accounts Receivable (rates test)', 'ar-desk@rates.etyme.invalid', ['rates.read'])
+    const r = await call(reader, rateHistory, 'GET', '/api/rate-history')
+    expect(r.status).toBe(200)
+    expect(r.body.data.changeable).toEqual([])
+  })
+
+  it('never offers a pay line to a desk that cannot read what people cost', async () => {
+    const am = await newDesk(payerCompanyId, 'Account Manager (rates test)', 'am-desk@rates.etyme.invalid', ['rates.read', 'assignments.write'])
+    const r = await call(am, rateHistory, 'GET', '/api/rate-history')
+    const types = new Set(r.body.data.changeable.map((l: any) => l.contractType))
+    expect(types.has('BUY')).toBe(false)
+    expect(types.has('SELL')).toBe(true)
+  })
+
+  it('offers a worker nothing to change, on the line that pays them or anywhere else', async () => {
+    const r = await call(worker, rateHistory, 'GET', '/api/rate-history')
+    expect(r.body.data.changeable ?? []).toEqual([])
   })
 })
