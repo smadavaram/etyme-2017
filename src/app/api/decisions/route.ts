@@ -13,6 +13,8 @@ import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-
 import { paperingRow } from '@/lib/papering'
 import { seatedDesk } from '@/lib/resolve-client-company'
 import { rate as rateSays } from '@/lib/money-display'
+import { payersBook } from '@/lib/money/payers-acceptance-read'
+import { disputedBillDecision } from './disputed-bill'
 
 /**
  * GET /api/decisions
@@ -321,7 +323,17 @@ export async function GET(request: NextRequest) {
   // recorded as DISPUTED stays out of every payment run until somebody
   // with authority says why it should go in — so it is a decision, and
   // it belongs here rather than in a filter on the AP page.
-  if (hasAnyPermission(caller.permissions, ['payments.record'])) {
+  //
+  // Except where what failed is a week this firm has not accepted. That
+  // one nobody may wave through (money, 2026-09-28: no rung pays on a
+  // week it has not accepted), so it goes to the desk that accepts weeks,
+  // in money's own sentence, and not to AP with an offer nobody can take
+  // up (`./disputed-bill`).
+  const billDesk = {
+    mayRecordPayment: hasAnyPermission(caller.permissions, ['payments.record']),
+    mayAcceptWeeks: hasAnyPermission(caller.permissions, ['timesheets.approve']),
+  }
+  if (billDesk.mayRecordPayment || billDesk.mayAcceptWeeks) {
     const disputed = await prisma.vendorBill.findMany({
       where: { companyId, status: 'DISPUTED' },
       include: { vendorCompany: { select: { name: true } } },
@@ -329,18 +341,23 @@ export async function GET(request: NextRequest) {
       take: 20,
     })
     for (const b of disputed) {
-      decisions.push({
-        type: 'BILL_DISPUTED',
-        title: `Invoice receipt ${b.number} from ${b.vendorCompany.name} does not match`,
-        subtitle: `$${(b.totalCents / 100).toFixed(2)} · held out of payment runs until somebody says why it should go in`,
-        urgency: 'HIGH',
-        entityType: 'VENDOR_BILL',
-        entityId: b.id,
-        dueDate: b.dueAt?.toISOString() ?? null,
-        actionUrl: '/dashboard/ap',
-        amount: b.totalCents / 100,
-        createdAt: b.receivedAt.toISOString(),
-      })
+      // The same question the AP exception queue asks of the same bill,
+      // ending the same way ("then pay this invoice" — it is recorded
+      // already), so the two screens cannot word one bill two ways.
+      const book = b.buyContractId && b.periodStart && b.periodEnd
+        ? await payersBook({
+            buyContractId: b.buyContractId, periodStart: b.periodStart, periodEnd: b.periodEnd, then: 'pay',
+          })
+        : null
+      const row = disputedBillDecision(
+        {
+          id: b.id, number: b.number, vendorName: b.vendorCompany.name,
+          totalCents: b.totalCents, dueAt: b.dueAt, receivedAt: b.receivedAt,
+        },
+        book && book.waiting.length > 0 ? book.notAccepted : null,
+        billDesk
+      )
+      if (row) decisions.push({ type: 'BILL_DISPUTED', ...row })
     }
   }
 
