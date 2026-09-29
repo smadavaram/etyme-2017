@@ -9,6 +9,7 @@ import { paidBook, paidKey } from '@/lib/payroll-paid'
 import { daysFor } from '@/lib/contract-links'
 import { wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
+import { payLineOn } from '@/lib/money/pay-line'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 
 /**
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
       company: { select: { id: true, name: true } },        // who pays them
       clientCompany: { select: { id: true, name: true } },  // who buys this rung
       endClientCompany: { select: { id: true, name: true } }, // where they work
-      workLocation: { select: { name: true, city: true } },
+      workLocation: { select: { name: true, city: true, country: true } },
     },
     orderBy: { startDate: 'desc' },
   })
@@ -172,6 +173,9 @@ export async function GET(request: NextRequest) {
       buyContract: {
         include: {
           company: { select: { name: true } },
+          // Where the paying entity is, which decides whether the US
+          // forty-hour line reaches a worker no contract drew one for.
+          entity: { select: { country: true } },
           exemptAssertions: { where: { personId }, select: EXEMPT_SELECT },
           sellLinks: { select: { buyContractId: true, sellContractId: true, effectiveFrom: true, effectiveTo: true } },
         },
@@ -370,7 +374,8 @@ export async function GET(request: NextRequest) {
         for (const pay of payByCompany.values()) {
           const bc = pay.buyContract
           const book = paidBy.get(bc.id)
-          const wage = wageLineFor(bc, caller.person.name, bc.exemptAssertions.find((a) => a.personId === personId))
+          const row = bc.exemptAssertions.find((a) => a.personId === personId)
+          const wage = wageLineFor(bc, caller.person.name, row)
           const mine = approvedWeeks.filter((t) => sellOf.get(t.sellContractId)?.companyId === bc.companyId)
           // One call per placement, because the weekly line may be the
           // placement's own where the pay line names none.
@@ -397,7 +402,10 @@ export async function GET(request: NextRequest) {
               {
                 contractRateCents: pay.payRate,
                 periods: periodsOf(bc.id),
-                afterHours: bc.overtimeAfterHours ?? sell.overtimeAfterHours ?? null,
+                // The weekly line payroll judges pay on: the buy line's, else
+                // the placement's, else the law's forty for a nonexempt US
+                // worker (lib/money/pay-line) — the same call the run makes.
+                afterHours: payLineOn(bc, sell, { name: caller.person.name, payCurrency: pay.payCurrency }, row).afterHours,
                 method: methodFor(bc).method,
                 wage,
                 currency: pay.payCurrency,

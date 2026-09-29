@@ -243,6 +243,25 @@ describe('a pay rise on the seeded world', () => {
     expect(week.says).toContain('$175.00')
   })
 
+  it('where no contract draws an overtime line, her page still shows the five hours over forty, because the law draws it', async () => {
+    const long = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: sellId, totalHours: 45 } })
+    const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: buyId }, select: { overtimeAfterHours: true } })
+    const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: sellId }, select: { overtimeAfterHours: true } })
+    await prisma.buyContract.update({ where: { id: buyId }, data: { overtimeAfterHours: null } })
+    await prisma.sellContract.update({ where: { id: sellId }, data: { overtimeAfterHours: null } })
+    try {
+      as(RATE_CHANGE_PERSON.email)
+      const r = await json(await myWork(req('GET', '/api/me/work')))
+      expect(r.status).toBe(200)
+      const week = r.body.data.owed.weeks.find((w: any) => w.weekOf === iso(long.periodStart))
+      expect([week.ordinaryHours, week.overtimeHours]).toEqual([40, 5])
+      expect(week.owedCents).toBe(40 * 7_000 + 5 * 10_500)
+    } finally {
+      await prisma.buyContract.update({ where: { id: buyId }, data: { overtimeAfterHours: buy.overtimeAfterHours } })
+      await prisma.sellContract.update({ where: { id: sellId }, data: { overtimeAfterHours: sell.overtimeAfterHours } })
+    }
+  })
+
   it('her page never shows what the client is billed for her', async () => {
     as(RATE_CHANGE_PERSON.email)
     const r = await json(await myWork(req('GET', '/api/me/work')))

@@ -206,4 +206,10 @@ describe("the worker's page prices overtime with payroll's own functions", () =>
     expect(route).toContain('methodFor(bc).method')
     expect(route).toContain('wageLineFor(bc,')
   })
+
+  it('the weekly line on her page is the one payroll judges pay on, the law\u2019s forty included, never a line of its own', () => {
+    expect(route).toContain('afterHours: payLineOn(bc, sell,')
+    expect(route).not.toMatch(/afterHours:\s*bc\.overtimeAfterHours/)
+    expect(route).not.toMatch(/\b40\b/)
+  })
 })
