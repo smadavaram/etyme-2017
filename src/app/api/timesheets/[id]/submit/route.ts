@@ -64,9 +64,21 @@ export async function POST(
     )
   }
 
+  // When it was sent, on the row. The approval window counts from here
+  // (`lib/auto-approval`) and the worker's own page says the day. Until
+  // 2026-09-29 this step answered with a time and wrote none, so every
+  // week filed through the product had no sent date: the worker read
+  // "Sent to Northbend Athletic." with no day, and the nightly job, which
+  // starts the clock at the run for a sheet it cannot date, never let a
+  // window run out on one.
+  //
+  // A week sent back and sent again is sent now. The client is reading it
+  // afresh, so its window starts again; the filing door has already
+  // cleared the old time if the hours were corrected (`../../filing`).
+  const sentAt = new Date()
   await prisma.timesheet.update({
     where: { id },
-    data: { status: 'SUBMITTED' },
+    data: { status: 'SUBMITTED', submittedAt: sentAt },
   })
 
   // The "hours due" cycle for this week is done. Without this the
@@ -82,8 +94,8 @@ export async function POST(
     data: {
       id,
       status: 'SUBMITTED',
-        // The approval window counts from here.
-        submittedAt: new Date(),
+      // The same moment the row carries, never a second clock read.
+      submittedAt: sentAt.toISOString(),
       totalHours: Number(timesheet.totalHours),
       message: `Timesheet submitted (${Number(timesheet.totalHours)} hours)`,
     },

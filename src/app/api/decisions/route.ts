@@ -7,6 +7,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung, viaPhrase } from '@/lib/chain-top'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
+import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 import { weekTurn } from '@/app/api/timesheets/ladder'
 import { desksFor } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-onboarding'
@@ -152,9 +153,9 @@ export async function GET(request: NextRequest) {
     )
 
     for (const ts of pendingTimesheets) {
-      const daysSinceSubmit = Math.floor(
-        (now.getTime() - ts.periodEnd.getTime()) / (1000 * 60 * 60 * 24)
-      )
+      // From the day the week was sent, not the day it ended: a week sent
+      // three weeks late has waited on this desk since it arrived.
+      const daysSinceSubmit = daysWaiting(ts, now)
       const sc = ts.sellContract
       const asClient = sc.companyId !== companyId
       // The employer's turn comes last, once every firm above it has
@@ -215,7 +216,7 @@ export async function GET(request: NextRequest) {
         actionUrl: '/dashboard/timesheets',
         amount,
         flag,
-        createdAt: ts.periodEnd.toISOString(),
+        createdAt: waitingSince(ts).toISOString(),
       })
     }
 

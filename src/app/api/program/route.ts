@@ -13,6 +13,7 @@ import { andAll } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
 import { seatTrail } from '@/lib/program-seat'
 import { programMonthlySpend, basisSays } from '@/lib/program-spend'
+import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 
 /**
  * GET /api/program
@@ -505,8 +506,11 @@ export async function GET(request: NextRequest) {
       vendor: shown(ts.sellContract.company.id, ts.sellContract.company.name).name,
       detail: `Week ending ${ts.periodEnd.toLocaleDateString()}`,
       amount: ts.totalHours ? Number(ts.totalHours) : null,
-      submittedAt: ts.periodEnd.toISOString(),
-      daysWaiting: Math.floor((now.getTime() - ts.periodEnd.getTime()) / (24 * 60 * 60 * 1000)),
+      // From the day the week was sent, not the day it ended: a week sent
+      // three weeks late arrived today, and reading "21d waiting" on it
+      // blames this desk for the worker's delay (`waitingSince`).
+      submittedAt: waitingSince(ts).toISOString(),
+      daysWaiting: daysWaiting(ts, now),
     })),
     ...pendingExpenses.map(exp => ({
       id: exp.id,

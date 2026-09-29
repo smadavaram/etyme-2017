@@ -129,6 +129,34 @@ export function decide(s: Sheet, now: Date): Decision {
 }
 
 /**
+ * When a week started waiting for its signature, on a desk's queue.
+ *
+ * The day it was sent: `submittedAt`, which the send step writes and a
+ * re-send moves. The queues used to count from the last day of the
+ * week's period, so a week sent three weeks late arrived already "21d
+ * waiting" and marked urgent on the day the client first saw it.
+ *
+ * A row with no send time — imported, or sent before 2026-09-29 when the
+ * send step first wrote one — waits from the last day of its period. A
+ * week cannot be sent before its days have happened, so that is the
+ * earliest it could have been sent: the longest the wait could be, never
+ * a shorter one. A queue may err toward urgent.
+ *
+ * The nightly job does not use this. It moves money without a person, so
+ * it errs the other way and starts the clock at the run for a sheet with
+ * no send time (`cron/auto-approve`): nothing is approved by silence on a
+ * date somebody inferred.
+ */
+export function waitingSince(week: { submittedAt: Date | null; periodEnd: Date }): Date {
+  return week.submittedAt ?? week.periodEnd
+}
+
+/** Whole days a week has waited for its signature, as of `now`. */
+export function daysWaiting(week: { submittedAt: Date | null; periodEnd: Date }, now: Date): number {
+  return Math.max(0, Math.floor((now.getTime() - waitingSince(week).getTime()) / 86_400_000))
+}
+
+/**
  * What to write down when it fires.
  *
  * `byId` is deliberately null. An auto-approved sheet that names a
