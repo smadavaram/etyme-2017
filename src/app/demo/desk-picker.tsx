@@ -59,6 +59,15 @@ function Refusal({ error }: { error: string | null }) {
 }
 
 /**
+ * The industry, on its own line under the name. The founder,
+ * 2026-09-29: "so people know which industries can use it." One
+ * component so every kind of door draws it the same way.
+ */
+function Industry({ of }: { of: Program }) {
+  return <p className="mt-1 text-[12.5px] font-medium text-etyme-muted">{of.industry}</p>
+}
+
+/**
  * The three client programs, each with its desks as a row of chips.
  *
  * The town and one true sentence about what is waiting there today,
@@ -78,6 +87,7 @@ export function ProgramDoors({ programs }: { programs: ClientProgram[] }) {
             <h3 className="mt-1 font-serif text-[26px] leading-tight tracking-[-0.02em]">
               {p.name}
             </h3>
+            <Industry of={p} />
             <p className="mt-3 text-[14px] leading-relaxed">{p.waiting}</p>
             <p className="mt-2 text-[13px] leading-relaxed text-etyme-muted">{p.about}</p>
 
@@ -125,6 +135,8 @@ export function FirmDoors({ firms }: { firms: Program[] }) {
           <section key={f.slug} className="flex flex-col rounded-panel border border-etyme-rule p-4">
             <p className="eyebrow flex items-center gap-2"><DemoChip />{f.where}</p>
             <h3 className="mt-1 font-serif text-[19px] leading-tight tracking-[-0.02em]">{f.name}</h3>
+            <Industry of={f} />
+            <p className="mt-2 text-[13.5px] leading-relaxed">{f.waiting}</p>
             <p className="mt-2 flex-1 text-[12.5px] leading-relaxed text-etyme-muted">{f.about}</p>
             {/* A firm that seats more than one person gets the same row
                 of desks a client program does. Most suppliers in this
@@ -185,6 +197,8 @@ export function PersonDoors({ people }: { people: Program[] }) {
           <section key={c.slug} className="flex flex-col rounded-panel border border-etyme-rule p-4">
             <p className="eyebrow flex items-center gap-2"><DemoChip />{c.where}</p>
             <h3 className="mt-1 font-serif text-[19px] leading-tight tracking-[-0.02em]">{c.name}</h3>
+            <Industry of={c} />
+            <p className="mt-2 text-[13.5px] leading-relaxed">{c.waiting}</p>
             <p className="mt-2 flex-1 text-[12.5px] leading-relaxed text-etyme-muted">{c.about}</p>
             <button
               onClick={() => sit(c.slug, { person: c.slug })}

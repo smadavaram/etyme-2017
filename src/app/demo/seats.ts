@@ -36,6 +36,21 @@ export interface Program {
   slug: string
   name: string
   where: string
+  /**
+   * The industry, or the kind of work a firm supplies, drawn on its own
+   * line under the name. The founder, 2026-09-29: "Put the industry
+   * under each demo company, so people know which industries can use
+   * it." A field rather than words in the prose, so every door says it
+   * the same way and a test can find it. Read off the seeded roles, not
+   * chosen for the spread.
+   */
+  industry: string
+  /**
+   * What is waiting behind this door today — one or two short sentences.
+   * A client program's is checked against the seeded world.
+   */
+  waiting: string
+  /** Who they are, in one or two short sentences. */
   about: string
   /**
    * The desks at this firm, where it seats more than one person.
@@ -67,22 +82,32 @@ export interface ClientProgram extends Program {
   waiting: string
 }
 
+/*
+ * Plain English, the founder, 2026-09-29: every line on these doors is
+ * read by people in India, the US, the UK and Australia, many of them
+ * not native speakers. Short sentences, common words, one idea each; no
+ * sentence past twenty-five words (`demo-door.test.ts` counts). Facts
+ * and numbers stay exactly as the seed has them.
+ */
+
 export const CLIENT_PROGRAMS: ClientProgram[] = [
   {
     slug: 'world-nike',
     name: 'Northbend Athletic',
     where: 'Tualatin, OR',
+    industry: 'Retail · apparel',
     waiting:
-      'A 44-hour week is waiting for a signature — four hours over what the job allows.',
+      'A 44-hour week is waiting for a signature. That is four hours over what the job allows.',
     about:
-      'Three suppliers, one of them supplying through a bench vendor it never names — a firm ' +
-      'whose bench is its workers waiting for a project. ' +
-      'A planning analyst on her second supplier here, fourteen months into an eighteen-month time limit.',
+      'Three suppliers. One buys from a bench vendor, a firm with workers waiting for a project, ' +
+      'and never names it. A planning analyst on her second supplier here is fourteen months ' +
+      'into an eighteen-month time limit.',
   },
   {
     slug: 'world-corning',
     name: 'Cavanaugh Glassworks',
     where: 'Elmira, NY',
+    industry: 'Manufacturing · glass',
     // What this door said until 2026-09-20 was a supplier whose liability
     // certificate runs out in twelve days, and it was not true of the
     // world behind the door: `cover()` in lib/seed-programmes skips a
@@ -93,27 +118,28 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
     // the program above. Said here rather than quietly dropped: the
     // seed is the fix, and it is not this change's.
     waiting:
-      'One contractor is on site on a purchase order with no agreement behind it at all, and ' +
-      'somebody starts in ten days with no US work form (I-9) on file.',
+      'One contractor works on a purchase order with no agreement behind it. Another starts ' +
+      'in ten days with no US work form (I-9) on file.',
     about:
-      'A glass plant hiring validation, MES and quality people. A week of a validation ' +
-      'engineer’s hours is waiting on the plant to sign it, and a past contractor is out long ' +
-      'enough to be asked back.',
+      'A glass plant hiring validation, manufacturing systems and quality people. A validation ' +
+      'engineer’s week is waiting for the plant to sign it. A past contractor has been gone ' +
+      'long enough to be asked back.',
   },
   {
     slug: 'world-terumo-bct',
     name: 'Talvern Medical',
     where: 'Westminster, CO',
+    industry: 'Healthcare · medical devices',
     waiting:
-      'One consultant is twenty-three months on site across two suppliers, against a time limit of ' +
-      'eighteen — a number neither supplier can produce.',
+      'One consultant is twenty-three months on site across two suppliers. The time limit is ' +
+      'eighteen. Neither supplier can produce that number.',
     // The tenure number is the line above; repeating it here put the same
     // sentence twice on one card, which a reader notices before anything
     // else on it. This says what else is on the desks.
     about:
       'A medical device maker hiring finance, validation and regulatory people through three ' +
-      'suppliers. A week of hours is filed and waiting, a bill is out, and somebody ' +
-      'starts in five days with no I-9 on file.',
+      'suppliers. A week of hours is filed and waiting. A supplier has sent its bill. ' +
+      'Somebody starts in five days with no I-9 on file.',
   },
 ]
 
@@ -153,15 +179,15 @@ export const CLIENT_DESKS: ClientDesk[] = [
   { desk: 'hiring', label: 'Hiring manager',
     waiting: 'Needs somebody. A week of hours is waiting for your signature.' },
   { desk: 'hr', label: 'HR partner',
-    waiting: 'A job request over the headcount plan is waiting for your read of the job.' },
+    waiting: 'A job request over the headcount plan is waiting for you to review the job.' },
   { desk: 'procurement', label: 'Procurement lead',
     waiting: 'A job request is waiting for you to say which suppliers may see it.' },
   { desk: 'vp', label: 'Approver',
-    waiting: 'A job request over the $250k line is in your queue — and your yes is one of two.' },
+    waiting: 'A job request over $250k is in your queue. Your yes is one of two.' },
   { desk: 'ap', label: 'AP clerk',
     waiting: 'A bill has matched the hours and is waiting to be paid.' },
   { desk: 'compliance', label: 'Compliance officer',
-    waiting: 'Tenure across every supplier, and whose paperwork is not on file.' },
+    waiting: 'How long each person has been on site, across every supplier, and whose paperwork is missing.' },
   // The second half of the final word, said out loud.
   //
   // A client's final rank is two desks, not one: the approver, and
@@ -179,7 +205,7 @@ export const CLIENT_DESKS: ClientDesk[] = [
   // published requisition, so a desk that stops being the last yes
   // breaks the build rather than the founder's walk.
   { desk: '', label: 'Account owner',
-    waiting: 'People, roles and desks — and the last yes on the job request over the $250k line, after the approver.' },
+    waiting: 'People, roles and desks. And the last yes on the job request over $250k, after the approver.' },
 ]
 
 /**
@@ -206,25 +232,25 @@ export const CLIENT_DESKS: ClientDesk[] = [
  */
 export const SUPPLIER_DESKS: ClientDesk[] = [
   { desk: 'account', label: 'Account manager',
-    waiting: 'Owns the client. Jobs, rates, submissions, and what was billed — never payroll.' },
+    waiting: 'Owns the client: jobs, rates, submissions and bills. Never payroll.' },
   { desk: 'recruiter', label: 'Recruiter',
     waiting: 'Finds and submits people. Cannot see what anybody costs.' },
   { desk: 'resourcing', label: 'Resource manager',
-    waiting: 'Owns the bench and who goes where.' },
+    waiting: 'Owns the bench and decides who goes where.' },
   { desk: 'contracts', label: 'Contract manager',
     waiting: 'Agreements, orders, extensions and rate changes. Neither submits nor pays.' },
   { desk: 'hr', label: 'HR',
-    waiting: 'The firm’s own people’s paperwork and work authorization. Sees no money.' },
+    waiting: 'Paperwork and work authorization for the firm’s own people. Sees no money.' },
   { desk: 'ar', label: 'Accounts receivable',
     waiting: 'Bills the client and records what came in. Never runs payroll.' },
   { desk: 'payroll', label: 'AP & payroll',
     waiting: 'Pays the consultant and the sub-vendor. Never issues a client bill.' },
   { desk: 'finance', label: 'Finance',
-    waiting: 'Bills, pays and closes the month — the whole desk at a small firm.' },
+    waiting: 'Bills, pays and closes the month. At a small firm, this is the whole desk.' },
   { desk: 'compliance', label: 'Compliance officer',
-    waiting: 'Whose cover is running out, and whose paperwork is not on file.' },
+    waiting: 'Whose insurance is running out, and whose paperwork is missing.' },
   { desk: '', label: 'Owner',
-    waiting: 'The whole book, including what a placement earns.' },
+    waiting: 'Everything, including what each placement earns.' },
 ]
 
 export const SUPPLIER_SEATS: Program[] = [
@@ -232,40 +258,48 @@ export const SUPPLIER_SEATS: Program[] = [
     slug: 'world-brightmoor',
     name: 'Brightmoor Staffing',
     where: 'Prime supplier, every desk seated',
+    industry: 'Staffing · retail systems and supply planning',
+    waiting:
+      'Its liability insurance runs out in twenty days. That is the compliance officer’s work today.',
     about:
-      'Sells two contractors into Northbend Athletic off its own payroll and an engineer into a ' +
-      'retailer through a bench vendor it buys from. Its liability cover runs out in twenty days, ' +
-      'which is the compliance officer’s morning. The only firm here with a person at each of its ' +
-      'nine desks: the account manager owns the client, the recruiter cannot see what anybody ' +
-      'costs, and AR bills while AP & payroll pays. Sit at any of them.',
+      'Sells two contractors to Northbend Athletic from its own payroll. Buys an engineer from ' +
+      'a bench vendor and sells them to a retailer. A person sits at each of its nine desks.',
     desks: SUPPLIER_DESKS,
   },
   {
     slug: 'world-computer-systems',
     name: 'Computer Systems Inc',
     where: 'Prime supplier',
+    industry: 'IT staffing · finance and hospital systems',
+    waiting:
+      'A bench vendor’s invoice for four weeks is unpaid. A lab analyst has a screening call ' +
+      'at a hospital this week.',
     about:
-      'Sells Helena Marsh into Northbend Athletic and a lab analyst into a hospital, where a screen ' +
-      'is in the diary this week. Buys Helena from a bench vendor the client never learns about, ' +
-      'and that firm’s bill for four weeks is sitting unpaid.',
+      'Sells Helena Marsh to Northbend Athletic, and a lab analyst to a hospital. Buys Helena ' +
+      'from a bench vendor the client never learns about.',
   },
   {
     slug: 'world-vertex-global',
     name: 'Vertex Global',
     where: 'Prime supplier',
+    industry: 'Engineering and IT staffing',
+    waiting:
+      'A validation engineer’s week is filed and waiting for the plant to sign it.',
     about:
-      'Sells into Cavanaugh Glassworks and Talvern Medical, with a week of a validation ' +
-      'engineer’s hours filed and waiting on the plant to sign it. Buys that same engineer from ' +
-      'a bench vendor below, at the gap it keeps.',
+      'Sells to Cavanaugh Glassworks and Talvern Medical. Buys that same engineer from a bench ' +
+      'vendor below, and keeps the difference in rate.',
   },
   {
     slug: 'world-cloudepa',
     name: 'CloudEPA',
-    where: 'Sub-vendor, two rungs down',
+    where: 'Sub-vendor, below a prime',
+    industry: 'IT consulting · finance and lab systems',
+    waiting:
+      'Its own consultant is shortlisted at the prime, with a screening call booked. The I-9 ' +
+      'it asked its own consultant for six days ago is still not back.',
     about:
-      'Sells only to the prime above it — a consultant of its own is shortlisted there and a ' +
-      'screen is booked — and never learns which hospital the seat is at. Buys nobody, because ' +
-      'it employs them: the I-9 it asked its own consultant for six days ago is still not back.',
+      'Sells only to the prime above it, and never learns which hospital the job is at. Buys ' +
+      'from nobody: it employs its own people.',
   },
 ]
 
@@ -288,26 +322,31 @@ export const PROGRAM_OFFICE_SEATS: Program[] = [
     slug: 'world-kestrel',
     name: 'Kestrel MSP',
     where: 'Program office, at the client’s compliance desk',
+    industry: 'Program office · compliance',
+    waiting:
+      'Talvern Medical’s time-on-site record across every supplier, whose insurance is current, ' +
+      'and what is held on each person.',
     about:
-      'Answers for compliance across Talvern Medical’s suppliers without placing anybody there — ' +
-      'so no contract ties the two firms and Talvern says it instead, granting Kestrel its own ' +
-      'compliance officer desk. Tenure across every supplier, whose cover is current, and what is ' +
-      'held about a person, read by a firm that is not the client, with every read logged against it.',
+      'Places nobody at Talvern, so no contract links the two firms. Talvern granted Kestrel a ' +
+      'compliance officer desk, and every read Kestrel makes is logged.',
     desks: [
       { desk: 'compliance', label: 'Compliance officer',
-        waiting: 'Talvern Medical’s tenure ledger and paperwork, from the desk Talvern granted.' },
+        waiting: 'Talvern Medical’s time-on-site record and paperwork, from the desk Talvern granted.' },
       { desk: '', label: 'Owner',
-        waiting: 'The office’s own book, and the programs it runs.' },
+        waiting: 'The office’s own records, and the programs it runs.' },
     ],
   },
   {
     slug: 'world-aptiva',
     name: 'Aptiva Workforce',
     where: 'Managed program office',
+    industry: 'Program office · healthcare',
+    waiting:
+      'Both sides signed two weeks of its analyst’s hours, and nobody has billed them. The ' +
+      'hospital signed a third week, which waits for Aptiva to accept it as the employer.',
     about:
-      'Runs a hospital’s contingent program and staffs part of it off its own payroll. Sell side: ' +
-      'two weeks of its analyst’s hours are signed by both parties and nobody has billed them. ' +
-      'Buy side: a third week the hospital has signed is waiting on Aptiva to accept it as the employer.',
+      'Runs a hospital’s contract-worker program. It sells to the hospital and staffs part of ' +
+      'the program with people it employs.',
   },
 ]
 
@@ -328,21 +367,27 @@ export const INTEGRATOR_SEATS: Program[] = [
     slug: 'world-teleworld',
     name: 'Teleworld Solutions',
     where: 'Systems integrator',
+    industry: 'IT services · aerospace software',
+    waiting:
+      'Corveldt Aerospace has an open DO-178C avionics software job. Karthik Menon fits it. ' +
+      'Submit him with no bench listing.',
     about:
-      'Sunil Raghavan runs delivery, with four people on his own payroll between projects. Sell ' +
-      'side: Corveldt Aerospace has an open DO-178C seat and Karthik Menon, three weeks off an ' +
-      'avionics program, fits it — submit him with no bench listing anywhere. Buy side: the ' +
-      'engineer already on that program is bought from a bench vendor, whose invoice is unpaid.',
+      'Sunil Raghavan runs delivery and sells people from his own payroll. Four are between ' +
+      'projects; Karthik left an avionics project three weeks ago. Teleworld buys the engineer ' +
+      'still on that project from a bench vendor, whose invoice is unpaid.',
   },
   {
     slug: 'world-sundara',
     name: 'Sundara Systems',
     where: 'Systems integrator',
+    industry: 'IT services · engineering software',
+    waiting:
+      'The same Corveldt avionics job is open to Sundara, at its own rate band. Aditi ' +
+      'Ramaswamy fits it.',
     about:
-      'Lakshmi Iyer has the same four disciplines idle between projects. Sell side: the same ' +
-      'Corveldt avionics seat is open to Sundara at a band of its own, and Aditi Ramaswamy fits ' +
-      'it. Buy side: its validation engineer at Talvern Medical is bought from a bench vendor, ' +
-      'and the client above has never been told that firm exists.',
+      'Lakshmi Iyer runs delivery and sells from her own payroll, with the same four skills ' +
+      'between projects. Sundara buys its validation engineer at Talvern Medical from a bench ' +
+      'vendor that Talvern has never been told about.',
   },
 ]
 
@@ -397,56 +442,65 @@ export const CANDIDATE_SEATS: CandidateSeat[] = [
   {
     slug: 'karthik-menon',
     name: 'Karthik Menon',
-    where: 'Aerospace · DO-178C verification',
+    where: 'An integrator’s own employee (W2)',
+    industry: 'Aerospace · DO-178C avionics verification',
     email: 'karthik.menon@seed.etyme.invalid',
+    waiting:
+      'The client has an open DO-178C job. Your employer has not put you forward for it yet.',
     about:
-      'On an integrator’s own payroll, not on anybody’s bench — nobody asks your permission to ' +
-      'be staffed, because the employment contract already did. Three months of avionics ' +
-      'software assurance ended three weeks ago, four weeks of it signed by both sides, and the ' +
-      'client has an open DO-178C seat your employer has not put you forward for yet.',
+      'You are on an integrator’s payroll, not on a bench, so it can staff you without asking. ' +
+      'Your three-month avionics project ended three weeks ago; both sides signed four weeks of it.',
   },
   {
     slug: 'helena-marsh',
     name: 'Helena Marsh',
-    where: 'Apparel · ERP finance lead',
+    where: 'On a bench, sold through a prime',
+    industry: 'Apparel · ERP finance',
     email: 'helena.marsh@seed.etyme.invalid',
+    waiting: 'The week you filed is still waiting for somebody to sign it.',
     about:
-      'Listed on a bench vendor’s books and sold on to a sportswear company by the prime above ' +
-      'it, which is the firm the client thinks employs you. Two hundred days on site against an ' +
-      'eighteen-month time limit, and the week you filed is still waiting for somebody to sign it.',
+      'A bench vendor lists you, and a prime sells you to a sportswear company. The client ' +
+      'thinks the prime employs you. You are two hundred days on site, against an eighteen-month ' +
+      'time limit.',
   },
   {
     slug: 'chidi-okafor',
     name: 'Chidi Okafor',
-    where: 'Medical device · CSV and 21 CFR Part 11',
+    where: 'US work visa (H-1B), two firms below the client',
+    industry: 'Medical devices · system validation (21 CFR Part 11)',
     email: 'chidi.okafor@seed.etyme.invalid',
+    waiting:
+      'The client asked you to sign a site access and data integrity attestation. Nobody else ' +
+      'can sign it for you.',
     about:
-      'Two rungs down a chain on an H-1B: a bench vendor employs you, an integrator sells you, a ' +
-      'device maker signs your hours. Three weeks are signed and billed, and the client has asked ' +
-      'you for a site access and data integrity attestation nobody else can sign for you.',
+      'A bench vendor employs you, an integrator sells you, and a device maker signs your hours. ' +
+      'Three weeks are signed and billed.',
   },
   {
     slug: 'marisol-quintero',
     name: 'Marisol Quintero',
-    where: 'Industrial automation · PLC and SCADA commissioning',
+    where: 'No employer yet',
+    industry: 'Industrial automation · PLC and SCADA commissioning',
     email: 'marisol.quintero@seed.etyme.invalid',
+    waiting:
+      'You have a page you turned on yourself, and a choice. Let a firm list you on its bench ' +
+      'and market you, or incorporate and sell yourself.',
     about:
-      'Nobody employs you, nobody lists you, you have incorporated nothing, and not one ' +
-      'submission anywhere carries your name — which is what this product leaves a consultant ' +
-      'holding on the day they sign in. What you have is a page you turned on yourself and a ' +
-      'choice: grant a firm a bench listing and let it market you, or incorporate and sell ' +
-      'yourself. Etyme places nobody, so nothing here happens until you make it.',
+      'Nobody employs you, nobody lists you, and you have incorporated nothing. No submission ' +
+      'anywhere carries your name. Etyme places nobody, so nothing happens until you act.',
   },
   {
     slug: 'colleen-byrne',
     name: 'Colleen Byrne',
-    where: 'Healthcare · ICU travel nurse',
+    where: 'Paid through her own company',
+    industry: 'Healthcare · ICU nursing',
     email: 'colleen.byrne@seed.etyme.invalid',
+    waiting:
+      'Your state license runs out in twenty-four days, inside the assignment. The renewal was ' +
+      'asked for and is not filed yet.',
     about:
-      'Thirteen weeks in a hospital ICU, three twelve-hour shifts a week, paid corp to corp ' +
-      'through the limited company you own — so your company carries the liability cover, not ' +
-      'the agency. Your state license runs out in twenty-four days, inside the assignment, and ' +
-      'the renewal has been asked for and not filed.',
+      'Thirteen weeks in a hospital ICU, three twelve-hour shifts a week. You are paid through ' +
+      'the company you own, so it carries the liability insurance, not the agency.',
   },
 ]
 

@@ -181,7 +181,7 @@ describe('the door for somebody with no firm at all', () => {
     // The temptation on a door this empty is to fill it. Filling it
     // makes her party 8A and deletes the state the door exists to show,
     // so the sentence may not promise work of any kind.
-    expect(door!.about).not.toMatch(/\bplacement\b|\bhours\b|\binvoice\b|\btimesheet\b/i)
+    expect(`${door!.waiting} ${door!.about}`).not.toMatch(/\bplacement\b|\bhours\b|\binvoice\b|\btimesheet\b/i)
   })
 })
 
@@ -238,5 +238,84 @@ describe('the doors into the demo work without a script', () => {
   it('still seats the visitor in one click when a script runs, by posting to the demo route', () => {
     expect(door).toMatch(/e\.preventDefault\(\)/)
     expect(door).toMatch(/fetch\('\/api\/demo', \{\s*method: 'POST'/)
+  })
+})
+
+/**
+ * Plain English for a global reader. The founder, 2026-09-29: "Simple
+ * plain English that people in India, the US, the UK and Australia, and
+ * even non-native readers, can read and understand. Don't throw prose."
+ *
+ * Every door is one short line of what is waiting and one short line of
+ * who they are; every section opens on a line or two and a list.
+ */
+const EVERY_DOOR = [
+  ...CLIENT_PROGRAMS,
+  ...SUPPLIER_SEATS,
+  ...PROGRAM_OFFICE_SEATS,
+  ...INTEGRATOR_SEATS,
+  ...CANDIDATE_SEATS,
+]
+
+/** The words a reader sees in the page source: JSX text, not comments, tags or code. */
+function pageProse(src: string): string {
+  const main = src.slice(src.indexOf('<main'), src.indexOf('</main>'))
+  return main
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, ' ')
+    // A list item, a paragraph or a heading ends a line the reader sees.
+    .replace(/<\/(?:li|p|h1|h2|h3)>/g, '\n')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\{[^{}]*\}/g, ' ')
+    .replace(/&rsquo;/g, '’')
+    .replace(/[ \t]*\n\s*/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+}
+
+const sentencesIn = (text: string) =>
+  text.split(/(?<=[.?!:])\s+|\n+/).map((x) => x.trim()).filter((x) => /[a-z]/i.test(x))
+
+describe('the demo page is plain English', () => {
+  it('no sentence on the demo page runs past twenty-five words', () => {
+    const lines = [
+      ...sentencesIn(pageProse(page)),
+      ...EVERY_DOOR.flatMap((d) => [...sentencesIn(d.waiting), ...sentencesIn(d.about)]),
+      ...[...CLIENT_DESKS, ...SUPPLIER_DESKS].flatMap((d) => sentencesIn(d.waiting)),
+    ]
+    expect(lines.length).toBeGreaterThan(40)
+    const long = lines.filter((x) => x.split(/\s+/).length > 25)
+    expect(long, long.join('\n')).toEqual([])
+  })
+
+  it('each door says what is waiting in one short line and who they are in one more, and no longer', () => {
+    for (const d of EVERY_DOOR) {
+      expect(d.waiting.split(/\s+/).length, `${d.name}: “${d.waiting}”`).toBeLessThanOrEqual(30)
+      expect(d.about.split(/\s+/).length, `${d.name}: “${d.about}”`).toBeLessThanOrEqual(40)
+    }
+  })
+
+  it('draws what is waiting on every kind of door, not only on the client programs', () => {
+    const picker = read('src/app/demo/desk-picker.tsx')
+    for (const v of ['p', 'f', 'c']) expect(picker).toContain(`{${v}.waiting}`)
+  })
+})
+
+describe('the demo shows the spread of industries', () => {
+  // The founder, 2026-09-29: "Put the industry under each demo company, so
+  // people know which industries can use it." CLAUDE.md: horizontal, never
+  // vertical — the same product has to work for a travel nurse.
+  it('every demo company and person names its industry under its name', () => {
+    for (const d of EVERY_DOOR) {
+      expect(d.industry?.trim().length ?? 0, `${d.name} names no industry`).toBeGreaterThan(3)
+    }
+    const picker = read('src/app/demo/desk-picker.tsx')
+    // On its own line, straight under the name, on all three kinds of door.
+    expect(picker.match(/\{(?:p|f|c)\.name\}\s*<\/h3>\s*<Industry of=\{(?:p|f|c)\} \/>/g)?.length).toBe(3)
+    expect(picker).toContain('{of.industry}')
+  })
+
+  it('the client programs and the people are not all one industry', () => {
+    const first = (x: string) => x.split('·')[0].trim()
+    expect(new Set(CLIENT_PROGRAMS.map((p) => first(p.industry))).size).toBe(3)
+    expect(new Set(CANDIDATE_SEATS.map((c) => first(c.industry))).size).toBe(5)
   })
 })

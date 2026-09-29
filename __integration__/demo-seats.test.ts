@@ -188,8 +188,9 @@ describe('every seat on the demo page opens', () => {
     for (const s of ALL_SEATS) {
       // A finished sentence, not a tag: the door has to tell somebody
       // who has never seen Etyme what they will find on the other side.
+      expect(s.waiting.trim().endsWith('.'), `${s.name}: “${s.waiting}”`).toBe(true)
       expect(s.about.trim().endsWith('.'), `${s.name}: “${s.about}”`).toBe(true)
-      expect(s.about.split(/\s+/).length, `${s.name} says too little`).toBeGreaterThan(5)
+      expect(s.waiting.split(/\s+/).length, `${s.name} says too little`).toBeGreaterThan(5)
       expect(s.where.trim().length, `${s.name} says nowhere`).toBeGreaterThan(2)
     }
   })
@@ -296,12 +297,14 @@ describe('the five people the demo can be walked as', () => {
 
   it('offers five people, in five industries, and not one of them a company', () => {
     expect(CANDIDATE_SEATS).toHaveLength(5)
-    const trades = new Set(CANDIDATE_SEATS.map((c) => c.where.split('·')[0].trim()))
+    const trades = new Set(CANDIDATE_SEATS.map((c) => c.industry.split('·')[0].trim()))
     expect(trades.size, [...trades].join(', ')).toBe(5)
     for (const c of CANDIDATE_SEATS) {
       expect(c.email, c.name).toMatch(/@seed\.etyme\.invalid$/)
       expect(c.about.trim().endsWith('.'), `${c.name}: ${c.about}`).toBe(true)
-      expect(c.about.split(/\s+/).length, `${c.name} says too little`).toBeGreaterThan(20)
+      expect(c.waiting.trim().endsWith('.'), `${c.name}: ${c.waiting}`).toBe(true)
+      // What is waiting and who they are, together: enough to know the person.
+      expect(`${c.waiting} ${c.about}`.split(/\s+/).length, `${c.name} says too little`).toBeGreaterThan(20)
     }
   })
 
@@ -594,7 +597,7 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
       !x.slug.startsWith('world-nike') && !x.slug.startsWith('world-corning') &&
       !x.slug.startsWith('world-terumo') && x.slug !== 'world-kestrel'
     )) {
-      const says = s.about.toLowerCase()
+      const says = `${s.waiting} ${s.about}`.toLowerCase()
       expect(/sell|sells/.test(says), `${s.name} never says what it sells`).toBe(true)
       expect(/buy|buys|employs/.test(says), `${s.name} never says what it buys`).toBe(true)
     }

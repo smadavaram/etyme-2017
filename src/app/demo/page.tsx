@@ -71,30 +71,39 @@ export default function DemoPage() {
           <p className="text-[13.5px] leading-relaxed text-etyme-ink">
             <strong className="font-semibold">Simulated data.</strong> Every company, person and
             number on this page is made up for the demo. These are demo companies, not
-            customers, and nothing you change here touches anything real.
+            customers. Nothing you change here touches anything real.
           </p>
         </div>
 
         {/* ── The client's own desk ─────────────────────────────── */}
-        <p className="eyebrow">A running program, from your own desk</p>
+        <p className="eyebrow">A running program, from your desk</p>
         <h1
           className="mt-2 max-w-3xl font-serif text-[34px] leading-[1.1] tracking-[-0.02em] sm:text-[42px]"
           style={{ textWrap: 'balance' }}
         >
           Every contractor on every site, across every supplier.
         </h1>
-        <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-etyme-muted">
-          Three companies, each buying contract work from several suppliers, each with a year
-          of history behind it and something waiting at every desk this morning — a week of
-          hours to sign, a job request to clear, a bill that matched, somebody past the
-          time limit on how long one person may stay. Pick the desk that is yours. Nothing to set up and nothing to sign; the
-          data is shared, and what you change, everybody else at that company sees.
-        </p>
+        <div className="mt-4 max-w-2xl text-[15px] leading-relaxed text-etyme-muted">
+          <p>
+            Three companies buy contract work from several suppliers. Each has a year of history.
+            Something is waiting at every desk today:
+          </p>
+          <ul className="mt-2 list-disc space-y-0.5 pl-5">
+            <li>a week of hours to sign</li>
+            <li>a job request to clear</li>
+            <li>a bill that matched</li>
+            <li>a person past the time limit on how long one person may stay</li>
+          </ul>
+          <p className="mt-3">
+            Pick your desk. There is nothing to set up and nothing to sign. The data is shared:
+            everybody else at that company sees what you change.
+          </p>
+        </div>
         <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-etyme-faint">
           Northbend Athletic, Cavanaugh Glassworks, Talvern Medical and every firm that supplies
           them are demo companies — not customers. Nothing here is real data, and nobody named is
-          a real person. Their addresses are reserved names nobody can register, and re-seeding
-          puts it all back the way it was.
+          a real person. Their web and email addresses use reserved names nobody can register,
+          and re-seeding puts it all back as it was.
         </p>
 
         {/* Which desk to sit at, not which kind of firm the visitor is:
@@ -107,30 +116,41 @@ export default function DemoPage() {
           <ProgramDoors programs={CLIENT_PROGRAMS} />
         </div>
 
-        <p className="mt-6 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
-          A program is not one seat. The manager who needs somebody, the lead who signs for
-          the money, the clerk who pays what matched and the officer who answers for tenure
-          each open on their own queue — and the clerk cannot raise a job request, which is
-          the point of having a clerk.
-        </p>
+        <div className="mt-6 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
+          <p>Each desk opens on its own work:</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            <li>The hiring manager needs somebody.</li>
+            <li>The approver signs for the money.</li>
+            <li>The AP clerk pays what matched, and cannot raise a job request.</li>
+            <li>The compliance officer tracks how long each person has been on site.</li>
+          </ul>
+        </div>
 
         {/* ── The suppliers, over the client's shoulder ─────────── */}
         {/* The id is the no-script landing of the home page's supplier door
             (components/try-demo): a reader without a script follows the
             link here instead of being seated. */}
         <section id="supplier" className="mt-16 scroll-mt-6 border-t border-etyme-rule pt-10">
-          <p className="eyebrow">The other side of the same placements</p>
+          <p className="eyebrow">The same placements, from the supplier’s side</p>
           <h2 className="mt-2 font-serif text-[24px] tracking-[-0.02em]">
             The firms that supply them
           </h2>
-          <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
-            Every contractor above was placed by a firm that is also here — a prime, the bench
-            vendor two rungs below it that the client never learns about, the office that runs
-            a program without being the client, and two integrators who staff a seat off their
-            own payroll. Each sells upward and buys downward. Sit at one to see both halves of
-            its book: what it shows the client, what it pays the firm below, and what neither
-            of them can see.
-          </p>
+          <div className="mt-3 max-w-2xl space-y-2 text-[14px] leading-relaxed text-etyme-muted">
+            <p>
+              Every contractor above came through a firm listed here. Each firm sells to the firm
+              above it and buys from the firm below.
+            </p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              <li>Primes: the suppliers the client pays.</li>
+              <li>A bench vendor below a prime. The client never learns its name.</li>
+              <li>Two program offices, which work inside a client&rsquo;s program without being the client.</li>
+              <li>Two integrators, which staff a job with their own employees.</li>
+            </ul>
+            <p>
+              Sit at one to see what it shows the client, what it pays the firm below, and what
+              neither of them can see.
+            </p>
+          </div>
           <div className="mt-6">
             <FirmDoors firms={[...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]} />
           </div>
@@ -138,20 +158,25 @@ export default function DemoPage() {
 
         {/* ── And the person the work is about ──────────────────── */}
         <section id="candidate" className="mt-16 scroll-mt-6 border-t border-etyme-rule pt-10">
-          <p className="eyebrow">And the person the work is about</p>
+          <p className="eyebrow">The people doing the work</p>
           <h2 className="mt-2 font-serif text-[24px] tracking-[-0.02em]">
             See it as the person, not the firm
           </h2>
-          <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
-            Five consultants in five industries on five kinds of paper: an integrator&rsquo;s own
-            employee, a bench listing sold on through a prime, a consultant on a US work visa
-            (H-1B) two rungs down a chain, a travel nurse paid corp to corp — paid through her
-            own company — and somebody with no
-            bench and no employer yet, which is what this product leaves a consultant holding on
-            the day they sign in. Each door opens on that person&rsquo;s own work — their hours,
-            their placement, what has been asked of them, or the sentence that says there is
-            none of it yet — and never on a company&rsquo;s book.
-          </p>
+          <div className="mt-3 max-w-2xl space-y-2 text-[14px] leading-relaxed text-etyme-muted">
+            <p>Five consultants in five industries, each on a different kind of contract:</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              <li>an integrator&rsquo;s own employee</li>
+              <li>a consultant on a bench, sold through a prime</li>
+              <li>a consultant on a US work visa (H-1B), two firms below the client</li>
+              <li>a travel nurse paid through her own company</li>
+              <li>somebody with no bench and no employer yet, which is where every consultant starts</li>
+            </ul>
+            <p>
+              Each door opens on that person&rsquo;s own work. That is their hours, their
+              placement, what they were asked for, or a line saying there is nothing yet. It never
+              opens on a company&rsquo;s records.
+            </p>
+          </div>
           <div className="mt-6">
             <PersonDoors people={CANDIDATE_SEATS} />
           </div>
