@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { ownPageFor } from '@/lib/portfolio-data'
-import { rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek } from '@/lib/consultant-portfolio'
+import { rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek, owedByWeek, type OwedWeek } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
-import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
+import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { paidBook, paidKey } from '@/lib/payroll-paid'
+import { daysFor } from '@/lib/contract-links'
+import { wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
+import { methodFor } from '@/lib/money/overtime-method'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 
 /**
@@ -163,7 +166,16 @@ export async function GET(request: NextRequest) {
     where: { personId: caller.person.id, state: 'ACTIVE' },
     select: {
       payRate: true, payCurrency: true, startDate: true,
-      buyContract: { select: { id: true, companyId: true, supplierSellContractId: true, contractType: true } },
+      // The whole buy line, as the payroll run reads it: its weekly line,
+      // its overtime multiple and method, who employs them, the exempt
+      // position recorded for this person, and the windows it covers.
+      buyContract: {
+        include: {
+          company: { select: { name: true } },
+          exemptAssertions: { where: { personId }, select: EXEMPT_SELECT },
+          sellLinks: { select: { buyContractId: true, sellContractId: true, effectiveFrom: true, effectiveTo: true } },
+        },
+      },
     },
   })
 
@@ -213,7 +225,7 @@ export async function GET(request: NextRequest) {
   // and the days a payroll run has already paid, so "owed" is owed.
   const approvedWeeks = await prisma.timesheet.findMany({
     where: { personId, status: 'APPROVED', sellContractId: { in: contracts.map((c) => c.id) } },
-    select: { id: true, sellContractId: true, days: true, totalHours: true, acceptedHours: true, periodStart: true, periodEnd: true },
+    select: { id: true, sellContractId: true, days: true, leaveDays: true, totalHours: true, acceptedHours: true, periodStart: true, periodEnd: true },
   })
   const paidBy = new Map<string, Awaited<ReturnType<typeof paidBook>>>()
   for (const l of payByCompany.values()) {
@@ -332,66 +344,111 @@ export async function GET(request: NextRequest) {
         overdue: c.dueOn < now,
       })),
 
-      // What they are owed for work already signed off.
+      // What they are owed for work already signed off, week by week.
       //
-      // Approved hours at their own pay rate, and only approved: a
-      // submitted timesheet is a claim, an approved one is a debt, and
-      // showing the two as one number would tell somebody they are owed
-      // money that nobody has agreed to yet.
+      // Approved hours at their own pay, and only approved: a submitted
+      // timesheet is a claim, an approved one is a debt, and showing the
+      // two as one number would tell somebody they are owed money that
+      // nobody has agreed to yet.
+      //
+      // Priced by payroll's own functions (`owedByWeek` asks `priceByDay`,
+      // `sheetOvertime` and `premiumByDay` exactly as a payroll run does),
+      // so a non-exempt worker's forty-five-hour week carries the premium
+      // on its five hours here as it does on her pay. It read straight
+      // time until 2026-09-29, and her page and her pay disagreed.
       //
       // Silent where the rate is not recorded rather than guessed. A
       // consultant planning around a number this product invented is
       // worse off than one who knows it is not here.
       owed: (() => {
-        const byContract = new Map(contracts.map((c) => [c.id, c.companyId]))
-        let cents = 0
-        let hours = 0
-        let paidHours = 0
+        const sellOf = new Map(contracts.map((c) => [c.id, c]))
+        const weeks: (OwedWeek & { payer: string })[] = []
         let unknownRate = 0
         for (const t of approvedWeeks) {
-          const pay = payByCompany.get(byContract.get(t.sellContractId) ?? '')
-          if (!pay?.payRate) { unknownRate++; continue }
-          const priced = priceByDay({
-            contractRateCents: pay.payRate,
-            periods: periodsOf(pay.buyContract.id),
-            days: (t.days ?? {}) as Record<string, number>,
-            hours: t.acceptedHours != null ? Number(t.acceptedHours) : Object.keys((t.days ?? {}) as object).length ? null : Number(t.totalHours),
-            periodStart: t.periodStart,
-            periodEnd: t.periodEnd,
-          })
-          const book = paidBy.get(pay.buyContract.id)
-          for (const d of priced.days) {
-            const before = book?.paid.get(paidKey(pay.buyContract.id, personId, t.id, d.day)) ?? 0
-            const left = Math.max(0, Math.round((d.hours - before) * 100) / 100)
-            paidHours += Math.min(before, d.hours)
-            hours += left
-            cents += left * d.rateCents
+          if (!payByCompany.has(sellOf.get(t.sellContractId)?.companyId ?? '')) unknownRate++
+        }
+        for (const pay of payByCompany.values()) {
+          const bc = pay.buyContract
+          const book = paidBy.get(bc.id)
+          const wage = wageLineFor(bc, caller.person.name, bc.exemptAssertions.find((a) => a.personId === personId))
+          const mine = approvedWeeks.filter((t) => sellOf.get(t.sellContractId)?.companyId === bc.companyId)
+          // One call per placement, because the weekly line may be the
+          // placement's own where the pay line names none.
+          for (const sellId of new Set(mine.map((t) => t.sellContractId))) {
+            const sell = sellOf.get(sellId)!
+            const linked = bc.sellLinks.some((l) => l.sellContractId === sellId)
+            const sheets = mine
+              .filter((t) => t.sellContractId === sellId)
+              .map((t) => {
+                const all = (t.days ?? {}) as Record<string, number>
+                return {
+                  id: t.id,
+                  // Narrowed to the days this pay line covers, as the run narrows them.
+                  days: linked && Object.keys(all).length > 0 ? daysFor(bc.id, bc.sellLinks, all) : all,
+                  leaveDays: (t.leaveDays ?? {}) as Record<string, number>,
+                  acceptedHours: t.acceptedHours != null ? Number(t.acceptedHours) : null,
+                  totalHours: Number(t.totalHours),
+                  periodStart: t.periodStart,
+                  periodEnd: t.periodEnd,
+                }
+              })
+            const priced = owedByWeek(
+              sheets,
+              {
+                contractRateCents: pay.payRate,
+                periods: periodsOf(bc.id),
+                afterHours: bc.overtimeAfterHours ?? sell.overtimeAfterHours ?? null,
+                method: methodFor(bc).method,
+                wage,
+                currency: pay.payCurrency,
+              },
+              (sheetId, day) => book?.entries.get(paidKey(bc.id, personId, sheetId, day))
+            )
+            for (const w of priced) weeks.push({ ...w, payer: bc.company?.name ?? sell.company.name })
           }
         }
-        hours = Math.round(hours * 100) / 100
-        cents = Math.round(cents)
-        paidHours = Math.round(paidHours * 100) / 100
+        weeks.sort((a, b) => b.weekOf.localeCompare(a.weekOf))
+
+        const priced = weeks.filter((w) => w.priced)
+        const r2 = (n: number) => Math.round(n * 100) / 100
+        const hours = r2(priced.reduce((n, w) => n + (w.unpaidHours ?? 0), 0))
+        const overtimeHours = r2(priced.reduce((n, w) => n + (w.unpaidOvertimeHours ?? 0), 0))
+        const cents = priced.reduce((n, w) => n + (w.stillOwedCents ?? 0), 0)
+        const paidHours = r2(weeks.reduce((n, w) => n + w.paidHours, 0))
+        const notPriced = weeks.length - priced.length
         // A run from before 2026-09-29 recorded no hours, so what it paid
         // cannot be taken off. Said, rather than showing its hours as owed.
         const unrecorded = [...paidBy.values()].some((b) => b.unrecorded.size > 0)
+        const head =
+          `${hours} approved hours not yet paid` + (overtimeHours > 0 ? `, ${overtimeHours} of them overtime` : '') + '.'
+        const notes: string[] = []
+        if (unknownRate > 0) {
+          notes.push(`${unknownRate} more week${unknownRate === 1 ? '' : 's'} approved with no rate recorded on Etyme — your agency has those.`)
+        }
+        if (notPriced > 0) {
+          notes.push(`${notPriced} week${notPriced === 1 ? ' has' : 's have'} no figure here; each says why.`)
+        }
+        if (unrecorded) {
+          notes.push('A payroll run before this page could see what was paid has been made, so some of these may already be paid — your employer has the record.')
+        }
         return {
           hours,
+          overtimeHours,
           cents,
           currency: contracts[0] ? payByCompany.get(contracts[0].companyId)?.payCurrency ?? null : null,
           // How many approved weeks have no rate here — said rather than
           // counted as zero.
           weeksWithNoRate: unknownRate,
+          weeksNotPriced: notPriced,
           paidHours,
+          // Each week: its ordinary and overtime hours, the premium, what
+          // payroll pays for it, what has been paid and what is left.
+          // Newest first. No rate of any rung is on it.
+          weeks,
           says:
-            hours === 0 && unknownRate === 0
+            hours === 0 && unknownRate === 0 && notPriced === 0
               ? 'Nothing approved and unpaid right now.'
-              : unknownRate > 0
-                ? `${hours} approved hours here. ${unknownRate} more week${unknownRate === 1 ? '' : 's'} ` +
-                  `approved with no rate recorded on Etyme — your agency has those.`
-                : unrecorded
-                  ? `${hours} approved hours. A payroll run before this page could see what was paid ` +
-                    `has been made, so some of these may already be paid — your employer has the record.`
-                  : `${hours} approved hours, not yet paid.`,
+              : [head, ...notes].join(' '),
         }
       })(),
     },

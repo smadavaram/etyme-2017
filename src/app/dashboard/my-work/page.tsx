@@ -3,7 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
-import { compact, rate as fmtRate } from '@/lib/money-display'
+import { amount, compact, rate as fmtRate } from '@/lib/money-display'
 import { YourPapers } from './papers'
 
 /**
@@ -33,6 +33,25 @@ interface Placement {
   startDate: string
   endDate: string | null
   daysLeft: number | null
+}
+/**
+ * One week of what they are owed, as `/api/me/work` prices it — with
+ * payroll's own functions, so the premium on hours over the line is here
+ * exactly as it is on their pay. No rate of any rung is on it.
+ */
+interface OwedWeek {
+  weekOf: string
+  payer: string
+  currency: string
+  priced: boolean
+  hours: number | null
+  ordinaryHours: number | null
+  overtimeHours: number | null
+  premiumCents: number | null
+  owedCents: number | null
+  paidCents: number
+  stillOwedCents: number | null
+  says: string
 }
 interface Timesheet {
   id: string
@@ -831,6 +850,77 @@ function FileYourWeek({ filing, onSent }: { filing: Filing[]; onSent: () => Prom
   )
 }
 
+/**
+ * What they are owed, week by week.
+ *
+ * The first of the three questions this page exists to answer. Each week
+ * says its ordinary hours, its overtime hours and the extra the overtime
+ * earns, in words, then what payroll pays for it less what has been paid.
+ * Until 2026-09-29 the route worked out a straight-time total and the
+ * page showed none of it; a non-exempt worker's long week was worth more
+ * on her pay than anywhere she could see.
+ *
+ * Weeks still owed come first. Weeks paid in full are one line, opened on
+ * a tap, because a year of paid weeks is not what somebody opens this for.
+ */
+function YourPay({ owed }: { owed: { cents: number; currency: string | null; says: string; weeks?: OwedWeek[] } }) {
+  const [showPaid, setShowPaid] = useState(false)
+  const weeks = owed.weeks ?? []
+  const open = weeks.filter((w) => !w.priced || (w.stillOwedCents ?? 0) > 0)
+  const paid = weeks.filter((w) => w.priced && (w.stillOwedCents ?? 0) === 0)
+  const shown = showPaid ? [...open, ...paid].sort((a, b) => b.weekOf.localeCompare(a.weekOf)) : open
+
+  return (
+    <section className="mb-8">
+      <h2 className="font-serif text-lg text-etyme-ink mb-1">What you are owed</h2>
+      <p className="text-xs text-etyme-muted mb-3">
+        {owed.cents > 0 && <span className="text-etyme-ink tabular-nums">{amount(owed.cents, owed.currency ?? undefined)} still owed. </span>}
+        {owed.says}
+      </p>
+      {shown.length > 0 && (
+        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+          {shown.map((w) => (
+            <div key={`${w.payer}-${w.weekOf}`} className="p-4 flex flex-col sm:flex-row sm:items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-etyme-ink">Week of {dayLabel(w.weekOf)}</div>
+                <div className="text-xs text-etyme-muted">paid by {w.payer}</div>
+                <p className="text-[13px] text-etyme-ink mt-1 leading-relaxed">{w.says}</p>
+              </div>
+              <div className="shrink-0 sm:w-44 space-y-0.5 text-[13px] tabular-nums">
+                {w.priced && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-etyme-muted">Owed</span>
+                    <span className="text-etyme-ink">{amount(w.owedCents, w.currency)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-3">
+                  <span className="text-etyme-muted">Paid</span>
+                  <span className="text-etyme-ink">{amount(w.paidCents, w.currency)}</span>
+                </div>
+                {w.priced && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-etyme-muted">Still owed</span>
+                    <span className={(w.stillOwedCents ?? 0) > 0 ? 'text-etyme-attention font-medium' : 'text-etyme-verified'}>
+                      {amount(w.stillOwedCents, w.currency)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {paid.length > 0 && (
+        <button onClick={() => setShowPaid(!showPaid)} className="mt-2 text-xs text-etyme-action hover:underline">
+          {showPaid
+            ? 'Hide the weeks paid in full'
+            : `${paid.length} earlier week${paid.length === 1 ? ' is' : 's are'} paid in full. Show ${paid.length === 1 ? 'it' : 'them'}.`}
+        </button>
+      )}
+    </section>
+  )
+}
+
 export default function MyWorkPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -1010,6 +1100,8 @@ export default function MyWorkPage() {
           ))}
         </div>
       </section>
+
+      {data.owed && <YourPay owed={data.owed} />}
 
       <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Your hours</h2>

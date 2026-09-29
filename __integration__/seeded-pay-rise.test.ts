@@ -197,6 +197,10 @@ describe('a pay rise on the seeded world', () => {
     const allHours = Object.values(all).reduce((a, b) => a + b, 0)
     const allCents = Object.entries(all).reduce((n, [d, h]) => n + payFor(d, h), 0)
 
+    // The forty-five-hour week is after the run, so its premium — half of
+    // $70 again on five hours — is owed on top of the straight time.
+    const premium = 5 * 3_500
+
     as(RATE_CHANGE_PERSON.email)
     const r = await json(await myWork(req('GET', '/api/me/work')))
     expect(r.status).toBe(200)
@@ -204,7 +208,59 @@ describe('a pay rise on the seeded world', () => {
     expect(line.payRate).toBe(7_000)
     expect(r.body.data.owed.paidHours).toBe(paidHours)
     expect(r.body.data.owed.hours).toBe(allHours - paidHours)
-    expect(r.body.data.owed.cents).toBe(allCents - paidCents)
+    expect(r.body.data.owed.overtimeHours).toBe(5)
+    expect(r.body.data.owed.cents).toBe(allCents - paidCents + premium)
+  })
+
+  it('Rosa’s own page shows the forty-five-hour week with its overtime, the same figure payroll pays', async () => {
+    const long = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: sellId, totalHours: 45 } })
+
+    // What payroll pays for that week, from the payroll file.
+    as(PAYROLL_DESK)
+    const f = await json(await payrollExport(
+      req('GET', `/api/payroll/export?from=${iso(long.periodStart)}&to=${iso(long.periodEnd)}&provider=GENERIC`)
+    ))
+    expect(f.status, JSON.stringify(f.body)).toBe(200)
+    const payroll = f.body.data.lines
+      .filter((l: any) => l.personName === RATE_CHANGE_PERSON.name)
+      .reduce((n: number, l: any) => n + l.totalCents, 0)
+
+    as(RATE_CHANGE_PERSON.email)
+    const r = await json(await myWork(req('GET', '/api/me/work')))
+    expect(r.status).toBe(200)
+    const week = r.body.data.owed.weeks.find((w: any) => w.weekOf === iso(long.periodStart))
+    expect(week, 'the long week is not on her page').toBeTruthy()
+    expect([week.hours, week.ordinaryHours, week.overtimeHours]).toEqual([45, 40, 5])
+    expect(week.premiumCents).toBe(5 * 3_500)
+    // Forty hours at $70 and five at $105: $3,325.00, never $70 × 45.
+    expect(week.owedCents).toBe(40 * 7_000 + 5 * 10_500)
+    expect(week.owedCents).not.toBe(45 * 7_000)
+    expect(week.owedCents).toBe(payroll)
+    // No run has paid it yet, so all of it is still owed.
+    expect(week.paidCents).toBe(0)
+    expect(week.stillOwedCents).toBe(week.owedCents)
+    expect(week.says).toContain('40 ordinary and 5 overtime')
+    expect(week.says).toContain('$175.00')
+  })
+
+  it('her page never shows what the client is billed for her', async () => {
+    as(RATE_CHANGE_PERSON.email)
+    const r = await json(await myWork(req('GET', '/api/me/work')))
+    expect(r.status).toBe(200)
+    const text = JSON.stringify(r.body)
+    expect(text).not.toMatch(/billRate|bill_rate|billCents/i)
+    // Not $112 an hour, and not any week priced at it.
+    const numbers: number[] = []
+    const walk = (v: unknown) => {
+      if (typeof v === 'number') numbers.push(v)
+      else if (Array.isArray(v)) v.forEach(walk)
+      else if (v && typeof v === 'object') Object.values(v).forEach(walk)
+    }
+    walk(r.body)
+    expect(numbers).not.toContain(11_200)
+    for (const w of r.body.data.owed.weeks) {
+      if (w.hours) expect(w.owedCents).not.toBe(Math.round(w.hours * 11_200))
+    }
   })
 
   it('her job is charged to Northbend’s Distribution cost center, and the award carries that coding onto her line', async () => {

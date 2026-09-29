@@ -402,9 +402,15 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
     const owed = r.body.data.owed
     const all = expected('2026-01-01', '2026-12-31')
     const june = expected('2026-06-01', '2026-06-30')
+    // Her line is non-exempt with a forty-hour line from the test above,
+    // so the forty-five-hour week of 6 July carries its premium on her
+    // page as it does on her pay: half of $70 again on five hours. Her
+    // page read straight time only until 2026-09-29.
+    const premium = 5 * 3_500
     expect(owed.paidHours).toBe(june.hours)
     expect(owed.hours).toBe(all.hours - june.hours)
-    expect(owed.cents).toBe(all.cents - june.cents)
+    expect(owed.overtimeHours).toBe(5)
+    expect(owed.cents).toBe(all.cents - june.cents + premium)
   })
 
   it('prices her pay on the margin screen at $66 and $70 by the day, never at the $112 the client is billed', async () => {

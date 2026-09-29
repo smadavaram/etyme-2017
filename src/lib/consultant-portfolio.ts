@@ -21,6 +21,12 @@
  * off and stays off until they turn it on.
  */
 
+import { sheetOvertime, premiumByDay, type WageLine } from '@/lib/money/sheet-overtime'
+import type { OvertimeMethod } from '@/lib/money/overtime-method'
+import { priceByDay, type RatePeriod } from '@/lib/contract-rate'
+import { weekStart } from '@/lib/overtime'
+import { amount } from '@/lib/money-display'
+
 export type Visibility = 'INTERNAL' | 'FEED' | 'CLIENT_VISIBLE' | 'VERIFIED'
 
 export interface Engagement {
@@ -1355,4 +1361,266 @@ export function returnedWeek(
     hours,
     reason,
   }
+}
+
+// ── What the worker is owed, week by week ──────────────────────────────
+//
+// Money reported on 2026-09-29 that a non-exempt worker's own page figured
+// what she is owed as straight time only: a forty-five-hour week read
+// $70 × 45 on her page while payroll paid the premium on the five hours
+// over the line. Two answers to one question, and the worker's was wrong.
+//
+// So this asks payroll's own functions the question payroll asks —
+// `priceByDay` for each day at the rate in force, `sheetOvertime` and
+// `premiumByDay` for the premium, on the weekly line and the wage facts
+// payroll reads — and restates none of the arithmetic. When payroll's
+// rules move (a legal line where the contract names none, a method a firm
+// chose), they move inside those functions and this page follows.
+//
+// No bill rate is anywhere in it. The inputs are the worker's own pay
+// line and her own weeks.
+
+/** One of the worker's weeks as a payroll run would read it. */
+export interface OwedSheet {
+  id: string
+  /** ISO day → hours, leave included, already narrowed to this pay line. */
+  days: Record<string, number> | null
+  /** ISO day → hours of paid leave, a subset of `days`. */
+  leaveDays?: Record<string, number> | null
+  /** What the employer accepted, where it differs from what was filed. */
+  acceptedHours: number | null
+  /** Used only where no daily hours were recorded. */
+  totalHours: number
+  periodStart: Date
+  periodEnd: Date
+}
+
+/** The pay line the weeks are paid from — the worker's own, never a rung above. */
+export interface OwedPayLine {
+  /** The line's opening pay rate, cents an hour. */
+  contractRateCents: number
+  /** Approved pay changes, read by `rateInForce`. */
+  periods: RatePeriod[]
+  /** The weekly line as payroll reads it: the employer's own, else the sell line's. */
+  afterHours: number | null
+  method: OvertimeMethod
+  wage: WageLine
+  currency: string
+}
+
+/** What payroll has already paid for one day of one sheet. */
+export interface PaidSoFar {
+  hours: number
+  straightCents: number
+  premiumHours: number
+  premiumCents: number
+}
+
+export interface OwedWeek {
+  /** The Monday of the week. */
+  weekOf: string
+  currency: string
+  /**
+   * False where this page cannot stand behind a figure for the week, and
+   * `says` names why. Every money field below is then null.
+   */
+  priced: boolean
+  hours: number | null
+  ordinaryHours: number | null
+  overtimeHours: number | null
+  /** The extra the overtime hours earn, on top of their usual pay. Rounded once. */
+  premiumCents: number | null
+  /** Usual pay for every hour plus the premium: what payroll pays for the week. */
+  owedCents: number | null
+  /** What payroll runs and approved back pay have already paid for these days. */
+  paidCents: number
+  paidHours: number
+  /** Owed less paid, never below nothing. */
+  stillOwedCents: number | null
+  unpaidHours: number | null
+  unpaidOvertimeHours: number | null
+  /** The week in plain words. Never a rate, never a code. */
+  says: string
+}
+
+const r2 = (n: number) => Math.round(n * 100) / 100
+const hoursWord = (n: number) => `${r2(n)} hour${r2(n) === 1 ? '' : 's'}`
+
+interface WeekTally {
+  hours: number
+  straight: number
+  over: number
+  premium: number
+  paidHours: number
+  paidCents: number
+  unpaidHours: number
+  unpaidOver: number
+  twoRates: boolean
+  unclassified: number
+  withheld: { filed: number; accepted: number } | null
+}
+
+/**
+ * Every week of the worker's accepted work on one pay line, what payroll
+ * pays for it, what has been paid, and what is still owed.
+ *
+ * `paidOn` answers what has already been paid for a day of a sheet — the
+ * payroll book (`paidBook` in lib/payroll-paid), passed in so this stays
+ * free of the database.
+ *
+ * A week the employer cut, that also went over the line, is not priced:
+ * which hours come off decides the overtime, that is payroll's decision
+ * to make, and a plausible figure here would be a guess at it.
+ */
+export function owedByWeek(
+  sheets: OwedSheet[],
+  line: OwedPayLine,
+  paidOn: (sheetId: string, day: string) => PaidSoFar | undefined
+): OwedWeek[] {
+  const tally = new Map<string, WeekTally>()
+  const at = (weekOf: string): WeekTally => {
+    if (!tally.has(weekOf)) {
+      tally.set(weekOf, {
+        hours: 0, straight: 0, over: 0, premium: 0, paidHours: 0, paidCents: 0,
+        unpaidHours: 0, unpaidOver: 0, twoRates: false, unclassified: 0, withheld: null,
+      })
+    }
+    return tally.get(weekOf)!
+  }
+
+  for (const s of sheets) {
+    const days = Object.fromEntries(
+      Object.entries(s.days ?? {}).map(([d, h]) => [d.slice(0, 10), Number(h) || 0])
+    ) as Record<string, number>
+    const hasDays = Object.keys(days).length > 0
+    const filed = r2(Object.values(days).reduce((n, h) => n + h, 0))
+
+    // The overtime, as payroll prices it: the same call, the same inputs.
+    const weeks = hasDays
+      ? sheetOvertime({
+          days,
+          leaveDays: s.leaveDays ?? null,
+          afterHours: line.afterHours,
+          contractRateCents: line.contractRateCents,
+          periods: line.periods,
+          method: line.method,
+          line: line.wage,
+        })
+      : []
+
+    const cut = hasDays && s.acceptedHours != null && r2(filed - s.acceptedHours) > 0
+    if (cut && weeks.length > 0) {
+      // The sheet's own filed and accepted totals, said once on every week
+      // it touches — an acceptance records a sheet's total, not a week's.
+      const touched = new Set<string>()
+      for (const [day, h] of Object.entries(days)) {
+        if (h <= 0) continue
+        const w = at(weekStart(day))
+        touched.add(weekStart(day))
+        const paid = paidOn(s.id, day)
+        w.paidHours += Math.min(paid?.hours ?? 0, h)
+        w.paidCents += (paid?.straightCents ?? 0) + (paid?.premiumCents ?? 0)
+      }
+      for (const weekOf of touched) {
+        const w = at(weekOf)
+        const was = w.withheld ?? { filed: 0, accepted: 0 }
+        w.withheld = { filed: r2(was.filed + filed), accepted: r2(was.accepted + s.acceptedHours!) }
+      }
+      continue
+    }
+
+    const priced = priceByDay({
+      contractRateCents: line.contractRateCents,
+      periods: line.periods,
+      days,
+      hours: s.acceptedHours != null ? s.acceptedHours : hasDays ? null : s.totalHours,
+      periodStart: s.periodStart,
+      periodEnd: s.periodEnd,
+    })
+    const premiums = premiumByDay(weeks)
+
+    for (const d of priced.days) {
+      const w = at(weekStart(d.day))
+      w.hours += d.hours
+      w.straight += d.hours * d.rateCents
+      const p = premiums.get(d.day)
+      if (p) {
+        w.over += p.hours
+        w.premium += p.premiumCents
+      }
+      const paid = paidOn(s.id, d.day)
+      w.paidHours += Math.min(paid?.hours ?? 0, d.hours)
+      w.paidCents += (paid?.straightCents ?? 0) + (paid?.premiumCents ?? 0)
+      w.unpaidHours += Math.max(0, d.hours - (paid?.hours ?? 0))
+      w.unpaidOver += Math.max(0, (p?.hours ?? 0) - (paid?.premiumHours ?? 0))
+    }
+    for (const sw of weeks) {
+      const w = at(sw.weekOf)
+      if (!sw.overtime) w.unclassified += sw.overHours
+      else if (sw.overtime.rates.length > 1 && sw.overtime.premiumCents > 0) w.twoRates = true
+    }
+  }
+
+  const employer = line.wage.employerName ?? 'your employer'
+  const Employer = employer.charAt(0).toUpperCase() + employer.slice(1)
+
+  return [...tally.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([weekOf, w]): OwedWeek => {
+      const paidCents = Math.round(w.paidCents)
+      const paidHours = r2(w.paidHours)
+      if (w.withheld) {
+        return {
+          weekOf, currency: line.currency, priced: false,
+          hours: null, ordinaryHours: null, overtimeHours: null, premiumCents: null,
+          owedCents: null, stillOwedCents: null, unpaidHours: null, unpaidOvertimeHours: null,
+          paidCents, paidHours,
+          says:
+            `You filed ${hoursWord(w.withheld.filed)} and ${employer} accepted ${hoursWord(w.withheld.accepted)}. ` +
+            `Which hours come off changes your overtime, so this page shows no figure for this week. ` +
+            `${Employer}'s payroll has it.`,
+        }
+      }
+
+      const hours = r2(w.hours)
+      const over = r2(w.over)
+      // Straight time rounded once and the premium rounded once, as a
+      // payroll run rounds them.
+      const straightCents = Math.round(w.straight)
+      const premiumCents = Math.round(w.premium)
+      const owedCents = straightCents + premiumCents
+      const paidTooMuch = paidCents > owedCents
+
+      const parts: string[] = []
+      if (over > 0) {
+        parts.push(
+          `${hoursWord(hours)}: ${r2(hours - over)} ordinary and ${r2(over)} overtime. ` +
+            `The ${hoursWord(over)} of overtime earn an extra ${amount(premiumCents, line.currency)} on top of your usual pay.`
+        )
+        if (w.twoRates) parts.push('You were paid at two rates that week, so the extra is worked out on the average of the two.')
+      } else if (w.unclassified > 0) {
+        parts.push(
+          `${hoursWord(hours)}, ${hoursWord(w.unclassified)} of them over ${line.afterHours} in the week. ` +
+            `${Employer} has not recorded whether you are owed overtime, so they are shown at your usual pay. Ask ${employer}.`
+        )
+      } else {
+        parts.push(`${hoursWord(hours)}, none of them overtime.`)
+      }
+      if (paidTooMuch) parts.push(`More has been paid for this week than this page works out. ${Employer} has the record.`)
+
+      return {
+        weekOf, currency: line.currency, priced: true,
+        hours,
+        ordinaryHours: r2(hours - over),
+        overtimeHours: over,
+        premiumCents,
+        owedCents,
+        paidCents,
+        paidHours,
+        stillOwedCents: Math.max(0, owedCents - paidCents),
+        unpaidHours: r2(w.unpaidHours),
+        unpaidOvertimeHours: r2(w.unpaidOver),
+        says: parts.join(' '),
+      }
+    })
 }
