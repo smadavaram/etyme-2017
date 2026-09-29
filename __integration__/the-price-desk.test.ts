@@ -37,6 +37,7 @@ const SEAT = {
 
 let vendorId = ''
 let sellId = ''
+let payLineId = ''
 let consultantEmail = ''
 
 /** Somebody at the firm holding one named role and nothing more. */
@@ -78,9 +79,14 @@ describe('what a placement is priced at is the price desk\'s to read', () => {
     const vendor = await prisma.company.findFirstOrThrow({ where: { name: 'Computer Systems Inc' } })
     vendorId = vendor.id
 
+    // A placement whose person this firm pays directly, so the person
+    // has a pay line of their own to read.
     const sell = await prisma.sellContract.findFirstOrThrow({
-      where: { companyId: vendorId },
-      select: { id: true, billRate: true },
+      where: {
+        companyId: vendorId,
+        person: { buyCandidacies: { some: { buyContract: { companyId: vendorId, supplierSellContractId: null } } } },
+      },
+      select: { id: true, billRate: true, personId: true },
     })
     sellId = sell.id
 
@@ -118,6 +124,27 @@ describe('what a placement is priced at is the price desk\'s to read', () => {
         fromDate: new Date('2026-02-01T00:00:00Z'),
         changedById: owner.id,
         previousRate: other.billRate,
+        approvalState: 'APPROVED',
+      },
+    })
+
+    // A pay rise on the line that pays that person — the rate they are a
+    // party to, and the only one their own seat may read.
+    const payLine = await prisma.buyContract.findFirstOrThrow({
+      where: { companyId: vendorId, supplierSellContractId: null, candidates: { some: { personId: sell.personId } } },
+      include: { candidates: true },
+    })
+    payLineId = payLine.id
+    await prisma.rateHistory.create({
+      data: {
+        contractType: 'BUY',
+        contractId: payLine.id,
+        rate: payLine.candidates[0].payRate + 200,
+        rateType: 'HOURLY',
+        fromDate: new Date('2026-03-01T00:00:00Z'),
+        reason: 'Pay review',
+        changedById: owner.id,
+        previousRate: payLine.candidates[0].payRate,
         approvalState: 'APPROVED',
       },
     })
@@ -196,44 +223,46 @@ describe('what a placement is priced at is the price desk\'s to read', () => {
     expect(body.data.rateHistory.length).toBeGreaterThan(0)
   })
 
-  it('still shows a consultant the movements on their own placement', async () => {
-    // A person paid a share of a number may see that number, on their
-    // own assignment only. A consultant holds no permission at all, and
-    // gating this route on the price desk must not take their own rate
-    // off them.
+  it('shows a consultant the movements on the line that pays them', async () => {
+    // A person paid a number may see that number, on their own line
+    // only. A consultant holds no permission at all, and gating this
+    // route on the price desk must not take their own rate off them.
     as(consultantEmail)
     const { status, body } = await json(await rateHistory(req('GET', '/api/rate-history')))
     expect(status).toBe(200)
-    expect(body.data.rateHistory.length).toBeGreaterThan(0)
-    expect(body.data.rateHistory.map((r: any) => r.contractId)).toContain(sellId)
+    expect(body.data.rateHistory.map((r: any) => r.contractId)).toContain(payLineId)
   })
 
-  it('shows that consultant their own rate movements and no colleague\'s', async () => {
+  it('never shows a consultant what the client is billed for them', async () => {
+    // Until 2026-09-29 a consultant's own rows were their sell lines —
+    // the client's price, which beside their pay is the employer's whole
+    // margin on them. The person named on a sell contract is its
+    // subject, not a party to it.
     as(consultantEmail)
     const { body } = await json(await rateHistory(req('GET', '/api/rate-history')))
-    const ids: string[] = body.data.rateHistory.map((r: any) => r.contractId)
-    const lines = await prisma.sellContract.findMany({
-      where: { id: { in: ids } },
-      select: { personId: true },
-    })
-    const me = await prisma.person.findFirstOrThrow({ where: { primaryEmail: consultantEmail } })
-    for (const l of lines) expect(l.personId).toBe(me.id)
+    for (const r of body.data.rateHistory) expect(r.contractType).toBe('BUY')
+    const byName = await json(
+      await rateHistory(req('GET', `/api/rate-history?contractId=${sellId}&contractType=SELL`))
+    )
+    expect(byName.status).toBe(404)
   })
 
-  it('never shows a consultant the rate the rung above their employer charges', async () => {
+  it('shows that consultant their own pay line and nobody else\'s, and never a price between two firms above them', async () => {
     // Helena Marsh is sold by CloudEPA at $112 and by Computer Systems
-    // at $138. Listing both on her own page hands her the whole markup
-    // her employer makes on her, by subtraction. The chain descends and
-    // never ascends — a person's own rate history is the leg of it that
-    // pays them.
+    // at $138. A line between two firms in her chain is their price,
+    // not her rate. Her own is the line that pays her directly.
     as(consultantEmail)
     const { body } = await json(await rateHistory(req('GET', '/api/rate-history')))
     const ids: string[] = body.data.rateHistory.map((r: any) => r.contractId)
-    const lines = await prisma.sellContract.findMany({
+    const me = await prisma.person.findFirstOrThrow({ where: { primaryEmail: consultantEmail } })
+    const lines = await prisma.buyContract.findMany({
       where: { id: { in: ids } },
-      select: { companyId: true },
+      select: { supplierSellContractId: true, candidates: { select: { personId: true } } },
     })
-    expect(lines.length).toBeGreaterThan(0)
-    for (const l of lines) expect(l.companyId).toBe(vendorId)
+    expect(lines.length).toBe(new Set(ids).size)
+    for (const l of lines) {
+      expect(l.supplierSellContractId).toBeNull()
+      expect(l.candidates.map((c) => c.personId)).toContain(me.id)
+    }
   })
 })

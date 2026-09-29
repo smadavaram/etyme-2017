@@ -155,7 +155,7 @@ export const DOMAINS: Domain[] = [
       'lib/periods', 'lib/recurring', 'lib/cycle-generator', 'lib/cycle-kinds', 'lib/contract-cycles', 'lib/cycle-complete', 'lib/expense-billing', 'lib/commission', 'app/dashboard/payroll/commissions', 'lib/holidays',
       'lib/invoice-loop', 'lib/invoice-match', 'lib/billing-cascade', 'lib/billing-plan',
       'lib/payroll-export', 'lib/three-way-match', 'lib/purchase-order',
-      'lib/cost-allocation', 'lib/contract-rate', 'lib/expense-approval',
+      'lib/cost-allocation', 'lib/contract-rate', 'lib/rate-line', 'lib/payroll-paid', 'lib/expense-approval',
       'lib/loose-ends', 'lib/erp-profiles', 'lib/ar-ageing', 'lib/credit',
       'lib/ap-delay', 'app/api/ap', 'app/dashboard/ap',
       'app/api/ar', 'app/dashboard/ar',

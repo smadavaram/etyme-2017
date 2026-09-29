@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { assessRateChange } from '@/lib/contract-rate'
+import { lineFor } from '@/lib/rate-line'
 import { prisma } from '@/lib/db'
 
 /**
@@ -93,30 +94,36 @@ export async function GET(request: NextRequest) {
     // A consultant on the bench has a context pointing at the agency. Read
     // as employment it showed them six other people's rate movements — the
     // one number in this business nobody shares sideways.
+    //
+    // ── A worker reads what they are paid, and never what they are sold at ──
+    //
+    // A consultant's own rows used to be their SELL contracts: the rate
+    // the client is billed for them. Priya Raman's page listed $112 and a
+    // proposed $117.60 — the client's price, and with her pay beside it,
+    // her employer's whole margin. The person named on a sell contract is
+    // its subject, not a party to it; the line they are a party to is the
+    // buy line that pays them. So a consultant seat reads BUY rows only,
+    // on the line that names them and pays them directly — never a line
+    // between two firms above them in a chain, which is a price between
+    // those firms and not their rate.
     const own = isConsultantSeat(caller)
-    const canSeeBuy = !own && hasPermission(caller.permissions, 'consultants.cost')
+    const canSeeBuy = own || hasPermission(caller.permissions, 'consultants.cost')
     const [sellContracts, buyContracts] = await Promise.all([
-      prisma.sellContract.findMany({
-        // Their own assignment, at the firm whose bench they are on —
-        // and not every rung of their chain.
-        //
-        // `{ personId }` alone was every sell contract in the world with
-        // their name on it. Helena Marsh is sold by CloudEPA at $112 and
-        // by Computer Systems at $138, so her own rate history listed
-        // both and the subtraction is her employer's entire markup on
-        // her. CLAUDE.md: the chain descends and never ascends. Adding
-        // the company scopes it to the leg that actually pays her, which
-        // is the one "their own assignment" ever meant.
-        where: own ? { personId: caller.person.id, companyId } : { companyId },
-        select: {
-          id: true,
-          person: { select: { name: true } },
-          clientCompany: { select: { name: true } },
-        },
-      }),
+      own
+        ? Promise.resolve([] as Array<{ id: string; person: { name: string }; clientCompany: { name: string } | null }>)
+        : prisma.sellContract.findMany({
+            where: { companyId },
+            select: {
+              id: true,
+              person: { select: { name: true } },
+              clientCompany: { select: { name: true } },
+            },
+          }),
       canSeeBuy
         ? prisma.buyContract.findMany({
-            where: { companyId },
+            where: own
+              ? { candidates: { some: { personId: caller.person.id } }, supplierSellContractId: null }
+              : { companyId },
             select: {
               id: true,
               // One agreement can cover several people, so the label lists
@@ -214,8 +221,27 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Permission check: buy contract rates require consultants.cost
-  if (contractType === 'BUY' && !hasPermission(caller.permissions, 'consultants.cost')) {
+  // A worker's own seat reads their own pay line and nothing else. A
+  // sell contract names them as its subject; the price on it is the
+  // client's and was never theirs to read.
+  const ownSeat = isConsultantSeat(caller)
+  if (ownSeat && contractType === 'SELL') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message:
+            'What a client is billed for you is between the firms on the contract. ' +
+            'Your own rate is on the line that pays you, and that history is yours to read.',
+        },
+      },
+      { status: 404 }
+    )
+  }
+
+  // Permission check: buy contract rates require consultants.cost — except
+  // for the person the line pays, reading their own.
+  if (contractType === 'BUY' && !ownSeat && !hasPermission(caller.permissions, 'consultants.cost')) {
     return NextResponse.json(
       {
         error: {
@@ -233,14 +259,10 @@ export async function GET(request: NextRequest) {
   }
 
   // Verify the contract is the caller's to read — their company's, or, for
-  // somebody on a bench, their own.
-  const ownScope = isConsultantSeat(caller)
-    ? { personId: caller.person.id }
-    : { companyId: caller.company?.id }
-
+  // a worker, the line that pays them.
   if (contractType === 'SELL') {
     const sc = await prisma.sellContract.findFirst({
-      where: { id: contractId, ...ownScope },
+      where: { id: contractId, companyId: caller.company?.id },
     })
     if (!sc) {
       return NextResponse.json(
@@ -250,8 +272,8 @@ export async function GET(request: NextRequest) {
     }
   } else {
     const bc = await prisma.buyContract.findFirst({
-      where: isConsultantSeat(caller)
-        ? { id: contractId, candidates: { some: { personId: caller.person.id } } }
+      where: ownSeat
+        ? { id: contractId, supplierSellContractId: null, candidates: { some: { personId: caller.person.id } } }
         : { id: contractId, companyId: caller.company?.id },
     })
     if (!bc) {
@@ -359,6 +381,56 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // ── Only a party to the line may change the rate on it ──────────────
+  //
+  // This checked the permission and nothing else, so an owner at any
+  // firm in the world — who holds every permission at their own —
+  // wrote a rate on somebody else's contract and got 201, and a third
+  // firm approved it. A rate is a term between two parties. On a BUY
+  // line the one who writes it is the payer, whose money it is; the
+  // supplier or the worker agrees to it, and nobody else is party. On a
+  // SELL line either end of the trade may propose — the firm selling or
+  // the client buying — and the other side decides.
+  //
+  // A stranger is told there is nothing here, the same as for a line
+  // that does not exist: saying "not yours" would confirm it does.
+  const line = await lineFor(contractType, contractId)
+  const mine = caller.company?.id ?? null
+  const writers = line ? (contractType === 'BUY' ? [line.payerId] : line.parties) : []
+  if (!line || !mine || isConsultantSeat(caller) || !writers.includes(mine)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message:
+            contractType === 'BUY'
+              ? 'There is no pay line here that your company pays. A pay rate is changed by the firm that pays it.'
+              : 'There is no contract here that your company is a party to. A rate is changed only by the firm selling or the client buying.',
+        },
+      },
+      { status: 404 }
+    )
+  }
+
+  // What somebody is paid is read by the desk that reads what people
+  // cost, and a desk that may not read a number may not change it.
+  if (contractType === 'BUY' && !hasPermission(caller.permissions, 'consultants.cost')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Changing what somebody is paid',
+            needs: 'consultants.cost',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
   const from = new Date(fromDate)
   const to = toDate ? new Date(toDate) : null
 
@@ -458,3 +530,4 @@ export async function POST(request: NextRequest) {
     { status: 201 }
   )
 }
+

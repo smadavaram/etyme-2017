@@ -149,7 +149,6 @@ const STILL_SAYING_A_KEY: Record<string, string> = {
   'src/app/api/profitability/master-contracts/route.ts': 'etyme-money',
   'src/app/api/purchase-orders/[id]/discounts/route.ts': 'etyme-money',
   'src/app/api/purchase-orders/route.ts': 'etyme-money',
-  'src/app/api/rate-history/[id]/approve/route.ts': 'etyme-money',
   // etyme-supply
   'src/app/api/bench/burn/route.ts': 'etyme-supply',
   'src/app/api/bench/listings/route.ts': 'etyme-supply',

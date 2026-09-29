@@ -3,7 +3,9 @@ import { DEFAULT_CURRENCY, rate } from '@/lib/money-display'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { isConsultantSeat } from '@/lib/seat'
+import { lineFor } from '@/lib/rate-line'
 import { assessRateChange } from '@/lib/contract-rate'
 
 /**
@@ -36,7 +38,17 @@ export async function POST(
     hasPermission(caller.permissions, 'assignments.write')
   if (!mayDecide) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Deciding a rate amendment needs rates.write — this is procurement\'s call' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Deciding a rate change',
+            needs: ['rates.write', 'assignments.write'],
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -79,24 +91,67 @@ export async function POST(
     )
   }
 
-  // Nobody approves their own rate rise.
+  // ── Only a desk at a party to the line decides it ────────────────────
+  //
+  // This checked the permission and nothing else, so a firm that was
+  // party to nothing approved a rate somebody else's stranger had
+  // written on a third firm's contract, and the approval stood. The
+  // desks that decide a rate are at the two firms the rate is between.
+  // A stranger is told there is nothing here, the same as for a row
+  // that does not exist.
+  const line = await lineFor(amendment.contractType, amendment.contractId)
+  const mine = caller.company?.id ?? null
+  if (!line || !mine || isConsultantSeat(caller) || !line.parties.includes(mine)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message:
+            'There is no rate change here on a contract your company is a party to. ' +
+            'A rate is decided only by the firms it is between.',
+        },
+      },
+      { status: 404 }
+    )
+  }
+
+  if (amendment.contractType.toUpperCase() === 'BUY' && !hasPermission(caller.permissions, 'consultants.cost')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Deciding what somebody is paid',
+            needs: 'consultants.cost',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
   // Which currency this rate is in. `RateHistory` carries a rate and no
   // currency, and `contractId` is polymorphic, so the contract it amends
   // is the only place the answer lives.
-  const onSell = amendment.contractType.toUpperCase() === 'SELL'
-  const currency =
-    (onSell
-      ? (await prisma.sellContract.findUnique({ where: { id: amendment.contractId }, select: { billCurrency: true } }))?.billCurrency
-      : (await prisma.buyContract.findUnique({ where: { id: amendment.contractId }, select: { payCurrency: true } }))?.payCurrency) ??
-    DEFAULT_CURRENCY
+  const currency = line.currency ?? DEFAULT_CURRENCY
 
+  // Nobody approves their own rate change. It was only a rise, on the
+  // reasoning that a cut costs nobody — but a change that reached this
+  // desk is one that needed a second person, and the proposer is the one
+  // person who is not a second person. Withdrawing your own proposal is
+  // still yours to do, which is a rejection.
   const assessment = assessRateChange(amendment.previousRate ?? 0, amendment.rate, currency)
-  if (amendment.changedById === caller.person.id && assessment.direction === 'INCREASE') {
+  if (amendment.changedById === caller.person.id && action === 'approve') {
     return NextResponse.json(
       {
         error: {
           code: 'SELF_APPROVAL',
-          message: 'You proposed this increase, so it is not yours to approve. Send it to somebody else.',
+          message:
+            assessment.direction === 'INCREASE'
+              ? 'You proposed this increase, so it is not yours to approve. Send it to somebody else.'
+              : 'You proposed this change, so it is not yours to approve. Send it to somebody else.',
         },
       },
       { status: 403 }
