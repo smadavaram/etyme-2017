@@ -144,3 +144,186 @@ export function assessRateChange(
       : `Rate rises ${magnitude}% to ${rate(toCents, currency)} — within the ${AUTO_APPROVE_PERCENT}% threshold`,
   }
 }
+
+// ── Every hour at the rate in force on the day it was worked ──────────
+//
+// `rateInForce` answers for one day. Everything that pays or prices a
+// week asked it once, for the week's first day, so a rise effective on
+// a Wednesday paid Wednesday to Friday at the old rate — and payroll's
+// own run skipped the question entirely and paid every hour ever worked
+// at today's rate. This is the one place a set of days becomes money.
+
+/** A rate row as it is stored, for callers reading `RateHistory` directly. */
+export interface RateRow {
+  id: string
+  rate: number
+  fromDate: Date
+  toDate: Date | null
+  approvalState: string
+}
+
+export function ratePeriods(rows: RateRow[]): RatePeriod[] {
+  return rows.map((r) => ({
+    id: r.id,
+    rateCents: r.rate,
+    fromDate: r.fromDate,
+    toDate: r.toDate,
+    approvalState: r.approvalState,
+  }))
+}
+
+/** One day's hours, and what each is worth. */
+export interface PricedDay {
+  day: string
+  hours: number
+  rateCents: number
+  /** Which approved change supplied the rate, or null for the line's own. */
+  periodId: string | null
+}
+
+/** A run of consecutive priced days at one rate. */
+export interface RateSegment {
+  from: string
+  to: string
+  hours: number
+  rateCents: number
+  cents: number
+}
+
+export interface DayPricing {
+  hours: number
+  /** Rounded once per rate, never per day. */
+  cents: number
+  days: PricedDay[]
+  segments: RateSegment[]
+  /** True where the days priced run across an approved change. */
+  straddles: boolean
+  /** The rate on the first day priced — what a single-rate reader shows. */
+  firstRateCents: number
+  /** Something true of the figure that the figure cannot say itself. */
+  note: string | null
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+const iso = (d: Date) => d.toISOString().slice(0, 10)
+const dayDate = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`)
+
+/**
+ * Price a week (or any set of days) at the rate in force on each day.
+ *
+ * `days` is the sheet's daily hours. Where the hours to pay differ from
+ * what the days add up to — an employer accepting thirty-eight of forty —
+ * the cut comes off the latest days first, the same way the founder's
+ * rule of 2026-09-29 takes a cut off the later bill first. `within`
+ * narrows the days to a pay period after the cut, so a week crossing
+ * two periods is cut once and each period gets its own days of what is
+ * left.
+ *
+ * A sheet with no daily hours cannot be split. It is priced at the rate
+ * on its first day, and where that week crosses a change the note says
+ * so rather than the figure pretending to be exact.
+ */
+export function priceByDay(input: {
+  contractRateCents: number
+  periods: RatePeriod[]
+  days: Record<string, number> | null | undefined
+  /** Hours to pay where they differ from the days' sum. */
+  hours?: number | null
+  within?: { start: Date; end: Date } | null
+  /** The sheet's own bounds — used only where there are no daily hours. */
+  periodStart?: Date | null
+  periodEnd?: Date | null
+}): DayPricing {
+  const daily = Object.entries(input.days ?? {})
+    .map(([day, h]) => ({ day: day.slice(0, 10), hours: Number(h) || 0 }))
+    .filter((d) => d.hours > 0)
+    .sort((a, b) => a.day.localeCompare(b.day))
+
+  let priced: PricedDay[]
+  let note: string | null = null
+
+  if (daily.length === 0) {
+    const hours = Number(input.hours ?? 0)
+    const on = input.periodStart ?? input.within?.start ?? null
+    if (!on || hours <= 0) return empty(input.contractRateCents)
+    const r = rateInForce(input.contractRateCents, input.periods, on)
+    priced = [{ day: iso(on), hours, rateCents: r.rateCents, periodId: r.periodId }]
+    if (input.periodEnd && spansRateChange(input.periods, on, input.periodEnd).spans) {
+      note =
+        `No daily hours were recorded for the week of ${iso(on)}, and the rate changed inside it, ` +
+        `so the whole week is priced at the rate on its first day.`
+    }
+  } else {
+    // The cut, latest day first.
+    const filed = daily.reduce((n, d) => n + d.hours, 0)
+    let cut = input.hours != null ? round2(filed - Number(input.hours)) : 0
+    const kept = daily.map((d) => ({ ...d }))
+    for (let i = kept.length - 1; i >= 0 && cut > 0; i--) {
+      const off = Math.min(cut, kept[i].hours)
+      kept[i].hours = round2(kept[i].hours - off)
+      cut = round2(cut - off)
+    }
+
+    priced = kept
+      .filter((d) => d.hours > 0)
+      .filter((d) => {
+        if (!input.within) return true
+        const at = dayDate(d.day)
+        return at >= input.within.start && at <= input.within.end
+      })
+      .map((d) => {
+        const r = rateInForce(input.contractRateCents, input.periods, dayDate(d.day))
+        return { day: d.day, hours: d.hours, rateCents: r.rateCents, periodId: r.periodId }
+      })
+  }
+
+  if (priced.length === 0) return empty(input.contractRateCents)
+
+  const segments: RateSegment[] = []
+  for (const d of priced) {
+    const last = segments[segments.length - 1]
+    if (last && last.rateCents === d.rateCents) {
+      last.to = d.day
+      last.hours = round2(last.hours + d.hours)
+    } else {
+      segments.push({ from: d.day, to: d.day, hours: d.hours, rateCents: d.rateCents, cents: 0 })
+    }
+  }
+
+  // Rounded once per rate. Rounding every day and adding them is how a
+  // pay line disagrees with its own hours × rate by a cent nobody can
+  // explain.
+  const byRate = new Map<number, number>()
+  for (const d of priced) byRate.set(d.rateCents, (byRate.get(d.rateCents) ?? 0) + d.hours)
+  const cents = [...byRate.entries()].reduce((n, [rate, h]) => n + Math.round(round2(h) * rate), 0)
+  for (const s of segments) s.cents = Math.round(s.hours * s.rateCents)
+
+  return {
+    hours: round2(priced.reduce((n, d) => n + d.hours, 0)),
+    cents,
+    days: priced,
+    segments,
+    straddles: new Set(priced.map((d) => d.rateCents)).size > 1,
+    firstRateCents: priced[0].rateCents,
+    note,
+  }
+}
+
+function empty(rateCents: number): DayPricing {
+  return { hours: 0, cents: 0, days: [], segments: [], straddles: false, firstRateCents: rateCents, note: null }
+}
+
+/**
+ * The rates a set of priced days was paid at, in a sentence.
+ *
+ * "16 hours at $66.00/hr to 30 June, then 24 hours at $70.00/hr from
+ * 1 July." Only said where there was more than one rate — a single rate
+ * is already on the row.
+ */
+export function segmentsSay(segments: RateSegment[], currency: string = DEFAULT_CURRENCY): string | null {
+  if (segments.length < 2) return null
+  const parts = segments.map(
+    (s) => `${s.hours} hour${s.hours === 1 ? '' : 's'} at ${rate(s.rateCents, currency)} from ${s.from} to ${s.to}`
+  )
+  return `The rate changed inside these days: ${parts.join(', then ')}.`
+}
