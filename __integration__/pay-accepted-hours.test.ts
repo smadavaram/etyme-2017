@@ -5,6 +5,7 @@ import { seedWorld } from '@/lib/seed-world'
 import { POST as runPayroll } from '@/app/api/payroll/run/route'
 import { GET as payroll } from '@/app/api/payroll/route'
 import { GET as payrollExport } from '@/app/api/payroll/export/route'
+import { proposeBackPay } from '@/lib/money/back-pay'
 
 /**
  * The employer accepts fewer hours than were worked.
@@ -15,13 +16,18 @@ import { GET as payrollExport } from '@/app/api/payroll/export/route'
  * accepted, never the hours filed: until this, the run and the screen
  * paid every hour filed on a week the employer had cut.
  *
+ * And the same day: an acceptance at or under the line is the hours
+ * worked. Where the employer accepts forty hours or fewer of a longer
+ * week, those hours are paid at straight time. Until this that week's
+ * premium was held and the payroll file left it off.
+ *
  * Omar Haddad starts on Monday 6 July 2026 at $66 an hour, W2,
  * nonexempt, on a forty-hour line. Two forty-five-hour weeks — nine
  * hours a day — then two of forty:
  *
  *   week of 6 July    45 worked, 42 accepted → 37 ordinary and 5 overtime
- *   week of 13 July   45 worked, 38 accepted → 38 at straight time, the
- *                     premium held: as accepted the week is under forty
+ *   week of 13 July   45 worked, 38 accepted → 38 at straight time,
+ *                     because as accepted the week is not over forty
  *   weeks of 20 and 27 July, 40 worked and accepted
  */
 
@@ -126,11 +132,19 @@ describe('pay is the hours the employer accepted, cut off ordinary hours first',
     expect(row.accepted).toContain('accepted 42 of the 45 hours Omar Haddad filed, so 42 are paid.')
   })
 
-  it('pays the week accepted at 38 at straight time and holds its premium, saying why', async () => {
+  it('pays the week accepted at 38 at straight time and says so: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40', async () => {
     const r = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate', period: '2026-07' })
     const row = r.body.data.details.find((x: any) => x.buyContractId === buyId)
-    expect(row.overtime).toContain('As accepted, the week no longer goes over the line')
-    expect(row.overtime).toContain('the premium is held until that is decided')
+    expect(row.straightTime).toBe(
+      'Week of July 13, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+    )
+    expect(row.accepted).toContain('accepted 38 of the 45 hours Omar Haddad filed, so 38 are paid.')
+    // Nothing is held, and only the week of 6 July carries a premium:
+    // July's 160 hours at $66, and the premium on that week's 5 alone.
+    expect(row.overtime).not.toContain('held')
+    expect(row.overtime).not.toContain('2026-07-13')
+    expect(row.overtimeHours).toBe(5)
+    expect(row.grossPay).toBe(160 * 6_600 + 5 * 3_300)
   })
 
   it('shows the payroll screen the same hours and the same pay the run pays', async () => {
@@ -140,6 +154,10 @@ describe('pay is the hours the employer accepted, cut off ordinary hours first',
     expect(item.premiumCents).toBe(5 * 3_300)
     expect(item.grossPay).toBe(160 * 6_600 + 5 * 3_300)
     expect(item.accepted).toContain('come off ordinary hours first')
+    // The week's own sentence, on the row, in plain words.
+    expect(item.straightTime).toBe(
+      'Week of July 13, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+    )
   })
 
   it('puts 37 ordinary hours and 5 overtime on the payroll file for the week accepted at 42', async () => {
@@ -151,11 +169,16 @@ describe('pay is the hours the employer accepted, cut off ordinary hours first',
     expect(mine[0].overtimeCents).toBe(5 * 9_900)
   })
 
-  it('leaves the week accepted at 38 off the payroll file, and says why, rather than guess at its premium', async () => {
+  it('puts the week accepted at 38 on the payroll file as 38 hours at straight time, with its sentence as a note, rather than leaving it off', async () => {
     const r = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-07-13&to=2026-07-17&provider=GENERIC')
-    expect(r.body.data.lines.filter((l: any) => l.personName === 'Omar Haddad')).toHaveLength(0)
-    const left = r.body.data.skipped.find((x: any) => x.personName === 'Omar Haddad')
-    expect(left.why).toContain('As accepted, the week no longer goes over the line')
+    expect(r.body.data.skipped.find((x: any) => x.personName === 'Omar Haddad')).toBeUndefined()
+    const mine = r.body.data.lines.filter((l: any) => l.personName === 'Omar Haddad')
+    expect(mine).toHaveLength(1)
+    expect([mine[0].hours, mine[0].overtimeHours]).toEqual([38, 0])
+    expect(mine[0].totalCents).toBe(38 * 6_600)
+    expect(mine[0].notes).toContain(
+      'Omar Haddad, week of July 13, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+    )
   })
 
   it('records the days it paid as the days accepted, so the next run pays nothing twice', async () => {
@@ -166,5 +189,25 @@ describe('pay is the hours the employer accepted, cut off ordinary hours first',
     const second = again.body.data.details.find((x: any) => x.buyContractId === buyId)
     expect(second.totalHours).toBe(0)
     expect(second.grossPay).toBe(0)
+  })
+
+  it('works back pay for a raise from 13 July on the 38 hours paid at straight time that week, with no premium to move', async () => {
+    const rise = await prisma.rateHistory.create({
+      data: {
+        contractType: 'BUY', contractId: buyId, rate: 7_000, previousRate: 6_600, fromDate: d('2026-07-13'),
+        reason: 'Agreed at the July review', changedById: owner.personId, approvalState: 'APPROVED',
+        approvedById: owner.personId, approvedAt: d('2026-08-03'),
+      },
+    })
+    const p = await proposeBackPay(rise.id)
+    expect(p && p.applies).toBe(true)
+    if (!p || !p.applies) return
+    // 38 + 40 + 40 hours paid at $66 from 13 July, $4 each, and no
+    // premium anywhere: the week of 13 July is straight time.
+    expect(p.figure.totalCents).toBe(118 * 400)
+    const lines = p.figure.periods.flatMap((x) => x.lines)
+    expect(lines.every((l) => l.premiumCents === 0)).toBe(true)
+    const week = lines.filter((l) => l.weekOf === '2026-07-13')
+    expect(Math.round(week.reduce((n, l) => n + l.straightCents, 0))).toBe(38 * 400)
   })
 })

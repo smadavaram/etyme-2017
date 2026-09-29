@@ -74,6 +74,12 @@ interface PayItem {
   payLine?: string | null
   /** Where fewer hours were accepted than filed, which hours are paid. */
   accepted?: string | null
+  /**
+   * Each week worked over the line and accepted at or under it, paid at
+   * straight time — "38 of 45 hours accepted; paid at straight time
+   * because the accepted week is not over 40."
+   */
+  straightTime?: string | null
   payStatus: string
   nextPayDate: string | null
   nextCalcDate: string | null
@@ -397,6 +403,13 @@ export default function PayrollPage() {
           {row.accepted && (
             <span className="block text-[11px] text-etyme-muted" title={row.accepted}>
               Accepted hours, not the hours filed
+            </span>
+          )}
+          {/* A week accepted at or under the line, said plainly: it is
+              paid at straight time, and why. */}
+          {row.straightTime && (
+            <span className="block max-w-[260px] text-left text-[11px] text-etyme-muted ml-auto">
+              {row.straightTime}
             </span>
           )}
         </span>

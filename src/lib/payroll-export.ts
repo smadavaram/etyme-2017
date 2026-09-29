@@ -56,11 +56,12 @@ import {
   weekOvertime,
   weekOvertimeSays,
   cutOrdinary,
+  overDaysOf,
   type DayHours,
   type OvertimeMethod,
 } from '@/lib/money/overtime-method'
 import { premiumTerms } from '@/lib/money/sheet-overtime'
-import { payCut } from '@/lib/money/pay-hours'
+import { payCut, straightTimeSays } from '@/lib/money/pay-hours'
 
 export type Provider = 'ADP' | 'PAYCHEX' | 'GENERIC'
 
@@ -168,11 +169,13 @@ export interface WeekToPay extends WeekOfHours {
    */
   worked?: DayHours[] | null
   /**
-   * Set where the week, as the employer accepted it, no longer goes over
-   * the line although the hours filed did: the sentence saying its
-   * premium is held (lib/money/pay-hours). The sheet is left off.
+   * Set where the week was worked over the line and accepted at or under
+   * it: the sentence saying its hours are paid at straight time, because
+   * an acceptance at or under the line is the hours worked
+   * (lib/money/pay-hours). The week is on the file, with no hours over
+   * the line, and the sentence travels on the line as a note.
    */
-  held?: string | null
+  straightTime?: string | null
 }
 
 export interface SheetToPay {
@@ -301,25 +304,10 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
       continue
     }
 
+    // A week worked over the line and accepted at or under it arrives
+    // here with nothing over the line: its hours are paid at straight
+    // time, and its sentence goes on the line as a note.
     const weeks = s.weeksAreAccepted ? s.weeks.map((w) => ({ ...w })) : payable(s)
-
-    // ── A week accepted under the line it was worked over ───────────
-    //
-    // Its straight time is certain and its premium is not decided, so,
-    // like a week nobody classified, the whole sheet goes by hand rather
-    // than out as a partial wage nobody flagged.
-    const held = weeks.find((w) => w.held)
-    if (held) {
-      skipped.push({
-        personName: s.personName,
-        periodEnd: s.periodEnd,
-        why: held.held!,
-        action:
-          'Nothing on the sheet is wrong. Whether hours past the line earn a premium in a week accepted under it ' +
-          'is not decided yet; until it is, pay this sheet by hand.',
-      })
-      continue
-    }
 
     const hours = round2(weeks.reduce((n, w) => n + w.regularHours + w.leaveHours, 0))
     const overtimeHours = round2(weeks.reduce((n, w) => n + w.overHours, 0))
@@ -392,6 +380,7 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
 
     const notes = [...new Set(verdicts.flatMap((v) => v.caveats))]
     if (s.lineSays) notes.push(s.lineSays)
+    for (const w of weeks) if (w.straightTime) notes.push(w.straightTime)
     if (contractGoverns) {
       notes.push(
         `${s.personName}'s buy contract prices an overtime hour above what the law requires, ` +
@@ -516,8 +505,8 @@ const round2 = (n: number): number => Math.round(n * 100) / 100
  * The cut is the one pay always takes (lib/money/pay-hours): ordinary
  * hours first, latest week first — worked hours, then paid leave — and
  * the hours over the line only once no ordinary hour is left. A week
- * that, as accepted, no longer goes over its line is marked held with
- * the sentence saying why.
+ * that, as accepted, is at or under its line is paid at straight time,
+ * with the sentence saying why.
  *
  * This is the same allocation the run and the screen take on the days,
  * with a week standing in for its days: the latest week's ordinary hours
@@ -552,14 +541,43 @@ function payable(s: SheetToPay): WeekToPay[] {
     if (w.worked && off > 0) out.worked = cutOrdinary(w.worked, w.overHours, off)
     // A week that went over its line worked exactly the line in ordinary
     // hours, so its ordinary hours as filed ARE its line. As accepted, it
-    // is at or under that line where what is left worked is no more.
+    // is at or under that line where what is left worked is no more — and
+    // then it is paid at straight time, because an acceptance at or under
+    // the line is the hours worked: its hours past the line as filed are
+    // ordinary hours of a week that does not go over it.
     const line = w.regularHours
     if (w.overHours > 0 && k.over > 0 && round2(k.regular + k.over) <= line) {
-      out.held =
-        `In the week of ${w.weekOf}, ${s.personName} worked ${round2(w.regularHours + w.overHours)} hours, ${w.overHours} over ` +
-        `the ${line}-hour line, and ${round2(k.regular + k.over)} were accepted. As accepted, the week no longer goes over ` +
-        `the line, and nobody has decided whether the ${k.over} hours worked past it still earn a premium. They are ` +
-        `paid at straight time and the premium is held until that is decided.`
+      out.regularHours = round2(k.regular + k.over)
+      out.overHours = 0
+      // The hours moved were the week's last ones worked; where the week
+      // is split at a rate change they join the rate they were worked at.
+      if (w.rates && w.rates.length > 1) {
+        const rates = (out.rates ?? []).map((r) => ({ ...r }))
+        const worked = out.worked ?? w.worked
+        const moved = worked && worked.length > 0
+          ? overDaysOf(worked, k.over)
+          : [{ day: w.weekOf, hours: k.over, rateCents: w.rates[w.rates.length - 1].rateCents }]
+        for (const d of moved) {
+          const seg = rates.find((r) => r.rateCents === d.rateCents)
+          if (seg) seg.hours = round2(seg.hours + d.hours)
+          else rates.push({ rateCents: d.rateCents, hours: d.hours })
+        }
+        out.rates = rates
+      }
+      out.straightTime = straightTimeSays(
+        {
+          weekOf: w.weekOf,
+          filedWorked: round2(w.regularHours + w.overHours),
+          filedOver: w.overHours,
+          filedLeave: w.leaveHours,
+          regular: out.regularHours,
+          leave: k.leave,
+          over: 0,
+          underTheLine: true,
+        },
+        line,
+        s.personName
+      )
     }
     return out
   })

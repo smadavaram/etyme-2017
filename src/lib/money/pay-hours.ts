@@ -29,20 +29,34 @@
  * Worked examples, a forty-hour line, forty-five worked:
  *
  *   42 accepted → 37 ordinary and 5 overtime, paid 42.
- *   38 accepted → 33 ordinary and 5 over the line, paid 38 — and see below.
+ *   41 accepted → 36 ordinary and 5 overtime, paid 41.
+ *   40 accepted → 40 at straight time.
+ *   38 accepted → 38 at straight time.
  *
- * ── Where "the worker keeps their overtime" stops standing ───────────
+ * ── An acceptance at or under the line is the hours worked ───────────
  *
- * A premium is owed on hours worked past the line. Once the hours
- * accepted in a week are at or under the line, the week as accepted no
- * longer goes over it, so nothing in what is paid is "overtime" on any
- * reading of the acceptance — and carried all the way down the rule has
- * no floor: four hours accepted of forty-five would be four hours at
- * time and a half. Nobody has decided what a premium on such a week is,
- * so this does not decide it. The week's hours are paid at straight time
- * — the one figure every possible answer shares — its premium is held,
- * and the week says so. That is `underTheLine` below; the options are the
- * founder's to choose between.
+ * The founder, 2026-09-29: where the employer accepts forty hours or
+ * fewer of a longer week, those hours are paid at straight time. A
+ * premium is owed on hours worked past the line, and an employer that
+ * accepts thirty-eight of forty-five has said the week is thirty-eight
+ * hours of work; a week of thirty-eight does not go over forty. Above
+ * the line the worker keeps their overtime, by the ordinary-first cut
+ * above.
+ *
+ *   1. The week is judged on the line in force — the contract's own
+ *      line, or the law's forty where no contract drew one — never a
+ *      forty typed here.
+ *   2. It is judged on hours WORKED as accepted, never on paid leave,
+ *      because leave is paid and not worked and never crosses the line
+ *      (29 U.S.C. §207(e)(2)). That is the same count that took the week
+ *      over the line as filed.
+ *   3. Such a week carries nothing over the line: its hours worked past
+ *      the line as filed are banded ordinary, so every reader that
+ *      prices a premium from `over` finds none, and `underTheLine` says
+ *      why in one sentence (`straightTimeSays`).
+ *
+ * This replaces a hold. Until the founder decided, such a week's
+ * premium was held and the payroll file left the sheet off.
  *
  * ── More accepted than worked ─────────────────────────────────────────
  *
@@ -92,17 +106,19 @@ export function payBands(
 /** One week of a sheet, as filed and as paid. */
 export interface PayWeek {
   weekOf: string
-  /** Worked hours filed this week, and how many of them went over the line. */
+  /** Worked hours filed this week, how many of them went over the line, and paid leave filed. */
   filedWorked: number
   filedOver: number
+  filedLeave: number
   /** What is paid this week: ordinary worked hours, paid leave, hours over the line. */
   regular: number
   leave: number
   over: number
   /**
-   * True where the week as filed went over the line and, as accepted, no
-   * longer does. Its hours are paid at straight time and its premium is
-   * held: see the note at the top.
+   * True where the week as filed went over the line and the hours worked
+   * as accepted are at or under it. Every hour of it is paid at straight
+   * time and `over` is 0: an acceptance at or under the line is the hours
+   * worked. See the note at the top.
    */
   underTheLine: boolean
 }
@@ -119,12 +135,16 @@ export interface PayCut {
   accepted: number | null
   /** Accepted more than was filed: the hours filed are paid. */
   moreThanFiled: boolean
+  /** The weekly line the weeks were judged on. Null draws no line. */
+  line: number | null
 }
 
 /**
  * Take what the employer did not accept off the days, ordinary hours
  * first, latest day first, never the hours over the line while an
- * ordinary hour is left.
+ * ordinary hour is left. Then a week whose hours worked, as accepted,
+ * are at or under the line is paid at straight time: nothing of it is
+ * left over the line.
  *
  * `accepted` null pays every hour filed. The week is judged whole
  * against the line before anything is cut: which hours somebody
@@ -160,7 +180,7 @@ export function payCut(bands: readonly DayBands[], accepted: AcceptedCut | null,
   const byWeek = new Map<string, PayWeek>()
   const at = (w: string) => {
     if (!byWeek.has(w)) {
-      byWeek.set(w, { weekOf: w, filedWorked: 0, filedOver: 0, regular: 0, leave: 0, over: 0, underTheLine: false })
+      byWeek.set(w, { weekOf: w, filedWorked: 0, filedOver: 0, filedLeave: 0, regular: 0, leave: 0, over: 0, underTheLine: false })
     }
     return byWeek.get(w)!
   }
@@ -168,6 +188,7 @@ export function payCut(bands: readonly DayBands[], accepted: AcceptedCut | null,
     const w = at(d.week)
     w.filedWorked = r2(w.filedWorked + d.regular + d.over)
     w.filedOver = r2(w.filedOver + d.over)
+    w.filedLeave = r2(w.filedLeave + d.leave)
   }
   for (const d of covered) {
     const w = at(d.week)
@@ -176,8 +197,19 @@ export function payCut(bands: readonly DayBands[], accepted: AcceptedCut | null,
     w.over = r2(w.over + d.over)
   }
   const weeks = [...byWeek.values()].sort((a, b) => a.weekOf.localeCompare(b.weekOf))
+  // 3. A week whose hours worked, as accepted, are at or under the line
+  //    is paid at straight time: its hours past the line as filed are
+  //    ordinary hours of an accepted week that does not go over it.
   for (const w of weeks) {
     w.underTheLine = afterHours != null && w.over > 0 && r2(w.regular + w.over) <= afterHours
+    if (!w.underTheLine) continue
+    w.regular = r2(w.regular + w.over)
+    w.over = 0
+    for (const d of covered) {
+      if (d.week !== w.weekOf || d.over <= 0) continue
+      d.regular = r2(d.regular + d.over)
+      d.over = 0
+    }
   }
 
   const paid = r2(covered.reduce((n, d) => n + d.regular + d.leave + d.over, 0))
@@ -188,6 +220,7 @@ export function payCut(bands: readonly DayBands[], accepted: AcceptedCut | null,
     paid,
     accepted: accepted ? accepted.hours : null,
     moreThanFiled: !!accepted && accepted.hours > filed + 0.005,
+    line: afterHours,
   }
 }
 
@@ -245,6 +278,11 @@ const hrs = (n: number) => `${n} ${n === 1 ? 'hour' : 'hours'}`
 /**
  * What the cut did, in sentences a payroll clerk can check. Null where
  * every hour filed is paid.
+ *
+ * "Hours over the line keep their premium" is said only where a week
+ * still has hours over the line after the cut; a week accepted at or
+ * under the line says instead, in its own sentence, that it is paid at
+ * straight time.
  */
 export function payCutSays(
   cut: PayCut,
@@ -258,31 +296,68 @@ export function payCutSays(
         `filed are paid: an hour nobody filed is on no day to pay it on.`
     )
   } else if (cut.accepted != null && cut.paid < cut.filed) {
+    const keeps = cut.weeks.some((w) => w.over > 0)
     parts.push(
       `${employer} accepted ${cut.accepted} of the ${cut.filed} hours ${who.personName} filed, so ${cut.accepted} are paid. ` +
-        `The ${r2(cut.filed - cut.paid)} not accepted come off ordinary hours first, from the last day back, so hours over ` +
-        `the line keep their premium.`
+        `The ${r2(cut.filed - cut.paid)} not accepted come off ordinary hours first, from the last day back` +
+        (keeps ? ', so hours over the line keep their premium.' : '.')
     )
+    for (const w of cut.weeks) if (w.underTheLine) parts.push(straightTimeSays(w, cut.line))
   }
   return parts.length ? parts.join(' ') : null
 }
 
 /**
- * A week that, as accepted, no longer goes over the line: why its hours
- * are paid at straight time and its premium is held.
+ * A week worked over the line and accepted at or under it, in one
+ * sentence: how many hours were accepted of how many, and that they are
+ * paid at straight time because the accepted week is not over the line.
+ *
+ *   "Week of July 13, 2026: 38 of 45 hours accepted; paid at straight
+ *    time because the accepted week is not over 40."
+ *
+ * Where the week holds paid leave the count of hours worked is said
+ * too, because the line is judged on hours worked and the acceptance on
+ * every hour paid. `personName`, where given, opens the sentence — for
+ * a note read away from the row that names the person.
  */
-export function heldSays(
-  w: PayWeek,
-  who: { personName: string; employerName?: string | null },
-  afterHours: number | null
-): string {
-  const employer = who.employerName ?? 'the employer'
-  return (
-    `In the week of ${longDay(w.weekOf)}, ${who.personName} worked ${hrs(w.filedWorked)}, ${w.filedOver} over the ` +
-    `${afterHours}-hour line, and ${employer} accepted ${r2(w.regular + w.over)} of them. As accepted, the week no ` +
-    `longer goes over the line, and nobody has decided whether the ${hrs(w.over)} worked past it still earn a ` +
-    `premium. They are paid at straight time and the premium is held until that is decided.`
-  )
+export function straightTimeSays(w: PayWeek, line: number | null, personName?: string | null): string {
+  const accepted = r2(w.regular + w.leave + w.over)
+  const filed = r2(w.filedWorked + w.filedLeave)
+  const week = personName ? `${personName}, week of ${longDay(w.weekOf)}` : `Week of ${longDay(w.weekOf)}`
+  const head = `${week}: ${accepted} of ${filed} hours accepted`
+  if (w.leave > 0) {
+    const worked = r2(w.regular + w.over)
+    return (
+      `${head}, ${w.leave} of them paid leave; paid at straight time because the ${worked} ${worked === 1 ? 'hour' : 'hours'} ` +
+      `worked in the accepted week ${worked === 1 ? 'is' : 'are'} not over ${line}.`
+    )
+  }
+  return `${head}; paid at straight time because the accepted week is not over ${line}.`
+}
+
+/** Each week of a cut paid at straight time because it was accepted at or under the line. */
+export function straightTimeWeeks(cut: PayCut): Array<{
+  weekOf: string
+  /** Every hour accepted in the week, paid leave included. */
+  accepted: number
+  /** Every hour filed in the week, paid leave included. */
+  filed: number
+  /** Hours worked in the week as accepted — what was judged against the line. */
+  worked: number
+  line: number
+  says: string
+}> {
+  if (cut.line == null) return []
+  return cut.weeks
+    .filter((w) => w.underTheLine)
+    .map((w) => ({
+      weekOf: w.weekOf,
+      accepted: r2(w.regular + w.leave + w.over),
+      filed: r2(w.filedWorked + w.filedLeave),
+      worked: r2(w.regular + w.over),
+      line: cut.line!,
+      says: straightTimeSays(w, cut.line),
+    }))
 }
 
 /**

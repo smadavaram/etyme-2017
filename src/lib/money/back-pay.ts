@@ -53,10 +53,10 @@ import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { paidBook, paidKey, type PaidEntry, type BackPaidLine } from '@/lib/payroll-paid'
 import { weekStart } from '@/lib/overtime'
-import { sheetOvertime, premiumByDay, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
+import { sheetPay, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn } from '@/lib/money/pay-line'
-import { acceptanceForPay, paySheet } from '@/lib/money/pay-hours'
+import { acceptanceForPay } from '@/lib/money/pay-hours'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 const dayDate = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`)
@@ -341,17 +341,21 @@ export async function proposeBackPay(rateHistoryId: string): Promise<BackPayProp
         // Two standing acceptances: the run paid nothing on the week, so
         // there is nothing to measure back pay from.
         if (acceptance === 'MANY') continue
-        const weeks = sheetOvertime({
+        // The week as payroll paid it, cut the way the run cuts it: a week
+        // accepted at or under the line is straight time and has no
+        // premium to move, because an acceptance at or under the line is
+        // the hours worked.
+        const premiums = sheetPay({
+          all,
           days: mine,
           leaveDays: (t.leaveDays ?? {}) as Record<string, number>,
-          accepted: paySheet({ all, mine, leaveDays: (t.leaveDays ?? {}) as Record<string, number>, afterHours, accepted: acceptance }).accepted,
+          accepted: acceptance,
           afterHours,
           contractRateCents: cand.payRate,
           periods,
           method,
           line,
-        })
-        const premiums = premiumByDay(weeks)
+        }).premiums
         const touched = new Set(Object.keys(mine).map((d) => d.slice(0, 10)).filter(inChange).map(weekStart))
         for (const dayKey of Object.keys(mine)) {
           const day = dayKey.slice(0, 10)

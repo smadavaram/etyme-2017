@@ -10,7 +10,8 @@ import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
-import { acceptanceForPay, paySheet, payCutSays } from '@/lib/money/pay-hours'
+import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib/money/pay-hours'
+import { weekStart } from '@/lib/overtime'
 import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
 
 /**
@@ -408,6 +409,17 @@ export async function GET(request: NextRequest) {
         const note = payCutSays(x.ts.cut, { personName: cand.person.name, employerName: bc.company?.name ?? null })
         if (note && !acceptedSaid.includes(note)) acceptedSaid.push(note)
       }
+      // A week worked over the line and accepted at or under it is paid
+      // at straight time, because an acceptance at or under the line is
+      // the hours worked. The row says so in the week's own sentence.
+      const straightSaid: string[] = []
+      shares.forEach((x, i) => {
+        if (!x.ts.cut) return
+        for (const w of straightTimeWeeks(x.ts.cut)) {
+          if (!priced[i].days.some((d) => weekStart(d.day) === w.weekOf)) continue
+          if (!straightSaid.includes(w.says)) straightSaid.push(w.says)
+        }
+      })
       if (payPeriod) {
         for (const ts of linkedTimesheets.filter((t) => t.many)) {
           const filedShare = hoursInPeriod(
@@ -484,6 +496,10 @@ export async function GET(request: NextRequest) {
         payLine: lineSaid.length ? lineSaid.join(' ') : null,
         // Where fewer hours were accepted than filed, which were paid.
         accepted: acceptedSaid.length ? acceptedSaid.join(' ') : null,
+        // Each week worked over the line and accepted at or under it:
+        // "38 of 45 hours accepted; paid at straight time because the
+        // accepted week is not over 40."
+        straightTime: straightSaid.length ? straightSaid.join(' ') : null,
         payStatus,
         nextPayDate: comingPay?.dueOn.toISOString() ?? null,
         nextCalcDate: comingCalc?.dueOn.toISOString() ?? null,

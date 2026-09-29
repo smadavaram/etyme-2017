@@ -25,7 +25,7 @@ import {
   type WageRuleName,
 } from '@/lib/worker-classification'
 import { weekOvertime, overDaysOf, type DayHours, type OvertimeMethod, type WeekOvertime } from '@/lib/money/overtime-method'
-import { payBands, payCut, paidDayMaps, heldSays } from '@/lib/money/pay-hours'
+import { payBands, payCut, paidDayMaps, paySheet, payCutSays, straightTimeWeeks, type PayCut } from '@/lib/money/pay-hours'
 import type { AcceptedCut } from '@/lib/periods'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -154,8 +154,10 @@ export interface SheetWeek {
  * hour filed, is cut the way pay is always cut (lib/money/pay-hours):
  * ordinary hours first, latest day first, so the hours over the line
  * keep their premium. The week is judged whole against the line before
- * the cut. A week that, as accepted, no longer goes over the line is
- * returned with its premium held and a sentence saying why.
+ * the cut. A week whose hours worked, as accepted, are at or under the
+ * line has no premium — an acceptance at or under the line is the hours
+ * worked, paid at straight time — and is not returned; the cut's own
+ * sentence says so (`payCutSays`).
  */
 export function sheetOvertime(input: {
   days: Record<string, number> | null | undefined
@@ -177,22 +179,9 @@ export function sheetOvertime(input: {
     if (w.filedOver <= 0) continue
     const overHours = w.over
     const worked = weeks.get(w.weekOf) ?? []
+    // Nothing over the line as paid — a week accepted at or under it
+    // among them — is straight time and carries no premium.
     if (overHours <= 0 || worked.length === 0) continue
-    if (w.underTheLine) {
-      out.push({
-        weekOf: w.weekOf,
-        overHours,
-        overDays: overDaysOf(worked, overHours),
-        terms: {
-          priced: false,
-          multiplierBps: 10_000,
-          floorBps: null,
-          says: heldSays(w, { personName: input.line.personName, employerName: input.line.employerName }, input.afterHours),
-        },
-        overtime: null,
-      })
-      continue
-    }
     const verdict = weekWage(
       { weekOf: w.weekOf, regularHours: w.regular, leaveHours: w.leave, overHours },
       {
@@ -220,6 +209,83 @@ export function sheetOvertime(input: {
     })
   }
   return out
+}
+
+/** One sheet on one pay line, as payroll pays it. See `sheetPay`. */
+export interface SheetPay {
+  /** The acceptance as it falls on these days. Null pays every hour filed. */
+  accepted: AcceptedCut | null
+  /** The cut, week by week: what was filed, what is paid, which weeks are straight time. */
+  cut: PayCut
+  /** The days paid after the cut, ISO day to hours, paid leave included. Straight time on each. */
+  days: Record<string, number>
+  /** The paid leave among `days`. */
+  leaveDays: Record<string, number>
+  /** Every week with hours over the line as paid, and its premium. */
+  weeks: SheetWeek[]
+  /** The premium on each day that carries one. */
+  premiums: Map<string, DayPremium>
+  /** Each week worked over the line and accepted at or under it, paid at straight time. */
+  straightTime: ReturnType<typeof straightTimeWeeks>
+  /** What the cut did, in sentences a payroll clerk can check. Null where every hour filed is paid. */
+  says: string | null
+}
+
+/**
+ * One sheet on one pay line, as the payroll run pays it, in one call:
+ * the days paid at straight time after the employer's cut, the premium
+ * on each day that carries one, and the weeks paid at straight time
+ * because they were accepted at or under the line.
+ *
+ * The run and the screen reach the same figures through `paySheet` and
+ * `sheetOvertime`; this is the two together, for a reader that wants
+ * what payroll pays without restating how — the worker's own page
+ * above all. Price `days` with `priceByDay` (lib/contract-rate), add
+ * `premiums`, and the week is what payroll pays for it.
+ *
+ * `all` is the whole sheet as filed, where `days` is narrowed to the
+ * days one pay line was in force for; the employer accepted the whole
+ * sheet, so the cut is taken on it. Absent, `days` is the whole sheet.
+ */
+export function sheetPay(input: {
+  all?: Record<string, number> | null
+  days: Record<string, number> | null | undefined
+  leaveDays?: Record<string, number> | null
+  afterHours: number | null
+  accepted: AcceptedCut | null
+  contractRateCents: number
+  periods: RatePeriod[]
+  method: OvertimeMethod
+  line: WageLine
+}): SheetPay {
+  const mine = input.days ?? {}
+  const pay = paySheet({
+    all: input.all ?? mine,
+    mine,
+    leaveDays: input.leaveDays ?? {},
+    afterHours: input.afterHours,
+    accepted: input.accepted,
+  })
+  const weeks = sheetOvertime({
+    days: mine,
+    leaveDays: input.leaveDays ?? null,
+    accepted: pay.accepted,
+    afterHours: input.afterHours,
+    contractRateCents: input.contractRateCents,
+    periods: input.periods,
+    method: input.method,
+    line: input.line,
+  })
+  return {
+    accepted: pay.accepted,
+    cut: pay.cut,
+    days: pay.days,
+    leaveDays: pay.leaveDays,
+    weeks,
+    premiums: premiumByDay(weeks),
+    straightTime: straightTimeWeeks(pay.cut),
+    says: payCutSays(pay.cut, { personName: input.line.personName, employerName: input.line.employerName }),
+  }
 }
 
 /** One day's overtime hours and their premium, exact. */

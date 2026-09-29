@@ -39,8 +39,11 @@ async function call(seat: Seat, fn: any, method: string, url: string, body?: unk
   return json(params ? await fn(r, { params: Promise.resolve(params) }) : await fn(r))
 }
 
-/** Monday to Friday at eight hours, with the days given overriding. */
-async function week(monday: string, override: Record<string, number> = {}) {
+/**
+ * Monday to Friday at eight hours, with the days given overriding, and
+ * accepted as filed unless `accepted` says fewer.
+ */
+async function week(monday: string, override: Record<string, number> = {}, accepted?: number) {
   const m = d(monday)
   const days: Record<string, number> = {}
   for (let i = 0; i < 5; i++) days[iso(new Date(+m + i * 86_400_000))] = 8
@@ -51,11 +54,11 @@ async function week(monday: string, override: Record<string, number> = {}) {
     data: {
       sellContractId: sellId, personId, periodStart: m, periodEnd: end, days, totalHours: total,
       status: 'APPROVED', submittedAt: end, approvedAt: end, clientApprovedAt: end, employerAcceptedAt: end,
-      employerAcceptedById: owner.personId,
+      employerAcceptedById: owner.personId, acceptedHours: accepted ?? null,
     },
   })
   await prisma.workAssertion.create({
-    data: { timesheetId: ts.id, companyId: firmId, role: 'EMPLOYER_ACCEPTANCE', hours: total, rateCents: 6_600, state: 'LIVE', byId: owner.personId },
+    data: { timesheetId: ts.id, companyId: firmId, role: 'EMPLOYER_ACCEPTANCE', hours: accepted ?? total, rateCents: 6_600, state: 'LIVE', byId: owner.personId },
   })
   return ts
 }
@@ -108,6 +111,9 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
     await week('2026-06-08', { '2026-06-12': 13 })
     await week('2026-06-15')
     await week('2026-06-22')
+    // July, apart from June's figures: nine hours a day, forty-five
+    // worked, and the employer accepts thirty-eight.
+    await week('2026-07-06', { '2026-07-06': 9, '2026-07-07': 9, '2026-07-08': 9, '2026-07-09': 9, '2026-07-10': 9 }, 38)
   }, 900_000)
 
   it('draws no overtime line on either contract, or nothing below proves anything', async () => {
@@ -145,6 +151,21 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
     expect(mine[0].overtimeHours).toBe(5)
     expect(mine[0].overtimeCents).toBe(Math.round(5 * 6_600 * 1.5))
     expect(mine[0].notes.join(' ')).toContain("the law's applies")
+  })
+
+  it('pays a week accepted at 38 of 45 at straight time on the law’s forty too, because an acceptance under the line is the hours worked', async () => {
+    const screen = await call(owner, payroll, 'GET', `/api/payroll?period=2026-07&companyId=${firmId}`)
+    const item = screen.body.data.payItems.find((x: any) => x.buyContractId === buyId)
+    expect(item.totalApprovedHours).toBe(38)
+    expect(item.premiumCents).toBe(0)
+    expect(item.grossPay).toBe(38 * 6_600)
+    expect(item.straightTime).toBe(
+      'Week of July 6, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+    )
+    const file = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-07-06&to=2026-07-10&provider=GENERIC')
+    const mine = file.body.data.lines.filter((l: any) => l.personName === 'Dana Whitfield')
+    expect(mine).toHaveLength(1)
+    expect([mine[0].hours, mine[0].overtimeHours, mine[0].totalCents]).toEqual([38, 0, 38 * 6_600])
   })
 
   it('leaves the client’s side as it was: the sell line still draws no overtime line', async () => {

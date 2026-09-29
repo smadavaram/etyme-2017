@@ -164,9 +164,14 @@ describe("a paying firm's choice of overtime method", () => {
     const line = await prisma.buyContract.findUniqueOrThrow({ where: { id: buyId } })
     expect(line.overtimeMethod).toBe('US_REGULAR_RATE')
     expect(line.overtimeMethodById).toBeNull()
-    const refused = await prisma.accessLog.findFirst({
-      where: { subjectId: personId, actorPersonId: noCost.personId, allowed: false },
-    })
+    // The trail is written without holding the response up, so give it a moment.
+    let refused = null
+    for (let i = 0; i < 20 && !refused; i++) {
+      refused = await prisma.accessLog.findFirst({
+        where: { subjectId: personId, actorPersonId: noCost.personId, allowed: false },
+      })
+      if (!refused) await new Promise((r) => setTimeout(r, 50))
+    }
     expect(refused?.reason).toContain('FORBIDDEN')
   })
 

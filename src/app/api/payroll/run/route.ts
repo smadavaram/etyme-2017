@@ -12,7 +12,8 @@ import { paidBook, paidKey, type PaidLine } from '@/lib/payroll-paid'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
-import { acceptanceForPay, paySheet, payCutSays } from '@/lib/money/pay-hours'
+import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib/money/pay-hours'
+import { weekStart } from '@/lib/overtime'
 
 /**
  * POST /api/payroll/run
@@ -198,6 +199,8 @@ export async function POST(request: NextRequest) {
         payLine: string | null
         /** Where fewer hours were accepted than filed, which hours were paid, in a sentence. */
         accepted: string | null
+        /** Each week worked over the line and accepted at or under it, paid at straight time, in a sentence. */
+        straightTime: string | null
         /** Why nothing was paid for this person, where nothing was. */
         refused: string | null
         paid: PaidLine[]
@@ -303,6 +306,7 @@ export async function POST(request: NextRequest) {
               overtime: null,
               payLine: null,
               accepted: null,
+              straightTime: null,
               refused:
                 `A payroll run on ${unrecorded} paid ${cand.person.name} without recording which hours it ` +
                 `covered, so Etyme cannot tell what is still owed. Settle this contract by hand before ` +
@@ -321,6 +325,9 @@ export async function POST(request: NextRequest) {
           const said: string[] = []
           const lineSaid: string[] = []
           const acceptedSaid: string[] = []
+          // A week worked over the line and accepted at or under it: paid
+          // at straight time, said in its own sentence.
+          const straightSaid: string[] = []
           const wageLine = wageLineFor(bc, cand.person.name, row)
           if (payPeriod) {
             for (const t of mine) {
@@ -360,6 +367,12 @@ export async function POST(request: NextRequest) {
                 periodStart: t.periodStart,
                 periodEnd: t.periodEnd,
               })
+              if (t.cut) {
+                for (const w of straightTimeWeeks(t.cut)) {
+                  if (!priced.days.some((d) => weekStart(d.day) === w.weekOf)) continue
+                  if (!straightSaid.includes(w.says)) straightSaid.push(w.says)
+                }
+              }
               for (const d of priced.days) {
                 const before = book.paid.get(paidKey(bc.id, cand.personId, t.id, d.day)) ?? 0
                 const left = Math.round((d.hours - before) * 100) / 100
@@ -446,6 +459,7 @@ export async function POST(request: NextRequest) {
             overtime: said.length ? said.join(' ') : null,
             payLine: lineSaid.length ? lineSaid.join(' ') : null,
             accepted: acceptedSaid.length ? acceptedSaid.join(' ') : null,
+            straightTime: straightSaid.length ? straightSaid.join(' ') : null,
             refused: payPeriod ? null : `No accepted hours for ${cand.person.name}, so there is no period to pay.`,
             paid: lines,
           })

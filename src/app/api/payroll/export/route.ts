@@ -9,7 +9,7 @@ import type { ExemptAssertion, ExemptionBasis, ExemptStatus, WageRuleName } from
 import { workedByWeek } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineFor, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
-import { acceptanceForPay, payBands, payCut, paidDayMaps, heldSays } from '@/lib/money/pay-hours'
+import { acceptanceForPay, payBands, payCut, paidDayMaps, straightTimeSays } from '@/lib/money/pay-hours'
 
 /**
  * GET /api/payroll/export?provider=ADP&from=&to=
@@ -220,8 +220,9 @@ export async function GET(request: NextRequest) {
     //
     // Cut here, on the days, by the same allocation the run and the
     // screen use: ordinary hours first, latest day first, the hours over
-    // the line kept. A week that as accepted no longer goes over the line
-    // has its premium held, and the whole sheet is left off in a sentence.
+    // the line kept. A week worked over the line and accepted at or under
+    // it is paid at straight time — an acceptance at or under the line is
+    // the hours worked — and goes on the file with its sentence as a note.
     const acceptance = acceptanceForPay(s.assertions, s, companyId)
     const cut =
       acceptance === 'MANY'
@@ -306,9 +307,7 @@ export async function GET(request: NextRequest) {
           client: { treatment: w.treatment, appliedBps: w.appliedBps },
           ...weekRate(w.weekOf, regularHours + leaveHours),
           worked: workedWeeks.get(w.weekOf) ?? null,
-          held: c?.underTheLine
-            ? heldSays(c, { personName: s.person.name, employerName: s.sellContract.company?.name ?? null }, payLine.afterHours)
-            : null,
+          straightTime: c?.underTheLine ? straightTimeSays(c, payLine.afterHours, s.person.name) : null,
         }
       }),
       // Already the hours accepted where the days were cut above.
