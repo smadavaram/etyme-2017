@@ -1240,7 +1240,7 @@ export const MATRIX: L1[] = [
             'Every hour is paid at the rate in force on the day it was worked, and overtime in a week paid at two rates is priced on the US regular rate (29 CFR \u00a7778.115) by default',
             'The paying firm may choose another overtime method on the pay line \u2014 the rate on the day, or the higher rate \u2014 recorded with who chose it, when and why; anything but the default needs a reason, and only a desk that reads what people cost may change it. Founder, 2026-09-29',
             'Whatever is chosen, a nonexempt US worker is never paid less than the regular-rate premium, and the week says when the law\u2019s figure was paid instead',
-            'OPEN, MONEY \u2014 the payroll file (src/app/api/payroll/export/route.ts) selects the buy line without the overtime-method columns, so methodFor reads the default there while the run pays the chosen method; the select needs overtimeMethod, overtimeMethodById and overtimeMethodReason'],
+            'FIXED 2026-09-29 by etyme-money: the payroll file (src/app/api/payroll/export/route.ts) reads the overtime-method columns on the buy line, so it pays the method the run pays rather than the default'],
           implementedBy: ['src/lib/payroll-export.ts', 'src/app/api/cron/due-cycles/route.ts', 'src/lib/due-cycle-desks.ts',
             'src/lib/money/pay-hours.ts', 'src/lib/money/sheet-overtime.ts', 'src/lib/contract-rate.ts',
             'src/lib/money/pay-line.ts', 'src/app/api/payroll/run/route.ts', 'src/app/api/payroll/route.ts',

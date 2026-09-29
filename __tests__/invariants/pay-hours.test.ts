@@ -256,3 +256,11 @@ describe('the run, the screen, the file and back pay cut in one place', () => {
     }
   })
 })
+
+describe('the payroll file pays the overtime method the run pays', () => {
+  it('reads the paying firm’s choice, who made it and why, off the buy line, because a choice read as the default is a choice ignored', () => {
+    const src = readFileSync(join(__dirname, '..', '..', 'src', 'app/api/payroll/export/route.ts'), 'utf8')
+    expect(src).toContain('overtimeMethod: true, overtimeMethodById: true, overtimeMethodReason: true')
+    expect(src).toContain('methodFor(buy)')
+  })
+})

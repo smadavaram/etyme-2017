@@ -100,6 +100,11 @@ export async function GET(request: NextRequest) {
                   // is a different fact from what the client is billed
                   // for one. Statute sets a floor; this may be better.
                   overtimeAfterHours: true, overtimeMultiplierBps: true,
+                  // The paying firm's choice of overtime method, with who
+                  // chose it and why — methodFor applies a choice only
+                  // where all three are there, so the file pays the method
+                  // the run pays.
+                  overtimeMethod: true, overtimeMethodById: true, overtimeMethodReason: true,
                   entity: { select: { country: true } },
                   candidates: { select: { personId: true, payRate: true, payCurrency: true, state: true } },
                   exemptAssertions: {
