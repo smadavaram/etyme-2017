@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { maySeeOutside } from '@/lib/walls'
+import { monthsOf } from '@/lib/tenure-days'
 
 /**
  * GET /api/vendors/:id/trust-signals
@@ -113,7 +114,7 @@ export async function GET(
     ? tenureDays[Math.floor(tenureDays.length / 2)]
     : null
   const medianTenureMonths = medianTenureDays != null
-    ? Math.round(medianTenureDays / 30.44)
+    ? monthsOf(medianTenureDays)
     : null
 
   // ── 2. Bench pay honored ─────────────────────────────

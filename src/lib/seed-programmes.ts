@@ -302,14 +302,22 @@ export const PROGRAMMES: Program[] = [
     placements: [
       // Ten months through Computer Systems on top of thirteen through
       // Vertex. Twenty-three months at an eighteen-month cap, and neither
-      // supplier knows the other's number. This is the wedge.
+      // supplier knows the other's number.
+      //
+      // 300 days plus 400 is 700 on site. Months served are whole months
+      // (2026-09-29): twenty-three are served at 699 days, the fewest any
+      // twenty-three calendar months hold, and twenty-four at 730. The
+      // Vertex stint started 720 days ago until then, which was 690 on
+      // site — twenty-three only while half a month rounded up. At 700
+      // the demo's "twenty-three months" stays true for a month after
+      // seeding.
       { role: 'Billing systems consultant', skills: ['Convergent invoicing', 'Billing systems', 'Revenue accounting'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'computer-systems'], rates: [14800, 10900],
         person: 'Anders Lund', workAuth: 'GC', startedDaysAgo: 300, endsInDays: 60, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
       { role: 'ERP finance analyst', skills: ['ERP finance', 'Cost accounting'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'vertex-global'], rates: [12600, 9400],
-        person: 'Anders Lund', workAuth: 'GC', startedDaysAgo: 720, endsInDays: -330, state: 'ENDED', papers: 'CLEAR' },
+        person: 'Anders Lund', workAuth: 'GC', startedDaysAgo: 730, endsInDays: -330, state: 'ENDED', papers: 'CLEAR' },
       { role: 'Computer system validation engineer', skills: ['CSV', 'GAMP 5', '21 CFR Part 11'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'sundara', 'nimbus'], rates: [12200, 9900, 7700],
         person: 'Chidi Okafor', workAuth: 'H1B', startedDaysAgo: 90, endsInDays: 275, state: 'IN_PROGRESS',

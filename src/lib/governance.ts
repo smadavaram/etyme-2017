@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { meets as tierMeets } from '@/lib/supplier-tier'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
 
 /**
  * Governance enforcement engine — Addendum E §E.6.
@@ -227,7 +227,9 @@ async function evaluateTenureCap(
   description: string,
 ): Promise<EvaluationResult> {
   const maxMonths = params.maxMonths ?? 18
-  const capDays = Math.round(maxMonths * 30.44)
+  // The same formula as before, from the one place it lives now. The
+  // block counts days and does not move.
+  const capDays = daysFor(maxMonths)
 
   const now = new Date()
 

@@ -30,7 +30,7 @@
  * because nobody has the two numbers side by side.
  */
 
-import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
 
 export interface Offer {
   vendorName: string
@@ -123,8 +123,14 @@ export interface Merged {
   spread: Spread | null
   /** Months worked here, across every supplier. */
   monthsHere: number
-  /** Months left before the client's cap, where there is one. */
+  /**
+   * Whole months left before the client's cap, where there is one. Zero
+   * can still be inside the limit — less than a month left — so whether
+   * the limit is reached is `pastCap`, never this.
+   */
   headroomMonths: number | null
+  /** The days on site have reached the limit: the block would fire. */
+  pastCap: boolean
   barred: boolean
   /** Where they are today, in one word. */
   state: 'PLACED' | 'OFFERED' | 'INTERVIEWING' | 'SUBMITTED' | 'REJECTED' | 'BARRED'
@@ -212,8 +218,15 @@ export function merge(p: Person, now: Date): Merged {
   // happened. The same two functions the tenure ledger calls, on the
   // same contracts, so the two screens cannot disagree about a person.
   const periods = p.stints.map((s) => ({ startDate: s.startedAt, endDate: s.endedAt }))
-  const monthsHere = monthsOf(daysOnSite(periods, now))
-  const headroom = p.capMonths == null ? null : p.capMonths - monthsHere
+  const daysHere = daysOnSite(periods, now)
+  const monthsHere = monthsOf(daysHere)
+  // Room left is the days the block still allows, in whole months — not
+  // the limit less the months served, which counts a month that is not
+  // served yet and a limit the block does not enforce. Negative once the
+  // block would fire.
+  const pastCap = p.capMonths != null && daysHere >= daysFor(p.capMonths)
+  const headroom =
+    p.capMonths == null ? null : pastCap ? 0 : monthsOf(daysFor(p.capMonths) - daysHere)
 
   const furthest = p.offers.reduce<Offer['state']>(
     (best, o) => (RANK[o.state] > RANK[best] ? o.state : best),
@@ -250,6 +263,7 @@ export function merge(p: Person, now: Date): Merged {
     spread,
     monthsHere,
     headroomMonths: headroom,
+    pastCap,
     barred: p.barred != null,
     state,
     roles: [...new Set(p.offers.map((o) => o.roleTitle))],
@@ -258,7 +272,7 @@ export function merge(p: Person, now: Date): Merged {
       ...s,
       months: monthsOf(daysOnSite([{ startDate: s.startedAt, endDate: s.endedAt }], now)),
     })),
-    says: sentence(p, monthsHere, headroom, sellingNames, spread, state, starts),
+    says: sentence(p, monthsHere, headroom, pastCap, sellingNames, spread, state, starts),
     unknowns,
   }
 }
@@ -292,6 +306,7 @@ function sentence(
   p: Person,
   monthsHere: number,
   headroom: number | null,
+  pastCap: boolean,
   vendorNames: string[],
   spread: Spread | null,
   state: Merged['state'],
@@ -311,13 +326,15 @@ function sentence(
 
   // Ordered so the thing that stops a hire comes before the thing that
   // starts a negotiation.
-  if (headroom != null && headroom <= 0) {
+  if (pastCap) {
     bits.push(`${monthsHere} months here already — past your cap`)
   } else if (monthsHere > 0) {
     bits.push(
-      headroom != null
-        ? `${monthsHere} months here, ${headroom} left before your cap`
-        : `${monthsHere} months here already`
+      headroom == null
+        ? `${monthsHere} months here already`
+        : headroom === 0
+          ? `${monthsHere} months here, less than a month left before your cap`
+          : `${monthsHere} months here, ${headroom} left before your cap`
     )
   }
 
@@ -350,7 +367,7 @@ export function order(rows: Merged[]): Merged[] {
   return [...rows].sort((a, b) => {
     const score = (m: Merged) =>
       (m.barred ? 1000 : 0) +
-      (m.headroomMonths != null && m.headroomMonths <= 0 ? 500 : 0) +
+      (m.pastCap ? 500 : 0) +
       (m.spread?.says ? 100 : 0) +
       m.vendors * 10
 

@@ -41,7 +41,7 @@
 import { prisma } from '@/lib/db'
 import { chainTop } from '@/lib/chain-top'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 import { format, fromMinor } from '@/lib/money'
 import { parseCensusCsv, looksLikeCsv, type CensusGap } from '@/lib/census-import'
@@ -474,7 +474,10 @@ export function longestOnSite(
     past12: people.filter((p) => p.months >= 12).length,
     past18: people.filter((p) => p.months >= 18).length,
     capMonths,
-    pastCap: capMonths === null ? null : people.filter((p) => p.months >= capMonths).length,
+    // Past the limit is counted in days, the way governance blocks, so the
+    // census never says "past your limit" about somebody the block would
+    // still let through.
+    pastCap: capMonths === null ? null : people.filter((p) => p.days >= daysFor(capMonths)).length,
   }
 }
 

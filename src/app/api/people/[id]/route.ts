@@ -7,7 +7,7 @@ import { seatTrail } from '@/lib/program-seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop, askGoesTo } from '@/lib/chain-top'
 import { firmsOnARow, mayNameSubVendors, namesForClient } from '@/lib/chain-names'
-import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { logAccess } from '@/lib/access-log'
 
 /**
@@ -90,8 +90,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const lastEnd = served.filter((c) => c.endDate && c.endDate <= now).map((c) => c.endDate!).sort((a, b) => b.getTime() - a.getTime())[0] ?? null
   let status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE' = 'OK'
   let eligibleDate: string | null = null
-  if (capMonths) {
-    const pct = months / capMonths
+  // Compared in days against the day the block fires, as governance and
+  // the ledger compare. Whole months against the limit said "past the
+  // limit" before the block would; days cannot.
+  const capDays = capMonths ? daysFor(capMonths) : null
+  if (capMonths && capDays) {
+    const pct = days / capDays
     if (pct < 0.75) status = 'OK'
     else if (pct < 1) status = 'WARNING'
     else if (onSite) status = 'BREAK_REQUIRED'
@@ -258,7 +262,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       blocked: block ? { reason: block.reason, at: block.blockedAt.toISOString() } : null,
       onSite,
       says,
-      tenure: { months, capMonths, headroomMonths: capMonths ? Math.max(0, capMonths - months) : null, status, eligibleDate },
+      tenure: { months, capMonths, headroomMonths: capDays ? (days >= capDays ? 0 : monthsOf(capDays - days)) : null, status, eligibleDate },
       engagements,
       /** Every firm they have been here through, folded to one line. */
       firms,

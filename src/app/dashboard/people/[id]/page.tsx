@@ -179,7 +179,7 @@ export default function PersonPage() {
           <p className="mt-1 font-serif text-[28px] leading-none text-etyme-ink tabular-nums">{tenure.months}<span className="ml-1 text-[13px] font-sans text-etyme-muted">months{tenure.capMonths ? ` of ${tenure.capMonths}` : ''}</span></p>
           <p className={`mt-2 text-[13px] ${tenure.status === 'BREAK_REQUIRED' || tenure.status === 'WARNING' ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
             {TENURE_WORD[tenure.status] ?? tenure.status}
-            {tenure.headroomMonths != null && tenure.status !== 'BREAK_REQUIRED' && ` · ${tenure.headroomMonths} months of headroom`}
+            {tenure.headroomMonths != null && tenure.status !== 'BREAK_REQUIRED' && (tenure.headroomMonths === 0 && tenure.status === 'WARNING' ? ' · less than a month of headroom' : ` · ${tenure.headroomMonths} months of headroom`)}
             {tenure.eligibleDate && ` · can come back ${tenure.eligibleDate}`}
           </p>
           <Link href={{ pathname: '/dashboard/tenure' }} className="mt-2 inline-block text-[12px] text-etyme-action hover:underline">Everybody’s tenure</Link>

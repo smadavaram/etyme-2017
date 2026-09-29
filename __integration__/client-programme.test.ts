@@ -425,7 +425,9 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     // contracts, one person, one stretch.
     const helena = r.body.data.people.find((p: any) => p.name === 'Helena Marsh')
     expect(helena.contractCount).toBe(2)
-    expect(helena.cumulativeMonths).toBe(7)
+    // 200 days is six whole months. It read seven while half a month
+    // rounded up; months served are whole months (2026-09-29).
+    expect(helena.cumulativeMonths).toBe(6)
   })
 
   it('a person bought through a chain shows the firm the client pays once, with the count of firms below it and never their names', async () => {

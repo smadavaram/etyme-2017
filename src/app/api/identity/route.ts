@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import {
   compare, worthAsking, summarize, ifConfirmed, type Candidate,
 } from '@/lib/identity-resolution'
@@ -23,7 +24,6 @@ import {
  * rate, and both are found late by the person affected.
  */
 
-const DAY = 86_400_000
 
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -119,8 +119,9 @@ export async function GET(request: NextRequest) {
       // somebody else writes: "…through Computer Systems", or "…through
       // the firm supplied through Computer Systems".
       vendorName: seenNames.get(c.companyId)?.phrase ?? 'a supplier on this site',
+      // Whole months served on this stint, the ledger's own count.
       months: c.endDate
-        ? Math.max(0, Math.round((c.endDate.getTime() - c.startDate.getTime()) / DAY / 30.44))
+        ? monthsOf(daysOnSite([{ startDate: c.startDate, endDate: c.endDate }], new Date()))
         : 0,
     })),
   }))

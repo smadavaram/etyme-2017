@@ -117,13 +117,19 @@ describe('time already served here', () => {
       NOW
     )
     expect(m.monthsHere).toBe(24)
-    expect(m.headroomMonths).toBe(-6)
+    // Past the cap is the block's own test, in days, and says so on the
+    // row; headroom is room left, and there is none.
+    expect(m.pastCap).toBe(true)
+    expect(m.headroomMonths).toBe(0)
   })
 
   it('counts days actually served, never the length of the contract', () => {
     // The register read `endDate − startDate` and called it tenure, so
     // a twelve-month contract signed this morning said twelve months
-    // here. Helena's is 200 days old and runs another 160.
+    // here. Helena's is 200 days old and runs another 160: six whole
+    // months served, not seven — a month is not served half-way
+    // through. And eleven left, not twelve: the block fires at 548
+    // days, and 348 more days is eleven whole months and some.
     const m = merge(
       person({
         stints: [
@@ -132,8 +138,8 @@ describe('time already served here', () => {
       }),
       NOW
     )
-    expect(m.monthsHere).toBe(7)
-    expect(m.says).toBe('7 months here, 11 left before your cap.')
+    expect(m.monthsHere).toBe(6)
+    expect(m.says).toBe('6 months here, 11 left before your cap.')
   })
 
   it('has served nothing at all before the first day', () => {
@@ -205,7 +211,9 @@ describe('time already served here', () => {
       NOW
     )
     expect(twoLegs.monthsHere).toBe(oneLeg.monthsHere)
-    expect(twoLegs.monthsHere).toBe(7)
+    // 200 days is six whole months; it read seven while half a month
+    // rounded up.
+    expect(twoLegs.monthsHere).toBe(6)
   })
 
   it('still adds up two real stretches that happen to overlap by a week', () => {
@@ -220,7 +228,8 @@ describe('time already served here', () => {
       }),
       NOW
     )
-    expect(m.monthsHere).toBe(12)
+    // 360 days is eleven whole months — twelve are served at 365.
+    expect(m.monthsHere).toBe(11)
   })
 
   it('says plainly when somebody is already past the cap', () => {
@@ -331,7 +340,7 @@ describe('ordering the register', () => {
   function m(over: Partial<Merged>): Merged {
     return {
       personId: 'x', name: 'Zed', vendors: 1, vendorNames: [], sellingNames: [], spread: null,
-      monthsHere: 0, headroomMonths: 12, barred: false, state: 'SUBMITTED',
+      monthsHere: 0, headroomMonths: 12, pastCap: false, barred: false, state: 'SUBMITTED',
       roles: [], offers: [], stints: [], says: '', unknowns: [],
       ...over,
     }
@@ -343,7 +352,7 @@ describe('ordering the register', () => {
   })
 
   it('then the ones past the tenure cap', () => {
-    const out = order([m({ name: 'fine' }), m({ name: 'over', headroomMonths: -2 })])
+    const out = order([m({ name: 'fine' }), m({ name: 'over', headroomMonths: 0, pastCap: true })])
     expect(out[0].name).toBe('over')
   })
 
@@ -370,7 +379,7 @@ describe('the line above the register', () => {
   function m(over: Partial<Merged>): Merged {
     return {
       personId: 'x', name: 'x', vendors: 1, vendorNames: [], sellingNames: [], spread: null,
-      monthsHere: 0, headroomMonths: null, barred: false, state: 'SUBMITTED',
+      monthsHere: 0, headroomMonths: null, pastCap: false, barred: false, state: 'SUBMITTED',
       roles: [], offers: [], stints: [], says: '', unknowns: [],
       ...over,
     }
@@ -497,18 +506,22 @@ describe('somebody placed twice, years apart, through two agencies', () => {
     // Pinnacle. Neither supplier can see the other's, and the client
     // can only see it here.
     expect(merge(lucia(), NOW).monthsHere).toBe(14)
-    expect(merge(lucia(), NOW).says).toBe('14 months here, 4 left before your cap.')
+    // 438 days on site; the block fires at 548, and the 110 days
+    // between are three whole months, not four.
+    expect(merge(lucia(), NOW).says).toBe('14 months here, 3 left before your cap.')
   })
 
   it('does not count the rest of her live contract as time she has already served', () => {
     // Her Pinnacle contract runs to August 2027. On this screen it read
     // as twelve months already here, which added to Brightmoor's
     // thirteen made twenty-five and printed "past your cap" in clay —
-    // about somebody with four months of room. A program manager
+    // about somebody with three months of room. A program manager
     // believes the alarming screen and calls the supplier.
     const m = merge(lucia(), NOW)
     expect(m.monthsHere).toBeLessThan(18)
-    expect(m.headroomMonths).toBe(4)
+    // Three whole months of room: 110 days before the block. It read
+    // four when headroom was the cap less rounded months.
+    expect(m.headroomMonths).toBe(3)
     expect(m.says).not.toMatch(/past your cap/)
   })
 

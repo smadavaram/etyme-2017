@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { daysFor, monthsOf } from '@/lib/tenure-days'
 
 // ── Types matching the governance engine ─────────────────
 
@@ -62,8 +63,9 @@ function evaluateTenureCap(
   capMonths: number,
   enforcementMode: 'BLOCK' | 'WARN' = 'BLOCK',
 ): EvaluationResult {
-  const capDays = Math.round(capMonths * 30.44)
-  const totalMonths = Math.round(totalDays / 30.44)
+  // The engine's own two functions, not a restated copy of them.
+  const capDays = daysFor(capMonths)
+  const totalMonths = monthsOf(totalDays)
   const pctUsed = totalDays / capDays
 
   if (totalDays >= capDays) {

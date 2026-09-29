@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { monthsOf } from '@/lib/tenure-days'
 
 /**
  * Alumni (Worked here before) logic tests.
@@ -212,7 +213,8 @@ describe('Alumni aggregation', () => {
     }
 
     return {
-      totalMonths: Math.round(totalDays / 30.44),
+      // Whole months, the ledger's count.
+      totalMonths: monthsOf(totalDays),
       totalHours,
       extensions: Math.max(0, contracts.length - 1),
     }

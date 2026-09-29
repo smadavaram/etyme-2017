@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 
 import { GET as timesheets } from '@/app/api/timesheets/route'
 import { GET as people } from '@/app/api/people/route'
@@ -268,9 +269,8 @@ describe('a person bought through two legs of one chain has served one set of da
     })
     expect(rungs.length).toBeGreaterThan(1)
 
-    const oneLeg = Math.round(
-      (Date.now() - rungs[0].startDate.getTime()) / 86_400_000 / 30.44
-    )
+    // The ledger's own month, not a restated copy of it.
+    const oneLeg = monthsOf(daysOnSite([{ startDate: rungs[0].startDate, endDate: null }]))
     expect(her.monthsHere).toBeLessThanOrEqual(oneLeg + 1)
   })
 })

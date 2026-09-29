@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { notify } from '@/lib/notify'
-import { daysOnSite } from '@/lib/tenure-days'
+import { daysFor, daysOnSite } from '@/lib/tenure-days'
 
 /**
  * POST /api/alumni/ask-back
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
   })
 
   const capDays = tenureRule
-    ? Math.round((tenureRule.parameters as any).maxMonths * 30.44)
+    ? daysFor((tenureRule.parameters as any).maxMonths)
     : null
   const breakDaysPolicy = breakRule
     ? (breakRule.parameters as any).breakDays

@@ -75,6 +75,7 @@ interface Row {
   spread: { lowCents: number; highCents: number; gapCents: number; says: string | null } | null
   monthsHere: number
   headroomMonths: number | null
+  pastCap: boolean
   barred: boolean
   state: string
   roles: string[]
@@ -445,7 +446,7 @@ export default function PeoplePage() {
 
           <p
             className={`mt-2 text-[13px] ${
-              r.barred || (r.headroomMonths != null && r.headroomMonths <= 0)
+              r.barred || r.pastCap
                 ? 'text-etyme-attention'
                 : 'text-etyme-muted'
             }`}

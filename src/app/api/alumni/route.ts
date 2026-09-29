@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
-import { daysOnSite } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-supply's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
   })
 
   const capDays = tenureRule
-    ? Math.round((tenureRule.parameters as any).maxMonths * 30.44)
+    ? daysFor((tenureRule.parameters as any).maxMonths)
     : null
   const breakDaysPolicy = breakRule
     ? (breakRule.parameters as any).breakDays
@@ -223,7 +223,8 @@ export async function GET(request: NextRequest) {
 
   // Build alumni list
   const alumni = Array.from(personMap.entries()).map(([personId, data]) => {
-    const totalMonths = Math.round(data.totalDays / 30.44)
+    // Whole months, the ledger's count: half a month is not a month served.
+    const totalMonths = monthsOf(data.totalDays)
     const extensions = Math.max(0, data.contractCount - 1)
 
     // Classify state

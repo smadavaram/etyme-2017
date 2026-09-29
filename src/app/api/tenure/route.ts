@@ -7,7 +7,7 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
-import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
   })
 
   const capMonths = tenureRule ? (tenureRule.parameters as any).maxMonths : null
-  const capDays = capMonths ? Math.round(capMonths * 30.44) : null
+  const capDays = capMonths ? daysFor(capMonths) : null
   const breakDays = breakRule ? (breakRule.parameters as any).breakDays : null
 
   // Group contracts by person

@@ -56,7 +56,76 @@ export function daysOnSite(periods: Period[], now: Date = new Date()): number {
   return Math.ceil(total / DAY)
 }
 
-/** Days into months the way the ledger has always rounded them. */
+/**
+ * The ledger's month: the average Gregorian month, 365.25 / 12 days.
+ * A time limit written in months is enforced in days, and this is the
+ * one place that says how many.
+ */
+export const DAYS_PER_MONTH = 30.44
+
+/**
+ * The day count a limit of `months` is enforced at. Governance and the
+ * tenure ledger block or flag when the days on site reach this; it is
+ * the one formula for it, rather than one copy per route. It is the
+ * formula every copy already used, so the block does not move.
+ */
+export function daysFor(months: number): number {
+  return Math.round(months * DAYS_PER_MONTH)
+}
+
+// Days in each month of a common year, January first.
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+/**
+ * The fewest days any run of `months` consecutive calendar months can
+ * hold. One is 28 (a February); six is 181 (January to June); twelve is
+ * 365; twenty-four is 730. A run of 48 months or more cannot dodge a
+ * leap day.
+ */
+export function fewestDaysIn(months: number): number {
+  if (!(months > 0)) return 0
+  const years = Math.floor(months / 12)
+  const rest = months % 12
+  let shortest = 0
+  if (rest > 0) {
+    shortest = Infinity
+    for (let from = 0; from < 12; from++) {
+      let d = 0
+      for (let k = 0; k < rest; k++) d += MONTH_DAYS[(from + k) % 12]
+      if (d < shortest) shortest = d
+    }
+  }
+  return years * 365 + shortest + Math.floor(months / 48)
+}
+
+/**
+ * Whole months served. Never rounded up. Decided by the founder,
+ * 2026-09-29.
+ *
+ * `n` months are served once the days on site reach the fewest days any
+ * `n` consecutive calendar months can hold. So a span of exactly `n`
+ * calendar months — any start day, any year — reads as `n`: January to
+ * July is six, two years is twenty-four, a February is one. And a count
+ * of days no run of `n` calendar months could fit in never reads as `n`.
+ *
+ * This used to be `Math.round(days / 30.44)`, which counted a month as
+ * served once half of it was. Sixteen days on site read as "1 months
+ * here", and — the part that matters — 533 days read as 18 months:
+ * "past the limit" on the person's page, the census and the register a
+ * fortnight before an eighteen-month limit, which governance enforces
+ * at `daysFor(18)` = 548 days, actually blocks.
+ *
+ * What is left, said so it is a choice: the limit is enforced in the
+ * ledger's 30.44-day months and this counts calendar months, so a
+ * screen can reach "18 months" up to three days before the block does
+ * (546 against 548). Closing that means stating the limit in calendar
+ * months too, which is a change to a BLOCK rather than to a label, and
+ * is not made here.
+ */
 export function monthsOf(days: number): number {
-  return Math.round(days / 30.44)
+  if (!(days > 0)) return 0
+  let n = Math.max(0, Math.floor(days / DAYS_PER_MONTH) - 1)
+  while (n > 0 && fewestDaysIn(n) > days) n--
+  while (fewestDaysIn(n + 1) <= days) n++
+  return n
 }

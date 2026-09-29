@@ -8,6 +8,7 @@ import { evidencePrompt, evidenceCheck, type Evidenced } from '@/lib/checks'
 import { evaluateGovernance } from '@/lib/governance'
 import { assessFit } from '@/lib/candidate-fit'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import {
   screenRules, shortlist, notesFrom, MAX_ATTEMPTS,
   type Arriving, type Screened,
@@ -33,7 +34,6 @@ import {
 const anthropic = new Anthropic()
 const MODEL = process.env.CHECK_MODEL ?? 'claude-opus-5'
 
-const DAY = 86_400_000
 
 export async function POST(
   request: NextRequest,
@@ -528,13 +528,17 @@ function monthsHere(
 ): { months: number; lastEnded: Date } | null {
   if (contracts.length === 0) return null
 
-  let days = 0
   let last = contracts[0].endDate!
   for (const c of contracts) {
-    if (!c.endDate) continue
-    days += Math.max(0, (c.endDate.getTime() - c.startDate.getTime()) / DAY)
-    if (c.endDate > last) last = c.endDate
+    if (c.endDate && c.endDate > last) last = c.endDate
   }
+  // The ledger's own count: ended stints only, overlaps once, whole
+  // months. Summing the rows counted a chain once per rung, and rounding
+  // counted half a month as served.
+  const days = daysOnSite(
+    contracts.filter((c) => c.endDate).map((c) => ({ startDate: c.startDate, endDate: c.endDate })),
+    new Date()
+  )
 
-  return { months: Math.round(days / 30.44), lastEnded: last }
+  return { months: monthsOf(days), lastEnded: last }
 }
