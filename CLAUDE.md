@@ -1293,6 +1293,18 @@ Three rules follow:
   — the opposite of the billing rule, on purpose, because on the bill
   the firm is protecting its client and on pay it is protecting its
   worker.
+  Two more, the same day. **An acceptance at or under the line is the
+  hours worked:** where the employer accepts 40 hours or fewer of a
+  longer week, those hours are paid at straight time (38 accepted pays
+  38 at straight time); above the line the worker keeps their overtime
+  as above. **Who owes what, and when:** once the client approves a
+  week, the client owes it — to the firm it pays, on that firm's bill.
+  Once the employer (or the vendor above the worker) accepts it, having
+  checked the client's approval, the employer owes the worker, due on
+  the worker's own payment terms. So the worker's page says "owed to
+  you" only after the employer's acceptance, with the date it falls due;
+  a week the client has signed and the employer has not yet accepted
+  reads as waiting on the employer, never as owed.
 
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
