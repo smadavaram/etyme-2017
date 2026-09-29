@@ -5,6 +5,11 @@ import { seedWorld } from '@/lib/seed-world'
 import { POST as proposeRate } from '@/app/api/rate-history/route'
 import { POST as decideRate } from '@/app/api/rate-history/[id]/approve/route'
 import { POST as runPayroll } from '@/app/api/payroll/run/route'
+import { GET as payroll } from '@/app/api/payroll/route'
+import { GET as payrollExport } from '@/app/api/payroll/export/route'
+import { GET as myWork } from '@/app/api/me/work/route'
+import { GET as profitability } from '@/app/api/profitability/route'
+import { POST as approveWeek } from '@/app/api/timesheets/[id]/approve/route'
 
 /**
  * A pay rise in the middle of a placement, walked end to end.
@@ -230,5 +235,106 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
     // Friday are left, and they are $70 days.
     expect(row.alreadyPaidHours).toBe(16)
     expect(row.grossPay).toBe(24 * 7_000)
+  })
+
+  // ── Every other reader of pay, by the day ──────────────────────────
+
+  it('shows the payroll screen the same July figure the run pays, and the $70 rate she is on now', async () => {
+    const r = await call(owner, payroll, 'GET', `/api/payroll?period=2026-07&companyId=${firmId}`)
+    const item = r.body.data.payItems.find((x: any) => x.buyContractId === buyId)
+    expect(item.grossPay).toBe(expected('2026-07-01', '2026-07-31').cents)
+    expect(item.payRate).toBe(7_000)
+  })
+
+  it('puts the week of the rise on the payroll file as sixteen hours at $66 and twenty-four at $70', async () => {
+    const r = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-06-29&to=2026-07-03&provider=GENERIC')
+    expect(r.status).toBe(200)
+    const mine = r.body.data.lines.filter((l: any) => l.personName === 'Priya Venkataraman')
+    expect(mine.map((l: any) => [l.hours, l.rateCents, l.totalCents])).toEqual([
+      [16, 6_600, 16 * 6_600],
+      [24, 7_000, 24 * 7_000],
+    ])
+  })
+
+  it('pays the forty-five-hour week after the rise, all at $70, with its overtime at time and a half of $70', async () => {
+    await prisma.buyContract.update({ where: { id: buyId }, data: { overtimeAfterHours: 40, overtimeMultiplierBps: 15_000 } })
+    await prisma.exemptAssertion.create({
+      data: {
+        buyContractId: buyId, personId, assertedByCompanyId: firmId, status: 'NONEXEMPT',
+        screenOutcome: 'CANNOT_BE_EXEMPT', screenRulesOut: [], screenSays: 'Paid by the hour.', assertedById: owner.personId,
+      } as any,
+    })
+    const r = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-07-06&to=2026-07-10&provider=GENERIC')
+    const mine = r.body.data.lines.filter((l: any) => l.personName === 'Priya Venkataraman')
+    expect(mine).toHaveLength(1)
+    expect(mine[0].rateCents).toBe(7_000)
+    expect(mine[0].hours).toBe(40)
+    expect(mine[0].overtimeHours).toBe(5)
+    expect(mine[0].regularCents).toBe(40 * 7_000)
+    expect(mine[0].overtimeCents).toBe(Math.round(5 * 7_000 * 1.5))
+  })
+
+  it.skip(
+    'TODO, waiting on the founder: overtime in a week paid at two rates uses a regular rate weighted across both (29 CFR §778.115), not the rate on the first day',
+    () => {
+      // A 45-hour week with the rise on its Wednesday: which of $66 and
+      // $70 the five overtime hours are "at" is the open decision. Until
+      // it is made, the file pays ordinary hours by the day and prices
+      // the premium on the week's opening rate, with a note saying so.
+    }
+  )
+
+  it("shows Priya the $70 she is on now, on her own page", async () => {
+    const r = await call(worker, myWork, 'GET', '/api/me/work')
+    expect(r.status).toBe(200)
+    const line = r.body.data.placements.find((p: any) => p.id === sellId)
+    expect(line.payRate).toBe(7_000)
+  })
+
+  it('tells Priya what she is owed, each day at its own rate, less what June\'s run already paid her', async () => {
+    const r = await call(worker, myWork, 'GET', '/api/me/work')
+    const owed = r.body.data.owed
+    const all = expected('2026-01-01', '2026-12-31')
+    const june = expected('2026-06-01', '2026-06-30')
+    expect(owed.paidHours).toBe(june.hours)
+    expect(owed.hours).toBe(all.hours - june.hours)
+    expect(owed.cents).toBe(all.cents - june.cents)
+  })
+
+  it('prices her pay on the margin screen at $66 and $70 by the day, never at the $112 the client is billed', async () => {
+    const r = await call(owner, profitability, 'GET', '/api/profitability')
+    expect(r.status).toBe(200)
+    const row = r.body.data.rows.find((x: any) => x.contractId === sellId)
+    const all = expected('2026-01-01', '2026-12-31')
+    expect(row.profit.revenueCents).toBe(all.hours * 11_200)
+    expect(row.profit.payCents).toBe(all.cents)
+    expect(row.profit.marginCents).toBeGreaterThan(0)
+    // What the two sides agreed, read at the rate in force today.
+    expect(row.agreed.payRateCents).toBe(7_000)
+  })
+
+  it("records the firm's acceptance of a new week at her $70 pay rate, never the client's $112", async () => {
+    const days = { '2026-08-24': 8, '2026-08-25': 8, '2026-08-26': 8, '2026-08-27': 8, '2026-08-28': 8 }
+    const ts = await prisma.timesheet.create({
+      data: {
+        sellContractId: sellId, personId, periodStart: d('2026-08-24'), periodEnd: d('2026-08-28'),
+        days, totalHours: 40, status: 'SUBMITTED', submittedAt: d('2026-08-28'),
+      },
+    })
+    const clientDesk = await prisma.context.findFirstOrThrow({
+      where: { companyId: clientId, type: 'EMPLOYEE', role: { permissions: { hasSome: ['*', 'timesheets.approve'] } } },
+      include: { person: true },
+    })
+    const signed = await call(
+      { id: clientDesk.id, personId: clientDesk.personId, email: clientDesk.person.primaryEmail },
+      approveWeek, 'POST', `/api/timesheets/${ts.id}/approve`, {}, { id: ts.id }
+    )
+    expect(signed.status, JSON.stringify(signed.body)).toBe(200)
+    const accepted = await call(owner, approveWeek, 'POST', `/api/timesheets/${ts.id}/approve`, {}, { id: ts.id })
+    expect(accepted.status, JSON.stringify(accepted.body)).toBe(200)
+    const row = await prisma.workAssertion.findFirstOrThrow({
+      where: { timesheetId: ts.id, role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+    })
+    expect(row.rateCents).toBe(7_000)
   })
 })

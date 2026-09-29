@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { ownPageFor } from '@/lib/portfolio-data'
 import { rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
+import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
+import { paidBook, paidKey } from '@/lib/payroll-paid'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 
 /**
@@ -161,7 +163,7 @@ export async function GET(request: NextRequest) {
     where: { personId: caller.person.id, state: 'ACTIVE' },
     select: {
       payRate: true, payCurrency: true, startDate: true,
-      buyContract: { select: { companyId: true, supplierSellContractId: true, contractType: true } },
+      buyContract: { select: { id: true, companyId: true, supplierSellContractId: true, contractType: true } },
     },
   })
 
@@ -188,6 +190,35 @@ export async function GET(request: NextRequest) {
       .filter(l => l.buyContract.supplierSellContractId === null)
       .map(l => [l.buyContract.companyId, l])
   )
+
+  // ── The rate in force, and what has already been paid ─────────────
+  //
+  // The line's own `payRate` is its opening rate. A pay rise is an
+  // approved, effective-dated row beside it, and the line is never
+  // overwritten — so the rate the person is on today, and what each past
+  // day is worth, are read through those rows (lib/contract-rate).
+  const directIds = [...payByCompany.values()].map((l) => l.buyContract.id)
+  const myRates = directIds.length
+    ? await prisma.rateHistory.findMany({
+        where: { contractType: 'BUY', contractId: { in: directIds } },
+      })
+    : []
+  const periodsOf = (buyContractId: string) => ratePeriods(myRates.filter((r) => r.contractId === buyContractId))
+  const rateToday = (companyId: string) => {
+    const l = payByCompany.get(companyId)
+    return l ? rateInForce(l.payRate, periodsOf(l.buyContract.id), now).rateCents : null
+  }
+
+  // Every approved week, not only the latest twenty-six the list shows,
+  // and the days a payroll run has already paid, so "owed" is owed.
+  const approvedWeeks = await prisma.timesheet.findMany({
+    where: { personId, status: 'APPROVED', sellContractId: { in: contracts.map((c) => c.id) } },
+    select: { id: true, sellContractId: true, days: true, totalHours: true, acceptedHours: true, periodStart: true, periodEnd: true },
+  })
+  const paidBy = new Map<string, Awaited<ReturnType<typeof paidBook>>>()
+  for (const l of payByCompany.values()) {
+    paidBy.set(l.buyContract.id, await paidBook(l.buyContract.companyId, [l.buyContract.id]))
+  }
 
   // One placement per chain, naming every firm in it (`placementLines`).
   // The worker knows the complete chain — decided 2026-09-28 — and the
@@ -229,7 +260,7 @@ export async function GET(request: NextRequest) {
           location: c.workLocation ? (c.workLocation.city ?? c.workLocation.name) : null,
           // Their pay, from their own rung, or nothing. No rung above
           // theirs is priced here: those are prices between two firms.
-          payRate: payByCompany.get(c.companyId)?.payRate ?? null,
+          payRate: rateToday(c.companyId),
           payCurrency: payByCompany.get(c.companyId)?.payCurrency ?? null,
           rateNote: payByCompany.has(c.companyId)
             ? null
@@ -315,28 +346,52 @@ export async function GET(request: NextRequest) {
         const byContract = new Map(contracts.map((c) => [c.id, c.companyId]))
         let cents = 0
         let hours = 0
+        let paidHours = 0
         let unknownRate = 0
-        for (const t of timesheets) {
-          if (t.status !== 'APPROVED') continue
+        for (const t of approvedWeeks) {
           const pay = payByCompany.get(byContract.get(t.sellContractId) ?? '')
           if (!pay?.payRate) { unknownRate++; continue }
-          hours += Number(t.totalHours)
-          cents += Number(t.totalHours) * pay.payRate
+          const priced = priceByDay({
+            contractRateCents: pay.payRate,
+            periods: periodsOf(pay.buyContract.id),
+            days: (t.days ?? {}) as Record<string, number>,
+            hours: t.acceptedHours != null ? Number(t.acceptedHours) : Object.keys((t.days ?? {}) as object).length ? null : Number(t.totalHours),
+            periodStart: t.periodStart,
+            periodEnd: t.periodEnd,
+          })
+          const book = paidBy.get(pay.buyContract.id)
+          for (const d of priced.days) {
+            const before = book?.paid.get(paidKey(pay.buyContract.id, personId, t.id, d.day)) ?? 0
+            const left = Math.max(0, Math.round((d.hours - before) * 100) / 100)
+            paidHours += Math.min(before, d.hours)
+            hours += left
+            cents += left * d.rateCents
+          }
         }
+        hours = Math.round(hours * 100) / 100
+        cents = Math.round(cents)
+        paidHours = Math.round(paidHours * 100) / 100
+        // A run from before 2026-09-29 recorded no hours, so what it paid
+        // cannot be taken off. Said, rather than showing its hours as owed.
+        const unrecorded = [...paidBy.values()].some((b) => b.unrecorded.size > 0)
         return {
           hours,
           cents,
           currency: contracts[0] ? payByCompany.get(contracts[0].companyId)?.payCurrency ?? null : null,
-          // Weeks whose rate is not on Etyme, so the figure is short and
-          // says so rather than quietly under-reporting.
+          // How many approved weeks have no rate here — said rather than
+          // counted as zero.
           weeksWithNoRate: unknownRate,
+          paidHours,
           says:
             hours === 0 && unknownRate === 0
               ? 'Nothing approved and unpaid right now.'
               : unknownRate > 0
                 ? `${hours} approved hours here. ${unknownRate} more week${unknownRate === 1 ? '' : 's'} ` +
                   `approved with no rate recorded on Etyme — your agency has those.`
-                : `${hours} approved hours, not yet paid.`,
+                : unrecorded
+                  ? `${hours} approved hours. A payroll run before this page could see what was paid ` +
+                    `has been made, so some of these may already be paid — your employer has the record.`
+                  : `${hours} approved hours, not yet paid.`,
         }
       })(),
     },

@@ -5,7 +5,7 @@ import { resolveOwnCompany } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { daysFor } from '@/lib/contract-links'
 import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
-import { rateInForce } from '@/lib/contract-rate'
+import { rateInForce, priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 
 /**
@@ -296,23 +296,34 @@ export async function GET(request: NextRequest) {
       const totalApprovedHours =
         Math.round(shares.reduce((sum, x) => sum + x.share!.hours, 0) * 100) / 100
 
-      // Gross pay at the rate in force when the work was done, in cents.
+      // Gross pay at the rate in force on each day the work was done, in
+      // cents.
       //
       // It used the candidate's rate as it stands today, so a pay rise
       // agreed in August silently repaid every hour worked since March.
-      const grossPay = Math.round(
-        shares.reduce((sum, x) => {
-          const rate = rateInForce(
-            cand.payRate,
-            (rateRows.get(bc.id) ?? []).map((r) => ({
-              id: r.id, rateCents: r.rate, fromDate: r.fromDate,
-              toDate: r.toDate, approvalState: r.approvalState,
-            })),
-            x.ts.rawStart
-          ).rateCents
-          return sum + x.share!.hours * rate
-        }, 0)
+      // Then it used the rate on the week's first day, so a rise effective
+      // on a Wednesday paid that Wednesday to Friday at the old rate. Each
+      // day is priced on its own now (lib/contract-rate, priceByDay).
+      const periods = ratePeriods(rateRows.get(bc.id) ?? [])
+      const priced = shares.map((x) =>
+        priceByDay({
+          contractRateCents: cand.payRate,
+          periods,
+          days: x.ts.days,
+          hours: Object.keys(x.ts.days ?? {}).length > 0 ? null : x.share!.hours,
+          within: x.share!.partial ? payPeriod : null,
+          periodStart: x.ts.rawStart,
+          periodEnd: x.ts.rawEnd,
+        })
       )
+      const byRate = new Map<number, number>()
+      for (const p of priced) for (const d of p.days) byRate.set(d.rateCents, (byRate.get(d.rateCents) ?? 0) + d.hours)
+      const grossPay = [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(Math.round(h * 100) / 100 * r), 0)
+      // The rate a reader sees on the row: the one in force at the end of
+      // the period, which is the one the next hour will be paid at.
+      const rateNow = payPeriod
+        ? rateInForce(cand.payRate, periods, payPeriod.end).rateCents
+        : rateInForce(cand.payRate, periods, new Date()).rateCents
 
       let payStatus: string
       if (filteredTimesheets.length === 0) {
@@ -339,7 +350,11 @@ export async function GET(request: NextRequest) {
         person: cand.person,
         contractType: bc.contractType,
         state: bc.state,
-        payRate: cand.payRate,
+        payRate: rateNow,
+        // Where the rate changed inside the period, each rate and its hours.
+        rates: byRate.size > 1
+          ? [...byRate.entries()].sort((a, b) => a[0] - b[0]).map(([rateCents, hours]) => ({ rateCents, hours: Math.round(hours * 100) / 100 }))
+          : null,
         payCurrency: cand.payCurrency,
         vendorCompany: bc.vendorCompany,
         entity: bc.entity,

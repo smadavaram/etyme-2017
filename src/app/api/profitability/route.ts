@@ -3,6 +3,7 @@ import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import {
   profitOf, total, forCandidate, forCustomer, health, belowFloor,
   type Line, type ContractType,
@@ -338,6 +339,9 @@ export async function GET(request: NextRequest) {
       timesheets: {
         select: {
           id: true,
+          // The days, so each hour is priced at the rate in force the day
+          // it was worked rather than one rate across the whole book.
+          days: true, periodStart: true, periodEnd: true,
           assertions: {
             where: { state: 'LIVE' },
             select: { role: true, hours: true, rateCents: true },
@@ -394,25 +398,84 @@ export async function GET(request: NextRequest) {
     return { type: pair.buy.contractType, payRate: pair.buy.payRateCents, pair }
   }
 
+  // Every rate change on these lines, read once: the sell line's for what
+  // was billed, the buy line's for what was paid. And each buy line's own
+  // recorded rate, which is its opening rate — a change never overwrites
+  // it, so a day before the change still reads it.
+  const buyIdsHere = [
+    ...new Set(contracts.map((c) => bySell.get(c.id)?.buy?.id).filter((x): x is string => !!x)),
+  ]
+  const [rateRows, openingPay] = await Promise.all([
+    prisma.rateHistory.findMany({
+      where: {
+        OR: [
+          { contractType: 'SELL', contractId: { in: contracts.map((c) => c.id) } },
+          ...(buyIdsHere.length ? [{ contractType: 'BUY', contractId: { in: buyIdsHere } }] : []),
+        ],
+      },
+      select: { id: true, contractType: true, contractId: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+    }),
+    prisma.buyContractCandidate.findMany({
+      where: { buyContractId: { in: buyIdsHere } },
+      select: { buyContractId: true, personId: true, payRate: true },
+    }),
+  ])
+  const periodsFor = (side: 'SELL' | 'BUY', id: string) =>
+    ratePeriods(rateRows.filter((r) => r.contractType === side && r.contractId === id))
+
   const rows = contracts.map((c) => {
     // Both sides from the ledger. Neither is a rate card multiplied by
-    // one hours figure.
+    // one hours figure — and neither is one rate across every week: each
+    // accepted hour is priced at the rate in force on the day it was
+    // worked, on its own side of the trade.
+    //
+    // The pay side used to read the rate off the employer's acceptance in
+    // the ledger, and the approval route wrote the BILL rate there on a
+    // direct placement. Priya's pay read $112 against $112 billed, and a
+    // placement agreed at 41% showed a loss.
     let billedHours = 0
     let paidHours = 0
+    let billedCents = 0
+    let paidCents = 0
     let payRateFromLedger = 0
 
+    const eng = engagementOf(c.id)
+    const buyId = eng?.pair.buy?.id ?? null
+    const opening = buyId
+      ? openingPay.find((x) => x.buyContractId === buyId && x.personId === c.person.id)?.payRate ?? eng!.payRate
+      : 0
+    const sellPeriods = periodsFor('SELL', c.id)
+    const buyPeriods = buyId ? periodsFor('BUY', buyId) : []
+
     for (const t of c.timesheets) {
+      const days = (t.days ?? {}) as Record<string, number>
       for (const a of t.assertions) {
-        if (a.role === 'CLIENT_APPROVAL') billedHours += Number(a.hours)
+        const h = Number(a.hours)
+        if (a.role === 'CLIENT_APPROVAL') {
+          billedHours += h
+          billedCents += priceByDay({
+            contractRateCents: c.billRate, periods: sellPeriods, days, hours: h,
+            periodStart: t.periodStart, periodEnd: t.periodEnd,
+          }).cents
+        }
         if (a.role === 'EMPLOYER_ACCEPTANCE') {
-          paidHours += Number(a.hours)
-          payRateFromLedger = a.rateCents || payRateFromLedger
+          paidHours += h
+          if (buyId && opening > 0) {
+            paidCents += priceByDay({
+              contractRateCents: opening, periods: buyPeriods, days, hours: h,
+              periodStart: t.periodStart, periodEnd: t.periodEnd,
+            }).cents
+          } else {
+            // No buy line behind it: the ledger's own figure is the only
+            // one there is, and `costKnown` below says how far to trust it.
+            payRateFromLedger = a.rateCents || payRateFromLedger
+            paidCents += Math.round(h * a.rateCents)
+          }
         }
       }
     }
 
-    const eng = engagementOf(c.id)
-    const payRate = payRateFromLedger || eng?.payRate || 0
+    const payRate = eng?.payRate || payRateFromLedger || 0
 
     const line: Line = {
       billedHours,
@@ -425,6 +488,8 @@ export async function GET(request: NextRequest) {
       // margin, which is the most dangerous number this screen could
       // show because it looks like good news.
       costKnown: eng != null && payRate > 0,
+      revenueCents: billedCents,
+      payCents: paidCents,
     }
 
     const p = profitOf(line)
@@ -655,6 +720,26 @@ async function pairsFor(companyId: string, scope: Scope): Promise<Pairs> {
 
   const now = Date.now()
   const multiLinked: Pairs['multiLinked'] = []
+
+  // The rate each side agreed is the rate in force — today, or on the
+  // last day of a placement that has ended. A line's own rate is its
+  // opening rate and a change never overwrites it.
+  const pairRates = await prisma.rateHistory.findMany({
+    where: {
+      approvalState: 'APPROVED',
+      OR: [
+        { contractType: 'SELL', contractId: { in: sells.map((c) => c.id) } },
+        { contractType: 'BUY', contractId: { in: sells.flatMap((c) => c.buyLinks.map((l) => l.buyContract.id)) } },
+      ],
+    },
+    select: { id: true, contractType: true, contractId: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+  })
+  const inForce = (side: 'SELL' | 'BUY', id: string, opening: number, end: Date | null) =>
+    rateInForce(
+      opening,
+      ratePeriods(pairRates.filter((r) => r.contractType === side && r.contractId === id)),
+      end && end.getTime() < now ? end : new Date(now)
+    ).rateCents
   let unlinked = 0
 
   const all: Pair[] = sells.map((c) => {
@@ -684,7 +769,7 @@ async function pairsFor(companyId: string, scope: Scope): Promise<Pairs> {
     return {
       sell: {
         id: c.id,
-        billRateCents: c.billRate,
+        billRateCents: inForce('SELL', c.id, c.billRate, c.endDate),
         billCurrency: c.billCurrency ?? 'USD',
         state: c.state,
         personId: c.person.id,
@@ -701,7 +786,7 @@ async function pairsFor(companyId: string, scope: Scope): Promise<Pairs> {
               // A buy line naming nobody on it has no pay rate for this
               // person, and `spreadOn` refuses on a zero rather than
               // reading the whole bill rate as margin.
-              payRateCents: cand?.payRate ?? 0,
+              payRateCents: cand ? inForce('BUY', b.id, cand.payRate, c.endDate) : 0,
               payCurrency: cand?.payCurrency ?? b.payCurrency ?? 'USD',
               contractType: b.contractType as ContractType,
               state: b.state,

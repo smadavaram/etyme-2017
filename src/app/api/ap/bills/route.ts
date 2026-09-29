@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -385,15 +386,47 @@ export async function POST(request: NextRequest) {
     })
 
     if (ours) {
+      // Each accepted day at the rate in force that day. The line's own
+      // rate is its opening rate and is never overwritten by a change, so
+      // reading it alone priced every hour after a rise at the old rate —
+      // and an invoice billed correctly at the new one failed the check.
+      const periods = ratePeriods(
+        await prisma.rateHistory.findMany({
+          where: { contractType: 'BUY', contractId: buyContractId },
+          select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+        })
+      )
+      const priced = candidate
+        ? ours.weeks.map((w) =>
+            priceByDay({
+              contractRateCents: candidate.payRate,
+              periods,
+              days: w.days,
+              hours: w.hours,
+              periodStart: w.periodStart,
+              periodEnd: w.periodEnd,
+            })
+          )
+        : []
+      const rates = new Set(priced.flatMap((p) => p.days.map((d) => d.rateCents)))
+      const firstRate = priced.find((p) => p.days.length > 0)?.firstRateCents ?? null
       accepted = {
         hours: ours.hours,
-        contractRateCents: candidate?.payRate ?? ours.firstRateCents,
+        // One rate where the period had one. Where a change fell inside
+        // it, no single rate is the contract's, and an invoice at one
+        // rate across it is wrong: the rate on the first day stands here
+        // and the check says so; the total below is priced by day.
+        contractRateCents: (rates.size === 1 ? [...rates][0] : firstRate) ?? candidate?.payRate ?? ours.firstRateCents,
         firstDay: ours.firstDay,
         lastDay: ours.lastDay,
         count: ours.count,
       }
       if (candidate && candidate.payCurrency.toUpperCase() === currency) {
-        expectedCents = Math.round(ours.hours * candidate.payRate)
+        // Rounded once per rate across the whole period, as it always
+        // was once across the whole period.
+        const byRate = new Map<number, number>()
+        for (const p of priced) for (const d of p.days) byRate.set(d.rateCents, (byRate.get(d.rateCents) ?? 0) + d.hours)
+        expectedCents = [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(h * r), 0)
       }
     }
   }

@@ -3,7 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { buildExport, toCsv, missingIds, type Provider, type SheetToPay } from '@/lib/payroll-export'
-import { policyOf, splitWeeks, type Decision } from '@/lib/overtime'
+import { policyOf, splitWeeks, weekStart, type Decision } from '@/lib/overtime'
+import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import type { ExemptAssertion, ExemptionBasis, ExemptStatus, WageRuleName } from '@/lib/worker-classification'
 
 /**
@@ -106,6 +107,17 @@ export async function GET(request: NextRequest) {
     take: 5000,
   })
 
+  // Every approved pay change on the buy lines behind these sheets, read
+  // once. A pay rise is effective-dated, so each week — and inside a week
+  // that crosses one, each day — is paid at the rate in force.
+  const buyIds = [...new Set(sheets.flatMap((s) => s.sellContract.buyLinks.map((l) => l.buyContract.id)))]
+  const rateRows = buyIds.length
+    ? await prisma.rateHistory.findMany({
+        where: { contractType: 'BUY', contractId: { in: buyIds } },
+        select: { id: true, contractId: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+      })
+    : []
+
   const rows: SheetToPay[] = sheets.map((s) => {
     // The buy contract in force over this work, and this person on it.
     // Null all the way down where nothing on the buy side describes
@@ -164,6 +176,35 @@ export async function GET(request: NextRequest) {
       decisions,
     })
 
+    // ── Each week at the rate in force over it ─────────────────────
+    const periods = buy ? ratePeriods(rateRows.filter((r) => r.contractId === buy.id)) : []
+    const recorded = candidate?.payRate ?? null
+    const allDays = (s.days as Record<string, number>) ?? {}
+    const weekRate = (weekOf: string, regularAndLeave: number) => {
+      if (recorded == null || recorded <= 0) return { payRateCents: null, rates: null }
+      // The week's ordinary hours are its earliest ones: the overtime line
+      // is crossed at the end of a week, not the start.
+      const mine = Object.entries(allDays)
+        .filter(([day, h]) => weekStart(day.slice(0, 10)) === weekOf && Number(h) > 0)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+      let budget = regularAndLeave
+      const regular: Record<string, number> = {}
+      for (const [day, h] of mine) {
+        if (budget <= 0) break
+        const take = Math.min(Number(h), budget)
+        regular[day] = take
+        budget = Math.round((budget - take) * 100) / 100
+      }
+      const priced = priceByDay({ contractRateCents: recorded, periods, days: regular })
+      const first = rateInForce(recorded, periods, new Date(`${weekOf}T00:00:00Z`)).rateCents
+      return priced.straddles
+        ? {
+            payRateCents: priced.days.length ? priced.days[0].rateCents : first,
+            rates: priced.segments.map((g) => ({ rateCents: g.rateCents, hours: g.hours })),
+          }
+        : { payRateCents: priced.days.length ? priced.firstRateCents : first, rates: null }
+    }
+
     return {
       personName: s.person.name,
       // No payroll id model yet — reported as missing rather than
@@ -184,11 +225,15 @@ export async function GET(request: NextRequest) {
         leaveHours: w.leaveHours,
         overHours: w.overHours,
         client: { treatment: w.treatment, appliedBps: w.appliedBps },
+        ...weekRate(w.weekOf, w.regularHours + w.leaveHours),
       })),
       submittedHours: Number(s.totalHours),
       acceptedHours: s.acceptedHours ? Number(s.acceptedHours) : null,
       employerAcceptedAt: s.employerAcceptedAt,
-      payRateCents: candidate?.payRate ?? null,
+      // The rate in force when the sheet began — what a week with no
+      // rate of its own falls back to. The line's recorded rate is its
+      // opening rate and is never overwritten by a change.
+      payRateCents: recorded == null ? null : rateInForce(recorded, periods, s.periodStart).rateCents,
       // Only where the employer actually named a threshold. A default
       // multiplier with no line to apply it to is not a term anybody
       // agreed, and would quietly multiply a rate nobody set.

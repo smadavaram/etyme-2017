@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { priceByDay, segmentsSay, type RatePeriod } from '@/lib/contract-rate'
+import { buildExport, type SheetToPay } from '@/lib/payroll-export'
 
 const OLD = 6_600
 const RISE: RatePeriod = {
@@ -118,4 +119,88 @@ describe('a week that crosses a rate change is paid by the day', () => {
     const p = priceByDay({ contractRateCents: 9_999, periods: [closed, RISE], days: WEEK })
     expect(p.cents).toBe(16 * 6_600 + 24 * 7_000)
   })
+})
+
+// ── The payroll file, one line per rate ───────────────────────────────
+
+
+const sheet = (weeks: SheetToPay['weeks'], over: Partial<SheetToPay> = {}): SheetToPay => ({
+  personName: 'Priya Venkataraman',
+  payrollId: 'E20061',
+  contractType: 'W2',
+  weAreTheEmployer: true,
+  periodStart: new Date('2026-06-29T00:00:00Z'),
+  periodEnd: new Date('2026-07-10T00:00:00Z'),
+  weeks,
+  submittedHours: weeks.reduce((n, w) => n + w.regularHours + w.leaveHours + w.overHours, 0),
+  acceptedHours: null,
+  employerAcceptedAt: new Date('2026-07-12T00:00:00Z'),
+  payRateCents: 6_600,
+  payModel: 'FIXED_HOURLY',
+  paidOnSalaryBasis: false,
+  rule: 'US_FLSA',
+  assertion: null,
+  currency: 'USD',
+  costCode: null,
+  orderNumber: null,
+  ...over,
+})
+
+const straddling = {
+  weekOf: '2026-06-29',
+  regularHours: 40,
+  leaveHours: 0,
+  overHours: 0,
+  client: { treatment: null, appliedBps: null },
+  payRateCents: 6_600,
+  rates: [
+    { rateCents: 6_600, hours: 16 },
+    { rateCents: 7_000, hours: 24 },
+  ],
+}
+const after = {
+  weekOf: '2026-07-06',
+  regularHours: 40,
+  leaveHours: 0,
+  overHours: 0,
+  client: { treatment: null, appliedBps: null },
+  payRateCents: 7_000,
+  rates: null,
+}
+
+describe('a payroll file pays hours worked at two rates as two lines', () => {
+  it('puts the week of the rise on the file as sixteen hours at $66 and twenty-four at $70', () => {
+    const e = buildExport('GENERIC', [sheet([straddling])])
+    expect(e.lines.map((l) => [l.hours, l.rateCents, l.regularCents])).toEqual([
+      [16, 6_600, 16 * 6_600],
+      [24, 7_000, 24 * 7_000],
+    ])
+  })
+
+  it('pays a whole week after the rise at $70 even though the sheet began at $66', () => {
+    const e = buildExport('GENERIC', [sheet([straddling, after])])
+    const at70 = e.lines.find((l) => l.rateCents === 7_000)!
+    expect(at70.hours).toBe(64)
+    expect(e.totalCents).toBe(16 * 6_600 + 64 * 7_000)
+  })
+
+  it('takes hours the employer did not accept off the latest rate of the latest week first', () => {
+    const e = buildExport('GENERIC', [sheet([straddling], { acceptedHours: 36 })])
+    expect(e.lines.map((l) => [l.hours, l.rateCents])).toEqual([
+      [16, 6_600],
+      [20, 7_000],
+    ])
+  })
+
+  it.skip(
+    'TODO, waiting on the founder: overtime in a week paid at two rates uses a regular rate weighted across both (29 CFR §778.115), not the rate on the first day',
+    () => {
+      // Forty-five hours in the week of the rise. The ordinary forty are
+      // paid by the day. Whether the five overtime hours carry a premium
+      // on $66, on $70, or on the weighted regular rate the Act requires
+      // — (16 × $66 + 29 × $70) / 45 — is a money decision nobody has
+      // made. Today the premium is priced on the week's opening rate and
+      // the line carries a note saying it is a floor.
+    }
+  )
 })

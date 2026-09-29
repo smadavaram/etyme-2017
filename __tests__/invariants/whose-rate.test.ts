@@ -367,11 +367,24 @@ describe('a client’s approval is recorded at the rate the client agreed', () =
   })
 
   it('records the same rate it refused at, valued at and told the approver about', () => {
+    // Every billing figure is the deciding leg's bill rate. The one
+    // exception is the employer's acceptance, which is a promise to pay
+    // and so carries the pay rate — asserted on its own below.
     const quoted = [...approve.matchAll(/(?:rateCents|billRateCents)\s*:\s*([A-Za-z0-9_.]+)/g)]
       .map((m) => m[1])
       .filter((r) => r.includes('billRate') || r.includes('Rate'))
+      .filter((r) => r !== 'payRateCents')
     expect(quoted.length).toBeGreaterThan(0)
     for (const r of quoted) expect(r).toBe('deciding.billRate')
+  })
+
+  it('records an employer’s acceptance at the pay rate in force, never the bill rate', () => {
+    // Until 2026-09-29 a direct placement's acceptance was written at the
+    // bill rate, so the margin screen priced the worker's pay at what the
+    // client is charged for them and reported a 41% placement as a loss.
+    expect(approve).toContain("rateCents: role === 'EMPLOYER_ACCEPTANCE' ? payRateCents : deciding.billRate")
+    expect(approve).toContain('rateCents: payRateCents')
+    expect(approve).toContain('rateInForce(')
   })
 
   it('names the two rates the ledger’s own read still quotes to a party who is not one, rather than leaving them to be found', () => {

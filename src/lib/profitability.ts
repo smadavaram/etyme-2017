@@ -83,6 +83,13 @@ export interface Line {
   expenseBilledCents?: number
   /** Expenses reimbursed to the person. Rarely the same number. */
   expenseReimbursedCents?: number
+  /**
+   * What was billed and paid, already priced day by day at the rate in
+   * force on each day (lib/contract-rate, priceByDay). Where given they
+   * stand in for hours × one rate, which is wrong the day a rate changes.
+   */
+  revenueCents?: number
+  payCents?: number
 }
 
 export interface Profit {
@@ -114,7 +121,7 @@ export const THIN_BELOW_PCT = 15
  * and pretending they are is the quiet error this is built to stop.
  */
 export function profitOf(l: Line): Profit {
-  const revenue = Math.round(l.billedHours * l.billRateCents)
+  const revenue = l.revenueCents ?? Math.round(l.billedHours * l.billRateCents)
 
   // ── Refuse before computing ─────────────────────────────────────────
   //
@@ -141,7 +148,7 @@ export function profitOf(l: Line): Profit {
     }
   }
 
-  const pay = Math.round(l.paidHours * l.payRateCents)
+  const pay = l.payCents ?? Math.round(l.paidHours * l.payRateCents)
 
   const burdenRate = l.burdenRate ?? DEFAULT_BURDEN[l.contractType]
   const burden = Math.round(pay * burdenRate)

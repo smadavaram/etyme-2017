@@ -5,6 +5,7 @@ import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
 import { completeCycle } from '@/lib/cycle-complete'
+import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { gates, maySign, acceptWith, type Sheet } from '@/lib/timesheet-signatures'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
@@ -522,15 +523,28 @@ export async function POST(
   // that billing reads back. `deciding` is the leg being answered and is
   // already what the refusal, the valuation and the notice all quote.
   // On a direct placement it is the same contract, so nothing moves.
+  //
+  // And an employer's acceptance is a promise to PAY, so its rate is the
+  // pay rate — never the bill rate, which is what this wrote on a direct
+  // placement until 2026-09-29, so every reader of the ledger priced the
+  // worker's pay at the client's price.
+  const role = direct
+    ? asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE'
+    : asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : asParty === 'PASS' ? 'PASS_THROUGH' : 'EMPLOYER_ACCEPTANCE'
+  const payRateCents = await payRateOn(
+    direct ? timesheet.sellContract.companyId : onBehalfOf,
+    timesheet.personId,
+    timesheet.sellContractId,
+    (timesheet.days as Record<string, number>) ?? {},
+    timesheet.periodStart
+  )
   const assertion = await prisma.workAssertion.create({
     data: {
       timesheetId: id,
       companyId: onBehalfOf,
-      role: direct
-        ? asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE'
-        : asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : asParty === 'PASS' ? 'PASS_THROUGH' : 'EMPLOYER_ACCEPTANCE',
+      role,
       hours: accepted.hours ?? hours,
-      rateCents: deciding.billRate,
+      rateCents: role === 'EMPLOYER_ACCEPTANCE' ? payRateCents : deciding.billRate,
       state: 'LIVE',
       byId: person.id,
       auto: false,
@@ -556,7 +570,7 @@ export async function POST(
         companyId: onBehalfOf,
         role: 'EMPLOYER_ACCEPTANCE',
         hours: accepted.hours ?? hours,
-        rateCents: deciding.billRate,
+        rateCents: payRateCents,
         state: 'LIVE',
         byId: person.id,
         auto: false,
@@ -926,4 +940,48 @@ export async function POST(
           : `Approved ${hours}h — $${billAmount.toFixed(2)} billable`,
     },
   })
+}
+
+/**
+ * What the employer pays the worker for this week, per hour.
+ *
+ * Read off the employer's own buy line for this person — the one linked
+ * to the contract the hours are filed on, else any of theirs naming the
+ * person — at the rate in force on the first day worked (lib/contract-rate).
+ * A week that crosses a pay change carries two rates and this row has
+ * room for one; every reader that prices pay reads the days and the
+ * rate history instead of this figure, so it stands as the week's
+ * opening rate and nothing more.
+ *
+ * Zero where the employer has no pay line for the person. Zero is
+ * visibly wrong; the bill rate would be invisibly wrong, which is worse.
+ */
+async function payRateOn(
+  employerId: string,
+  personId: string,
+  sellContractId: string,
+  days: Record<string, number>,
+  periodStart: Date
+): Promise<number> {
+  const lines = await prisma.buyContract.findMany({
+    where: { companyId: employerId, candidates: { some: { personId } } },
+    select: {
+      id: true,
+      sellLinks: { select: { sellContractId: true } },
+      candidates: { where: { personId }, select: { payRate: true } },
+    },
+  })
+  const line = lines.find((l) => l.sellLinks.some((x) => x.sellContractId === sellContractId)) ?? lines[0]
+  const opening = line?.candidates[0]?.payRate ?? 0
+  if (!line || opening <= 0) return 0
+  const rows = await prisma.rateHistory.findMany({
+    where: { contractType: 'BUY', contractId: line.id },
+    select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+  })
+  const firstWorked = Object.entries(days)
+    .filter(([, h]) => Number(h) > 0)
+    .map(([d]) => d.slice(0, 10))
+    .sort()[0]
+  const on = firstWorked ? new Date(`${firstWorked}T00:00:00Z`) : periodStart
+  return rateInForce(opening, ratePeriods(rows), on).rateCents
 }

@@ -44,7 +44,7 @@
  */
 
 import { roleOf } from '@/lib/work-chain'
-import { fractionFor, type Link, type Days } from '@/lib/contract-links'
+import { fractionFor, daysFor, type Link, type Days } from '@/lib/contract-links'
 
 export type AcceptanceRole = 'CLIENT_APPROVAL' | 'PASS_THROUGH' | 'EMPLOYER_ACCEPTANCE'
 
@@ -106,6 +106,12 @@ export interface PayersAcceptance {
   firstRateCents: number
   /** Weeks in the period the payer has not accepted yet. Never counted. */
   waiting: number
+  /**
+   * Each accepted week: the days the buy contract pays for and the hours
+   * accepted on them, so a reader can price each day at the rate in force
+   * that day rather than the whole period at one rate.
+   */
+  weeks: Array<{ periodStart: Date; periodEnd: Date; days: Days | null; hours: number }>
 }
 
 /**
@@ -136,6 +142,7 @@ export function payersAcceptance(i: {
   let first: Date | null = null
   let last: Date | null = null
   let firstRateCents = 0
+  const accepted: PayersAcceptance['weeks'] = []
 
   for (const w of i.weeks) {
     const mine = payersAcceptanceOn(i.payerCompanyId, w)
@@ -143,7 +150,14 @@ export function payersAcceptance(i: {
       waiting++
       continue
     }
-    hours += Number(mine.hours) * shareOf(i, w)
+    const share = shareOf(i, w)
+    hours += Number(mine.hours) * share
+    accepted.push({
+      periodStart: w.periodStart,
+      periodEnd: w.periodEnd,
+      days: w.days ? daysOf(i, w) : null,
+      hours: Number(mine.hours) * share,
+    })
     if (count === 0) firstRateCents = mine.rateCents
     count++
     if (!first || w.periodStart < first) first = w.periodStart
@@ -151,7 +165,7 @@ export function payersAcceptance(i: {
   }
 
   if (count === 0 || !first || !last) return null
-  return { hours, count, firstDay: first, lastDay: last, firstRateCents, waiting }
+  return { hours, count, firstDay: first, lastDay: last, firstRateCents, waiting, weeks: accepted }
 }
 
 /**
@@ -169,6 +183,20 @@ function shareOf(
   return i.payerLinks.some((l) => l.buyContractId === i.buyContractId)
     ? fractionFor(i.buyContractId, i.payerLinks, days)
     : 1
+}
+
+/** The days of one week the buy contract being billed pays for. */
+function daysOf(
+  i: { payerCompanyId: string; buyContractId: string; payerLinks: Link[] },
+  w: PayableWeek
+): Days {
+  const days = w.days ?? {}
+  if (w.sellContract.companyId === i.payerCompanyId) {
+    return daysFor(i.buyContractId, w.sellContract.buyLinks, days)
+  }
+  return i.payerLinks.some((l) => l.buyContractId === i.buyContractId)
+    ? daysFor(i.buyContractId, i.payerLinks, days)
+    : days
 }
 
 // ── A week the payer has not accepted blocks the invoice over it ──────

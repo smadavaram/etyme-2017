@@ -19,6 +19,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { signed, type PostingKind } from '@/lib/order'
 import { DEFAULT_BURDEN, type ContractType } from '@/lib/profitability'
 
@@ -351,6 +352,8 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
       timesheet: {
         select: {
           periodStart: true,
+          periodEnd: true,
+          days: true,
           personId: true,
           sellContractId: true,
           sellContract: {
@@ -408,15 +411,40 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
       candidates: { some: { personId: a.timesheet.personId } },
     },
     orderBy: { startDate: 'desc' },
-    select: { id: true, contractType: true, payCurrency: true },
+    select: {
+      id: true, contractType: true, payCurrency: true,
+      candidates: { where: { personId: a.timesheet.personId }, select: { payRate: true } },
+    },
   })
+
+  // Each accepted hour at the pay rate in force on the day it was worked.
+  // One rate across the week put a rise effective on a Wednesday into the
+  // books from the following Monday.
+  let pay = gross
+  const opening = buy?.candidates[0]?.payRate ?? 0
+  if (buy && opening > 0) {
+    const rows = await prisma.rateHistory.findMany({
+      where: { contractType: 'BUY', contractId: buy.id },
+      select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+    })
+    if (rows.some((r) => r.approvalState === 'APPROVED')) {
+      pay = priceByDay({
+        contractRateCents: opening,
+        periods: ratePeriods(rows),
+        days: (a.timesheet.days ?? {}) as Record<string, number>,
+        hours: Number(a.hours),
+        periodStart: a.timesheet.periodStart,
+        periodEnd: a.timesheet.periodEnd,
+      }).cents
+    }
+  }
 
   const out = [
     await write({
       ...common,
       kind: 'PAY',
       buyContractId: buy?.id ?? null,
-      amountCents: gross,
+      amountCents: pay,
       // Paid in whatever the buy contract says. An offshore consultant
       // paid in rupees and a client billed in dollars belong to the same
       // project, and adding those two numbers gives a total of nothing.
@@ -432,7 +460,7 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
         ...common,
         kind: 'BURDEN',
         buyContractId: buy?.id ?? null,
-        amountCents: Math.round(gross * b.rate),
+        amountCents: Math.round(pay * b.rate),
         txCurrency: buy?.payCurrency ?? sell.billCurrency,
         says: b.says,
       })
