@@ -151,9 +151,15 @@ describe('a worker files their own week', () => {
 
   it('a day that has not happened yet is refused in a sentence', async () => {
     const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+    // A week still open today, read fresh: the one filed above is no longer
+    // offered, and asking about it would be refused as already filed before
+    // the future day is ever looked at — which week that is depends on the
+    // calendar the test runs on.
+    const open = (await page(HELENA)).filing[0].weeks
+    const week = open[open.length - 1]
     as(HELENA)
     const r = await json(await fileWeek(req('POST', '/api/me/work', {
-      contractId: it_.helena.contractId, periodStart: it_.helena.weeks[0].periodStart, hours: { [tomorrow]: 8 },
+      contractId: it_.helena.contractId, periodStart: week.periodStart, hours: { [tomorrow]: 8 },
     })))
     expect(r.status).toBe(422)
     expect(r.body.error.message).toMatch(/has not happened yet|not in the week/)
