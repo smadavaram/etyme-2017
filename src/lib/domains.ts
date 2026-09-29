@@ -350,6 +350,9 @@ export const DOMAINS: Domain[] = [
       'lib/seed-rebuild',
       // Seeding the demo world in steps that each fit one function call.
       'lib/seed-steps',
+      // The payroll runs a seeded employer has already made, priced only
+      // where the run's own answer is plain straight time.
+      'lib/seed-payroll-runs',
       // The layers above and below the placement, each read off the
       // spine the three files above wrote: the calendar the dates are
       // shifted against, what a firm can prove, the order that

@@ -119,15 +119,17 @@ export type OrderToCashPart = (typeof ORDER_TO_CASH_PARTS)[number]
  * The parts cut again into shares, and how many — one step each, because
  * one function call cannot hold them whole against a distant database.
  *
- *   postings  fourteen. Each signed week goes through the product's own
+ *   postings  sixteen. Each signed week goes through the product's own
  *             `postAssertion`, about twenty queries a week, so a share is
- *             the one thing here whose cost grows with the world. Fourteen
- *             keeps a share near three hundred queries on a fresh world.
+ *             the one thing here whose cost grows with the world. Sixteen
+ *             keeps a share near three hundred queries on a fresh world;
+ *             a world that signs more weeks raises this, and
+ *             `__integration__/seed-step-size.test.ts` says when.
  *   books     four. Written in batches a share costs a few dozen queries
  *             whatever it holds; the cut keeps each share's transaction
  *             short and a share lost to a timeout small.
  */
-export const PART_SHARES: Partial<Record<OrderToCashPart, number>> = { postings: 14, books: 4 }
+export const PART_SHARES: Partial<Record<OrderToCashPart, number>> = { postings: 16, books: 4 }
 
 export async function seedOrderToCash(
   ctx: SeedContext,

@@ -44,6 +44,17 @@ const days = async () => {
 }
 const payFor = (d: string, h: number) => h * (d >= iso(dates.rise) ? 7_000 : 6_600)
 
+/** Every processed run on her line, as the automation log holds it. */
+const runsOnHerLine = async () =>
+  (await prisma.automationLog.findMany({
+    where: { action: 'PAYROLL_RUN', payload: { path: ['contracts', '0', 'buyContractId'], equals: buyId } },
+    select: { payload: true, at: true },
+    orderBy: { at: 'asc' },
+  })).map((r) => (r.payload as any).contracts[0] as { payPeriod: { start: string; end: string }; paid: { day: string; hours: number }[] })
+
+/** YYYY-MM of a date or an ISO day. */
+const monthOf = (d: Date | string) => (typeof d === 'string' ? d : iso(d)).slice(0, 7)
+
 async function census() {
   return {
     timesheets: await prisma.timesheet.count({ where: { sellContractId: sellId } }),
@@ -189,16 +200,18 @@ describe('a pay rise on the seeded world', () => {
     expect(sell.billRate).toBe(11_200)
   })
 
-  it('her own page shows the $70 she is on now, and what she is owed less the month already paid', async () => {
+  it('her own page shows the $70 she is on now, and what she is owed less the months already paid', async () => {
     const all = await days()
-    const inRun = Object.entries(all).filter(([d]) => d.startsWith(dates.runMonth))
+    // Whatever the seeded runs paid, read off the runs themselves.
+    const paidDays = new Set((await runsOnHerLine()).flatMap((c) => c.paid.map((l) => l.day)))
+    const inRun = Object.entries(all).filter(([d]) => paidDays.has(d))
     const paidHours = inRun.reduce((n, [, h]) => n + h, 0)
     const paidCents = inRun.reduce((n, [d, h]) => n + payFor(d, h), 0)
     const allHours = Object.values(all).reduce((a, b) => a + b, 0)
     const allCents = Object.entries(all).reduce((n, [d, h]) => n + payFor(d, h), 0)
 
-    // The forty-five-hour week is after the run, so its premium — half of
-    // $70 again on five hours — is owed on top of the straight time.
+    // The forty-five-hour week is in a month no seeded run paid, so its
+    // premium — half of $70 again on five hours — is owed on top.
     const premium = 5 * 3_500
 
     as(RATE_CHANGE_PERSON.email)
@@ -320,10 +333,57 @@ describe('a pay rise on the seeded world', () => {
     expect(center.actualCents).toBe(Math.round(hours * 11_200))
   })
 
+  it('on a fresh demo every month of hers before this one is paid by a run of its own, except the month holding her forty-five-hour week, whose overtime only a payroll run prices', async () => {
+    const long = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: sellId, totalHours: 45 } })
+    const heldBack = new Set(Object.keys(long.days as Record<string, number>).map(monthOf))
+    const all = await days()
+    const now = monthOf(new Date())
+    const worked = [...new Set(Object.keys(all).map(monthOf))].filter((m) => m < now).sort()
+    expect(worked.length, 'five months of weeks and more before this one').toBeGreaterThanOrEqual(6)
+
+    const runs = await runsOnHerLine()
+    const ran = runs.map((c) => monthOf(c.payPeriod.start)).sort()
+    expect(ran).toEqual(worked.filter((m) => !heldBack.has(m)))
+    // Each run paid every day of its own month and nothing outside it.
+    for (const c of runs) {
+      const month = monthOf(c.payPeriod.start)
+      expect(c.paid.every((l) => monthOf(l.day) === month)).toBe(true)
+      expect(c.paid.map((l) => l.day).sort()).toEqual(Object.keys(all).filter((d) => monthOf(d) === month).sort())
+    }
+    // And the pay days a run covers are marked paid.
+    const paidOn = await prisma.cycle.findMany({ where: { buyContractId: buyId, kind: 'SALARY_PAY', completedAt: { not: null } } })
+    expect(paidOn.length).toBeGreaterThanOrEqual(runs.length)
+  })
+
+  it('on her page every week in a paid month reads as paid, and only this month and the month holding the long week read as owed', async () => {
+    const long = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: sellId, totalHours: 45 } })
+    const open = new Set([monthOf(new Date()), ...Object.keys(long.days as Record<string, number>).map(monthOf)])
+    as(RATE_CHANGE_PERSON.email)
+    const r = await json(await myWork(req('GET', '/api/me/work')))
+    expect(r.status).toBe(200)
+    // The page groups by calendar week, Monday on: the months a week's
+    // worked days fall in.
+    const all = Object.keys(await days())
+    const monthsIn = (weekOf: string) => {
+      const end = iso(new Date(Date.parse(`${weekOf}T00:00:00Z`) + 6 * DAY))
+      return all.filter((d) => d >= weekOf && d <= end).map(monthOf)
+    }
+    const owedWeeks = r.body.data.owed.weeks.filter((w: any) => w.stillOwedCents > 0)
+    expect(owedWeeks.length).toBeGreaterThan(0)
+    for (const w of owedWeeks) {
+      expect(monthsIn(w.weekOf).some((m) => open.has(m)), `the week of ${w.weekOf} reads as owed in a month a run paid`).toBe(true)
+    }
+    for (const w of r.body.data.owed.weeks) {
+      const months = monthsIn(w.weekOf)
+      if (months.length && months.every((m) => !open.has(m))) expect(w.paidCents, `the week of ${w.weekOf}`).toBe(w.owedCents)
+    }
+  })
+
   it('seeding the world twice writes her history once', async () => {
     const first = await census()
     expect(first.timesheets).toBeGreaterThan(24)
-    expect(first.runs).toBe(1)
+    // One run for each month already paid — several, and each once.
+    expect(first.runs).toBeGreaterThan(1)
     await seedWorld()
     expect(await census()).toEqual(first)
   }, 900_000)

@@ -45,7 +45,9 @@
  *                  written and closed the day before
  *   the pay run    one processed run for the month before the rise,
  *                  each day at its own rate, recorded in the run's own
- *                  log shape so `paidBook` reads it back
+ *                  log shape so `paidBook` reads it back — and the other
+ *                  months before this one, by the world's `payroll-runs`
+ *                  step (lib/seed-payroll-runs)
  *   the exemption  screened by `screenExemption`, checked by
  *                  `checkAssertion`, as `POST /api/contracts/:id/exempt`
  *
@@ -67,13 +69,11 @@ import { day } from '@/lib/seed-days'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
-import { rateInForce, ratePeriods, priceByDay, assessRateChange } from '@/lib/contract-rate'
+import { rateInForce, ratePeriods, assessRateChange } from '@/lib/contract-rate'
 import { lineFor, settleApproved, payPeriodsReached } from '@/lib/rate-line'
-import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
-import { periodTermsFor } from '@/lib/money/order-terms'
-import { paidBook, paidKey, type PaidLine } from '@/lib/payroll-paid'
+import { payPastPeriods } from '@/lib/seed-payroll-runs'
 import { screenExemption, checkAssertion } from '@/lib/worker-classification'
-import { rate as perHour, totals } from '@/lib/money-display'
+import { rate as perHour } from '@/lib/money-display'
 import { departmentAt, codeTheLine, type SeedDepartment } from '@/lib/seed-coding'
 import type { SeedContext } from '@/lib/seed-order-to-cash'
 
@@ -357,7 +357,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
   }
   const writeRunIfDue = async (before: Date) => {
     if (runWritten || d.runAt > before) return
-    await seedTheRun(firm.id, buyId, payroll, d)
+    await seedTheRun(buyId, payroll, d)
     runWritten = true
   }
 
@@ -497,121 +497,13 @@ async function seedTheRise(
  * One processed payroll run for the month before the rise, as
  * `POST /api/payroll/run` records it: every day it paid, at the rate in
  * force that day, so the next run — and her own page — subtracts it.
+ * Through `lib/seed-payroll-runs`, which records every other month the
+ * same way and refuses any it cannot price as the route would.
  */
 async function seedTheRun(
-  companyId: string,
   buyId: string,
   runBy: { id: string; name: string },
   d: ReturnType<typeof rateChangeDates>
 ) {
-  const runs = await db.automationLog.findMany({
-    where: { companyId, action: 'PAYROLL_RUN' },
-    select: { payload: true },
-  })
-  const already = runs.some((r) =>
-    ((r.payload as { contracts?: { buyContractId?: string }[] } | null)?.contracts ?? []).some((c) => c.buyContractId === buyId)
-  )
-  if (already) return
-
-  const bc = await db.buyContract.findUniqueOrThrow({
-    where: { id: buyId },
-    include: {
-      candidates: { include: { person: { select: { id: true, name: true } } } },
-      sellLinks: {
-        include: {
-          sellContract: {
-            select: {
-              timesheets: {
-                where: {
-                  assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE', at: { lte: d.runAt } } },
-                },
-                select: { id: true, personId: true, totalHours: true, days: true, periodStart: true, periodEnd: true },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-  const cand = bc.candidates[0]
-  if (!cand) return
-  // The history as it stood when the run was pressed. Rows are written
-  // in the order they happened, so what is in the table now is that.
-  const periods = ratePeriods(
-    await db.rateHistory.findMany({
-      where: { contractType: 'BUY', contractId: buyId },
-      select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
-    })
-  )
-  const terms: Terms = { ...periodTermsFor('BUY', { ...bc, workOrder: null } as never), startedOn: cand.startDate }
-  const period = periodFor(new Date(`${d.runMonth}-01T00:00:00Z`), terms)
-  const book = await paidBook(companyId, [buyId])
-
-  const lines: PaidLine[] = []
-  let alreadyPaid = 0
-  for (const t of bc.sellLinks.flatMap((l) => l.sellContract.timesheets)) {
-    if (t.personId !== cand.personId) continue
-    const days = (t.days ?? {}) as Record<string, number>
-    const totalHours = Object.values(days).reduce((a, b) => a + Number(b || 0), 0)
-    const share = hoursInPeriod(
-      { id: t.id, periodStart: t.periodStart, periodEnd: t.periodEnd, days, totalHours },
-      period,
-      terms.straddle
-    )
-    if (!share || share.hours <= 0) continue
-    const priced = priceByDay({
-      contractRateCents: cand.payRate, periods, days, hours: null,
-      within: share.partial ? period : null, periodStart: t.periodStart, periodEnd: t.periodEnd,
-    })
-    for (const x of priced.days) {
-      const before = book.paid.get(paidKey(buyId, cand.personId, t.id, x.day)) ?? 0
-      const left = Math.round((x.hours - before) * 100) / 100
-      alreadyPaid += Math.min(before, x.hours)
-      if (left > 0) lines.push({ personId: cand.personId, timesheetId: t.id, day: x.day, hours: left, rateCents: x.rateCents })
-    }
-  }
-  lines.sort((a, b) => a.day.localeCompare(b.day))
-  const byRate = new Map<number, number>()
-  for (const l of lines) byRate.set(l.rateCents, (byRate.get(l.rateCents) ?? 0) + l.hours)
-  const grossPay = [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(Math.round(h * 100) / 100 * r), 0)
-  const hours = Math.round(lines.reduce((n, l) => n + l.hours, 0) * 100) / 100
-
-  // The pay dates that fall due for this period, and only those.
-  await db.cycle.updateMany({
-    where: {
-      buyContractId: buyId, kind: 'SALARY_PAY', completedAt: null,
-      dueOn: { gte: period.start, lte: plus(period.end, 4) },
-    },
-    data: { completedAt: d.runAt },
-  })
-
-  const action = 'process'
-  await db.automationLog.create({
-    data: {
-      companyId,
-      action: 'PAYROLL_RUN',
-      summary: `Payroll process: 1 contracts, ${totals([{ minor: grossPay, currency: bc.payCurrency }])} gross total`,
-      reason: `Payroll process initiated by ${runBy.name}`,
-      payload: {
-        // What the run was asked to do, read back by `paidBook`: only a
-        // processed run paid anybody.
-        action,
-        period: d.runMonth,
-        contracts: [{
-          buyContractId: buyId,
-          person: cand.person.name,
-          payPeriod: { start: iso(period.start), end: iso(period.end), label: period.label },
-          hours,
-          grossPay,
-          currency: bc.payCurrency,
-          refused: null,
-          paid: lines,
-        }],
-        runBy: runBy.id,
-        runAt: d.runAt.toISOString(),
-      } as never,
-      reversible: false,
-      at: d.runAt,
-    },
-  })
+  await payPastPeriods(buyId, runBy, { month: d.runMonth, runAt: d.runAt })
 }

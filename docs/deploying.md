@@ -187,8 +187,8 @@ an error with no `data`, the check fails, and the loop calls again —
 which is safe, because every step is idempotent. If it goes on failing
 with the same error, stop it (Ctrl-C) and read the error.
 
-**Why a loop.** The world is about 9,600 queries on an empty database
-and about 3,000 to walk again once it exists, measured locally on
+**Why a loop.** The world is about 10,200 queries on an empty database
+and about 3,300 to walk again once it exists, measured locally on
 2026-09-29. Against the production database in another building that is
 more than one function call's sixty seconds, and until 2026-09-29 every
 call started from the top, re-checked what was already there, and was
@@ -208,7 +208,7 @@ stepped deploy stuck on `order-to-cash:books`, which timed out six calls
 running: it read every posting, invoice and payment in the database —
 not only the world's — and wrote each journal entry as its own
 transaction, 1,728 queries for the world alone. The books are now four
-shares that each write in one transaction; the postings are fourteen
+shares that each write in one transaction; the postings are sixteen
 shares, each client program two steps, and standing three. No step
 makes more than about 320 queries on a fresh world or 215 walked again
 — about fifteen seconds at the slowest production has shown, 46 ms a

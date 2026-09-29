@@ -53,6 +53,7 @@
 
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
+import { completeCycle } from '@/lib/cycle-complete'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { chaseCredentials } from '@/lib/credential-chase'
 import { day } from '@/lib/seed-days'
@@ -261,7 +262,22 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     return { sell, requirement }
   }
 
-  /** A week of hours, and who has signed it. */
+  /**
+   * A week of hours, and who has signed it — on the ledger as well as on
+   * the week.
+   *
+   * The signatures used to be written to the week's own columns only
+   * (`clientApprovedAt`, `employerAcceptedAt`), and the ledger is what
+   * everything reads now: payroll pays a week its employer accepted on
+   * the ledger, and a worker's page says a week is owed once it is. So
+   * Karthik Menon's, Colleen Byrne's and Ruben Ortega's weeks read as
+   * waiting on an acceptance their columns said had happened, and no run
+   * could pay them. Each signature is now a `WorkAssertion`, as the
+   * approve route writes it: the client at its bill rate, then the
+   * employer at the pay rate, and the week's hours-to-approve date done
+   * once both are in. A week written before this gets its rows on the
+   * next seeding; one that has them is left alone.
+   */
   async function hours(input: {
     sellContractId: string
     personId: string
@@ -272,36 +288,82 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     employerById: string
   }) {
     const { week } = input
-    if (await db.timesheet.findFirst({ where: { sellContractId: input.sellContractId, periodStart: week.start } })) return
-    await db.timesheet.create({
-      data: {
-        sellContractId: input.sellContractId,
-        personId: input.personId,
-        periodStart: week.start,
-        periodEnd: week.end,
-        days: week.days,
-        totalHours: week.hours,
-        // A week is APPROVED only when both sides have signed it. One
-        // signature is a week still waiting on somebody, and the status
-        // has to say so or a desk reads "done" about its own queue.
-        status: input.standing === 'SIGNED' ? 'APPROVED' : 'SUBMITTED',
-        submittedAt: week.end,
-        ...(input.standing === 'FILED'
-          ? {}
-          : {
-              clientApprovedAt: new Date(week.end.getTime() + 2 * 86_400_000),
-              clientApprovedById: input.clientById,
-            }),
-        ...(input.standing === 'SIGNED'
-          ? {
-              approvedAt: new Date(week.end.getTime() + 2 * 86_400_000),
-              approvedById: input.clientById,
-              employerAcceptedAt: new Date(week.end.getTime() + 3 * 86_400_000),
-              employerAcceptedById: input.employerById,
-            }
-          : {}),
+    const clientAt = new Date(week.end.getTime() + 2 * 86_400_000)
+    const employerAt = new Date(week.end.getTime() + 3 * 86_400_000)
+    const sheet =
+      (await db.timesheet.findFirst({
+        where: { sellContractId: input.sellContractId, periodStart: week.start },
+        select: { id: true },
+      })) ??
+      (await db.timesheet.create({
+        data: {
+          sellContractId: input.sellContractId,
+          personId: input.personId,
+          periodStart: week.start,
+          periodEnd: week.end,
+          days: week.days,
+          totalHours: week.hours,
+          // A week is APPROVED only when both sides have signed it. One
+          // signature is a week still waiting on somebody, and the status
+          // has to say so or a desk reads "done" about its own queue.
+          status: input.standing === 'SIGNED' ? 'APPROVED' : 'SUBMITTED',
+          submittedAt: week.end,
+          ...(input.standing === 'FILED'
+            ? {}
+            : {
+                clientApprovedAt: clientAt,
+                clientApprovedById: input.clientById,
+              }),
+          ...(input.standing === 'SIGNED'
+            ? {
+                approvedAt: clientAt,
+                approvedById: input.clientById,
+                employerAcceptedAt: employerAt,
+                employerAcceptedById: input.employerById,
+              }
+            : {}),
+        },
+        select: { id: true },
+      }))
+    if (input.standing === 'FILED') return
+
+    const sell = await db.sellContract.findUniqueOrThrow({
+      where: { id: input.sellContractId },
+      select: {
+        companyId: true, clientCompanyId: true, billRate: true,
+        buyLinks: { select: { buyContract: { select: { candidates: { where: { personId: input.personId }, select: { payRate: true } } } } } },
       },
     })
+    const standing = await db.workAssertion.findMany({
+      where: { timesheetId: sheet.id, state: 'LIVE' },
+      select: { companyId: true, role: true },
+    })
+    const signed = (role: string, companyId: string) => standing.some((a) => a.role === role && a.companyId === companyId)
+    // The client signs at what it is billed.
+    if (!signed('CLIENT_APPROVAL', sell.clientCompanyId)) {
+      await db.workAssertion.create({
+        data: {
+          timesheetId: sheet.id, companyId: sell.clientCompanyId, role: 'CLIENT_APPROVAL', hours: week.hours,
+          rateCents: sell.billRate, state: 'LIVE', byId: input.clientById, auto: false, at: clientAt,
+        },
+      })
+    }
+    if (input.standing !== 'SIGNED') return
+    // The employer accepts at what it pays, after the client — a promise
+    // to pay, so never at the bill rate. No rise has been written on any
+    // of these lines, so the rate in force is the line's own.
+    const payRate = sell.buyLinks.flatMap((l) => l.buyContract.candidates)[0]?.payRate
+    if (payRate == null) return
+    if (!signed('EMPLOYER_ACCEPTANCE', sell.companyId)) {
+      await db.workAssertion.create({
+        data: {
+          timesheetId: sheet.id, companyId: sell.companyId, role: 'EMPLOYER_ACCEPTANCE', hours: week.hours,
+          rateCents: payRate, state: 'LIVE', byId: input.employerById, auto: false, at: employerAt,
+        },
+      })
+    }
+    // Both signatures in: the week's hours-to-approve date is done.
+    await completeCycle(db, { sellContractId: input.sellContractId, kind: 'TIMESHEET_APPROVE', periodEnd: week.end, at: employerAt })
   }
 
   /** A document this company has asked that person for, and not had back. */

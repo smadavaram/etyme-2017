@@ -43,6 +43,7 @@ import { seedCalendar, holidayKeys, primeCalendar } from '@/lib/seed-calendar'
 import { seedStanding, STANDING_PARTS } from '@/lib/seed-standing'
 import { seedOrderToCash, ORDER_TO_CASH_PARTS, PART_SHARES, type OrderToCashPart } from '@/lib/seed-order-to-cash'
 import { seedRateChange } from '@/lib/seed-rate-change'
+import { seedPayrollRuns } from '@/lib/seed-payroll-runs'
 import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
 import { seedPipeline } from '@/lib/seed-pipeline'
 import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
@@ -224,7 +225,7 @@ export function worldStepNames(): string[] {
     'bench', 'in-flight', 'payroll', 'payroll-invitations',
     ...programSteps().map((s) => s.name),
     'program-office-seat', 'supplier-desks', 'compliance-desk', 'doors',
-    'rate-change', 'sector-suppliers',
+    'rate-change', 'payroll-runs', 'sector-suppliers',
     ...STANDING_PARTS.map((part) => `standing:${part}`),
     ...orderToCashSteps().map((s) => s.name),
     'pipeline',
@@ -1696,6 +1697,11 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // finds, so an I-9 written after it gained its passport on the second
   // seeding instead of the first.
   await step('rate-change', () => seedRateChange(ctx))
+  // The payroll runs an employer has already made (lib/seed-payroll-runs):
+  // every pay period before this one, on the W2 lines of the workers the
+  // demo opens a page for, so a worker's page reads the months already
+  // paid as paid. After the doors and the pay rise, whose weeks they pay.
+  await step('payroll-runs', () => seedPayrollRuns(ctx))
   // The two suppliers outside IT (lib/seed-sector-suppliers), before
   // standing and the order-to-cash layer for the same two reasons.
   await step('sector-suppliers', () => seedSectorSuppliers(ctx))
