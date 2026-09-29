@@ -506,6 +506,96 @@ export function collect(sheets: Sheet[], period: Period, straddle: Straddle): {
 /** Two decimals, the precision hours are stored at. */
 const r2 = (n: number): number => Math.round(n * 100) / 100
 
+// ── When the payer accepted fewer hours than were worked ─────────────
+//
+// The founder, 2026-09-29 (CLAUDE.md, "What each rung may bill, and
+// when", rule 4): **when fewer hours are accepted than were worked, the
+// cut comes off overtime first, and off the later bill first. A partial
+// acceptance covering only some days is priced on the days it covers.**
+//
+// An acceptance is one number for a range of days, with no daily
+// breakdown, so the rule is what says which hours the difference came
+// off. Allocated exactly, deterministically, in two passes:
+//
+//   1. **Overtime first.** The hours over the line — which, by the rule
+//      above, sit on the last hours worked in the week — are cut first,
+//      walking from the last covered day backward.
+//   2. **Then ordinary hours**, again from the last covered day
+//      backward; on any one day the hours worked go before paid leave
+//      drawn from the bank, the way a day's leave is already capped at
+//      its hours.
+//
+// Walking backward is also "the later bill first": where a week crosses
+// the edge of a bill, the days in the later period are cut before any
+// day in the earlier one, so the earlier bill keeps its days whole as
+// far as the cut allows. Where the two rules pull apart — the week's
+// overtime sits on a day in the earlier period — overtime comes first,
+// because the founder put it first.
+//
+// A partial acceptance is priced on the days it covers and no others.
+// The week is still judged whole against the line, the way a week
+// crossing a bill's edge is: overtime is a weekly fact, and which days
+// somebody accepted does not change which hours took the week over.
+
+/** A payer's acceptance, as the days need to read it. */
+export interface AcceptedCut {
+  /** Hours accepted across the days covered. */
+  hours: number
+  /** First day covered, inclusive, as an ISO date. Null is the start of the sheet. */
+  from: string | null
+  /** Last day covered, inclusive, as an ISO date. Null is the end of the sheet. */
+  to: string | null
+}
+
+/** One day's hours, cut into the three kinds the week judged them to be. */
+export interface DayBands {
+  day: string
+  /** The Monday the week began. */
+  week: string
+  regular: number
+  leave: number
+  over: number
+}
+
+/**
+ * The days an acceptance covers, with the hours it did not accept taken
+ * off: overtime first, then ordinary hours, each from the last day
+ * backward. Days outside the acceptance are not returned at all.
+ *
+ * An acceptance of more than the covered days hold cuts nothing; the
+ * caller decides what that means (`lib/money/rung-billing` does not
+ * price it from the days).
+ */
+export function acceptedDays(days: readonly DayBands[], accepted: AcceptedCut): DayBands[] {
+  const covered = [...days]
+    .filter((d) => (!accepted.from || d.day >= accepted.from) && (!accepted.to || d.day <= accepted.to))
+    .sort((a, b) => a.day.localeCompare(b.day))
+    .map((d) => ({ ...d }))
+
+  const held = r2(covered.reduce((n, d) => n + d.regular + d.leave + d.over, 0))
+  let cut = r2(held - Math.max(0, accepted.hours))
+  if (cut <= 0) return covered
+
+  // 1. Overtime first, from the last day backward.
+  for (let i = covered.length - 1; i >= 0 && cut > 0; i--) {
+    const take = Math.min(cut, covered[i].over)
+    covered[i].over = r2(covered[i].over - take)
+    cut = r2(cut - take)
+  }
+
+  // 2. Then ordinary hours, from the last day backward: worked, then leave.
+  for (let i = covered.length - 1; i >= 0 && cut > 0; i--) {
+    const fromWorked = Math.min(cut, covered[i].regular)
+    covered[i].regular = r2(covered[i].regular - fromWorked)
+    cut = r2(cut - fromWorked)
+    const fromLeave = Math.min(cut, covered[i].leave)
+    covered[i].leave = r2(covered[i].leave - fromLeave)
+    cut = r2(cut - fromLeave)
+  }
+
+  return covered
+}
+
 export interface BilledInPeriod {
   /** The bands, restricted to the days this period may bill. */
   split: Split
@@ -529,6 +619,10 @@ export interface BilledInPeriod {
  *
  * Returns null where the timesheet is none of this period's business —
  * the same answer `hoursInPeriod` gives, for the same reasons.
+ *
+ * `accepted`, where the payer accepted something other than every hour
+ * worked, prices the days that acceptance covers with the hours it did
+ * not accept cut off them (`acceptedDays`). Null prices the days worked.
  */
 export function billableInPeriod(
   sheet: Sheet & { leaveDays?: Record<string, number> | null },
@@ -536,7 +630,8 @@ export function billableInPeriod(
   straddle: Straddle,
   rateCents: number,
   policy: OvertimePolicy,
-  decisions: Decision[] = []
+  decisions: Decision[] = [],
+  accepted: AcceptedCut | null = null
 ): BilledInPeriod | null {
   // What this document asked for, and what a bill can actually record.
   // Only SPLIT differs, and `billingStraddle` says why in a sentence
@@ -572,7 +667,7 @@ export function billableInPeriod(
 
   // Day by day, in order, so the hours above the line land on the day
   // the week actually crossed it.
-  const kept = new Map<string, { regular: number; leave: number; over: number }>()
+  const perDay: DayBands[] = []
   const running = new Map<string, number>()
 
   for (const [isoDay, raw] of Object.entries(days).sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -591,12 +686,21 @@ export function billableInPeriod(
     const over = line == null ? 0 : r2(Math.max(0, after - Math.max(line, before)))
     const regular = r2(worked - over)
 
-    if (!inside(isoDay)) continue
-    const acc = kept.get(week) ?? { regular: 0, leave: 0, over: 0 }
-    kept.set(week, {
-      regular: r2(acc.regular + regular),
-      leave: r2(acc.leave + onLeave),
-      over: r2(acc.over + over),
+    perDay.push({ day: isoDay, week, regular, leave: onLeave, over })
+  }
+
+  // What the payer accepted, where it is not every hour worked: the days
+  // it covers, with the hours it did not accept cut off them. The week
+  // has already been judged whole above, so an hour that was over the
+  // line is still an overtime hour whoever accepted which days.
+  const kept = new Map<string, { regular: number; leave: number; over: number }>()
+  for (const d of accepted ? acceptedDays(perDay, accepted) : perDay) {
+    if (!inside(d.day)) continue
+    const acc = kept.get(d.week) ?? { regular: 0, leave: 0, over: 0 }
+    kept.set(d.week, {
+      regular: r2(acc.regular + d.regular),
+      leave: r2(acc.leave + d.leave),
+      over: r2(acc.over + d.over),
     })
   }
 

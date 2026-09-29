@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
 import { rateInForce } from '@/lib/contract-rate'
-import { bandsOf, billableInPeriod, periodFor, type Band, type Period } from '@/lib/periods'
+import { bandsOf, billableInPeriod, periodFor, type AcceptedCut, type Band, type Period } from '@/lib/periods'
 import { policyOf, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, periodTermsFor, type OrderHeader } from '@/lib/money/order-terms'
 import { receiptFor } from '@/lib/money/rung-billing'
@@ -67,6 +67,8 @@ export interface Working {
   bands: Band[]
   /** What the line is worth above plain hours × rate. */
   premiumCents: number
+  /** The hours the pricing bills — never an undecided or banked one. */
+  hours: number
 }
 
 /**
@@ -83,7 +85,7 @@ export interface Working {
  * hours × rate and always was, which is what every invoice raised before
  * overtime became a decision looks like.
  */
-export function recompute(line: PricedLine, period: Period): Working | null {
+export function recompute(line: PricedLine, period: Period, accepted: AcceptedCut | null = null): Working | null {
   const ts = line.timesheet
   if (!ts) return null
 
@@ -94,7 +96,10 @@ export function recompute(line: PricedLine, period: Period): Working | null {
     (d) => d.sellContractId === (line.sellContractId ?? ts.sellContractId)
   )
   const answering = ownLeg.length > 0 ? ownLeg : ts.overtimeDecisions
-  if (answering.length === 0) return null
+  // A payer that accepted fewer hours than were worked is priced from
+  // the days whether or not anybody decided overtime: the cut is placed
+  // on the days (rule 4), and that is what the line is checked against.
+  if (answering.length === 0 && !accepted) return null
 
   const decisions: Decision[] = answering.map((d) => ({
     weekOf: d.weekOf.toISOString().slice(0, 10),
@@ -127,7 +132,8 @@ export function recompute(line: PricedLine, period: Period): Working | null {
     }).straddle,
     line.rateCents,
     policyOf(billed),
-    decisions
+    decisions,
+    accepted
   )
   if (!billable) return null
 
@@ -140,6 +146,7 @@ export function recompute(line: PricedLine, period: Period): Working | null {
     // the amount and say what it is made of in words instead.
     bands: bands.reduce((n, b) => n + b.amountCents, 0) === line.amountCents ? bands : [],
     premiumCents: billable.value.totalCents - Math.round(Number(line.hours) * line.rateCents),
+    hours: billable.hours,
   }
 }
 
@@ -273,8 +280,9 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
   const terms = withHours?.sellContract ?? withHours?.timesheet?.sellContract
   const contractPeriod = terms ? periodFor(invoice.periodStart, periodTermsFor('SELL', terms)) : null
 
+  const billedPeriod: Period = { start: inv.periodStart, end: inv.periodEnd, label: '' }
   const premiumOn = (line: PricedLine): number | null =>
-    recompute(line, { start: inv.periodStart, end: inv.periodEnd, label: '' })?.premiumCents ?? null
+    recompute(line, billedPeriod)?.premiumCents ?? null
 
   // ── The receipt is the payer's signature ────────────────────────────
   //
@@ -297,6 +305,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       periodStart: ts.periodStart,
       periodEnd: ts.periodEnd,
       totalHours: Number(ts.totalHours),
+      days: (ts.days as Record<string, number>) ?? {},
       personName: l.person?.name ?? '',
       hoursContract: {
         companyId: ts.sellContract.companyId,
@@ -306,6 +315,18 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       assertions: ts.assertions,
     })
   }
+
+  // Where the payer accepted fewer hours than were worked, or only some
+  // days, the line is checked against the days priced with that cut —
+  // the same call generation made (the founder, 2026-09-29, rule 4) — so
+  // a bill made by the rule passes, and a bill for the hours worked fails
+  // the hours check.
+  const cutPricing = (l: (typeof invoice.invoiceLines)[number]): Working | null => {
+    const r = receiptOf(l)
+    return r.cut ? recompute(l, billedPeriod, r.cut) : null
+  }
+  const approvedOn = (l: (typeof invoice.invoiceLines)[number]): number =>
+    cutPricing(l)?.hours ?? receiptOf(l).hours
 
   const input: MatchInput = {
     invoice: {
@@ -324,11 +345,17 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       hours: Number(l.hours),
       rateCents: l.rateCents,
       amountCents: l.amountCents,
-      // A line priced on a payer's accepted hours that differ from the
-      // hours worked was priced straight, hours × rate, because
-      // `whatTheRungBills` refuses any such week with overtime in it —
-      // so no premium is recomputed from the days onto it.
-      premiumCents: l.timesheet && receiptOf(l).straight ? 0 : premiumOn(l),
+      // A line priced straight — more hours accepted than worked, which
+      // `whatTheRungBills` refuses on any week with overtime in it — has
+      // no premium recomputed onto it. A cut week's premium is the one
+      // left on its days after the cut.
+      premiumCents: !l.timesheet
+        ? premiumOn(l)
+        : receiptOf(l).straight
+          ? 0
+          : receiptOf(l).cut
+            ? (cutPricing(l)?.premiumCents ?? null)
+            : premiumOn(l),
     })),
     milestones: Object.fromEntries(
       invoice.invoiceLines
@@ -352,7 +379,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
             // APPROVED to the engine where the payer has signed, whatever
             // the rungs below have or have not done.
             status: receiptOf(l).signed ? 'APPROVED' : l.timesheet.status === 'APPROVED' ? 'SUBMITTED' : l.timesheet.status,
-            approvedHours: receiptOf(l).hours,
+            approvedHours: approvedOn(l),
             periodStart: l.timesheet.periodStart,
             periodEnd: l.timesheet.periodEnd,
             // Resolved as of the work period, not "whatever the contract

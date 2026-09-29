@@ -627,21 +627,15 @@ export async function POST(request: NextRequest) {
     // boundary gives each month exactly its own days — nothing
     // apportioned, nothing rounded, and the same hour never billed
     // twice. The week is still judged whole against the threshold.
-    const billable = billableInPeriod(
-      {
-        id: ts.id,
-        periodStart: ts.periodStart,
-        periodEnd: ts.periodEnd,
-        days: (ts.days as Record<string, number>) ?? {},
-        leaveDays: (ts.leaveDays as Record<string, number>) ?? {},
-        totalHours: Number(ts.totalHours),
-      },
-      period,
-      terms.straddle,
-      rate,
-      policy,
-      decisions
-    )
+    const sheet = {
+      id: ts.id,
+      periodStart: ts.periodStart,
+      periodEnd: ts.periodEnd,
+      days: (ts.days as Record<string, number>) ?? {},
+      leaveDays: (ts.leaveDays as Record<string, number>) ?? {},
+      totalHours: Number(ts.totalHours),
+    }
+    let billable = billableInPeriod(sheet, period, terms.straddle, rate, policy, decisions)
 
     if (!billable) continue
 
@@ -652,9 +646,10 @@ export async function POST(request: NextRequest) {
     // and on every direct placement, the firm above is the client, so
     // when Northbend signs 38 of 40 the bill to Northbend is for 38. The
     // payer's accepted hours are billed: the days where it accepted what
-    // was worked, the accepted number straight where it accepted a
-    // different one, and nothing, said out loud, where it has not
-    // accepted or where the arithmetic would be a guess.
+    // was worked, the days with the difference cut off them where it
+    // accepted fewer (rule 4), the accepted number straight where it
+    // accepted more on a straight week, and nothing, said out loud,
+    // where it has not accepted or where the arithmetic would be a guess.
     const rung = ts.payer
       ? whatTheRungBills({
           payerCompanyId: ts.payer.id,
@@ -663,6 +658,7 @@ export async function POST(request: NextRequest) {
             periodStart: ts.periodStart,
             periodEnd: ts.periodEnd,
             totalHours: Number(ts.totalHours),
+            days: sheet.days,
             personName: ts.person.name,
             hoursContract: ts.hoursContract,
             assertions: ts.assertions,
@@ -682,9 +678,21 @@ export async function POST(request: NextRequest) {
       continue
     }
 
-    if (rung.kind === 'ACCEPTED') {
-      // Straight time, by construction: `whatTheRungBills` refuses any
-      // week with an hour over the line. Rounded once, the way the
+    // Fewer hours accepted than worked, or only some days (the founder,
+    // 2026-09-29, rule 4): the days the acceptance covers, with what it
+    // did not accept cut off overtime first and off the last days first.
+    // From here the week is priced exactly as a week accepted whole —
+    // bands, decisions, undecided hours left off and said — on what is
+    // left of the days.
+    if (rung.kind === 'CUT') {
+      billable = billableInPeriod(sheet, period, terms.straddle, rate, policy, decisions, rung.accepted)
+      if (!billable) continue
+    }
+
+    if (rung.kind === 'STRAIGHT') {
+      // More hours accepted than were worked, on a straight, whole week:
+      // `whatTheRungBills` refuses any such week with an hour over the
+      // line. Rounded once, the way the
       // three-way check's extension rounds it.
       if (rung.hours <= 0 || rate <= 0) continue
       const cents = Math.round(rung.hours * rate)

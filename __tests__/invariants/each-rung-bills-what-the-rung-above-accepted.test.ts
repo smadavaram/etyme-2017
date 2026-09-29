@@ -4,6 +4,8 @@ import { join } from 'node:path'
 import {
   whatTheRungBills, receiptFor, type RungWeek, type Signature, type Worked,
 } from '@/lib/money/rung-billing'
+import { acceptedDays, billableInPeriod, type DayBands, type Period } from '@/lib/periods'
+import type { Decision, OvertimePolicy } from '@/lib/overtime'
 import {
   weeksAwaitingPayer, notAcceptedSays, type PayableWeek,
 } from '@/lib/money/payers-acceptance'
@@ -38,6 +40,7 @@ function week(signed: Signature[], over: Partial<RungWeek> = {}): RungWeek {
     periodStart: D('2026-09-14'),
     periodEnd: D('2026-09-18'),
     totalHours: 40,
+    days: DAYS,
     personName: 'Helena Marsh',
     hoursContract: CHAIN,
     assertions: signed,
@@ -58,9 +61,9 @@ const csBills = (w: RungWeek, worked: Worked = STRAIGHT) =>
 describe('a firm bills only the hours the firm above it accepted', () => {
   it('CloudEPA bills Computer Systems for the thirty-eight hours Computer Systems accepted, not the forty Helena worked', () => {
     const r = cloudepaBills(week([NORTHBEND, CS(38)]))
-    expect(r.kind).toBe('ACCEPTED')
-    expect(r.kind === 'ACCEPTED' && r.hours).toBe(38)
-    expect(r.kind === 'ACCEPTED' && r.says).toBe(
+    expect(r.kind).toBe('CUT')
+    expect(r.kind === 'CUT' && r.accepted).toEqual({ hours: 38, from: null, to: null })
+    expect(r.kind === 'CUT' && r.says).toBe(
       'Computer Systems accepted 38 of the 40 hours in Helena Marsh’s week of September 14, so it bills 38.'
     )
   })
@@ -95,8 +98,8 @@ describe('a firm bills only the hours the firm above it accepted', () => {
   it('the top rung is covered too: Northbend signs thirty-eight of forty, and Computer Systems bills Northbend for thirty-eight', () => {
     const r = csBills(week([{ ...NORTHBEND, hours: 38 }]))
     expect(r).toEqual({
-      kind: 'ACCEPTED',
-      hours: 38,
+      kind: 'CUT',
+      accepted: { hours: 38, from: null, to: null },
       says: 'Northbend Athletic accepted 38 of the 40 hours in Helena Marsh\u2019s week of September 14, so it bills 38.',
     })
   })
@@ -106,7 +109,7 @@ describe('a firm bills only the hours the firm above it accepted', () => {
       week([{ ...NORTHBEND, hours }], { hoursContract: { companyId: 'veritan', clientCompanyId: 'northbend', endClientCompanyId: null } })
     expect(csBills(direct(40)).kind).toBe('AS_WORKED')
     const r = csBills(direct(38))
-    expect(r.kind === 'ACCEPTED' && r.hours).toBe(38)
+    expect(r.kind === 'CUT' && r.accepted.hours).toBe(38)
   })
 
   it('a week the client has not signed is left off the bill to the client, in the same sentence', () => {
@@ -119,63 +122,230 @@ describe('a firm bills only the hours the firm above it accepted', () => {
   })
 })
 
-describe('where the accepted number cannot be priced without a guess, the week is left off and said', () => {
-  it('thirty-eight hours accepted of a forty-five hour week that went over the overtime line is left off rather than guessed at', () => {
-    const r = cloudepaBills(week([NORTHBEND, CS(43)], { totalHours: 45 }), { ...STRAIGHT, overtimeHours: 5 })
-    expect(r.kind).toBe('HELD')
-    expect(r.kind === 'HELD' && r.says).toMatch(
-      /^Computer Systems accepted 43 of the 45 hours in Helena Marsh’s week of September 14, and the week goes over the overtime line\. Nothing records whether the difference came off the ordinary hours or the overtime/
+// ── Rule 4: when fewer hours are accepted than were worked ────────────
+//
+// The founder, 2026-09-29: the cut comes off overtime first, and off the
+// later bill first. A partial acceptance covering only some days is
+// priced on the days it covers. Priced by the same call generation and
+// the three-way check both make — `billableInPeriod` with the payer's
+// acceptance — so these read the money, not just the verdict.
+
+const RATE = 11800
+const LINE: OvertimePolicy = { afterHours: 40, multiplierBps: 15_000 }
+const SEPTEMBER: Period = { start: D('2026-09-01'), end: D('2026-09-30'), label: 'September 2026' }
+const NINES = { '2026-09-14': 9, '2026-09-15': 9, '2026-09-16': 9, '2026-09-17': 9, '2026-09-18': 9 }
+const premium = (hours = 5): Decision => ({ weekOf: '2026-09-14', treatment: 'PREMIUM', appliedBps: 15_000, overtimeHours: hours })
+const banked: Decision = { weekOf: '2026-09-14', treatment: 'TIME_OFF', appliedBps: 0, overtimeHours: 5, accrualBps: 10_000 }
+
+const sheetOf = (days: Record<string, number>, leaveDays: Record<string, number> = {}) => ({
+  id: 'helena-week',
+  periodStart: D(Object.keys(days).sort()[0]),
+  periodEnd: D(Object.keys(days).sort().slice(-1)[0]),
+  days,
+  leaveDays,
+  totalHours: Object.values(days).reduce((n, h) => n + h, 0),
+})
+
+/** What the rung bills for the week: the verdict, then the days priced by it. */
+function priced(days: Record<string, number>, signed: Signature, decisions: Decision[] = [], leaveDays: Record<string, number> = {}) {
+  const sheet = sheetOf(days, leaveDays)
+  const r = cloudepaBills(week([NORTHBEND, signed], { days, totalHours: sheet.totalHours, periodStart: sheet.periodStart, periodEnd: sheet.periodEnd }), STRAIGHT, 40)
+  if (r.kind !== 'CUT') throw new Error(`expected a cut, got ${r.kind}`)
+  return { rung: r, billed: billableInPeriod(sheet, SEPTEMBER, 'END', RATE, LINE, decisions, r.accepted)! }
+}
+
+describe('fewer hours accepted than worked: the cut comes off overtime first', () => {
+  it('forty-two hours accepted of a forty-five hour week with five over the line bills forty ordinary and two overtime', () => {
+    const { billed } = priced(NINES, CS(42), [premium()])
+    expect(billed.split.regularHours).toBe(40)
+    expect(billed.split.overtimeHours).toBe(2)
+    expect(billed.hours).toBe(42)
+    // 40 × $118, plus 2 × $118 at time and a half — each band rounded once.
+    expect(billed.value.totalCents).toBe(40 * RATE + Math.round(2 * RATE * 1.5))
+  })
+
+  it('a cut larger than the overtime takes all of it, then the rest off ordinary hours from the last day backward', () => {
+    const { billed } = priced(NINES, CS(38), [premium()])
+    expect(billed.split.overtimeHours).toBe(0)
+    expect(billed.split.regularHours).toBe(38)
+    expect(billed.value.totalCents).toBe(38 * RATE)
+    // Friday held four ordinary hours and the five over the line; the
+    // seven cut took the five, then two of Friday's four.
+    const days = acceptedDays(
+      [
+        { day: '2026-09-14', week: '2026-09-14', regular: 9, leave: 0, over: 0 },
+        { day: '2026-09-15', week: '2026-09-14', regular: 9, leave: 0, over: 0 },
+        { day: '2026-09-16', week: '2026-09-14', regular: 9, leave: 0, over: 0 },
+        { day: '2026-09-17', week: '2026-09-14', regular: 9, leave: 0, over: 0 },
+        { day: '2026-09-18', week: '2026-09-14', regular: 4, leave: 0, over: 5 },
+      ],
+      { hours: 38, from: null, to: null }
     )
+    expect(days.map((d) => [d.day, d.regular, d.over])).toEqual([
+      ['2026-09-14', 9, 0], ['2026-09-15', 9, 0], ['2026-09-16', 9, 0], ['2026-09-17', 9, 0], ['2026-09-18', 2, 0],
+    ])
   })
 
-  it('an undecided or banked hour over the line holds the week the same way', () => {
-    expect(cloudepaBills(week([NORTHBEND, CS(40)], { totalHours: 44 }), { ...STRAIGHT, pendingHours: 4 }).kind).toBe('HELD')
-    expect(cloudepaBills(week([NORTHBEND, CS(40)], { totalHours: 44 }), { ...STRAIGHT, bankedHours: 4 }).kind).toBe('HELD')
+  it('hours over the line that survive the cut and nobody has decided are left off the bill and counted, as on a week accepted whole', () => {
+    const { billed } = priced(NINES, CS(42))
+    expect(billed.split.regularHours).toBe(40)
+    expect(billed.pendingHours).toBe(2)
+    expect(billed.hours).toBe(40)
+    expect(billed.value.totalCents).toBe(40 * RATE)
   })
 
-  it('accepting more hours than the overtime line on a straight week is left off rather than guessed at', () => {
+  it('hours over the line that survive the cut and were banked as time off are billed by nobody, as on a week accepted whole', () => {
+    const { billed } = priced(NINES, CS(42), [banked])
+    expect(billed.split.bankedHours).toBe(2)
+    expect(billed.hours).toBe(40)
+    expect(billed.value.totalCents).toBe(40 * RATE)
+  })
+
+  it('the week’s own overtime decision still prices the hours left over the line, though it was made about all five', () => {
+    const { billed } = priced(NINES, CS(43), [premium(5)])
+    expect(billed.split.overtimeHours).toBe(3)
+    expect(billed.weeksBilled).toEqual(['2026-09-14'])
+  })
+
+  it('paid leave is cut only after the hours worked on the same day, and never before an hour over the line', () => {
+    // Monday to Thursday worked at eleven and a quarter, Friday on leave:
+    // five hours over the line on Thursday, eight of leave on Friday.
+    const days = { '2026-09-14': 11.25, '2026-09-15': 11.25, '2026-09-16': 11.25, '2026-09-17': 11.25, '2026-09-18': 8 }
+    const { billed } = priced(days, CS(50), [premium()], { '2026-09-18': 8 })
+    expect(billed.split.overtimeHours).toBe(2)
+    expect(billed.split.leaveHours).toBe(8)
+    expect(billed.split.regularHours).toBe(40)
+  })
+})
+
+describe('fewer hours accepted than worked: the cut comes off the later bill first', () => {
+  // Monday 31 August to Friday 4 September: one day in August, four in September.
+  const straddling = (over = 0): DayBands[] => [
+    { day: '2026-08-31', week: '2026-08-31', regular: 8, leave: 0, over: 0 },
+    { day: '2026-09-01', week: '2026-08-31', regular: 8, leave: 0, over: 0 },
+    { day: '2026-09-02', week: '2026-08-31', regular: 8, leave: 0, over: 0 },
+    { day: '2026-09-03', week: '2026-08-31', regular: 8, leave: 0, over: 0 },
+    { day: '2026-09-04', week: '2026-08-31', regular: 8 - over, leave: 0, over },
+  ]
+
+  it('a cut on a week crossing the bill’s edge comes off the later bill’s days first', () => {
+    const days = acceptedDays(straddling(), { hours: 30, from: null, to: null })
+    expect(days.map((d) => [d.day, d.regular])).toEqual([
+      ['2026-08-31', 8], ['2026-09-01', 8], ['2026-09-02', 8], ['2026-09-03', 6], ['2026-09-04', 0],
+    ])
+  })
+
+  it('the earlier bill’s day is cut only once every later day is gone', () => {
+    const days = acceptedDays(straddling(), { hours: 5, from: null, to: null })
+    expect(days.map((d) => [d.day, d.regular])).toEqual([
+      ['2026-08-31', 5], ['2026-09-01', 0], ['2026-09-02', 0], ['2026-09-03', 0], ['2026-09-04', 0],
+    ])
+  })
+
+  it('where the week’s overtime sits on the earlier bill’s days, overtime still comes off first', () => {
+    const days: DayBands[] = [
+      { day: '2026-09-28', week: '2026-09-28', regular: 14, leave: 0, over: 0 },
+      { day: '2026-09-29', week: '2026-09-28', regular: 14, leave: 0, over: 0 },
+      { day: '2026-09-30', week: '2026-09-28', regular: 12, leave: 0, over: 2 },
+      { day: '2026-10-01', week: '2026-09-28', regular: 0, leave: 8, over: 0 },
+      { day: '2026-10-02', week: '2026-09-28', regular: 0, leave: 8, over: 0 },
+    ]
+    const cut = acceptedDays(days, { hours: 55, from: null, to: null })
+    expect(cut.map((d) => [d.day, d.regular, d.leave, d.over])).toEqual([
+      ['2026-09-28', 14, 0, 0], ['2026-09-29', 14, 0, 0], ['2026-09-30', 12, 0, 0],
+      ['2026-10-01', 0, 8, 0], ['2026-10-02', 0, 7, 0],
+    ])
+  })
+
+  it('the same cut on the same week is allocated the same way every time, whatever order the days arrive in', () => {
+    const once = acceptedDays(straddling(2), { hours: 33, from: null, to: null })
+    const again = acceptedDays([...straddling(2)].reverse(), { hours: 33, from: null, to: null })
+    expect(again).toEqual(once)
+    expect(once.map((d) => [d.day, d.regular, d.over])).toEqual([
+      ['2026-08-31', 8, 0], ['2026-09-01', 8, 0], ['2026-09-02', 8, 0], ['2026-09-03', 8, 0], ['2026-09-04', 1, 0],
+    ])
+  })
+})
+
+describe('a partial acceptance is priced on the days it covers', () => {
+  const MON_TO_WED = { coversFrom: D('2026-09-14'), coversTo: D('2026-09-16') }
+
+  it('a partial acceptance bills the days it covers', () => {
+    const { rung, billed } = priced(DAYS, CS(24, MON_TO_WED))
+    expect(rung.accepted).toEqual({ hours: 24, from: '2026-09-14', to: '2026-09-16' })
+    expect(rung.says).toBe(
+      'Computer Systems accepted 24 hours of Helena Marsh’s week of September 14, for September 14 to September 16 only, ' +
+        'so it bills 24 on those days and nothing for the rest of the week.'
+    )
+    expect(billed.hours).toBe(24)
+    expect(billed.value.totalCents).toBe(24 * RATE)
+  })
+
+  it('a partial acceptance of fewer hours than its days hold takes the cut off its own last day', () => {
+    const { billed } = priced(DAYS, CS(20, MON_TO_WED))
+    expect(billed.hours).toBe(20)
+    expect(billed.value.totalCents).toBe(20 * RATE)
+  })
+
+  it('a partial acceptance on a week over the line keeps the week judged whole, so its overtime is still overtime and is cut first', () => {
+    // Thursday and Friday of a 45-hour week: nine ordinary on Thursday,
+    // four ordinary and five over the line on Friday. Sixteen of the
+    // eighteen accepted: the two come off the overtime.
+    const { billed } = priced(NINES, CS(16, { coversFrom: D('2026-09-17'), coversTo: D('2026-09-18') }), [premium()])
+    expect(billed.split.regularHours).toBe(13)
+    expect(billed.split.overtimeHours).toBe(3)
+    expect(billed.value.totalCents).toBe(13 * RATE + Math.round(3 * RATE * 1.5))
+  })
+
+  it('at the top of a chain, a client signing only some of the days bills those days the same way', () => {
+    const r = csBills(week([{ ...NORTHBEND, hours: 24, ...MON_TO_WED }]))
+    expect(r.kind === 'CUT' && r.accepted).toEqual({ hours: 24, from: '2026-09-14', to: '2026-09-16' })
+  })
+})
+
+describe('what rule 4 does not reach is still left off and said, rather than guessed at', () => {
+  it('two acceptances from the payer on one week are left off, because nothing says which governs', () => {
+    const r = cloudepaBills(week([NORTHBEND, CS(16), CS(24)]))
+    expect(r).toEqual({
+      kind: 'HELD',
+      says:
+        'Computer Systems has more than one acceptance standing on Helena Marsh’s week of September 14, and nothing says which ' +
+        'of them governs, so the week is left off this bill rather than guessed at. It bills once Computer Systems withdraws all but one.',
+    })
+  })
+
+  it('more hours accepted than worked, on a week with an overtime line past which they would fall, is left off', () => {
     expect(cloudepaBills(week([NORTHBEND, CS(42)]), STRAIGHT, 40).kind).toBe('HELD')
-    expect(cloudepaBills(week([NORTHBEND, CS(42)]), STRAIGHT, null).kind).toBe('ACCEPTED')
+    expect(cloudepaBills(week([NORTHBEND, CS(47)], { totalHours: 45 }), { ...STRAIGHT, overtimeHours: 5 }).kind).toBe('HELD')
   })
 
-  it('a reduced week that crosses the edge of the bill is left off rather than guessed at', () => {
-    const r = cloudepaBills(week([NORTHBEND, CS(38)]), { ...STRAIGHT, partial: true })
+  it('more hours accepted than worked on a straight, whole week is billed straight, as it was before', () => {
+    const r = cloudepaBills(week([NORTHBEND, CS(42)]), STRAIGHT, null)
+    expect(r.kind === 'STRAIGHT' && r.hours).toBe(42)
+  })
+
+  it('more hours accepted than were worked on only some of the days is left off', () => {
+    const r = cloudepaBills(week([NORTHBEND, CS(30, { coversFrom: D('2026-09-14'), coversTo: D('2026-09-16') })]))
     expect(r.kind).toBe('HELD')
-    expect(r.kind === 'HELD' && r.says).toMatch(/the week crosses the edge of this bill\. Nothing records which days the difference came off/)
-  })
-
-  it('at the top of a chain, a client signing fewer hours of a week over the overtime line, of a week crossing the edge of the bill, or of only some of its days is left off the same way', () => {
-    const over = csBills(week([{ ...NORTHBEND, hours: 43 }], { totalHours: 45 }), { ...STRAIGHT, overtimeHours: 5 })
-    expect(over.kind).toBe('HELD')
-    expect(over.kind === 'HELD' && over.says).toMatch(
-      /^Northbend Athletic accepted 43 of the 45 hours in Helena Marsh\u2019s week of September 14, and the week goes over the overtime line\./
-    )
-    expect(csBills(week([{ ...NORTHBEND, hours: 38 }]), { ...STRAIGHT, partial: true }).kind).toBe('HELD')
-    expect(
-      csBills(week([{ ...NORTHBEND, hours: 24, coversFrom: D('2026-09-14'), coversTo: D('2026-09-16') }])).kind
-    ).toBe('HELD')
-  })
-
-  it('an acceptance covering only some of the week’s days is left off rather than guessed at', () => {
-    const partOfIt = CS(24, { coversFrom: D('2026-09-14'), coversTo: D('2026-09-16') })
-    expect(cloudepaBills(week([NORTHBEND, partOfIt])).kind).toBe('HELD')
-    expect(cloudepaBills(week([NORTHBEND, CS(16), CS(24)])).kind).toBe('HELD')
+    expect(r.kind === 'HELD' && r.says).toMatch(/more than the 24 worked on them/)
   })
 })
 
 describe('a firm bills upward on the client’s signature', () => {
   it('the receipt behind Computer Systems’ bill to Northbend is Northbend’s signature, before Computer Systems or CloudEPA has accepted anything', () => {
     const r = receiptFor('northbend', week([NORTHBEND]))
-    expect(r).toEqual({ signed: true, hours: 40, straight: false })
+    expect(r).toEqual({ signed: true, hours: 40, straight: false, cut: null })
   })
 
-  it('Computer Systems’ bill to Northbend is checked against the thirty-eight hours Northbend signed, not the forty filed', () => {
-    expect(receiptFor('northbend', week([{ ...NORTHBEND, hours: 38 }]))).toEqual({ signed: true, hours: 38, straight: true })
+  it('Computer Systems’ bill to Northbend is checked against the thirty-eight hours Northbend signed, priced on the days with the two cut, not the forty filed', () => {
+    expect(receiptFor('northbend', week([{ ...NORTHBEND, hours: 38 }]))).toEqual({
+      signed: true, hours: 38, straight: false, cut: { hours: 38, from: null, to: null },
+    })
   })
 
   it('the receipt behind CloudEPA’s bill to Computer Systems is Computer Systems’ signature and nobody else’s', () => {
     expect(receiptFor('cs', week([NORTHBEND, CLOUDEPA(40)])).signed).toBe(false)
-    expect(receiptFor('cs', week([NORTHBEND, CS(38)]))).toEqual({ signed: true, hours: 38, straight: true })
+    expect(receiptFor('cs', week([NORTHBEND, CS(38)]))).toMatchObject({ signed: true, hours: 38, cut: { hours: 38 } })
   })
 
   it('a bill with no signature from the firm it is addressed to has no receipt', () => {

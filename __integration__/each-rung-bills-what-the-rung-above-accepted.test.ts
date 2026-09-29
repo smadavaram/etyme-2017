@@ -281,4 +281,65 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     const row = q.body.data.exceptions.find((e: any) => e.id === s.oldBill)
     expect(row?.hardFailures ?? []).not.toContain('RECEIPT')
   })
+  // ── Rule 4, the founder, 2026-09-29: the cut comes off overtime first ──
+  //
+  // A week of Helena's before the seeded ones, forty-five hours at nine a
+  // day, filed on CloudEPA's contract as every week of hers is. Computer
+  // Systems' agreement with Northbend puts the overtime line at forty.
+  // Northbend signs forty-two and prices the five over the line at time
+  // and a half; the three it did not accept come off the overtime.
+  it('Northbend signs forty-two of a forty-five hour week with five over the line, and Computer Systems bills forty ordinary and two overtime, which the three-way check passes and a bill for all forty-five fails', async () => {
+    await prisma.sellContract.update({ where: { id: s.top.id }, data: { overtimeAfterHours: 40, overtimeMultiplierBps: 15_000 } })
+
+    const earliest = await prisma.timesheet.findFirstOrThrow({
+      where: { sellContractId: s.rung.id },
+      orderBy: { periodStart: 'asc' },
+    })
+    const monday = new Date(earliest.periodStart.getTime() - 14 * 86_400_000)
+    monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7))
+    const day = (n: number) => new Date(monday.getTime() + n * 86_400_000).toISOString().slice(0, 10)
+    const days = Object.fromEntries([0, 1, 2, 3, 4].map((n) => [day(n), 9]))
+
+    const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
+    const ts = await prisma.timesheet.create({
+      data: {
+        sellContractId: s.rung.id, personId: helena.id,
+        periodStart: new Date(`${day(0)}T00:00:00.000Z`), periodEnd: new Date(`${day(4)}T00:00:00.000Z`),
+        days, totalHours: 45, status: 'SUBMITTED', submittedAt: new Date(`${day(4)}T18:00:00.000Z`),
+      },
+    })
+
+    as(NIKE)
+    const signed = await sign(ts.id, {
+      acceptedHours: 42,
+      note: 'Three hours of Friday were a vendor demo we did not ask for.',
+      overtime: [{ weekOf: day(0), treatment: 'PREMIUM', multiplierBps: 15_000 }],
+    })
+    expect(signed.body?.error, JSON.stringify(signed.body)).toBeUndefined()
+
+    as(CS)
+    const made = await json(
+      await generate(req('POST', '/api/invoices/generate', { engagementId: s.top.engagementId, periodStart: day(0), periodEnd: day(4) }))
+    )
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    expect(made.body.data.heldBack.weeks).toEqual([])
+    const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: made.body.data.invoice.id, timesheetId: ts.id } })
+    const premiumRate = Math.round((s.top.billRate * 15_000) / 10_000)
+    expect(Number(line.hours)).toBe(42)
+    expect(line.amountCents).toBe(40 * s.top.billRate + Math.round(2 * premiumRate))
+    expect(line.description ?? '').toMatch(/40h at the usual rate, 2h overtime, at time and a half/)
+
+    const m = await matchInvoice(made.body.data.invoice.id)
+    for (const code of ['RECEIPT', 'QUANTITY', 'PRICE', 'EXTENSION', 'HEADER_TOTAL']) {
+      expect(check(m, code)?.outcome, `${code}: ${JSON.stringify(m!.checks)}`).toBe('PASS')
+    }
+
+    // The same week billed as worked — forty ordinary and five overtime —
+    // fails the hours check against what Northbend signed.
+    const asWorked = 40 * s.top.billRate + 5 * premiumRate
+    await prisma.invoiceLine.update({ where: { id: line.id }, data: { hours: 45, amountCents: asWorked } })
+    await prisma.invoice.update({ where: { id: made.body.data.invoice.id }, data: { total: asWorked / 100 } })
+    const wrong = await matchInvoice(made.body.data.invoice.id)
+    expect(check(wrong, 'QUANTITY')).toMatchObject({ outcome: 'FAIL', reason: 'Helena Marsh: billed 45h, approved 42h' })
+  })
 })
