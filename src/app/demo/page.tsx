@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { EtymeLogo } from '@/components/logo'
+import { DemoChip } from '@/components/shell/demo-chip'
 import { ProgramDoors, FirmDoors, PersonDoors } from './desk-picker'
 import {
   CLIENT_PROGRAMS,
@@ -58,6 +59,22 @@ export default function DemoPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
+        {/* Said first and plainly, before anybody reads a name or a number:
+            the founder, 2026-09-29 — people must know they are looking at
+            simulated data. The same chip the product draws in front of a
+            made-up company's name. */}
+        <div
+          role="note"
+          className="mb-8 flex items-start gap-3 rounded-panel border border-etyme-action-line bg-etyme-action-wash px-4 py-3"
+        >
+          <DemoChip className="mt-0.5" />
+          <p className="text-[13.5px] leading-relaxed text-etyme-ink">
+            <strong className="font-semibold">Simulated data.</strong> Every company, person and
+            number on this page is made up for the demo. These are demo companies, not
+            customers, and nothing you change here touches anything real.
+          </p>
+        </div>
+
         {/* ── The client's own desk ─────────────────────────────── */}
         <p className="eyebrow">A running program, from your own desk</p>
         <h1

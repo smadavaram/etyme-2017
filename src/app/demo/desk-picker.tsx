@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CLIENT_DESKS, type ClientProgram, type Program } from './seats'
+import { DemoChip } from '@/components/shell/demo-chip'
 
 /**
  * The doors on /demo, drawn three ways.
@@ -73,7 +74,7 @@ export function ProgramDoors({ programs }: { programs: ClientProgram[] }) {
       <div className="grid gap-4 md:grid-cols-3">
         {programs.map((p) => (
           <section key={p.slug} className="panel flex flex-col p-5">
-            <p className="eyebrow">{p.where}</p>
+            <p className="eyebrow flex items-center gap-2"><DemoChip />{p.where}</p>
             <h3 className="mt-1 font-serif text-[26px] leading-tight tracking-[-0.02em]">
               {p.name}
             </h3>
@@ -122,7 +123,7 @@ export function FirmDoors({ firms }: { firms: Program[] }) {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {firms.map((f) => (
           <section key={f.slug} className="flex flex-col rounded-panel border border-etyme-rule p-4">
-            <p className="eyebrow">{f.where}</p>
+            <p className="eyebrow flex items-center gap-2"><DemoChip />{f.where}</p>
             <h3 className="mt-1 font-serif text-[19px] leading-tight tracking-[-0.02em]">{f.name}</h3>
             <p className="mt-2 flex-1 text-[12.5px] leading-relaxed text-etyme-muted">{f.about}</p>
             {/* A firm that seats more than one person gets the same row
@@ -182,7 +183,7 @@ export function PersonDoors({ people }: { people: Program[] }) {
       <div className="grid gap-4 md:grid-cols-2">
         {people.map((c) => (
           <section key={c.slug} className="flex flex-col rounded-panel border border-etyme-rule p-4">
-            <p className="eyebrow">{c.where}</p>
+            <p className="eyebrow flex items-center gap-2"><DemoChip />{c.where}</p>
             <h3 className="mt-1 font-serif text-[19px] leading-tight tracking-[-0.02em]">{c.name}</h3>
             <p className="mt-2 flex-1 text-[12.5px] leading-relaxed text-etyme-muted">{c.about}</p>
             <button
