@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 
 /**
  * Every money figure in a payload, however deeply nested.
@@ -1135,8 +1136,38 @@ describe('Step 14b — the same rule on the rest of Auralis’s desks', () => {
     const { register: r } = await asAdobe()
     const priya = r.body.data.people.find((p: any) => p.personId === who.priya)
     // One person, one spell here — not one per rung of the chain.
-    expect(priya.monthsHere).toBe(0)
+    //
+    // This read `toBe(0)`, which is only true on the day the suite
+    // runs: both rungs start on a fixed 2026-09-14, the register counts
+    // days served up to the real clock, and on 2026-09-29 sixteen days
+    // rounded to one month. So the expectation is computed from one
+    // rung's dates on today's clock — whatever day it is, the two rungs
+    // must add up to one spell, never two.
+    const rungs = await prisma.sellContract.findMany({
+      where: { personId: who.priya, state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] } },
+      select: { startDate: true, endDate: true },
+    })
+    expect(rungs, 'both rungs are on the record').toHaveLength(2)
+    const now = new Date()
+    const oneRung = monthsOf(daysOnSite([rungs[0]], now))
+    expect(priya.monthsHere).toBe(oneRung)
+    expect(priya.monthsHere).toBe(monthsOf(daysOnSite(rungs, now)))
     expect(priya.state).toBe('PLACED')
+  })
+
+  it('counts her days once off both rungs when she is half a year in, not twice', async () => {
+    // Summing the rungs cannot be told apart from their union while she
+    // is under a month in, so the clock is moved to six months after
+    // her start: one spell reads six months, two would read twelve.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2027-03-16T12:00:00Z'))
+    try {
+      const { register: r } = await asAdobe()
+      const priya = r.body.data.people.find((p: any) => p.personId === who.priya)
+      expect(priya.monthsHere).toBe(6)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows Priya’s own page one engagement at the rung Auralis pays, and no firm under it', async () => {
