@@ -70,6 +70,8 @@ interface PayItem {
   premiumCents?: number
   /** How the overtime was priced, or why it could not be, in a sentence. */
   overtime?: string | null
+  /** Which weekly line the period was judged on, where that needs saying. */
+  payLine?: string | null
   payStatus: string
   nextPayDate: string | null
   nextCalcDate: string | null
@@ -412,6 +414,13 @@ export default function PayrollPage() {
               {(row.premiumCents ?? 0) > 0
                 ? `Includes ${formatCents(row.premiumCents ?? 0)} overtime premium on ${row.overtimeHours} hours`
                 : 'Overtime premium not priced'}
+            </span>
+          )}
+          {/* The law's forty where no contract drew a line, or why it
+              does not reach this worker — the sentence is the product. */}
+          {row.payLine && (
+            <span className="block text-[11px] font-normal text-etyme-muted" title={row.payLine}>
+              {row.payLine}
             </span>
           )}
         </span>

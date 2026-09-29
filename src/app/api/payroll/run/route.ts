@@ -11,6 +11,7 @@ import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { paidBook, paidKey, type PaidLine } from '@/lib/payroll-paid'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
+import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
 
 /**
  * POST /api/payroll/run
@@ -96,10 +97,14 @@ export async function POST(request: NextRequest) {
       // an hour over the line is owed a premium at all.
       exemptAssertions: { select: EXEMPT_SELECT },
       company: { select: { name: true } },
+      // Where the work is and who pays it, which decides whether the US
+      // forty-hour line reaches a worker no contract drew one for.
+      entity: { select: { country: true } },
       sellLinks: {
         include: {
           sellContract: {
             include: {
+              workLocation: { select: { country: true } },
               timesheets: {
                 // What the employer accepted for pay, which is what a
                 // payroll run pays — the same weeks the payroll screen
@@ -116,6 +121,7 @@ export async function POST(request: NextRequest) {
         select: {
           id: true,
           overtimeAfterHours: true,
+          workLocation: { select: { country: true } },
           timesheets: {
             where: { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } },
             select: { id: true, personId: true, totalHours: true, days: true, leaveDays: true, periodStart: true, periodEnd: true },
@@ -169,6 +175,8 @@ export async function POST(request: NextRequest) {
         premiumCents: number
         /** What went over the line and how it was priced, or could not be. */
         overtime: string | null
+        /** Which weekly line pay was judged on, where that needs saying. */
+        payLine: string | null
         /** Why nothing was paid for this person, where nothing was. */
         refused: string | null
         paid: PaidLine[]
@@ -190,14 +198,15 @@ export async function POST(request: NextRequest) {
           effectiveTo: l.effectiveTo,
         }))
         // The weekly line: the employer's own where the buy line names
-        // one, else the sell line's — the same order the payroll file
-        // reads them in.
+        // one, else the sell line's, else — for a nonexempt worker in
+        // the US — the law's forty (lib/money/pay-line). The same order
+        // the payroll file, the screen and back pay read them in.
         const sheets = [
           ...bc.sellLinks.flatMap((l) =>
-            l.sellContract.timesheets.map((ts) => ({ ts, narrow: true, after: bc.overtimeAfterHours ?? l.sellContract.overtimeAfterHours }))
+            l.sellContract.timesheets.map((ts) => ({ ts, narrow: true, sell: l.sellContract }))
           ),
           ...(bc.supplierSellContract?.timesheets ?? []).map((ts) => ({
-            ts, narrow: false, after: bc.overtimeAfterHours ?? bc.supplierSellContract!.overtimeAfterHours,
+            ts, narrow: false, sell: bc.supplierSellContract!,
           })),
         ]
         const method = methodFor(bc).method
@@ -210,14 +219,15 @@ export async function POST(request: NextRequest) {
         const windows: Period[] = []
 
         for (const cand of bc.candidates) {
+          const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
           const mine = sheets
             .filter((x) => x.ts.personId === cand.personId)
-            .map(({ ts, narrow, after }) => {
+            .map(({ ts, narrow, sell }) => {
               const all = (ts.days as Record<string, number>) ?? {}
               const days = narrow && Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
               return {
                 id: ts.id,
-                after,
+                line: payLineOn(bc, sell, cand.person, row),
                 leaveDays: (ts.leaveDays as Record<string, number>) ?? {},
                 periodStart: ts.periodStart,
                 periodEnd: ts.periodEnd,
@@ -256,6 +266,7 @@ export async function POST(request: NextRequest) {
               overtimeHours: 0,
               premiumCents: 0,
               overtime: null,
+              payLine: null,
               refused:
                 `A payroll run on ${unrecorded} paid ${cand.person.name} without recording which hours it ` +
                 `covered, so Etyme cannot tell what is still owed. Settle this contract by hand before ` +
@@ -272,7 +283,7 @@ export async function POST(request: NextRequest) {
           let alreadyPaid = 0
           let premiumExact = 0
           const said: string[] = []
-          const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
+          const lineSaid: string[] = []
           const wageLine = wageLineFor(bc, cand.person.name, row)
           if (payPeriod) {
             for (const t of mine) {
@@ -309,13 +320,21 @@ export async function POST(request: NextRequest) {
               const weeks = sheetOvertime({
                 days: t.days,
                 leaveDays: t.leaveDays,
-                afterHours: t.after ?? null,
+                afterHours: t.line.afterHours,
                 contractRateCents: cand.payRate,
                 periods,
                 method,
                 line: wageLine,
               })
               const inPeriod = new Set(priced.days.map((d) => d.day))
+              // Where the line came from, where it is the law's or where
+              // the law's forty does not reach — said once per person.
+              const lineNote = payLineSays(
+                t.line,
+                { personName: cand.person.name, employerName: bc.company?.name ?? null },
+                weeklyWorked(Object.fromEntries(Object.entries(t.days).filter(([d]) => inPeriod.has(d.slice(0, 10)))), t.leaveDays)
+              )
+              if (lineNote && !lineSaid.includes(lineNote)) lineSaid.push(lineNote)
               const note = overtimeSaysFor(weeks, inPeriod)
               if (note) said.push(note)
               for (const [day, p] of premiumByDay(weeks, inPeriod)) {
@@ -366,6 +385,7 @@ export async function POST(request: NextRequest) {
             overtimeHours: Math.round(lines.reduce((n, l) => n + (l.overtimeHours ?? 0), 0) * 100) / 100,
             premiumCents,
             overtime: said.length ? said.join(' ') : null,
+            payLine: lineSaid.length ? lineSaid.join(' ') : null,
             refused: payPeriod ? null : `No accepted hours for ${cand.person.name}, so there is no period to pay.`,
             paid: lines,
           })

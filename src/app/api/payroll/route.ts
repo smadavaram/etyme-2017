@@ -9,6 +9,7 @@ import { rateInForce, priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
+import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
 import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
 
 /**
@@ -60,7 +61,9 @@ export async function GET(request: NextRequest) {
         include: { person: { select: { id: true, name: true, primaryEmail: true } } },
       },
       vendorCompany: { select: { id: true, name: true } },
-      entity: { select: { id: true, name: true } },
+      // Its country, with the site's and the pay currency, decides whether
+      // the US forty-hour line reaches a worker no contract drew one for.
+      entity: { select: { id: true, name: true, country: true } },
       // The document this pay line is on, where there is one. A W2 has
       // none — you do not raise a purchase order to your own employee —
       // and then the line's own columns answer, as they always did.
@@ -91,6 +94,7 @@ export async function GET(request: NextRequest) {
           engagement: { select: { id: true, title: true } },
           billRate: true,
           overtimeAfterHours: true,
+          workLocation: { select: { country: true } },
         },
       },
       sellLinks: {
@@ -132,6 +136,7 @@ export async function GET(request: NextRequest) {
               },
               clientCompany: { select: { id: true, name: true } },
               engagement: { select: { id: true, title: true } },
+              workLocation: { select: { country: true } },
             },
           },
         },
@@ -218,6 +223,9 @@ export async function GET(request: NextRequest) {
           : []),
       ]
 
+      // What the employer asserted about exemption, which decides whether
+      // an hour over forty is owed a premium where no contract drew a line.
+      const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
       const linkedTimesheets = sources.flatMap((link) =>
         link.sellContract.timesheets
           .filter((ts) => ts.personId === cand.personId)
@@ -235,8 +243,9 @@ export async function GET(request: NextRequest) {
               : Number(ts.assertions[0]?.hours ?? ts.acceptedHours ?? ts.totalHours)
             return {
             id: ts.id,
-            // The weekly line: the employer's own, else the sell line's.
-            after: bc.overtimeAfterHours ?? link.sellContract.overtimeAfterHours ?? null,
+            // The weekly line: the employer's own, else the sell line's,
+            // else the law's forty for a nonexempt US worker.
+            line: payLineOn(bc, link.sellContract, { name: cand.person.name, payCurrency: cand.payCurrency }, row),
             leaveDays: ((ts as { leaveDays?: unknown }).leaveDays ?? {}) as Record<string, number>,
             totalHours: mineHours,
             rawStart: ts.periodStart,
@@ -340,17 +349,17 @@ export async function GET(request: NextRequest) {
       // the line's method — the US regular rate unless the firm chose
       // otherwise — and counted on the days in this period that carry
       // it. The same call the run makes, so the two show one figure.
-      const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
       const wageLine = wageLineFor(bc, cand.person.name, row)
       const method = methodFor(bc).method
       let premiumExact = 0
       let overtimeHours = 0
       const said: string[] = []
+      const lineSaid: string[] = []
       shares.forEach((x, i) => {
         const weeks = sheetOvertime({
           days: x.ts.days,
           leaveDays: x.ts.leaveDays,
-          afterHours: x.ts.after,
+          afterHours: x.ts.line.afterHours,
           contractRateCents: cand.payRate,
           periods,
           method,
@@ -363,6 +372,14 @@ export async function GET(request: NextRequest) {
         }
         const note = overtimeSaysFor(weeks, inPeriod)
         if (note) said.push(note)
+        // Where the weekly line came from, where it is the law's, or why
+        // the law's forty does not reach this worker. Said once.
+        const lineNote = payLineSays(
+          x.ts.line,
+          { personName: cand.person.name, employerName: bc.company?.name ?? null },
+          weeklyWorked(Object.fromEntries(Object.entries(x.ts.days).filter(([d]) => inPeriod.has(d.slice(0, 10)))), x.ts.leaveDays)
+        )
+        if (lineNote && !lineSaid.includes(lineNote)) lineSaid.push(lineNote)
       })
       // Rounded once for the row.
       const premiumCents = Math.round(premiumExact)
@@ -419,6 +436,9 @@ export async function GET(request: NextRequest) {
         overtimeHours: Math.round(overtimeHours * 100) / 100,
         premiumCents,
         overtime: said.length ? said.join(' ') : null,
+        // Which weekly line the period was judged on, where that needs
+        // saying: the law's forty, or why the law's forty does not apply.
+        payLine: lineSaid.length ? lineSaid.join(' ') : null,
         payStatus,
         nextPayDate: comingPay?.dueOn.toISOString() ?? null,
         nextCalcDate: comingCalc?.dueOn.toISOString() ?? null,

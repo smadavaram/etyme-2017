@@ -206,6 +206,12 @@ export interface SheetToPay {
    * buy line can yet record a different choice with who made it.
    */
   overtimeMethod?: OvertimeMethod | null
+  /**
+   * Which weekly line the sheet was judged on, where that needs saying —
+   * the law's forty where no contract drew one, or why the law's forty
+   * does not reach this worker. Travels on the line as a note.
+   */
+  lineSays?: string | null
   payModel: string
   paidOnSalaryBasis: boolean
   rule: WageRuleName
@@ -341,6 +347,7 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
       })
 
     const notes = [...new Set(verdicts.flatMap((v) => v.caveats))]
+    if (s.lineSays) notes.push(s.lineSays)
     if (contractGoverns) {
       notes.push(
         `${s.personName}'s buy contract prices an overtime hour above what the law requires, ` +

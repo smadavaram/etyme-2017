@@ -8,6 +8,7 @@ import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import type { ExemptAssertion, ExemptionBasis, ExemptStatus, WageRuleName } from '@/lib/worker-classification'
 import { workedByWeek } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
+import { payLineFor, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
 
 /**
  * GET /api/payroll/export?provider=ADP&from=&to=
@@ -67,6 +68,9 @@ export async function GET(request: NextRequest) {
         select: {
           id: true, billCurrency: true,
           overtimeAfterHours: true, overtimeMultiplierBps: true,
+          // Where the work is done: one of the facts that decides whether
+          // the US forty-hour line reaches a worker no contract drew one for.
+          workLocation: { select: { country: true } },
           company: { select: { name: true } },
           clientCompany: { select: { name: true } },
           costCenter: { select: { code: true } },
@@ -89,7 +93,8 @@ export async function GET(request: NextRequest) {
                   // is a different fact from what the client is billed
                   // for one. Statute sets a floor; this may be better.
                   overtimeAfterHours: true, overtimeMultiplierBps: true,
-                  candidates: { select: { personId: true, payRate: true, state: true } },
+                  entity: { select: { country: true } },
+                  candidates: { select: { personId: true, payRate: true, payCurrency: true, state: true } },
                   exemptAssertions: {
                     select: {
                       personId: true, status: true, basis: true, wageRule: true, note: true,
@@ -171,7 +176,28 @@ export async function GET(request: NextRequest) {
     // stands in — it is the only weekly line anybody has written down
     // for this placement, and it is what the approval desk decided
     // against.
-    const payPolicy = buy?.overtimeAfterHours != null ? policyOf(buy) : policyOf(s.sellContract)
+    //
+    // And where neither says, a nonexempt US worker is still owed a
+    // premium after forty, because the law draws the line the contracts
+    // did not (lib/money/pay-line). The client's bill is not touched: the
+    // sell line's own terms are read here for pay only.
+    const payLine = payLineFor({
+      buyAfterHours: buy?.overtimeAfterHours ?? null,
+      sellAfterHours: s.sellContract.overtimeAfterHours,
+      personName: s.person.name,
+      employerName: s.sellContract.company?.name ?? null,
+      contractType: buy?.contractType ?? 'UNKNOWN',
+      weAreTheEmployer: buy?.companyId === companyId,
+      exemptStatus: row?.status ?? null,
+      where: {
+        wageRule: row ? row.wageRule : null,
+        payCurrency: candidate?.payCurrency ?? buy?.payCurrency ?? null,
+        entityCountry: buy?.entity?.country ?? null,
+        siteCountry: s.sellContract.workLocation?.country ?? null,
+      },
+    })
+    const drawnBy = payLine.source === 'BUY' ? policyOf(buy!) : policyOf(s.sellContract)
+    const payPolicy = { ...drawnBy, afterHours: payLine.afterHours }
 
     const split = splitWeeks((s.days as Record<string, number>) ?? {}, payPolicy, {
       leaveDays: (s.leaveDays as Record<string, number>) ?? {},
@@ -255,6 +281,13 @@ export async function GET(request: NextRequest) {
       // multiplier with no line to apply it to is not a term anybody
       // agreed, and would quietly multiply a rate nobody set.
       contractPremiumBps: buy?.overtimeAfterHours != null ? buy.overtimeMultiplierBps : null,
+      // Where the line is the law's, or why the law's forty does not reach
+      // this worker. Travels with the file as a note.
+      lineSays: payLineSays(
+        payLine,
+        { personName: s.person.name, employerName: s.sellContract.company?.name ?? null },
+        weeklyWorked(allDays, (s.leaveDays as Record<string, number>) ?? {})
+      ),
       // The US regular rate, for every line today — see methodFor.
       overtimeMethod: methodFor(buy).method,
       payModel: buy?.payModel ?? 'FIXED_HOURLY',

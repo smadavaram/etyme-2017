@@ -55,6 +55,7 @@ import { paidBook, paidKey, type PaidEntry, type BackPaidLine } from '@/lib/payr
 import { weekStart } from '@/lib/overtime'
 import { sheetOvertime, premiumByDay, wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
+import { payLineOn } from '@/lib/money/pay-line'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 const dayDate = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`)
@@ -251,6 +252,7 @@ export async function proposeBackPay(rateHistoryId: string): Promise<BackPayProp
       workOrder: { select: ORDER_HEADER_SELECT },
       exemptAssertions: { select: EXEMPT_SELECT },
       company: { select: { name: true } },
+      entity: { select: { country: true } },
       sellLinks: {
         include: {
           sellContract: {
@@ -258,6 +260,7 @@ export async function proposeBackPay(rateHistoryId: string): Promise<BackPayProp
               id: true,
               companyId: true,
               overtimeAfterHours: true,
+              workLocation: { select: { country: true } },
               timesheets: {
                 where: { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } },
                 select: { id: true, personId: true, days: true, leaveDays: true },
@@ -312,7 +315,8 @@ export async function proposeBackPay(rateHistoryId: string): Promise<BackPayProp
   let currency = bc.payCurrency
   for (const cand of bc.candidates) {
     const terms: Terms = { ...periodTermsFor('BUY', bc), startedOn: cand.startDate }
-    const line = wageLineFor(bc, cand.person.name, bc.exemptAssertions.find((a) => a.personId === cand.personId))
+    const row = bc.exemptAssertions.find((a) => a.personId === cand.personId)
+    const line = wageLineFor(bc, cand.person.name, row)
     for (const l of bc.sellLinks) {
       // Only the firm's own sell lines: that is where its payroll's hours are.
       if (l.sellContract.companyId !== bc.companyId) continue
@@ -323,7 +327,9 @@ export async function proposeBackPay(rateHistoryId: string): Promise<BackPayProp
         const weeks = sheetOvertime({
           days: mine,
           leaveDays: (t.leaveDays ?? {}) as Record<string, number>,
-          afterHours: bc.overtimeAfterHours ?? l.sellContract.overtimeAfterHours ?? null,
+          // The same line the run paid on: the buy line's, the sell
+          // line's, or the law's forty for a nonexempt US worker.
+          afterHours: payLineOn(bc, l.sellContract, { name: cand.person.name, payCurrency: cand.payCurrency }, row).afterHours,
           contractRateCents: cand.payRate,
           periods,
           method,
