@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { decide, signature, summarize, DEFAULT_WINDOW_DAYS } from '@/lib/auto-approval'
+import { payerRung } from '@/lib/chain-top'
 
 /**
  * GET /api/cron/auto-approve
@@ -17,6 +18,23 @@ import { decide, signature, summarize, DEFAULT_WINDOW_DAYS } from '@/lib/auto-ap
  * Runs from the daily fan-out. Every decision is written down, including
  * the ones that did nothing — a sheet held on an anomaly is the most
  * useful line in the log and the one somebody will come looking for.
+ *
+ * ── Whose term it is ────────────────────────────────────────────────
+ *
+ * The client's, on the order the client itself issued. Until 2026-09-29
+ * this read the order on the contract the hours are filed on, which on a
+ * direct placement is the client's and in a chain is not: Helena Marsh's
+ * week is filed on CloudEPA's contract, under Computer Systems' order to
+ * CloudEPA. So a client's own "silence counts" was never read for a
+ * chain week, and a prime that switched it on for its sub's order wrote
+ * the END CLIENT's approval by silence — the client signing a week on a
+ * term it never agreed, at the sub's rate. Now the week is walked up to
+ * the rung the client pays (`payerRung` in lib/chain-top), and the term
+ * is that rung's order, and only where the client issued it. A lower
+ * rung's setting may stand in for that rung's own acceptance one day; it
+ * never stands in for the client's signature. Where two contracts above
+ * the week cover the same days there is no single order to read, and
+ * silence approves nothing.
  */
 export async function GET(request: NextRequest) {
   if (!cronAuthorized(request)) {
@@ -35,20 +53,45 @@ export async function GET(request: NextRequest) {
       person: { select: { name: true } },
       sellContract: {
         select: {
+          id: true,
+          personId: true,
           companyId: true,
-          billRate: true,
           clientCompanyId: true,
           endClientCompanyId: true,
           clientCompany: { select: { name: true } },
           endClientCompany: { select: { name: true } },
-          workOrder: {
-            select: { autoApproveTimesheets: true, approvalWindowDays: true },
-          },
         },
       },
     },
     take: 2000,
   })
+
+  // Every rung of every chain these people are on, so each week can be
+  // walked up to the contract its client pays, and that contract's order
+  // read for the client's term.
+  const people = [...new Set(waiting.map((t) => t.sellContract.personId))]
+  //
+  // A rung with no start date is taken as open from the first day, so it
+  // overlaps everything and can only make a chain read as ambiguous.
+  const rungs = people.length === 0 ? [] : (await prisma.sellContract.findMany({
+    where: { personId: { in: people } },
+    select: {
+      id: true, personId: true, companyId: true, clientCompanyId: true,
+      startDate: true, endDate: true, billRate: true,
+      workOrder: { select: { issuedById: true, autoApproveTimesheets: true, approvalWindowDays: true } },
+    },
+  })).map((r) => ({ ...r, startDate: r.startDate ?? new Date(0) }))
+  const rungOf = new Map(rungs.map((r) => [r.id, r]))
+
+  /** The rung the client pays for this week, and the client's own term on it — or no term. */
+  const termOf = (t: (typeof waiting)[number]) => {
+    const client = t.sellContract.endClientCompanyId ?? t.sellContract.clientCompanyId
+    const filed = rungOf.get(t.sellContract.id)
+    const top = filed ? payerRung(filed, rungs) : null
+    const order = top && top.clientCompanyId === client && top.workOrder?.issuedById === client ? top.workOrder : null
+    return { client, top, order }
+  }
+  const terms = new Map(waiting.map((t) => [t.id, termOf(t)]))
 
   const decisions = waiting.map((t) =>
     decide(
@@ -63,8 +106,8 @@ export async function GET(request: NextRequest) {
         clientApprovedAt: t.clientApprovedAt,
         anomalyScore: t.anomalyScore,
         anomalyReason: t.anomalyReason,
-        windowDays: t.sellContract.workOrder?.approvalWindowDays ?? null,
-        autoApproves: t.sellContract.workOrder?.autoApproveTimesheets ?? false,
+        windowDays: terms.get(t.id)!.order?.approvalWindowDays ?? null,
+        autoApproves: terms.get(t.id)!.order?.autoApproveTimesheets ?? false,
         clientName:
           t.sellContract.endClientCompany?.name ??
           t.sellContract.clientCompany.name,
@@ -77,8 +120,9 @@ export async function GET(request: NextRequest) {
 
   for (const d of approving) {
     const sheet = waiting.find((t) => t.id === d.sheetId)!
-    const clientCompanyId =
-      sheet.sellContract.endClientCompanyId ?? sheet.sellContract.clientCompanyId
+    const { client: clientCompanyId, top } = terms.get(d.sheetId)!
+    // Only a week whose client issued the term is ever approved here.
+    if (!top) continue
 
     // Idempotency guard: check if already approved before writing.
     // If this cron runs twice, the timesheet's clientApprovedAt will be
@@ -109,7 +153,10 @@ export async function GET(request: NextRequest) {
         companyId: clientCompanyId,
         role: 'CLIENT_APPROVAL',
         hours: Number(sheet.totalHours),
-        rateCents: sheet.sellContract.billRate,
+        // The client's own rate on its own leg — the rung it pays — never
+        // the rate of the rung the hours are filed on, which in a chain
+        // is a supplier's price to its prime.
+        rateCents: top.billRate,
         state: 'LIVE',
         byId: null,
         auto: true,
@@ -138,7 +185,9 @@ export async function GET(request: NextRequest) {
       }),
       prisma.automationLog.create({
         data: {
-          companyId: sheet.sellContract.companyId,
+          // The supplier the client's order is to — on a direct placement
+          // the firm the hours are filed under, as before.
+          companyId: top.companyId,
           action: 'TIMESHEET_AUTO_APPROVED',
           summary: `${sheet.person.name}: ${Number(sheet.totalHours)} hours approved automatically`,
           reason: d.says,
@@ -157,7 +206,7 @@ export async function GET(request: NextRequest) {
     const sheet = waiting.find((t) => t.id === d.sheetId)!
     await prisma.automationLog.create({
       data: {
-        companyId: sheet.sellContract.companyId,
+        companyId: terms.get(d.sheetId)!.top?.companyId ?? sheet.sellContract.companyId,
         action: 'TIMESHEET_HELD_FOR_PERSON',
         summary: `${sheet.person.name}: held for a person, not approved automatically`,
         reason: d.says,
