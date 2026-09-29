@@ -6,6 +6,8 @@ import { buildExport, toCsv, missingIds, type Provider, type SheetToPay } from '
 import { policyOf, splitWeeks, weekStart, type Decision } from '@/lib/overtime'
 import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import type { ExemptAssertion, ExemptionBasis, ExemptStatus, WageRuleName } from '@/lib/worker-classification'
+import { workedByWeek } from '@/lib/money/sheet-overtime'
+import { methodFor } from '@/lib/money/overtime-method'
 
 /**
  * GET /api/payroll/export?provider=ADP&from=&to=
@@ -205,6 +207,19 @@ export async function GET(request: NextRequest) {
         : { payRateCents: priced.days.length ? priced.firstRateCents : first, rates: null }
     }
 
+    // Every hour worked in each week, each day at its own rate, so a
+    // week paid at two rates that went over the line has its overtime
+    // priced on the regular rate rather than on its first day's rate.
+    const workedWeeks =
+      recorded != null && recorded > 0
+        ? workedByWeek({
+            days: allDays,
+            leaveDays: (s.leaveDays as Record<string, number>) ?? {},
+            contractRateCents: recorded,
+            periods,
+          })
+        : new Map()
+
     return {
       personName: s.person.name,
       // No payroll id model yet — reported as missing rather than
@@ -226,6 +241,7 @@ export async function GET(request: NextRequest) {
         overHours: w.overHours,
         client: { treatment: w.treatment, appliedBps: w.appliedBps },
         ...weekRate(w.weekOf, w.regularHours + w.leaveHours),
+        worked: workedWeeks.get(w.weekOf) ?? null,
       })),
       submittedHours: Number(s.totalHours),
       acceptedHours: s.acceptedHours ? Number(s.acceptedHours) : null,
@@ -238,6 +254,8 @@ export async function GET(request: NextRequest) {
       // multiplier with no line to apply it to is not a term anybody
       // agreed, and would quietly multiply a rate nobody set.
       contractPremiumBps: buy?.overtimeAfterHours != null ? buy.overtimeMultiplierBps : null,
+      // The US regular rate, for every line today — see methodFor.
+      overtimeMethod: methodFor(buy).method,
       payModel: buy?.payModel ?? 'FIXED_HOURLY',
       // Nothing in the schema records a salary basis, so the honest,
       // conservative read: paid by the hour unless somebody says.

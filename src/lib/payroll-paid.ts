@@ -44,6 +44,14 @@ export interface PaidLine {
   day: string
   hours: number
   rateCents: number
+  /**
+   * Of the day's hours, how many were over the weekly line and had their
+   * premium paid with this line — and the premium, exact, before the run
+   * rounded its total. Absent on a line written before overtime was
+   * priced by the run, which paid no premium at all.
+   */
+  overtimeHours?: number
+  premiumCents?: number
 }
 
 export function paidKey(buyContractId: string, personId: string, timesheetId: string, day: string): string {
@@ -53,6 +61,8 @@ export function paidKey(buyContractId: string, personId: string, timesheetId: st
 export interface PaidBook {
   /** Hours already paid, by `paidKey`. */
   paid: Map<string, number>
+  /** Overtime hours whose premium was already paid, by `paidKey`. */
+  premiumHours: Map<string, number>
   /** Contracts with a run behind them that recorded no lines, and when it ran. */
   unrecorded: Map<string, string>
 }
@@ -72,6 +82,7 @@ export async function paidBook(companyId: string, buyContractIds: string[]): Pro
   })
 
   const paid = new Map<string, number>()
+  const premiumHours = new Map<string, number>()
   const unrecorded = new Map<string, string>()
 
   for (const run of runs) {
@@ -89,9 +100,10 @@ export async function paidBook(companyId: string, buyContractIds: string[]): Pro
       for (const l of c.paid) {
         const k = paidKey(c.buyContractId, l.personId, l.timesheetId, l.day)
         paid.set(k, (paid.get(k) ?? 0) + Number(l.hours))
+        if (l.overtimeHours) premiumHours.set(k, (premiumHours.get(k) ?? 0) + Number(l.overtimeHours))
       }
     }
   }
 
-  return { paid, unrecorded }
+  return { paid, premiumHours, unrecorded }
 }

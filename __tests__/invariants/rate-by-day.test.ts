@@ -192,15 +192,39 @@ describe('a payroll file pays hours worked at two rates as two lines', () => {
     ])
   })
 
-  it.skip(
-    'TODO, waiting on the founder: overtime in a week paid at two rates uses a regular rate weighted across both (29 CFR §778.115), not the rate on the first day',
-    () => {
-      // Forty-five hours in the week of the rise. The ordinary forty are
-      // paid by the day. Whether the five overtime hours carry a premium
-      // on $66, on $70, or on the weighted regular rate the Act requires
-      // — (16 × $66 + 29 × $70) / 45 — is a money decision nobody has
-      // made. Today the premium is priced on the week's opening rate and
-      // the line carries a note saying it is a floor.
-    }
-  )
+  it('overtime in a week paid at two rates uses a regular rate weighted across both (29 CFR §778.115), not the rate on the first day', () => {
+    // Forty-five hours in the week of the rise: 16 at $66, then 29 at $70
+    // with the five over the line on the Friday. The founder decided on
+    // 2026-09-29: US law by default. Straight time $3,086, a regular rate
+    // of $3,086 / 45 = $68.58, and a premium of half of it on each of the
+    // five hours: $171.44. The whole week is $3,257.44.
+    const worked = [
+      { day: '2026-06-29', hours: 8, rateCents: 6_600 },
+      { day: '2026-06-30', hours: 8, rateCents: 6_600 },
+      { day: '2026-07-01', hours: 8, rateCents: 7_000 },
+      { day: '2026-07-02', hours: 8, rateCents: 7_000 },
+      { day: '2026-07-03', hours: 13, rateCents: 7_000 },
+    ]
+    const e = buildExport('GENERIC', [
+      sheet([{ ...straddling, overHours: 5, worked }], {
+        assertion: {
+          status: 'NONEXEMPT', basis: null, assertedByCompanyId: 'co', assertedByCompanyName: null,
+          assertedByName: null, assertedAt: new Date('2026-06-01T00:00:00Z'), note: null, reviewBy: null,
+        },
+      }),
+    ])
+    expect(e.skipped).toEqual([])
+    expect(e.lines.map((l) => [l.rateCents, l.hours, l.overtimeHours, l.regularCents, l.overtimeCents])).toEqual([
+      [6_600, 16, 0, 16 * 6_600, 0],
+      // Five overtime hours on the $70 line: 5 × $70 straight time plus
+      // the $171.44 premium, rounded once for the line.
+      [7_000, 24, 5, 24 * 7_000, 5 * 7_000 + 17_144],
+    ])
+    expect(e.totalCents).toBe(325_744)
+    expect(e.caveats.join(' ')).toContain('Regular rate $68.58')
+    // Not the rate on the first day: that would have been $66 × 1.5 on
+    // the five hours, and not $70 × 1.5 either.
+    expect(e.totalCents).not.toBe(16 * 6_600 + 24 * 7_000 + Math.round(5 * 6_600 * 1.5))
+    expect(e.totalCents).not.toBe(16 * 6_600 + 24 * 7_000 + Math.round(5 * 7_000 * 1.5))
+  })
 })

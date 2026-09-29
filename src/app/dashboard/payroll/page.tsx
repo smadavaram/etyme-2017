@@ -62,6 +62,11 @@ interface PayItem {
   }>
   totalApprovedHours: number
   grossPay: number
+  /** Hours over the weekly line in the period, and the premium on them — inside grossPay. */
+  overtimeHours?: number
+  premiumCents?: number
+  /** How the overtime was priced, or why it could not be, in a sentence. */
+  overtime?: string | null
   payStatus: string
   nextPayDate: string | null
   nextCalcDate: string | null
@@ -379,6 +384,18 @@ export default function PayrollPage() {
           row.grossPay > 0 ? 'text-etyme-ink' : 'text-etyme-faint'
         }`}>
           {row.grossPay > 0 ? formatCents(row.grossPay) : '—'}
+          {row.overtime && (
+            <span
+              className={`block text-[11px] font-normal ${
+                (row.premiumCents ?? 0) > 0 ? 'text-etyme-muted' : 'text-etyme-attention'
+              }`}
+              title={row.overtime}
+            >
+              {(row.premiumCents ?? 0) > 0
+                ? `Includes ${formatCents(row.premiumCents ?? 0)} overtime premium on ${row.overtimeHours} hours`
+                : 'Overtime premium not priced'}
+            </span>
+          )}
         </span>
       ),
       sortValue: (row) => row.grossPay,

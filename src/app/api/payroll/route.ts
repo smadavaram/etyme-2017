@@ -7,6 +7,9 @@ import { daysFor } from '@/lib/contract-links'
 import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
 import { rateInForce, priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
+import { sheetOvertime, premiumByDay, overtimeSaysFor, assertionOf } from '@/lib/money/sheet-overtime'
+import { methodFor } from '@/lib/money/overtime-method'
+import type { WageRuleName } from '@/lib/worker-classification'
 
 /**
  * GET /api/payroll
@@ -62,6 +65,16 @@ export async function GET(request: NextRequest) {
       // none — you do not raise a purchase order to your own employee —
       // and then the line's own columns answer, as they always did.
       workOrder: { select: ORDER_HEADER_SELECT },
+      // Whether an hour over the line is owed a premium at all.
+      exemptAssertions: {
+        select: {
+          personId: true, status: true, basis: true, wageRule: true, note: true,
+          assertedAt: true, reviewBy: true, assertedByCompanyId: true,
+          assertedByCompany: { select: { name: true } },
+          assertedBy: { select: { name: true } },
+        },
+      },
+      company: { select: { name: true } },
       // The rung below, where this firm buys from another. The hours are
       // filed on the supplier's contract, so a corp-to-corp buy contract
       // reaching only its own sell side finds nothing and reports a
@@ -73,7 +86,7 @@ export async function GET(request: NextRequest) {
             where: { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } },
             select: {
               id: true, personId: true, totalHours: true, acceptedHours: true,
-              periodStart: true, periodEnd: true, days: true, approvedAt: true,
+              periodStart: true, periodEnd: true, days: true, leaveDays: true, approvedAt: true,
               assertions: {
                 where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
                 select: { hours: true, rateCents: true },
@@ -84,6 +97,7 @@ export async function GET(request: NextRequest) {
           clientCompany: { select: { id: true, name: true } },
           engagement: { select: { id: true, title: true } },
           billRate: true,
+          overtimeAfterHours: true,
         },
       },
       sellLinks: {
@@ -117,6 +131,9 @@ export async function GET(request: NextRequest) {
                   // The daily breakdown, so a week crossing a pay period
                   // boundary gives each period exactly its own days.
                   days: true,
+                  // Paid leave inside those days: paid, never worked, so
+                  // it neither crosses the line nor sets the regular rate.
+                  leaveDays: true,
                   approvedAt: true,
                 },
               },
@@ -221,6 +238,9 @@ export async function GET(request: NextRequest) {
               : Number(ts.assertions[0]?.hours ?? ts.acceptedHours ?? ts.totalHours)
             return {
             id: ts.id,
+            // The weekly line: the employer's own, else the sell line's.
+            after: bc.overtimeAfterHours ?? link.sellContract.overtimeAfterHours ?? null,
+            leaveDays: ((ts as { leaveDays?: unknown }).leaveDays ?? {}) as Record<string, number>,
             totalHours: mineHours,
             rawStart: ts.periodStart,
             rawEnd: ts.periodEnd,
@@ -318,7 +338,48 @@ export async function GET(request: NextRequest) {
       )
       const byRate = new Map<number, number>()
       for (const p of priced) for (const d of p.days) byRate.set(d.rateCents, (byRate.get(d.rateCents) ?? 0) + d.hours)
-      const grossPay = [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(Math.round(h * 100) / 100 * r), 0)
+
+      // The premium on hours over the line, priced on the whole week by
+      // the line's method — the US regular rate unless the firm chose
+      // otherwise — and counted on the days in this period that carry
+      // it. The same call the run makes, so the two show one figure.
+      const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
+      const wageLine = {
+        personName: cand.person.name,
+        contractType: bc.contractType,
+        weAreTheEmployer: !bc.vendorCompanyId && !bc.supplierSellContractId,
+        payModel: bc.payModel,
+        rule: (row?.wageRule as WageRuleName) ?? 'US_FLSA',
+        assertion: assertionOf(row),
+        contractPremiumBps: bc.overtimeAfterHours != null ? bc.overtimeMultiplierBps : null,
+        employerName: bc.company?.name ?? null,
+      }
+      const method = methodFor(bc).method
+      let premiumExact = 0
+      let overtimeHours = 0
+      const said: string[] = []
+      shares.forEach((x, i) => {
+        const weeks = sheetOvertime({
+          days: x.ts.days,
+          leaveDays: x.ts.leaveDays,
+          afterHours: x.ts.after,
+          contractRateCents: cand.payRate,
+          periods,
+          method,
+          line: wageLine,
+        })
+        const inPeriod = new Set(priced[i].days.map((d) => d.day))
+        for (const p of premiumByDay(weeks, inPeriod).values()) {
+          premiumExact += p.premiumCents
+          overtimeHours += p.hours
+        }
+        const note = overtimeSaysFor(weeks, inPeriod)
+        if (note) said.push(note)
+      })
+      // Rounded once for the row.
+      const premiumCents = Math.round(premiumExact)
+      const grossPay =
+        [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(Math.round(h * 100) / 100 * r), 0) + premiumCents
       // The rate a reader sees on the row: the one in force at the end of
       // the period, which is the one the next hour will be paid at.
       const rateNow = payPeriod
@@ -364,6 +425,12 @@ export async function GET(request: NextRequest) {
         timesheets: filteredTimesheets,
         totalApprovedHours,
         grossPay,
+        // Hours over the line in the period and the premium on them,
+        // already inside grossPay; and the sentence saying how each week
+        // was priced, or why one could not be.
+        overtimeHours: Math.round(overtimeHours * 100) / 100,
+        premiumCents,
+        overtime: said.length ? said.join(' ') : null,
         payStatus,
         nextPayDate: nextSalaryCycle?.dueOn.toISOString() ?? null,
         nextCalcDate: nextCalcCycle?.dueOn.toISOString() ?? null,

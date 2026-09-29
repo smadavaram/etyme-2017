@@ -9,6 +9,9 @@ import { periodFor, hoursInPeriod, type Period, type Terms } from '@/lib/periods
 import { priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { paidBook, paidKey, type PaidLine } from '@/lib/payroll-paid'
+import { sheetOvertime, premiumByDay, overtimeSaysFor, assertionOf } from '@/lib/money/sheet-overtime'
+import { methodFor } from '@/lib/money/overtime-method'
+import type { WageRuleName } from '@/lib/worker-classification'
 
 /**
  * POST /api/payroll/run
@@ -90,6 +93,17 @@ export async function POST(request: NextRequest) {
         include: { person: { select: { id: true, name: true } } },
       },
       workOrder: { select: ORDER_HEADER_SELECT },
+      // What the employer asserted about exemption, which decides whether
+      // an hour over the line is owed a premium at all.
+      exemptAssertions: {
+        select: {
+          personId: true, status: true, basis: true, wageRule: true, note: true,
+          assertedAt: true, reviewBy: true, assertedByCompanyId: true,
+          assertedByCompany: { select: { name: true } },
+          assertedBy: { select: { name: true } },
+        },
+      },
+      company: { select: { name: true } },
       sellLinks: {
         include: {
           sellContract: {
@@ -100,7 +114,7 @@ export async function POST(request: NextRequest) {
                 // lists. `days`, because a week is divided by day: by the
                 // link window, by the pay period and by the rate in force.
                 where: { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } },
-                select: { id: true, personId: true, totalHours: true, days: true, periodStart: true, periodEnd: true },
+                select: { id: true, personId: true, totalHours: true, days: true, leaveDays: true, periodStart: true, periodEnd: true },
               },
             },
           },
@@ -109,9 +123,10 @@ export async function POST(request: NextRequest) {
       supplierSellContract: {
         select: {
           id: true,
+          overtimeAfterHours: true,
           timesheets: {
             where: { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } },
-            select: { id: true, personId: true, totalHours: true, days: true, periodStart: true, periodEnd: true },
+            select: { id: true, personId: true, totalHours: true, days: true, leaveDays: true, periodStart: true, periodEnd: true },
           },
         },
       },
@@ -156,6 +171,12 @@ export async function POST(request: NextRequest) {
         cyclesCompleted: number
         /** Where the rate changed inside the period, the sentence that says so. */
         rates: string | null
+        /** Hours over the weekly line whose premium this run pays. */
+        overtimeHours: number
+        /** The premium on them, rounded once for the row. Inside `grossPay`. */
+        premiumCents: number
+        /** What went over the line and how it was priced, or could not be. */
+        overtime: string | null
         /** Why nothing was paid for this person, where nothing was. */
         refused: string | null
         paid: PaidLine[]
@@ -176,10 +197,18 @@ export async function POST(request: NextRequest) {
           effectiveFrom: l.effectiveFrom,
           effectiveTo: l.effectiveTo,
         }))
+        // The weekly line: the employer's own where the buy line names
+        // one, else the sell line's — the same order the payroll file
+        // reads them in.
         const sheets = [
-          ...bc.sellLinks.flatMap((l) => l.sellContract.timesheets.map((ts) => ({ ts, narrow: true }))),
-          ...(bc.supplierSellContract?.timesheets ?? []).map((ts) => ({ ts, narrow: false })),
+          ...bc.sellLinks.flatMap((l) =>
+            l.sellContract.timesheets.map((ts) => ({ ts, narrow: true, after: bc.overtimeAfterHours ?? l.sellContract.overtimeAfterHours }))
+          ),
+          ...(bc.supplierSellContract?.timesheets ?? []).map((ts) => ({
+            ts, narrow: false, after: bc.overtimeAfterHours ?? bc.supplierSellContract!.overtimeAfterHours,
+          })),
         ]
+        const method = methodFor(bc).method
 
         // A run before 2026-09-29 recorded a total and not which hours,
         // and it paid every approved hour on the contract. What it
@@ -191,11 +220,13 @@ export async function POST(request: NextRequest) {
         for (const cand of bc.candidates) {
           const mine = sheets
             .filter((x) => x.ts.personId === cand.personId)
-            .map(({ ts, narrow }) => {
+            .map(({ ts, narrow, after }) => {
               const all = (ts.days as Record<string, number>) ?? {}
               const days = narrow && Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
               return {
                 id: ts.id,
+                after,
+                leaveDays: (ts.leaveDays as Record<string, number>) ?? {},
                 periodStart: ts.periodStart,
                 periodEnd: ts.periodEnd,
                 days,
@@ -230,6 +261,9 @@ export async function POST(request: NextRequest) {
               currency: bc.payCurrency,
               cyclesCompleted: 0,
               rates: null,
+              overtimeHours: 0,
+              premiumCents: 0,
+              overtime: null,
               refused:
                 `A payroll run on ${unrecorded} paid ${cand.person.name} without recording which hours it ` +
                 `covered, so Etyme cannot tell what is still owed. Settle this contract by hand before ` +
@@ -244,6 +278,21 @@ export async function POST(request: NextRequest) {
           // anything an earlier run already paid.
           const lines: PaidLine[] = []
           let alreadyPaid = 0
+          let premiumExact = 0
+          const said: string[] = []
+          const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
+          const wageLine = {
+            personName: cand.person.name,
+            contractType: bc.contractType,
+            // Ours to pay as a wage only where nobody sits between us and
+            // the worker.
+            weAreTheEmployer: !bc.vendorCompanyId && !bc.supplierSellContractId,
+            payModel: bc.payModel,
+            rule: (row?.wageRule as WageRuleName) ?? 'US_FLSA',
+            assertion: assertionOf(row),
+            contractPremiumBps: bc.overtimeAfterHours != null ? bc.overtimeMultiplierBps : null,
+            employerName: bc.company?.name ?? null,
+          }
           if (payPeriod) {
             for (const t of mine) {
               const share = hoursInPeriod(
@@ -269,12 +318,52 @@ export async function POST(request: NextRequest) {
                   lines.push({ personId: cand.personId, timesheetId: t.id, day: d.day, hours: left, rateCents: d.rateCents })
                 }
               }
+
+              // ── The premium on the hours over the line ──────────────
+              //
+              // Priced on the whole week — the regular rate is a fact
+              // about the week, whichever period its days fall in — and
+              // paid on the days in this period that carry it, less any
+              // premium an earlier run already paid on them.
+              const weeks = sheetOvertime({
+                days: t.days,
+                leaveDays: t.leaveDays,
+                afterHours: t.after ?? null,
+                contractRateCents: cand.payRate,
+                periods,
+                method,
+                line: wageLine,
+              })
+              const inPeriod = new Set(priced.days.map((d) => d.day))
+              const note = overtimeSaysFor(weeks, inPeriod)
+              if (note) said.push(note)
+              for (const [day, p] of premiumByDay(weeks, inPeriod)) {
+                const key = paidKey(bc.id, cand.personId, t.id, day)
+                const unpaid = Math.round((p.hours - (book.premiumHours.get(key) ?? 0)) * 100) / 100
+                if (unpaid <= 0 || p.hours <= 0) continue
+                const cents = (p.premiumCents * unpaid) / p.hours
+                premiumExact += cents
+                const line = lines.find((l) => l.timesheetId === t.id && l.day === day)
+                if (line) {
+                  line.overtimeHours = unpaid
+                  line.premiumCents = cents
+                } else {
+                  lines.push({
+                    personId: cand.personId, timesheetId: t.id, day, hours: 0, rateCents: p.rateCents,
+                    overtimeHours: unpaid, premiumCents: cents,
+                  })
+                }
+              }
             }
           }
 
           const byRate = new Map<number, number>()
           for (const l of lines) byRate.set(l.rateCents, (byRate.get(l.rateCents) ?? 0) + l.hours)
-          const grossPay = [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(Math.round(h * 100) / 100 * r), 0)
+          // Straight time rounded once per rate, as before; the premium
+          // rounded once for the row.
+          const premiumCents = Math.round(premiumExact)
+          const grossPay =
+            [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(Math.round(h * 100) / 100 * r), 0) + premiumCents
           const totalHours = Math.round(lines.reduce((n, l) => n + l.hours, 0) * 100) / 100
 
           processed.push({
@@ -293,6 +382,9 @@ export async function POST(request: NextRequest) {
                     .map(([r, h]) => `${Math.round(h * 100) / 100} hours at ${rate(r, bc.payCurrency)}`)
                     .join(' and ')}.`
                 : null,
+            overtimeHours: Math.round(lines.reduce((n, l) => n + (l.overtimeHours ?? 0), 0) * 100) / 100,
+            premiumCents,
+            overtime: said.length ? said.join(' ') : null,
             refused: payPeriod ? null : `No accepted hours for ${cand.person.name}, so there is no period to pay.`,
             paid: lines,
           })

@@ -306,15 +306,49 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
     expect(mine[0].overtimeCents).toBe(Math.round(5 * 7_000 * 1.5))
   })
 
-  it.skip(
-    'TODO, waiting on the founder: overtime in a week paid at two rates uses a regular rate weighted across both (29 CFR §778.115), not the rate on the first day',
-    () => {
-      // A 45-hour week with the rise on its Wednesday: which of $66 and
-      // $70 the five overtime hours are "at" is the open decision. Until
-      // it is made, the file pays ordinary hours by the day and prices
-      // the premium on the week's opening rate, with a note saying so.
+  it('overtime in a week paid at two rates uses a regular rate weighted across both (29 CFR §778.115), not the rate on the first day', async () => {
+    // The week of the rise made forty-five hours: a thirteen-hour Friday.
+    // 16 hours at $66 and 29 at $70 is $3,086 straight time, a regular
+    // rate of $68.58, and a premium of $171.44 on the five over the line.
+    const ts = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: sellId, periodStart: d('2026-06-29') } })
+    const before = { days: ts.days, totalHours: ts.totalHours }
+    const long = { ...(ts.days as Record<string, number>), '2026-07-03': 13 }
+    await prisma.timesheet.update({ where: { id: ts.id }, data: { days: long, totalHours: 45 } })
+    await prisma.workAssertion.updateMany({ where: { timesheetId: ts.id }, data: { hours: 45 } })
+    try {
+      // The file: the premium on the $70 line, where the overtime was worked.
+      const f = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-06-29&to=2026-07-03&provider=GENERIC')
+      const mine = f.body.data.lines.filter((l: any) => l.personName === 'Priya Venkataraman')
+      expect(mine.map((l: any) => [l.rateCents, l.hours, l.overtimeHours, l.regularCents, l.overtimeCents])).toEqual([
+        [6_600, 16, 0, 16 * 6_600, 0],
+        [7_000, 24, 5, 24 * 7_000, 5 * 7_000 + 17_144],
+      ])
+      expect(mine.reduce((n: number, l: any) => n + l.totalCents, 0)).toBe(325_744)
+
+      // The run: June's run paid Monday and Tuesday; this one pays the
+      // Wednesday to Friday at $70 and the premium on the regular rate.
+      const r = await call(owner, runPayroll, 'POST', '/api/payroll/run', {
+        buyContractIds: [buyId], action: 'calculate', period: { start: '2026-06-29', end: '2026-07-03' },
+      })
+      const row = r.body.data.details.find((x: any) => x.buyContractId === buyId)
+      expect(row.alreadyPaidHours).toBe(16)
+      expect(row.premiumCents).toBe(17_144)
+      expect(row.grossPay).toBe(29 * 7_000 + 17_144)
+      expect(row.overtime).toContain('regular rate')
+
+      // The screen: July carries the premium on both long weeks — $171.44
+      // on the week of the rise and $175.00 on the week of 6 July, all at
+      // $70 — rounded once for the row.
+      const s = await call(owner, payroll, 'GET', `/api/payroll?period=2026-07&companyId=${firmId}`)
+      const item = s.body.data.payItems.find((x: any) => x.buyContractId === buyId)
+      expect(item.overtimeHours).toBe(10)
+      expect(item.premiumCents).toBe(Math.round(17_144.444 + 17_500))
+      expect(item.grossPay).toBe(194 * 7_000 + item.premiumCents)
+    } finally {
+      await prisma.timesheet.update({ where: { id: ts.id }, data: before as any })
+      await prisma.workAssertion.updateMany({ where: { timesheetId: ts.id }, data: { hours: 40 } })
     }
-  )
+  })
 
   it("shows Priya the $70 she is on now, on her own page", async () => {
     const r = await call(worker, myWork, 'GET', '/api/me/work')

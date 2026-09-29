@@ -51,6 +51,15 @@ import {
   type WageRuleName,
   type WeekOfHours,
 } from '@/lib/worker-classification'
+import {
+  DEFAULT_OVERTIME_METHOD,
+  weekOvertime,
+  weekOvertimeSays,
+  cutOrdinary,
+  type DayHours,
+  type OvertimeMethod,
+} from '@/lib/money/overtime-method'
+import { premiumTerms } from '@/lib/money/sheet-overtime'
 
 export type Provider = 'ADP' | 'PAYCHEX' | 'GENERIC'
 
@@ -140,13 +149,17 @@ export interface WeekToPay extends WeekOfHours {
    * The week's ordinary and leave hours split at a rate change, earliest
    * first. Present only where the week crossed one.
    *
-   * Overtime in such a week is NOT decided here. US law prices it at a
-   * regular rate weighted across the two rates (29 CFR §778.115), and
-   * which hours are the overtime ones stops mattering only once that
-   * weighting is chosen. Until the founder decides it, the premium is
-   * priced as it always was, on one rate, and the line says so.
+   * Overtime in such a week is priced from `worked`, below.
    */
   rates?: Array<{ rateCents: number; hours: number }> | null
+  /**
+   * Every hour WORKED this week — never paid leave — each day at the
+   * rate in force that day, earliest first. Where these carry more than
+   * one rate and the week went over the line, its overtime is priced by
+   * the line's method (lib/money/overtime-method): the US regular rate
+   * unless the paying firm chose otherwise.
+   */
+  worked?: DayHours[] | null
 }
 
 export interface SheetToPay {
@@ -179,6 +192,12 @@ export interface SheetToPay {
    * stands: the absence of a term is not a waiver of one.
    */
   contractPremiumBps?: number | null
+  /**
+   * How overtime in a week paid at two rates is priced. Absent is the US
+   * regular rate — the default, and today the only answer, because no
+   * buy line can yet record a different choice with who made it.
+   */
+  overtimeMethod?: OvertimeMethod | null
   payModel: string
   paidOnSalaryBasis: boolean
   rule: WageRuleName
@@ -321,26 +340,39 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
           'promise an employer made.'
       )
     }
-    const crossed = weeks.filter((w) => (w.rates?.length ?? 0) > 1)
-    if (crossed.some((w) => w.overHours > 0)) {
-      notes.push(
-        `The pay rate changed inside a week that went over the line (${crossed
-          .filter((w) => w.overHours > 0)
-          .map((w) => `week of ${w.weekOf}`)
-          .join(', ')}). Ordinary hours are paid by the day at each rate; the overtime premium is ` +
-          'priced on the rate in force at the start of that week, because how a regular rate is ' +
-          'weighted across two rates has not been decided. Treat it as a floor.'
-      )
-    }
+    // ── A week paid at two rates that went over the line ────────────
+    //
+    // Its overtime is priced by the line's method, on every hour worked
+    // that week: straight time for each hour at its own day's rate, plus
+    // the premium on the regular rate (or on what the firm chose, never
+    // below what the law requires on the regular rate). Exact until the
+    // line is written, then rounded once.
+    const method = s.overtimeMethod ?? DEFAULT_OVERTIME_METHOD
+    const twoRates = weeks.map((w, i) => {
+      const worked = (w.worked ?? []).filter((d) => d.hours > 0)
+      if (w.overHours <= 0 || new Set(worked.map((d) => d.rateCents)).size < 2) return null
+      const terms = premiumTerms(verdicts[i], bps)
+      const ot = weekOvertime({
+        worked,
+        overHours: w.overHours,
+        multiplierBps: terms.multiplierBps,
+        floorBps: terms.floorBps,
+        method,
+      })
+      notes.push(weekOvertimeSays(w.weekOf, ot, s.currency))
+      return ot
+    })
 
     // ── One line per rate ───────────────────────────────────────────
     //
     // A provider file multiplies hours by a rate, so hours paid at two
     // rates are two lines. Ordinary hours land on the rate they were
-    // worked at; a week's overtime lands on the rate it was priced at.
-    const byRate = new Map<number, { hours: number; overtimeHours: number; regularCents: number; overtimeCents: number; uncovered: number }>()
+    // worked at; a week's overtime lands on the rate it was priced at,
+    // and in a week paid at two rates on the rate of the day each
+    // overtime hour was worked.
+    const byRate = new Map<number, { hours: number; overtimeHours: number; regularCents: number; overtimeExact: number; uncovered: number }>()
     const at = (r: number) => {
-      if (!byRate.has(r)) byRate.set(r, { hours: 0, overtimeHours: 0, regularCents: 0, overtimeCents: 0, uncovered: 0 })
+      if (!byRate.has(r)) byRate.set(r, { hours: 0, overtimeHours: 0, regularCents: 0, overtimeExact: 0, uncovered: 0 })
       return byRate.get(r)!
     }
     weeks.forEach((w, i) => {
@@ -356,14 +388,25 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
         b.hours = round2(b.hours + w.regularHours + w.leaveHours)
         b.regularCents += verdicts[i].regularCents ?? 0
       }
-      const b = at(base)
-      b.overtimeHours = round2(b.overtimeHours + w.overHours)
-      b.overtimeCents += overtimeOf(w, i)
-      b.uncovered += verdicts[i].uncoveredPremiumCents ?? 0
+      const ot = twoRates[i]
+      if (ot) {
+        for (const d of ot.overDays) {
+          const o = at(d.rateCents)
+          o.overtimeHours = round2(o.overtimeHours + d.hours)
+          o.overtimeExact += d.hours * d.rateCents + d.premiumCents
+        }
+      } else {
+        const b = at(base)
+        b.overtimeHours = round2(b.overtimeHours + w.overHours)
+        b.overtimeExact += overtimeOf(w, i)
+      }
+      at(base).uncovered += verdicts[i].uncoveredPremiumCents ?? 0
     })
 
     for (const [rateCents, b] of [...byRate.entries()].sort((a, b) => a[0] - b[0])) {
       if (b.hours + b.overtimeHours <= 0) continue
+      // Rounded once, here, per line.
+      const overtimeCents = Math.round(b.overtimeExact)
       lines.push({
         payrollId: s.payrollId,
         personName: s.personName,
@@ -374,8 +417,8 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
         overtimeHours: b.overtimeHours,
         rateCents,
         regularCents: b.regularCents,
-        overtimeCents: b.overtimeCents,
-        totalCents: b.regularCents + b.overtimeCents,
+        overtimeCents,
+        totalCents: b.regularCents + overtimeCents,
         uncoveredPremiumCents: b.uncovered,
         currency: s.currency,
         costCode: s.costCode,
@@ -437,6 +480,9 @@ function payable(s: SheetToPay): WeekToPay[] {
       }
       weeks[i].rates = rates.filter((r) => r.hours > 0)
     }
+    // And off the worked days the week's overtime is priced from, at the
+    // same place: the ordinary hours, never the ones over the line.
+    if (weeks[i].worked && off > 0) weeks[i].worked = cutOrdinary(weeks[i].worked!, weeks[i].overHours, off)
     cut = round2(cut - off)
   }
 
