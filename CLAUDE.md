@@ -1284,6 +1284,15 @@ Three rules follow:
   why. A raise dated in the past has its back pay worked out and put
   forward as a one-off payment for a desk to approve, never paid
   silently. The worker is told when a new rate is approved.
+  Then, the same day (founder: "yes to all"): the firm's choice of
+  overtime method is stored on the pay line with who chose it and why;
+  a non-exempt US worker is owed overtime after 40 hours a week even
+  where the contract sets no line, because the law sets it; and when an
+  employer accepts fewer hours than were worked, the cut comes off the
+  worker's **ordinary hours first**, so the worker keeps their overtime
+  — the opposite of the billing rule, on purpose, because on the bill
+  the firm is protecting its client and on pay it is protecting its
+  worker.
 
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
