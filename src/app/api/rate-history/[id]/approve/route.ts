@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { isConsultantSeat } from '@/lib/seat'
-import { lineFor } from '@/lib/rate-line'
+import { lineFor, settleApproved, payPeriodsReached } from '@/lib/rate-line'
 import { assessRateChange } from '@/lib/contract-rate'
 
 /**
@@ -159,29 +159,47 @@ export async function POST(
   }
 
   const now = new Date()
-  const updated = await prisma.rateHistory.update({
-    where: { id },
-    data: {
-      approvalState: action === 'approve' ? 'APPROVED' : 'REJECTED',
-      approvedById: caller.person.id,
-      approvedAt: now,
-      // The decision is appended rather than replacing why it was proposed.
-      reason: reason
-        ? `${amendment.reason ?? ''}${amendment.reason ? ' · ' : ''}${action === 'approve' ? 'Approved' : 'Rejected'}: ${String(reason).trim()}`
-        : amendment.reason,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.rateHistory.update({
+      where: { id },
+      data: {
+        approvalState: action === 'approve' ? 'APPROVED' : 'REJECTED',
+        approvedById: caller.person.id,
+        approvedAt: now,
+        // The decision is appended rather than replacing why it was proposed.
+        reason: reason
+          ? `${amendment.reason ?? ''}${amendment.reason ? ' · ' : ''}${action === 'approve' ? 'Approved' : 'Rejected'}: ${String(reason).trim()}`
+          : amendment.reason,
+      },
+    })
+    // An approved change takes its place in the line's history: what was
+    // in force closes the day before it, and where nothing was written
+    // down, the line's own rate becomes the opening row. The line's
+    // recorded rate is never overwritten (lib/rate-line).
+    if (action === 'approve') await settleApproved(tx, row, line, caller.person.id)
+    return row
   })
+
+  const onBuy = amendment.contractType.toUpperCase() === 'BUY'
 
   // Which invoices this decision has just changed the answer for. An
   // approval that silently makes three held invoices payable is worth
-  // saying out loud.
-  const affected = await prisma.invoiceLine.count({
-    where: {
-      sellContractId: amendment.contractId,
-      timesheet: { periodStart: { gte: amendment.fromDate } },
-      invoice: { status: { notIn: ['PAID', 'VOID', 'CANCELLED'] } },
-    },
-  })
+  // saying out loud. On a pay line there are no invoice lines to count:
+  // what a pay change reaches is pay periods, and whether any of them
+  // were already paid at the old rate.
+  const affected = onBuy
+    ? 0
+    : await prisma.invoiceLine.count({
+        where: {
+          sellContractId: amendment.contractId,
+          timesheet: { periodStart: { gte: amendment.fromDate } },
+          invoice: { status: { notIn: ['PAID', 'VOID', 'CANCELLED'] } },
+        },
+      })
+  const reached = onBuy && action === 'approve'
+    ? await payPeriodsReached(amendment.contractId, amendment.fromDate, amendment.toDate)
+    : []
+  const paidAlready = reached.filter((p) => p.paid)
 
   await prisma.automationLog.create({
     data: {
@@ -196,6 +214,7 @@ export async function POST(
         toCents: amendment.rate,
         effectiveFrom: amendment.fromDate.toISOString(),
         invoiceLinesAffected: affected,
+        payPeriodsAffected: reached.map((p) => p.label),
       },
       // An approval can be withdrawn while nothing has been paid against it.
       reversible: action === 'approve',
@@ -226,8 +245,20 @@ export async function POST(
       effectiveFrom: amendment.fromDate.toISOString().slice(0, 10),
       decidedBy: caller.person.name,
       invoiceLinesAffected: affected,
+      // On a pay line: every pay period the change reaches with hours in
+      // it, and whether a run already paid it at the old rate.
+      payPeriodsAffected: onBuy ? reached : null,
       message: action === 'approve'
-        ? affected > 0
+        ? onBuy
+          ? reached.length === 0
+            ? `Approved. ${rate(amendment.rate, currency)} is paid from ${amendment.fromDate.toISOString().slice(0, 10)}. No hours worked since then yet.`
+            : `Approved. ${rate(amendment.rate, currency)} is paid from ${amendment.fromDate.toISOString().slice(0, 10)}, which reaches ` +
+              `${reached.length} pay period${reached.length === 1 ? '' : 's'} already worked: ${reached.map((p) => p.label).join(', ')}.` +
+              (paidAlready.length > 0
+                ? ` ${paidAlready.map((p) => p.label).join(', ')} ${paidAlready.length === 1 ? 'was' : 'were'} already paid at the old rate, ` +
+                  `and the difference is not paid by Etyme yet — settle it with your payroll provider.`
+                : ' None of them has been paid yet, so each is paid at the new rate when it runs.')
+          : affected > 0
           ? `Approved. ${rate(amendment.rate, currency)} applies from ${amendment.fromDate.toISOString().slice(0, 10)}, and ${affected} unpaid invoice ${affected === 1 ? 'line now bills' : 'lines now bill'} at it.`
           : `Approved. ${rate(amendment.rate, currency)} applies from ${amendment.fromDate.toISOString().slice(0, 10)}.`
         : `Rejected. The contracted rate is unchanged, so invoices billing the new rate will keep failing the price check.`,

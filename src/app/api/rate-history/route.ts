@@ -3,8 +3,8 @@ import { DEFAULT_CURRENCY } from '@/lib/money-display'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
-import { assessRateChange } from '@/lib/contract-rate'
-import { lineFor } from '@/lib/rate-line'
+import { assessRateChange, rateInForce, ratePeriods } from '@/lib/contract-rate'
+import { lineFor, settleApproved } from '@/lib/rate-line'
 import { prisma } from '@/lib/db'
 
 /**
@@ -441,88 +441,89 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Check for overlapping date ranges
-  // LEGACY_RULES.md §2.4: :to_date >= from_date and to_date >= :from_date
-  const overlapWhere: any = {
-    contractType: contractType.toUpperCase(),
-    contractId,
-    fromDate: { lte: to ?? new Date('9999-12-31') },
-  }
-  if (to) {
-    overlapWhere.OR = [
-      { toDate: null },           // open-ended rates always overlap
-      { toDate: { gte: from } },  // existing toDate >= new fromDate
-    ]
-  } else {
-    // New rate is open-ended — overlaps anything starting before our fromDate
-    overlapWhere.OR = [
-      { toDate: null },
-      { toDate: { gte: from } },
-    ]
-  }
-
-  const overlap = await prisma.rateHistory.findFirst({
-    where: overlapWhere,
+  // ── What this change collides with ─────────────────────────────────
+  //
+  // LEGACY_RULES.md §2.4 forbade overlapping ranges, and this read it as
+  // "any row, open or not, that reaches the new date" — so the first
+  // change on a line left it open-ended and every change after it was
+  // refused as an overlap, forever. And it counted rejected rows, which
+  // are not a rate at all.
+  //
+  // An open row that started earlier is not a collision: it is the rate
+  // this change replaces, and approval closes it the day before this one
+  // starts (lib/rate-line). What does collide is a change already on the
+  // books from a day inside the new one's range, or a fixed-term rate
+  // that covers the day this one starts. Rejected rows collide with
+  // nothing.
+  const type = contractType.toUpperCase()
+  const live = await prisma.rateHistory.findMany({
+    where: { contractType: type, contractId, approvalState: { not: 'REJECTED' } },
+    orderBy: { fromDate: 'asc' },
   })
+  const overlap = live.find(
+    (r) =>
+      (r.fromDate >= from && (to === null || r.fromDate <= to)) ||
+      (r.fromDate < from && r.toDate !== null && r.toDate >= from)
+  )
 
   if (overlap) {
     return NextResponse.json(
       {
         error: {
           code: 'OVERLAP',
-          message: `Rate period overlaps with existing rate from ${overlap.fromDate.toISOString().slice(0, 10)}`,
+          message:
+            overlap.fromDate >= from
+              ? `A rate from ${overlap.fromDate.toISOString().slice(0, 10)} is already on this line. ` +
+                `Change or reject that one first, or start this one after it.`
+              : `A rate running ${overlap.fromDate.toISOString().slice(0, 10)} to ` +
+                `${overlap.toDate!.toISOString().slice(0, 10)} already covers that day. Start this one after it.`,
         },
       },
       { status: 409 }
     )
   }
 
-  // Get previous rate for audit trail
-  const previousEntry = await prisma.rateHistory.findFirst({
-    where: {
-      contractType: contractType.toUpperCase(),
-      contractId,
-    },
-    orderBy: { fromDate: 'desc' },
-  })
+  // ── The rate this replaces ─────────────────────────────────────────
+  //
+  // The rate in force the day this change starts, from approved rows
+  // only, and the line's own recorded rate where no row covers that day.
+  // A pay line used to compare against zero — every pay change read as
+  // a 100% rise, and nothing recorded what it replaced — because only a
+  // sell line's rate was looked up. A proposal sitting unapproved is not
+  // the current price, so it is not what this replaces either.
+  const contractCurrency = line.currency ?? DEFAULT_CURRENCY
+  const fromCents = rateInForce(
+    line.recordedRateCents,
+    ratePeriods(live.filter((r) => r.approvalState === 'APPROVED')),
+    from
+  ).rateCents
 
   // A rate change is an amendment to the agreement, so its size decides
   // whether it takes effect on its own or waits for somebody.
-  //
-  // The previous rate to compare against is the one in force, not merely
-  // the newest row — a proposal sitting unapproved is not the current price.
-  // The contract's rate and the currency it is in. A sentence that says
-  // "$145/hr" about a contract billed in rupees is a wrong number with a
-  // symbol in front of it, and the symbol is the part somebody believes.
-  const sell = contractType.toUpperCase() === 'SELL'
-    ? await prisma.sellContract.findUnique({ where: { id: contractId }, select: { billRate: true, billCurrency: true } })
-    : null
-  const contractRate = sell?.billRate ?? 0
-  const contractCurrency = sell?.billCurrency ?? DEFAULT_CURRENCY
-  const priorApproved = await prisma.rateHistory.findFirst({
-    where: { contractType: contractType.toUpperCase(), contractId, approvalState: 'APPROVED' },
-    orderBy: { fromDate: 'desc' },
-  })
-  const fromCents = priorApproved?.rate ?? contractRate
-
   const assessment = assessRateChange(fromCents, rate, contractCurrency)
   const approvalState = assessment.needsApproval ? 'PROPOSED' : 'APPROVED'
 
-  const entry = await prisma.rateHistory.create({
-    data: {
-      approvalState,
-      approvedById: assessment.needsApproval ? null : caller.person.id,
-      approvedAt: assessment.needsApproval ? null : new Date(),
-      contractType: contractType.toUpperCase(),
-      contractId,
-      rate,
-      rateType: rateType.toUpperCase(),
-      fromDate: from,
-      toDate: to,
-      reason: reason ?? null,
-      changedById: caller.person.id,
-      previousRate: previousEntry?.rate ?? null,
-    },
+  const entry = await prisma.$transaction(async (tx) => {
+    const row = await tx.rateHistory.create({
+      data: {
+        approvalState,
+        approvedById: assessment.needsApproval ? null : caller.person.id,
+        approvedAt: assessment.needsApproval ? null : new Date(),
+        contractType: type,
+        contractId,
+        rate,
+        rateType: rateType.toUpperCase(),
+        fromDate: from,
+        toDate: to,
+        reason: reason ?? null,
+        changedById: caller.person.id,
+        previousRate: fromCents,
+      },
+    })
+    // A change small enough to clear on its own takes its place in the
+    // history now, exactly as an approved one does.
+    if (approvalState === 'APPROVED') await settleApproved(tx, row, line, caller.person.id)
+    return row
   })
 
   return NextResponse.json(
@@ -530,4 +531,5 @@ export async function POST(request: NextRequest) {
     { status: 201 }
   )
 }
+
 

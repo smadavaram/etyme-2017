@@ -213,6 +213,38 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
     const a = await call(second, decideRate, 'POST', `/api/rate-history/${rise}/approve`, { action: 'approve', reason: 'agreed' }, { id: rise })
     expect(a.status).toBe(200)
     expect(a.body.data.approvalState).toBe('APPROVED')
+    approval = a.body.data
+  })
+
+  // ── How the change sits in the line's history ──────────────────────
+
+  let approval: any
+
+  it('records $66 as the rate the rise replaces, not zero', async () => {
+    const row = await prisma.rateHistory.findUniqueOrThrow({ where: { id: rise } })
+    expect(row.previousRate).toBe(6_600)
+  })
+
+  it('writes $66 down as the opening rate, from 2 February to Tuesday 30 June, when the rise is approved', async () => {
+    const opening = await prisma.rateHistory.findFirstOrThrow({
+      where: { contractType: 'BUY', contractId: buyId, id: { not: rise } },
+    })
+    expect(opening.rate).toBe(6_600)
+    expect(opening.approvalState).toBe('APPROVED')
+    expect(iso(opening.fromDate)).toBe('2026-02-02')
+    expect(iso(opening.toDate!)).toBe('2026-06-30')
+  })
+
+  it("never overwrites the line's own $66, so every day before the rise still reads it", async () => {
+    const line = await prisma.buyContractCandidate.findFirstOrThrow({ where: { buyContractId: buyId } })
+    expect(line.payRate).toBe(6_600)
+  })
+
+  it('reports the pay periods the rise reaches, July and August, rather than invoice lines, and none of them paid yet', () => {
+    expect(approval.invoiceLinesAffected).toBe(0)
+    expect(approval.payPeriodsAffected.map((p: any) => p.label)).toEqual(['July 2026', 'August 2026'])
+    expect(approval.payPeriodsAffected.every((p: any) => p.paid === false)).toBe(true)
+    expect(approval.message).toContain('July 2026')
   })
 
   // ── Payroll, by the day ────────────────────────────────────────────
@@ -336,5 +368,42 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
       where: { timesheetId: ts.id, role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
     })
     expect(row.rateCents).toBe(7_000)
+  })
+
+  // ── The next change, and the ones that collide ─────────────────────
+
+  it('refuses a change starting inside a stretch already on the books, and says which', async () => {
+    const r = await call(owner, proposeRate, 'POST', '/api/rate-history', {
+      contractType: 'BUY', contractId: buyId, rate: 6_800, fromDate: '2026-06-15',
+    })
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).toContain('already')
+  })
+
+  it('takes a second change from 1 October while the first is still open, and closes the first on 30 September', async () => {
+    // $70 to $72 is under five per cent, so it clears on its own.
+    const r = await call(owner, proposeRate, 'POST', '/api/rate-history', {
+      contractType: 'BUY', contractId: buyId, rate: 7_200, fromDate: '2026-10-01', reason: 'Annual uplift',
+    })
+    expect(r.status).toBe(201)
+    const second = await prisma.rateHistory.findUniqueOrThrow({ where: { id: r.body.data.rateHistory.id } })
+    expect(second.approvalState).toBe('APPROVED')
+    expect(second.previousRate).toBe(7_000)
+    const first = await prisma.rateHistory.findUniqueOrThrow({ where: { id: rise } })
+    expect(iso(first.toDate!)).toBe('2026-09-30')
+  })
+
+  it('lets a change through where the only thing in its way was a change somebody rejected', async () => {
+    const p = await call(owner, proposeRate, 'POST', '/api/rate-history', {
+      contractType: 'BUY', contractId: buyId, rate: 8_000, fromDate: '2026-11-02',
+    })
+    expect(p.status).toBe(201)
+    const id = p.body.data.rateHistory.id
+    const no = await call(second, decideRate, 'POST', `/api/rate-history/${id}/approve`, { action: 'reject', reason: 'Not this year' }, { id })
+    expect(no.body.data.approvalState).toBe('REJECTED')
+    const again = await call(owner, proposeRate, 'POST', '/api/rate-history', {
+      contractType: 'BUY', contractId: buyId, rate: 7_500, fromDate: '2026-11-02',
+    })
+    expect(again.status).toBe(201)
   })
 })
