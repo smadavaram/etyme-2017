@@ -144,16 +144,19 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(run.body.data.proposed.excluded.find((e: any) => e.billId === old.id)).toMatchObject({ reason: 'WEEK_NOT_ACCEPTED', says })
   })
 
-  it('Northbend signs Helena’s week of forty hours', async () => {
+  it('Northbend signs thirty-eight of Helena’s forty hours, with its reason', async () => {
     as(NIKE)
-    const r = await sign(s.week)
+    const r = await sign(s.week, { acceptedHours: 38, note: 'Two hours were a Friday training session we do not pay for.' })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const mine = await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: s.week, companyId: s.northbend, state: 'LIVE' } })
+    expect(mine.role).toBe('CLIENT_APPROVAL')
+    expect(Number(mine.hours)).toBe(38)
     const row = await prisma.timesheet.findUniqueOrThrow({ where: { id: s.week } })
     // Signed at the top and not below: the timesheet is not "approved".
     expect(row.status).toBe('SUBMITTED')
   })
 
-  it('Computer Systems bills Northbend for all forty hours on Northbend’s signature, before Computer Systems or CloudEPA has accepted anything', async () => {
+  it('Northbend signs thirty-eight of forty, and Computer Systems bills Northbend for thirty-eight, before Computer Systems or CloudEPA has accepted anything', async () => {
     expect(await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: { in: [s.cs, s.cloudepa] } } })).toBe(0)
 
     as(CS)
@@ -161,9 +164,11 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect(r.body.data.heldBack.weeks).toEqual([])
     const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: r.body.data.invoice.id, timesheetId: s.week } })
-    expect(Number(line.hours)).toBe(40)
+    expect(Number(line.hours)).toBe(38)
     expect(line.rateCents).toBe(s.top.billRate)
+    expect(line.amountCents).toBe(Math.round(38 * s.top.billRate))
     s.topInvoice = r.body.data.invoice.id
+    s.topLine = line.id
   })
 
   it('Computer Systems’ bill to Northbend clears the receipt and hours checks on Northbend’s signature alone, not held for CloudEPA two rungs below', async () => {
@@ -171,6 +176,22 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(check(m, 'RECEIPT').outcome, JSON.stringify(m!.checks)).toBe('PASS')
     expect(check(m, 'QUANTITY').outcome).toBe('PASS')
     expect(check(m, 'EXTENSION').outcome).toBe('PASS')
+    expect(check(m, 'HEADER_TOTAL').outcome).toBe('PASS')
+  })
+
+  it('a Computer Systems bill to Northbend for all forty hours fails the hours check against the thirty-eight Northbend signed', async () => {
+    const forty = 40 * s.top.billRate
+    const before = await prisma.invoiceLine.findUniqueOrThrow({ where: { id: s.topLine } })
+    const header = await prisma.invoice.findUniqueOrThrow({ where: { id: s.topInvoice } })
+    await prisma.invoiceLine.update({ where: { id: s.topLine }, data: { hours: 40, amountCents: forty } })
+    await prisma.invoice.update({ where: { id: s.topInvoice }, data: { total: forty / 100 } })
+
+    const m = await matchInvoice(s.topInvoice)
+    expect(check(m, 'QUANTITY')).toMatchObject({ outcome: 'FAIL', reason: 'Helena Marsh: billed 40h, approved 38h' })
+
+    // Put back as generated, so nothing later in the walk reads the edit.
+    await prisma.invoiceLine.update({ where: { id: s.topLine }, data: { hours: before.hours, amountCents: before.amountCents } })
+    await prisma.invoice.update({ where: { id: s.topInvoice }, data: { total: header.total } })
   })
 
   it('CloudEPA cannot bill Computer Systems for Helena’s week until Computer Systems has accepted it, and is told so in a sentence', async () => {

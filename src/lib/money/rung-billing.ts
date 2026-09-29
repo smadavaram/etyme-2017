@@ -27,10 +27,13 @@
  * Systems' contract, Computer Systems on CloudEPA's. Which of the
  * payer's signatures counts is `payersRole`, the same answer the
  * invoice-receipt match uses — CLIENT_APPROVAL where the payer is the
- * end client, PASS_THROUGH where it is a firm in the middle. A payer
- * whose signature is the client's is the top of the chain, or a direct
- * placement, and bills exactly as it always has: the client's signed
- * week, priced from the days.
+ * end client, PASS_THROUGH where it is a firm in the middle.
+ *
+ * **The top rung is covered too** (ruling relayed 2026-09-29): for the
+ * top of a chain, and for a direct placement, the firm above is the
+ * client. When Northbend signs 38 of 40, Computer Systems bills
+ * Northbend for 38. The same refusals apply there as on every other
+ * rung.
  *
  * ── What is refused rather than guessed ──────────────────────────────
  *
@@ -88,8 +91,8 @@ export function payersSignatures(payerCompanyId: string, week: RungWeek): Signat
 
 /**
  * True where the payer is the end client: the top of a chain, or a
- * direct placement. That rung bills the client's signed week and nothing
- * about it changed on 2026-09-28.
+ * direct placement. Priced by the same rule as every other rung — the
+ * client is the firm above it.
  */
 export function billsTheClient(payerCompanyId: string, week: RungWeek): boolean {
   return payersRole(payerCompanyId, { sellContract: week.hoursContract }) === 'CLIENT_APPROVAL'
@@ -128,9 +131,6 @@ export function whatTheRungBills(i: {
   afterHours: number | null
 }): RungPricing {
   const { week, payerName } = i
-
-  // The top of the chain, and every direct placement: unchanged.
-  if (billsTheClient(i.payerCompanyId, week)) return { kind: 'AS_WORKED' }
 
   const whose = `${week.personName}’s week of ${weekWord(week.periodStart)}`
   const mine = payersSignatures(i.payerCompanyId, week)
@@ -203,9 +203,9 @@ export function whatTheRungBills(i: {
  * which turns APPROVED only once the employer at the bottom has
  * accepted, and so held every bill upward for the rungs below it.
  *
- * `hours` is what the line is checked against: the hours filed where
- * the payer is the client, as it always was; the payer's accepted hours
- * on a rung below the top. `straight` is true where those hours differ
+ * `hours` is what the line is checked against: the payer's accepted
+ * hours, at every rung — the client's signed hours at the top of a chain
+ * and on a direct placement. `straight` is true where those hours differ
  * from the hours worked, so the line was priced hours × rate with no
  * premium on it.
  */
@@ -215,9 +215,6 @@ export function receiptFor(payerCompanyId: string, week: RungWeek): {
   straight: boolean
 } {
   const mine = payersSignatures(payerCompanyId, week)
-  if (billsTheClient(payerCompanyId, week)) {
-    return { signed: mine.length > 0, hours: week.totalHours, straight: false }
-  }
   if (mine.length !== 1) return { signed: false, hours: week.totalHours, straight: false }
   const accepted = Number(mine[0].hours)
   return { signed: true, hours: accepted, straight: !same(accepted, week.totalHours) }

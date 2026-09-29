@@ -287,9 +287,10 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
   // Systems' bill to Northbend, raised on Northbend's signature, until
   // CloudEPA two rungs below it had signed.
   //
-  // On a rung below the top the hours checked are the payer's accepted
-  // hours: CloudEPA's bill for forty where Computer Systems accepted
-  // thirty-eight fails the hours check.
+  // The hours checked are the payer's accepted hours, at every rung:
+  // CloudEPA's bill for forty where Computer Systems accepted thirty-eight
+  // fails the hours check, and so does Computer Systems' bill for forty
+  // where Northbend signed thirty-eight.
   const receiptOf = (l: (typeof invoice.invoiceLines)[number]) => {
     const ts = l.timesheet!
     return receiptFor(l.sellContract?.clientCompanyId ?? ts.sellContract.clientCompanyId, {

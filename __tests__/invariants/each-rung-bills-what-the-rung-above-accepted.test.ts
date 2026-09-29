@@ -87,14 +87,35 @@ describe('a firm bills only the hours the firm above it accepted', () => {
     })
   })
 
-  it('the top of a chain bills the client’s signed week exactly as it always has, whatever the rungs below accepted', () => {
+  it('the top of a chain bills the week as worked where the client signed every hour, whatever the rungs below accepted', () => {
     expect(csBills(week([NORTHBEND, CS(38)])).kind).toBe('AS_WORKED')
     expect(csBills(week([NORTHBEND])).kind).toBe('AS_WORKED')
   })
 
-  it('a direct placement bills exactly as it always has', () => {
-    const direct = week([NORTHBEND], { hoursContract: { companyId: 'veritan', clientCompanyId: 'northbend', endClientCompanyId: null } })
-    expect(csBills(direct).kind).toBe('AS_WORKED')
+  it('the top rung is covered too: Northbend signs thirty-eight of forty, and Computer Systems bills Northbend for thirty-eight', () => {
+    const r = csBills(week([{ ...NORTHBEND, hours: 38 }]))
+    expect(r).toEqual({
+      kind: 'ACCEPTED',
+      hours: 38,
+      says: 'Northbend Athletic accepted 38 of the 40 hours in Helena Marsh\u2019s week of September 14, so it bills 38.',
+    })
+  })
+
+  it('a direct placement bills the hours the client signed, because the client is the firm above it', () => {
+    const direct = (hours: number) =>
+      week([{ ...NORTHBEND, hours }], { hoursContract: { companyId: 'veritan', clientCompanyId: 'northbend', endClientCompanyId: null } })
+    expect(csBills(direct(40)).kind).toBe('AS_WORKED')
+    const r = csBills(direct(38))
+    expect(r.kind === 'ACCEPTED' && r.hours).toBe(38)
+  })
+
+  it('a week the client has not signed is left off the bill to the client, in the same sentence', () => {
+    expect(csBills(week([CS(40)]))).toEqual({
+      kind: 'WAITING',
+      says:
+        'Northbend Athletic has not accepted Helena Marsh\u2019s week of September 14, so it is not on this bill. ' +
+        'A firm bills only the hours the firm above it accepted; it bills once Northbend Athletic has.',
+    })
   })
 })
 
@@ -123,6 +144,18 @@ describe('where the accepted number cannot be priced without a guess, the week i
     expect(r.kind === 'HELD' && r.says).toMatch(/the week crosses the edge of this bill\. Nothing records which days the difference came off/)
   })
 
+  it('at the top of a chain, a client signing fewer hours of a week over the overtime line, of a week crossing the edge of the bill, or of only some of its days is left off the same way', () => {
+    const over = csBills(week([{ ...NORTHBEND, hours: 43 }], { totalHours: 45 }), { ...STRAIGHT, overtimeHours: 5 })
+    expect(over.kind).toBe('HELD')
+    expect(over.kind === 'HELD' && over.says).toMatch(
+      /^Northbend Athletic accepted 43 of the 45 hours in Helena Marsh\u2019s week of September 14, and the week goes over the overtime line\./
+    )
+    expect(csBills(week([{ ...NORTHBEND, hours: 38 }]), { ...STRAIGHT, partial: true }).kind).toBe('HELD')
+    expect(
+      csBills(week([{ ...NORTHBEND, hours: 24, coversFrom: D('2026-09-14'), coversTo: D('2026-09-16') }])).kind
+    ).toBe('HELD')
+  })
+
   it('an acceptance covering only some of the week’s days is left off rather than guessed at', () => {
     const partOfIt = CS(24, { coversFrom: D('2026-09-14'), coversTo: D('2026-09-16') })
     expect(cloudepaBills(week([NORTHBEND, partOfIt])).kind).toBe('HELD')
@@ -134,6 +167,10 @@ describe('a firm bills upward on the client’s signature', () => {
   it('the receipt behind Computer Systems’ bill to Northbend is Northbend’s signature, before Computer Systems or CloudEPA has accepted anything', () => {
     const r = receiptFor('northbend', week([NORTHBEND]))
     expect(r).toEqual({ signed: true, hours: 40, straight: false })
+  })
+
+  it('Computer Systems’ bill to Northbend is checked against the thirty-eight hours Northbend signed, not the forty filed', () => {
+    expect(receiptFor('northbend', week([{ ...NORTHBEND, hours: 38 }]))).toEqual({ signed: true, hours: 38, straight: true })
   })
 
   it('the receipt behind CloudEPA’s bill to Computer Systems is Computer Systems’ signature and nobody else’s', () => {

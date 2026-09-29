@@ -648,12 +648,12 @@ export async function POST(request: NextRequest) {
     // ── What the firm above accepted ──────────────────────────────────
     //
     // The founder, 2026-09-28: a firm bills only the hours the firm above
-    // it accepted. At the top of a chain, and on every direct placement,
-    // the firm above is the client and its signature is the week this
-    // route already filtered on — nothing below changes. A rung under the
-    // top bills its payer's accepted hours: the days where the payer
-    // accepted what was worked, the accepted number straight where it
-    // accepted less, and nothing, said out loud, where it has not
+    // it accepted. Every rung, the top included: at the top of a chain,
+    // and on every direct placement, the firm above is the client, so
+    // when Northbend signs 38 of 40 the bill to Northbend is for 38. The
+    // payer's accepted hours are billed: the days where it accepted what
+    // was worked, the accepted number straight where it accepted a
+    // different one, and nothing, said out loud, where it has not
     // accepted or where the arithmetic would be a guess.
     const rung = ts.payer
       ? whatTheRungBills({
@@ -1301,10 +1301,8 @@ export async function POST(request: NextRequest) {
         // What was left off, and why. A blank is an answer here: nothing
         // was waiting.
         overtime: { pendingHours, says: pendingSays },
-        // The weeks a rung below the top left off because the firm above
-        // it has not accepted them, or accepted a number nobody has said
-        // how to price. Empty at the top of a chain and on a direct
-        // placement.
+        // The weeks left off because the firm above has not accepted
+        // them, or accepted a number nobody has said how to price.
         heldBack: { weeks: heldBack, says: heldSays },
         selfBilling: { selfBilled: self.selfBilled, says: self.says },
         // Determined and shown. It is NOT a queryable field on the
