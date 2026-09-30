@@ -1396,6 +1396,18 @@ Three rules follow:
   waits is a day the bill and the pay wait behind it. These are answers
   the setup asks for (see the onboarding decision), recorded with who
   set them and when.
+  **Payroll is run by pay period, and biweekly is the common one**
+  (founder, the same day: "many payroll calculations happen
+  bi-weekly"). So a payroll run is always for one of the line's own pay
+  periods — never "a month" laid over a weekly or biweekly line, which
+  paid one week and called the month done. A biweekly period is two
+  Sunday-to-Saturday weeks; overtime is still counted per week inside
+  it, never averaged over the two. The default for a US employer is
+  biweekly, the period ending on a Saturday and paid on the Friday
+  after; monthly and semimonthly are choices the setup offers, and some
+  states require pay at least twice a month, which the setup says
+  beside the choice. A biweekly year has 26 pay days, and 27 in some
+  years; a salaried line divided by pay days must say which.
 
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
