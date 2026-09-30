@@ -17,7 +17,7 @@
  */
 
 import type { Prisma } from '@prisma/client'
-import { generateCycles } from '@/lib/cycle-generator'
+import { generateCycles, type CycleDefinition } from '@/lib/cycle-generator'
 import { cyclesFor } from '@/lib/cycle-kinds'
 import { policyFrom, type CycleShiftPolicy } from '@/lib/cycle-shift'
 import { getTemplatePack } from '@/lib/template-packs'
@@ -35,6 +35,71 @@ import { termsFor, type OrderHeader } from '@/lib/money/order-terms'
  * placements in the system do not have.
  */
 type CycleWriter = Pick<Prisma.TransactionClient, 'cycle' | 'sellContract'>
+
+/**
+ * The seeded world's monthly pay. FOR THE DEMO ONLY — it is not a default
+ * for any real company and no template pack ships it.
+ *
+ * The seeded payroll runs pay calendar months (`lib/seed-payroll-runs`),
+ * and the US pack pays fortnightly, so a demo worker's pay days and paid
+ * periods never lined up. The founder approved monthly pay for the demo
+ * firms on 2026-09-30. How often a real employee must be paid is set by
+ * the law of the state they work in, and some states do not allow monthly
+ * pay for hourly workers, so this never reaches a real placement: only
+ * `lib/seed-*` and `lib/demo-*` may pass it, and
+ * `__tests__/invariants/demo-monthly-pay.test.ts` fails on anybody else.
+ *
+ * `dayOfMonth: 28` is month-end in the generator. The offsets were
+ * measured over every month from 2024 to 2035 on the US federal calendar,
+ * with pay moving to the working day before a weekend or holiday:
+ *
+ * - month-end + 3 and + 5 (the first proposal) can pay on the day it
+ *   calculates — June 2026's pay day, Sunday 5 July, moves back to Friday
+ *   3 July, the calculation day — and a Monday holiday moves month-end + 3
+ *   back onto the month-end itself, before the last day's hours are in;
+ * - month-end + 4 and + 9 is the smallest pair where the calculation is
+ *   always at least one day after the month ends and pay always at least
+ *   two days after the calculation. The latest pay day is nine days after
+ *   the month ends.
+ */
+export const DEMO_MONTHLY_PAY: readonly CycleDefinition[] = Object.freeze([
+  Object.freeze({ kind: 'SALARY_CALCULATE', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 4 }),
+  Object.freeze({ kind: 'SALARY_PAY', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 9 }),
+] as CycleDefinition[])
+
+/** The kinds a pay override may replace, and must replace together. */
+const PAY_KINDS = ['SALARY_CALCULATE', 'SALARY_PAY'] as const
+
+/**
+ * The pack's definitions with its pay dates replaced by `pay`, or the
+ * pack's own where there is no override.
+ *
+ * Refused rather than half-honored: an override naming anything but the
+ * two pay kinds would move an hours or a bill date the caller never
+ * reasoned about, and one naming only one of them would calculate on one
+ * rhythm and pay on another.
+ */
+export function withPay<T extends { kind: string }>(
+  definitions: readonly T[],
+  pay: readonly CycleDefinition[] | undefined
+): (T | CycleDefinition)[] {
+  if (!pay) return [...definitions]
+  const stray = pay.filter((d) => !(PAY_KINDS as readonly string[]).includes(d.kind)).map((d) => d.kind)
+  if (stray.length > 0) {
+    throw new Error(
+      `A pay override moves only pay dates. It named ${stray.join(', ')}, which is not pay; ` +
+        `those dates stay the pack's.`
+    )
+  }
+  const named = new Set(pay.map((d) => d.kind))
+  if (named.size !== PAY_KINDS.length || pay.length !== PAY_KINDS.length) {
+    throw new Error(
+      'A pay override must give both the pay calculation and the pay day, once each, ' +
+        'so a month is not worked out on one rhythm and paid on another.'
+    )
+  }
+  return [...definitions.filter((d) => !named.has(d.kind)), ...pay]
+}
 
 export interface Written {
   sell: number
@@ -101,16 +166,26 @@ export async function writeCyclesFor(
      * already on the books are matched by the day they landed on.
      */
     onlyPeriodsAfter?: Date | null
+    /**
+     * Pay dates on a rhythm other than the pack's: both pay kinds, and
+     * nothing else. Only the seed passes this, with `DEMO_MONTHLY_PAY`.
+     * Replaces the pack's pay calculation and pay day; on a line bought
+     * from a supplier there is no payroll, so it writes nothing there.
+     */
+    pay?: readonly CycleDefinition[]
   }
 ): Promise<Written> {
   const { sell, buy } = input
   const pack = getTemplatePack(input.packId)
+  // Checked before anything can return early, so a malformed override is
+  // refused on an open-ended line too rather than ignored there.
+  const definitions = withPay(pack?.cycleDefinitions ?? [], input.pay)
   const dates = termsFor('SELL', sell)
   if (!pack || !dates.startDate || !dates.endDate) return { sell: 0, buy: 0, refused: [] }
 
   const split = cyclesFor(
     buy ? { contractType: buy.contractType, vendorCompanyId: buy.vendorCompanyId } : null,
-    pack.cycleDefinitions
+    definitions
   )
   const holidays = input.holidays ?? []
   const existing = input.existing ?? new Map<string, Set<string>>()
