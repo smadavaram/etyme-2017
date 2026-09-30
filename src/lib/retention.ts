@@ -39,6 +39,7 @@
  */
 
 import { HELD } from '@/lib/legal'
+import { plainDate } from '@/lib/consultant-portfolio'
 
 // ── The regimes, and how long each gives ──────────────────────────────
 
@@ -513,7 +514,7 @@ export function verdictFor(category: string, facts: Facts): Verdict {
       says:
         `${category} keeps its dates and its amounts and stops naming anybody. ` +
         (until
-          ? `It is not deleted before ${until.toISOString().slice(0, 10)}.`
+          ? `It is not deleted before ${plainDate(until.toISOString())}.`
           : line.months == null
             ? 'No statute sets a date for deleting it, so none is offered.'
             : 'Nobody has recorded the day to count from, so no date is offered.'),
@@ -532,7 +533,7 @@ export function verdictFor(category: string, facts: Facts): Verdict {
       verdict: 'HELD_UNTIL',
       until,
       says: until
-        ? `${category} is kept until ${until.toISOString().slice(0, 10)} — three years after ` +
+        ? `${category} is kept until ${plainDate(until.toISOString())} — three years after ` +
           'the date of hire or one year after the job ended, whichever is later — and is ' +
           `deleted after that.${extra}`
         : `${category} is kept. The day it may go is three years after the date of hire or ` +
@@ -565,7 +566,7 @@ export function verdictFor(category: string, facts: Facts): Verdict {
     verdict: 'HELD_UNTIL',
     until,
     says: until
-      ? `${category} is kept until ${until.toISOString().slice(0, 10)} and deleted after that.`
+      ? `${category} is kept until ${plainDate(until.toISOString())} and deleted after that.`
       : `${category} is kept. Nobody has recorded the day to count the period from, so no ` +
         'date is offered rather than a plausible one.',
     basis: line.basis,

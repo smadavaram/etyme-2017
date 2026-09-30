@@ -39,6 +39,7 @@ import { notify } from '@/lib/notify'
 import { tellStaff } from '@/lib/alerts'
 import { emailSender } from '@/lib/senders'
 import { daysOnSite } from '@/lib/tenure-days'
+import { plainDate } from '@/lib/consultant-portfolio'
 import {
   categoriesFor, NOT_IN_AN_EXPORT,
   exportReadyNotice, erasureReceivedNotice, erasureCompleteNotice, erasureHolderNotice,
@@ -590,6 +591,22 @@ export interface Raised {
   /** The day an erasure actually runs. Null for an export. */
   runsOn: Date | null
   keptBecause: string[]
+}
+
+/**
+ * What the person who just asked is told, on their own page.
+ *
+ * The day an erasure runs is printed as a person reads it — "Oct 3,
+ * 2026", `plainDate`, in UTC so the day does not move with the server's
+ * time zone. It read "It runs on 2026-10-03" until 2026-09-30.
+ */
+export function raisedSays(kind: RequestKind, runsOn: Date | null): string {
+  if (kind === 'EXPORT') {
+    return 'Your copy is ready. Everything held about you is in it, and every time it is opened a line is written saying who opened it.'
+  }
+  return runsOn
+    ? `Nothing has changed yet. It runs on ${plainDate(runsOn.toISOString())}, and you can stop it any time before then.`
+    : 'Nothing has changed yet. The day it runs is on this page, and you can stop it any time before then.'
 }
 
 /**

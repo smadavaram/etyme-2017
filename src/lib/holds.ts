@@ -4,6 +4,7 @@ import {
   type Hold, type Verdict,
 } from '@/lib/representation'
 import { clientLabel } from '@/lib/openings'
+import { plainDate } from '@/lib/consultant-portfolio'
 
 /**
  * Taking and giving back a representation hold, against the database.
@@ -449,11 +450,10 @@ export async function whoHasMe(personId: string, now: Date = new Date()): Promis
       // recorded; this says whether the name reached the person who
       // decides, which is the question they are actually asking.
       const onward = s.forwardedOn[0]
-      const wentOn = onward
-        ? `${onward.toCompany.name} on ${onward.submittedAt.toISOString().slice(0, 10)}`
-        : s.forwardedAt
-          ? `emailed to ${s.forwardedToEmail ?? 'the client'} on ${s.forwardedAt.toISOString().slice(0, 10)}`
-          : null
+      const wentOn = sentOnTo({
+        onward: onward ? { company: onward.toCompany.name, on: onward.submittedAt } : null,
+        emailed: s.forwardedAt ? { to: s.forwardedToEmail, on: s.forwardedAt } : null,
+      })
 
       return {
         company: s.fromCompany.name,
@@ -467,6 +467,26 @@ export async function whoHasMe(personId: string, now: Date = new Date()): Promis
       }
     }),
   }
+}
+
+/**
+ * Where a submission went after the firm that made it, as the person it
+ * is about reads it: "Auralis Software on Jun 1, 2026", or "emailed to
+ * the client on Jun 1, 2026". Null while it is still with whoever has it.
+ *
+ * The day is `plainDate`, the one way a worker's own pages print a day,
+ * read in UTC — the same day the ISO date named — so it does not move
+ * with the time zone of whichever server printed it. It was an ISO date inside a sentence until
+ * 2026-09-30 — "Auralis Software on 2026-06-01" — which is the machine's
+ * word printed where the person's belongs.
+ */
+export function sentOnTo(went: {
+  onward: { company: string; on: Date } | null
+  emailed: { to: string | null; on: Date } | null
+}): string | null {
+  if (went.onward) return `${went.onward.company} on ${plainDate(went.onward.on.toISOString())}`
+  if (went.emailed) return `emailed to ${went.emailed.to ?? 'the client'} on ${plainDate(went.emailed.on.toISOString())}`
+  return null
 }
 
 export { live, tellThem }

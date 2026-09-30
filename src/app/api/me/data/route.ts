@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import {
   raiseRequest, produceExport, heldCategories, categoriesHeldAbout, audiencesOf,
-  reference, contactEmail, coolingEndsAtFor,
+  reference, contactEmail, coolingEndsAtFor, raisedSays,
 } from '@/lib/data-request'
 import { holdersOf } from '@/lib/erasure'
 import { logAccess } from '@/lib/access-log'
@@ -168,9 +168,6 @@ export async function POST(request: NextRequest) {
     dueBasis: raised.dueBasis,
     runsOn: raised.runsOn,
     keptBecause: raised.keptBecause,
-    says:
-      kind === 'EXPORT'
-        ? 'Your copy is ready. Everything held about you is in it, and every time it is opened a line is written saying who opened it.'
-        : `Nothing has changed yet. It runs on ${raised.runsOn!.toISOString().slice(0, 10)}, and you can stop it any time before then.`,
+    says: raisedSays(kind, raised.runsOn),
   })
 }
