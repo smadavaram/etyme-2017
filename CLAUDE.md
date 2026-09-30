@@ -1335,6 +1335,15 @@ Three rules follow:
   you" only after the employer's acceptance, with the date it falls due;
   a week the client has signed and the employer has not yet accepted
   reads as waiting on the employer, never as owed.
+  **Overtime on a cut week, and it is a setting. Decided by the founder,
+  2026-09-30** ("go with your recommendations, but keep settings user
+  configurable"). The default is **overtime only on the accepted hours
+  above the line**: 41 of 45 accepted pays 40 + 1 at the premium, 42
+  pays 40 + 2 — no jump at the line and exactly what the law requires.
+  A paying firm may instead choose **"keep the week's overtime"** (the
+  ordinary-first rule above: 41 pays 36 + 5) for a pay line, recorded
+  with who chose it and why, the same way the overtime method is. At or
+  under the line is straight time either way.
 
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
