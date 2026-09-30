@@ -28,8 +28,10 @@ interface POLine {
   side: LineSide
   personName: string
   siteName: string | null
-  /** Cents per hour. */
-  rate: number
+  /** Cents per hour. Null on a buy line for a desk that does not read pay. */
+  rate: number | null
+  /** True where what the firm pays on this line is the payroll desks' to read, not this reader's. */
+  payWithheld?: boolean
   currency: string
   state: string
   startDate: string
@@ -385,7 +387,9 @@ function Lines({ po }: { po: PO }) {
               </span>
             </span>
             <span className="text-[12px] tabular-nums text-etyme-muted shrink-0">
-              {rate(l.rate, l.currency)}
+              {l.payWithheld
+                ? <span title="What each person is paid is shown only to the desks that run pay.">Pay not shown</span>
+                : l.rate == null ? "—" : rate(l.rate, l.currency)}
               {l.billed != null && (
                 <span className="text-etyme-ink ml-2">
                   {money(l.billed, l.currency)} billed

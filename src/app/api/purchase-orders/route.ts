@@ -5,6 +5,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
+import { mayReadPayOf, payTrail } from '@/lib/money/pay-visibility'
+import { writePayTrail } from '@/lib/money/pay-trail'
 import { emit } from '@/lib/events'
 import { poBalance } from '@/lib/purchase-order'
 import { mayWriteOrder, shellNotice } from '@/lib/off-system'
@@ -128,6 +130,17 @@ export async function GET(request: NextRequest) {
   // it. Read from the invoice lines rather than apportioned from the
   // header: an order's total is the sum of what its lines billed, and
   // dividing the header by the headcount would invent a figure.
+  // Whose pay this reader may see on a buy line. Written to the trail
+  // before the response goes out: every figure withheld is a refusal,
+  // every figure shown to somebody else a read.
+  const payViewer = { permissions: reading.caller.permissions, personId: caller.person.id }
+  await writePayTrail(
+    caller,
+    payTrail(payViewer, pos.flatMap((po) => po.buyContracts.flatMap((bc) =>
+      bc.candidates.map((cand) => ({ personId: cand.person.id, payRate: cand.payRate }))))),
+    'a purchase order line'
+  )
+
   const sellIds = pos.flatMap((po) => po.sellContracts.map((sc) => sc.id))
   const billedByLine = new Map<string, number>()
   if (sellIds.length > 0) {
@@ -226,7 +239,11 @@ export async function GET(request: NextRequest) {
             side: 'BUY' as const,
             personName: cand.person.name,
             siteName: null as string | null,
-            rate: cand.payRate,
+            // What the firm pays below it is the payroll desks' figure,
+            // never the account manager's who reads this page for the
+            // ceiling (lib/money/pay-visibility). The line stays.
+            rate: mayReadPayOf(payViewer, cand.person.id) ? cand.payRate : null,
+            payWithheld: !mayReadPayOf(payViewer, cand.person.id),
             currency: bc.payCurrency,
             state: bc.state,
             startDate: bc.startDate.toISOString().slice(0, 10),

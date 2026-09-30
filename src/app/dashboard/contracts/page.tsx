@@ -70,7 +70,10 @@ interface Contract {
   endClientName: string | null  // where the consultant actually works
   viaName: string | null        // paying customer when different from end client
   workLocationLabel: string | null
-  rate: number
+  /** Null where there is no single rate, or where the pay is not this reader's to see. */
+  rate: number | null
+  /** True where what this person is paid is the payroll desks' figure, not this reader's. */
+  payWithheld: boolean
   currency: string
   state: string
   startDate: string
@@ -218,7 +221,11 @@ function LineCard({ row, viewerId }: { row: Contract; viewerId: string | null })
       <div className="flex items-baseline justify-between gap-4 mt-1">
         <span className="text-[15px] text-etyme-ink font-medium">{line.name}</span>
         <span className="text-[13px] tabular-nums text-etyme-ink shrink-0">
-          {compact(row.rate)}<span className="text-etyme-faint">/hr</span>
+          {row.payWithheld ? (
+            <span className="text-etyme-faint">Pay not shown</span>
+          ) : (
+            <>{compact(row.rate)}<span className="text-etyme-faint">/hr</span></>
+          )}
         </span>
       </div>
       <p className="text-[12px] text-etyme-muted mt-1">{line.does}</p>
@@ -837,8 +844,14 @@ function ContractDetailDrawer({
               <div>
                 <p className="stat-label">{drawerRateLabel}</p>
                 <p className="text-sm font-medium tabular-nums text-etyme-ink mt-0.5">
-                  {compact(contract.rate)}/hr
-                  <span className="text-etyme-faint text-[11px] ml-1">{contract.currency}</span>
+                  {contract.payWithheld ? (
+                    <span className="text-etyme-faint">Shown only to the desks that run pay</span>
+                  ) : (
+                    <>
+                      {compact(contract.rate)}/hr
+                      <span className="text-etyme-faint text-[11px] ml-1">{contract.currency}</span>
+                    </>
+                  )}
                 </p>
               </div>
               <div>
@@ -1190,6 +1203,9 @@ export default function ContractsPage() {
   const [reading, setReading] = useState<
     { company: string | null; inASeat: boolean; says: string | null } | null
   >(null)
+  // Said once over the list where a pay figure was withheld from this
+  // reader, so a blank column reads as a rule rather than a gap.
+  const [payWithheldSays, setPayWithheldSays] = useState<string | null>(null)
   const framing = pageFraming(
     company?.kind ?? 'VENDOR',
     tab === 'sell' ? 'contracts.sell' : 'contracts.buy',
@@ -1229,6 +1245,7 @@ export default function ContractsPage() {
       const body = await res.json()
       const rawContracts = body.data?.contracts ?? []
       setReading(body.data?.reading ?? null)
+      setPayWithheldSays(body.data?.payWithheldSays ?? null)
 
       setContracts(rawContracts.map((c: any) => {
         // Resolve the display name: end client if set, otherwise paying customer
@@ -1262,6 +1279,7 @@ export default function ContractsPage() {
           viaName,
           workLocationLabel,
           rate: tab === 'sell' ? c.billRate : c.payRate,
+          payWithheld: tab === 'buy' && c.payWithheld === true,
           currency: tab === 'sell' ? (c.billCurrency ?? 'USD') : (c.payCurrency ?? 'USD'),
           state: c.state,
           startDate: c.startDate,
@@ -1302,7 +1320,7 @@ export default function ContractsPage() {
 
   const totalRate = contracts
     .filter(c => ['IN_PROGRESS', 'VERIFIED'].includes(c.state))
-    .reduce((sum, c) => sum + (c.rate / 100), 0)
+    .reduce((sum, c) => sum + ((c.rate ?? 0) / 100), 0)
 
   const rateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
   const counterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
@@ -1365,12 +1383,15 @@ export default function ContractsPage() {
       key: 'rate',
       label: rateLabel,
       align: 'right',
-      render: (row) => (
-        <span className="tabular-nums text-etyme-ink">
-          {compact(row.rate)}<span className="text-etyme-faint">/hr</span>
-        </span>
-      ),
-      sortValue: (row) => row.rate,
+      render: (row) =>
+        row.payWithheld ? (
+          <span className="text-etyme-faint text-[12px]" title={payWithheldSays ?? undefined}>Not shown</span>
+        ) : (
+          <span className="tabular-nums text-etyme-ink">
+            {compact(row.rate)}<span className="text-etyme-faint">/hr</span>
+          </span>
+        ),
+      sortValue: (row) => row.rate ?? -1,
     },
     {
       key: 'startDate',
@@ -1524,6 +1545,10 @@ export default function ContractsPage() {
           </div>
         )}
       </div>
+
+      {tab === 'buy' && payWithheldSays && (
+        <p className="mb-4 text-[12px] text-etyme-muted">{payWithheldSays}</p>
+      )}
 
       {/* Rolloff warnings banner */}
       {rolloffWarnings.length > 0 && (

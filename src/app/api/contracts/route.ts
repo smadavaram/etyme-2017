@@ -19,6 +19,8 @@ import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { mayNameCounterparty } from '@/lib/off-system'
 import { chooseHeader } from '@/lib/award'
 import { HEADER_SELECT, lineTermsFrom } from '../submissions/order-header'
+import { payFiguresFor, payTrail, PAY_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
+import { writePayTrail } from '@/lib/money/pay-trail'
 
 /**
  * POST /api/contracts
@@ -668,19 +670,34 @@ export async function GET(request: NextRequest) {
       prisma.buyContract.count({ where }),
     ])
 
+    // ── What each person is paid, to whom ────────────────────────────
+    //
+    // Every pay rate on every line went to any staff seat at the firm, so
+    // a delivery engineer read what the firm pays each colleague. A pay
+    // figure is the payroll desks' — `consultants.cost` — or the person's
+    // own (lib/money/pay-visibility). The lines stay listed with the pay
+    // withheld: who is on a line, through which firm and from when is
+    // what the contract, HR and delivery desks open this tab for.
+    const viewer = { permissions: caller.permissions, personId: caller.person.id }
+    const lines = contracts.map((c) => {
+      // A consultant is named ON a buy contract; they are not party to
+      // it. `buyContractScope` narrows them to the agreements that name
+      // them, and then every candidate line on those agreements was
+      // mapped out in full — so on a shared contract a consultant read
+      // what the agency pays each of their colleagues, and a rate range
+      // computed across all of them. Their own line, and no other.
+      const visible = isConsultant
+        ? c.candidates.filter((cd) => cd.person.id === caller.person.id)
+        : c.candidates
+      return { c, visible, pay: payFiguresFor(viewer, visible.map((cd) => ({ ...cd, personId: cd.person.id }))) }
+    })
+
+    const trail = payTrail(viewer, lines.flatMap((l) => l.visible.map((cd) => ({ personId: cd.person.id, payRate: cd.payRate }))))
+    await writePayTrail(caller, trail)
+
     return NextResponse.json({
       data: {
-        contracts: contracts.map((c) => {
-          // A consultant is named ON a buy contract; they are not party to
-          // it. `buyContractScope` narrows them to the agreements that name
-          // them, and then every candidate line on those agreements was
-          // mapped out in full — so on a shared contract a consultant read
-          // what the agency pays each of their colleagues, and a rate range
-          // computed across all of them. Their own line, and no other.
-          const visible = isConsultant
-            ? c.candidates.filter((cd) => cd.person.id === caller.person.id)
-            : c.candidates
-          const rates = visible.map((cd) => cd.payRate)
+        contracts: lines.map(({ c, visible, pay }) => {
           const single = visible.length === 1 ? visible[0] : null
           return {
             id: c.id,
@@ -690,10 +707,11 @@ export async function GET(request: NextRequest) {
             // single person or a single rate.
             person: single?.person ?? null,
             headcount: visible.length,
-            candidates: visible.map((cd) => ({
+            candidates: pay.candidates.map((cd) => ({
               id: cd.id,
               person: cd.person,
               payRate: cd.payRate,
+              payWithheld: cd.payWithheld,
               payCurrency: cd.payCurrency,
               startDate: cd.startDate.toISOString(),
               endDate: cd.endDate?.toISOString() ?? null,
@@ -713,15 +731,19 @@ export async function GET(request: NextRequest) {
               : null,
             state: c.state,
             contractType: c.contractType,
-            payRate: single?.payRate ?? null,
-            payRateMin: rates.length > 0 ? Math.min(...rates) : null,
-            payRateMax: rates.length > 0 ? Math.max(...rates) : null,
+            payRate: pay.payRate,
+            payRateMin: pay.payRateMin,
+            payRateMax: pay.payRateMax,
+            payWithheld: pay.withheld,
             payCurrency: c.payCurrency,
             startDate: c.startDate.toISOString(),
             endDate: c.endDate?.toISOString() ?? null,
             cycles: c._count.buyCycles,
           }
         }),
+        // Said once, where any figure on the page was withheld, so a blank
+        // pay column reads as a rule rather than a missing number.
+        payWithheldSays: lines.some((l) => l.pay.withheld) ? PAY_WITHHELD_SAYS : null,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       },
     })

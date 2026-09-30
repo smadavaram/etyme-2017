@@ -3,6 +3,8 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
+import { mayReadPayOf, payTrail } from '@/lib/money/pay-visibility'
+import { writePayTrail } from '@/lib/money/pay-trail'
 import {
   checkAssertion,
   screenExemption,
@@ -85,6 +87,26 @@ export async function GET(
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Contract not found' } },
       { status: 404 }
+    )
+  }
+
+  // Whether overtime is owed is judged on what somebody is paid, and the
+  // screen's sentence quotes the rate. So this reads pay, and pay is the
+  // payroll desks' or the person's own (lib/money/pay-visibility). Any
+  // staff seat at the firm could read it before 2026-09-30.
+  const viewer = { permissions: caller.permissions, personId: caller.person.id }
+  const trail = payTrail(viewer, contract.candidates)
+  await writePayTrail(caller, trail, 'an overtime-exemption screen')
+  if (contract.candidates.some((c) => !mayReadPayOf(viewer, c.personId))) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            'Whether overtime is owed is judged on what each person is paid, and that is shown only to the desks that run pay — AP & Payroll, Finance, the owner and the admin.',
+        },
+      },
+      { status: 403 }
     )
   }
 

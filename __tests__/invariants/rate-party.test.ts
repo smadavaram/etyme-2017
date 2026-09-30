@@ -606,8 +606,10 @@ describe('a consultant reads their own pay and never the markup taken out of the
     const src = code(sourceOf('src/app/api/contracts/route.ts'))
     expect(src).toContain('const visible = isConsultant')
     expect(src).toMatch(/filter\(\(cd\) => cd\.person\.id === caller\.person\.id\)/)
-    // And the range is derived from what is visible, never from all of it.
-    expect(src).toMatch(/const rates = visible\.map/)
+    // And the range is derived from what is visible, never from all of it
+    // — and, since 2026-09-30, only from the figures this reader may see
+    // (lib/money/pay-visibility).
+    expect(src).toMatch(/payFiguresFor\(viewer, visible\.map/)
   })
 
   it('holds no file on the known-open list that has since been fixed', () => {

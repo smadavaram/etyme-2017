@@ -1,3 +1,4 @@
+import { hasPermission } from '@/lib/permissions'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -33,6 +34,21 @@ export async function GET(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Payroll export')
   if (notStaff) return notStaff
+
+  // The payroll file is every employee's wages, line by line. It asked
+  // only that the reader was staff, so any seat at the firm could
+  // download it. The same desk the payroll screen asks for.
+  if (!hasPermission(caller.permissions, 'payroll.read')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'The payroll file is everybody’s wages, so only the desks that run pay may download it — AP & Payroll, Finance, the owner and the admin.',
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const companyId = caller.company!.id
   const url = new URL(request.url)
