@@ -261,20 +261,23 @@ export default function LandingPage() {
           that sat here went to /about#unanswered. */}
       <section className={`${SCREEN} ${EDGE}`}>
         <div className={BAND}>
-          {/* The category above the founder's headline, 2026-09-30:
-              "Enterprise contingent workforce mgmt above the hero line." */}
-          <p className="mb-4 text-[17px] font-medium leading-snug text-etyme-ink md:text-[20px]">
-            Enterprise contingent workforce management.
-          </p>
-          <h1 className="mb-5 max-w-[18ch] text-balance font-serif text-[40px] font-normal
-                         leading-[1.04] tracking-[-0.02em] text-etyme-ink md:text-[64px]">
-            Every contractor. Every supplier. One record.
-          </h1>
           {/* From `lg` the words sit on the left and the screen on the
               right, so the whole hero is one screen at 1280 by 800; on a
               phone they stack, words first. */}
           <div className="grid gap-y-6 lg:grid-cols-12 lg:items-center lg:gap-x-6">
           <div className="lg:col-span-6">
+          {/* The category above the founder's headline, 2026-09-30:
+              "Enterprise contingent workforce mgmt above the hero line."
+              Both sit in the left half beside the screen, so the two
+              halves of the hero are equal and start level ("as long as
+              it's symmetrical"). */}
+          <p className="mb-4 text-[17px] font-medium leading-snug text-etyme-ink md:text-[20px]">
+            Enterprise contingent workforce management.
+          </p>
+          <h1 className="mb-5 max-w-[18ch] text-balance font-serif text-[40px] font-normal
+                         leading-[1.04] tracking-[-0.02em] text-etyme-ink md:text-[56px]">
+            Every contractor. Every supplier. One record.
+          </h1>
           {/* What the software does, as a description rather than a
               promise, 2026-09-28: the reader is an engineer who discounts
               "control" and checks verbs. Each verb is a screen in the
@@ -451,7 +454,7 @@ export default function LandingPage() {
         {/* The column is written out rather than read from COLUMN, so the
             mural's own tests can see where the words' column ends; the
             rhythm test holds it equal to COLUMN. */}
-        <div className="mx-auto max-w-6xl w-full px-5 sm:px-6 grid gap-x-6 gap-y-5 md:grid-cols-12 md:items-end">
+        <div className="mx-auto max-w-6xl w-full px-5 sm:px-6 grid gap-x-6 gap-y-5 md:grid-cols-12 md:items-center">
           <h2 className="max-w-[30ch] text-balance font-serif text-[30px] leading-[1.12]
                          tracking-[-0.02em] text-etyme-canvas md:col-span-6 md:text-[40px]">
             {JOIN.heading}
