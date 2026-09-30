@@ -385,7 +385,7 @@ export const DO_THIS: Record<string, string> = {
   CAPACITY_EXCEEDED: 'Raise the cap on the agreement, or take somebody off it.',
   SOW_UNSIGNED: 'Get the statement of work signed.',
   MARGIN_UNKNOWN: 'Record what we pay on the buy contract, so the floor can be checked.',
-  MARGIN_WITHHELD: 'Ask the payroll desk, Finance or the owner to check it — what each person is paid is theirs to read.',
+  MARGIN_WITHHELD: 'Ask the owner or an admin to check it — the margin on a contract is theirs to read.',
   MSA_NO_TERM: 'Record the start and end dates from the executed copy.',
 }
 

@@ -27,16 +27,16 @@ function contract(over: Partial<ContractInput> = {}): ContractInput {
 }
 
 describe('the agreements screen and what we pay', () => {
-  it('a seat that does not read pay is told the margin floor is checked by the pay desks, and is shown no pay figure', () => {
-    const f = marginFloorFinding(contract({ payRateCents: null, payWithheld: true }), 25)!
+  it('a seat that may not read the margin is told the floor is checked by the desks that read margin, and is shown no pay figure', () => {
+    const f = marginFloorFinding(contract({ payRateCents: null, marginWithheld: true }), 25)!
     expect(f.code).toBe('MARGIN_WITHHELD')
     expect(f.severity).toBe('NOTE')
     expect(f.says).not.toMatch(/\$|\/hr/)
-    expect(f.says).toContain('desks that run pay')
+    expect(f.says).toContain('desks that read margin')
   })
 
-  it('a withheld pay figure is never reported as a missing one', () => {
-    const f = marginFloorFinding(contract({ payRateCents: null, payWithheld: true }), 25)!
+  it('a withheld margin is never reported as a missing pay figure', () => {
+    const f = marginFloorFinding(contract({ payRateCents: null, marginWithheld: true }), 25)!
     expect(f.code).not.toBe('MARGIN_UNKNOWN')
   })
 
@@ -47,7 +47,7 @@ describe('the agreements screen and what we pay', () => {
   })
 
   it('a client is never told whether its supplier’s margin was withheld, because it is never told the margin at all', () => {
-    const f = marginFloorFinding(contract({ payRateCents: null, payWithheld: true }), 25)!
+    const f = marginFloorFinding(contract({ payRateCents: null, marginWithheld: true }), 25)!
     expect(findingsFor('CLIENT', [f])).toEqual([])
   })
 
@@ -58,6 +58,44 @@ describe('the agreements screen and what we pay', () => {
     expect(src).toContain('writePayTrail(caller, payTrail(viewer, paid)')
     // The raw figure never reaches a row except through the rule.
     expect(src).not.toMatch(/payRateCents: seller \? \(payByPerson\.get/)
+  })
+})
+
+describe('the agreements screen and what a line bills at', () => {
+  const src = read('program', 'agreements', 'route.ts')
+
+  it('a colleague’s bill rate on the agreements screen is read through the price desk rule, and the trail is written', () => {
+    expect(src).toContain('mayReadBillRate(billViewer, { sellerId: a.vendorId, clientId: a.clientId })')
+    expect(src).toContain('billRateCents: mayBill(a) ? c.billRate : null')
+    expect(src).toContain('writeRateTrail(caller, billTrail(')
+  })
+
+  it('the margin on a contract needs margin.read, because reading pay is not reading margin', () => {
+    expect(src).toContain("hasPermission(desk.acting.permissions, 'margin.read')")
+    expect(src).toMatch(/!readsMargin \|\| !mayBill\(a\) \|\| payHidden\(personId\)/)
+  })
+
+  it('a client still reads what it pays on the agreements screen, and a seat at its desk reads as the client', () => {
+    expect(src).toContain("companyKind: desk.seat ? 'CLIENT' : (caller.company?.kind ?? null)")
+  })
+})
+
+describe('the timesheets list and what a week bills at', () => {
+  const src = read('timesheets', 'route.ts')
+
+  it('a delivery engineer reading the timesheets list is not shown what colleagues bill at, and the row says who reads it', () => {
+    expect(src).toContain('if (!mayReadBillRate(viewer, lineOf(r)))')
+    expect(src).toContain('cents: null, currency: null, says: BILL_WITHHELD_SAYS')
+  })
+
+  it('every bill rate read or withheld on the timesheets list is on the trail', () => {
+    expect(src).toContain('await writeBillTrail(caller, billTrail(viewer,')
+  })
+
+  it('the client’s own view of the timesheets list is priced as before, at the rung it pays', () => {
+    const own = src.slice(src.indexOf('// ── The client ─'))
+    expect(own).toContain('payerRung(r.sellContract, rungs)')
+    expect(own).not.toContain('mayReadBillRate')
   })
 })
 

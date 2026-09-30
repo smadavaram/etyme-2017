@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
+import { rolesFor } from '@/lib/company-defaults'
 
 import { GET as agreements } from '@/app/api/program/agreements/route'
 import { GET as chainOf } from '@/app/api/timesheets/[id]/assert/route'
+import { GET as timesheetsList } from '@/app/api/timesheets/route'
 
 /**
  * Karthik Menon is a Teleworld delivery engineer. He reads the work he is
@@ -85,6 +87,9 @@ beforeAll(async () => {
   }
 }, 300_000)
 
+const billTrailOf = (actor: string, subject: string, allowed: boolean) =>
+  prisma.accessLog.count({ where: { actorPersonId: actor, subjectId: subject, action: 'CONTRACT_VIEW', allowed } })
+
 const payTrail = (actor: string, subject: string, allowed: boolean) =>
   prisma.accessLog.count({ where: { actorPersonId: actor, subjectId: subject, action: 'PAYROLL_VIEW', allowed } })
 
@@ -143,5 +148,73 @@ describe('Karthik Menon at Teleworld cannot read a colleague’s pay', () => {
     expect(employer.rateWithheld).toBe(true)
     expect(body.data.payableCents).toBeNull()
     expect(JSON.stringify(body)).not.toContain(String(it_.colleaguePay * 40))
+  })
+})
+
+describe('Karthik Menon at Teleworld cannot read what a colleague bills at, and margin is the price desk’s', () => {
+  it('on the agreements screen a colleague’s bill rate is withheld from him, the screen says who reads it, and the refusal is on the trail', async () => {
+    as(KARTHIK)
+    const { body } = await json(await agreements(req('GET', '/api/program/agreements')))
+    const theirs = body.data.agreements.filter((a: any) => a.role === 'VENDOR').flatMap((a: any) => a.contracts)
+      .filter((c: any) => c.person.id === it_.colleague)
+    expect(theirs.length).toBeGreaterThan(0)
+    for (const c of theirs) {
+      expect(c.billRateCents).toBeNull()
+      expect(c.billWithheld).toBe(true)
+    }
+    expect(body.data.billWithheldSays).toContain('desks that price and bill')
+    expect(await billTrailOf(it_.karthik, it_.colleague, false)).toBeGreaterThan(0)
+  })
+
+  it('a payroll desk that reads pay but not margin still sees no margin percent on the agreements screen', async () => {
+    // The default AP & Payroll desk of an integrator, as lib/company-defaults
+    // writes it; the seed does not seat one at Teleworld.
+    const seed = rolesFor('GSI').find((r) => r.name === 'AP & Payroll')!
+    const role = (await prisma.role.findFirst({ where: { companyId: it_.teleworld, name: 'AP & Payroll' }, select: { id: true, permissions: true } }))
+      ?? await prisma.role.create({ data: { companyId: it_.teleworld, name: 'AP & Payroll', permissions: seed.permissions as string[], isDefault: false }, select: { id: true, permissions: true } })
+    expect(role.permissions).toContain('consultants.cost')
+    expect(role.permissions).not.toContain('margin.read')
+    const clerk = await prisma.person.upsert({
+      where: { primaryEmail: 'payroll.desk@teleworld-test.invalid' }, update: {},
+      create: { name: 'Anika Rao', primaryEmail: 'payroll.desk@teleworld-test.invalid' },
+    })
+    if (!(await prisma.context.findFirst({ where: { personId: clerk.id, companyId: it_.teleworld } }))) {
+      await prisma.context.create({ data: { personId: clerk.id, companyId: it_.teleworld, roleId: role.id, type: 'EMPLOYEE', grantReason: 'Seated for the margin sentence' } })
+    }
+    as('payroll.desk@teleworld-test.invalid')
+    const { status, body } = await json(await agreements(req('GET', '/api/program/agreements')))
+    expect(status, JSON.stringify(body)).toBe(200)
+    const theirs = body.data.agreements.filter((a: any) => a.role === 'VENDOR').flatMap((a: any) => a.contracts)
+      .filter((c: any) => c.person.id === it_.colleague)
+    expect(theirs.length).toBeGreaterThan(0)
+    for (const c of theirs) {
+      expect(c.marginPct).toBeNull()
+      expect(c.marginWithheld).toBe(true)
+    }
+    expect(body.data.marginWithheldSays).toContain('desks that read margin')
+  })
+
+  it('on the timesheets list a colleague’s week keeps its hours and loses its bill rate, with a sentence saying who reads it', async () => {
+    as(KARTHIK)
+    const { status, body } = await json(await timesheetsList(req('GET', '/api/timesheets')))
+    expect(status, JSON.stringify(body).slice(0, 300)).toBe(200)
+    const week = body.data.timesheets.find((t: any) => t.id === it_.sheet)
+    expect(week, 'the colleague’s week is not on his list').toBeTruthy()
+    expect(week.rate.cents).toBeNull()
+    expect(week.rate.says).toContain('desks that price and bill')
+    expect(await billTrailOf(it_.karthik, it_.colleague, false)).toBeGreaterThan(0)
+  })
+
+  it('the owner at Teleworld still reads what each line bills at, and the margin', async () => {
+    const owner = await prisma.context.findFirstOrThrow({
+      where: { companyId: it_.teleworld, revokedAt: null, role: { permissions: { has: '*' } } },
+      select: { person: { select: { primaryEmail: true } } },
+    })
+    as(owner.person.primaryEmail!)
+    const { body } = await json(await agreements(req('GET', '/api/program/agreements')))
+    const theirs = body.data.agreements.filter((a: any) => a.role === 'VENDOR').flatMap((a: any) => a.contracts)
+      .filter((c: any) => c.person.id === it_.colleague)
+    expect(theirs.every((c: any) => c.billRateCents != null)).toBe(true)
+    expect(theirs.some((c: any) => c.marginPct != null)).toBe(true)
   })
 })

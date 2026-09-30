@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { mayReadPayOf, payTrail, PAY_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
-import { writePayTrail } from '@/lib/money/pay-trail'
+import {
+  mayReadPayOf, payTrail, PAY_WITHHELD_SAYS, mayReadBillRate, billTrail, BILL_WITHHELD_SAYS,
+  BILL_WITHHELD_REASON, BILL_SHOWN_REASON,
+} from '@/lib/money/pay-visibility'
+import { writePayTrail, writeRateTrail } from '@/lib/money/pay-trail'
+import { hasPermission } from '@/lib/permissions'
 import { logBulkAccess } from '@/lib/access-log'
 import {
   STATUS_SAYS,
@@ -164,6 +168,22 @@ export async function GET(request: NextRequest) {
   const payHidden = (personId: string): boolean =>
     payByPerson.has(personId) && !mayReadPayOf(viewer, personId)
 
+  // What each line bills at is the price and billing desks' at the seller
+  // (`mayReadBillRate`), and always the client's — a client reads what it
+  // pays. The margin needs `margin.read` on top: reading pay is not
+  // reading margin, and neither is reading the bill rate.
+  const billViewer = {
+    permissions: desk.acting.permissions,
+    companyId,
+    // A seat keeps the client's book, so it reads as the client.
+    companyKind: desk.seat ? 'CLIENT' : (caller.company?.kind ?? null),
+  }
+  const mayBill = (a: { vendorId: string; clientId: string }) =>
+    mayReadBillRate(billViewer, { sellerId: a.vendorId, clientId: a.clientId })
+  const readsMargin = hasPermission(desk.acting.permissions, 'margin.read')
+  const marginHidden = (a: { vendorId: string; clientId: string }, personId: string): boolean =>
+    !readsMargin || !mayBill(a) || payHidden(personId)
+
   const rows = agreements.map((a) => {
     const seller = a.vendorId === companyId
     const role: 'VENDOR' | 'CLIENT' = seller ? 'VENDOR' : 'CLIENT'
@@ -173,8 +193,8 @@ export async function GET(request: NextRequest) {
       id: c.id,
       personName: c.person.name,
       billRateCents: c.billRate,
-      payRateCents: seller ? paySeen(c.person.id) : null,
-      payWithheld: seller && payHidden(c.person.id),
+      payRateCents: seller && !marginHidden(a, c.person.id) ? paySeen(c.person.id) : null,
+      marginWithheld: seller && marginHidden(a, c.person.id),
       live: workHasStarted(c.state),
     }))
 
@@ -272,17 +292,19 @@ export async function GET(request: NextRequest) {
         liveContracts: e.sellContracts.filter((c) => workHasStarted(c.state)).length,
       })),
       contracts: a.sellContracts.map((c) => {
-        const pay = seller ? paySeen(c.person.id) : null
+        const hidden = seller && marginHidden(a, c.person.id)
+        const pay = seller && !hidden ? paySeen(c.person.id) : null
         return {
           id: c.id,
           person: c.person,
-          billRateCents: c.billRate,
+          billRateCents: mayBill(a) ? c.billRate : null,
+          billWithheld: !mayBill(a),
           // Null, never zero. A margin against an unknown cost reads as
           // healthy, and nobody audits good news.
-          marginPct: seller ? marginPct(c.billRate, pay) : null,
+          marginPct: seller && !hidden ? marginPct(c.billRate, pay) : null,
           // Said once per row rather than left as a null to be guessed at:
           // a missing margin and a withheld one are different facts.
-          marginWithheld: seller && payHidden(c.person.id),
+          marginWithheld: hidden,
           state: c.state,
           live: workHasStarted(c.state),
           engagementId: c.engagementId,
@@ -321,9 +343,26 @@ export async function GET(request: NextRequest) {
 
   const anyWithheld = paid.some((p) => p.personId !== caller.person.id && !mayReadPayOf(viewer, p.personId))
 
+  // The bill rates on the lines this firm sells or pays for as a supplier.
+  // A client reading what it pays is left as it was: already on the
+  // CONTRACT_VIEW trail above, and never refused.
+  const billLines = agreements
+    .filter((a) => !(billViewer.companyKind === 'CLIENT' && a.clientId === companyId))
+    .flatMap((a) => a.sellContracts.map((c) => ({ sellerId: a.vendorId, clientId: a.clientId, personId: c.person.id })))
+  await writeRateTrail(caller, billTrail({ ...billViewer, personId: caller.person.id }, billLines), {
+    action: 'CONTRACT_VIEW',
+    refused: `${BILL_WITHHELD_REASON} On the agreements screen.`,
+    read: `${BILL_SHOWN_REASON} On the agreements screen.`,
+  })
+  const anyBillWithheld = billLines.some((l) => !mayReadBillRate(billViewer, l))
+
   return NextResponse.json({
     data: {
       payWithheldSays: anyWithheld ? PAY_WITHHELD_SAYS : null,
+      billWithheldSays: anyBillWithheld ? BILL_WITHHELD_SAYS : null,
+      marginWithheldSays: rows.some((r) => r.contracts.some((c) => c.marginWithheld))
+        ? 'The margin on each contract is shown only to the desks that read margin — the owner and the admin.'
+        : null,
       agreements: rows,
       summary: {
         total: rows.length,

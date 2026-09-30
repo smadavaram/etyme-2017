@@ -53,9 +53,9 @@ export type AgreementReason =
   /** Nobody knows the cost side, so no margin can be stated at all. */
   | 'MARGIN_UNKNOWN'
   /**
-   * The cost side is on file and this reader may not see it. Not
-   * MARGIN_UNKNOWN, which would tell them nothing is recorded — false —
-   * and not the verdict, which with the bill rate beside it is the pay.
+   * The margin is not this reader's to see. Not MARGIN_UNKNOWN, which
+   * would tell them nothing is recorded — often false — and not the
+   * verdict, which with the bill rate beside it is the pay.
    */
   | 'MARGIN_WITHHELD'
   /** Work is running under an engagement whose scope was never written. */
@@ -154,12 +154,14 @@ export interface ContractInput {
   /** What we pay. Null where the buy side is not on file, or where it is withheld. */
   payRateCents: number | null
   /**
-   * What we pay is on file and this reader does not read pay
+   * The margin on this contract is not this reader's. A margin is the
+   * price desk's (`margin.read`): reading pay (`consultants.cost`) or the
+   * bill rate alone never shows it, and a reader who may not see either
+   * figure cannot be shown what one subtracted from the other makes
    * (lib/money/pay-visibility). The floor is then neither passed nor
-   * failed here: a verdict next to the bill rate is the pay rate in one
-   * subtraction, so it is left to the desks that run pay.
+   * failed here — either verdict, beside a bill rate, is the pay.
    */
-  payWithheld?: boolean
+  marginWithheld?: boolean
   /** Whether the person is actually working, as opposed to papered. */
   live: boolean
 }
@@ -233,13 +235,13 @@ export function marginFloorFinding(
 ): Finding | null {
   if (minMarginPct == null) return null
 
-  if (contract.payWithheld) {
+  if (contract.marginWithheld) {
     return {
       code: 'MARGIN_WITHHELD',
       severity: 'NOTE',
       says:
         `Whether ${contract.personName} clears the ${minMarginPct}% floor is checked by the desks ` +
-        `that run pay, because the answer shows what we pay.`,
+        `that read margin — the owner and the admin — because the answer shows what we pay.`,
       subjectType: 'CONTRACT',
       subjectId: contract.id,
     }

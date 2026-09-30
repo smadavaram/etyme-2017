@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { mayReadBillRate, billTrail, BILL_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
+import { writeBillTrail } from '@/lib/money/pay-trail'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { Prisma } from '@prisma/client'
@@ -453,7 +455,30 @@ async function priceFor(
   }
 
   if (!seat.asClient || !seat.buyerCompanyId) {
-    for (const r of rows) out.set(r.id, asIs(r))
+    // ── A firm's own staff ──────────────────────────────────────────
+    //
+    // What a line bills at is the price desk's and the billing desk's
+    // (`mayReadBillRate`, lib/money/pay-visibility) — never every seat at
+    // the firm. A delivery engineer who files his own week read what the
+    // client is billed for each colleague. The row stays, with its hours
+    // and its overtime split; the rate and the value made from it are
+    // withheld with one sentence, and every rate read or withheld about
+    // somebody else is on the trail.
+    const viewer = {
+      permissions: caller.permissions,
+      companyId: caller.company?.id ?? null,
+      companyKind: caller.company?.kind ?? null,
+      personId: caller.person.id,
+    }
+    const lineOf = (r: Row) => ({ sellerId: r.sellContract.companyId, clientId: r.sellContract.clientCompanyId })
+    for (const r of rows) {
+      const seen = asIs(r)
+      if (!mayReadBillRate(viewer, lineOf(r))) {
+        seen.rate = { ...seen.rate, cents: null, currency: null, says: BILL_WITHHELD_SAYS }
+      }
+      out.set(r.id, seen)
+    }
+    await writeBillTrail(caller, billTrail(viewer, rows.map((r) => ({ ...lineOf(r), personId: r.sellContract.personId }))))
     return out
   }
 
