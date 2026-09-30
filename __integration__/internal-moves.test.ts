@@ -92,11 +92,11 @@ describe('Our bench, as the seeded world has it', () => {
     expect(after).toBe(before + 1)
   })
 
-  it('a Delivery Manager is offered his own project’s order as a position, and no client job request the submission door would refuse him', async () => {
+  it('a Delivery Manager is offered his own project’s order as a position, and the client job requests his firm was sent', async () => {
     const r = await read(RAHUL)
-    expect(r.body.data.positions.length).toBeGreaterThan(0)
-    for (const p of r.body.data.positions) expect(p.kind).toBe('ORDER')
-    expect(r.body.data.positions[0].title).toContain('Harlow Health, San Jose')
+    expect(r.body.data.viewer.maySubmit).toBe(true)
+    const order = r.body.data.positions.find((p: any) => p.kind === 'ORDER')
+    expect(order.title).toContain('Harlow Health, San Jose')
   })
 })
 
@@ -366,5 +366,28 @@ describe('HR, the trail and matching', () => {
     const entry = nearer.entries.find((e) => e.personId === ids.amara)
     expect(entry?.employee).toBe(true)
     expect(entry?.standing).toContain('free from then')
+  })
+})
+
+describe('a delivery manager and a client\u2019s job request', () => {
+  it('a delivery manager places the firm\u2019s own employee onto a client\u2019s job request from Our bench', async () => {
+    const harlow = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-harlow-health' }, select: { id: true } })
+    const job = await prisma.requirement.create({
+      data: {
+        companyId: harlow.id, title: 'Validation lead — second phase', skills: ['Validation'], location: 'San Jose, CA',
+        billMin: 12_000, billMax: 15_000, months: 6, headcount: 1, status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL',
+      },
+    })
+    await prisma.requirementInvitation.create({
+      data: { requirementId: job.id, fromCompanyId: harlow.id, toCompanyId: ids.teleworld, expiresAt: new Date(Date.now() + 10 * DAY), status: 'SENT' },
+    })
+    as(RAHUL)
+    const h = await json(await hold(req('POST', '/api/bench/ours/holds', { personId: ids.karthik, requirementId: job.id })))
+    expect(h.status, JSON.stringify(h.body)).toBe(201)
+    const p = await json(await place(req('POST', `/api/bench/ours/holds/${h.body.data.holdId}/place`, {}), params({ id: h.body.data.holdId })))
+    expect(p.status, JSON.stringify(p.body)).toBe(201)
+    const sub = await prisma.submission.findUniqueOrThrow({ where: { id: p.body.data.submissionId } })
+    expect(sub.kind).toBe('INTERNAL')
+    expect(sub.fromCompanyId).toBe(ids.teleworld)
   })
 })

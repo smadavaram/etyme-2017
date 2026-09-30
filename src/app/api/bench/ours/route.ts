@@ -197,7 +197,9 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => a.name.localeCompare(b.name))
     : []
 
-  const maySubmit = hasPermission(caller.permissions, 'submissions.create')
+  // A delivery manager may put the firm's own employee forward as INTERNAL
+  // (the submission door, 79d4ceaff), as may the recruiting desks.
+  const maySubmit = hasPermission(caller.permissions, 'submissions.create') || hasPermission(caller.permissions, 'assignments.write')
   const positions: {
     kind: 'ORDER' | 'REQUIREMENT'
     key: string
