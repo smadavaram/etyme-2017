@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { whatWeOwe } from '@/lib/money/what-we-owe'
+import { matchInvoice } from '@/lib/invoice-match'
+import { readReceipt } from '@/lib/money/receipt-read'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -293,6 +295,37 @@ export async function GET(request: NextRequest) {
       ? row.direction === directionParam
       : true))
 
+  // ── What the payer needs to decide, on the row ──────────────────────
+  //
+  // "I can't see anything about the job except the title — how can
+  // anyone approve such content." The founder, on this list, 2026-09-30.
+  // Each invoice this firm is asked to pay carries the check's verdict in
+  // words, who worked, the hours billed against the hours signed, and the
+  // order with what is left on it (lib/money/receipt-read). Read through
+  // the same match the invoice's own page and the pay route use.
+  const withReceipt = await Promise.all(
+    classified.map(async (row) => {
+      if (row.direction !== 'PAYABLE') return { ...row, receipt: null }
+      const m = await matchInvoice(row.id)
+      if (!m) return { ...row, receipt: null }
+      const read = readReceipt({ matched: m.matched, checks: m.checks, lines: m.lines, currency: row.currency })
+      const inv = invoices.find((i) => i.id === row.id)
+      return {
+        ...row,
+        receipt: {
+          ...read,
+          // Where a question about it is asked: the job request behind
+          // the first line, on the thread with the supplier.
+          requirementId: m.lines.find((l) => l.requirementId)?.requirementId ?? null,
+          supplierId: row.engagement.vendorCompany?.id ?? null,
+          po: inv?.workOrder
+            ? { number: inv.workOrder.number, leftMinor: m.poAfter ? m.poAfter.remainingCents : null }
+            : null,
+        },
+      }
+    })
+  )
+
   // ── The summary ─────────────────────────────────────────────────────
   //
   // Read over the whole book rather than the current page, and split
@@ -389,7 +422,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: {
-      invoices: classified,
+      invoices: withReceipt,
       // Whose book this is, said on the page. A program office reading a
       // client's invoices from the client's own desk must never be left
       // to assume the rows are its own.

@@ -10,6 +10,7 @@ import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { directionFrom, partiesOf } from '@/lib/money/invoice-parties'
 import { fromPrismaDecimal } from '@/lib/money'
 import { daySpan } from '@/lib/plain-date'
+import { readReceipt } from '@/lib/money/receipt-read'
 
 /**
  * GET /api/invoices/:id
@@ -235,6 +236,7 @@ export async function GET(
     netMinor: grossMinor,
     taxMinor,
     taxRegime: invoice.taxRegime,
+    currency: invoice.currency,
   })
   const deadline = discountDeadline(ladder, clock.anchoredOn)
 
@@ -353,6 +355,15 @@ export async function GET(
             }
           : null,
       })),
+      // What the payer reads before it decides, one sentence per
+      // person-week and one for the whole (lib/money/receipt-read).
+      receipt: match
+        ? {
+            ...readReceipt({ matched: match.matched, checks: match.checks, lines: match.lines, currency: invoice.currency }),
+            requirementId: match.lines.find((l) => l.requirementId)?.requirementId ?? null,
+            supplierId: parties.vendor?.id ?? null,
+          }
+        : null,
       match: match
         ? {
             matched: match.matched,

@@ -458,3 +458,78 @@ const LEAVE_WORDS: Record<LeaveReason, string> = {
   RESIGNED: 'a resignation',
   DISMISSED: 'a dismissal',
 }
+
+// ── What a person on the bench costs to date ─────────────────────────
+
+/**
+ * One person the bench page might count, as the arithmetic needs them.
+ *
+ * Found 2026-09-30 by a tester as CloudEPA: the bench burn counted every
+ * listed person with a live pay line, so Helena Marsh — placed at
+ * Northbend and billing through March 2027 — read "$720/day · 129d on
+ * bench · $66.2k burned", doubling the daily burn. And the 129 was
+ * calendar days while the $66,240 was 92 working days at $720, with
+ * nothing on the page saying which.
+ */
+export interface BenchSitter {
+  /** Their pay per hour on the line that pays them, in minor units. */
+  payRateCents: number
+  hoursPerDay?: number
+  /** True where a live sell line bills their hours today. Then they are not bench. */
+  billing: boolean
+  /** The later of when they joined the bench and when their last placement ended. */
+  benchSince: Date
+}
+
+export interface Burn {
+  onBench: boolean
+  /** Null where they are billing: a placed person costs the bench nothing. */
+  dailyCents: number | null
+  /** Monday to Friday from the day after `benchSince` through `now`, the days the daily cost is paid on. */
+  workingDays: number
+  calendarDays: number
+  toDateCents: number | null
+  /** "92 working days (129 calendar days) at $720.00 a day." */
+  says: string
+}
+
+const DAY_MS = 86_400_000
+const utcDay = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+
+/** Monday to Friday strictly after `from`, up to and including `to`. */
+export function workingDaysBetween(from: Date, to: Date): number {
+  let n = 0
+  for (let t = utcDay(from) + DAY_MS; t <= utcDay(to); t += DAY_MS) {
+    const wd = new Date(t).getUTCDay()
+    if (wd !== 0 && wd !== 6) n++
+  }
+  return n
+}
+
+/**
+ * What one person costs the bench, to date and per day, in integer
+ * minor units — and nothing at all while somebody bills their hours.
+ * The days are named as working days, with the calendar count beside
+ * them, so a reader can check the figure with one multiplication.
+ */
+export function burnOf(s: BenchSitter, now: Date): Burn {
+  const calendarDays = Math.max(0, Math.round((utcDay(now) - utcDay(s.benchSince)) / DAY_MS))
+  const workingDays = workingDaysBetween(s.benchSince, now)
+  if (s.billing) {
+    return {
+      onBench: false, dailyCents: null, workingDays: 0, calendarDays: 0, toDateCents: null,
+      says: 'Placed and billing, so not a bench cost.',
+    }
+  }
+  const dailyCents = Math.round(s.payRateCents * (s.hoursPerDay ?? 8))
+  const toDateCents = dailyCents * workingDays
+  const money = (c: number) => `$${(c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return {
+    onBench: true,
+    dailyCents,
+    workingDays,
+    calendarDays,
+    toDateCents,
+    says: `${workingDays} working day${workingDays === 1 ? '' : 's'} (${calendarDays} calendar day${calendarDays === 1 ? '' : 's'}) at ${money(dailyCents)} a day.`,
+  }
+}

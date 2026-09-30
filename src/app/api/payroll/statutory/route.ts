@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { blankShortWages, type RunPaidTotal } from '@/lib/payroll-export'
+import { paidOnDay } from '@/lib/money/pay-day-period'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -210,7 +212,39 @@ export async function GET(request: NextRequest) {
 
   const postings = [...dated.postings, ...receipts.postings]
 
-  const pack = yearEndPack(postings, year)
+  // What the runs themselves paid each W-2 worker in the year, dated by
+  // the pay day each run settled (paidOnDay), from the runs' own lines.
+  // Where it is more than the wage postings hold, the W-2 figure is
+  // blanked with a sentence rather than shown short (blankShortWages).
+  const runContractIds = [...new Set(paid.runs.map((r) => r.buyContractId))]
+  const runLines = runContractIds.length
+    ? await prisma.buyContract.findMany({
+        where: { id: { in: runContractIds }, companyId, contractType: { in: [...WAGE_CONTRACT_TYPES] } },
+        select: {
+          id: true, payCurrency: true,
+          buyCycles: { where: { kind: 'SALARY_PAY' }, select: { dueOn: true, completedAt: true } },
+        },
+      })
+    : []
+  const lineOf = new Map(runLines.map((l) => [l.id, l]))
+  const runPeople = await prisma.person.findMany({
+    where: { id: { in: [...new Set(paid.runs.map((r) => r.personId))] } },
+    select: { id: true, name: true },
+  })
+  const nameOf = new Map(runPeople.map((p) => [p.id, p.name]))
+  const byPerson = new Map<string, RunPaidTotal>()
+  for (const r of paid.runs) {
+    const line = lineOf.get(r.buyContractId)
+    if (!line || r.paidCents == null) continue
+    const on = paidOnDay(r.paidAt, line.buyCycles)
+    if (Number(on.slice(0, 4)) !== year) continue
+    const currency = r.currency ?? line.payCurrency
+    const k = `${r.personId}|${currency}`
+    const t = byPerson.get(k) ?? { personId: r.personId, personName: nameOf.get(r.personId) ?? 'Somebody', currency, paidCents: 0 }
+    t.paidCents += r.paidCents
+    byPerson.set(k, t)
+  }
+  const { pack, short: wagesShort } = blankShortWages(yearEndPack(postings, year), [...byPerson.values()])
 
   // Wages accepted and not yet paid, and wages whose paid day cannot be
   // known, are in no year. Said, never dropped silently.
@@ -318,6 +352,9 @@ export async function GET(request: NextRequest) {
         undatedSays,
         receiptsWaitingSays,
         receiptsUndatedSays,
+        // People the runs paid more than the wage postings hold, each with
+        // the sentence saying so. Their figure is blank, never short.
+        wagesShort,
       },
       deposits: {
         schedule: schedule.schedule,

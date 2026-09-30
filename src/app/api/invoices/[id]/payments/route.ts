@@ -9,6 +9,7 @@ import { booksFor, noteMoneyRead, seatMayPay, moneyTrailFor } from '@/lib/money/
 import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 import { fromUnits } from '@/lib/money-display'
 import { fromPrismaDecimal } from '@/lib/money'
+import { matchInvoice } from '@/lib/invoice-match'
 
 /**
  * POST /api/invoices/:id/payments
@@ -169,6 +170,42 @@ export async function POST(
       },
       { status: 409 }
     )
+  }
+
+  // Held by the payer's own desk, with a reason: nobody pays it until
+  // the hold is lifted, in the same place it was put.
+  if (payer && invoice.status === 'HELD') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'HELD',
+          message: `Invoice ${invoice.number} is on hold at your desk. Lift the hold on its page first, then pay it.`,
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  // A client pays what came through the match, and only that (CLAUDE.md,
+  // station 9). Submission ran the check once; the hours or the order
+  // behind it can move after, so it is run again at the moment money
+  // leaves. An exception somebody recorded with a reason counts as
+  // passing; a failure nobody answered does not.
+  if (payer) {
+    const now = await matchInvoice(id)
+    if (now && !now.matched) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'MATCH_FAILED',
+            message:
+              `Invoice ${invoice.number} does not pass the check now: ${now.summary}. ` +
+              `Fix it or record an exception with a reason on its page, then pay it.`,
+          },
+        },
+        { status: 409 }
+      )
+    }
   }
 
   if (invoice.status === 'CANCELLED') {

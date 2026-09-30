@@ -1396,3 +1396,76 @@ function isoDay(d: Date): string {
 function cents(n: number): string {
   return `$${(n / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
+
+
+// ── Wages a run paid with no posting behind them ─────────────────────
+
+/** What processed runs paid one person in one year, from the runs' own lines. */
+export interface RunPaidTotal {
+  personId: string
+  personName: string
+  currency: string
+  /** Exact, before rounding once at the end. */
+  paidCents: number
+}
+
+/**
+ * Blank the W-2 figure where the runs paid more than the postings hold.
+ *
+ * The W-2 reads wage postings, and a run pays from accepted hours. Where
+ * a run paid days that have no wage posting behind them — every seeded
+ * month on the demo, and any placement with no master contract to post
+ * to — the posting total is short of what was paid. The tester read "2026
+ * W-2 wages $720" for Helena Marsh, on assignment since March and paid
+ * every month. A W-2 figure short by eleven months is a number nobody can
+ * stand behind: it is shown as no figure, with the sentence saying what
+ * the runs paid and what the postings hold, and it leaves the total.
+ *
+ * Pure: no database.
+ */
+export function blankShortWages(pack: YearEndPack, paidByRuns: readonly RunPaidTotal[]): {
+  pack: YearEndPack
+  short: { personId: string; personName: string; says: string }[]
+} {
+  const short: { personId: string; personName: string; says: string }[] = []
+  const summaries = pack.summaries.map((s) => {
+    if (s.form !== 'W2' || s.grossCents == null) return s
+    const ran = paidByRuns.find((r) => r.personId === s.personId && r.currency === s.currency)
+    if (!ran) return s
+    const ranCents = Math.round(ran.paidCents)
+    // A dollar of rounding between a run's per-rate total and the weekly postings is not a gap.
+    if (ranCents <= s.grossCents + 100) return s
+    const says =
+      `Payroll runs paid ${s.personName} ${cents(ranCents)} ${s.currency} in ${pack.year}, and only ` +
+      `${cents(s.grossCents)} has a wage posting behind it, so no W-2 figure is shown until the postings are complete.`
+    short.push({ personId: s.personId, personName: s.personName, says })
+    return { ...s, grossCents: null, says }
+  })
+  // People a run paid who have no posting at all.
+  for (const r of paidByRuns) {
+    if (pack.summaries.some((s) => s.personId === r.personId)) continue
+    if (Math.round(r.paidCents) <= 0) continue
+    short.push({
+      personId: r.personId,
+      personName: r.personName,
+      says:
+        `Payroll runs paid ${r.personName} ${cents(Math.round(r.paidCents))} ${r.currency} in ${pack.year} with no wage ` +
+        `posting behind it, so there is no W-2 figure for them here yet.`,
+    })
+  }
+  if (short.length === 0) return { pack, short }
+  const w2 = summaries.filter((s) => s.form === 'W2')
+  const nec = summaries.filter((s) => s.form === '1099_NEC')
+  const total = pack.currency ? [...w2, ...nec].reduce((n, s) => n + (s.grossCents ?? 0), 0) : 0
+  return {
+    pack: {
+      ...pack,
+      summaries,
+      totalReportableCents: total,
+      says:
+        pack.says +
+        ` ${short.length} ${short.length === 1 ? 'person has' : 'people have'} no W-2 figure yet: the runs paid more than the wage postings hold.`,
+    },
+    short,
+  }
+}

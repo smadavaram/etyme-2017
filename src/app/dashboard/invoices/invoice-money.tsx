@@ -347,7 +347,7 @@ export function InvoiceMoney({
       )}
 
       {outstanding > 0 && !notSubmitted && invoice.direction !== 'NEITHER' && (
-        <div className="border-t border-etyme-rule pt-6">
+        <div id="pay" className="border-t border-etyme-rule pt-6">
           <p className="eyebrow mb-3">{payer ? 'Pay this invoice' : 'Record a payment received'}</p>
           <form onSubmit={pay} className="space-y-3">
             <div>

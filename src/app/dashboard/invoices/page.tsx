@@ -93,6 +93,23 @@ interface Invoice {
   aging: string
   daysOverdue: number
   payments: InvoicePayment[]
+  /**
+   * What the payer needs to decide, on an invoice this firm is asked to
+   * pay (lib/money/receipt-read). Null on the side that collects.
+   */
+  receipt?: {
+    people: string[]
+    jobs: string[]
+    weeks: number
+    hoursBilled: number
+    hoursSigned: number | null
+    matches: boolean
+    row: string
+    verdict: string
+    requirementId: string | null
+    supplierId: string | null
+    po: { number: string; leftMinor: number | null } | null
+  } | null
 }
 
 type AgingKey = 'current' | '1-30' | '31-60' | '61-90' | '90+'
@@ -368,6 +385,70 @@ function GenerateInvoiceModal({
           </div>
         </form>
       </div>
+    </div>
+  )
+}
+
+/** The status as a payer says it. */
+function payableStatusWords(status: string): string {
+  switch (status) {
+    case 'ISSUED': return 'not submitted yet'
+    case 'SUBMITTED': return 'submitted'
+    case 'PARTIALLY_PAID': return 'part paid'
+    case 'PAID': return 'paid'
+    case 'CANCELLED': return 'cancelled'
+    default: return status.toLowerCase().replace('_', ' ')
+  }
+}
+
+/**
+ * The one thing a payer may do with the row next.
+ *
+ * Pay — only where it passed the check and was submitted, and it opens
+ * the invoice's own page, where the check and the form sit together.
+ * Ask the supplier — on the thread about the job, with the question
+ * written first, because a hold nobody explains is a phone call.
+ */
+function PayerAction({ row, onToast }: { row: Invoice; onToast: (m: string, t?: 'success' | 'error') => void }) {
+  const r = row.receipt
+  if (!r || row.outstandingMinor <= 0 || row.status === 'CANCELLED') return null
+  const payable = r.matches && (row.status === 'SUBMITTED' || row.status === 'PARTIALLY_PAID')
+
+  async function ask(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!r?.requirementId || !r.supplierId) return
+    const question = window.prompt(`What do you want to ask ${counterpartyName(row)} about invoice ${row.number}?`)
+    if (!question?.trim()) return
+    const res = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: 'REQUIREMENT',
+        topicId: r.requirementId,
+        withCompanyId: r.supplierId,
+        initialMessage: `About invoice ${row.number}: ${question.trim()}`,
+      }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      onToast(body.error?.message ?? 'The question was not sent.', 'error')
+      return
+    }
+    window.location.href = `/dashboard/conversations?open=${body.data.conversation.id}`
+  }
+
+  return (
+    <div className="flex items-center gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
+      {payable && (
+        <a href={`/dashboard/invoices/${row.id}#pay`} className="btn-primary text-[11px] px-3 py-1">
+          Pay
+        </a>
+      )}
+      {r.requirementId && r.supplierId && (
+        <button onClick={ask} className="text-[11px] text-etyme-action hover:underline whitespace-nowrap">
+          Ask the supplier
+        </button>
+      )}
     </div>
   )
 }
@@ -719,6 +800,116 @@ export default function InvoicesPage() {
     },
   ]
 
+  // ── What a payer reads on the row ─────────────────
+  //
+  // "I can't see anything about the job except the title — how can
+  // anyone approve such content." The founder, on this list. So a row
+  // this firm is asked to pay says who worked, on what, the hours
+  // billed against the hours signed, whether the check passed in words,
+  // the order and what is left on it, and the one thing to do next.
+  const payableColumns: Column<Invoice>[] = [
+    {
+      key: 'number',
+      label: 'Invoice receipt',
+      render: (row) => (
+        <div>
+          <a href={`/dashboard/invoices/${row.id}`}
+            className="font-medium text-etyme-ink font-mono text-[12px] hover:text-etyme-action">
+            {row.number}
+          </a>
+          <p className="text-[11px] text-etyme-muted truncate max-w-[180px]">from {counterpartyName(row)}</p>
+        </div>
+      ),
+      sortValue: (row) => row.number,
+      width: 'min-w-[160px]',
+    },
+    {
+      key: 'who',
+      label: 'Who and what',
+      render: (row) => (
+        <div className="min-w-0">
+          <p className="text-[13px] text-etyme-ink truncate max-w-[220px]">
+            {row.receipt?.people.join(', ') || 'Nobody named on it'}
+          </p>
+          <p className="text-[11px] text-etyme-muted truncate max-w-[220px]">
+            {(row.receipt?.jobs.join(', ') || row.engagement.title)} · {row.receipt?.row ?? ''}
+          </p>
+          <p className="text-[11px] text-etyme-faint tabular-nums">
+            {new Date(row.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+            {' – '}
+            {new Date(row.periodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+          </p>
+        </div>
+      ),
+      sortValue: (row) => row.receipt?.people.join(', ') ?? '',
+    },
+    {
+      key: 'hours',
+      label: 'Hours signed / billed',
+      render: (row) => (
+        <span className={`tabular-nums text-[12px] ${
+          row.receipt && row.receipt.hoursSigned !== row.receipt.hoursBilled ? 'text-etyme-attention' : 'text-etyme-ink'
+        }`}>
+          {row.receipt ? `${row.receipt.hoursSigned ?? 'none'} / ${row.receipt.hoursBilled} h` : '—'}
+        </span>
+      ),
+      sortValue: (row) => row.receipt?.hoursBilled ?? 0,
+      align: 'right' as const,
+      hideOnMobile: true,
+    },
+    {
+      key: 'check',
+      label: 'Check',
+      render: (row) => (
+        <div className="max-w-[260px]">
+          <p className={`text-[12px] ${row.receipt?.matches ? 'text-etyme-verified' : 'text-etyme-attention'}`}>
+            {row.receipt?.verdict ?? 'Not checked'}
+          </p>
+          {row.receipt?.po && (
+            <p className="text-[11px] text-etyme-faint tabular-nums">
+              {row.receipt.po.number}
+              {row.receipt.po.leftMinor != null && ` · ${fmtMinor(row.receipt.po.leftMinor, row.currency)} left`}
+            </p>
+          )}
+        </div>
+      ),
+      sortValue: (row) => (row.receipt?.matches ? 1 : 0),
+    },
+    {
+      key: 'outstanding',
+      label: 'To pay',
+      render: (row) => (
+        <div className="text-right">
+          <span className="tabular-nums font-medium">
+            {row.outstandingMinor > 0 ? fmtMinor(row.outstandingMinor, row.currency) : 'Paid'}
+          </span>
+          <p className="text-[10px] text-etyme-faint tabular-nums">of {fmtMinor(row.totalMinor, row.currency)}</p>
+        </div>
+      ),
+      sortValue: (row) => row.outstandingMinor,
+      align: 'right' as const,
+    },
+    {
+      key: 'dueAt',
+      label: 'Due',
+      render: (row) => (
+        <div className="text-right">
+          <span className="text-[12px] tabular-nums">
+            {new Date(row.dueAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
+          </span>
+          <p className="text-[10px] text-etyme-faint">{payableStatusWords(row.status)}</p>
+        </div>
+      ),
+      sortValue: (row) => new Date(row.dueAt).getTime(),
+      align: 'right' as const,
+    },
+    {
+      key: 'act',
+      label: '',
+      render: (row) => <PayerAction row={row} onToast={showToast} />,
+    },
+  ]
+
   // ── Search filter ─────────────────────────────────
   const searchFilter = (row: Invoice, q: string) =>
     row.number.toLowerCase().includes(q) ||
@@ -909,7 +1100,7 @@ export default function InvoicesPage() {
 
       {/* Data table */}
       <ListSurface<Invoice>
-        columns={columns}
+        columns={side === 'PAYABLE' ? payableColumns : columns}
         data={shown}
         rowKey={(row) => row.id}
         loading={loading}

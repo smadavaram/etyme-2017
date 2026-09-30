@@ -373,8 +373,8 @@ export function threeWayMatch(input: MatchInput): MatchResult {
         code: 'DUPLICATE',
         outcome: 'FAIL',
         reason: repeatedHere.length > 0
-          ? `${repeatedHere.length} timesheet(s) appear on more than one line of this invoice`
-          : `${billedElsewhere.length} timesheet(s) were already billed on another invoice`,
+          ? `${repeatedHere.length} timesheet${repeatedHere.length === 1 ? ' appears' : 's appear'} on more than one line of this invoice`
+          : `${billedElsewhere.length} timesheet${billedElsewhere.length === 1 ? ' was' : 's were'} already billed on another invoice`,
         lines: billedElsewhere.map(l => l.id),
       })
 
@@ -407,7 +407,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
           code: 'PERIOD',
           outcome: 'PASS',
           reason: straddling.length > 0
-            ? `Work falls in this period, with ${straddling.length} timesheet(s) that straddle the boundary`
+            ? `Work falls in this period, with ${straddling.length} timesheet${straddling.length === 1 ? ' that straddles' : 's that straddle'} the boundary`
             : 'All work was done in the period being billed',
         }
       : {
@@ -776,7 +776,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
       ? {
           code: 'RECEIPT',
           outcome: 'PASS',
-          reason: `${accepted.hours}h accepted for pay across ${accepted.count} record(s)`,
+          reason: `${accepted.hours}h accepted for pay across ${accepted.count} record${accepted.count === 1 ? '' : 's'}`,
         }
       : {
           code: 'RECEIPT',
@@ -949,7 +949,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
       failures.length === 0
         ? waived.length === 0
           ? `Matched — ${bill.number}, ${money(bill.totalCents)}, every hour accepted here`
-          : `Matched with ${waived.length} exception(s) — ${waived.map((w) => CHECK_PHRASE[w.code]).join(', ')}`
+          : `Matched with ${waived.length} exception${waived.length === 1 ? '' : 's'} — ${waived.map((w) => CHECK_PHRASE[w.code]).join(', ')}`
         : failures.length === 1
           ? failures[0].reason
           : `${failures.length} checks failed — ${failures[0].reason}`,

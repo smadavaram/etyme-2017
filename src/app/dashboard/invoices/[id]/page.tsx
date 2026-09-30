@@ -236,6 +236,25 @@ export default function InvoiceDetail() {
     await load()
   }
 
+  /** A question about this invoice, on the thread about the job with the supplier. */
+  async function askSupplier() {
+    const r = data?.receipt
+    if (!r?.requirementId || !r.supplierId) return
+    const question = window.prompt(`What do you want to ask ${data.invoice.vendor?.name ?? 'the supplier'} about invoice ${data.invoice.number}?`)
+    if (!question?.trim()) return
+    const res = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: 'REQUIREMENT', topicId: r.requirementId, withCompanyId: r.supplierId,
+        initialMessage: `About invoice ${data.invoice.number}: ${question.trim()}`,
+      }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) { showToast(body.error?.message ?? 'The question was not sent.', 'error'); return }
+    window.location.href = `/dashboard/conversations?open=${body.data.conversation.id}`
+  }
+
   async function submit() {
     const res = await fetch(`/api/invoices/${id}/submit`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
@@ -317,6 +336,24 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
+      {/* Who worked, on what, and whether it matches — one line, before the checks. */}
+      {data.receipt && (
+        <div className="mb-4">
+          <p className="text-[15px] text-etyme-ink">
+            {data.receipt.people.join(', ') || 'Nobody named on it'}
+            {data.receipt.jobs.length > 0 && <span className="text-etyme-muted"> · {data.receipt.jobs.join(', ')}</span>}
+          </p>
+          <p className="text-[13px] text-etyme-muted tabular-nums">
+            {data.receipt.row} · {data.receipt.hoursSigned ?? 'none'} h signed, {data.receipt.hoursBilled} h billed
+          </p>
+          {inv.direction === 'PAYABLE' && data.receipt.requirementId && data.receipt.supplierId && (
+            <button onClick={askSupplier} className="mt-1 text-[13px] text-etyme-action hover:underline">
+              Ask {inv.vendor?.name ?? 'the supplier'} about this invoice
+            </button>
+          )}
+        </div>
+      )}
+
       {/* The verdict, before anything else */}
       {m && (
         <div className={`border rounded-lg mb-8 ${
@@ -393,6 +430,13 @@ export default function InvoiceDetail() {
             <div key={l.id} className="p-4 flex items-center gap-4">
               <div className="flex-1 min-w-0">
                 <div className="text-etyme-ink">{l.person.name}</div>
+                {/* This person-week against what was signed and the contract's rate, in words. */}
+                {(() => {
+                  const r = data.receipt?.lines?.find((x: any) => x.lineId === l.id)
+                  return r ? (
+                    <div className={`text-xs ${r.matches ? 'text-etyme-verified' : 'text-etyme-attention'}`}>{r.says}</div>
+                  ) : null
+                })()}
                 <div className="text-xs text-etyme-muted">
                   {l.receipt
                     ? <>hours for {l.receipt.period} · {l.receipt.approvedHours}h approved</>

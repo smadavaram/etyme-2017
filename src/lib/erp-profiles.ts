@@ -249,7 +249,7 @@ export function render(
   const uncoded = lines.filter((l) => !l.costCenterCode || !l.glAccount)
   if (uncoded.length > 0 && profile.id !== 'GENERIC') {
     problems.push({
-      problem: `${uncoded.length} line(s) have no cost center or GL account`,
+      problem: `${uncoded.length} line${uncoded.length === 1 ? ' has' : 's have'} no cost center or GL account`,
       detail: `${profile.label} rejects a file with an unmapped line. Code them first — the people affected are ${uncoded.slice(0, 3).map((l) => l.personName).join(', ')}${uncoded.length > 3 ? ` and ${uncoded.length - 3} more` : ''}.`,
     })
   }

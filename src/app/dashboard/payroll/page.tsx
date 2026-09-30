@@ -900,6 +900,9 @@ function Statutory() {
       {data.pack.unpaidSays && (
         <p className="mt-1 max-w-[70ch] text-[11px] text-etyme-muted">{data.pack.unpaidSays}</p>
       )}
+      {(data.pack.wagesShort ?? []).map((w: any) => (
+        <p key={w.personId} className="mt-1 max-w-[70ch] text-[11px] text-etyme-attention">{w.says}</p>
+      ))}
       {data.pack.undatedSays && (
         <p className="mt-1 max-w-[70ch] text-[11px] text-etyme-attention">{data.pack.undatedSays}</p>
       )}

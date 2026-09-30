@@ -112,3 +112,24 @@ describe('the accounts payable page opens on one plain line', () => {
     expect(ap).toContain('What you owe, to whom, and when each one is due.')
   })
 })
+
+describe('money on an invoice is printed the way a person reads money', () => {
+  it('the early-payment sentence prints dollars with their sign and separators, never "509.76 off 16992.00"', async () => {
+    const { discountOn } = await import('@/lib/billing-cascade')
+    const offer = discountOn({
+      ladder: { rungs: [{ discountBps: 300, withinDays: 10 }], source: 'AGREEMENT', says: '' } as any,
+      anchoredOn: new Date('2026-09-20T00:00:00Z'),
+      payingOn: new Date('2026-09-25T00:00:00Z'),
+      netMinor: 1_699_200,
+      currency: 'USD',
+    })
+    expect(offer.says).toContain('$509.76 off $16,992.00 of work, so $16,482.24 settles it.')
+    expect(offer.says).not.toMatch(/ 16992\.00/)
+  })
+
+  it('a match that clears one line says "1 line", and two say "2 lines", never "line(s)"', () => {
+    const src = read('lib/three-way-match.ts')
+    expect(src).not.toContain('line(s)')
+    expect(src).not.toContain('exception(s)')
+  })
+})

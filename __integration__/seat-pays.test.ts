@@ -170,6 +170,25 @@ describe('a program office reads the books of the client that seated it', () => 
     }
   })
 
+  it('an invoice receipt row shows who worked, the hours signed against the hours billed, and whether it matches', async () => {
+    const { body } = await json(await listInvoices(req('GET', '/api/invoices?limit=50')))
+    const row = body.data.invoices.find((r: any) => r.id === id.clientInvoice)
+    expect(row.direction).toBe('PAYABLE')
+    const r = row.receipt
+    expect(r).not.toBeNull()
+    // Who worked, by name, and on what.
+    expect(r.people.length).toBeGreaterThan(0)
+    for (const name of r.people) expect(name).toMatch(/\S+ \S+/)
+    // Hours billed against hours signed, and the check in words.
+    expect(r.hoursBilled).toBeGreaterThan(0)
+    expect(typeof r.verdict).toBe('string')
+    expect(r.verdict.length).toBeGreaterThan(10)
+    expect(r.row).toMatch(/^\d+ (person|people) · \d+ weeks? · (all match|matches|matches with exceptions|does not match)$/)
+    // Where it passes, the verdict says so; where it does not, it never says it matches.
+    if (r.matches) expect(r.verdict).toMatch(/^Matches/)
+    else expect(r.verdict).not.toMatch(/^Matches/)
+  })
+
   it('the office’s own book is still its own, one named request away', async () => {
     const { status, body } = await json(
       await listInvoices(req('GET', '/api/invoices?books=own&limit=50'))

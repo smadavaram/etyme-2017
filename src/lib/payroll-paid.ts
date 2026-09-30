@@ -177,7 +177,12 @@ export async function paidBook(companyId: string, buyContractIds: string[]): Pro
  * cannot be known.
  */
 export async function paidRunHours(companyId: string): Promise<{
-  runs: Array<{ buyContractId: string; personId: string; timesheetId: string; hours: number; paidAt: Date }>
+  runs: Array<{
+    buyContractId: string; personId: string; timesheetId: string; hours: number; paidAt: Date
+    /** What the run paid for the day, straight time and premium, in minor units; null where it did not record a rate. */
+    paidCents: number | null
+    currency: string | null
+  }>
   unrecorded: Set<string>
 }> {
   const rows = await prisma.automationLog.findMany({
@@ -185,10 +190,15 @@ export async function paidRunHours(companyId: string): Promise<{
     select: { payload: true, at: true },
     orderBy: { at: 'asc' },
   })
-  const runs: Array<{ buyContractId: string; personId: string; timesheetId: string; hours: number; paidAt: Date }> = []
+  const runs: Array<{
+    buyContractId: string; personId: string; timesheetId: string; hours: number; paidAt: Date
+    paidCents: number | null; currency: string | null
+  }> = []
   const unrecorded = new Set<string>()
   for (const run of rows) {
-    const p = (run.payload ?? {}) as { contracts?: Array<{ buyContractId?: string; paid?: PaidLine[]; refused?: string | null }> }
+    const p = (run.payload ?? {}) as {
+      contracts?: Array<{ buyContractId?: string; paid?: PaidLine[]; refused?: string | null; currency?: string }>
+    }
     for (const c of p.contracts ?? []) {
       if (!c.buyContractId || c.refused) continue
       if (!Array.isArray(c.paid)) {
@@ -196,7 +206,12 @@ export async function paidRunHours(companyId: string): Promise<{
         continue
       }
       for (const l of c.paid) {
-        runs.push({ buyContractId: c.buyContractId, personId: l.personId, timesheetId: l.timesheetId, hours: Number(l.hours) || 0, paidAt: run.at })
+        const hours = Number(l.hours) || 0
+        runs.push({
+          buyContractId: c.buyContractId, personId: l.personId, timesheetId: l.timesheetId, hours, paidAt: run.at,
+          paidCents: typeof l.rateCents === 'number' ? hours * l.rateCents + (Number(l.premiumCents) || 0) : null,
+          currency: typeof c.currency === 'string' ? c.currency : null,
+        })
       }
     }
   }

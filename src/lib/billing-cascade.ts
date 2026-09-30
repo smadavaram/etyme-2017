@@ -29,6 +29,7 @@
  * wrong again.
  */
 
+import { amount } from '@/lib/money-display'
 import { AGREEMENT_WORD } from '@/lib/order-naming'
 
 export type Source = 'PLATFORM' | 'COMPANY' | 'AGREEMENT' | 'CONTRACT' | 'ORDER'
@@ -574,9 +575,17 @@ export interface DiscountInput {
   taxMinor?: number
   /** US_SALES_TAX · EU_VAT · UK_VAT · IN_GST · NONE, where it was determined. */
   taxRegime?: string | null
+  /** The invoice's currency, so the sentence prints its own sign. */
+  currency?: string
 }
 
-const money = (minor: number): string => `${(minor / 100).toFixed(2)}`
+/**
+ * Through the one formatter, in the invoice's own currency. This printed
+ * bare numbers — "509.76 off 16992.00" — a figure with no currency sign
+ * and no thousands separator on the one sentence about money a clerk
+ * reads before paying.
+ */
+const moneyIn = (currency: string) => (minor: number): string => amount(minor, currency)
 
 /**
  * What settles this invoice on a given day.
@@ -588,6 +597,7 @@ const money = (minor: number): string => `${(minor / 100).toFixed(2)}`
  * ever queries and everybody remembers.
  */
 export function discountOn(input: DiscountInput): DiscountOffer {
+  const money = moneyIn(input.currency ?? 'USD')
   const tax = input.taxMinor ?? 0
   const adjusts = ['EU_VAT', 'UK_VAT', 'IN_GST'].includes(input.taxRegime ?? '')
   const none = (says: string): DiscountOffer => ({
