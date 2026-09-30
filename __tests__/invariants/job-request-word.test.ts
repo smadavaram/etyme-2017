@@ -5,7 +5,8 @@ import { jobListWord } from '@/app/dashboard/requirements/words'
 import { pageFraming } from '@/lib/page-framing'
 
 /**
- * A client's menu says "Job requests"; a supplier's says "Requirements".
+ * Every party's menu says "Job requests" (CLAUDE.md, 2026-09-30: one
+ * screen word for the one object, never "Requirements" on one menu).
  * The founder's plain-words decision of 2026-09-28, extended to the
  * product screens the same day. The heading over the list, the back link
  * from one row, the program desk's tab and the refusal when no job is
@@ -24,9 +25,9 @@ describe('a job request is called what the reader’s menu calls it', () => {
     expect(jobListWord('CLIENT')).toEqual({ plural: 'Job requests', singular: 'job request' })
   })
 
-  it('a supplier keeps its own word, requirements', () => {
-    expect(jobListWord('VENDOR')).toEqual({ plural: 'Requirements', singular: 'requirement' })
-    expect(jobListWord('GSI').plural).toBe('Requirements')
+  it('a supplier reads the same word as its menu, job requests', () => {
+    expect(jobListWord('VENDOR')).toEqual({ plural: 'Job requests', singular: 'job request' })
+    expect(jobListWord('GSI').plural).toBe('Job requests')
   })
 
   it('a program office in a client’s seat reads the client’s word', () => {

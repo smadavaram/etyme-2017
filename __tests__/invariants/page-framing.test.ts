@@ -161,8 +161,9 @@ describe('a staffing vendor reads its own menu over its own pages', () => {
     expect(f.subtitle).toContain('bill clients')
   })
 
-  it('requirements are open demand the vendor works', () => {
-    expect(pageFraming('VENDOR', 'requirements').title).toBe('Requirements')
+  it('a supplier reads its open demand as job requests, the word its own menu uses', () => {
+    expect(pageFraming('VENDOR', 'requirements').title).toBe('Job requests')
+    expect(pageFraming('VENDOR', 'requirements').create).toBe('New job request')
   })
 })
 
@@ -239,9 +240,16 @@ describe('a client sees demand-side framing', () => {
     expect(pageFraming('CLIENT', 'invoices').eyebrow).toBe('Workforce')
   })
 
-  it('invoices are what the client is billed, not what they bill', () => {
+  it('a client’s invoice receipts are what its suppliers sent it and what is still to pay, not what it bills', () => {
     const f = pageFraming('CLIENT', 'invoices')
-    expect(f.subtitle).toContain('vendors have billed you')
+    expect(f.subtitle).toBe('What your suppliers sent you, and what is still to pay.')
+  })
+
+  it('nothing a client reads at the head of a page calls its suppliers vendors', () => {
+    for (const page of ALL_PAGES) {
+      const f = pageFraming('CLIENT', page)
+      expect(`${f.title} ${f.subtitle}`, page).not.toMatch(/\bvendors?\b/i)
+    }
   })
 
   it('a supplier reads what it sends its client as bills, and the client reads them as its invoice receipts', () => {
@@ -361,7 +369,7 @@ describe('a program office reading a client\'s book is framed in the client\'s w
     // about this is an MSP's alone.
     for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
       expect(pageFraming(kind, 'invoices', AT_CAVANAUGH).subtitle, kind)
-        .toContain('vendors have billed you')
+        .toContain('suppliers sent you')
     }
   })
 
@@ -411,7 +419,12 @@ describe('the framing names whose book it is when it is not the reader\'s own', 
 
   it('a firm whose name ends in s is not given a second one', () => {
     expect(pageFraming('MSP', 'invoices', { inASeat: true, company: 'Talvern Medical Devices' }).whose)
-      .toBe("Talvern Medical Devices' invoices, read from the seat it granted.")
+      .toBe("Talvern Medical Devices' invoice receipts, read from the seat it granted.")
+  })
+
+  it('a seated office reads the client\'s invoices as its invoice receipts, the word on the client\'s own page', () => {
+    expect(pageFraming('MSP', 'invoices', AT_CAVANAUGH).whose)
+      .toBe("Cavanaugh Glassworks' invoice receipts, read from the seat it granted.")
   })
 
   it('nobody reading their own book is told whose it is', () => {
@@ -470,14 +483,14 @@ describe('a supplier reading its own book is framed exactly as before', () => {
     }
   })
 
-  it('every desk that reads the page can raise one: a client and its seated office raise a job request, its own document, and a supplier raises a requirement, its record of a client\'s job', () => {
+  it('every desk that reads the page can raise one, and every one of them is offered "New job request", the word on every menu', () => {
     // `POST /api/requirements` exists and works, and the button above
     // the list has never been gated on anything — a supplier, a client
     // and an office in a client's seat all raise jobs from this page.
     // The framing said null for a commit, which would have taken a
     // working control off the screen.
     for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
-      expect(pageFraming(kind, 'requirements').create, kind).toBe('New requirement')
+      expect(pageFraming(kind, 'requirements').create, kind).toBe('New job request')
     }
     expect(pageFraming('CLIENT', 'requirements').create).toBe('New job request')
     expect(pageFraming('MSP', 'requirements', { inASeat: true, company: 'Cavanaugh Glassworks' }).create)

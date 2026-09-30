@@ -166,7 +166,7 @@ const SUPPLIER: Record<PageKey, Words> = {
     create: 'Record a placement',
   },
   requirements: {
-    title: 'Requirements',
+    title: 'Job requests',
     subtitle: 'Open demand. Match consultants, distribute to your network, and track submissions.',
     // Every desk that reads this page can raise one: `POST
     // /api/requirements` has always existed and the button above the
@@ -174,7 +174,7 @@ const SUPPLIER: Record<PageKey, Words> = {
     // would have taken a working control off the screen — the opposite
     // failure to the contracts button, and the same rule settles both:
     // the framing says what the route actually does.
-    create: 'New requirement',
+    create: 'New job request',
   },
   submissions: {
     title: 'Submissions',
@@ -214,7 +214,7 @@ const SUPPLIER: Record<PageKey, Words> = {
 const CLIENT: Record<PageKey, Words> = {
   'contracts.sell': {
     title: 'Contracts',
-    subtitle: 'Everyone working at your sites, across every vendor. Rates, end dates, and where they sit.',
+    subtitle: 'Everyone working at your sites, across every supplier. Rates, end dates, and where they sit.',
     // A client raises no contract by hand: the award writes both sides
     // and their due dates (station 4 of the client program), and the
     // rows on this page are its vendors' lines. The contracts page had
@@ -225,12 +225,12 @@ const CLIENT: Record<PageKey, Words> = {
   },
   'contracts.buy': {
     title: 'Contracts',
-    subtitle: 'Everyone working at your sites, across every vendor.',
+    subtitle: 'Everyone working at your sites, across every supplier.',
     create: null,
   },
   requirements: {
     title: 'Job requests',
-    subtitle: 'Jobs you have opened to your vendors. Track how many candidates each has drawn.',
+    subtitle: 'Jobs you have opened to your suppliers. Track how many candidates each has drawn.',
     // A client opens jobs to its vendors, so the button stands here
     // too, and a seated program office inherits it. It says "New job
     // request" because the document is the client's own and that is its
@@ -240,7 +240,7 @@ const CLIENT: Record<PageKey, Words> = {
   },
   submissions: {
     title: 'Candidates',
-    subtitle: 'People your vendors have put forward. Shortlist, interview, and place.',
+    subtitle: 'People your suppliers have put forward. Shortlist, interview, and place.',
     // A client's vendors put people forward; a client does not submit to
     // itself, and the route refuses it.
     create: null,
@@ -263,7 +263,7 @@ const CLIENT: Record<PageKey, Words> = {
     // received and matched, so its list is its invoice receipts
     // (CLAUDE.md, "Bill, invoice receipt, payroll").
     title: 'Invoice receipts',
-    subtitle: 'What your vendors have billed you, and what is outstanding.',
+    subtitle: 'What your suppliers sent you, and what is still to pay.',
     // A client receives and matches its suppliers' invoices. Generating
     // one would be raising a bill to itself.
     create: null,
@@ -295,7 +295,7 @@ const BOOK: Record<PageKey, string> = {
   submissions: 'candidates',
   rolloff: 'contractors ending soon',
   timesheets: 'hours',
-  invoices: 'invoices',
+  invoices: 'invoice receipts',
   expenses: 'expenses',
   consultants: 'contractors',
 }
