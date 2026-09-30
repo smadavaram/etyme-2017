@@ -297,7 +297,7 @@ describe('what the override may be asked to do', () => {
       if (/^src\/lib\/(seed-|demo-)/.test(rel)) continue
       const text = readFileSync(full, 'utf8')
       // An import, not a mention: the matrix's own row may say the name in prose.
-      if (/import[^;]*\bDEMO_MONTHLY_PAY\b[^;]*from/s.test(text)) offenders.push(`${rel} imports DEMO_MONTHLY_PAY`)
+      if (/import[^;]*\bDEMO_MONTHLY_PAY\b[^;]*from/.test(text)) offenders.push(`${rel} imports DEMO_MONTHLY_PAY`)
       // A writeCyclesFor call handing in its own pay rhythm, parentheses balanced.
       for (const m of text.matchAll(/writeCyclesFor\(/g)) {
         let depth = 0
