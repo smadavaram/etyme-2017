@@ -1330,6 +1330,19 @@ clients."*
      [date]" — and they read as free from that date.
   5. The person is told at each step, not asked: the employment is the
      consent. A move to another city says so.
+  6. **A delivery manager may put the firm's own employee forward on a
+     client's job request** (founder, 2026-09-30, "yes"), as INTERNAL —
+     it is his people. A person the firm does not employ still needs a
+     recruiting desk, the person's listing and consent, exactly as before.
+- **Demo housekeeping, decided by the founder the same day ("yes to
+  all").** The 569 seed rows found on visitors' demo sandboxes are
+  deleted; the one tie that can be released is released and the six
+  test bench listings inside visitors' sandboxes are deleted, so the
+  live demo can be rebuilt with the newest data. None of it belonged to
+  a real company. And **a visitor's demo sandbox is removed after 30
+  days without use**, with a warning first where the visitor left an
+  address, so sandboxes stop piling up and cannot tie the demo world
+  down again.
 - **Bench profit, next after the integrator flow — decided by the
   founder the same day** ("go"). A section on Our bench, read by the
   owner, admin and finance desks: **per person, bench to bill** — days
