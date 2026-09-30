@@ -48,6 +48,7 @@ import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS 
 import { seedBenchMatching } from '@/lib/seed-bench-matching'
 import { seedInternalMoves } from '@/lib/seed-internal-moves'
 import { seedPipeline } from '@/lib/seed-pipeline'
+import { costCenterCode, legacyCostCenterCode, findCostCenter } from '@/lib/seed-coding'
 import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
 import { rolesFor, RENAMED_ROLES, GRANTED_SINCE } from '@/lib/company-defaults'
 // A seeded bill is shaped by the two doors a real one is: `periodFor`
@@ -103,7 +104,7 @@ const FIRMS: Firm[] = [
   // hiring, approval, payables, compliance. The client is who pays for
   // this product, and these are the accounts it is shown on. What each
   // of them has on its books is in lib/seed-programmes.
-  { slug: 'nike',             name: 'Northbend Athletic',   kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Camille Whitford' },
+  { slug: 'nike',             name: 'Northbend Athletic',   kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Camille Ostrander' },
   { slug: 'corning',          name: 'Cavanaugh Glassworks', kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Ethan Garland' },
   { slug: 'terumo-bct',       name: 'Talvern Medical',      kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Naomi Feldman' },
 
@@ -160,6 +161,15 @@ const FIRMS: Firm[] = [
  * travel nurse's own LLC. `__integration__/rebuild-demo.test.ts` fails
  * if a seed writes a company that is not on it.
  */
+/**
+ * The clients of the seeded world, by slug and by the name a person
+ * reads. `__tests__/invariants/demo-names.test.ts` builds every seeded
+ * cost center code from these and fails on a retired name in one.
+ */
+export const WORLD_CLIENTS: readonly { slug: string; name: string; owner: string; vp: string | null }[] = FIRMS.filter(
+  (f) => f.kind === 'CLIENT'
+).map(({ slug, name, who }) => ({ slug, name, owner: who, vp: VP_NAMES[slug] ?? null }))
+
 export const WORLD_SLUGS: readonly string[] = [
   ...FIRMS.map((f) => PREFIX + f.slug),
   PREFIX + NURSE_CORP_SLUG,
@@ -503,9 +513,11 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     ]) {
       const unit = unitByName.get(d.name)!
 
-      const code = `${d.code}-${f.slug.slice(0, 4).toUpperCase()}-4100`
+      // Built from the name a person reads, never the slug: the slugs are
+      // the retired real names kept as addresses (lib/seed-coding).
+      const code = costCenterCode(d.code, f.name)
       const cc =
-        (await db.costCenter.findFirst({ where: { companyId: c.id, code } })) ??
+        (await findCostCenter(c.id, code, legacyCostCenterCode(d.code, f.slug))) ??
         (await db.costCenter.create({
           data: {
             companyId: c.id, code, name: `${d.name} — contingent`, orgUnitId: unit.id,
@@ -1564,6 +1576,11 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     { desk: 'finance',    role: 'Finance',             name: 'Rosalind Tay' },
     { desk: 'compliance', role: 'Compliance Officer',  name: 'Anneke Roosevelt' },
   ]
+  /** CloudEPA's two desks besides its owner (see below). */
+  const BENCH_FIRM_TEAM: { desk: string; role: string; name: string }[] = [
+    { desk: 'recruiter',  role: 'Recruiter',        name: 'Linnea Qadri' },
+    { desk: 'resourcing', role: 'Resource Manager', name: 'Mateo Brandvold' },
+  ]
   let supplierDesks = 0
   await step('supplier-desks', async () => {
     const brightmoor = firmBySlug.get('brightmoor')
@@ -1609,6 +1626,37 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
           await db.context.create({
             data: {
               personId: who.id, companyId: brightmoor.id, roleId: role.id, type: 'EMPLOYEE',
+              grantReason: `Seeded supplier desk — ${d.role}`,
+            },
+          })
+        }
+        supplierDesks++
+      }
+    }
+
+    // A bench firm's own two desks. CloudEPA had only its owner seated,
+    // so the bench vendor's recruiting and resourcing could not be walked
+    // as the people who do them (a tester, 2026-09-30). Two desks, not
+    // nine: a bench firm of this size is an owner, a recruiter who finds
+    // people and a resource manager who decides who goes where.
+    const cloudepa = firmBySlug.get('cloudepa')
+    if (cloudepa) {
+      for (const d of BENCH_FIRM_TEAM) {
+        const seed = rolesFor('VENDOR').find((r) => r.name === d.role)!
+        const role =
+          (await db.role.findFirst({ where: { companyId: cloudepa.id, name: d.role }, select: { id: true } })) ??
+          (await db.role.create({
+            data: { companyId: cloudepa.id, name: d.role, permissions: seed.permissions, isDefault: false },
+            select: { id: true },
+          }))
+        const email = `${PREFIX}cloudepa-${d.desk}@${DOMAIN}`
+        const who = await db.person.upsert({
+          where: { primaryEmail: email }, update: { name: d.name }, create: { name: d.name, primaryEmail: email },
+        })
+        if (!(await db.context.findFirst({ where: { personId: who.id, companyId: cloudepa.id } }))) {
+          await db.context.create({
+            data: {
+              personId: who.id, companyId: cloudepa.id, roleId: role.id, type: 'EMPLOYEE',
               grantReason: `Seeded supplier desk — ${d.role}`,
             },
           })

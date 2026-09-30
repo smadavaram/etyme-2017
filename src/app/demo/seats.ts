@@ -475,7 +475,8 @@ export const CANDIDATE_SEATS: CandidateSeat[] = [
       'The client has an open DO-178C job. Your employer has not put you forward for it yet.',
     about:
       'You are on an integrator’s payroll, not on a bench, so it can staff you without asking. ' +
-      'Your three-month avionics project ended three weeks ago; both sides signed four weeks of it.',
+      'Your three-month avionics project has ended. Both sides signed every week of it, and all ' +
+      'three months are paid.',
   },
   {
     slug: 'helena-marsh',

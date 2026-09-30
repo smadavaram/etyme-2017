@@ -77,6 +77,8 @@ export interface SectorSupplier {
   name: string
   /** The client program it supplies, by seed slug. */
   client: string
+  /** That client's name as a person reads it, which its cost center code is built from. */
+  clientName: string
   role: string
   skills: string[]
   loc: string
@@ -109,6 +111,7 @@ export const SECTOR_SUPPLIERS: SectorSupplier[] = [
     slug: 'sorrelwood',
     name: 'Sorrelwood Clinical Staffing',
     client: 'terumo-bct',
+    clientName: 'Talvern Medical',
     role: 'Occupational health nurse',
     skills: ['Occupational health', 'Employee health screening', 'OSHA recordkeeping'],
     loc: 'Westminster, CO',
@@ -125,6 +128,7 @@ export const SECTOR_SUPPLIERS: SectorSupplier[] = [
     slug: 'quarrystone',
     name: 'Quarrystone Industrial Staffing',
     client: 'corning',
+    clientName: 'Cavanaugh Glassworks',
     role: 'Forming line maintenance technician',
     skills: ['Industrial maintenance', 'Hydraulics', 'Preventive maintenance'],
     loc: 'Elmira, NY',
@@ -245,7 +249,7 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
     // the client coded it when it raised the job; the award carries that
     // coding onto the line below.
     const coding = await departmentAt({
-      clientId: client.id, clientSlug: s.client, ownerId: clientOwner.personId,
+      clientId: client.id, clientSlug: s.client, clientName: s.clientName, ownerId: clientOwner.personId,
       dept: s.department, billCents: s.bill,
     })
     const requirement =

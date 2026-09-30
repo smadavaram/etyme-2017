@@ -608,7 +608,18 @@ async function dealingsOf(
   if (!me) return ids
   if (includesOwn) ids.add(me)
 
-  const [register, agreements, sells, buys, invitations, seats] = await Promise.all([
+  // Every sell line the caller is on, at any rung, with the seller's
+  // name — read on its own so the names are handed to lib/chain-names
+  // before any of them is listed.
+  const sells = await prisma.sellContract.findMany({
+    where: { OR: [{ companyId: me }, { clientCompanyId: me }, { endClientCompanyId: me }] },
+    select: {
+      id: true, personId: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
+      company: { select: { name: true } },
+    },
+  })
+
+  const [register, agreements, buys, invitations, seats] = await Promise.all([
     prisma.counterparty.findMany({
       where: { companyId: me },
       select: { otherCompanyId: true },
@@ -616,13 +627,6 @@ async function dealingsOf(
     prisma.masterAgreement.findMany({
       where: { OR: [{ clientId: me }, { vendorId: me }] },
       select: { clientId: true, vendorId: true },
-    }),
-    prisma.sellContract.findMany({
-      where: { OR: [{ companyId: me }, { clientCompanyId: me }, { endClientCompanyId: me }] },
-      select: {
-        id: true, personId: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
-        company: { select: { name: true } },
-      },
     }),
     prisma.buyContract.findMany({
       where: { OR: [{ companyId: me }, { vendorCompanyId: me }] },
@@ -656,17 +660,20 @@ async function dealingsOf(
     if (c.endClientCompanyId) ids.add(c.endClientCompanyId)
   }
   if (below.length > 0) {
-    const rungs = sells
-      .filter((c) => c.companyId !== me)
-      .map((c) => ({
-        id: c.id, personId: c.personId, companyId: c.companyId,
-        companyName: c.company.name, clientCompanyId: c.clientCompanyId,
-      }))
     const terms = await prisma.masterAgreement.findMany({
       where: { clientId: me, disclosesSubVendors: true },
       select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
     })
-    const seen = namesForClient(rungs, me, (prime) => mayNameSubVendors(terms, me, prime))
+    const seen = namesForClient(
+      sells
+        .filter((c) => c.companyId !== me)
+        .map((c) => ({
+          id: c.id, personId: c.personId, companyId: c.companyId,
+          companyName: c.company.name, clientCompanyId: c.clientCompanyId,
+        })),
+      me,
+      (prime) => mayNameSubVendors(terms, me, prime)
+    )
     for (const c of below) {
       if (seen.get(c.companyId)?.masked === false) ids.add(c.companyId)
     }

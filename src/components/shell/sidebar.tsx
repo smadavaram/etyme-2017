@@ -380,7 +380,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Leads', href: '/dashboard/leads', icon: '⌁' },
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
+      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -440,7 +440,7 @@ const GSI_NAV: NavSection[] = [
       // What the end client sent — a GSI is prime here, the same seat a
       // vendor sits in when it receives a role.
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
+      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -500,7 +500,7 @@ const MSP_NAV: NavSection[] = [
     label: 'Demand',
     items: [
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
+      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
@@ -680,7 +680,7 @@ const CONSULTANT_NAV: NavSection[] = [
 // and adjacent with no signal they were two STEPS, not two competing
 // entry points: a requisition is the need before it's approved, an open
 // role is the same need after it's released to suppliers. Neither page
-// changed — the "Hire" group below says what they actually are, in
+// changed — the "Source" group below says what they actually are, in
 // order. Same for the rest: every group is a real phase of the
 // lifecycle this product tracks (raise → source → evaluate → engage →
 // operate week to week → offboard), and the one thing done rarely
@@ -715,10 +715,12 @@ const CLIENT_NAV: NavSection[] = [
       // "Job requests", the founder's word on 2026-09-28: a buyer asks
       // for a job to be filled; "requirement" and "requisition" are the
       // trade's words for the same row and not the reader's.
-      { label: 'Job requests', href: '/dashboard/requisitions', icon: '⊞', group: 'Hire' },
+      { label: 'Job requests', href: '/dashboard/requisitions', icon: '⊞', group: 'Source' },
       // The step where people actually arrive.
       //
-      // Hire read Requirements → Interviews → Placements, which skips
+      // Source (it was "Hire" until the founder's 2026-09-30 word: a
+      // contingent worker is sourced from a supplier, not hired) read
+      // Requirements → Interviews → Placements, which skips
       // the highest-volume screen a program office has: the
       // candidates suppliers put forward, waiting to be looked at. Not
       // "applications" — nobody applies to you here, your suppliers
@@ -731,12 +733,12 @@ const CLIENT_NAV: NavSection[] = [
       // what happened to that person. The page still exists and the
       // submissions list links into it — removing the entry without that
       // link would have orphaned it, since nothing else pointed there.
-      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇', group: 'Hire' },
+      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇', group: 'Source' },
       // What this desk said to a supplier and what came back — the ask
       // for a starred person, a question on a candidate — in one list,
       // newest first. A client could reach it from the search box and
       // nowhere else, so the founder asked whether it existed.
-      { label: 'Conversations', href: '/dashboard/conversations', icon: '💬', group: 'Hire' },
+      { label: 'Conversations', href: '/dashboard/conversations', icon: '💬', group: 'Source' },
       // The one entry point for people, deliberately. This used to sit
       // next to a "Candidates" link to /dashboard/submissions — the raw,
       // one-row-per-submission feed — which is exactly what made the
@@ -755,7 +757,7 @@ const CLIENT_NAV: NavSection[] = [
       // often, and had no way in.
       { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'Network' },
       // The contracts list, under the name a client uses for it. It sat
-      // under Hire, which is where the trail that produces a placement
+      // under Source, which is where the trail that produces a placement
       // ends — but the record itself is the parent of everything below
       // it here: a timesheet, an invoice, a PO and an expense each draw
       // on one contract. First in Operate, because the rest of the

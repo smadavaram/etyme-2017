@@ -28,7 +28,7 @@ const PAYROLL_DESK = 'world-brightmoor-payroll@demo.etyme.local'
 const OWNER = 'world-brightmoor@demo.etyme.local'
 const NORTHBEND_HIRING = 'world-nike-hiring@demo.etyme.local'
 const NORTHBEND_OWNER = 'world-nike@demo.etyme.local'
-const DISTRIBUTION = costCenterCode(RATE_CHANGE_DEPARTMENT, 'nike')
+const DISTRIBUTION = costCenterCode(RATE_CHANGE_DEPARTMENT.code, 'Northbend Athletic')
 
 let personId = ''
 let sellId = ''

@@ -330,3 +330,34 @@ describe('the demo shows the spread of industries', () => {
     expect(lines.some((l) => /\bIT\b/.test(l)), lines.join(' | ')).toBe(true)
   })
 })
+
+/**
+ * A door says what its seeded person holds, never more and never less.
+ *
+ * A tester opened Karthik Menon's door on 2026-09-30: the card said
+ * "both sides signed four weeks of it", and his page showed fourteen
+ * weeks approved and paid. The seed had moved to three whole calendar
+ * months, every weekday filed and signed and every month paid, and the
+ * card had not.
+ */
+describe('each door says what the seed behind it holds', () => {
+  const karthik = CANDIDATE_SEATS.find((c) => c.slug === 'karthik-menon')!
+
+  it('Karthik Menon’s door says every week of his three months was signed and every month paid, as his page shows', async () => {
+    const { karthikWindow, calendarWeeks } = await import('@/lib/seed-doors')
+    const { start, end } = karthikWindow(new Date('2026-09-30T00:00:00Z'))
+    // Three whole calendar months, so "three months" on the card is the seed's own shape.
+    expect(start.getUTCDate()).toBe(1)
+    expect((end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth()).toBe(2)
+    // More than four weeks are signed, so the card may not name a count it cannot keep.
+    expect(calendarWeeks(start, end).length).toBeGreaterThan(4)
+    expect(karthik.about).toMatch(/signed every week of it/)
+    expect(karthik.about).toMatch(/all three months are paid/)
+    expect(karthik.about).not.toMatch(/\b(one|two|three|four|five|\d+) weeks\b/)
+  })
+
+  it('Karthik Menon’s door names no number of weeks ago, because the day the world was born moves it', () => {
+    expect(karthik.about).not.toMatch(/weeks? ago/)
+  })
+
+})

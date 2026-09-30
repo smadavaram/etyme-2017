@@ -199,7 +199,7 @@ interface Program {
 export const PROGRAMMES: Program[] = [
   {
     client: 'nike', loc: 'Tualatin, OR',
-    people: { programme: 'Dana Whitlock', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
+    people: { programme: 'Lorena Kellerman', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
     recommend: { name: 'Veritan Talent', contactEmail: 'priya@veritantalent.example', reason: 'Placed two planning analysts for us in Portland in 2024; both extended.', held: [] },
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
     placements: [
@@ -665,7 +665,24 @@ export async function seedProgrammes(
     // lead and Procurement have said yes; the firm supplied its side
     // through its link; it sits with HR, insurance received and the
     // screening still to run.
-    if (p.recommend && !(await db.supplierRequest.findFirst({ where: { companyId: client.id, name: p.recommend.name } }))) {
+    // The firm's files are named for the firm. They read "Vertex-COI-2026.pdf"
+    // — another firm in this world — until 2026-09-30, and an HR reviewer
+    // stops on a certificate in somebody else's name. A world seeded
+    // before then has its request's file names moved in place.
+    const recommended = p.recommend
+      ? await db.supplierRequest.findFirst({
+          where: { companyId: client.id, name: p.recommend.name },
+          select: { id: true, application: true, checklist: true },
+        })
+      : null
+    if (recommended && JSON.stringify([recommended.application, recommended.checklist]).includes('Vertex-')) {
+      const renamed = (v: unknown) => JSON.parse(JSON.stringify(v).replace(/Vertex-/g, 'Veritan-'))
+      await db.supplierRequest.update({
+        where: { id: recommended.id },
+        data: { application: renamed(recommended.application), checklist: renamed(recommended.checklist) },
+      })
+    }
+    if (p.recommend && !recommended) {
       const at = day(-2).toISOString()
       const provided = ['TAX_FORM', 'INSURANCE', 'BANK', 'EXPERIENCE', 'REFERENCES', 'PROPOSAL']
       const lead = await db.context.findFirst({ where: { companyId: client.id, role: { name: 'Approver' } }, select: { personId: true, person: { select: { name: true } } } })
@@ -686,13 +703,13 @@ export async function seedProgrammes(
             references: [{ name: 'Alan Reyes', company: 'Ridgeline Outfitters', email: 'areyes@ridgeline.example', phone: '' }, { name: 'Dana Kim', company: 'Ascent Athletic', email: 'dkim@ascentathletic.example', phone: '' }],
             bank: { bankName: 'Umpqua Bank', accountName: 'Veritan Talent LLC', last4: '4471' },
             skills: ['Supply chain planning', 'Demand planning', 'S&OP'],
-            docs: [{ key: 'TAX_FORM', fileName: 'Vertex-W9-2026.pdf', size: 184000, at }, { key: 'INSURANCE', fileName: 'Vertex-COI-2026.pdf', size: 221000, at }, { key: 'PROPOSAL', fileName: 'Vertex-rate-card.pdf', size: 96000, at }],
+            docs: [{ key: 'TAX_FORM', fileName: 'Veritan-W9-2026.pdf', size: 184000, at }, { key: 'INSURANCE', fileName: 'Veritan-COI-2026.pdf', size: 221000, at }, { key: 'PROPOSAL', fileName: 'Veritan-rate-card.pdf', size: 96000, at }],
             submittedAt: at,
           } as unknown as object,
           checklist: newChecklist().map((i) =>
             i.desk === 'PROCUREMENT' && i.required ? { ...i, state: 'HELD', at, fileName: i.key === 'REFERENCES' ? '2 references' : null }
-            : i.key === 'PROPOSAL' ? { ...i, state: 'HELD', at, fileName: 'Vertex-rate-card.pdf' }
-            : provided.includes(i.key) ? { ...i, state: 'PROVIDED', at, fileName: i.key === 'TAX_FORM' ? 'Vertex-W9-2026.pdf' : i.key === 'INSURANCE' ? 'Vertex-COI-2026.pdf' : i.key === 'BANK' ? 'Umpqua Bank ····4471' : null }
+            : i.key === 'PROPOSAL' ? { ...i, state: 'HELD', at, fileName: 'Veritan-rate-card.pdf' }
+            : provided.includes(i.key) ? { ...i, state: 'PROVIDED', at, fileName: i.key === 'TAX_FORM' ? 'Veritan-W9-2026.pdf' : i.key === 'INSURANCE' ? 'Veritan-COI-2026.pdf' : i.key === 'BANK' ? 'Umpqua Bank ····4471' : null }
             : i
           ) as unknown as object,
         },

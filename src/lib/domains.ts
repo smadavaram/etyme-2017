@@ -396,6 +396,9 @@ export const DOMAINS: Domain[] = [
       'lib/program-seat',
       // How much we do unprompted, as a ladder a buyer already knows.
       'lib/autonomy',
+      // Which of the seller's dashboard panels a seat may read, asked the
+      // way the menu asks, so the dashboard calls no route that refuses.
+      'lib/dashboard-reads',
       // Which of the three consoles a seat opens on. Read by
       // /dashboard's own redirect, the sidebar's Dashboard link and the
       // demo door — three doors onto one question that had three

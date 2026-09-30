@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
 import { consoleHome } from '@/lib/console-home'
+import { dashboardReads, NOT_YOURS, type DashboardReads } from '@/lib/dashboard-reads'
 
 /**
  * Vendor Dashboard — the "Today" view.
@@ -36,6 +37,8 @@ interface DashboardData {
   bench: { name: string; skill: string; status: string; daysSince: number }[]
   pipeline: { total: number; monthlyRevenue: number }
   recentAutomation: { summary: string; at: string }[]
+  /** Which panels this seat may read; the rest say so rather than show a zero. */
+  reads: DashboardReads
 }
 
 /** Good submissions per day per requirement, and what one costs. */
@@ -248,17 +251,25 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [userName, setUserName] = useState<string>('there')
 
+  const permissions = session.permissions
   const fetchDashboard = useCallback(async () => {
     setLoading(true)
     setError(null)
+    // Only what this seat may read, asked the way the menu asks
+    // (lib/dashboard-reads). A route that would refuse is not called.
+    const reads = dashboardReads(permissions)
     try {
       // Fetch in parallel: decisions, contracts, bench, me, automation
       const [decisionsRes, contractsRes, benchRes, meRes, automationRes] = await Promise.all([
         fetch('/api/decisions').then((r) => r.ok ? r.json() : { data: { decisions: [], counts: {} } }),
         fetch('/api/contracts').then((r) => r.ok ? r.json() : { data: { contracts: [] } }),
-        fetch('/api/bench').then((r) => r.ok ? r.json() : { data: { listings: [] } }),
+        reads.bench
+          ? fetch('/api/bench').then((r) => r.ok ? r.json() : { data: { listings: [] } })
+          : Promise.resolve({ data: {} }),
         fetch('/api/me').then((r) => r.ok ? r.json() : { data: {} }),
-        fetch('/api/automation?limit=5').then((r) => r.ok ? r.json() : { data: { entries: [] } }),
+        reads.automation
+          ? fetch('/api/automation?limit=5').then((r) => r.ok ? r.json() : { data: { entries: [] } })
+          : Promise.resolve({ data: { entries: [] } }),
       ])
 
       // Parse name
@@ -323,17 +334,23 @@ export default function DashboardPage() {
           monthlyRevenue,
         },
         recentAutomation,
+        reads,
       })
     } catch (err: any) {
       setError(err.message ?? 'Failed to load dashboard data')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [permissions])
 
+  // Nothing is asked until we know this reader stays here: a client, a
+  // consultant or a one-person firm is sent to its own console first,
+  // and fetching the seller's panels on the way out is what answered
+  // every client desk with a 403 it never saw.
   useEffect(() => {
+    if (sendingOn) return
     fetchDashboard()
-  }, [fetchDashboard])
+  }, [sendingOn, fetchDashboard])
 
   // Held until we know whose dashboard this is, so a client never sees a
   // frame of the vendor's before being sent to their own.
@@ -402,8 +419,8 @@ export default function DashboardPage() {
         />
         <StatCard
           label="On Bench"
-          value={String(d?.bench.length ?? 0)}
-          subtitle={`${d?.bench.filter(b => b.status === 'available').length ?? 0} available now`}
+          value={d && !d.reads.bench ? '—' : String(d?.bench.length ?? 0)}
+          subtitle={d && !d.reads.bench ? 'not yours to see' : `${d?.bench.filter(b => b.status === 'available').length ?? 0} available now`}
           tone="verified"
         />
       </div>
@@ -480,11 +497,18 @@ export default function DashboardPage() {
               <h2 className="headline-serif text-[18px] text-etyme-ink">
                 Bench
               </h2>
-              <Link href="/dashboard/bench" className="text-[12px] text-etyme-action hover:underline">
-                View all →
-              </Link>
+              {d?.reads.bench && (
+                <Link href="/dashboard/bench" className="text-[12px] text-etyme-action hover:underline">
+                  View all →
+                </Link>
+              )}
             </div>
-            {d && d.bench.length === 0 && (
+            {d && !d.reads.bench && (
+              <div className="py-4 text-center text-etyme-muted text-[12px]">
+                {NOT_YOURS.bench}
+              </div>
+            )}
+            {d && d.reads.bench && d.bench.length === 0 && (
               <div className="py-4 text-center text-etyme-muted text-[12px]">
                 No consultants on bench.
               </div>

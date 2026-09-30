@@ -49,7 +49,7 @@ async function census() {
     submissions: await prisma.submission.count({ where: { fromCompanyId: { in: ids } } }),
     cycles: await prisma.cycle.count({ where: { OR: [{ sellContract: { companyId: { in: ids } } }, { buyContract: { companyId: { in: ids } } }] } }),
     allocations: await prisma.contractCostAllocation.count({ where: { sellContract: { companyId: { in: ids } } } }),
-    costCenters: await prisma.costCenter.count({ where: { code: { in: SECTOR_SUPPLIERS.map((x) => costCenterCode(x.department, x.client)) } } }),
+    costCenters: await prisma.costCenter.count({ where: { code: { in: SECTOR_SUPPLIERS.map((x) => costCenterCode(x.department.code, x.clientName)) } } }),
     units: await prisma.orgUnit.count({ where: { name: { in: ['Operations', ...SECTOR_SUPPLIERS.map((x) => x.department.name)] } } }),
   }
 }
@@ -204,11 +204,11 @@ describe('two suppliers outside IT on the seeded world', () => {
       const job = line.requirement!
       expect(job.orgUnit?.name, s.name).toBe(want[s.slug])
       expect(job.orgUnit?.parent?.name, s.name).toBe('Operations')
-      expect(job.costCenter?.code, s.name).toBe(costCenterCode(s.department, s.client))
+      expect(job.costCenter?.code, s.name).toBe(costCenterCode(s.department.code, s.clientName))
       expect(job.costCenter?.companyId, s.name).toBe(line.clientCompanyId)
       expect(line.orgUnitId, s.name).toBe(job.orgUnitId)
       expect(line.costAllocations.map((a) => [a.costCenter.code, a.shareBps]), s.name)
-        .toEqual([[costCenterCode(s.department, s.client), 10_000]])
+        .toEqual([[costCenterCode(s.department.code, s.clientName), 10_000]])
     }
   })
 
@@ -225,7 +225,7 @@ describe('two suppliers outside IT on the seeded world', () => {
       as(`world-${s.client}-hiring@demo.etyme.local`)
       const r = await json(await budget(req('GET', '/api/program/budget')))
       expect(r.status, s.name).toBe(200)
-      const center = r.body.data.centers.find((c: any) => c.code === costCenterCode(s.department, s.client))
+      const center = r.body.data.centers.find((c: any) => c.code === costCenterCode(s.department.code, s.clientName))
       expect(center, s.name).toBeDefined()
       expect(center.actualCents, s.name).toBe(Math.round(hours * s.bill))
     }

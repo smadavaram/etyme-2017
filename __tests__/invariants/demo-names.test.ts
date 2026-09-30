@@ -4,6 +4,10 @@ import { join } from 'node:path'
 import { namedCompanies } from '@/lib/positioning'
 import { writableEmail } from '@/lib/contacts'
 import { reservedAddress } from '@/lib/demo-session'
+import { WORLD_CLIENTS } from '@/lib/seed-world'
+import { costCenterCode, clientTag } from '@/lib/seed-coding'
+import { SECTOR_SUPPLIERS } from '@/lib/seed-sector-suppliers'
+import { RATE_CHANGE_DEPARTMENT } from '@/lib/seed-rate-change'
 
 /**
  * No real company's name, anywhere a visitor can reach.
@@ -348,6 +352,81 @@ describe('The names are gone from the fixtures too, which is where they come bac
       ).toEqual([])
     })
   }
+})
+
+/**
+ * ── And no seeded code either ────────────────────────────────────────
+ *
+ * The sweep above reads what a seed writes as a literal. A cost center
+ * code was not a literal: it was built from the first four letters of the
+ * slug, and the slugs are the retired names kept as addresses. So the
+ * budget list on Northbend Athletic's job request form read
+ * `APPS-NIKE-4100`, and the job request and the Program page printed it,
+ * with every file above clean. Found by a tester on 2026-09-30.
+ *
+ * So the codes are computed here from the same list the world seed
+ * writes, and a code built from a slug again fails by name.
+ */
+describe('Every seeded budget code is built from the name a person reads, never from a retired name kept in a slug', () => {
+  const DEPARTMENTS = [
+    'APPS', 'SEC', 'RND1', RATE_CHANGE_DEPARTMENT.code,
+    ...SECTOR_SUPPLIERS.map((s) => s.department.code),
+  ]
+  const retired = RETIRED.filter((r) => !TOWNS.has(r.was)).map((r) => r.was.split(' ')[0].toUpperCase())
+
+  it('Northbend Athletic\u2019s budgets read APPS-NORTHBEND-4100 and never APPS-NIKE-4100', () => {
+    expect(costCenterCode('APPS', 'Northbend Athletic')).toBe('APPS-NORTHBEND-4100')
+    expect(costCenterCode('DIST', 'Cavanaugh Glassworks')).toBe('DIST-CAVANAUGH-4100')
+    expect(costCenterCode('EHS', 'Talvern Medical')).toBe('EHS-TALVERN-4100')
+  })
+
+  it('no seeded cost center code at any client carries a retired company\u2019s name, whole or cut to four letters', () => {
+    expect(WORLD_CLIENTS.map((c) => c.name)).toEqual(
+      expect.arrayContaining(['Northbend Athletic', 'Cavanaugh Glassworks', 'Talvern Medical'])
+    )
+    const left: string[] = []
+    for (const client of WORLD_CLIENTS) {
+      for (const dept of DEPARTMENTS) {
+        const code = costCenterCode(dept, client.name)
+        for (const was of retired) {
+          if (code.includes(was) || code.split('-').includes(was.slice(0, 4))) left.push(`${client.name}: ${code} (${was})`)
+        }
+      }
+    }
+    expect(left).toEqual([])
+  })
+
+  it('every seeded client\u2019s code names that client as a person reads it, never its slug', () => {
+    for (const client of WORLD_CLIENTS) {
+      expect(client.name.toUpperCase().startsWith(clientTag(client.name)), client.name).toBe(true)
+    }
+    for (const s of SECTOR_SUPPLIERS) {
+      expect(WORLD_CLIENTS.find((c) => c.slug === s.client)?.name, s.slug).toBe(s.clientName)
+    }
+  })
+
+  it('no seed builds a code a person reads from a slug; the old shape is read only to rename a row in place', () => {
+    const fromSlug = /[sS]lug\.slice\(0,\s*\d+\)\.toUpperCase\(\)/
+    const left: string[] = []
+    for (const file of [...SEEDS, 'src/lib/seed-coding.ts', 'src/lib/seed-sector-suppliers.ts', 'src/lib/seed-rate-change.ts']) {
+      const lines = read(file).split('\n')
+      lines.forEach((line, i) => {
+        if (!fromSlug.test(line)) return
+        const inLegacy = lines.slice(Math.max(0, i - 3), i + 1).some((l) => /export function legacyCostCenterCode/.test(l))
+        if (!inLegacy) left.push(`${file} line ${i + 1}: ${line.trim()}`)
+      })
+    }
+    expect(left).toEqual([])
+  })
+})
+
+describe('A seeded firm\u2019s files are named for that firm', () => {
+  it('Veritan Talent\u2019s tax form, certificate of insurance and rate card say Veritan, never another firm in the world', () => {
+    const seed = read('src/lib/seed-programmes.ts')
+    const files = [...seed.matchAll(/fileName: '([^']+)'/g)].map((m) => m[1])
+    expect(files).toEqual(expect.arrayContaining(['Veritan-W9-2026.pdf', 'Veritan-COI-2026.pdf', 'Veritan-rate-card.pdf']))
+    expect(files.filter((f) => /^Vertex-/.test(f))).toEqual([])
+  })
 })
 
 describe('The slugs stay, because an address is not a word anybody reads', () => {

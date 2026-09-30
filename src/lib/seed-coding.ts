@@ -56,11 +56,53 @@ export interface SeedDepartment {
 const YEAR_HOURS = 2_080
 
 /**
- * The cost center's code, in the same shape the world seed numbers every
- * other one: `APPS-NIKE-4100`, so `DIST-NIKE-4100`.
+ * The client's part of a seeded cost center code: the first word of the
+ * name a person reads — `NORTHBEND` for Northbend Athletic.
+ *
+ * It was the first four letters of the slug, and the slugs are the
+ * retired real names kept as addresses (`world-nike`), so the budget
+ * picker on the job request form read `APPS-NIKE-4100`. A slug is an
+ * address nobody reads; a cost center code is printed on the form, the
+ * job request and the program page, so it is built from the display
+ * name like every other word on a screen.
  */
-export function costCenterCode(dept: SeedDepartment, clientSlug: string): string {
-  return `${dept.code}-${clientSlug.slice(0, 4).toUpperCase()}-4100`
+export function clientTag(clientName: string): string {
+  const first = clientName.trim().split(/\s+/)[0] ?? ''
+  return first.replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'CLIENT'
+}
+
+/** The cost center's code, in the one shape every seed numbers them: `APPS-NORTHBEND-4100`. */
+export function costCenterCode(deptCode: string, clientName: string): string {
+  return `${deptCode}-${clientTag(clientName)}-4100`
+}
+
+/**
+ * The code a world seeded before 2026-09-30 wrote, from the slug. Read
+ * only to rename that row in place, so a re-seed moves the code rather
+ * than writing a second budget beside the first.
+ */
+export function legacyCostCenterCode(deptCode: string, clientSlug: string): string {
+  return `${deptCode}-${clientSlug.slice(0, 4).toUpperCase()}-4100`
+}
+
+/**
+ * The cost center at this code, found in one read whether it was written
+ * under today's code or the slug-shaped one, and renamed in place if it
+ * was the old one. Null when neither exists.
+ */
+export async function findCostCenter(
+  companyId: string,
+  code: string,
+  legacyCode: string
+): Promise<{ id: string } | null> {
+  const rows = await db.costCenter.findMany({
+    where: { companyId, code: { in: code === legacyCode ? [code] : [code, legacyCode] } },
+    select: { id: true, code: true },
+  })
+  const found = rows.find((r) => r.code === code) ?? rows[0]
+  if (!found) return null
+  if (found.code !== code) await db.costCenter.update({ where: { id: found.id }, data: { code } })
+  return { id: found.id }
 }
 
 /** One head for a year at this bill rate, rounded up to the next $10,000. In dollars. */
@@ -77,11 +119,13 @@ export function planFor(billCents: number): number {
 export async function departmentAt(input: {
   clientId: string
   clientSlug: string
+  /** The name a person reads, which the cost center's code is built from. */
+  clientName: string
   ownerId: string
   dept: SeedDepartment
   billCents: number
 }): Promise<{ orgUnitId: string; costCenterId: string }> {
-  const { clientId, clientSlug, ownerId, dept, billCents } = input
+  const { clientId, clientSlug, clientName, ownerId, dept, billCents } = input
 
   const ops =
     (await db.orgUnit.findFirst({ where: { companyId: clientId, name: OPERATIONS } })) ??
@@ -92,9 +136,9 @@ export async function departmentAt(input: {
       data: { companyId: clientId, name: dept.name, kind: 'DEPARTMENT', parentId: ops.id },
     }))
 
-  const code = costCenterCode(dept, clientSlug)
+  const code = costCenterCode(dept.code, clientName)
   const cc =
-    (await db.costCenter.findFirst({ where: { companyId: clientId, code } })) ??
+    (await findCostCenter(clientId, code, legacyCostCenterCode(dept.code, clientSlug))) ??
     (await db.costCenter.create({
       data: { companyId: clientId, code, name: `${dept.name} — contingent`, orgUnitId: unit.id, ownerId },
     }))

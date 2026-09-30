@@ -215,7 +215,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
   // The budget the job is charged to, as Northbend coded it when the
   // job was raised. The award carries it onto the line below.
   const coding = await departmentAt({
-    clientId: client.id, clientSlug: 'nike', ownerId: clientOwner.personId,
+    clientId: client.id, clientSlug: 'nike', clientName: 'Northbend Athletic', ownerId: clientOwner.personId,
     dept: RATE_CHANGE_DEPARTMENT, billCents: RATE_CHANGE_RATES.bill,
   })
   const requirement =
