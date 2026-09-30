@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { inSentence } from '@/lib/document-stages'
 import { readJson } from '@/lib/read-response'
 import { saveForm } from '@/lib/form-save'
+import { plainDate, daySpan } from '@/lib/plain-date'
 import { CoverChip, SubVendorCover } from '@/components/cover-standing'
 
 /**
@@ -181,7 +182,19 @@ type Due = { kind: string; label: string; dueOn: string; done: boolean; overdue:
 
 const rate = (n: number | null) => (n == null ? '—' : `$${n.toFixed(0)}/hr`)
 const cash = (n: number | null) => (n == null ? '—' : `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`)
-const day = (iso: string | null) =>
+/**
+ * A calendar day — a start, a due date, a last day — is stored as
+ * midnight UTC and read in UTC, so a reader in California sees the day
+ * the contract says rather than the evening before. lib/plain-date is
+ * the one formatter for that, the same one the worker's pages use.
+ */
+const day = (iso: string | null) => plainDate(iso) ?? '—'
+/**
+ * A moment — when something was sent, when an interview is — is read
+ * in the reader's own zone, because nine at night in Portland is the
+ * day it happened there.
+ */
+const moment = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 
 /** A word for a state, in the tone it deserves. */
@@ -655,7 +668,7 @@ export default function PlacementPage() {
         title="How they reached you"
         subtitle={
           p.submission?.sentOnBy
-            ? `${p.submission.sentOnBy.company.name} put them forward to you on ${day(p.submission.sentOnBy.at)}.`
+            ? `${p.submission.sentOnBy.company.name} put them forward to you on ${moment(p.submission.sentOnBy.at)}.`
             : p.submission
               ? `Submitted by ${p.submission.from.phrase ?? p.submission.from.name}${p.submission.to ? ` to ${p.submission.to.name}` : ''}.`
               : 'This placement has no submission behind it.'
@@ -663,7 +676,7 @@ export default function PlacementPage() {
       >
         {p.submission && (
           <div className="card flex flex-wrap items-center gap-x-8 gap-y-3">
-            <Fact label="Submitted" value={day(p.submission.submittedAt)} />
+            <Fact label="Submitted" value={moment(p.submission.submittedAt)} />
             <Fact label="At" value={rate(p.submission.rate)} />
             {p.submission.sentOnBy && <Fact label="Their price" value={rate(p.submission.sentOnBy.rate)} />}
             <div>
@@ -701,7 +714,7 @@ export default function PlacementPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[13px] tabular-nums text-etyme-muted">{day(i.scheduledAt)}</span>
+                  <span className="text-[13px] tabular-nums text-etyme-muted">{moment(i.scheduledAt)}</span>
                   <span className={`chip ${tone(i.state)}`}>{words(i.state)}</span>
                 </div>
               </li>
@@ -858,7 +871,7 @@ export default function PlacementPage() {
               <tbody>
                 {p.timesheets.map((t) => (
                   <tr key={t.id} className="border-b border-etyme-rule/60">
-                    <td className="py-2 tabular-nums text-etyme-ink">{t.periodStart} → {t.periodEnd}</td>
+                    <td className="py-2 tabular-nums text-etyme-ink">{daySpan(t.periodStart, t.periodEnd)}</td>
                     <td className="py-2 text-right tabular-nums text-etyme-ink">{t.hours}</td>
                     <td className="py-2 text-etyme-muted">
                       {t.clientApproved ? `${t.clientApproved.hours} approved` : 'not yet'}
@@ -931,7 +944,7 @@ export default function PlacementPage() {
                     {inv.hours} hrs{inv.weeks > 1 ? ` · ${inv.weeks} weeks` : ''}
                   </span>
                   <span className="text-[14px] tabular-nums text-etyme-ink">{cash(inv.amount)}</span>
-                  <span className="text-[13px] tabular-nums text-etyme-muted">due {inv.dueAt}</span>
+                  <span className="text-[13px] tabular-nums text-etyme-muted">due {day(inv.dueAt)}</span>
                   <span className={`chip ${tone(inv.status)}`}>{words(inv.status)}</span>
                 </div>
               </li>

@@ -160,6 +160,6 @@ describe('what is owed and when is still on a screen — read off the document',
   })
 
   it('a placement shows the due date of each invoice raised against it, from the invoice', () => {
-    expect(read('src/app/dashboard/placements/[id]/page.tsx')).toContain('due {inv.dueAt}')
+    expect(read('src/app/dashboard/placements/[id]/page.tsx')).toContain('due {day(inv.dueAt)}')
   })
 })

@@ -4,6 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { kindWord, postureWord } from '@/lib/parties'
 
 import { useEffect, useState, useCallback } from 'react'
+import { plainDate } from '@/lib/plain-date'
 
 /**
  * How this company is set up.
@@ -911,7 +912,7 @@ function ApprovalsTab({ send, busy }: { send: SendFn; busy: boolean }) {
                       <p className="text-[12px] text-etyme-ink">
                         {h.action.toLowerCase()} by {h.changedBy}
                         <span className="text-etyme-faint tabular-nums ml-2">
-                          {h.changedAt.slice(0, 10)}
+                          {plainDate(h.changedAt)}
                         </span>
                       </p>
                       {h.reason && <p className="text-[12px] text-etyme-muted">{h.reason}</p>}
