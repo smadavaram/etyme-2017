@@ -274,7 +274,7 @@ export default function LandingPage() {
               right, so the whole hero is one screen at 1280 by 800; on a
               phone they stack, words first. */}
           <div className="grid gap-y-6 lg:grid-cols-12 lg:items-center lg:gap-x-6">
-          <div className="lg:col-span-5">
+          <div className="lg:col-span-6">
           {/* What the software does, as a description rather than a
               promise, 2026-09-28: the reader is an engineer who discounts
               "control" and checks verbs. Each verb is a screen in the
@@ -304,7 +304,7 @@ export default function LandingPage() {
 
           </div>
 
-          <figure className={`lg:col-span-7 ${FIGURE}`}>
+          <figure className={`lg:col-span-6 ${FIGURE}`}>
             {/* Taken from the seeded demo world on the date stamped on the
                 image, UTC — the same stamp the step screens carry beside
                 `from`. A test cannot read a PNG, so the date is the only
@@ -346,7 +346,7 @@ export default function LandingPage() {
           </h2>
 
           <div className={`${UNDER_HEADING} grid gap-8 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-0`}>
-            <ol className="divide-y divide-etyme-rule self-start border-y border-etyme-rule lg:col-span-5">
+            <ol className="divide-y divide-etyme-rule self-start border-y border-etyme-rule lg:col-span-6">
               {STEPS.map((s) => (
                 <li key={s.n}>
                   <Link
@@ -452,11 +452,11 @@ export default function LandingPage() {
             mural's own tests can see where the words' column ends; the
             rhythm test holds it equal to COLUMN. */}
         <div className="mx-auto max-w-6xl w-full px-5 sm:px-6 grid gap-x-6 gap-y-5 md:grid-cols-12 md:items-end">
-          <h2 className="max-w-[20ch] text-balance font-serif text-[32px] leading-[1.08]
-                         tracking-[-0.02em] text-etyme-canvas md:col-span-6 md:text-[48px]">
+          <h2 className="max-w-[30ch] text-balance font-serif text-[30px] leading-[1.12]
+                         tracking-[-0.02em] text-etyme-canvas md:col-span-6 md:text-[40px]">
             {JOIN.heading}
           </h2>
-          <div className="md:col-span-5 md:col-start-8">
+          <div className="md:col-span-6 md:col-start-7">
             {JOIN.lines.map((line) => (
               <p key={line} className="mb-4 max-w-[48ch] text-[16px] leading-relaxed text-etyme-canvas/[0.78] md:text-[17px]">
                 {line}

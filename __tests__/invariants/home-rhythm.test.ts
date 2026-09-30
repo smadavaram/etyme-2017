@@ -86,4 +86,13 @@ describe('Every home page band is one whole screen, the same shape as the others
     // ends in one and the footer begins with one.
     expect(CLOSE).not.toMatch(/onHome \? `[^`]*border/)
   })
+
+  it('every side-by-side band splits into two equal halves, and every heading under the hero is one size', () => {
+    // The founder, 2026-09-30: side by side "as long as it's symmetrical",
+    // and the join band's heading matches the others.
+    const spans = [...PAGE.matchAll(/(?:lg|md):col-span-(\d+)/g)].map((m) => Number(m[1]))
+    expect(spans.length).toBeGreaterThan(0)
+    for (const n of spans) expect(n, `a column spans ${n} of 12`).toBe(6)
+    expect(PAGE).not.toMatch(/md:text-\[48px\]/)
+  })
 })
