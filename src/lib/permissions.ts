@@ -326,9 +326,14 @@ export function desksHolding(
   return named.length ? named : holders.map((r) => r.name)
 }
 
-/** "the Hiring Manager’s or the Program Manager’s" */
-function possessives(desks: readonly string[]): string {
-  const shown = desks.slice(0, AT_MOST).map((d) => `the ${d}’s`)
+/**
+ * "AP & Payroll or Finance", "Owner, Admin or HR" — the desks by their
+ * own names. It read "the AP & Payroll’s or the Finance’s" until
+ * 2026-09-30: a possessive on every desk and an article on names that
+ * take none.
+ */
+function orDesks(desks: readonly string[]): string {
+  const shown = desks.slice(0, AT_MOST)
   if (shown.length === 1) return shown[0]
   return shown.slice(0, -1).join(', ') + ' or ' + shown[shown.length - 1]
 }
@@ -370,7 +375,7 @@ export function askTheDesk(args: {
   const among = desks.length > AT_MOST ? ', among other desks there' : ''
   const ask = desks.length === 1 ? 'Ask them' : 'Ask one of them'
   return (
-    `${args.doing} is ${possessives(desks)} at ${where}${among}. ${ask}, or ask ` +
+    `${args.doing} is done by ${orDesks(desks)} at ${where}${among}. ${ask}, or ask ` +
     `whoever manages roles there to widen your desk.`
   )
 }

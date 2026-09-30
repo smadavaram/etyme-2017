@@ -85,6 +85,22 @@ describe('a refusal names the desk, not the key', () => {
     expect((says.match(/’s/g) ?? []).length).toBeLessThanOrEqual(4)
   })
 
+  it('names the desks by their own names — "AP & Payroll or Finance", never "the AP & Payroll’s or the Finance’s"', () => {
+    const says = askTheDesk({
+      doing: 'Approving a pay run', needs: 'payroll.approve', kind: 'GSI', companyName: 'Teleworld Solutions',
+    })
+    expect(desksHolding('payroll.approve', 'GSI')).toEqual(['AP & Payroll', 'Finance'])
+    expect(says).toContain('Approving a pay run is done by AP & Payroll or Finance at Teleworld Solutions.')
+    expect(says).not.toMatch(/’s or |the [A-Z][^ ]*’s/)
+  })
+
+  it('two desks read "A or B" and three or more read "A, B or C"', () => {
+    const two = askTheDesk({ doing: 'Doing it', needs: 'governance.read', kind: 'VENDOR', companyName: 'Brightmoor Staffing' })
+    expect(two).toContain('Doing it is done by HR or Compliance Officer at Brightmoor Staffing.')
+    const three = askTheDesk({ doing: 'Recording a payment', needs: 'payments.record', kind: 'VENDOR', companyName: 'Brightmoor Staffing' })
+    expect(three).toContain('is done by Accounts Receivable, AP & Payroll or Finance at Brightmoor Staffing.')
+  })
+
   it('says what a permission lets somebody do, for every permission there is', () => {
     for (const p of PERMISSIONS) {
       expect(PERMISSION_WORDS[p], `${p} has no words`).toBeTruthy()
