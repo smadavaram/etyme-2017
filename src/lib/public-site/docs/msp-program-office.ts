@@ -36,35 +36,35 @@ export const DOC: PartyDoc = {
   "lede": "Runs the client’s program from a seat the client gives it. It never supplies a worker.",
   "thisParty": [
     {
-      "href": "#l1-1",
+      "href": "/docs/process/source-to-contract/msp-program-office",
       "label": "L1.1 · Source to contract"
     },
     {
-      "href": "#l1-2",
+      "href": "/docs/process/contract-to-onboard/msp-program-office",
       "label": "L1.2 · Contract to onboard"
     },
     {
-      "href": "#l1-3",
+      "href": "/docs/process/work-to-approve/msp-program-office",
       "label": "L1.3 · Work to approve"
     },
     {
-      "href": "#l1-4",
+      "href": "/docs/process/approve-to-bill/msp-program-office",
       "label": "L1.4 · Approve to bill"
     },
     {
-      "href": "#l1-5",
+      "href": "/docs/process/approve-to-pay/msp-program-office",
       "label": "L1.5 · Approve to pay"
     },
     {
-      "href": "#expenses",
+      "href": "/docs/process/expenses/msp-program-office",
       "label": "L1.3 → L1.5 · Expenses"
     },
     {
-      "href": "#l1-6",
+      "href": "/docs/process/record-to-report/msp-program-office",
       "label": "L1.6 · Record to report"
     },
     {
-      "href": "#l1-7",
+      "href": "/docs/process/govern-and-protect/msp-program-office",
       "label": "L1.7 · Govern and protect"
     }
   ],

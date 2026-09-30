@@ -48,6 +48,8 @@
  */
 
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
+import { SPINE_ORDER, STEPS, copyOfStep } from './steps'
+import { NORTHBEND_LABEL } from './example'
 
 export interface Screen {
   /** Under /public. */
@@ -81,7 +83,7 @@ export interface Refusal {
 export interface ModulePage {
   slug: string
   route: `/${string}`
-  /** 1 to 8, the order a hire moves through them. */
+  /** 1 to 8: the page's place on the spine of four steps (`./steps`). */
   n: number
   title: string
   /** One or two sentences under the title. Names contractors or suppliers. */
@@ -167,20 +169,19 @@ const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
  * same evening, after "invented" did not land), in the same sentence, and
  * `__tests__/invariants/public-example-names.test.ts` holds it.
  */
-const NORTHBEND = 'Northbend Athletic, a demo company — not a customer'
+const NORTHBEND = NORTHBEND_LABEL
 
-export const MODULES: ModulePage[] = [
+const AS_WRITTEN: Omit<ModulePage, 'n'>[] = [
   {
     slug: 'requisitions',
     route: '/requisitions',
-    n: 1,
     title: 'Job requests & suppliers',
     lede:
-      'A manager says what they need, and most requirements clear the moment they are raised. ' +
+      'A manager says what they need, and most job requests clear the moment they are raised. ' +
       'Once approved, a job goes only to the suppliers Procurement cleared, each at its own rate band.',
     screen: {
       img: '/screens/requisitions.png',
-      alt: 'A requirements screen: one open job, seven cleared by rule with no human needed, one waiting on a person, and a job over plan waiting on approval.',
+      alt: 'A job requests screen: one open job, seven cleared by rule with no human needed, one waiting on a person, and a job over plan waiting on approval.',
       caption:
         `The program manager at ${NORTHBEND}. Eight job requests: seven cleared by rule with nobody approving them, ` +
         'and one over plan waiting on a person, with the reason on the row.',
@@ -205,7 +206,7 @@ export const MODULES: ModulePage[] = [
         'The rule saying which firms may be used lived in a document, and a document cannot stop an email.',
     },
     does: [
-      'A requirement is raised with a budget, a rate band and a cost center. Rules read it first: the headcount plan, the budget, and the rate against the going rate. ' +
+      'A job request is raised with a budget, a rate band and a cost center. Rules read it first: the headcount plan, the budget, and the rate against the going rate. ' +
         'If every check passes it opens straight away.',
       'If one fails, it goes to the desk that owns that check. HR reads the job, Procurement audits the sourcing, and the cost-center lead signs the money last. ' +
         'Whoever raised it cannot approve it.',
@@ -239,13 +240,12 @@ export const MODULES: ModulePage[] = [
     refusesNote:
       'Whoever recommended a supplier cannot decide it, and a rejection needs a reason the requester can read. ' +
       'With Brightmoor Staffing, a demo company — not a customer, the screen says: “You recommended Brightmoor Staffing, so the desks decide it without you.”',
-    flow: { href: '/docs/client#l1-1', label: 'Source to contract, from the client’s desk' },
+    flow: { href: '/docs/process/source-to-contract', label: 'Source: job request to award, in the documentation' },
   },
 
   {
     slug: 'submissions',
     route: '/submissions',
-    n: 2,
     title: 'Submissions & screening',
     lede:
       'Every supplier submits against the same job, and each person arrives on one screen with the firm that sent them and the rate it asked. ' +
@@ -261,7 +261,7 @@ export const MODULES: ModulePage[] = [
     },
     capabilities: [
       { t: 'One screen for every supplier', d: 'Each candidate arrives with the firm that sent them and the rate it asked.' },
-      { t: 'Duplicates held', d: 'The same person twice on a requirement: the first submission wins, and the second firm is told.' },
+      { t: 'Duplicates held', d: 'The same person twice on a job request: the first submission wins, and the second firm is told.' },
       { t: 'Nine screening checks', d: 'Budget, already submitted, work authorization, can start, supplier engaged, governance, not barred, skills evidenced, worked here before.' },
       { t: 'Rate against the band', d: 'Above the ceiling or below the floor warns. Neither blocks a submission.' },
       { t: 'Interviews in rounds', d: 'Rounds in turn. The supplier and the candidate are told on their own channels.' },
@@ -280,7 +280,7 @@ export const MODULES: ModulePage[] = [
       'A supplier can submit only to a job it was sent, only while its insurance is in date, and only a person who agreed to be represented by it. ' +
         'Its own employee is the one exception, and the employee is told.',
       'The submission lands on one screen for the client, with the firm that sent it and the rate it asked. ' +
-        'The same person submitted twice to a requirement is held: the first submission wins.',
+        'The same person submitted twice to a job request is held: the first submission wins.',
       'Screening reads every arrival against the same nine checks. Then shortlist, interview and award. ' +
         'An award takes a position, and when the last position is taken the other suppliers are stood down.',
     ],
@@ -308,13 +308,12 @@ export const MODULES: ModulePage[] = [
     ],
     refusesNote:
       'Only the client can award; a supplier cannot award its own. And a firm cannot submit a person who has not agreed to be represented by it, unless that person is its own employee.',
-    flow: { href: '/docs/client#l1-1', label: 'Source to contract, from the client’s desk' },
+    flow: { href: '/docs/recruiting/screening', label: 'Screening, in the documentation' },
   },
 
   {
     slug: 'contracts',
     route: '/contracts',
-    n: 3,
     title: 'Contracts & onboarding',
     lede:
       'The award writes the contract, with the contractor, the rate and the dates on it, against the order that holds the ceiling. ' +
@@ -377,16 +376,15 @@ export const MODULES: ModulePage[] = [
     ],
     refusesNote:
       'A worker type your company does not accept is a block, not a warning. An order cannot be raised to your own W-2 employee, because there is nothing to buy.',
-    flow: { href: '/docs/client#l1-2', label: 'Contract to onboard, from the client’s desk' },
+    flow: { href: '/docs/process/contract-to-onboard', label: 'Award to first day, in the documentation' },
   },
 
   {
     slug: 'timesheets',
     route: '/timesheets',
-    n: 4,
     title: 'Timesheets & expenses',
     lede:
-      'The contractor files their own week, or the supplier that employs them does. ' +
+      'The contractor files their own week, and nobody else may. ' +
       'The manager who owns the work signs it, nobody approves their own hours, and a week that looks wrong is flagged before anybody signs.',
     screen: {
       img: '/screens/timesheets.png',
@@ -398,7 +396,7 @@ export const MODULES: ModulePage[] = [
       capturedAt: '2026-09-28T19:09:34Z',
     },
     capabilities: [
-      { t: 'Filed once, against the contract', d: 'By the person or their employer. Never twice for one week.' },
+      { t: 'Filed once, against the contract', d: 'By the person who worked it, and nobody else. Never twice for one week.' },
       { t: 'Nobody signs their own', d: 'Only the company being billed approves, and a rejection says why.' },
       { t: 'Signed twice', d: 'The client signs so the supplier may bill. The employer accepts so the person is paid.' },
       { t: 'Flagged before anyone signs', d: 'Over twelve hours a day, over sixty a week, over the job’s hours, or past the contract’s end. Warns, never blocks.' },
@@ -415,7 +413,7 @@ export const MODULES: ModulePage[] = [
         'Each copy was a chance to be wrong.',
     },
     does: [
-      'A week is filed once, against the contract, by the person or by the supplier that employs them. Submitting locks it. ' +
+      'A week is filed once, against the contract, by the person who worked it and nobody else. Submitting locks it. ' +
         'Only the company being billed can approve it, and nobody approves their own hours.',
       'The signed week carries two signatures. The client approves it, so the supplier may bill. The employer accepts it, so the person can be paid.',
       'Before anyone signs, the sheet is read. More than twelve hours in a day, sixty in a week, more than the job allows, or a day past the contract’s end is flagged and shown first.',
@@ -445,13 +443,12 @@ export const MODULES: ModulePage[] = [
     ],
     refusesNote:
       'Nothing here re-keys hours. The number the person wrote is the number every firm above them bills from.',
-    flow: { href: '/docs/client#l1-3', label: 'Work to approve, from the client’s desk' },
+    flow: { href: '/docs/process/work-to-approve', label: 'Week filed to week signed, in the documentation' },
   },
 
   {
     slug: 'invoices',
     route: '/invoices',
-    n: 5,
     title: 'Bills & the three-way check',
     lede:
       'A supplier sends its invoice, and you pay the invoice receipt only when it passes. The three-way check: the hours, the invoice receipt, and the contract rate must all agree. ' +
@@ -510,13 +507,12 @@ export const MODULES: ModulePage[] = [
     ],
     refusesNote:
       'Money leaves in two directions. A supplier’s invoice is received as an invoice receipt and checked against the order behind it. An employee is paid by payroll instead, and sees what they are paid, never what a firm above them charges.',
-    flow: { href: '/docs/client#l1-5', label: 'Approve to pay, from the client’s desk' },
+    flow: { href: '/docs/process/approve-to-pay', label: 'Invoice receipt to payment, in the documentation' },
   },
 
   {
     slug: 'compliance',
     route: '/compliance',
-    n: 6,
     title: 'Compliance & tenure',
     lede:
       'Tenure is counted per contractor at your company, across every supplier and every assignment, and a day on site counts once. ' +
@@ -577,7 +573,7 @@ export const MODULES: ModulePage[] = [
     ],
     refusesNote:
       'Rate parity is reported, not enforced. What to do about two prices for one job is your call, and a rate above the band is a warning that takes a reason.',
-    flow: { href: '/docs/client#l1-7', label: 'Govern and protect, from the client’s desk' },
+    flow: { href: '/docs/process/govern-and-protect', label: 'Time on site and the logs, in the documentation' },
     // Moved from the home page's #exposure, 2026-09-27. The business case
     // follows the hook and never leads, so it sits on the station whose
     // exposure it describes rather than on the front door.
@@ -619,7 +615,6 @@ export const MODULES: ModulePage[] = [
   {
     slug: 'chain',
     route: '/chain',
-    n: 7,
     title: 'The chain',
     lede:
       'Your supplier, the firm it buys from, and the firm that employs the contractor on your site. ' +
@@ -680,7 +675,7 @@ export const MODULES: ModulePage[] = [
     ],
     refusesNote:
       'A firm cannot submit a person who has not put themselves on its bench, its workers waiting for a project, unless it employs them. A chain deeper than eight firms is treated as a fault in the data, not as a business model.',
-    flow: { href: '/docs/prime-vendor', label: 'The chain, from the prime vendor’s desk' },
+    flow: { href: '/docs/prime-vendor', label: 'The chain, read as the prime vendor' },
     // Moved from the home page's #who, 2026-09-27, with the line each for
     // a prime, a sub and a bench vendor. The home page keeps the one
     // paragraph a supplier must read beside the offer to run a program:
@@ -723,7 +718,6 @@ export const MODULES: ModulePage[] = [
   {
     slug: 'governance',
     route: '/governance',
-    n: 8,
     title: 'Governance',
     lede:
       'Where a limit on contractors or suppliers is legally grounded, Etyme blocks and says why. ' +
@@ -783,7 +777,7 @@ export const MODULES: ModulePage[] = [
     ],
     refusesNote:
       'Governance is included for every account, and it is never a paid tier.',
-    flow: { href: '/docs/client#l1-7', label: 'Govern and protect, from the client’s desk' },
+    flow: { href: '/docs/process/govern-and-protect', label: 'Time on site and the logs, in the documentation' },
     // Moved from the home page's #compliance, 2026-09-27. The counts are
     // computed from `lib/autonomy` above rather than typed, and the
     // sentence after them names no ordinal, because "the one that is
@@ -815,6 +809,20 @@ export const MODULES: ModulePage[] = [
   },
 ]
 
+/**
+ * The eight pages in the order of the four steps: each step's own page,
+ * then the pages that hang under it (`./steps`, decided 2026-09-30). The
+ * number is the page's place in that order, so the header's Product menu,
+ * the home page's tiles and Previous and Next all read one spine.
+ */
+export const MODULES: ModulePage[] = SPINE_ORDER.map((route, i) => {
+  const m = AS_WRITTEN.find((x) => x.route === route)
+  if (!m) throw new Error(`The spine names ${route}, and no product page is written for it`)
+  return { ...m, n: i + 1 }
+})
+
+const stepAt = (route: string) => STEPS.find((s) => s.route === route)
+
 /** The module at a route, or null. */
 export function moduleAt(route: string): ModulePage | null {
   return MODULES.find((m) => m.route === route) ?? null
@@ -835,6 +843,9 @@ export function copyOfModule(m: ModulePage): { hero: string[]; body: string[] } 
       m.refusesNote,
       ...(m.more ? [m.more.title, ...m.more.paragraphs, ...(m.more.items ?? []).flatMap((i) => [i.t, i.d])] : []),
       m.flow.label,
+      // What a step page adds: its chart, who is involved, what happens
+      // next, and the line under the demo button (`./steps`).
+      ...(stepAt(m.route) ? copyOfStep(stepAt(m.route)!) : []),
     ],
   }
 }

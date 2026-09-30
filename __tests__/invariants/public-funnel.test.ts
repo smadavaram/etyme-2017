@@ -65,7 +65,8 @@ describe('One ladder, named once', () => {
     expect(WAYS_FORWARD).toEqual([SEE_IT, GET_THE_AUDIT, ASK_A_PERSON])
     expect(SEE_IT).toMatchObject({ t: 'See it with a month of data', href: '/demo' })
     expect(GET_THE_AUDIT).toMatchObject({ t: 'Get your contractor spend audit', href: '/census' })
-    expect(ASK_A_PERSON).toMatchObject({ t: 'Ask a person', href: '/contact#ask' })
+    // The top of the contact page, never a section in its middle (2026-09-30).
+    expect(ASK_A_PERSON).toMatchObject({ t: 'Ask a person', href: '/contact' })
     // The form the third rung leads to is really on the contact page.
     expect(CONTACT.blocks.find((b) => b.id === 'ask')).toBeDefined()
     expect(read('src/lib/public-site/company-page.tsx')).toContain("b.id === 'ask'")
@@ -174,7 +175,9 @@ describe('No button promises what the site cannot give', () => {
     expect(HOME).toContain('None set yet. Free for the first five firms →')
     expect(HOME).not.toContain('What is settled →')
     const link = HOME.slice(HOME.lastIndexOf('<Link', HOME.indexOf('None set yet. Free for the first five firms')))
-    expect(link).toMatch(/^<Link\s+href=\{'\/about#price' as Route\}/)
+    // To the top of About, whose list of sections names the price first
+    // thing: no link lands in the middle of a page (2026-09-30).
+    expect(link).toMatch(/^<Link\s+href=\{'\/about' as Route\}/)
     expect(priceClaims(copyFrom(HOME).join(' '))).toEqual([])
   })
 

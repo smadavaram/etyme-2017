@@ -32,10 +32,10 @@
  * ── Every role leads to something written for that reader ────────────
  *
  * The thread linked each role to an anchor on its home page that did
- * not exist. Here each leads to the section of the documentation drawn
- * from that desk, or to the module page section that speaks to it, and
- * the test opens each destination and finds the anchor. Six roles, six
- * real destinations; none was dropped.
+ * not exist. Here each leads to the page of the documentation written
+ * for that desk, or to the product page that speaks to it — the top of
+ * a page, never a section in its middle (decided 2026-09-30). Six roles,
+ * six real destinations; none was dropped.
  *
  * ── The spend audit is the census ────────────────────────────────────
  *
@@ -45,6 +45,7 @@
  */
 
 import { SEE_IT, GET_THE_AUDIT, ASK_A_PERSON } from './funnel'
+import { STEPS } from './steps'
 
 export interface NavItem {
   t: string
@@ -80,38 +81,30 @@ export interface NavMenu {
  * addresses — `/requisitions`, `/invoices` — because an address is not a
  * word anybody reads.
  */
-export const PRODUCT_STAGES: NavGroup[] = [
-  {
-    heading: 'Source',
-    items: [
-      { t: 'Job requests & suppliers', d: 'Sent only to the suppliers Procurement cleared.', href: '/requisitions' },
-      { t: 'Submissions & screening', d: 'Every supplier’s people for one job, side by side.', href: '/submissions' },
-    ],
-  },
-  {
-    heading: 'Start',
-    items: [
-      { t: 'Contracts & onboarding', d: 'Written by the award, papers checked before day one.', href: '/contracts' },
-    ],
-  },
-  {
-    heading: 'Work and pay',
-    items: [
-      { t: 'Timesheets & expenses', d: 'The worker files the week; nobody approves their own.', href: '/timesheets' },
-      { t: 'Bills & the three-way check', d: 'The three-way check: the hours, the invoice receipt, and the contract rate must all agree.', href: '/invoices' },
-    ],
-  },
-  {
-    heading: 'Govern',
-    items: [
-      { t: 'Compliance & tenure', d: 'Time on site per person, across every supplier.', href: '/compliance' },
-      { t: 'The chain', d: 'Each firm sees its own level; insurance shows at every depth.', href: '/chain' },
-      { t: 'Governance', d: 'Blocks where the law is behind it; warns elsewhere.', href: '/governance' },
-    ],
-  },
-]
+const PART: Record<string, { t: string; d: string }> = {
+  '/requisitions': { t: 'Job requests & suppliers', d: 'Sent only to the suppliers Procurement cleared.' },
+  '/submissions': { t: 'Submissions & screening', d: 'Every supplier’s people for one job, side by side.' },
+  '/contracts': { t: 'Contracts & onboarding', d: 'Written by the award, papers checked before day one.' },
+  '/timesheets': { t: 'Timesheets & expenses', d: 'The worker files the week; nobody approves their own.' },
+  '/invoices': { t: 'Bills & the three-way check', d: 'The three-way check: the hours, the invoice receipt, and the contract rate must all agree.' },
+  '/compliance': { t: 'Compliance & tenure', d: 'Time on site per person, across every supplier.' },
+  '/chain': { t: 'The chain', d: 'Each firm sees its own level; insurance shows at every depth.' },
+  '/governance': { t: 'Governance', d: 'Blocks where the law is behind it; warns elsewhere.' },
+}
 
-/** The eight parts in the order a hire moves through them. */
+/**
+ * Since 2026-09-30 the groups are the four steps, in the home page's
+ * order, and each lists its step's own page first and then the pages
+ * that hang under it (`./steps`). The header, the home page's tiles and
+ * the step pages' Previous and Next read one spine. The first step is
+ * Source, never Hire (the founder, the same day).
+ */
+export const PRODUCT_STAGES: NavGroup[] = STEPS.map((s) => ({
+  heading: `Step ${s.n} · ${s.name}`,
+  items: [s.route, ...s.more].map((href) => ({ ...PART[href], href })),
+}))
+
+/** The eight parts in the order of the four steps. */
 export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
 
 /**
@@ -125,17 +118,17 @@ export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
  * positioning test reads it against the two doors that refuse it.
  */
 export const ROLES: NavItem[] = [
-  { t: 'The program office', d: 'One hire walked from every desk, and who acts at each.', href: '/docs/client#one-hire' },
-  { t: 'Procurement', d: 'Procurement audits the suppliers, and a job goes only to the ones it cleared.', href: '/docs/client#l1-1' },
-  { t: 'HR and compliance', d: 'Two gates before day one. A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/docs/client#l1-2' },
+  { t: 'The program office', d: 'The whole process, stage by stage, and who acts at each.', href: '/docs/process' },
+  { t: 'Procurement', d: 'Procurement audits the suppliers, and a job goes only to the ones it cleared.', href: '/docs/master-data/suppliers' },
+  { t: 'HR and compliance', d: 'Two gates before day one. A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/docs/process/contract-to-onboard' },
   { t: 'Finance', d: 'Seven steps from a filed week to a paid bill, and which checks can be waived.', href: '/docs/time-and-money' },
-  { t: 'Hiring managers', d: 'The worker files the week and you sign it. A week over the hours is flagged first.', href: '/docs/client#l1-3' },
-  { t: 'Suppliers', d: 'What a prime, a sub and a bench vendor, a firm with workers waiting for a project, each see, and what stays theirs.', href: '/chain#down-the-chain' },
+  { t: 'Hiring managers', d: 'The worker files the week and you sign it. A week over the hours is flagged first.', href: '/docs/process/work-to-approve' },
+  { t: 'Suppliers', d: 'What a prime, a sub and a bench vendor, a firm with workers waiting for a project, each see, and what stays theirs.', href: '/chain' },
 ]
 
 export const DOCS_LINK: NavItem = {
   t: 'Documentation',
-  d: 'Every flow, party by party, desk by desk. Public, with no sign-in.',
+  d: 'The process stage by stage, master data and recruiting. Public, with no sign-in.',
   href: '/docs',
 }
 
@@ -206,6 +199,7 @@ export const FOOTER: FooterGroup[] = [
     heading: 'Read',
     links: [
       { label: 'Documentation', href: '/docs' },
+      { label: 'The process', href: '/docs/process' },
       { label: 'Time and money', href: '/docs/time-and-money' },
       { label: 'Integrations', href: '/docs/integrations' },
       { label: 'Security position', href: '/security' },

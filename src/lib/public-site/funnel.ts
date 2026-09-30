@@ -92,7 +92,9 @@ export const GET_THE_AUDIT: Way = {
 export const ASK_A_PERSON: Way = {
   t: 'Ask a person',
   d: 'An email and a sentence. A person reads it and writes back.',
-  href: '/contact#ask',
+  // The top of the contact page, whose form is on its first screen: no
+  // link on the site lands in the middle of another page (2026-09-30).
+  href: '/contact',
 }
 
 /** The ladder, in order. */

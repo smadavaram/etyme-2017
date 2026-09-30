@@ -234,7 +234,7 @@ export const ABOUT: CompanyPage = {
       id: 'work',
       title: 'How we work',
       items: [
-        { t: 'Rules before people', d: 'A requirement clears by rule first and goes to a person only when a rule fails. Where the law is behind a rule, the product blocks.' },
+        { t: 'Rules before people', d: 'A job request clears by rule first and goes to a person only when a rule fails. Where the law is behind a rule, the product blocks.' },
         { t: 'Nobody signs their own', d: 'A contractor never approves their own week, and whoever raised a job request cannot approve it. A bill with no signed week behind it is not paid.' },
         { t: 'Nothing we would take back', d: 'No borrowed customer logos, no analyst quadrant, and no price we have not settled. What is on this site is checkable today.' },
         { t: 'Free while testing', d: 'Etyme is free while it is tested with its first firms. Governance is part of every program and never a paid tier.' },

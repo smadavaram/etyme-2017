@@ -220,10 +220,25 @@ describe('Every module page opens on a real screen from the demo', () => {
     }
   })
 
-  it('every module page carries the six sections, in the order the static site set them', () => {
+  it('every step page reads what you do, the real screen, who is involved, then what happens next, and ends on the demo', () => {
+    // The founder's order for a step page, 2026-09-30. The static site's
+    // six sections are still on it, between who is involved and what
+    // happens next.
     const view = read('src/lib/public-site/module-page.tsx')
-    const order = ['Key capabilities', 'The complaint', 'What Etyme does', 'What it looks like', 'What it refuses', 'Read the flow']
-      .map((t) => view.indexOf(`title="${t}"`))
+    const step = view.slice(view.indexOf('export function StepPageView'), view.indexOf('export function MorePageView'))
+    const order = ['title="What you do"', 'title="The real screen"', 'title="Who is involved"', '<Capabilities', '<Refuses',
+      'title="More in this step"', 'title="Read the flow"', 'title="What happens next"', 'label="See this step in the demo"']
+      .map((t) => step.indexOf(t))
+    expect(order.every((i) => i > 0), JSON.stringify(order)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+  })
+
+  it('every page under a step opens on its real screen and keeps the static site’s six sections, in their order', () => {
+    const view = read('src/lib/public-site/module-page.tsx')
+    const more = view.slice(view.indexOf('export function MorePageView'), view.indexOf('export function ModulePageView'))
+    expect(more.indexOf('<Screen m={m} />')).toBeLessThan(more.indexOf('<Capabilities'))
+    const order = ['<Capabilities', 'title="What it looks like"', '<Refuses', '<Complaint', 'title="Read the flow"']
+      .map((t) => more.indexOf(t))
     expect(order.every((i) => i > 0)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
   })
@@ -270,12 +285,11 @@ describe('Every module page opens on a real screen from the demo', () => {
     expect(invoices).toContain('nobody can waive it')
   })
 
-  it('every module page links to the flow it describes in the documentation, and the flow exists', () => {
+  it('every module page links to the flow it describes in the documentation, at the top of a page that exists', () => {
     for (const m of MODULES) {
-      const [path, anchor] = m.flow.href.split('#')
-      const slug = path.replace('/docs/', '')
-      expect(docSlugs(), m.route).toContain(slug)
-      if (anchor) expect(partyAt(slug)!.html, `${m.flow.href} has no section #${anchor}`).toContain(`id="${anchor}"`)
+      expect(m.flow.href, m.route).not.toContain('#')
+      expect(pageAt(m.flow.href), `${m.route} links to ${m.flow.href}`).toBeTruthy()
+      expect(m.flow.href.startsWith('/docs/'), m.route).toBe(true)
     }
   })
 })
@@ -411,14 +425,14 @@ describe('Security, About and Contact say only what can be checked', () => {
 
 describe('One header and footer on every new page', () => {
 
-  it('every page carries the same header: product by stage, solutions by role, resources, company', () => {
+  it('every page carries the same header: product by step, solutions by role, resources, company', () => {
     // The structure the founder preferred in the marketing thread,
     // 2026-09-27. One header, drawn by one component, on every page.
     expect(NAV_MENUS.map((m) => m.label)).toEqual(['Product', 'Solutions', 'Resources', 'Company'])
-    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Source', 'Start', 'Work and pay', 'Govern'])
+    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
     expect(NAV_MENUS[1].groups.map((g) => g.heading)).toEqual(['By role'])
     expect(NAV_MENUS[2].groups.map((g) => g.heading)).toEqual(['Read', 'Try'])
-    expect(itemsOf(NAV_MENUS[2]).map((i) => i.href)).toEqual(['/docs', '/security', '/dpa', '/demo', '/contact#ask', '/census'])
+    expect(itemsOf(NAV_MENUS[2]).map((i) => i.href)).toEqual(['/docs', '/security', '/dpa', '/demo', '/contact', '/census'])
     expect(itemsOf(NAV_MENUS[3]).map((i) => i.href)).toEqual(['/about', '/contact'])
     // Every item says what it is in one line under its name.
     for (const m of NAV_MENUS) for (const i of itemsOf(m)) expect(i.d, i.t).toBeTruthy()
@@ -435,14 +449,19 @@ describe('One header and footer on every new page', () => {
     expect(frame).toContain('menu.groups.map')
   })
 
-  it('the Product menu names all eight parts, each under the stage a hire reaches it in', () => {
+  it('the Product menu names all eight parts, each under the step it belongs to, the step’s own page first', () => {
+    // The four steps are the one spine, decided 2026-09-30; the first is
+    // Source, never Hire.
     const stageOf = (route: string) => PRODUCT_STAGES.find((g) => g.items.some((i) => i.href === route))?.heading
-    expect(stageOf('/requisitions')).toBe('Source')
-    expect(stageOf('/submissions')).toBe('Source')
-    expect(stageOf('/contracts')).toBe('Start')
-    expect(stageOf('/timesheets')).toBe('Work and pay')
-    expect(stageOf('/invoices')).toBe('Work and pay')
-    for (const r of ['/compliance', '/chain', '/governance']) expect(stageOf(r), r).toBe('Govern')
+    expect(stageOf('/requisitions')).toBe('Step 1 · Source')
+    expect(stageOf('/governance')).toBe('Step 1 · Source')
+    expect(stageOf('/contracts')).toBe('Step 2 · Choose and start')
+    expect(stageOf('/submissions')).toBe('Step 2 · Choose and start')
+    expect(stageOf('/compliance')).toBe('Step 2 · Choose and start')
+    expect(stageOf('/timesheets')).toBe('Step 3 · Approve the weeks')
+    expect(stageOf('/invoices')).toBe('Step 4 · Bill and pay')
+    expect(stageOf('/chain')).toBe('Step 4 · Bill and pay')
+    expect(PRODUCT_STAGES.map((g) => g.items[0].href)).toEqual(['/requisitions', '/contracts', '/timesheets', '/invoices'])
     // Each item carries the module page's own name and leads to it.
     for (const m of MODULES) {
       expect(PRODUCT_ITEMS.find((i) => i.href === m.route), m.route).toBeTruthy()
@@ -465,27 +484,21 @@ describe('One header and footer on every new page', () => {
     expect(ROLES.map((r) => r.t)).toEqual([
       'The program office', 'Procurement', 'HR and compliance', 'Finance', 'Hiring managers', 'Suppliers',
     ])
+    // Since 2026-09-30 each lands on the top of a page written for that
+    // desk, never on a section in the middle of one.
     const written: Record<string, string> = {
-      'The program office': '/docs/client#one-hire',
-      Procurement: '/docs/client#l1-1',
-      'HR and compliance': '/docs/client#l1-2',
+      'The program office': '/docs/process',
+      Procurement: '/docs/master-data/suppliers',
+      'HR and compliance': '/docs/process/contract-to-onboard',
       Finance: '/docs/time-and-money',
-      'Hiring managers': '/docs/client#l1-3',
-      Suppliers: '/chain#down-the-chain',
+      'Hiring managers': '/docs/process/work-to-approve',
+      Suppliers: '/chain',
     }
     for (const role of ROLES) {
       expect(role.href, role.t).toBe(written[role.t])
-      const [path, anchor] = role.href.split('#')
-      expect(pageAt(path), `${role.t} leads to ${path}, which is not a public page`).toBeTruthy()
-      expect(['/', '/about', '/contact'], role.t).not.toContain(path)
-      if (!anchor) continue
-      if (path.startsWith('/docs/')) {
-        const doc = partyAt(path.slice('/docs/'.length))!
-        expect(doc.html, `${role.href} has no such section`).toContain(`id="${anchor}"`)
-      } else {
-        const m = MODULES.find((x) => x.route === path)!
-        expect(m.more?.id, `${role.href} has no such section`).toBe(anchor)
-      }
+      expect(role.href, role.t).not.toContain('#')
+      expect(pageAt(role.href), `${role.t} leads to ${role.href}, which is not a public page`).toBeTruthy()
+      expect(['/', '/about', '/contact'], role.t).not.toContain(role.href)
     }
     // The desks named in each client section are the ones the role is for.
     const section = (id: string) => {

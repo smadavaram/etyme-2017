@@ -22,6 +22,25 @@ export function CompanyPageView({ p }: { p: CompanyPage }) {
           <p className="mt-5 max-w-[64ch] text-[17px] leading-relaxed text-etyme-muted md:text-[18px]">{p.lede}</p>
         </div>
 
+        {/* What is on this page, at its top. Decided 2026-09-30: no link
+            from another page lands in the middle of this one, so a reader
+            sent here for one section finds it listed first. */}
+        {p.blocks.length > 3 && (
+          <nav aria-label="On this page" className="mt-8 rounded-xl border border-etyme-rule bg-etyme-surface p-4 sm:p-5">
+            <p className="eyebrow">{'On this page'}</p>
+            <ol className="mt-2 grid gap-x-8 gap-y-1 sm:grid-cols-2">
+              {p.blocks.map((b, i) => (
+                <li key={b.id}>
+                  <a href={`#${b.id}`} className="flex gap-3 rounded-md px-2 py-1 text-[14px] text-etyme-ink hover:bg-etyme-sunk">
+                    <span className="w-5 shrink-0 font-mono text-[11px] tabular-nums text-etyme-faint">{i + 1}</span>
+                    <span>{b.title}</span>
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
+
         {p.blocks.map((b) => (
           <section key={b.id} id={b.id} className="scroll-mt-6 border-t border-etyme-rule py-10 md:py-12 mt-10 first-of-type:mt-10">
             <h2 className="font-serif text-[27px] leading-tight tracking-[-0.02em] text-etyme-ink">{b.title}</h2>

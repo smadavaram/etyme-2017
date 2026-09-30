@@ -63,7 +63,7 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // section cannot fall off both pages at once.
 import { MODULES, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { ABOUT, COMPANY_PAGES, FOUR_ANSWERS, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
-import { copyOfDoc, copyOfDocsHome, docSlugs, TIME_AND_MONEY, PARTIES } from '@/lib/public-site/docs/index'
+import { copyOfDoc, copyOfDocsHome, docSlugs, docRoutes, TIME_AND_MONEY, PARTIES } from '@/lib/public-site/docs/index'
 import { NAV_MENUS as SITE_MENUS, PRODUCT_ITEMS, PRODUCT_STAGES, ROLES as SITE_ROLES } from '@/lib/public-site/nav'
 import { MODULE_ICON } from '@/lib/public-site/module-icons'
 import { ASK_COPY } from '@/lib/public-site/leads'
@@ -417,7 +417,9 @@ describe('Below the hero, the page says what the business is', () => {
       'Job request, suppliers, submissions, screening, interviews, ' +
       'onboarding, timesheets, bills, compliance'
     )
-    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Source', 'Start', 'Work and pay', 'Govern'])
+    // Since 2026-09-30 the Product menu's groups are the home page's four
+    // steps, in order, and the first is Source, never Hire.
+    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
   })
 
   it('asks the four questions on About before it argues anything, and leaves the hero to say what the software is', () => {
@@ -574,13 +576,14 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('says what the chain costs the client, in outcomes rather than in a warning', () => {
     // On the chain page, as its own section, and the header's Suppliers
-    // role leads straight to it.
+    // role leads to the top of that page — never into its middle, since
+    // 2026-09-30.
     expect(moreOn('chain')?.title).toBe('Etyme sends your job down the chain and records what each supplier sees')
     expect(CHAIN_PAGE).toContain('past the agreement that covers them')
     expect(CHAIN_PAGE).toContain('The same resume reaches you from more than one supplier')
     expect(CHAIN_PAGE).toContain('Etyme describes the end client where the agreement forbids naming it')
     expect(CHAIN_PAGE).toContain('A blind key lets two competing suppliers')
-    expect(SITE_ROLES.map((r) => r.href)).toContain('/chain#down-the-chain')
+    expect(SITE_ROLES.map((r) => r.href)).toContain('/chain')
   })
 
   it('says where the guarantee stops, because a company that is not on Etyme is not covered by it', () => {
@@ -593,12 +596,12 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('shows how a placement moves as the handful of milestones a person acts on', () => {
     // Six milestones, not the internal lifecycle, on About. The header's
-    // program office role leads to the documentation's own walk of one
-    // hire from every desk.
+    // program office role leads to the documentation's process overview,
+    // which carries the walk of one hire from the client's desk.
     const hire = aboutBlock('hire')!
     expect(hire.title).toBe('One hire moves through six milestones, and three of them can stop it')
     expect((hire.items ?? []).map((i) => i.t)).toEqual(['Raised', 'Released', 'Awarded', 'Cleared', 'Working', 'Ended'])
-    expect(SITE_ROLES.find((r) => r.t === 'The program office')?.href).toBe('/docs/client#one-hire')
+    expect(SITE_ROLES.find((r) => r.t === 'The program office')?.href).toBe('/docs/process')
     expect(PAGE).not.toContain('const LIFECYCLE')
   })
 
@@ -674,7 +677,10 @@ describe('Below the hero, the page says what the business is', () => {
     expect(ABOUT_PAGE).toContain('Governance is never a paid tier')
     expect(ABOUT_PAGE).toContain('Etyme never runs a bench and never places anybody')
     expect(ABOUT_PAGE).toContain('Looking around costs nothing and needs no card')
-    expect(PAGE).toContain("'/about#price'")
+    // The close links to the top of About, which lists this section
+    // first thing — no link lands in the middle of a page (2026-09-30).
+    expect(PAGE).toContain("'/about' as Route")
+    expect(PAGE).not.toMatch(/'\/about#/)
   })
 
   it('no longer heads a section with one module describing itself', () => {
@@ -1111,8 +1117,8 @@ describe('The record is the product, and the program office is offered quietly',
     for (const heading of [...headlinesFrom(PAGE), CLOSE_BAND.heading, ...ABOUT.blocks.map((b) => b.title)]) {
       expect(heading, heading).not.toContain('MSP')
     }
-    // The home page's close links to it.
-    expect(PAGE).toContain("'/about#ways'")
+    // The home page's close links to the top of About, never into it.
+    expect(PAGE).toContain("'/about' as Route")
   })
 
   it('says the program office is the second option and most clients take the first', () => {
@@ -1904,7 +1910,11 @@ function readerWords(): number {
 }
 
 /** The most words the home page may carry between its header and footer. */
-const CEILING = 505
+// 2026-09-30: 505 → 520. The founder asked for the navigation fixed and
+// the content kept; the tiles' four headings became the four steps
+// ("Step 1 · Source" rather than "Source"), which is twelve words of
+// navigation and no new sentence.
+const CEILING = 520
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -2070,7 +2080,9 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect(tiles).toContain('{stage.heading}')
     expect(tiles).toContain('{m.t}')
     expect(tiles).toContain('{m.d}')
-    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Source', 'Start', 'Work and pay', 'Govern'])
+    // Since 2026-09-30 the Product menu's groups are the home page's four
+    // steps, in order, and the first is Source, never Hire.
+    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
     // No screenshots in the tiles — the CRO's "too many screens" — and the
     // only picture is the kit's icon, one per part, hidden from a screen
     // reader because the name beside it says the same thing.
@@ -2322,9 +2334,11 @@ function everyPublicPage(): [string, string][] {
     out.push([route, [...c.hero, ...c.body].join(' ')])
   }
   out.push(['/docs', [...copyOfDocsHome().hero, ...copyOfDocsHome().body].join(' ')])
-  for (const slug of docSlugs()) {
-    const c = copyOfDoc(slug)
-    if (c) out.push([`/docs/${slug}`, [...c.hero, ...c.body].join(' ')])
+  // Every page under /docs: the party and reference pages, and since
+  // 2026-09-30 the process, master data and recruiting pages.
+  for (const route of docRoutes().filter((r) => r !== '/docs')) {
+    const c = copyOfDoc(route.slice('/docs/'.length))
+    if (c) out.push([route, [...c.hero, ...c.body].join(' ')])
   }
   out.push(['the header and footer', frameCopy().join(' ')])
   out.push(['the close band', [...closeBandCopy(), SEE_IT.d, GET_THE_AUDIT.d].join(' ')])
@@ -2543,7 +2557,7 @@ describe('Plain words on public pages, defined once', () => {
     // does is an invoice receipt — the party who issues a document
     // names it — so those survive, and nothing else does.
     const docs = everyPublicPage().filter(([route]) => route.startsWith('/docs'))
-    expect(docs.length).toBe(docSlugs().length + 1)
+    expect(docs.length).toBe(docRoutes().length)
     for (const [route, text] of docs) {
       const found = supplierSideSetAside(text).match(/\b(?:roles?|requisitions?|requirements?|invoic\w*)\b/gi) ?? []
       expect(found, route).toEqual([])

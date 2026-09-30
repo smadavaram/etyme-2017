@@ -24,6 +24,9 @@
  * unreachable.
  */
 
+import { PROCESS, partiesFor, processRoute } from './docs/process'
+import { TOPICS, topicRoute } from './docs/topics'
+
 export type PageKind =
   /** The front door. */
   | 'HOME'
@@ -46,9 +49,15 @@ export interface PublicPage {
   routeFile: string
 }
 
+/**
+ * The eight product pages, in the order of the four steps (`./steps`):
+ * each step's own page, then what hangs under it.
+ */
 export const MODULE_ROUTES = [
-  '/requisitions', '/submissions', '/contracts', '/timesheets',
-  '/invoices', '/compliance', '/chain', '/governance',
+  '/requisitions', '/governance',
+  '/contracts', '/submissions', '/compliance',
+  '/timesheets',
+  '/invoices', '/chain',
 ] as const
 
 export const DOCS_SLUGS = [
@@ -57,6 +66,31 @@ export const DOCS_SLUGS = [
   'candidate-independent', 'candidate-employee',
   'time-and-money', 'integrations',
 ] as const
+
+/**
+ * The documentation beside the party and reference pages, since
+ * 2026-09-30: the process, one page per stage and one per party's view of
+ * it, and the master data and recruiting pages. Each is mounted by one of
+ * four route files.
+ */
+export function nestedDocPages(): PublicPage[] {
+  const out: PublicPage[] = [
+    { route: '/docs/process', title: 'The process', kind: 'DOCS', routeFile: `${SITE_GROUP}/docs/process/page.tsx` },
+  ]
+  for (const p of PROCESS) {
+    out.push({ route: processRoute(p.slug), title: p.title, kind: 'DOCS', routeFile: `${SITE_GROUP}/docs/process/[stage]/page.tsx` })
+    for (const d of partiesFor(p)) {
+      out.push({
+        route: processRoute(p.slug, d.slug), title: `${p.title}, read as ${d.title}`, kind: 'DOCS',
+        routeFile: `${SITE_GROUP}/docs/process/[stage]/[party]/page.tsx`,
+      })
+    }
+  }
+  for (const t of TOPICS) {
+    out.push({ route: topicRoute(t), title: t.title, kind: 'DOCS', routeFile: `${SITE_GROUP}/docs/${t.group}/[slug]/page.tsx` })
+  }
+  return out
+}
 
 export type DocsSlug = (typeof DOCS_SLUGS)[number]
 
@@ -86,6 +120,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
     kind: 'DOCS' as const,
     routeFile: `${SITE_GROUP}/docs/[slug]/page.tsx`,
   })),
+  ...nestedDocPages(),
 
   { route: '/security', title: 'Security position', kind: 'COMPANY', routeFile: `${SITE_GROUP}/security/page.tsx` },
   { route: '/about', title: 'About Etyme', kind: 'COMPANY', routeFile: `${SITE_GROUP}/about/page.tsx` },

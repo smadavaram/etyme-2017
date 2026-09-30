@@ -297,7 +297,7 @@ export default function LandingPage() {
             <img
               src="/screens/program-dashboard.png"
               data-captured-at="2026-09-28T19:09:17Z"
-              alt="The program dashboard: a sentence saying whether anything needs the reader today, then six numbers — on site, suppliers, this month, ending soon, the time limit and requirements — over a list of who is starting soon and which suppliers are on site."
+              alt="The program dashboard: a sentence saying whether anything needs the reader today, then six numbers — on site, suppliers, this month, ending soon, the time limit and job requests — over a list of who is starting soon and which suppliers are on site."
               width={1440}
               height={900}
               className="block h-auto w-full border-b border-etyme-rule"
@@ -500,7 +500,7 @@ export default function LandingPage() {
             <tr className="border-b border-etyme-rule/70">
               <td className="py-1.5 pr-3 align-top">Have Etyme run your program office</td>
               <td className="py-1.5 align-top">
-                <Link href={'/about#ways' as Route} className={QUICK_LINK}>
+                <Link href={'/about' as Route} className={QUICK_LINK}>
                   How that works →
                 </Link>
               </td>
@@ -508,7 +508,7 @@ export default function LandingPage() {
             <tr id="why" className="scroll-mt-6 border-b border-etyme-rule/70">
               <td className="py-1.5 pr-3 align-top">Know the price</td>
               <td className="py-1.5 align-top">
-                <Link href={'/about#price' as Route} className={QUICK_LINK}>
+                <Link href={'/about' as Route} className={QUICK_LINK}>
                   None set yet. Free for the first five firms →
                 </Link>
               </td>

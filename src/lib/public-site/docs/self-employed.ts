@@ -36,35 +36,35 @@ export const DOC: PartyDoc = {
   "lede": "One person, two lanes: the company that sells and holds insurance, and the worker who files hours and is paid.",
   "thisParty": [
     {
-      "href": "#l1-1",
+      "href": "/docs/process/source-to-contract/self-employed",
       "label": "L1.1 · Source to contract"
     },
     {
-      "href": "#l1-2",
+      "href": "/docs/process/contract-to-onboard/self-employed",
       "label": "L1.2 · Contract to onboard"
     },
     {
-      "href": "#l1-3",
+      "href": "/docs/process/work-to-approve/self-employed",
       "label": "L1.3 · Work to approve"
     },
     {
-      "href": "#l1-4",
+      "href": "/docs/process/approve-to-bill/self-employed",
       "label": "L1.4 · Approve to bill"
     },
     {
-      "href": "#l1-5",
+      "href": "/docs/process/approve-to-pay/self-employed",
       "label": "L1.5 · Approve to pay"
     },
     {
-      "href": "#expenses",
+      "href": "/docs/process/expenses/self-employed",
       "label": "L1.3 → L1.5 · Expenses"
     },
     {
-      "href": "#l1-6",
+      "href": "/docs/process/record-to-report/self-employed",
       "label": "L1.6 · Record to report"
     },
     {
-      "href": "#l1-7",
+      "href": "/docs/process/govern-and-protect/self-employed",
       "label": "L1.7 · Govern and protect"
     }
   ],

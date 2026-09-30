@@ -54,6 +54,9 @@
  * links to it.
  */
 
+import { PROCESS, processAt, partiesFor, processRoutes } from './process'
+import { TOPICS, topicAt, topicRoute, GROUP_TITLE } from './topics'
+import { flowWords } from '../flow'
 import { DOC as client } from './client'
 import { DOC as systemsIntegrator } from './systems-integrator'
 import { DOC as mspProgramOffice } from './msp-program-office'
@@ -70,7 +73,11 @@ export interface PartyDoc {
   eyebrow: string
   title: string
   lede: string
-  /** The page's own sections, for the side menu. */
+  /**
+   * The stages drawn from this desk, each a page of its own under
+   * /docs/process since 2026-09-30. Until then these were anchors into the
+   * middle of this page.
+   */
   thisParty: { href: string; label: string }[]
   /**
    * The body, as HTML written in this repository. Trusted: nothing a user
@@ -195,16 +202,29 @@ export const INTEGRATIONS: ReferenceDoc = {
 
 export const REFERENCE: ReferenceDoc[] = [TIME_AND_MONEY, INTEGRATIONS]
 
+/**
+ * The documentation home. Since 2026-09-30 it is cut in three — the
+ * process, master data and recruiting — with the party pages as a way
+ * to read the same process from one desk, and the reference pages last.
+ * Nothing on it links into the middle of another page.
+ */
 export const DOCS_HOME = {
   eyebrow: 'Documentation',
   title: 'How contractors and suppliers move through Etyme',
   lede:
-    'Every flow, station by station, drawn from each party’s desk. It includes the stations not built yet. ' +
+    'The whole process, from a job request to pay and the end of the work, one page per stage. ' +
     'It is public, and none of it needs an account.',
-  inside: [
-    { t: 'Job request to start', d: 'A hiring manager raises a job request, and three desks clear it in order. Only the suppliers Procurement approved see it. The award writes the contract.', href: '/docs/client#l1-1' },
-    { t: 'Time and money', d: 'The signed week is the receipt. One row of hours runs through the chain, then the three-way check, and payroll for employees.', href: '/docs/time-and-money' },
-    { t: 'The autonomy ladder', d: 'Everything the system does on its own has a level, from L0 observe to L5 autonomous within policy. A row says whether it can be undone.', href: '/security#done' },
+  parts: [
+    { t: 'The process', d: 'A job request through to pay and the end of the work, in order, with a flow chart on every page.', href: '/docs/process' },
+    { t: 'Master data', d: 'The business partners — customers and suppliers — and the consultants.', href: '/docs/master-data/customers' },
+    { t: 'Recruiting', d: 'Matching, screening and tracking every submission to an award.', href: '/docs/recruiting/matching' },
+  ],
+  readAs:
+    'The same process, read from one desk. Each party page says where that party stands on a deal, then lists its stages.',
+  reference: [
+    { t: 'Time and money', d: 'Seven steps from a filed week to a paid bill, and which checks can be waived.', href: '/docs/time-and-money' },
+    { t: 'Integrations', d: 'What crosses to your books and systems today, and what does not yet.', href: '/docs/integrations' },
+    { t: 'Security position', d: 'What is done, what is not, and when. It includes the autonomy ladder, L0 to L5.', href: '/security' },
   ],
   example:
     'The example program is the same flows with a month of data in them. Open it at any desk, with no account.',
@@ -240,6 +260,9 @@ export function textOfHtml(html: string): string {
 
 /** Every word a reader sees on a docs page, split at the fold. */
 export function copyOfDoc(slug: string): { hero: string[]; body: string[] } | null {
+  // The process, master data and recruiting pages, since 2026-09-30.
+  const nested = copyOfNestedDoc(slug)
+  if (nested) return nested
   const p = partyAt(slug)
   if (p) return { hero: [p.eyebrow, p.title, p.lede], body: [textOfHtml(p.html)] }
   const r = referenceAt(slug)
@@ -258,6 +281,66 @@ export function copyOfDoc(slug: string): { hero: string[]; body: string[] } | nu
 export function copyOfDocsHome(): { hero: string[]; body: string[] } {
   return {
     hero: [DOCS_HOME.title, DOCS_HOME.lede],
-    body: [...DOCS_HOME.inside.flatMap((i) => [i.t, i.d]), DOCS_HOME.example],
+    body: [
+      ...DOCS_HOME.parts.flatMap((i) => [i.t, i.d]),
+      DOCS_HOME.readAs,
+      ...DOCS_HOME.reference.flatMap((i) => [i.t, i.d]),
+      DOCS_HOME.example,
+    ],
   }
+}
+
+/** The process overview's own words. */
+export const PROCESS_HOME = {
+  eyebrow: 'Documentation · The process',
+  title: 'The process, from a job request to the end of the work',
+  lede:
+    'Every stage a contractor and their supplier pass through, in order, on a page of its own. ' +
+    'Each page opens with a flow chart and says who does each step.',
+  onePicture: 'One hire, in three drawings, from the client’s desk.',
+}
+
+/**
+ * The words of a page under /docs/process, /docs/master-data or
+ * /docs/recruiting, for the guard. The drawings and tables a process page
+ * shows are the party pages' own HTML, which the guard already reads in
+ * full on each party page, so only the words written for these pages are
+ * returned here.
+ */
+function copyOfNestedDoc(path: string): { hero: string[]; body: string[] } | null {
+  const parts = path.split('/')
+  if (parts[0] === 'process') {
+    if (parts.length === 1) {
+      return {
+        hero: [PROCESS_HOME.title, PROCESS_HOME.lede],
+        body: [PROCESS_HOME.onePicture, ...PROCESS.flatMap((p) => [p.title, p.when, p.lede])],
+      }
+    }
+    const p = processAt(parts[1])
+    if (!p || parts.length > 3) return null
+    if (parts[2] && !partiesFor(p).some((d) => d.slug === parts[2])) return null
+    return {
+      hero: [p.title, p.lede],
+      body: [...flowWords(p.flow), ...p.lines, ...PROCESS.map((x) => x.title)],
+    }
+  }
+  if ((parts[0] === 'master-data' || parts[0] === 'recruiting') && parts.length === 2) {
+    const t = topicAt(parts[0], parts[1])
+    if (!t) return null
+    return {
+      hero: [t.title, t.lede],
+      body: [GROUP_TITLE[t.group], ...flowWords(t.flow), ...t.lines],
+    }
+  }
+  return null
+}
+
+/** Every page under /docs, the party and reference pages included, as routes. */
+export function docRoutes(): string[] {
+  return [
+    '/docs',
+    ...docSlugs().map((s) => `/docs/${s}`),
+    ...processRoutes(),
+    ...TOPICS.map(topicRoute),
+  ]
 }

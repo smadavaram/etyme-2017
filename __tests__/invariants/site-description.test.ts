@@ -99,7 +99,7 @@ describe('the demo door back into the funnel', () => {
     expect(page).toContain('GET_THE_AUDIT.href')
     expect(page).toContain('ASK_A_PERSON.href')
     expect(GET_THE_AUDIT.href).toBe('/census')
-    expect(ASK_A_PERSON.href).toBe('/contact#ask')
+    expect(ASK_A_PERSON.href).toBe('/contact')
 
     const line = `${NEXT_STEP_LEAD} ${GET_THE_AUDIT.t}, or ${ASK_A_PERSON.t.toLowerCase()}.`
     expect(promisesAnAccount([NEXT_STEP_LEAD, GET_THE_AUDIT.t, ASK_A_PERSON.t, line])).toEqual([])

@@ -36,35 +36,35 @@ export const DOC: PartyDoc = {
   "lede": "Sells to the client. Buys from a sub-vendor with an order, or uses its own employees with no order.",
   "thisParty": [
     {
-      "href": "#l1-1",
+      "href": "/docs/process/source-to-contract/prime-vendor",
       "label": "L1.1 · Source to contract"
     },
     {
-      "href": "#l1-2",
+      "href": "/docs/process/contract-to-onboard/prime-vendor",
       "label": "L1.2 · Contract to onboard"
     },
     {
-      "href": "#l1-3",
+      "href": "/docs/process/work-to-approve/prime-vendor",
       "label": "L1.3 · Work to approve"
     },
     {
-      "href": "#l1-4",
+      "href": "/docs/process/approve-to-bill/prime-vendor",
       "label": "L1.4 · Approve to bill"
     },
     {
-      "href": "#l1-5",
+      "href": "/docs/process/approve-to-pay/prime-vendor",
       "label": "L1.5 · Approve to pay"
     },
     {
-      "href": "#expenses",
+      "href": "/docs/process/expenses/prime-vendor",
       "label": "L1.3 → L1.5 · Expenses"
     },
     {
-      "href": "#l1-6",
+      "href": "/docs/process/record-to-report/prime-vendor",
       "label": "L1.6 · Record to report"
     },
     {
-      "href": "#l1-7",
+      "href": "/docs/process/govern-and-protect/prime-vendor",
       "label": "L1.7 · Govern and protect"
     }
   ],
