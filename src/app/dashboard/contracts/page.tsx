@@ -1194,6 +1194,10 @@ export default function ContractsPage() {
   // asked the same way — a raw includes cannot see an owner's ["*"], and
   // a control the route would refuse is a control that lies.
   const mayTagLines = hasPermission(permissions, 'assignments.write')
+  // Recording a placement is POST /api/contracts, which asks for the same
+  // permission. A seat without it — a worker on their own firm's menu —
+  // is not offered a button the route would refuse.
+  const mayRecord = hasPermission(permissions, 'assignments.write')
 
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
@@ -1225,10 +1229,10 @@ export default function ContractsPage() {
   // Open the create modal when navigated with ?new=1
   useEffect(() => {
     if (searchParams.get('new') === '1') {
-      setShowCreate(true)
+      if (mayRecord) setShowCreate(true)
       router.replace('/dashboard/contracts', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [searchParams, router, mayRecord])
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -1511,7 +1515,7 @@ export default function ContractsPage() {
             both sides — and neither does a program office reading a
             client's book. The framing says so now, and the word on the
             button is the reader's own. */}
-        {framing.create && (
+        {framing.create && mayRecord && (
           <button onClick={() => setShowCreate(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
             + {framing.create}
           </button>
@@ -1624,7 +1628,9 @@ export default function ContractsPage() {
         emptyDetail={
           tab === 'sell'
             ? 'A sell line is what you bill a customer from. One arrives when a client awards a ' +
-              'submission, and you can record work you are already running with Record a placement.'
+              (mayRecord
+                ? 'submission, and you can record work you are already running with Record a placement.'
+                : 'submission.')
             : 'A buy line is what you pay from — a supplier’s invoice where you buy the person, ' +
               'payroll where you employ them. One is written beside each placement you record.'
         }
