@@ -78,7 +78,7 @@ export function SiteHeader() {
       className="sticky top-0 z-40 border-b border-etyme-rule bg-etyme-canvas
                  [html:has(&)]:scroll-pt-[61px] lg:[html:has(&)]:scroll-pt-[69px]"
     >
-      <nav className="relative mx-auto flex max-w-6xl items-center gap-x-1 px-4 py-3 sm:gap-x-2 sm:px-6 lg:py-4">
+      <nav className="relative mx-auto flex max-w-6xl items-center gap-x-1 px-5 py-3 sm:gap-x-2 sm:px-6 lg:py-4">
         <a href="/" aria-label="Etyme — home" className="shrink-0">
           <EtymeLogo size="md" />
         </a>
@@ -134,7 +134,7 @@ export function SiteHeader() {
           </summary>
           <div
             className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] space-y-6 overflow-y-auto overscroll-contain
-                       border-b border-etyme-rule bg-etyme-canvas px-4 pb-6 pt-4 shadow-lg sm:px-6"
+                       border-b border-etyme-rule bg-etyme-canvas px-5 pb-6 pt-4 shadow-lg sm:px-6"
           >
             {NAV_MENUS.map((menu) => (
               <div key={menu.label}>
@@ -169,9 +169,13 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="border-t border-etyme-rule bg-etyme-surface">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-16">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
-          <div>
+      {/* The same gutter as the bands above it, so the logo sits on their
+          left edge; the link groups run two to a row on a phone, so the
+          footer is no taller than a screen and a half at 390 (it was
+          1,423 pixels, the tallest block on the home page). */}
+      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 md:py-14">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr] lg:gap-10">
+          <div className="col-span-2 lg:col-span-1">
             <EtymeLogo size="md" />
             <p className="mt-4 max-w-[32ch] text-[14px] leading-relaxed text-etyme-muted">
               {'The system of record for contingent workers: the layer between a company and every staffing supplier it uses.'}

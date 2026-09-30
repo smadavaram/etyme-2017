@@ -182,12 +182,41 @@ function DemoEnd({ target, what }: { target: DemoTarget; what: string }) {
   )
 }
 
+/** The first mural, as the documentation home draws it. */
+export const DOCS_MURAL = {
+  src: '/mural/docs-band-night.svg',
+  alt: 'A line drawing on a dark ground: a grid of dots for many records, a line rising to a row of steps, three small cards, and one table with a row for each piece of work, beside two people and a rising bar chart.',
+}
+
 export function DocsHomeView() {
   return (
     <SiteFrame>
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="pt-4 md:pt-6" />
         <Head eyebrow={DOCS_HOME.eyebrow} title={DOCS_HOME.title} lede={DOCS_HOME.lede} />
+      </div>
+      {/* The first mural, under the heading, on the ink. The founder,
+          2026-09-30: "We have 2 murals. Home page is the second one and
+          use the first mural we built in documentation." It is the band
+          crop of the two-ink mural system, in its night colorway —
+          canvas line work on a dark ground — from
+          design/mural/svg/etyme-mural-master-band-night.svg on the mural
+          branch. Its ground was the mural system's navy (#0D1426); it is
+          recolored to the brand's ink so it is the same "black" as the
+          home page's dark band. It carries no text and no wordmark.
+          Full width; on a phone it keeps a fixed height and is cropped to
+          its middle, the way the home page's mural is, so it never
+          shrinks to a sliver. The home page keeps its own mural. */}
+      <div id="docs-mural" className="mt-8 w-full overflow-hidden bg-etyme-ink md:mt-10">
+        <img
+          src={DOCS_MURAL.src}
+          alt={DOCS_MURAL.alt}
+          width={2400}
+          height={800}
+          className="block h-[160px] w-full object-cover object-center sm:h-auto"
+        />
+      </div>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Layout current="/docs">
           <FlowChart
             label="The four steps and the end of the work, in order"

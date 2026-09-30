@@ -1,6 +1,7 @@
 import { Ask } from '@/app/site/ask'
 import { ASK_COPY } from './leads'
 import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, ASK_A_PERSON } from './funnel'
+import { SCREEN, BAND, H2, UNDER_HEADING } from './rhythm'
 
 /**
  * The band every public page ends in: see it, get the audit, ask a person.
@@ -24,6 +25,14 @@ import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, ASK_A_PERSON } from './funnel'
  * one row on price, and the two quieter doors. Anything that belongs on
  * every page belongs in
  * `./funnel`, where the guard reads it.
+ *
+ * `withForm` is the home page's close, and it is also one more band of
+ * the home page's rhythm
+ * (`./rhythm`, 2026-09-30): one screen under the header, the same padding,
+ * column and heading size as the bands above it, on the canvas because
+ * the band above it is the ink and the footer under it the surface. No
+ * hairline of its own: the band above ends in one and the footer starts
+ * with one. Every other page keeps the close as it was.
  */
 
 const CARD = 'flex flex-col rounded-xl border border-etyme-rule bg-etyme-raised px-4 py-3.5 shadow-sm md:p-5'
@@ -38,19 +47,30 @@ export function CloseBand({
   children,
 }: {
   id?: string
-  /** Put the ask form behind the third card's button, rather than a link to the contact page. */
+  /**
+   * The home page's close: the ask form behind the third card's button,
+   * rather than a link to the contact page, and the home page's band
+   * rhythm — one screen, the same padding, column and heading.
+   */
   withForm?: boolean
   children?: React.ReactNode
 }) {
   const ask = ASK_A_PERSON
+  const onHome = withForm
   return (
-    <section id={id} className="border-t border-etyme-rule bg-etyme-surface" data-close-band="">
-      <div className="mx-auto max-w-6xl px-5 py-9 sm:px-6 md:py-20">
-        <h2 className="max-w-[26ch] text-balance font-serif text-[24px] leading-tight tracking-[-0.02em] text-etyme-ink md:text-[34px]">
+    <section
+      id={id}
+      className={onHome ? `${SCREEN} bg-etyme-canvas` : 'border-t border-etyme-rule bg-etyme-surface'}
+      data-close-band=""
+    >
+      <div className={onHome ? BAND : 'mx-auto max-w-6xl px-5 py-9 sm:px-6 md:py-20'}>
+        <h2
+          className={onHome ? H2 : 'max-w-[26ch] text-balance font-serif text-[24px] leading-tight tracking-[-0.02em] text-etyme-ink md:text-[34px]'}
+        >
           {CLOSE_BAND.heading}
         </h2>
 
-        <div className="mt-5 grid gap-2.5 md:mt-8 md:grid-cols-3 md:items-start md:gap-4">
+        <div className={`${onHome ? UNDER_HEADING : 'mt-5 md:mt-8'} grid gap-2.5 md:grid-cols-3 md:items-start md:gap-4`}>
           <div className={CARD}>
             <p className={LINE}>{CLOSE_BAND.cards.see}</p>
             <div className="mt-2.5 md:mt-3">

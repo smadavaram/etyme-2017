@@ -7,6 +7,7 @@ import { SettleOnBands } from '@/lib/public-site/settle'
 import { SEE_IT, GET_THE_AUDIT } from '@/lib/public-site/funnel'
 import { PRODUCT_STAGES } from '@/lib/public-site/nav'
 import { ModuleIcon } from '@/lib/public-site/module-icons'
+import { SCREEN, EDGE, BAND, PAD, H2, UNDER_HEADING } from '@/lib/public-site/rhythm'
 import Link from 'next/link'
 // Typed routes widen a string in an array to `string`, which Link will not
 // take. The cast is at the render rather than on the data so the lists
@@ -222,9 +223,15 @@ const JOIN = {
  * hairline, and its lift shadow — with the same caption under each.
  * Phone gutters are 20px rather than 16, so nothing sits against the
  * glass at 390.
+ *
+ * Made exact on 2026-09-30, "symmetricize home page blocks so the scrolls
+ * look neat and nice": the band, its padding, its column and the heading
+ * now come from one file (lib/public-site/rhythm), and every band is one
+ * screen under the header with its content centered, so a settle shows one
+ * whole band and never the halves of two. The hero was 1,314 pixels at
+ * 1280 by 800; its screen now sits beside the category line from `lg`, so
+ * the headline, the buttons and the product fit one screen together.
  */
-const BAND = 'mx-auto max-w-6xl px-5 py-16 sm:px-6 md:py-24'
-const H2 = 'max-w-[30ch] text-balance font-serif text-[30px] leading-[1.12] tracking-[-0.02em] text-etyme-ink md:text-[40px]'
 const FIGURE = 'overflow-hidden rounded-r-lg border border-etyme-rule bg-etyme-raised shadow-lift'
 const CAPTION = 'px-4 py-3 text-[13px] leading-relaxed text-etyme-muted md:px-5'
 /** A link in the close's quick-links table: a text link, never a button. */
@@ -252,12 +259,17 @@ export default function LandingPage() {
           category, one line saying what the software does, the two ways
           in, and the product itself. "Less theory there." The hook line
           that sat here went to /about#unanswered. */}
-      <section className="border-b border-etyme-rule">
-        <div className="mx-auto max-w-6xl px-5 pb-16 pt-12 sm:px-6 md:pb-24 md:pt-20">
+      <section className={`${SCREEN} ${EDGE}`}>
+        <div className={BAND}>
           <h1 className="mb-5 max-w-[18ch] text-balance font-serif text-[40px] font-normal
                          leading-[1.04] tracking-[-0.02em] text-etyme-ink md:text-[64px]">
             Every contractor. Every supplier. One record.
           </h1>
+          {/* From `lg` the words sit on the left and the screen on the
+              right, so the whole hero is one screen at 1280 by 800; on a
+              phone they stack, words first. */}
+          <div className="grid gap-y-6 lg:grid-cols-12 lg:items-center lg:gap-x-6">
+          <div className="lg:col-span-5">
           <p className="mb-3 text-[19px] font-medium leading-snug text-etyme-ink md:text-[22px]">
             Enterprise contingent workforce management.
           </p>
@@ -267,7 +279,7 @@ export default function LandingPage() {
               demo under the buttons. "Your own people" keeps it from
               reading as the program office offered quietly in the close,
               and it sells control, never outsourcing. */}
-          <p className="mb-8 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted md:text-[18px]">
+          <p className="mb-6 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted md:text-[18px]">
             Your own people approve the jobs, sign the timesheets and pay only matched bills, across every supplier.
           </p>
 
@@ -288,7 +300,9 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <figure className={`mt-12 md:mt-16 ${FIGURE}`}>
+          </div>
+
+          <figure className={`lg:col-span-7 ${FIGURE}`}>
             {/* Taken from the seeded demo world on the date stamped on the
                 image, UTC — the same stamp the step screens carry beside
                 `from`. A test cannot read a PNG, so the date is the only
@@ -312,6 +326,7 @@ export default function LandingPage() {
               The program manager’s desk at Northbend Athletic; every firm on this screen is a demo company — not a customer. Open it yourself. No card. No sign-up.
             </figcaption>
           </figure>
+          </div>
         </div>
       </section>
 
@@ -321,14 +336,14 @@ export default function LandingPage() {
           screen beside them. The caption sits inside the screen's frame,
           under the image and after the steps in reading order, so a
           caption and a step never read as one paragraph. */}
-      <section id="steps" className="border-b border-etyme-rule bg-etyme-surface">
+      <section id="steps" className={`${SCREEN} ${EDGE} bg-etyme-surface`}>
         <div className={BAND}>
           <p className="eyebrow mb-3">What it does, in four steps</p>
           <h2 className={H2}>
             A job goes out, a person starts, a week is signed, a bill is paid
           </h2>
 
-          <div className="mt-10 grid gap-10 md:mt-12 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-0">
+          <div className={`${UNDER_HEADING} grid gap-8 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-0`}>
             <ol className="divide-y divide-etyme-rule self-start border-y border-etyme-rule lg:col-span-5">
               {STEPS.map((s) => (
                 <li key={s.n}>
@@ -378,14 +393,14 @@ export default function LandingPage() {
           now says what the band is in plain words. The tile for bills
           carries the three-way check's definition as its line, which is
           where the home page first names the check. */}
-      <section id="modules">
+      <section id="modules" className={`${SCREEN} ${EDGE}`}>
         <div className={BAND}>
           <p className="eyebrow mb-3">What is in it</p>
           <h2 className={H2}>
             Everything in it, in the order a hire moves through it
           </h2>
 
-          <div className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 md:mt-12 lg:grid-cols-4">
+          <div className={`${UNDER_HEADING} grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4`}>
             {PRODUCT_STAGES.map((stage) => (
               <div key={stage.heading}>
                 <p className="stat-label border-b border-etyme-rule pb-2">{stage.heading}</p>
@@ -426,8 +441,15 @@ export default function LandingPage() {
           positioning.test.ts. The mural under them is drawn for the dark
           (lib/public-site/join-mural): canvas line work on the ink, with
           the kit's brighter violet and its orange as the two touches. */}
-      <section id="join" className="border-b border-etyme-ink bg-etyme-ink">
-        <div className="mx-auto grid max-w-6xl gap-x-6 gap-y-5 px-5 pt-16 sm:px-6 md:grid-cols-12 md:items-end md:pt-24">
+      {/* Written out rather than read from SCREEN and EDGE, because the
+          dark band's contrast test reads this class list; the rhythm test
+          holds it to the same two. */}
+      <section id="join" className="flex min-h-[calc(100svh-61px)] flex-col justify-center lg:min-h-[calc(100svh-69px)] border-b border-etyme-rule bg-etyme-ink">
+        <div className={`w-full ${PAD}`}>
+        {/* The column is written out rather than read from COLUMN, so the
+            mural's own tests can see where the words' column ends; the
+            rhythm test holds it equal to COLUMN. */}
+        <div className="mx-auto max-w-6xl w-full px-5 sm:px-6 grid gap-x-6 gap-y-5 md:grid-cols-12 md:items-end">
           <h2 className="max-w-[20ch] text-balance font-serif text-[32px] leading-[1.08]
                          tracking-[-0.02em] text-etyme-canvas md:col-span-6 md:text-[48px]">
             {JOIN.heading}
@@ -440,8 +462,9 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-        <div className="mt-8 w-full overflow-hidden md:mt-12">
+        <div className={`${UNDER_HEADING} w-full overflow-hidden`}>
           <JoinMural />
+        </div>
         </div>
       </section>
 
