@@ -1330,6 +1330,19 @@ clients."*
      [date]" — and they read as free from that date.
   5. The person is told at each step, not asked: the employment is the
      consent. A move to another city says so.
+- **Bench profit, next after the integrator flow — decided by the
+  founder the same day** ("go"). A section on Our bench, read by the
+  owner, admin and finance desks: **per person, bench to bill** — days
+  on the bench times what those days cost under the firm's bench pay
+  policy, against the margin earned since placement, and when they paid
+  it back; **per niche or training group** — what the course cost, how
+  many were placed, how fast and at what margin; and **for an
+  integrator, utilization** — the share of its people billing against
+  on the bench, across projects, with what an internal move saved
+  against bench cost or a sub-vendor. It reads what Profitability,
+  Bench burn and the reserve already compute and adds no money rule.
+  A client never sees a supplier's margin; what reaches the client is
+  the supplier's expertise evidence (Addendum D), built later.
 - **Everybody else** — primes, sub-vendors, clients — receives bench the
   same way: they say what they want, see who is offered, and put a
   person forward to their own job request.
