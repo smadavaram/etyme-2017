@@ -4,8 +4,42 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import {
   chain, position, mayAssert, supersede, historyOf, gaps, live,
-  type Assertion, type Record_, type Role,
+  legAsSeen, positionAsSeen, mayReadLegRate,
+  type Assertion, type Record_, type Role, type Leg, type ChainReader, type FiledParties,
 } from '@/lib/work-ledger'
+import { mayReadPayOf } from '@/lib/money/pay-visibility'
+import { writePayTrail } from '@/lib/money/pay-trail'
+import type { CallerContext } from '@/lib/api-context'
+
+/**
+ * Who is reading the chain, for the rate rules in lib/work-ledger: the
+ * employer's leg is the worker's pay, read only by a desk at the employer
+ * that reads pay (lib/money/pay-visibility); every other leg is a price
+ * between the two parties to the contract the hours were filed on.
+ */
+function readerOf(caller: CallerContext, workerPersonId: string): ChainReader {
+  return {
+    companyId: caller.company?.id ?? null,
+    readsWorkerPay: mayReadPayOf({ permissions: caller.permissions, personId: caller.person.id }, workerPersonId),
+  }
+}
+
+/**
+ * The worker's pay went in front of this reader, or was withheld from
+ * them: either way it is on the trail (CLAUDE.md, every read of another
+ * person's data, refusals included). Only where the employer has said
+ * something — before that there is no rate on the leg to read.
+ */
+async function trailPay(caller: CallerContext, reader: ChainReader, legs: Leg[], filed: FiledParties, workerPersonId: string) {
+  const employer = legs.find((l) => l.role === 'EMPLOYER_ACCEPTANCE')
+  if (!employer?.assertion || workerPersonId === caller.person.id) return
+  const may = mayReadLegRate(reader, employer, filed)
+  await writePayTrail(
+    caller,
+    { refused: may ? [] : [workerPersonId], read: may ? [workerPersonId] : [] },
+    'the chain of approvals on a week'
+  )
+}
 import { postAssertion, reversePostingsFor } from '@/lib/order-postings'
 
 /**
@@ -98,12 +132,18 @@ async function expectedLegs(sellContractId: string) {
 
   // Who actually pays the person. The buy contract carries their rate,
   // which is not the client's rate and never was.
+  //
+  // The buy line at the firm that sold these hours — the one that employs
+  // the person on this contract. Found by the person alone, it took their
+  // first buy line anywhere: a person paid by two firms had a week filed
+  // at one named the other as its employer, that firm's pay rate put on
+  // the leg, and the real employer shut out of its own chain.
   const buy = await prisma.buyContract.findFirst({
-    where: { candidates: { some: { personId: sell.person.id } } },
+    where: { companyId: sell.companyId, candidates: { some: { personId: sell.person.id } } },
     select: {
       companyId: true,
       company: { select: { id: true, name: true } },
-      candidates: { select: { payRate: true }, take: 1 },
+      candidates: { where: { personId: sell.person.id }, select: { payRate: true }, take: 1 },
     },
   })
 
@@ -211,6 +251,10 @@ export async function GET(
     select: { id: true },
   })
 
+  const reader = readerOf(caller, t.personId)
+  const filed: FiledParties = [walked.sell.company.id, walked.sell.clientCompany.id]
+  await trailPay(caller, reader, legs, filed, t.personId)
+
   return NextResponse.json({
     data: {
       timesheetId: t.id,
@@ -218,11 +262,11 @@ export async function GET(
       period: `${record.periodStart} to ${record.periodEnd}`,
       submittedHours: record.days.reduce((n, d) => n + d.hours, 0),
       legs: legs.map((l) => ({
-        ...l,
+        ...legAsSeen(reader, l, filed),
         yours: l.companyId === caller.company?.id,
         history: historyOf(all, l.companyId, l.role),
       })),
-      ...position(record, legs),
+      ...positionAsSeen(reader, position(record, legs), legs, filed),
       // A leg whose company is not here cannot assert anything, and
       // resolving it to somebody else's approval is how a sub-vendor
       // pays on a signature nobody collected.
@@ -415,7 +459,10 @@ export async function POST(
   await postAssertion(created.id, caller.person.id)
 
   const after = chain(record, walked.legs, [...all, toAssertion(created, names)])
-  const p = position(record, after)
+  const reader = readerOf(caller, t.personId)
+  const filed: FiledParties = [walked.sell.company.id, walked.sell.clientCompany.id]
+  await trailPay(caller, reader, after, filed, t.personId)
+  const p = positionAsSeen(reader, position(record, after), after, filed)
 
   return NextResponse.json({
     data: { assertionId: created.id, ...p, says: p.says },

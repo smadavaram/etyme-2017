@@ -52,6 +52,12 @@ export type AgreementReason =
   | 'MARGIN_FLOOR'
   /** Nobody knows the cost side, so no margin can be stated at all. */
   | 'MARGIN_UNKNOWN'
+  /**
+   * The cost side is on file and this reader may not see it. Not
+   * MARGIN_UNKNOWN, which would tell them nothing is recorded — false —
+   * and not the verdict, which with the bill rate beside it is the pay.
+   */
+  | 'MARGIN_WITHHELD'
   /** Work is running under an engagement whose scope was never written. */
   | 'SOW_MISSING'
   /** The scope is written and nobody has signed it. */
@@ -107,6 +113,7 @@ const RANK: AgreementReason[] = [
   'CAPACITY_EXCEEDED',
   'SOW_UNSIGNED',
   'MARGIN_UNKNOWN',
+  'MARGIN_WITHHELD',
   'MSA_NO_TERM',
 ]
 
@@ -144,8 +151,15 @@ export interface ContractInput {
   id: string
   personName: string
   billRateCents: number
-  /** What we pay. Null where the buy side is not on file. */
+  /** What we pay. Null where the buy side is not on file, or where it is withheld. */
   payRateCents: number | null
+  /**
+   * What we pay is on file and this reader does not read pay
+   * (lib/money/pay-visibility). The floor is then neither passed nor
+   * failed here: a verdict next to the bill rate is the pay rate in one
+   * subtraction, so it is left to the desks that run pay.
+   */
+  payWithheld?: boolean
   /** Whether the person is actually working, as opposed to papered. */
   live: boolean
 }
@@ -218,6 +232,18 @@ export function marginFloorFinding(
   minMarginPct: number | null
 ): Finding | null {
   if (minMarginPct == null) return null
+
+  if (contract.payWithheld) {
+    return {
+      code: 'MARGIN_WITHHELD',
+      severity: 'NOTE',
+      says:
+        `Whether ${contract.personName} clears the ${minMarginPct}% floor is checked by the desks ` +
+        `that run pay, because the answer shows what we pay.`,
+      subjectType: 'CONTRACT',
+      subjectId: contract.id,
+    }
+  }
 
   const pct = marginPct(contract.billRateCents, contract.payRateCents)
 
@@ -505,7 +531,7 @@ export function agreementFindings(agreement: AgreementInput, now: Date = new Dat
  */
 export function findingsFor(role: 'VENDOR' | 'CLIENT', findings: Finding[]): Finding[] {
   if (role === 'VENDOR') return findings
-  return findings.filter((f) => f.code !== 'MARGIN_FLOOR' && f.code !== 'MARGIN_UNKNOWN')
+  return findings.filter((f) => f.code !== 'MARGIN_FLOOR' && f.code !== 'MARGIN_UNKNOWN' && f.code !== 'MARGIN_WITHHELD')
 }
 
 export function worstFirst(findings: Finding[]): Finding[] {

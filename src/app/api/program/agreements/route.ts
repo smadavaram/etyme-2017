@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { mayReadPayOf, payTrail, PAY_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
+import { writePayTrail } from '@/lib/money/pay-trail'
 import { logBulkAccess } from '@/lib/access-log'
 import {
   STATUS_SAYS,
@@ -150,6 +152,18 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // What each person is paid is read by the desks that run pay and by the
+  // person themselves (lib/money/pay-visibility) — never by every seat at
+  // the seller. A delivery engineer at an integrator opened this screen
+  // and read each colleague's margin beside their bill rate, which is
+  // their pay in one subtraction. The figure is withheld per person, the
+  // margin with it, and every withheld or shown figure goes on the trail.
+  const viewer = { permissions: desk.acting.permissions, personId: caller.person.id }
+  const paySeen = (personId: string): number | null =>
+    mayReadPayOf(viewer, personId) ? (payByPerson.get(personId) ?? null) : null
+  const payHidden = (personId: string): boolean =>
+    payByPerson.has(personId) && !mayReadPayOf(viewer, personId)
+
   const rows = agreements.map((a) => {
     const seller = a.vendorId === companyId
     const role: 'VENDOR' | 'CLIENT' = seller ? 'VENDOR' : 'CLIENT'
@@ -159,7 +173,8 @@ export async function GET(request: NextRequest) {
       id: c.id,
       personName: c.person.name,
       billRateCents: c.billRate,
-      payRateCents: seller ? (payByPerson.get(c.person.id) ?? null) : null,
+      payRateCents: seller ? paySeen(c.person.id) : null,
+      payWithheld: seller && payHidden(c.person.id),
       live: workHasStarted(c.state),
     }))
 
@@ -257,7 +272,7 @@ export async function GET(request: NextRequest) {
         liveContracts: e.sellContracts.filter((c) => workHasStarted(c.state)).length,
       })),
       contracts: a.sellContracts.map((c) => {
-        const pay = seller ? (payByPerson.get(c.person.id) ?? null) : null
+        const pay = seller ? paySeen(c.person.id) : null
         return {
           id: c.id,
           person: c.person,
@@ -265,6 +280,9 @@ export async function GET(request: NextRequest) {
           // Null, never zero. A margin against an unknown cost reads as
           // healthy, and nobody audits good news.
           marginPct: seller ? marginPct(c.billRate, pay) : null,
+          // Said once per row rather than left as a null to be guessed at:
+          // a missing margin and a withheld one are different facts.
+          marginWithheld: seller && payHidden(c.person.id),
           state: c.state,
           live: workHasStarted(c.state),
           engagementId: c.engagementId,
@@ -296,8 +314,16 @@ export async function GET(request: NextRequest) {
       : 'Read the agreements screen, which names the people working under each agreement.',
   })
 
+  const paid = [...new Set(sellerAgreements.flatMap((a) => a.sellContracts.map((c) => c.person.id)))]
+    .filter((pid) => payByPerson.has(pid))
+    .map((pid) => ({ personId: pid, payRate: payByPerson.get(pid)! }))
+  await writePayTrail(caller, payTrail(viewer, paid), 'the agreements screen')
+
+  const anyWithheld = paid.some((p) => p.personId !== caller.person.id && !mayReadPayOf(viewer, p.personId))
+
   return NextResponse.json({
     data: {
+      payWithheldSays: anyWithheld ? PAY_WITHHELD_SAYS : null,
       agreements: rows,
       summary: {
         total: rows.length,

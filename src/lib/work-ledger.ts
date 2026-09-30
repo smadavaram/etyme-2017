@@ -376,3 +376,77 @@ export function gaps(legs: Leg[], onPlatform: Set<string>): string[] {
         `Somebody has to collect it another way.`
     )
 }
+
+// ── Whose rate a reader of the chain may see ─────────────────────────
+//
+// Every leg of a week carries a rate, and the chain screen handed all of
+// them to every party: the end client read the employer's leg — what the
+// worker is PAID — and a sub-vendor's price it does not pay, and any
+// staff seat at a party read the lot. Two rules, both already the
+// product's elsewhere:
+//
+//   - The employer's leg is a pay rate. It is read by a desk at the
+//     employer that reads pay (`consultants.cost`, lib/money/pay-
+//     visibility) and by nobody else — never a client, never a delivery
+//     engineer at the employer.
+//   - Every other leg carries the rate of the contract the hours were
+//     filed on, which is a price between that contract's two parties. A
+//     client never reads a rung below the one it pays (lib/chain-top), so
+//     an end client that is not a party to that contract does not read it.
+//
+// What each leg's company said, in hours, stays visible to every party:
+// hours are the fact the chain exists to agree on.
+
+export interface ChainReader {
+  companyId: string | null
+  /** Whether this reader may read what the worker is paid. */
+  readsWorkerPay: boolean
+}
+
+/** The two companies on the contract the hours were filed against. */
+export type FiledParties = readonly [sellerId: string, buyerId: string]
+
+export function mayReadLegRate(
+  reader: ChainReader,
+  leg: { companyId: string; role: Role },
+  filed: FiledParties
+): boolean {
+  if (!reader.companyId) return false
+  if (leg.role === 'EMPLOYER_ACCEPTANCE') return reader.companyId === leg.companyId && reader.readsWorkerPay
+  return filed.includes(reader.companyId)
+}
+
+/** A leg with its assertion's rate removed where this reader may not read it. */
+export function legAsSeen<L extends { companyId: string; role: Role; assertion: Assertion | null }>(
+  reader: ChainReader,
+  leg: L,
+  filed: FiledParties
+): Omit<L, 'assertion'> & { assertion: (Omit<Assertion, 'rateCents'> & { rateCents: number | null }) | null; rateWithheld: boolean } {
+  const may = mayReadLegRate(reader, leg, filed)
+  return {
+    ...leg,
+    assertion: leg.assertion ? { ...leg.assertion, rateCents: may ? leg.assertion.rateCents : null } : null,
+    rateWithheld: !may,
+  }
+}
+
+/** A position with the money this reader may not read taken out. */
+export function positionAsSeen(
+  reader: ChainReader,
+  p: Position,
+  legs: Leg[],
+  filed: FiledParties
+): Omit<Position, 'billableCents' | 'payableCents' | 'waitingOn'> & {
+  billableCents: number | null
+  payableCents: number | null
+  waitingOn: ReturnType<typeof legAsSeen<Leg>>[]
+} {
+  const client = legs.find((l) => l.role === 'CLIENT_APPROVAL')
+  const employer = legs.find((l) => l.role === 'EMPLOYER_ACCEPTANCE')
+  return {
+    ...p,
+    billableCents: client && !mayReadLegRate(reader, client, filed) ? null : p.billableCents,
+    payableCents: employer && !mayReadLegRate(reader, employer, filed) ? null : p.payableCents,
+    waitingOn: p.waitingOn.map((l) => legAsSeen(reader, l, filed)),
+  }
+}

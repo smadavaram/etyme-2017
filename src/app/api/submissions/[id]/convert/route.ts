@@ -350,7 +350,7 @@ export async function POST(
         data: {
           companyId: submission.fromCompanyId,
           action: 'PLACEMENT_CONVERTED',
-          summary: `${submission.person.name}'s placement for "${submission.requirement.title}" converted to sell contract at $${(billRate / 100).toFixed(2)}/hr.${buyContract ? ` Buy contract linked at $${(payRate / 100).toFixed(2)}/hr.` : ''} ${sellCyclesCreated} cycles generated.`,
+          summary: `${submission.person.name}'s placement for "${submission.requirement.title}" converted to sell contract at $${(billRate / 100).toFixed(2)}/hr.${buyContract ? ' Buy contract linked.' : ''} ${sellCyclesCreated} cycles generated.`,
           reason: `Submission ${id} placed and converted to contract by ${caller.person.name}`,
           payload: {
             submissionId: id,
@@ -360,7 +360,9 @@ export async function POST(
             personId: submission.personId,
             requirementId: submission.requirementId,
             billRate,
-            payRate: payRate ?? null,
+            // No pay figure. The automation feed is read by the governance
+            // desks, who do not read pay (lib/money/pay-visibility); the
+            // rate lives on the buy line this names, behind its own door.
             sellCyclesCreated,
             // The document it went on, and the ceiling with the basis
             // it was computed from — never a bare figure.
