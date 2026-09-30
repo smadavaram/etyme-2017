@@ -3,7 +3,8 @@ import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
+import { rateInForce, ratePeriods } from '@/lib/contract-rate'
+import { priceSheets } from '@/lib/money/placement-earned'
 import {
   profitOf, total, forCandidate, forCustomer, health, belowFloor,
   type Line, type ContractType,
@@ -433,47 +434,23 @@ export async function GET(request: NextRequest) {
     // the ledger, and the approval route wrote the BILL rate there on a
     // direct placement. Priya's pay read $112 against $112 billed, and a
     // placement agreed at 41% showed a loss.
-    let billedHours = 0
-    let paidHours = 0
-    let billedCents = 0
-    let paidCents = 0
-    let payRateFromLedger = 0
-
     const eng = engagementOf(c.id)
     const buyId = eng?.pair.buy?.id ?? null
     const opening = buyId
       ? openingPay.find((x) => x.buyContractId === buyId && x.personId === c.person.id)?.payRate ?? eng!.payRate
       : 0
-    const sellPeriods = periodsFor('SELL', c.id)
-    const buyPeriods = buyId ? periodsFor('BUY', buyId) : []
 
-    for (const t of c.timesheets) {
-      const days = (t.days ?? {}) as Record<string, number>
-      for (const a of t.assertions) {
-        const h = Number(a.hours)
-        if (a.role === 'CLIENT_APPROVAL') {
-          billedHours += h
-          billedCents += priceByDay({
-            contractRateCents: c.billRate, periods: sellPeriods, days, hours: h,
-            periodStart: t.periodStart, periodEnd: t.periodEnd,
-          }).cents
-        }
-        if (a.role === 'EMPLOYER_ACCEPTANCE') {
-          paidHours += h
-          if (buyId && opening > 0) {
-            paidCents += priceByDay({
-              contractRateCents: opening, periods: buyPeriods, days, hours: h,
-              periodStart: t.periodStart, periodEnd: t.periodEnd,
-            }).cents
-          } else {
-            // No buy line behind it: the ledger's own figure is the only
-            // one there is, and `costKnown` below says how far to trust it.
-            payRateFromLedger = a.rateCents || payRateFromLedger
-            paidCents += Math.round(h * a.rateCents)
-          }
-        }
-      }
-    }
+    // One reader, shared with the placement page (lib/money/placement-earned),
+    // so one placement cannot read two margins two clicks apart. No buy
+    // line behind it: the ledger's own figure is the only one there is,
+    // and `costKnown` below says how far to trust it.
+    const {
+      billedHours, paidHours, billedCents, paidCents, payRateFromLedger,
+    } = priceSheets({
+      sheets: c.timesheets,
+      bill: { openingRateCents: c.billRate, periods: periodsFor('SELL', c.id) },
+      pay: buyId && opening > 0 ? { openingRateCents: opening, periods: periodsFor('BUY', buyId) } : null,
+    })
 
     const payRate = eng?.payRate || payRateFromLedger || 0
 
