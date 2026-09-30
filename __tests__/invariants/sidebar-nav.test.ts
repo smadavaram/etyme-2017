@@ -1,3 +1,4 @@
+import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
 import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
@@ -853,6 +854,8 @@ describe('a menu offers only what this seat can actually open', () => {
     'mayRead:': MAY_READ,
     'hasAnyPermission:IMPORT_PERMISSIONS': IMPORT_PERMISSIONS,
     'hasAnyPermission:SETS_UP_A_PARTY': SETS_UP_A_PARTY,
+    'hasAnyPermission:ENDING_SOON_READERS': ENDING_SOON_READERS,
+    'hasAnyPermission:CHECK_IN_READERS': CHECK_IN_READERS,
   }
 
   /** What the GET handler at this route asks for, or null where there is no route. */
@@ -935,6 +938,19 @@ describe('a menu offers only what this seat can actually open', () => {
     }
     expect(labels).toContain('Timesheets')
     expect(labels).toContain('Your work')
+  })
+
+  it('a delivery engineer is not shown who else is rolling off or the bench check-ins, which are read by the desks that staff the work', () => {
+    const labels = itemsOf(getNavForKind('GSI', false, {
+      worker: true, permissions: ['assignments.read', 'timesheets.read'],
+    })).map((i) => i.label)
+    expect(labels).not.toContain('Rolloff')
+    expect(labels).not.toContain('Bench check-ins')
+  })
+
+  it('a client desk that reads its job requests is still shown who is ending soon', () => {
+    const labels = itemsOf(getNavForKind('CLIENT', false, { permissions: ['requirements.read'] })).map((i) => i.label)
+    expect(labels).toContain('Ending soon')
   })
 
   it('the desks named after AR and AP are shown the pages named after them', () => {

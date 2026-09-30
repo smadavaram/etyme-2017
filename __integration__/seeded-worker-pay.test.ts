@@ -62,8 +62,11 @@ beforeAll(async () => {
 }, 900_000)
 
 describe('a seeded worker reads her own pay the way her employer would have left it', () => {
-  it('Karthik’s, Colleen’s and Ruben’s signed weeks are on the ledger: the client’s approval at its bill rate, then the acceptance of the firm that pays, at the pay rate', async () => {
-    for (const handle of ['karthik.menon', 'colleen.byrne', 'ruben.ortega']) {
+  it('Karthik’s and Ruben’s signed weeks are on the ledger: the client’s approval at its bill rate, then the acceptance of the firm that pays, at the pay rate', async () => {
+    // Colleen Byrne's weeks sit on her own company's line and are signed
+    // down her chain — Harlow Health, then Halcyon, then Byrne — which
+    // seeded-world-reads-plainly walks (2026-09-30).
+    for (const handle of ['karthik.menon', 'ruben.ortega']) {
       const signed = (await weeksOf(handle)).filter((t) => t.employerAcceptedAt)
       expect(signed.length, `${handle} has signed weeks`).toBeGreaterThan(0)
       for (const t of signed) {

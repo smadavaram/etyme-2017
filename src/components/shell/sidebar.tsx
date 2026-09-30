@@ -9,6 +9,7 @@ import { hasAnyPermission, type Permission } from '@/lib/permissions'
 import { consoleHome } from '@/lib/console-home'
 import { IMPORT_PERMISSIONS } from '@/lib/importable'
 import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
+import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
 /**
  * Sidebar navigation — from CLAUDE.md design system.
  *
@@ -107,8 +108,6 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/invitations': SCOPED,
   '/dashboard/submissions': SCOPED,
   '/dashboard/interviews': SCOPED,
-  '/dashboard/rolloff': SCOPED,
-  '/dashboard/texts': SCOPED,
   '/dashboard/training': SCOPED,
   '/dashboard/loose-ends': SCOPED,
   '/dashboard/companies': SCOPED,
@@ -383,7 +382,7 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
-      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
+      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
     ],
   },
   {
@@ -394,7 +393,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Bench', href: '/dashboard/bench', icon: '◎', needs: ['consultants.read'] },
       { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
-      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
+      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
     ],
   },
@@ -443,7 +442,7 @@ const GSI_NAV: NavSection[] = [
       { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
-      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
+      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
     ],
   },
   {
@@ -454,7 +453,7 @@ const GSI_NAV: NavSection[] = [
     items: [
       { label: 'Bench', href: '/dashboard/bench', icon: '◎', needs: ['consultants.read'] },
       { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
-      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
+      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
     ],
   },
@@ -503,7 +502,7 @@ const MSP_NAV: NavSection[] = [
       { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
-      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
+      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
     ],
   },
   {
@@ -515,7 +514,7 @@ const MSP_NAV: NavSection[] = [
       { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈' },
       { label: 'Bench', href: '/dashboard/bench', icon: '◎', needs: ['consultants.read'] },
       { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
-      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
+      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
     ],
   },
   operateSection(
@@ -789,7 +788,7 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Invoice receipts', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
       { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money', needs: ['invoices.read'] },
       { label: 'Budget', href: '/dashboard/program/budget', icon: '◱', group: 'Money' },
-      { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard' },
+      { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard', needs: ENDING_SOON_READERS },
       { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎', group: 'Offboard' },
     ],
   },

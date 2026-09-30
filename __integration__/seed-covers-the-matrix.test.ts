@@ -305,10 +305,15 @@ describe('the seeded world has something at every level of the matrix', () => {
     expect(parties.says).toContain('there is no agreement behind this engagement')
   })
 
-  it('both sides of every placement are seeded, never just the side that bills', () => {
+  it('both sides of every placement are seeded, never just the side that bills', async () => {
     // A sell contract with no buy contract behind it is a placement with
-    // nobody being paid, and it is the shape the payroll screens read.
-    expect(counts.buyContract).toBe(counts.sellContract)
-    expect(counts.contractLink).toBe(counts.sellContract)
+    // nobody being paid, and it is the shape the payroll screens read —
+    // except a one-person corporation's own line: Byrne Critical Care
+    // sells Colleen Byrne, its owner, and nobody on the record is paid
+    // through the company below her (2026-09-30).
+    const ownLines = await prisma.sellContract.count({ where: { company: { kind: 'CONSULTANT_CORP' } } })
+    expect(ownLines).toBeGreaterThan(0)
+    expect(counts.buyContract).toBe(counts.sellContract - ownLines)
+    expect(counts.contractLink).toBe(counts.sellContract - ownLines)
   })
 })

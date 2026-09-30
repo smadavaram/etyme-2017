@@ -3,6 +3,7 @@ import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { decide, signature, summarize, DEFAULT_WINDOW_DAYS } from '@/lib/auto-approval'
 import { payerRung } from '@/lib/chain-top'
+import { weekFlag } from '@/lib/timesheet-flag'
 
 /**
  * GET /api/cron/auto-approve
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
   const waiting = await prisma.timesheet.findMany({
     where: { status: 'SUBMITTED', clientApprovedAt: null },
     select: {
-      id: true, submittedAt: true, totalHours: true,
+      id: true, submittedAt: true, totalHours: true, periodEnd: true,
       clientApprovedAt: true, anomalyScore: true, anomalyReason: true,
       person: { select: { name: true } },
       sellContract: {
@@ -60,6 +61,8 @@ export async function GET(request: NextRequest) {
           endClientCompanyId: true,
           clientCompany: { select: { name: true } },
           endClientCompany: { select: { name: true } },
+          endDate: true,
+          requirement: { select: { hoursPerWeek: true } },
         },
       },
     },
@@ -111,6 +114,17 @@ export async function GET(request: NextRequest) {
         clientName:
           t.sellContract.endClientCompany?.name ??
           t.sellContract.clientCompany.name,
+        // A week that does not fit its contract — over the job's hours,
+        // past the last day, or flagged when filed — waits for a person
+        // however long the window, in the words the approve route uses.
+        flag: weekFlag({
+          hours: Number(t.totalHours),
+          hoursPerWeek: t.sellContract.requirement?.hoursPerWeek ?? null,
+          periodEnd: t.periodEnd,
+          contractEnd: t.sellContract.endDate,
+          anomalyScore: t.anomalyScore,
+          anomalyReason: t.anomalyReason,
+        }),
       },
       now
     )

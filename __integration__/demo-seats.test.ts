@@ -410,12 +410,15 @@ describe('the six people the demo can be walked as', () => {
     }
 
     // The profile and the seat are real, which is what makes the door
-    // openable at all: one CONSULTANT context, no company, no listing.
+    // openable at all: one CONSULTANT context, no company, no granted
+    // listing. One firm has asked and she has not answered (2026-09-30):
+    // a question is not a listing, so she is still party 8B.
     const profile = await prisma.consultantProfile.findFirstOrThrow({
       where: { person: { primaryEmail: INDEPENDENT.email } },
       include: { listings: true, person: { select: { contexts: true } } },
     })
-    expect(profile.listings, 'a bench listing makes her party 8A').toHaveLength(0)
+    expect(profile.listings.filter((l) => l.state !== 'INVITED'), 'a granted bench listing makes her party 8A').toHaveLength(0)
+    expect(profile.listings.every((l) => l.respondedAt === null)).toBe(true)
     expect(profile.ownCompanyId, 'a corporation of her own makes her party 7').toBeNull()
     expect(profile.slug, 'no address, so no page').not.toBeNull()
     expect(profile.pageLiveAt, 'the page is off, and the page is the only thing she has').not.toBeNull()

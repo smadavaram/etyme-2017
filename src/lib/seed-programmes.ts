@@ -147,9 +147,15 @@ interface Program {
   governance: { tenureCapMonths: number; breakDays: number; band: [number, number] }
   placements: Placement[]
   /** An approved role suppliers are working, with candidates in. */
-  open: { title: string; skills: string[]; band: [number, number]; to: string[]; candidates: Candidate[] }
+  open: {
+    title: string; skills: string[]; band: [number, number]; to: string[]; candidates: Candidate[]
+    /** What the job is, in the manager's words, and why it exists. */
+    description: string; justification: string
+    /** Helps and is not required; a list of what the person will do. */
+    niceToHave?: string[]; responsibilities?: string
+  }
   /** A role big enough to need the VP, still waiting on them. */
-  routed: { title: string; skills: string[]; headcount: number; billMax: number }
+  routed: { title: string; skills: string[]; headcount: number; billMax: number; description: string; justification: string }
   /** Supplier certificates, in days until they run out. */
   cover: Record<string, { gl: number; wc: number }>
   /** A firm the hiring manager recommended, on Procurement's desk with some of its paperwork in. */
@@ -196,6 +202,27 @@ interface Program {
 // an ERP finance consultant through the same product. Nothing here is IT
 // staffing except where the role happens to be.
 
+/**
+ * The shape a seeded job request states beyond its words: why it exists,
+ * as one of the four kinds its justification opens with, where the work
+ * is done, and who the person reports to day to day — the hiring manager.
+ */
+export function openShape(justification: string, hiringManagerId: string) {
+  const kind = /^backfill/i.test(justification)
+    ? 'BACKFILL'
+    : /^extra hands/i.test(justification)
+      ? 'EXTRA_HANDS'
+      : /^new project/i.test(justification)
+        ? 'NEW_PROJECT'
+        : 'OTHER'
+  return {
+    needKind: kind,
+    // A plant role is on the floor; a systems role is two days a week.
+    workMode: /plant|floor|line|shift/i.test(justification) ? 'ONSITE' : 'HYBRID',
+    reportsToId: hiringManagerId,
+  }
+}
+
 export const PROGRAMMES: Program[] = [
   {
     client: 'nike', loc: 'Tualatin, OR',
@@ -241,6 +268,14 @@ export const PROGRAMMES: Program[] = [
     ],
     open: {
       title: 'HCM integration lead', skills: ['HCM integration', 'Payroll interfaces', 'Integrations'], band: [12000, 14000],
+      description:
+        'Own the interfaces between the new HCM system and payroll: map fields, build and test the nightly ' +
+        'feeds, fix what breaks in parallel runs, and hand over runbooks to the HRIS team.',
+      justification: 'New project — the payroll move to the new HCM system.',
+      niceToHave: ['Benefits enrollment feeds', 'Time and attendance'],
+      responsibilities:
+        'Map every payroll field to the new HCM system. Build and test the nightly feeds. Run three parallel ' +
+        'payrolls and fix each difference. Write the runbooks and hand them to the HRIS team.',
       to: ['computer-systems', 'brightmoor', 'pinnacle'],
       candidates: [
         { person: 'Rajesh Iyer', from: 'brightmoor', rate: 13400, status: 'SHORTLISTED',
@@ -252,7 +287,13 @@ export const PROGRAMMES: Program[] = [
           round: { state: 'DONE', inDays: -4, outcome: 'ADVANCE', interviewers: ['Marcus Oyelaran, People Technology'] } },
       ],
     },
-    routed: { title: 'Planning transformation — four supply-planning consultants', skills: ['Supply planning', 'S&OP'], headcount: 4, billMax: 13000 },
+    routed: {
+      title: 'Planning transformation — four supply-planning consultants', skills: ['Supply planning', 'S&OP'], headcount: 4, billMax: 13000,
+      description:
+        'Move footwear and apparel supply planning from spreadsheets to one monthly S&OP cycle: set up the ' +
+        'demand and supply plans per region, run the first three cycles with the planners, and train them to run it alone.',
+      justification: 'New project — the planning transformation approved for next quarter.',
+    },
     cover: { 'computer-systems': { gl: 150, wc: 150 }, brightmoor: { gl: 20, wc: 200 }, pinnacle: { gl: 180, wc: 180 } },
   },
   {
@@ -285,6 +326,10 @@ export const PROGRAMMES: Program[] = [
     ],
     open: {
       title: 'Environmental health and safety lead', skills: ['EHS', 'OSHA', 'ISO 14001'], band: [9000, 11000],
+      description:
+        'Run safety on the Elmira plant floor while the permanent lead is on leave: walk the lines daily, ' +
+        'keep the OSHA log, lead incident reviews, and prepare the site for its ISO 14001 surveillance audit.',
+      justification: 'Backfill — the site EHS lead is on leave for six months.',
       to: ['vertex-global', 'halcyon', 'arcadia'],
       candidates: [
         { person: 'Yuki Tanaka', from: 'arcadia', rate: 10600, status: 'SHORTLISTED',
@@ -292,7 +337,13 @@ export const PROGRAMMES: Program[] = [
         { person: 'Priyanka Rao', from: 'vertex-global', rate: 9900, status: 'SUBMITTED' },
       ],
     },
-    routed: { title: 'Fab expansion — six automation engineers', skills: ['Automation', 'PLC', 'Robotics'], headcount: 6, billMax: 11500 },
+    routed: {
+      title: 'Fab expansion — six automation engineers', skills: ['Automation', 'PLC', 'Robotics'], headcount: 6, billMax: 11500,
+      description:
+        'Install and commission the robot cells and conveyors on the new finishing line: write and test the PLC ' +
+        'logic, integrate the robots with the line controls, and support the first month of production.',
+      justification: 'New project — the finishing line added in the fab expansion.',
+    },
     cover: { 'vertex-global': { gl: 160, wc: 160 }, halcyon: { gl: 12, wc: 190 }, arcadia: { gl: 200, wc: 200 } },
     // The plant needed one furnace controls technician for a season and
     // sent Wrenfield a purchase order. No MSA was ever signed, and the
@@ -346,6 +397,11 @@ export const PROGRAMMES: Program[] = [
     ],
     open: {
       title: 'Manufacturing finance analyst', skills: ['Cost controlling', 'Product costing', 'Excel'], band: [9500, 11500],
+      description:
+        'Close the plant books each month: run product costing, explain the variances to the plant controller, ' +
+        'and rebuild the standard costs for the two device lines launching this year.',
+      justification: 'Extra hands — two new device lines double the costing work this year.',
+      niceToHave: ['Medical device costing', 'Power BI'],
       to: ['computer-systems', 'vertex-global', 'sundara'],
       candidates: [
         { person: 'Noor Rahman', from: 'computer-systems', rate: 11000, status: 'SHORTLISTED',
@@ -353,7 +409,13 @@ export const PROGRAMMES: Program[] = [
         { person: 'Elias Varga', from: 'vertex-global', rate: 10400, status: 'SUBMITTED' },
       ],
     },
-    routed: { title: 'Westminster plant — five QA technicians', skills: ['QA', 'GMP', 'Device assembly'], headcount: 5, billMax: 7500 },
+    routed: {
+      title: 'Westminster plant — five QA technicians', skills: ['QA', 'GMP', 'Device assembly'], headcount: 5, billMax: 7500,
+      description:
+        'Inspect assemblies on the second shift under GMP: run in-process and final checks, record results in the ' +
+        'batch record, raise nonconformances, and keep the inspection stations calibrated.',
+      justification: 'New project — the second shift starting at the Westminster plant.',
+    },
     cover: { 'computer-systems': { gl: 150, wc: 150 }, 'vertex-global': { gl: 160, wc: 160 }, sundara: { gl: 140, wc: 140 } },
   },
 ]
@@ -1429,10 +1491,26 @@ export async function seedProgrammes(
         data: {
           companyId: client.id, title: p.open.title, skills: p.open.skills, location: p.loc,
           billMin: p.open.band[0], billMax: p.open.band[1], months: 12, headcount: 1, hoursPerWeek: 40,
+          description: p.open.description, justification: p.open.justification, startDate: day(21),
+          ...openShape(p.open.justification, desk.hiring.personId),
+          niceToHaveSkills: p.open.niceToHave ?? [], responsibilities: p.open.responsibilities ?? null,
           status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', neededBy: day(21),
           raisedById: desk.hiring.personId, costCenterId: costCentre?.id ?? null, orgUnitId: unitByName.get('Apps')?.id ?? null,
         },
       }))
+    // A world seeded before job requests carried their words gets them
+    // once; one that has them is left as whoever last edited it left it.
+    if (!open.description || !open.needKind) {
+      await db.requirement.update({
+        where: { id: open.id },
+        data: {
+          description: open.description ?? p.open.description, justification: open.justification ?? p.open.justification,
+          startDate: open.startDate ?? day(21), ...openShape(p.open.justification, desk.hiring.personId),
+          niceToHaveSkills: open.niceToHaveSkills.length ? open.niceToHaveSkills : p.open.niceToHave ?? [],
+          responsibilities: open.responsibilities ?? p.open.responsibilities ?? null,
+        },
+      })
+    }
     if (!(await db.requirementApproval.findFirst({ where: { requirementId: open.id } }))) {
       await db.requirementApproval.create({
         data: { requirementId: open.id, approverId: null, rank: 0, outcome: 'AUTO_CLEARED', reason: 'Within plan and under every threshold.', decidedAt: day(-9) },
@@ -1517,10 +1595,21 @@ export async function seedProgrammes(
         data: {
           companyId: client.id, title: p.routed.title, skills: p.routed.skills, location: p.loc,
           billMin: p.routed.billMax - 2000, billMax: p.routed.billMax, months: 12, headcount: p.routed.headcount, hoursPerWeek: 40,
+          description: p.routed.description, justification: p.routed.justification, startDate: day(45),
+          ...openShape(p.routed.justification, desk.hiring.personId),
           status: 'DRAFT', approvalState: 'PENDING_APPROVAL', source: 'MANUAL', neededBy: day(45),
           raisedById: desk.hiring.personId, costCenterId: costCentre?.id ?? null, orgUnitId: unitByName.get('Apps')?.id ?? null,
         },
       }))
+    if (!routed.description || !routed.needKind) {
+      await db.requirement.update({
+        where: { id: routed.id },
+        data: {
+          description: routed.description ?? p.routed.description, justification: routed.justification ?? p.routed.justification,
+          startDate: routed.startDate ?? day(45), ...openShape(p.routed.justification, desk.hiring.personId),
+        },
+      })
+    }
     if (vp && !(await db.requirementApproval.findFirst({ where: { requirementId: routed.id } }))) {
       const annual = Math.round((p.routed.billMax * 160 * 12 * p.routed.headcount) / 100)
       // Three desks. Over the plan, so HR reads the role; at the going

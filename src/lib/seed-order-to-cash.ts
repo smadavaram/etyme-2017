@@ -45,6 +45,7 @@ import { day } from '@/lib/seed-days'
 import { shareOf, lastShare, type Share } from '@/lib/seed-steps'
 import { postAssertion } from '@/lib/order-postings'
 import { DEFAULT_ACCOUNTS, entryFor, onInvoice, onCreditNote, onReceipt, type Entry } from '@/lib/gl'
+import { alreadyOnABill, type BillOnRecord } from '@/lib/money/billed-elsewhere'
 
 export interface SeedContext {
   firmBySlug: Map<string, { id: string }>
@@ -91,6 +92,69 @@ const whole = (cents: number) => cents / 100
  * books that were not the world's. The postings and the pipeline were
  * unbounded the same way. A seed writes the demo world and nothing else.
  */
+/**
+ * What a seeded invoice receipt from a firm below may honestly hold: the
+ * weeks the paying firm itself accepted, none already on a bill that firm
+ * generated here, priced at the leg's rate on the hours the payer
+ * accepted. Null where nothing is left, and then nothing is written.
+ *
+ * It was "four weeks at the rate" — 160 hours over day -32 to day -4 —
+ * whatever had been accepted or billed, so INV-CPRLJK held a week
+ * Computer Systems had not accepted and overlapped bills CloudEPA had
+ * already been paid on (2026-09-30).
+ *
+ * Only the weeks after the last one already billed are taken, so the
+ * period the receipt states never spans a billed week, and the check a
+ * payer's intake runs (`alreadyOnABill`) is asked once more over the
+ * whole period before anything is priced.
+ */
+export async function acceptedWeeksToBill(input: {
+  payerId: string
+  vendorId: string
+  personIds: string[]
+  rateCents: number
+  since: Date
+}): Promise<{ periodStart: Date; periodEnd: Date; totalCents: number; hours: number } | null> {
+  if (!input.personIds.length || !input.rateCents) return null
+  const sheets = await db.timesheet.findMany({
+    where: {
+      personId: { in: input.personIds },
+      periodStart: { gte: input.since },
+      assertions: { some: { companyId: input.payerId, state: 'LIVE', role: { in: ['PASS_THROUGH', 'CLIENT_APPROVAL'] } } },
+    },
+    select: {
+      id: true, personId: true, periodStart: true, periodEnd: true, days: true,
+      person: { select: { name: true } },
+      assertions: {
+        where: { companyId: input.payerId, state: 'LIVE', role: { in: ['PASS_THROUGH', 'CLIENT_APPROVAL'] } },
+        select: { hours: true },
+      },
+      invoiceLines: {
+        where: { sellContract: { companyId: input.vendorId, clientCompanyId: input.payerId } },
+        select: { invoice: { select: { number: true, status: true } } },
+      },
+    },
+    orderBy: { periodStart: 'asc' },
+  })
+  const liveBill = (l: { invoice: { status: string } }) => !['VOID', 'CANCELLED', 'CREDITED'].includes(l.invoice.status)
+  const billed = sheets.filter((t) => t.invoiceLines.some(liveBill))
+  const lastBilled = billed.length ? billed[billed.length - 1].periodEnd : null
+  const weeks = sheets.filter((t) => !t.invoiceLines.some(liveBill) && (!lastBilled || t.periodStart > lastBilled))
+  if (!weeks.length) return null
+  const periodStart = weeks[0].periodStart
+  const periodEnd = weeks[weeks.length - 1].periodEnd
+  const bills: BillOnRecord[] = billed.map((t) => ({
+    number: t.invoiceLines.find(liveBill)!.invoice.number,
+    vendorName: '',
+    lines: [{ personId: t.personId, personName: t.person.name, days: (t.days ?? {}) as Record<string, number> }],
+  }))
+  const iso = (d: Date) => d.toISOString().slice(0, 10)
+  if (alreadyOnABill({ periodStart: iso(periodStart), periodEnd: iso(periodEnd), personIds: input.personIds }, bills)) return null
+  const hours = weeks.reduce((n, t) => n + Number(t.assertions[0]?.hours ?? 0), 0)
+  if (hours <= 0) return null
+  return { periodStart, periodEnd, hours, totalCents: Math.round(hours * input.rateCents) }
+}
+
 async function worldCompanyIds(ctx: SeedContext): Promise<string[]> {
   const rows = await db.company.findMany({ where: { slug: { in: ctx.roster } }, select: { id: true } })
   return rows.map((r) => r.id)
@@ -991,7 +1055,7 @@ export async function seedOrderToCash(
       },
       select: {
         id: true, companyId: true, vendorCompanyId: true, workOrderId: true,
-        candidates: { select: { payRate: true }, take: 1 },
+        candidates: { select: { payRate: true, personId: true } },
       },
       orderBy: { id: 'asc' },
     })
@@ -1004,15 +1068,21 @@ export async function seedOrderToCash(
       if (await db.vendorBill.findFirst({
         where: { companyId: leg.companyId, vendorCompanyId: leg.vendorCompanyId, number },
       })) continue
-      // Four weeks at the rate the leg below already says. Nothing invented.
-      const cents = rate * 160
+      // Only the weeks this payer accepted and nobody has billed it for,
+      // at the rate the leg below already says (acceptedWeeksToBill).
+      const due = await acceptedWeeksToBill({
+        payerId: leg.companyId, vendorId: leg.vendorCompanyId,
+        personIds: leg.candidates.map((c) => c.personId), rateCents: rate, since: day(-42),
+      })
+      if (!due) continue
       await db.vendorBill.create({
         data: {
           companyId: leg.companyId, vendorCompanyId: leg.vendorCompanyId,
           number, buyContractId: leg.id, workOrderId: leg.workOrderId,
-          periodStart: day(-32), periodEnd: day(-4),
-          currency: 'USD', totalCents: cents,
-          receivedAt: day(-5), dueAt: day(25),
+          periodStart: due.periodStart, periodEnd: due.periodEnd,
+          currency: 'USD', totalCents: due.totalCents,
+          // Received after the last week it holds, never before it.
+          receivedAt: new Date(Math.min(day(-1).getTime(), due.periodEnd.getTime() + 2 * 86_400_000)), dueAt: day(25),
           // Two out of three cleared by whoever checks them; the rest still
           // to be looked at, which is what an AP queue looks like on any
           // ordinary Tuesday.

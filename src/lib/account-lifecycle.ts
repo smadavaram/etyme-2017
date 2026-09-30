@@ -188,10 +188,13 @@ export function canDeleteOutright(f: Footprint): Verdict {
 
   if (f.hasSignedIn || history > 0) {
     const bits: string[] = []
-    if (f.approvals) bits.push(`${f.approvals} approval(s)`)
-    if (f.submissions) bits.push(`${f.submissions} submission(s)`)
-    if (f.contracts) bits.push(`${f.contracts} contract(s)`)
-    if (f.timesheets) bits.push(`${f.timesheets} timesheet(s)`)
+    // "1 approval", "4 approvals" — never "approval(s)", which is a form
+    // talking rather than a person.
+    const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+    if (f.approvals) bits.push(count(f.approvals, 'approval'))
+    if (f.submissions) bits.push(count(f.submissions, 'submission'))
+    if (f.contracts) bits.push(count(f.contracts, 'contract'))
+    if (f.timesheets) bits.push(count(f.timesheets, 'timesheet'))
 
     return {
       allowed: false,

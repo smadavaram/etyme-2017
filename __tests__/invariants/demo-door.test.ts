@@ -360,4 +360,10 @@ describe('each door says what the seed behind it holds', () => {
     expect(karthik.about).not.toMatch(/weeks? ago/)
   })
 
+  it('Marisol Quintero\u2019s door says which firm has asked to market her and that only she can answer', () => {
+    const marisol = CANDIDATE_SEATS.find((c) => c.slug === 'marisol-quintero')!
+    expect(marisol.waiting).toMatch(/Brightmoor Staffing has asked to market you/)
+    expect(marisol.waiting).toMatch(/only you can answer/)
+  })
+
 })

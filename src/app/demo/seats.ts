@@ -510,8 +510,8 @@ export const CANDIDATE_SEATS: CandidateSeat[] = [
     industry: 'Industrial automation · PLC and SCADA commissioning',
     email: 'marisol.quintero@seed.etyme.invalid',
     waiting:
-      'You have a page you turned on yourself, and a choice. Let a firm list you on its bench ' +
-      'and market you, or incorporate and sell yourself.',
+      'Brightmoor Staffing has asked to market you, and only you can answer. Say yes and it lists ' +
+      'you on its bench; say no, or incorporate and sell yourself.',
     about:
       'Nobody employs you, nobody lists you, and you have incorporated nothing. No submission ' +
       'anywhere carries your name. Etyme places nobody, so nothing happens until you act.',

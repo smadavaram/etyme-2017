@@ -164,8 +164,10 @@ describe('removing a person outright', () => {
     // tells them why and what to do instead.
     const v = canDeleteOutright({ ...clean, approvals: 4, timesheets: 11 })
     expect(v.allowed).toBe(false)
-    expect(v.reason).toContain('4 approval(s)')
-    expect(v.reason).toContain('11 timesheet(s)')
+    expect(v.reason).toContain('4 approvals')
+    expect(v.reason).toContain('11 timesheets')
+    expect(v.reason).not.toContain('(s)')
+    expect(canDeleteOutright({ ...clean, contracts: 1 }).reason).toContain('attached to 1 contract.')
     expect(v.reason).toMatch(/end their access instead/i)
   })
 

@@ -52,6 +52,7 @@ model Person {
   expenses               Expense[]
   requisitionsRaised     Requirement[]            @relation("requisitionRaiser")
   requisitionsOwned      Requirement[]            @relation("requisitionOwner")
+  requisitionsReporting  Requirement[]            @relation("requisitionReportsTo")
   approvalRules          ApprovalRule[]           @relation("approvalRuleApprover")
   requirementApprovals   RequirementApproval[]    @relation("requirementApprover")
   documentSharesCreated  DocumentShare[]          @relation("shareCreator")
@@ -537,6 +538,13 @@ model Company {
   /// the company because it is an accounts-payable policy, not a
   /// per-supplier negotiation.
   poRequired          Boolean   @default(false)
+  /// Whether this company offers time off instead of pay for extra hours
+  /// ("time off in lieu"). Off by default: US law does not let a private
+  /// employer bank a non-exempt worker's overtime as time off instead of
+  /// paying it (CLAUDE.md, the week decision of 2026-09-30), so turning it
+  /// on is a choice a company makes with the law said beside it, and the
+  /// approve route and the overtime decision read it before offering it.
+  timeOffInLieu       Boolean   @default(false)
   siteLiveAt          DateTime? // the ninety second promise
   networkVerifiedAt   DateTime? // visibility to other companies waits for this
   createdAt           DateTime  @default(now())
@@ -2166,6 +2174,22 @@ model Requirement {
   /// checkable by somebody other than whoever typed it.
   workAuthCite     String?
   justification    String?
+  /// The job in the manager's words, as a list of what the person will
+  /// do. Beside `description`, which is the job as a whole; free text for
+  /// the same reason.
+  responsibilities String?  @db.Text
+  /// Skills that would help and are not required. Matching weighs them
+  /// below `skills` and never refuses on one.
+  niceToHaveSkills String[] @default([])
+  /// ONSITE · HYBRID · REMOTE. Null where the request did not say.
+  workMode         String?
+  /// Who the person reports to day to day. Often the owner; named apart
+  /// because a coordinator's request can report to somebody else.
+  reportsToId      String?
+  reportsTo        Person?  @relation("requisitionReportsTo", fields: [reportsToId], references: [id])
+  /// Why the job exists, in one of four words: NEW_PROJECT · BACKFILL ·
+  /// EXTRA_HANDS · OTHER. `justification` carries the sentence.
+  needKind         String?
 
   // Approval is separate from status: a requisition can be APPROVED and still
   // OPEN, or PENDING and never reach the market. Addendum E: most clear
@@ -2212,6 +2236,7 @@ model Requirement {
   @@index([msaId])
   @@index([raisedById])
   @@index([ownerId])
+  @@index([reportsToId])
   @@index([orgUnitId])
   @@index([costCenterId])
   @@index([endClientCompanyId])

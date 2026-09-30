@@ -60,6 +60,11 @@ import { day, seedToday } from '@/lib/seed-days'
 import type { Prisma } from '@prisma/client'
 import type { World } from '@/lib/seed-programmes'
 import { mondayWeek } from '@/lib/seed-programmes'
+import { acceptedWeeksToBill } from '@/lib/seed-order-to-cash'
+import { invitation } from '@/lib/bench-consent'
+import { periodFor, iso } from '@/lib/periods'
+import { periodTermsFor, termsFor } from '@/lib/money/order-terms'
+import { dueOn } from '@/lib/billing-cascade'
 
 /** "Colleen Byrne" → colleen.byrne@… — accents folded, never dropped into a dot. */
 const emailOf = (name: string) =>
@@ -502,24 +507,29 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     if (await db.vendorBill.findFirst({ where: { companyId: payer.id, number } })) return
     const buy = await db.buyContract.findFirst({
       where: { companyId: payer.id, vendorCompanyId: vendor.id, state: 'IN_PROGRESS' },
-      include: { candidates: { select: { payRate: true } } },
+      include: { candidates: { select: { payRate: true, personId: true } } },
     })
     if (!buy) return
     const rate = buy.candidates[0]?.payRate ?? 0
     if (!rate) return
+    // Only weeks the payer accepted and nobody has billed it for, at the
+    // leg's own rate (lib/seed-order-to-cash). Nothing where none is left.
+    const due = await acceptedWeeksToBill({
+      payerId: payer.id, vendorId: vendor.id,
+      personIds: buy.candidates.map((c) => c.personId), rateCents: rate, since: day(-42),
+    })
+    if (!due) return
     await db.vendorBill.create({
       data: {
         companyId: payer.id,
         vendorCompanyId: vendor.id,
         number,
         buyContractId: buy.id,
-        periodStart: day(-32),
-        periodEnd: day(-4),
+        periodStart: due.periodStart,
+        periodEnd: due.periodEnd,
         currency: 'USD',
-        // Four weeks at the rate on the leg. Nothing invented: the rate
-        // is the one the contract below already says.
-        totalCents: rate * 160,
-        receivedAt: day(-5),
+        totalCents: due.totalCents,
+        receivedAt: new Date(Math.min(day(-1).getTime(), due.periodEnd.getTime() + 2 * 86_400_000)),
         dueAt: day(25),
         status: 'RECEIVED',
       },
@@ -642,19 +652,173 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     kind: 'BENCH',
   })
   placements++
+
+  // ── Her own company's line, which is where her hours live ────────────
+  //
+  // A chain files the week once, against the line of the firm that
+  // employs the person, and every rung above signs it in turn (CLAUDE.md,
+  // "One week, filed once by the worker, signed at the top"). Here that
+  // firm is hers: Byrne Critical Care LLC sells her to Halcyon at $92 an
+  // hour, and Halcyon sells her to Harlow Health at $114. Until
+  // 2026-09-30 her weeks were filed on Halcyon's line and her own company
+  // had no line at all, so its Contracts, Bills and AR were empty for the
+  // one firm whose whole business is this placement.
+  const nurseMsa =
+    (await db.masterAgreement.findFirst({ where: { vendorId: nurseCorp.id, clientId: co('halcyon').id } })) ??
+    (await db.masterAgreement.create({
+      data: { vendorId: nurseCorp.id, clientId: co('halcyon').id, paymentTerms: 45, currency: 'USD', signedAt: day(-64) },
+    }))
+  const nurseEng =
+    (await db.engagement.findFirst({ where: { msaId: nurseMsa.id } })) ??
+    (await db.engagement.create({ data: { msaId: nurseMsa.id, title: 'ICU travel nurse — 13 weeks', invoiceCycle: 'MONTHLY' } }))
+  let byrneLine = await db.sellContract.findFirst({
+    where: { companyId: nurseCorp.id, clientCompanyId: co('halcyon').id, personId: nurse.id },
+  })
+  if (!byrneLine) {
+    byrneLine = await db.sellContract.create({
+      data: {
+        companyId: nurseCorp.id,
+        clientCompanyId: co('halcyon').id,
+        endClientCompanyId: co('harlow-health').id,
+        personId: nurse.id,
+        requirementId: nurseJob.requirement.id,
+        engagementId: nurseEng.id,
+        msaId: nurseMsa.id,
+        billRate: 9_200,
+        billCurrency: 'USD',
+        // Net 45, the same as the order Halcyon raises over this line in
+        // the order-to-cash layer, so the bill's due date and the order's
+        // terms say one date.
+        paymentTerms: 45,
+        state: 'IN_PROGRESS',
+        startDate: day(-42),
+        endDate: day(49),
+      },
+    })
+    await writeCyclesFor(db, { sell: byrneLine, buy: null, packId: 'US_IT', holidays: holidayKeys(), pay: DEMO_MONTHLY_PAY })
+  }
+  // Halcyon's buy line says which of Byrne's contracts it buys, so the
+  // chain is walkable from Halcyon down to the hours.
+  await db.buyContract.updateMany({
+    where: { companyId: co('halcyon').id, vendorCompanyId: nurseCorp.id, supplierSellContractId: null },
+    data: { supplierSellContractId: byrneLine.id },
+  })
+
+  // Her weeks, on her company's line, signed down the chain: Harlow
+  // Health approves at what it is billed, Halcyon accepts at what it pays
+  // Byrne, and Byrne — she, as its owner — accepts last. The newest week
+  // is signed by Harlow Health only and waits on Halcyon.
+  const signedWeeks: { id: string; start: Date; end: Date; hours: number }[] = []
   for (const [week, standing] of [
     [nurseWeek(4), 'SIGNED'],
     [nurseWeek(3), 'SIGNED'],
     [nurseWeek(2), 'SIGNED'],
     [nurseWeek(1), 'CLIENT_ONLY'],
   ] as const) {
-    await hours({
-      sellContractId: nurseJob.sell.id,
-      personId: nurse.id,
-      week,
-      standing,
-      clientById: seat('harlow-health'),
-      employerById: seat('halcyon'),
+    const clientAt = new Date(week.end.getTime() + 2 * 86_400_000)
+    const middleAt = new Date(clientAt.getTime() + 3_600_000)
+    const ownerAt = new Date(week.end.getTime() + 3 * 86_400_000)
+    // A world seeded before this has the week on Halcyon's line; it moves
+    // to Byrne's, the same sheet, never a second one.
+    const onHalcyon = await db.timesheet.findFirst({
+      where: {
+        personId: nurse.id, sellContractId: { in: [byrneLine.id, nurseJob.sell.id] },
+        periodStart: { lte: week.end }, periodEnd: { gte: week.start },
+      },
+      select: { id: true, sellContractId: true },
+    })
+    const sheet =
+      onHalcyon ??
+      (await db.timesheet.create({
+        data: {
+          sellContractId: byrneLine.id, personId: nurse.id,
+          periodStart: week.start, periodEnd: week.end, days: week.days, totalHours: week.hours,
+          status: standing === 'SIGNED' ? 'APPROVED' : 'SUBMITTED', submittedAt: week.end,
+          clientApprovedAt: clientAt, clientApprovedById: seat('harlow-health'),
+          ...(standing === 'SIGNED'
+            ? { approvedAt: clientAt, approvedById: seat('harlow-health'), employerAcceptedAt: ownerAt, employerAcceptedById: nurse.id }
+            : {}),
+        },
+        select: { id: true, sellContractId: true },
+      }))
+    if (onHalcyon && onHalcyon.sellContractId !== byrneLine.id) {
+      await db.timesheet.update({
+        where: { id: sheet.id },
+        data: { sellContractId: byrneLine.id, ...(standing === 'SIGNED' ? { employerAcceptedById: nurse.id } : {}) },
+      })
+      // Halcyon's acceptance was written as the employer's; it is the
+      // middle rung's now, and a row is never edited in place.
+      await db.workAssertion.updateMany({
+        where: { timesheetId: sheet.id, companyId: co('halcyon').id, role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+        data: { state: 'WITHDRAWN' },
+      })
+    }
+    const live = onHalcyon
+      ? await db.workAssertion.findMany({ where: { timesheetId: sheet.id, state: 'LIVE' }, select: { companyId: true, role: true } })
+      : []
+    const has = (companyId: string, role: string) => live.some((x) => x.companyId === companyId && x.role === role)
+    const rows: Prisma.WorkAssertionCreateManyInput[] = []
+    if (!has(co('harlow-health').id, 'CLIENT_APPROVAL')) {
+      rows.push({ timesheetId: sheet.id, companyId: co('harlow-health').id, role: 'CLIENT_APPROVAL', hours: week.hours,
+        rateCents: 11_400, state: 'LIVE', byId: seat('harlow-health'), at: clientAt })
+    }
+    if (standing === 'SIGNED') {
+      if (!has(co('halcyon').id, 'PASS_THROUGH')) {
+        rows.push({ timesheetId: sheet.id, companyId: co('halcyon').id, role: 'PASS_THROUGH', hours: week.hours,
+          rateCents: 9_200, state: 'LIVE', byId: seat('halcyon'), at: middleAt })
+      }
+      if (!has(nurseCorp.id, 'EMPLOYER_ACCEPTANCE')) {
+        rows.push({ timesheetId: sheet.id, companyId: nurseCorp.id, role: 'EMPLOYER_ACCEPTANCE', hours: week.hours,
+          rateCents: 9_200, state: 'LIVE', byId: nurse.id, at: ownerAt })
+      }
+    }
+    if (rows.length) await db.workAssertion.createMany({ data: rows })
+    if (standing === 'SIGNED') {
+      if (!onHalcyon) {
+        await completeCycle(db, { sellContractId: byrneLine.id, kind: 'TIMESHEET_APPROVE', periodEnd: week.end, at: ownerAt })
+      }
+      signedWeeks.push({ id: sheet.id, start: week.start, end: week.end, hours: week.hours })
+    }
+  }
+
+  // Her company's bill to Halcyon for the oldest billing period Halcyon
+  // accepted weeks in, submitted and not yet paid, so Byrne's AR holds
+  // one; accepted weeks in a later period are left for her to bill. Only weeks Halcyon accepted — a firm bills the hours the
+  // firm above it accepted, never more.
+  // One whole billing period, as the line's own terms say one is — the
+  // same door POST /api/invoices/generate asks — holding the oldest
+  // accepted weeks that fall in it; the weeks after it are left to bill.
+  const billTerms = periodTermsFor('SELL', byrneLine)
+  const firstPeriod = signedWeeks.length ? periodFor(signedWeeks[0].start, billTerms) : null
+  const toBill = firstPeriod
+    ? signedWeeks.filter((t) => t.start >= firstPeriod.start && t.start <= firstPeriod.end)
+    : []
+  // Only a period that has ended is billed; one still running waits.
+  if (firstPeriod && toBill.length > 0 && firstPeriod.end < day(0) && !(await db.invoiceLine.findFirst({ where: { sellContractId: byrneLine.id } }))) {
+    const { start: periodStart, end: periodEnd } = firstPeriod
+    const cents = toBill.reduce((n, t) => n + t.hours * 9_200, 0)
+    const issuedAt = new Date(Math.min(periodEnd.getTime() + 2 * 86_400_000, day(-1).getTime()))
+    const billed = termsFor('SELL', byrneLine)
+    const due = dueOn({
+      anchor: billed.paymentTermsFrom ?? 'PERIOD_END', days: billed.paymentTermsDays ?? 30,
+      periodEnd, issuedAt, receivedAt: null, approvedAt: null,
+    })
+    const inv = await db.invoice.create({
+      data: {
+        engagementId: nurseEng.id,
+        number: `IN-${byrneLine.id.slice(-6).toUpperCase()}-${iso(periodStart).replace(/-/g, '')}`,
+        periodStart, periodEnd, currency: 'USD', total: cents / 100, paid: 0,
+        issuedAt, submittedAt: issuedAt, dueAt: due.dueAt,
+        status: 'SUBMITTED',
+        soldToId: co('halcyon').id, billToId: co('halcyon').id, payerId: co('halcyon').id,
+      },
+    })
+    await db.invoiceLine.createMany({
+      data: toBill.map((t) => ({
+        invoiceId: inv.id, timesheetId: t.id, sellContractId: byrneLine!.id, personId: nurse.id,
+        hours: t.hours, rateCents: 9_200, amountCents: t.hours * 9_200,
+        description: `Colleen Byrne — ${t.start.toISOString().slice(0, 10)} to ${t.end.toISOString().slice(0, 10)}`,
+      })),
     })
   }
 
@@ -844,10 +1008,10 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // nothing to be walked through, and every field here is one she could
   // have typed herself on her own page.
   //
-  // Nothing else about her exists anywhere in this world, and that is
-  // the point of the door. Adding a listing, a submission or a contract
-  // to make her page busier would turn her into party 8A and delete the
-  // state being shown.
+  // Nothing else about her exists anywhere in this world but one firm's
+  // unanswered question, and that is the point of the door. Adding a
+  // granted listing, a submission or a contract to make her page busier
+  // would turn her into party 8A and delete the state being shown.
   //
   // Her address sits on `seed.etyme.invalid` like the other four people
   // rather than on a consumer domain. In production this person arrives
@@ -867,8 +1031,10 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
       data: { personId: independent.id, type: 'CONSULTANT' },
     })
   }
-  if (!(await db.consultantProfile.findFirst({ where: { personId: independent.id } }))) {
-    await db.consultantProfile.create({
+  const independentProfile =
+    (await db.consultantProfile.findFirst({ where: { personId: independent.id }, select: { id: true } })) ??
+    (await db.consultantProfile.create({
+      select: { id: true },
       data: {
         personId: independent.id,
         headline: 'Controls engineer — PLC and SCADA commissioning',
@@ -897,6 +1063,23 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
         // 'PERSON' is what api/me/portfolio writes when somebody types their
         // own words, which is what she did.
         bioWrittenBy: 'PERSON',
+      },
+    }))
+
+  // One firm has asked to market her, and she has not answered. Asked,
+  // not granted: an INVITED listing is a question only she can answer
+  // (lib/bench-consent), so she is still nobody's bench and still party
+  // 8B — what changes is that her page has a question on it, which is
+  // the first thing a real consultant meets after a firm finds her. A
+  // tester needs one to open (2026-09-30), and the seed had none.
+  //
+  // Found by the firm and the person, never by the day, so a world she
+  // has since answered keeps her answer on a re-seed.
+  if (!(await db.benchListing.findFirst({ where: { consultantId: independentProfile.id, companyId: co('brightmoor').id } }))) {
+    await db.benchListing.create({
+      data: {
+        consultantId: independentProfile.id, companyId: co('brightmoor').id, tier: 'MARKETING',
+        ...(invitation(day(-1)) as { state: string; invitedAt: Date; respondedAt: null }),
       },
     })
   }
