@@ -15,7 +15,7 @@ import { minorPerUnit } from '@/lib/money'
 import { fromUnits } from '@/lib/money-display'
 import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
-import { policyOf, type Decision } from '@/lib/overtime'
+import { lineFor, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
 import { readWindow, billingWindow, inWindow } from '@/lib/money/invoice-window'
@@ -392,6 +392,9 @@ export async function POST(request: NextRequest) {
           companyId: true, clientCompanyId: true, endClientCompanyId: true,
           overtimeAfterHours: true, overtimeMultiplierBps: true,
           startDate: true,
+          // The job's hours: where the contract draws no overtime line,
+          // a week somebody decided was judged against them (lineFor).
+          requirement: { select: { hoursPerWeek: true } },
           // The contract says what a period is — unless it is on an
           // order, and then the order does. Both are selected and
           // `lib/money/order-terms` picks; these three are never read
@@ -447,6 +450,8 @@ export async function POST(request: NextRequest) {
         // period a prime bills its client is the period on the prime's
         // own purchase order.
         workOrder: ours.workOrder,
+        // The job the week was decided against, carried with it.
+        requirement: ts.sellContract.requirement,
       },
     }
   })
@@ -647,10 +652,14 @@ export async function POST(request: NextRequest) {
     // since approval records one decision per timesheet — that answer
     // is used rather than dropping decided overtime off the invoice
     // silently. Noted in the matrix; it is demand's route to split.
-    const policy = policyOf(ts.sellContract)
     const rows = ts.overtimeDecisions ?? []
     const ownLeg = rows.filter((d) => d.sellContractId === ts.sellContractId)
     const answering = ownLeg.length > 0 ? ownLeg : rows
+    // The line the week was decided against: the contract's own, else —
+    // where somebody decided the week — the job's hours, the same line
+    // the approval asked the question on. Pricing it against the
+    // contract's silence left decided overtime off the bill.
+    const policy = lineFor(ts.sellContract, ts.sellContract.requirement, { stillToSign: false, decided: answering.length > 0 })
 
     const decisions: Decision[] = answering.map((d) => ({
       weekOf: d.weekOf.toISOString().slice(0, 10),

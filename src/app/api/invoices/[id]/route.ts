@@ -115,6 +115,7 @@ export async function GET(
             select: {
               overtimeAfterHours: true, overtimeMultiplierBps: true, billStraddle: true,
               workOrder: { select: ORDER_HEADER_SELECT },
+              requirement: { select: { hoursPerWeek: true } },
             },
           },
           timesheet: {
@@ -128,6 +129,7 @@ export async function GET(
               sellContract: {
                 select: {
                   overtimeAfterHours: true, overtimeMultiplierBps: true, billStraddle: true,
+                  requirement: { select: { hoursPerWeek: true } },
                   // The same document the three-way match reads the
                   // straddle from. Without it the screen and the match
                   // would hold two opinions about which period a week

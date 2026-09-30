@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -81,7 +81,15 @@ export async function GET(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'You cannot see what placements earn. A recruiter role deliberately does not.',
+          // Names the desks that do read it, at this firm, rather than
+          // guessing the reader's job: a delivery engineer was told he was
+          // a recruiter.
+          message: askTheDesk({
+            doing: 'Reading what placements earn',
+            needs: ['margin.read', 'pnl.read'],
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
         },
       },
       { status: 403 }

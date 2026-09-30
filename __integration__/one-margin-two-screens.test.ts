@@ -430,6 +430,7 @@ describe('who may read a margin at all', () => {
     as('ravi@teleworld.invalid')
     const { status, body } = await ask('by=book')
     expect(status).toBe(403)
-    expect(body.error.message).toMatch(/cannot see what placements earn/i)
+    expect(body.error.message).toMatch(/^Reading what placements earn /)
+    expect(body.error.message).not.toMatch(/recruiter role deliberately/)
   })
 })

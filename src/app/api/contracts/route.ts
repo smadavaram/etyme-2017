@@ -3,6 +3,7 @@ import { rate } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
+import { ownLinesOnly } from '@/lib/money/own-lines'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
@@ -632,6 +633,11 @@ export async function GET(request: NextRequest) {
     if (state) where.state = state.toUpperCase()
     // A person is on a buy contract through a candidate line
     if (filterPersonId) where.candidates = { some: { personId: filterPersonId } }
+    // A seat that administers none of this reads only the lines that pay
+    // its holder (lib/money/own-lines).
+    if (!reading?.seated && ownLinesOnly(caller.permissions)) {
+      where.AND = [...(where.AND ?? []), { candidates: { some: { personId: caller.person.id } } }]
+    }
 
     const [contracts, total] = await Promise.all([
       prisma.buyContract.findMany({
@@ -788,6 +794,11 @@ export async function GET(request: NextRequest) {
   const where: any = andAll(scope, wall.where)
   if (state) where.state = state.toUpperCase()
   if (filterPersonId) where.personId = filterPersonId
+  // A delivery engineer reads the lines that name him, never his
+  // colleagues' (lib/money/own-lines).
+  if (!reading?.seated && ownLinesOnly(caller.permissions)) {
+    where.AND = [...(where.AND ?? []), { personId: caller.person.id }]
+  }
 
   const [contracts, total] = await Promise.all([
     prisma.sellContract.findMany({

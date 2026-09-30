@@ -58,8 +58,17 @@ describe('a chain’s line, recomputed', () => {
 
   it('a line whose own contract was not loaded falls back to the timesheet’s, which is the same row on a direct placement', () => {
     const { sellContract: _, ...direct } = line
-    // The sub's terms have no overtime line, so nothing recomputes as a premium.
+    // The sub's terms draw no overtime line, and somebody decided the
+    // week — so it is judged against the job's hours, forty where the job
+    // names none (lineFor, handed over by demand 2026-09-30), and the
+    // premium decided on it is priced rather than dropped.
     const w = recompute({ ...direct, amountCents: 45 * 14_500 }, SEPTEMBER)!
-    expect(w.premiumCents).toBe(0)
+    expect(w.premiumCents).toBe(5 * 14_500 * 0.5)
+  })
+
+  it('a week nobody decided, on a contract with no overtime line, recomputes as nothing at all', () => {
+    const { sellContract: _, ...direct } = line
+    const undecided = { ...direct, timesheet: { ...direct.timesheet, overtimeDecisions: [] } }
+    expect(recompute({ ...undecided, amountCents: 45 * 14_500 }, SEPTEMBER)).toBeNull()
   })
 })

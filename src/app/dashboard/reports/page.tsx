@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSession } from '@/components/session-provider'
+import { mayOpen } from '@/components/shell/sidebar'
 import { SERIES, AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 import { fromUnits as fmtCurrency, compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
 
@@ -198,21 +200,37 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const { permissions } = useSession()
+
   const fetchAll = useCallback(async () => {
+    // Nothing is asked before the seat is known, and then only what the
+    // menu would open for it: a route that would refuse is not called.
+    // Karthik Menon's Reports page fired five requests that each answered
+    // 403 behind a page that looked merely empty.
+    if (permissions == null) return
     setLoading(true)
     setError(null)
+    const reads = {
+      bench: mayOpen('/dashboard/bench', permissions),
+      invoices: mayOpen('/dashboard/invoices', permissions),
+      margin: mayOpen('/dashboard/profitability', permissions),
+    }
+    const notAsked = (message: string) =>
+      Promise.resolve(new Response(JSON.stringify({ error: { code: 'NOT_ASKED', message } }), { status: 403 }))
 
     try {
       const [sellRes, buyRes, benchRes, invoiceRes, bookRes] = await Promise.all([
         fetch('/api/contracts?side=sell&limit=100'),
         fetch('/api/contracts?side=buy&limit=100'),
-        fetch('/api/bench?scope=company'),
-        fetch('/api/invoices?limit=100'),
+        reads.bench ? fetch('/api/bench?scope=company') : notAsked('The bench opens for the desks that read consultants.'),
+        reads.invoices ? fetch('/api/invoices?limit=100') : notAsked('Bills open for the desks that read them.'),
         // The margin, from the one door. `scope=live` because the panel
         // beside it is a monthly run rate, and a run rate over finished
         // work is not a run rate — the two figures on one row have to be
         // answering the same question about the same placements.
-        fetch('/api/profitability?by=book&scope=live'),
+        reads.margin
+          ? fetch('/api/profitability?by=book&scope=live')
+          : notAsked('What placements earn is read by the desks that read margin or the P&L, and yours does not.'),
       ])
 
       // Parse responses — each might fail independently
@@ -311,7 +329,7 @@ export default function ReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [permissions])
 
   useEffect(() => {
     fetchAll()

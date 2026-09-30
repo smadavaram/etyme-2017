@@ -83,36 +83,28 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
     expect(perms).not.toContain('*')
   })
 
-  it("a delivery engineer cannot read a colleague's pay from the buy contracts list", async () => {
+  it("a delivery engineer cannot read a colleague's pay from the buy contracts list, because a colleague's line is not his to list at all", async () => {
     const r = await call(karthik, listContracts, '/api/contracts?side=buy&limit=50')
     expect(r.status).toBe(200)
     const lines = r.body.data.contracts as any[]
-    expect(lines.length).toBeGreaterThan(0)
-    const colleague = lines.find((l) => l.id === colleagueBuyId)
-    expect(colleague, 'the line is still listed').toBeTruthy()
+    // A seat that administers no contracts reads the lines that pay its
+    // holder and no other (lib/money/own-lines), so his colleague's line
+    // and its pay are not on the page to withhold.
+    expect(lines.find((l) => l.id === colleagueBuyId), 'a colleague’s line is listed').toBeUndefined()
     for (const l of lines) {
+      expect(l.candidates.map((cd: any) => cd.person.id)).toContain(karthik.personId)
       for (const cd of l.candidates) {
         if (cd.person.id === karthik.personId) continue
         expect(cd.payRate, `${cd.person.name}'s pay`).toBeNull()
-        expect(cd.payWithheld).toBe(true)
-      }
-      if (l.candidates.some((cd: any) => cd.person.id !== karthik.personId)) {
-        expect(l.payRate).toBeNull()
-        expect(l.payRateMin).toBeNull()
-        expect(l.payRateMax).toBeNull()
       }
     }
-    expect(r.body.data.payWithheldSays).toContain('AP & Payroll')
   })
 
-  it("the delivery engineer's refusal is on the access trail for every colleague whose pay was withheld", async () => {
-    const rows = await prisma.accessLog.findMany({
-      where: { actorPersonId: karthik.personId, action: 'PAYROLL_VIEW', allowed: false },
+  it("no colleague's pay was read on the delivery engineer's behalf, so none is on the trail as shown to him", async () => {
+    const shown = await prisma.accessLog.findMany({
+      where: { actorPersonId: karthik.personId, action: 'PAYROLL_VIEW', allowed: true, subjectId: { in: colleagueIds } },
     })
-    const subjects = new Set(rows.map((r) => r.subjectId))
-    for (const id of colleagueIds) expect(subjects.has(id)).toBe(true)
-    expect(subjects.has(karthik.personId)).toBe(false)
-    expect(rows[0].reason).toContain('consultants.cost')
+    expect(shown).toEqual([])
   })
 
   it('the payroll desk still reads every pay line it runs', async () => {

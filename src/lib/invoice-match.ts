@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
 import { rateInForce } from '@/lib/contract-rate'
 import { bandsOf, billableInPeriod, periodFor, type AcceptedCut, type Band, type Period } from '@/lib/periods'
-import { policyOf, type Decision } from '@/lib/overtime'
+import { lineFor, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, periodTermsFor, type OrderHeader } from '@/lib/money/order-terms'
 import { receiptFor } from '@/lib/money/rung-billing'
 
@@ -30,6 +30,7 @@ export interface PricedLine {
     overtimeMultiplierBps: number
     billStraddle: string
     workOrder?: OrderHeader | null
+    requirement?: { hoursPerWeek: number | null } | null
   } | null
   timesheet: {
     id: string
@@ -58,6 +59,8 @@ export interface PricedLine {
        */
       billStraddle: string
       workOrder?: OrderHeader | null
+      /** The job's hours, the line a decided week was judged against where the contract draws none. */
+      requirement?: { hoursPerWeek: number | null } | null
     }
   } | null
 }
@@ -131,7 +134,9 @@ export function recompute(line: PricedLine, period: Period, accepted: AcceptedCu
       workOrder: billed.workOrder ?? null,
     }).straddle,
     line.rateCents,
-    policyOf(billed),
+    // The line the week was decided against: the contract's own, else
+    // the job's hours where somebody decided it — as the bill was priced.
+    lineFor(billed, billed.requirement ?? ts.sellContract.requirement, { stillToSign: false, decided: decisions.length > 0 }),
     decisions,
     accepted
   )
@@ -208,7 +213,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
               // The job the line bills, and the request behind it — what
               // a payer reads a line by and where it asks about one.
               requirementId: true,
-              requirement: { select: { title: true } },
+              requirement: { select: { title: true, hoursPerWeek: true } },
               // Who pays this line — whose signature on the week is its
               // receipt.
               clientCompanyId: true,
@@ -241,6 +246,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
               sellContract: {
                 select: {
                   billRate: true, startDate: true,
+                  requirement: { select: { hoursPerWeek: true } },
                   companyId: true, clientCompanyId: true, endClientCompanyId: true,
                   overtimeAfterHours: true, overtimeMultiplierBps: true,
                   billFrequency: true, billAnchor: true, billStraddle: true,
