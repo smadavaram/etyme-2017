@@ -1373,6 +1373,18 @@ Three rules follow:
   Indian worker's overtime is set by state law (commonly past nine hours
   a day or forty-eight a week, at twice the ordinary rate) and is
   `etyme-regulatory`'s to confirm before any Indian pay line prices it.
+  **Which days are off is a setting, not a rule** (founder, the same
+  day): *"If a company is in Dubai they would have Friday off — this
+  should be a configurable setting."* So the days off are a company
+  setting now, defaulting to Saturday and Sunday, and move to the site
+  when the legal-entity and site layer is built. A company may mark any
+  days off — Friday alone, Friday and Saturday, or none. The week still
+  starts on Sunday for everyone until a paying client needs another
+  start; the days off decide what is expected and what a date shifts
+  around, never what may be filed. Worth knowing, not deciding here:
+  the UAE federal government moved to a Saturday–Sunday weekend in 2022
+  and many private firms followed, so a Dubai company may say either,
+  which is exactly why it is the company's to set.
 
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
