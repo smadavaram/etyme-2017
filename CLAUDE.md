@@ -1278,6 +1278,72 @@ invariant in "Invariants the database must enforce" reads accordingly.
 
 ---
 
+## The bench is the difference, and it is built now — decided 2026-09-30
+
+The founder, over the sequencing rule and saying so: *"Bench is our wow
+factor and what differentiates us from the crowd. Let's do the bench
+right and now."* So the bench is Phase 1 work, not Phase 2, and it is
+the one supplier-side exception to "the client is the customer" first.
+
+**Two kinds of bench creator, one flow for everybody else**, in his
+words: *"The flow would remain the same for companies except for GSI
+companies — bench creators can be project managers on different client
+sites that are coming off their projects, while bench-based supplier
+companies focus on a niche skill, offer trainings to attract people to
+their bench, that they place with sub-vendors, prime vendors and
+clients."*
+
+- **An integrator's bench is its own people rolling off.** The creator
+  is the project or delivery manager on a client site, flagging who
+  comes off a project and when. This is the employer's roster from "Who
+  sells and who buys" — its own W2s between projects, visible to the
+  firm's other delivery managers and HR, redeployed internally without
+  a submission, and submitted as INTERNAL where a client needs them. Not
+  a consultant consenting to be sold: the employment is the consent.
+- **A bench supplier's bench is its business.** It picks a niche skill,
+  attracts people with training (`lib/training` already enrolls,
+  starts, completes and drops), keeps them warm, and places them with
+  sub-vendors, primes and clients. Every person is on it by their own
+  consent (`BenchListing`), and every firm they are shown to is a grant
+  they gave.
+- **Everybody else** — primes, sub-vendors, clients — receives bench the
+  same way: they say what they want, see who is offered, and put a
+  person forward to their own job request.
+
+Neutrality still holds: Etyme runs nobody's bench and places nobody.
+The firms do; the record carries the consent, the offer and the trail.
+
+**How bench reaches a job — the founder, the same day:**
+
+> Rarely would end clients be interested in seeing the bench, but if
+> they have a great relation the bench creator can share the bench via
+> email. We have a matching feature that will bring available and
+> matching bench to requirements, with priority to existing vendors,
+> that they can add to the application. In case the matching bench is
+> not a vendor, client-side recruiters can request creators to be added
+> as prime vendor or sub-vendor and work through their MSP or prime
+> vendor, or designate Etyme as prime vendor and work with them.
+
+- **A client does not browse a bench.** The bench comes to the client
+  through **matching on a job request**, not a bench page. Where a
+  creator has a close client, it may send its bench by email — a
+  consented share like any other, logged.
+- **Matching brings available bench to a job request, existing
+  vendors first.** A match from a firm already on the client's supplier
+  panel ranks ahead and can be added to the application in one step.
+  Every match carries its reasons (factors, basis, confidence,
+  unknowns), per the invariant.
+- **A match from a firm that is not a vendor is a door, not a
+  dead end.** The client's recruiter asks for that firm to be added —
+  as a prime vendor or as a sub-vendor under the client's MSP or an
+  existing prime — and it walks supplier onboarding like any other
+  firm before its person can be submitted.
+- **"Designate Etyme as prime vendor" is not yet decided.** It
+  conflicts with "neutrality is absolute" and with the permanent
+  exclusion of the master-vendor model, and it makes Etyme a party that
+  contracts, bills, pays and carries the risk. Put to the founder
+  2026-09-30; nothing is built toward it until he answers.
+
 ## One week, filed once by the worker, signed at the top — decided 2026-09-28
 
 The founder, asked whether a supplier may file hours on a worker's
