@@ -1307,6 +1307,29 @@ clients."*
   sub-vendors, primes and clients. Every person is on it by their own
   consent (`BenchListing`), and every firm they are shown to is a grant
   they gave.
+- **How an integrator's people move between its projects — decided by
+  the founder the same day**, in his example: a project manager on one
+  client's project in Portland publishes who is rolling off; another
+  manager of the same firm on a different client's project in San Jose
+  sees them, asks, and takes one into his open position. So:
+  1. The releasing manager flags a person with the day they come off.
+     They appear on the firm's **Our bench** with skills, place, free
+     date and who is releasing them — seen by the firm's own managers
+     and HR, never by any client, and one client never sees another's
+     project.
+  2. Another manager asks the releasing one (a thread inside the firm)
+     and **reserves** the person for his position — one hold at a
+     time.
+  3. **The releasing manager confirms the date; the receiving manager
+     places the person** — as INTERNAL on the new client's job request
+     where there is one, or straight onto a line of his own project's
+     existing order where the seat is his, starting after the old one
+     ends. No approval from HR, **but HR is told of every flag, hold,
+     release and move** (founder: "HR must be informed").
+  4. A releasing manager may keep somebody — "staying with me until
+     [date]" — and they read as free from that date.
+  5. The person is told at each step, not asked: the employment is the
+     consent. A move to another city says so.
 - **Everybody else** — primes, sub-vendors, clients — receives bench the
   same way: they say what they want, see who is offered, and put a
   person forward to their own job request.
