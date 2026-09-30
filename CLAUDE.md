@@ -1348,6 +1348,15 @@ The firms do; the record carries the consent, the offer and the trail.
 - **Bench is shared only between firms that already trade**, one rung
   at a time (the founder, the same day). A sub-vendor's name stays the
   prime's to keep. A share by email follows the same rule.
+- **A person chooses how long they stay on a bench** (founder, the
+  same day): *"Allow candidate to stay on bench for 5, 7, 15, 25, 50, 60,
+  500 days or until cancelled."* The choice is the person's, made when
+  they say yes and changeable later from their own page; "until
+  cancelled" is the default, so saying yes is never a second question.
+  When the time runs out the listing ends by itself: they leave every
+  match and cannot be put forward, and a submission already made stands.
+  They are reminded before it ends and can renew in one tap; the firm is
+  told when it ends.
 - **The words:** what a firm receives is its **"Received bench"**, and
   what it asks for is **"Bench wanted"** — skills, places, rate range
   and the desk that receives — shown at the top of the same page.
