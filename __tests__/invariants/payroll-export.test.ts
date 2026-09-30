@@ -53,6 +53,7 @@ function row(over: Partial<SheetToPay> = {}): SheetToPay {
     personName: 'Rohan Menon',
     payrollId: 'E10041',
     contractType: 'W2',
+    cutOvertime: 'ABOVE_THE_LINE',
     weAreTheEmployer: true,
     periodStart: d('2026-08-01'),
     periodEnd: d('2026-08-15'),
@@ -100,11 +101,27 @@ describe('what goes in the file', () => {
     expect(buildExport('ADP', [row()]).lines[0].hours).toBe(80)
   })
 
-  it('takes the hours an employer struck out off the ordinary hours, never off the premium', () => {
+  it('by default takes the hours an employer struck out off the hours over the line, so overtime is paid only on the accepted hours above it', () => {
+    // The same sheet as below, on a line nobody changed: 85 filed, 82
+    // accepted, and the 3 come off the second week's 5 over the line.
+    const e = buildExport('ADP', [
+      row({
+        weeks: [week(), week({ weekOf: '2026-08-10', regularHours: 40, overHours: 5, client: { treatment: 'PREMIUM', appliedBps: 15_000 } })],
+        assertion: nonexempt,
+        submittedHours: 85,
+        acceptedHours: 82,
+      }),
+    ])
+    expect(e.lines[0].hours).toBe(80)
+    expect(e.lines[0].overtimeHours).toBe(2)
+  })
+
+  it('where the paying firm keeps the week’s overtime, takes the hours an employer struck out off the ordinary hours, never off the premium', () => {
     // 45 hours in the second week, 5 of them over the line and priced at
     // time and a half. The employer accepts 82 of the 85 filed.
     const e = buildExport('ADP', [
       row({
+        cutOvertime: 'KEEP_WEEK_OVERTIME',
         weeks: [week(), week({ weekOf: '2026-08-10', regularHours: 40, overHours: 5, client: { treatment: 'PREMIUM', appliedBps: 15_000 } })],
         assertion: nonexempt,
         submittedHours: 85,

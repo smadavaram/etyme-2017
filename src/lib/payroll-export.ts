@@ -61,7 +61,7 @@ import {
   type OvertimeMethod,
 } from '@/lib/money/overtime-method'
 import { premiumTerms } from '@/lib/money/sheet-overtime'
-import { payCut, straightTimeSays } from '@/lib/money/pay-hours'
+import { payCut, straightTimeSays, type CutOvertime } from '@/lib/money/pay-hours'
 
 export type Provider = 'ADP' | 'PAYCHEX' | 'GENERIC'
 
@@ -193,6 +193,12 @@ export interface SheetToPay {
   submittedHours: number
   /** What the employer accepted for pay, where it differs from what was filed. */
   acceptedHours: number | null
+  /**
+   * How a week accepted short is cut, read off the pay line by
+   * `cutOvertimeFor`. Required, so the file never pays the default to a
+   * worker whose employer chose otherwise.
+   */
+  cutOvertime: CutOvertime
   /**
    * True where the caller already cut the weeks to the hours accepted,
    * on the days (lib/money/pay-hours) — so this file does not cut them
@@ -502,7 +508,10 @@ const round2 = (n: number): number => Math.round(n * 100) / 100
  * The weeks as the employer accepted them, where the caller handed over
  * weeks and not days.
  *
- * The cut is the one pay always takes (lib/money/pay-hours): ordinary
+ * The cut is the one pay always takes (lib/money/pay-hours), under the
+ * sheet's `cutOvertime`: by default the hours over the line go first, so
+ * overtime is paid only on the accepted hours above it. Where the paying
+ * firm chose to keep the week's overtime: ordinary
  * hours first, latest week first — worked hours, then paid leave — and
  * the hours over the line only once no ordinary hour is left. A week
  * that, as accepted, is at or under its line is paid at straight time,
@@ -517,7 +526,7 @@ function payable(s: SheetToPay): WeekToPay[] {
   if (s.acceptedHours == null) return weeks
 
   const bands = weeks.map((w) => ({ day: w.weekOf, week: w.weekOf, regular: w.regularHours, leave: w.leaveHours, over: w.overHours }))
-  const cut = payCut(bands, { hours: s.acceptedHours, from: null, to: null }, null)
+  const cut = payCut(bands, { hours: s.acceptedHours, from: null, to: null }, null, s.cutOvertime)
   const kept = new Map(cut.days.map((d) => [d.week, d]))
 
   return weeks.map((w) => {

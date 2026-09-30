@@ -25,7 +25,8 @@ import {
   type WageRuleName,
 } from '@/lib/worker-classification'
 import { weekOvertime, overDaysOf, type DayHours, type OvertimeMethod, type WeekOvertime } from '@/lib/money/overtime-method'
-import { payBands, payCut, paidDayMaps, paySheet, payCutSays, straightTimeWeeks, type PayCut } from '@/lib/money/pay-hours'
+import { payBands, payCut, paidDayMaps, paySheet, payCutSays, straightTimeWeeks, type PayCut, type CutOvertime } from '@/lib/money/pay-hours'
+import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import type { AcceptedCut } from '@/lib/periods'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -131,6 +132,12 @@ export interface WageLine {
   /** The buy line's own overtime multiple, only where it names a threshold. */
   contractPremiumBps: number | null
   employerName?: string | null
+  /**
+   * How a week accepted short is cut, read off the pay line by
+   * `cutOvertimeFor`. Required, so a reader cannot silently pay the
+   * default to a worker whose employer chose otherwise.
+   */
+  cutOvertime: CutOvertime
 }
 
 export interface SheetWeek {
@@ -151,9 +158,11 @@ export interface SheetWeek {
  * drew. Weeks under the line are not returned — they have no premium.
  *
  * `accepted`, where the employer accepted something other than every
- * hour filed, is cut the way pay is always cut (lib/money/pay-hours):
- * ordinary hours first, latest day first, so the hours over the line
- * keep their premium. The week is judged whole against the line before
+ * hour filed, is cut the way pay is always cut (lib/money/pay-hours),
+ * under the pay line's rule (`line.cutOvertime`): by default the hours
+ * over the line go first, so overtime is paid only on the accepted hours
+ * above it; where the paying firm chose to keep the week's overtime,
+ * ordinary hours go first. The week is judged whole against the line before
  * the cut. A week whose hours worked, as accepted, are at or under the
  * line has no premium — an acceptance at or under the line is the hours
  * worked, paid at straight time — and is not returned; the cut's own
@@ -170,7 +179,12 @@ export function sheetOvertime(input: {
   accepted?: AcceptedCut | null
 }): SheetWeek[] {
   if (input.afterHours == null) return []
-  const cut = payCut(payBands(input.days, input.leaveDays, input.afterHours), input.accepted ?? null, input.afterHours)
+  const cut = payCut(
+    payBands(input.days, input.leaveDays, input.afterHours),
+    input.accepted ?? null,
+    input.afterHours,
+    input.line.cutOvertime
+  )
   const paid = paidDayMaps(cut)
   const weeks = workedByWeek({ ...input, days: paid.days, leaveDays: paid.leaveDays })
   const out: SheetWeek[] = []
@@ -265,6 +279,7 @@ export function sheetPay(input: {
     leaveDays: input.leaveDays ?? {},
     afterHours: input.afterHours,
     accepted: input.accepted,
+    cutOvertime: input.line.cutOvertime,
   })
   const weeks = sheetOvertime({
     days: mine,
@@ -365,6 +380,10 @@ export function wageLineFor(
     overtimeAfterHours: number | null
     overtimeMultiplierBps: number
     company?: { name: string } | null
+    /** Who chose how a cut week is paid, and why; read by `cutOvertimeFor`. */
+    cutOvertime?: string | null
+    cutOvertimeById?: string | null
+    cutOvertimeReason?: string | null
   },
   personName: string,
   row: (Parameters<typeof assertionOf>[0] & { wageRule?: string | null }) | null | undefined
@@ -379,6 +398,9 @@ export function wageLineFor(
     assertion: assertionOf(row),
     contractPremiumBps: bc.overtimeAfterHours != null ? bc.overtimeMultiplierBps : null,
     employerName: bc.company?.name ?? null,
+    // The one reader of the stored choice. A value with nobody named or no
+    // reason behind it reads as the default there, not here.
+    cutOvertime: cutOvertimeFor(bc).rule,
   }
 }
 

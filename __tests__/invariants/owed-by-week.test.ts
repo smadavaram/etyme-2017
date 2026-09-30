@@ -33,6 +33,7 @@ const NONEXEMPT: WageLine = {
   },
   contractPremiumBps: 15_000,
   employerName: 'Brightmoor Staffing',
+  cutOvertime: 'ABOVE_THE_LINE',
 }
 
 const AT_70: RatePeriod[] = [{ id: 'r70', rateCents: 7_000, fromDate: d('2026-01-01'), toDate: null, approvalState: 'APPROVED' }]
@@ -161,9 +162,27 @@ describe('what a worker is owed on her own page is what payroll pays her', () =>
     )
   })
 
-  it('a week the employer cut is priced on the hours accepted, the way payroll pays it: 42 of 45 keeps its five hours of overtime', () => {
+  it('a week the employer cut is priced on the hours accepted, the way payroll pays it: by default 42 of 45 is 40 ordinary hours and 2 of overtime', () => {
     const cut = sheet(LONG_WEEK, { accepted: { hours: 42, from: null, to: null } })
     const [w] = owedByWeek([cut], line(), nothingPaid)
+    expect(w.priced).toBe(true)
+    // The default: overtime only on the accepted hours over the line.
+    expect([w.hours, w.ordinaryHours, w.overtimeHours]).toEqual([42, 40, 2])
+    expect(w.owedCents).toBe(42 * 7_000 + 2 * 3_500)
+    const pay = sheetPay({
+      days: LONG_WEEK, leaveDays: {}, afterHours: 40, accepted: { hours: 42, from: null, to: null },
+      contractRateCents: 7_000, periods: AT_70, method: 'US_REGULAR_RATE', line: NONEXEMPT,
+    })
+    const straight = priceByDay({ contractRateCents: 7_000, periods: AT_70, days: pay.days }).days
+      .reduce((n, d) => n + d.hours * d.rateCents, 0)
+    const premium = [...pay.premiums.values()].reduce((n, p) => n + p.premiumCents, 0)
+    expect(w.owedCents).toBe(Math.round(straight) + Math.round(premium))
+  })
+
+  it('a week the employer cut, where the employer keeps the week’s overtime, is priced the way payroll pays it: 42 of 45 keeps its five hours of overtime', () => {
+    const KEEPS: WageLine = { ...NONEXEMPT, cutOvertime: 'KEEP_WEEK_OVERTIME' }
+    const cut = sheet(LONG_WEEK, { accepted: { hours: 42, from: null, to: null } })
+    const [w] = owedByWeek([cut], line({ wage: KEEPS }), nothingPaid)
 
     expect(w.priced).toBe(true)
     // The cut comes off ordinary hours first, so she keeps her overtime.
@@ -174,7 +193,7 @@ describe('what a worker is owed on her own page is what payroll pays her', () =>
     // And that is exactly what payroll's own call makes of the same sheet.
     const pay = sheetPay({
       days: LONG_WEEK, leaveDays: {}, afterHours: 40, accepted: { hours: 42, from: null, to: null },
-      contractRateCents: 7_000, periods: AT_70, method: 'US_REGULAR_RATE', line: NONEXEMPT,
+      contractRateCents: 7_000, periods: AT_70, method: 'US_REGULAR_RATE', line: KEEPS,
     })
     const straight = priceByDay({ contractRateCents: 7_000, periods: AT_70, days: pay.days }).days
       .reduce((n, d) => n + d.hours * d.rateCents, 0)

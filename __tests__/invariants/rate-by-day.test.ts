@@ -128,6 +128,7 @@ const sheet = (weeks: SheetToPay['weeks'], over: Partial<SheetToPay> = {}): Shee
   personName: 'Priya Venkataraman',
   payrollId: 'E20061',
   contractType: 'W2',
+  cutOvertime: 'ABOVE_THE_LINE',
   weAreTheEmployer: true,
   periodStart: new Date('2026-06-29T00:00:00Z'),
   periodEnd: new Date('2026-07-10T00:00:00Z'),

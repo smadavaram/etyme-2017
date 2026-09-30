@@ -8,7 +8,14 @@ import { GET as payrollExport } from '@/app/api/payroll/export/route'
 import { proposeBackPay } from '@/lib/money/back-pay'
 
 /**
- * The employer accepts fewer hours than were worked.
+ * The employer accepts fewer hours than were worked, on a line whose
+ * paying firm chose to keep the week's overtime.
+ *
+ * Since 2026-09-30 the ordinary-first cut is a choice on the pay line,
+ * recorded with who made it and why; the default pays overtime only on
+ * the accepted hours over the line, and walks through the run, the
+ * screen and the file in cut-overtime-pay.test.ts. Omar's line below
+ * records the choice, so every sentence here is the chosen rule.
  *
  * The founder, 2026-09-29 ("yes to all"): the cut on PAY comes off the
  * worker's ordinary hours first, so the worker keeps their overtime —
@@ -65,7 +72,7 @@ async function week(monday: string, perDay: number, accepted: number) {
   })
 }
 
-describe('pay is the hours the employer accepted, cut off ordinary hours first', () => {
+describe('where the paying firm keeps the week’s overtime, pay is the hours the employer accepted, cut off ordinary hours first', () => {
   beforeAll(async () => {
     await resetDatabase()
     await seedWorld()
@@ -97,6 +104,9 @@ describe('pay is the hours the employer accepted, cut off ordinary hours first',
         companyId: firmId, contractType: 'W2', state: 'IN_PROGRESS', startDate: start, payCurrency: 'USD',
         payFrequency: 'MONTHLY', payAnchor: 'CALENDAR', payStraddle: 'SPLIT',
         overtimeAfterHours: 40, overtimeMultiplierBps: 15_000,
+        // The firm's recorded choice: keep the week's overtime on a cut week.
+        cutOvertime: 'KEEP_WEEK_OVERTIME', cutOvertimeById: owner.personId, cutOvertimeAt: d('2026-07-01'),
+        cutOvertimeReason: 'Our handbook promises overtime on every week worked past forty',
         candidates: { create: { personId, payRate: 6_600, startDate: start } },
       },
     })

@@ -11,6 +11,7 @@ import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELEC
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
 import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib/money/pay-hours'
+import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { weekStart } from '@/lib/overtime'
 import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
 
@@ -245,13 +246,16 @@ export async function GET(request: NextRequest) {
             // else the law's forty for a nonexempt US worker.
             const line = payLineOn(bc, link.sellContract, { name: cand.person.name, payCurrency: cand.payCurrency }, row)
             const leaveDays = ((ts as { leaveDays?: unknown }).leaveDays ?? {}) as Record<string, number>
-            // What the employer accepted, cut the way the run cuts it:
-            // ordinary hours first, latest day first. The screen shows
-            // the hours the run will pay, never the hours filed.
+            // What the employer accepted, cut the way the run cuts it,
+            // under the pay line's own rule for a week accepted short.
+            // The screen shows the hours the run will pay, never the hours filed.
             const acceptance = acceptanceForPay(ts.assertions, ts, bc.companyId)
             const pay = acceptance === 'MANY'
               ? null
-              : paySheet({ all, mine: filedDays, leaveDays, afterHours: line.afterHours, accepted: acceptance })
+              : paySheet({
+                  all, mine: filedDays, leaveDays, afterHours: line.afterHours, accepted: acceptance,
+                  cutOvertime: cutOvertimeFor(bc).rule,
+                })
             const mineDays = pay?.days ?? {}
             const mineHours = Object.keys(all).length > 0
               ? (pay ? pay.cut.paid : 0)

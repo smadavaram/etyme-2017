@@ -178,7 +178,7 @@ describe('the payroll file pays the law’s forty', () => {
     assertedByName: 'Renata Kowal', assertedAt: new Date('2026-07-01T00:00:00Z'), note: null, reviewBy: null,
   }
   const sheet = (over: Partial<SheetToPay>): SheetToPay => ({
-    personName: 'Priya Venkataraman', payrollId: 'E1', contractType: 'W2', weAreTheEmployer: true,
+    personName: 'Priya Venkataraman', payrollId: 'E1', contractType: 'W2', weAreTheEmployer: true, cutOvertime: 'ABOVE_THE_LINE',
     periodStart: new Date('2026-08-03T00:00:00Z'), periodEnd: new Date('2026-08-09T00:00:00Z'),
     weeks: [{ weekOf: '2026-08-03', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
     submittedHours: 45, acceptedHours: null, employerAcceptedAt: new Date('2026-08-10T00:00:00Z'),

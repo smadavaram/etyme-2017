@@ -13,6 +13,8 @@ import { sheetOvertime, premiumByDay, overtimeSaysFor, wageLineFor, EXEMPT_SELEC
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
 import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib/money/pay-hours'
+import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
+import { payDaysToMark } from '@/lib/money/pay-day-period'
 import { weekStart } from '@/lib/overtime'
 
 /**
@@ -240,7 +242,9 @@ export async function POST(request: NextRequest) {
         // covered cannot be read back, so this contract is refused
         // rather than paid a second time.
         const unrecorded = book.unrecorded.get(bc.id) ?? null
-        const windows: Period[] = []
+        // Each period this run pays, with the terms that cut it and the
+        // day the line started — what decides which pay days it settles.
+        const windows: Array<{ period: Period; terms: Terms; startedOn: Date | null }> = []
 
         for (const cand of bc.candidates) {
           const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
@@ -251,12 +255,16 @@ export async function POST(request: NextRequest) {
               const filed = narrow && Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
               const line = payLineOn(bc, sell, { name: cand.person.name, payCurrency: cand.payCurrency }, row)
               const leaveDays = (ts.leaveDays as Record<string, number>) ?? {}
-              // The hours the employer accepted, cut off the days the way
-              // pay is always cut: ordinary hours first, latest day first.
+              // The hours the employer accepted, cut off the days under
+              // the pay line's own rule for a week accepted short — the
+              // same rule wageLineFor carries into the premium below.
               const acceptance = acceptanceForPay(ts.assertions, ts, bc.companyId)
               const pay = acceptance === 'MANY'
                 ? null
-                : paySheet({ all, mine: filed, leaveDays, afterHours: line.afterHours, accepted: acceptance })
+                : paySheet({
+                    all, mine: filed, leaveDays, afterHours: line.afterHours, accepted: acceptance,
+                    cutOvertime: cutOvertimeFor(bc).rule,
+                  })
               return {
                 id: ts.id,
                 line,
@@ -315,7 +323,7 @@ export async function POST(request: NextRequest) {
             })
             continue
           }
-          if (payPeriod) windows.push(payPeriod)
+          if (payPeriod) windows.push({ period: payPeriod, terms, startedOn: cand.startDate ?? null })
 
           // Each day in the period, at the rate in force that day, less
           // anything an earlier run already paid.
@@ -465,28 +473,31 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Only the cycles that fall due for the period being run. This
-        // used to complete every open cycle on the contract, so one press
-        // on a placement five months old closed twenty-six pay dates.
-        // A pay date may be shifted a few days past the period's end onto
-        // a business day; nothing belonging to the next period falls due
-        // that soon.
+        // Only the pay days of the periods being run. This used to complete
+        // every open cycle on the contract, so one press on a placement
+        // five months old closed twenty-six pay dates; and then every one
+        // from the period's first day to four days after its last, which
+        // missed a pay day nine days after the month and settled the
+        // month before's. Which period a pay day pays is now read off the
+        // line's own pay days (lib/money/pay-day-period): the period
+        // holding most of the days since the pay day before it.
         let completed = 0
         if (windows.length > 0) {
-          const from = new Date(Math.min(...windows.map((w) => w.start.getTime())))
-          const to = new Date(Math.max(...windows.map((w) => w.end.getTime())) + SHIFT_DAYS * 86_400_000)
-          const updated = await tx.cycle.updateMany({
-            where: {
-              buyContractId: bc.id,
-              kind: cycleKind,
-              completedAt: null,
-              dueOn: { gte: from, lte: to },
-            },
-            data: {
-              completedAt: now,
-            },
+          const cycles = await tx.cycle.findMany({
+            where: { buyContractId: bc.id, kind: cycleKind },
+            select: { id: true, dueOn: true, completedAt: true },
           })
-          completed = updated.count
+          const ids = new Set<string>()
+          for (const w of windows) {
+            for (const c of payDaysToMark(cycles, [w.period], (x) => periodFor(x, w.terms), w.startedOn)) ids.add(c.id)
+          }
+          if (ids.size > 0) {
+            const updated = await tx.cycle.updateMany({
+              where: { id: { in: [...ids] }, completedAt: null },
+              data: { completedAt: now },
+            })
+            completed = updated.count
+          }
         }
         for (const p of processed) if (p.buyContractId === bc.id) p.cyclesCompleted = completed
       }
@@ -554,9 +565,6 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
-/** How far past a period's end its pay date may be shifted onto a business day. */
-const SHIFT_DAYS = 4
 
 type Asked = { month: string } | Period | null | 'INVALID'
 

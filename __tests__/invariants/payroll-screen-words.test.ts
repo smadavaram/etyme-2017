@@ -33,6 +33,7 @@ const sheet = (over: Partial<SheetToPay> = {}): SheetToPay => ({
   personName: 'Rosa Delgado',
   payrollId: null,
   contractType: 'W2',
+  cutOvertime: 'ABOVE_THE_LINE',
   weAreTheEmployer: true,
   periodStart: new Date('2026-07-27T00:00:00Z'),
   periodEnd: new Date('2026-07-31T00:00:00Z'),

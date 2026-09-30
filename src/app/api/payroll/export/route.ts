@@ -10,6 +10,7 @@ import { workedByWeek } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineFor, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
 import { acceptanceForPay, payBands, payCut, paidDayMaps, straightTimeSays } from '@/lib/money/pay-hours'
+import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 
 /**
  * GET /api/payroll/export?provider=ADP&from=&to=
@@ -105,6 +106,10 @@ export async function GET(request: NextRequest) {
                   // where all three are there, so the file pays the method
                   // the run pays.
                   overtimeMethod: true, overtimeMethodById: true, overtimeMethodReason: true,
+                  // How a week accepted short is cut, with who chose it
+                  // and why — cutOvertimeFor honors a choice only where
+                  // all three are there, so the file cuts as the run cuts.
+                  cutOvertime: true, cutOvertimeById: true, cutOvertimeReason: true,
                   entity: { select: { country: true } },
                   candidates: { select: { personId: true, payRate: true, payCurrency: true, state: true } },
                   exemptAssertions: {
@@ -219,18 +224,20 @@ export async function GET(request: NextRequest) {
     // ── The hours accepted, not the hours filed ─────────────────────
     //
     // Cut here, on the days, by the same allocation the run and the
-    // screen use: ordinary hours first, latest day first, the hours over
-    // the line kept. A week worked over the line and accepted at or under
+    // screen use, under the pay line's rule for a week accepted short
+    // (the default: the hours over the line go first). A week worked over the line and accepted at or under
     // it is paid at straight time — an acceptance at or under the line is
     // the hours worked — and goes on the file with its sentence as a note.
     const acceptance = acceptanceForPay(s.assertions, s, companyId)
+    const cutRule = cutOvertimeFor(buy).rule
     const cut =
       acceptance === 'MANY'
         ? null
         : payCut(
             payBands((s.days as Record<string, number>) ?? {}, (s.leaveDays as Record<string, number>) ?? {}, payLine.afterHours),
             acceptance,
-            payLine.afterHours
+            payLine.afterHours,
+            cutRule
           )
     const paidMaps = cut ? paidDayMaps(cut) : { days: {}, leaveDays: {} }
     const cutWeeks = new Map((cut?.weeks ?? []).map((w) => [w.weekOf, w]))
@@ -291,6 +298,7 @@ export async function GET(request: NextRequest) {
       // We employ them where the buy contract is ours. A sub-vendor's
       // own employee is paid by the sub-vendor.
       weAreTheEmployer: buy?.companyId === companyId,
+      cutOvertime: cutRule,
       periodStart: s.periodStart,
       periodEnd: s.periodEnd,
       weeks: split.weeks.map((w) => {

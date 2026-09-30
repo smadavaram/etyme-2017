@@ -1,7 +1,29 @@
 /**
  * Which hours are paid, when the employer accepts fewer than were worked.
  *
- * ── The founder's rule, 2026-09-29 ────────────────────────────────────
+ * ── Two rules, and the pay line says which. Founder, 2026-09-30 ──────
+ *
+ * "Go with your recommendations, but keep settings user configurable."
+ * A week accepted over the line is cut one of two ways, read off the pay
+ * line by `cutOvertimeFor` (lib/cut-overtime-choice) and passed to every
+ * function here that cuts:
+ *
+ *   ABOVE_THE_LINE       the default. The hours not accepted come off the
+ *                        hours over the line first, so overtime is paid
+ *                        only on the accepted hours above the line:
+ *                        41 of 45 pays 40 + 1, 42 pays 40 + 2. What the
+ *                        law requires, and no jump at the line.
+ *   KEEP_WEEK_OVERTIME   the paying firm's choice, named and reasoned.
+ *                        The ordinary-first cut described below: 41 pays
+ *                        36 + 5, the worker keeping the week's overtime.
+ *
+ * The rule is a required argument, never a default here: a caller that
+ * forgot to pass it would pay the default to a worker whose employer chose
+ * otherwise, and nobody would see it. At or under the line is straight time
+ * under either rule. Billing is not touched (`acceptedDays` in lib/periods
+ * still takes the overtime first, the later bill first).
+ *
+ * ── The founder's rule, 2026-09-29 — now KEEP_WEEK_OVERTIME ──────────
  *
  * "Yes to all": when an employer accepts fewer hours than were worked,
  * the cut on PAY comes off the worker's **ordinary hours first**, so the
@@ -68,6 +90,9 @@
 
 import type { AcceptedCut, DayBands } from '@/lib/periods'
 import { weekStart } from '@/lib/overtime'
+import type { CutOvertime } from '@/lib/cut-overtime-choice'
+
+export type { CutOvertime }
 
 const r2 = (n: number): number => Math.round(n * 100) / 100
 
@@ -137,20 +162,29 @@ export interface PayCut {
   moreThanFiled: boolean
   /** The weekly line the weeks were judged on. Null draws no line. */
   line: number | null
+  /** Which rule the cut was taken under. */
+  rule: CutOvertime
 }
 
 /**
- * Take what the employer did not accept off the days, ordinary hours
- * first, latest day first, never the hours over the line while an
- * ordinary hour is left. Then a week whose hours worked, as accepted,
- * are at or under the line is paid at straight time: nothing of it is
- * left over the line.
+ * Take what the employer did not accept off the days, latest day first,
+ * under the pay line's rule: by default (ABOVE_THE_LINE) the hours over
+ * the line go first, so overtime is left only on the accepted hours above
+ * it; where the paying firm keeps the week's overtime (KEEP_WEEK_OVERTIME)
+ * ordinary hours go first, and the hours over the line only once none is
+ * left. Then a week whose hours worked, as accepted, are at or under the
+ * line is paid at straight time: nothing of it is left over the line.
  *
  * `accepted` null pays every hour filed. The week is judged whole
  * against the line before anything is cut: which hours somebody
  * accepted does not change which hours took the week over.
  */
-export function payCut(bands: readonly DayBands[], accepted: AcceptedCut | null, afterHours: number | null): PayCut {
+export function payCut(
+  bands: readonly DayBands[],
+  accepted: AcceptedCut | null,
+  afterHours: number | null,
+  rule: CutOvertime
+): PayCut {
   const covered = [...bands]
     .filter((d) => !accepted || ((!accepted.from || d.day >= accepted.from) && (!accepted.to || d.day <= accepted.to)))
     .sort((a, b) => a.day.localeCompare(b.day))
@@ -159,6 +193,16 @@ export function payCut(bands: readonly DayBands[], accepted: AcceptedCut | null,
   const filed = r2(covered.reduce((n, d) => n + d.regular + d.leave + d.over, 0))
   let cut = accepted ? r2(filed - Math.max(0, accepted.hours)) : 0
 
+  // 0. The default: the hours over the line go first, latest day first,
+  //    so what is left over the line is exactly the accepted hours above
+  //    it. Under KEEP_WEEK_OVERTIME this step is skipped and they go last.
+  if (rule === 'ABOVE_THE_LINE') {
+    for (let i = covered.length - 1; i >= 0 && cut > 0; i--) {
+      const take = Math.min(cut, covered[i].over)
+      covered[i].over = r2(covered[i].over - take)
+      cut = r2(cut - take)
+    }
+  }
   // 1. Ordinary hours, latest day first: worked, then paid leave.
   for (let i = covered.length - 1; i >= 0 && cut > 0; i--) {
     const fromWorked = Math.min(cut, covered[i].regular)
@@ -200,8 +244,14 @@ export function payCut(bands: readonly DayBands[], accepted: AcceptedCut | null,
   // 3. A week whose hours worked, as accepted, are at or under the line
   //    is paid at straight time: its hours past the line as filed are
   //    ordinary hours of an accepted week that does not go over it.
+  // Judged on the hours filed over the line rather than those left after
+  // the cut: under the default a 38-of-45 week has none left, and is still
+  // a week worked over the line and accepted under it. Under the
+  // ordinary-first rule the two tests agree, because its overtime reaches
+  // nought only once every ordinary hour has gone.
   for (const w of weeks) {
-    w.underTheLine = afterHours != null && w.over > 0 && r2(w.regular + w.over) <= afterHours
+    const worked = r2(w.regular + w.over)
+    w.underTheLine = afterHours != null && w.filedOver > 0 && worked > 0 && worked <= afterHours
     if (!w.underTheLine) continue
     w.regular = r2(w.regular + w.over)
     w.over = 0
@@ -221,6 +271,7 @@ export function payCut(bands: readonly DayBands[], accepted: AcceptedCut | null,
     accepted: accepted ? accepted.hours : null,
     moreThanFiled: !!accepted && accepted.hours > filed + 0.005,
     line: afterHours,
+    rule,
   }
 }
 
@@ -297,10 +348,15 @@ export function payCutSays(
     )
   } else if (cut.accepted != null && cut.paid < cut.filed) {
     const keeps = cut.weeks.some((w) => w.over > 0)
-    parts.push(
+    const head =
       `${employer} accepted ${cut.accepted} of the ${cut.filed} hours ${who.personName} filed, so ${cut.accepted} are paid. ` +
-        `The ${r2(cut.filed - cut.paid)} not accepted come off ordinary hours first, from the last day back` +
-        (keeps ? ', so hours over the line keep their premium.' : '.')
+      `The ${r2(cut.filed - cut.paid)} not accepted come off `
+    parts.push(
+      cut.rule === 'ABOVE_THE_LINE'
+        ? head +
+            'the hours over the line first, from the last day back' +
+            (keeps ? ', so overtime is paid only on the accepted hours over the line.' : '.')
+        : head + 'ordinary hours first, from the last day back' + (keeps ? ', so hours over the line keep their premium.' : '.')
     )
     for (const w of cut.weeks) if (w.underTheLine) parts.push(straightTimeSays(w, cut.line))
   }
@@ -374,13 +430,14 @@ export function acceptedOn(
   leaveDays: Record<string, number> | null | undefined,
   afterHours: number | null,
   accepted: AcceptedCut | null,
-  mine: Record<string, number>
+  mine: Record<string, number>,
+  rule: CutOvertime
 ): AcceptedCut | null {
   if (!accepted) return null
   const mineDays = Object.keys(mine).map((k) => k.slice(0, 10))
   const allDays = Object.keys(all).map((k) => k.slice(0, 10))
   if (mineDays.length === allDays.length) return accepted
-  const whole = paidDayMaps(payCut(payBands(all, leaveDays, afterHours), accepted, afterHours))
+  const whole = paidDayMaps(payCut(payBands(all, leaveDays, afterHours), accepted, afterHours, rule))
   return { hours: r2(mineDays.reduce((n, d) => n + (whole.days[d] ?? 0), 0)), from: null, to: null }
 }
 
@@ -396,12 +453,14 @@ export function paySheet(i: {
   leaveDays: Record<string, number> | null | undefined
   afterHours: number | null
   accepted: AcceptedCut | null
+  /** The pay line's rule, from `cutOvertimeFor` (lib/cut-overtime-choice). Required: see the note at the top. */
+  cutOvertime: CutOvertime
 }): { accepted: AcceptedCut | null; cut: PayCut; days: Record<string, number>; leaveDays: Record<string, number> } {
-  const accepted = acceptedOn(i.all, i.leaveDays, i.afterHours, i.accepted, i.mine)
+  const accepted = acceptedOn(i.all, i.leaveDays, i.afterHours, i.accepted, i.mine, i.cutOvertime)
   const leaveMine = Object.fromEntries(
     Object.entries(i.leaveDays ?? {}).filter(([d]) => Object.keys(i.mine).some((k) => k.slice(0, 10) === d.slice(0, 10)))
   )
-  const cut = payCut(payBands(i.mine, leaveMine, i.afterHours), accepted, i.afterHours)
+  const cut = payCut(payBands(i.mine, leaveMine, i.afterHours), accepted, i.afterHours, i.cutOvertime)
   const paid = paidDayMaps(cut)
   return { accepted, cut, days: paid.days, leaveDays: paid.leaveDays }
 }

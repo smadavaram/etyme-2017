@@ -1,5 +1,11 @@
 /**
- * Which hours are paid, when the employer accepts fewer than were worked.
+ * Which hours are paid, when the employer accepts fewer than were worked,
+ * on a line whose paying firm chose to keep the week's overtime.
+ *
+ * Since 2026-09-30 this is a setting on the pay line and not the default:
+ * the default pays overtime only on the accepted hours over the line, and
+ * its sentences are in cut-overtime-pay.test.ts. Every sentence here is the
+ * ordinary-first rule, which is what KEEP_WEEK_OVERTIME pays.
  *
  * The founder, 2026-09-29 ("yes to all"): the cut on PAY comes off the
  * worker's ordinary hours first, so the worker keeps their overtime —
@@ -42,14 +48,17 @@ const nonexempt: WageLine = {
   },
   contractPremiumBps: null,
   employerName: 'Brightmoor',
+  // This file is the ordinary-first cut: the rule a paying firm chooses
+  // when it keeps the week's overtime. The default is in cut-overtime-pay.test.ts.
+  cutOvertime: 'KEEP_WEEK_OVERTIME',
 }
 
 const paidWeek = (accepted: number | null) => {
-  const cut = payCut(payBands(WEEK, {}, 40), accepted == null ? null : all(accepted), 40)
+  const cut = payCut(payBands(WEEK, {}, 40), accepted == null ? null : all(accepted), 40, 'KEEP_WEEK_OVERTIME')
   return cut.weeks[0]
 }
 
-describe('the founder’s two examples, a forty-hour line and forty-five hours worked', () => {
+describe('the founder’s two examples, a forty-hour line and forty-five hours worked, where the paying firm keeps the week’s overtime', () => {
   it('45 worked and 42 accepted pays 37 ordinary hours and 5 overtime', () => {
     const w = paidWeek(42)
     expect([w.regular, w.over]).toEqual([37, 5])
@@ -79,7 +88,7 @@ describe('the founder’s two examples, a forty-hour line and forty-five hours w
     expect(premiumByDay(weeks).size).toBe(0)
     expect(overtimeSaysFor(weeks)).toBeNull()
     // 38 hours at $66, and nothing on top.
-    const paid = paySheet({ all: WEEK, mine: WEEK, leaveDays: {}, afterHours: 40, accepted: all(38) })
+    const paid = paySheet({ cutOvertime: 'KEEP_WEEK_OVERTIME', all: WEEK, mine: WEEK, leaveDays: {}, afterHours: 40, accepted: all(38) })
     expect(priceByDay({ contractRateCents: 6_600, periods: [], days: paid.days }).cents).toBe(38 * 6_600)
   })
 
@@ -105,7 +114,7 @@ describe('the founder’s two examples, a forty-hour line and forty-five hours w
   })
 
   it('says a week accepted under the line in one sentence: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40', () => {
-    const cut = payCut(payBands(WEEK, {}, 40), all(38), 40)
+    const cut = payCut(payBands(WEEK, {}, 40), all(38), 40, 'KEEP_WEEK_OVERTIME')
     expect(straightTimeSays(cut.weeks[0], 40)).toBe(
       'Week of July 6, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
     )
@@ -115,11 +124,11 @@ describe('the founder’s two examples, a forty-hour line and forty-five hours w
         'week is not over 40.'
     )
     // A week that keeps its overtime says nothing of straight time.
-    expect(straightTimeWeeks(payCut(payBands(WEEK, {}, 40), all(42), 40))).toEqual([])
+    expect(straightTimeWeeks(payCut(payBands(WEEK, {}, 40), all(42), 40, 'KEEP_WEEK_OVERTIME'))).toEqual([])
   })
 
   it('judges the week on the line in force: on a contract’s own 37.5-hour line, 37.5 of 45 accepted is straight time and 39 keeps its 7.5 hours over the line', () => {
-    const at = (n: number) => payCut(payBands(WEEK, {}, 37.5), all(n), 37.5).weeks[0]
+    const at = (n: number) => payCut(payBands(WEEK, {}, 37.5), all(n), 37.5, 'KEEP_WEEK_OVERTIME').weeks[0]
     expect([at(37.5).regular, at(37.5).over, at(37.5).underTheLine]).toEqual([37.5, 0, true])
     expect([at(39).regular, at(39).over, at(39).underTheLine]).toEqual([31.5, 7.5, false])
     expect(straightTimeSays(at(37.5), 37.5)).toBe(
@@ -132,7 +141,7 @@ describe('the founder’s two examples, a forty-hour line and forty-five hours w
     // 6 over the line on Saturday. 46 accepted: 8 struck, off Saturday's
     // 3 ordinary and 5 of Friday's. 38 worked remain, with the 8 of leave.
     const six = { ...WEEK, '2026-07-11': 9 }
-    const cut = payCut(payBands(six, { '2026-07-06': 8 }, 40), all(46), 40)
+    const cut = payCut(payBands(six, { '2026-07-06': 8 }, 40), all(46), 40, 'KEEP_WEEK_OVERTIME')
     const w = cut.weeks[0]
     expect([w.regular, w.leave, w.over, w.underTheLine]).toEqual([38, 8, 0, true])
     expect(cut.paid).toBe(46)
@@ -143,11 +152,11 @@ describe('the founder’s two examples, a forty-hour line and forty-five hours w
   })
 })
 
-describe('the one allocation for pay: ordinary hours first, from the latest day backward', () => {
+describe('where the paying firm keeps the week’s overtime: ordinary hours first, from the latest day backward', () => {
   it('takes the hours struck out off the latest day’s ordinary hours first, and never off the hours over the line', () => {
     // Friday holds 4 ordinary hours and the 5 over the line. Seven struck:
     // Friday's 4 ordinary, then 3 of Thursday's.
-    const { days } = paidDayMaps(payCut(payBands(WEEK, {}, 40), all(38), 40))
+    const { days } = paidDayMaps(payCut(payBands(WEEK, {}, 40), all(38), 40, 'KEEP_WEEK_OVERTIME'))
     expect(days).toEqual({ '2026-07-06': 9, '2026-07-07': 9, '2026-07-08': 9, '2026-07-09': 6, '2026-07-10': 5 })
   })
 
@@ -157,7 +166,7 @@ describe('the one allocation for pay: ordinary hours first, from the latest day 
     // leave, and not the hour over the line: Friday keeps 3 ordinary, its
     // 4 of leave and the hour over, 4 worked in all.
     const bands = payBands(WEEK, { '2026-07-10': 4 }, 40)
-    const cut = payCut(bands, all(44), 40)
+    const cut = payCut(bands, all(44), 40, 'KEEP_WEEK_OVERTIME')
     const friday = cut.days.find((d) => d.day === '2026-07-10')!
     expect([friday.leave, friday.regular + friday.over]).toEqual([4, 4])
     // As accepted the week is 40 worked, not over the line, so the hour
@@ -165,19 +174,19 @@ describe('the one allocation for pay: ordinary hours first, from the latest day 
     expect([friday.regular, friday.over, cut.weeks[0].underTheLine]).toEqual([4, 0, true])
     // Five struck: Friday's 4 worked ordinary hours, then 1 of its leave;
     // the hour past the line stays, at straight time — 37 worked.
-    const five = payCut(bands, all(40), 40).days.find((d) => d.day === '2026-07-10')!
+    const five = payCut(bands, all(40), 40, 'KEEP_WEEK_OVERTIME').days.find((d) => d.day === '2026-07-10')!
     expect([five.regular, five.leave, five.over]).toEqual([1, 3, 0])
   })
 
   it('never pays more hours than the employer accepted, even where the cut has to reach the hours over the line: 4 of 45 accepted pays 4, at straight time', () => {
-    const cut = payCut(payBands(WEEK, {}, 40), all(4), 40)
+    const cut = payCut(payBands(WEEK, {}, 40), all(4), 40, 'KEEP_WEEK_OVERTIME')
     expect(cut.paid).toBe(4)
     expect([cut.weeks[0].regular, cut.weeks[0].over]).toEqual([4, 0])
     expect(cut.weeks[0].underTheLine).toBe(true)
   })
 
   it('pays the hours filed where more were accepted than filed, and says so', () => {
-    const cut = payCut(payBands(WEEK, {}, 40), all(47), 40)
+    const cut = payCut(payBands(WEEK, {}, 40), all(47), 40, 'KEEP_WEEK_OVERTIME')
     expect(cut.paid).toBe(45)
     expect(cut.moreThanFiled).toBe(true)
     expect(payCutSays(cut, { personName: 'Priya', employerName: 'Brightmoor' })).toBe(
@@ -186,25 +195,25 @@ describe('the one allocation for pay: ordinary hours first, from the latest day 
   })
 
   it('says which hours were paid where fewer were accepted', () => {
-    const cut = payCut(payBands(WEEK, {}, 40), all(42), 40)
+    const cut = payCut(payBands(WEEK, {}, 40), all(42), 40, 'KEEP_WEEK_OVERTIME')
     expect(payCutSays(cut, { personName: 'Priya', employerName: 'Brightmoor' })).toBe(
       'Brightmoor accepted 42 of the 45 hours Priya filed, so 42 are paid. The 3 not accepted come off ordinary hours first, ' +
         'from the last day back, so hours over the line keep their premium.'
     )
-    expect(payCutSays(payCut(payBands(WEEK, {}, 40), null, 40), { personName: 'Priya' })).toBeNull()
+    expect(payCutSays(payCut(payBands(WEEK, {}, 40), null, 40, 'KEEP_WEEK_OVERTIME'), { personName: 'Priya' })).toBeNull()
   })
 
-  it('cuts pay the opposite way to the bill, on purpose: the bill loses the overtime first, the pay loses ordinary hours first', () => {
+  it('where the paying firm keeps the week’s overtime, pay is cut the opposite way to the bill: the bill loses the overtime first, the pay loses ordinary hours first', () => {
     const bands = payBands(WEEK, {}, 40)
     const billed = acceptedDays(bands, all(42))
     expect([billed.reduce((n, d) => n + d.regular, 0), billed.reduce((n, d) => n + d.over, 0)]).toEqual([40, 2])
-    const paid = payCut(bands, all(42), 40).weeks[0]
+    const paid = payCut(bands, all(42), 40, 'KEEP_WEEK_OVERTIME').weeks[0]
     expect([paid.regular, paid.over]).toEqual([37, 5])
   })
 
   it('cuts a two-week sheet from the latest week back, so the first week keeps its overtime', () => {
     const two = { ...WEEK, '2026-07-13': 8, '2026-07-14': 8, '2026-07-15': 8, '2026-07-16': 8, '2026-07-17': 8 }
-    const cut = payCut(payBands(two, {}, 40), all(82), 40)
+    const cut = payCut(payBands(two, {}, 40), all(82), 40, 'KEEP_WEEK_OVERTIME')
     // 85 filed, 82 accepted: the 3 come off the latest ordinary hours,
     // Friday 17 July, and the first week keeps its overtime.
     expect(cut.weeks.map((w) => [w.weekOf, w.regular, w.over, w.underTheLine])).toEqual([
@@ -218,7 +227,7 @@ describe('the one allocation for pay: ordinary hours first, from the latest day 
     // second week's ordinary hours, which leaves it 37 worked — straight
     // time — while the first keeps its 5 over the line.
     const second = { '2026-07-13': 9, '2026-07-14': 9, '2026-07-15': 9, '2026-07-16': 9, '2026-07-17': 9 }
-    const cut = payCut(payBands({ ...WEEK, ...second }, {}, 40), all(82), 40)
+    const cut = payCut(payBands({ ...WEEK, ...second }, {}, 40), all(82), 40, 'KEEP_WEEK_OVERTIME')
     expect(cut.weeks.map((w) => [w.weekOf, w.regular, w.over, w.underTheLine])).toEqual([
       ['2026-07-06', 40, 5, false],
       ['2026-07-13', 37, 0, true],
@@ -231,7 +240,7 @@ describe('the one allocation for pay: ordinary hours first, from the latest day 
   it('pays a partial acceptance on the days it covers, the week still judged whole against the line', () => {
     // Wednesday to Friday accepted at 27: the whole week crossed the line
     // on Friday, so Friday's 5 are over it; as accepted the week holds 27.
-    const cut = payCut(payBands(WEEK, {}, 40), { hours: 27, from: '2026-07-08', to: '2026-07-10' }, 40)
+    const cut = payCut(payBands(WEEK, {}, 40), { hours: 27, from: '2026-07-08', to: '2026-07-10' }, 40, 'KEEP_WEEK_OVERTIME')
     expect(cut.days.map((d) => d.day)).toEqual(['2026-07-08', '2026-07-09', '2026-07-10'])
     expect(cut.paid).toBe(27)
     // As accepted the week holds 27 worked hours, under the line: all 27
@@ -276,18 +285,18 @@ describe('whose acceptance is paid', () => {
     // A new line from Thursday: the old line's Monday to Wednesday keep all
     // 27 of theirs, because the 3 struck came off Friday.
     const mine = { '2026-07-06': 9, '2026-07-07': 9, '2026-07-08': 9 }
-    expect(acceptedOn(WEEK, {}, 40, all(42), mine)).toEqual(all(27))
+    expect(acceptedOn(WEEK, {}, 40, all(42), mine, 'KEEP_WEEK_OVERTIME')).toEqual(all(27))
     const theirs = { '2026-07-09': 9, '2026-07-10': 9 }
-    expect(acceptedOn(WEEK, {}, 40, all(42), theirs)).toEqual(all(15))
-    expect(paySheet({ all: WEEK, mine: theirs, leaveDays: {}, afterHours: 40, accepted: all(42) }).days).toEqual({
+    expect(acceptedOn(WEEK, {}, 40, all(42), theirs, 'KEEP_WEEK_OVERTIME')).toEqual(all(15))
+    expect(paySheet({ cutOvertime: 'KEEP_WEEK_OVERTIME', all: WEEK, mine: theirs, leaveDays: {}, afterHours: 40, accepted: all(42) }).days).toEqual({
       '2026-07-09': 9, '2026-07-10': 6,
     })
   })
 })
 
-describe('the payroll file takes the same cut', () => {
+describe('the payroll file takes the same cut, on a line that keeps the week’s overtime', () => {
   const row = (acceptedHours: number): SheetToPay => ({
-    personName: 'Priya Venkataraman', payrollId: 'E1', contractType: 'W2', weAreTheEmployer: true,
+    personName: 'Priya Venkataraman', payrollId: 'E1', contractType: 'W2', weAreTheEmployer: true, cutOvertime: 'KEEP_WEEK_OVERTIME',
     periodStart: new Date('2026-07-06T00:00:00Z'), periodEnd: new Date('2026-07-10T00:00:00Z'),
     weeks: [{ weekOf: '2026-07-06', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
     submittedHours: 45, acceptedHours, employerAcceptedAt: new Date('2026-07-11T00:00:00Z'),
@@ -395,7 +404,7 @@ describe('the worker’s page prices a cut week with the function payroll pays i
     })
   // The run's two calls, as the run makes them.
   const run = (n: number) => {
-    const p = paySheet({ all: WEEK, mine: WEEK, leaveDays: {}, afterHours: 40, accepted: all(n) })
+    const p = paySheet({ cutOvertime: 'KEEP_WEEK_OVERTIME', all: WEEK, mine: WEEK, leaveDays: {}, afterHours: 40, accepted: all(n) })
     const weeks = sheetOvertime({
       days: WEEK, leaveDays: {}, accepted: p.accepted, afterHours: 40,
       contractRateCents: 6_600, periods: [], method: 'US_REGULAR_RATE', line: nonexempt,

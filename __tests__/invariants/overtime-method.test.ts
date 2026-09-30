@@ -165,6 +165,7 @@ describe('the hours a regular rate is worked out from', () => {
       assertedByName: null, assertedAt: new Date('2026-06-01T00:00:00Z'), note: null, reviewBy: null,
     },
     contractPremiumBps: null,
+    cutOvertime: 'ABOVE_THE_LINE',
   }
   const days = Object.fromEntries(WEEK.map((d) => [d.day, d.hours]))
 
