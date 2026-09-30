@@ -1,31 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cronAuthorized } from '@/lib/cron-auth'
-import { reapExpiredDemos, DEMO_DAYS } from '@/lib/demo-seed'
+import { prisma } from '@/lib/db'
+import { expireSandboxes, SANDBOX_UNUSED_DAYS } from '@/lib/sandbox-expiry'
 
 /**
  * GET /api/cron/reap-demos
  *
- * Throw away the demos nobody came back to.
+ * A visitor's demo sandbox is removed after thirty days nobody used it,
+ * and a visitor who left an address is warned a week before
+ * (lib/sandbox-expiry). It touches nothing else: never the seeded demo
+ * world, never a real company, whatever either's flag says.
  *
- * A demo that is still being used has been extended by its owner coming
- * back; one that has not been touched in a fortnight is clutter, and a
- * database filling with abandoned workspaces is a slow way to make every
- * query worse.
+ * The path is the old reaper's, which deleted on a fixed fourteen days
+ * from creation, used or not, and wrote nothing down.
  */
 export async function GET(request: NextRequest) {
   if (!cronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const reaped = await reapExpiredDemos(new Date())
+  const outcome = await expireSandboxes(
+    {
+      removed: (tx, row) => tx.automationLog.create({ data: { ...row, action: 'DEMO_SANDBOX_REMOVED' } }),
+      warned: (row) => prisma.automationLog.create({ data: { ...row, action: 'DEMO_SANDBOX_EXPIRY_WARNED' } }),
+    },
+    new Date()
+  )
 
   return NextResponse.json({
-    data: {
-      reaped,
-      says: reaped === 0
-        ? 'Nothing to clear.'
-        : `Cleared ${reaped} demo workspace${reaped === 1 ? '' : 's'} nobody came back to.`,
-      livesFor: `${DEMO_DAYS} days`,
-    },
+    data: { ...outcome, livesFor: `${SANDBOX_UNUSED_DAYS} days unused` },
   })
 }

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { Prisma } from '@prisma/client'
-import { DELETE_ORDER, KEPT, LOOSE, ORPHANED_WITH_THE_WORLD, edges, CONFIRM_PHRASE, RELEASE_PHRASE, STAND_IN_DOMAIN } from '@/lib/seed-rebuild'
+import { DELETE_ORDER, KEPT, LOOSE, ORPHANED_WITH_THE_WORLD, edges, CONFIRM_PHRASE, RELEASE_PHRASE, STAND_IN_DOMAIN, DELETABLE_STANDING } from '@/lib/seed-rebuild'
 import { maskEmail } from '@/lib/seed-owners'
 import { reservedAddress } from '@/lib/demo-session'
 
@@ -130,11 +130,20 @@ describe('rebuilding the demo world', () => {
     expect(ROUTE).toMatch(/body\?\.dryRun === true/)
   })
 
-  it('releasing the ties changes references only and has no way to delete a row', () => {
+  it('releasing the ties deletes a row only where a visitor\u2019s own demo sandbox holds it, and moves references everywhere else', () => {
     const release = CODE.slice(CODE.indexOf('export const RELEASE_PHRASE'))
     expect(release.length).toBeGreaterThan(1000)
-    expect(release).not.toMatch(/DELETE\s+FROM/i)
+    // One DELETE, and only for a change the plan marked DELETE.
+    expect(release.match(/DELETE\s+FROM/gi)).toHaveLength(1)
+    const at = release.indexOf("if (c.op === 'DELETE') {")
+    expect(at).toBeGreaterThan(0)
+    expect(release.slice(at, at + 400)).toMatch(/DELETE\s+FROM/)
     expect(release).not.toMatch(/\.delete(Many)?\(/)
+    // A DELETE is planned only for the visitor-sandbox standing.
+    expect(DELETABLE_STANDING).toBe('VISITOR_SANDBOX')
+    const planned = [...release.matchAll(/'DELETE'/g)].length
+    expect(planned).toBeGreaterThan(0)
+    expect(release).toMatch(/=== DELETABLE_STANDING/)
     expect(release).toContain("action: 'DEMO_TIES_RELEASED'")
     expect(release).toMatch(/reversible: false/)
   })

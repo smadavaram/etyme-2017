@@ -598,7 +598,7 @@ export async function GET(request: NextRequest) {
  * DELETE /api/demo — throw this workspace away and start again.
  *
  * The demo is meant to be broken. Somebody who has broken it should be
- * able to get a clean one without waiting a fortnight or emailing us.
+ * able to get a clean one without waiting thirty days or emailing us.
  */
 export async function DELETE(request: NextRequest) {
   const email = read(request.cookies.get(DEMO_COOKIE)?.value)

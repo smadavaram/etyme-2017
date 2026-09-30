@@ -29,8 +29,12 @@ import { prisma } from '@/lib/db'
 import { rolesFor } from '@/lib/company-defaults'
 import { defaultPostureFor } from '@/lib/walls'
 
-/** How long a demo lives before it is reaped. */
-export const DEMO_DAYS = 14
+/**
+ * How long a demo sandbox lives without being used before it is removed
+ * (lib/sandbox-expiry, founder 2026-09-30). The date it is born with; the
+ * daily job moves it forward each time somebody uses the sandbox.
+ */
+export const DEMO_DAYS = 30
 
 const CONSULTANTS = [
   { name: 'Anita Desai', headline: 'ERP Finance Lead', skills: ['ERP finance', 'General ledger', 'ABAP'], rate: 11000, location: 'Denver, CO', auth: 'US_CITIZEN' },
@@ -406,17 +410,4 @@ export async function seedDemoCompany(input: {
       contracts: 1,
     },
   }
-}
-
-/**
- * Reap the ones nobody came back to.
- *
- * Deleting a company cascades to everything hanging off it, which is why
- * every row above was written against one.
- */
-export async function reapExpiredDemos(now: Date): Promise<number> {
-  const { count } = await prisma.company.deleteMany({
-    where: { isDemo: true, demoExpiresAt: { lt: now } },
-  })
-  return count
 }

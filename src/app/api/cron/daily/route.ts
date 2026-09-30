@@ -51,7 +51,7 @@ const JOBS = [
   { path: 'freshness-ping', does: 'asks the bench whether they are still looking' },
   { path: 'deliver-webhooks', does: 'retries webhooks that did not land' },
   { path: 'watch', does: 'runs the saved watches' },
-  { path: 'reap-demos', does: 'clears demo workspaces nobody came back to' },
+  { path: 'reap-demos', does: 'removes visitors\u2019 demo sandboxes nobody used for thirty days, and warns a week before' },
 ]
 
 export async function GET(request: NextRequest) {

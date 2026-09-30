@@ -78,11 +78,12 @@ describe('demo and real are separate universes', () => {
 })
 
 describe('a demo does not live forever', () => {
-  it('is reaped after a fortnight', () => {
-    // One still being used has been extended by its owner coming back.
-    // One untouched is clutter, and a database of abandoned workspaces
-    // makes every query slower.
-    expect(DEMO_DAYS).toBe(14)
+  it('is removed after thirty days nobody used it, the date it is born with', () => {
+    // One still being used has its date moved forward each time somebody
+    // opens it (lib/sandbox-expiry, founder 2026-09-30). One untouched is
+    // clutter, and a database of abandoned workspaces makes every query
+    // slower.
+    expect(DEMO_DAYS).toBe(30)
   })
 
   it('names its cookie the same everywhere', () => {

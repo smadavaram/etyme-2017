@@ -167,6 +167,16 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'A contract ending inside eight weeks gets a rolloff opened for it, ready on somebody’s desk. The desk decides what happens to the person.',
   },
+  DEMO_SANDBOX_EXPIRY_WARNED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'A visitor\u2019s demo sandbox has not been used for twenty-three days, so whoever left an address in it was told the day it goes and that opening it keeps it. It deletes nothing.',
+  },
+  DEMO_SANDBOX_REMOVED: {
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'A visitor\u2019s demo sandbox nobody used for thirty days was deleted, with every company in it. Only a visitor\u2019s own sandbox is ever touched, never the demo world or a real company, and it cannot be put back.',
+  },
   CENSUS_CLOCK_WARNED: {
     rung: 'L0',
     basis: 'RULE',
@@ -740,8 +750,8 @@ export const JOBS: Record<string, Job> = {
     job: 'reap-demos',
     rung: 'L5',
     basis: 'RULE',
-    says: 'Deletes demo workspaces nobody has come back to in a fortnight. It cannot be undone, and it only ever touches demo data.',
-    writes: [],
+    says: 'Removes a visitor\u2019s demo sandbox nobody has used for thirty days, and tells a visitor who left an address a week before. It cannot be undone, and it refuses anything that is not a visitor\u2019s own sandbox.',
+    writes: ['DEMO_SANDBOX_EXPIRY_WARNED', 'DEMO_SANDBOX_REMOVED'],
   },
 }
 

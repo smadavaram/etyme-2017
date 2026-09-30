@@ -29,6 +29,7 @@
 
 import { Prisma } from '@prisma/client'
 import { reservedAddress } from '@/lib/demo-session'
+import { reservedDomain } from '@/lib/demo-company'
 
 type Db = { $queryRawUnsafe: (query: string, ...values: any[]) => Promise<unknown> }
 type Row = Record<string, unknown>
@@ -78,7 +79,10 @@ export async function describeCompanies(db: Db, ids: string[], demo: Set<string>
     const name = `${c.name} (${c.domain ? `${c.domain}${c.domainVerified ? '' : ', not verified'}` : `${c.slug}, no domain`})`
     // A sandbox first: the cleanup counts sandboxes as demo, and a
     // visitor's own sandbox is still the thing worth saying.
-    const standing: CompanyStanding = c.isDemo
+    // A verified domain nobody reserved is a real tenant, whatever its
+    // flag says (lib/demo-company), and never a sandbox anything may delete.
+    const realTenant = Boolean(c.domain && c.domainVerified && !reservedDomain(c.domain as string))
+    const standing: CompanyStanding = c.isDemo && !realTenant
       ? 'VISITOR_SANDBOX'
       : demo.has(id)
         ? 'DEMO'

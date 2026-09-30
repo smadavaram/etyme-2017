@@ -804,7 +804,17 @@ export const RELEASE_PHRASE = 'release the demo world from real records'
 /** Where a stand-in lives. Reserved, so it can name nobody. */
 export const STAND_IN_DOMAIN = 'released.etyme.invalid'
 
-export type ReleaseOp = 'REPOINT' | 'NULL' | 'REMOVE'
+export type ReleaseOp = 'REPOINT' | 'NULL' | 'REMOVE' | 'DELETE'
+
+/**
+ * The one standing whose rows the release may delete: a visitor's own
+ * demo sandbox. Decided by the founder, 2026-09-30 ("Demo housekeeping"):
+ * a tie only deleting a row would release is deleted where the row is a
+ * visitor's sandbox's own, and left, named, for everybody else — a
+ * customer, a census, a person — whatever it costs the rebuild.
+ */
+export const DELETABLE_STANDING = 'VISITOR_SANDBOX'
+export const WILL_DELETE = 'Will delete (visitor sandbox)'
 
 export interface ReleaseChange {
   op: ReleaseOp
@@ -1014,25 +1024,33 @@ export async function planTies(db: Db, plan: RebuildPlan): Promise<TiePlan> {
       )
       continue
     }
-    const decided = mine.flatMap((h) =>
-      h.columns.map((c) => {
+    const decided: { h: Hold; c: Hold['columns'][number]; op: ReleaseOp | null }[] = []
+    for (const h of mine) {
+      const sandbox = (wordsOf(await owner(h.staying.to, h.staying.value)) ?? unknown).standing === DELETABLE_STANDING
+      for (const c of h.columns) {
         const op: ReleaseOp | null =
-          c.to === 'Person' && c.value === p ? 'REPOINT' : mayBeEmpty(h.model, c.column) ? 'NULL' : null
-        return { h, c, op }
-      })
-    )
+          c.to === 'Person' && c.value === p ? 'REPOINT' : mayBeEmpty(h.model, c.column) ? 'NULL' : sandbox ? 'DELETE' : null
+        decided.push({ h, c, op })
+      }
+    }
     const whole = decided.length > 0 && decided.every((d) => d.op)
     const standIn = { for: (pr?.primaryEmail as string) ?? p, name: (pr?.name as string) ?? 'Released demo person', email: `released.${p}@${STAND_IN_DOMAIN}` }
     if (whole && decided.some((d) => d.op === 'REPOINT')) standIns.push(standIn)
     for (const d of decided) {
       const who = wordsOf(await owner(d.h.staying.to, d.h.staying.value)) ?? unknown
-      const release = !whole
+      // A visitor's sandbox row goes whether or not the rest lets go: it
+      // is theirs to lose and the founder said so, and leaving it because
+      // somebody else's row stays would keep a row nobody wants.
+      const goes = whole || d.op === 'DELETE'
+      const release = !goes
         ? d.op
           ? `Left as it is: another row holding ${demoName} cannot be let go of without deleting it, so changing this one would not free the rebuild.`
           : `Cannot be released without deleting the ${d.h.model} row: ${d.c.column} must name something, and what it names goes with the demo world.`
-        : d.op === 'REPOINT'
-          ? `Move ${d.h.model}.${d.c.column} to a stand-in made-up person of the same name, ${standIn.email}. Nothing is deleted.`
-          : `Empty ${d.h.model}.${d.c.column}. Nothing is deleted.`
+        : d.op === 'DELETE'
+          ? `${WILL_DELETE}: the ${d.h.model} row, which only deleting releases and which belongs to a visitor\u2019s own demo sandbox.`
+          : d.op === 'REPOINT'
+            ? `Move ${d.h.model}.${d.c.column} to a stand-in made-up person of the same name, ${standIn.email}. Nothing is deleted.`
+            : `Empty ${d.h.model}.${d.c.column}. Nothing is deleted.`
       const warning =
         d.h.model === 'Context' && liveSeats.has(d.h.id) && who.standing !== 'DEMO'
           ? `Today, anybody the demo signs in as ${demoName} can choose a seat at ${who.name}.`
@@ -1047,23 +1065,25 @@ export async function planTies(db: Db, plan: RebuildPlan): Promise<TiePlan> {
           `${who.name} ${verbFor(d.h.model, d.c.column)} the made-up person ${demoName}. ` +
           `Deleting that person would delete this row, so the rebuild keeps the person; ` +
           `and the demo world's own rows still point at it (${demoSide || 'none'}), so the rebuild stops.`,
-        releasable: whole,
+        releasable: goes,
         release,
         ...(warning ? { warning } : {}),
       })
-      if (!whole) {
+      if (!goes) {
         if (!d.op) cannot.add(`${who.name} ${verbFor(d.h.model, d.c.column)} ${demoName} (${d.h.model}.${d.c.column}); it must name something, so only deleting it lets go.`)
         continue
       }
       addChange(
         d.op!,
         d.h.model,
-        d.c.column,
+        d.op === 'DELETE' ? 'id' : d.c.column,
         d.h.id,
-        d.c.value,
-        d.op === 'REPOINT'
-          ? `${d.h.model}.${d.c.column}: ${demoName} → the stand-in ${standIn.email}`
-          : `${d.h.model}.${d.c.column}: emptied where it named ${demoName}'s ${d.c.to}`
+        d.op === 'DELETE' ? d.h.id : d.c.value,
+        d.op === 'DELETE'
+          ? `${d.h.model} deleted: a visitor\u2019s sandbox row naming ${demoName}`
+          : d.op === 'REPOINT'
+            ? `${d.h.model}.${d.c.column}: ${demoName} → the stand-in ${standIn.email}`
+            : `${d.h.model}.${d.c.column}: emptied where it named ${demoName}'s ${d.c.to}`
       )
     }
   }
@@ -1099,7 +1119,13 @@ export async function planTies(db: Db, plan: RebuildPlan): Promise<TiePlan> {
     const who = wordsOf(await owner(t.model, t.id)) ?? unknown
     const target = wordsOf(await owner(t.to, t.value))
     const demo = target && t.to === target.kind ? target.name : `a demo ${t.to}`
-    const op: ReleaseOp | null = isListColumn(t.model, t.column) ? 'REMOVE' : mayBeEmpty(t.model, t.column) ? 'NULL' : null
+    const op: ReleaseOp | null = isListColumn(t.model, t.column)
+      ? 'REMOVE'
+      : mayBeEmpty(t.model, t.column)
+        ? 'NULL'
+        : who.standing === DELETABLE_STANDING
+          ? 'DELETE'
+          : null
     const why = `${who.name} ${verbFor(t.model, t.column)} ${demo}, which is demo; the ${t.model} row would be left naming nobody.`
     addTie({
       table: t.model,
@@ -1110,18 +1136,24 @@ export async function planTies(db: Db, plan: RebuildPlan): Promise<TiePlan> {
       why,
       releasable: !!op,
       release:
-        op === 'REMOVE'
+        op === 'DELETE'
+          ? `${WILL_DELETE}: the ${t.model} row, which only deleting releases and which belongs to a visitor\u2019s own demo sandbox.`
+          : op === 'REMOVE'
           ? `Take the one demo id out of ${t.model}.${t.column}; the rest of the list stays. Nothing is deleted.`
           : op === 'NULL'
             ? `Empty ${t.model}.${t.column}. Nothing is deleted.`
             : `Cannot be released without deleting the ${t.model} row, which is theirs to decide. Remove it by hand, or keep the world.`,
     })
-    if (op) addChange(op, t.model, t.column, t.id, t.value, `${t.model}.${t.column}: ${op === 'REMOVE' ? 'took out' : 'emptied'} ${demo}`)
+    if (op === 'DELETE') addChange(op, t.model, 'id', t.id, t.id, `${t.model} deleted: a visitor\u2019s sandbox row naming ${demo}`)
+    else if (op) addChange(op, t.model, t.column, t.id, t.value, `${t.model}.${t.column}: ${op === 'REMOVE' ? 'took out' : 'emptied'} ${demo}`)
     else cannot.add(`${why} (${t.model}.${t.column})`)
   }
 
-  const list = [...ties.values()]
-  const changed = [...changes.values()]
+  // What will be deleted is read first, before anything that only moves.
+  const first = (release: string) => (release.startsWith(WILL_DELETE) ? 0 : 1)
+  const list = [...ties.values()].sort((a, b) => first(a.release) - first(b.release))
+  const changed = [...changes.values()].sort((a, b) => (a.op === 'DELETE' ? 0 : 1) - (b.op === 'DELETE' ? 0 : 1))
+  const deleting = changed.filter((c) => c.op === 'DELETE').reduce((n, c) => n + c.ids.length, 0)
   const rows = changed.reduce((n, c) => n + c.ids.length, 0)
   const clearsTheWay = cannot.size === 0
   const says =
@@ -1130,7 +1162,8 @@ export async function planTies(db: Db, plan: RebuildPlan): Promise<TiePlan> {
       : `${list.reduce((n, t) => n + t.rows, 0)} rows outside the demo world are tied to it, in ${list.length} ` +
         `${list.length === 1 ? 'way' : 'ways'}. ` +
         (changed.length
-          ? `Releasing would change ${rows} ${rows === 1 ? 'row' : 'rows'} and delete none` +
+          ? `Releasing would change ${rows - deleting} ${rows - deleting === 1 ? 'row' : 'rows'} and delete ` +
+            (deleting ? `${deleting} held only by visitors\u2019 own demo sandboxes` : 'none') +
             (standIns.length ? `, writing ${standIns.length} stand-in made-up ${standIns.length === 1 ? 'person' : 'people'}` : '') +
             '. '
           : '') +
@@ -1162,7 +1195,7 @@ export async function dryRunRebuild(db: Db = prisma) {
 
 export class ReleaseDrifted extends Error {}
 
-export type ReleaseOutcome = { released: number; standIns: number; says: string; remaining: string[] }
+export type ReleaseOutcome = { released: number; deleted: number; standIns: number; says: string; remaining: string[] }
 
 /**
  * Make exactly the changes the tie plan lists, in one transaction, and
@@ -1175,7 +1208,7 @@ export async function releaseTies(opts: { by?: string } = {}): Promise<ReleaseOu
       const plan = await planDemoRebuild(tx)
       const tp = await planTies(tx, plan)
       if (!tp.changes.length) {
-        return { released: 0, standIns: 0, says: `Nothing was changed. ${tp.says}`, remaining: tp.cannot }
+        return { released: 0, deleted: 0, standIns: 0, says: `Nothing was changed. ${tp.says}`, remaining: tp.cannot }
       }
       const standInFor = new Map<string, string>()
       for (const s of tp.standIns) {
@@ -1184,10 +1217,27 @@ export async function releaseTies(opts: { by?: string } = {}): Promise<ReleaseOu
         standInFor.set(s.email.slice('released.'.length, s.email.indexOf('@')), made.id)
       }
       let released = 0
-      for (const c of tp.changes) {
+      let deleted = 0
+      // References first, then the visitor-sandbox rows, so a row that is
+      // both moved and deleted is moved and then goes.
+      const ordered = [...tp.changes.filter((c) => c.op !== 'DELETE'), ...tp.changes.filter((c) => c.op === 'DELETE')]
+      for (const c of ordered) {
         const t = q(table(c.table))
         const col = q(c.column)
         let n: number
+        if (c.op === 'DELETE') {
+          // Only a visitor's own sandbox's rows are ever planned here
+          // (DELETABLE_STANDING in planTies); nothing else reaches it.
+          n = await tx.$executeRawUnsafe(`DELETE FROM ${t} WHERE "id" = ANY($1::text[])`, c.ids)
+          if (n !== c.ids.length) {
+            throw new ReleaseDrifted(
+              `The plan listed ${c.ids.length} ${c.table} rows to delete and ${n} were there. ` +
+                'Something changed since the plan was read; nothing was changed.'
+            )
+          }
+          deleted += n
+          continue
+        }
         if (c.op === 'REPOINT') {
           const to = standInFor.get(c.from)
           if (!to) throw new ReleaseDrifted(`No stand-in was written for ${c.from}; nothing was changed.`)
@@ -1210,7 +1260,8 @@ export async function releaseTies(opts: { by?: string } = {}): Promise<ReleaseOu
         released += n
       }
       const says =
-        `Released ${released} ${released === 1 ? 'row' : 'rows'} outside the demo world from it, deleting none` +
+        `Released ${released} ${released === 1 ? 'row' : 'rows'} outside the demo world from it, deleting ` +
+        (deleted ? `${deleted} held only by visitors\u2019 own demo sandboxes` : 'none') +
         (tp.standIns.length ? ` and writing ${tp.standIns.length} stand-in made-up ${tp.standIns.length === 1 ? 'person' : 'people'}` : '') +
         '.' +
         (tp.cannot.length ? ` ${tp.cannot.length} ${tp.cannot.length === 1 ? 'tie is' : 'ties are'} left, because only deleting a row would release ${tp.cannot.length === 1 ? 'it' : 'them'}.` : ' The rebuild can run.')
@@ -1221,11 +1272,13 @@ export async function releaseTies(opts: { by?: string } = {}): Promise<ReleaseOu
           summary: says,
           reason:
             'Somebody holding the deployment secret asked for the records outside the demo world to be let go of ' +
-            'it, and typed the phrase. Each change only moved or emptied a reference to a demo person, company or ' +
-            'row; no row was deleted. What every row held before is in the payload.',
+            'it, and typed the phrase. Each change moved or emptied a reference to a demo person, company or row; ' +
+            'the only rows deleted were ties held by a visitor\u2019s own demo sandbox that nothing but deleting ' +
+            'releases (founder, 2026-09-30), each listed by id. What every row held before is in the payload.',
           payload: {
             by: opts.by ?? 'CRON_SECRET',
             changes: tp.changes.map((c) => ({ op: c.op, table: c.table, column: c.column, ids: c.ids, from: c.from, to: c.op === 'REPOINT' ? standInFor.get(c.from) : null })),
+            deleted: tp.changes.filter((c) => c.op === 'DELETE').map((c) => ({ table: c.table, ids: c.ids, why: c.says })),
             standIns: tp.standIns.map((s) => ({ for: s.for, email: s.email, id: standInFor.get(s.email.slice('released.'.length, s.email.indexOf('@'))) })),
             left: tp.cannot,
           } as unknown as Prisma.InputJsonValue,
@@ -1233,7 +1286,7 @@ export async function releaseTies(opts: { by?: string } = {}): Promise<ReleaseOu
           reversible: false,
         },
       })
-      return { released, standIns: tp.standIns.length, says, remaining: tp.cannot }
+      return { released, deleted, standIns: tp.standIns.length, says, remaining: tp.cannot }
     },
     { timeout: 55_000, maxWait: 10_000 }
   )

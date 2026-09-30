@@ -373,6 +373,8 @@ export const DOMAINS: Domain[] = [
       'lib/seed-cleanup',
       // Whose record a tie or a seed row sits on, in words, masked.
       'lib/seed-owners',
+      // A visitor's demo sandbox removed after thirty days unused, warned a week before.
+      'lib/sandbox-expiry',
       // Seeding the demo world in steps that each fit one function call.
       'lib/seed-steps',
       // The payroll runs a seeded employer has already made, priced only

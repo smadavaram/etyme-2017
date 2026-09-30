@@ -35,7 +35,8 @@ import { completePlacement } from '@/lib/demo-placement'
  * chain, so it is known to hold together.
  */
 
-const DEMO_DAYS = 14
+/** Thirty days unused, the same rule every sandbox is removed on (lib/sandbox-expiry). */
+export const DEMO_DAYS = 30
 
 /** Where the visitor sits in the chain. */
 export type Seat = 'CLIENT' | 'MSP' | 'GSI' | 'PRIME' | 'BENCH'
