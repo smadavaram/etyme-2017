@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { readInvite } from '@/lib/bench-invite'
-import { answer, awaitingAnswer, type State } from '@/lib/bench-consent'
+import { answer, awaitingAnswer, whatYesMeans, ASK_FIRST_CHOICE, type State } from '@/lib/bench-consent'
+import { tellTheFirm } from '@/lib/bench-invite'
 import { STAY_CHOICES, readStay, renewFields, stayFields, staySays } from '@/lib/bench-stay'
 import { renewStay } from '@/lib/bench-stay-record'
 
@@ -64,6 +65,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
       // A stay with an end, not taken back by the person: one tap renews it.
       mayRenew: listing.state === 'GRANTED' && renewFields(listing, now).ok,
       showInMatches: listing.showInMatches,
+      // What a yes lets them do, read off the setting the listing will
+      // carry — never a promise the setting does not keep.
+      askFirst: listing.askFirst,
+      askFirstChoice: ASK_FIRST_CHOICE,
+      yesMeans: whatYesMeans({ vendor: listing.company.name, askFirst: listing.askFirst }),
+      yesMeansIfAsked: whatYesMeans({ vendor: listing.company.name, askFirst: true }),
     },
   })
 }
@@ -107,7 +114,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     { state: listing.state as State, revokedAt: listing.revokedAt },
     said,
     now,
-    body.note ? String(body.note) : null
+    body.note ? String(body.note) : null,
+    body.askFirst
   )
 
   if (!outcome.ok) {
@@ -121,26 +129,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   await prisma.$transaction([
     prisma.benchListing.update({ where: { id: listing.id }, data }),
-    prisma.notification.create({
-      data: {
-        personId: listing.consultant.personId,
-        companyId: listing.company.id,
-        type: 'BENCH',
-        title:
-          said === 'ACCEPT'
-            ? `${listing.consultant.person.name} agreed to be marketed by you`
-            : `${listing.consultant.person.name} declined your bench invitation`,
-        body:
-          said === 'DECLINE' && body.note
-            ? `They said: ${String(body.note).slice(0, 300)}`
-            : said === 'ACCEPT'
-              ? 'You can put them forward for jobs now.'
-              : 'No reason given.',
-        entityId: listing.id,
-        channel: 'IN_APP',
-        status: 'UNREAD',
-      },
-    }),
     prisma.automationLog.create({
       data: {
         companyId: listing.company.id,
@@ -153,6 +141,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
     }),
   ])
+
+  // The firm that asked hears the answer, in the app and by email — it
+  // was written to the consultant's own inbox (tester, 2026-09-30).
+  void tellTheFirm({
+    listingId: listing.id,
+    companyId: listing.company.id,
+    subjectPersonId: listing.consultant.personId,
+    personName: listing.consultant.person.name,
+    said,
+    note: said === 'DECLINE' && body.note ? String(body.note) : null,
+    askFirst: typeof body.askFirst === 'boolean' ? body.askFirst : null,
+    stayDays: chosen?.stayDays ?? null,
+  })
 
   return NextResponse.json({
     data: {

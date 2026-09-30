@@ -745,6 +745,28 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   if (karthik) {
     people++
     const { start, end } = karthikWindow(seedToday())
+    // His I-9, completed by Teleworld before his first day. The start gate
+    // refuses a W2 start without one, and this seed wrote his line as
+    // ENDED without walking the gate — so a man who worked three months
+    // on a client site read "nothing on your file" on his own paperwork
+    // page (tester, 2026-09-30). An employer keeps the form for three
+    // years after hire or one year after the work ends, whichever is
+    // later, so an ended placement still has it on file.
+    if (!(await db.verification.findFirst({ where: { personId: karthik.id, type: 'I9_EVERIFY' } }))) {
+      await db.verification.create({
+        data: {
+          personId: karthik.id,
+          type: 'I9_EVERIFY',
+          status: 'CLEAR',
+          provider: 'E-Verify',
+          issuedAt: new Date(start.getTime() - 3 * 86_400_000),
+          uploadedById: seat('teleworld'),
+          verifiedById: seat('teleworld'),
+          verifiedAt: new Date(start.getTime() - 2 * 86_400_000),
+          result: { outcome: 'CLEAR' },
+        },
+      })
+    }
     const past = await place({
       personId: karthik.id,
       sellerSlug: 'teleworld',

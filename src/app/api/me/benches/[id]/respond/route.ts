@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { answer, type State } from '@/lib/bench-consent'
+import { tellTheFirm } from '@/lib/bench-invite'
 import { readStay, stayFields, staySays } from '@/lib/bench-stay'
 
 /**
@@ -60,7 +61,8 @@ export async function POST(
     { state: listing.state as State, revokedAt: listing.revokedAt },
     said,
     now,
-    body.note ? String(body.note) : null
+    body.note ? String(body.note) : null,
+    body.askFirst
   )
 
   if (!outcome.ok) {
@@ -80,27 +82,6 @@ export async function POST(
       where: { id },
       data: chosen ? { ...outcome.data!, ...chosen, showInMatches: body.showInMatches === true } : outcome.data!,
     }),
-    prisma.notification.create({
-      data: {
-        personId: caller.person.id,
-        companyId: listing.company.id,
-        type: 'BENCH',
-        title:
-          said === 'ACCEPT'
-            ? `${caller.person.name} agreed to be marketed by you`
-            : `${caller.person.name} declined your bench invitation`,
-        // Their reason reaches the vendor who asked and nobody else.
-        body:
-          said === 'DECLINE' && body.note
-            ? `They said: ${String(body.note).slice(0, 300)}`
-            : said === 'ACCEPT'
-              ? 'You can put them forward for jobs now.'
-              : 'No reason given.',
-        entityId: id,
-        channel: 'IN_APP',
-        status: 'UNREAD',
-      },
-    }),
     prisma.automationLog.create({
       data: {
         companyId: listing.company.id,
@@ -115,6 +96,21 @@ export async function POST(
       },
     }),
   ])
+
+  // The firm that asked hears the answer — whoever sent the invitation
+  // and every desk that puts people forward, in the app and by email.
+  // It was written to the consultant's own inbox (tester, 2026-09-30).
+  // Their reason reaches the firm and nobody else.
+  void tellTheFirm({
+    listingId: id,
+    companyId: listing.company.id,
+    subjectPersonId: caller.person.id,
+    personName: caller.person.name,
+    said,
+    note: said === 'DECLINE' && body.note ? String(body.note) : null,
+    askFirst: typeof body.askFirst === 'boolean' ? body.askFirst : null,
+    stayDays: chosen?.stayDays ?? null,
+  })
 
   return NextResponse.json({
     data: {

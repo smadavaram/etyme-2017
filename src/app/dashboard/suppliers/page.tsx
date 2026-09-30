@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
-import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, suppliedByWords, optionalWord, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 
@@ -584,8 +584,8 @@ export default function SuppliersPage() {
                         </span>
                         <span className={`flex-1 min-w-[200px] ${item.state === 'MISSING' ? 'text-etyme-ink' : 'text-etyme-muted'}`}>
                           {item.label}
-                          {!item.required && <span className="text-etyme-faint"> · optional</span>}
-                          <span className="text-etyme-faint"> · {item.by === 'VENDOR' ? 'from the firm' : 'this desk'}</span>
+                          {optionalWord(item) && <span className="text-etyme-faint"> · {optionalWord(item)}</span>}
+                          <span className="text-etyme-faint"> · {suppliedByWords(item)}</span>
                           {item.fileName && <span className="text-etyme-faint"> — {item.fileName}</span>}
                           {item.state === 'PROVIDED' && <span className="text-etyme-action"> · received, verify</span>}
                           {item.note && <span className="text-etyme-faint"> — {item.note}</span>}

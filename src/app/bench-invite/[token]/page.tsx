@@ -28,6 +28,12 @@ interface Ask {
   stay?: string | null
   /** A stay with an end: one tap renews it, from the reminder letter. */
   mayRenew?: boolean
+  /** What saying yes lets them do, read off the listing's own setting. */
+  yesMeans?: string
+  /** The same sentence once they tick "ask me first". */
+  yesMeansIfAsked?: string
+  askFirst?: boolean
+  askFirstChoice?: string
 }
 
 export default function BenchInvitePage({ params }: { params: { token: string } }) {
@@ -40,11 +46,12 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
   // Chosen with the yes, "until I cancel" already chosen.
   const [stayDays, setStayDays] = useState<number | null>(null)
   const [showInMatches, setShowInMatches] = useState(false)
+  const [askFirst, setAskFirst] = useState(false)
 
   useEffect(() => {
     fetch(`/api/bench-invite/${token}`)
       .then(readJson)
-      .then((b) => setAsk(b.data))
+      .then((b) => { setAsk(b.data); setAskFirst(!!b.data?.askFirst) })
       .catch((e: any) => setError(e.message))
   }, [token])
 
@@ -57,7 +64,7 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(
             said === 'ACCEPT'
-              ? { said, stayDays, showInMatches }
+              ? { said, stayDays, showInMatches, askFirst }
               : { said, note: said === 'DECLINE' ? note : undefined }
           ),
         })
@@ -113,15 +120,18 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
                 May {ask.vendor} put you forward for contract work?
               </h1>
 
+              {/* What a yes lets them do, in words that follow the setting
+                  below — it promised to ask every time while the listing
+                  it created did not ask at all. */}
               <p className="mt-3 max-w-[46ch] text-[14px] text-etyme-muted">
-                {ask.name}, being on a bench means they can put your name to jobs.
-                Nothing happens without you — they will ask before every single
-                submission, and you can take this back whenever you like.
+                {ask.name}, being on a bench means they can put your name to jobs.{' '}
+                {(askFirst ? ask.yesMeansIfAsked : ask.yesMeans) ?? ''}
               </p>
 
-              {/* How long, in the same step as the yes — never a second
-                  question. "Until I cancel" is already chosen. */}
-              <div className="mt-5 flex flex-wrap items-center gap-3">
+              {/* Every choice comes before the yes, so on a phone nothing
+                  the yes decides sits below the button that decides it.
+                  "Until I cancel" is already chosen; the boxes start off. */}
+              <div className="mt-5 flex flex-col gap-3">
                 <label className="flex items-center gap-2 text-[13px] text-etyme-muted">
                   Stay on their bench
                   <select
@@ -135,6 +145,30 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
                     ))}
                   </select>
                 </label>
+                <label className="flex items-start gap-2 text-[13px] text-etyme-muted cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={askFirst}
+                    onChange={() => setAskFirst((v) => !v)}
+                  />
+                  <span>{ask.askFirstChoice ?? 'Ask me before sending me to a client I have not been sent to before'}</span>
+                </label>
+                <label className="flex items-start gap-2 text-[13px] text-etyme-muted cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={showInMatches}
+                    onChange={() => setShowInMatches((v) => !v)}
+                  />
+                  <span>
+                    Also let {ask.vendor} show me in matches to companies it does not work with yet — my
+                    skills and when I am free, never my name, contact or rate.
+                  </span>
+                </label>
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={() => say('ACCEPT')}
@@ -154,19 +188,6 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
                   No thank you
                 </button>
               </div>
-
-              <label className="mt-3 flex items-start gap-2 text-[13px] text-etyme-muted cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={showInMatches}
-                  onChange={() => setShowInMatches((v) => !v)}
-                />
-                <span>
-                  Also let {ask.vendor} show me in matches to companies it does not work with yet — my
-                  skills and when I am free, never my name, contact or rate.
-                </span>
-              </label>
 
               <label className="mt-4 block text-[12px] text-etyme-faint">
                 If you are saying no, you can say why. Only {ask.vendor} sees it.

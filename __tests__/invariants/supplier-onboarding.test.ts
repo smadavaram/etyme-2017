@@ -189,7 +189,8 @@ describe('the loop of documents does not crack at the door', () => {
     expect(c.filter((i) => i.key === 'INSURANCE')).toHaveLength(1)
     expect(c.find((i) => i.key === 'INSURANCE_GL')).toBeUndefined()
     expect(c.find((i) => i.key === 'INSURANCE')?.says).toBe('Required by Northbend Athletic\u2019s orders.')
-    expect(c.find((i) => i.key === 'AGREEMENT')?.says).toBe('Required by Northbend Athletic\u2019s orders.')
+    // Optional at onboarding, required before the first placement (2026-09-30).
+    expect(c.find((i) => i.key === 'AGREEMENT')?.says).toBe('Northbend Athletic\u2019s orders require it before this firm\u2019s first placement. Onboarding can finish without it.')
     expect(c).toHaveLength(newChecklist().length)
   })
 

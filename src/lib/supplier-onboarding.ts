@@ -407,6 +407,11 @@ export function withOrderedItems(
 
   if (ordered.length === 0) return out
   const says = `Required by ${clientName}’s orders.`
+  // An agreement is asked for by the orders and still does not hold up
+  // onboarding — it is papered once the firm is in. "optional" and
+  // "Required by Northbend Athletic’s orders" on one line said both at
+  // once (tester, 2026-09-30); this says which is true, and when.
+  const agreementSays = `${clientName}’s orders require it before this firm’s first placement. Onboarding can finish without it.`
   const answeredBy = (key: string): ChecklistItem | undefined =>
     out.find((i) => i.key === key || (i.answers ?? []).includes(key))
 
@@ -415,7 +420,8 @@ export function withOrderedItems(
     if (already) {
       // The walk already asks for it. Say who else is asking, and leave
       // the desk, the state and the verification exactly where they were.
-      already.says = already.says && already.says !== says ? already.says : says
+      const itsSays = item.purpose === 'AGREEMENT' && !already.required ? agreementSays : says
+      already.says = already.says && already.says !== says && already.says !== agreementSays ? already.says : itsSays
       continue
     }
     out.push({
@@ -432,10 +438,36 @@ export function withOrderedItems(
       at: null,
       fileName: null,
       answers: [item.key],
-      says,
+      says: item.purpose === 'AGREEMENT' ? agreementSays : says,
     })
   }
   return out
+}
+
+/**
+ * Who supplies an item, as the checklist says it.
+ *
+ * "this desk" beside a sanctions and litigation screening read as if HR
+ * rendered that verdict itself. A screening company renders it and
+ * carries the liability for it; the desk orders it and records what
+ * came back (CLAUDE.md, "Who renders the verdict"). The vendor
+ * screening item carries no document type for `whoRendersItem` to ask
+ * about, so it is named here beside the ones that do.
+ */
+export function suppliedByWords(item: Pick<ChecklistItem, 'key' | 'by' | 'answers'>): string {
+  if (item.by === 'VENDOR') return 'from the firm'
+  if (item.key === 'VENDOR_SCREENING' || whoRendersItem(item) === 'PROVIDER') {
+    return 'a screening company’s result, recorded by this desk'
+  }
+  return 'this desk'
+}
+
+/**
+ * "optional", only where nothing else on the line says it is required.
+ * An item an order asks for says so, and when, in its own sentence.
+ */
+export function optionalWord(item: Pick<ChecklistItem, 'required' | 'says'>): string | null {
+  return !item.required && !item.says ? 'optional' : null
 }
 
 /**
