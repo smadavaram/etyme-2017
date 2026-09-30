@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
-import { owedSentence, sayCheckType, twoPopulations } from './says'
+import { complianceSubtitle, complianceView, owedSentence, sayCheckType, twoPopulations } from './says'
+import { ComplianceRefused } from './refused'
 
 /**
  * Compliance Overview — Governance section
@@ -354,6 +355,26 @@ export default function CompliancePage() {
 
   if (!data && !loading && !error) return null
 
+  // A refusal is its own screen: a heading and the route's sentence,
+  // never a page of zeros that reads as "nothing on file".
+  const view = complianceView({ loading, error, hasData: !!data })
+  if (view.show === 'refused') return <ComplianceRefused says={view.says} />
+  // Nor are zeros drawn while the figures are still on their way.
+  if (view.show === 'loading') {
+    return (
+      <>
+        <div className="page-head">
+          <p className="eyebrow">Governance</p>
+          <h1>Compliance overview</h1>
+          <p>{complianceSubtitle(null)}</p>
+        </div>
+        <div className="panel text-center py-12">
+          <p className="text-body-sm text-etyme-muted">Loading…</p>
+        </div>
+      </>
+    )
+  }
+
   const health = data?.health ?? { totalChecks: 0, clear: 0, pending: 0, flagged: 0, expired: 0, clearPercentage: null }
   const evalSummary = data?.evaluationSummary ?? { total: 0, pass: 0, warn: 0, block: 0, overridden: 0 }
   const lapsed = data?.lapsed ?? []
@@ -368,10 +389,7 @@ export default function CompliancePage() {
       <div className="page-head">
         <p className="eyebrow">Governance</p>
         <h1>Compliance overview</h1>
-        <p>
-          Governance policies, enforcement evaluations, and verification status at {data?.client.name ?? '…'}.
-          Every cleared job request records the basis on which it cleared.
-        </p>
+        <p>{complianceSubtitle(data?.client.name)}</p>
       </div>
 
       {/* ── What the page counted, before any number is shown ──

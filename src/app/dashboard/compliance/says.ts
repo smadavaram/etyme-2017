@@ -104,3 +104,43 @@ export function twoPopulations(
 
   return `${owes} ${ran}${apart}`
 }
+
+/**
+ * The line under the heading, naming whose program this is.
+ *
+ * It was one template with the company name spliced in and "…" standing
+ * for it until the page had loaded — so a reader the route refused, for
+ * whom it never loads, read "verification status at …. Every cleared"
+ * for as long as they looked. Without a name the sentence is said
+ * without one, rather than with a gap where one should be.
+ */
+export function complianceSubtitle(companyName: string | null | undefined): string {
+  const name = companyName?.trim()
+  const at = name ? ` at ${name}` : ''
+  return (
+    `Governance policies, enforcement evaluations, and verification status${at}. ` +
+    'Every cleared job request records the basis on which it cleared.'
+  )
+}
+
+/**
+ * Which of three screens the compliance page is, before it draws any of
+ * them.
+ *
+ * A refusal drew the whole page anyway — six figures reading 0 and every
+ * tab empty, with the refusal sentence tucked into the first tab. A zero
+ * says "nothing on file"; the truth was "not yours to see", and a
+ * compliance officer's colleague reading the first would believe it. So
+ * a page that could not read its data shows a heading and the sentence
+ * the route gave, and no number at all.
+ */
+export type ComplianceView =
+  | { show: 'loading' }
+  | { show: 'refused'; says: string }
+  | { show: 'page' }
+
+export function complianceView(s: { loading: boolean; error: string | null; hasData: boolean }): ComplianceView {
+  if (s.error) return { show: 'refused', says: s.error }
+  if (!s.hasData) return { show: 'loading' }
+  return { show: 'page' }
+}
