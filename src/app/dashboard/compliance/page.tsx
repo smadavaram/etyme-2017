@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
-import { complianceSubtitle, complianceView, owedSentence, sayCheckType, twoPopulations } from './says'
+import { complianceSubtitle, complianceView, owedSentence, sayCheckType, sayEnforcement, sayRule, sayRuleParameters, twoPopulations } from './says'
+import { plainDate } from '@/lib/plain-date'
 import { ComplianceRefused } from './refused'
 
 /**
@@ -22,6 +23,10 @@ import { ComplianceRefused } from './refused'
 
 interface ComplianceData {
   client: { id: string; name: string }
+  /** True where the reader is the client or sits in the client's seat. */
+  viewerIsClient?: boolean
+  /** People about to start whom the paperwork is holding up. */
+  startsHeld?: HeldStart[]
   policies: PolicyGroup[]
   recentEvaluations: Evaluation[]
   verifications: {
@@ -34,6 +39,12 @@ interface ComplianceData {
     pending: number
     flagged: number
     expired: number
+    /** Of the flagged: a provider's answer that was not clear. */
+    failed?: number
+    /** Of the flagged: still holding, inside the chase window. */
+    expiring?: number
+    /** Of the flagged: run out, or not started yet. */
+    lapsed?: number
     /** Null where nothing is on file. A rate over no checks is not 100%. */
     clearPercentage: number | null
   }
@@ -48,6 +59,20 @@ interface ComplianceData {
   lapsed: LapsedSupplier[]
   /** What this firm owes on the lines it is paid on. */
   owes?: OwedDocument[]
+}
+
+/** Somebody about to start, and what their paperwork says. */
+interface HeldStart {
+  contractId: string
+  personId: string
+  name: string
+  supplier: string
+  startDate: string
+  outcome: string
+  says: string
+  fix: string | null
+  blocking: string[]
+  chasing: string[]
 }
 
 /** One document this firm, or somebody it placed, still owes. */
@@ -149,6 +174,8 @@ interface VerificationSubject {
   name: string
   checks: VerificationCheck[]
   cover?: { outcome: string; says: string; fix: string | null } | null
+  /** True where the name shown is who a sub-vendor comes through, not the firm itself. */
+  nameWithheld?: boolean
   /**
    * Whether this person may practice today. Null where they hold no
    * license, which is most people and is an answer rather than a gap.
@@ -172,13 +199,15 @@ interface VerificationCheck {
   licenseState?: string | null
   /** True where a lapse here stops the work rather than starting a chat. */
   stopsWork?: boolean
+  /**
+   * A screening company's answer, where the check is one a provider
+   * renders: their name, their reference and the day, or a sentence
+   * saying no provider is named. Null for a document somebody holds.
+   */
+  verdict?: { rendered: boolean; renderedBy: string | null; running: boolean; says: string } | null
 }
 
 // ── Status helpers ─────────────────────────────────────────
-
-function formatRuleType(type: string): string {
-  return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
-}
 
 function outcomeChipClass(outcome: string): string {
   switch (outcome) {
@@ -259,9 +288,9 @@ const EVAL_COLUMNS: Column<Evaluation>[] = [
     label: 'Rule',
     render: (row) => (
       <div>
-        <div className="font-medium text-etyme-ink text-xs">{formatRuleType(row.ruleType)}</div>
+        <div className="font-medium text-etyme-ink text-xs">{sayRule(row.ruleType)}</div>
         <span className={`chip ${enforcementChipClass(row.enforcementMode)} mt-0.5`}>
-          {row.enforcementMode}
+          {sayEnforcement(row.enforcementMode)}
         </span>
       </div>
     ),
@@ -281,7 +310,9 @@ const EVAL_COLUMNS: Column<Evaluation>[] = [
     label: 'Outcome',
     render: (row) => (
       <div>
-        <span className={`chip ${outcomeChipClass(row.outcome)}`}>{row.outcome}</span>
+        <span className={`chip ${outcomeChipClass(row.outcome)}`}>
+          {row.outcome === 'PASS' ? 'Passed' : row.outcome === 'WARN' ? 'Warned' : row.outcome === 'BLOCK' ? 'Blocked' : row.outcome}
+        </span>
         {row.overriddenBy && (
           <div className="text-[10px] text-etyme-action mt-0.5">
             Overridden{row.overrideNote ? `: ${row.overrideNote}` : ''}
@@ -381,7 +412,13 @@ export default function CompliancePage() {
   const owes = data?.owes ?? []
   const needsReview = calls?.review.stale ?? []
   const stopsWork = owes.filter(o => o.stopsWork && o.state !== 'WAIVED').length
-  const standing = twoPopulations(owes.length, stopsWork, health.totalChecks, health.clearPercentage)
+  const startsHeld = data?.startsHeld ?? []
+  const standing = twoPopulations(owes.length, stopsWork, health.totalChecks, health.clearPercentage, {
+    heldStarts: startsHeld.length,
+    blockedStarts: startsHeld.filter(s => s.outcome === 'BLOCK').length,
+    flagged: health.flagged,
+    client: data?.viewerIsClient ?? false,
+  })
 
   return (
     <>
@@ -401,6 +438,53 @@ export default function CompliancePage() {
           and looked like one. */}
       {data && (
         <p className="text-[13px] text-etyme-ink mb-6">{standing}</p>
+      )}
+
+      {/* ── Starts the paperwork is holding up ──
+          The dashboard said Ingrid Sørensen could not start without her
+          I-9 while this page said nothing was outstanding. The same
+          verdict now reaches both, from the same function. */}
+      {startsHeld.length > 0 && (
+        <div className="mb-6 border border-etyme-rule rounded-[6px] overflow-hidden">
+          <div className="px-4 py-3 border-b border-etyme-rule bg-etyme-surface">
+            <h3 className="text-sm font-semibold text-etyme-ink">
+              {startsHeld.length === 1
+                ? 'One start is held up by paperwork'
+                : `${startsHeld.length} starts are held up by paperwork`}
+            </h3>
+            <p className="text-[12px] text-etyme-muted mt-0.5">
+              The same check the start button runs. Right to work and lapsed cover stop a start;
+              everything else warns and records a reason.
+            </p>
+          </div>
+          <div className="divide-y divide-etyme-rule">
+            {startsHeld.map(s => (
+              <div key={s.contractId} className="px-4 py-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`chip ${s.outcome === 'BLOCK' ? 'chip--danger' : 'chip--attention'}`}>
+                    {s.outcome === 'BLOCK' ? 'Cannot start' : 'Starts with a warning'}
+                  </span>
+                  <span className="font-medium text-etyme-ink text-[13px]">{s.name}</span>
+                  <span className="text-[12px] text-etyme-muted">
+                    through {s.supplier} · starts {plainDate(s.startDate)}
+                  </span>
+                </div>
+                <p className="text-[12px] text-etyme-muted mt-1">{s.says}</p>
+                {s.fix && <p className="text-[12px] text-etyme-action mt-1">{s.fix}</p>}
+                {/* Who does the fixing. On a client's page the employer
+                    completes the I-9 and holds the documents behind it; a
+                    client collecting a contractor's passport is excessive
+                    collection and co-employment exposure at once. */}
+                {data?.viewerIsClient && s.blocking.length > 0 && (
+                  <p className="text-[12px] text-etyme-muted mt-1">
+                    {s.supplier} employs {s.name.split(' ')[0]} and puts these on file. Ask them — you do not
+                    collect the documents yourself.
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Lapsed cover — lifted out of the table, because a lapse buried in
@@ -524,12 +608,23 @@ export default function CompliancePage() {
           <p className={`stat-value ${health.flagged > 0 ? 'text-etyme-danger' : 'text-etyme-ink'}`}>
             {health.flagged}
           </p>
+          {/* What the flag is made of. A certificate running out in nineteen
+              days is flagged here, not counted clear. */}
+          {health.flagged > 0 && (
+            <p className="text-[10px] text-etyme-faint mt-0.5">
+              {[
+                health.expiring ? `${health.expiring} running out` : null,
+                health.lapsed ? `${health.lapsed} run out` : null,
+                health.failed ? `${health.failed} not clear` : null,
+              ].filter(Boolean).join(' · ')}
+            </p>
+          )}
         </div>
         <div className="panel flex-1 min-w-[100px]">
           <p className="stat-label">Evaluations</p>
           <p className="stat-value text-etyme-ink">{evalSummary.total}</p>
           <p className="text-[10px] text-etyme-faint mt-0.5">
-            {evalSummary.pass}p · {evalSummary.warn}w · {evalSummary.block}b
+            {evalSummary.pass} passed · {evalSummary.warn} warned · {evalSummary.block} blocked
           </p>
         </div>
       </div>
@@ -564,7 +659,7 @@ export default function CompliancePage() {
           error={error}
           searchPlaceholder="Search evaluations…"
           searchFilter={(row, q) =>
-            formatRuleType(row.ruleType).toLowerCase().includes(q) ||
+            sayRule(row.ruleType).toLowerCase().includes(q) ||
             row.outcome.toLowerCase().includes(q) ||
             (row.reason?.toLowerCase().includes(q) ?? false)
           }
@@ -784,29 +879,29 @@ function PoliciesTab({
               <thead>
                 <tr>
                   <th>Rule</th>
-                  <th>Enforcement</th>
+                  <th>What happens</th>
                   <th>Description</th>
-                  <th>Parameters</th>
-                  <th style={{ textAlign: 'right' }}>Evaluations</th>
+                  <th>Set to</th>
+                  <th style={{ textAlign: 'right' }}>Times checked</th>
                 </tr>
               </thead>
               <tbody>
                 {policy.rules.map(rule => (
                   <tr key={rule.id}>
                     <td>
-                      <span className="font-medium text-etyme-ink">{formatRuleType(rule.ruleType)}</span>
+                      <span className="font-medium text-etyme-ink">{sayRule(rule.ruleType)}</span>
                     </td>
                     <td>
                       <span className={`chip ${enforcementChipClass(rule.enforcementMode)}`}>
-                        {rule.enforcementMode}
+                        {sayEnforcement(rule.enforcementMode)}
                       </span>
                     </td>
                     <td>
                       <span className="text-etyme-muted">{rule.description ?? '—'}</span>
                     </td>
                     <td>
-                      <span className="text-[11px] text-etyme-faint font-mono">
-                        {formatParameters(rule.parameters)}
+                      <span className="text-[12px] text-etyme-muted">
+                        {sayRuleParameters(rule.ruleType, rule.parameters)}
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }} className="tabular-nums">
@@ -821,24 +916,6 @@ function PoliciesTab({
       ))}
     </div>
   )
-}
-
-function formatParameters(params: any): string {
-  if (!params || typeof params !== 'object') return ''
-  return Object.entries(params)
-    .map(([k, v]) => {
-      const label = k.replace(/([A-Z])/g, ' $1').trim()
-      if (Array.isArray(v)) {
-        const items = v.map(item =>
-          typeof item === 'string'
-            ? item.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
-            : Array.isArray(item) ? item.join(' / ') : String(item)
-        )
-        return `${label}: ${items.join(', ')}`
-      }
-      return `${label}: ${v}`
-    })
-    .join(' · ')
 }
 
 // ── Verifications tab — person + company groups ───────────
@@ -870,6 +947,9 @@ function VerificationsTab({
 
   const persons = data?.verifications.persons ?? []
   const companies = data?.verifications.companies ?? []
+  // Somebody about to start, keyed by person, so their row says what the
+  // start is waiting on — including a row with nothing recorded at all.
+  const startOf = new Map((data?.startsHeld ?? []).map(s => [s.personId, s]))
 
   if (persons.length === 0 && companies.length === 0) {
     return (
@@ -899,8 +979,16 @@ function VerificationsTab({
                     <tr key={person.personId}>
                       <td>
                         <span className="font-medium text-etyme-ink">{person.name}</span>
+                        {startOf.has(person.personId ?? "") && (
+                          <div className="text-[11px] text-etyme-muted mt-0.5">
+                            starts {plainDate(startOf.get(person.personId ?? "")!.startDate)}
+                          </div>
+                        )}
                       </td>
                       <td>
+                        {person.checks.length === 0 && (
+                          <p className="text-[12px] text-etyme-muted">Nothing on file yet.</p>
+                        )}
                         <div className="flex flex-wrap gap-2">
                           {person.checks.map((check, i) => (
                             <span
@@ -924,10 +1012,35 @@ function VerificationsTab({
                                 {check.licenseState ? `${sayCheckType(check.type)} · ${check.licenseState}` : sayCheckType(check.type)}
                               </span>
                               <span className="text-etyme-faint">·</span>
-                              <span className="font-medium text-etyme-ink">{effectiveLabel(check)}</span>
+                              {/* A check a screening company renders carries
+                                  its name, never a bare "Clear": the verdict
+                                  is theirs, and a desk here renders none. */}
+                              <span className="font-medium text-etyme-ink">
+                                {check.verdict
+                                  ? check.verdict.rendered
+                                    ? `${check.verdict.renderedBy}: ${effectiveLabel(check).toLowerCase()}`
+                                    : check.verdict.running
+                                      ? 'Not back yet'
+                                      : 'No provider named'
+                                  : effectiveLabel(check)}
+                              </span>
                             </span>
                           ))}
                         </div>
+                        {/* The provider's own words, with their reference and
+                            the day — "Sterling reported clear on Mar 6, 2026,
+                            reference 4471" — or a sentence saying nobody is
+                            named on it. */}
+                        {person.checks.filter(c => c.verdict).map((c, i) => (
+                          <p key={`v${i}`} className="mt-1.5 text-[12px] text-etyme-muted">
+                            {sayCheckType(c.type)}: {c.verdict!.says}
+                          </p>
+                        ))}
+                        {startOf.has(person.personId ?? "") && (
+                          <p className={`mt-2 text-[12px] ${startOf.get(person.personId ?? "")!.outcome === 'BLOCK' ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+                            {startOf.get(person.personId ?? "")!.says}
+                          </p>
+                        )}
                         {/*
                           A license is the one check on this row whose
                           lapse stops the work, so it gets a sentence
@@ -990,6 +1103,18 @@ function VerificationsTab({
                             <div className="text-[11px] text-etyme-muted mt-0.5 max-w-[320px]">
                               {company.cover.says}
                             </div>
+                            {/* The desk that sees cover running out asks for the
+                                renewal from here. Never to a firm whose name is
+                                the prime's to keep: the client asks the firm it
+                                pays. */}
+                            {company.cover.outcome !== 'PASS' && !company.nameWithheld && company.companyId && (
+                              <a
+                                className="text-[11px] text-etyme-action hover:underline"
+                                href={`/dashboard/packets?ask=1&packetKey=COMPLIANCE_ANNUAL&subjectCompanyId=${company.companyId}`}
+                              >
+                                Ask {company.name} for the renewal
+                              </a>
+                            )}
                           </>
                         ) : (
                           <span className="text-etyme-faint">—</span>

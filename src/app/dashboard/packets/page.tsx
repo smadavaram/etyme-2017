@@ -1,6 +1,8 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { plainDate } from '@/lib/plain-date'
+import { emptyRequestsSays } from './words'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -75,6 +77,9 @@ export default function PacketsPage() {
   const [email, setEmail] = useState('')
   const [companies, setCompanies] = useState<{ id: string; name: string; kind: string }[]>([])
   const [subjectCompanyId, setSubjectCompanyId] = useState('')
+  const [subjectPersonId, setSubjectPersonId] = useState('')
+  const [people, setPeople] = useState<{ id: string; name: string; email: string | null }[]>([])
+  const [notOffered, setNotOffered] = useState<{ label: string; why: string }[]>([])
 
   const load = useCallback(async () => {
     try {
@@ -88,12 +93,25 @@ export default function PacketsPage() {
         stale: body.data.stale,
       })
       setCanAsk(body.data.canAsk)
+      setPeople(body.data.people ?? [])
+      setNotOffered(body.data.notOffered ?? [])
     } catch (e: any) {
       setError(e.message)
     }
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // Opened from another page to ask for one thing — the compliance page's
+  // held start, a supplier's lapsing cover — the form opens filled in.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('ask') !== '1') return
+    setAsking(true)
+    if (q.get('packetKey')) setPacketKey(q.get('packetKey')!)
+    if (q.get('subjectCompanyId')) setSubjectCompanyId(q.get('subjectCompanyId')!)
+    if (q.get('subjectPersonId')) setSubjectPersonId(q.get('subjectPersonId')!)
+  }, [])
 
   useEffect(() => {
     if (!asking) return
@@ -115,6 +133,7 @@ export default function PacketsPage() {
           packetKey,
           recipientEmail: email,
           ...(spec?.subject === 'COMPANY' ? { subjectCompanyId } : {}),
+          ...(spec?.subject === 'PERSON' ? { subjectPersonId } : {}),
         }),
       })
       const body = await readJson(res)
@@ -122,7 +141,7 @@ export default function PacketsPage() {
       setAsked(body.data.asking ?? [])
       if (body.data.link) setLink(body.data.link)
       if (body.data.created) {
-        setPacketKey(''); setEmail(''); setSubjectCompanyId(''); setAsking(false)
+        setPacketKey(''); setEmail(''); setSubjectCompanyId(''); setSubjectPersonId(''); setAsking(false)
       }
       load()
     } catch (e: any) {
@@ -143,16 +162,16 @@ export default function PacketsPage() {
     <>
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Operate</p>
-          <h1>Documents you have asked for</h1>
+          <p className="eyebrow">Governance</p>
+          <h1>Document requests</h1>
           <p>
-            A named list sent to somebody who needs no account. It never asks for what we already
-            hold and have not seen expire.
+            Ask a supplier or a person for documents with one link. They need no account. We never
+            ask again for something already on file that has not run out.
           </p>
         </div>
         {canAsk && (
           <button onClick={() => setAsking(!asking)} className="btn-secondary text-[13px] self-start md:mt-3 shrink-0">
-            {asking ? 'Cancel' : 'Ask for documents'}
+            {asking ? 'Cancel' : 'Request documents'}
           </button>
         )}
       </div>
@@ -189,10 +208,10 @@ export default function PacketsPage() {
 
       {asking && (
         <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 mb-5">
-          <h2 className="font-serif text-[19px] text-etyme-ink mb-4 tracking-[-0.02em]">Ask for documents</h2>
+          <h2 className="font-serif text-[19px] text-etyme-ink mb-4 tracking-[-0.02em]">Request documents</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block">
-              <Lbl>Which set</Lbl>
+              <Lbl>What you need</Lbl>
               <select value={packetKey} onChange={(e) => setPacketKey(e.target.value)}
                 className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm">
                 <option value="">Choose…</option>
@@ -207,6 +226,26 @@ export default function PacketsPage() {
                 placeholder="office@supplier.com"
                 className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm" />
             </label>
+            {spec?.subject === 'PERSON' && (
+              <label className="block sm:col-span-2">
+                <Lbl>About which person</Lbl>
+                <select value={subjectPersonId}
+                  onChange={(e) => {
+                    setSubjectPersonId(e.target.value)
+                    const who = people.find((p) => p.id === e.target.value)
+                    if (who?.email && !email.trim()) setEmail(who.email)
+                  }}
+                  className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm">
+                  <option value="">Choose…</option>
+                  {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                {people.length === 0 && (
+                  <span className="block text-[12px] text-etyme-muted mt-1">
+                    Nobody is on an open contract with your firm yet, so there is nobody to ask about.
+                  </span>
+                )}
+              </label>
+            )}
             {spec?.subject === 'COMPANY' && (
               <label className="block sm:col-span-2">
                 <Lbl>About which company</Lbl>
@@ -219,10 +258,16 @@ export default function PacketsPage() {
             )}
           </div>
           <button onClick={ask}
-            disabled={busy || !packetKey || !email.trim() || (spec?.subject === 'COMPANY' && !subjectCompanyId)}
+            disabled={busy || !packetKey || !email.trim() || (spec?.subject === 'COMPANY' && !subjectCompanyId) || (spec?.subject === 'PERSON' && !subjectPersonId)}
             className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40">
             Send the request
           </button>
+          {notOffered.length > 0 && (
+            <div className="mt-4 text-[12px] text-etyme-muted">
+              <p>Not sent from here: {notOffered.map((n) => n.label).join(', ')}.</p>
+              <p className="mt-0.5">{notOffered[0].why}</p>
+            </div>
+          )}
         </section>
       )}
 
@@ -232,11 +277,21 @@ export default function PacketsPage() {
         <Stat label="Link expired" value={counts.stale} tone={counts.stale > 0 ? 'attention' : 'ink'} sub="they cannot reply" />
       </div>
 
+      {/* ── Never a dead end ──
+          This read "A packet is how you get a W-9…" with no button under
+          it, so a compliance officer could not ask for anything from the
+          page named for asking. It now says what to do, and offers it
+          where this desk may. */}
       {packets.length === 0 && (
-        <p className="text-[13px] text-etyme-faint">
-          Nothing asked for yet. A packet is how you get a W-9 and an insurance certificate without
-          four emails.
-        </p>
+        <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-5">
+          <p className="text-[13px] text-etyme-ink">{emptyRequestsSays(canAsk)}</p>
+          {canAsk && !asking && (
+            <button onClick={() => setAsking(true)}
+              className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium">
+              Request documents
+            </button>
+          )}
+        </div>
       )}
 
       <Group title="Waiting on you" rows={review} note="Something arrived and nobody has looked at it." />
@@ -266,7 +321,7 @@ function Group({ title, rows, note }: { title: string; rows: Packet[]; note?: st
                   <span className="ml-2 text-[13px] text-etyme-muted">{p.subject}</span>
                 </p>
                 <p className="text-[12px] text-etyme-faint mt-0.5">
-                  {p.recipientEmail} · asked by {p.askedBy} on {p.askedAt}
+                  {p.recipientEmail} · asked by {p.askedBy} on {plainDate(p.askedAt)}
                 </p>
               </div>
               <span className="text-[12px] tabular-nums text-etyme-muted shrink-0">
@@ -275,7 +330,7 @@ function Group({ title, rows, note }: { title: string; rows: Packet[]; note?: st
             </div>
             <p className={`text-[12px] mt-2 ${p.linkExpired && !p.completedAt ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
               {p.completedAt
-                ? `Finished ${p.completedAt}`
+                ? `Finished ${plainDate(p.completedAt)}`
                 : p.linkExpired
                   ? `Their link expired ${Math.abs(p.expiresInDays)} days ago, so they cannot reply.`
                   : p.progress.summary}

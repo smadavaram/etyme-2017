@@ -1,3 +1,4 @@
+import { plainDate } from '@/lib/plain-date'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
@@ -67,7 +68,7 @@ export async function GET(
       {
         error: {
           code: 'EXPIRED',
-          message: `This link expired on ${packet.expiresAt.toISOString().slice(0, 10)}. Ask ${packet.company.name} for a new one — nothing you sent before is lost.`,
+          message: `This link expired on ${plainDate(packet.expiresAt.toISOString())}. Ask ${packet.company.name} for a new one — nothing you sent before is lost.`,
         },
       },
       { status: 410 }

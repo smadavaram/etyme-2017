@@ -27,6 +27,8 @@
  * every bench, which is a worse lie told louder.
  */
 
+import { hasPermission } from '@/lib/permissions'
+
 export type State = 'INVITED' | 'GRANTED' | 'DECLINED'
 
 export interface Listing {
@@ -78,7 +80,14 @@ export function answer(
   l: Listing,
   said: 'ACCEPT' | 'DECLINE',
   now: Date,
-  note?: string | null
+  note?: string | null,
+  /**
+   * Whether they want to be asked before each client they have not been
+   * sent to before. Only a real `true` or `false` is written; anything
+   * else leaves the listing's own setting as it is. Read on a yes only —
+   * a no puts them forward nowhere, so there is nothing to ask about.
+   */
+  askFirst?: unknown
 ): { ok: boolean; reason: string; data?: Record<string, unknown> } {
   if (l.revokedAt) {
     return { ok: false, reason: 'This listing was already taken back.' }
@@ -100,7 +109,10 @@ export function answer(
       // grantedAt is stamped here and only here, which is the whole
       // point: it now means the moment somebody agreed rather than the
       // moment a vendor typed their name.
-      data: { state: 'GRANTED', grantedAt: now, respondedAt: now, declinedNote: null },
+      data: {
+        state: 'GRANTED', grantedAt: now, respondedAt: now, declinedNote: null,
+        ...(typeof askFirst === 'boolean' ? { askFirst } : {}),
+      },
     }
   }
 
@@ -121,4 +133,105 @@ export function answer(
 /** What a vendor writes when they create the invitation. */
 export function invitation(now: Date): Record<string, unknown> {
   return { state: 'INVITED', invitedAt: now, respondedAt: null }
+}
+
+/**
+ * What saying yes actually lets a firm do, in the words the invitation
+ * uses — read off the setting the listing will carry, never written
+ * beside it.
+ *
+ * Found by a tester on 2026-09-30. The invitation promised "they will
+ * ask before every single submission" and the listing it created had
+ * "ask me first" switched off, which is the schema's default on purpose:
+ * somebody who grants a listing is asking to be marketed. A promise the
+ * setting does not keep is the one thing a consent screen may not say.
+ * So the sentence follows the setting, and the setting is the person's
+ * own choice on the same screen.
+ *
+ * Even "ask me first" is narrower than "every submission": it asks
+ * before a client they have not been sent to before, and a second job
+ * at the same client needs no new question (`lib/representation`). The
+ * sentence says exactly that.
+ */
+export function whatYesMeans(o: { vendor: string; askFirst: boolean }): string {
+  return o.askFirst
+    ? `Saying yes lets ${o.vendor} put you forward for contract jobs. Before they send you to a ` +
+        `client they have not sent you to before, they ask you first. You can take this back ` +
+        `whenever you like.`
+    : `Saying yes lets ${o.vendor} put you forward for contract jobs without asking you each ` +
+        `time. If you would rather be asked before each new client, tick the box below — you can ` +
+        `change it later on your own page. You can take this back whenever you like.`
+}
+
+/** The box that sets it, in the same words the person's own page uses. */
+export const ASK_FIRST_CHOICE = 'Ask me before sending me to a client I have not been sent to before'
+
+// ── The firm hears the answer ─────────────────────────────────────────
+
+/**
+ * What the firm that asked is told when the person answers.
+ *
+ * Found by the bench tester on 2026-09-30: "Lucia agreed to be marketed
+ * by you" was written to Lucia's own inbox — the notification carried
+ * the consultant's `personId` — so the firm that asked was never told,
+ * and a decline reason meant for the firm landed with the person who
+ * wrote it. The words were right and the address was wrong.
+ *
+ * The reason for a no is the firm's to read only because the person
+ * typed it into a box that says "only they see it". An empty box is
+ * "no reason given", never a guess.
+ */
+export function answerNotice(o: {
+  personName: string
+  said: 'ACCEPT' | 'DECLINE'
+  note?: string | null
+  /** Whether they asked to be asked before each new client. */
+  askFirst?: boolean | null
+  /** How long they chose to stay, in days; null for until they cancel. */
+  stayDays?: number | null
+}): { title: string; body: string } {
+  if (o.said === 'ACCEPT') {
+    const stay = o.stayDays ? ` They chose to stay ${o.stayDays} days.` : ''
+    const ask = o.askFirst
+      ? ' They asked to be asked before you send them to a client you have not sent them to before.'
+      : ''
+    return {
+      title: `${o.personName} agreed to be on your bench`,
+      body: `You can put them forward for jobs now.${stay}${ask}`,
+    }
+  }
+  const note = o.note?.trim()
+  return {
+    title: `${o.personName} said no to your bench invitation`,
+    body: note ? `They said: ${note.slice(0, 300)}` : 'No reason given.',
+  }
+}
+
+/**
+ * Who at the firm hears the answer: whoever sent the invitation, and
+ * every desk that puts people forward. Never the person who answered —
+ * they know what they said.
+ *
+ * Where nobody is recorded as the inviter and no desk puts people
+ * forward, the desks that manage the firm's people hear it instead, so
+ * an answer is never addressed to nobody.
+ */
+export function whoHearsTheAnswer(o: {
+  /** Whoever sent the invitation, where it was recorded. */
+  invitedBy: string | null
+  /** Every live seat at the firm and what it may do. */
+  seats: readonly { personId: string; permissions: readonly string[] }[]
+  /** The person who answered. */
+  subjectPersonId: string
+}): string[] {
+  const out: string[] = []
+  const add = (id: string | null | undefined) => {
+    if (id && id !== o.subjectPersonId && !out.includes(id)) out.push(id)
+  }
+  add(o.invitedBy)
+  for (const s of o.seats) if (hasPermission(s.permissions, 'submissions.create')) add(s.personId)
+  if (out.length === 0) {
+    for (const s of o.seats) if (hasPermission(s.permissions, 'consultants.write')) add(s.personId)
+  }
+  return out
 }

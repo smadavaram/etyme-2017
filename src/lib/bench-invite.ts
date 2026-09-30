@@ -72,8 +72,15 @@ export function inviteUrl(listingId: string): string {
  *
  * It says what being on a bench actually means, because most people
  * asked this question have no idea and the ones who do have been burned
- * by a vendor submitting them somewhere without asking. Saying "we will
- * ask you every time" is the whole offer.
+ * by a vendor submitting them somewhere without asking.
+ *
+ * ── It promises only what the listing does ──────────────────────────
+ *
+ * It said "we will ask you before every single submission". The listing
+ * a yes creates has "ask me first" off unless the person ticks it, so
+ * the email promised a protection the default does not give (tester,
+ * 2026-09-30). It now says what a yes lets the firm do, and that the
+ * person can choose to be asked first on the page the link opens.
  */
 export function inviteText(o: {
   personName: string
@@ -86,9 +93,85 @@ export function inviteText(o: {
     body:
       `Hi ${first} — ${o.vendorName} here.\n\n` +
       `We would like to add you to our bench, which means we can put you forward ` +
-      `for contract jobs. Nothing happens without you: we will ask you before every ` +
-      `single submission, and you can take this back whenever you like.\n\n` +
+      `for contract jobs. Nothing happens until you say yes. On the page below you can ` +
+      `also ask us to check with you before we send you to a client we have not sent ` +
+      `you to before, and you can take this back whenever you like.\n\n` +
       `Say yes or no here — no password, no account:\n${o.url}\n\n` +
       `If you would rather not, saying no is the end of it. We will not ask again.`,
   }
+}
+
+// ── Telling the firm ──────────────────────────────────────────────────
+
+/**
+ * Tell the firm that asked what the person answered — in the app and by
+ * email, to whoever sent the invitation and every desk that puts people
+ * forward (`whoHearsTheAnswer`, `answerNotice` in lib/bench-consent).
+ *
+ * One call, used by both doors a person answers from: the link in the
+ * invitation and their own "Who has you" page. Fire-and-forget like every
+ * notification; a slow mail provider never holds up the answer itself.
+ *
+ * Who sent the invitation is read off the log the invitation wrote
+ * (`requestedBy` or `createdBy` in its payload), because the listing has
+ * no column for it. Where no log names anybody, the desks alone hear it.
+ */
+export async function tellTheFirm(o: {
+  listingId: string
+  companyId: string
+  subjectPersonId: string
+  personName: string
+  said: 'ACCEPT' | 'DECLINE'
+  note?: string | null
+  askFirst?: boolean | null
+  stayDays?: number | null
+}): Promise<string[]> {
+  const { prisma } = await import('@/lib/db')
+  const { notify } = await import('@/lib/notify')
+  const { answerNotice, whoHearsTheAnswer } = await import('@/lib/bench-consent')
+
+  const [logs, seats] = await Promise.all([
+    prisma.automationLog.findMany({
+      where: {
+        companyId: o.companyId,
+        action: { in: ['BENCH_LISTING_REQUESTED', 'CONSULTANT_CREATED'] },
+        payload: { path: ['listingId'], equals: o.listingId },
+      },
+      select: { payload: true },
+      orderBy: { at: 'desc' },
+      take: 1,
+    }).catch(() => []),
+    prisma.context.findMany({
+      where: { companyId: o.companyId, revokedAt: null, suspendedAt: null, roleId: { not: null } },
+      select: { personId: true, role: { select: { permissions: true } } },
+    }),
+  ])
+  const payload = (logs[0]?.payload ?? {}) as Record<string, unknown>
+  const invitedBy =
+    (typeof payload.requestedBy === 'string' && payload.requestedBy) ||
+    (typeof payload.createdBy === 'string' && payload.createdBy) ||
+    null
+
+  const listeners = whoHearsTheAnswer({
+    invitedBy,
+    seats: seats.map((s) => ({ personId: s.personId, permissions: s.role?.permissions ?? [] })),
+    subjectPersonId: o.subjectPersonId,
+  })
+  const said = answerNotice(o)
+  for (const personId of listeners) {
+    void notify({
+      personId,
+      companyId: o.companyId,
+      // The column is a string and the bell already knows BENCH; the
+      // helper's union has not caught up with it (conversation's).
+      type: 'BENCH' as never,
+      title: said.title,
+      body: said.body,
+      entityId: o.listingId,
+      // The in-app row is written first and always; EMAIL asks for it
+      // to leave the building as well.
+      channel: 'EMAIL',
+    })
+  }
+  return listeners
 }

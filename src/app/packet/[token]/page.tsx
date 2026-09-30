@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { plainDate } from '@/lib/plain-date'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -240,13 +241,13 @@ export default function PacketPage({ params }: { params: { token: string } }) {
         <p className="text-[12px] text-etyme-faint mt-8">
           {packet.direction === 'SEND' ? (
             <>
-              This link works until {packet.expiresAt}, and never longer than the earliest document
+              This link works until {plainDate(packet.expiresAt)}, and never longer than the earliest document
               inside it — so nothing here can be read as current after it has lapsed. Ask {packet.from}{' '}
               for a fresh link if you need these again.
             </>
           ) : (
             <>
-              This link works until {packet.expiresAt} and only for this request. If it stops working,
+              This link works until {plainDate(packet.expiresAt)} and only for this request. If it stops working,
               ask {packet.from} for a new one — nothing you have already sent is lost.
             </>
           )}

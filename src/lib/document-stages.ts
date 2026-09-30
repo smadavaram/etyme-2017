@@ -40,6 +40,8 @@
  * rule here. What it cannot do is fall into the wrong stage by default.
  */
 
+import { plainDate } from '@/lib/plain-date'
+
 export type Stage = 'APPLICATION' | 'ENGAGEMENT'
 
 export type Jurisdiction = 'US' | 'UK' | 'EU' | 'CA' | 'AU' | 'IN' | 'DEFAULT'
@@ -527,7 +529,7 @@ export function standingOf(
   const floor = held.validFrom ?? held.issuedAt ?? null
   if (kindExpires && floor && floor.getTime() > on.getTime()) {
     const until = Math.ceil((floor.getTime() - on.getTime()) / 86_400_000)
-    const day = floor.toISOString().slice(0, 10)
+    const day = plainDate(floor.toISOString())
     return {
       key: spec.key,
       label: spec.label,
@@ -1286,7 +1288,7 @@ export function licenseGate(input: {
       lapsingInside.push({
         ...row,
         says:
-          `${input.personName}'s ${named} runs out on ${best.expiresAt.toISOString().slice(0, 10)}, ` +
+          `${input.personName}'s ${named} runs out on ${plainDate(best.expiresAt.toISOString())}, ` +
           `inside the assignment — ${uncovered} day${uncovered === 1 ? '' : 's'} of it fall after the license does. ` +
           `They can start; they cannot work those days until the renewal is on file.`,
       })

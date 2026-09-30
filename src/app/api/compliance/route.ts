@@ -9,7 +9,10 @@ import { seatMayRead, seatScope, desksThatHold, complianceRefusal } from '@/lib/
 import { hasPermission } from '@/lib/permissions'
 import { logBulkAccess } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
-import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
+import { credentialKeys, credentialDetail, contractClearance, lineExtras } from '@/lib/contract-clearance'
+import { chainTop } from '@/lib/chain-top'
+import { checkHealth } from './health'
+import { orderedNotCollected, readVerdict } from '@/lib/attestation'
 import { labelFor, humanKey } from '@/lib/document-type'
 import { requirementsFor } from '@/lib/document-requirements'
 import {
@@ -87,7 +90,8 @@ export async function GET(request: NextRequest) {
           { clientCompanyId: clientCompany.id },
         ],
         ...seatScope(units),
-        state: { in: ['IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
+        // DRAFT too: somebody about to start is on this page now.
+        state: { in: ['DRAFT', 'IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
       },
       select: { personId: true },
     })
@@ -214,8 +218,35 @@ export async function GET(request: NextRequest) {
     },
   })
 
-  const contractPersonIds = [...new Set(activeContracts.map(c => c.personId))]
-  const vendorCompanyIds = [...new Set(activeContracts.map(c => c.companyId))]
+  // The lines at this client that have not started yet. Read here, with
+  // the ones under way, so their people's checks and their suppliers'
+  // certificates reach the same maps and the same name rules below —
+  // see "Starts the paperwork is holding up" further down for why.
+  const notStartedRungs = await prisma.sellContract.findMany({
+    where: {
+      OR: [
+        ...endClientFilter(clientCompany.id).OR,
+        { clientCompanyId: clientCompany.id },
+      ],
+      ...seatScope(units),
+      state: { in: ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
+    },
+    select: {
+      id: true,
+      personId: true,
+      companyId: true,
+      clientCompanyId: true,
+      startDate: true,
+      endDate: true,
+      person: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true } },
+      requirement: { select: { title: true } },
+    },
+    orderBy: { startDate: 'asc' },
+  })
+  const notStarted = chainTop(notStartedRungs)
+  const contractPersonIds = [...new Set([...activeContracts, ...notStarted].map(c => c.personId))]
+  const vendorCompanyIds = [...new Set([...activeContracts, ...notStarted].map(c => c.companyId))]
 
   // ── Whose name this reader may read ─────────────────────────────────
   //
@@ -237,13 +268,22 @@ export async function GET(request: NextRequest) {
 
   const seenNames = viewerIsClient
     ? namesForClient(
-        activeContracts.map(c => ({
-          id: c.id,
-          personId: c.personId,
-          companyId: c.companyId,
-          companyName: c.company.name,
-          clientCompanyId: c.clientCompany.id,
-        })),
+        [
+          ...activeContracts.map(c => ({
+            id: c.id,
+            personId: c.personId,
+            companyId: c.companyId,
+            companyName: c.company.name,
+            clientCompanyId: c.clientCompany.id,
+          })),
+          ...notStartedRungs.map(c => ({
+            id: c.id,
+            personId: c.personId,
+            companyId: c.companyId,
+            companyName: c.company.name,
+            clientCompanyId: c.clientCompanyId,
+          })),
+        ],
         clientCompany.id,
         (primeCompanyId: string) =>
           mayNameSubVendors(disclosureTerms, clientCompany.id, primeCompanyId)
@@ -337,6 +377,26 @@ export async function GET(request: NextRequest) {
       // True where a lapse here stops the work rather than starting a
       // conversation about it.
       stopsWork: isLicense,
+      // ── Whose verdict it is ──
+      //
+      // A background check, a drug screen, an education verification:
+      // a screening company renders these and carries the liability for
+      // them, and no desk here does (CLAUDE.md, "Who renders the
+      // verdict"). The chip said "Background check · Clear" with no name,
+      // no reference and no date, so a reader could not tell Sterling's
+      // report from somebody ticking a box. Where the check is one a
+      // provider renders, the row carries the provider's own answer —
+      // their name, their reference and the day — or says in words that
+      // no provider is named on it.
+      verdict: orderedNotCollected(v.type)
+        ? readVerdict({
+            key: v.type,
+            status: v.status,
+            provider: v.provider,
+            reference: v.referenceId,
+            on: v.verifiedAt ?? v.issuedAt,
+          })
+        : null,
     }
     if (existing) {
       existing.checks.push(check)
@@ -388,7 +448,7 @@ export async function GET(request: NextRequest) {
   // alone meant a vendor who had given us nothing did not appear at all —
   // so the one supplier with no insurance on file was the one supplier
   // the compliance screen never mentioned.
-  for (const c of activeContracts) {
+  for (const c of [...activeContracts, ...notStarted]) {
     if (!companyVerifMap.has(c.companyId)) {
       companyVerifMap.set(c.companyId, { name: c.company.name, checks: [] })
     }
@@ -475,13 +535,82 @@ export async function GET(request: NextRequest) {
   // What this firm owes, on the lines it is paid on.
   const owes = await whatThisFirmOwes(clientCompany.id, now)
 
-  // Compute compliance health
-  const allVerifications = [...personVerifications, ...companyVerifications]
-  const totalChecks = allVerifications.length
-  const clear = allVerifications.filter(v => v.status === 'CLEAR').length
-  const pending = allVerifications.filter(v => v.status === 'PENDING' || v.status === 'IN_PROGRESS').length
-  const flagged = allVerifications.filter(v => v.status === 'FLAGGED' || v.status === 'FAILED' || v.status === 'CONDITIONAL').length
-  const expired = allVerifications.filter(v => v.status === 'EXPIRED').length
+  // ── Starts the paperwork is holding up ──────────────────────────────
+  //
+  // Found by a tester on 2026-09-30, as Northbend Athletic's compliance
+  // officer. The dashboard said "Ingrid Sørensen cannot start without
+  // proof of right to work and I-9 and E-Verify"; one click later this
+  // page said "Nothing is outstanding… 100% clear, 0 flagged", and Ingrid
+  // was on no tab at all. Two reasons, both here: the list above reads
+  // only lines already under way, so somebody who has not started was
+  // invisible; and the owed list reads the lines a firm is PAID on, which
+  // for a client is none.
+  //
+  // So the lines at this client that have not started are read, one per
+  // person at the rung the client pays (`lib/chain-top`), and each is run
+  // through `contractClearance` with the line's own set from
+  // `lineExtras` — the same call, with the same arguments, the dashboard's
+  // week-early preview makes. The compliance officer's page and the
+  // program manager's dashboard cannot now disagree about who is held up.
+  const verificationShape = {
+    type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true,
+    verifiedAt: true, provider: true, result: true,
+  } as const
+  const starts = await Promise.all(
+    notStarted.slice(0, 25).map(async (c) => {
+      const [personRows, firmRows] = await Promise.all([
+        prisma.verification.findMany({ where: { personId: c.personId }, select: verificationShape }),
+        prisma.verification.findMany({ where: { companyId: c.companyId, personId: null }, select: verificationShape }),
+      ])
+      const firmName = shown(c.companyId, c.company.name)
+      const papers = contractClearance({
+        personName: c.person.name,
+        personVerifications: personRows,
+        supplierName: firmName.phrase,
+        supplierCertificates: firmRows,
+        clientName: clientCompany.name,
+        on: c.startDate > now ? c.startDate : now,
+        role: c.requirement?.title ?? null,
+        through: c.endDate,
+        ...(await lineExtras({ sellContractId: c.id })),
+      })
+      return {
+        contractId: c.id,
+        personId: c.personId,
+        name: c.person.name,
+        supplier: firmName.name,
+        startDate: c.startDate.toISOString(),
+        outcome: papers.outcome,
+        says: papers.says,
+        fix: papers.fix,
+        /** What stops the start, by name. */
+        blocking: papers.blocking.map(i => i.label),
+        /** What is owed and does not stop it — warned, with a reason on the record. */
+        chasing: papers.chasing.map(i => i.label),
+      }
+    })
+  )
+  const startsHeld = starts.filter(s => s.outcome !== 'PASS')
+
+  // Everybody about to start is on the person list, whether or not a
+  // single check has ever been recorded on them. A person with nothing on
+  // file is the one this page most needs to show.
+  for (const s of starts) {
+    if (!personVerifMap.has(s.personId)) {
+      personVerifMap.set(s.personId, { name: s.name, checks: [], license: null })
+    }
+  }
+
+  // ── What the checks add up to, today ──
+  //
+  // Counted off the same checks the table draws, with the standing the
+  // table draws beside them — so a certificate the table calls "Expiring"
+  // is never counted clear in the header over it (`./health`).
+  const everyCheck = [
+    ...Array.from(personVerifMap.values()).flatMap(p => p.checks),
+    ...Array.from(companyVerifMap.values()).flatMap(c => c.checks),
+  ]
+  const health = checkHealth(everyCheck, now)
 
   // Evaluation summary
   const evalTotal = evaluations.length
@@ -493,6 +622,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       client: { id: clientCompany.id, name: clientCompany.name },
+      // Which side of the trade the reader is on, so the page speaks to a
+      // client about its sites and to a supplier about what it is paid on.
+      viewerIsClient: viewerIsClient || !!seat,
       policies: policies.map(p => ({
         id: p.id,
         name: p.name,
@@ -566,12 +698,11 @@ export async function GET(request: NextRequest) {
           ...coverByCompany.get(companyId)!,
         }))
         .filter(c => c.outcome === 'BLOCK'),
+      // People about to start whom the paperwork is holding up, in the
+      // same words the dashboard and the activation refusal use.
+      startsHeld,
       health: {
-        totalChecks,
-        clear,
-        pending,
-        flagged,
-        expired,
+        ...health,
         // ── A rate over no checks is not a hundred percent ──
         //
         // Wrenfield Technical opened its own compliance page on
@@ -581,7 +712,7 @@ export async function GET(request: NextRequest) {
         // is the absence of news, and the page that most invites a false
         // green is the one that had one. Null, and the screen says
         // "nothing on file".
-        clearPercentage: totalChecks > 0 ? Math.round((clear / totalChecks) * 100) : null,
+        // `checkHealth` returns null over an empty set for this reason.
       },
       // What this firm owes on the lines it is paid on, read through the
       // one door — so a supplier's own page and its customer's dashboard

@@ -19,6 +19,7 @@
  * Pure, so every refusal is a sentence tested by name.
  */
 
+import { plainDate } from '@/lib/plain-date'
 import { humanKey } from '@/lib/document-type'
 import { orderedBySays, orderedNotCollected, readVerdict } from '@/lib/attestation'
 // The bench answer is read through one door — `lib/bench-filter` — so two
@@ -649,7 +650,7 @@ export function heldWord(expiresAt: Date | null, on: Date, stopsWork = false): s
   }
   if (daysLeft === 0) return 'Runs out today'
   if (daysLeft <= 60) return `Runs out in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`
-  return `On file until ${expiresAt.toISOString().slice(0, 10)}`
+  return `On file until ${plainDate(expiresAt.toISOString())}`
 }
 
 /** "professional license (RN 154-882, WI)" → sentence case, for a row. */
@@ -938,7 +939,7 @@ export function outstandingItems(input: {
           ? heldWord(lapsed!.expiresAt, on, item.blocks)
           : `${heldWord(lapsed!.expiresAt, on, item.blocks)} — a new one has to be ordered`
         : state === 'NOT_YET_VALID'
-          ? `On file, but not in force until ${early!.validFrom!.toISOString().slice(0, 10)}`
+          ? `On file, but not in force until ${plainDate(early!.validFrom!.toISOString())}`
           : !hers
             ? item.blocks
               ? 'Not on file — work cannot start until it is ordered and back'

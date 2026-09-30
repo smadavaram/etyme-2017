@@ -116,7 +116,9 @@ describe('a firm\'s own compliance page', () => {
     const onSite = await prisma.sellContract.findMany({
       where: {
         OR: [{ endClientCompanyId: co.northbend }, { endClientCompanyId: null, clientCompanyId: co.northbend }, { clientCompanyId: co.northbend }],
-        state: { in: ['IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
+        // DRAFT too since 2026-09-30: the page now shows somebody about to
+        // start, so a refused read is a refused read of them as well.
+        state: { in: ['DRAFT', 'IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
       },
       select: { personId: true },
     })

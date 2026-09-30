@@ -86,10 +86,15 @@ describe('what the invitation says', () => {
     url: 'https://etyme.example/bench-invite/abc',
   })
 
-  it('promises to ask before every submission, which is the whole offer', () => {
-    // Most people asked this have been burned by a vendor submitting
-    // them somewhere without asking.
-    expect(msg.body).toMatch(/ask you before every single submission/i)
+  it('never promises to ask before every submission, because the listing a yes creates does not ask unless the person chooses it', () => {
+    // It did, and the listing it created had "ask me first" off — a
+    // protection promised and not given (tester, 2026-09-30).
+    expect(msg.body).not.toMatch(/every single submission/i)
+    expect(msg.body).toMatch(/Nothing happens until you say yes/)
+  })
+
+  it('tells the person they can choose to be asked before each new client, on the page the link opens', () => {
+    expect(msg.body).toMatch(/check with you before we send you to a client we have not sent you to before/)
   })
 
   it('says they can take it back', () => {

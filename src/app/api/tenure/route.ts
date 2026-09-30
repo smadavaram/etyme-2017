@@ -7,7 +7,7 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
-import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf, againstLimit } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -245,6 +245,9 @@ export async function GET(request: NextRequest) {
       firms: firmsOnARow(Array.from(data.vendors.entries()).map(([id, name]) => shown(id, name))),
       cumulativeMonths,
       cumulativeDays: data.totalDays,
+      // Against the limit, uncapped: 740 days against 548 is 135% and
+      // "over the limit by 6 months", never a bar that stops at 100%.
+      againstLimit: capMonths ? againstLimit(data.totalDays, capMonths) : null,
       contractCount: data.contracts.length,
       status,
       eligibleDate,

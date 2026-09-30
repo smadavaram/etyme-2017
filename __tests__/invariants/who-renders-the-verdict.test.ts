@@ -79,21 +79,21 @@ describe('telling a provider’s report from somebody here ticking a box', () =>
     const v = readVerdict({ key: 'BACKGROUND_CHECK', status: 'CLEAR', provider: 'Sterling', reference: '4471', on: MARCH })
     expect(v.rendered).toBe(true)
     expect(v.renderedBy).toBe('Sterling')
-    expect(v.says).toBe('Sterling reported clear on 2026-03-12, reference 4471.')
+    expect(v.says).toBe('Sterling reported clear on Mar 12, 2026, reference 4471.')
   })
 
   it('a check with nobody named on it reads as this firm’s own note and never as a verdict somebody rendered', () => {
     const v = readVerdict({ key: 'BACKGROUND_CHECK', status: 'CLEAR', provider: null, on: MARCH, recordedBy: 'Dana Whitfield' })
     expect(v.rendered).toBe(false)
     expect(v.renderedBy).toBeNull()
-    expect(v.says).toContain('recorded here by Dana Whitfield on 2026-03-12')
+    expect(v.says).toContain('recorded here by Dana Whitfield on Mar 12, 2026')
     expect(v.says).toContain('No screening company is named on it')
   })
 
   it('a check with a provider but no reference still names the provider, because a name is most of what a reader needs', () => {
     const v = readVerdict({ key: 'DRUG_SCREENING', status: 'CLEAR', provider: 'Quest', on: MARCH })
     expect(v.rendered).toBe(true)
-    expect(v.says).toBe('Quest reported clear on 2026-03-12.')
+    expect(v.says).toBe('Quest reported clear on Mar 12, 2026.')
   })
 
   it('a check still running says it is with the provider and holds nothing', () => {
@@ -110,7 +110,7 @@ describe('telling a provider’s report from somebody here ticking a box', () =>
 
   it('a check that came back not clear is reported in the provider’s name too, because a refusal needs an author most of all', () => {
     const v = readVerdict({ key: 'BACKGROUND_CHECK', status: 'FAILED', provider: 'HireRight', reference: '99012', on: MARCH })
-    expect(v.says).toBe('HireRight reported not clear on 2026-03-12, reference 99012.')
+    expect(v.says).toBe('HireRight reported not clear on Mar 12, 2026, reference 99012.')
   })
 })
 

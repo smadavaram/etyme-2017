@@ -176,7 +176,7 @@ describe('a checklist never reports a check as verified without the provider’s
     const v = verdict([clear('I9_EVERIFY'), rendered() as never])
     const item = v.items.find((i) => i.key === 'BACKGROUND_CHECK')!
     expect(item.renderedBy).toBe('Sterling')
-    expect(item.note).toBe('Sterling reported clear on 2026-03-12, reference 4471.')
+    expect(item.note).toBe('Sterling reported clear on Mar 12, 2026, reference 4471.')
   })
 
   it('says a background check with nobody named on it is this firm’s own note rather than a provider’s report', () => {

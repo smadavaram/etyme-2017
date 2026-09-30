@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { askTheDesk } from '@/lib/permissions'
+import { mayAskForDocuments, packetsForKind } from '@/lib/packets'
+import { logBulkAccess } from '@/lib/access-log'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import {
@@ -160,6 +162,35 @@ export async function GET(request: NextRequest) {
     }
   })
 
+  const canAsk = mayAskForDocuments(caller.permissions)
+  const offer = packetsForKind(caller.company.kind)
+
+  // Only where a set about a person is on offer and this seat may send
+  // one; every name read is logged, because it is a read of a person.
+  const people: { id: string; name: string; email: string | null }[] = []
+  if (canAsk && offer.offered.some((p) => p.subject === 'PERSON')) {
+    const lines = await prisma.sellContract.findMany({
+      where: { companyId: caller.company.id, state: { notIn: ['ENDED', 'CANCELLED'] } },
+      select: { person: { select: { id: true, name: true, primaryEmail: true } } },
+      take: 300,
+    })
+    const seen = new Set<string>()
+    for (const l of lines) {
+      if (!l.person || seen.has(l.person.id)) continue
+      seen.add(l.person.id)
+      people.push({ id: l.person.id, name: l.person.name, email: l.person.primaryEmail ?? null })
+    }
+    people.sort((a, b) => a.name.localeCompare(b.name))
+    if (people.length > 0) {
+      logBulkAccess(people.map((p) => p.id), {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company.id,
+        action: 'COMPLIANCE_CHECK',
+        reason: 'Document requests: the people a request may be about',
+      })
+    }
+  }
+
   return NextResponse.json({
     data: {
       packets: rows,
@@ -167,15 +198,20 @@ export async function GET(request: NextRequest) {
       open: rows.filter((r) => !r.completedAt && !r.linkExpired).length,
       awaitingReview: rows.reduce((n, r) => n + r.awaitingReview, 0),
       stale: rows.filter((r) => !r.completedAt && r.linkExpired).length,
-      available: PACKETS.map((p) => ({
+      available: offer.offered.map((p) => ({
         key: p.key,
         label: p.label,
         purpose: p.purpose,
         subject: p.subject,
         itemCount: p.items.length,
       })),
-      canAsk: hasPermission(caller.permissions, 'vendors.manage') ||
-        hasPermission(caller.permissions, 'consultants.write'),
+      // The sets this firm is not offered, each with the reason, so the
+      // page says whose they are rather than leaving them missing.
+      notOffered: offer.notOffered,
+      // Who a request about a person can be about: the people on this
+      // firm's own open lines, with the address it already holds.
+      people: canAsk ? people : [],
+      canAsk,
     },
   })
 }
@@ -190,10 +226,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const mayAsk =
-    hasPermission(caller.permissions, 'vendors.manage') ||
-    hasPermission(caller.permissions, 'consultants.write')
-  if (!mayAsk) {
+  if (!mayAskForDocuments(caller.permissions)) {
     return NextResponse.json(
       {
         error: {
@@ -275,6 +308,17 @@ export async function POST(request: NextRequest) {
         },
       },
       { status: 422 }
+    )
+  }
+
+  // A client asks its suppliers for their own papers and never a
+  // contractor for theirs — refused at the door, not only left off the
+  // menu (`packetsForKind` in lib/packets says why).
+  if (spec.subject !== 'COMPANY' && caller.company.kind === 'CLIENT') {
+    const why = packetsForKind('CLIENT').notOffered[0]?.why ?? ''
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: `${spec.label} is not a request a client sends. ${why}` } },
+      { status: 403 }
     )
   }
 

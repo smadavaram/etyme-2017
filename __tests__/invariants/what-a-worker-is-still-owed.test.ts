@@ -105,7 +105,7 @@ describe('what a worker is still owed, on the lines she is on', () => {
       on: TODAY,
     })
     expect(out[0].state).toBe('NOT_YET_VALID')
-    expect(out[0].word).toContain('2026-10-01')
+    expect(out[0].word).toContain('Oct 1, 2026')
   })
 
   it('treats a check still running as nothing held at all, because saying "on file" of it is how somebody relies on paperwork that does not exist', () => {
@@ -867,8 +867,10 @@ describe('a page withholds a sentence about a company until it knows the company
   })
 
   it('still says the half that is true of every client while the name is on its way', () => {
-    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/tenure/page.tsx'), 'utf8')
-    expect(page).toContain('Aggregated across all vendors')
+    // The sentence moved to the page's own words file on 2026-09-30,
+    // where it says "added up across every supplier" in plain words.
+    const words = readFileSync(join(process.cwd(), 'src/app/dashboard/tenure/words.ts'), 'utf8')
+    expect(words).toContain('added up across every supplier that sent them.')
   })
 })
 
@@ -986,7 +988,7 @@ describe('what a worker reads about a check already on her file', () => {
       on: TODAY,
     })
     expect(papers[0].askedBy).toBe('Sterling')
-    expect(papers[0].why).toBe('Sterling reported clear on 2026-03-12, reference 4471.')
+    expect(papers[0].why).toBe('Sterling reported clear on Mar 12, 2026, reference 4471.')
   })
 
   it('never reports a check as on file where no screening company is named on it', () => {

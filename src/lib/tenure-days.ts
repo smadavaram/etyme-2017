@@ -129,3 +129,57 @@ export function monthsOf(days: number): number {
   while (fewestDaysIn(n + 1) <= days) n++
   return n
 }
+
+/** Where somebody stands against a time limit, in numbers and in words. */
+export interface AgainstLimit {
+  /**
+   * Days on site as a share of the limit's days, rounded down, and never
+   * capped. Past the limit it reads past a hundred — 740 days against an
+   * eighteen-month limit of 548 is 135%, not 100%.
+   */
+  percent: number
+  /** How wide to draw the bar: the percentage, stopped at a full bar. */
+  barPercent: number
+  /** The days the limit is enforced at — `daysFor(capMonths)`. */
+  limitDays: number
+  /** True once the days on site have reached the limit. */
+  over: boolean
+  /** Days past the limit; zero inside it. */
+  overByDays: number
+  /**
+   * "over the limit by 6 months", "over the limit by 12 days", or null
+   * inside it. Whole months only, never rounded up, by the same rule as
+   * months served.
+   */
+  overBy: string | null
+}
+
+/**
+ * Where a person's days on site stand against a time limit in months.
+ *
+ * Found by a tester on 2026-09-30: Kwame Mensah served 740 days against
+ * an eighteen-month limit and the ledger said "100%", because the page
+ * stopped the percentage at a hundred to draw the bar. That hid the one
+ * fact the page exists for — the limit was passed, by six months. The
+ * bar may stop at full; the number may not.
+ *
+ * Counted in days against `daysFor`, the same days the block counts, so
+ * the percentage and the status chip beside it can never disagree.
+ */
+export function againstLimit(days: number, capMonths: number): AgainstLimit {
+  const limitDays = daysFor(capMonths)
+  const served = days > 0 ? days : 0
+  const percent = limitDays > 0 ? Math.floor((served / limitDays) * 100) : 0
+  const overByDays = Math.max(0, served - limitDays)
+  const over = limitDays > 0 && served >= limitDays
+  let overBy: string | null = null
+  if (overByDays > 0) {
+    const months = monthsOf(overByDays)
+    overBy = months >= 1
+      ? `over the limit by ${months} month${months === 1 ? '' : 's'}`
+      : `over the limit by ${overByDays} day${overByDays === 1 ? '' : 's'}`
+  } else if (over) {
+    overBy = 'at the limit'
+  }
+  return { percent, barPercent: Math.min(100, percent), limitDays, over, overByDays, overBy }
+}

@@ -96,7 +96,7 @@ describe('never asking for what we already hold', () => {
     )
     const gl = r.find((i) => i.key === 'INSURANCE_GL')!
     expect(gl.state).toBe('ALREADY_HELD')
-    expect(gl.note).toContain('2027-04-19')
+    expect(gl.note).toContain('Apr 19, 2027')
   })
 
   it('asks again for insurance inside sixty days of expiring, before it lapses', () => {

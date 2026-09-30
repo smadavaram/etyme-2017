@@ -54,6 +54,9 @@
  * checks where saying yes would be the expensive mistake.
  */
 
+import { plainDate } from '@/lib/plain-date'
+
+
 export type CheckKind =
   | 'RIGHT_TO_WORK'
   | 'I9_EVERIFY'
@@ -204,12 +207,12 @@ export function standingOf(a: Attestation, on: Date): Standing {
   const lapsed = a.subjectExpiresAt != null && a.subjectExpiresAt.getTime() < on.getTime()
   const current = !lapsed && (staleAfter == null || daysOld <= staleAfter)
 
-  const when = a.verifiedAt.toISOString().slice(0, 10)
+  const when = plainDate(a.verifiedAt.toISOString())
   const head = `${label(a.kind)} verified by ${a.verifiedBy} on ${when}`
   const tail = lapsed
-    ? `. The document it was against expired on ${a.subjectExpiresAt!.toISOString().slice(0, 10)}.`
+    ? `. The document it was against expired on ${plainDate(a.subjectExpiresAt!.toISOString())}.`
     : a.subjectExpiresAt
-      ? `, valid to ${a.subjectExpiresAt.toISOString().slice(0, 10)}.`
+      ? `, valid to ${plainDate(a.subjectExpiresAt.toISOString())}.`
       : !current
         ? `. That is ${daysOld} days ago and this kind of check is usually redone sooner.`
         : '.'
@@ -671,7 +674,8 @@ export interface VerdictReading {
 const ANSWERED_BY_PROVIDER = ['CLEAR', 'CONDITIONAL', 'FAILED', 'EXPIRED']
 
 function day(d: Date | null | undefined): string | null {
-  return d ? d.toISOString().slice(0, 10) : null
+  // A day as a person reads it — "Mar 6, 2026", never "2026-03-06".
+  return d ? plainDate(d.toISOString()) : null
 }
 
 function outcomeWord(status: string): string {
@@ -689,8 +693,8 @@ function outcomeWord(status: string): string {
  *
  * Three answers, and the middle one is the whole point:
  *
- *   Sterling reported clear on 2026-03-12, reference 4471.
- *   Recorded here by Dana Whitfield on 2026-03-12. No screening company
+ *   Sterling reported clear on Mar 12, 2026, reference 4471.
+ *   Recorded here by Dana Whitfield on Mar 12, 2026. No screening company
  *     is named on it, so it is this firm's own note rather than a
  *     provider's report.
  *   Ordered from Sterling and not back yet.

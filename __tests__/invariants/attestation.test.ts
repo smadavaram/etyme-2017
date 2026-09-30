@@ -32,7 +32,7 @@ describe('An attestation is a sentence with a name and a date in it, never a tic
 
   it('names who checked it and when', () => {
     const s = standingOf(att({ kind: 'EDUCATION_VERIFICATION', verifiedBy: 'WES', verifiedAt: daysAgo(400) }), AT)
-    expect(s.says).toBe('Education verified by WES on 2025-05-11.')
+    expect(s.says).toBe('Education verified by WES on May 11, 2025.')
   })
 
   it('carries the expiry of the thing it was against', () => {
@@ -40,7 +40,7 @@ describe('An attestation is a sentence with a name and a date in it, never a tic
       kind: 'RIGHT_TO_WORK', verifiedBy: 'Acme Staffing',
       verifiedAt: daysAgo(10), subjectExpiresAt: new Date('2028-08-04T00:00:00Z'),
     }), AT)
-    expect(s.says).toBe('Right to work verified by Acme Staffing on 2026-06-05, valid to 2028-08-04.')
+    expect(s.says).toBe('Right to work verified by Acme Staffing on Jun 5, 2026, valid to Aug 4, 2028.')
   })
 
   it('says plainly when the document behind it has lapsed', () => {

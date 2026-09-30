@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { plainDate } from '@/lib/plain-date'
+import { eligibleWords, limitLine, tenureSubtitle } from './words'
 
 /**
  * Tenure Tracking — Governance section
@@ -44,6 +46,15 @@ interface TenurePerson {
   firms: { parts: string[]; says: string; withheld: number }
   cumulativeMonths: number
   cumulativeDays: number
+  /** Where they stand against the limit, never capped at 100%. Null with no limit set. */
+  againstLimit: {
+    percent: number
+    barPercent: number
+    limitDays: number
+    over: boolean
+    overByDays: number
+    overBy: string | null
+  } | null
   contractCount: number
   status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE'
   eligibleDate: string | null
@@ -132,7 +143,7 @@ export default function TenurePage() {
               chain, where the client pays once and the prime pays the
               rest. Keyed off the firms it may name for that reason. */}
           {row.firms.parts.length > 1 && (
-            <span className="chip chip--action ml-1">cross-vendor</span>
+            <span className="chip chip--action ml-1">more than one supplier</span>
           )}
         </div>
       ),
@@ -140,26 +151,28 @@ export default function TenurePage() {
     },
     {
       key: 'cumulativeMonths',
-      label: 'Tenure',
+      label: 'Time on site',
       render: (row) => {
-        const pct = capMonths
-          ? Math.min(100, Math.round((row.cumulativeMonths / capMonths) * 100))
-          : 0
+        // The bar stops at full; the number does not. Kwame Mensah's 740
+        // days against 548 read "100%" here, hiding six months past the
+        // limit.
+        const limit = row.againstLimit
+        const pct = limit?.barPercent ?? 0
         return (
           <div className="flex items-center gap-3">
             <span className="font-medium text-etyme-ink tabular-nums w-10">
               {row.cumulativeMonths}mo
             </span>
-            {capMonths && (
-              <div className="flex-1 min-w-[80px] max-w-[120px]">
+            {capMonths && limit && (
+              <div className="flex-1 min-w-[80px] max-w-[200px]">
                 <div className="h-1.5 bg-etyme-rule/30 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${tenureBarColor(pct)}`}
+                    className={`h-full rounded-full transition-all ${tenureBarColor(limit.percent)}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <div className="text-[9px] text-etyme-faint mt-0.5 tabular-nums">
-                  {pct}% of {capMonths}-month time limit
+                <div className={`text-[10px] mt-0.5 tabular-nums ${limit.overByDays > 0 ? 'text-etyme-danger' : 'text-etyme-faint'}`}>
+                  {limitLine({ days: row.cumulativeDays, capMonths, percent: limit.percent, limitDays: limit.limitDays, overBy: limit.overBy })}
                 </div>
               </div>
             )}
@@ -188,10 +201,10 @@ export default function TenurePage() {
     },
     {
       key: 'eligibleDate',
-      label: 'Eligible',
+      label: 'May come back',
       render: (row) => (
         <span className="text-etyme-muted text-xs">
-          {row.eligibleDate ?? '—'}
+          {eligibleWords(row.eligibleDate)}
         </span>
       ),
       sortValue: (row) => row.eligibleDate ?? '',
@@ -204,7 +217,7 @@ export default function TenurePage() {
       {/* Head */}
       <div className="page-head">
         <p className="eyebrow">Governance</p>
-        <h1>Tenure tracking</h1>
+        <h1>Time on site</h1>
         {/* ── The sentence waits for the name ──
             It read "Cross-vendor tenure at … ." until the fetch
             returned, which is a screen asserting a fact about a company
@@ -213,13 +226,11 @@ export default function TenurePage() {
             The half that does not depend on the name is said straight
             away, because it is true of every client. */}
         <p>
-          {data?.client.name
-            ? `Cross-vendor tenure at ${data.client.name}. `
-            : ''}
-          Aggregated across all vendors — twelve months via one
-          plus twelve via another is twenty-four months of exposure.
-          {capMonths != null && ` Time limit: ${capMonths} months.`}
-          {data?.breakDays != null && ` Break: ${data.breakDays} days.`}
+          {tenureSubtitle({
+            clientName: data?.client.name,
+            capMonths,
+            breakDays: data?.breakDays ?? null,
+          })}
         </p>
       </div>
 
@@ -240,7 +251,7 @@ export default function TenurePage() {
           </p>
         </div>
         <div className="panel flex-1 min-w-[100px]">
-          <p className="stat-label">Break req.</p>
+          <p className="stat-label">Over the limit</p>
           <p className={`stat-value ${summary.breakRequired > 0 ? 'text-etyme-danger' : 'text-etyme-ink'}`}>
             {summary.breakRequired}
           </p>
@@ -264,12 +275,12 @@ export default function TenurePage() {
         rowKey={(row) => row.personId}
         loading={loading}
         error={error}
-        searchPlaceholder="Search by person or vendor…"
+        searchPlaceholder="Search by person or supplier…"
         searchFilter={(row, q) =>
           row.name.toLowerCase().includes(q) ||
           row.firms.says.toLowerCase().includes(q)
         }
-        emptyMessage={`No tenure records found at ${data?.client.name ?? 'this client'}.`}
+        emptyMessage={`Nobody has worked at ${data?.client.name ?? 'this client'} yet.`}
         exportName={`tenure-${data?.client.name ?? 'export'}`}
         onRowClick={(row) => setExpanded(expanded === row.personId ? null : row.personId)}
       />
@@ -316,17 +327,17 @@ export default function TenurePage() {
                     <tr key={c.id}>
                       <td>{c.vendorName}</td>
                       <td className="tabular-nums">
-                        {new Date(c.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        {plainDate(c.startDate)}
                       </td>
                       <td className="tabular-nums">
                         {c.endDate
-                          ? new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                          ? plainDate(c.endDate)
                           : 'present'}
                       </td>
                       <td style={{ textAlign: 'right' }} className="tabular-nums">{c.daysWorked}</td>
                       <td>
                         <span className={`chip ${c.state === 'IN_PROGRESS' ? 'chip--verified' : 'chip--passive'}`}>
-                          {c.state === 'IN_PROGRESS' ? 'Active' : c.state === 'ENDED' ? 'Ended' : c.state}
+                          {c.state === 'IN_PROGRESS' ? 'Active' : c.state === 'ENDED' ? 'Ended' : c.state === 'PAUSED' ? 'Paused' : c.state.charAt(0) + c.state.slice(1).toLowerCase().replace(/_/g, ' ')}
                         </span>
                       </td>
                     </tr>

@@ -115,3 +115,71 @@ describe('and a listing written before any of this still means what it meant', (
     expect(mayMarket(listing({ state: 'GRANTED' })).ok).toBe(true)
   })
 })
+
+// ── What a yes promises, and who hears it (2026-09-30) ────────────────
+
+import { whatYesMeans, answerNotice, whoHearsTheAnswer } from '@/lib/bench-consent'
+
+describe('what the invitation says a yes means', () => {
+  it('never promises to ask before every submission when the listing will not ask', () => {
+    const said = whatYesMeans({ vendor: 'CloudEPA', askFirst: false })
+    expect(said).not.toMatch(/every single submission|ask you before every/i)
+    expect(said).toContain('without asking you each time')
+    expect(said).toContain('tick the box below')
+  })
+
+  it('says they will ask before a new client only when the person chose to be asked', () => {
+    expect(whatYesMeans({ vendor: 'CloudEPA', askFirst: true }))
+      .toContain('Before they send you to a client they have not sent you to before, they ask you first.')
+  })
+
+  it('writes the person’s own choice to be asked first onto the listing a yes creates', () => {
+    const l: Listing = { state: 'INVITED', revokedAt: null }
+    expect(answer(l, 'ACCEPT', new Date(), null, true).data).toMatchObject({ askFirst: true })
+    expect(answer(l, 'ACCEPT', new Date(), null, false).data).toMatchObject({ askFirst: false })
+  })
+
+  it('leaves the listing’s own setting alone when no choice was sent', () => {
+    const l: Listing = { state: 'INVITED', revokedAt: null }
+    expect(answer(l, 'ACCEPT', new Date()).data).not.toHaveProperty('askFirst')
+    expect(answer(l, 'ACCEPT', new Date(), null, 'yes').data).not.toHaveProperty('askFirst')
+  })
+})
+
+describe('the firm that invited somebody is told when they answer', () => {
+  const seats = [
+    { personId: 'recruiter', permissions: ['submissions.create'] },
+    { personId: 'finance', permissions: ['invoices.read'] },
+    { personId: 'owner', permissions: ['consultants.write', 'submissions.create'] },
+  ]
+
+  it('tells whoever sent the invitation and every desk that puts people forward', () => {
+    expect(whoHearsTheAnswer({ invitedBy: 'hr-lead', seats, subjectPersonId: 'lucia' }))
+      .toEqual(['hr-lead', 'recruiter', 'owner'])
+  })
+
+  it('never addresses the answer to the person who gave it', () => {
+    expect(whoHearsTheAnswer({ invitedBy: 'lucia', seats, subjectPersonId: 'lucia' })).not.toContain('lucia')
+  })
+
+  it('falls back to the desks that manage people, so an answer is never addressed to nobody', () => {
+    expect(whoHearsTheAnswer({
+      invitedBy: null,
+      seats: [{ personId: 'admin', permissions: ['consultants.write'] }],
+      subjectPersonId: 'lucia',
+    })).toEqual(['admin'])
+  })
+
+  it('gives the firm the reason for a no only where the person wrote one', () => {
+    expect(answerNotice({ personName: 'Lucía Fernández', said: 'DECLINE', note: 'I am staying with my agency' }).body)
+      .toBe('They said: I am staying with my agency')
+    expect(answerNotice({ personName: 'Lucía Fernández', said: 'DECLINE', note: '  ' }).body).toBe('No reason given.')
+  })
+
+  it('tells the firm how long a yes lasts and whether to ask before each new client', () => {
+    const said = answerNotice({ personName: 'Lucía Fernández', said: 'ACCEPT', stayDays: 25, askFirst: true })
+    expect(said.title).toBe('Lucía Fernández agreed to be on your bench')
+    expect(said.body).toContain('They chose to stay 25 days.')
+    expect(said.body).toContain('asked to be asked before you send them to a client')
+  })
+})

@@ -104,7 +104,8 @@ describe('adding somebody to a bench is a question, not a fact', () => {
       )
       .catch(() => null)
     expect(msg, 'no invitation message was recorded').toBeTruthy()
-    expect(msg!.body).toMatch(/ask you before every single submission/i)
+    expect(msg!.body).toMatch(/Nothing happens until you say yes/)
+    expect(msg!.body).not.toMatch(/every single submission/i)
     // The row is written before the attempt and settled after, and the
     // send is deliberately not awaited — a slow mail provider must not
     // hold up a listing that was correctly created. So PENDING here is

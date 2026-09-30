@@ -26,6 +26,9 @@
  * ignore it.
  */
 
+import { plainDate } from '@/lib/plain-date'
+import { hasPermission, type Permission } from '@/lib/permissions'
+
 export type Purpose =
   | 'VENDOR_ONBOARDING'
   | 'CLIENT_ONBOARDING'
@@ -376,7 +379,7 @@ export function resolveItems(
       return {
         ...item,
         state: 'NOT_YET_VALID',
-        note: `Starts ${h.validFrom.toISOString().slice(0, 10)} — ${until} day${until === 1 ? '' : 's'} away, so it does not cover today`,
+        note: `Starts ${plainDate(h.validFrom.toISOString())} — ${until} day${until === 1 ? '' : 's'} away, so it does not cover today`,
         expiresAt: h.expiresAt,
       }
     }
@@ -406,7 +409,7 @@ export function resolveItems(
     return {
       ...item,
       state: 'ALREADY_HELD',
-      note: `On file until ${h.expiresAt.toISOString().slice(0, 10)}`,
+      note: `On file until ${plainDate(h.expiresAt.toISOString())}`,
       expiresAt: h.expiresAt,
     }
   })
@@ -660,5 +663,61 @@ export function licenseNaming(
     board,
     label: credential.charAt(0).toUpperCase() + credential.slice(1),
     said: `a ${credential} ${named}`,
+  }
+}
+
+// ── Who may send a request, and which ─────────────────────────────────
+
+/**
+ * Whether this seat may send somebody a document request.
+ *
+ * It was the two desks that manage suppliers or people —
+ * `vendors.manage` and `consultants.write` — and nobody else. Found by a
+ * tester on 2026-09-30: a client's compliance officer, whose job
+ * description is "owns tenure, work authorization, supplier insurance",
+ * opened Document requests from her own Governance menu and found an
+ * empty page with no way to ask for anything. The desk that watches a
+ * supplier's cover run out is the desk that asks for the renewal.
+ *
+ * So a seat that reads the firm's rules AND its suppliers — the
+ * compliance desk everywhere it exists — may ask too. Reading the rules
+ * alone is not enough: a hiring manager's approver reads them, and has
+ * no business writing to a supplier.
+ */
+export function mayAskForDocuments(permissions: readonly string[]): boolean {
+  // Through hasPermission, so an owner's `*` counts.
+  const has = (p: Permission) => hasPermission(permissions, p)
+  return (
+    has('vendors.manage') ||
+    has('consultants.write') ||
+    (has('governance.read') && has('vendors.read'))
+  )
+}
+
+/**
+ * Which request sets a firm of this kind is offered.
+ *
+ * A client asks its suppliers for the supplier's own papers — insurance,
+ * good standing, the annual refresh — and never a contractor for theirs.
+ * The employer completes an I-9 and holds the documents behind it; a
+ * client collecting a contractor's passport is excessive collection and
+ * co-employment exposure in one step, and a submission set belongs to
+ * whoever is doing the submitting. So a client is offered the sets about
+ * a company, and the others are named as the supplier's to send rather
+ * than silently missing.
+ */
+export function packetsForKind(kind: string | null | undefined): {
+  offered: PacketSpec[]
+  notOffered: { label: string; why: string }[]
+} {
+  if (kind !== 'CLIENT') return { offered: PACKETS, notOffered: [] }
+  return {
+    offered: PACKETS.filter((p) => p.subject === 'COMPANY'),
+    notOffered: PACKETS.filter((p) => p.subject !== 'COMPANY').map((p) => ({
+      label: p.label,
+      why:
+        'The firm that employs the person asks for these. If one is missing, ask that supplier ' +
+        'to put it on file — you do not collect a contractor’s documents yourself.',
+    })),
   }
 }

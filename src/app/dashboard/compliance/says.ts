@@ -8,6 +8,7 @@
  */
 
 import { sayType } from '@/lib/document-type'
+import { compact } from '@/lib/money-display'
 
 /**
  * What a check is called, in the words the parties use.
@@ -83,26 +84,151 @@ export function twoPopulations(
   owed: number,
   stopsWork: number,
   checks: number,
-  clearPercentage: number | null
+  clearPercentage: number | null,
+  also: {
+    /** People about to start whom the paperwork is holding up. */
+    heldStarts?: number
+    /** Of those, how many cannot start at all (the rest start with a warning on the record). */
+    blockedStarts?: number
+    /** Checks a desk has to act on: failed, running out, or run out. */
+    flagged?: number
+    /** True where the reader is the client, who is paid on no line here. */
+    client?: boolean
+  } = {}
 ): string {
-  const owes =
-    owed === 0
+  const held = also.heldStarts ?? 0
+  const blocked = also.blockedStarts ?? 0
+  const flagged = also.flagged ?? 0
+
+  // A client is paid on nothing, so "the lines this firm is paid on" is
+  // a sentence about somebody else. Its outstanding work is the people
+  // about to start on its sites.
+  const starts =
+    held === 0
+      ? ''
+      : blocked === held
+        ? `${held} ${held === 1 ? 'person' : 'people'} cannot start until their paperwork is on file.`
+        : blocked === 0
+          ? `${held} ${held === 1 ? 'person is' : 'people are'} about to start with paperwork still owed.`
+          : `${held} people are about to start with paperwork still owed, and ${blocked} of them cannot start until it is on file.`
+
+  const owes = also.client
+    ? held === 0 && owed === 0
+      ? 'Nothing is holding up a start here.'
+      : ''
+    : owed === 0
       ? 'Nothing is outstanding on the lines this firm is paid on.'
       : `${owed} document${owed === 1 ? ' is' : 's are'} still owed on the lines this firm is paid on` +
         (stopsWork > 0 ? `, and ${stopsWork} of them stop${stopsWork === 1 ? 's' : ''} work.` : '.')
 
+  const toChase =
+    flagged === 0 ? '' : ` ${flagged} need${flagged === 1 ? 's' : ''} somebody to act: failed, running out, or run out.`
   const ran =
     checks === 0
       ? 'No check has been recorded on anybody here, so there is no clear rate to read.'
       : `Separately, ${checks} check${checks === 1 ? ' has' : 's have'} been recorded on people and firms` +
-        (clearPercentage === null ? '.' : `, ${clearPercentage}% of them clear.`)
+        (clearPercentage === null ? '.' : `, ${clearPercentage}% of them clear today.`) +
+        toChase
 
   const apart =
-    owed > 0 && checks > 0
+    (owed > 0 || held > 0) && checks > 0
       ? ' The two count different things: what the lines require, and what has actually been checked.'
       : ''
 
-  return `${owes} ${ran}${apart}`
+  return [starts, owes, ran].filter(Boolean).join(' ') + apart
+}
+
+// ── The rules, in the words a program manager uses ────────────────────
+
+/**
+ * What a governance rule is called on a screen.
+ *
+ * The page title-cased the machine name, so a program manager read
+ * "Tenure Cap" and "Break In Service". The founder decided the plain
+ * words on 2026-09-28: *time limit*, not tenure cap. A rule type nobody
+ * named here falls back to the title-cased key rather than a guess.
+ */
+const RULE_WORDS: Record<string, string> = {
+  TENURE_CAP: 'Time limit',
+  BREAK_IN_SERVICE: 'Break before coming back',
+  RATE_BAND: 'Rate range',
+  HEADCOUNT_PLAN: 'Headcount plan',
+  VENDOR_TIER: 'Supplier standing',
+  WORK_AUTHORIZATION: 'Right to work',
+  INSURANCE_REQUIRED: 'Supplier insurance',
+  SEGREGATION_OF_DUTIES: 'Nobody approves their own',
+  WORKER_CLASSIFICATION: 'How people are engaged',
+}
+
+export function sayRule(ruleType: string): string {
+  return RULE_WORDS[ruleType] ?? upperFirst(ruleType.replace(/_/g, ' ').toLowerCase())
+}
+
+/** Blocks or warns, as a person says it — never the enum. */
+export function sayEnforcement(mode: string): string {
+  return mode === 'BLOCK' ? 'Blocks' : mode === 'WARN' ? 'Warns and records a reason' : upperFirst(mode.toLowerCase())
+}
+
+/** "$70" from 7000 minor units — the one formatter, never a hand-rolled dollar sign. */
+function dollars(minor: number): string {
+  return compact(minor)
+}
+
+/**
+ * A rule's settings, in a sentence.
+ *
+ * The page printed the stored JSON: "max Rate: 15000 · min Rate: 7000",
+ * which is $150 and $70 an hour written as cents with the keys' camel
+ * case split. Rates are stored in minor units — `lib/governance` divides
+ * by a hundred before it compares — so they are formatted here the same
+ * way, and every known setting reads as the sentence a desk would say.
+ *
+ * A setting nobody named here is still shown, as its key and value, so
+ * nothing a client configured is hidden from them. A number that could be
+ * money and is not known to be is never formatted as money.
+ */
+export function sayRuleParameters(ruleType: string, params: unknown): string {
+  if (!params || typeof params !== 'object') return ''
+  const p = params as Record<string, unknown>
+  const said: string[] = []
+  const used = new Set<string>()
+  const num = (k: string): number | null => {
+    const v = p[k]
+    return typeof v === 'number' && Number.isFinite(v) ? v : null
+  }
+
+  const maxMonths = num('maxMonths')
+  if (maxMonths !== null) {
+    said.push(`${maxMonths} month${maxMonths === 1 ? '' : 's'} at most, across every supplier`)
+    used.add('maxMonths')
+  }
+  const breakDays = num('breakDays') ?? num('minDays')
+  if (breakDays !== null) {
+    said.push(`${breakDays} day${breakDays === 1 ? '' : 's'} away before coming back`)
+    used.add('breakDays'); used.add('minDays')
+  }
+  const minRate = num('minRate')
+  const maxRate = num('maxRate')
+  if (minRate !== null && maxRate !== null) {
+    said.push(`${dollars(minRate)} to ${dollars(maxRate)} an hour`)
+  } else if (minRate !== null) {
+    said.push(`at least ${dollars(minRate)} an hour`)
+  } else if (maxRate !== null) {
+    said.push(`at most ${dollars(maxRate)} an hour`)
+  }
+  used.add('minRate'); used.add('maxRate')
+
+  for (const [k, v] of Object.entries(p)) {
+    if (used.has(k)) continue
+    const label = k.replace(/([A-Z])/g, ' $1').trim().toLowerCase()
+    // A machine value — APPROVED, W2_ONLY — reads as words; anything else as written.
+    const word = (x: unknown) =>
+      typeof x === 'string' && /^[A-Z0-9_]+$/.test(x) ? x.replace(/_/g, ' ').toLowerCase() : String(x)
+    const value = Array.isArray(v) ? v.map(word).join(', ') : word(v)
+    said.push(`${label}: ${value}`)
+  }
+  void ruleType
+  return upperFirst(said.join(' · '))
 }
 
 /**
