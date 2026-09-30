@@ -267,6 +267,34 @@ Three rules follow, and none of them changes the page:
   front of it. The future is the record; what runs on it is the least
   defensible part.
 
+### The public site and documentation follow one sequence — decided 2026-09-30
+
+The founder, on the home page's four steps landing readers in the
+middle of documentation pages: *"It lands them abruptly on sites in the
+middle of the page, with no links to the previous or next content, and
+not explaining the complete functional process."* Decided:
+
+- **The four steps are the one spine** for the home page, the product
+  pages and the documentation, in the same order. The product pages
+  that are not one of the four hang under the step they belong to.
+- **A step page starts at its own top**: "Step n of 4", Previous and
+  Next at the top and the bottom, what you do, the real screen, who is
+  involved, what happens next. **No link from one page lands in the
+  middle of another** — a process gets its own page, with a contents
+  list of the whole flow and "you are here".
+- **Every step ends with "See this step in the demo"**, opening the
+  exact screen as the right desk.
+- **The documentation is split in three**, in the founder's words:
+  "split job requirement and master data like business partner
+  (customer, vendor) and consultant management, and matching, screening,
+  application tracking." So: **the process** (a job request through to
+  pay and offboarding, in order); **master data** (business partners —
+  customers and suppliers — and consultants); and **recruiting**
+  (matching, screening, application tracking).
+- **Navigation is agreed party by party before any of it is built**:
+  public visitor, client, program office, prime or integrator,
+  supplier, one-person firm, worker.
+
 ### Why this is written down
 
 It was agreed in conversation and the landing page went on saying
