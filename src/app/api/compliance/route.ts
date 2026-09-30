@@ -5,7 +5,8 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
-import { seatMayRead, seatScope } from '@/lib/walls'
+import { seatMayRead, seatScope, desksThatHold, complianceRefusal } from '@/lib/walls'
+import { hasPermission } from '@/lib/permissions'
 import { logBulkAccess } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
 import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
@@ -64,20 +65,53 @@ export async function GET(request: NextRequest) {
   // and the AP clerk does not. Asked against the seat's role, so what
   // the office may read is exactly what the desk the client chose may
   // read, and narrows the day the client narrows it.
-  if (seat) {
-    const verdict = seatMayRead(seat, 'governance.read', 'the compliance page')
-    if (!verdict.ok) {
-      return NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: verdict.says } },
-        { status: 403 }
-      )
-    }
+  //
+  // And the firm's own seats are asked the same question. Every staffer
+  // of every firm holds a seat there — a delivery engineer at an
+  // integrator as much as its compliance officer — and until 2026-09-30
+  // that seat alone opened every colleague's visa, I-9 and background
+  // result. The desks that read the firm's own rules read this page; the
+  // rest are told which desk to ask, in the firm's own role names.
+  //
+  // Either refusal is a refused read of every person the page would have
+  // shown, so each writes an AccessLog row per person, `allowed: false`,
+  // before the 403 goes out. Only ids are read to name them.
+  const units = await seatUnits(seat ?? null)
+
+  /** Everybody this page would have shown, and nothing about them. */
+  const refusedRead = async (says: string) => {
+    const would = await prisma.sellContract.findMany({
+      where: {
+        OR: [
+          ...endClientFilter(clientCompany.id).OR,
+          { clientCompanyId: clientCompany.id },
+        ],
+        ...seatScope(units),
+        state: { in: ['IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
+      },
+      select: { personId: true },
+    })
+    logBulkAccess([...new Set(would.map((c) => c.personId))], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id,
+      action: seat ? 'PROGRAM_READ' : 'COMPLIANCE_CHECK',
+      allowed: false,
+      reason: seat ? seatTrail(seat, `Compliance page refused: ${says}`) : `Compliance page refused: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: says } }, { status: 403 })
   }
 
-  // A seat narrowed to one business unit reaches that unit and
-  // everything under it. Null for every reader who is not in a narrowed
-  // seat, which is every reader there was before.
-  const units = await seatUnits(seat ?? null)
+  if (seat) {
+    const verdict = seatMayRead(seat, 'governance.read', 'the compliance page')
+    if (!verdict.ok) return refusedRead(verdict.says!)
+  } else if (!hasPermission(caller.permissions, 'governance.read')) {
+    const firm = caller.company ?? clientCompany
+    const roles = await prisma.role.findMany({
+      where: { companyId: firm.id },
+      select: { name: true, permissions: true },
+    })
+    return refusedRead(complianceRefusal(firm.name, desksThatHold(roles, 'governance.read')))
+  }
 
   const now = new Date()
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)

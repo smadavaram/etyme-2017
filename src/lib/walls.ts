@@ -281,3 +281,66 @@ export function seatScope(units: string[] | null, field = 'orgUnitId'): Record<s
   if (units === null) return {}
   return { [field]: { in: units } }
 }
+
+// ── A firm's own compliance page ──────────────────────────────────────
+//
+// The compliance page is every colleague's visa, I-9 and background
+// result in one place. A delivery engineer at an integrator holds a seat
+// at the firm — every staffer does — and until 2026-09-30 that seat was
+// enough to open it, because the route asked for nothing. The page reads
+// the firm's own rules and who is failing them, which is `governance.read`
+// — the same key a program office's seat is asked for above, so the
+// firm's own desks and a seated office are held to one rule.
+//
+// The refusal names who to ask, off the firm's own roles rather than the
+// shipped defaults, because a firm that renamed "HR" to "People" should
+// be told to ask People.
+
+/** A role as much as the refusal needs. */
+export interface DeskOnFile {
+  name: string
+  permissions: readonly string[]
+}
+
+/**
+ * The desks at a firm that hold a permission, in the order a person asks:
+ * the desk named for the job first, HR next, the rest by name, and the
+ * owner and admin last, because the person who owns the company is the
+ * last one a colleague should have to trouble.
+ */
+export function desksThatHold(roles: readonly DeskOnFile[], permission: Permission): string[] {
+  const rank = (name: string): number => {
+    const n = name.toLowerCase()
+    if (n.includes('compliance')) return 0
+    if (/\bhr\b/.test(n) || n.includes('people')) return 1
+    if (n === 'owner') return 4
+    if (n === 'admin') return 3
+    return 2
+  }
+  const names = roles
+    .filter((r) => hasPermission(r.permissions, permission))
+    .map((r) => r.name)
+  return [...new Set(names)].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+}
+
+/** "A", "A or B", "A, B or C". */
+function orList(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`
+}
+
+/**
+ * What a seat at a firm is told when it opens the firm's compliance page
+ * and its desk does not read it. Two sentences: what the page holds, and
+ * who to ask. Never a permission key.
+ */
+export function complianceRefusal(companyName: string, desks: readonly string[]): string {
+  const said =
+    `The compliance page at ${companyName} shows other people's visas, I-9s and background results, ` +
+    `and your desk does not read them.`
+  if (desks.length === 0) {
+    return `${said} Ask whoever manages seats at ${companyName} to give you a desk that does.`
+  }
+  const named = desks.slice(0, 4)
+  return `${said} Ask the ${orList(named)} desk at ${companyName} if you need something from it.`
+}
