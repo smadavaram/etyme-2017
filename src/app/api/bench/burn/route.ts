@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission, canReadCostAggregates, type FieldContext } from '@/lib/permissions'
+import { hasPermission, canReadCostAggregates, askTheDesk, type FieldContext } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { requirementScope } from '@/lib/resolve-client-company'
+import { payTrail, READS_PAY } from '@/lib/money/pay-visibility'
+import { writePayTrail } from '@/lib/money/pay-trail'
 
 /**
  * GET /api/bench/burn
@@ -21,6 +23,17 @@ import { requirementScope } from '@/lib/resolve-client-company'
  * This endpoint turns that abstract cost into a visible number.
  *
  * Requires consultants.cost permission for rate visibility.
+ *
+ * ── Who reads it (checked 2026-09-30, against the pay rule) ───────────
+ *
+ * Every figure on this page is somebody's pay, or a sum of pay — and a
+ * sum over a bench of one is that person's pay. So it is refused whole
+ * to a seat without `consultants.cost` (the desks that run pay), rather
+ * than withheld figure by figure: a burn page with every figure blank is
+ * not a page. A delivery engineer who reads assignments and timesheets
+ * is refused in a sentence naming the desks that read pay. A desk that
+ * does read it puts each person whose pay it was shown on the access
+ * trail (lib/money/pay-trail), the reader's own line excepted.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -28,7 +41,17 @@ export async function GET(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'consultants.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires consultants.read' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reading what the bench costs',
+            needs: 'consultants.read',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -41,7 +64,17 @@ export async function GET(request: NextRequest) {
 
   if (!showCost) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires cost visibility' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reading what the bench costs',
+            needs: READS_PAY,
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -150,6 +183,13 @@ export async function GET(request: NextRequest) {
       totalBurnToDate: Math.round(totalBurnToDate),
     })
   }
+
+  // Everybody whose pay this desk was just shown, on the trail once each.
+  await writePayTrail(
+    caller,
+    payTrail({ permissions: caller.permissions, personId: caller.person.id }, entries),
+    'the bench burn'
+  )
 
   // Sort by daily cost descending (highest cost first)
   entries.sort((a, b) => b.dailyCost - a.dailyCost)

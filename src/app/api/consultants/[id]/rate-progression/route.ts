@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission, canReadCostAggregates, type FieldContext } from '@/lib/permissions'
+import { hasPermission, canReadCostAggregates, askTheDesk, type FieldContext } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { payTrail, PAY_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
+import { writePayTrail } from '@/lib/money/pay-trail'
+import { progressionFigures } from '@/lib/consultant-portfolio'
 
 /**
  * GET /api/consultants/:id/rate-progression
@@ -14,6 +17,20 @@ import { prisma } from '@/lib/db'
  * Two views:
  *   - Consultant self-view: sees their own pay rates only
  *   - Vendor admin with cost permission: sees pay rates + bill rates + margin
+ *
+ * Who reads which figure (2026-09-30). Pay goes to the desks that run
+ * pay and to the person it pays (`progressionFigures`, through the one
+ * pay rule in lib/money/pay-visibility); the bill rate and the margin go
+ * to the price desk (`margin.read`) and never ride along with pay — this
+ * route used to hand AP & Payroll both because it held consultants.cost.
+ * A withheld pay figure leaves the point on the timeline, blank, with a
+ * sentence naming the desks that read pay, and goes on the trail as a
+ * refusal; a figure shown to somebody else goes on it as a read.
+ *
+ * A person reading their own progression reads the leg that pays them —
+ * `supplierSellContractId: null`, the line with no firm below it —
+ * never a line between two firms above them in a chain, which is a
+ * price between those firms and not their pay.
  *
  * The progression tells the story: "Your rate went from $35/hr to $42/hr
  * to $48/hr across three placements over two years." This is the trust
@@ -49,17 +66,40 @@ export async function GET(
     permissions: caller.permissions,
     isSubject: isSelf,
   }
-  const canSeeCost = canReadCostAggregates(fieldCtx)
+  const viewer = { permissions: caller.permissions, personId: caller.person.id }
+  const may = progressionFigures(viewer, consultant.personId)
+  // Whether to look up the sell lines at all: for the client's name
+  // beside a point (the desks that ran it before), and the bill rate
+  // where the price desk reads it.
+  const loadSell = canReadCostAggregates(fieldCtx) || may.bill
   const canReadConsultants = hasPermission(caller.permissions, 'consultants.read')
 
   if (!isSelf && !canReadConsultants) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Cannot view this consultant' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reading a consultant\u2019s rate history',
+            needs: 'consultants.read',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }
 
   const companyId = caller.company?.id
+  // Somebody else's history is read at the reader's own firm only. With
+  // no firm on the seat there is nothing to scope it to, so nothing is read.
+  if (!isSelf && !companyId) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'Somebody else\u2019s rate history is read from a firm\u2019s seat, and this seat has none.' } },
+      { status: 403 }
+    )
+  }
 
   // Load this person's candidate lines — the pay rate and dates are theirs,
   // not the agreement's, because one buy contract can cover several people.
@@ -67,7 +107,9 @@ export async function GET(
     where: {
       personId: consultant.personId,
       buyContract: {
-        ...(companyId && !isSelf ? { companyId } : {}),
+        // Somebody else's: the lines at the reader's firm. Their own: the
+        // leg that pays them, never a price between two firms above them.
+        ...(isSelf ? { supplierSellContractId: null } : { companyId }),
         state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
       },
     },
@@ -116,7 +158,7 @@ export async function GET(
     clientCompany: { name: string } | null
   }> = []
 
-  if (canSeeCost && companyId) {
+  if (loadSell && companyId) {
     sellContracts = await prisma.sellContract.findMany({
       where: {
         personId: consultant.personId,
@@ -157,7 +199,7 @@ export async function GET(
   for (const bc of buyContracts) {
     let matchedSell: (typeof sellContracts)[0] | undefined
 
-    if (canSeeCost) {
+    if (loadSell) {
       // Find the sell contract that overlaps with this buy contract
       matchedSell = sellContracts.find((sc) => {
         const scEnd = sc.endDate?.getTime() ?? Infinity
@@ -170,18 +212,18 @@ export async function GET(
     }
 
     const billRate = matchedSell?.billRate ?? null
-    const payRate = isSelf || canSeeCost ? bc.payRate : null
-    const margin = billRate != null && payRate != null ? billRate - payRate : null
-    const marginPercent = billRate != null && payRate != null && billRate > 0
+    const payRate = may.pay ? bc.payRate : null
+    const margin = may.margin && billRate != null && payRate != null ? billRate - payRate : null
+    const marginPercent = may.margin && billRate != null && payRate != null && billRate > 0
       ? Math.round(((billRate - payRate) / billRate) * 100)
       : null
 
     progression.push({
       date: bc.startDate.toISOString().slice(0, 10),
-      payRate: isSelf || canSeeCost ? bc.payRate : null,
-      billRate: canSeeCost ? billRate : null,
-      margin: canSeeCost ? margin : null,
-      marginPercent: canSeeCost ? marginPercent : null,
+      payRate,
+      billRate: may.bill ? billRate : null,
+      margin,
+      marginPercent,
       contractType: bc.contractType,
       state: bc.state,
       client: matchedSell?.clientCompany?.name ?? null,
@@ -189,6 +231,15 @@ export async function GET(
       currency: bc.payCurrency,
     })
   }
+
+  // On the trail: the person once, as a refusal where their pay was
+  // withheld and as a read where somebody else was shown it. Nothing is
+  // written for a person reading their own, or for an empty history.
+  await writePayTrail(
+    caller,
+    payTrail(viewer, candidacies.map((c) => ({ personId: consultant.personId, payRate: c.payRate }))),
+    'a rate history'
+  )
 
   // Calculate summary statistics
   const payRates = progression.map((p) => p.payRate).filter((r): r is number => r != null)
@@ -205,11 +256,14 @@ export async function GET(
         name: consultant.person.name,
       },
       progression,
+      // Said where the pay on these points was withheld, so a blank reads
+      // as a rule rather than a missing number.
+      payWithheldSays: !may.pay && progression.length > 0 ? PAY_WITHHELD_SAYS : null,
       summary: {
         totalPlacements: progression.length,
-        firstRate: isSelf || canSeeCost ? firstRate : null,
-        currentRate: isSelf || canSeeCost ? currentRate : null,
-        rateGrowth: isSelf || canSeeCost ? rateGrowth : null,
+        firstRate: may.pay ? firstRate : null,
+        currentRate: may.pay ? currentRate : null,
+        rateGrowth: may.pay ? rateGrowth : null,
         currency: progression[0]?.currency ?? 'USD',
       },
     },

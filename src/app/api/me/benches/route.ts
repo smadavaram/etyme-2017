@@ -80,6 +80,9 @@ export async function GET(_request: NextRequest) {
   return NextResponse.json({
     data: {
       ...data,
+      // "since Sep 3, 2026", not "since 2026-09-03": the day a firm
+      // started marketing them is printed as it stands on My benches.
+      benches: data.benches.map((b) => ({ ...b, since: plainDate(b.since) })),
       // The days `whoHasMe` gives as ISO are printed as they stand on the
       // person's own page, so they leave here as a person reads them.
       asking: data.asking.map((a) => ({ ...a, askedAt: plainDate(a.askedAt) })),

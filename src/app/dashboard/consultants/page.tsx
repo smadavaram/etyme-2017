@@ -300,6 +300,8 @@ interface RateProgressionData {
     vendor: string | null
     currency: string
   }>
+  /** Said when the pay on these points was withheld from this reader. */
+  payWithheldSays?: string | null
   summary: {
     totalPlacements: number
     firstRate: number | null
@@ -602,6 +604,9 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
                     </span>
                   )}
                 </p>
+                {rateProgression.payWithheldSays && (
+                  <p className="text-[12px] text-etyme-muted mb-2">{rateProgression.payWithheldSays}</p>
+                )}
                 {/* Summary stat row */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                   {rateProgression.summary.firstRate != null && (

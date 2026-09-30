@@ -28,6 +28,8 @@ import { periodFor, hoursInPeriod, type AcceptedCut, type Terms, type Period } f
 import { priceByDay, type RatePeriod } from '@/lib/contract-rate'
 import { weekStart } from '@/lib/overtime'
 import { amount } from '@/lib/money-display'
+import { mayReadPayOf, type PayViewer } from '@/lib/money/pay-visibility'
+import { canReadBillRate } from '@/lib/permissions'
 
 export type Visibility = 'INTERNAL' | 'FEED' | 'CLIENT_VISIBLE' | 'VERIFIED'
 
@@ -2297,4 +2299,31 @@ export function paidDatesFrom(
     }
   }
   return out
+}
+
+
+/**
+ * Which figures a rate progression may carry for this viewer.
+ *
+ * A rate progression (`/api/consultants/:id/rate-progression`) is one
+ * person's pay across their placements. Three figures can sit on a
+ * point, and each is read under its own rule:
+ *
+ * - **pay** — the desks that run pay (`consultants.cost`) or the person
+ *   it pays, through `mayReadPayOf` in lib/money/pay-visibility, the
+ *   same rule as every other door onto a pay rate;
+ * - **bill** — the price desk's figure (`margin.read`). Reading pay
+ *   never hands anybody the bill rate: until 2026-09-30 this route
+ *   showed AP & Payroll the bill rate and the margin because it held
+ *   `consultants.cost`;
+ * - **margin** — only where both are readable, because a margin is a
+ *   subtraction of the two and printing it would print the one withheld.
+ */
+export function progressionFigures(
+  viewer: PayViewer,
+  subjectPersonId: string
+): { pay: boolean; bill: boolean; margin: boolean } {
+  const pay = mayReadPayOf(viewer, subjectPersonId)
+  const bill = canReadBillRate({ permissions: viewer.permissions })
+  return { pay, bill, margin: pay && bill }
 }
