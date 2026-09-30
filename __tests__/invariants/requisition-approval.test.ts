@@ -266,11 +266,11 @@ describe('Nobody approves their own requisition', () => {
 
 describe('A rule on the money is still honored, at the final rank', () => {
   it('a large requisition is seen by the VP even when every fact is fine, alongside the lead', () => {
-    const d = evaluateRequisition(withLead({ annualValueCents: 300_000_00, valueSays: '$300,000, the budget stated', valueBasis: 'BUDGET' }), [...DESKS, VP_RULE])
+    const d = evaluateRequisition(withLead({ annualValueCents: 300_000_00, valueSays: 'the $300,000 budget you stated', valueBasis: 'BUDGET' }), [...DESKS, VP_RULE])
     const finals = d.steps.filter((s) => s.stage === 'FINAL')
     expect(finals.map((s) => s.approverName)).toEqual(['Dana Whitfield', 'Marcus Chen'])
     expect(finals.every((s) => s.rank === 2)).toBe(true)
-    expect(d.checks.find((c) => c.code === 'VALUE')?.reason).toBe('Routed on $300,000, the budget stated')
+    expect(d.checks.find((c) => c.code === 'VALUE')?.reason).toBe('Sent for a sign-off because the $300,000 budget you stated is over the limit')
   })
 
   it('a threshold rule under the line is not asked', () => {

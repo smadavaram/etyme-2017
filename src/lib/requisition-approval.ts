@@ -310,8 +310,8 @@ export function evaluateRequisition(
       stage: 'FINAL',
       reason:
         facts.valueBasis === 'ESTIMATE'
-          ? `Routed on ${facts.valueSays} — state a budget and it routes on that instead`
-          : `Routed on ${facts.valueSays}`,
+          ? `Sent for a sign-off because ${facts.valueSays} is over the limit — state a budget and the limit is checked against that instead`
+          : `Sent for a sign-off because ${facts.valueSays} is over the limit`,
     })
   } else if (facts.valueSays) {
     checks.push({ code: 'VALUE', outcome: 'PASS', stage: 'FINAL', reason: facts.valueSays })
@@ -668,8 +668,8 @@ export function annualValue(input: {
       basis: 'BUDGET',
       says:
         over > 12
-          ? `$${Math.round(cents / 100).toLocaleString()} a year, from the $${Math.round(budgetCents / 100).toLocaleString()} budget stated over ${over} months`
-          : `$${Math.round(cents / 100).toLocaleString()}, the budget stated`,
+          ? `$${Math.round(cents / 100).toLocaleString()} a year, from the $${Math.round(budgetCents / 100).toLocaleString()} budget you stated over ${over} months`
+          : `the $${Math.round(cents / 100).toLocaleString()} budget you stated`,
     }
   }
 
