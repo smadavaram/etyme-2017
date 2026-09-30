@@ -11,6 +11,7 @@ import { GET as readExempt } from '@/app/api/contracts/[id]/exempt/route'
 import { GET as listOrders } from '@/app/api/purchase-orders/route'
 import { GET as exportPayroll } from '@/app/api/payroll/export/route'
 import { GET as profitability } from '@/app/api/profitability/route'
+import { GET as readCommissions, POST as runCommissions } from '@/app/api/payroll/commissions/route'
 
 /**
  * Who reads what a person is paid, walked on the seeded world.
@@ -290,5 +291,112 @@ describe("Rosa Delgado's placement is costed at the rate in force on each day", 
     })
     expect(row.profit.payCents).toBe(earned.costCents)
     expect(row.profit.revenueCents).toBe(earned.revenueCents)
+  })
+})
+
+describe('what a line bills at is read by the desks that price and bill it, and by the client that pays it', () => {
+  it('a delivery engineer cannot read what the client is billed for a colleague from the sell contracts list, and each refusal is on the trail', async () => {
+    const r = await call(karthik, listContracts, '/api/contracts?side=sell&limit=50')
+    expect(r.status).toBe(200)
+    const lines = r.body.data.contracts as any[]
+    expect(lines.length).toBeGreaterThan(0)
+    for (const l of lines) {
+      expect(l.billRate, `${l.person?.name}'s bill rate`).toBeNull()
+      expect(l.billWithheld).toBe(true)
+    }
+    expect(r.body.data.billWithheldSays).toContain('Accounts Receivable')
+    const refused = await prisma.accessLog.findMany({
+      where: { actorPersonId: karthik.personId, action: 'CONTRACT_VIEW', allowed: false },
+    })
+    const others = lines.map((l) => l.personId).filter((id: string) => id !== karthik.personId)
+    for (const id of others) expect(refused.map((x) => x.subjectId)).toContain(id)
+  })
+
+  it('the Accounts Receivable desk reads every rate its firm bills', async () => {
+    const role = await prisma.role.findFirstOrThrow({ where: { companyId: teleworldId, name: 'Accounts Receivable' } })
+    const who = await prisma.person.create({ data: { name: 'Teleworld AR', primaryEmail: 'ar@teleworld-walk.invalid' } })
+    const ctx = await prisma.context.create({
+      data: { personId: who.id, companyId: teleworldId, roleId: role.id, type: 'EMPLOYEE', grantReason: 'bill-rate walk' },
+    })
+    const ar = { id: ctx.id, personId: who.id, email: who.primaryEmail }
+    const r = await call(ar, listContracts, '/api/contracts?side=sell&limit=50')
+    const ours = (r.body.data.contracts as any[]).filter((l) => l.companyId === teleworldId)
+    expect(ours.length).toBeGreaterThan(0)
+    for (const l of ours) {
+      const stored = await prisma.sellContract.findUniqueOrThrow({ where: { id: l.id }, select: { billRate: true } })
+      expect(l.billRate).toBe(stored.billRate)
+    }
+  })
+
+  it('a desk at a client reads what its own contractors cost it without any money permission', async () => {
+    const seat = await prisma.context.findFirstOrThrow({
+      where: {
+        type: 'EMPLOYEE', company: { kind: 'CLIENT', sellContractsIn: { some: {} } },
+        role: { NOT: { permissions: { hasSome: ['*', 'margin.read', 'rates.read', 'invoices.issue'] } } },
+      },
+      include: { person: true },
+    })
+    const r = await call({ id: seat.id, personId: seat.personId, email: seat.person.primaryEmail }, listContracts, '/api/contracts?side=sell&limit=50')
+    expect(r.status).toBe(200)
+    const theirs = (r.body.data.contracts as any[]).filter((l) => l.clientCompany?.id === seat.companyId)
+    expect(theirs.length).toBeGreaterThan(0)
+    expect(theirs.every((l) => typeof l.billRate === 'number')).toBe(true)
+  })
+})
+
+describe('what each person earns in commission is the payroll desk’s to read', () => {
+  let brightmoorId = ''
+  let desmond: Seat
+  let tobias: Seat
+  let marisa: Seat
+
+  beforeAll(async () => {
+    const rosa = await prisma.sellContract.findFirstOrThrow({
+      where: { person: { name: RATE_CHANGE_PERSON.name }, buyLinks: { some: {} } },
+      select: { id: true, companyId: true, startDate: true },
+    })
+    brightmoorId = rosa.companyId
+    desmond = await seatAt(brightmoorId, 'Desmond Achebe')
+    tobias = await seatAt(brightmoorId, 'Tobias Ferrand')
+    marisa = await seatAt(brightmoorId, 'Marisa Delacroix')
+    const from = new Date(Date.now() - 30 * 86_400_000)
+    await prisma.buyContract.create({
+      data: {
+        companyId: brightmoorId, contractType: 'IND_1099', payCurrency: 'USD', state: 'IN_PROGRESS', startDate: from,
+        commissionType: 'FIXED_PER_PERIOD', commissionRate: 50_000, commissionCap: 80_000,
+        candidates: { create: { personId: tobias.personId, payRate: 0, payCurrency: 'USD', startDate: from } },
+        sellLinks: { create: { sellContractId: rosa.id, effectiveFrom: from } },
+      },
+    })
+    as(desmond.email)
+    const run = await json(await runCommissions(req('POST', '/api/payroll/commissions',
+      { periodStart: from.toISOString(), periodEnd: new Date().toISOString() }, { 'x-context-id': desmond.id })))
+    expect(run.body?.error, JSON.stringify(run.body)).toBeUndefined()
+  })
+
+  it('the account manager is refused what recruiters earn, in a sentence, and the refusal is on the trail', async () => {
+    const r = await call(marisa, readCommissions, '/api/payroll/commissions')
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toContain('shown only to the desks that run pay')
+    const refused = await prisma.accessLog.findMany({
+      where: { actorPersonId: marisa.personId, action: 'PAYROLL_VIEW', allowed: false, subjectId: tobias.personId },
+    })
+    expect(refused.length).toBeGreaterThan(0)
+  })
+
+  it('the payroll desk reads everybody’s commission', async () => {
+    const r = await call(desmond, readCommissions, '/api/payroll/commissions')
+    expect(r.status).toBe(200)
+    expect(r.body.data.onlyYours).toBe(false)
+    expect((r.body.data.earnings as any[]).some((e) => e.personId === tobias.personId)).toBe(true)
+  })
+
+  it('a recruiter on a commission agreement reads their own earnings and nobody else’s', async () => {
+    const r = await call(tobias, readCommissions, '/api/payroll/commissions')
+    expect(r.status).toBe(200)
+    expect(r.body.data.onlyYours).toBe(true)
+    const earnings = r.body.data.earnings as any[]
+    expect(earnings.length).toBeGreaterThan(0)
+    expect(earnings.every((e) => e.personId === tobias.personId)).toBe(true)
   })
 })

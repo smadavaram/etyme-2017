@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { compact } from '@/lib/money-display'
+import { compact, rate as rateText } from '@/lib/money-display'
+import { activeRateTotals } from '@/lib/money/rate-totals'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
@@ -72,8 +73,11 @@ interface Contract {
   workLocationLabel: string | null
   /** Null where there is no single rate, or where the pay is not this reader's to see. */
   rate: number | null
-  /** True where what this person is paid is the payroll desks' figure, not this reader's. */
-  payWithheld: boolean
+  /**
+   * True where this rate is not this reader's to see — on a buy line what
+   * the person is paid, on a sell line what the client is billed.
+   */
+  rateWithheld: boolean
   currency: string
   state: string
   startDate: string
@@ -221,8 +225,8 @@ function LineCard({ row, viewerId }: { row: Contract; viewerId: string | null })
       <div className="flex items-baseline justify-between gap-4 mt-1">
         <span className="text-[15px] text-etyme-ink font-medium">{line.name}</span>
         <span className="text-[13px] tabular-nums text-etyme-ink shrink-0">
-          {row.payWithheld ? (
-            <span className="text-etyme-faint">Pay not shown</span>
+          {row.rateWithheld ? (
+            <span className="text-etyme-faint">{row.side === 'buy' ? 'Pay not shown' : 'Rate not shown'}</span>
           ) : (
             <>{compact(row.rate)}<span className="text-etyme-faint">/hr</span></>
           )}
@@ -844,8 +848,10 @@ function ContractDetailDrawer({
               <div>
                 <p className="stat-label">{drawerRateLabel}</p>
                 <p className="text-sm font-medium tabular-nums text-etyme-ink mt-0.5">
-                  {contract.payWithheld ? (
-                    <span className="text-etyme-faint">Shown only to the desks that run pay</span>
+                  {contract.rateWithheld ? (
+                    <span className="text-etyme-faint">
+                      {contract.side === 'buy' ? 'Shown only to the desks that run pay' : 'Shown only to the desks that price and bill it'}
+                    </span>
                   ) : (
                     <>
                       {compact(contract.rate)}/hr
@@ -1245,7 +1251,7 @@ export default function ContractsPage() {
       const body = await res.json()
       const rawContracts = body.data?.contracts ?? []
       setReading(body.data?.reading ?? null)
-      setPayWithheldSays(body.data?.payWithheldSays ?? null)
+      setPayWithheldSays(body.data?.payWithheldSays ?? body.data?.billWithheldSays ?? null)
 
       setContracts(rawContracts.map((c: any) => {
         // Resolve the display name: end client if set, otherwise paying customer
@@ -1279,7 +1285,7 @@ export default function ContractsPage() {
           viaName,
           workLocationLabel,
           rate: tab === 'sell' ? c.billRate : c.payRate,
-          payWithheld: tab === 'buy' && c.payWithheld === true,
+          rateWithheld: tab === 'buy' ? c.payWithheld === true : c.billWithheld === true,
           currency: tab === 'sell' ? (c.billCurrency ?? 'USD') : (c.payCurrency ?? 'USD'),
           state: c.state,
           startDate: c.startDate,
@@ -1318,9 +1324,13 @@ export default function ContractsPage() {
     c => c.daysUntilEnd != null && c.daysUntilEnd >= 0 && c.daysUntilEnd <= 28 && c.state === 'IN_PROGRESS'
   )
 
-  const totalRate = contracts
-    .filter(c => ['IN_PROGRESS', 'VERIFIED'].includes(c.state))
-    .reduce((sum, c) => sum + ((c.rate ?? 0) / 100), 0)
+  // One total per currency: rupees and dollars are never added, and a
+  // total over part of the book is not the book's (lib/money/rate-totals).
+  const activeTotals = activeRateTotals(
+    contracts
+      .filter(c => ['IN_PROGRESS', 'VERIFIED'].includes(c.state))
+      .map(c => ({ rate: c.rate, currency: c.currency, withheld: c.rateWithheld }))
+  )
 
   const rateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
   const counterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
@@ -1384,7 +1394,7 @@ export default function ContractsPage() {
       label: rateLabel,
       align: 'right',
       render: (row) =>
-        row.payWithheld ? (
+        row.rateWithheld ? (
           <span className="text-etyme-faint text-[12px]" title={payWithheldSays ?? undefined}>Not shown</span>
         ) : (
           <span className="tabular-nums text-etyme-ink">
@@ -1538,15 +1548,31 @@ export default function ContractsPage() {
         {tab === 'sell' && (
           <div className="panel flex-1 min-w-[140px]">
             <p className="stat-label">Active bill rates</p>
-            <p className="stat-value text-etyme-verified">
-              ${totalRate.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-            </p>
-            <p className="text-[11px] text-etyme-faint mt-0.5">total $/hr</p>
+            {activeTotals.refusedBecause ? (
+              <>
+                <p className="stat-value text-etyme-faint">—</p>
+                <p className="text-[11px] text-etyme-faint mt-0.5">{activeTotals.refusedBecause}</p>
+              </>
+            ) : activeTotals.byCurrency.length === 0 ? (
+              <>
+                <p className="stat-value text-etyme-faint">—</p>
+                <p className="text-[11px] text-etyme-faint mt-0.5">Nothing is running</p>
+              </>
+            ) : (
+              <>
+                {activeTotals.byCurrency.map((t) => (
+                  <p key={t.currency} className="stat-value text-etyme-verified">{rateText(t.cents, t.currency)}</p>
+                ))}
+                <p className="text-[11px] text-etyme-faint mt-0.5">
+                  added per hour{activeTotals.byCurrency.length > 1 ? ', one total per currency' : ''}
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>
 
-      {tab === 'buy' && payWithheldSays && (
+      {payWithheldSays && (
         <p className="mb-4 text-[12px] text-etyme-muted">{payWithheldSays}</p>
       )}
 

@@ -3,6 +3,7 @@ import { amount, totals } from '@/lib/money-display'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
+import { writeRateTrail } from '@/lib/money/pay-trail'
 import { staffOnly } from '@/lib/seat'
 import { commissionFor } from '@/lib/commission'
 import { orderFor, postCommission, NoRate } from '@/lib/order-postings'
@@ -20,15 +21,19 @@ export async function GET(request: NextRequest) {
   if (error) return error
   const notStaff = staffOnly(caller, 'Commissions')
   if (notStaff) return notStaff
-  if (!hasPermission(caller.permissions, 'payroll.run') && !hasPermission(caller.permissions, 'invoices.read')) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Commissions are the money desk’s. Ask whoever runs payroll here.' } },
-      { status: 403 }
-    )
-  }
   const companyId = caller.company!.id
 
-  const postings = await prisma.orderPosting.findMany({
+  // ── Whose earnings this reader may see ─────────────────────────────
+  //
+  // A commission is what a person is paid, and this list went to any seat
+  // holding `invoices.read` — the account manager and the AR desk read
+  // what every recruiter earned. Everybody's is the payroll desk's
+  // (`payroll.read`); an agent reads their own row and nobody else's;
+  // anybody else is refused in a sentence. Every row withheld or shown
+  // is on the access trail (lib/money/pay-trail).
+  const everybody = hasPermission(caller.permissions, 'payroll.read')
+
+  const all = await prisma.orderPosting.findMany({
     where: { companyId, kind: 'COMMISSION' },
     orderBy: { postedAt: 'desc' },
     take: 500,
@@ -38,6 +43,34 @@ export async function GET(request: NextRequest) {
       projectOrder: { select: { code: true, name: true } },
     },
   })
+  const ownAgreement = everybody
+    ? false
+    : Boolean(await prisma.buyContract.findFirst({
+        where: { companyId, commissionType: { not: null }, candidates: { some: { personId: caller.person.id } } },
+        select: { id: true },
+      }))
+  const isOwn = (p: (typeof all)[number]) => p.person?.id === caller.person.id
+  const postings = everybody ? all : all.filter(isOwn)
+  const others = [...new Set(all.filter((p) => !isOwn(p) && p.person).map((p) => p.person!.id))]
+  await writeRateTrail(caller, everybody ? { refused: [], read: others } : { refused: others, read: [] }, {
+    action: 'PAYROLL_VIEW',
+    refused: 'Commission earnings withheld: this seat does not hold payroll.read, the permission the payroll desk holds.',
+    read: 'Commission earnings read by a desk holding payroll.read.',
+  })
+
+  if (!hasPermission(caller.permissions, 'payroll.read') && !ownAgreement && postings.length === 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            `What each person earns in commission is shown only to the desks that run pay at ${caller.company!.name} — AP & Payroll, Finance, the owner and the admin. ` +
+            'Somebody on a commission agreement sees their own here.',
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   // Grouped by the person who earned it and the period it landed in,
   // because "what did Ruth earn in September" is the only question
@@ -61,15 +94,21 @@ export async function GET(request: NextRequest) {
   const earnings = [...byKey.values()].sort((a, b) => b.period.localeCompare(a.period) || b.amountCents - a.amountCents)
   const earned = totals(earnings.map((e) => ({ minor: e.amountCents, currency: e.currency })))
 
-  const agents = await prisma.buyContract.count({
+  const agents = !everybody ? 0 : await prisma.buyContract.count({
     where: { companyId, commissionType: { not: null }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
   })
 
   return NextResponse.json({
     data: {
       earnings, agents,
+      /** True where only the reader's own earnings are here. */
+      onlyYours: !everybody,
       mayRun: hasPermission(caller.permissions, 'payroll.run'),
-      summary: agents === 0
+      summary: !everybody
+        ? earnings.length === 0
+          ? 'You are on a commission agreement, and nothing has been posted to you yet.'
+          : `${earned} earned by you across ${earnings.length} ${earnings.length === 1 ? 'period' : 'periods'}. Only your own is shown here.`
+        : agents === 0
         ? 'Nobody is on a commission agreement here yet. A buy contract with a commission type is what puts them on one.'
         : earnings.length === 0
           ? `${agents} ${agents === 1 ? 'person is' : 'people are'} on a commission agreement, and nothing has been run yet.`

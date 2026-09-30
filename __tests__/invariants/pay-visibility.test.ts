@@ -110,3 +110,76 @@ describe('the routes in money that print a pay figure ask the rule first', () =>
     expect(src).toMatch(/hasPermission\(caller\.permissions, 'payroll\.read'\)/)
   })
 })
+
+import { mayReadBillRate, billTrail, BILL_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
+
+describe('what a line bills at is read by the desks that price and bill it, and by the client that pays it', () => {
+  const FIRM = 'teleworld'
+  const CLIENT = 'corveldt'
+  const SUB = 'nimbus'
+  const ours = { sellerId: FIRM, clientId: CLIENT }
+  const subsToUs = { sellerId: SUB, clientId: FIRM }
+  const at = (permissions: string[], companyId = FIRM, companyKind = 'GSI') => ({ permissions, companyId, companyKind })
+
+  it('a delivery engineer cannot read what the client is billed for a colleague from the sell contracts list', () => {
+    expect(mayReadBillRate(at(KARTHIK.permissions), ours)).toBe(false)
+  })
+
+  it('the account manager, Accounts Receivable, the contract manager, Finance and the owner read the rate their firm bills', () => {
+    for (const desk of ['Account Manager', 'Accounts Receivable', 'Contract Manager', 'Finance', 'Owner']) {
+      expect(mayReadBillRate(at(perms('GSI', desk)), ours), desk).toBe(true)
+    }
+  })
+
+  it('a recruiter, HR, the delivery manager and the payroll desk do not read what the client is billed', () => {
+    for (const desk of ['Recruiter', 'HR', 'Delivery Manager', 'AP & Payroll']) {
+      expect(mayReadBillRate(at(perms('GSI', desk)), ours), desk).toBe(false)
+    }
+  })
+
+  it('every desk at a client reads what its own contractors cost it', () => {
+    expect(mayReadBillRate(at(['requirements.read'], CLIENT, 'CLIENT'), ours)).toBe(true)
+  })
+
+  it('a prime reads its sub-vendor’s rate only at a desk that may read cost, because to the prime it is what a person costs', () => {
+    expect(mayReadBillRate(at(KARTHIK.permissions), subsToUs)).toBe(false)
+    expect(mayReadBillRate(at(perms('GSI', 'AP & Payroll')), subsToUs)).toBe(true)
+  })
+
+  it('a firm that is neither end of the line reads no rate on it, whatever it holds', () => {
+    expect(mayReadBillRate(at(['*'], 'somebody-else', 'VENDOR'), ours)).toBe(false)
+  })
+
+  it('every bill rate withheld is a refusal on the trail and every one shown to somebody else is a read', () => {
+    const t = billTrail({ ...at(KARTHIK.permissions), personId: 'karthik' }, [
+      { ...ours, personId: 'amara' }, { ...ours, personId: 'karthik' },
+    ])
+    expect(t).toEqual({ refused: ['amara'], read: [] })
+    expect(BILL_WITHHELD_SAYS).toContain('Accounts Receivable')
+    expect(BILL_WITHHELD_SAYS).not.toMatch(/margin\.read|rates\.read|invoices\.issue/)
+  })
+
+  it('the sell contracts list asks the rule for every line before it prints a bill rate', () => {
+    const src = readFileSync('src/app/api/contracts/route.ts', 'utf8')
+    expect(src).toMatch(/billRate: seesBill\(c\) \? c\.billRate : null/)
+    expect(src).toMatch(/writeBillTrail\(/)
+  })
+})
+
+describe('what each person earns in commission is the payroll desk’s to read', () => {
+  it('the commissions list shows everybody’s earnings only to a desk holding the payroll permission, and an agent their own', () => {
+    const src = readFileSync('src/app/api/payroll/commissions/route.ts', 'utf8')
+    expect(src).toMatch(/const everybody = hasPermission\(caller\.permissions, 'payroll\.read'\)/)
+    expect(src).toMatch(/everybody \? all : all\.filter\(isOwn\)/)
+    expect(src).not.toMatch(/hasPermission\(caller\.permissions, 'invoices\.read'\)/)
+  })
+
+  it('the account manager and the AR desk no longer read what recruiters earn, and the payroll desk still does', () => {
+    for (const desk of ['Account Manager', 'Accounts Receivable']) {
+      expect(perms('VENDOR', desk)).not.toContain('payroll.read')
+    }
+    for (const desk of ['AP & Payroll', 'Finance']) {
+      expect(perms('VENDOR', desk)).toContain('payroll.read')
+    }
+  })
+})

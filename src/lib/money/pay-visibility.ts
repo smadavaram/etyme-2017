@@ -48,7 +48,7 @@
  * the same as the rest of `/api/me`.
  */
 
-import { canReadPayRate } from '@/lib/permissions'
+import { canReadPayRate, hasPermission, type Permission } from '@/lib/permissions'
 
 /** The permission a pay figure is read under. Named once, used everywhere. */
 export const READS_PAY = 'consultants.cost' as const
@@ -139,5 +139,85 @@ export function payTrail(viewer: PayViewer, subjects: PayCandidate[]): PayTrail 
     if (mayReadPayOf(viewer, s.personId)) read.add(s.personId)
     else refused.add(s.personId)
   }
+  return { refused: [...refused], read: [...read] }
+}
+
+// ── What a line bills at ──────────────────────────────────────────────
+//
+// The sell list handed every bill rate to every staff seat that was not a
+// consultant's, so the same delivery engineer who could read his
+// colleagues' pay could read what the client is billed for each of them —
+// and the margin is one subtraction away from the two.
+//
+// Who may read it depends on which end of the line the reader's company
+// stands at:
+//
+//   - **The firm that bills it.** What it charges is the price desk's and
+//     the billing desk's: `margin.read`, `rates.read` (the price desk —
+//     "Reading what a placement is priced at is the price desk's", matrix
+//     L3.7.3.5), or `invoices.issue` (the desk that puts that rate on a
+//     bill). Accounts Receivable, the Account Manager, the Contract
+//     Manager, Finance and the owner; never a recruiter or a delivery
+//     engineer. `margin.read` alone would have hidden the rate from every
+//     desk that bills it, because no default role but the owner holds it.
+//   - **A client company that pays it.** "You are the client on the MSA":
+//     it is the client's own price, and every desk at a client reads what
+//     its contractors cost it.
+//   - **A supplier firm that pays it** — a prime reading its sub-vendor's
+//     line. For the prime that rate is its cost for a person, so it is the
+//     pay rule's: `consultants.cost`, `margin.read` or `rates.read`.
+//   - **Anybody else** — an end client reading a rung it does not pay is
+//     already kept off by the scope; here it is simply not a party.
+
+export interface BillViewer {
+  permissions: readonly string[]
+  /** Whose book is open — the seat's client where the reader is in a seat. */
+  companyId: string | null
+  companyKind: string | null
+}
+
+export interface BillLine {
+  /** The firm that bills on this line. */
+  sellerId: string
+  /** The company that pays it. */
+  clientId: string
+}
+
+const any = (perms: readonly string[], wanted: Permission[]) => wanted.some((p) => hasPermission(perms, p))
+
+export function mayReadBillRate(viewer: BillViewer, line: BillLine): boolean {
+  if (!viewer.companyId) return false
+  if (viewer.companyId === line.sellerId) {
+    return any(viewer.permissions, ['margin.read', 'rates.read', 'invoices.issue'])
+  }
+  if (viewer.companyId === line.clientId) {
+    if (viewer.companyKind === 'CLIENT') return true
+    return any(viewer.permissions, ['consultants.cost', 'margin.read', 'rates.read'])
+  }
+  return false
+}
+
+/** Said wherever a bill rate is withheld. Names the desks, never the key. */
+export const BILL_WITHHELD_SAYS =
+  'What each line bills at is shown only to the desks that price and bill it — Accounts Receivable, the account manager, the contract manager, Finance and the owner. ' +
+  'Everything else about these lines is here.'
+
+export const BILL_WITHHELD_REASON =
+  'Bill rate withheld from a sell line: this seat holds none of the permissions the price and billing desks hold.'
+export const BILL_SHOWN_REASON = 'Bill rate read on a sell line by a desk that prices, bills or pays it.'
+
+/** Who goes on the trail for a list of sell lines: each person once, never the reader themselves. */
+export function billTrail(
+  viewer: BillViewer & { personId: string },
+  lines: Array<BillLine & { personId: string }>
+): PayTrail {
+  const refused = new Set<string>()
+  const read = new Set<string>()
+  for (const l of lines) {
+    if (l.personId === viewer.personId) continue
+    if (mayReadBillRate(viewer, l)) read.add(l.personId)
+    else refused.add(l.personId)
+  }
+  // A person on two lines, one readable and one not, is on the trail as both.
   return { refused: [...refused], read: [...read] }
 }

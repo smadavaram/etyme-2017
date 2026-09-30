@@ -19,8 +19,10 @@ import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { mayNameCounterparty } from '@/lib/off-system'
 import { chooseHeader } from '@/lib/award'
 import { HEADER_SELECT, lineTermsFrom } from '../submissions/order-header'
-import { payFiguresFor, payTrail, PAY_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
-import { writePayTrail } from '@/lib/money/pay-trail'
+import {
+  payFiguresFor, payTrail, PAY_WITHHELD_SAYS, mayReadBillRate, billTrail, BILL_WITHHELD_SAYS,
+} from '@/lib/money/pay-visibility'
+import { writePayTrail, writeBillTrail } from '@/lib/money/pay-trail'
 
 /**
  * POST /api/contracts
@@ -827,6 +829,29 @@ export async function GET(request: NextRequest) {
     prisma.sellContract.count({ where }),
   ])
 
+  // ── What each line bills at, to whom ─────────────────────────────
+  //
+  // Every bill rate went to every staff seat that was not a consultant's.
+  // The price and billing desks read it on the firm's own lines, the
+  // client reads its own price, and a prime reads its sub-vendor's rate
+  // only where it may read cost (lib/money/pay-visibility). The line
+  // stays; the figure is null, and the trail records both.
+  const billViewer = {
+    permissions: reading?.caller.permissions ?? caller.permissions,
+    companyId: reading?.companyId ?? caller.company?.id ?? null,
+    companyKind: reading?.companyKind ?? caller.company?.kind ?? null,
+    personId: caller.person.id,
+  }
+  const seesBill = (c: { companyId: string; clientCompanyId: string }) =>
+    !isConsultant && mayReadBillRate(billViewer, { sellerId: c.companyId, clientId: c.clientCompanyId })
+  if (!isConsultant) {
+    await writeBillTrail(
+      caller,
+      billTrail(billViewer, contracts.map((c) => ({ sellerId: c.companyId, clientId: c.clientCompanyId, personId: c.personId })))
+    )
+  }
+  const billWithheld = !isConsultant && contracts.some((c) => !seesBill(c))
+
   return NextResponse.json({
     data: {
       contracts: contracts.map((c) => ({
@@ -875,14 +900,16 @@ export async function GET(request: NextRequest) {
         // own contracts — the right rows — and the rows carried the bill
         // rate anyway. Whose rate a caller may read is the same question
         // `/api/placements/[id]` already asks before it renders one.
-        billRate: isConsultant ? null : c.billRate,
+        billRate: seesBill(c) ? c.billRate : null,
         billCurrency: isConsultant ? null : c.billCurrency,
+        billWithheld: !isConsultant && !seesBill(c),
         startDate: c.startDate.toISOString(),
         endDate: c.endDate?.toISOString() ?? null,
         timesheets: c._count.timesheets,
         cycles: c._count.sellCycles,
         rolloff: c.rolloff ? { id: c.rolloff.id, endDate: c.rolloff.endDate.toISOString(), outcome: c.rolloff.outcome } : null,
       })),
+      billWithheldSays: billWithheld ? BILL_WITHHELD_SAYS : null,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       reading: reading
         ? { company: reading.companyName, inASeat: reading.seated, says: reading.says }
