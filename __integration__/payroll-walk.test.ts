@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma, as, req, json } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { prisma, as, req, json, freshWorld } from './harness'
 
 import { GET as payroll } from '@/app/api/payroll/route'
 import { GET as statutory } from '@/app/api/payroll/statutory/route'
@@ -29,8 +28,7 @@ async function rows(who: string, period?: string) {
 let karthik: { start: Date; end: Date; pays: { dueOn: Date; completedAt: Date | null }[] }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
   const bc = await prisma.buyContract.findFirstOrThrow({
     where: { candidates: { some: { person: { name: 'Karthik Menon' } } }, company: { name: 'Teleworld Solutions' } },
     select: { startDate: true, endDate: true, state: true, buyCycles: { where: { kind: 'SALARY_PAY' }, select: { dueOn: true, completedAt: true } } },

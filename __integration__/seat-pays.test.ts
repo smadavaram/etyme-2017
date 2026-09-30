@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as listInvoices } from '@/app/api/invoices/route'
 import { GET as readInvoice } from '@/app/api/invoices/[id]/route'
@@ -80,8 +79,7 @@ async function seatAptivaAt(roleName: string) {
 }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
 
   id.aptiva = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-aptiva' } })).id
   id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })).id

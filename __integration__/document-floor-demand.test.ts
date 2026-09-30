@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 import { GET as programDesk } from '@/app/api/program/route'
 import { POST as submitCandidates } from '@/app/api/submissions/route'
@@ -68,8 +67,7 @@ async function pressActivate(body: Record<string, unknown> = { action: 'activate
 
 describe('cover that has not begun refuses a start, and the preview of it says the same', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     ctx.supplierEmail = 'world-cloudepa@demo.etyme.local'
     const supplierSeat = await prisma.person.findFirstOrThrow({

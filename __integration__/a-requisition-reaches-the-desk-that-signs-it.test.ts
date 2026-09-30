@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 
 import { POST as raiseRequisition } from '@/app/api/requisitions/route'
@@ -49,8 +48,7 @@ async function queue(email: string) {
 describe('A requisition waiting on a desk is in the queue that desk reads', () => {
 
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 600_000)
 
   it('a requisition over the plan is raised and routed to somebody', async () => {

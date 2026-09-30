@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { seedWorld, WORLD_SLUGS } from '@/lib/seed-world'
 import { SECTOR_SUPPLIERS, sectorStart } from '@/lib/seed-sector-suppliers'
 import { SUPPLIER_SEATS } from '@/app/demo/seats'
@@ -55,8 +55,7 @@ async function census() {
 }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
 }, 900_000)
 
 describe('two suppliers outside IT on the seeded world', () => {

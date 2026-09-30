@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, freshWorld } from './harness'
 import { GET as listTimesheets } from '@/app/api/timesheets/route'
 
 /**
@@ -12,8 +11,7 @@ const NIKE_HIRING = 'world-nike-hiring@demo.etyme.local'
 
 describe('Northbend reads its flagged weeks first', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 240_000)
 
   it('the 44-hour week is at the top of Northbend’s timesheets, and every flagged week is listed before every unflagged one', async () => {

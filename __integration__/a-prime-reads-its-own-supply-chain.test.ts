@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as compliance } from '@/app/api/compliance/route'
 
@@ -43,8 +42,7 @@ const CLIENT = `world-harlow-health${D}`
 const co = { prime: '', sub: '', client: '' }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
   co.prime = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-computer-systems' } })).id
   co.sub = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' } })).id
   co.client = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-harlow-health' } })).id

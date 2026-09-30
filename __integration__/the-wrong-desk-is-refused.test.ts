@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { rolesFor } from '@/lib/company-defaults'
 
@@ -76,8 +75,7 @@ async function seat(companyId: string, kind: 'CLIENT' | 'VENDOR', roleName: stri
 
 describe('the desk inside the company, and not only the company', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
     const pinnacle = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' }, select: { id: true } })
     it_.nike = nike.id

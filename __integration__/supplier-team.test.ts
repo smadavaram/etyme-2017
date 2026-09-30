@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as roles } from '@/app/api/roles/route'
 import { POST as invite } from '@/app/api/access/invite/route'
 import { GET as contacts } from '@/app/api/contacts/route'
@@ -16,8 +15,7 @@ const it_: Record<string, any> = {}
 
 describe('a supplier brings its team in', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 240_000)
 
   it('the owner sees the roles in the trade’s words, including the four added after the firm was formed', async () => {

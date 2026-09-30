@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as placement } from '@/app/api/placements/[id]/route'
 
@@ -20,8 +19,7 @@ describe('what is due, on the thread', () => {
   let harlow: string
 
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' } })
     cloudepa = 'world-cloudepa@demo.etyme.local'

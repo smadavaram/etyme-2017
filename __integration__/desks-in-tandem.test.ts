@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 
 import { GET as listRoles } from '@/app/api/roles/route'
@@ -100,8 +99,7 @@ function refused(r: { status: number; body: any }) {
 
 describe('the desks, in tandem: one placement, and at every station the wrong desk is refused', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-nike', 'world-brightmoor']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }

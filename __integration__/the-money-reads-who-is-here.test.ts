@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as ap } from '@/app/api/ap/route'
 import { POST as raiseOrder } from '@/app/api/purchase-orders/route'
@@ -35,8 +34,7 @@ const id = { supplier: '', client: '' }
 
 describe('the money screens read who is actually here', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     id.supplier = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })).id
     id.client = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })).id
   }, 600_000)

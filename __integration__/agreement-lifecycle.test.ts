@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as listAgreements } from '@/app/api/program/agreements/route'
 import { PATCH as amend } from '@/app/api/program/agreements/[id]/route'
 import { POST as sign } from '@/app/api/program/agreements/[id]/sign/route'
@@ -34,8 +33,7 @@ const day = (n: number) => new Date(Date.now() + n * 86_400_000)
 
 describe('a master agreement gets a term, a signature and a trail', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-nike', 'world-pinnacle']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }

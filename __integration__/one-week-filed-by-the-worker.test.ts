@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { POST as fileTimesheet } from '@/app/api/timesheets/route'
 import { POST as sendTimesheet } from '@/app/api/timesheets/[id]/submit/route'
@@ -33,8 +32,7 @@ const it_: Record<string, any> = {}
 
 describe('one week, filed once by the worker, signed at the top', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
     it_.helena = helena
     const rungs = await prisma.sellContract.findMany({ where: { personId: helena.id }, include: { company: true } })

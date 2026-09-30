@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { POST as approve } from '@/app/api/timesheets/[id]/approve/route'
 import { GET as decisions } from '@/app/api/decisions/route'
@@ -38,8 +37,7 @@ const it_: Record<string, any> = {}
 
 describe('the signed week travels down the chain, and each rung accepts it in turn', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
     const week = await prisma.timesheet.findFirstOrThrow({
       where: { personId: helena.id, status: 'SUBMITTED', clientApprovedAt: null },

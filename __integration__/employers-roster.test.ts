@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma, as, req, json } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { prisma, as, req, json, freshWorld } from './harness'
 
 import { GET as bench } from '@/app/api/bench/route'
 import { GET as consultants } from '@/app/api/consultants/route'
@@ -31,8 +30,7 @@ const TELEWORLD_PAYROLL = ['Amara Nwosu', 'Deepa Varma', 'Felix Brenner', 'Karth
 const CLOUDEPA_BENCH = ['Grace Lindqvist', 'Helena Marsh', 'Ifeoma Balogun', 'Peter Halloran', 'Priya Raman']
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
 }, 600_000)
 
 describe('a firm’s bench and its training page agree about how many of its people have skills', () => {

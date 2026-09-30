@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma } from './harness'
+import { prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { requirementsFor } from '@/lib/document-requirements'
 
@@ -18,8 +18,7 @@ import { requirementsFor } from '@/lib/document-requirements'
 
 describe('what every order asks for on paper', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 600_000)
 
   it('every seeded order carries a required set', async () => {

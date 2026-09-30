@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 import { placementEarned } from '@/lib/money/placement-earned'
@@ -50,8 +49,7 @@ async function seatAt(companyId: string, name: string): Promise<Seat> {
 
 describe('what each person at Teleworld is paid is read by the payroll desk, not the delivery team', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const teleworld = await prisma.company.findFirstOrThrow({ where: { name: 'Teleworld Solutions' } })
     teleworldId = teleworld.id

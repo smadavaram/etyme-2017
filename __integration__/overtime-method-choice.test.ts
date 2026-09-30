@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { PATCH as chooseMethod } from '@/app/api/placements/[id]/overtime-method/route'
 import { GET as openPlacement } from '@/app/api/placements/[id]/route'
@@ -55,8 +54,7 @@ async function juneRow() {
 
 describe("a paying firm's choice of overtime method", () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const direct = await prisma.buyContract.findFirstOrThrow({
       where: { contractType: 'W2', supplierSellContractId: null, sellLinks: { some: {} } },

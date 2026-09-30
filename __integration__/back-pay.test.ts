@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { POST as proposeRate } from '@/app/api/rate-history/route'
 import { POST as decideRate } from '@/app/api/rate-history/[id]/approve/route'
@@ -42,8 +41,7 @@ async function call(seat: Seat, fn: any, method: string, url: string, body?: unk
 
 describe('back pay for a raise dated before days already paid', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const direct = await prisma.buyContract.findFirstOrThrow({
       where: { contractType: 'W2', supplierSellContractId: null, sellLinks: { some: {} } },

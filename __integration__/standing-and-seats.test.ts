@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { PATCH as setStanding } from '@/app/api/counterparties/route'
 import { GET as suppliers } from '@/app/api/suppliers/route'
@@ -20,8 +19,7 @@ const co: Record<string, string> = {}
 
 describe('standing, units and cold seats', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-nike', 'world-pinnacle', 'world-brightmoor']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { prisma, freshWorld } from './harness'
 import { weekStart } from '@/lib/overtime'
 
 /**
@@ -14,8 +13,7 @@ const iso = (d: Date) => d.toISOString().slice(0, 10)
 
 describe('the weeks the seeded world files', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 900_000)
 
   it('every week the program and door seeds file runs inside one Monday-to-Friday week', async () => {

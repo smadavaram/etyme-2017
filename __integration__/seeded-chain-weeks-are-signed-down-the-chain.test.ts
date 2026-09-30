@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma } from './harness'
+import { prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { signersOf, topDown, turnOf, type LadderRung } from '@/app/api/timesheets/chain-turn'
 import { acceptedByPayer } from '@/lib/money/payers-acceptance-read'
@@ -23,8 +23,7 @@ let helenaWeeks: { id: string }[] = []
 const ids: Record<string, string> = {}
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
   const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
   helenaWeeks = await prisma.timesheet.findMany({
     where: { personId: helena.id, status: 'APPROVED' },

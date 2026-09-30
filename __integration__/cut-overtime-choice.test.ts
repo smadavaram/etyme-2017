@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { PATCH as chooseCut } from '@/app/api/placements/[id]/cut-overtime/route'
 import { GET as openPlacement } from '@/app/api/placements/[id]/route'
@@ -50,8 +49,7 @@ async function trail(where: Record<string, unknown>) {
 
 describe("a paying firm's choice of how overtime is paid on a cut week", () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const direct = await prisma.buyContract.findFirstOrThrow({
       where: { contractType: 'W2', supplierSellContractId: null, sellLinks: { some: {} } },

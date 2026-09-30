@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 import { GET as placement } from '@/app/api/placements/[id]/route'
@@ -94,7 +93,7 @@ describe('starting somebody in a role the law says needs a license', () => {
   }
 
   beforeAll(async () => {
-    await seedWorld()
+    await freshWorld()
 
     const agency = await prisma.sellContract.findFirstOrThrow({
       where: { person: { primaryEmail: 'colleen.byrne@seed.etyme.invalid' } },

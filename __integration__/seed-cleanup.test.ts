@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { req, json, prisma, freshWorld } from './harness'
 import { DEFAULT_ACCOUNTS } from '@/lib/gl'
 import { CLEANUP_KINDS, CLEANUP_PHRASE, SEED_CREDIT_NOTE, SEED_MATCH_OVERRIDE, planCleanup } from '@/lib/seed-cleanup'
 import { POST as cleanup } from '@/app/api/seed-world/cleanup/route'
@@ -50,8 +49,7 @@ let heldEntry = ''
 
 beforeAll(async () => {
   process.env.CRON_SECRET = SECRET
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
   emptyWorldPlan = await planCleanup()
 
   // ── A real firm, a real supplier under it, and a real visitor ──────

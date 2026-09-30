@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 
 import { GET as myData, POST as askForMyData } from '@/app/api/me/data/route'
@@ -107,8 +106,7 @@ async function seat(companyId: string, kind: string, roleName: string, name: str
 }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
   process.env.ETYME_STAFF_EMAILS = STAFF
 
   const staffPerson = await prisma.person.upsert({

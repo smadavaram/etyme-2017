@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { GET as listRequests, POST as recommend } from '@/app/api/supplier-requests/route'
 import { PATCH as review } from '@/app/api/supplier-requests/[id]/route'
@@ -31,8 +31,7 @@ const iso = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().s
 
 describe('a supplier walks four desks', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 240_000)
 
   it('the seeded desk holds Veritan Talent with HR, cleared by the department lead and Procurement, the firm’s side in', async () => {

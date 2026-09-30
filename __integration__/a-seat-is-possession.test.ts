@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { shellNotice, isShell } from '@/lib/off-system'
 import { GET as ap } from '@/app/api/ap/route'
@@ -20,8 +20,7 @@ import { GET as ap } from '@/app/api/ap/route'
  */
 describe('a firm on the register and a firm on the system', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 600_000)
 
   it('a firm that holds a seat on Etyme is never described as off it', async () => {

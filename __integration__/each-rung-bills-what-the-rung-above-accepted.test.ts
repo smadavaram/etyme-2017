@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { matchInvoice } from '@/lib/invoice-match'
 
 import { POST as approve } from '@/app/api/timesheets/[id]/approve/route'
@@ -58,8 +57,7 @@ const check = (m: any, code: string) => m.checks.find((c: any) => c.code === cod
 
 describe('each rung bills what the rung above it accepted, upward on the client’s signature, and never pays a week it has not accepted', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
     const week = await prisma.timesheet.findFirstOrThrow({
       where: { personId: helena.id, status: 'SUBMITTED', clientApprovedAt: null },

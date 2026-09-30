@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as myPipeline } from '@/app/api/me/pipeline/route'
 import { GET as myWork } from '@/app/api/me/work/route'
@@ -37,8 +36,7 @@ function numbersIn(value: unknown, out: number[] = []): number[] {
 
 describe('a consultant is never shown what the firm above them charges for their time', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 300_000)
 
   it('the seeded world really does bill Karthik Menon out for more than it pays him', async () => {

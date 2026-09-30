@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { matchInvoice } from '@/lib/invoice-match'
 import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
 import { GET as readInvoice } from '@/app/api/invoices/[id]/route'
@@ -31,8 +30,7 @@ const it_: Record<string, any> = {}
 
 describe('a week signed at a premium, as far as the invoice', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const contract = await prisma.sellContract.findFirstOrThrow({
       where: { person: { name: 'Omar Haddad' }, overtimeAfterHours: { not: null }, state: 'IN_PROGRESS' },

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { PAID_WORKERS } from '@/lib/seed-payroll-runs'
 import { EMPLOYEE_CONTRACT_TYPES } from '@/lib/money/paid-through'
@@ -58,8 +58,7 @@ async function counts() {
 }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
 }, 900_000)
 
 describe('a seeded worker reads her own pay the way her employer would have left it', () => {

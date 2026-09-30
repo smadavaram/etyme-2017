@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 import { ratePeriods } from '@/lib/contract-rate'
 import { placementEarned, hoursSigned } from '@/lib/money/placement-earned'
@@ -27,8 +26,7 @@ let longWeekMonth = ''
 let sheetCount = 0
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
   const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: RATE_CHANGE_PERSON.email } })
   personId = person.id
   const sell = await prisma.sellContract.findFirstOrThrow({ where: { personId }, include: { buyLinks: true } })

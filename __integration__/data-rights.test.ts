@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as myData, POST as askForMyData } from '@/app/api/me/data/route'
 import { GET as deskQueue, POST as deskAct } from '@/app/api/data-requests/route'
@@ -71,8 +70,7 @@ async function daysAt(personId: string, clientCompanyId: string): Promise<number
 }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
   process.env.ETYME_STAFF_EMAILS = STAFF
 
   // Etyme's own staff: an address in ETYME_STAFF_EMAILS, and a seat at

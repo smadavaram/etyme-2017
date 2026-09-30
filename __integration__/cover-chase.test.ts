@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { GET as nightlyWatch } from '@/app/api/cron/watch/route'
 import { GET as placement } from '@/app/api/placements/[id]/route'
@@ -41,8 +40,7 @@ async function coverFrom(companyId: string, validFrom: Date, expiresAt: Date) {
 
 describe('a supplier whose cover has not begun is chased for the weeks nobody is insured', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     secretBefore = process.env.CRON_SECRET
     process.env.CRON_SECRET = 'cover-chase-test'
 

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 import { nextOpen } from '@/lib/money/next-cycle'
 
@@ -65,8 +64,7 @@ const mine = (d: any) => d.owed.weeks.filter((w: any) => w.sheetId === the.sheet
 
 describe('on the seeded Rosa Delgado, a week is owed to her once her employer accepts it, and not before', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: ROSA } })
     const sell = await prisma.sellContract.findFirstOrThrow({ where: { personId: person.id }, include: { buyLinks: true } })
     the.buyId = sell.buyLinks[0].buyContractId

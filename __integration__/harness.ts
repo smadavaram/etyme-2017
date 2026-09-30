@@ -1,4 +1,36 @@
 /**
+ * The integration harness.
+ *
+ * ── How to run ───────────────────────────────────────────────────────
+ *
+ *   Full suite:       npm run test:integration
+ *                     (= npx vitest run -c vitest.integration.config.ts)
+ *   One file:         npx vitest run -c vitest.integration.config.ts __integration__/whose-rate.test.ts
+ *   Own databases:    ETYME_TEST_DB=etyme_test_<you> npm run test:integration
+ *   Rebuild templates: ETYME_REBUILD_TEMPLATES=1 npm run test:integration
+ *
+ * ── How it is fast ───────────────────────────────────────────────────
+ *
+ * `global-setup.ts` builds two template databases once per run — the
+ * empty schema, and the whole demo world seeded on top of it — and
+ * caches them across runs under a name hashed from the schema, every
+ * file the seed reaches, and the UTC day. An unchanged seed reuses
+ * yesterday's run's empty template and today's world; a changed one
+ * rebuilds, and the log says why in one line.
+ *
+ * Each file then starts with one call:
+ *
+ *   `freshWorld()`     the seeded world, a private copy (was
+ *                      `resetDatabase()` + `seedWorld()`)
+ *   `resetDatabase()`  an empty schema, a private copy
+ *
+ * Files run four at a time, one per worker, and each worker has its own
+ * database (`database.ts`), so nothing one file writes is seen by
+ * another. A file that tests seeding itself still calls `seedWorld()`
+ * after `resetDatabase()`, and that is correct.
+ *
+ * ── Calling routes ───────────────────────────────────────────────────
+ *
  * Call a route the way the app does, as a chosen person.
  *
  * `as(email)` flips the same DEV_BYPASS_AUTH switch the development
@@ -7,9 +39,13 @@
  * client does.
  */
 import { NextRequest } from 'next/server'
-import { execSync } from 'node:child_process'
+import { inject } from 'vitest'
 import { prisma } from '@/lib/db'
-import { TEST_DB, TEST_DATABASE_URL } from './database'
+import { WORLD_SLUGS } from '@/lib/seed-world'
+import { anchorSeed, forgetSeedAnchor } from '@/lib/seed-days'
+import { primeCalendar } from '@/lib/seed-calendar'
+import { TEST_DB } from './database'
+import { copyDatabase, ensurePostgres } from './postgres'
 
 export function as(email: string) {
   process.env.DEV_BYPASS_AUTH = email
@@ -34,68 +70,60 @@ export async function json(res: Response) {
 }
 
 /**
- * Postgres dies with the container.
- *
- * Every time this session goes idle long enough to be paused, the
- * database server is gone when it comes back — "removed stale pid
- * file" on restart, "database system was not properly shut down" in
- * the log — and the next agent to run this suite gets ECONNREFUSED
- * dressed up as a failing test. On 2026-09-18 it had been down for
- * twenty-two hours before anybody noticed, and three agents were
- * launched into it. A red suite that means "the server is off" is the
- * exact class of signal the database-name fix above was for.
- *
- * So: check, start, wait, and if it still refuses say so in a sentence
- * that names the command, rather than letting a connection error stand
- * in for a verdict on somebody's change.
+ * The template this run built, or a sentence saying why there is none.
+ * Provided by global-setup.ts; a file run under another config has no
+ * templates and is told so rather than failing on a missing database.
  */
-function ensurePostgres() {
-  const up = () => { try { execSync('pg_isready -h localhost -p 5432', { stdio: 'pipe' }); return true } catch { return false } }
-  if (up()) return
-  for (const cmd of ['pg_ctlcluster 16 main start', 'service postgresql start', 'sudo service postgresql start']) {
-    try { execSync(cmd, { stdio: 'pipe' }) } catch { /* try the next form */ }
-    for (let i = 0; i < 10 && !up(); i++) execSync('sleep 1')
-    if (up()) return
+function template(key: 'emptyTemplate' | 'worldTemplate'): string {
+  const name = inject(key)
+  if (!name) {
+    throw new Error(
+      `No ${key} was provided. Run integration files with -c vitest.integration.config.ts, ` +
+        'whose global setup builds the templates.'
+    )
   }
-  throw new Error(
-    'Postgres is not running on localhost:5432, and could not be started. ' +
-      'This is the server, not the change under test — start it with ' +
-      '`pg_ctlcluster 16 main start` (or `service postgresql start`) and run again.'
-  )
+  return name
 }
 
-/** A clean database, once, before the story starts. */
-export async function resetDatabase() {
+/** Drop this file's database and copy it from a template. */
+async function copyFrom(tpl: string) {
   ensurePostgres()
-  execSync(
-    `psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS ${TEST_DB};" ` +
-      `-c "CREATE DATABASE ${TEST_DB};"`,
-    { stdio: 'pipe' }
-  )
-  // Best-effort, and deliberately not fatal.
-  //
-  // CLAUDE.md names pgvector in the stack and the schema has not adopted
-  // it yet — there is no vector column anywhere in schema.prisma. This
-  // line was hard-failing every integration run on any machine without
-  // the extension installed, which meant the suite could not be run at
-  // all rather than running without embeddings. When a vector column
-  // does arrive, this goes back to being required and the failure
-  // becomes correct again.
-  try {
-    execSync(`psql -h localhost -U postgres -d ${TEST_DB} -c "CREATE EXTENSION IF NOT EXISTS vector;"`, {
-      stdio: 'pipe',
-    })
-  } catch {
-    // No pgvector here. Nothing in the schema needs it.
-  }
-  // --accept-data-loss: the database was dropped and recreated two lines
-  // above, so there is no data to lose. Without it, a push onto a
-  // database another run has just touched dies on a warning rather than
-  // on a fault, which reads as a failure of the change under test.
-  execSync('npx prisma db push --skip-generate --accept-data-loss', {
-    stdio: 'pipe',
-    env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL },
+  // Close the pool before the drop so the client reconnects to the copy
+  // on its next query rather than holding a socket to the old one.
+  await prisma.$disconnect()
+  copyDatabase(tpl, TEST_DB)
+}
+
+/**
+ * A clean, empty database with the schema on it, before the story
+ * starts. A copy of the empty template global-setup.ts built.
+ */
+export async function resetDatabase() {
+  await copyFrom(template('emptyTemplate'))
+  forgetSeedAnchor()
+}
+
+/**
+ * The seeded demo world, as a private copy for this file.
+ *
+ * Equivalent to `resetDatabase()` followed by `seedWorld()`, and the
+ * reason the suite is fast: the world is seeded once per run into a
+ * template and copied here in about a second. Anything this file writes
+ * on top stays in its own copy.
+ *
+ * The two in-memory things `seedWorld()` sets before it writes — the
+ * day the world was born and the primed holiday calendar — are set here
+ * too, so a test reads the same "today" it would have after seeding.
+ */
+export async function freshWorld() {
+  await copyFrom(template('worldTemplate'))
+  const born = await prisma.company.findFirst({
+    where: { slug: { in: [...WORLD_SLUGS] } },
+    orderBy: { createdAt: 'asc' },
+    select: { createdAt: true },
   })
+  anchorSeed(born?.createdAt)
+  primeCalendar()
 }
 
 export { prisma }

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 
 import { POST as addConsultant } from '@/app/api/consultants/route'
@@ -55,8 +54,7 @@ async function networkNames(email: string): Promise<string[]> {
 
 describe('a new consultant reaches the prime their bench vendor sells through', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-cloudepa', 'world-computer-systems', 'world-nike', 'world-consultis', 'world-vertex-global', 'world-halcyon']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }

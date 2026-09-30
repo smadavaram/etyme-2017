@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as automation } from '@/app/api/automation/route'
 import { POST as reverse } from '@/app/api/automation/[id]/reverse/route'
@@ -32,8 +31,7 @@ async function call(seat: Seat, fn: any, method: string, url: string, body?: unk
 
 describe("a delivery engineer's menu and the routes behind it agree", () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const k = await prisma.context.findFirstOrThrow({
       where: { person: { name: 'Karthik Menon' }, type: 'EMPLOYEE', revokedAt: null },
       include: { person: true, role: true },

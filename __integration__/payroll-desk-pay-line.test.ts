@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 
@@ -51,8 +50,7 @@ async function seatOf(name: string): Promise<Seat> {
 
 describe("Brightmoor's payroll desks read and set Rosa Delgado's pay line", () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const sell = await prisma.sellContract.findFirstOrThrow({
       where: { person: { name: RATE_CHANGE_PERSON.name }, buyLinks: { some: {} } },

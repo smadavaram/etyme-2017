@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { rolesFor } from '@/lib/company-defaults'
 
 import { GET as agreements } from '@/app/api/program/agreements/route'
@@ -17,8 +16,7 @@ const KARTHIK = 'karthik.menon@seed.etyme.invalid'
 const it_: Record<string, any> = {}
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
 
   const teleworld = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })
   it_.teleworld = teleworld.id

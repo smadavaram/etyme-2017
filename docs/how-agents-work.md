@@ -187,6 +187,15 @@ ETYME_TEST_DB=etyme_test_<yourname> npx vitest run -c vitest.integration.config.
 The default is `etyme_test` and is unchanged, so CI — which runs alone —
 needs to know nothing about this.
 
+**The suite is fast since 2026-09-30.** The world is seeded once per run
+into a template database and every file gets a private copy of it
+(`freshWorld()`; `resetDatabase()` for an empty schema), four files at a
+time, worker n on `<base>_w<n>`. The template is cached across runs under
+a hash of the schema, every file the seed reaches and the UTC day. Full
+suite: `npm run test:integration`. One file: add its path. Force a
+template rebuild: `ETYME_REBUILD_TEMPLATES=1`. Details at the top of
+`__integration__/harness.ts`.
+
 **The database server itself.** Postgres dies whenever the container is
 paused — every idle stretch long enough to be reclaimed — and does not
 come back on its own. On 2026-09-18 it had been down for twenty-two

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 
 import { GET as timesheets } from '@/app/api/timesheets/route'
@@ -39,8 +38,7 @@ let helenaEmail = ''
 
 describe('a client sees the rate it pays, never the rate its supplier pays underneath', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
     helenaId = helena.id
     helenaEmail = helena.primaryEmail

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as billable, POST as generate } from '@/app/api/invoices/generate/route'
 
@@ -32,8 +31,7 @@ let officeId = ''
 
 describe('a picker does not offer what the button will refuse', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     supplierId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })).id
     officeId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-aptiva' } })).id
   }, 600_000)

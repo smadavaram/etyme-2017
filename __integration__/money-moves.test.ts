@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { matchInvoice } from '@/lib/invoice-match'
 import { POST as replace } from '@/app/api/placements/[id]/replace/route'
@@ -26,8 +25,7 @@ const it_: Record<string, any> = {}
 
 describe('the last money moves', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-nike', 'world-pinnacle']) co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     const tariq = await prisma.person.create({ data: { name: 'Tariq Al-Amin', primaryEmail: WORKER } })
     it_.worker = tariq.id

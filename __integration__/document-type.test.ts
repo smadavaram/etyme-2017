@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { GET as types, POST as defineType, PATCH as changeType } from '@/app/api/document-types/route'
 import { contractClearance } from '@/lib/contract-clearance'
@@ -22,8 +21,7 @@ const ctx: Record<string, any> = {}
 
 describe('the dictionary is the company’s, and validity has a floor', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const pinnacle = await prisma.company.findUniqueOrThrow({
       where: { slug: 'world-pinnacle' },
       select: { id: true, name: true },

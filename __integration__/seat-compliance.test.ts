@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 
 import { GET as tenure } from '@/app/api/tenure/route'
@@ -122,8 +121,7 @@ async function deskAt(companyId: string, roleName: string): Promise<string> {
 }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
 
   for (const [key, slug] of [
     ['aptiva', 'world-aptiva'], ['kestrel', 'world-kestrel'],

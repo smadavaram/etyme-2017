@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as myWork } from '@/app/api/me/work/route'
 
 /**
@@ -12,8 +11,7 @@ import { GET as myWork } from '@/app/api/me/work/route'
 let data: any
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
   const karthik = await prisma.person.findFirstOrThrow({ where: { primaryEmail: { startsWith: 'karthik.menon@' } } })
   as(karthik.primaryEmail)
   const r = await json(await myWork(req('GET', '/api/me/work')))

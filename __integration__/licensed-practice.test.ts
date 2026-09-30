@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { req, json, prisma, as } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { req, json, prisma, as, freshWorld } from './harness'
 import { licenseGate, credentialsToChase, type HeldCredential } from '@/lib/document-stages'
 import { contractClearance, credentialKeys, credentialDetail } from '@/lib/contract-clearance'
 import { startPacketFor } from '@/lib/packets'
@@ -53,7 +52,7 @@ async function herCredentials(): Promise<HeldCredential[]> {
 
 describe('the travel nurse whose license runs out inside her assignment', () => {
   beforeAll(async () => {
-    await seedWorld()
+    await freshWorld()
   }, 600_000)
 
   it('holds a Wisconsin license the system reads as a license to practice, not as a filed document', async () => {

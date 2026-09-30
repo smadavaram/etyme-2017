@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { hasPermission } from '@/lib/permissions'
 
 import { GET as program } from '@/app/api/program/route'
@@ -97,8 +96,7 @@ async function seat(opts: {
 }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
 
   for (const slug of ['world-corning', 'world-aptiva', 'world-kestrel', 'world-halcyon', 'world-vertex-global']) {
     const c = await prisma.company.findUnique({ where: { slug } })

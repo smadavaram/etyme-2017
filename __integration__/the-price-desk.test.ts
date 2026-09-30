@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { rolesFor } from '@/lib/company-defaults'
 
 import { GET as rateHistory } from '@/app/api/rate-history/route'
@@ -73,8 +72,7 @@ function isASentence(message: string) {
 
 describe('what a placement is priced at is the price desk\'s to read', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const vendor = await prisma.company.findFirstOrThrow({ where: { name: 'Computer Systems Inc' } })
     vendorId = vendor.id

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 
 import { GET as burn } from '@/app/api/bench/burn/route'
@@ -57,8 +56,7 @@ const PAY_TRAIL = (actor: string, subject: string, allowed: boolean) =>
 
 describe("a colleague's pay at Teleworld is read by the payroll desk, and a worker still reads their own", () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const teleworld = await prisma.company.findFirstOrThrow({ where: { name: 'Teleworld Solutions' } })
     teleworldId = teleworld.id

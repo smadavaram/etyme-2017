@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 
@@ -25,8 +24,7 @@ describe('activating a contract on paperwork', () => {
     json(await activate(req('POST', `/api/contracts/${contractId}/activate`, body), { params: Promise.resolve({ id: contractId }) }))
 
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     seat = 'world-cloudepa@demo.etyme.local'
     seatPersonId = (await prisma.person.findFirstOrThrow({ where: { primaryEmail: seat } })).id

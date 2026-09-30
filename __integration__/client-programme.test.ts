@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 
 import { POST as raiseRequisition } from '@/app/api/requisitions/route'
@@ -59,8 +58,7 @@ const it_: Record<string, any> = {}
 
 describe('a client program, seeded', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-nike', 'world-pinnacle', 'world-brightmoor', 'world-corning', 'world-terumo-bct']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }

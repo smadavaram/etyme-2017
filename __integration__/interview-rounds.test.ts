@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { buildProposal, EMPTY_FORM } from '@/lib/interview-proposal'
 import { POST as propose } from '@/app/api/submissions/[id]/interviews/route'
 import { POST as decide } from '@/app/api/interviews/[id]/route'
@@ -50,8 +49,7 @@ let round2: string
 
 describe('Northbend Athletic interviews a candidate, from the desk that received her', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     nike = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } }))
     const pin = await prisma.company.findUniqueOrThrow({

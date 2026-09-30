@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as myWork, POST as fileWeek } from '@/app/api/me/work/route'
 import { GET as timesheets } from '@/app/api/timesheets/route'
@@ -42,8 +41,7 @@ function aWeek(filing: any) {
 
 describe('a worker files their own week', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 600_000)
 
   it('Helena’s page offers her weeks on CloudEPA’s contract, not the rung Computer Systems sells to Northbend', async () => {

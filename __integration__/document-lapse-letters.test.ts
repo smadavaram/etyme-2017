@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { documentsToChase } from '@/lib/document-request'
 import {
@@ -44,8 +43,7 @@ describe('when a document a line depends on runs out, every party it costs is to
   let cavanaughLine = ''
 
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const wrenfield = await firm('world-wrenfield')
     const order = await prisma.workOrder.findFirstOrThrow({

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { matchInvoice } from '@/lib/invoice-match'
 import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
 
@@ -34,8 +33,7 @@ const it_: Record<string, any> = {}
 
 describe('Helena Marsh, billed through a chain, at the rate of the line that bills her', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const lines = await prisma.sellContract.findMany({
       where: { person: { name: 'Helena Marsh' }, state: 'IN_PROGRESS' },

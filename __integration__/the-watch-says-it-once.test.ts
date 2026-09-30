@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { req, json, prisma, freshWorld } from './harness'
 import { GET as watch } from '@/app/api/cron/watch/route'
 
 /**
@@ -14,8 +13,7 @@ import { GET as watch } from '@/app/api/cron/watch/route'
  */
 describe('what the nightly watch says, and how often', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     process.env.CRON_SECRET = 'integration-cron-secret'
   }, 600_000)
 

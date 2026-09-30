@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { POST as proposeRate, GET as rateHistory } from '@/app/api/rate-history/route'
 import { POST as decideRate } from '@/app/api/rate-history/[id]/approve/route'
@@ -65,8 +64,7 @@ const WEEKS: string[] = []
 
 describe('a pay rise from $66 to $70 on a Wednesday', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     // A firm that sells and employs directly, and its client — read off
     // a direct W2 the world already has.

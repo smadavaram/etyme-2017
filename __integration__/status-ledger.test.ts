@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 
 import { POST as raiseRequisition } from '@/app/api/requisitions/route'
@@ -62,8 +61,7 @@ async function cycles(where: { sellContractId?: string; buyContractId?: string }
 
 describe('the ledger: one placement, every table, every station', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-nike', 'world-pinnacle', 'world-brightmoor']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }

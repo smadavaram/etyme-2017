@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 
 import { POST as raiseRequisition } from '@/app/api/requisitions/route'
@@ -50,8 +49,7 @@ async function onBench(name: string, email: string, companyId: string) {
 
 describe('a prime’s candidate reaches the client’s requisition', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-nike', 'world-computer-systems', 'world-cloudepa']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }

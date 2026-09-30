@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { PARTIES, type Party } from '@/lib/parties'
 
@@ -155,8 +154,7 @@ function refusalsAreSentences(grid: Grid) {
 }
 
 beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-nike', 'world-corning', 'world-kestrel', 'world-teleworld', 'world-pinnacle', 'world-brightmoor', 'world-consultis']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }

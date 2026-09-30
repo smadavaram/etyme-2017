@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { req, resetDatabase } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { req, freshWorld } from './harness'
 
 /**
  * Every job the nightly run calls, run once against a seeded world.
@@ -34,8 +33,7 @@ const outcome: Record<string, { status: number; body: unknown; threw?: string }>
 describe('every job the nightly run calls', () => {
   beforeAll(async () => {
     process.env.CRON_SECRET = 'integration-cron-secret'
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const job of JOBS) {
       try {
         const mod = await import(`@/app/api/cron/${job}/route`)

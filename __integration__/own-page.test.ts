@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as readPage, PATCH as editPage } from '@/app/api/me/portfolio/route'
 import { GET as myBenches } from '@/app/api/me/benches/route'
@@ -35,8 +34,7 @@ async function page(email: string) {
 
 describe('a prime’s own employee has a page of their own', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
   }, 300_000)
 
   it('Karthik Menon, on an integrator’s own payroll, opens his page and is not refused', async () => {

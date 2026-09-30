@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as suppliers, POST as addSuppliers } from '@/app/api/suppliers/route'
 import { GET as queue } from '@/app/api/checks/queue/route'
@@ -25,8 +24,7 @@ const AP = `world-nike-ap${D}`
 const it_: Record<string, any> = {}
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
 
   // A machine's judgment of one submitted person, waiting for a person —
   // written here rather than hoped for from the seed, so the sentence

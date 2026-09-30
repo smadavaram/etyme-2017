@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { buildProposal, EMPTY_FORM } from '@/lib/interview-proposal'
 
@@ -63,8 +62,7 @@ async function rowFor(email: string, direction: 'sent' | 'received', companyId: 
 
 describe('a fresh consultant, from an offer to a first week of hours', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const slug of ['world-nike', 'world-pinnacle']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }

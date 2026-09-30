@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { shortDay } from '@/lib/consultant-portfolio'
 
 import { GET as myWork, POST as sendFromHerPage } from '@/app/api/me/work/route'
@@ -57,8 +56,7 @@ const the: Record<string, any> = {}
 
 describe('a week sent carries the day it was sent', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const d = await page(HELENA)
     expect(d.filing, 'Helena files on one contract, her employer’s').toHaveLength(1)
     the.contractId = d.filing[0].contractId

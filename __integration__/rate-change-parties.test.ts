@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as rateHistory, POST as proposeRate } from '@/app/api/rate-history/route'
 import { POST as decideRate } from '@/app/api/rate-history/[id]/approve/route'
@@ -72,8 +71,7 @@ function aSentence(message: string) {
 
 describe('a rate is changed and decided only by the firms it is between', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     // A direct W2: the firm that sells the person also employs them.
     const buys = await prisma.buyContract.findMany({

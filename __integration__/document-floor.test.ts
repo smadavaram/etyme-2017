@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { GET as complianceView } from '@/app/api/compliance/route'
 import { POST as askFor } from '@/app/api/packets/route'
@@ -46,8 +45,7 @@ async function coverFrom(companyId: string, validFrom: Date, expiresAt: Date) {
 
 describe('a policy that begins in three weeks reads the same way at every desk', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     // A supplier with somebody on site at a client — the case the
     // compliance page exists for.

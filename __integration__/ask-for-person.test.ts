@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as person } from '@/app/api/people/[id]/route'
 import { GET as peopleList } from '@/app/api/people/route'
 import { POST as ask } from '@/app/api/people/[id]/ask/route'
@@ -19,8 +18,7 @@ const it_: Record<string, any> = {}
 
 describe('asking for a person you were shown', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
     it_.nike = nike.id
     const sub = await prisma.submission.findFirstOrThrow({

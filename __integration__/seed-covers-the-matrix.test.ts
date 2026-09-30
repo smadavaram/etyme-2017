@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { prisma, freshWorld } from './harness'
 import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
@@ -135,8 +134,7 @@ const counts: Record<string, number> = {}
 
 describe('the seeded world has something at every level of the matrix', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     for (const name of Object.keys(prisma)) {
       if (name.startsWith('$') || name.startsWith('_')) continue
       const delegate = (prisma as any)[name]

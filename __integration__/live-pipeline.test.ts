@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma } from './harness'
+import { prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { headline, rowToInterview } from '@/lib/interviews'
 
@@ -22,8 +22,7 @@ describe('the seeded world', () => {
   let now: Date
 
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     now = new Date()
   }, 120_000)
 

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { prisma, freshWorld } from './harness'
 import { chaseCredentials, lookAtCredentials } from '@/lib/credential-chase'
 
 /**
@@ -21,7 +20,7 @@ const HER = 'colleen.byrne@seed.etyme.invalid'
 
 describe('the nightly chase asking a nurse for her renewal', () => {
   beforeAll(async () => {
-    await seedWorld()
+    await freshWorld()
   }, 600_000)
 
   const herPacket = async () =>

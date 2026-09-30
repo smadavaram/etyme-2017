@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { writeCyclesFor, DEMO_MONTHLY_PAY } from '@/lib/contract-cycles'
 
 import { POST as runPayroll } from '@/app/api/payroll/run/route'
@@ -63,8 +62,7 @@ const payDays = async (kind: string) =>
 
 describe('on a line nobody changed, overtime is paid only on the accepted hours over the line', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const direct = await prisma.buyContract.findFirstOrThrow({
       where: { contractType: 'W2', supplierSellContractId: null, sellLinks: { some: {} } },

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as list, POST as open } from '@/app/api/conversations/route'
 import { GET as read, POST as reply } from '@/app/api/conversations/messages/route'
 
@@ -39,8 +38,7 @@ let candidateThread: string
 
 describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answers', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const n = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
     const pm = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE_PM }, select: { id: true } })

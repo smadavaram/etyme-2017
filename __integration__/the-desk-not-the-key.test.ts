@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 
 import { GET as accessRegister, POST as grantSeat } from '@/app/api/access/route'
@@ -55,8 +54,7 @@ async function seat(companyId: string, kind: string, roleName: string, name: str
 }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
 
   co.sundara = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-sundara' } })).id
   co.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id

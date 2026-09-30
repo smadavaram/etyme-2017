@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as payroll } from '@/app/api/payroll/route'
 import { GET as submissions } from '@/app/api/submissions/route'
@@ -38,8 +37,7 @@ describe('reading another company by editing the URL', () => {
   let placedPerson: { id: string; name: string }
 
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const co = async (slug: string) => {
       const c = await prisma.company.findFirstOrThrow({ where: { slug } })

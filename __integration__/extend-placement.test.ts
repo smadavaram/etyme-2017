@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { POST as extend } from '@/app/api/contracts/[id]/extend/route'
 
@@ -28,8 +27,7 @@ describe('a placement that is extended is billed for the months it gains', () =>
   let before: { end: Date; buyEnd: Date | null; cycles: number }
 
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' } })
     supplier = 'world-cloudepa@demo.etyme.local'

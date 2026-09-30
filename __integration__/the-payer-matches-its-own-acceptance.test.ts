@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 
 import { POST as approve } from '@/app/api/timesheets/[id]/approve/route'
 import { POST as recordBill, GET as exceptions } from '@/app/api/ap/bills/route'
@@ -50,8 +49,7 @@ const invoice = async (number: string, hours: number) =>
 
 describe('a supplier’s invoice is matched against the paying firm’s own acceptance, down the seeded chain', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
     const week = await prisma.timesheet.findFirstOrThrow({
       where: { personId: helena.id, status: 'SUBMITTED', clientApprovedAt: null },

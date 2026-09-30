@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
 import { GET as placement } from '@/app/api/placements/[id]/route'
 
@@ -60,8 +59,7 @@ async function open(email: string, id: string) {
 
 describe('a client opens a placement bought through two firms', () => {
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     // A placement an enterprise pays for, where its supplier bought the
     // person from somebody else. That is the only shape where any of this

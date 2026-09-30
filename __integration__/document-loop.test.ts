@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { resetDatabase, prisma, as, req, json } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { prisma, as, req, json, freshWorld } from './harness'
 import { contractClearance, lineExtras } from '@/lib/contract-clearance'
 import { lookAtDocInstances, checksToRedo, documentFindings } from '@/lib/document-request'
 import { GET as compliance } from '@/app/api/compliance/route'
@@ -34,8 +33,7 @@ describe('the loop of documents, between the parties', () => {
   let cavanaughOrder = ''
 
   beforeAll(async () => {
-    await resetDatabase()
-    await seedWorld()
+    await freshWorld()
 
     const wrenfield = await firm('world-wrenfield')
     const order = await prisma.workOrder.findFirstOrThrow({

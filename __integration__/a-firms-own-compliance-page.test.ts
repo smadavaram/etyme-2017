@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { as, req, json, resetDatabase, prisma } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { as, req, json, prisma, freshWorld } from './harness'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 import { GET as compliance } from '@/app/api/compliance/route'
 
@@ -64,8 +63,7 @@ async function deskAt(companyId: string, roleName: string): Promise<{ email: str
 }
 
 beforeAll(async () => {
-  await resetDatabase()
-  await seedWorld()
+  await freshWorld()
   co.teleworld = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-teleworld' } })).id
   co.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id
   who.karthik = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK } })).id

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { prisma, as, req, json } from './harness'
-import { seedWorld } from '@/lib/seed-world'
+import { prisma, as, req, json, freshWorld } from './harness'
 import { askForClearance, clearanceQueue, previewFor } from '@/app/api/compliance/clearance/ask'
 import { GET as clearanceGET, POST as clearancePOST } from '@/app/api/compliance/clearance/route'
 import { POST as activatePOST } from '@/app/api/contracts/[id]/activate/route'
@@ -32,7 +31,7 @@ let companyId = ''
 
 describe('asking for the papers when somebody is placed', () => {
   beforeAll(async () => {
-    await seedWorld()
+    await freshWorld()
     const person = await prisma.person.findUniqueOrThrow({
       where: { primaryEmail: HIM },
       select: { id: true },
