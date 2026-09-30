@@ -17,6 +17,7 @@ import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { payDaysToMark } from '@/lib/money/pay-day-period'
 import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { weekStart } from '@/lib/overtime'
+import { daySpan, plainDate } from '@/lib/plain-date'
 
 /**
  * POST /api/payroll/run
@@ -376,7 +377,7 @@ export async function POST(request: NextRequest) {
                 if (filedShare && filedShare.hours > 0) {
                   acceptedSaid.push(
                     `${bc.company?.name ?? 'The employer'} has more than one acceptance standing on ${cand.person.name}'s ` +
-                      `week of ${t.periodStart.toISOString().slice(0, 10)}, and nothing says which of them governs, so that ` +
+                      `week of ${plainDate(t.periodStart.toISOString())}, and nothing says which of them governs, so that ` +
                       `week is not paid here rather than paid on a guess. It is paid once all but one are withdrawn.`
                   )
                 }
@@ -602,7 +603,7 @@ function readPeriod(p: unknown): Asked {
     const start = o.start ? new Date(`${String(o.start).slice(0, 10)}T00:00:00Z`) : null
     const end = o.end ? new Date(`${String(o.end).slice(0, 10)}T00:00:00Z`) : null
     if (!start || !end || isNaN(+start) || isNaN(+end) || end < start) return 'INVALID'
-    return { start, end, label: `${o.start!.slice(0, 10)} to ${o.end!.slice(0, 10)}` }
+    return { start, end, label: daySpan(o.start!, o.end!) }
   }
   return 'INVALID'
 }

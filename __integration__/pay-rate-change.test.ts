@@ -419,7 +419,9 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
     const row = r.body.data.rows.find((x: any) => x.contractId === sellId)
     const all = expected('2026-01-01', '2026-12-31')
     expect(row.profit.revenueCents).toBe(all.hours * 11_200)
-    expect(row.profit.payCents).toBe(all.cents)
+    // Cost is what payroll pays: the forty-five-hour week of 6 July
+    // carries half of $70 again on its five hours over the line.
+    expect(row.profit.payCents).toBe(all.cents + 5 * 3_500)
     expect(row.profit.marginCents).toBeGreaterThan(0)
     // What the two sides agreed, read at the rate in force today.
     expect(row.agreed.payRateCents).toBe(7_000)

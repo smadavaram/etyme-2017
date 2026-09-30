@@ -28,6 +28,7 @@ import { weekOvertime, overDaysOf, type DayHours, type OvertimeMethod, type Week
 import { payBands, payCut, paidDayMaps, paySheet, payCutSays, straightTimeWeeks, type PayCut, type CutOvertime } from '@/lib/money/pay-hours'
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import type { AcceptedCut } from '@/lib/periods'
+import { plainDate } from '@/lib/plain-date'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 const dayDate = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`)
@@ -350,9 +351,9 @@ export function overtimeSaysFor(weeks: SheetWeek[], only?: Set<string> | null): 
     const two = priced.filter((w) => w.overtime!.rates.length > 1)
     parts.push(
       `${round2(priced.reduce((n, w) => n + w.overHours, 0))} hours over the line ` +
-        `(${priced.map((w) => `week of ${w.weekOf}`).join(', ')}) carry an overtime premium` +
+        `(${priced.map((w) => `week of ${plainDate(w.weekOf)}`).join(', ')}) carry an overtime premium` +
         (two.length > 0
-          ? `; ${two.map((w) => `the week of ${w.weekOf}`).join(' and ')} was paid at two rates, so ` +
+          ? `; ${two.map((w) => `the week of ${plainDate(w.weekOf)}`).join(' and ')} was paid at two rates, so ` +
             `${two.length === 1 ? 'its' : 'their'} premium is on the regular rate (29 CFR §778.115)`
           : '') +
         '.'
@@ -360,7 +361,7 @@ export function overtimeSaysFor(weeks: SheetWeek[], only?: Set<string> | null): 
   }
   for (const w of touched.filter((x) => !x.terms.priced)) {
     parts.push(
-      `${w.overHours} hours over the line in the week of ${w.weekOf} are paid at straight time here and ` +
+      `${w.overHours} hours over the line in the week of ${plainDate(w.weekOf)} are paid at straight time here and ` +
         `their premium is not priced: ${w.terms.says ?? 'nobody can say what they are owed.'}`
     )
   }

@@ -41,6 +41,12 @@
  */
 
 import { priceByDay, segmentsSay, type RatePeriod, type RateSegment } from '@/lib/contract-rate'
+import { acceptanceForPay, payBands } from '@/lib/money/pay-hours'
+import { sheetPay, overtimeSaysFor, type SheetWeek, type WageLine } from '@/lib/money/sheet-overtime'
+import type { OvertimeMethod } from '@/lib/money/overtime-method'
+import { totals } from '@/lib/money-display'
+import { plainDate } from '@/lib/plain-date'
+import { weekStart } from '@/lib/overtime'
 
 export interface SheetAssertion {
   role: string
@@ -48,6 +54,10 @@ export interface SheetAssertion {
   hours: unknown
   /** What the ledger recorded as the rate on the signature. */
   rateCents: number
+  /** Who signed, and which days an acceptance covers — what payroll reads to cut a week. */
+  companyId?: string
+  coversFrom?: Date | null
+  coversTo?: Date | null
 }
 
 export interface SheetToPrice {
@@ -57,6 +67,25 @@ export interface SheetToPrice {
   days: unknown
   /** LIVE assertions only. */
   assertions: SheetAssertion[]
+  /** Paid leave among `days`, `{ 'YYYY-MM-DD': hours }`. Leave is paid and never crosses the overtime line. */
+  leaveDays?: unknown
+  /** The column that predates the ledger, read by payroll where no assertion carries the figure. */
+  acceptedHours?: unknown
+}
+
+/**
+ * What payroll needs to pay a week the way the run pays it: the weekly
+ * line, the overtime method, the wage facts and the firm that pays.
+ * Read by `placementPayTerms` (lib/money/placement-pay-terms) through the
+ * same functions the payroll run calls, so nothing here restates them.
+ */
+export interface PayOvertime {
+  /** The weekly line in force (`payLineOn`); null draws no line. */
+  afterHours: number | null
+  method: OvertimeMethod
+  wage: WageLine
+  /** The paying firm: where it has an acceptance of its own on a week, that one governs. */
+  payerCompanyId: string | null
 }
 
 export interface LineRates {
@@ -68,6 +97,10 @@ export interface LineRates {
 
 export interface PricedSheet {
   periodStart: Date
+  /** Of `paidCents`, the overtime premium payroll pays on the hours over the line. */
+  premiumCents: number
+  /** More than one acceptance stands on the week, so payroll pays none of it and neither is it costed. */
+  manyAcceptances: boolean
   billedHours: number
   billedCents: number
   /** Null where the employer has not accepted this week. */
@@ -88,6 +121,11 @@ export interface SheetPricing {
   payFromLine: boolean
   /** The last rate the ledger recorded on an acceptance, for a placement with no buy line. */
   payRateFromLedger: number
+  /** Of `paidCents`, the overtime premium, and the hours it is paid on. Nought where no overtime terms were given. */
+  premiumCents: number
+  overtimeHours: number
+  /** Every week that went over the line as payroll pays it, for the sentence. */
+  overtimeWeeks: SheetWeek[]
   sheets: PricedSheet[]
 }
 
@@ -107,14 +145,18 @@ const daysOf = (d: unknown): Record<string, number> =>
 export function priceSheets(input: {
   sheets: SheetToPrice[]
   bill: LineRates
-  pay: LineRates | null
+  pay: (LineRates & { overtime?: PayOvertime | null }) | null
 }): SheetPricing {
   const payFromLine = input.pay != null && input.pay.openingRateCents > 0
+  const overtime = payFromLine ? input.pay!.overtime ?? null : null
   let billedHours = 0
   let billedCents = 0
   let paidHours = 0
   let paidCents = 0
   let payRateFromLedger = 0
+  let premiumCents = 0
+  let overtimeHours = 0
+  const overtimeWeeks: SheetWeek[] = []
   const sheets: PricedSheet[] = []
 
   for (const t of input.sheets) {
@@ -123,9 +165,53 @@ export function priceSheets(input: {
     let sheetBilledCents = 0
     let sheetPaidHours: number | null = null
     let sheetPaidCents: number | null = null
+    let sheetPremiumCents = 0
+    let manyAcceptances = false
     let clientSigned = false
     let billSegments: RateSegment[] = []
     let paySegments: RateSegment[] = []
+
+    // Cost as payroll pays it: the week cut the way the run cuts it, the
+    // straight time on the days left at each day's rate, and the premium
+    // on the hours over the line — `sheetPay`, the run's own call.
+    if (overtime && t.assertions.some((a) => a.role === 'EMPLOYER_ACCEPTANCE')) {
+      const acceptance = acceptanceForPay(t.assertions, t, overtime.payerCompanyId)
+      if (acceptance === 'MANY') {
+        manyAcceptances = true
+      } else if (Object.keys(days).length === 0) {
+        // No days to band, so nothing can cross a line: straight time on
+        // the hours accepted, the way payroll pays such a week.
+        const priced = priceByDay({
+          contractRateCents: input.pay!.openingRateCents, periods: input.pay!.periods,
+          days, hours: acceptance ? acceptance.hours : null, periodStart: t.periodStart, periodEnd: t.periodEnd,
+        })
+        sheetPaidHours = priced.hours
+        sheetPaidCents = priced.cents
+        paySegments = priced.segments
+      } else {
+        const pay = sheetPay({
+          days,
+          leaveDays: daysOf(t.leaveDays),
+          afterHours: overtime.afterHours,
+          accepted: acceptance,
+          contractRateCents: input.pay!.openingRateCents,
+          periods: input.pay!.periods,
+          method: overtime.method,
+          line: overtime.wage,
+        })
+        const straight = priceByDay({
+          contractRateCents: input.pay!.openingRateCents, periods: input.pay!.periods,
+          days: pay.days, hours: null, periodStart: t.periodStart, periodEnd: t.periodEnd,
+        })
+        const exact = [...pay.premiums.values()].reduce((n, p) => n + p.premiumCents, 0)
+        sheetPremiumCents = Math.round(exact)
+        overtimeHours += [...pay.premiums.values()].reduce((n, p) => n + p.hours, 0)
+        overtimeWeeks.push(...pay.weeks)
+        sheetPaidHours = straight.hours
+        sheetPaidCents = straight.cents + sheetPremiumCents
+        paySegments = straight.segments
+      }
+    }
 
     for (const a of t.assertions) {
       const h = Number(a.hours)
@@ -140,7 +226,7 @@ export function priceSheets(input: {
         sheetBilledCents += priced.cents
         billSegments = billSegments.concat(priced.segments)
       }
-      if (a.role === 'EMPLOYER_ACCEPTANCE') {
+      if (a.role === 'EMPLOYER_ACCEPTANCE' && !overtime) {
         let cents: number
         if (payFromLine) {
           const priced = priceByDay({
@@ -162,8 +248,11 @@ export function priceSheets(input: {
     billedCents += sheetBilledCents
     paidHours += sheetPaidHours ?? 0
     paidCents += sheetPaidCents ?? 0
+    premiumCents += sheetPremiumCents
     sheets.push({
       periodStart: t.periodStart,
+      premiumCents: sheetPremiumCents,
+      manyAcceptances,
       billedHours: sheetBilledHours,
       billedCents: sheetBilledCents,
       paidHours: sheetPaidHours,
@@ -174,7 +263,46 @@ export function priceSheets(input: {
     })
   }
 
-  return { billedHours, billedCents, paidHours, paidCents, payFromLine, payRateFromLedger, sheets }
+  return {
+    billedHours, billedCents, paidHours: Math.round(paidHours * 100) / 100, paidCents, payFromLine, payRateFromLedger,
+    premiumCents, overtimeHours: Math.round(overtimeHours * 100) / 100, overtimeWeeks, sheets,
+  }
+}
+
+/**
+ * The hours signed on a placement, over every sheet it has: what the
+ * client approved and what the employer accepted. The header of a
+ * placement reads this, never a sum over the dozen weeks on its card —
+ * a total of the last twelve weeks shown as the placement's is the
+ * figure that read 477 beside a money line pricing 1,221.
+ */
+export function hoursSigned(sheets: ReadonlyArray<Pick<SheetToPrice, 'assertions'>>): { approved: number; accepted: number } {
+  let approved = 0
+  let accepted = 0
+  for (const t of sheets) {
+    for (const a of t.assertions) {
+      const h = Number(a.hours)
+      if (!Number.isFinite(h)) continue
+      if (a.role === 'CLIENT_APPROVAL') approved += h
+      if (a.role === 'EMPLOYER_ACCEPTANCE') accepted += h
+    }
+  }
+  return { approved: Math.round(approved * 100) / 100, accepted: Math.round(accepted * 100) / 100 }
+}
+
+/**
+ * The first accepted week that went over forty hours worked, where the
+ * pay line's overtime terms were not read. The law's forty, because a
+ * nonexempt US worker is owed a premium past it whatever the contract
+ * says; a line drawn lower is exactly what was not read.
+ */
+function overFortyUnread(sheets: SheetToPrice[]): string | null {
+  for (const t of sheets) {
+    if (!t.assertions.some((a) => a.role === 'EMPLOYER_ACCEPTANCE')) continue
+    const over = payBands(daysOf(t.days), daysOf(t.leaveDays), 40).find((d) => d.over > 0)
+    if (over) return weekStart(over.day)
+  }
+  return null
 }
 
 export interface PlacementEarned {
@@ -189,6 +317,11 @@ export interface PlacementEarned {
   /** How many weeks the margin covers, and how many were left out because the employer has not accepted them. */
   marginWeeks: number
   weeksAwaitingPay: number
+  /** Of the cost, the overtime premium payroll pays, and the hours over the line it is on. */
+  overtimePremiumCents: number
+  overtimeHours: number
+  /** What the premium in the cost is, in a sentence. Null where no week went over the line. */
+  overtimeSays: string | null
   /** Why the cost is blank, where it is. */
   costRefusedBecause: string | null
   /** Why the margin is blank, where it is. */
@@ -225,7 +358,12 @@ function mergeSegments(segments: RateSegment[]): RateSegment[] {
 export function placementEarned(input: {
   sheets: SheetToPrice[]
   bill: LineRates & { currency: string }
-  pay: (LineRates & { currency: string }) | null
+  /**
+   * `overtime` is how payroll pays the line (`placementPayTerms`). Where
+   * it is absent the straight time is priced and, if any accepted week
+   * went over forty hours, the cost is refused rather than shown short.
+   */
+  pay: (LineRates & { currency: string; overtime?: PayOvertime | null }) | null
 }): PlacementEarned {
   const hasPayLine = input.pay != null && input.pay.openingRateCents > 0
   const priced = priceSheets({
@@ -237,11 +375,19 @@ export function placementEarned(input: {
     pay: hasPayLine ? input.pay : null,
   })
 
+  const unreadWeek = hasPayLine && !input.pay!.overtime ? overFortyUnread(input.sheets) : null
+  const many = priced.sheets.filter((s) => s.manyAcceptances)
   const costRefusedBecause = input.pay == null
     ? 'No buy line behind this placement, so nothing here knows what it costs.'
     : !hasPayLine
       ? 'The buy line pays nothing on record. That is a missing rate, not a free placement.'
-      : null
+      : unreadWeek
+        ? `More than forty hours were worked in the week of ${plainDate(unreadWeek)}, and how this pay line prices ` +
+          'overtime was not read, so the cost is left blank rather than shown at straight time.'
+        : many.length > 0
+          ? `The week of ${plainDate(many[0].periodStart.toISOString())} has more than one acceptance standing and ` +
+            'nothing says which governs, so payroll pays none of it yet. The cost is blank until one is withdrawn.'
+          : null
 
   const costCents = costRefusedBecause ? null : priced.paidCents
 
@@ -280,10 +426,22 @@ export function placementEarned(input: {
     marginCents,
     marginWeeks: marginCents == null ? 0 : matched.length,
     weeksAwaitingPay: awaiting,
+    overtimePremiumCents: costCents == null ? 0 : priced.premiumCents,
+    overtimeHours: costCents == null ? 0 : priced.overtimeHours,
+    overtimeSays: costCents == null ? null : overtimeSaid(priced, input.pay!.currency),
     costRefusedBecause,
     marginRefusedBecause,
     payRateChangeSays: hasPayLine ? segmentsSay(paySegs, input.pay!.currency) : null,
     billRateChangeSays: segmentsSay(billSegs, input.bill.currency),
     says,
   }
+}
+
+/** The premium inside the cost, in a sentence, with the run's own words for the weeks. */
+function overtimeSaid(priced: SheetPricing, currency: string): string | null {
+  const weeks = overtimeSaysFor(priced.overtimeWeeks)
+  if (!weeks) return null
+  return priced.premiumCents > 0
+    ? `The cost includes ${totals([{ minor: priced.premiumCents, currency }])} of overtime premium, as payroll pays it. ${weeks}`
+    : weeks
 }

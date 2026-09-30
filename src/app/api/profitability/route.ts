@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { priceSheets } from '@/lib/money/placement-earned'
+import { placementPayTermsMany, payTermsKey } from '@/lib/money/placement-pay-terms'
 import {
   profitOf, total, forCandidate, forCustomer, health, belowFloor,
   type Line, type ContractType,
@@ -343,9 +344,12 @@ export async function GET(request: NextRequest) {
           // The days, so each hour is priced at the rate in force the day
           // it was worked rather than one rate across the whole book.
           days: true, periodStart: true, periodEnd: true,
+          // Leave, the pre-ledger column and who signed which days: what
+          // payroll reads to cut a week and price its overtime.
+          leaveDays: true, acceptedHours: true,
           assertions: {
             where: { state: 'LIVE' },
-            select: { role: true, hours: true, rateCents: true },
+            select: { role: true, hours: true, rateCents: true, companyId: true, coversFrom: true, coversTo: true },
           },
         },
       },
@@ -424,6 +428,16 @@ export async function GET(request: NextRequest) {
   const periodsFor = (side: 'SELL' | 'BUY', id: string) =>
     ratePeriods(rateRows.filter((r) => r.contractType === side && r.contractId === id))
 
+  // How payroll pays each pair — the weekly line, the overtime method and
+  // the wage facts — so cost here is what payroll pays, premium included,
+  // exactly as the placement page costs it. Two reads for the whole book.
+  const payTerms = await placementPayTermsMany(
+    contracts.flatMap((c) => {
+      const buyContractId = bySell.get(c.id)?.buy?.id
+      return buyContractId ? [{ buyContractId, sellContractId: c.id, personId: c.person.id }] : []
+    })
+  )
+
   const rows = contracts.map((c) => {
     // Both sides from the ledger. Neither is a rate card multiplied by
     // one hours figure — and neither is one rate across every week: each
@@ -449,7 +463,13 @@ export async function GET(request: NextRequest) {
     } = priceSheets({
       sheets: c.timesheets,
       bill: { openingRateCents: c.billRate, periods: periodsFor('SELL', c.id) },
-      pay: buyId && opening > 0 ? { openingRateCents: opening, periods: periodsFor('BUY', buyId) } : null,
+      pay: buyId && opening > 0
+        ? {
+            openingRateCents: opening,
+            periods: periodsFor('BUY', buyId),
+            overtime: payTerms.get(payTermsKey({ buyContractId: buyId, sellContractId: c.id, personId: c.person.id })) ?? null,
+          }
+        : null,
     })
 
     const payRate = eng?.payRate || payRateFromLedger || 0

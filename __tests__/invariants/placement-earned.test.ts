@@ -60,8 +60,8 @@ describe('a placement is priced day by day at the rate in force that day', () =>
     const crossing = placementEarned({ sheets: [week('2025-07-28')], bill: BILL, pay: PAY })
     // Monday 28 July at $66; Tuesday to Friday at $70.
     expect(crossing.costCents).toBe(8 * 6_600 + 32 * 7_000)
-    expect(crossing.payRateChangeSays).toContain('8 hours at $66/hr from 2025-07-28 to 2025-07-28')
-    expect(crossing.payRateChangeSays).toContain('32 hours at $70/hr from 2025-07-29 to 2025-08-01')
+    expect(crossing.payRateChangeSays).toContain('8 hours at $66/hr on Jul 28, 2025')
+    expect(crossing.payRateChangeSays).toContain('32 hours at $70/hr over Jul 29 – Aug 1, 2025')
   })
 
   it('a raise on the bill side prices revenue the same way, so revenue and cost follow the same calendar', () => {

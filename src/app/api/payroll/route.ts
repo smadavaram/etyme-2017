@@ -16,6 +16,7 @@ import { weekStart } from '@/lib/overtime'
 import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
 import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { ACTIVE_PAY_STATES, STOPPED_PAY_STATES, onPayrollFor, stoppedSince, periodPayStatus, payrollClientFor } from '@/lib/money/payroll-rows'
+import { plainDate } from '@/lib/plain-date'
 
 /**
  * GET /api/payroll
@@ -497,7 +498,7 @@ export async function GET(request: NextRequest) {
           if (!filedShare || filedShare.hours <= 0) continue
           acceptedSaid.push(
             `${bc.company?.name ?? 'The employer'} has more than one acceptance standing on ${cand.person.name}'s ` +
-              `week of ${ts.periodStart.slice(0, 10)}, and nothing says which of them governs, so that ` +
+              `week of ${plainDate(ts.periodStart)}, and nothing says which of them governs, so that ` +
               `week is not paid here rather than paid on a guess. It is paid once all but one are withdrawn.`
           )
         }

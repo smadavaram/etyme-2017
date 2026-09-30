@@ -6,6 +6,7 @@ import { ratesSay } from '@/lib/money/pay-words'
 import { useEffect, useState, useCallback } from 'react'
 import { compact as formatRate } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { plainDate } from '@/lib/plain-date'
 
 /**
  * Payroll working surface — what the buy lines pay out.
@@ -941,7 +942,7 @@ function Statutory() {
           <ul className="mt-2 space-y-1">
             {data.deposits.deadlines.map((d: any) => (
               <li key={`${String(d.payDay)}-${d.paid}`} className="text-[11px] text-etyme-muted tabular-nums">
-                {d.paid === false ? 'due to be paid' : 'paid'} {String(d.payDay).slice(0, 10)} → deposit by {String(d.dueOn).slice(0, 10)}
+                {d.paid === false ? 'due to be paid' : 'paid'} {plainDate(String(d.payDay))} → deposit by {plainDate(String(d.dueOn))}
                 {d.shifted && ' (moved off a non-business day)'}
               </li>
             ))}

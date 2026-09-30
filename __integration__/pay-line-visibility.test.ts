@@ -4,6 +4,7 @@ import { seedWorld } from '@/lib/seed-world'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 import { placementEarned } from '@/lib/money/placement-earned'
+import { placementPayTerms, placementMoneySheets } from '@/lib/money/placement-pay-terms'
 import { ratePeriods } from '@/lib/contract-rate'
 
 import { GET as listContracts } from '@/app/api/contracts/route'
@@ -218,10 +219,16 @@ describe("Rosa Delgado's placement is costed at the rate in force on each day", 
     const rise = rows.find((r) => r.contractType === 'BUY' && r.approvalState === 'APPROVED' && r.rate === 7_000)!
     expect(cand.payRate).toBe(6_600)
 
+    // Costed the way payroll pays her (lib/money/placement-pay-terms): the
+    // straight time below by hand, plus the overtime premium on her
+    // forty-five-hour week, which is the payroll run's own figure.
     const earned = placementEarned({
-      sheets: sell.timesheets,
+      sheets: await placementMoneySheets(sell.id),
       bill: { openingRateCents: sell.billRate, periods: ratePeriods(rows.filter((r) => r.contractType === 'SELL')), currency: sell.billCurrency },
-      pay: { openingRateCents: cand.payRate, periods: ratePeriods(rows.filter((r) => r.contractType === 'BUY')), currency: cand.payCurrency ?? buy.payCurrency },
+      pay: {
+        openingRateCents: cand.payRate, periods: ratePeriods(rows.filter((r) => r.contractType === 'BUY')), currency: cand.payCurrency ?? buy.payCurrency,
+        overtime: await placementPayTerms({ buyContractId: buy.id, sellContractId: sell.id, personId: sell.personId }),
+      },
     })
 
     // Derived by hand from the rows: every accepted hour on a day before
@@ -249,7 +256,8 @@ describe("Rosa Delgado's placement is costed at the rate in force on each day", 
     }
     expect(before, 'weeks before the raise were worked').toBeGreaterThan(0)
     expect(after, 'weeks after the raise were worked').toBeGreaterThan(0)
-    expect(earned.costCents).toBe(Math.round(expected))
+    expect(earned.overtimePremiumCents, 'her forty-five-hour week carries a premium').toBeGreaterThan(0)
+    expect(earned.costCents).toBe(Math.round(expected) + earned.overtimePremiumCents)
     // Neither the line's own column across every hour, nor today's rate.
     expect(earned.costCents).not.toBe(Math.round(hours * 6_600))
     expect(earned.costCents).not.toBe(Math.round(hours * 7_000))
@@ -285,9 +293,12 @@ describe("Rosa Delgado's placement is costed at the rate in force on each day", 
       select: { id: true, contractType: true, rate: true, fromDate: true, toDate: true, approvalState: true },
     })
     const earned = placementEarned({
-      sheets: again.timesheets,
+      sheets: await placementMoneySheets(sell.id),
       bill: { openingRateCents: again.billRate, periods: ratePeriods(rows.filter((x) => x.contractType === 'SELL')), currency: again.billCurrency },
-      pay: { openingRateCents: cand.payRate, periods: ratePeriods(rows.filter((x) => x.contractType === 'BUY')), currency: cand.payCurrency ?? buy.payCurrency },
+      pay: {
+        openingRateCents: cand.payRate, periods: ratePeriods(rows.filter((x) => x.contractType === 'BUY')), currency: cand.payCurrency ?? buy.payCurrency,
+        overtime: await placementPayTerms({ buyContractId: buy.id, sellContractId: sell.id, personId: again.personId }),
+      },
     })
     expect(row.profit.payCents).toBe(earned.costCents)
     expect(row.profit.revenueCents).toBe(earned.revenueCents)

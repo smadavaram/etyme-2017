@@ -63,6 +63,7 @@ import {
 } from '@/lib/money/overtime-method'
 import { premiumTerms } from '@/lib/money/sheet-overtime'
 import { payCut, straightTimeSays, type CutOvertime } from '@/lib/money/pay-hours'
+import { plainDate } from '@/lib/plain-date'
 
 export type Provider = 'ADP' | 'PAYCHEX' | 'GENERIC'
 
@@ -1356,9 +1357,9 @@ export function depositDeadline(
     dueOn,
     shifted,
     says:
-      `Wages paid ${isoDay(payDay)} deposit by ${isoDay(dueOn)}` +
+      `Wages paid ${plainDate(isoDay(payDay))} deposit by ${plainDate(isoDay(dueOn))}` +
       (shifted
-        ? ` — the statutory date of ${isoDay(statutory)} is not a business day, so it moves forward.`
+        ? ` — the statutory date of ${plainDate(isoDay(statutory))} is not a business day, so it moves forward.`
         : '.') +
       ` ${BUREAU_NOTICE}`,
   }

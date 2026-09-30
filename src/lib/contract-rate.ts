@@ -19,6 +19,7 @@
  */
 
 import { DEFAULT_CURRENCY, compact, rate } from '@/lib/money-display'
+import { daySpan, plainDate } from '@/lib/plain-date'
 
 export interface RatePeriod {
   id: string
@@ -256,7 +257,7 @@ export function priceByDay(input: {
     priced = [{ day: iso(on), hours, rateCents: r.rateCents, periodId: r.periodId }]
     if (input.periodEnd && spansRateChange(input.periods, on, input.periodEnd).spans) {
       note =
-        `No daily hours were recorded for the week of ${iso(on)}, and the rate changed inside it, ` +
+        `No daily hours were recorded for the week of ${plainDate(iso(on))}, and the rate changed inside it, ` +
         `so the whole week is priced at the rate on its first day.`
     }
   } else {
@@ -322,14 +323,15 @@ function empty(rateCents: number): DayPricing {
 /**
  * The rates a set of priced days was paid at, in a sentence.
  *
- * "16 hours at $66.00/hr to 30 June, then 24 hours at $70.00/hr from
- * 1 July." Only said where there was more than one rate — a single rate
+ * "16 hours at $66.00/hr over Jun 29 – Jun 30, 2026, then 24 hours at
+ * $70.00/hr over Jul 1 – Jul 3, 2026." Days as a person reads them, never
+ * ISO (lib/plain-date). Only said where there was more than one rate — a single rate
  * is already on the row.
  */
 export function segmentsSay(segments: RateSegment[], currency: string = DEFAULT_CURRENCY): string | null {
   if (segments.length < 2) return null
   const parts = segments.map(
-    (s) => `${s.hours} hour${s.hours === 1 ? '' : 's'} at ${rate(s.rateCents, currency)} from ${s.from} to ${s.to}`
+    (s) => `${s.hours} hour${s.hours === 1 ? '' : 's'} at ${rate(s.rateCents, currency)} ${s.from === s.to ? 'on' : 'over'} ${daySpan(s.from, s.to)}`
   )
   return `The rate changed inside these days: ${parts.join(', then ')}.`
 }

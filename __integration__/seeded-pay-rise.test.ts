@@ -183,7 +183,7 @@ describe('a pay rise on the seeded world', () => {
     expect(mine[0].overtimeCents).toBe(Math.round(5 * 7_000 * 1.5))
   })
 
-  it('the margin screen prices her pay by the day and her bill rate stays $112', async () => {
+  it('the margin screen prices her pay by the day, overtime premium included, and her bill rate stays $112', async () => {
     const all = await days()
     const hours = Object.values(all).reduce((a, b) => a + b, 0)
     const pay = Object.entries(all).reduce((n, [d, h]) => n + payFor(d, h), 0)
@@ -193,7 +193,9 @@ describe('a pay rise on the seeded world', () => {
     const row = r.body.data.rows.find((x: any) => x.contractId === sellId)
     expect(row, 'her placement is not on the margin screen').toBeTruthy()
     expect(row.profit.revenueCents).toBe(hours * 11_200)
-    expect(row.profit.payCents).toBe(pay)
+    // What payroll pays, overtime premium included: half of $70 again on
+    // the five hours over the line in her forty-five-hour week.
+    expect(row.profit.payCents).toBe(pay + 5 * 3_500)
     expect(row.profit.marginCents).toBeGreaterThan(0)
     expect(row.agreed.payRateCents).toBe(7_000)
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: sellId } })
