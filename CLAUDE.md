@@ -291,6 +291,12 @@ not explaining the complete functional process."* Decided:
   pay and offboarding, in order); **master data** (business partners —
   customers and suppliers — and consultants); and **recruiting**
   (matching, screening, application tracking).
+- **The home page's content stays; only its navigation is fixed**
+  (founder, the same day: "home page looks good — just fix
+  navigationally"). And every public page and documentation page is
+  **less prose, practical daily English, and neat flow charts**: a
+  process is shown as a flow chart first (boxes and arrows, who does
+  each step), with short lines under it, never as paragraphs.
 - **Navigation is agreed party by party before any of it is built**:
   public visitor, client, program office, prime or integrator,
   supplier, one-person firm, worker.
