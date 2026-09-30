@@ -1345,6 +1345,23 @@ Three rules follow:
   with who chose it and why, the same way the overtime method is. At or
   under the line is straight time either way.
 
+- **A week runs Sunday to Saturday, and the weekend can be filed.
+  Decided by the founder, 2026-09-30** (with a US calendar as the
+  picture): *"Weeks should run from Sunday to Saturday. Typically they
+  are both holidays in the US, but they should be able to file hours
+  for exchange of pay or hours."* So a timesheet week, the week the
+  overtime line counts over, and a seeded week all start on Sunday and
+  end on Saturday. Saturday and Sunday are days off by default — not
+  expected, not counted as missing — but a worker may enter hours on
+  either, and those hours are paid like any other (overtime past the
+  line included). "Exchange of hours" is read as moving a day inside the
+  same week (a Saturday worked in place of a Friday off), which needs
+  nothing special. Banking weekend hours as time off *instead of* pay is
+  not offered to a private employer's non-exempt worker by default,
+  because US law does not allow comp time in place of overtime pay
+  outside the public sector; if a client asks, it is a setting with the
+  law said beside it, not a default.
+
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
   18 months, so three screens said "past the limit" two weeks before the
