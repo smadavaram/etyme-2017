@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rolesFor, type CompanyKind } from '@/lib/company-defaults'
 import { hasPermission } from '@/lib/permissions'
-import { SUPPLIERS_OPEN_TO, maySeeSuppliers, CANNOT_SEE_SUPPLIERS, ADDS_SUPPLIERS, CANNOT_ADD_SUPPLIER } from '@/lib/supplier-list'
+import { SUPPLIERS_OPEN_TO, maySeeSuppliers, CANNOT_SEE_SUPPLIERS, ADDS_SUPPLIERS, CANNOT_ADD_SUPPLIER, CANNOT_JOIN_SUPPLIERS } from '@/lib/supplier-list'
 import { QUEUE_OPENS_FOR, CANNOT_SEE_QUEUE, isAboutAPerson } from '@/lib/review'
 
 /**
@@ -194,6 +194,38 @@ describe('who may add suppliers from a pasted list', () => {
     const gate = post.indexOf(`if (!hasPermission(caller.permissions, '${ADDS_SUPPLIERS}'))`)
     expect(gate).toBeGreaterThan(0)
     expect(gate).toBeLessThan(post.indexOf('prisma.'))
+  })
+})
+
+describe('who may join two records of one supplier', () => {
+  const src = readFileSync(join(API, 'suppliers', 'join', 'route.ts'), 'utf8')
+  const post = src.slice(src.indexOf('export async function POST'))
+
+  it('a delivery engineer cannot merge two supplier records, and is told it cannot be undone and who to ask', () => {
+    expect(mayAdd(KARTHIK)).toBe(false)
+    expect(CANNOT_JOIN_SUPPLIERS).toContain('cannot be undone')
+    expect(CANNOT_JOIN_SUPPLIERS).toContain('ask whoever manages roles at your company')
+    expect(CANNOT_JOIN_SUPPLIERS).not.toMatch(/[a-z]+\.(read|write|record|manage)/)
+  })
+
+  it('the join asks for the panel desk before it reads or moves anything', () => {
+    const gate = post.indexOf(`if (!hasPermission(caller.permissions, '${ADDS_SUPPLIERS}'))`)
+    expect(gate).toBeGreaterThan(0)
+    expect(gate).toBeLessThan(post.indexOf('prisma.'))
+  })
+
+  it('a merge is recorded with the person who did it and honestly marked as not reversible', () => {
+    expect(post).toContain("action: 'SUPPLIER_RECORDS_JOINED'")
+    expect(post).toContain('byPersonId: caller.person.id')
+    expect(post).toContain('reversible: false')
+    // Written inside the same transaction as the move, so a merge is
+    // never on the books without its record.
+    expect(post.indexOf('tx.automationLog.create')).toBeGreaterThan(post.indexOf('prisma.$transaction'))
+  })
+
+  it('the list of duplicates says whether this reader may press the join button, from the same gate', () => {
+    const get = src.slice(src.indexOf('export async function GET'), src.indexOf('export async function POST'))
+    expect(get).toContain(`mayJoin: hasPermission(caller.permissions, '${ADDS_SUPPLIERS}')`)
   })
 })
 

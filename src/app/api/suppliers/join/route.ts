@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { hasPermission } from '@/lib/permissions'
 import { canJoin, buttonSays, type Side } from '@/lib/join-companies'
+import { CANNOT_JOIN_SUPPLIERS } from '@/lib/supplier-list'
 
 /**
  * GET  /api/suppliers/join — pairs that look like one firm twice
@@ -140,6 +142,11 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       pairs,
+      // Whether this reader may press the button. The page shows the pair
+      // to anybody on the list and the button only to the desk the POST
+      // below admits, so a button never offers what the route refuses.
+      mayJoin: hasPermission(caller.permissions, 'vendors.manage'),
+      mayNotJoinSays: CANNOT_JOIN_SUPPLIERS,
       summary:
         pairs.length === 0
           ? 'No supplier appears twice on your list.'
@@ -162,6 +169,15 @@ export async function POST(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Joining supplier records')
   if (notStaff) return notStaff
+
+  // Folding one firm into another repoints its submissions, contracts,
+  // invitations, agreements, bench listings and invites, and nothing puts
+  // them back apart: after the join, a moved row and one that was always
+  // there look the same. That is the panel desk's act and nobody else's
+  // (ADDS_SUPPLIERS in lib/supplier-list).
+  if (!hasPermission(caller.permissions, 'vendors.manage')) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: CANNOT_JOIN_SUPPLIERS } }, { status: 403 })
+  }
 
   const body = await request.json().catch(() => ({}))
   const keepId = String(body?.keepId ?? '')
@@ -200,34 +216,67 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const moved = await prisma.$transaction([
-    prisma.submission.updateMany({ where: { fromCompanyId: foldId }, data: { fromCompanyId: keepId } }),
-    prisma.sellContract.updateMany({ where: { companyId: foldId }, data: { companyId: keepId } }),
-    prisma.requirementInvitation.updateMany({
-      where: { toCompanyId: foldId },
-      data: { toCompanyId: keepId },
-    }),
-    prisma.masterAgreement.updateMany({ where: { vendorId: foldId }, data: { vendorId: keepId } }),
-    prisma.benchListing.updateMany({ where: { companyId: foldId }, data: { companyId: keepId } }),
-    prisma.supplierInvite.updateMany({ where: { companyId: foldId }, data: { companyId: keepId } }),
+  // Which rows move, read inside the same transaction that moves them,
+  // so the record below lists exactly what was repointed — the evidence
+  // somebody would need to pull the two firms apart again by hand.
+  const moved = await prisma.$transaction(async (tx) => {
+    const ids = async (rows: Promise<{ id: string }[]>) => (await rows).map((r) => r.id)
+    const [submissions, contracts, invitations, agreements, listings, invites] = await Promise.all([
+      ids(tx.submission.findMany({ where: { fromCompanyId: foldId }, select: { id: true } })),
+      ids(tx.sellContract.findMany({ where: { companyId: foldId }, select: { id: true } })),
+      ids(tx.requirementInvitation.findMany({ where: { toCompanyId: foldId }, select: { id: true } })),
+      ids(tx.masterAgreement.findMany({ where: { vendorId: foldId }, select: { id: true } })),
+      ids(tx.benchListing.findMany({ where: { companyId: foldId }, select: { id: true } })),
+      ids(tx.supplierInvite.findMany({ where: { companyId: foldId }, select: { id: true } })),
+    ])
+    await tx.submission.updateMany({ where: { id: { in: submissions } }, data: { fromCompanyId: keepId } })
+    await tx.sellContract.updateMany({ where: { id: { in: contracts } }, data: { companyId: keepId } })
+    await tx.requirementInvitation.updateMany({ where: { id: { in: invitations } }, data: { toCompanyId: keepId } })
+    await tx.masterAgreement.updateMany({ where: { id: { in: agreements } }, data: { vendorId: keepId } })
+    await tx.benchListing.updateMany({ where: { id: { in: listings } }, data: { companyId: keepId } })
+    await tx.supplierInvite.updateMany({ where: { id: { in: invites } }, data: { companyId: keepId } })
     // Left in place rather than deleted. An empty company row is
     // harmless; deleting it cascades through history somebody may still
     // need to read.
-    prisma.company.update({
+    await tx.company.update({
       where: { id: foldId },
       data: { name: `${fold.name} (joined into ${keep.name})` },
-    }),
-  ])
+    })
+
+    // A person's act, on the record with their name. Not reversible, and
+    // said so: there is no undo, and the moved ids below make a repair
+    // possible by hand, which is not the same thing as a button.
+    await tx.automationLog.create({
+      data: {
+        companyId: caller.company!.id,
+        action: 'SUPPLIER_RECORDS_JOINED',
+        summary: `${fold.name} folded into ${keep.name} by ${caller.person.name}`,
+        reason: `${caller.person.name} joined two records of one firm on ${keep.domain ?? fold.domain ?? 'the same domain'}`,
+        payload: {
+          byPersonId: caller.person.id,
+          byName: caller.person.name,
+          keptId: keepId,
+          keptName: keep.name,
+          foldedId: foldId,
+          foldedName: fold.name,
+          moved: { submissions, contracts, invitations, agreements, benchListings: listings, supplierInvites: invites },
+        },
+        reversible: false,
+      },
+    })
+
+    return { submissions, contracts, invitations, agreements }
+  })
 
   return NextResponse.json({
     data: {
       keptId: keepId,
       says: `${fold.name} folded into ${keep.name}. ${v.moving.join(', ')} moved.`,
       moved: {
-        submissions: moved[0].count,
-        contracts: moved[1].count,
-        invitations: moved[2].count,
-        agreements: moved[3].count,
+        submissions: moved.submissions.length,
+        contracts: moved.contracts.length,
+        invitations: moved.invitations.length,
+        agreements: moved.agreements.length,
       },
     },
   })

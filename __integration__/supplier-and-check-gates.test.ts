@@ -5,6 +5,7 @@ import { seedWorld } from '@/lib/seed-world'
 import { GET as suppliers, POST as addSuppliers } from '@/app/api/suppliers/route'
 import { GET as queue } from '@/app/api/checks/queue/route'
 import { POST as review } from '@/app/api/checks/[id]/review/route'
+import { GET as pairsOf, POST as joinRecords } from '@/app/api/suppliers/join/route'
 
 /**
  * Suppliers and the Check queue, on the seeded world, as the desks that
@@ -101,6 +102,79 @@ describe('who adds suppliers from a pasted list', () => {
     const { status, body } = await json(await addSuppliers(req('POST', '/api/suppliers', row('lee@quarrybank.invalid', 'Quarrybank Talent'))))
     expect(status, JSON.stringify(body)).toBe(200)
     expect(body.data.added.map((a: any) => a.name)).toContain('Quarrybank Talent')
+  })
+})
+
+describe('who joins two records of one supplier', () => {
+  /** Two shells Northbend listed on one domain, each invited to a job. */
+  async function twoRecordsOfOneFirm(tag: string) {
+    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const domain = `${tag}.invalid`
+    const [a, b] = await Promise.all([1, 2].map((n) =>
+      prisma.company.create({
+        data: { name: `${tag} Staffing ${n}`, slug: `${tag}-staffing-${n}`, kind: 'VENDOR', currency: 'USD', listedById: nike.id, isDemo: true },
+        select: { id: true },
+      })
+    ))
+    for (const [n, c] of [a, b].entries()) {
+      await prisma.supplierInvite.create({
+        data: { companyId: c.id, byId: nike.id, email: `desk${n}@${domain}`, domain, token: `${tag}-${n}-token` },
+      })
+    }
+    // One job invitation on each, so whichever the rule keeps, the other
+    // has something to move.
+    const requirements = await prisma.requirement.findMany({ where: { companyId: nike.id }, select: { id: true }, take: 2 })
+    for (const [n, c] of [a, b].entries()) {
+      await prisma.requirementInvitation.create({
+        data: { requirementId: requirements[n].id, fromCompanyId: nike.id, toCompanyId: c.id, expiresAt: new Date(Date.now() + 7 * 86400000) },
+      })
+    }
+    return { a: a.id, b: b.id }
+  }
+
+  it('a hiring manager is shown the duplicate but offered no button to join it', async () => {
+    await twoRecordsOfOneFirm('holloway')
+    as(HIRING)
+    const { status, body } = await json(await pairsOf(req('GET', '/api/suppliers/join')))
+    expect(status).toBe(200)
+    expect(body.data.pairs.some((p: any) => p.domain === 'holloway.invalid')).toBe(true)
+    expect(body.data.mayJoin).toBe(false)
+    expect(body.data.mayNotJoinSays).toContain('Procurement')
+  })
+
+  it('a delivery engineer cannot merge two supplier records', async () => {
+    const { a, b } = await twoRecordsOfOneFirm('brindle')
+    as(KARTHIK)
+    const { status, body } = await json(await joinRecords(req('POST', '/api/suppliers/join', { keepId: a, foldId: b })))
+    expect(status).toBe(403)
+    expect(body.error.message).toContain('cannot be undone')
+    expect(body.error.message).toContain('ask whoever manages roles at your company')
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: b } })).toBe(1)
+  })
+
+  it('procurement still can, and the merge is recorded with who did it, what moved and that it cannot be undone', async () => {
+    const { a, b } = await twoRecordsOfOneFirm('corrie')
+    as(PROCUREMENT)
+    const pairs = await json(await pairsOf(req('GET', '/api/suppliers/join')))
+    expect(pairs.body.data.mayJoin).toBe(true)
+    const pair = pairs.body.data.pairs.find((p: any) => p.domain === 'corrie.invalid')
+    expect(pair.ok, JSON.stringify(pair)).toBe(true)
+
+    const { status, body } = await json(await joinRecords(req('POST', '/api/suppliers/join', { keepId: pair.keep.id, foldId: pair.fold.id })))
+    expect(status, JSON.stringify(body)).toBe(200)
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: pair.fold.id } })).toBe(0)
+
+    const me = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: PROCUREMENT }, select: { id: true, name: true } })
+    const log = await prisma.automationLog.findFirstOrThrow({
+      where: { action: 'SUPPLIER_RECORDS_JOINED', payload: { path: ['foldedId'], equals: pair.fold.id } },
+    })
+    expect(log.reversible).toBe(false)
+    expect(log.summary).toContain(me.name)
+    const payload = log.payload as any
+    expect(payload.byPersonId).toBe(me.id)
+    expect(payload.keptId).toBe(pair.keep.id)
+    expect(payload.moved.invitations).toHaveLength(1)
+    expect([a, b]).toContain(payload.keptId)
   })
 })
 

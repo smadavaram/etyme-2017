@@ -137,6 +137,8 @@ export default function SuppliersPage() {
   const [skipped, setSkipped] = useState<string[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [pairs, setPairs] = useState<Pair[]>([])
+  const [mayJoin, setMayJoin] = useState(false)
+  const [mayNotJoinSays, setMayNotJoinSays] = useState('')
   const [listSummary, setListSummary] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -239,6 +241,8 @@ export default function SuppliersPage() {
       // to be able to fix.
       const dup = await fetch('/api/suppliers/join').then((r) => r.json()).catch(() => null)
       setPairs(dup?.data?.pairs ?? [])
+      setMayJoin(dup?.data?.mayJoin === true)
+      setMayNotJoinSays(dup?.data?.mayNotJoinSays ?? '')
     } catch (err: any) {
       setError(err.message)
     }
@@ -824,7 +828,10 @@ export default function SuppliersPage() {
                   Moving: {p.moving.join(', ')}.
                 </p>
               )}
-              {p.ok && p.keep && p.fold ? (
+              {p.ok && p.keep && p.fold && !mayJoin ? (
+                // Shown the pair, not a button the route would refuse.
+                <p className="mt-2 text-[12px] text-etyme-muted">{mayNotJoinSays}</p>
+              ) : p.ok && p.keep && p.fold ? (
                 <button
                   onClick={() => join(p.keep!.id, p.fold!.id)}
                   disabled={busy}

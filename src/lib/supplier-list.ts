@@ -102,6 +102,17 @@ export const CANNOT_ADD_SUPPLIER =
   'Suppliers page and the desks will review it, or ask whoever manages roles at your company ' +
   'to seat you at that desk.'
 
+/**
+ * Joining two records of one firm is the same desk's act, and a heavier
+ * one: it repoints everything the folded record carried and cannot be
+ * pressed back apart.
+ */
+export const CANNOT_JOIN_SUPPLIERS =
+  'Joining two records of one supplier moves everything from one to the other and cannot be ' +
+  'undone, so it belongs to the desk that owns the supplier panel — Procurement, a supplier ' +
+  'manager or the program office. Ask one of them to join these, or ask whoever manages roles ' +
+  'at your company to seat you at that desk.'
+
 
 /**
  * Providers that tell you nothing about which firm somebody works for.
