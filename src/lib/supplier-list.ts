@@ -78,6 +78,30 @@ export const CANNOT_SEE_SUPPLIERS =
   'the program office, whoever raises a job, and the finance desk that checks a new ' +
   "supplier's bank details. Ask whoever manages roles at your company to seat you at one of them."
 
+// ── Who may add a supplier by pasting a list ─────────────────────────
+//
+// `POST /api/suppliers` makes things: a supplier record where the firm is
+// new, an unsigned agreement stub, a register row, a contact, and an
+// email to the firm. It asked for nothing past being staff, so any seat —
+// a delivery engineer, an AP clerk — could put a firm on the panel in one
+// keystroke, which is the very step the four-desk supplier workflow
+// exists to walk (lib/supplier-onboarding). The import is for firms
+// Procurement approved before, and the page already offers it only to
+// the desk that owns the panel: `vendors.manage` — Procurement, a
+// Supplier Manager, the program office, and an owner or admin.
+//
+// Everybody else recommends a firm instead, through the workflow.
+
+/** The one permission the import asks for. The route spells it; this names it. */
+export const ADDS_SUPPLIERS = 'vendors.manage' as const
+
+/** What is missing and who to ask. Never a permission code. */
+export const CANNOT_ADD_SUPPLIER =
+  'Adding suppliers from a list belongs to the desk that owns the supplier panel — Procurement, ' +
+  'a supplier manager or the program office. To bring in a new firm, recommend it from the ' +
+  'Suppliers page and the desks will review it, or ask whoever manages roles at your company ' +
+  'to seat you at that desk.'
+
 
 /**
  * Providers that tell you nothing about which firm somebody works for.

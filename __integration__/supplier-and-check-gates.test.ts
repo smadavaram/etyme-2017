@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 
-import { GET as suppliers } from '@/app/api/suppliers/route'
+import { GET as suppliers, POST as addSuppliers } from '@/app/api/suppliers/route'
 import { GET as queue } from '@/app/api/checks/queue/route'
 import { POST as review } from '@/app/api/checks/[id]/review/route'
 
@@ -74,6 +74,33 @@ describe('who opens the supplier list', () => {
     as(AP)
     const { status } = await json(await suppliers(req('GET', '/api/suppliers')))
     expect(status).toBe(200)
+  })
+})
+
+describe('who adds suppliers from a pasted list', () => {
+  const row = (email: string, company: string) => ({ rows: [{ email, company, domain: email.split('@')[1], contactName: 'Dana Ruiz', line: `${company} <${email}>` }] })
+
+  it('a delivery engineer cannot add a supplier, and nothing is written', async () => {
+    as(KARTHIK)
+    const before = await prisma.company.count()
+    const { status, body } = await json(await addSuppliers(req('POST', '/api/suppliers', row('dana@pellwood.invalid', 'Pellwood Staffing'))))
+    expect(status).toBe(403)
+    expect(body.error.message).toContain('recommend it from the Suppliers page')
+    expect(await prisma.company.count()).toBe(before)
+    expect(await prisma.supplierInvite.count({ where: { email: 'dana@pellwood.invalid' } })).toBe(0)
+  })
+
+  it('a hiring manager cannot add one by pasting either, and is pointed at the recommendation instead', async () => {
+    as(HIRING)
+    const { status } = await json(await addSuppliers(req('POST', '/api/suppliers', row('dana@pellwood.invalid', 'Pellwood Staffing'))))
+    expect(status).toBe(403)
+  })
+
+  it('procurement still adds one', async () => {
+    as(PROCUREMENT)
+    const { status, body } = await json(await addSuppliers(req('POST', '/api/suppliers', row('lee@quarrybank.invalid', 'Quarrybank Talent'))))
+    expect(status, JSON.stringify(body)).toBe(200)
+    expect(body.data.added.map((a: any) => a.name)).toContain('Quarrybank Talent')
   })
 })
 

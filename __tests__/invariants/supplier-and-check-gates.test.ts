@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rolesFor, type CompanyKind } from '@/lib/company-defaults'
 import { hasPermission } from '@/lib/permissions'
-import { SUPPLIERS_OPEN_TO, maySeeSuppliers, CANNOT_SEE_SUPPLIERS } from '@/lib/supplier-list'
+import { SUPPLIERS_OPEN_TO, maySeeSuppliers, CANNOT_SEE_SUPPLIERS, ADDS_SUPPLIERS, CANNOT_ADD_SUPPLIER } from '@/lib/supplier-list'
 import { QUEUE_OPENS_FOR, CANNOT_SEE_QUEUE, isAboutAPerson } from '@/lib/review'
 
 /**
@@ -147,6 +147,53 @@ describe('every desk that screens candidates still opens the check queue', () =>
   it('an AP clerk and a compliance officer at a client do not review screening', () => {
     expect(mayQueue(role('CLIENT', 'AP Clerk'))).toBe(false)
     expect(mayQueue(role('CLIENT', 'Compliance Officer'))).toBe(false)
+  })
+})
+
+const mayAdd = (p: readonly string[]) => hasPermission(p, ADDS_SUPPLIERS)
+
+describe('who may add suppliers from a pasted list', () => {
+  it('a delivery engineer cannot add a supplier, and is told to recommend one or who to ask', () => {
+    expect(mayAdd(KARTHIK)).toBe(false)
+    expect(CANNOT_ADD_SUPPLIER).toContain('recommend it from the Suppliers page')
+    expect(CANNOT_ADD_SUPPLIER).toContain('ask whoever manages roles at your company')
+    expect(CANNOT_ADD_SUPPLIER).not.toMatch(/[a-z]+\.(read|write|record|manage)/)
+  })
+
+  it('procurement still adds one', () => {
+    expect(mayAdd(role('CLIENT', 'Procurement Lead'))).toBe(true)
+  })
+
+  it('the program office and a supplier manager still add suppliers, at a client, a program office firm and an integrator', () => {
+    expect(mayAdd(role('CLIENT', 'Program Manager'))).toBe(true)
+    expect(mayAdd(role('MSP', 'Program Manager'))).toBe(true)
+    expect(mayAdd(role('MSP', 'Supplier Manager'))).toBe(true)
+    expect(mayAdd(role('GSI', 'Supplier Manager'))).toBe(true)
+  })
+
+  it('a hiring manager, an AP clerk and a compliance officer recommend a supplier through the desks rather than adding one', () => {
+    for (const name of ['Hiring Manager', 'AP Clerk', 'Compliance Officer', 'HR Partner', 'Approver', 'Viewer']) {
+      expect(mayAdd(role('CLIENT', name)), name).toBe(false)
+    }
+  })
+
+  it('a recruiter or account manager at a supplier cannot put a firm on the panel by pasting it', () => {
+    for (const name of ['Recruiter', 'Account Manager', 'Contract Manager', 'Finance']) {
+      expect(mayAdd(role('VENDOR', name)), name).toBe(false)
+    }
+  })
+
+  it('an owner and an admin still add suppliers', () => {
+    expect(mayAdd(role('CLIENT', 'Owner'))).toBe(true)
+    expect(mayAdd(role('VENDOR', 'Admin'))).toBe(true)
+  })
+
+  it('the add route asks for the panel desk before it writes anything', () => {
+    const src = readFileSync(join(API, 'suppliers', 'route.ts'), 'utf8')
+    const post = src.slice(src.indexOf('export async function POST'))
+    const gate = post.indexOf(`if (!hasPermission(caller.permissions, '${ADDS_SUPPLIERS}'))`)
+    expect(gate).toBeGreaterThan(0)
+    expect(gate).toBeLessThan(post.indexOf('prisma.'))
   })
 })
 

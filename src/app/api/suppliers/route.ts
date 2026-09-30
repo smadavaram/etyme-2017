@@ -8,7 +8,7 @@ import { defaultPostureFor } from '@/lib/walls'
 import { hasPermission } from '@/lib/permissions'
 import {
   readSupplierList, nameFromDomain, type SupplierRow,
-  CANNOT_SEE_SUPPLIERS,
+  CANNOT_SEE_SUPPLIERS, CANNOT_ADD_SUPPLIER,
 } from '@/lib/supplier-list'
 import { suppliersOwing } from '@/lib/supplier-desks'
 import { inviteLetter } from '@/lib/reaching-out'
@@ -252,6 +252,13 @@ export async function POST(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Suppliers')
   if (notStaff) return notStaff
+
+  // Adding firms to the panel is the panel desk's (ADDS_SUPPLIERS in
+  // lib/supplier-list); everybody else recommends one through the
+  // supplier workflow. No AccessLog: this writes firms, not people.
+  if (!hasPermission(caller.permissions, 'vendors.manage')) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: CANNOT_ADD_SUPPLIER } }, { status: 403 })
+  }
 
   const companyId = caller.company!.id
   const body = await request.json().catch(() => ({}))
