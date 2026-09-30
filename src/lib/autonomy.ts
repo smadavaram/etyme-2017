@@ -442,6 +442,14 @@ ATTRIBUTED.DEMO_SEED_STEP = { basis: 'RULE' }
 // (lib/seed-cleanup). `RULE` because what went is decided by the markers
 // and the demo world's scope and nothing else. Never reversible.
 ATTRIBUTED.SEED_ROWS_CLEANED = { basis: 'RULE' }
+// References from records outside the demo world to demo people,
+// companies and rows, moved to a stand-in or emptied so the world can be
+// rebuilt, on the request of somebody holding the deployment secret who
+// typed the phrase (lib/seed-rebuild, releaseTies). `RULE` because which
+// references move is decided by the tie plan and nothing else. Deletes no
+// row; not reversible, because nothing puts them back — the payload holds
+// every previous value.
+ATTRIBUTED.DEMO_TIES_RELEASED = { basis: 'RULE' }
 
 // ── Named before anything writes them ────────────────
 //

@@ -202,7 +202,8 @@ describe('rebuilding the demo world', () => {
       expect(r.status).toBe(400)
       expect(r.body.error.message).toBe(
         'This deletes the demo world and seeds it again. To go ahead, send {"confirm":"delete the demo world"} ' +
-          'as the body, word for word. Nothing was deleted.'
+          'as the body, word for word. Nothing was deleted. Send {"dryRun":true} first to see what would go and ' +
+          'whose records are tied to it.'
       )
     }
     expect(await census()).toEqual(before)
@@ -220,7 +221,9 @@ describe('rebuilding the demo world', () => {
       expect(r.body.error.code).toBe('TIED_TO_REAL_DATA')
       expect(r.body.error.message).toMatch(/^Nothing was deleted\. The demo world is tied to real data/)
       expect(r.body.error.message).toContain('a demo SellContract points at World Wide Technology (world-wide-technology) through companyId')
-      expect(r.body.error.message).toContain('luis.ortega@gmail.com')
+      // Named, and never by their whole address.
+      expect(r.body.error.message).toContain('l•••@gmail.com')
+      expect(JSON.stringify(r.body)).not.toContain('luis.ortega@gmail.com')
       expect(await census()).toEqual(before)
     } finally {
       await prisma.sellContract.delete({ where: { id: tie.id } })
@@ -236,7 +239,7 @@ describe('rebuilding the demo world', () => {
     try {
       const r = await json(await call(CONFIRM))
       expect(r.status).toBe(409)
-      expect(r.body.error.message).toContain('a demo Context points at jane@wwt.com through personId')
+      expect(r.body.error.message).toContain('a demo Context points at j•••@wwt.com through personId')
     } finally {
       await prisma.context.delete({ where: { id: seat.id } })
     }

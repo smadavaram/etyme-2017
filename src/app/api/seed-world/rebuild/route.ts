@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { reportError } from '@/lib/alerts'
 import { seedWorldInSteps } from '@/lib/seed-world'
 import { seedBudgetMs } from '@/lib/seed-steps'
-import { CONFIRM_PHRASE, deleteDemoWorld } from '@/lib/seed-rebuild'
+import { CONFIRM_PHRASE, RELEASE_PHRASE, ReleaseDrifted, deleteDemoWorld, dryRunRebuild, releaseTies } from '@/lib/seed-rebuild'
 
 /**
  * The same minute the seed route has, and it is spent in two steps.
@@ -41,6 +41,21 @@ export const maxDuration = 60
  * - Nothing tied to a real company or person is ever deleted: if the
  *   demo world has a thread to the real world, nothing is deleted at all
  *   and the answer names each thread.
+ *
+ * ── Before the delete: whose, and letting go ─────────────────────────
+ *
+ *   {"dryRun": true}
+ *       reads only. What would be deleted, every tie to a record outside
+ *       the demo world — the table, whose row it is (a company by name
+ *       and domain, a person by name and a masked address), how many
+ *       rows, and why — and what releasing each would change, or why it
+ *       cannot be released without deleting a row.
+ *
+ *   {"confirm": "release the demo world from real records"}
+ *       makes exactly those changes and nothing else, deleting no row,
+ *       in one transaction, and writes an AutomationLog row that is not
+ *       reversible, with every row's previous value. Then the rebuild
+ *       can be asked for again.
  */
 
 function sameSecret(given: string | null, expected: string | undefined): boolean {
@@ -76,13 +91,38 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const body = (await request.json().catch(() => null)) as { confirm?: unknown } | null
+  const body = (await request.json().catch(() => null)) as { confirm?: unknown; dryRun?: unknown } | null
+
+  if (body?.dryRun === true) {
+    try {
+      return NextResponse.json({ data: await dryRunRebuild() })
+    } catch (err: any) {
+      reportError('seed-world/rebuild: the dry run failed', err)
+      return refuse(500, 'DRY_RUN_FAILED', `The dry run failed and nothing was written: ${String(err?.message ?? err)}`)
+    }
+  }
+
+  if (body?.confirm === RELEASE_PHRASE) {
+    try {
+      return NextResponse.json({ data: await releaseTies() })
+    } catch (err: any) {
+      if (err instanceof ReleaseDrifted) return refuse(409, 'DRIFTED', err.message)
+      reportError('seed-world/rebuild: releasing the ties failed', err)
+      return refuse(
+        500,
+        'RELEASE_FAILED',
+        `Releasing the ties failed and was rolled back; nothing was changed: ${String(err?.message ?? err)}`
+      )
+    }
+  }
+
   if (body?.confirm !== CONFIRM_PHRASE) {
     return refuse(
       400,
       'NOT_CONFIRMED',
       `This deletes the demo world and seeds it again. To go ahead, send {"confirm":"${CONFIRM_PHRASE}"} ` +
-        'as the body, word for word. Nothing was deleted.'
+        'as the body, word for word. Nothing was deleted. Send {"dryRun":true} first to see what would go and ' +
+        'whose records are tied to it.'
     )
   }
 

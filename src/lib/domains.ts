@@ -367,6 +367,8 @@ export const DOMAINS: Domain[] = [
       // Taking back what earlier seeds wrote outside the demo world, by
       // marker, and nothing else.
       'lib/seed-cleanup',
+      // Whose record a tie or a seed row sits on, in words, masked.
+      'lib/seed-owners',
       // Seeding the demo world in steps that each fit one function call.
       'lib/seed-steps',
       // The payroll runs a seeded employer has already made, priced only

@@ -76,6 +76,7 @@ import { WORLD_SLUGS } from '@/lib/seed-world'
 import { isDemoCompany } from '@/lib/demo-company'
 import { reservedAddress, RESERVED_SUFFIXES } from '@/lib/demo-session'
 import { DEFAULT_ACCOUNTS } from '@/lib/gl'
+import { describeCompanies, describePeople, type OwnerWords } from '@/lib/seed-owners'
 
 type Db = PrismaClient | Prisma.TransactionClient
 
@@ -146,6 +147,25 @@ export interface CleanupPlan {
   total: number
   /** One line a person can read. */
   says: string
+  /**
+   * The same rows, by whose record they sit on — a company by name and
+   * domain, a person by name and a masked address, with where they are
+   * seated — so a visitor's sandbox reads differently from a customer.
+   */
+  byOwner: OwnerGroup[]
+  /** How many owners of each standing, in a sentence. */
+  owners: string
+}
+
+export interface OwnerGroup {
+  owner: string
+  kind: 'Company' | 'Person'
+  standing: string
+  /** Rows it would take back, per kind. */
+  counts: Partial<Record<CleanupKind, number>>
+  total: number
+  /** Marked rows on this owner that are kept, with the reason on the kind. */
+  held: number
 }
 
 const SAYS: Record<CleanupKind, string> = {
@@ -404,7 +424,124 @@ export async function planCleanup(db: Db = prisma): Promise<CleanupPlan> {
       : `${parts.join(', ')} outside the demo world, ${total} rows in all with what hangs off them.`) +
     (held ? ` ${held} marked row${held === 1 ? ' is' : 's are'} kept, each with the reason.` : '')
 
-  return { kinds, dependents, total, says }
+  const byOwner = await groupByOwner(db, kinds, demo)
+  return { kinds, dependents, total, says, byOwner, owners: ownersSay(byOwner) }
+}
+
+// ── Whose ─────────────────────────────────────────────────────────────
+
+type OwnerRef = { kind: 'Company' | 'Person'; id: string }
+
+/** Which person or company each listed row sits on. */
+async function ownersOf(db: Db, kind: CleanupKind, ids: string[]): Promise<Map<string, OwnerRef>> {
+  const out = new Map<string, OwnerRef>()
+  if (!ids.length) return out
+  const where = { id: { in: ids } }
+  const co = (id: string, companyId: string | null | undefined) => companyId && out.set(id, { kind: 'Company', id: companyId })
+  const pe = (id: string, personId: string | null | undefined) => personId && out.set(id, { kind: 'Person', id: personId })
+  switch (kind) {
+    case 'verificationFiles':
+      for (const d of await db.verificationDoc.findMany({ where, select: { id: true, verification: { select: { personId: true, companyId: true } } } })) {
+        if (d.verification.personId) pe(d.id, d.verification.personId)
+        else co(d.id, d.verification.companyId)
+      }
+      break
+    case 'resumes':
+      for (const r of await db.resume.findMany({ where, select: { id: true, personId: true } })) pe(r.id, r.personId)
+      break
+    case 'visaPetitions':
+      for (const v of await db.visaPetition.findMany({ where, select: { id: true, personId: true } })) pe(v.id, v.personId)
+      break
+    case 'journalEntries':
+      for (const e of await db.journalEntry.findMany({ where, select: { id: true, companyId: true } })) co(e.id, e.companyId)
+      break
+    case 'ledgerAccounts':
+      for (const a of await db.ledgerAccount.findMany({ where, select: { id: true, companyId: true } })) co(a.id, a.companyId)
+      break
+    case 'paymentRuns':
+      for (const r of await db.paymentRun.findMany({ where, select: { id: true, companyId: true } })) co(r.id, r.companyId)
+      break
+    case 'creditNotes':
+    case 'matchOverrides': {
+      const rows =
+        kind === 'creditNotes'
+          ? await db.creditNote.findMany({ where, select: { id: true, invoiceId: true } })
+          : await db.invoiceMatchOverride.findMany({ where, select: { id: true, invoiceId: true } })
+      for (const r of rows) {
+        const line = await db.invoiceLine.findFirst({
+          where: { invoiceId: r.invoiceId, sellContractId: { not: null } },
+          select: { sellContract: { select: { companyId: true } } },
+        })
+        co(r.id, line?.sellContract?.companyId)
+      }
+      break
+    }
+  }
+  return out
+}
+
+async function groupByOwner(db: Db, kinds: Record<CleanupKind, KindPlan>, demo: Set<string>): Promise<OwnerGroup[]> {
+  const groups = new Map<string, { ref: OwnerRef; counts: Partial<Record<CleanupKind, number>>; total: number; held: number }>()
+  const at = (ref: OwnerRef) => {
+    const k = `${ref.kind}:${ref.id}`
+    let g = groups.get(k)
+    if (!g) groups.set(k, (g = { ref, counts: {}, total: 0, held: 0 }))
+    return g
+  }
+  for (const kind of CLEANUP_KINDS) {
+    const taken = await ownersOf(db, kind, kinds[kind].ids)
+    for (const id of kinds[kind].ids) {
+      const ref = taken.get(id)
+      if (!ref) continue
+      const g = at(ref)
+      g.counts[kind] = (g.counts[kind] ?? 0) + 1
+      g.total++
+    }
+    const held = await ownersOf(db, kind, kinds[kind].held.map((h) => h.id))
+    for (const ref of held.values()) at(ref).held++
+  }
+  const refs = [...groups.values()].map((g) => g.ref)
+  const words = new Map<string, OwnerWords>([
+    ...(await describeCompanies(db, refs.filter((r) => r.kind === 'Company').map((r) => r.id), demo)),
+    ...(await describePeople(db, refs.filter((r) => r.kind === 'Person').map((r) => r.id), demo)),
+  ])
+  return [...groups.values()]
+    .map((g) => {
+      const w = words.get(g.ref.id)
+      return {
+        owner: w?.says ?? `a ${g.ref.kind.toLowerCase()} no longer on the record`,
+        kind: g.ref.kind,
+        standing: w?.standing ?? 'GONE',
+        counts: g.counts,
+        total: g.total,
+        held: g.held,
+      }
+    })
+    .sort((a, b) => b.total - a.total || b.held - a.held || a.owner.localeCompare(b.owner))
+}
+
+const STANDING_WORDS: Record<string, string> = {
+  SANDBOX_VISITOR: 'visitors seated only in their own demo sandbox',
+  AT_A_COMPANY: 'people seated at a company outside the demo world',
+  NO_SEAT: 'people with no seat at any company',
+  IN_THE_DEMO_ONLY: 'people seated only at demo companies',
+  MADE_UP: 'people at made-up addresses',
+  OUTSIDE: 'companies outside the demo world',
+  CENSUS_SANDBOX: 'census sandboxes',
+  VISITOR_SANDBOX: 'visitor sandboxes',
+  DEMO: 'demo companies',
+  GONE: 'owners no longer on the record',
+}
+
+function ownersSay(groups: OwnerGroup[]): string {
+  if (!groups.length) return 'Nobody outside the demo world holds a seed row.'
+  const n = new Map<string, number>()
+  for (const g of groups) n.set(g.standing, (n.get(g.standing) ?? 0) + 1)
+  return (
+    `${groups.length} ${groups.length === 1 ? 'owner' : 'owners'}: ` +
+    [...n].sort((a, b) => b[1] - a[1]).map(([s, k]) => `${STANDING_WORDS[s] ?? s}: ${k}`).join('; ') +
+    '.'
+  )
 }
 
 const LABEL: Record<CleanupKind, string> = {

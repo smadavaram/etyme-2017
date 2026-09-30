@@ -52,6 +52,14 @@
  * Three models are records that outlive what they mention and are never
  * deleted: `JobRun`, `Incident`, `MarketingLead` (`KEPT`).
  *
+ * Before anybody asks for the delete, `dryRunRebuild` says what would go
+ * and every tie, by whose record it is (lib/seed-owners names the owner,
+ * masking a real person's address), and `releaseTies` lets go of the ties
+ * that only a reference holds — moving it to a stand-in made-up person,
+ * emptying it, or taking one id out of a list — deleting nothing. A tie
+ * only deleting a row would release is named and left. See "Whose
+ * records, and letting go of them" below.
+ *
  * ── How ──────────────────────────────────────────────────────────────
  *
  * One transaction, children before parents, in `DELETE_ORDER` — a
@@ -64,6 +72,7 @@ import { prisma } from '@/lib/db'
 import { WORLD_SLUGS } from '@/lib/seed-world'
 import { isDemoCompany } from '@/lib/demo-company'
 import { reservedAddress, RESERVED_SUFFIXES } from '@/lib/demo-session'
+import { describeCompanies, describePeople, maskEmail, ownerOf, type OwnerWords } from '@/lib/seed-owners'
 
 /** What the caller has to type. A sentence, so it cannot be sent by accident. */
 export const CONFIRM_PHRASE = 'delete the demo world'
@@ -491,6 +500,8 @@ export interface RebuildPlan {
   says: string[]
   /** @internal the ids, per model, for the delete. */
   store: Store
+  /** @internal the reserved-address people kept, by id. */
+  sparedIds: string[]
 }
 
 /** The companies at the root: the seed's roster, and demos by their seats. */
@@ -620,6 +631,7 @@ export async function planDemoRebuild(db: Db = prisma): Promise<RebuildPlan> {
     threads,
     says: await describe(db, threads, spared, emailOf),
     store,
+    sparedIds: [...spared.keys()],
   }
 }
 
@@ -638,8 +650,10 @@ async function describe(
     }
     if (model === 'Person') {
       const r = (await db.$queryRawUnsafe(`SELECT "primaryEmail" FROM "Person" WHERE "id" = $1`, id)) as Row[]
-      const email = r[0]?.primaryEmail ?? emailOf.get(id) ?? id
-      return spared.has(id) ? `${email} (a demo address something real still holds)` : email
+      // Masked: this sentence goes back to whoever holds the secret, and a
+      // real person's address is not theirs to read (lib/seed-owners).
+      const email = maskEmail(r[0]?.primaryEmail ?? emailOf.get(id) ?? id)
+      return spared.has(id) ? `${email} (a made-up address a record outside the demo world still holds)` : email
     }
     return `${model} ${id}`
   }
@@ -680,7 +694,8 @@ export async function deleteDemoWorld(opts: { by?: string } = {}): Promise<Delet
             `${plan.says.length === 1 ? 'place' : 'places'}, and deleting it would delete a real row. ` +
             `End or remove ${plan.says.length === 1 ? 'that link' : 'those links'} first: ` +
             plan.says.slice(0, 10).join('; ') +
-            (plan.says.length > 10 ? `; and ${plan.says.length - 10} more.` : '.'),
+            (plan.says.length > 10 ? `; and ${plan.says.length - 10} more.` : '.') +
+            ' Send {"dryRun":true} to see whose records these are and what releasing them would change.',
           threads: plan.says,
         }
       }
@@ -734,6 +749,479 @@ export async function deleteDemoWorld(opts: { by?: string } = {}): Promise<Delet
         spared: plan.spared.length,
         ms: Date.now() - started,
       }
+    },
+    { timeout: 55_000, maxWait: 10_000 }
+  )
+}
+
+// ── Whose records, and letting go of them ─────────────────────────────
+//
+// Production refused a rebuild on 2026-09-30 with fourteen threads, most
+// of them "a demo Context points at world-computer-systems@demo.etyme.local
+// (a demo address something real still holds)". What that means, plainly:
+//
+//   A made-up person — a demo desk, or a `verify.*@seed.etyme.invalid`
+//   address somebody made by hand while checking a deploy — is also named
+//   by a row outside the demo world: a seat at a real company or a
+//   visitor's sandbox, a contact card, a posting it created. Deleting the
+//   person would delete that row, so the plan keeps the person ("spared").
+//   But the demo world's own rows still point at the kept person, and the
+//   rule counts a demo row pointing at something that stays as a thread.
+//
+// So two questions, and this section answers both before anything moves:
+// whose row holds each kept person (and each other thread), and what the
+// smallest change is that lets go of it without deleting it.
+//
+//   REPOINT  a row outside the world names the made-up person directly.
+//            It is moved to a stand-in made-up person of the same name at
+//            `released.<id>@released.etyme.invalid`, so the row keeps its
+//            meaning, nothing is deleted, and the demo desk stops being
+//            seated anywhere real. The only row this writes is the stand-in.
+//   NULL     the row names something of the world's through a column that
+//            may be empty.
+//   REMOVE   the row lists a demo id among others; that one id comes out.
+//
+// A tie any other change would need — a required column, a star on a demo
+// person, a real person's seat at a demo company — is named and left.
+// And a kept person is let go of whole or not at all: releasing two of
+// its three holds would change rows and still not unblock the rebuild.
+
+/** What the caller has to type to let go of the ties. */
+export const RELEASE_PHRASE = 'release the demo world from real records'
+
+/** Where a stand-in lives. Reserved, so it can name nobody. */
+export const STAND_IN_DOMAIN = 'released.etyme.invalid'
+
+export type ReleaseOp = 'REPOINT' | 'NULL' | 'REMOVE'
+
+export interface ReleaseChange {
+  op: ReleaseOp
+  table: string
+  column: string
+  /** The rows it changes. */
+  ids: string[]
+  /** The value each row holds now, and the only value it is changed from. */
+  from: string
+  /** One sentence. */
+  says: string
+}
+
+export interface Tie {
+  /** The table of the row that is not only the demo world's. */
+  table: string
+  column: string
+  rows: number
+  /** Whose row it is, in words, masked. */
+  owner: string
+  ownerStanding: string
+  /** The demo person or company it is tied to. */
+  demo: string
+  /** Why it is tied, in a sentence. */
+  why: string
+  releasable: boolean
+  /** What releasing it would change, or why it cannot. */
+  release: string
+  /** Something true today that matters more than the rebuild. */
+  warning?: string
+}
+
+export interface TiePlan {
+  ties: Tie[]
+  changes: ReleaseChange[]
+  /** Stand-ins the release would write, one per made-up person let go. */
+  standIns: { for: string; name: string; email: string }[]
+  /** Ties nothing here will release, as sentences. */
+  cannot: string[]
+  /** True when, once the changes are made, nothing ties the world. */
+  clearsTheWay: boolean
+  says: string
+}
+
+const cloneStore = (s: Store): Store => new Map([...s].map(([m, rows]) => [m, new Map(rows)]))
+
+/** Whether a column may be empty. */
+function mayBeEmpty(model: string, column: string): boolean {
+  const f = byName.get(model)?.fields.find((x) => x.kind === 'scalar' && (x.dbName ?? x.name) === column)
+  return !!f && !f.isRequired
+}
+function isListColumn(model: string, column: string): boolean {
+  return !!byName.get(model)?.fields.find((x) => (x.dbName ?? x.name) === column)?.isList
+}
+
+/** What a row does, in the trade's words, for the tie sentences. */
+const VERB: Record<string, string> = {
+  Context: 'gave a seat to',
+  CompanyContact: 'keeps as a contact',
+  Favorite: 'starred',
+  Blacklist: 'blocked',
+  Enrollment: 'enrolled in a course',
+  DoNotSubmit: 'marked do-not-submit',
+  OrderPosting: 'has postings made by',
+  AgreementSignature: 'has an agreement signature attested by',
+  CustomerCreditLimit: 'has a credit limit set by',
+}
+const verbFor = (model: string, column: string) => VERB[model] ?? `has a ${model} row naming, in ${column},`
+
+/**
+ * Every tie between the demo world and a record outside it: whose, why,
+ * and what letting go would change. Reads only.
+ */
+export async function planTies(db: Db, plan: RebuildPlan): Promise<TiePlan> {
+  const all = edges()
+  const final = plan.store
+  const kept = new Set<string>(KEPT)
+  const worldCompanies = new Set(plan.companies.map((c) => c.id))
+
+  // What each kept person reaches, and which kept person reaches what.
+  const sparedSet = new Set(plan.sparedIds)
+  const reach = plan.sparedIds.length
+    ? await closure(db, cloneStore(final), new Map([['Person', plan.sparedIds.map((id) => ({ id }) as Row)]]), all)
+    : cloneStore(final)
+  const roots = rootsOf(reach, final, sparedSet, all)
+  const peopleAt = (model: string, id: string): Set<string> =>
+    model === 'Person' && sparedSet.has(id) ? new Set([id]) : roots.get(`${model}:${id}`) ?? new Set()
+
+  // ── Owners, in words ──
+  const ownerCache = new Map<string, { kind: 'Company' | 'Person'; id: string } | null>()
+  const owner = async (model: string, id: string) => {
+    const k = `${model}:${id}`
+    if (!ownerCache.has(k)) ownerCache.set(k, await ownerOf(db, model, id))
+    return ownerCache.get(k)!
+  }
+
+  const threads = plan.threads
+  const tied = new Set<string>()
+  const toKept: Thread[] = []
+  const otherOut: Thread[] = []
+  const inward: Thread[] = []
+  for (const t of threads) {
+    if (!t.outward) inward.push(t)
+    else {
+      const who = peopleAt(t.to, t.value)
+      if (who.size) {
+        who.forEach((p) => tied.add(p))
+        toKept.push(t)
+      } else otherOut.push(t)
+    }
+  }
+
+  // ── What holds each tied kept person ──
+  interface Hold { person: string; model: string; id: string; columns: { column: string; to: string; value: string }[]; staying: { to: string; value: string } }
+  const holds: Hold[] = []
+  for (const e of all) {
+    if (!e.fk || kept.has(e.to)) continue
+    for (const [id, row] of reach.get(e.from) ?? []) {
+      if (has(final, e.from, id)) continue
+      const v = row[e.column]
+      if (!v || has(reach, e.to, v)) continue
+      for (const p of roots.get(`${e.from}:${id}`) ?? []) {
+        if (!tied.has(p)) continue
+        if (holds.some((h) => h.person === p && h.model === e.from && h.id === id)) continue
+        const columns: Hold['columns'] = []
+        for (const x of all) {
+          if (x.from !== e.from) continue
+          const w = row[x.column]
+          if (!w || !has(reach, x.to, w) || has(final, x.to, w)) continue
+          if (peopleAt(x.to, w).has(p)) columns.push({ column: x.column, to: x.to, value: w })
+        }
+        holds.push({ person: p, model: e.from, id, columns, staying: { to: e.to, value: v } })
+      }
+    }
+  }
+
+  // ── Words for everybody named ──
+  const companyIds = new Set<string>()
+  const personIds = new Set<string>(tied)
+  const note = (o: { kind: 'Company' | 'Person'; id: string } | null) => {
+    if (o?.kind === 'Company') companyIds.add(o.id)
+    else if (o) personIds.add(o.id)
+  }
+  for (const h of holds) note(await owner(h.staying.to, h.staying.value))
+  for (const t of otherOut) {
+    note(await owner(t.to, t.value))
+    note(await owner(t.model, t.id))
+  }
+  for (const t of inward) {
+    note(await owner(t.model, t.id))
+    note(await owner(t.to, t.value))
+  }
+  const words = new Map<string, OwnerWords>([
+    ...(await describeCompanies(db, [...companyIds], worldCompanies)),
+    ...(await describePeople(db, [...personIds], worldCompanies)),
+  ])
+  const wordsOf = (o: { id: string } | null): OwnerWords | undefined => (o ? words.get(o.id) : undefined)
+  const unknown = { name: 'an owner that could not be traced', standing: 'UNKNOWN', says: 'an owner that could not be traced' }
+
+  // ── Ties and changes, grouped ──
+  const ties = new Map<string, Tie>()
+  const addTie = (t: Omit<Tie, 'rows'>) => {
+    const k = [t.table, t.column, t.owner, t.demo, t.release].join('|')
+    const had = ties.get(k)
+    if (had) had.rows++
+    else ties.set(k, { ...t, rows: 1 })
+  }
+  const changes = new Map<string, ReleaseChange>()
+  const addChange = (op: ReleaseOp, table: string, column: string, id: string, from: string, says: string) => {
+    const k = [op, table, column, from].join('|')
+    const had = changes.get(k)
+    if (had) {
+      if (!had.ids.includes(id)) had.ids.push(id)
+    } else changes.set(k, { op, table, column, ids: [id], from, says })
+  }
+  const cannot = new Set<string>()
+  const standIns: TiePlan['standIns'] = []
+
+  // 1. Made-up people something outside the world holds.
+  const personRows = tied.size
+    ? ((await db.$queryRawUnsafe(`SELECT "id", "name", "primaryEmail" FROM "Person" WHERE "id" = ANY($1::text[])`, [...tied])) as Row[])
+    : []
+  const personRow = new Map(personRows.map((r) => [r.id as string, r]))
+  const liveSeats = new Set<string>()
+  const seatIds = holds.filter((h) => h.model === 'Context').map((h) => h.id)
+  if (seatIds.length) {
+    for (const r of (await db.$queryRawUnsafe(
+      `SELECT "id" FROM "Context" WHERE "id" = ANY($1::text[]) AND "revokedAt" IS NULL`,
+      seatIds
+    )) as Row[]) liveSeats.add(r.id as string)
+  }
+  for (const p of tied) {
+    const pr = personRow.get(p)
+    const demoName = `${pr?.name ?? 'a demo person'} (${maskEmail(pr?.primaryEmail as string)})`
+    const mine = holds.filter((h) => h.person === p)
+    const pointing = new Map<string, number>()
+    for (const t of toKept) {
+      if (!peopleAt(t.to, t.value).has(p)) continue
+      const k = `${t.model}.${t.column}`
+      pointing.set(k, (pointing.get(k) ?? 0) + 1)
+    }
+    const demoSide = [...pointing].map(([k, n]) => `${k}${n > 1 ? ` ×${n}` : ''}`).join(', ')
+    if (!mine.length) {
+      cannot.add(
+        `${demoName} is kept because it is tied to another kept demo person, not to a record of its own; ` +
+          'releasing that person releases this one.'
+      )
+      continue
+    }
+    const decided = mine.flatMap((h) =>
+      h.columns.map((c) => {
+        const op: ReleaseOp | null =
+          c.to === 'Person' && c.value === p ? 'REPOINT' : mayBeEmpty(h.model, c.column) ? 'NULL' : null
+        return { h, c, op }
+      })
+    )
+    const whole = decided.length > 0 && decided.every((d) => d.op)
+    const standIn = { for: (pr?.primaryEmail as string) ?? p, name: (pr?.name as string) ?? 'Released demo person', email: `released.${p}@${STAND_IN_DOMAIN}` }
+    if (whole && decided.some((d) => d.op === 'REPOINT')) standIns.push(standIn)
+    for (const d of decided) {
+      const who = wordsOf(await owner(d.h.staying.to, d.h.staying.value)) ?? unknown
+      const release = !whole
+        ? d.op
+          ? `Left as it is: another row holding ${demoName} cannot be let go of without deleting it, so changing this one would not free the rebuild.`
+          : `Cannot be released without deleting the ${d.h.model} row: ${d.c.column} must name something, and what it names goes with the demo world.`
+        : d.op === 'REPOINT'
+          ? `Move ${d.h.model}.${d.c.column} to a stand-in made-up person of the same name, ${standIn.email}. Nothing is deleted.`
+          : `Empty ${d.h.model}.${d.c.column}. Nothing is deleted.`
+      const warning =
+        d.h.model === 'Context' && liveSeats.has(d.h.id) && who.standing !== 'DEMO'
+          ? `Today, anybody the demo signs in as ${demoName} can choose a seat at ${who.name}.`
+          : undefined
+      addTie({
+        table: d.h.model,
+        column: d.c.column,
+        owner: who.says,
+        ownerStanding: who.standing,
+        demo: demoName,
+        why:
+          `${who.name} ${verbFor(d.h.model, d.c.column)} the made-up person ${demoName}. ` +
+          `Deleting that person would delete this row, so the rebuild keeps the person; ` +
+          `and the demo world's own rows still point at it (${demoSide || 'none'}), so the rebuild stops.`,
+        releasable: whole,
+        release,
+        ...(warning ? { warning } : {}),
+      })
+      if (!whole) {
+        if (!d.op) cannot.add(`${who.name} ${verbFor(d.h.model, d.c.column)} ${demoName} (${d.h.model}.${d.c.column}); it must name something, so only deleting it lets go.`)
+        continue
+      }
+      addChange(
+        d.op!,
+        d.h.model,
+        d.c.column,
+        d.h.id,
+        d.c.value,
+        d.op === 'REPOINT'
+          ? `${d.h.model}.${d.c.column}: ${demoName} → the stand-in ${standIn.email}`
+          : `${d.h.model}.${d.c.column}: emptied where it named ${demoName}'s ${d.c.to}`
+      )
+    }
+  }
+
+  // 2. A demo row naming something outside the world.
+  for (const t of otherOut) {
+    const who = wordsOf(await owner(t.to, t.value)) ?? unknown
+    const empty = mayBeEmpty(t.model, t.column)
+    const demoOwner = wordsOf(await owner(t.model, t.id))
+    const demo = demoOwner && demoOwner.id !== (await owner(t.to, t.value))?.id ? demoOwner.name : `a demo ${t.model}`
+    const why =
+      t.model === 'Context' && t.to === 'Person'
+        ? `${who.name} holds a seat at the demo company ${demo}; deleting the world would delete that seat.`
+        : `A demo ${t.model} names ${who.name} in ${t.column}; deleting it with the world would delete a row that is theirs too.`
+    addTie({
+      table: t.model,
+      column: t.column,
+      owner: who.says,
+      ownerStanding: who.standing,
+      demo,
+      why,
+      releasable: empty,
+      release: empty
+        ? `Empty ${t.model}.${t.column} on the demo row, so it no longer names them. Nothing of theirs changes.`
+        : `Cannot be released without deleting the row: ${t.column} must name something. End it by hand, or keep the world.`,
+    })
+    if (empty) addChange('NULL', t.model, t.column, t.id, t.value, `${t.model}.${t.column}: emptied on a demo row where it named ${who.name}`)
+    else cannot.add(`${why} (${t.model}.${t.column})`)
+  }
+
+  // 3. A row outside the world naming a demo one in a loose column.
+  for (const t of inward) {
+    const who = wordsOf(await owner(t.model, t.id)) ?? unknown
+    const target = wordsOf(await owner(t.to, t.value))
+    const demo = target && t.to === target.kind ? target.name : `a demo ${t.to}`
+    const op: ReleaseOp | null = isListColumn(t.model, t.column) ? 'REMOVE' : mayBeEmpty(t.model, t.column) ? 'NULL' : null
+    const why = `${who.name} ${verbFor(t.model, t.column)} ${demo}, which is demo; the ${t.model} row would be left naming nobody.`
+    addTie({
+      table: t.model,
+      column: t.column,
+      owner: who.says,
+      ownerStanding: who.standing,
+      demo,
+      why,
+      releasable: !!op,
+      release:
+        op === 'REMOVE'
+          ? `Take the one demo id out of ${t.model}.${t.column}; the rest of the list stays. Nothing is deleted.`
+          : op === 'NULL'
+            ? `Empty ${t.model}.${t.column}. Nothing is deleted.`
+            : `Cannot be released without deleting the ${t.model} row, which is theirs to decide. Remove it by hand, or keep the world.`,
+    })
+    if (op) addChange(op, t.model, t.column, t.id, t.value, `${t.model}.${t.column}: ${op === 'REMOVE' ? 'took out' : 'emptied'} ${demo}`)
+    else cannot.add(`${why} (${t.model}.${t.column})`)
+  }
+
+  const list = [...ties.values()]
+  const changed = [...changes.values()]
+  const rows = changed.reduce((n, c) => n + c.ids.length, 0)
+  const clearsTheWay = cannot.size === 0
+  const says =
+    list.length === 0
+      ? 'Nothing ties the demo world to a record outside it. The rebuild can run.'
+      : `${list.reduce((n, t) => n + t.rows, 0)} rows outside the demo world are tied to it, in ${list.length} ` +
+        `${list.length === 1 ? 'way' : 'ways'}. ` +
+        (changed.length
+          ? `Releasing would change ${rows} ${rows === 1 ? 'row' : 'rows'} and delete none` +
+            (standIns.length ? `, writing ${standIns.length} stand-in made-up ${standIns.length === 1 ? 'person' : 'people'}` : '') +
+            '. '
+          : '') +
+        (clearsTheWay
+          ? 'After that the rebuild can run.'
+          : `${cannot.size} ${cannot.size === 1 ? 'tie' : 'ties'} cannot be released without deleting a row, and ` +
+            'the rebuild stays refused until somebody ends them by hand.') +
+        ` To release, send {"confirm":"${RELEASE_PHRASE}"}.`
+  return { ties: list, changes: changed, standIns, cannot: [...cannot], clearsTheWay, says }
+}
+
+/** Everything the rebuild's dry run answers, with nothing written. */
+export async function dryRunRebuild(db: Db = prisma) {
+  const plan = await planDemoRebuild(db)
+  const ties = await planTies(db, plan)
+  return {
+    dryRun: true as const,
+    wouldDelete: {
+      companies: plan.companies.map((c) => c.name),
+      people: plan.people,
+      rows: plan.total,
+      byTable: plan.rows,
+    },
+    keptPeople: plan.spared.map((s) => s.email),
+    blocked: plan.threads.length > 0,
+    ...ties,
+  }
+}
+
+export class ReleaseDrifted extends Error {}
+
+export type ReleaseOutcome = { released: number; standIns: number; says: string; remaining: string[] }
+
+/**
+ * Make exactly the changes the tie plan lists, in one transaction, and
+ * write down what each row held before. Deletes nothing. If any change
+ * finds a different number of rows than the plan listed, nothing moves.
+ */
+export async function releaseTies(opts: { by?: string } = {}): Promise<ReleaseOutcome> {
+  return prisma.$transaction(
+    async (tx) => {
+      const plan = await planDemoRebuild(tx)
+      const tp = await planTies(tx, plan)
+      if (!tp.changes.length) {
+        return { released: 0, standIns: 0, says: `Nothing was changed. ${tp.says}`, remaining: tp.cannot }
+      }
+      const standInFor = new Map<string, string>()
+      for (const s of tp.standIns) {
+        const made = await tx.person.create({ data: { name: s.name, primaryEmail: s.email }, select: { id: true } })
+        // The stand-in's address carries the kept person's id.
+        standInFor.set(s.email.slice('released.'.length, s.email.indexOf('@')), made.id)
+      }
+      let released = 0
+      for (const c of tp.changes) {
+        const t = q(table(c.table))
+        const col = q(c.column)
+        let n: number
+        if (c.op === 'REPOINT') {
+          const to = standInFor.get(c.from)
+          if (!to) throw new ReleaseDrifted(`No stand-in was written for ${c.from}; nothing was changed.`)
+          n = await tx.$executeRawUnsafe(`UPDATE ${t} SET ${col} = $1 WHERE "id" = ANY($2::text[]) AND ${col} = $3`, to, c.ids, c.from)
+        } else if (c.op === 'NULL') {
+          n = await tx.$executeRawUnsafe(`UPDATE ${t} SET ${col} = NULL WHERE "id" = ANY($1::text[]) AND ${col} = $2`, c.ids, c.from)
+        } else {
+          n = await tx.$executeRawUnsafe(
+            `UPDATE ${t} SET ${col} = array_remove(${col}, $2) WHERE "id" = ANY($1::text[]) AND $2 = ANY(${col})`,
+            c.ids,
+            c.from
+          )
+        }
+        if (n !== c.ids.length) {
+          throw new ReleaseDrifted(
+            `The plan listed ${c.ids.length} ${c.table} rows to change in ${c.column} and ${n} were there. ` +
+              'Something changed since the plan was read; nothing was changed.'
+          )
+        }
+        released += n
+      }
+      const says =
+        `Released ${released} ${released === 1 ? 'row' : 'rows'} outside the demo world from it, deleting none` +
+        (tp.standIns.length ? ` and writing ${tp.standIns.length} stand-in made-up ${tp.standIns.length === 1 ? 'person' : 'people'}` : '') +
+        '.' +
+        (tp.cannot.length ? ` ${tp.cannot.length} ${tp.cannot.length === 1 ? 'tie is' : 'ties are'} left, because only deleting a row would release ${tp.cannot.length === 1 ? 'it' : 'them'}.` : ' The rebuild can run.')
+      await tx.automationLog.create({
+        data: {
+          companyId: null,
+          action: 'DEMO_TIES_RELEASED',
+          summary: says,
+          reason:
+            'Somebody holding the deployment secret asked for the records outside the demo world to be let go of ' +
+            'it, and typed the phrase. Each change only moved or emptied a reference to a demo person, company or ' +
+            'row; no row was deleted. What every row held before is in the payload.',
+          payload: {
+            by: opts.by ?? 'CRON_SECRET',
+            changes: tp.changes.map((c) => ({ op: c.op, table: c.table, column: c.column, ids: c.ids, from: c.from, to: c.op === 'REPOINT' ? standInFor.get(c.from) : null })),
+            standIns: tp.standIns.map((s) => ({ for: s.for, email: s.email, id: standInFor.get(s.email.slice('released.'.length, s.email.indexOf('@'))) })),
+            left: tp.cannot,
+          } as unknown as Prisma.InputJsonValue,
+          // Nothing here puts the references back; the payload says what they were.
+          reversible: false,
+        },
+      })
+      return { released, standIns: tp.standIns.length, says, remaining: tp.cannot }
     },
     { timeout: 55_000, maxWait: 10_000 }
   )

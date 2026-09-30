@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { Prisma } from '@prisma/client'
-import { DELETE_ORDER, KEPT, LOOSE, ORPHANED_WITH_THE_WORLD, edges, CONFIRM_PHRASE } from '@/lib/seed-rebuild'
+import { DELETE_ORDER, KEPT, LOOSE, ORPHANED_WITH_THE_WORLD, edges, CONFIRM_PHRASE, RELEASE_PHRASE, STAND_IN_DOMAIN } from '@/lib/seed-rebuild'
+import { maskEmail } from '@/lib/seed-owners'
+import { reservedAddress } from '@/lib/demo-session'
 
 /**
  * The rebuild deletes rows, so its reach is checked against the schema
@@ -112,5 +114,32 @@ describe('rebuilding the demo world', () => {
   it('logs the rebuild as an act that cannot be put back', () => {
     expect(LIB).toContain("action: 'DEMO_WORLD_REBUILT'")
     expect(LIB).toMatch(/reversible: false/)
+  })
+
+  it('names a real person by a masked address and a made-up one whole', () => {
+    expect(maskEmail('priya.shah@gmail.com')).toBe('p\u2022\u2022\u2022@gmail.com')
+    expect(maskEmail('world-computer-systems@demo.etyme.local')).toBe('world-computer-systems@demo.etyme.local')
+    expect(maskEmail('verify.three@seed.etyme.invalid')).toBe('verify.three@seed.etyme.invalid')
+    expect(maskEmail(null)).toBe('no address')
+  })
+
+  it('releasing the ties asks for a phrase of its own, typed out, that cannot be mistaken for the rebuild', () => {
+    expect(RELEASE_PHRASE).toBe('release the demo world from real records')
+    expect(RELEASE_PHRASE).not.toBe(CONFIRM_PHRASE)
+    expect(ROUTE).toContain('RELEASE_PHRASE')
+    expect(ROUTE).toMatch(/body\?\.dryRun === true/)
+  })
+
+  it('releasing the ties changes references only and has no way to delete a row', () => {
+    const release = CODE.slice(CODE.indexOf('export const RELEASE_PHRASE'))
+    expect(release.length).toBeGreaterThan(1000)
+    expect(release).not.toMatch(/DELETE\s+FROM/i)
+    expect(release).not.toMatch(/\.delete(Many)?\(/)
+    expect(release).toContain("action: 'DEMO_TIES_RELEASED'")
+    expect(release).toMatch(/reversible: false/)
+  })
+
+  it('a stand-in for a released demo person lives at an address nobody can register', () => {
+    expect(reservedAddress(`released.abc@${STAND_IN_DOMAIN}`)).toBe(true)
   })
 })
