@@ -264,7 +264,7 @@ export default function LandingPage() {
           {/* From `lg` the words sit on the left and the screen on the
               right, so the whole hero is one screen at 1280 by 800; on a
               phone they stack, words first. */}
-          <div className="grid gap-y-6 lg:grid-cols-12 lg:items-center lg:gap-x-6">
+          <div className="grid gap-y-6 lg:grid-cols-12 lg:items-start lg:gap-x-6">
           <div className="lg:col-span-6">
           {/* The category above the founder's headline, 2026-09-30:
               "Enterprise contingent workforce mgmt above the hero line."
@@ -461,7 +461,7 @@ export default function LandingPage() {
           </h2>
           <div className="md:col-span-6 md:col-start-7">
             {JOIN.lines.map((line) => (
-              <p key={line} className="mb-4 max-w-[48ch] text-[16px] leading-relaxed text-etyme-canvas/[0.78] md:text-[17px]">
+              <p key={line} className="mb-4 last:mb-0 max-w-[48ch] text-[16px] leading-relaxed text-etyme-canvas/[0.78] md:text-[17px]">
                 {line}
               </p>
             ))}
