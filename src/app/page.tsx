@@ -349,12 +349,15 @@ export default function LandingPage() {
           </h2>
 
           <div className={`${UNDER_HEADING} grid gap-8 lg:grid-cols-12 lg:gap-x-6 lg:gap-y-0`}>
-            <ol className="divide-y divide-etyme-rule self-start border-y border-etyme-rule lg:col-span-6">
+            {/* The four rows share the screen's height on a desktop, so the
+                list and the screen start and end on the same lines
+                (2026-09-30: "you can make this symmetric too"). */}
+            <ol className="divide-y divide-etyme-rule border-y border-etyme-rule lg:col-span-6 lg:flex lg:flex-col">
               {STEPS.map((s) => (
-                <li key={s.n}>
+                <li key={s.n} className="lg:flex lg:flex-1">
                   <Link
                     href={s.href as Route}
-                    className="group flex items-baseline gap-4 py-5"
+                    className="group flex items-baseline gap-4 py-5 lg:w-full lg:items-center"
                   >
                     <span className="font-mono text-[12px] tabular-nums text-etyme-faint">{s.n}</span>
                     <span className="text-balance font-serif text-[20px] leading-snug text-etyme-ink
@@ -366,7 +369,7 @@ export default function LandingPage() {
               ))}
             </ol>
 
-            <figure className={`self-start lg:col-span-6 lg:col-start-7 ${FIGURE}`}>
+            <figure className={`lg:col-span-6 lg:col-start-7 ${FIGURE}`}>
               <img
                 src={STEP_SCREEN.img}
                 alt={STEP_SCREEN.alt}
