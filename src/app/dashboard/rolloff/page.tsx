@@ -423,7 +423,7 @@ export default function RolloffPage() {
             <h2 className="text-sm font-semibold text-etyme-ink">
               Tracked rolloff events
             </h2>
-            <span className="pill text-[10px] bg-emerald-50 text-etyme-verified">
+            <span className="pill text-[10px] bg-etyme-verified-wash text-etyme-verified">
               {tracked.length} tracked
             </span>
           </div>
@@ -446,7 +446,7 @@ export default function RolloffPage() {
                         <UrgencyBadge daysUntilEnd={event.daysLeft} />
                         {event.outcome && (
                           <span className={`pill text-[10px] ${
-                            event.outcome === 'REDEPLOYED' ? 'bg-emerald-50 text-etyme-verified' :
+                            event.outcome === 'REDEPLOYED' ? 'bg-etyme-verified-wash text-etyme-verified' :
                             event.outcome === 'BENCH' ? 'bg-amber-50 text-etyme-attention' :
                             'bg-etyme-canvas text-etyme-muted'
                           }`}>
@@ -486,7 +486,7 @@ export default function RolloffPage() {
                               onClick={() => handleResolve(event.id, 'REDEPLOYED')}
                               disabled={resolving === event.id}
                               className="text-[11px] px-2.5 py-1 rounded border border-etyme-rule
-                                         text-etyme-verified hover:bg-emerald-50 transition-colors
+                                         text-etyme-verified hover:bg-etyme-verified-wash transition-colors
                                          disabled:opacity-50"
                             >
                               Redeployed
@@ -530,7 +530,7 @@ export default function RolloffPage() {
                         </p>
                         <span className={`pill text-[10px] ${
                           progress === 4
-                            ? 'bg-emerald-50 text-etyme-verified'
+                            ? 'bg-etyme-verified-wash text-etyme-verified'
                             : 'bg-etyme-canvas text-etyme-muted'
                         }`}>
                           {progress}/4 complete
