@@ -108,6 +108,13 @@ const whole = (cents: number) => cents / 100
  * payer's intake runs (`alreadyOnABill`) is asked once more over the
  * whole period before anything is priced.
  */
+// How a payer accepts a week it pays for. A firm carrying the hours of a
+// supplier that is not on the platform (Pinnacle over Bluecrest) is the
+// lowest firm on the system and signs as the employer; that signature is
+// still its acceptance of what it pays.
+const PAYER_ACCEPTS: ('PASS_THROUGH' | 'CLIENT_APPROVAL' | 'EMPLOYER_ACCEPTANCE')[] =
+  ['PASS_THROUGH', 'CLIENT_APPROVAL', 'EMPLOYER_ACCEPTANCE']
+
 export async function acceptedWeeksToBill(input: {
   payerId: string
   vendorId: string
@@ -120,13 +127,13 @@ export async function acceptedWeeksToBill(input: {
     where: {
       personId: { in: input.personIds },
       periodStart: { gte: input.since },
-      assertions: { some: { companyId: input.payerId, state: 'LIVE', role: { in: ['PASS_THROUGH', 'CLIENT_APPROVAL'] } } },
+      assertions: { some: { companyId: input.payerId, state: 'LIVE', role: { in: PAYER_ACCEPTS } } },
     },
     select: {
       id: true, personId: true, periodStart: true, periodEnd: true, days: true,
       person: { select: { name: true } },
       assertions: {
-        where: { companyId: input.payerId, state: 'LIVE', role: { in: ['PASS_THROUGH', 'CLIENT_APPROVAL'] } },
+        where: { companyId: input.payerId, state: 'LIVE', role: { in: PAYER_ACCEPTS } },
         select: { hours: true },
       },
       invoiceLines: {
