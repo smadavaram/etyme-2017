@@ -14,6 +14,7 @@ import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-na
 import { describeLine, masterContractLine, pairLine } from '@/lib/order-naming'
 import { poBalance } from '@/lib/purchase-order'
 import { CHOOSES_OVERTIME_METHOD, overtimeMethodSays } from '@/lib/overtime-method-choice'
+import { CHOOSES_CUT_OVERTIME, cutOvertimeSays } from '@/lib/cut-overtime-choice'
 
 /**
  * GET /api/placements/:id
@@ -401,6 +402,11 @@ export async function GET(
                 overtimeMethod: true, overtimeMethodById: true,
                 overtimeMethodAt: true, overtimeMethodReason: true,
                 overtimeMethodBy: { select: { name: true } },
+                // How overtime is paid when fewer hours are accepted than
+                // were worked, and who chose it (lib/cut-overtime-choice).
+                cutOvertime: true, cutOvertimeById: true,
+                cutOvertimeAt: true, cutOvertimeReason: true,
+                cutOvertimeBy: { select: { name: true } },
                 // Our own order to the firm below us, where we raised
                 // one. A W2 buy line has none and never will.
                 workOrder: {
@@ -900,6 +906,16 @@ export async function GET(
                     mayChange:
                       ourBuy.companyId === mine &&
                       hasPermission(caller.permissions, CHOOSES_OVERTIME_METHOD),
+                  }
+                : null,
+              // How overtime is paid on a cut week, under the same gate
+              // and the same permission (PATCH ./cut-overtime).
+              cutOvertime: seePay
+                ? {
+                    ...cutOvertimeSays(ourBuy),
+                    mayChange:
+                      ourBuy.companyId === mine &&
+                      hasPermission(caller.permissions, CHOOSES_CUT_OVERTIME),
                   }
                 : null,
               // Our own order to the firm below us, where there is one.

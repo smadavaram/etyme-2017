@@ -115,6 +115,8 @@ interface Placement {
       document: LineDoc | null
       // Null where this reader may not read the pay rate.
       overtime: OvertimeOnLine | null
+      // Null where this reader may not read the pay rate.
+      cutOvertime: CutOvertimeOnLine | null
     } | null
     lines: Array<{
       id: string; position: number; person: string; isThisOne: boolean
@@ -402,6 +404,102 @@ function OvertimeMethod({ placementId, overtime, person }: { placementId: string
   )
 }
 
+/** How overtime is paid on a cut week, as `lib/cut-overtime-choice` says it. */
+interface CutOvertimeOnLine {
+  rule: string
+  chosen: boolean
+  says: string
+  chosenBy: string | null
+  chosenAt: string | null
+  reason: string | null
+  mayChange: boolean
+}
+
+const CUT_CHOICES: Array<{ value: string; label: string }> = [
+  { value: 'ABOVE_THE_LINE', label: 'Only accepted hours over 40 (default, what the law requires)' },
+  { value: 'KEEP_WEEK_OVERTIME', label: "Keep the week's overtime (ordinary hours cut first)" },
+]
+
+/**
+ * One sentence about how overtime is paid when fewer hours are accepted
+ * than were worked, and — for the desk that may change it — a small form.
+ * The route refuses what the form does not.
+ */
+function CutOvertime({ placementId, cut, person }: { placementId: string; cut: CutOvertimeOnLine; person: string }) {
+  const [now, setNow] = useState(cut)
+  const [open, setOpen] = useState(false)
+  const [rule, setRule] = useState(cut.rule)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const needsReason = rule !== 'ABOVE_THE_LINE'
+
+  async function save() {
+    setBusy(true)
+    setError(null)
+    const res = await fetch(`/api/placements/${placementId}/cut-overtime`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rule, reason }),
+    })
+    const body = await readJson(res)
+    setBusy(false)
+    if (!res.ok) {
+      setError(body?.error?.message ?? 'The choice could not be saved.')
+      return
+    }
+    setNow({ ...body.data, mayChange: now.mayChange })
+    setReason('')
+    setOpen(false)
+  }
+
+  return (
+    <div className="mt-3 text-[13px] leading-relaxed text-etyme-muted">
+      <p>
+        {now.says}
+        {now.reason && <span className="text-etyme-ink"> Why: {now.reason}</span>}
+        {now.mayChange && !open && (
+          <button type="button" className="ml-2 text-etyme-action hover:underline" onClick={() => setOpen(true)}>
+            Change
+          </button>
+        )}
+      </p>
+      {open && (
+        <div className="mt-2 space-y-2">
+          <label className="lbl block" htmlFor="cut-overtime">Overtime when fewer hours are accepted</label>
+          <select
+            id="cut-overtime"
+            className="max-w-[420px] px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink"
+            value={rule}
+            onChange={(e) => setRule(e.target.value)}
+          >
+            {CUT_CHOICES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            aria-label="Why"
+            placeholder={needsReason ? `Why (required): what was agreed with ${person}` : 'Why (optional)'}
+            className="w-full px-3 py-2 text-[13px] text-etyme-ink border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none resize-none"
+          />
+          {error && <p className="text-[12px] text-etyme-danger">{error}</p>}
+          <div className="flex gap-2">
+            <button type="button" className="btn-primary text-[13px] disabled:opacity-50" disabled={busy} onClick={save}>
+              Save
+            </button>
+            <button type="button" className="btn-secondary text-[13px]" onClick={() => { setOpen(false); setError(null) }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Fact({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
@@ -648,6 +746,9 @@ export default function PlacementPage() {
             </p>
             {p.contracts.buy?.overtime && (
               <OvertimeMethod placementId={p.id} overtime={p.contracts.buy.overtime} person={p.person.name} />
+            )}
+            {p.contracts.buy?.cutOvertime && (
+              <CutOvertime placementId={p.id} cut={p.contracts.buy.cutOvertime} person={p.person.name} />
             )}
           </div>
           )}

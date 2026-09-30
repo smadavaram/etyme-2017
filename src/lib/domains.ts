@@ -345,9 +345,16 @@ export const DOMAINS: Domain[] = [
       // on the placement's pay line. The arithmetic and the reading of the
       // stored value stay money's (lib/money/overtime-method).
       'lib/overtime-method-choice',
+      // Its twin: how overtime is paid when fewer hours are accepted than
+      // were worked. The reader payroll calls is here; the arithmetic
+      // stays money's (lib/money/pay-hours).
+      'lib/cut-overtime-choice',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // Deleting the demo world so it can be seeded again from today.
       'lib/seed-rebuild',
+      // Taking back what earlier seeds wrote outside the demo world, by
+      // marker, and nothing else.
+      'lib/seed-cleanup',
       // Seeding the demo world in steps that each fit one function call.
       'lib/seed-steps',
       // The payroll runs a seeded employer has already made, priced only

@@ -94,6 +94,8 @@ model Person {
   exemptAsserted       ExemptAssertion[]     @relation("exemptDecider")
   /// Pay lines whose overtime method they chose.
   otMethodsChosen      BuyContract[]         @relation("overtimeMethodChooser")
+  /// Pay lines whose cut-week overtime rule they chose.
+  cutOvertimeChosen    BuyContract[]         @relation("cutOvertimeChooser")
   reconRunsMade        ReconciliationRun[]   @relation("reconRunner")
   /// Contracts whose timesheets they were named to approve.
   approvesContracts    SellContract[]        @relation("contractApprover")
@@ -2928,6 +2930,18 @@ enum SellContractState {
   CANCELLED // terminated before start or during
 }
 
+/// How overtime is paid when the employer accepts fewer hours than were
+/// worked and the accepted week is still over the line. See
+/// `BuyContract.cutOvertime`.
+enum CutOvertime {
+  /// The default, and what the law requires: overtime only on the accepted
+  /// hours above the line. 41 of 45 accepted pays 40 + 1.
+  ABOVE_THE_LINE
+  /// The paying firm's choice, with a name and a reason: the cut comes off
+  /// ordinary hours first, so the week keeps its overtime. 41 pays 36 + 5.
+  KEEP_WEEK_OVERTIME
+}
+
 // BUY CONTRACT — the company's record of what they pay for talent
 // For direct employment: vendorCompanyId is null, entityId points to payroll entity.
 // For subcontracting: vendorCompanyId points to the vendor supplying the talent.
@@ -3043,6 +3057,32 @@ model BuyContract {
   /// Why. The write door requires it for anything but the default.
   overtimeMethodReason String?
 
+  // ── Overtime on a cut week, and who chose it ────────────────────────
+  //
+  // The founder, 2026-09-30: "go with your recommendations, but keep
+  // settings user configurable." When the employer accepts fewer hours
+  // than were worked and the accepted week is still over the line, the
+  // default pays overtime only on the accepted hours above the line —
+  // 41 of 45 accepted pays 40 + 1 at the premium — which is what the law
+  // requires and has no jump at the line. A paying firm may instead keep
+  // the week's overtime, cutting ordinary hours first (41 pays 36 + 5),
+  // recorded with who chose it and why, exactly as `overtimeMethod` is.
+  //
+  // An enum rather than a documented string, unlike `overtimeMethod`: two
+  // values that decide a wage, and a value outside them is one the
+  // database should refuse rather than one a reader quietly ignores. The
+  // who/when/why columns stay null until somebody chooses; payroll reads
+  // the choice through `cutOvertimeFor` in lib/cut-overtime-choice, which
+  // honors KEEP_WEEK_OVERTIME only where a name and a reason stand behind
+  // it. At or under the line is straight time whichever is chosen.
+  cutOvertime       CutOvertime @default(ABOVE_THE_LINE)
+  /// The person who chose it. Null where nobody has chosen.
+  cutOvertimeById   String?
+  cutOvertimeBy     Person?     @relation("cutOvertimeChooser", fields: [cutOvertimeById], references: [id])
+  cutOvertimeAt     DateTime?
+  /// Why. The write door requires it for KEEP_WEEK_OVERTIME.
+  cutOvertimeReason String?
+
   state     BuyContractState @default(DRAFT)
   startDate DateTime
   endDate   DateTime?
@@ -3140,6 +3180,7 @@ model BuyContract {
   @@index([internalOrderId])
   @@index([projectOrderId])
   @@index([overtimeMethodById])
+  @@index([cutOvertimeById])
 }
 
 // One person on a buy contract, at their own rate and dates.
