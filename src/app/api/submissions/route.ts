@@ -16,7 +16,7 @@ import { submissionScope, seatedDesk } from '@/lib/resolve-client-company'
 import { orderedOfSupplier } from '@/lib/supplier-desks'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
-import { submissionKind, tellEmployee, blockedSays } from './kind'
+import { submissionKind, tellEmployee, blockedSays, deliveryDeskSays } from './kind'
 import { networkOffer, adoptedKinds, tellAdoptedPerson, tellSupplier, supplierWallSays, ourBarSays } from './adopt'
 import { awardDoor } from '@/lib/award'
 import { maySeeOutside } from '@/lib/walls'
@@ -138,7 +138,16 @@ export async function POST(request: NextRequest) {
   // one rung to the next (`mayForward` in `lib/forwarding`). Submitting
   // and forwarding are one act seen from two rungs of a chain, and a
   // firm that may do one may do the other.
-  if (!hasPermission(caller.permissions, 'submissions.create')) {
+  //
+  // One carve-out, decided by the founder 2026-09-30 (CLAUDE.md, the
+  // integrator bench): a delivery manager (`assignments.write`) may put
+  // the firm's OWN employee forward — the employment is the consent and
+  // the kind is INTERNAL. Anybody the firm does not employ still needs
+  // the recruiting desk, the listing and the consent; that is refused
+  // per person below, in a sentence naming the desk.
+  const deliveryDeskOnly =
+    !hasPermission(caller.permissions, 'submissions.create') && hasPermission(caller.permissions, 'assignments.write')
+  if (!hasPermission(caller.permissions, 'submissions.create') && !deliveryDeskOnly) {
     return NextResponse.json(
       {
         error: {
@@ -485,6 +494,25 @@ export async function POST(request: NextRequest) {
         select: { id: true },
       })
       const employedByUs = employment !== null
+
+      // A delivery desk sells nobody the firm does not employ.
+      if (deliveryDeskOnly && !employedByUs) {
+        item.status = 'error'
+        item.code = 'NOT_YOUR_EMPLOYEE'
+        item.error = deliveryDeskSays(person.name, caller.company?.name ?? 'your firm')
+        await prisma.accessLog.create({
+          data: {
+            subjectId: personId,
+            actorPersonId: submitter?.id ?? null,
+            actorCompanyId: fromCompanyId,
+            action: 'SUBMIT',
+            allowed: false,
+            reason: `Delivery desk refused: ${person.name} is not employed by ${caller.company?.name ?? 'this firm'}`,
+          },
+        })
+        results.push(item)
+        continue
+      }
 
       // The bench listing this firm holds, where it needs one. Null for
       // an employee, which is what makes the submission INTERNAL.

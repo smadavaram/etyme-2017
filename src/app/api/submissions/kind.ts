@@ -106,3 +106,16 @@ export function tellEmployee(input: {
 export function blockedSays(): string {
   return 'This person cannot be submitted to this client.'
 }
+
+/**
+ * Why a delivery desk cannot put somebody forward: the firm does not
+ * employ them, so they need the listing and the consent, which is the
+ * recruiting desk's work. Named, so the reader knows whom to ask.
+ */
+export function deliveryDeskSays(personName: string, firmName: string): string {
+  return (
+    `${personName} is not employed by ${firmName}, so a delivery manager cannot put them forward. ` +
+    'Somebody the firm does not employ needs their own consent and a bench listing — ' +
+    'ask a recruiter, a resource manager or the account manager to submit them.'
+  )
+}
