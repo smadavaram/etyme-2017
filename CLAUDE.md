@@ -1348,7 +1348,18 @@ The firms do; the record carries the consent, the offer and the trail.
 - **Bench is shared only between firms that already trade**, one rung
   at a time (the founder, the same day). A sub-vendor's name stays the
   prime's to keep. A share by email follows the same rule.
-- **The words:** what a firm receives is its **"Received bench"**.
+- **The words:** what a firm receives is its **"Received bench"**, and
+  what it asks for is **"Bench wanted"** — skills, places, rate range
+  and the desk that receives — shown at the top of the same page.
+- **Matching may suggest a firm that is not a supplier yet; sharing
+  may not reach one.** Decided by the founder, the same day. A match
+  from a non-supplier is a suggestion only: the client sees the firm,
+  the skills, availability and the reasons — never the person's name or
+  rate — and cannot submit or contact the person. Its one action is
+  "ask to add this firm", which walks supplier onboarding under the
+  client's MSP or an existing prime. A person appears this way only if
+  they agreed that their bench firm may show them in matches beyond the
+  firms it already trades with.
 
 ## One week, filed once by the worker, signed at the top — decided 2026-09-28
 
