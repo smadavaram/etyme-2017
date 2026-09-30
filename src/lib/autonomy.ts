@@ -378,7 +378,7 @@ const RULE_ATTRIBUTED = [
   'EXPENSE_SUBMITTED', 'HOLIDAYS_ADDED', 'HOLIDAY_REMOVED',
   'IMPORT_COMMITTED', 'INTERVIEW_ACCEPTED', 'INTERVIEW_DECLINED',
   'INVITATION_ACCEPTED', 'INVITATION_DECLINED', 'INVITATION_WITHDRAWN',
-  'INVOICE_GENERATED', 'INVOICE_MATCH_OVERRIDDEN', 'INVOICE_MATCH_OVERRIDE_WITHDRAWN',
+  'INVOICE_GENERATED', 'INVOICE_HELD', 'INVOICE_HOLD_LIFTED', 'INVOICE_MATCH_OVERRIDDEN', 'INVOICE_MATCH_OVERRIDE_WITHDRAWN',
   'INVOICE_SUBMITTED', 'LEADS_READ', 'LEAD_KEPT_APART_BY_PERSON',
   'LEAD_MERGED_BY_PERSON', 'LEGAL_HOLD_LIFTED', 'LEGAL_HOLD_PLACED',
   'OPENING_WRITTEN_UP', 'ORDER_LOCKED', 'ORDER_SETTLED',
@@ -520,27 +520,6 @@ export type PlannedAct =
   | { kind: 'ATTRIBUTED'; basis: Basis; says: string; willBeWrittenBy: string }
 
 export const PLANNED: Record<string, PlannedAct> = {
-  // ── An invoice receipt held and let go, 2026-09-30 ─────────────────
-  //
-  // A desk holding a supplier's invoice back from payment, and lifting
-  // the hold, each with who and why. A person's act; `RULE` because what
-  // a hold stops is decided by the three-way check and nothing else.
-  // Named here for etyme-money, and moved into RULE_ATTRIBUTED above in
-  // the commit that first writes one.
-
-  INVOICE_HELD: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says: 'Somebody on the paying desk held a supplier\u2019s invoice back from payment, with the reason. Nothing is paid on it until the hold is lifted.',
-    willBeWrittenBy: 'etyme-money',
-  },
-  INVOICE_HOLD_LIFTED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says: 'Somebody on the paying desk lifted a hold on a supplier\u2019s invoice, with the reason, so it can be paid once it clears the check.',
-    willBeWrittenBy: 'etyme-money',
-  },
-
   // ── What the nightly sweep does with nobody watching ───────────────
 
   RETENTION_DUE_SCAN: {

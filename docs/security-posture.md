@@ -410,10 +410,10 @@ Recomputed from the module on 2026-09-30:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **175** |
+| Actions named in the automation log | **177** |
 | Unprompted — the system did it and nobody asked | **26** |
 | Enforcement — the system decided what a person was allowed to do | **8** |
-| Attributed — a person did it and the row is the record | **141** |
+| Attributed — a person did it and the row is the record | **143** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung

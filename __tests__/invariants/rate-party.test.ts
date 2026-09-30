@@ -272,6 +272,10 @@ const REGISTER: Record<string, { may: string[]; because: string }> = {
     may: ['invoiceScope'],
     because: 'An invoice has two parties and both sit on the agreement behind it.',
   },
+  'src/app/api/invoices/[id]/hold/route.ts': {
+    may: ['invoiceScope'],
+    because: 'Same two parties; only the payer may hold, and the route refuses anybody else in a sentence.',
+  },
   'src/app/api/invoices/[id]/received/route.ts': {
     may: ['invoiceScope'],
     because: 'Same two parties; recording receipt is not a wider read than viewing.',
