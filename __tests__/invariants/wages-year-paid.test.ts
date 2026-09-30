@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import {
-  datePaidWages, offCyclePaidOn, dropReversed, yearEndPack, WAGES_YEAR_PAID,
+  datePaidWages, receiptPayments, type ReceiptForYear, offCyclePaidOn, dropReversed, yearEndPack, WAGES_YEAR_PAID,
   type DatablePosting, type RunPaidHours,
 } from '@/lib/payroll-export'
 
@@ -113,11 +113,12 @@ describe('wages count in the year they were paid', () => {
     expect(offCyclePaidOn('something-else')).toBeNull()
   })
 
-  it('a 1099 or corp-to-corp payment keeps its posting date, unchanged', () => {
+  it('a 1099 or corp-to-corp posting from accepted hours is left to its invoice receipt, never counted by its posting date', () => {
     for (const contractType of ['IND_1099', 'C2C']) {
       const out = datePaidWages([posting({ contractType })], [], new Set(['bc']))
-      expect(out.postings).toHaveLength(1)
-      expect(out.postings[0].postedAt.toISOString().slice(0, 10)).toBe('2026-12-28')
+      expect(out.postings).toHaveLength(0)
+      expect(out.unpaid).toHaveLength(0)
+      expect(out.undated).toHaveLength(0)
     }
   })
 
@@ -128,5 +129,61 @@ describe('wages count in the year they were paid', () => {
 
   it('the screen says in one line that wages count in the year they were paid', () => {
     expect(WAGES_YEAR_PAID).toBe('Wages count in the year they were paid.')
+  })
+})
+
+describe('1099 and corp-to-corp payments count in the year they were paid', () => {
+  const receipt = (over: Partial<ReceiptForYear> = {}): ReceiptForYear => ({
+    id: 'vb1', number: 'INV-12', contractType: 'IND_1099',
+    payeeId: 'p1', payeeName: 'Dana Ruiz', currency: 'USD',
+    totalCents: 800_000, paidCents: 800_000, paidAt: D('2027-01-06'), status: 'PAID',
+    runPayments: [],
+    ...over,
+  })
+
+  it('a contractor’s December invoice paid in January counts toward the next year’s 1099', () => {
+    const out = receiptPayments([receipt()])
+    expect(yearEndPack(out.postings, 2026).necCount).toBe(0)
+    const next = yearEndPack(out.postings, 2027)
+    expect(next.necCount).toBe(1)
+    expect(next.summaries[0].grossCents).toBe(800_000)
+  })
+
+  it('a corp-to-corp supplier’s invoice paid in the year counts in that year, and still gets no form', () => {
+    const out = receiptPayments([receipt({ contractType: 'C2C', payeeName: 'Consultis', paidAt: D('2026-08-14') })])
+    const pack = yearEndPack(out.postings, 2026)
+    expect(pack.necCount).toBe(0)
+    expect(pack.noForm[0].grossCents).toBe(800_000)
+  })
+
+  it('an invoice receipt not yet paid counts in no year, and is said as waiting', () => {
+    const out = receiptPayments([receipt({ paidCents: 0, paidAt: null, status: 'APPROVED' })])
+    expect(out.postings).toHaveLength(0)
+    expect(out.waiting).toEqual([{ personId: 'p1', personName: 'Dana Ruiz', amountCents: 800_000, currency: 'USD' }])
+  })
+
+  it('an invoice paid in two payment runs counts each part in the year its run paid it', () => {
+    const out = receiptPayments([receipt({
+      runPayments: [{ amountCents: 300_000, paidAt: D('2026-12-30') }, { amountCents: 500_000, paidAt: D('2027-01-06') }],
+    })])
+    expect(yearEndPack(out.postings, 2026).summaries[0].grossCents).toBe(300_000)
+    expect(yearEndPack(out.postings, 2027).summaries[0].grossCents).toBe(500_000)
+  })
+
+  it('a part payment recorded with no date is named rather than put in a year, and the rest is waiting', () => {
+    const out = receiptPayments([receipt({ paidCents: 200_000, paidAt: null, status: 'APPROVED' })])
+    expect(out.postings).toHaveLength(0)
+    expect(out.undated[0].amountCents).toBe(200_000)
+    expect(out.waiting[0].amountCents).toBe(600_000)
+  })
+
+  it('a cancelled invoice receipt counts nowhere', () => {
+    const out = receiptPayments([receipt({ status: 'CANCELLED' })])
+    expect(out.postings).toHaveLength(0)
+    expect(out.waiting).toHaveLength(0)
+  })
+
+  it('an invoice receipt on a W-2 line is payroll’s, and never counted here', () => {
+    expect(receiptPayments([receipt({ contractType: 'W2' })]).postings).toHaveLength(0)
   })
 })

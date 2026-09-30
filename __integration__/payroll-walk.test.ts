@@ -4,6 +4,7 @@ import { seedWorld } from '@/lib/seed-world'
 
 import { GET as payroll } from '@/app/api/payroll/route'
 import { GET as statutory } from '@/app/api/payroll/statutory/route'
+import { PATCH as payReceipt } from '@/app/api/ap/bills/route'
 
 /**
  * The payroll screens, walked on the seeded world as Teleworld and
@@ -157,5 +158,38 @@ describe('wages count in the year they were paid', () => {
     const year = new Date().getUTCFullYear()
     const r = await json(await statutory(req('GET', `/api/payroll/statutory?year=${year}`)))
     expect(r.body.data.pack.unpaidSays).toMatch(/not yet paid/)
+  })
+})
+
+describe('1099 and corp-to-corp payments count in the year they were paid', () => {
+  const year = new Date().getUTCFullYear()
+  const pack = async (y: number) => {
+    as(BRIGHTMOOR)
+    const r = await json(await statutory(req('GET', `/api/payroll/statutory?year=${y}`)))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    return r.body.data.pack
+  }
+
+  it('an invoice receipt not yet paid counts in no year, and Brightmoor is told it is waiting', async () => {
+    const p = await pack(year)
+    expect(p.summaries.find((s: any) => s.personName === 'Consultis')).toBeUndefined()
+    expect(p.receiptsWaitingSays).toMatch(/Consultis/)
+    expect(p.receiptsWaitingSays).toMatch(/16,640\.00 USD/)
+  })
+
+  it('a corp-to-corp supplier’s invoice paid in January counts toward the next year, and never this one', async () => {
+    const company = await prisma.company.findFirstOrThrow({ where: { name: 'Brightmoor Staffing' } })
+    const bill = await prisma.vendorBill.findFirstOrThrow({ where: { companyId: company.id, vendorCompany: { name: 'Consultis' } } })
+    as(BRIGHTMOOR)
+    const paidAt = `${year + 1}-01-06T00:00:00Z`
+    const r = await json(await payReceipt(req('PATCH', '/api/ap/bills', { id: bill.id, paidAt })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+
+    expect((await pack(year)).summaries.find((s: any) => s.personName === 'Consultis')).toBeUndefined()
+    const next = await pack(year + 1)
+    const c = next.summaries.find((s: any) => s.personName === 'Consultis')
+    expect(c.grossCents).toBe(bill.totalCents)
+    expect(c.form).toBe('NONE')
+    expect(next.receiptsWaitingSays ?? '').not.toMatch(/Consultis/)
   })
 })

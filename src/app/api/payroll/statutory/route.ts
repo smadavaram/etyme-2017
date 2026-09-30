@@ -6,7 +6,7 @@ import { hasPermission } from '@/lib/permissions'
 import { paidRunHours } from '@/lib/payroll-paid'
 import {
   yearEndPack, yearEndCsv, depositSchedule, depositDeadline, depositPayDays,
-  datePaidWages, dropReversed, WAGES_YEAR_PAID,
+  datePaidWages, dropReversed, receiptPayments, WAGES_YEAR_PAID, RECEIPT_CONTRACT_TYPES,
   WAGE_CONTRACT_TYPES, BUREAU_NOTICE, type DatablePosting,
 } from '@/lib/payroll-export'
 
@@ -166,7 +166,49 @@ export async function GET(request: NextRequest) {
   // What each processed run paid, and the day it ran.
   const paid = await paidRunHours(companyId)
   const dated = datePaidWages(datable, paid.runs, paid.unrecorded)
-  const postings = dated.postings
+
+  // 1099 and corp-to-corp: what the supplier's invoice receipts were paid,
+  // in the year each payment was made. A 1099-NEC reports the year paid,
+  // as a W-2 does. Receipts fully paid before the year are not read.
+  const bills = await prisma.vendorBill.findMany({
+    where: {
+      companyId,
+      status: { not: 'CANCELLED' },
+      receivedAt: { lt: to },
+      buyContract: { contractType: { in: [...RECEIPT_CONTRACT_TYPES] } },
+      OR: [{ paidAt: null }, { paidAt: { gte: from } }],
+    },
+    select: {
+      id: true, number: true, currency: true, totalCents: true, paidCents: true, paidAt: true, status: true,
+      vendorCompany: { select: { id: true, name: true } },
+      buyContract: {
+        select: { contractType: true, candidates: { select: { person: { select: { id: true, name: true } } } } },
+      },
+      paymentRunItems: { select: { amountCents: true, run: { select: { status: true, paidAt: true } } } },
+    },
+    take: 20_000,
+  })
+  const receipts = receiptPayments(
+    bills.map((b) => {
+      const type = b.buyContract?.contractType ?? 'UNKNOWN'
+      const people = b.buyContract?.candidates ?? []
+      // A 1099-NEC is the person's where the line pays one person; a
+      // corporation is the payee on a corp-to-corp line.
+      const payee = type === 'IND_1099' && people.length === 1
+        ? { id: people[0].person.id, name: people[0].person.name }
+        : { id: `company:${b.vendorCompany.id}`, name: b.vendorCompany.name }
+      return {
+        id: b.id, number: b.number, contractType: type,
+        payeeId: payee.id, payeeName: payee.name, currency: b.currency,
+        totalCents: b.totalCents, paidCents: b.paidCents, paidAt: b.paidAt, status: b.status,
+        runPayments: b.paymentRunItems
+          .filter((i) => i.run.status === 'PAID' && i.run.paidAt)
+          .map((i) => ({ amountCents: i.amountCents, paidAt: i.run.paidAt! })),
+      }
+    })
+  )
+
+  const postings = [...dated.postings, ...receipts.postings]
 
   const pack = yearEndPack(postings, year)
 
@@ -179,12 +221,20 @@ export async function GET(request: NextRequest) {
     const sum = currencies.length === 1
       ? ` (${(list.reduce((n, l) => n + l.amountCents, 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencies[0]})`
       : ''
-    return `${people.length} ${people.length === 1 ? 'person has' : 'people have'} W-2 wages ${what}${sum}: ${people.slice(0, 5).join(', ')}${people.length > 5 ? ', and others' : ''}.`
+    return `${people.length} ${people.length === 1 ? 'person has' : 'people have'} ${what}${sum}: ${people.slice(0, 5).join(', ')}${people.length > 5 ? ', and others' : ''}.`
   }
-  const unpaidSays = aside(dated.unpaid, 'accepted and not yet paid, which count in the year a run pays them')
+  const unpaidSays = aside(dated.unpaid, 'W-2 wages accepted and not yet paid, which count in the year a run pays them')
   const undatedSays = aside(
     dated.undated,
-    'paid by a run that recorded only a total, so the day they were paid is not known and they are in no year until somebody records it'
+    'W-2 wages paid by a run that recorded only a total, so the day they were paid is not known and they are in no year until somebody records it'
+  )
+  const receiptsWaitingSays = aside(
+    receipts.waiting,
+    'invoice receipts not yet paid, which count toward a 1099 in the year they are paid'
+  )
+  const receiptsUndatedSays = aside(
+    receipts.undated,
+    'invoice receipts paid in part with no payment date recorded, so that part is in no year until the payment is dated'
   )
 
   if (format === 'csv') {
@@ -266,6 +316,8 @@ export async function GET(request: NextRequest) {
         yearPaidSays: WAGES_YEAR_PAID,
         unpaidSays,
         undatedSays,
+        receiptsWaitingSays,
+        receiptsUndatedSays,
       },
       deposits: {
         schedule: schedule.schedule,

@@ -846,10 +846,10 @@ export function offCyclePaidOn(sourceId: string): Date | null {
  *   `undated`, never placed in a year on a guess.
  * - An off-cycle payment is dated by its own pay day.
  * - Anything else on a W-2 line keeps its posting date.
- * - 1099 and corp-to-corp postings are unchanged. A 1099-NEC is also
- *   reported for the year paid, but those are paid through invoice
- *   receipts rather than payroll runs, and the paid date is not read
- *   here yet.
+ * - 1099 and corp-to-corp postings are dropped here. Those are paid on
+ *   the supplier's invoice, received as an invoice receipt, and counted
+ *   in the year that receipt was paid (`receiptPayments`); counting the
+ *   posting as well would count the same work twice.
  *
  * Pure: no database.
  */
@@ -870,10 +870,7 @@ export function datePaidWages(
   })
 
   for (const p of postings) {
-    if (!(WAGE_CONTRACT_TYPES as readonly string[]).includes(p.contractType)) {
-      out.push(strip(p))
-      continue
-    }
+    if (!(WAGE_CONTRACT_TYPES as readonly string[]).includes(p.contractType)) continue
     if (p.source === 'PAYROLL') {
       const on = offCyclePaidOn(p.sourceId)
       out.push({ ...strip(p), postedAt: on ?? p.postedAt })
@@ -918,6 +915,76 @@ export function datePaidWages(
   }
 
   return { postings: out, unpaid, undated }
+}
+
+/** An invoice receipt on a 1099 or corp-to-corp line, and what paid it. */
+export interface ReceiptForYear {
+  id: string
+  number: string
+  contractType: string
+  /** Who the form is for: the person on a 1099 line, the corporation on a C2C one. */
+  payeeId: string
+  payeeName: string
+  currency: string
+  totalCents: number
+  paidCents: number
+  /** Set only when paid in full. */
+  paidAt: Date | null
+  status: string
+  /** Each part a paid payment run settled, on the day the run paid. */
+  runPayments: Array<{ amountCents: number; paidAt: Date }>
+}
+
+/** Contract types paid on an invoice receipt, reported (or not) on a 1099. */
+export const RECEIPT_CONTRACT_TYPES = ['IND_1099', 'C2C'] as const
+
+/**
+ * What 1099 and corp-to-corp payees were paid, dated the day it was paid.
+ *
+ * A 1099-NEC reports what was paid in the year, as a W-2 does. The
+ * payment is the recorded settlement of the supplier's invoice: each
+ * paid payment run on its own day, and the rest on the day the receipt
+ * was paid in full. A receipt not yet paid is in no year and is returned
+ * as `waiting`. A part payment recorded without a date — the AP desk can
+ * record one, and only full payment carries a date — is returned as
+ * `undated` rather than placed in a year on a guess.
+ *
+ * Pure: no database.
+ */
+export function receiptPayments(receipts: readonly ReceiptForYear[]): {
+  postings: PayPosting[]
+  waiting: PostingAside[]
+  undated: PostingAside[]
+} {
+  const postings: PayPosting[] = []
+  const waiting: PostingAside[] = []
+  const undated: PostingAside[] = []
+  for (const r of receipts) {
+    if (!(RECEIPT_CONTRACT_TYPES as readonly string[]).includes(r.contractType)) continue
+    if (r.status === 'CANCELLED') continue
+    const row = (amountCents: number, on: Date): PayPosting => ({
+      personId: r.payeeId, personName: r.payeeName, hasTaxId: false, contractType: r.contractType,
+      amountCents: -Math.abs(amountCents), currency: r.currency, postedAt: on,
+    })
+    const aside = (amountCents: number): PostingAside => ({
+      personId: r.payeeId, personName: r.payeeName, amountCents: Math.abs(amountCents), currency: r.currency,
+    })
+    const paid = Math.max(0, Math.min(r.paidCents, r.totalCents))
+    let dated = 0
+    for (const p of r.runPayments) {
+      const take = Math.min(p.amountCents, paid - dated)
+      if (take <= 0) continue
+      postings.push(row(take, p.paidAt))
+      dated += take
+    }
+    const rest = paid - dated
+    if (rest > 0) {
+      if (r.paidAt) postings.push(row(rest, r.paidAt))
+      else undated.push(aside(rest))
+    }
+    if (r.totalCents - paid > 0) waiting.push(aside(r.totalCents - paid))
+  }
+  return { postings, waiting, undated }
 }
 
 export type StatutoryForm = 'W2' | '1099_NEC' | 'NONE'
