@@ -32,6 +32,8 @@ interface Placement {
   state: string
   startDate: string
   endDate: string | null
+  /** "Jun 1 – Aug 31, 2026 · ended" — `placementSpan`, never an ISO day. */
+  span: string
   daysLeft: number | null
 }
 /**
@@ -1051,10 +1053,14 @@ export default function MyWorkPage() {
             {s.awaitingApproval}
           </div>
         </div>
+        {/* What became of the weeks the client signed, in words that fit
+            how they are paid: an employee is paid by payroll and nobody
+            bills him, so his card never says a vendor bills his hours
+            (`signedWeeksCard`). */}
         <div>
-          <Lbl>Approved, not billed</Lbl>
-          <div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.approvedNotBilled}</div>
-          <div className="text-xs text-etyme-muted">your vendor bills these</div>
+          <Lbl>{s.signed?.label ?? 'Approved, not billed'}</Lbl>
+          <div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.signed?.value ?? s.approvedNotBilled}</div>
+          <div className="text-xs text-etyme-muted">{s.signed?.note ?? 'your vendor bills these'}</div>
         </div>
         <div>
           <Lbl>Ending within 60 days</Lbl>
@@ -1128,7 +1134,7 @@ export default function MyWorkPage() {
                 <div className="text-etyme-ink">{p.chain}</div>
                 <div className="text-xs text-etyme-muted">
                   {p.location && `${p.location} · `}
-                  from {p.startDate}
+                  {p.span}
                 </div>
               </div>
               <div className="shrink-0 text-right">

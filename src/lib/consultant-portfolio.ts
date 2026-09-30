@@ -1298,6 +1298,113 @@ export function tieOf(contractType: string | null | undefined): Tie {
   return ['W2', 'C2H_W2', 'CDD', 'FIXED_TERM'].includes(contractType) ? 'EMPLOYED' : 'PAID'
 }
 
+// ── When a placement ran, in words ─────────────────────────────────────
+//
+// Where you work read "from 2026-06-01" under a placement whose chip said
+// ended — an ISO day with no end, beside a word saying it had one. A
+// person reads their own dates the way a calendar prints them.
+
+/** "Jun 1, 2026", read in UTC because every stored day is midnight UTC. */
+function plainDay(iso: string, withYear: boolean): string {
+  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', timeZone: 'UTC', ...(withYear ? { year: 'numeric' } : {}),
+  })
+}
+
+/**
+ * A placement's dates as a person reads them: "Jun 1 – Aug 31, 2026 ·
+ * ended", "Dec 1, 2025 – Feb 27, 2026", or "from Jun 1, 2026" where no
+ * last day is on the record. Ended is said where the contract is ENDED,
+ * or where its last day has passed and the nightly job has not caught up
+ * yet; cancelled is said as cancelled. Never an ISO date.
+ */
+export function placementSpan(
+  p: { startDate: string; endDate: string | null; state: string },
+  today: string
+): string {
+  const start = p.startDate.slice(0, 10)
+  const end = p.endDate?.slice(0, 10) ?? null
+  let span: string
+  if (!end) {
+    span = `from ${plainDay(start, true)}`
+  } else if (start.slice(0, 4) === end.slice(0, 4)) {
+    span = `${plainDay(start, false)} – ${plainDay(end, true)}`
+  } else {
+    span = `${plainDay(start, true)} – ${plainDay(end, true)}`
+  }
+  if (p.state === 'CANCELLED') return `${span} · cancelled`
+  if (p.state === 'ENDED' || (end && end < today.slice(0, 10))) return `${span} · ended`
+  return span
+}
+
+// ── What became of the weeks the client signed ─────────────────────────
+//
+// The summary on Your work read "Approved, not billed 14 — your vendor
+// bills these" to Karthik Menon, who is Teleworld's own W2. Nobody bills
+// him: his employer bills the client and pays him by payroll. What
+// matters to an employee about a signed week is the other half of "who
+// owes what, and when" (CLAUDE.md, 2026-09-29): paid, owed to him once
+// his employer accepted it, or still waiting on his employer. The vendor
+// sentence stays only for work paid through a supplier.
+
+export interface SignedWeeks {
+  /**
+   * Weeks the client signed on work where the firm paying them does not
+   * employ them, and nobody has billed yet.
+   */
+  notBilled: number
+  /**
+   * On work where the bottom firm employs them; null where none does.
+   */
+  employed: null | {
+    /** Paid in full, by a payroll run the record shows. */
+    paid: number
+    /** Accepted by the employer and not yet paid. */
+    owed: number
+    /** Signed by the client, not yet accepted by the employer. */
+    waitingOnEmployer: number
+    /** Accepted, and this page has no figure or pay record to say which. */
+    unknown: number
+    /** Who employs them, where there is one name; else "your employer". */
+    employer: string | null
+  }
+}
+
+export interface SummaryCard {
+  label: string
+  value: number
+  note: string
+}
+
+/**
+ * The third summary card on Your work.
+ *
+ * For somebody paid through a supplier, unchanged: approved weeks nobody
+ * has billed, which their vendor bills. For an employee, the weeks the
+ * client signed, split the way his pay stands — never a sentence about
+ * billing, because nothing is billed to him.
+ */
+export function signedWeeksCard(s: SignedWeeks): SummaryCard {
+  if (!s.employed) {
+    return { label: 'Approved, not billed', value: s.notBilled, note: 'your vendor bills these' }
+  }
+  const e = s.employed
+  const plural = (n: number) => `${n} week${n === 1 ? '' : 's'}`
+  const parts: string[] = []
+  if (e.paid > 0) parts.push(`${e.paid} paid`)
+  if (e.owed > 0) parts.push(`${e.owed} owed to you`)
+  if (e.waitingOnEmployer > 0) parts.push(`${e.waitingOnEmployer} waiting on ${e.employer ?? 'your employer'}`)
+  if (e.unknown > 0) parts.push(`${e.unknown} accepted, pay not recorded here`)
+  // Mixed work: the supplier-paid weeks keep their own words.
+  if (s.notBilled > 0) parts.push(`${plural(s.notBilled)} your vendor bills`)
+  const value = e.paid + e.owed + e.waitingOnEmployer + e.unknown + s.notBilled
+  return {
+    label: 'Approved weeks',
+    value,
+    note: parts.length > 0 ? parts.join(' · ') : 'none signed yet',
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // A week sent back, corrected and sent again
 // ─────────────────────────────────────────────────────────────────────
