@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
     select: {
-      id: true, title: true, status: true, approvalState: true, companyId: true, payerCompanyId: true, endClientCompanyId: true,
+      id: true, title: true, status: true, approvalState: true, companyId: true, payerCompanyId: true, endClientCompanyId: true, startDate: true,
       company: { select: { kind: true, name: true } },
     },
   })

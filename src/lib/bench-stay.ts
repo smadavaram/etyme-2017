@@ -153,3 +153,22 @@ export function reminderText(o: { personName: string; firm: string; until: Date;
       'If you do nothing, it simply ends.',
   }
 }
+
+/** The line a firm's bench shows for somebody whose chosen stay ran out. */
+export function stayEndedRow(on: Date): string {
+  return `Stay ended on ${onDay(on)} \u00b7 ask to renew`
+}
+
+/** The letter a firm sends asking somebody whose stay ran out to renew it. One tap, their choice. */
+export function renewAskText(o: { personName: string; firm: string; endedOn: Date; days: number | null; url: string }): { subject: string; body: string } {
+  const first = o.personName.trim().split(/\s+/)[0]
+  const again = o.days ? `another ${o.days} days` : 'again'
+  return {
+    subject: `${o.firm} would like you back on its bench`,
+    body:
+      `Hi ${first},\n\n` +
+      `Your stay on ${o.firm}'s bench ended on ${onDay(o.endedOn)}, so ${o.firm} cannot put you forward for new jobs.\n\n` +
+      `If you would like to stay ${again}, open this link and press Renew \u2014 no password, no account:\n${o.url}\n\n` +
+      'If you do nothing, nothing changes.',
+  }
+}

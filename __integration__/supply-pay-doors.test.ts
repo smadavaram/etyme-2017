@@ -154,10 +154,30 @@ describe("a colleague's pay at Teleworld is read by the payroll desk, and a work
     })
     const seat = { id: ctx.id, personId: who.id, email: who.primaryEmail }
 
+    // Everybody CloudEPA pays on the seeded world is placed and billing,
+    // which costs the bench nothing (burn reads `burnOf` since the bench
+    // tester, 2026-09-30, found Helena Marsh counted as $66k of burn while
+    // on site at Northbend). So one person is put on its paid bench here:
+    // listed, paid, and on no placement.
+    const sitter = await prisma.person.create({ data: { name: 'Bench Sitter Walk', primaryEmail: 'sitter@cloudepa-supply-walk.invalid' } })
+    const profile = await prisma.consultantProfile.create({ data: { personId: sitter.id, skills: ['ERP finance'] } })
+    await prisma.benchListing.create({
+      data: { consultantId: profile.id, companyId: cloud.id, tier: 'RETAINED', state: 'GRANTED', grantedAt: new Date(Date.now() - 20 * 86_400_000) },
+    })
+    const paid = await prisma.buyContract.create({
+      data: { companyId: cloud.id, contractType: 'W2', state: 'BENCH_PAID', startDate: new Date(Date.now() - 20 * 86_400_000) },
+    })
+    await prisma.buyContractCandidate.create({ data: { buyContractId: paid.id, personId: sitter.id, payRate: 6_000, state: 'ACTIVE', startDate: new Date(Date.now() - 20 * 86_400_000) } })
+
     const r = await call(seat, burn, '/api/bench/burn')
     expect(r.status).toBe(200)
     const entries = r.body.data.entries as any[]
-    expect(entries.length).toBeGreaterThan(0)
+    expect(entries.map((e) => e.personName)).toContain('Bench Sitter Walk')
+    // Somebody placed and billing is never counted as bench burn.
+    expect(entries.map((e) => e.personName)).not.toContain('Helena Marsh')
+    const sat = entries.find((e) => e.personName === 'Bench Sitter Walk')
+    expect(sat.dailyCents).toBe(6_000 * 8)
+    expect(sat.toDateCents).toBe(sat.dailyCents * sat.workingDays)
     for (const e of entries) {
       expect(await PAY_TRAIL(seat.personId, e.personId, true), e.personName).toBeGreaterThan(0)
     }

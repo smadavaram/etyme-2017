@@ -569,21 +569,24 @@ function scoreDeterministic(
 
     // Availability
     let availScore = 40
-    let availDetail = 'Availability unknown'
-    if (c.availableFrom && req.startDate) {
-      const daysUntilAvailable = (c.availableFrom.getTime() - req.startDate.getTime()) / 86400000
+    let availDetail = 'Free date not on record'
+    // Measured from the job's start, or from today where the job names
+    // none — so a free date on the row is never "unknown" in its reasons.
+    if (c.availableFrom) {
+      const from = req.startDate ?? new Date()
+      const daysUntilAvailable = (c.availableFrom.getTime() - from.getTime()) / 86400000
       if (daysUntilAvailable <= 0) {
         availScore = 100
-        availDetail = 'Available now'
+        availDetail = req.startDate ? 'Free by the day the job starts' : 'Free now'
       } else if (daysUntilAvailable <= 14) {
         availScore = 80
-        availDetail = `Available in ${Math.ceil(daysUntilAvailable)} days`
+        availDetail = req.startDate ? `Free ${Math.ceil(daysUntilAvailable)} days after the job starts` : `Free in ${Math.ceil(daysUntilAvailable)} days`
       } else if (daysUntilAvailable <= 30) {
         availScore = 50
-        availDetail = `Available in ${Math.ceil(daysUntilAvailable)} days`
+        availDetail = req.startDate ? `Free ${Math.ceil(daysUntilAvailable)} days after the job starts` : `Free in ${Math.ceil(daysUntilAvailable)} days`
       } else {
         availScore = 20
-        availDetail = `Not available for ${Math.ceil(daysUntilAvailable)} days`
+        availDetail = req.startDate ? `Not free until ${Math.ceil(daysUntilAvailable)} days after the job starts` : `Not free for ${Math.ceil(daysUntilAvailable)} days`
       }
     }
 

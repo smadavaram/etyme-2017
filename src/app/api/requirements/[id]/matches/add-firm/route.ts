@@ -39,7 +39,7 @@ async function load(request: NextRequest, requirementId: string, matchId: string
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
     select: {
-      id: true, title: true, companyId: true, payerCompanyId: true, endClientCompanyId: true,
+      id: true, title: true, companyId: true, payerCompanyId: true, endClientCompanyId: true, startDate: true,
       company: { select: { kind: true, name: true } },
     },
   })

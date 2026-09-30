@@ -163,7 +163,8 @@ export const MATRIX: L1[] = [
             'BUILT 2026-09-30, the founder\u2019s \u201cbench is our wow factor\u201d: matching brings bench to every job request, not only the raiser\u2019s own. The pool is four circles, each by a consent the person gave (`lib/match-pool`): the viewer\u2019s own listings and \u2014 for a firm that sells \u2014 its own employees between projects or coming off one within a month, who go forward as INTERNAL; the marketed bench of the firms it buys from; of the other firms it trades with; and, for a client on its own job request only, people who said yes to being shown in matches beyond their firm\u2019s partners. Ranked in that order, then by score, and every row keeps factors, basis, confidence and unknowns',
             'BUILT 2026-09-30: a supplier the job request was sent to runs matching on it with its own pool, with no copy of the role; its suppliers\u2019 people reach it only through its register, the same door the submission goes through. A refresh recomputes only the viewer\u2019s own pool, rewriting rows in place so a match keeps its id',
             'BUILT 2026-09-30: every row has one action, chosen by the server so the screen cannot draw a button the door refuses. A firm that sells adds the person to the application through `/api/submissions` with its own firm and a real rate \u2014 its listing\u2019s, what it last billed its own employee at, or one it types; a supplier\u2019s person goes forward in its name, bought from the supplier at the supplier\u2019s own rate. The placeholder rate and firm the page used to send are gone. A client asks the firm to put the person forward, on the thread for the job, and through the prime where the firm works under one',
-            'BUILT 2026-09-30: a client never reads a rate off a match, and a rate factor says whether it fits, never the number. Every match shown writes a MATCH_VIEW access row per person, suggestions included, before the answer leaves'],
+            'BUILT 2026-09-30: a client never reads a rate off a match, and a rate factor says whether it fits, never the number. Every match shown writes a MATCH_VIEW access row per person, suggestions included, before the answer leaves',
+            'FIXED 2026-09-30, bench tester: a prime putting a supplier\u2019s person forward is asked two prices \u2014 what the supplier charges, prefilled from its listing, and what it bills \u2014 where one box sent payRate:null to a door that refused it (`submitFields`); somebody placed and billing past the job\u2019s start is no longer offered, somebody rolling off before it is offered from the day after (`freeForJob`), and the availability reason reads the same free date as the row'],
           implementedBy: ['src/lib/match-engine.ts', 'src/lib/bench-filter.ts', 'src/lib/candidate-fit.ts',
             'src/app/api/requirements/[id]/matches/route.ts', 'src/lib/match-pool.ts',
             'src/app/api/requirements/[id]/matches/viewer.ts', 'src/app/api/requirements/[id]/matches/ask/route.ts',
@@ -176,7 +177,8 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/bench-through-one-door.test.ts',
             '__integration__/employers-roster.test.ts',
             '__tests__/invariants/bench-matching.test.ts', '__tests__/invariants/match-engine-scope.test.ts',
-            '__integration__/bench-matching.test.ts'] },
+            '__integration__/bench-matching.test.ts',
+            '__tests__/invariants/bench-tester-fixes.test.ts', '__integration__/bench-tester-fixes.test.ts'] },
         // A match from a firm that is not a supplier yet is a door, not a
         // dead end (founder, 2026-09-30).
         { code: 'L3.1.2.5', name: 'A suggestion from matching opens supplier onboarding', owner: 'Hiring manager', status: B,
@@ -201,11 +203,14 @@ export const MATRIX: L1[] = [
             'When it runs out the person is out of every match and cannot be put forward through that listing, read off the end date itself so the hours before the nightly job are not a gap; a submission already made stands',
             'The nightly job (`cron/bench-stays`) writes the ending down (`lapsedAt` beside `revokedAt`), one reversible automation row per ending, and tells the firm',
             'The person is reminded two days before it ends, one day for the five- and seven-day stays, once per stay, with a link that renews it in one tap; an ended stay renews from My benches too. A listing the person took back themselves cannot be renewed by a reminder',
+            'FIXED 2026-09-30, bench tester: somebody whose stay ended stays on the firm\u2019s bench as \u201cStay ended on <date> \u00b7 ask to renew\u201d rather than vanishing; an unanswered invitation is counted as \u201cInvited, waiting\u201d and never as marketing, and both offer Resend and Copy link through one door (`POST /api/bench/listings/:id/nudge`) that sends nothing to somebody who said yes or took it back',
           ],
           implementedBy: ['src/lib/bench-stay.ts', 'src/lib/bench-stay-record.ts', 'src/app/api/cron/bench-stays/route.ts',
             'src/app/api/bench-invite/[token]/route.ts', 'src/app/bench-invite/[token]/page.tsx',
-            'src/app/api/me/benches/route.ts', 'src/app/dashboard/my-benches/page.tsx'],
-          testedBy: ['__tests__/invariants/bench-stay.test.ts', '__integration__/bench-matching.test.ts'] },
+            'src/app/api/me/benches/route.ts', 'src/app/dashboard/my-benches/page.tsx',
+            'src/app/api/bench/listings/[id]/nudge/route.ts'],
+          testedBy: ['__tests__/invariants/bench-stay.test.ts', '__integration__/bench-matching.test.ts',
+            '__tests__/invariants/bench-tester-fixes.test.ts', '__integration__/bench-tester-fixes.test.ts'] },
         // The founder, 2026-09-30, "How an integrator's people move between
         // its projects": a manager in Portland publishes who rolls off; a
         // manager of the same firm in San Jose sees them, asks, reserves,

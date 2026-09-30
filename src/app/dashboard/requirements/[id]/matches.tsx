@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { range } from '@/lib/money-display'
+import { submitFields } from '@/lib/bench-filter'
 
 /**
  * The matches on one job request, grouped the way they rank.
@@ -142,6 +143,8 @@ export function MatchList({
   const [flash, setFlash] = useState<{ id: string; text: string; bad: boolean } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [rates, setRates] = useState<Record<string, string>>({})
+  // What the supplier charges, where the person comes through one.
+  const [pays, setPays] = useState<Record<string, string>>({})
   const [adding, setAdding] = useState<MatchRow | null>(null)
   // Asked in this sitting, before the list is read again — the button
   // goes the moment the ask does.
@@ -157,10 +160,9 @@ export function MatchList({
 
   async function submit(m: MatchRow) {
     if (m.action.kind !== 'SUBMIT' || !m.consultant.personId) return
-    const typed = rates[m.id] ?? (m.action.rate != null ? String(Math.round(m.action.rate / 100)) : '')
-    const dollars = Number(typed)
-    if (!typed || !Number.isFinite(dollars) || dollars <= 0) {
-      setFlash({ id: m.id, text: 'Say the hourly rate you are putting them forward at.', bad: true })
+    const fields = submitFields(m.action, { bill: rates[m.id], pay: pays[m.id] }, { person: m.consultant.name ?? 'this person', firm: m.firm.name })
+    if (!fields.ok) {
+      setFlash({ id: m.id, text: fields.says, bad: true })
       return
     }
     setBusy(m.id)
@@ -173,9 +175,9 @@ export function MatchList({
           requirementId,
           personIds: [m.consultant.personId],
           // Cents, as Submission.rate is.
-          rate: Math.round(dollars * 100),
+          rate: fields.rate,
           fromCompanyId: m.action.fromCompanyId,
-          ...(m.action.offeredBy ? { offeredBy: m.action.offeredBy, payRate: m.action.payRate } : {}),
+          ...(m.action.offeredBy ? { offeredBy: m.action.offeredBy, payRate: fields.payRate } : {}),
         }),
       })
       const body = await readJson(res)
@@ -275,8 +277,28 @@ export function MatchList({
                     <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                       {m.action.kind === 'SUBMIT' && (
                         <>
+                          {/* Two prices where a supplier stands between: what it
+                              charges you, from its listing where it said, and what
+                              you bill. */}
+                          {m.action.offeredBy && (
+                            <label className="flex items-center gap-1 text-[12px] text-etyme-muted">
+                              {m.firm.name} charges you $
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                inputMode="numeric"
+                                aria-label={`What ${m.firm.name} charges you an hour for ${title}`}
+                                value={pays[m.id] ?? (m.action.payRate != null ? String(Math.round(m.action.payRate / 100)) : '')}
+                                placeholder="rate"
+                                onChange={(e) => setPays((r) => ({ ...r, [m.id]: e.target.value }))}
+                                className="w-20 rounded-md border border-etyme-rule bg-etyme-surface px-2 py-1 text-[12px] tabular-nums text-etyme-ink"
+                              />
+                              /hr
+                            </label>
+                          )}
                           <label className="flex items-center gap-1 text-[12px] text-etyme-muted">
-                            $
+                            {m.action.offeredBy ? 'You bill $' : '$'}
                             <input
                               type="number"
                               min="1"

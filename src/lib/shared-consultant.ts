@@ -249,3 +249,16 @@ export function mayChangeTier(c: TierChange): TierVerdict {
         : 'Retained. The firms you work with no longer see them on their network bench; you still can.',
   }
 }
+
+/**
+ * The one line under a submission on a person's own "Every time you were
+ * put forward" list. A placement is the end of the road, so it never also
+ * reads "not sent on yet" — Helena Marsh's row said both at once (bench
+ * tester, 2026-09-30). Otherwise: where it went, or that it is still with
+ * the firm that has it.
+ */
+export function historyLine(h: { status: string; client: string; sentOnTo: string | null }): string {
+  if (h.status === 'PLACED') return `placed at ${h.client}`
+  if (h.sentOnTo) return `sent on to ${h.sentOnTo}`
+  return 'still with them \u2014 not sent on yet'
+}

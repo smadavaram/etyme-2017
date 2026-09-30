@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { readBench } from '@/lib/bench-filter'
 import { skillGap, type SkillGapReading } from '@/lib/training'
+import { sectionOfHref } from '@/lib/page-framing'
+import { useCompanyKind } from '@/components/session-provider'
 
 /**
  * Training funnel — Talent section (vendor)
@@ -50,6 +52,7 @@ interface FunnelStage {
 // ── Page ─────────────────────────────────────────────
 
 export default function TrainingPage() {
+  const companyKind = useCompanyKind()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gap, setGap] = useState<SkillGapReading | null>(null)
@@ -170,7 +173,8 @@ export default function TrainingPage() {
     <div className="animate-fade-in">
       {/* Header */}
       <div className="page-head mb-6">
-        <p className="eyebrow">Talent</p>
+        {/* The section this page sits under on the reader's own menu. */}
+        <p className="eyebrow">{sectionOfHref(companyKind, '/dashboard/training') ?? ''}</p>
         <h1>Training</h1>
         <p>
           What clients are asking for, against the people you could field — your bench

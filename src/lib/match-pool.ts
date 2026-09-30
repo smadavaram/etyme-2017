@@ -379,7 +379,7 @@ export function actionFor(input: {
     as: 'FROM_SUPPLIER',
     says:
       `${entry.firmName} offered ${who} to the firms it works with. You put them forward in your ` +
-      `name and buy them from ${entry.firmName}; say your own rate.`,
+      `name and buy them from ${entry.firmName}; say what it charges you and what you bill.`,
   }
 }
 
@@ -480,6 +480,36 @@ export interface PoolRequirement {
   companyId: string
   payerCompanyId: string | null
   endClientCompanyId: string | null
+  /** When the job starts. Somebody placed past it is not offered. Null reads as a month from today. */
+  startDate?: Date | null
+}
+
+/**
+ * Whether somebody on a live placement can take this job, and from when.
+ *
+ * Somebody placed and billing past the job's start is not free for it,
+ * whatever a listing says; somebody whose placements all end before it is,
+ * from the day after the last one. A placement with no end date never
+ * ends before anything. Nobody placed: free, and their own free date
+ * stands. Pure.
+ */
+export function freeForJob(
+  live: ReadonlyArray<{ endsOn: Date | null }>,
+  needBy: Date
+): { ok: true; freeOn: Date | null } | { ok: false; says: string } {
+  if (live.length === 0) return { ok: true, freeOn: null }
+  if (live.some((l) => l.endsOn == null)) return { ok: false, says: 'On a placement with no end date.' }
+  const last = live.reduce((a, l) => (l.endsOn! > a ? l.endsOn! : a), live[0].endsOn!)
+  if (last.getTime() >= needBy.getTime()) return { ok: false, says: 'Placed and billing past the day the job starts.' }
+  const d = new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), last.getUTCDate() + 1))
+  return { ok: true, freeOn: d }
+}
+
+/** The later of two free dates; null where neither says. */
+function laterOf(a: Date | null, b: Date | null): Date | null {
+  if (!a) return b
+  if (!b) return a
+  return a > b ? a : b
 }
 
 /** Who the job request is submitted to. */
@@ -595,6 +625,37 @@ export async function poolFor(
     })
   }
 
+  // Somebody on a bench listing who is placed and billing past the job's
+  // start is not free for it, whatever the listing says (bench tester,
+  // 2026-09-30: Helena Marsh and Priya Raman were offered while on site
+  // with "Free date not on record"). Somebody rolling off before it is,
+  // and their free date is the day after, so the row and its reasons say
+  // one thing.
+  const needBy = requirement.startDate ?? new Date(now.getTime() + ROLLING_OFF_DAYS * 86_400_000)
+  const liveLines = entries.length
+    ? await prisma.sellContract.findMany({
+        where: {
+          personId: { in: [...new Set(entries.map((e) => e.personId))] },
+          state: { in: ['PENDING_VERIFICATION', 'VERIFIED', 'IN_PROGRESS', 'PAUSED'] },
+          OR: [{ endDate: null }, { endDate: { gte: now } }],
+        },
+        select: { personId: true, endDate: true },
+      })
+    : []
+  let placed = 0
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i]
+    const verdict = freeForJob(liveLines.filter((l) => l.personId === e.personId).map((l) => ({ endsOn: l.endDate })), needBy)
+    if (!verdict.ok) {
+      entries.splice(i, 1)
+      placed++
+      continue
+    }
+    if (verdict.freeOn) {
+      entries[i] = { ...e, consultant: { ...e.consultant, availableFrom: laterOf(e.consultant.availableFrom ?? null, verdict.freeOn) } }
+    }
+  }
+
   // The viewer's own employees between projects, or coming off one soon —
   // for a firm that sells. A client's own staff are not contingent work.
   let noSkills = 0
@@ -618,6 +679,7 @@ export async function poolFor(
   const tail: string[] = []
   if (noSkills > 0) tail.push(`${noSkills} of your employees have no skills on record, so matching cannot weigh them`)
   if (busy > 0) tail.push(`${busy} of your employees are on a project past the next month`)
+  if (placed > 0) tail.push(`${placed} on a bench ${placed === 1 ? 'is' : 'are'} placed past the day this job starts`)
   return {
     entries: people,
     says: `Looked at ${parts.join(', ')}.${tail.length ? ` ${tail.join('; ')}.` : ''}`,
@@ -767,7 +829,16 @@ async function employeesFree(
       if (verdict.standing === 'ON_PROJECT' || verdict.standing === 'STARTING_SOON' || release) busy++
       continue
     }
-    const c = s.person.consultant!
+    const c0 = s.person.consultant!
+    // The free date the row shows is the one the reasons weigh: a
+    // manager's release, else the day after the placement they come off.
+    const lineEnd = mine.filter((l) => l.live && l.endsOn).reduce<Date | null>((a, l) => (a && a > l.endsOn! ? a : l.endsOn!), null)
+    const freeOn = release
+      ? freeFrom(release)
+      : comingOff && lineEnd
+        ? new Date(Date.UTC(lineEnd.getUTCFullYear(), lineEnd.getUTCMonth(), lineEnd.getUTCDate() + 1))
+        : null
+    const c = freeOn ? { ...c0, availableFrom: laterOf(c0.availableFrom ?? null, freeOn) } : c0
     entries.push({
       personId: s.personId,
       consultantId: c.id,

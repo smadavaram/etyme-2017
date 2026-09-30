@@ -541,3 +541,87 @@ export function submitLink(
 
 /** Said on Bench where the seat does not read pay, in place of what the bench costs. */
 export const BURN_READ_BY = 'What the bench costs is read by the desks that read pay'
+
+/**
+ * What an "Add to application" sends, from what the screen shows and what
+ * the person typed — two figures where the person comes through a
+ * supplier, because putting a supplier's person forward is two prices:
+ * what the supplier charges you (from its listing, where it said) and
+ * what you bill. Dollars an hour in, cents out, as `Submission.rate` is.
+ * Refused in a sentence rather than sent to a door that would refuse it.
+ */
+export function submitFields(
+  action: { rate: number | null; payRate: number | null; offeredBy: string | null },
+  typed: { bill?: string | null; pay?: string | null },
+  names: { person: string; firm: string }
+): { ok: true; rate: number; payRate: number | null } | { ok: false; says: string } {
+  const read = (t: string | null | undefined, fallback: number | null) => {
+    if (t != null && t.trim() !== '') {
+      const n = Number(t)
+      return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : NaN
+    }
+    return fallback
+  }
+  const rate = read(typed.bill, action.rate)
+  if (rate == null || Number.isNaN(rate)) {
+    return { ok: false, says: `Say the hourly rate you bill for ${names.person}.` }
+  }
+  if (!action.offeredBy) return { ok: true, rate, payRate: null }
+  const payRate = read(typed.pay, action.payRate)
+  if (payRate == null || Number.isNaN(payRate)) {
+    return { ok: false, says: `Say what ${names.firm} charges you an hour for ${names.person}. Its listing does not say.` }
+  }
+  return { ok: true, rate, payRate }
+}
+
+/**
+ * What an edit of a person's record sends from the consultant page: the
+ * skills, the day they are free and, for a desk that reads pay, the
+ * lowest rate they take. Dollars an hour in, cents out; a blank free
+ * date clears it, a blank skills box is none. The rate floor is a pay
+ * figure, so a desk that does not read pay cannot send one — refused in a
+ * sentence rather than sent to a door that refuses it.
+ */
+export function profileEditBody(
+  typed: { skills: string; availableFrom: string; rateFloor: string },
+  mayRate: boolean
+): { ok: true; body: { skills: string[]; availableFrom: string | null; rateFloor?: number | null } } | { ok: false; says: string } {
+  const skills = [...new Set(typed.skills.split(',').map((x) => x.trim()).filter(Boolean))]
+  const day = typed.availableFrom.trim()
+  if (day && !/^\d{4}-\d{2}-\d{2}$/.test(day)) return { ok: false, says: 'Say the free date as a day on the calendar.' }
+  const body: { skills: string[]; availableFrom: string | null; rateFloor?: number | null } = { skills, availableFrom: day || null }
+  const rate = typed.rateFloor.trim()
+  if (rate) {
+    if (!mayRate) return { ok: false, says: 'The lowest rate somebody takes is pay, set by the desks that read pay or by the person.' }
+    const n = Number(rate)
+    if (!Number.isFinite(n) || n <= 0) return { ok: false, says: 'Say the lowest hourly rate as a number of dollars.' }
+    body.rateFloor = Math.round(n * 100)
+  } else if (mayRate) {
+    body.rateFloor = null
+  }
+  return { ok: true, body }
+}
+
+/**
+ * The word a person reads for a value the database holds. A screen never
+ * prints an enum (CLAUDE.md, "Explain in a sentence, not a code"); an
+ * unknown value is spelled out in lower case rather than shouted.
+ */
+const WORDS: Record<string, string> = {
+  // Bench tiers — the firm's choice of how far a listing reaches.
+  RETAINED: 'Kept to us', MARKETING: 'Shown to our partners',
+  // Submission kinds — who holds the person.
+  BENCH: 'Our bench', NETWORK: "A partner's bench", INTERNAL: 'Our employee', CONSENT: 'Asked them first',
+  // Profile visibility.
+  INTERNAL_ONLY: 'Inside the firm', FEED: 'On their own page', CLIENT_VISIBLE: 'Clients may see', VERIFIED: 'Checked by a firm',
+  // Listing consent.
+  INVITED: 'Asked, not answered', GRANTED: 'Said yes', DECLINED: 'Said no',
+}
+
+export function wordFor(value: string | null | undefined): string {
+  if (!value) return 'Not set'
+  const w = WORDS[value]
+  if (w) return w
+  const plain = value.toLowerCase().replace(/_/g, ' ')
+  return plain.charAt(0).toUpperCase() + plain.slice(1)
+}

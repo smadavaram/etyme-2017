@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { historyLine } from '@/lib/shared-consultant'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -514,9 +515,7 @@ export default function MyBenchesPage() {
                     {/* Whether it actually went on, which is the question
                         behind "have they submitted me yet". */}
                     <span className="block text-[12px] text-etyme-muted mt-0.5">
-                      {h.sentOnTo
-                        ? `sent on to ${h.sentOnTo}`
-                        : 'still with them — not sent on yet'}
+                      {historyLine(h)}
                     </span>
                   </span>
                   <span className="flex items-center gap-3 shrink-0">

@@ -7,6 +7,7 @@ import { readBench, submitLink, BURN_READ_BY } from '@/lib/bench-filter'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
+import { sectionOfHref } from '@/lib/page-framing'
 import { hasPermission } from '@/lib/permissions'
 import { READS_PAY } from '@/lib/money/pay-visibility'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -481,6 +482,8 @@ export default function BenchPage() {
   const [roster, setRoster] = useState<RosterEntry[]>([])
   const [rosterSays, setRosterSays] = useState<RosterSummaryData | null>(null)
   const [entries, setEntries] = useState<BenchEntry[]>([])
+  // Whose chosen stay ran out: shown, not vanished (bench tester, 2026-09-30).
+  const [ended, setEnded] = useState<{ listingId: string; name: string; says: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tierFilter, setTierFilter] = useState<TierFilter>('all')
@@ -576,6 +579,7 @@ export default function BenchPage() {
       setRoster([])
       setRosterSays(null)
       setEntries(flat)
+      setEnded(Array.isArray(body.data?.ended) ? body.data.ended : [])
     } catch (err: any) {
       if (thisRequest !== requestId.current) return
       setError(err.message)
@@ -632,11 +636,15 @@ export default function BenchPage() {
   // ── Stats ──────────────────────────────────────────
 
   const stats = useMemo(() => {
-    const retained = entries.filter((e) => e.tier === 'RETAINED').length
-    const marketing = entries.filter((e) => e.tier === 'MARKETING').length
+    // Counted by what the person said, not by the tier the firm chose: a
+    // listing nobody has answered markets nobody, and is "Invited, waiting".
+    const agreed = (e: BenchEntry) => !e.consent || e.consent === 'GRANTED'
+    const retained = entries.filter((e) => agreed(e) && e.tier === 'RETAINED').length
+    const marketing = entries.filter((e) => agreed(e) && e.tier === 'MARKETING').length
+    const waiting = entries.filter((e) => e.consent === 'INVITED').length
     const availNow = entries.filter((e) => availabilityStatus(e.availableFrom).group === 'now').length
     const availSoon = entries.filter((e) => availabilityStatus(e.availableFrom).group === 'soon').length
-    return { total: entries.length, retained, marketing, availNow, availSoon }
+    return { total: entries.length, retained, marketing, waiting, availNow, availSoon }
   }, [entries])
 
   // ── Columns ────────────────────────────────────────
@@ -785,7 +793,15 @@ export default function BenchPage() {
             key: 'actions',
             label: '',
             render: (row: BenchEntry) =>
-              row.consent === 'DECLINED' || row.reach === 'NOBODY' ? null : (
+              row.consent === 'INVITED' ? (
+                // Not answered: send it again, or copy the link to send yourself.
+                <span className="flex gap-2 whitespace-nowrap">
+                  <button onClick={(e) => { e.stopPropagation(); nudge(row.id, false) }} disabled={busyRow === row.id}
+                    className="text-[11px] text-etyme-action hover:underline disabled:opacity-40">Resend</button>
+                  <button onClick={(e) => { e.stopPropagation(); nudge(row.id, true) }} disabled={busyRow === row.id}
+                    className="text-[11px] text-etyme-action hover:underline disabled:opacity-40">Copy link</button>
+                </span>
+              ) : row.consent === 'DECLINED' || row.reach === 'NOBODY' ? null : (
                 <button
                   onClick={(e) => { e.stopPropagation(); changeTier(row) }}
                   disabled={busyRow === row.id}
@@ -814,6 +830,30 @@ export default function BenchPage() {
           ]
         : []),
   ]
+
+  // Resend an unanswered invitation, ask an ended stay to renew, or copy
+  // the link (POST /api/bench/listings/:id/nudge). The link asks; only the
+  // person's yes grants anything.
+  async function nudge(listingId: string, copyOnly: boolean) {
+    setBusyRow(listingId)
+    try {
+      const res = await fetch(`/api/bench/listings/${listingId}/nudge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ copyOnly }),
+      })
+      const body = await readJson(res)
+      if (copyOnly && body.data?.url) {
+        try { await navigator.clipboard.writeText(body.data.url) } catch { /* shown below instead */ }
+      }
+      setToast({ message: copyOnly ? `${body.data?.says ?? 'Copied.'} ${body.data?.url ?? ''}` : body.data?.says ?? 'Sent.', type: 'success' })
+      setTimeout(() => setToast(null), 6000)
+    } catch (e: any) {
+      setToast({ message: e.message, type: 'error' })
+    } finally {
+      setBusyRow(null)
+    }
+  }
 
   async function changeTier(row: BenchEntry) {
     setBusyRow(row.id)
@@ -871,7 +911,7 @@ export default function BenchPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <div className="eyebrow mb-2">Procure</div>
+          <div className="eyebrow mb-2">{sectionOfHref(companyKind, '/dashboard/bench') ?? ''}</div>
           <h1 className="headline-serif text-heading text-etyme-ink mb-1">
             Bench
           </h1>
@@ -923,10 +963,11 @@ export default function BenchPage() {
 
       {/* Stats row */}
       {scope !== 'payroll' && !loading && entries.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
           <StatChip label="Total" value={stats.total} />
           <StatChip label="Retained" value={stats.retained} tone="verified" />
           <StatChip label="Marketing" value={stats.marketing} tone="action" />
+          <StatChip label="Invited, waiting" value={stats.waiting} tone="attention" />
           <StatChip label="Available Now" value={stats.availNow} tone="verified" />
           <StatChip label="Available ≤14d" value={stats.availSoon} tone="attention" />
         </div>
@@ -950,6 +991,23 @@ export default function BenchPage() {
         <div className="mb-8">
           <OurBenchGate firmName={session.company?.name ?? 'your firm'} permissions={session.permissions} roleName={session.roleName} />
         </div>
+      )}
+
+      {scope === 'company' && ended.length > 0 && (
+        <section className="mb-6 bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+          <p className="px-4 py-2 text-[11px] uppercase tracking-wide text-etyme-muted">Stay ended</p>
+          {ended.map((e) => (
+            <div key={e.listingId} className="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[13px] text-etyme-ink"><span className="font-medium">{e.name}</span> · {e.says}</span>
+              <span className="flex gap-3">
+                <button onClick={() => nudge(e.listingId, false)} disabled={busyRow === e.listingId}
+                  className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Ask to renew</button>
+                <button onClick={() => nudge(e.listingId, true)} disabled={busyRow === e.listingId}
+                  className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Copy link</button>
+              </span>
+            </div>
+          ))}
+        </section>
       )}
 
       {scope === 'payroll' ? (

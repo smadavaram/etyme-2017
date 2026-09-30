@@ -6,6 +6,10 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { hasPermission } from '@/lib/permissions'
+import { useSession } from '@/components/session-provider'
+import { ProfileEditor } from './profile-editor'
+import { wordFor } from '@/lib/bench-filter'
+import { sectionOfHref } from '@/lib/page-framing'
 
 /**
  * Consultants working surface — the company's talent pool.
@@ -36,6 +40,8 @@ interface Consultant {
   tier: string | null
   rateMin: number | null
   rateMax: number | null
+  /** Cents an hour, where this seat reads pay. */
+  rateFloor?: number | null
 }
 
 // ── Add Consultant Modal ───────────────────────────────────
@@ -311,7 +317,15 @@ interface RateProgressionData {
   }
 }
 
-function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onClose: () => void }) {
+function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
+  consultant: Consultant
+  onClose: () => void
+  /** The seat may change the person's record (`consultants.write`). */
+  mayEdit: boolean
+  /** The seat reads pay, so may set the lowest rate they take. */
+  mayRate: boolean
+  onSaved: () => void
+}) {
   const [contracts, setContracts] = useState<DrawerContract[]>([])
   const [submissions, setSubmissions] = useState<DrawerSubmission[]>([])
   const [rateProgression, setRateProgression] = useState<RateProgressionData | null>(null)
@@ -452,6 +466,19 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Skills, free date and rate floor, editable where the seat may
+              (bench tester, 2026-09-30: there was no screen for it). */}
+          {mayEdit && (
+            <ProfileEditor
+              consultantId={consultant.id}
+              skills={consultant.skills}
+              availableFrom={consultant.availableFrom}
+              rateFloor={consultant.rateFloor ?? null}
+              mayRate={mayRate}
+              onSaved={onSaved}
+            />
+          )}
+
           {/* Contact */}
           <div>
             <p className="eyebrow mb-2">Contact</p>
@@ -484,7 +511,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
             </div>
             <div>
               <p className="eyebrow mb-1">Tier</p>
-              <p className="text-sm">{consultant.tier ?? 'Unset'}</p>
+              <p className="text-sm">{wordFor(consultant.tier)}</p>
             </div>
             <div>
               <p className="eyebrow mb-1">Visibility</p>
@@ -493,7 +520,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
                 consultant.visibility === 'FEED' ? 'chip--action' :
                 'chip--passive'
               }`}>
-                {consultant.visibility}
+                {consultant.visibility === 'INTERNAL' ? wordFor('INTERNAL_ONLY') : wordFor(consultant.visibility)}
               </span>
             </div>
           </div>
@@ -732,6 +759,7 @@ function formatWorkAuth(auth: string | null): string {
 
 export default function ConsultantsPage() {
   const router = useRouter()
+  const session = useSession()
   const searchParams = useSearchParams()
   const [consultants, setConsultants] = useState<Consultant[]>([])
   const [loading, setLoading] = useState(true)
@@ -783,7 +811,9 @@ export default function ConsultantsPage() {
         rateMax: c.listings?.[0]?.rateMax ?? c.rateMax ?? null,
       }))
       setConsultants(mapped)
-      setHasCostPermission(hasPermission(body.data?.permissions ?? [], 'consultants.cost'))
+      // The seat's own permissions: the list answer does not carry them, so
+      // an owner holding everything read "Restricted" over their own people.
+      setHasCostPermission(hasPermission(session.permissions, 'consultants.cost'))
 
       // Asked separately and never merged into the table above: a roster
       // is not a set of listings and must not be read as one.
@@ -798,7 +828,7 @@ export default function ConsultantsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [session.permissions])
 
   useEffect(() => {
     fetchConsultants()
@@ -869,13 +899,13 @@ export default function ConsultantsPage() {
         hasCostPermission ? (
           row.rateMin != null ? (
             <span className="tabular-nums">
-              ${row.rateMin}<span className="text-etyme-faint">/hr</span>
+              ${Math.round(row.rateMin / 100)}<span className="text-etyme-faint">/hr</span>
             </span>
           ) : (
             <span className="text-etyme-faint">—</span>
           )
         ) : (
-          <span className="text-etyme-faint text-[11px] italic">Restricted</span>
+          <span className="text-etyme-faint text-[11px]">Read by the pay desks</span>
         )
       ),
       sortValue: (row) => row.rateMin ?? 0,
@@ -911,7 +941,7 @@ export default function ConsultantsPage() {
           <span className={`chip ${
             row.tier === 'RETAINED' ? 'chip--verified' : 'chip--attention'
           }`}>
-            {row.tier}
+            {wordFor(row.tier)}
           </span>
         ) : (
           <span className="text-etyme-faint">—</span>
@@ -935,7 +965,8 @@ export default function ConsultantsPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Sell</p>
+          {/* The section this page sits under on the reader's own menu. */}
+          <p className="eyebrow">{sectionOfHref(session.company?.kind ?? 'VENDOR', '/dashboard/consultants') ?? ''}</p>
           <h1>Consultants</h1>
           <p>Consultant records — imported, retained and marketing bench, with skills, availability and work authorization at a glance. People who granted you a listing.</p>
         </div>
@@ -1005,7 +1036,15 @@ export default function ConsultantsPage() {
 
       {/* Modals */}
       {showAdd && <AddConsultantModal onClose={() => setShowAdd(false)} onCreated={fetchConsultants} />}
-      {selected && <ConsultantDrawer consultant={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ConsultantDrawer
+          consultant={selected}
+          onClose={() => setSelected(null)}
+          mayEdit={hasPermission(session.permissions, 'consultants.write')}
+          mayRate={hasPermission(session.permissions, 'consultants.cost')}
+          onSaved={() => { void fetchConsultants() }}
+        />
+      )}
     </>
   )
 }

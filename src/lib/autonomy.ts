@@ -442,6 +442,11 @@ ATTRIBUTED.PROJECT_HOLD_TAKEN = { basis: 'RECORDED' }
 ATTRIBUTED.PROJECT_HOLD_RELEASED = { basis: 'RECORDED' }
 ATTRIBUTED.PROJECT_MOVE_PLACED = { basis: 'RECORDED' }
 ATTRIBUTED.PROJECT_MOVE_SUBMITTED = { basis: 'RECORDED' }
+// A firm sending a bench invitation again to somebody who has not
+// answered, and asking somebody whose chosen stay ran out to renew it.
+// A person pressed each button; the person asked still decides.
+ATTRIBUTED.BENCH_INVITATION_RESENT = { basis: 'RECORDED' }
+ATTRIBUTED.BENCH_STAY_RENEW_ASKED = { basis: 'RECORDED' }
 
 // Somebody holding the deployment secret asked for the demo world to be
 // deleted and seeded again, and typed the phrase. A person's act, not

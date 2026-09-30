@@ -17,6 +17,7 @@ import {
   type RosterPerson,
 } from '@/lib/consultant-portfolio'
 import { NETWORK_VISIBLE, whoSees } from '@/lib/shared-consultant'
+import { stayEndedRow } from '@/lib/bench-stay'
 
 /**
  * GET /api/bench
@@ -337,6 +338,39 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // Asked and not answered: said apart from the ones who agreed, so a
+  // count of who the firm is marketing never includes somebody who has
+  // said nothing yet (bench tester, 2026-09-30: "Marketing 3" held one).
+  const waiting = listings.filter((l) => l.state === 'INVITED').length
+
+  // Whose chosen stay ran out, on the firm's own bench only: they are off
+  // every match and cannot be put forward, and still belong on the page,
+  // with the day it ended and a way to ask them to renew — rather than
+  // vanishing as though they had never been here.
+  const ended =
+    scope === 'company' && companyId
+      ? (
+          await prisma.benchListing.findMany({
+            where: { companyId, state: 'GRANTED', lapsedAt: { not: null } },
+            select: {
+              id: true, lapsedAt: true, staysUntil: true, stayDays: true,
+              consultant: { select: { personId: true, skills: true, person: { select: { name: true } } } },
+            },
+            orderBy: { lapsedAt: 'desc' },
+          })
+        ).map((l) => {
+          const on = l.staysUntil ?? l.lapsedAt!
+          return {
+            listingId: l.id,
+            personId: l.consultant.personId,
+            name: l.consultant.person.name,
+            skills: l.consultant.skills,
+            endedOn: on.toISOString().slice(0, 10),
+            says: stayEndedRow(on),
+          }
+        })
+      : []
+
   return NextResponse.json({
     data: {
       scope,
@@ -345,7 +379,9 @@ export async function GET(request: NextRequest) {
         RETAINED: grouped.RETAINED?.length ?? 0,
         MARKETING: grouped.MARKETING?.length ?? 0,
         total: listings.length,
+        waiting,
       },
+      ended,
     },
   })
 }
