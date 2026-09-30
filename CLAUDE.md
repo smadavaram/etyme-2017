@@ -1361,6 +1361,18 @@ Three rules follow:
   because US law does not allow comp time in place of overtime pay
   outside the public sector; if a client asks, it is a setting with the
   law said beside it, not a default.
+  **And weekend work is normal, not an exception** (founder, the same
+  day): *"In India too it's normal for people to work Saturdays to help
+  a release."* So a Saturday or Sunday entry is never flagged, held or
+  questioned for being on a weekend; it is checked like any other day
+  (against the contract's hours and last day). Which days are off by
+  default is the **site's calendar** — the tenant → entity → site rule
+  above — so a US site defaults to Saturday and Sunday off and an
+  Indian site can mark Saturday as a working day. Overtime follows the
+  country: the US line is 40 hours in the Sunday-to-Saturday week; an
+  Indian worker's overtime is set by state law (commonly past nine hours
+  a day or forty-eight a week, at twice the ordinary rate) and is
+  `etyme-regulatory`'s to confirm before any Indian pay line prices it.
 
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
