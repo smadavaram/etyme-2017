@@ -59,6 +59,7 @@ import { chaseCredentials } from '@/lib/credential-chase'
 import { day, seedToday } from '@/lib/seed-days'
 import type { Prisma } from '@prisma/client'
 import type { World } from '@/lib/seed-programmes'
+import { mondayWeek } from '@/lib/seed-programmes'
 
 /** "Colleen Byrne" → colleen.byrne@… — accents folded, never dropped into a dot. */
 const emailOf = (name: string) =>
@@ -69,14 +70,14 @@ const emailOf = (name: string) =>
     .replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
 
 /**
- * Five eight-hour days ending `w` weeks ago — the same span the rest of
- * the world uses, so nothing straddles a week somebody else wrote.
+ * Five eight-hour days, Monday to Friday, `w` calendar weeks back — the
+ * same week the rest of the world files (`mondayWeek` in
+ * lib/seed-programmes), so nothing straddles a week somebody else wrote.
+ * It used to be five days counted back from the seed day, which on a
+ * Wednesday is Saturday to Wednesday.
  */
-function officeWeek(w: number, hours = 40) {
-  const start = day(-(w * 7 + 4)),
-    end = day(-(w * 7))
-  const days: Record<string, number> = {}
-  for (let d = 0; d < 5; d++) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = hours / 5
+export function officeWeek(w: number, hours = 40) {
+  const { start, end, days } = mondayWeek(w, hours)
   return { start, end, days, hours }
 }
 
@@ -131,11 +132,10 @@ export function calendarWeeks(start: Date, end: Date, hoursPerDay = 8) {
  * eights is telling a nurse manager that this product has never met a
  * nurse. Thirty-six hours, Monday, Wednesday and Friday.
  */
-function nurseWeek(w: number) {
-  const start = day(-(w * 7 + 4)),
-    end = day(-(w * 7))
+export function nurseWeek(w: number) {
+  const { start, end } = mondayWeek(w, 36)
   const days: Record<string, number> = {}
-  for (const d of [0, 2, 4]) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = 12
+  for (const d of [0, 2, 4]) days[new Date(start.getTime() + d * 86_400_000).toISOString().slice(0, 10)] = 12
   return { start, end, days, hours: 36 }
 }
 
@@ -358,8 +358,11 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     const { week } = input
     const clientAt = new Date(week.end.getTime() + 2 * 86_400_000)
     const employerAt = new Date(week.end.getTime() + 3 * 86_400_000)
+    // Any sheet already on those days, so a world seeded before its weeks
+    // ran Monday to Friday keeps its own rather than gaining a second
+    // sheet over the same Tuesday.
     const found = await db.timesheet.findFirst({
-      where: { sellContractId: input.sellContractId, periodStart: week.start },
+      where: { sellContractId: input.sellContractId, periodStart: { lte: week.end }, periodEnd: { gte: week.start } },
       select: { id: true },
     })
     const sheet =

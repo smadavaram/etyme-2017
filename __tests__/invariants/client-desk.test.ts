@@ -278,7 +278,10 @@ describe('what the client desk is told', () => {
     expect(seed).toContain('const longHours = awaiting && w === 1 ? pl.exceptionHours ?? null : null')
     // The hours reach the days, not only the total: a sheet that says
     // 44 over five eight-hour days is a figure with nothing behind it.
-    expect(seed).toContain('const { start: ws, end: we, days } = week(w, longHours ?? 40)')
-    expect(seed).toContain('totalHours: longHours ?? 40,')
+    expect(seed).toContain('const { start: ws, end: we, days } = week(w, longHours ?? 40, start)')
+    // And the total is what the days add up to, so a week the start cuts
+    // is not claimed at forty.
+    expect(seed).toContain('const sheetHours = Object.values(days).reduce((a, b) => a + b, 0)')
+    expect(seed).toContain('totalHours: sheetHours,')
   })
 })

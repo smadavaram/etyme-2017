@@ -54,6 +54,7 @@
  * Halcyon, and what Halcyon owes is an invoice receipt, not payroll.
  */
 
+import { paidByPayroll } from '@/lib/money/paid-through'
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
 import { priceByDay, ratePeriods } from '@/lib/contract-rate'
@@ -327,15 +328,18 @@ export async function payPastPeriods(
  */
 export async function seedPayrollRuns(ctx: { roster: string[] }): Promise<{ runs: number; refused: string[] }> {
   const out = { runs: 0, refused: [] as string[] }
-  const lines = await db.buyContract.findMany({
+  // Which lines payroll pays is money's one rule (`paidByPayroll`): an
+  // employment type with nobody between the firm and the worker. The seed
+  // asks it rather than keeping its own copy of it.
+  const candidates = await db.buyContract.findMany({
     where: {
-      contractType: 'W2', vendorCompanyId: null,
       company: { slug: { in: ctx.roster } },
       candidates: { some: { person: { primaryEmail: { in: [...PAID_WORKERS] } } } },
     },
-    select: { id: true, companyId: true },
+    select: { id: true, companyId: true, contractType: true, vendorCompanyId: true, supplierSellContractId: true },
     orderBy: { id: 'asc' },
   })
+  const lines = candidates.filter(paidByPayroll)
   for (const line of lines) {
     const runBy = await payrollDesk(line.companyId)
     if (!runBy) continue

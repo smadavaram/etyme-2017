@@ -110,6 +110,15 @@ interface Placement {
   papers: Papers
   /** Whole weeks of hours the client has signed, and weeks still waiting on them. */
   weeks?: { approved: number; awaiting: number }
+  /**
+   * Every week from the placement's first day is signed, rather than the
+   * last few. Omar Haddad started six weeks before the world was born and
+   * had two weeks filed, so August read as hours nobody had entered
+   * (browser walk, 2026-09-30). Where a long week waits to be decided it
+   * is the most recent one; every week before it back to the start is
+   * signed. `weeks` is not read where this is set.
+   */
+  filesFromStart?: true
   /** The most recent invoice for the signed weeks, and where it got to. */
   invoice?: 'PAID' | 'SUBMITTED' | null
 }
@@ -210,7 +219,7 @@ export const PROGRAMMES: Program[] = [
         via: ['nike', 'brightmoor'], rates: [13200, 9600],
         overtimeAfterHours: 40, overtimeWeekHours: 45,
         person: 'Omar Haddad', workAuth: 'USC', startedDaysAgo: 45, endsInDays: 320, state: 'IN_PROGRESS',
-        papers: 'BGC_EXPIRED', weeks: { approved: 2, awaiting: 0 }, invoice: 'PAID' },
+        papers: 'BGC_EXPIRED', filesFromStart: true, invoice: 'PAID' },
       { role: 'Supply chain planning analyst', skills: ['Supply planning', 'Demand planning'], loc: 'Tualatin, OR',
         via: ['nike', 'pinnacle'], rates: [9800, 7400], exceptionHours: 44,
         person: 'Lucía Fernández', workAuth: 'USC', startedDaysAgo: 30, endsInDays: 335, state: 'IN_PROGRESS',
@@ -370,18 +379,36 @@ export function spread(hours: number, n: number): number[] {
 }
 
 /**
- * Five working days ending `w` weeks ago. Same shape as the world seed.
+ * The calendar week `w` weeks back, Monday to Friday — the week the
+ * product judges hours in (`weekStart` in lib/overtime).
+ *
+ * It was five days counted back from whenever the seed ran, so a world
+ * born on a Wednesday filed every week Saturday to Wednesday: Omar
+ * Haddad's read Sep 12–16 and Sep 19–23 (browser walk, 2026-09-30).
+ * Nobody works a Saturday-to-Wednesday week, and a threshold judged
+ * Monday to Monday reads one as two part-weeks.
+ *
+ * `from` cuts the week at a placement's first day, so a week the start
+ * falls inside is filed for the days worked and none before them.
  *
  * The hours go into `days`, not only into the sheet total: a sheet
  * whose days and whose total disagree is a figure nobody can stand
  * behind, and everything that prices a week reads the days.
  */
-export function week(w: number, hours = 40) {
-  const start = day(-(w * 7 + 4)), end = day(-(w * 7))
-  const days: Record<string, number> = {}
-  const each = spread(hours, 5)
-  for (let d = 0; d < 5; d++) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = each[d]
-  return { start, end, days }
+export function week(w: number, hours = 40, from?: Date) {
+  const whole = mondayWeek(w, hours)
+  if (!from || from.getTime() <= whole.start.getTime()) return whole
+  const cut = Object.fromEntries(
+    Object.entries(whole.days).filter(([d]) => new Date(`${d}T00:00:00Z`).getTime() >= from.getTime()),
+  )
+  return { start: from, end: whole.end, days: cut }
+}
+
+/** The weeks back, oldest first, from the one holding `from` to last week. */
+export function weeksSince(from: Date): number[] {
+  const out: number[] = []
+  for (let w = 1; mondayWeek(w, 40).end.getTime() >= from.getTime(); w++) out.unshift(w)
+  return out
 }
 
 /** `n` days after a UTC midnight, still at UTC midnight. */
@@ -843,9 +870,10 @@ export async function seedProgrammes(
       }
 
       // ── Hours, and what became of them ───────────────────────────
-      if (!pl.weeks) continue
+      if (!pl.weeks && !pl.filesFromStart) continue
       const bottom = contracts[0]
-      const signed: { id: string; periodStart: Date; periodEnd: Date }[] = []
+      // Hours carried, because a week the start cuts is not forty.
+      const signed: { id: string; periodStart: Date; periodEnd: Date; totalHours: unknown }[] = []
 
       // When each signature on week `w` landed: the client on the day it
       // signed, each firm below an hour after the one above, the employer
@@ -853,10 +881,14 @@ export async function seedProgrammes(
       // The employer used to be dated the day BEFORE the client — the
       // order the founder's rule forbids, and nobody could see it while
       // there were only two signatures to compare.
+      //
+      // Counted from the Friday the week ends on, not from the day the
+      // seed ran: a week is signed after it is worked, whatever weekday
+      // the world was born on.
       const signedAt = (w: number, step: number): Date =>
         step >= chain.length
-          ? day(-(w * 7 - 3))
-          : new Date(day(-(w * 7 - 2)).getTime() + step * 3_600_000)
+          ? plusDays(week(w).end, 3)
+          : new Date(plusDays(week(w).end, 2).getTime() + step * 3_600_000)
 
       // Every firm between the client and the employer accepts what it
       // pays the firm below it — PASS_THROUGH, at the rate of the rung it
@@ -865,7 +897,7 @@ export async function seedProgrammes(
       // it, and the invoice-receipt match (`lib/money/payers-acceptance`)
       // rightly finds nothing to match. `onlyIfMissing` makes a second
       // seeding write nothing.
-      const passThroughFor = async (timesheetId: string, w: number, onlyIfMissing: boolean) => {
+      const passThroughFor = async (timesheetId: string, w: number, onlyIfMissing: boolean, hours = 40) => {
         for (let i = 0; i < chain.length - 1; i++) {
           const firm = firmBySlug.get(chain[i])!
           if (onlyIfMissing && (await db.workAssertion.findFirst({
@@ -873,26 +905,42 @@ export async function seedProgrammes(
           }))) continue
           await db.workAssertion.create({
             data: {
-              timesheetId, companyId: firm.id, role: 'PASS_THROUGH', hours: 40, rateCents: pl.rates[i + 1],
+              timesheetId, companyId: firm.id, role: 'PASS_THROUGH', hours, rateCents: pl.rates[i + 1],
               state: 'LIVE', byId: seatBySlug.get(chain[i])?.personId ?? null, at: signedAt(w, i + 1),
             },
           })
         }
       }
-      const total = pl.weeks.approved + pl.weeks.awaiting
-      for (let w = total; w >= 1; w--) {
-        const awaiting = w <= pl.weeks.awaiting
+      // Which weeks are filed, oldest first, and which still wait on the
+      // client. A placement filed from its start signs every week back to
+      // its first day and leaves the most recent free where a long week
+      // waits to be decided there (below).
+      const plan: { w: number; awaiting: boolean }[] = pl.filesFromStart
+        ? weeksSince(start)
+            .filter((w) => !(pl.overtimeWeekHours && w === 1))
+            .map((w) => ({ w, awaiting: false }))
+        : Array.from({ length: pl.weeks!.approved + pl.weeks!.awaiting }, (_, i) => pl.weeks!.approved + pl.weeks!.awaiting - i)
+            .map((w) => ({ w, awaiting: w <= pl.weeks!.awaiting }))
+      const total = plan.length ? plan[0].w : 0
+      for (const { w, awaiting } of plan) {
         // The one week still waiting is the long one, where there is a
         // long one. A week already signed was signed at the ordinary
         // hours, and re-pricing history is not what this seed is for.
         const longHours = awaiting && w === 1 ? pl.exceptionHours ?? null : null
-        const { start: ws, end: we, days } = week(w, longHours ?? 40)
-        const already = await db.timesheet.findFirst({ where: { sellContractId: bottom.id, periodStart: ws } })
+        const { start: ws, end: we, days } = week(w, longHours ?? 40, start)
+        const sheetHours = Object.values(days).reduce((a, b) => a + b, 0)
+        // Any sheet already on those days, not only one starting the same
+        // day: a world seeded before weeks ran Monday to Friday keeps the
+        // weeks it was born with rather than gaining a second sheet over
+        // the same Tuesday.
+        const already = await db.timesheet.findFirst({
+          where: { sellContractId: bottom.id, periodStart: { lte: we }, periodEnd: { gte: ws } },
+        })
         if (already) {
-          if (!awaiting) {
+          if (!awaiting && already.status === 'APPROVED') {
             // A world seeded before the firms in the middle signed gets
             // their acceptance now, once; a world that has it is untouched.
-            await passThroughFor(already.id, w, true)
+            await passThroughFor(already.id, w, true, Number(already.totalHours))
             signed.push(already)
           }
           continue
@@ -903,12 +951,12 @@ export async function seedProgrammes(
             // The total the days add up to. A sheet whose total and
             // whose days disagree is a figure nobody can stand behind,
             // and the overtime split reads the days.
-            totalHours: longHours ?? 40,
+            totalHours: sheetHours,
             status: awaiting ? 'SUBMITTED' : 'APPROVED', submittedAt: we,
             ...(awaiting ? {} : {
-              approvedAt: day(-(w * 7 - 2)), approvedById: desk.hiring.personId,
-              clientApprovedAt: day(-(w * 7 - 2)), clientApprovedById: desk.hiring.personId,
-              employerAcceptedAt: day(-(w * 7 - 3)), employerAcceptedById: seatBySlug.get(employerSlug)!.personId,
+              approvedAt: signedAt(w, 0), approvedById: desk.hiring.personId,
+              clientApprovedAt: signedAt(w, 0), clientApprovedById: desk.hiring.personId,
+              employerAcceptedAt: signedAt(w, chain.length), employerAcceptedById: seatBySlug.get(employerSlug)!.personId,
             }),
           },
         })
@@ -919,12 +967,12 @@ export async function seedProgrammes(
           // accepts last — the same three roles `api/timesheets/chain-turn`
           // asks for, stamped in that order.
           await db.workAssertion.create({
-            data: { timesheetId: ts.id, companyId: client.id, role: 'CLIENT_APPROVAL', hours: 40, rateCents: pl.rates[0],
+            data: { timesheetId: ts.id, companyId: client.id, role: 'CLIENT_APPROVAL', hours: sheetHours, rateCents: pl.rates[0],
               state: 'LIVE', byId: desk.hiring.personId, at: signedAt(w, 0) },
           })
-          await passThroughFor(ts.id, w, false)
+          await passThroughFor(ts.id, w, false, sheetHours)
           await db.workAssertion.create({
-            data: { timesheetId: ts.id, companyId: employer.id, role: 'EMPLOYER_ACCEPTANCE', hours: 40,
+            data: { timesheetId: ts.id, companyId: employer.id, role: 'EMPLOYER_ACCEPTANCE', hours: sheetHours,
               rateCents: pl.rates[pl.rates.length - 1], state: 'LIVE', byId: seatBySlug.get(employerSlug)!.personId,
               at: signedAt(w, chain.length) },
           })
@@ -955,9 +1003,15 @@ export async function seedProgrammes(
         // Clear of every week above, not merely off their start dates.
         // Two sheets claiming the same Tuesday is a day billed twice and
         // a figure nobody can reconcile.
+        //
+        // Where the weeks run from the start the most recent was left
+        // free for this one, and the search starts there; otherwise it
+        // starts older than the oldest week filed.
         let back = 1
-        const oldest = day(-(total * 7 + 4)).getTime()
-        while (mondayWeek(back, 40).end.getTime() >= oldest) back += 1
+        if (!pl.filesFromStart) {
+          const oldest = mondayWeek(total, 40).start.getTime()
+          while (mondayWeek(back, 40).end.getTime() >= oldest) back += 1
+        }
 
         let slot = mondayWeek(back, pl.overtimeWeekHours)
         let sitting = await overlapping(slot.start, slot.end)
@@ -1059,7 +1113,8 @@ export async function seedProgrammes(
         // What the bill is worth: every signed week of the period, at
         // this firm's rate. The lines below add up to exactly this,
         // because any week already on a line is on this same bill.
-        const cents = weeks.length * 40 * topContract.billRate
+        const hoursOf = (t: (typeof weeks)[number]) => Number(t.totalHours)
+        const cents = weeks.reduce((n, t) => n + Math.round(hoursOf(t) * topContract.billRate), 0)
 
         // Raised once the period's hours are in, and never in the
         // future — a bill issued tomorrow is a date nobody can explain.
@@ -1096,7 +1151,7 @@ export async function seedProgrammes(
           await db.invoiceLine.create({
             data: {
               invoiceId: inv.id, timesheetId: t.id, sellContractId: topContract.id, personId: who.id,
-              hours: 40, rateCents: topContract.billRate, amountCents: 40 * topContract.billRate,
+              hours: hoursOf(t), rateCents: topContract.billRate, amountCents: Math.round(hoursOf(t) * topContract.billRate),
               description: `${pl.person} — ${iso(t.periodStart)} to ${iso(t.periodEnd)}`,
             },
           })
@@ -1283,15 +1338,18 @@ export async function seedProgrammes(
 
       // One week, signed by the client and accepted by the employer.
       const { start: dWs, end: dWe, days: dDays } = week(2)
-      let dSheet = await db.timesheet.findFirst({ where: { sellContractId: dSell.id, periodStart: dWs } })
+      let dSheet = await db.timesheet.findFirst({
+        where: { sellContractId: dSell.id, periodStart: { lte: dWe }, periodEnd: { gte: dWs } },
+      })
       if (!dSheet) {
         dSheet = await db.timesheet.create({
           data: {
             sellContractId: dSell.id, personId: dWho.id, periodStart: dWs, periodEnd: dWe, days: dDays,
             totalHours: 40, status: 'APPROVED', submittedAt: dWe,
-            approvedAt: day(-12), approvedById: desk.hiring.personId,
-            clientApprovedAt: day(-12), clientApprovedById: desk.hiring.personId,
-            employerAcceptedAt: day(-11), employerAcceptedById: supplierSeat.personId,
+            // Signed after the Friday it ends on, whatever day the world was born.
+            approvedAt: plusDays(dWe, 2), approvedById: desk.hiring.personId,
+            clientApprovedAt: plusDays(dWe, 2), clientApprovedById: desk.hiring.personId,
+            employerAcceptedAt: plusDays(dWe, 3), employerAcceptedById: supplierSeat.personId,
           },
         })
         await db.workAssertion.createMany({
