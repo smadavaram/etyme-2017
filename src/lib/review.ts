@@ -210,3 +210,38 @@ export function checkReview(input: {
 
   return { ok: true, reason: 'Disagreement recorded.' }
 }
+
+// ── Who opens the queue ──────────────────────────────────────────────
+//
+// `GET /api/checks/queue` asked for nothing past being staff, so every
+// seat at a firm was shown the Check queue — a delivery engineer who
+// screens nobody among them. What the queue holds is the machine's
+// judgment of the candidates put forward here — "the CV evidences the
+// skills the job asks for", with the skills it read — and the leads it
+// could not settle as the same seat. Both are the working material of
+// whoever reads submissions: a recruiter, resource or account manager at
+// a supplier; the hiring manager, the program office and the desks that
+// clear a role at a client; the coordinator and supplier manager at a
+// program office. Every one of them holds `submissions.read`, and the
+// money desks, HR at a supplier and a delivery engineer do not.
+//
+// Reviewing is gated the same, because a review that opens where the
+// queue refuses is a door beside the one that was locked.
+
+/** The one permission the queue asks for. The route spells it; this names it. */
+export const QUEUE_OPENS_FOR = 'submissions.read' as const
+
+/** What is missing and who to ask. Never a permission code. */
+export const CANNOT_SEE_QUEUE =
+  "The check queue is where somebody who reads submissions here looks over the machine's " +
+  'judgment of the people put forward. Ask whoever manages roles at your company to seat ' +
+  'you at a desk that reads submissions — recruiting, hiring or the program office.'
+
+/**
+ * Whether a check's record is a submission, and so a judgment about a
+ * person. Two spellings are written today — the loop writes SUBMISSION,
+ * an older seed writes Submission — and both are one kind of record.
+ */
+export function isAboutAPerson(recordType: string): boolean {
+  return recordType.toUpperCase() === 'SUBMISSION'
+}

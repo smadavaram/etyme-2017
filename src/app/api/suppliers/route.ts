@@ -5,8 +5,10 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { seatedDesk } from '@/lib/resolve-client-company'
 import { defaultPostureFor } from '@/lib/walls'
+import { hasPermission } from '@/lib/permissions'
 import {
-  readSupplierList, listSentence, nameFromDomain, type SupplierRow,
+  readSupplierList, nameFromDomain, type SupplierRow,
+  CANNOT_SEE_SUPPLIERS,
 } from '@/lib/supplier-list'
 import { suppliersOwing } from '@/lib/supplier-desks'
 import { inviteLetter } from '@/lib/reaching-out'
@@ -42,6 +44,25 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Suppliers')
   if (notStaff) return notStaff
 
+  // Which desks read the register, and why each: `lib/supplier-list`.
+  // No AccessLog here, on purpose: the register reads firms, and the
+  // only people on it are the contacts a client typed onto an
+  // invitation — an address, never a Person record with a trail of its
+  // own. A read of a person is logged where a person is read.
+  //
+  // Spelled rather than named, so the sidebar test reads the three keys
+  // straight off this line; `supplier-gate.test.ts` holds them equal to
+  // SUPPLIERS_OPEN_TO, the list with the reasons.
+  //
+  // Under a seat the desk is the client's role, never the office's own
+  // (lib/resolve-client-company) — the same desk that decides whose list
+  // this is below. A revoked seat is the office's own desk again.
+  const desk = await seatedDesk(caller)
+  const p = desk?.acting.permissions ?? caller.permissions
+  if (!hasPermission(p, 'vendors.read') && !hasPermission(p, 'requirements.read') && !hasPermission(p, 'payments.record')) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: CANNOT_SEE_SUPPLIERS } }, { status: 403 })
+  }
+
   // Whose supplier list this is. A program office in a seat is reading
   // the client's suppliers — that is most of what running a program is —
   // and read as its own it opened an empty page.
@@ -52,7 +73,6 @@ export async function GET(request: NextRequest) {
   // holds one of those desks only where the client's role it sits at
   // holds it. Nothing here widens that; the seat decides whose list is
   // shown, and `lib/supplier-onboarding` decides who may say yes to it.
-  const desk = await seatedDesk(caller)
   const companyId = desk?.companyId ?? caller.company!.id
 
   const now = new Date()

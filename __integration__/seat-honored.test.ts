@@ -533,13 +533,18 @@ describe('a revoked seat is refused the next second', () => {
     expect(body?.data?.client?.id ?? null).not.toBe(co['world-corning'])
   })
 
-  it('a revoked seat reads the client’s register and its suppliers no longer', async () => {
+  it('a revoked seat reads the client’s register and its suppliers no longer, and its own thin desk is refused the supplier list in a sentence', async () => {
     as(APTIVA_ANALYST)
     const register = await json(await people(req('GET', '/api/people')))
     expect(register.body.data.people, 'a revoked office still read the client’s register').toHaveLength(0)
 
+    // Once the seat is gone the analyst is their own desk again — hours
+    // and assignments, nothing about suppliers — so the list is refused
+    // outright rather than shown empty, and the refusal says who to ask.
     const panel = await json(await suppliers(req('GET', '/api/suppliers')))
-    expect(panel.body.data.suppliers, 'a revoked office still read the client’s supplier panel').toHaveLength(0)
+    expect(panel.status).toBe(403)
+    expect(panel.body.data, 'a revoked office still read the client’s supplier panel').toBeUndefined()
+    expect(panel.body.error.message).toContain('Ask whoever manages roles')
   })
 
   it('a revoked seat reads its own submissions, never the client’s', async () => {

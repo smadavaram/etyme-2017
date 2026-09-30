@@ -2,7 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { drawSample, agreement, thisWeek, question, SAMPLE_SIZE } from '@/lib/review'
+import { hasPermission } from '@/lib/permissions'
+import { logBulkAccess } from '@/lib/access-log'
+import {
+  drawSample, agreement, thisWeek, question, SAMPLE_SIZE,
+  CANNOT_SEE_QUEUE, isAboutAPerson,
+} from '@/lib/review'
+
+/**
+ * Who each machine check on a submission is about. A judgment of
+ * somebody's CV is that person's data, and reading it leaves a trail
+ * (CLAUDE.md: every read of another person's data, including refusals).
+ */
+async function peopleBehind(checks: { recordType: string; recordId: string }[]): Promise<string[]> {
+  const ids = [...new Set(checks.filter((c) => isAboutAPerson(c.recordType)).map((c) => c.recordId))]
+  if (ids.length === 0) return []
+  const subs = await prisma.submission.findMany({ where: { id: { in: ids } }, select: { personId: true } })
+  return [...new Set(subs.map((s) => s.personId))]
+}
 
 /**
  * GET /api/checks/queue
@@ -36,12 +53,48 @@ export async function GET(request: NextRequest) {
   // the model running today.
   const since = new Date(now.getTime() - 42 * 86400000)
 
-  const [candidates, reviewed, maybes] = await Promise.all([
-    prisma.check.findMany({
-      where: { companyId, checker: 'MODEL', agreed: null, at: { gte: since } },
-      orderBy: { at: 'asc' },
-      take: 200,
-    }),
+  const candidates = await prisma.check.findMany({
+    where: { companyId, checker: 'MODEL', agreed: null, at: { gte: since } },
+    orderBy: { at: 'asc' },
+    take: 200,
+  })
+
+  const sample = drawSample(
+    candidates.map((c) => ({
+      id: c.id,
+      code: c.code,
+      verdict: c.verdict as 'PASS' | 'FAIL' | 'WARN',
+      reason: c.reason,
+      evidence: c.evidence,
+      at: c.at,
+      agreed: c.agreed,
+    })),
+    SAMPLE_SIZE
+  )
+
+  // Only the sample is put in front of the reader, so only the people
+  // behind the sample are read — or would have been, on a refusal.
+  const shownIds = new Set(sample.map((c) => c.id))
+  const subjects = await peopleBehind(candidates.filter((c) => shownIds.has(c.id)))
+  const trail = { actorPersonId: caller.person.id, actorCompanyId: companyId, action: 'MATCH_VIEW' as const }
+
+  // Which desks read the queue, and why: `QUEUE_OPENS_FOR` in lib/review.
+  // The sample is drawn before the gate so that a refusal is recorded
+  // against the people it would have shown, the same way a read is.
+  if (!hasPermission(caller.permissions, 'submissions.read')) {
+    logBulkAccess(subjects, {
+      ...trail,
+      allowed: false,
+      reason: `Check queue at ${caller.company!.name}: refused, the seat reads no submissions`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: CANNOT_SEE_QUEUE } }, { status: 403 })
+  }
+  logBulkAccess(subjects, {
+    ...trail,
+    reason: `Check queue at ${caller.company!.name}: the machine's judgment of their submission`,
+  })
+
+  const [reviewed, maybes] = await Promise.all([
     prisma.check.findMany({
       where: { companyId, checker: 'MODEL', agreed: { not: null } },
       orderBy: { at: 'desc' },
@@ -61,19 +114,6 @@ export async function GET(request: NextRequest) {
       },
     }),
   ])
-
-  const sample = drawSample(
-    candidates.map((c) => ({
-      id: c.id,
-      code: c.code,
-      verdict: c.verdict as 'PASS' | 'FAIL' | 'WARN',
-      reason: c.reason,
-      evidence: c.evidence,
-      at: c.at,
-      agreed: c.agreed,
-    })),
-    SAMPLE_SIZE
-  )
 
   return NextResponse.json({
     data: {

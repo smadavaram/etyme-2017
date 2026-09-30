@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { checkReview } from '@/lib/review'
+import { hasPermission } from '@/lib/permissions'
+import { checkReview, CANNOT_SEE_QUEUE } from '@/lib/review'
 
 /**
  * POST /api/checks/:id/review
@@ -22,6 +23,12 @@ export async function POST(
 
   const notStaff = staffOnly(caller, 'The check queue')
   if (notStaff) return notStaff
+
+  // Gated as the queue is (lib/review): a review that opens where the
+  // queue refuses is a door beside the one that was locked.
+  if (!hasPermission(caller.permissions, 'submissions.read')) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: CANNOT_SEE_QUEUE } }, { status: 403 })
+  }
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))

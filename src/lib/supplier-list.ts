@@ -30,6 +30,55 @@
  * somebody has to unpick by hand. It comes back needing a name.
  */
 
+import { hasAnyPermission, type Permission } from '@/lib/permissions'
+
+// ── Who may open the supplier register ───────────────────────────────
+//
+// `GET /api/suppliers` asked for nothing past being staff, so every seat
+// at a firm was shown Suppliers — a Teleworld delivery engineer who
+// staffs nobody, sells nobody and sees no money among them. The register
+// names every firm this company buys from, who at each was invited, what
+// each still owes on paper and where each stands; it is the working list
+// of three kinds of desk, and each is here by what it does on the page.
+//
+//   vendors.read       the desks that own or work the supplier panel —
+//                      Procurement, a Supplier Manager, the program
+//                      office, a recruiter or account manager at a
+//                      supplier, the compliance officer who audits it.
+//   requirements.read  whoever raises or routes a job. A hiring manager
+//                      recommends a new supplier from this page, and the
+//                      requisition screens read it to name the suppliers
+//                      Procurement cleared for a role.
+//   payments.record    the Finance desk of supplier onboarding — at a
+//                      client, the AP clerk — verifies the tax form and
+//                      the bank details on this page, and the page loads
+//                      its pending firms only after the register opens.
+//
+// Refused: a delivery engineer or team lead (assignments and hours
+// only), HR at a supplier (its own people's paperwork, no firms), and
+// nobody else in the default roles of any kind of company.
+//
+// Holding any ONE opens it. The sidebar link names the same list, and
+// `__tests__/invariants/sidebar-nav.test.ts` reads it back out of the
+// route, so the menu and the gate cannot drift.
+
+export const SUPPLIERS_OPEN_TO: readonly Permission[] = [
+  'vendors.read',
+  'requirements.read',
+  'payments.record',
+]
+
+export function maySeeSuppliers(permissions: readonly string[]): boolean {
+  return hasAnyPermission(permissions, SUPPLIERS_OPEN_TO)
+}
+
+/** What is missing and who to ask. Never a permission code. */
+export const CANNOT_SEE_SUPPLIERS =
+  'The supplier list belongs to the desks that choose and pay suppliers here — Procurement, ' +
+  'the program office, whoever raises a job, and the finance desk that checks a new ' +
+  "supplier's bank details. Ask whoever manages roles at your company to seat you at one of them."
+
+
 /**
  * Providers that tell you nothing about which firm somebody works for.
  *
