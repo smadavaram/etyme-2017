@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 import { amount, compact, rate as fmtRate } from '@/lib/money-display'
 import { YourPapers } from './papers'
+import { AskedToMarket } from './asked-to-market'
 
 /**
  * A consultant's own page.
@@ -92,6 +93,8 @@ interface Owed {
   says: string
   waiting?: { weeks: number; hours: number; says: string | null }
   weeks?: OwedWeek[]
+  /** Her own company bills for her hours; said instead of what is owed. */
+  ownCompanyBills?: string | null
 }
 interface Timesheet {
   id: string
@@ -598,6 +601,9 @@ function NothingYet({ says }: { says: string }) {
         <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Your work</h1>
       </div>
 
+      {/* A firm asked to market them and they have not answered: first. */}
+      <AskedToMarket />
+
       <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-6">
         <h2 className="font-serif text-xl text-etyme-ink tracking-[-0.02em]">
           There is no work here yet.
@@ -929,6 +935,15 @@ function YourPay({ owed }: { owed: Owed }) {
   const shown = showPaid ? [...open, ...paid].sort((a, b) => b.weekOf.localeCompare(a.weekOf)) : open
 
   return (
+    owed.ownCompanyBills ? (
+      // Paid through her own company: her company bills, and nothing is
+      // owed to her as wages, so the owed section is not drawn at all.
+      <section className="mb-8">
+        <h2 className="font-serif text-lg text-etyme-ink mb-1">What your company bills</h2>
+        <p className="text-sm text-etyme-ink mb-1">{owed.ownCompanyBills}</p>
+        {owed.waiting?.says && <p className="text-xs text-etyme-muted mb-3">{owed.waiting.says}</p>}
+      </section>
+    ) : (
     <section className="mb-8">
       <h2 className="font-serif text-lg text-etyme-ink mb-1">What you are owed</h2>
       {/* The sentence carries the figure: what is owed, for which hours,
@@ -1011,6 +1026,7 @@ function YourPay({ owed }: { owed: Owed }) {
         </button>
       )}
     </section>
+    )
   )
 }
 
@@ -1076,6 +1092,9 @@ export default function MyWorkPage() {
         <Lbl>You</Lbl>
         <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Your work</h1>
       </div>
+
+      {/* A firm asked to market them and they have not answered: first. */}
+      <AskedToMarket />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
         <div>

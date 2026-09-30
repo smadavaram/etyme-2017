@@ -303,7 +303,8 @@ export async function workingLifeOf(personId: string): Promise<WorkingLife> {
         select: {
           id: true,
           listings: {
-            where: { revokedAt: null },
+            // Asking is not granting: only a yes is somebody marketing them.
+            where: { revokedAt: null, state: 'GRANTED' },
             select: { company: { select: { name: true } } },
           },
         },

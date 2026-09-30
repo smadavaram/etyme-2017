@@ -538,3 +538,6 @@ export function submitLink(
   }
   return { ok: true, href: `/dashboard/submissions?new=1&person=${encodeURIComponent(p.personId)}` }
 }
+
+/** Said on Bench where the seat does not read pay, in place of what the bench costs. */
+export const BURN_READ_BY = 'What the bench costs is read by the desks that read pay'

@@ -1,3 +1,4 @@
+import type { Permission } from '@/lib/permissions'
 /**
  * People about to come free.
  *
@@ -207,4 +208,33 @@ export function mayShow(input: {
     }
   }
   return { mayShow: true, reason: 'They agreed to be listed.' }
+}
+
+// ── Who reads who is ending soon ─────────────────────────────────────
+
+/**
+ * The permissions any one of which opens the rolloff board — a supplier's
+ * Rolloff and a client's Ending soon.
+ *
+ * Every desk that runs, staffs, approves, buys for or pays a program holds
+ * one: people (`consultants.read`), placements (`assignments.write`), job
+ * requests (`requirements.read`), utilization, or invoices. A delivery
+ * engineer on the roster holds only his own work and hours
+ * (`assignments.read`, `timesheets.read`) and none of these, so who else
+ * is rolling off is not his to read. The sidebar reads this list as the
+ * link's `needs`, so the menu and the route cannot disagree.
+ */
+export const ENDING_SOON_READERS = [
+  'consultants.read', 'assignments.write', 'requirements.read', 'utilization.read', 'invoices.read',
+] as const satisfies readonly Permission[]
+
+/**
+ * Bench check-ins are texts with the firm's bench consultants: read by the
+ * desks that read people, and by nobody who reads only their own work.
+ */
+export const CHECK_IN_READERS = ['consultants.read'] as const satisfies readonly Permission[]
+
+/** Said to a seat that holds none of them. */
+export function notYoursToRead(surface: string, company: string | null | undefined): string {
+  return `${surface} at ${company ?? 'your firm'} is read by the desks that staff, run or pay its work. Your own work is on your own page.`
 }

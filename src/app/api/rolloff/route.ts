@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
+import { hasAnyPermission } from '@/lib/permissions'
+import { ENDING_SOON_READERS, notYoursToRead } from '@/lib/releasing-soon'
 import { sellContractScope } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
@@ -20,6 +22,15 @@ export async function GET(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'The rolloff board')
   if (notStaff) return notStaff
+
+  // Read by the desks that staff, run or pay the work, never by an
+  // engineer who reads only his own (lib/releasing-soon, ENDING_SOON_READERS).
+  if (!hasAnyPermission(caller.permissions, ENDING_SOON_READERS)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: notYoursToRead('Who is rolling off', caller.company?.name) } },
+      { status: 403 }
+    )
+  }
 
   const url = request.nextUrl
   const window = parseInt(url.searchParams.get('window') ?? '30', 10)

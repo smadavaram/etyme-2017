@@ -21,6 +21,7 @@
  * off and stays off until they turn it on.
  */
 
+import { paidOnDay } from '@/lib/money/pay-day-period'
 import { sheetPay, type WageLine, type DayPremium } from '@/lib/money/sheet-overtime'
 import type { OvertimeMethod } from '@/lib/money/overtime-method'
 import { nextOpen } from '@/lib/money/next-cycle'
@@ -1347,6 +1348,12 @@ export interface SignedWeeks {
    */
   notBilled: number
   /**
+   * The not-billed weeks are billed by the person's own company (corp to
+   * corp through her own LLC, or a 1099 in her own name), so the note says
+   * her company bills them, never her vendor.
+   */
+  ownCompany?: boolean
+  /**
    * On work where the bottom firm employs them; null where none does.
    */
   employed: null | {
@@ -1379,7 +1386,7 @@ export interface SummaryCard {
  */
 export function signedWeeksCard(s: SignedWeeks): SummaryCard {
   if (!s.employed) {
-    return { label: 'Approved, not billed', value: s.notBilled, note: 'your vendor bills these' }
+    return { label: 'Approved, not billed', value: s.notBilled, note: s.ownCompany ? 'your company bills these' : 'your vendor bills these' }
   }
   const e = s.employed
   const plural = (n: number) => `${n} week${n === 1 ? '' : 's'}`
@@ -2242,24 +2249,31 @@ export function paidDatesFrom(
   runs: ReadonlyArray<{ at: Date; payload: unknown }>,
   backPaid: ReadonlyArray<{ at: Date; payload: unknown }>,
   buyContractIds: readonly string[],
-  key: (buyContractId: string, personId: string, timesheetId: string, day: string) => string
+  key: (buyContractId: string, personId: string, timesheetId: string, day: string) => string,
+  // The line's own pay days, so a run pressed on or before the pay day it
+  // settled reads as paid on that pay day, and a late run on the day it
+  // ran (`paidOnDay` in lib/money/pay-day-period). Without it, the day
+  // the run was pressed, as before.
+  payDaysOf?: (buyContractId: string) => ReadonlyArray<{ dueOn: Date; completedAt: Date | null }>
 ): Map<string, string> {
   const wanted = new Set(buyContractIds)
   const out = new Map<string, string>()
-  const mark = (k: string, at: Date) => {
-    const d = isoDay(at)
+  const mark = (k: string, d: string) => {
     const was = out.get(k)
     if (!was || d > was) out.set(k, d)
   }
   for (const run of runs) {
     const p = (run.payload ?? {}) as {
       action?: string
+      runAt?: string
       contracts?: Array<{ buyContractId?: string; refused?: string | null; paid?: Array<{ personId: string; timesheetId: string; day: string }> }>
     }
     if (p.action !== 'process') continue
+    const ranAt = p.runAt ? new Date(p.runAt) : run.at
     for (const c of p.contracts ?? []) {
       if (!c.buyContractId || !wanted.has(c.buyContractId) || c.refused || !Array.isArray(c.paid)) continue
-      for (const l of c.paid) mark(key(c.buyContractId, l.personId, l.timesheetId, l.day), run.at)
+      const day = payDaysOf ? paidOnDay(ranAt, payDaysOf(c.buyContractId)) : isoDay(run.at)
+      for (const l of c.paid) mark(key(c.buyContractId, l.personId, l.timesheetId, l.day), day)
     }
   }
   for (const row of backPaid) {
@@ -2269,7 +2283,7 @@ export function paidDatesFrom(
     if (!Array.isArray(lines)) continue
     for (const l of lines) {
       if (!wanted.has(l.buyContractId)) continue
-      mark(key(l.buyContractId, l.personId, l.timesheetId, l.day), row.at)
+      mark(key(l.buyContractId, l.personId, l.timesheetId, l.day), isoDay(row.at))
     }
   }
   return out

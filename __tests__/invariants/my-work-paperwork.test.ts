@@ -90,8 +90,7 @@ describe('A worker sees what is being asked of her', () => {
 
   it('a worker with nothing outstanding is told so, rather than shown an empty list', () => {
     expect(paperworkHeadline(paperRows({ papers: [], owed: [] })))
-      .toBe('Nothing is on your file yet, and nobody is asking you for anything. ' +
-        'When a placement needs a document from you, it appears here and you will be told.')
+      .toBe('Nothing is on your file yet, and no document is asked of you.')
     const onlyHeld = paperRows({ papers: [{ id: 'v1', kind: 'HELD', name: 'I-9', word: 'On file' }] })
     expect(paperworkHeadline(onlyHeld)).toBe('Nothing is being asked of you. Everything below is on file.')
     // The screen says it rather than drawing a blank list under a promise.

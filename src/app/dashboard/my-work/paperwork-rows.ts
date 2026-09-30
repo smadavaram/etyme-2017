@@ -462,9 +462,7 @@ export function awaitingReview(rows: PaperRow[]): PaperRow[] {
 /**
  * What an empty paperwork section says, once, and nothing else.
  */
-export const EMPTY_PAPERWORK =
-  'Nothing is on your file yet, and nobody is asking you for anything. ' +
-  'When a placement needs a document from you, it appears here and you will be told.'
+export const EMPTY_PAPERWORK = 'Nothing is on your file yet, and no document is asked of you.'
 
 /**
  * The line under the heading, describing the list below it.

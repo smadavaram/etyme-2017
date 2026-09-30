@@ -17,6 +17,8 @@ import { wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn } from '@/lib/money/pay-line'
 import { periodTermsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
+import { hoursInMonth } from '@/lib/periods'
+import { paidByPayroll, workerPaidAs, ownCompanyBillsSays } from '@/lib/money/paid-through'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 import { personNotice, cityOf, dayOf, holdStands } from '@/lib/internal-moves'
 
@@ -251,6 +253,8 @@ export async function GET(request: NextRequest) {
       buyContract: {
         include: {
           company: { select: { name: true } },
+          // Who the line buys from, where it buys from a company — her own, in a corp-to-corp.
+          vendorCompany: { select: { name: true } },
           // The order the line is on, whose straddle and rhythm are read
           // before the line's own copy (`periodTermsFor`), as payroll reads them.
           workOrder: { select: ORDER_HEADER_SELECT },
@@ -344,7 +348,8 @@ export async function GET(request: NextRequest) {
           select: { at: true, payload: true },
         }),
         directIds,
-        paidKey
+        paidKey,
+        (id) => [...payByCompany.values()].find((l) => l.buyContract.id === id)?.buyContract.buyCycles ?? []
       )
     : new Map<string, string>()
 
@@ -399,6 +404,12 @@ export async function GET(request: NextRequest) {
   const employedWeeks: OwedWeek[] = []
   const employedWaiting: WaitingWeek[] = []
 
+  // The companies that are the person's own: a line that buys from one
+  // of them pays her company's invoice, never her wages (lib/money/paid-through).
+  const ownCompanyIds = (
+    await prisma.consultantProfile.findMany({ where: { personId, ownCompanyId: { not: null } }, select: { ownCompanyId: true } })
+  ).map((p) => p.ownCompanyId!)
+
   const owed = (() => {
     const sellOf = new Map(contracts.map((c) => [c.id, c]))
 
@@ -440,8 +451,25 @@ export async function GET(request: NextRequest) {
     for (const t of accepted) {
       if (!payByCompany.has(sellOf.get(t.sellContractId)?.companyId ?? '')) unknownRate++
     }
+    // Weeks her own company bills, said in hours and weeks and never as wages.
+    const ownCompanyBills: string[] = []
     for (const pay of payByCompany.values()) {
       const bc = pay.buyContract
+      if (workerPaidAs(bc, ownCompanyIds) === 'OWN_COMPANY_BILLS') {
+        const hers = accepted.filter((t) => sellOf.get(t.sellContractId)?.companyId === bc.companyId)
+        ownCompanyBills.push(ownCompanyBillsSays({
+          companyName: bc.vendorCompany?.name ?? null,
+          buyerName: bc.company.name,
+          weeks: hers.length,
+          hours: hers.reduce((n, t) => n + Number(t.acceptedHours ?? t.totalHours), 0),
+        }))
+      }
+    }
+    for (const pay of payByCompany.values()) {
+      const bc = pay.buyContract
+      // Payroll pays only an employment the firm holds directly; anything
+      // else is paid by invoice receipt and is never "owed to you".
+      if (!paidByPayroll(bc)) continue
       const book = paidBy.get(bc.id)
       const row = bc.exemptAssertions.find((a) => a.personId === personId)
       const wage = wageLineFor(bc, caller.person.name, row)
@@ -599,6 +627,8 @@ export async function GET(request: NextRequest) {
       // rung is on it.
       weeks: [...waiting, ...weeks].sort((a, b) => b.weekOf.localeCompare(a.weekOf)),
       says: [head, ...notes].join(' '),
+      // Where her own company bills for her hours: said instead of what is owed.
+      ownCompanyBills: ownCompanyBills.length ? ownCompanyBills.join(' ') : null,
     }
   })()
 
@@ -607,6 +637,7 @@ export async function GET(request: NextRequest) {
   // his card says paid, owed to him, or waiting on his employer; somebody
   // paid through a supplier reads the weeks their vendor has still to bill.
   const signedCard = signedWeeksCard({
+    ownCompany: [...payByCompany.values()].some((l) => workerPaidAs(l.buyContract, ownCompanyIds) === 'OWN_COMPANY_BILLS'),
     notBilled: timesheets.filter(
       (t) => t.status === 'APPROVED' && t.invoiceLines.length === 0 && !employedBy.has(byId.get(t.sellContractId)?.companyId ?? '')
     ).length,
@@ -705,9 +736,9 @@ export async function GET(request: NextRequest) {
         livePlacements: livePlacements.length,
         // Their own hours, not billing. Somebody working two contracts
         // wants one number.
-        hoursThisMonth: timesheets
-          .filter(t => t.periodStart.getMonth() === now.getMonth() && t.periodStart.getFullYear() === now.getFullYear())
-          .reduce((n, t) => n + Number(t.totalHours), 0),
+        // The hours worked inside this month, by day — a week crossing the
+        // month's edge counts only its days in it (`hoursInMonth`).
+        hoursThisMonth: hoursInMonth(timesheets.map(t => ({ id: t.id, periodStart: t.periodStart, periodEnd: t.periodEnd, days: (t.days ?? {}) as Record<string, number>, totalHours: Number(t.totalHours) })), now).hours,
         awaitingApproval: timesheets.filter(t => t.status === 'SUBMITTED').length,
         // The one that matters: approved work nobody has invoiced.
         approvedNotBilled: timesheets.filter(t => t.status === 'APPROVED' && t.invoiceLines.length === 0).length,

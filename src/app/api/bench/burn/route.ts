@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { requirementScope } from '@/lib/resolve-client-company'
 import { payTrail, READS_PAY } from '@/lib/money/pay-visibility'
 import { writePayTrail } from '@/lib/money/pay-trail'
+import { burnOf } from '@/lib/bench-policy'
 
 /**
  * GET /api/bench/burn
@@ -131,7 +132,6 @@ export async function GET(request: NextRequest) {
   })
 
   const now = new Date()
-  const HOURS_PER_DAY = 8
 
   // Calculate burn for each listing
   interface BurnEntry {
@@ -148,25 +148,47 @@ export async function GET(request: NextRequest) {
     daysOnBench: number
     availableFrom: string | null
     totalBurnToDate: number // dollars burned since bench start
+    /** The same, in minor units, from `burnOf`. */
+    dailyCents: number
+    toDateCents: number
+    workingDays: number
+    calendarDays: number
+    says: string
   }
 
   const entries: BurnEntry[] = []
+
+  // Whether each person's hours are billed today, and when they last
+  // stopped being: a live sell line here (in progress, started, not ended)
+  // makes them a placed person and not a bench cost; the latest ended one
+  // is when their bench time began, if it is later than the listing.
+  const personIds = listings.map((l) => l.consultant.personId)
+  const lines = personIds.length
+    ? await prisma.sellContract.findMany({
+        where: { companyId, personId: { in: personIds }, state: { in: ['IN_PROGRESS', 'ENDED'] } },
+        select: { personId: true, state: true, startDate: true, endDate: true },
+      })
+    : []
+  const liveOf = (pid: string) =>
+    lines.some((c) => c.personId === pid && c.state === 'IN_PROGRESS' && c.startDate <= now && (!c.endDate || c.endDate >= now))
+  const lastEndedOf = (pid: string) =>
+    lines
+      .filter((c) => c.personId === pid && c.endDate && (c.state === 'ENDED' || c.endDate < now))
+      .reduce<Date | null>((a, c) => (a && a > c.endDate! ? a : c.endDate!), null)
 
   for (const l of listings) {
     const candidacy = l.consultant.person.buyCandidacies[0]
     if (!candidacy) continue // no active buy contract = no cost
 
     const payRate = candidacy.payRate // cents per hour
-    const dailyCost = (payRate * HOURS_PER_DAY) / 100 // dollars
-    const weeklyCost = dailyCost * 5
-    const monthlyCost = dailyCost * 22
+    const ended = lastEndedOf(l.consultant.personId)
+    const benchSince = ended && ended > l.grantedAt ? ended : l.grantedAt
+    // One door for the arithmetic (`burnOf` in lib/bench-policy): working
+    // days counted, not five-sevenths of calendar days guessed.
+    const b = burnOf({ payRateCents: payRate, billing: liveOf(l.consultant.personId), benchSince }, now)
+    if (!b.onBench) continue
 
-    const daysOnBench = Math.max(0, Math.ceil(
-      (now.getTime() - l.grantedAt.getTime()) / (1000 * 60 * 60 * 24)
-    ))
-    const workingDaysOnBench = Math.round(daysOnBench * 5 / 7) // approximate
-    const totalBurnToDate = workingDaysOnBench * dailyCost
-
+    const dailyCost = b.dailyCents! / 100 // dollars, for the older readers
     entries.push({
       personId: l.consultant.personId,
       personName: l.consultant.person.name,
@@ -175,12 +197,17 @@ export async function GET(request: NextRequest) {
       tier: l.tier,
       payRate,
       dailyCost,
-      weeklyCost,
-      monthlyCost,
+      weeklyCost: dailyCost * 5,
+      monthlyCost: dailyCost * 22,
       contractType: candidacy.buyContract.contractType,
-      daysOnBench,
+      daysOnBench: b.calendarDays,
       availableFrom: l.consultant.availableFrom?.toISOString() ?? null,
-      totalBurnToDate: Math.round(totalBurnToDate),
+      totalBurnToDate: Math.round(b.toDateCents! / 100),
+      dailyCents: b.dailyCents!,
+      toDateCents: b.toDateCents!,
+      workingDays: b.workingDays,
+      calendarDays: b.calendarDays,
+      says: b.says,
     })
   }
 
@@ -231,6 +258,8 @@ export async function GET(request: NextRequest) {
         weekly: Math.round(totalWeeklyBurn),
         monthly: Math.round(totalMonthlyBurn),
         toDate: totalBurnToDate,
+        dailyCents: entries.reduce((n, e) => n + e.dailyCents, 0),
+        toDateCents: entries.reduce((n, e) => n + e.toDateCents, 0),
       },
       benchSize: entries.length,
       benchSizeTotal: listings.length, // includes non-paid
@@ -257,6 +286,11 @@ export async function GET(request: NextRequest) {
         daysOnBench: e.daysOnBench,
         totalBurnToDate: e.totalBurnToDate,
         availableFrom: e.availableFrom,
+        dailyCents: e.dailyCents,
+        toDateCents: e.toDateCents,
+        workingDays: e.workingDays,
+        calendarDays: e.calendarDays,
+        says: e.says,
       })),
     },
   })

@@ -3,11 +3,12 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { Route } from 'next'
 import { range, compact } from '@/lib/money-display'
-import { readBench, submitLink } from '@/lib/bench-filter'
+import { readBench, submitLink, BURN_READ_BY } from '@/lib/bench-filter'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
 import { hasPermission } from '@/lib/permissions'
+import { READS_PAY } from '@/lib/money/pay-visibility'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 
@@ -589,8 +590,12 @@ export default function BenchPage() {
     fetchBench(scope)
   }, [fetchBench, scope])
 
-  // Fetch bench burn data (separate endpoint — requires cost permission)
+  // What the bench costs is read by the desks that read pay. Asked for
+  // only where the seat holds it, so a desk without it never fires a
+  // request the route refuses — it is told whose number it is instead.
+  const readsPay = hasPermission(session.permissions, READS_PAY)
   useEffect(() => {
+    if (!readsPay) { setBurnLoading(false); return }
     let cancelled = false
     async function fetchBurn() {
       setBurnLoading(true)
@@ -609,7 +614,7 @@ export default function BenchPage() {
     }
     fetchBurn()
     return () => { cancelled = true }
-  }, [])
+  }, [readsPay])
 
   // ── Filtered data ──────────────────────────────────
 
@@ -932,6 +937,9 @@ export default function BenchPage() {
           listing side; a roster's own cost is payroll and not this number. */}
       {scope !== 'payroll' && burnData && burnData.benchSize > 0 && (
         <BenchBurnPanel data={burnData} />
+      )}
+      {scope !== 'payroll' && !readsPay && (
+        <p className="text-[12px] text-etyme-muted mb-6">{BURN_READ_BY}</p>
       )}
 
       {/* Our bench, for the firm's managers and HR: who is coming off a

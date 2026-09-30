@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { hasAnyPermission } from '@/lib/permissions'
+import { CHECK_IN_READERS, notYoursToRead } from '@/lib/releasing-soon'
 import { staffOnly } from '@/lib/seat'
 import { statusNote, configured } from '@/lib/messages'
 import { PING_EVERY_DAYS } from '@/lib/texts'
@@ -20,6 +22,15 @@ export async function GET(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Consultant messages')
   if (notStaff) return notStaff
+
+  // Read by the desks that staff, run or pay the work, never by an
+  // engineer who reads only his own (lib/releasing-soon, CHECK_IN_READERS).
+  if (!hasAnyPermission(caller.permissions, CHECK_IN_READERS)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: notYoursToRead('Bench check-ins', caller.company?.name) } },
+      { status: 403 }
+    )
+  }
 
   const companyId = caller.company!.id
   const limit = Math.min(100, Math.max(1, parseInt(request.nextUrl.searchParams.get('limit') ?? '50', 10)))
