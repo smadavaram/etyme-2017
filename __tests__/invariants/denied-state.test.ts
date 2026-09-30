@@ -110,12 +110,16 @@ describe('a page never prints a company name it could not resolve', () => {
 
 describe('a demo door that cannot be opened says which ones can', () => {
   it('names the desks a firm does have instead of only saying the one asked for is missing', () => {
+    // The sentence moved to lib/demo-desks on 2026-09-30, where
+    // __tests__/invariants/demo-desks.test.ts reads it by calling it. Here the
+    // route is held to handing the refusal every seat's role.
     const route = read('src/app/api/demo/route.ts')
-    expect(route).toContain('The desks it does ')
-    expect(route).toContain('ask for one of those')
+    expect(route).toContain('deskRefusal(')
+    const lib = read('src/lib/demo-desks.ts')
+    expect(lib).toContain('these desks are seated')
     // And a firm that is not in the world at all is a different sentence
     // from a firm that is there with nobody at that desk.
-    expect(route).toContain("There is no ${asWorld} in this deployment's world")
+    expect(lib).toContain("There is no ${asWorld} in this deployment's world")
   })
 })
 

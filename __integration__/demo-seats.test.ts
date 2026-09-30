@@ -241,6 +241,17 @@ describe('every seat on the demo page opens', () => {
     expect(await whoIsSitting(cookie!)).toBe('Lakshmi Iyer')
   })
 
+  it('asking for the AP desk at Teleworld says nobody holds AP & Payroll there and names the desks that are seated, owner first', async () => {
+    const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'ap' }) as NextRequest)
+    expect(res.status).toBe(404)
+    const err = (await res.json()).error
+    expect(err.message).toMatch(/^Nobody holds the AP & Payroll desk at Teleworld Solutions in the demo; these desks are seated: Owner/)
+    expect(err.message).not.toMatch(/nobody is seated/i)
+    // And the door the sentence points at does open.
+    const { body } = await sit('world-teleworld')
+    expect(body.companyName).toBe('Teleworld Solutions')
+  })
+
   it('offers both integrators, and only firms that employ people they can submit', async () => {
     for (const s of INTEGRATOR_SEATS) {
       const company = await prisma.company.findUniqueOrThrow({ where: { slug: s.slug } })

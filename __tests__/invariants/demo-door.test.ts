@@ -1,3 +1,4 @@
+import { DESKS as DEMO_DESKS } from '@/lib/demo-desks'
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -71,10 +72,9 @@ describe('the demo door opens on the client', () => {
 
 describe('the desks on a client door', () => {
   /** The desk suffixes POST /api/demo will actually answer to. */
-  const known = (() => {
-    const m = /const DESKS = \[([^\]]*)\] as const/.exec(route)
-    return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : []
-  })()
+  // The list moved from the route to lib/demo-desks on 2026-09-30, and
+  // is imported now rather than read out of source with a pattern.
+  const known: string[] = [...DEMO_DESKS]
 
   it('reads the desk list out of the route at all, rather than passing on a pattern that stopped matching', () => {
     expect(known.length).toBeGreaterThan(5)

@@ -1,3 +1,4 @@
+import { deskFrom, deskRefusal, DESK_ROLES, type Desk } from '@/lib/demo-desks'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { randomBytes } from 'node:crypto'
@@ -74,57 +75,7 @@ type Held = Seat | 'CANDIDATE'
  * nothing looks a seat up that way any more: a role is the fact and an
  * address is a handle.
  */
-// The client program desks first, then the desks a supplier runs on.
-// Those nine existed as roles at every firm in the world and were held
-// by nobody until 2026-09-21, so not one of them could be opened here.
-const DESKS = [
-  'programme', 'hiring', 'hr', 'procurement', 'vp', 'ap', 'compliance',
-  'account', 'recruiter', 'resourcing', 'contracts', 'ar', 'payroll', 'finance',
-] as const
-type Desk = (typeof DESKS)[number]
-const DESK_NAMES: Record<Desk, string> = {
-  programme: 'program manager',
-  hiring: 'hiring manager',
-  hr: 'HR',
-  procurement: 'procurement lead',
-  vp: 'approver',
-  ap: 'accounts payable',
-  compliance: 'compliance officer',
-  account: 'account manager',
-  recruiter: 'recruiter',
-  resourcing: 'resource manager',
-  contracts: 'contract manager',
-  ar: 'accounts receivable',
-  payroll: 'AP & payroll',
-  finance: 'finance',
-}
-
-/**
- * Which seat a desk is, by the role it holds.
- *
- * It used to be the suffix on the address — `world-nike-ap@` was the AP
- * clerk — which worked exactly as long as every desk in the world was
- * addressed that way. A role is the fact; the address is a handle. Two
- * names where a word means different desks at different firms: "HR
- * Partner" reads a role at a client and "HR" keeps a supplier's own
- * people's paperwork, and the door says "HR" to both.
- */
-const DESK_ROLES: Record<Desk, string[]> = {
-  programme: ['Program Manager'],
-  hiring: ['Hiring Manager'],
-  hr: ['HR Partner', 'HR'],
-  procurement: ['Procurement Lead'],
-  vp: ['Approver'],
-  ap: ['AP Clerk'],
-  compliance: ['Compliance Officer'],
-  account: ['Account Manager'],
-  recruiter: ['Recruiter'],
-  resourcing: ['Resource Manager'],
-  contracts: ['Contract Manager'],
-  ar: ['Accounts Receivable'],
-  payroll: ['AP & Payroll'],
-  finance: ['Finance'],
-}
+// The desks, their roles and the refusal live in lib/demo-desks.
 
 /** Where a desk's own work is, at a client. */
 const CLIENT_LANDING: Partial<Record<Desk, string>> = {
@@ -146,6 +97,8 @@ const SUPPLIER_LANDING: Partial<Record<Desk, string>> = {
   contracts: '/dashboard/contracts',
   ar: '/dashboard/ar',
   payroll: '/dashboard/payroll',
+  // "AP" at a firm that sells is the AP & Payroll desk (lib/demo-desks).
+  ap: '/dashboard/payroll',
   finance: '/dashboard/invoices',
   compliance: '/dashboard/compliance',
 }
@@ -345,8 +298,7 @@ export async function POST(request: NextRequest) {
     // one seat, and the demo has to be seen from the desk that actually
     // does the thing — the clerk who pays cannot raise a requisition,
     // and a visitor who sits as the owner never finds that out.
-    const deskAsked = typeof (body as any)?.desk === 'string' ? String((body as any).desk) : null
-    const desk = deskAsked && (DESKS as readonly string[]).includes(deskAsked) ? (deskAsked as Desk) : null
+    const desk = deskFrom((body as any)?.desk)
     // The same two sentences the private path gives below. This lookup
     // used to throw straight out of the handler, so a database that was
     // down answered the front door with an empty 500 — the one error
@@ -416,20 +368,18 @@ export async function POST(request: NextRequest) {
         ? await prisma.context.findMany({
             where: { companyId: company.id, revokedAt: null, NOT: { roleId: null } },
             select: { role: { select: { name: true } } },
+            orderBy: { grantedAt: 'asc' },
           })
         : []
-      const roleNames = new Set(held.map((c) => c.role?.name).filter(Boolean) as string[])
-      const open = DESKS.filter((d) => DESK_ROLES[d].some((r) => roleNames.has(r)))
-
-      const message = !company
-        ? `There is no ${asWorld} in this deployment's world. POST /api/seed-world to build it first.`
-        : desk
-          ? open.length > 0
-            ? `${company.name} has nobody at the ${DESK_NAMES[desk]} desk. The desks it does ` +
-              `have are ${open.map((d) => DESK_NAMES[d]).join(', ')} — ask for one of those.`
-            : `${company.name} is in this world but nobody is seated at any desk there yet. ` +
-              `POST /api/seed-world to build it.`
-          : `Nobody is seated at ${company.name} yet. POST /api/seed-world to build it first.`
+      // Every seat's own role name, not only the fourteen keyed desks:
+      // a firm whose people hold Owner or Delivery manager is seated,
+      // and saying otherwise was the sentence the browser walk caught.
+      const { message, desks: open } = deskRefusal({
+        asWorld,
+        company: company ? { name: company.name, kind: company.kind } : null,
+        desk,
+        heldRoles: held.map((c) => c.role?.name ?? '').filter(Boolean),
+      })
 
       return NextResponse.json(
         {

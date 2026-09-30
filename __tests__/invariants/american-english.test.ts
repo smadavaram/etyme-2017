@@ -86,7 +86,8 @@ describe('the app speaks American English', () => {
   it('the machine names that were British stay put, so nobody already seated loses their address', () => {
     // The demo desk key and the seeded email live in the database; the
     // file name is imported in five places. None is read by a person.
-    const demo = readFileSync(join(ROOT, 'src/app/api/demo/route.ts'), 'utf8')
+    // The desk keys moved out of the demo route into lib/demo-desks on 2026-09-30.
+    const demo = readFileSync(join(ROOT, 'src/lib/demo-desks.ts'), 'utf8')
     expect(demo).toContain("'programme'")
     const seed = readFileSync(join(ROOT, 'src/lib/seed-programmes.ts'), 'utf8')
     expect(seed).toContain("key: 'programme'")
