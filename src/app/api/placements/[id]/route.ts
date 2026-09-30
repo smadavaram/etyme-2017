@@ -17,7 +17,8 @@ import { CHOOSES_OVERTIME_METHOD, overtimeMethodSays } from '@/lib/overtime-meth
 import { CHOOSES_CUT_OVERTIME, cutOvertimeSays } from '@/lib/cut-overtime-choice'
 import { rateToday } from '@/lib/placement-rate'
 import { ratePeriods } from '@/lib/contract-rate'
-import { placementEarned } from '@/lib/money/placement-earned'
+import { placementEarned, hoursSigned } from '@/lib/money/placement-earned'
+import { placementPayTerms, placementMoneySheets } from '@/lib/money/placement-pay-terms'
 
 /**
  * GET /api/placements/:id
@@ -710,25 +711,14 @@ export async function GET(
     (n, l) => n + Math.round(Number(l.invoice.paid) * 100 >= l.amountCents ? l.amountCents : 0),
     0
   )
-  const hoursAccepted = placement.timesheets.reduce((n, t) => {
-    const employer = t.assertions.find((a) => a.role === 'EMPLOYER_ACCEPTANCE')
-    const client = t.assertions.find((a) => a.role === 'CLIENT_APPROVAL')
-    return n + Number(employer?.hours ?? client?.hours ?? 0)
-  }, 0)
-
   // Revenue on the hours the client approved, cost on the hours the
-  // employer accepted, each day at the rate in force that day. Every
-  // sheet, not the twelve on the card: a total of the last twelve weeks
-  // read as the placement's is a plausible wrong number.
-  const moneySheets = readsOurMoney
-    ? await prisma.timesheet.findMany({
-        where: { sellContractId: placement.id },
-        select: {
-          periodStart: true, periodEnd: true, days: true,
-          assertions: { where: { state: 'LIVE' }, select: { role: true, hours: true, rateCents: true } },
-        },
-      })
-    : []
+  // employer accepted, each day at the rate in force that day.
+  // Every sheet, never the dozen on the card. Hours are already read week
+  // by week by every party here; the money on them stays gated below.
+  const allSheets = await placementMoneySheets(placement.id)
+  const signed = hoursSigned(allSheets)
+  const hoursAccepted = isSupplier ? signed.accepted : signed.approved
+  const moneySheets = readsOurMoney ? allSheets : []
   const earned = placementEarned({
     sheets: moneySheets,
     bill: {
@@ -741,6 +731,7 @@ export async function GET(
           openingRateCents: seat.payRate,
           periods: ratePeriods(rateRows.filter((r) => r.contractType === 'BUY')),
           currency: seat.payCurrency ?? ourBuy.payCurrency,
+          overtime: await placementPayTerms({ buyContractId: ourBuy.id, sellContractId: placement.id, personId: placement.personId }),
         }
       : null,
   })
@@ -1171,6 +1162,8 @@ export async function GET(
         // Why the margin reads as it does — blank, or over which weeks.
         marginSays: seeMargin ? (earned.marginRefusedBecause ?? earned.says) : null,
         payRateChangeSays: seePay ? earned.payRateChangeSays : null,
+        overtimeSays: seePay ? earned.overtimeSays : null,
+        costSays: seePay ? earned.costRefusedBecause : null,
         hoursBilled: earned.hoursBilled,
         hoursPaid: earned.hoursPaid,
         // Why it is blank, rather than a screen of dashes somebody

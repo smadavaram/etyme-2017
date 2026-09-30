@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { PAID_WORKERS } from '@/lib/seed-payroll-runs'
+import { EMPLOYEE_CONTRACT_TYPES } from '@/lib/money/paid-through'
 import { GET as myWork } from '@/app/api/me/work/route'
 
 /**
@@ -122,11 +123,8 @@ describe('a seeded worker reads her own pay the way her employer would have left
 
   it('no worker the demo pays reads a week as owed unless it has a day in this month or in a month a payroll run has to price', async () => {
     const now = monthOf(iso(new Date()))
-    // Rosa's forty-five-hour week is the one month the seed leaves for a
-    // run, because its overtime is priced by payroll and not by a seed.
-    const rosa = await weeksOf('rosa.delgado')
-    const long = rosa.find((t) => Number(t.totalHours) > 40)!
-    const forARun = new Set(Object.keys(long.days as Record<string, number>).map(monthOf))
+    // Rosa's forty-five-hour week was once left for a run; since
+    // 2026-09-30 the seed prices its premium through sheetPay and pays it.
 
     for (const address of PAID_WORKERS) {
       const handle = address.split('@')[0]
@@ -137,11 +135,41 @@ describe('a seeded worker reads her own pay the way her employer would have left
       for (const w of r.body.data.owed.weeks.filter((x: any) => x.stillOwedCents > 0)) {
         const months = daysInWeek(weeks, w.weekOf).map(monthOf)
         expect(
-          months.some((m) => m === now || (handle === 'rosa.delgado' && forARun.has(m))),
+          months.some((m) => m === now),
           `${handle}'s week of ${w.weekOf} reads as owed in a month the seed paid`
         ).toBe(true)
       }
     }
+  })
+
+  it('pays Rosa’s forty-five-hour week with its overtime premium, on the days over the line', async () => {
+    const rosa = await weeksOf('rosa.delgado')
+    const long = rosa.find((t) => Number(t.totalHours) > 40)!
+    const runs = await prisma.automationLog.findMany({ where: { action: 'PAYROLL_RUN' }, select: { payload: true } })
+    const lines = runs.flatMap((r) => ((r.payload as any).contracts ?? []).flatMap((c: any) => c.paid ?? []))
+      .filter((l: any) => l.timesheetId === long.id)
+    expect(lines.reduce((n: number, l: any) => n + (l.overtimeHours ?? 0), 0)).toBe(Number(long.totalHours) - 40)
+    expect(lines.reduce((n: number, l: any) => n + (l.premiumCents ?? 0), 0)).toBeGreaterThan(0)
+  })
+
+  it('no demo employer’s own payroll reads overdue on the day the world is born', async () => {
+    const today = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()))
+    const lines = await prisma.buyContract.findMany({
+      where: {
+        vendorCompanyId: null, supplierSellContractId: null,
+        contractType: { in: [...EMPLOYEE_CONTRACT_TYPES] as any },
+        company: { slug: { startsWith: 'world-' } },
+      },
+      select: {
+        id: true, company: { select: { name: true } },
+        candidates: { select: { person: { select: { name: true } } } },
+        buyCycles: { where: { kind: 'SALARY_PAY', completedAt: null, dueOn: { lt: today } }, select: { dueOn: true } },
+      },
+    })
+    expect(lines.length).toBeGreaterThan(0)
+    const overdue = lines.filter((l) => l.buyCycles.length > 0).map((l) =>
+      `${l.company.name} owes ${l.candidates[0]?.person.name ?? 'somebody'} pay due ${l.buyCycles.map((c) => iso(c.dueOn)).join(', ')}`)
+    expect(overdue).toEqual([])
   })
 
   it('Colleen is paid by her own company on corp to corp, so the seed runs no payroll on her line', async () => {

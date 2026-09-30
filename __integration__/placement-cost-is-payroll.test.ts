@@ -67,14 +67,26 @@ describe("Rosa Delgado's placement, costed the way payroll pays her", () => {
     const owner = await prisma.context.findFirstOrThrow({
       where: { person: { primaryEmail: OWNER }, company: { slug: 'world-brightmoor' } },
     })
-    as(OWNER)
-    const r = await json(await runPayroll(req('POST', '/api/payroll/run', {
-      buyContractIds: [buyId], action: 'calculate', period: longWeekMonth,
-    }, { 'x-context-id': owner.id })))
-    expect(r.status).toBe(200)
-    const row = r.body.data.details.find((x: any) => x.buyContractId === buyId)
-    expect(row.premiumCents).toBeGreaterThan(0)
-    expect(earned.overtimePremiumCents).toBe(row.premiumCents)
+    // Since 2026-09-30 the seed pays every month before this one, her
+    // long week's included, so the run's figure is the processed run's
+    // own premium. Where that week is in this month, no run has reached
+    // it, and a calculate run says what it would pay.
+    const seeded = (await prisma.automationLog.findMany({ where: { action: 'PAYROLL_RUN' }, select: { payload: true } }))
+      .flatMap((l) => ((l.payload as any)?.action === 'process' ? (l.payload as any).contracts ?? [] : []))
+      .filter((c: any) => c.buyContractId === buyId && c.payPeriod?.start?.slice(0, 7) === longWeekMonth)
+      .flatMap((c: any) => c.paid ?? [])
+      .reduce((n: number, l: any) => n + (l.premiumCents ?? 0), 0)
+    let premiumCents = Math.round(seeded)
+    if (premiumCents === 0) {
+      as(OWNER)
+      const r = await json(await runPayroll(req('POST', '/api/payroll/run', {
+        buyContractIds: [buyId], action: 'calculate', period: longWeekMonth,
+      }, { 'x-context-id': owner.id })))
+      expect(r.status).toBe(200)
+      premiumCents = r.body.data.details.find((x: any) => x.buyContractId === buyId).premiumCents
+    }
+    expect(premiumCents).toBeGreaterThan(0)
+    expect(earned.overtimePremiumCents).toBe(premiumCents)
     expect(earned.costCents).not.toBeNull()
     expect(earned.overtimeSays).toContain('of overtime premium')
   })

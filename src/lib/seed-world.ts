@@ -225,12 +225,25 @@ export function worldStepNames(): string[] {
     'bench', 'in-flight', 'payroll', 'payroll-invitations',
     ...programSteps().map((s) => s.name),
     'program-office-seat', 'supplier-desks', 'compliance-desk', 'doors',
-    'rate-change', 'payroll-runs', 'sector-suppliers',
+    'rate-change', 'sector-suppliers',
     ...STANDING_PARTS.map((part) => `standing:${part}`),
     ...orderToCashSteps().map((s) => s.name),
     'pipeline',
-    'document-requirements', 'sector-papers', 'claim',
+    'document-requirements', 'sector-papers',
+    ...payrollRunSteps().map((st) => st.name),
+    'claim',
   ]
+}
+
+/**
+ * The payroll runs as steps: every payroll line in the world is more than
+ * one call can read, so the lines are dealt into shares.
+ */
+const PAYROLL_RUN_SHARES = 4
+function payrollRunSteps(): { name: string; share: { index: number; of: number } }[] {
+  return Array.from({ length: PAYROLL_RUN_SHARES }, (_, index) => ({
+    name: `payroll-runs:${index + 1}-of-${PAYROLL_RUN_SHARES}`, share: { index, of: PAYROLL_RUN_SHARES },
+  }))
 }
 
 /** The three client programs as steps: one per share of each program's placements. */
@@ -1710,11 +1723,6 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // finds, so an I-9 written after it gained its passport on the second
   // seeding instead of the first.
   await step('rate-change', () => seedRateChange(ctx))
-  // The payroll runs an employer has already made (lib/seed-payroll-runs):
-  // every pay period before this one, on the W2 lines of the workers the
-  // demo opens a page for, so a worker's page reads the months already
-  // paid as paid. After the doors and the pay rise, whose weeks they pay.
-  await step('payroll-runs', () => seedPayrollRuns(ctx))
   // The two suppliers outside IT (lib/seed-sector-suppliers), before
   // standing and the order-to-cash layer for the same two reasons.
   await step('sector-suppliers', () => seedSectorSuppliers(ctx))
@@ -1752,6 +1760,15 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // The papers those two workers owe on their lines, signed. After the
   // order's set exists, because the set is what says which papers.
   await step('sector-papers', () => seedSectorPapers(ctx))
+  // The payroll runs an employer has already made (lib/seed-payroll-runs):
+  // every pay period before this one, on every payroll line in the world,
+  // so no employer's payroll reads overdue on the day the world is born.
+  // Last of the writing steps, because it pays weeks the doors, the pay
+  // rise and the sector suppliers accepted: run before any of them, their
+  // weeks were paid on the second seeding instead of the first.
+  for (const { name, share } of payrollRunSteps()) {
+    await step(name, () => seedPayrollRuns(ctx, share))
+  }
 
   // ── A firm with a seat took possession of itself ───────────────────
   //

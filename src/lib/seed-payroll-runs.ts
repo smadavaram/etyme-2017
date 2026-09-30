@@ -12,7 +12,7 @@
  * employer that has been paying somebody for seven months has run
  * payroll seven times.
  *
- * So each W2 line of a worker the demo opens a page for gets a processed
+ * So each payroll line in the world gets a processed
  * run for every pay period of its own that ended before the world was
  * born — a calendar month on every seeded line — recorded in the shape
  * `POST /api/payroll/run` records it: every day it paid, at the rate in
@@ -23,21 +23,15 @@
  * ── What this will not pay, and why ──────────────────────────────────
  *
  * The run's pricing lives inside the route, which is money's. This file
- * pays a month only where the route's answer is plain straight time with
- * nothing to decide: one acceptance standing on each week, from the firm
- * that pays; the hours accepted as filed; no leave; no calendar week over
- * the worker's pay line; and every day inside the line's window. There,
- * what a run pays is each day's hours at the rate in force that day, and
- * nothing else — so `premiumsPriced` is written true, because a run that
- * priced overtime would have found none.
- *
- * A month with anything else is left unpaid and said, never approximated.
- * Rosa's forty-five-hour week in August is the case: its five hours of
- * premium depend on the overtime method her employer chose and the
- * regular rate of the week, and a second copy of that arithmetic here
- * would be a number nobody can stand behind the day the route changes.
- * August pays through here the day the route's pricing is a function
- * this file can call instead of restate.
+ * pays a month only where nothing is left to decide: one acceptance
+ * standing on each week, from the firm that pays; the hours accepted as
+ * filed; no leave; and every day inside the line's window. There, a run
+ * pays each day's hours at the rate in force that day, and the premium
+ * on any hours over the line is priced by `sheetPay` — the call money's
+ * own pricing reads — on the whole week, so the regular rate is the
+ * week's and the method is the one the employer chose. Rosa Delgado's
+ * forty-five-hour week in August is paid that way (since 2026-09-30).
+ * A week whose premium nobody can price is refused, never approximated.
  *
  * ── Idempotent ───────────────────────────────────────────────────────
  *
@@ -62,8 +56,8 @@ import { periodFor, hoursInPeriod, type Period, type Terms } from '@/lib/periods
 import { ORDER_HEADER_SELECT, periodTermsFor } from '@/lib/money/order-terms'
 import { paidBook, paidKey, PAYROLL_RUN, type PaidLine } from '@/lib/payroll-paid'
 import { payLineOn } from '@/lib/money/pay-line'
-import { EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
-import { weekStart } from '@/lib/overtime'
+import { EXEMPT_SELECT, sheetPay, wageLineFor } from '@/lib/money/sheet-overtime'
+import { methodFor } from '@/lib/money/overtime-method'
 import { totals } from '@/lib/money-display'
 import { DEMO_MONTHLY_PAY } from '@/lib/contract-cycles'
 
@@ -82,9 +76,9 @@ const PAY_LAG_DAYS = Math.max(...DEMO_MONTHLY_PAY.filter((d) => d.kind === 'SALA
 
 /**
  * The workers whose pay the demo shows from their own page, by the
- * address their door signs in at, and Aptiva's own analyst, whose weeks
- * its payroll desk pays. A line of anybody else is the payroll desk's to
- * run on the demo, and left for it.
+ * address their door signs in at, and Aptiva's own analyst. Read by the
+ * tests that walk those pages; the seed pays every payroll line in the
+ * world, theirs among them.
  */
 export const PAID_WORKERS = [
   'rosa.delgado@seed.etyme.invalid',
@@ -94,11 +88,25 @@ export const PAID_WORKERS = [
   'ruben.ortega@seed.etyme.invalid',
 ] as const
 
-/** When the run for a period was pressed: ten days after it ends, and never after the world was born. */
-export function runAtFor(period: Period): Date {
-  const usual = atHour(plus(period.end, 10), 17)
+/**
+ * When the run for a period was pressed: five days after it ends, so it
+ * is processed before the demo's pay day (month-end + 9, moved back off a
+ * weekend) and a paid date reads before the day it was due, never after.
+ *
+ * But never before the hours it pays were accepted. A week that crosses
+ * the month's end is signed after the Friday it ends on, which can be
+ * later than five days past the month; a run pressed before that
+ * signature would leave those days to no run at all, because the next
+ * period's run pays only its own days. So the run waits an hour past the
+ * last acceptance on the period's weeks. Never after the world was born.
+ */
+export function runAtFor(period: Period, acceptedAt: readonly Date[] = []): Date {
+  const usual = atHour(plus(period.end, 5), 17)
+  const last = acceptedAt.reduce<number>((m, d) => Math.max(m, +d), 0)
+  const afterLast = new Date(last + 3_600_000)
+  const at = afterLast > usual ? afterLast : usual
   const latest = atHour(day(-1), 17)
-  return usual < latest ? usual : latest
+  return at < latest ? at : latest
 }
 
 type Line = NonNullable<Awaited<ReturnType<typeof loadLine>>>
@@ -111,6 +119,9 @@ async function loadLine(buyContractId: string) {
       candidates: { include: { person: { select: { id: true, name: true } } } },
       workOrder: { select: ORDER_HEADER_SELECT },
       exemptAssertions: { select: EXEMPT_SELECT },
+      // The pay days still open, so a period with nothing to pay is
+      // closed only where a pay day is actually waiting on it.
+      buyCycles: { where: { kind: 'SALARY_PAY', completedAt: null }, select: { dueOn: true } },
       entity: { select: { country: true } },
       company: { select: { name: true } },
       sellLinks: {
@@ -154,8 +165,6 @@ function priceThePeriod(
   const who = cand.person.name
   const exempt = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
   const lines: PaidLine[] = []
-  const weekly = new Map<string, number>()
-  let lineAfter: number | null = null
   const refuse = (refused: string) => ({ lines: [], refused })
 
   for (const link of bc.sellLinks) {
@@ -188,8 +197,6 @@ function priceThePeriod(
         return on < link.effectiveFrom || (link.effectiveTo != null && on > link.effectiveTo)
       })
       if (outside) return refuse(`${who}'s ${week} has days outside the line's window.`)
-      if (line.afterHours != null) lineAfter = lineAfter == null ? line.afterHours : Math.min(lineAfter, line.afterHours)
-      for (const [d, h] of Object.entries(days)) weekly.set(weekStart(d), (weekly.get(weekStart(d)) ?? 0) + h)
 
       const priced = priceByDay({
         contractRateCents: cand.payRate, periods: rates, days, hours: null,
@@ -200,16 +207,27 @@ function priceThePeriod(
         const left = Math.round((x.hours - before) * 100) / 100
         if (left > 0) lines.push({ personId: cand.personId, timesheetId: t.id, day: x.day, hours: left, rateCents: x.rateCents })
       }
+
+      // The premium over the line, priced by the same call the payroll
+      // run's own pricing reads (lib/money/sheet-overtime), on the whole
+      // week so the regular rate is the week's, and kept to this
+      // period's days. A week nobody can price is still refused.
+      const pay = sheetPay({
+        days, leaveDays: {}, afterHours: line.afterHours, accepted: null,
+        contractRateCents: cand.payRate, periods: rates, method: methodFor(bc).method,
+        line: wageLineFor(bc, who, exempt),
+      })
+      if (pay.weeks.some((w) => !w.terms.priced)) {
+        return refuse(`${who}'s ${week} went over the line and nobody can say what its premium is owed.`)
+      }
+      const inPeriod = new Set(priced.days.map((x) => x.day))
+      for (const [dday, p] of pay.premiums) {
+        if (!inPeriod.has(dday)) continue
+        const l = lines.find((x) => x.timesheetId === t.id && x.day === dday)
+        if (l) { l.overtimeHours = p.hours; l.premiumCents = p.premiumCents }
+        else lines.push({ personId: cand.personId, timesheetId: t.id, day: dday, hours: 0, rateCents: p.rateCents, overtimeHours: p.hours, premiumCents: p.premiumCents })
+      }
     }
-  }
-  // Over the line in any calendar week: a premium is owed, and its price
-  // is the route's to work out.
-  const over = lineAfter == null ? null : [...weekly.entries()].find(([, h]) => h > lineAfter!)
-  if (over) {
-    return refuse(
-      `${who} worked ${over[1]} hours in the week of ${over[0]}, over the ${lineAfter}-hour line, and the premium on them ` +
-        `is priced by the payroll run, not by the seed. ${period.label} is left for a run.`
-    )
   }
   return { lines: lines.sort((a, b) => a.day.localeCompare(b.day)), refused: null }
 }
@@ -255,8 +273,11 @@ export async function payPastPeriods(
   } else {
     // Every period from the first day worked that had ended before the
     // world was born. The one holding today is the payroll desk's to run.
+    const mine = bc.sellLinks.flatMap((l) => l.sellContract.timesheets).filter((t) => t.personId === cand.personId)
     for (let p = periodFor(cand.startDate, terms); p.end < day(0); p = periodFor(plus(p.end, 1), terms)) {
-      due.push({ period: p, runAt: runAtFor(p), asked: { start: iso(p.start), end: iso(p.end) } })
+      const inIt = mine.filter((t) => t.periodStart <= p.end && t.periodEnd >= p.start)
+      const accepted = inIt.flatMap((t) => t.assertions.filter((a) => a.companyId === bc.companyId).map((a) => a.at))
+      due.push({ period: p, runAt: runAtFor(p, accepted), asked: { start: iso(p.start), end: iso(p.end) } })
     }
   }
 
@@ -264,21 +285,31 @@ export async function payPastPeriods(
     if (ran.has(iso(period.start))) continue
     const { lines, refused } = priceThePeriod(bc, period, terms, runAt, rates, book.paid)
     if (refused) { out.refused.push(refused); continue }
-    if (lines.length === 0) continue
+    // Nothing accepted in the period: a real employer still runs payroll
+    // and pays nothing, which is what closes the pay day. Written only
+    // where a pay day is waiting on the period, so no run is invented for
+    // a month the line never paid in.
+    const waiting = bc.buyCycles.some((c) => c.dueOn > period.end && c.dueOn <= plus(period.end, PAY_LAG_DAYS))
+    if (lines.length === 0 && !waiting) continue
 
     const byRate = new Map<number, number>()
     for (const l of lines) byRate.set(l.rateCents, (byRate.get(l.rateCents) ?? 0) + l.hours)
-    const grossPay = [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(Math.round(h * 100) / 100 * r), 0)
+    // Straight time rounded once per rate, and the premium once for the
+    // row, as the payroll run rounds them.
+    const premiumCents = Math.round(lines.reduce((n, l) => n + (l.premiumCents ?? 0), 0))
+    const grossPay = [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(Math.round(h * 100) / 100 * r), 0) + premiumCents
     const hours = Math.round(lines.reduce((n, l) => n + l.hours, 0) * 100) / 100
 
     // The pay dates that fall due for this period, and only those.
-    await db.cycle.updateMany({
-      where: {
-        buyContractId: bc.id, kind: 'SALARY_PAY', completedAt: null,
-        dueOn: { gt: period.end, lte: plus(period.end, PAY_LAG_DAYS) },
-      },
-      data: { completedAt: runAt },
-    })
+    if (waiting) {
+      await db.cycle.updateMany({
+        where: {
+          buyContractId: bc.id, kind: 'SALARY_PAY', completedAt: null,
+          dueOn: { gt: period.end, lte: plus(period.end, PAY_LAG_DAYS) },
+        },
+        data: { completedAt: runAt },
+      })
+    }
     // What the run was asked to do, read back by `paidBook`: only a
     // processed run paid anybody.
     const action = 'process'
@@ -287,7 +318,9 @@ export async function payPastPeriods(
         companyId: bc.companyId,
         // Written out whole, as every automation name is (lib/autonomy).
         action: 'PAYROLL_RUN',
-        summary: `Payroll process: 1 contracts, ${totals([{ minor: grossPay, currency: bc.payCurrency }])} gross total`,
+        summary: lines.length === 0
+          ? `Payroll process: 1 contracts, nothing accepted in ${period.label}, nothing paid`
+          : `Payroll process: 1 contracts, ${totals([{ minor: grossPay, currency: bc.payCurrency }])} gross total`,
         reason: `Payroll process initiated by ${runBy.name}`,
         payload: {
           action,
@@ -301,8 +334,8 @@ export async function payPastPeriods(
             currency: bc.payCurrency,
             refused: null,
             paid: lines,
-            // Priced for overtime and none was owed: every week is at or
-            // under the line, which is the only kind of period this pays.
+            // Priced for overtime through sheetPay: the premium, where one
+            // was owed, is on the day it was worked.
             premiumsPriced: true,
           }],
           runBy: runBy.id,
@@ -323,10 +356,16 @@ export async function payPastPeriods(
 }
 
 /**
- * Every pay period before this one, paid, on each W2 line of the workers
- * in `PAID_WORKERS`. Says what it wrote and every period it would not pay.
+ * Every pay period before this one, paid, on every payroll line an
+ * employer in the world holds — not only the workers whose pages the demo
+ * opens, because an employer's payroll screen reads every line it pays,
+ * and a line nobody ran read as overdue on the day the world was born.
+ * Says what it wrote and every period it would not pay.
  */
-export async function seedPayrollRuns(ctx: { roster: string[] }): Promise<{ runs: number; refused: string[] }> {
+export async function seedPayrollRuns(
+  ctx: { roster: string[] },
+  share: { index: number; of: number } = { index: 0, of: 1 }
+): Promise<{ runs: number; refused: string[] }> {
   const out = { runs: 0, refused: [] as string[] }
   // Which lines payroll pays is money's one rule (`paidByPayroll`): an
   // employment type with nobody between the firm and the worker. The seed
@@ -334,14 +373,18 @@ export async function seedPayrollRuns(ctx: { roster: string[] }): Promise<{ runs
   const candidates = await db.buyContract.findMany({
     where: {
       company: { slug: { in: ctx.roster } },
-      candidates: { some: { person: { primaryEmail: { in: [...PAID_WORKERS] } } } },
     },
     select: { id: true, companyId: true, contractType: true, vendorCompanyId: true, supplierSellContractId: true },
     orderBy: { id: 'asc' },
   })
-  const lines = candidates.filter(paidByPayroll)
+  // One share of the lines, dealt round by position so every share holds
+  // a mix of long and short histories: every line in the world is more
+  // reading than one function call can do against a distant database.
+  const lines = candidates.filter(paidByPayroll).filter((_, i) => i % share.of === share.index)
+  const desks = new Map<string, { id: string; name: string } | null>()
   for (const line of lines) {
-    const runBy = await payrollDesk(line.companyId)
+    if (!desks.has(line.companyId)) desks.set(line.companyId, await payrollDesk(line.companyId))
+    const runBy = desks.get(line.companyId)
     if (!runBy) continue
     const r = await payPastPeriods(line.id, runBy)
     out.runs += r.runs

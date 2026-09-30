@@ -161,6 +161,9 @@ interface Placement {
     marginSays: string | null
     // Where the pay rate changed inside the hours priced, in a sentence.
     payRateChangeSays: string | null
+    // How overtime was paid in the weeks priced, and why cost is blank where it is.
+    overtimeSays: string | null
+    costSays: string | null
     hoursBilled: number; hoursPaid: number
     // Why there is nothing here, where there is nothing here.
     says: string | null
@@ -922,6 +925,12 @@ export default function PlacementPage() {
         )}
         {p.viewer.isSupplier && p.money.payRateChangeSays && (
           <p className="mb-3 text-[13px] text-etyme-muted">{p.money.payRateChangeSays}</p>
+        )}
+        {p.viewer.isSupplier && p.money.overtimeSays && (
+          <p className="mb-3 text-[13px] text-etyme-muted">{p.money.overtimeSays}</p>
+        )}
+        {p.viewer.isSupplier && p.money.cost == null && p.money.costSays && (
+          <p className="mb-3 text-[13px] text-etyme-muted">{p.money.costSays}</p>
         )}
 
         {p.money.says ? (

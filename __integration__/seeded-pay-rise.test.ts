@@ -212,9 +212,13 @@ describe('a pay rise on the seeded world', () => {
     const allHours = Object.values(all).reduce((a, b) => a + b, 0)
     const allCents = Object.entries(all).reduce((n, [d, h]) => n + payFor(d, h), 0)
 
-    // The forty-five-hour week is in a month no seeded run paid, so its
-    // premium — half of $70 again on five hours — is owed on top.
-    const premium = 5 * 3_500
+    // The forty-five-hour week's premium — half of $70 again on five
+    // hours — is paid by the seeded run for its month since 2026-09-30,
+    // priced through sheetPay. Only where that week is in this month, which
+    // no run has reached, is it still owed on top.
+    const long = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: sellId, totalHours: 45 } })
+    const longPaid = Object.keys(long.days as Record<string, number>).some((d) => paidDays.has(d))
+    const premium = longPaid ? 0 : 5 * 3_500
 
     as(RATE_CHANGE_PERSON.email)
     const r = await json(await myWork(req('GET', '/api/me/work')))
@@ -223,7 +227,7 @@ describe('a pay rise on the seeded world', () => {
     expect(line.payRate).toBe(7_000)
     expect(r.body.data.owed.paidHours).toBe(paidHours)
     expect(r.body.data.owed.hours).toBe(allHours - paidHours)
-    expect(r.body.data.owed.overtimeHours).toBe(5)
+    expect(r.body.data.owed.overtimeHours).toBe(longPaid ? 0 : 5)
     expect(r.body.data.owed.cents).toBe(allCents - paidCents + premium)
   })
 
@@ -251,9 +255,11 @@ describe('a pay rise on the seeded world', () => {
     expect(week.owedCents).toBe(40 * 7_000 + 5 * 10_500)
     expect(week.owedCents).not.toBe(45 * 7_000)
     expect(week.owedCents).toBe(payroll)
-    // No run has paid it yet, so all of it is still owed.
-    expect(week.paidCents).toBe(0)
-    expect(week.stillOwedCents).toBe(week.owedCents)
+    // A seeded run pays it with its premium, the same figure payroll
+    // prices, once its month has ended; in this month nothing has yet.
+    const ended = monthOf(long.periodEnd) < monthOf(new Date())
+    expect(week.paidCents).toBe(ended ? week.owedCents : 0)
+    expect(week.stillOwedCents).toBe(ended ? 0 : week.owedCents)
     expect(week.says).toContain('40 ordinary and 5 overtime')
     expect(week.says).toContain('$175.00')
   })
@@ -335,9 +341,7 @@ describe('a pay rise on the seeded world', () => {
     expect(center.actualCents).toBe(Math.round(hours * 11_200))
   })
 
-  it('on a fresh demo every month of hers before this one is paid by a run of its own, except the month holding her forty-five-hour week, whose overtime only a payroll run prices', async () => {
-    const long = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: sellId, totalHours: 45 } })
-    const heldBack = new Set(Object.keys(long.days as Record<string, number>).map(monthOf))
+  it('on a fresh demo every month of hers before this one is paid by a run of its own, the month holding her forty-five-hour week included, its overtime priced as payroll prices it', async () => {
     const all = await days()
     const now = monthOf(new Date())
     const worked = [...new Set(Object.keys(all).map(monthOf))].filter((m) => m < now).sort()
@@ -345,7 +349,7 @@ describe('a pay rise on the seeded world', () => {
 
     const runs = await runsOnHerLine()
     const ran = runs.map((c) => monthOf(c.payPeriod.start)).sort()
-    expect(ran).toEqual(worked.filter((m) => !heldBack.has(m)))
+    expect(ran).toEqual(worked)
     // Each run paid every day of its own month and nothing outside it.
     for (const c of runs) {
       const month = monthOf(c.payPeriod.start)
@@ -357,9 +361,8 @@ describe('a pay rise on the seeded world', () => {
     expect(paidOn.length).toBeGreaterThanOrEqual(runs.length)
   })
 
-  it('on her page every week in a paid month reads as paid, and only this month and the month holding the long week read as owed', async () => {
-    const long = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: sellId, totalHours: 45 } })
-    const open = new Set([monthOf(new Date()), ...Object.keys(long.days as Record<string, number>).map(monthOf)])
+  it('on her page every week in a paid month reads as paid, and only this month reads as owed', async () => {
+    const open = new Set([monthOf(new Date())])
     as(RATE_CHANGE_PERSON.email)
     const r = await json(await myWork(req('GET', '/api/me/work')))
     expect(r.status).toBe(200)
