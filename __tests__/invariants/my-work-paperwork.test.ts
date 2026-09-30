@@ -4,7 +4,7 @@ import { join } from 'path'
 import {
   paperRows, outstanding, countedAgainst, paperworkHeadline,
   owedWord, owedConsequence, owedTodo, owedFrom, awaitingReview, isAwaiting,
-  sectionOf, rowsInSection, SECTIONS,
+  sectionOf, rowsInSection, SECTIONS, paperworkIntro, EMPTY_PAPERWORK,
 } from '@/app/dashboard/my-work/paperwork-rows'
 import { myPapers, outstandingItems } from '@/lib/document-request'
 
@@ -90,12 +90,32 @@ describe('A worker sees what is being asked of her', () => {
 
   it('a worker with nothing outstanding is told so, rather than shown an empty list', () => {
     expect(paperworkHeadline(paperRows({ papers: [], owed: [] })))
-      .toBe('Nothing is on your file yet, and nobody is asking you for anything.')
+      .toBe('Nothing is on your file yet, and nobody is asking you for anything. ' +
+        'When a placement needs a document from you, it appears here and you will be told.')
     const onlyHeld = paperRows({ papers: [{ id: 'v1', kind: 'HELD', name: 'I-9', word: 'On file' }] })
     expect(paperworkHeadline(onlyHeld)).toBe('Nothing is being asked of you. Everything below is on file.')
     // The screen says it rather than drawing a blank list under a promise.
-    expect(SECTION).toContain('Nothing has been asked of you and nothing is on your file yet.')
     expect(SECTION).toContain('paperworkHeadline')
+  })
+
+  it('an empty paperwork section says it once', () => {
+    // Karthik Menon's work page read "Nothing is on your file yet, and
+    // nobody is asking you for anything." and, directly under it,
+    // "Nothing has been asked of you and nothing is on your file yet."
+    // One fact, two sentences. The headline is now the only one.
+    const empty = paperRows({ papers: [], owed: [] })
+    expect(paperworkHeadline(empty)).toBe(EMPTY_PAPERWORK)
+    // No line promising "everything on your file" over an empty file.
+    expect(paperworkIntro(empty)).toBeNull()
+    // The second wording is gone from the screen, and so is any other
+    // hand-written sentence about an empty file.
+    expect(SECTION).not.toContain('Nothing has been asked of you')
+    expect(SECTION).not.toMatch(/nothing is on your file/i)
+    // The sentence itself says "nothing" about the file once.
+    expect(EMPTY_PAPERWORK.match(/on your file/g)).toHaveLength(1)
+    // A file with something on it still says what the list below is.
+    const onlyHeld = paperRows({ papers: [{ id: 'v1', kind: 'HELD', name: 'I-9', word: 'On file' }] })
+    expect(paperworkIntro(onlyHeld)).toMatch(/^Everything on your file/)
   })
 
   it('the headline counts what she owes and says how much of it stops her working', () => {

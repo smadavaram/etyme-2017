@@ -460,6 +460,24 @@ export function awaitingReview(rows: PaperRow[]): PaperRow[] {
 }
 
 /**
+ * What an empty paperwork section says, once, and nothing else.
+ */
+export const EMPTY_PAPERWORK =
+  'Nothing is on your file yet, and nobody is asking you for anything. ' +
+  'When a placement needs a document from you, it appears here and you will be told.'
+
+/**
+ * The line under the heading, describing the list below it.
+ *
+ * Null when there is no list: a promise of "everything on your file"
+ * over an empty file is a third way of saying there is nothing there.
+ */
+export function paperworkIntro(rows: PaperRow[]): string | null {
+  if (rows.length === 0) return null
+  return 'Everything on your file, with the day each one runs out, and what is still being asked of you.'
+}
+
+/**
  * The sentence at the top of the page.
  *
  * Four states and each is a different sentence, because "nothing is
@@ -475,7 +493,10 @@ export function paperworkHeadline(rows: PaperRow[]): string {
     ? ` ${sent.length === 1 ? 'One more is' : `${sent.length} more are`} with them, waiting to be checked.`
     : ''
   if (todo.length === 0) {
-    if (rows.length === 0) return 'Nothing is on your file yet, and nobody is asking you for anything.'
+    // The one sentence an empty section says. It used to be said twice —
+    // here, and again in a box under it in slightly different words — so
+    // a worker with nothing on file read the same news two ways.
+    if (rows.length === 0) return EMPTY_PAPERWORK
     if (sent.length) {
       return `Nothing is being asked of you. ${sent.length === 1 ? 'One document is' : `${sent.length} documents are`} ` +
         'with them, waiting to be checked.'

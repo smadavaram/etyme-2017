@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { readJson } from '@/lib/read-response'
 import {
-  paperRows, outstanding, paperworkHeadline, rowsInSection, SECTIONS,
+  paperRows, outstanding, paperworkHeadline, paperworkIntro, rowsInSection, SECTIONS,
   type PaperRow,
 } from './paperwork-rows'
 
@@ -184,6 +184,7 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
   const all = rows ?? []
   const todo = outstanding(all)
   const headline = paperworkHeadline(all)
+  const intro = paperworkIntro(all)
 
   return (
     <Wrapper id="paperwork" className="mb-8">
@@ -197,9 +198,7 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
           </a>
         )}
       </div>
-      <p className="text-sm text-etyme-muted mb-2">
-        Everything on your file, with the day each one runs out, and what is still being asked of you.
-      </p>
+      {intro && <p className="text-sm text-etyme-muted mb-2">{intro}</p>}
       {/* The sentence that was missing: she is told where she stands
           before she reads a single row. */}
       <p className={`text-sm mb-3 ${todo.length ? 'text-etyme-attention' : 'text-etyme-muted'}`}>{headline}</p>
@@ -207,14 +206,9 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
       {said && <p className="mb-2 text-sm text-etyme-verified">{said}</p>}
 
       {/* ── Empty ───────────────────────────────────────────────────
-          Nothing on file and nothing owed. Said, not shown as a blank
-          list under a promise. */}
-      {all.length === 0 && (
-        <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 text-sm text-etyme-muted">
-          Nothing has been asked of you and nothing is on your file yet. When a placement needs a
-          document from you, it appears here and you will be told.
-        </div>
-      )}
+          Nothing on file and nothing owed. The headline above already
+          says so in one sentence (`EMPTY_PAPERWORK`); a box under it
+          saying the same thing again in other words was the bug. */}
 
       {/* The headings come from one list, in reading order, and a row's
           heading is decided by `sectionOf` rather than by its kind — a

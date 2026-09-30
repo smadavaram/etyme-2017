@@ -19,6 +19,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { paperRows, paperworkIntro } from '@/app/dashboard/my-work/paperwork-rows'
 import { myPapers, type AskedPacket, type HeldRecord, type SentDocument } from '@/lib/document-request'
 
 /**
@@ -161,10 +162,15 @@ describe('The heading over a worker’s own paperwork', () => {
   it('the sentence under the heading says the list is her whole file, the day each runs out, and what is still being asked of her', () => {
     // The heading appears three times — loading, error and the list
     // itself — and it is the last one that carries the sentence.
+    // Since 2026-09-30 the sentence is `paperworkIntro`, so that an
+    // empty file is not promised a list: with nothing on it the headline
+    // alone says so, once.
     const sub = PAGE.slice(PAGE.lastIndexOf('>Your paperwork</h2>'), PAGE.lastIndexOf('>Your paperwork</h2>') + 600)
-    expect(sub).toContain('Everything on your file')
-    expect(sub).toContain('the day each one runs out')
-    expect(sub).toContain('what is still being asked of you')
+    expect(sub).toContain('{intro}')
+    const intro = paperworkIntro(paperRows({ papers: [{ id: 'v1', kind: 'HELD', name: 'State RN license', word: 'On file' }] }))
+    expect(intro).toContain('Everything on your file')
+    expect(intro).toContain('the day each one runs out')
+    expect(intro).toContain('what is still being asked of you')
   })
 
   it('a license on file is shown with the day it runs out and nothing to press, because it is not an ask', () => {

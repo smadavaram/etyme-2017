@@ -642,8 +642,8 @@ function NothingYet({ says }: { says: string }) {
       </div>
 
       {/* Still theirs, and still worth having ready: anything somebody
-          has asked them to sign, and the CV a firm would be sent. Both
-          draw nothing at all when there is nothing. */}
+          has asked them to sign, and the CV a firm would be sent. With
+          nothing on file the paperwork section says so in one sentence. */}
       <div className="mt-8">
         <YourPapers />
         <YourCV />
