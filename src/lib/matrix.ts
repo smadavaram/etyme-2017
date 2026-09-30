@@ -1413,7 +1413,7 @@ export const MATRIX: L1[] = [
             '__integration__/pay-line-visibility.test.ts'] },
         { code: 'L3.5.1.3', name: 'Bench and reserve', owner: 'Payroll', status: B,
           tasks: ['BUILT 2026-09-30 by etyme-money: what a person on the bench costs is counted only while nobody bills their hours, in integer cents, over working days it names beside the calendar days (burnOf in lib/bench-policy) \u2014 the burn counted Helena Marsh, placed and billing, at $720 a day and 129 unlabeled days. OPEN: /api/bench/burn is etyme-supply\u2019s and still counts every listed person with a live pay line in dollars; the exact change is sent', 'Hold back, draw down, carry limit', 'What happens on exit, with the reason on record'],
-          implementedBy: [, 'src/lib/bench-policy.ts', 'src/lib/order-postings.ts',
+          implementedBy: ['src/lib/bench-policy.ts', 'src/lib/order-postings.ts',
             'src/app/api/payroll/reserve/route.ts', 'src/app/dashboard/payroll/page.tsx'],
           testedBy: ['__tests__/invariants/bench-burn-arithmetic.test.ts', '__tests__/invariants/bench-reserve.test.ts', '__tests__/invariants/bench-policy.test.ts',
             '__tests__/invariants/money-automation-names.test.ts'] },
