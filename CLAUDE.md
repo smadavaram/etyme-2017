@@ -1385,6 +1385,17 @@ Three rules follow:
   the UAE federal government moved to a Saturday–Sunday weekend in 2022
   and many private firms followed, so a Dubai company may say either,
   which is exactly why it is the company's to set.
+  **When a Sunday-to-Saturday week is due** (founder, the same day: "your
+  recommendation is default, but companies can choose to change their
+  settings and take up to an additional week to approve"). By default
+  a week's hours are due on the Monday after it ends and are approved by
+  the Wednesday, so weekend work is in before anybody signs. A company
+  may change both, and may give its approvers up to **one extra week**
+  (approval by the following Wednesday at the latest), never more. A
+  longer window is refused in a sentence, because every day an approval
+  waits is a day the bill and the pay wait behind it. These are answers
+  the setup asks for (see the onboarding decision), recorded with who
+  set them and when.
 
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
