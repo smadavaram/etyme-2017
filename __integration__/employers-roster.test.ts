@@ -27,6 +27,10 @@ const CLOUDEPA = `world-cloudepa${D}`
 const TELEWORLD = `world-teleworld${D}`
 
 const TELEWORLD_PAYROLL = ['Amara Nwosu', 'Deepa Varma', 'Felix Brenner', 'Karthik Menon']
+// The two delivery managers and the HR desk the internal-moves story
+// seats (lib/seed-internal-moves, 2026-09-30) are on the payroll too.
+const TELEWORLD_STAFF = ['Ingrid Solberg', 'Rahul Deshpande', 'Farah Haddad']
+const SUNDARA = `world-sundara${D}`
 const CLOUDEPA_BENCH = ['Grace Lindqvist', 'Helena Marsh', 'Ifeoma Balogun', 'Peter Halloran', 'Priya Raman']
 
 beforeAll(async () => {
@@ -84,14 +88,14 @@ describe('a firm’s bench and its training page agree about how many of its peo
 })
 
 describe('a firm sees the people it employs even where none of them has agreed to be marketed', () => {
-  it('names all five of Teleworld’s own people on its own roster', async () => {
+  it('names all eight of Teleworld’s own people on its own roster, its managers and HR among them', async () => {
     as(TELEWORLD)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
 
     const names = r.body.data.roster.map((x: any) => x.name)
-    for (const name of TELEWORLD_PAYROLL) expect(names).toContain(name)
-    expect(r.body.data.summary.total).toBe(5)
+    for (const name of [...TELEWORLD_PAYROLL, ...TELEWORLD_STAFF]) expect(names).toContain(name)
+    expect(r.body.data.summary.total).toBe(8)
     // Not one of them granted a listing, and every one of them is here.
     expect(r.body.data.summary.marketable).toBe(0)
   })
@@ -120,9 +124,12 @@ describe('a firm sees the people it employs even where none of them has agreed t
   })
 
   it('an employee with no work on the record is named, and nothing claims they are free', async () => {
-    as(TELEWORLD)
+    // Sundara's, because every Teleworld engineer now has work on the
+    // record: three on its Portland and San Jose projects, one just off
+    // Corveldt.
+    as(SUNDARA)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
-    const amara = r.body.data.roster.find((x: any) => x.name === 'Amara Nwosu')
+    const amara = r.body.data.roster.find((x: any) => x.name === 'Olivier Renard')
     expect(amara.standing).toBe('NOT_ON_THE_RECORD')
     expect(amara.free).toBe(false)
     expect(amara.freeForDays).toBeNull()
@@ -167,7 +174,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
       as(TELEWORLD)
       const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
       expect(r.body.data.roster.map((x: any) => x.name)).not.toContain('Felix Brenner')
-      expect(r.body.data.summary.total).toBe(4)
+      expect(r.body.data.summary.total).toBe(7)
     } finally {
       await prisma.context.update({ where: { id: seat!.id }, data: { revokedAt: null } })
     }
@@ -183,7 +190,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
     expect(c.body.data.consultants).toHaveLength(0)
 
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
-    expect(r.body.data.summary.total).toBe(5)
+    expect(r.body.data.summary.total).toBe(8)
   })
 })
 

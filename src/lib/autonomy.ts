@@ -427,6 +427,22 @@ ATTRIBUTED.MATCH_RUN = { basis: 'RECORDED' }
 ATTRIBUTED.SITE_WRITTEN = { basis: 'RECORDED' }
 ATTRIBUTED.DATA_IMPORTED = { basis: 'RECORDED' }
 
+// An integrator's own people moving between its projects (2026-09-30,
+// lib/internal-moves). Each is a named manager's act — flagging who comes
+// off a project, taking the flag back, confirming the day, holding
+// somebody, letting a hold go, placing them on a line or putting them
+// forward — and HR and the person are told of each. `RECORDED` because the
+// row says who, which person, which day and which position, read back off
+// what the manager did. A hold that ran out is ended as part of the next
+// person's act on it and named in that act's payload, not a row of its own.
+ATTRIBUTED.PROJECT_RELEASE_FLAGGED = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_RELEASE_WITHDRAWN = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_RELEASE_CONFIRMED = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_HOLD_TAKEN = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_HOLD_RELEASED = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_MOVE_PLACED = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_MOVE_SUBMITTED = { basis: 'RECORDED' }
+
 // Somebody holding the deployment secret asked for the demo world to be
 // deleted and seeded again, and typed the phrase. A person's act, not
 // ours; `RULE` because what went is decided by lib/seed-rebuild's scope

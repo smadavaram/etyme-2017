@@ -5,7 +5,9 @@ import type { Route } from 'next'
 import { range, compact } from '@/lib/money-display'
 import { readBench, submitLink } from '@/lib/bench-filter'
 import { readJson } from '@/lib/read-response'
-import { useCompanyKind } from '@/components/session-provider'
+import { useCompanyKind, useSession } from '@/components/session-provider'
+import { OurBench } from './our-bench'
+import { hasPermission } from '@/lib/permissions'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 
@@ -461,10 +463,17 @@ export default function BenchPage() {
   // its own payroll, so that is where its Bench page opens. Teleworld
   // Solutions read a bare screen under "Your own team" while holding five
   // live employee seats, because this page only ever asked for listings.
+  //
+  // A link may name the tab (`?scope=payroll` from a roll-off notice), and
+  // that beats the default for the firm's kind.
+  const asked = searchParams.get('scope')
   const opensOn: BenchScope =
-    companyKind === 'GSI' || companyKind === 'MSP' || companyKind === 'CONSULTANT_CORP'
-      ? 'payroll'
-      : 'company'
+    asked === 'company' || asked === 'payroll' || asked === 'network'
+      ? asked
+      : companyKind === 'GSI' || companyKind === 'MSP' || companyKind === 'CONSULTANT_CORP'
+        ? 'payroll'
+        : 'company'
+  const session = useSession()
 
   const [scope, setScope] = useState<BenchScope>(opensOn)
   const [scopeChosen, setScopeChosen] = useState(false)
@@ -884,9 +893,14 @@ export default function BenchPage() {
           A GSI holds all three hats at once (src/lib/persona.ts). */}
       <div className="flex items-center gap-1 bg-etyme-canvas rounded-md p-0.5 mb-6 w-fit">
         {([
-          { key: 'company', label: 'On your bench' },
-          { key: 'payroll', label: 'On your payroll' },
-          { key: 'network', label: 'Your network' },
+          // The founder's words, 2026-09-30: a firm's own people are "Our
+          // bench" and the people partner firms offer it are "Partner
+          // bench". A firm's own people come by two consents — a listing
+          // they granted, or their employment — so Our bench is two tabs,
+          // each saying which.
+          { key: 'company', label: 'Our bench \u00b7 listed' },
+          { key: 'payroll', label: 'Our bench \u00b7 employed' },
+          { key: 'network', label: 'Partner bench' },
         ] as { key: BenchScope; label: string }[]).map(({ key, label }) => (
           <button
             key={key}
@@ -918,6 +932,16 @@ export default function BenchPage() {
           listing side; a roster's own cost is payroll and not this number. */}
       {scope !== 'payroll' && burnData && burnData.benchSize > 0 && (
         <BenchBurnPanel data={burnData} />
+      )}
+
+      {/* Our bench, for the firm's managers and HR: who is coming off a
+          project, who is between projects, and the moves between the
+          firm's own projects (lib/internal-moves). Above the roster, which
+          is everybody and what each is on. */}
+      {scope === 'payroll' && (
+        <div className="mb-8">
+          <OurBenchGate firmName={session.company?.name ?? 'your firm'} permissions={session.permissions} roleName={session.roleName} />
+        </div>
       )}
 
       {scope === 'payroll' ? (
@@ -1433,4 +1457,16 @@ function StatChip({
       </div>
     </div>
   )
+}
+
+/**
+ * Our bench is read by the firm's managers and HR only; everybody else
+ * who opens this tab reads the roster below without it, rather than a
+ * refusal in the middle of their own page.
+ */
+function OurBenchGate({ firmName, permissions, roleName }: { firmName: string; permissions: readonly string[]; roleName: string | null }) {
+  const manager = hasPermission(permissions, 'assignments.write')
+  const hr = roleName === 'HR' || roleName === 'HR Partner'
+  if (!manager && !hr) return null
+  return <OurBench firmName={firmName} />
 }

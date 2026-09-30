@@ -1105,6 +1105,23 @@ export default function MyWorkPage() {
         </div>
       </div>
 
+      {/* Where their employer is moving them next — told, not asked, in
+          the words the notice used, and the city change said outright. */}
+      {(data.moves?.length ?? 0) > 0 && (
+        <section className="mb-8" aria-labelledby="your-next-project">
+          <h2 id="your-next-project" className="font-serif text-lg text-etyme-ink mb-3">Your next project</h2>
+          <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+            {data.moves.map((m: { kind: string; title: string; body: string; cityChange: boolean }, i: number) => (
+              <div key={i} className="p-4">
+                <div className="text-etyme-ink">{m.title}</div>
+                <p className="text-sm text-etyme-muted mt-1">{m.body}</p>
+                {m.cityChange && <span className="chip chip--attention text-[10px] mt-2 inline-block">New city</span>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Somebody is waiting on them to answer. Nothing else on this
           page expires. */}
       <YourInterviews />

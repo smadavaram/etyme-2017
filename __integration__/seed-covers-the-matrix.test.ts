@@ -61,6 +61,10 @@ const RUNTIME: Record<string, string> = {
   accessLog: 'written by a real read of somebody else’s data, including refusals',
   docFile: 'written when somebody actually sends a document — the bytes of a real file, so a seeded one would be a photograph of nothing',
   approvalRuleVersion: 'written when a rule is changed, not when it is created',
+  // A manager holding one of the firm's own people for his position
+  // (lib/internal-moves). The seed flags who rolls off and stops there:
+  // reserving, confirming and placing are the acts the demo exists to show.
+  projectHold: 'written when a manager reserves somebody on Our bench for his own position',
   // ── Four that must never be seeded, added 2026-09-19 ───────────────
   //
   // These are the strongest case this list has. A seeded DataRequest

@@ -56,6 +56,8 @@
 import { prisma } from '@/lib/db'
 import { standingOf, type RosterLine } from '@/lib/consultant-portfolio'
 import { stayOver } from '@/lib/bench-stay'
+import { countsInMatching, freeFrom } from '@/lib/internal-moves'
+import { plainDate } from '@/lib/plain-date'
 
 // ─────────────────────────────────────────────────────────────────────
 // Pure: the rules
@@ -709,6 +711,24 @@ async function employeesFree(
     })
   }
 
+  // What the firm's own managers said on Our bench (`lib/internal-moves`):
+  // a manager's flag decides the free date over the contract's end — an
+  // early roll-off counts, and somebody kept ("staying with me until")
+  // counts only once that date is inside the month. Somebody already
+  // placed onto their next project is not offered again.
+  const [releases, moving] = await Promise.all([
+    prisma.projectRelease.findMany({
+      where: { companyId, personId: { in: ids }, withdrawnAt: null, holds: { none: { endedHow: 'PLACED' } } },
+      select: { personId: true, rollsOffOn: true, keepUntil: true },
+    }),
+    prisma.projectHold.findMany({
+      where: { companyId, personId: { in: ids }, endedHow: 'PLACED', placedStartsOn: { gte: now } },
+      select: { personId: true },
+    }),
+  ])
+  const releaseOf = new Map(releases.map((r) => [r.personId, r]))
+  const movingIds = new Set(moving.map((m) => m.personId))
+
   const soon = new Date(now.getTime() + ROLLING_OFF_DAYS * 86_400_000)
   const entries: PoolEntry[] = []
   let busy = 0
@@ -717,16 +737,34 @@ async function employeesFree(
     if (seen.has(s.personId)) continue
     seen.add(s.personId)
     const mine = lines.get(s.personId) ?? []
-    const verdict = standingOf(
+    let verdict = standingOf(
       { personId: s.personId, name: s.person.name, seat: s.role?.name ?? null, practice: null, skills: s.person.consultant!.skills, listed: false, lines: mine },
       now
     )
-    const comingOff =
+    if (movingIds.has(s.personId)) {
+      busy++
+      continue
+    }
+    const release = releaseOf.get(s.personId)
+    let comingOff =
       verdict.standing === 'ON_PROJECT' &&
       mine.some((l) => l.live && !l.paused && l.endsOn != null && l.endsOn <= soon) &&
       !mine.some((l) => l.live && (l.endsOn == null || l.endsOn > soon))
-    if (!verdict.free && !comingOff) {
-      if (verdict.standing === 'ON_PROJECT' || verdict.standing === 'STARTING_SOON') busy++
+    if (release) {
+      comingOff = countsInMatching(release, now)
+      if (comingOff) {
+        const from = freeFrom(release)
+        verdict = {
+          ...verdict,
+          says: release.keepUntil
+            ? `Kept on their project until ${plainDate(from.toISOString())}; free from then.`
+            : `Coming off their project on ${plainDate(release.rollsOffOn.toISOString())}; free from ${plainDate(from.toISOString())}.`,
+        }
+      }
+    }
+    // A manager's keep date beats a line that has already ended: kept is not free.
+    if ((!verdict.free && !comingOff) || (release && !comingOff)) {
+      if (verdict.standing === 'ON_PROJECT' || verdict.standing === 'STARTING_SOON' || release) busy++
       continue
     }
     const c = s.person.consultant!

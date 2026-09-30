@@ -278,6 +278,10 @@ export const DOMAINS: Domain[] = [
       // Who a job request is matched against and what each viewer sees
       // (2026-09-30), and how long a person chose to stay on a bench.
       'lib/match-pool', 'lib/bench-stay', 'lib/bench-stay-record',
+      // An integrator's own people moving between its projects: the flag,
+      // the hold, the confirmation and the move (2026-09-30), and the
+      // world's one story of it.
+      'lib/internal-moves', 'lib/seed-internal-moves',
       'lib/releasing-soon', 'lib/shared-consultant', 'lib/scorecard',
       'lib/benchmark', 'lib/resumes', 'lib/cv-reader', 'lib/extract',
       'lib/consultant-portfolio', 'lib/portfolio-data', 'lib/onboarding',

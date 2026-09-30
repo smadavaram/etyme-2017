@@ -191,6 +191,11 @@ model Person {
   legalHoldsLifted  LegalHold[]   @relation("legalHoldLifter")
   breachesOpened    Breach[]      @relation("breachOpener")
 
+  /// An employer releasing this person from a project, and a manager
+  /// holding them for the next (`lib/internal-moves`).
+  projectReleases ProjectRelease[]
+  projectHolds    ProjectHold[]
+
   @@index([name])
   @@index([createdAt])
   @@index([erasedAt])
@@ -581,6 +586,9 @@ model Company {
   blacklists            Blacklist[]
   // The people and firms this company would take again
   favorites             Favorite[]
+  /// Its own people coming off a project, and held for the next one.
+  projectReleases       ProjectRelease[]
+  projectHolds          ProjectHold[]
   // Suppliers recommended here, waiting on Procurement
   supplierRequests      SupplierRequest[]
   contractorInvitations ContractorInvitation[]
@@ -2885,6 +2893,8 @@ model SellContract {
   invoiceLines         InvoiceLine[]
   sellCycles           Cycle[]               @relation("sellCycles")
   rolloff              RolloffEvent?
+  /// The employer's own flag that this person comes off this line.
+  projectRelease       ProjectRelease?
   overtimeDecisions    OvertimeDecision[]
   timeOffEntries       TimeOffEntry[]
   docs                 DocInstance[]         @relation("sellDocs")
@@ -4845,21 +4855,21 @@ model SupplierRequest {
   /// which job request and which match started it, so the desks read the
   /// reason the recommender had, and the match turns into a normal one
   /// once the firm is approved (`lib/match-pool`).
-  requirementId     String?
-  matchId           String?
+  requirementId  String?
+  matchId        String?
   /// The firm on Etyme the request is about, when it is already here —
   /// a suggestion names a real company, so approval joins that company
   /// rather than creating a second one from the name.
-  firmCompanyId     String?
+  firmCompanyId  String?
   /// How the firm would come in: PRIME_VENDOR · SUB_UNDER_MSP ·
   /// SUB_UNDER_PRIME. Null on a plain recommendation, which is a prime
   /// vendor. Etyme is never a prime vendor; the MSP may be Etyme's own
   /// program office, which is `underCompanyId` null on SUB_UNDER_MSP.
-  comesInAs         String?
+  comesInAs      String?
   /// The MSP or the prime it would work under.
-  underCompanyId    String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  underCompanyId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([companyId, state])
   @@index([requirementId])
@@ -5049,6 +5059,101 @@ model RolloffEvent {
   outcome        String? // REDEPLOYED · BENCH · LOST
 
   @@index([endDate])
+}
+
+// ── An integrator's own people, moving between its projects ─────────
+//
+// Decided by the founder, 2026-09-30 ("How an integrator's people move
+// between its projects", CLAUDE.md). A project manager on one client's
+// project publishes who is rolling off; another manager of the same firm
+// on another client's project sees them on "Our bench", asks, reserves
+// them, and places them once the first confirms the day.
+//
+// Two tables, because they are two acts by two people. A release is the
+// releasing manager's: one per line, the day they come off, and an
+// optional "staying with me until". A hold is the receiving manager's,
+// and a person has one live hold at a time — enforced here, not only in
+// a route: `live` is "LIVE" while the hold stands and null once it ends,
+// and Postgres reads two nulls as different, so `@@unique([personId,
+// live])` admits any number of ended holds and exactly one live one.
+//
+// Neither is a `BenchListing` and neither is a `RolloffEvent`. A listing
+// is a consultant consenting to be sold; this is an employer's roster,
+// where the employment is the consent. A rolloff event is the client's
+// fan-out and a client reads it; a release, its keep date and who holds
+// the person are the firm's own business and no client reads them.
+//
+// The ids not declared as relations below are history — who did it, and
+// what the hold was for — and are listed in `lib/seed-rebuild`'s LOOSE.
+
+/// A manager's flag that one of the firm's own people comes off a project.
+model ProjectRelease {
+  id             String       @id @default(cuid())
+  /// The employer. Only its own managers and HR read this row.
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  personId       String
+  person         Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  /// The line they come off. One release per line; a second flag moves this one.
+  sellContractId String       @unique
+  sellContract   SellContract @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
+  /// The releasing manager.
+  releasedById   String
+  /// The day they come off. Never after the line's own last day.
+  rollsOffOn     DateTime
+  /// "Staying with me until" — they read as free from this day instead.
+  keepUntil      DateTime?
+  /// The releasing manager confirmed the day. Nobody is placed before this.
+  confirmedAt    DateTime?
+  confirmedById  String?
+  /// Taken back by the releasing manager: they are not coming off after all.
+  withdrawnAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  holds ProjectHold[]
+
+  @@index([companyId, withdrawnAt])
+  @@index([personId])
+}
+
+/// A manager holding one of the firm's own people for his open position.
+model ProjectHold {
+  id                   String          @id @default(cuid())
+  companyId            String
+  company              Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  personId             String
+  person               Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
+  /// The release they were flagged under. Null for somebody already between projects.
+  releaseId            String?
+  release              ProjectRelease? @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  /// The receiving manager.
+  heldById             String
+  /// The position: a client's job request, or the order of the manager's own project.
+  forRequirementId     String?
+  forWorkOrderId       String?
+  /// The line on that order whose terms a new line copies.
+  forSellContractId    String?
+  /// What the position is, in the words the holder chose it by.
+  forTitle             String
+  /// The hold lapses at the end of this day, read off the date itself.
+  until                DateTime
+  /// "LIVE" while the hold stands, null once it ended. See the note above.
+  live                 String?         @default("LIVE")
+  endedAt              DateTime?
+  endedById            String?
+  /// RELEASED · EXPIRED · PLACED
+  endedHow             String?
+  endReason            String?
+  /// What the placement wrote: a line on the order, or a submission.
+  placedSellContractId String?
+  placedSubmissionId   String?
+  placedStartsOn       DateTime?
+  createdAt            DateTime        @default(now())
+
+  @@unique([personId, live])
+  @@index([companyId, live])
+  @@index([releaseId])
 }
 
 // Everything the system did on a company's behalf. Inspectable, mostly reversible.

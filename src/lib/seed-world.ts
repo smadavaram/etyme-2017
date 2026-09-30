@@ -46,6 +46,7 @@ import { seedRateChange } from '@/lib/seed-rate-change'
 import { seedPayrollRuns } from '@/lib/seed-payroll-runs'
 import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
 import { seedBenchMatching } from '@/lib/seed-bench-matching'
+import { seedInternalMoves } from '@/lib/seed-internal-moves'
 import { seedPipeline } from '@/lib/seed-pipeline'
 import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
 import { rolesFor, RENAMED_ROLES, GRANTED_SINCE } from '@/lib/company-defaults'
@@ -226,7 +227,7 @@ export function worldStepNames(): string[] {
     'bench', 'in-flight', 'payroll', 'payroll-invitations',
     ...programSteps().map((s) => s.name),
     'program-office-seat', 'supplier-desks', 'compliance-desk', 'doors',
-    'rate-change', 'sector-suppliers',
+    'rate-change', 'sector-suppliers', 'internal-moves',
     ...STANDING_PARTS.map((part) => `standing:${part}`),
     ...orderToCashSteps().map((s) => s.name),
     'bench-matching',
@@ -1728,6 +1729,12 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // The two suppliers outside IT (lib/seed-sector-suppliers), before
   // standing and the order-to-cash layer for the same two reasons.
   await step('sector-suppliers', () => seedSectorSuppliers(ctx))
+  // An integrator's people moving between its projects (2026-09-30,
+  // lib/seed-internal-moves): Teleworld's Portland and San Jose projects
+  // and the two people flagged off the first. Before the order-to-cash
+  // layer for the same reason as the two above: it raises the order the
+  // San Jose project runs under.
+  await step('internal-moves', () => seedInternalMoves(ctx))
   // In three parts, for the same reason as the programs.
   for (const part of STANDING_PARTS) {
     await step(`standing:${part}`, async () => {

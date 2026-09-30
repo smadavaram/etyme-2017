@@ -34,9 +34,16 @@ describe('the bench page reaches every scope the API has', () => {
     // who granted a listing, and at an integrator the reader expected the
     // people it employs — who were on no screen at all. Three labels now,
     // one per consent.
-    expect(PAGE).toContain("label: 'On your bench'")
-    expect(PAGE).toContain("label: 'On your payroll'")
-    expect(PAGE).toContain("label: 'Your network'")
+    //
+    // Renamed again 2026-09-30, in the founder's words: a firm's own
+    // people are "Our bench" and a partner's are "Partner bench". The
+    // firm's own come by two consents, and each tab still names which.
+    expect(PAGE).toContain("label: 'Our bench \\u00b7 listed'")
+    expect(PAGE).toContain("label: 'Our bench \\u00b7 employed'")
+    expect(PAGE).toContain("label: 'Partner bench'")
+    for (const retired of ["'On your bench'", "'On your payroll'", "'Your network'", 'Received bench', 'Bench wanted']) {
+      expect(PAGE.includes(`label: ${retired}`), retired).toBe(false)
+    }
   })
 
   it('a firm sees the people it employs even where none of them has agreed to be marketed', () => {

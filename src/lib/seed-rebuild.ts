@@ -104,7 +104,7 @@ export const DELETE_ORDER = [
   'Verification', 'GovernanceRule', 'Course', 'DocumentShare', 'DocInstance', 'Import', 'Event',
   'DocumentPacket', 'WebhookSubscription', 'AgentRun', 'PaymentRun', 'Breach', 'CensusRequest',
   'WorkAssertion', 'Resume', 'BuyContract', 'RemitTo', 'Incident', 'DocumentType', 'GovernancePolicy',
-  'DocTemplate', 'ServiceAccount', 'LegalEntity', 'Timesheet', 'SellContract', 'WorkOrder', 'Requirement',
+  'DocTemplate', 'ServiceAccount', 'LegalEntity', 'ProjectHold', 'ProjectRelease', 'Timesheet', 'SellContract', 'WorkOrder', 'Requirement',
   'ProjectOrder', 'CompanyLocation', 'Opening', 'Engagement', 'InternalOrder', 'MasterAgreement',
   'CostCenter', 'Person', 'OrgUnit', 'Company',
 ] as const
@@ -218,6 +218,18 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Favorite.byId': { as: 'RECORD' },
   'Message.authorId': { as: 'RECORD' },
   'RolloffEvent.claimedById': { as: 'RECORD' },
+  // An integrator's own people moving between its projects (2026-09-30,
+  // lib/internal-moves): who released, who confirmed, who held, what the
+  // hold was for and what placing wrote. History, kept as written.
+  'ProjectRelease.releasedById': { as: 'RECORD' },
+  'ProjectRelease.confirmedById': { as: 'RECORD' },
+  'ProjectHold.heldById': { as: 'RECORD' },
+  'ProjectHold.forRequirementId': { as: 'RECORD' },
+  'ProjectHold.forWorkOrderId': { as: 'RECORD' },
+  'ProjectHold.forSellContractId': { as: 'RECORD' },
+  'ProjectHold.endedById': { as: 'RECORD' },
+  'ProjectHold.placedSellContractId': { as: 'RECORD' },
+  'ProjectHold.placedSubmissionId': { as: 'RECORD' },
   'Verification.uploadedById': { as: 'RECORD' },
   'Verification.verifiedById': { as: 'RECORD' },
   'DocumentType.createdById': { as: 'RECORD' },

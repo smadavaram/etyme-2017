@@ -18,6 +18,77 @@ import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn } from '@/lib/money/pay-line'
 import { periodTermsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
+import { personNotice, cityOf, dayOf, holdStands } from '@/lib/internal-moves'
+
+/**
+ * A person's moves between their employer's projects, in the words they
+ * were told them: coming off a project, held for another, and the next
+ * project with its start day and, where the city changes, the cities.
+ */
+async function movesFor(personId: string, now: Date) {
+  const today = dayOf(now)
+  const [releases, holds] = await Promise.all([
+    prisma.projectRelease.findMany({
+      where: { personId, withdrawnAt: null },
+      include: {
+        company: { select: { name: true } },
+        sellContract: {
+          select: {
+            endDate: true, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } },
+            workLocation: { select: { city: true } }, requirement: { select: { location: true } },
+          },
+        },
+      },
+    }),
+    prisma.projectHold.findMany({
+      where: { personId, OR: [{ live: 'LIVE' }, { endedHow: 'PLACED', placedStartsOn: { gte: new Date(today.getTime() - 14 * 86_400_000) } }] },
+      include: { company: { select: { name: true } }, release: { select: { sellContract: { select: { workLocation: { select: { city: true } }, requirement: { select: { location: true } } } } } } },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ])
+  const names = new Map(
+    (await prisma.person.findMany({
+      where: { id: { in: [...releases.map((r) => r.releasedById), ...holds.map((h) => h.heldById)] } },
+      select: { id: true, name: true },
+    })).map((p) => [p.id, p.name])
+  )
+  const placedLines = await prisma.sellContract.findMany({
+    where: { id: { in: holds.map((h) => h.placedSellContractId).filter((x): x is string => !!x) } },
+    select: { id: true, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } }, workLocation: { select: { city: true } } },
+  })
+  const out: { kind: 'COMING_OFF' | 'HELD' | 'NEXT_PROJECT'; title: string; body: string; cityChange: boolean }[] = []
+  for (const r of releases) {
+    const placed = holds.some((h) => h.releaseId === r.id && h.endedHow === 'PLACED')
+    if (placed && r.rollsOffOn < today) continue
+    const n = personNotice(r.confirmedAt ? 'CONFIRM' : 'FLAG', {
+      personName: '', firmName: r.company.name, actorName: names.get(r.releasedById) ?? 'Your manager',
+      fromClient: r.sellContract.endClientCompany?.name ?? r.sellContract.clientCompany.name,
+      fromCity: cityOf(r.sellContract.workLocation) ?? cityOf(r.sellContract.requirement?.location ?? null),
+      rollsOffOn: r.rollsOffOn, keepUntil: r.keepUntil,
+    })
+    out.push({ kind: 'COMING_OFF', title: n.title, body: n.body, cityChange: false })
+  }
+  for (const h of holds) {
+    const fromCity = h.release ? cityOf(h.release.sellContract.workLocation) ?? cityOf(h.release.sellContract.requirement?.location ?? null) : null
+    if (h.endedHow === 'PLACED') {
+      const line = placedLines.find((l) => l.id === h.placedSellContractId)
+      const toCity = line ? cityOf(line.workLocation) : null
+      const n = personNotice('MOVE', {
+        personName: '', firmName: h.company.name, actorName: names.get(h.heldById) ?? 'Your manager',
+        forTitle: h.forTitle, toClient: line ? line.endClientCompany?.name ?? line.clientCompany.name : h.forTitle,
+        toCity, fromCity, startsOn: h.placedStartsOn, movedAs: h.placedSubmissionId ? 'SUBMISSION' : 'LINE',
+      })
+      out.push({ kind: 'NEXT_PROJECT', title: n.title, body: n.body, cityChange: n.body.includes('This moves you from') })
+    } else if (holdStands(h, today)) {
+      const n = personNotice('HOLD', {
+        personName: '', firmName: h.company.name, actorName: names.get(h.heldById) ?? 'A manager',
+        forTitle: h.forTitle, until: h.until,
+      })
+      out.push({ kind: 'HELD', title: n.title, body: n.body, cityChange: false })
+    }
+  }
+  return out
+}
 
 /**
  * GET /api/me/work
@@ -553,9 +624,14 @@ export async function GET(request: NextRequest) {
         },
   })
 
+  // Where their employer is moving them (lib/internal-moves). Told, never
+  // asked: the employment is the consent. Read off their own rows only.
+  const moves = await movesFor(personId, now)
+
   return NextResponse.json({
     data: {
       person: { id: caller.person.id, name: caller.person.name },
+      moves,
       standing: { ok: standing.ok, because: standing.because, says: standing.says },
       placements: lines.map((l) => {
         const c = byId.get(l.own.id)!
