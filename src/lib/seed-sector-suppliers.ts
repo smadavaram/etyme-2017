@@ -58,7 +58,7 @@
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
 import { holidayKeys } from '@/lib/seed-calendar'
-import { writeCyclesFor } from '@/lib/contract-cycles'
+import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
 import { requirementsFor } from '@/lib/document-requirements'
 import type { SeedContext } from '@/lib/seed-order-to-cash'
@@ -341,7 +341,7 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
       await db.contractLink.create({
         data: { sellContractId: sell.id, buyContractId: buy.id, effectiveFrom: start, effectiveTo: end },
       })
-      await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays })
+      await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays, pay: DEMO_MONTHLY_PAY })
     }
     // The coding the award writes: without the allocation the client
     // signed every week and its budget counted none of them. Here as

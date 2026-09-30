@@ -52,11 +52,12 @@
  */
 
 import { prisma as db } from '@/lib/db'
-import { writeCyclesFor } from '@/lib/contract-cycles'
+import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { chaseCredentials } from '@/lib/credential-chase'
-import { day } from '@/lib/seed-days'
+import { day, seedToday } from '@/lib/seed-days'
+import type { Prisma } from '@prisma/client'
 import type { World } from '@/lib/seed-programmes'
 
 /** "Colleen Byrne" → colleen.byrne@… — accents folded, never dropped into a dot. */
@@ -77,6 +78,50 @@ function officeWeek(w: number, hours = 40) {
   const days: Record<string, number> = {}
   for (let d = 0; d < 5; d++) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = hours / 5
   return { start, end, days, hours }
+}
+
+/**
+ * Karthik Menon's three whole calendar months, counted from the world's
+ * own today: they end on the last month-end at least ten days before it,
+ * and begin on the 1st two months earlier. Ten days, because the latest
+ * a demo pay day falls is month-end + 9 (lib/contract-cycles), so the
+ * last of the three months has been paid before the world was born.
+ */
+export function karthikWindow(today: Date): { start: Date; end: Date } {
+  const ref = new Date(today.getTime() - 10 * 86_400_000)
+  const next = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate() + 1))
+  // The last day of a month on or before `ref`.
+  const end =
+    next.getUTCDate() === 1 ? ref : new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), 0))
+  const start = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - 2, 1))
+  return { start, end }
+}
+
+/**
+ * Every calendar week from `start` to `end`, Monday on, cut to the window:
+ * eight hours on each weekday inside it. A week the window cuts is filed
+ * for the days it holds, never for days outside the contract.
+ */
+export function calendarWeeks(start: Date, end: Date, hoursPerDay = 8) {
+  const DAY = 86_400_000
+  const weeks: { start: Date; end: Date; days: Record<string, number>; hours: number }[] = []
+  const monday = new Date(start.getTime() - ((start.getUTCDay() + 6) % 7) * DAY)
+  for (let w = monday; w <= end; w = new Date(w.getTime() + 7 * DAY)) {
+    const days: Record<string, number> = {}
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(w.getTime() + i * DAY)
+      if (d >= start && d <= end) days[d.toISOString().slice(0, 10)] = hoursPerDay
+    }
+    const keys = Object.keys(days)
+    if (keys.length === 0) continue
+    weeks.push({
+      start: new Date(`${keys[0]}T00:00:00Z`),
+      end: new Date(`${keys[keys.length - 1]}T00:00:00Z`),
+      days,
+      hours: keys.length * hoursPerDay,
+    })
+  }
+  return weeks
 }
 
 /**
@@ -163,6 +208,8 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     state: 'IN_PROGRESS' | 'ENDED'
     /** BENCH · INTERNAL — computed from ownership, never typed in. */
     kind: 'INTERNAL' | 'BENCH' | 'NETWORK'
+    /** Write the worker's pay days even though the placement has ended. */
+    cyclesWhenEnded?: boolean
   }) {
     const seller = co(spec.sellerSlug),
       client = co(spec.clientSlug)
@@ -239,7 +286,24 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
       await db.contractLink.create({
         data: { sellContractId: sell.id, buyContractId: buy.id, effectiveFrom: spec.start, effectiveTo: spec.end },
       })
-      if (spec.state !== 'ENDED') await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys() })
+      // Due dates on the side each belongs to, pay on the demo's monthly
+      // rhythm. A placement that has ended has nothing due on it — no
+      // hours, no bill — but where the door asks, its worker keeps the pay
+      // days of the line that paid him, because his page reads a pay day
+      // for every month he was paid (Karthik Menon's). The writer is
+      // handed the buy side's rows only.
+      if (spec.state !== 'ENDED') {
+        await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys(), pay: DEMO_MONTHLY_PAY })
+      } else if (spec.cyclesWhenEnded) {
+        const payDaysOnly = {
+          sellContract: db.sellContract,
+          cycle: {
+            createMany: (args: { data: Prisma.CycleCreateManyInput[] }) =>
+              db.cycle.createMany({ data: args.data.filter((r) => r.buyContractId) }),
+          },
+        } as unknown as Parameters<typeof writeCyclesFor>[0]
+        await writeCyclesFor(payDaysOnly, { sell, buy, packId: 'US_IT', holidays: holidayKeys(), pay: DEMO_MONTHLY_PAY })
+      }
     }
 
     if (!(await db.submission.findFirst({ where: { requirementId: requirement.id, personId: spec.personId } }))) {
@@ -278,6 +342,10 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
    * once both are in. A week written before this gets its rows on the
    * next seeding; one that has them is left alone.
    */
+  const contractRates = new Map<string, {
+    companyId: string; clientCompanyId: string; billRate: number
+    buyLinks: { buyContract: { candidates: { payRate: number }[] } }[]
+  }>()
   async function hours(input: {
     sellContractId: string
     personId: string
@@ -290,11 +358,12 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     const { week } = input
     const clientAt = new Date(week.end.getTime() + 2 * 86_400_000)
     const employerAt = new Date(week.end.getTime() + 3 * 86_400_000)
+    const found = await db.timesheet.findFirst({
+      where: { sellContractId: input.sellContractId, periodStart: week.start },
+      select: { id: true },
+    })
     const sheet =
-      (await db.timesheet.findFirst({
-        where: { sellContractId: input.sellContractId, periodStart: week.start },
-        select: { id: true },
-      })) ??
+      found ??
       (await db.timesheet.create({
         data: {
           sellContractId: input.sellContractId,
@@ -327,41 +396,50 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
       }))
     if (input.standing === 'FILED') return
 
-    const sell = await db.sellContract.findUniqueOrThrow({
-      where: { id: input.sellContractId },
-      select: {
-        companyId: true, clientCompanyId: true, billRate: true,
-        buyLinks: { select: { buyContract: { select: { candidates: { where: { personId: input.personId }, select: { payRate: true } } } } } },
-      },
-    })
-    const standing = await db.workAssertion.findMany({
-      where: { timesheetId: sheet.id, state: 'LIVE' },
-      select: { companyId: true, role: true },
-    })
-    const signed = (role: string, companyId: string) => standing.some((a) => a.role === role && a.companyId === companyId)
-    // The client signs at what it is billed.
-    if (!signed('CLIENT_APPROVAL', sell.clientCompanyId)) {
-      await db.workAssertion.create({
-        data: {
-          timesheetId: sheet.id, companyId: sell.clientCompanyId, role: 'CLIENT_APPROVAL', hours: week.hours,
-          rateCents: sell.billRate, state: 'LIVE', byId: input.clientById, auto: false, at: clientAt,
+    // Read once per contract rather than once a week: Karthik Menon's
+    // three months are fourteen weeks, and the doors step has a budget.
+    const key = `${input.sellContractId}:${input.personId}`
+    let sell = contractRates.get(key)
+    if (!sell) {
+      sell = await db.sellContract.findUniqueOrThrow({
+        where: { id: input.sellContractId },
+        select: {
+          companyId: true, clientCompanyId: true, billRate: true,
+          buyLinks: { select: { buyContract: { select: { candidates: { where: { personId: input.personId }, select: { payRate: true } } } } } },
         },
       })
+      contractRates.set(key, sell)
     }
-    if (input.standing !== 'SIGNED') return
+    // A sheet this call just wrote has no signature on it yet.
+    const standing = found
+      ? await db.workAssertion.findMany({
+          where: { timesheetId: sheet.id, state: 'LIVE' },
+          select: { companyId: true, role: true },
+        })
+      : []
+    const signed = (role: string, companyId: string) => standing.some((a) => a.role === role && a.companyId === companyId)
+    const signatures: Prisma.WorkAssertionCreateManyInput[] = []
+    // The client signs at what it is billed.
+    if (!signed('CLIENT_APPROVAL', sell.clientCompanyId)) {
+      signatures.push({
+        timesheetId: sheet.id, companyId: sell.clientCompanyId, role: 'CLIENT_APPROVAL', hours: week.hours,
+        rateCents: sell.billRate, state: 'LIVE', byId: input.clientById, auto: false, at: clientAt,
+      })
+    }
     // The employer accepts at what it pays, after the client — a promise
     // to pay, so never at the bill rate. No rise has been written on any
     // of these lines, so the rate in force is the line's own.
     const payRate = sell.buyLinks.flatMap((l) => l.buyContract.candidates)[0]?.payRate
-    if (payRate == null) return
-    if (!signed('EMPLOYER_ACCEPTANCE', sell.companyId)) {
-      await db.workAssertion.create({
-        data: {
-          timesheetId: sheet.id, companyId: sell.companyId, role: 'EMPLOYER_ACCEPTANCE', hours: week.hours,
-          rateCents: payRate, state: 'LIVE', byId: input.employerById, auto: false, at: employerAt,
-        },
+    const accepts = input.standing === 'SIGNED' && payRate != null
+    if (accepts && !signed('EMPLOYER_ACCEPTANCE', sell.companyId)) {
+      signatures.push({
+        timesheetId: sheet.id, companyId: sell.companyId, role: 'EMPLOYER_ACCEPTANCE', hours: week.hours,
+        rateCents: payRate!, state: 'LIVE', byId: input.employerById, auto: false, at: employerAt,
       })
     }
+    // Both in one statement; the order they were signed in is on `at`.
+    if (signatures.length) await db.workAssertion.createMany({ data: signatures })
+    if (!accepts) return
     // Both signatures in: the week's hours-to-approve date is done.
     await completeCycle(db, { sellContractId: input.sellContractId, kind: 'TIMESHEET_APPROVE', periodEnd: week.end, at: employerAt })
   }
@@ -645,9 +723,16 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // A GSI's own W2. His page was empty, because the only thing the world
   // said about him was that Teleworld employs him — and a person seat
   // that opens on nothing is the emptiest kind of demo. So the project
-  // he has just come off is on the record: three months at Corveldt on
-  // avionics software assurance, ended three weeks ago, four weeks of
-  // hours signed by both sides.
+  // he has just come off is on the record: three whole calendar months
+  // at Corveldt on avionics software assurance, every week of it signed
+  // by both sides, and every month of it paid.
+  //
+  // Three whole months, from the 1st to a month-end: the cycle generator
+  // writes no short final period, so a placement ending mid-month would
+  // have days nobody is ever paid for. The last month ends at least ten
+  // days before the world was born, so its pay day (month-end + 9 at the
+  // latest, lib/contract-cycles) has passed and the payroll runs
+  // (lib/seed-payroll-runs) have paid all three.
   //
   // Deliberately not the open DO-178C seat. That one is Teleworld's to
   // submit him for from its own desk, and submitting him here would take
@@ -656,6 +741,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   const karthik = await db.person.findUnique({ where: { primaryEmail: emailOf('Karthik Menon') } })
   if (karthik) {
     people++
+    const { start, end } = karthikWindow(seedToday())
     const past = await place({
       personId: karthik.id,
       sellerSlug: 'teleworld',
@@ -667,20 +753,21 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
       loc: 'Wichita, KS',
       billRate: 13_600,
       payRate: 8_900,
-      start: day(-300),
-      end: day(-21),
+      start,
+      end,
       state: 'ENDED',
       // Its own employee, so there is no bench listing and nobody's
       // consent to ask. The kind is computed from ownership everywhere
       // else; this is what that looks like on the record.
       kind: 'INTERNAL',
+      cyclesWhenEnded: true,
     })
     placements++
-    for (const back of [7, 6, 5, 4]) {
+    for (const week of calendarWeeks(start, end)) {
       await hours({
         sellContractId: past.sell.id,
         personId: karthik.id,
-        week: officeWeek(back),
+        week,
         standing: 'SIGNED',
         clientById: seat('corveldt'),
         employerById: seat('teleworld'),

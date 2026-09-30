@@ -18,7 +18,7 @@
  */
 
 import { prisma } from '@/lib/db'
-import { writeCyclesFor } from '@/lib/contract-cycles'
+import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { seedCalendar } from '@/lib/seed-calendar'
 import { seedProfile } from '@/lib/candidate-fixture'
 import { defaultPostureFor } from '@/lib/walls'
@@ -321,6 +321,8 @@ export async function seedDemoConsultant(input: {
     buy,
     packId: 'US_IT',
     holidays: calendar.keys,
+    // The seeded world's monthly pay (lib/contract-cycles): demo only.
+    pay: DEMO_MONTHLY_PAY,
   })
 
   // ── The other two benches, and who is holding you ───────────────────

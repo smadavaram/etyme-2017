@@ -34,7 +34,7 @@
  */
 
 import { prisma as db } from '@/lib/db'
-import { writeCyclesFor } from '@/lib/contract-cycles'
+import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes, PROGRAMMES, PROGRAM_SHARES } from '@/lib/seed-programmes'
 import { seedDoors, NURSE_CORP_SLUG } from '@/lib/seed-doors'
 import { anchorSeed, day, at, seedPlanYear } from '@/lib/seed-days'
@@ -683,7 +683,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     // Its due dates, on the side each belongs to. The routes did this
     // and the seed did not, so every seeded placement's timeline read
     // "no cycles have been generated". US_IT: world firms carry no pack.
-    await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys() })
+    await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys(), pay: DEMO_MONTHLY_PAY })
     supplierSellContractId = sell.id
     contracts.push(sell)
   }

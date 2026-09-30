@@ -30,7 +30,7 @@
  */
 
 import { prisma as db } from '@/lib/db'
-import { writeCyclesFor } from '@/lib/contract-cycles'
+import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 // A seeded bill is shaped by the same two doors a real one is: the
 // period comes from `periodFor` under the terms of the document the line
 // is on, and the due date from `dueOn` under what those terms count
@@ -773,7 +773,7 @@ export async function seedProgrammes(
         }
         // Due dates for anything still running or about to. A contract
         // that ended has nothing due.
-        if (pl.state !== 'ENDED') await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys() })
+        if (pl.state !== 'ENDED') await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys(), pay: DEMO_MONTHLY_PAY })
         supplierSellContractId = sell.id
         contracts.push(sell)
       }
@@ -1246,7 +1246,7 @@ export async function seedProgrammes(
             data: { sellContractId: dSell.id, costCenterId: costCentre.id, shareBps: 10_000 },
           })
         }
-        await writeCyclesFor(db, { sell: dSell, buy: dBuy, packId: 'US_IT', holidays: holidayKeys() })
+        await writeCyclesFor(db, { sell: dSell, buy: dBuy, packId: 'US_IT', holidays: holidayKeys(), pay: DEMO_MONTHLY_PAY })
       }
       placements++
 

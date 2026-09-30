@@ -47,10 +47,10 @@
  *
  * ── Two things it does not do ────────────────────────────────────────
  *
- * It writes no pay dates. A line with none — Karthik Menon's, which ended
- * before any cycle was written for it — is paid here and its page still
- * has no pay day for a week this leaves owed. And it pays nobody on corp
- * to corp: Colleen Byrne is paid by her own company, which invoices
+ * It writes no pay dates: every seeded payroll line has its own, monthly,
+ * written when the line was (`DEMO_MONTHLY_PAY`), and a run here marks
+ * the one its period falls due on — the day after the month, never the
+ * month-end itself. And it pays nobody on corp to corp: Colleen Byrne is paid by her own company, which invoices
  * Halcyon, and what Halcyon owes is an invoice receipt, not payroll.
  */
 
@@ -64,14 +64,20 @@ import { payLineOn } from '@/lib/money/pay-line'
 import { EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { weekStart } from '@/lib/overtime'
 import { totals } from '@/lib/money-display'
+import { DEMO_MONTHLY_PAY } from '@/lib/contract-cycles'
 
 const DAY = 86_400_000
 const iso = (d: Date) => d.toISOString().slice(0, 10)
 const plus = (d: Date, n: number) => new Date(d.getTime() + n * DAY)
 const atHour = (d: Date, h: number) => new Date(d.getTime() + h * 3_600_000)
 
-/** How far past a period's end its pay date may be shifted onto a business day — the route's own allowance. */
-const SHIFT_DAYS = 4
+/**
+ * How far past a period's end its pay day may fall: the demo's monthly
+ * pay day is month-end + 9 at the latest (`DEMO_MONTHLY_PAY`), moved back
+ * off a weekend or holiday, never forward. The next month's pay day is
+ * always past this, so a run completes its own period's pay day only.
+ */
+const PAY_LAG_DAYS = Math.max(...DEMO_MONTHLY_PAY.filter((d) => d.kind === 'SALARY_PAY').map((d) => d.offsetDays ?? 0))
 
 /**
  * The workers whose pay the demo shows from their own page, by the
@@ -268,7 +274,7 @@ export async function payPastPeriods(
     await db.cycle.updateMany({
       where: {
         buyContractId: bc.id, kind: 'SALARY_PAY', completedAt: null,
-        dueOn: { gte: period.start, lte: plus(period.end, SHIFT_DAYS) },
+        dueOn: { gt: period.end, lte: plus(period.end, PAY_LAG_DAYS) },
       },
       data: { completedAt: runAt },
     })

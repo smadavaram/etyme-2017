@@ -19,7 +19,7 @@
  */
 
 import { prisma } from '@/lib/db'
-import { writeCyclesFor } from '@/lib/contract-cycles'
+import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 
 export interface CompleteInput {
   sellContractId: string
@@ -124,6 +124,9 @@ export async function completePlacement(input: CompleteInput): Promise<void> {
       sell: { id: sellContractId, startDate: sell.startDate, endDate: sell.endDate },
       buy: { id: buy.id, contractType: 'W2', vendorCompanyId: null },
       packId: 'US_IT',
+      // The seeded world's monthly pay, which a demo may use and a real
+      // placement never does (lib/contract-cycles).
+      pay: DEMO_MONTHLY_PAY,
     })
     await prisma.contractLink.create({
       data: {

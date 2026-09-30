@@ -67,7 +67,7 @@
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
 import { holidayKeys } from '@/lib/seed-calendar'
-import { writeCyclesFor } from '@/lib/contract-cycles'
+import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
 import { rateInForce, ratePeriods, assessRateChange } from '@/lib/contract-rate'
 import { lineFor, settleApproved, payPeriodsReached } from '@/lib/rate-line'
@@ -303,7 +303,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
       data: { sellContractId: sell.id, buyContractId: buy.id, effectiveFrom: d.start, effectiveTo: d.end },
     })
     // Her hours-due, pay-to-calculate and pay-day dates, from the pack.
-    await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays })
+    await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays, pay: DEMO_MONTHLY_PAY })
   }
   const sellId = sell.id
   const buyId = buy.id

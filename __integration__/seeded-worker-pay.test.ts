@@ -153,6 +153,80 @@ describe('a seeded worker reads her own pay the way her employer would have left
     expect(onHers).toEqual([])
   })
 
+  it('Karthik’s placement runs three months, every month of it has a pay day, and no pay day comes before the hours it pays', async () => {
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email('karthik.menon') } })
+    const sell = await prisma.sellContract.findFirstOrThrow({
+      where: { personId: person.id, company: { slug: 'world-teleworld' } },
+      include: { buyLinks: { include: { buyContract: { include: { buyCycles: { where: { kind: 'SALARY_PAY' }, orderBy: { dueOn: 'asc' } } } } } } },
+    })
+    const start = sell.startDate
+    const end = sell.endDate!
+    // The 1st of a month to the last day of the month two after it.
+    expect(start.getUTCDate()).toBe(1)
+    expect(new Date(+end + 86_400_000).getUTCDate()).toBe(1)
+    expect((end.getUTCFullYear() - start.getUTCFullYear()) * 12 + end.getUTCMonth() - start.getUTCMonth()).toBe(2)
+
+    const months = [0, 1, 2].map((i) => iso(new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i, 1))).slice(0, 7))
+    const weeks = await weeksOf('karthik.menon')
+    const worked = weeks.flatMap((t) => Object.keys(t.days as Record<string, number>))
+    // Hours across the whole window, every weekday of it.
+    expect(new Set(worked.map(monthOf))).toEqual(new Set(months))
+    expect(worked.every((d) => d >= iso(start) && d <= iso(end))).toBe(true)
+
+    const payDays = sell.buyLinks[0].buyContract.buyCycles.map((c) => iso(c.dueOn))
+    expect(payDays).toHaveLength(3)
+    for (const [i, m] of months.entries()) {
+      const lastWorked = worked.filter((d) => monthOf(d) === m).sort().at(-1)!
+      const monthEnd = iso(new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)))
+      expect(payDays[i] > monthEnd, `${m} is paid on ${payDays[i]}, after the month`).toBe(true)
+      expect(payDays[i] > lastWorked, `${m} is paid after its last hours`).toBe(true)
+    }
+  })
+
+  it('every demo worker is paid monthly, on a day after the month’s hours, and each pay day matches a paid period in the payroll runs', async () => {
+    const lines = await prisma.buyContract.findMany({
+      where: {
+        contractType: 'W2', vendorCompanyId: null,
+        candidates: { some: { person: { primaryEmail: { in: [...PAID_WORKERS] } } } },
+      },
+      include: {
+        buyCycles: { where: { kind: { in: ['SALARY_PAY', 'SALARY_CALCULATE'] } }, orderBy: { dueOn: 'asc' } },
+        candidates: { select: { personId: true } },
+      },
+    })
+    expect(lines.length).toBeGreaterThan(0)
+    const runs = await prisma.automationLog.findMany({ where: { action: 'PAYROLL_RUN' }, select: { payload: true } })
+    let matched = 0
+    for (const line of lines) {
+      const pay = line.buyCycles.filter((c) => c.kind === 'SALARY_PAY')
+      const calc = line.buyCycles.filter((c) => c.kind === 'SALARY_CALCULATE')
+      expect(pay.length, `line ${line.id} has pay days`).toBeGreaterThan(0)
+      expect(calc.length).toBe(pay.length)
+      // Monthly: one pay day a month, each paying the month before it.
+      const paidMonth = (d: Date) => iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - 10))).slice(0, 7)
+      expect(new Set(pay.map((c) => paidMonth(c.dueOn))).size).toBe(pay.length)
+      const sheets = await prisma.timesheet.findMany({ where: { personId: line.candidates[0].personId, sellContract: { buyLinks: { some: { buyContractId: line.id } } } } })
+      const worked = sheets.flatMap((t) => Object.keys(t.days as Record<string, number>))
+      for (const [i, c] of pay.entries()) {
+        const m = paidMonth(c.dueOn)
+        const monthEnd = iso(new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)))
+        expect(iso(c.dueOn) > monthEnd, `pay day ${iso(c.dueOn)} is after ${m}`).toBe(true)
+        const last = worked.filter((d) => monthOf(d) === m).sort().at(-1)
+        if (last) expect(iso(c.dueOn) > last).toBe(true)
+        expect(+calc[i].dueOn, 'the month is worked out before it is paid').toBeLessThan(+c.dueOn)
+      }
+      // Every period a run paid has its pay day marked, and every pay day
+      // marked is one a run paid.
+      const periods = runs.flatMap((r) => ((r.payload as any).contracts ?? []))
+        .filter((c: any) => c.buyContractId === line.id && c.payPeriod)
+        .map((c: any) => c.payPeriod.end as string)
+      const done = pay.filter((c) => c.completedAt).map((c) => paidMonth(c.dueOn)).sort()
+      expect(done, `line ${line.id}`).toEqual(periods.map((e: string) => e.slice(0, 7)).sort())
+      matched += periods.length
+    }
+    expect(matched, 'the seed paid some months').toBeGreaterThan(0)
+  })
+
   it('seeding the world a second time writes no second payroll run and no second signature', async () => {
     const first = await counts()
     await seedWorld()
