@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { placementSpan, signedWeeksCard } from '@/lib/consultant-portfolio'
+import { placementSpan, signedWeeksCard, daySpan, plainDate } from '@/lib/consultant-portfolio'
 import { getNavForKind } from '@/components/shell/sidebar'
 
 /**
@@ -121,6 +121,27 @@ describe('when a placement ran, in plain dates', () => {
     // Stored at midnight UTC; the route passes the full ISO timestamp.
     expect(placementSpan({ startDate: '2026-06-01T00:00:00.000Z', endDate: '2026-08-31T00:00:00.000Z', state: 'ENDED' }, TODAY))
       .toBe('Jun 1 – Aug 31, 2026 · ended')
+  })
+})
+
+describe("plain dates on the worker's own pages", () => {
+  it("a worker's hours never show an ISO date", () => {
+    expect(daySpan('2026-06-01', '2026-06-07')).toBe('Jun 1 – Jun 7, 2026')
+    expect(daySpan('2026-06-01T00:00:00.000Z', '2026-06-07T00:00:00.000Z')).not.toMatch(/\d{4}-\d{2}-\d{2}/)
+  })
+
+  it('a week crossing a new year names both years', () => {
+    expect(daySpan('2026-12-28', '2027-01-03')).toBe('Dec 28, 2026 – Jan 3, 2027')
+  })
+
+  it('a one-day period reads as that one day', () => {
+    expect(daySpan('2026-08-31', '2026-08-31')).toBe('Aug 31, 2026')
+  })
+
+  it('a single date reads "Jun 1, 2026", and a missing one stays missing rather than invented', () => {
+    expect(plainDate('2026-06-01')).toBe('Jun 1, 2026')
+    expect(plainDate(null)).toBeNull()
+    expect(plainDate(undefined)).toBeNull()
   })
 })
 

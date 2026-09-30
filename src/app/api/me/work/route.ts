@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { ownPageFor } from '@/lib/portfolio-data'
 import {
   rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek, owedByWeek, waitingWeek,
-  weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard,
+  weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard, daySpan, plainDate,
   type OwedWeek, type WaitingWeek, type WeekSigner,
 } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
@@ -595,7 +595,8 @@ export async function GET(request: NextRequest) {
       today,
       timesheets: timesheets.map(t => ({
         id: t.id,
-        period: `${t.periodStart.toISOString().slice(0, 10)} → ${t.periodEnd.toISOString().slice(0, 10)}`,
+        // "Jun 1 – Jun 7, 2026" (`daySpan`), never two ISO days.
+        period: daySpan(t.periodStart.toISOString(), t.periodEnd.toISOString()),
         periodStart: t.periodStart.toISOString().slice(0, 10),
         hours: Number(t.totalHours),
         status: t.status,
@@ -612,6 +613,8 @@ export async function GET(request: NextRequest) {
         purpose: s.purpose,
         openedCount: s._count.accesses,
         expiresAt: s.expiresAt.toISOString().slice(0, 10),
+        // What the page prints: "Oct 12, 2026", never the ISO day above.
+        until: plainDate(s.expiresAt.toISOString()),
         withdrawn: s.revokedAt !== null,
       })),
       summary: {

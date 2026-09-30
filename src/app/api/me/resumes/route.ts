@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
+import { plainDate } from '@/lib/consultant-portfolio'
 import {
   checkUpload, labelFor, mayUpload, visibleTo, lastOne, MAX_BYTES,
 } from '@/lib/resumes'
@@ -95,6 +96,8 @@ export async function GET(request: NextRequest) {
       versions: shown.map((v) => ({
         ...v,
         createdAt: v.createdAt.toISOString().slice(0, 10),
+        // What the page prints: "Sep 3, 2026", never the ISO day above.
+        addedOn: plainDate(v.createdAt.toISOString()),
         deleted: v.deletedAt !== null,
         url: `/api/resumes/${v.id}/file`,
       })),

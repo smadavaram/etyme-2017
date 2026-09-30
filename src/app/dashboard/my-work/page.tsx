@@ -507,7 +507,7 @@ function YourCV() {
                   {v.label}
                 </a>
                 <div className="text-[12px] text-etyme-muted mt-0.5">
-                  {v.createdAt} · {Math.max(1, Math.round(v.sizeBytes / 1024))}KB
+                  {v.addedOn} · {Math.max(1, Math.round(v.sizeBytes / 1024))}KB
                   {v.uploadedBy !== 'you' && ` · added by ${v.uploadedBy}`}
                   {/* Where it actually went. The reason a version exists. */}
                   {v.sentToNames.length > 0 && ` · sent to ${v.sentToNames.join(', ')}`}
@@ -1203,7 +1203,7 @@ export default function MyWorkPage() {
                       </Chip>}
                 </div>
                 <p className="text-xs text-etyme-muted mt-1">
-                  {s.by} sent these to {s.to} · until {s.expiresAt}
+                  {s.by} sent these to {s.to} · until {s.until}
                 </p>
               </div>
             ))}

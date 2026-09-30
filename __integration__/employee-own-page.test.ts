@@ -43,4 +43,12 @@ describe("an employee's own page, on the seeded world", () => {
     expect(corveldt.span).toMatch(/^[A-Z][a-z]{2} \d{1,2} – [A-Z][a-z]{2} \d{1,2}, \d{4} · ended$/)
     expect(corveldt.span).not.toMatch(/\d{4}-\d{2}-\d{2}/)
   })
+
+  it("a worker's hours never show an ISO date", () => {
+    expect(data.timesheets.length).toBeGreaterThan(0)
+    for (const t of data.timesheets) {
+      expect(t.period).toMatch(/^[A-Z][a-z]{2} \d{1,2}/)
+      expect(t.period).not.toMatch(/\d{4}-\d{2}-\d{2}/)
+    }
+  })
 })

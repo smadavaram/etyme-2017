@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { whoHasMe, endHold } from '@/lib/holds'
-import { whoHasYouNote } from '@/lib/consultant-portfolio'
+import { whoHasYouNote, plainDate } from '@/lib/consultant-portfolio'
 import { workingLifeOf } from '@/lib/portfolio-data'
 import { clientLabel } from '@/lib/openings'
 import { notify } from '@/lib/notify'
@@ -66,7 +66,8 @@ export async function GET(_request: NextRequest) {
     .map((b) => ({
       listingId: b.listingId,
       company: b.company,
-      askedAt: (states.get(b.listingId)?.invitedAt ?? null)?.toISOString().slice(0, 10) ?? null,
+      // "Sep 3, 2026" (`plainDate`): this is printed as it stands.
+      askedAt: plainDate((states.get(b.listingId)?.invitedAt ?? null)?.toISOString()),
     }))
   data.benches = data.benches.filter((b) => (states.get(b.listingId)?.state ?? 'GRANTED') === 'GRANTED')
 
@@ -79,6 +80,10 @@ export async function GET(_request: NextRequest) {
   return NextResponse.json({
     data: {
       ...data,
+      // The days `whoHasMe` gives as ISO are printed as they stand on the
+      // person's own page, so they leave here as a person reads them.
+      asking: data.asking.map((a) => ({ ...a, askedAt: plainDate(a.askedAt) })),
+      history: data.history.map((h) => ({ ...h, when: plainDate(h.when) })),
       invited: invitedToo,
       employers: life.employers,
       note: whoHasYouNote({ benches: data.benches.length, employers: life.employers }),

@@ -1312,6 +1312,30 @@ function plainDay(iso: string, withYear: boolean): string {
 }
 
 /**
+ * One day as a person reads it: "Jun 1, 2026". Null stays null, so a
+ * missing date is never printed as a made-up one.
+ */
+export function plainDate(iso: string): string
+export function plainDate(iso: string | null | undefined): string | null
+export function plainDate(iso: string | null | undefined): string | null {
+  return iso ? plainDay(iso, true) : null
+}
+
+/**
+ * Two days as a person reads them: "Jun 1 – Jun 7, 2026", both years
+ * named where they differ ("Dec 28, 2026 – Jan 3, 2027"), and one day
+ * alone where the two are the same. Used for a week of hours as much as
+ * for a placement, so every span on the worker's pages reads one way.
+ */
+export function daySpan(startIso: string, endIso: string): string {
+  const start = startIso.slice(0, 10)
+  const end = endIso.slice(0, 10)
+  if (start === end) return plainDay(start, true)
+  if (start.slice(0, 4) === end.slice(0, 4)) return `${plainDay(start, false)} – ${plainDay(end, true)}`
+  return `${plainDay(start, true)} – ${plainDay(end, true)}`
+}
+
+/**
  * A placement's dates as a person reads them: "Jun 1 – Aug 31, 2026 ·
  * ended", "Dec 1, 2025 – Feb 27, 2026", or "from Jun 1, 2026" where no
  * last day is on the record. Ended is said where the contract is ENDED,
@@ -1324,14 +1348,7 @@ export function placementSpan(
 ): string {
   const start = p.startDate.slice(0, 10)
   const end = p.endDate?.slice(0, 10) ?? null
-  let span: string
-  if (!end) {
-    span = `from ${plainDay(start, true)}`
-  } else if (start.slice(0, 4) === end.slice(0, 4)) {
-    span = `${plainDay(start, false)} – ${plainDay(end, true)}`
-  } else {
-    span = `${plainDay(start, true)} – ${plainDay(end, true)}`
-  }
+  const span = end ? daySpan(start, end) : `from ${plainDay(start, true)}`
   if (p.state === 'CANCELLED') return `${span} · cancelled`
   if (p.state === 'ENDED' || (end && end < today.slice(0, 10))) return `${span} · ended`
   return span
