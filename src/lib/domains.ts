@@ -282,6 +282,9 @@ export const DOMAINS: Domain[] = [
       // the hold, the confirmation and the move (2026-09-30), and the
       // world's one story of it.
       'lib/internal-moves', 'lib/seed-internal-moves',
+      // Bench profit — bench to bill, per course, utilization (2026-09-30)
+      // — and the niche bench vendor that gives it numbers on the world.
+      'lib/bench-profit', 'lib/seed-bench-profit',
       'lib/releasing-soon', 'lib/shared-consultant', 'lib/scorecard',
       'lib/benchmark', 'lib/resumes', 'lib/cv-reader', 'lib/extract',
       'lib/consultant-portfolio', 'lib/portfolio-data', 'lib/onboarding',

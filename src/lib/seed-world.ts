@@ -47,6 +47,7 @@ import { seedPayrollRuns } from '@/lib/seed-payroll-runs'
 import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
 import { seedBenchMatching } from '@/lib/seed-bench-matching'
 import { seedInternalMoves } from '@/lib/seed-internal-moves'
+import { seedBenchProfit, seedBenchProfitWeeks, postBenchProfitWeeks, NICHE_VENDOR, NICHE_POSTING_SHARES } from '@/lib/seed-bench-profit'
 import { seedPipeline } from '@/lib/seed-pipeline'
 import { costCenterCode, legacyCostCenterCode, findCostCenter } from '@/lib/seed-coding'
 import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
@@ -148,6 +149,11 @@ const FIRMS: Firm[] = [
   ...SECTOR_SUPPLIERS.map((s): Firm => ({
     slug: s.slug, name: s.name, kind: 'VENDOR', seat: 'Owner', who: SECTOR_OWNERS[s.slug],
   })),
+
+  // A niche bench vendor, 2026-09-30: validation engineers, one course,
+  // placed through a prime — so bench profit has real numbers to read.
+  // What it has on its books is in lib/seed-bench-profit.
+  { slug: NICHE_VENDOR.slug, name: NICHE_VENDOR.name, kind: 'VENDOR', seat: 'Owner', who: NICHE_VENDOR.owner },
 ]
 
 /**
@@ -237,15 +243,37 @@ export function worldStepNames(): string[] {
     'bench', 'in-flight', 'payroll', 'payroll-invitations',
     ...programSteps().map((s) => s.name),
     'program-office-seat', 'supplier-desks', 'compliance-desk', 'doors',
-    'rate-change', 'sector-suppliers', 'internal-moves',
+    'rate-change', 'sector-suppliers', 'internal-moves', 'bench-profit',
     ...STANDING_PARTS.map((part) => `standing:${part}`),
-    ...orderToCashSteps().map((s) => s.name),
+    ...cashSteps().map((s) => s.name),
     'bench-matching',
     'pipeline',
     'document-requirements', 'sector-papers',
     ...payrollRunSteps().map((st) => st.name),
     'claim',
   ]
+}
+
+/**
+ * The order-to-cash steps, with the niche bench vendor's weeks signed and
+ * posted between that layer's postings and its books (lib/seed-bench-profit
+ * says why), so the postings shares keep their size and the books carry
+ * the weeks on the first seeding.
+ */
+type CashStep =
+  | { kind: 'cash'; name: string; part: OrderToCashPart; slice?: { index: number; of: number } }
+  | { kind: 'weeks'; name: string }
+  | { kind: 'post'; name: string; share: { index: number; of: number } }
+function cashSteps(): CashStep[] {
+  const cash = orderToCashSteps().map((c): CashStep => ({ kind: 'cash', ...c }))
+  const books = cash.findIndex((c) => c.kind === 'cash' && c.part === 'books')
+  const weeks: CashStep[] = [
+    { kind: 'weeks', name: 'bench-profit:weeks' },
+    ...Array.from({ length: NICHE_POSTING_SHARES }, (_, index): CashStep => ({
+      kind: 'post', name: `bench-profit:postings:${index + 1}-of-${NICHE_POSTING_SHARES}`, share: { index, of: NICHE_POSTING_SHARES },
+    })),
+  ]
+  return [...cash.slice(0, books), ...weeks, ...cash.slice(books)]
 }
 
 /**
@@ -1783,6 +1811,10 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // layer for the same reason as the two above: it raises the order the
   // San Jose project runs under.
   await step('internal-moves', () => seedInternalMoves(ctx))
+  // A niche bench vendor's course, bench and placements through a prime
+  // (lib/seed-bench-profit), before the order-to-cash layer for the same
+  // reason: that layer raises the order each running line sits on.
+  await step('bench-profit', () => seedBenchProfit(ctx))
   // In three parts, for the same reason as the programs.
   for (const part of STANDING_PARTS) {
     await step(`standing:${part}`, async () => {
@@ -1794,7 +1826,19 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // In four parts, the postings and the books cut again into shares,
   // because on a fresh world this layer alone is more queries than one
   // call can make against a distant database.
-  for (const { name, part, slice } of orderToCashSteps()) {
+  //
+  // The niche bench vendor's weeks are signed and posted between the
+  // postings and the books (`cashSteps`).
+  for (const cs of cashSteps()) {
+    if (cs.kind === 'weeks') {
+      await step(cs.name, () => seedBenchProfitWeeks(ctx))
+      continue
+    }
+    if (cs.kind === 'post') {
+      await step(cs.name, () => postBenchProfitWeeks(ctx, cs.share))
+      continue
+    }
+    const { name, part, slice } = cs
     await step(name, async () => {
       const cash = await seedOrderToCash(ctx, [part], slice)
       counts.orders += cash.orders

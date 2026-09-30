@@ -365,7 +365,7 @@ interface CourseRow {
 function Courses() {
   const [courses, setCourses] = useState<CourseRow[]>([])
   const [people, setPeople] = useState<{ id: string; name: string }[]>([])
-  const [newCourse, setNewCourse] = useState({ title: '', category: 'TECH', duration: '' })
+  const [newCourse, setNewCourse] = useState({ title: '', category: 'TECH', duration: '', price: '' })
   const [enroll, setEnroll] = useState({ courseId: '', personId: '' })
   const [ask, setAsk] = useState<{ id: string; move: string; word: string; score: string; certificateUrl: string; reason: string } | null>(null)
   const [said, setSaid] = useState<string | null>(null)
@@ -410,7 +410,7 @@ function Courses() {
     e.preventDefault(); setErr(null)
     try {
       const j = await post('/api/training', newCourse)
-      setSaid(j.data.says); setNewCourse({ title: '', category: 'TECH', duration: '' }); await load()
+      setSaid(j.data.says); setNewCourse({ title: '', category: 'TECH', duration: '', price: '' }); await load()
     } catch (e: any) { setErr(e.message) }
   }
   async function enrollSomebody(e: React.FormEvent) {
@@ -473,12 +473,15 @@ function Courses() {
         <form onSubmit={addCourse} className="border border-etyme-rule rounded-lg p-3 flex flex-wrap gap-2 items-end">
           <label className="flex-1 min-w-[140px]">
             <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Add a course</span>
-            <input value={newCourse.title} onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })} required placeholder="Kinaxis RapidResponse fundamentals" className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+            <input value={newCourse.title} onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })} required placeholder="Equipment qualification (IQ, OQ, PQ)" className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
           </label>
           <select value={newCourse.category} onChange={(e) => setNewCourse({ ...newCourse, category: e.target.value })} className="border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised">
             {['TECH', 'COMPLIANCE', 'SOFT_SKILLS', 'CERTIFICATION', 'AI_UPSKILLING'].map((c) => <option key={c} value={c}>{c.replace('_', ' ').toLowerCase()}</option>)}
           </select>
           <input value={newCourse.duration} onChange={(e) => setNewCourse({ ...newCourse, duration: e.target.value })} placeholder="hours" className="w-20 border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised" />
+          {/* What a seat costs, in dollars. Bench profit reads it as what the
+              course cost; a course with none reads "not known yet" there. */}
+          <input value={newCourse.price} onChange={(e) => setNewCourse({ ...newCourse, price: e.target.value })} placeholder="$ a seat" inputMode="decimal" aria-label="Price a seat, in dollars" className="w-24 border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised" />
           <button type="submit" className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Add</button>
         </form>
         <form onSubmit={enrollSomebody} className="border border-etyme-rule rounded-lg p-3 flex flex-wrap gap-2 items-end">

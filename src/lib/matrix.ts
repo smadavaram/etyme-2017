@@ -1718,6 +1718,25 @@ export const MATRIX: L1[] = [
           tasks: ['What the gaps cost, daily, by tier', 'Profitable on paper only'],
           implementedBy: ['src/lib/bench-policy.ts', 'src/lib/profitability.ts'],
           testedBy: ['__tests__/invariants/bench-burn.test.ts', '__tests__/invariants/bench-policy.test.ts'] },
+        // The founder, 2026-09-30 ("go"): "Bench profit, next after the
+        // integrator flow" — a section on Our bench, read by the owner,
+        // admin and finance desks, adding no money rule.
+        { code: 'L3.7.2.4', name: 'Bench profit', owner: 'Bench operator', status: B,
+          tasks: [
+            'Per person, bench to bill: the days on the bench, from the later of the day they joined the bench and the day their last placement here ended, to the day the next one started or today',
+            'What those days cost under the firm’s bench pay policy, through `benchCost` at `burnOf`’s day rate; no pay rate on record, or a reserve-funded bench, is “not known yet” with the reason; nobody paid through their own company costs the bench anything',
+            'Against the margin earned since placement — `placementEarned`’s figure, the placement page’s own, to the cent — and the day the running margin caught up, or “not yet” and what is left',
+            'Per course: the price a seat times the seats taken, dropped seats included; who finished, who was placed, the median days from finishing to the first day placed, and the margin they earned, blank if any of it cannot be stood behind',
+            'For an integrator, utilization: the share billing against the share on the bench, read off the roster’s own verdict, per project; somebody with nothing on the record is counted apart',
+            'An internal move shows the days between the two projects and what they cost on the bench. What it saved against the bench or a sub-vendor is “not known yet”: both are guesses about what did not happen, and money owes the rule if there is one',
+            'Read by the owner, the admin and the finance desk; a recruiter, a delivery manager or HR is refused in a sentence naming the three desks and is not shown the tab; a client is refused, because a client never reads a supplier’s margin; every person a figure was worked from is on the access trail',
+            'A course is added with its price a seat, from Training, so what it cost can be said',
+            'Seeded as Pellwright Validation Partners: validation engineers, one course at $1,800 a seat, half pay on the bench for ninety days, placed through Sundara Systems at Corveldt Aerospace, with a finance desk that reads it and a recruiter who is refused (POST /api/demo {"as":"world-pellwright","desk":"finance"})',
+          ],
+          implementedBy: ['src/lib/bench-profit.ts', 'src/app/api/bench/profit/route.ts',
+            'src/app/dashboard/bench/bench-profit.tsx', 'src/app/dashboard/bench/page.tsx',
+            'src/lib/seed-bench-profit.ts', 'src/app/dashboard/training/page.tsx'],
+          testedBy: ['__tests__/invariants/bench-profit.test.ts', '__integration__/bench-profit.test.ts'] },
       ]},
       { code: 'L2.7.3', name: 'Data and access', domain: 'REGULATORY', processes: [
         { code: 'L3.7.3.1', name: 'Access log', owner: 'Etyme', status: B,

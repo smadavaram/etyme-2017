@@ -7,6 +7,8 @@ import { readBench, submitLink, BURN_READ_BY } from '@/lib/bench-filter'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
+import { BenchProfit } from './bench-profit'
+import { mayReadBenchProfit } from '@/lib/bench-profit'
 import { sectionOfHref } from '@/lib/page-framing'
 import { hasPermission } from '@/lib/permissions'
 import { READS_PAY } from '@/lib/money/pay-visibility'
@@ -479,6 +481,16 @@ export default function BenchPage() {
 
   const [scope, setScope] = useState<BenchScope>(opensOn)
   const [scopeChosen, setScopeChosen] = useState(false)
+  // Bench profit (2026-09-30): the owner's, the admin's and the finance
+  // desk's, and drawn for nobody else — the same rule the route refuses by.
+  const readsProfit = mayReadBenchProfit({
+    companyName: session.company?.name ?? 'your firm',
+    companyKind: session.company?.kind ?? null,
+    roleName: session.roleName,
+    consultantSeat: session.contextType === 'CONSULTANT',
+  }).ok
+  const [profitOpen, setProfitOpen] = useState(asked === 'profit')
+  const showProfit = profitOpen && readsProfit
   const [roster, setRoster] = useState<RosterEntry[]>([])
   const [rosterSays, setRosterSays] = useState<RosterSummaryData | null>(null)
   const [entries, setEntries] = useState<BenchEntry[]>([])
@@ -949,9 +961,9 @@ export default function BenchPage() {
         ] as { key: BenchScope; label: string }[]).map(({ key, label }) => (
           <button
             key={key}
-            onClick={() => { setScopeChosen(true); setScope(key) }}
+            onClick={() => { setScopeChosen(true); setScope(key); setProfitOpen(false) }}
             className={`px-3.5 py-1.5 text-[12px] font-medium rounded transition-colors ${
-              scope === key
+              scope === key && !showProfit
                 ? 'bg-white text-etyme-ink shadow-sm'
                 : 'text-etyme-muted hover:text-etyme-ink'
             }`}
@@ -959,7 +971,21 @@ export default function BenchPage() {
             {label}
           </button>
         ))}
+        {readsProfit && (
+          <button
+            onClick={() => setProfitOpen(true)}
+            className={`px-3.5 py-1.5 text-[12px] font-medium rounded transition-colors ${
+              showProfit ? 'bg-white text-etyme-ink shadow-sm' : 'text-etyme-muted hover:text-etyme-ink'
+            }`}
+          >
+            Bench profit
+          </button>
+        )}
       </div>
+
+      {showProfit && <BenchProfit />}
+
+      <div className={showProfit ? 'hidden' : undefined}>
 
       {/* Stats row */}
       {scope !== 'payroll' && !loading && entries.length > 0 && (
@@ -1137,6 +1163,7 @@ export default function BenchPage() {
         }
       />
       )}
+      </div>
 
       {/* Add bench listing modal */}
       {showAddModal && (
