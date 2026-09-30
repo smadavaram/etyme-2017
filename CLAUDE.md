@@ -297,6 +297,12 @@ not explaining the complete functional process."* Decided:
   **less prose, practical daily English, and neat flow charts**: a
   process is shown as a flow chart first (boxes and arrows, who does
   each step), with short lines under it, never as paragraphs.
+- **"Source", not "Hire"** (founder, the same day). The first stage of
+  the process is **Source** on every menu, page and flow chart: a
+  contingent worker is sourced from a supplier, not hired. And a job
+  request is a requirement: one object (`Requirement`), one screen
+  word — **"Job requests"** on every party's menu, never "Requirements"
+  on one party's and "Job requests" on another's.
 - **Navigation is agreed party by party before any of it is built**:
   public visitor, client, program office, prime or integrator,
   supplier, one-person firm, worker.
