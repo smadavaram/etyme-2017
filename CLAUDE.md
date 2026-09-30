@@ -1338,11 +1338,17 @@ The firms do; the record carries the consent, the offer and the trail.
   as a prime vendor or as a sub-vendor under the client's MSP or an
   existing prime — and it walks supplier onboarding like any other
   firm before its person can be submitted.
-- **"Designate Etyme as prime vendor" is not yet decided.** It
-  conflicts with "neutrality is absolute" and with the permanent
-  exclusion of the master-vendor model, and it makes Etyme a party that
-  contracts, bills, pays and carries the risk. Put to the founder
-  2026-09-30; nothing is built toward it until he answers.
+- **Etyme is never a prime vendor. Decided by the founder, the same
+  day:** *"Etyme can be an MSP and not prime vendor. Etyme at all times
+  should maintain neutrality."* So a firm that is not yet a supplier
+  comes in as a prime vendor or as a sub-vendor under the client's MSP
+  — which may be Etyme's own program office — or under an existing
+  prime. Etyme never holds the contract for a person, never bills for
+  one and never pays one.
+- **Bench is shared only between firms that already trade**, one rung
+  at a time (the founder, the same day). A sub-vendor's name stays the
+  prime's to keep. A share by email follows the same rule.
+- **The words:** what a firm receives is its **"Received bench"**.
 
 ## One week, filed once by the worker, signed at the top — decided 2026-09-28
 
