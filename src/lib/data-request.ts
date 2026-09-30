@@ -39,7 +39,7 @@ import { notify } from '@/lib/notify'
 import { tellStaff } from '@/lib/alerts'
 import { emailSender } from '@/lib/senders'
 import { daysOnSite } from '@/lib/tenure-days'
-import { plainDate } from '@/lib/consultant-portfolio'
+import { plainDate } from '@/lib/plain-date'
 import {
   categoriesFor, NOT_IN_AN_EXPORT,
   exportReadyNotice, erasureReceivedNotice, erasureCompleteNotice, erasureHolderNotice,

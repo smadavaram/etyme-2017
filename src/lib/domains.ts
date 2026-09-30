@@ -278,6 +278,9 @@ export const DOMAINS: Domain[] = [
       'lib/releasing-soon', 'lib/shared-consultant', 'lib/scorecard',
       'lib/benchmark', 'lib/resumes', 'lib/cv-reader', 'lib/extract',
       'lib/consultant-portfolio', 'lib/portfolio-data', 'lib/onboarding',
+      // A day as a worker reads it, split out of consultant-portfolio so a
+      // browser page can print one without that module's server imports.
+      'lib/plain-date',
       'lib/supplier-risk', 'lib/concentration',
       'app/dashboard/bench', 'app/dashboard/consultants', 'app/dashboard/rolloff',
       'app/dashboard/scorecards', 'app/dashboard/my-standing', 'app/dashboard/my-work',

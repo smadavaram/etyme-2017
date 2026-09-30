@@ -39,7 +39,7 @@
  */
 
 import { HELD } from '@/lib/legal'
-import { plainDate } from '@/lib/consultant-portfolio'
+import { plainDate } from '@/lib/plain-date'
 
 // ── The regimes, and how long each gives ──────────────────────────────
 

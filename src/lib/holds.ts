@@ -4,7 +4,7 @@ import {
   type Hold, type Verdict,
 } from '@/lib/representation'
 import { clientLabel } from '@/lib/openings'
-import { plainDate } from '@/lib/consultant-portfolio'
+import { plainDate } from '@/lib/plain-date'
 
 /**
  * Taking and giving back a representation hold, against the database.
