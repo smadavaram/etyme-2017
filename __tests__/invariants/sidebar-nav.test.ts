@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { globSync } from 'fs'
-import { getNavForKind, mayOpen } from '@/components/shell/sidebar'
+import { getNavForKind, mayOpen, openBecause, OPEN_TO_EVERY_SEAT } from '@/components/shell/sidebar'
+import { RECEIVABLE, PAYABLE } from '@/lib/money/desks'
+import { MAY_READ } from '@/app/api/blacklist/desks'
+import { IMPORT_PERMISSIONS } from '@/lib/importable'
+import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { ownPage } from '@/lib/consultant-portfolio'
 import { PERMISSIONS } from '@/lib/permissions'
@@ -838,6 +842,40 @@ describe('a menu offers only what this seat can actually open', () => {
     expect(unknown, `no such permission: ${unknown.join(', ')}`).toEqual([])
   })
 
+  /**
+   * A gate that is a named list rather than a spelled one. Each value is
+   * imported from the module the route itself imports it from, so this
+   * is the route's own list, not a copy of it.
+   */
+  const NAMED_GATES: Record<string, readonly string[]> = {
+    'mayOpen:RECEIVABLE': RECEIVABLE.opensFor,
+    'mayOpen:PAYABLE': PAYABLE.opensFor,
+    'mayRead:': MAY_READ,
+    'hasAnyPermission:IMPORT_PERMISSIONS': IMPORT_PERMISSIONS,
+    'hasAnyPermission:SETS_UP_A_PARTY': SETS_UP_A_PARTY,
+  }
+
+  /** What the GET handler at this route asks for, or null where there is no route. */
+  function gateOf(routeDir: string): string[] | null {
+    const route = join(API, routeDir, 'route.ts')
+    if (!existsSync(route)) return null
+    const src = readFileSync(route, 'utf8')
+    const start = src.indexOf('export async function GET')
+    if (start < 0) return null
+    const after = src.indexOf('export async function', start + 10)
+    const body = src.slice(start, after < 0 ? src.length : after)
+    const first = body.match(/if \(!(hasPermission|hasAnyPermission|mayOpen|mayRead)\(/)
+    if (!first) return []
+    if (first[1] === 'hasPermission') {
+      const guard = body.slice(first.index).match(/if \(!hasPermission\((?:[^{])*/)?.[0] ?? ''
+      return [...guard.matchAll(/hasPermission\([^,]+,\s*('[^']+'|[A-Za-z_$][\w$]*)/g)]
+        .map((m) => literalOf(src, m[1]))
+    }
+    const args = body.slice(first.index! + first[0].length).match(/^[^,)]+(?:,\s*([A-Za-z_$][\w$]*))?/)
+    const key = `${first[1]}:${args?.[1] ?? ''}`
+    return [...(NAMED_GATES[key] ?? [`${key} (a gate this test cannot read — add it to NAMED_GATES)`])]
+  }
+
   it('asks for exactly what the route behind it asks for, read off that route', () => {
     // Not a second hand-kept table. The permission on a nav item is read
     // back out of the GET handler it points at, so a gate that changes
@@ -847,23 +885,64 @@ describe('a menu offers only what this seat can actually open', () => {
       // A page usually sits at the route it is named after. Where it
       // does not — the compliance desk at /dashboard/privacy reads
       // /api/data-requests — the link says so itself.
-      const route = join(API, api ?? href.replace('/dashboard/', ''), 'route.ts')
-      if (!existsSync(route)) {
-        wrong.push(`${href} — no route at ${route} to check the claim against`)
+      const dir = api ?? href.replace('/dashboard/', '')
+      const asked = gateOf(dir)
+      if (asked == null) {
+        wrong.push(`${href} — no route at src/app/api/${dir} to check the claim against`)
         continue
       }
-      const src = readFileSync(route, 'utf8')
-      const start = src.indexOf('export async function GET')
-      const after = src.indexOf('export async function', start + 10)
-      const body = src.slice(start, after < 0 ? src.length : after)
-      const guard = body.match(/if \(!hasPermission\((?:[^{])*/)?.[0] ?? ''
-      const asked = [...guard.matchAll(/hasPermission\([^,]+,\s*('[^']+'|[A-Za-z_$][\w$]*)/g)]
-        .map((m) => literalOf(src, m[1]))
       if (asked.join('|') !== needs.join('|')) {
         wrong.push(`${href} — menu says ${needs.join(', ') || '(nothing)'}; the route asks ${asked.join(', ') || '(nothing)'}`)
       }
     }
     expect(wrong, `these promise something the route does not:\n  ${wrong.join('\n  ')}`).toEqual([])
+  })
+
+  it('every link names the permission its page asks for, or says why it needs none', () => {
+    const silent = new Set<string>()
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
+      for (const worker of [false, true]) {
+        for (const i of itemsOf(getNavForKind(kind, false, { worker }))) {
+          if (!i.needs && !openBecause(i.href)) silent.add(`${kind}: ${i.label} (${i.href})`)
+        }
+      }
+    }
+    for (const i of itemsOf(getNavForKind('VENDOR', true))) {
+      if (!i.needs && !openBecause(i.href)) silent.add(`consultant: ${i.label} (${i.href})`)
+    }
+    expect([...silent], 'a link that neither names a permission nor says why it needs none').toEqual([])
+  })
+
+  it('a link said to need no permission opens a route that still asks for none', () => {
+    // The reason is a claim about a route, and a claim goes stale the day
+    // the route grows a gate. Then the link names the gate instead.
+    const stale: string[] = []
+    for (const href of Object.keys(OPEN_TO_EVERY_SEAT)) {
+      const asked = gateOf(pathOf(href).replace(/^\/dashboard\/?/, '') || 'dashboard')
+      if (asked && asked.length > 0) stale.push(`${href} — its route now asks ${asked.join(', ')}`)
+    }
+    expect(stale).toEqual([])
+  })
+
+  it('a delivery engineer who sees no money is shown no money or firm-admin links', () => {
+    // Karthik Menon, a Teleworld delivery engineer: he staffs nobody,
+    // sells nobody and sees no money.
+    const labels = itemsOf(getNavForKind('GSI', false, {
+      worker: true, permissions: ['assignments.read', 'timesheets.read'],
+    })).map((i) => i.label)
+    for (const refused of ['AR', 'AP', 'DNR list', 'Automation', 'Integrations', 'Import', 'Setup', 'Settings', 'Users & permissions']) {
+      expect(labels, `${refused} would answer him with a refusal`).not.toContain(refused)
+    }
+    expect(labels).toContain('Timesheets')
+    expect(labels).toContain('Your work')
+  })
+
+  it('the desks named after AR and AP are shown the pages named after them', () => {
+    for (const [desk, page] of [['Accounts Receivable', 'AR'], ['AP & Payroll', 'AP'], ['Finance', 'AR'], ['Finance', 'AP']] as const) {
+      const role = rolesFor('VENDOR').find((r) => r.name === desk)!
+      const labels = itemsOf(getNavForKind('VENDOR', false, { permissions: role.permissions })).map((i) => i.label)
+      expect(labels, `${desk} lost ${page}`).toContain(page)
+    }
   })
 
   it('shows a delivery engineer no payroll, no bills and no profit', () => {

@@ -152,6 +152,13 @@ export function importableFor(permissions: readonly string[]): EntitySpec[] {
   return IMPORTABLE.filter((e) => has(e.permission))
 }
 
+/**
+ * Holding any one of these opens the import page at all; holding none
+ * leaves it with nothing to offer. The menu link asks for exactly this
+ * list, so a seat that could load nothing is not shown the door.
+ */
+export const IMPORT_PERMISSIONS: readonly Permission[] = Array.from(new Set(IMPORTABLE.map((e) => e.permission)))
+
 // ── Mapping a spreadsheet onto a sheet ────────────────────────────────
 
 export interface ColumnMap {

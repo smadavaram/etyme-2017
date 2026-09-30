@@ -114,7 +114,6 @@ const STILL_SAYING_A_KEY: Record<string, string> = {
   // etyme-architect
   'src/app/api/clients/route.ts': 'etyme-architect',
   'src/app/api/companies/[id]/template-pack/route.ts': 'etyme-architect',
-  'src/app/api/imports/sheets/route.ts': 'etyme-architect',
   'src/app/api/integrations/keys/route.ts': 'etyme-architect',
   'src/app/api/integrations/webhooks/route.ts': 'etyme-architect',
   'src/app/api/settings/address/route.ts': 'etyme-architect',

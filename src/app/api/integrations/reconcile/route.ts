@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { reconcile, type TheirLine } from '@/lib/reconciliation'
 
 /**
@@ -17,6 +18,23 @@ export async function POST(request: NextRequest) {
   if (error) return error
   const notStaff = staffOnly(caller, 'Reconciliation')
   if (notStaff) return notStaff
+  // Our figures against theirs is money, read by the desks that read it.
+  if (!hasPermission(caller.permissions, 'invoices.read')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reconciling the company\u2019s figures against a statement',
+            needs: 'invoices.read',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const companyId = caller.company!.id
   const body = await request.json().catch(() => ({}))
@@ -82,6 +100,23 @@ export async function GET(request: NextRequest) {
   if (error) return error
   const notStaff = staffOnly(caller, 'Reconciliation')
   if (notStaff) return notStaff
+  // Our figures against theirs is money, read by the desks that read it.
+  if (!hasPermission(caller.permissions, 'invoices.read')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reconciling the company\u2019s figures against a statement',
+            needs: 'invoices.read',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const runs = await prisma.reconciliationRun.findMany({
     where: { companyId: caller.company!.id },

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { hasAnyPermission, askTheDesk } from '@/lib/permissions'
+import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 
 /**
  * POST /api/onboarding/confirm-start — somebody says the person actually
@@ -17,6 +19,24 @@ export async function POST(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Onboarding')
   if (notStaff) return notStaff
+  // The fact every invoice stands on is recorded by a desk that brings a
+  // placement on, never by anybody who can sign in.
+  if (!hasAnyPermission(caller.permissions, SETS_UP_A_PARTY)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Confirming somebody started on site',
+            needs: SETS_UP_A_PARTY,
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const body = await request.json().catch(() => ({}))
   const contractId = String(body?.contractId ?? '')

@@ -7,6 +7,8 @@ import { EtymeLogo } from '@/components/logo'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
 import { consoleHome } from '@/lib/console-home'
+import { IMPORT_PERMISSIONS } from '@/lib/importable'
+import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 /**
  * Sidebar navigation — from CLAUDE.md design system.
  *
@@ -73,6 +75,77 @@ type NavItem = {
 }
 
 type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+
+/**
+ * ── Why a link names no permission ──────────────────────────────────
+ *
+ * Every link either names the permission the page behind it asks for,
+ * or is here with the reason it needs none.
+ * `__tests__/invariants/sidebar-nav.test.ts` fails on a link that does
+ * neither, and on a reason here whose route has since grown a gate.
+ *
+ * Four reasons, and the fourth is not a reason but a debt: a page whose
+ * route asks nothing today and should. The link stays, because a menu
+ * is read off its route and never ahead of it; the route's owner has
+ * been told, and the entry moves to `needs` the day the gate lands.
+ */
+const SCOPED =
+  'The route asks for no permission: it scopes itself to your company and shows what that company has.'
+const ABOUT_THEM = 'It answers this person about this person.'
+const ADDRESSED = 'Everybody reads what is addressed to them.'
+const DRAWN_FROM = 'No route of its own: the page is drawn from routes that each check their own reader.'
+const OWES_A_GATE = (owner: string) =>
+  `The route asks for no permission today and should; reported to ${owner} on 2026-09-30. ` +
+  'The link follows the route, so it stays until the gate lands.'
+
+export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
+  '/dashboard': ADDRESSED,
+  '/dashboard/decisions': ADDRESSED,
+  '/dashboard/conversations': ADDRESSED,
+  '/dashboard/notifications': ADDRESSED,
+  '/dashboard/leads': SCOPED,
+  '/dashboard/invitations': SCOPED,
+  '/dashboard/submissions': SCOPED,
+  '/dashboard/interviews': SCOPED,
+  '/dashboard/rolloff': SCOPED,
+  '/dashboard/texts': SCOPED,
+  '/dashboard/training': SCOPED,
+  '/dashboard/loose-ends': SCOPED,
+  '/dashboard/companies': SCOPED,
+  '/dashboard/contacts': SCOPED,
+  '/dashboard/contracts': SCOPED,
+  '/dashboard/timesheets': SCOPED,
+  '/dashboard/documents': SCOPED,
+  '/dashboard/packets': SCOPED,
+  '/dashboard/outbound-pack': SCOPED,
+  '/dashboard/program': SCOPED,
+  '/dashboard/requisitions': SCOPED,
+  '/dashboard/people': SCOPED,
+  '/dashboard/program/budget': SCOPED,
+  '/dashboard/alumni': SCOPED,
+  '/dashboard/program/team': SCOPED,
+  '/dashboard/program/org': SCOPED,
+  '/dashboard/tenure': SCOPED,
+  '/dashboard/identity': SCOPED,
+  '/dashboard/reports': DRAWN_FROM,
+  '/dashboard/scorecards': DRAWN_FROM,
+  '/dashboard/my-standing': DRAWN_FROM,
+  '/dashboard/my-work': ABOUT_THEM,
+  '/dashboard/my-work/paperwork': ABOUT_THEM,
+  '/dashboard/my-page': ABOUT_THEM,
+  '/dashboard/my-benches': ABOUT_THEM,
+  '/dashboard/my-data': ABOUT_THEM,
+  // Every pay rate on every buy line goes to any seat at the firm.
+  '/dashboard/contracts?side=buy': OWES_A_GATE('etyme-money'),
+  '/dashboard/suppliers': OWES_A_GATE('etyme-demand'),
+  '/dashboard/checks': OWES_A_GATE('etyme-demand'),
+  '/dashboard/compliance': OWES_A_GATE('etyme-regulatory'),
+}
+
+/** Why this link needs no permission, or null where it should name one. */
+export function openBecause(href: string): string | null {
+  return OPEN_TO_EVERY_SEAT[href] ?? OPEN_TO_EVERY_SEAT[href.split('?')[0]] ?? null
+}
 
 /**
  * ── One scheme, five parties ─────────────────────────────────────────
@@ -171,17 +244,14 @@ const MONEY: NavItem[] = [
   //
   // Next to Bills deliberately: same money, different question. One
   // is what we sent, the other is what came back.
-  // Deliberately unannotated, and it is not an oversight. /api/ar and
-  // /api/ap gate their GET on margin.read or pnl.read, which the
-  // Accounts Receivable and AP & Payroll roles do not hold — so the two
-  // desks named after these pages are refused by them today. Hiding the
-  // link would turn a wrong gate on somebody else's route into a missing
-  // desk in the menu, which is the worse of the two. Reported to
-  // etyme-money; the annotation goes on when the gate is right.
-  { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money' },
+  // /api/ar and /api/ap open for invoices.read (RECEIVABLE and PAYABLE
+  // in lib/money/desks), which the Accounts Receivable, AP & Payroll and
+  // Finance desks all hold. Annotated since 2026-09-30, once money
+  // corrected the gate that used to refuse the desks named after them.
+  { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money', needs: ['invoices.read'] },
   // The other half of the same question — who is funding whom while
   // everybody waits.
-  { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
+  { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money', needs: ['invoices.read'] },
   { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money', needs: ['payroll.read'] },
   // What a recruiter earned on a placement. The run has been there since
   // commissions were built; nothing in the nav reached it.
@@ -210,10 +280,9 @@ const COMPLIANCE: NavItem[] = [
   // being screened as screening.
   { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲', group: 'Compliance' },
   { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Compliance' },
-  // Unannotated for the same reason as AR and AP: /api/blacklist gates a
-  // read on consultants.write, which a Compliance Officer does not hold,
-  // and a do-not-return list is compliance's own screen.
-  { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Compliance' },
+  // /api/blacklist opens for any desk that deals with people or suppliers
+  // (MAY_READ in its own desks file), the compliance officer included.
+  { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Compliance', needs: ['consultants.read', 'vendors.read', 'governance.read'] },
 ]
 
 /**
@@ -256,12 +325,17 @@ const ADMIN: NavItem[] = [
   // do, its wall, its calendar, its cost centers — and the route asks
   // settings.manage for the read as well as the write since 2026-09-21.
   { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin', needs: ['settings.manage'] },
-  { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Admin' },
+  // What the system did on the company's behalf, read by the desks that
+  // read the rules it ran under.
+  { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Admin', needs: ['governance.read'] },
   // The journal out to their books, and the statement back against ours.
-  { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
-  { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Admin' },
-  // Five onboardings, derived live from what exists.
-  { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', group: 'Admin' },
+  // Money, so read by the desks that read money.
+  { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', group: 'Admin', needs: ['invoices.read'], api: 'integrations/export' },
+  // Any one kind of sheet this seat may load opens it.
+  { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Admin', needs: IMPORT_PERMISSIONS, api: 'imports/sheets' },
+  // Five onboardings, derived live from what exists, read by the desks
+  // that bring each party on.
+  { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', group: 'Admin', needs: SETS_UP_A_PARTY, api: 'onboarding/readiness' },
 ]
 
 /**
@@ -511,7 +585,7 @@ const SOLO_NAV: NavSection[] = [
       // What came back and what is late. For somebody invoicing one or
       // two firms this is the whole of finance, and chasing it is the
       // thing an independent actually spends their Friday on.
-      { label: 'AR', href: '/dashboard/ar', icon: '◧' },
+      { label: 'AR', href: '/dashboard/ar', icon: '◧', needs: ['invoices.read'] },
     ],
   },
   {
@@ -713,7 +787,7 @@ const CLIENT_NAV: NavSection[] = [
       // issues upward is a bill (founder, 2026-09-28). A client only
       // receives, so it reads Invoice receipts; a firm that bills reads Bills.
       { label: 'Invoice receipts', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
-      { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
+      { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money', needs: ['invoices.read'] },
       { label: 'Budget', href: '/dashboard/program/budget', icon: '◱', group: 'Money' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard' },
       { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎', group: 'Offboard' },
@@ -753,7 +827,7 @@ const CLIENT_NAV: NavSection[] = [
       ...PRIVACY,
       { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Setup', needs: ['governance.read'] },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup', needs: ['settings.manage'] },
-      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup' },
+      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup', needs: IMPORT_PERMISSIONS, api: 'imports/sheets' },
     ],
   },
 ]

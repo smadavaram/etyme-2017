@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { toExport, type Entry, type ErpSystem } from '@/lib/gl'
 
 /**
@@ -41,6 +42,25 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Integrations')
   if (notStaff) return notStaff
 
+  // The company's journal to its own books is money, read by the desks
+  // that read money — not by everybody on staff.
+  if (!hasPermission(caller.permissions, 'invoices.read')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reading what is waiting to go to the company\u2019s books',
+            needs: 'invoices.read',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
   const companyId = caller.company!.id
   const [pending, sent, maps] = await Promise.all([
     prisma.journalEntry.count({ where: { companyId, exportedAt: null } }),
@@ -65,6 +85,26 @@ export async function POST(request: NextRequest) {
   if (error) return error
   const notStaff = staffOnly(caller, 'Integrations')
   if (notStaff) return notStaff
+
+  // Export once, into somebody's real ledger, and never again. That is
+  // the desk that bills, not anybody who can sign in — which is what
+  // this door was until 2026-09-30.
+  if (!hasPermission(caller.permissions, 'invoices.issue')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Sending the journal to the company\u2019s books',
+            needs: 'invoices.issue',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const companyId = caller.company!.id
   const body = await request.json().catch(() => ({}))

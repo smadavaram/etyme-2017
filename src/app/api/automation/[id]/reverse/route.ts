@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { staffOnly } from '@/lib/seat'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 
 /**
  * POST /api/automation/:id/reverse
@@ -19,6 +21,28 @@ export async function POST(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  // Undoing something the system did is a decision about the company's
+  // rules, taken by a desk that may change them — never by anybody who
+  // happens to be signed in at the company, which is what this was.
+  const notStaff = staffOnly(caller, 'Reversing an automated action')
+  if (notStaff) return notStaff
+  if (!hasPermission(caller.permissions, 'governance.write')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reversing something the system did',
+            needs: 'governance.write',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const { id } = await params
 

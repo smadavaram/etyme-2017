@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { hasAnyPermission, askTheDesk } from '@/lib/permissions'
 import {
   IMPORTABLE,
   entityByKey,
   importableFor,
+  IMPORT_PERMISSIONS,
   mapColumnsFor,
   parseRows,
   previewOf,
@@ -43,6 +45,25 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // A seat that may load nothing is told who can, rather than opening an
+  // empty page. The menu link asks for the same list (sidebar).
+  if (!hasAnyPermission(caller.permissions, IMPORT_PERMISSIONS)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Loading data from a spreadsheet',
+            needs: IMPORT_PERMISSIONS,
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
   const mine = importableFor(caller.permissions)
 
   return NextResponse.json({
@@ -62,9 +83,7 @@ export async function GET(request: NextRequest) {
         })),
       })),
       // Said plainly rather than showing an empty page.
-      note: mine.length === 0
-        ? 'Nothing here is yours to load. Importing cost centers needs settings.manage; importing people needs consultants.write.'
-        : mine.length < IMPORTABLE.length
+      note: mine.length < IMPORTABLE.length
           ? `${IMPORTABLE.length - mine.length} other kind(s) of data can be loaded by somebody with different permissions.`
           : null,
     },

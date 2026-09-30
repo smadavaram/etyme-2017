@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { LADDER, RUNGS, readRow, KIND_SAYS, ACTIONS } from '@/lib/autonomy'
 
@@ -38,6 +39,27 @@ export async function GET(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'The automation log')
   if (notStaff) return notStaff
+
+  // What the system did on the company's behalf reads as the company's
+  // own diary — rate changes approved, weeks signed by silence — so it is
+  // read by the desks that read the rules it ran under, not by everybody
+  // on staff. The menu link asks for the same permission (sidebar).
+  if (!hasPermission(caller.permissions, 'governance.read')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reading what the system did on the company\u2019s behalf',
+            needs: 'governance.read',
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const companyId = caller.company?.id
   if (!companyId) {

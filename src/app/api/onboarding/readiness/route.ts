@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { hasAnyPermission, askTheDesk } from '@/lib/permissions'
 import {
-  clientChecklist, supplierChecklist, consultantChecklist, assignmentChecklist,
+  clientChecklist, supplierChecklist, consultantChecklist, assignmentChecklist, SETS_UP_A_PARTY,
 } from '@/lib/party-onboarding'
 
 /**
@@ -19,6 +20,22 @@ export async function GET(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Onboarding')
   if (notStaff) return notStaff
+  if (!hasAnyPermission(caller.permissions, SETS_UP_A_PARTY)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reading how far each client, supplier, consultant and placement is set up',
+            needs: SETS_UP_A_PARTY,
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const companyId = caller.company!.id
 

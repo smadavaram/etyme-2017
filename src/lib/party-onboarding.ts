@@ -1,3 +1,18 @@
+import type { Permission } from '@/lib/permissions'
+
+/**
+ * Who opens the onboarding page: the desks that bring each of the five
+ * parties on. Settings for the tenant itself; job requests for a client
+ * and for a placement starting, which is the account manager's and the
+ * hiring manager's work; people for a consultant; the supplier panel
+ * for a supplier. A delivery engineer who staffs nobody holds none of
+ * them and is not shown the link (sidebar), and the route says who to
+ * ask rather than opening a list of other people's placements.
+ */
+export const SETS_UP_A_PARTY: readonly Permission[] = [
+  'settings.manage', 'requirements.write', 'consultants.write', 'vendors.manage',
+]
+
 /**
  * Onboarding is an L3 that happens five times, and this is its ledger.
  *
