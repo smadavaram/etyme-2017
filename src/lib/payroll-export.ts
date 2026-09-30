@@ -776,6 +776,150 @@ export interface PayPosting {
   postedAt: Date
 }
 
+/** Said on the screen where the year-end figure is shown. */
+export const WAGES_YEAR_PAID = 'Wages count in the year they were paid.'
+
+/** A pay posting with what is needed to find the day it was paid. */
+export interface DatablePosting extends PayPosting {
+  id: string
+  source: string
+  sourceId: string
+  buyContractId: string | null
+  /** The week behind a TIMESHEET posting, read off its acceptance. */
+  timesheetId: string | null
+  /** The hours that acceptance priced. */
+  acceptedHours: number | null
+}
+
+/** Hours of one week one processed payroll run paid, and the day it ran. */
+export interface RunPaidHours {
+  buyContractId: string
+  personId: string
+  timesheetId: string
+  hours: number
+  paidAt: Date
+}
+
+export interface PostingAside {
+  personId: string
+  personName: string
+  /** The magnitude, in minor units — never signed. */
+  amountCents: number
+  currency: string
+}
+
+/**
+ * Drop postings a reversal cancelled. The reversing rows themselves are
+ * already excluded by the query; this drops the row each one cancelled,
+ * so a corrected month is not counted twice.
+ */
+export function dropReversed<T extends { id: string }>(rows: readonly T[], cancelled: ReadonlySet<string | null>): T[] {
+  return rows.filter((r) => !cancelled.has(r.id))
+}
+
+/**
+ * The pay day written into an off-cycle payment's key:
+ * `offcycle:{sellContract}:{person}:{YYYY-MM-DD}:{reason}…` — set by
+ * `api/payroll/off-cycle`. Null for anything else.
+ */
+export function offCyclePaidOn(sourceId: string): Date | null {
+  const parts = sourceId.split(':')
+  if (parts[0] !== 'offcycle' || parts.length < 4) return null
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(parts[3])) return null
+  const d = new Date(`${parts[3]}T00:00:00Z`)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/**
+ * Date every wage posting by the day it was paid.
+ *
+ * Wages go on the W-2 for the year they are paid (US law, which the
+ * founder's standing rule follows). A posting is dated by the week the
+ * hours were worked, which is right for margin and wrong for a W-2: a
+ * week worked in December and paid in January belongs to January's year.
+ *
+ * - A W-2 week (TIMESHEET) is dated by the processed payroll runs that
+ *   paid its hours, and where two runs paid parts of it, its amount is
+ *   split between them by hours, to the cent. Hours accepted and not yet
+ *   paid are in no year: returned as `unpaid`. A contract behind a run
+ *   that recorded no lines has no knowable paid day: returned as
+ *   `undated`, never placed in a year on a guess.
+ * - An off-cycle payment is dated by its own pay day.
+ * - Anything else on a W-2 line keeps its posting date.
+ * - 1099 and corp-to-corp postings are unchanged. A 1099-NEC is also
+ *   reported for the year paid, but those are paid through invoice
+ *   receipts rather than payroll runs, and the paid date is not read
+ *   here yet.
+ *
+ * Pure: no database.
+ */
+export function datePaidWages(
+  postings: readonly DatablePosting[],
+  runs: readonly RunPaidHours[],
+  unrecordedContracts: ReadonlySet<string>
+): { postings: PayPosting[]; unpaid: PostingAside[]; undated: PostingAside[] } {
+  const out: PayPosting[] = []
+  const unpaid: PostingAside[] = []
+  const undated: PostingAside[] = []
+  const strip = (p: DatablePosting): PayPosting => ({
+    personId: p.personId, personName: p.personName, hasTaxId: p.hasTaxId,
+    contractType: p.contractType, amountCents: p.amountCents, currency: p.currency, postedAt: p.postedAt,
+  })
+  const aside = (p: DatablePosting, amountCents: number): PostingAside => ({
+    personId: p.personId, personName: p.personName, amountCents: Math.abs(amountCents), currency: p.currency,
+  })
+
+  for (const p of postings) {
+    if (!(WAGE_CONTRACT_TYPES as readonly string[]).includes(p.contractType)) {
+      out.push(strip(p))
+      continue
+    }
+    if (p.source === 'PAYROLL') {
+      const on = offCyclePaidOn(p.sourceId)
+      out.push({ ...strip(p), postedAt: on ?? p.postedAt })
+      continue
+    }
+    if (p.source !== 'TIMESHEET' || !p.timesheetId || !p.buyContractId) {
+      out.push(strip(p))
+      continue
+    }
+
+    const byDay = new Map<string, number>()
+    for (const r of runs) {
+      if (r.buyContractId !== p.buyContractId || r.personId !== p.personId || r.timesheetId !== p.timesheetId) continue
+      if (!(r.hours > 0)) continue
+      const k = r.paidAt.toISOString().slice(0, 10)
+      byDay.set(k, (byDay.get(k) ?? 0) + r.hours)
+    }
+    if (byDay.size === 0) {
+      if (unrecordedContracts.has(p.buyContractId)) undated.push(aside(p, p.amountCents))
+      else unpaid.push(aside(p, p.amountCents))
+      continue
+    }
+
+    const paidHours = [...byDay.values()].reduce((n, h) => n + h, 0)
+    const accepted = p.acceptedHours && p.acceptedHours > 0 ? p.acceptedHours : paidHours
+    // Hours paid past the acceptance do not make the posting bigger: the
+    // shares are scaled to the whole posting, and nothing is left waiting.
+    const base = Math.max(accepted, paidHours)
+    const days = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    const sign = p.amountCents < 0 ? -1 : 1
+    const whole = Math.abs(p.amountCents)
+    let given = 0
+    days.forEach(([day, h], i) => {
+      const lastPaid = i === days.length - 1
+      const share = lastPaid && paidHours >= accepted
+        ? whole - given
+        : Math.round((whole * h) / base)
+      given += share
+      out.push({ ...strip(p), amountCents: sign * share, postedAt: new Date(`${day}T00:00:00Z`) })
+    })
+    if (given < whole) unpaid.push(aside(p, sign * (whole - given)))
+  }
+
+  return { postings: out, unpaid, undated }
+}
+
 export type StatutoryForm = 'W2' | '1099_NEC' | 'NONE'
 
 export interface WageSummary {

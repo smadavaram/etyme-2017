@@ -3,9 +3,11 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
+import { paidRunHours } from '@/lib/payroll-paid'
 import {
   yearEndPack, yearEndCsv, depositSchedule, depositDeadline, depositPayDays,
-  WAGE_CONTRACT_TYPES, BUREAU_NOTICE, type PayPosting,
+  datePaidWages, dropReversed, WAGES_YEAR_PAID,
+  WAGE_CONTRACT_TYPES, BUREAU_NOTICE, type DatablePosting,
 } from '@/lib/payroll-export'
 
 /**
@@ -81,16 +83,27 @@ export async function GET(request: NextRequest) {
   // what somebody should have earned; a posting says what they did, and
   // those differ every time a timesheet is reversed, a rate amendment
   // lands late, or an off-cycle payment is made.
+  //
+  // Wages go on the W-2 for the year they were PAID, not the year the
+  // hours were worked (US law; the founder's standing rule follows it).
+  // A posting is dated by the week worked, so postings from before the
+  // year are read too — a December week paid in January is this year's —
+  // and each is re-dated below by the run that paid it.
+  const readFrom = new Date(from.getTime() - 400 * 86_400_000)
   const rows = await prisma.orderPosting.findMany({
     where: {
       companyId,
       kind: 'PAY',
-      postedAt: { gte: from, lt: to },
+      postedAt: { gte: readFrom, lt: to },
       reversalOfId: null,
       personId: { not: null },
     },
     select: {
-      amountCents: true, txCurrency: true, postedAt: true,
+      id: true, source: true, sourceId: true, buyContractId: true,
+      // The amount in the currency it was paid in. `amountCents` is the
+      // order's currency, and labeling it with the pay currency put a
+      // dollar figure under a rupee sign wherever the two differed.
+      txAmountCents: true, txCurrency: true, postedAt: true,
       person: { select: { id: true, name: true } },
       buyContract: { select: { contractType: true } },
     },
@@ -118,19 +131,61 @@ export async function GET(request: NextRequest) {
   // So every reportable payee reads as "the bureau needs a number we do
   // not hold", which is true. It is stated at the top of the response
   // rather than left to look like a data-quality problem.
-  const postings: PayPosting[] = rows
-    .filter((r) => !cancelled.has((r as { id?: string }).id ?? ''))
-    .map((r) => ({
-      personId: r.person!.id,
-      personName: r.person!.name,
-      hasTaxId: false,
-      contractType: r.buyContract?.contractType ?? 'UNKNOWN',
-      amountCents: r.amountCents,
-      currency: r.txCurrency,
-      postedAt: r.postedAt,
-    }))
+  // The id is selected now: without it this filter matched nothing, and a
+  // reversed posting stayed on somebody's W-2 beside its correction.
+  const live = dropReversed(rows, cancelled)
+
+  // The week behind each timesheet posting, from its acceptance.
+  const assertionIds = live
+    .filter((r) => r.source === 'TIMESHEET' && r.sourceId)
+    .map((r) => r.sourceId as string)
+  const assertions = assertionIds.length
+    ? await prisma.workAssertion.findMany({
+        where: { id: { in: assertionIds } },
+        select: { id: true, timesheetId: true, hours: true },
+      })
+    : []
+  const weekOf = new Map(assertions.map((a) => [a.id, a]))
+
+  const datable: DatablePosting[] = live.map((r) => ({
+    id: r.id,
+    personId: r.person!.id,
+    personName: r.person!.name,
+    hasTaxId: false,
+    contractType: r.buyContract?.contractType ?? 'UNKNOWN',
+    amountCents: r.txAmountCents,
+    currency: r.txCurrency,
+    postedAt: r.postedAt,
+    source: r.source,
+    sourceId: r.sourceId ?? '',
+    buyContractId: r.buyContractId,
+    timesheetId: r.source === 'TIMESHEET' ? weekOf.get(r.sourceId ?? '')?.timesheetId ?? null : null,
+    acceptedHours: r.source === 'TIMESHEET' ? Number(weekOf.get(r.sourceId ?? '')?.hours ?? 0) || null : null,
+  }))
+
+  // What each processed run paid, and the day it ran.
+  const paid = await paidRunHours(companyId)
+  const dated = datePaidWages(datable, paid.runs, paid.unrecorded)
+  const postings = dated.postings
 
   const pack = yearEndPack(postings, year)
+
+  // Wages accepted and not yet paid, and wages whose paid day cannot be
+  // known, are in no year. Said, never dropped silently.
+  const aside = (list: typeof dated.unpaid, what: string) => {
+    if (list.length === 0) return null
+    const people = [...new Set(list.map((l) => l.personName))]
+    const currencies = [...new Set(list.map((l) => l.currency))]
+    const sum = currencies.length === 1
+      ? ` (${(list.reduce((n, l) => n + l.amountCents, 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currencies[0]})`
+      : ''
+    return `${people.length} ${people.length === 1 ? 'person has' : 'people have'} W-2 wages ${what}${sum}: ${people.slice(0, 5).join(', ')}${people.length > 5 ? ', and others' : ''}.`
+  }
+  const unpaidSays = aside(dated.unpaid, 'accepted and not yet paid, which count in the year a run pays them')
+  const undatedSays = aside(
+    dated.undated,
+    'paid by a run that recorded only a total, so the day they were paid is not known and they are in no year until somebody records it'
+  )
 
   if (format === 'csv') {
     return new NextResponse(yearEndCsv(pack), {
@@ -148,6 +203,7 @@ export async function GET(request: NextRequest) {
   // no employment tax, so it neither sets a deposit nor counts toward
   // the lookback that picks the schedule.
   const lookback = postings
+    .filter((p) => p.postedAt >= from && p.postedAt < to)
     .filter((p) => (WAGE_CONTRACT_TYPES as readonly string[]).includes(p.contractType))
     .reduce((n, p) => n + Math.abs(p.amountCents), 0)
   // A rough employment-tax proxy at the published default burden. Named
@@ -206,6 +262,10 @@ export async function GET(request: NextRequest) {
         totalReportableCents: pack.totalReportableCents,
         currency: pack.currency,
         says: pack.says,
+        // One line where the figure is shown.
+        yearPaidSays: WAGES_YEAR_PAID,
+        unpaidSays,
+        undatedSays,
       },
       deposits: {
         schedule: schedule.schedule,

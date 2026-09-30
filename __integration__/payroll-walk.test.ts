@@ -133,3 +133,29 @@ describe('a worker placed mid-month with no week filed in it', () => {
     expect(paidMonth.totalApprovedHours).toBeGreaterThan(0)
   })
 })
+
+describe('wages count in the year they were paid', () => {
+  it('Karthik Menon’s W-2 wages are what Teleworld’s runs paid him, in the year they ran, and the screen says the rule', async () => {
+    as(TELEWORLD)
+    const year = new Date().getUTCFullYear()
+    const r = await json(await statutory(req('GET', `/api/payroll/statutory?year=${year}`)))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.pack.yearPaidSays).toBe('Wages count in the year they were paid.')
+    const k = r.body.data.pack.summaries.find((s: any) => s.personName === 'Karthik Menon')
+    // Every weekday of three whole months at $89, all paid by runs this year.
+    const runs = await prisma.automationLog.findMany({ where: { action: 'PAYROLL_RUN' }, select: { at: true, payload: true } })
+    const paidThisYear = runs
+      .filter((x) => x.at.getUTCFullYear() === year)
+      .flatMap((x) => ((x.payload as any)?.contracts ?? []).filter((c: any) => c.person === 'Karthik Menon'))
+      .reduce((n: number, c: any) => n + c.grossPay, 0)
+    expect(paidThisYear).toBeGreaterThan(0)
+    expect(k.grossCents).toBe(paidThisYear)
+  })
+
+  it('a firm with weeks accepted and not yet paid is told they count in the year a run pays them', async () => {
+    as(BRIGHTMOOR)
+    const year = new Date().getUTCFullYear()
+    const r = await json(await statutory(req('GET', `/api/payroll/statutory?year=${year}`)))
+    expect(r.body.data.pack.unpaidSays).toMatch(/not yet paid/)
+  })
+})

@@ -168,3 +168,37 @@ export async function paidBook(companyId: string, buyContractIds: string[]): Pro
 
   return { paid, premiumHours, entries, unrecorded }
 }
+
+/**
+ * Every week's hours a processed run paid, with the day the run ran —
+ * the day the wages were paid, which is what decides the year they go
+ * on the W-2 (`datePaidWages` in lib/payroll-export). `unrecorded` is
+ * each contract behind a run that recorded only a total, whose paid days
+ * cannot be known.
+ */
+export async function paidRunHours(companyId: string): Promise<{
+  runs: Array<{ buyContractId: string; personId: string; timesheetId: string; hours: number; paidAt: Date }>
+  unrecorded: Set<string>
+}> {
+  const rows = await prisma.automationLog.findMany({
+    where: { companyId, action: PAYROLL_RUN, payload: { path: ['action'], equals: 'process' } },
+    select: { payload: true, at: true },
+    orderBy: { at: 'asc' },
+  })
+  const runs: Array<{ buyContractId: string; personId: string; timesheetId: string; hours: number; paidAt: Date }> = []
+  const unrecorded = new Set<string>()
+  for (const run of rows) {
+    const p = (run.payload ?? {}) as { contracts?: Array<{ buyContractId?: string; paid?: PaidLine[]; refused?: string | null }> }
+    for (const c of p.contracts ?? []) {
+      if (!c.buyContractId || c.refused) continue
+      if (!Array.isArray(c.paid)) {
+        unrecorded.add(c.buyContractId)
+        continue
+      }
+      for (const l of c.paid) {
+        runs.push({ buyContractId: c.buyContractId, personId: l.personId, timesheetId: l.timesheetId, hours: Number(l.hours) || 0, paidAt: run.at })
+      }
+    }
+  }
+  return { runs, unrecorded }
+}

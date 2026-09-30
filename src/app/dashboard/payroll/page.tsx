@@ -882,6 +882,13 @@ function Statutory() {
       </div>
 
       <p className="mt-3 max-w-[70ch] text-[13px] text-etyme-ink">{data.pack.says}</p>
+      <p className="mt-1 max-w-[70ch] text-[13px] text-etyme-ink">{data.pack.yearPaidSays}</p>
+      {data.pack.unpaidSays && (
+        <p className="mt-1 max-w-[70ch] text-[11px] text-etyme-muted">{data.pack.unpaidSays}</p>
+      )}
+      {data.pack.undatedSays && (
+        <p className="mt-1 max-w-[70ch] text-[11px] text-etyme-attention">{data.pack.undatedSays}</p>
+      )}
       <p className="mt-2 max-w-[70ch] text-[11px] text-etyme-faint">{data.taxIdNote}</p>
       <p className="mt-2 max-w-[70ch] text-[11px] text-etyme-faint">{data.deposits.proxySays}</p>
 
