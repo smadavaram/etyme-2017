@@ -24,7 +24,7 @@
 import { sheetPay, type WageLine, type DayPremium } from '@/lib/money/sheet-overtime'
 import type { OvertimeMethod } from '@/lib/money/overtime-method'
 import { nextOpen } from '@/lib/money/next-cycle'
-import type { AcceptedCut } from '@/lib/periods'
+import { periodFor, hoursInPeriod, type AcceptedCut, type Terms, type Period } from '@/lib/periods'
 import { priceByDay, type RatePeriod } from '@/lib/contract-rate'
 import { weekStart } from '@/lib/overtime'
 import { amount } from '@/lib/money-display'
@@ -1584,6 +1584,44 @@ export interface OwedPayLine {
    * — never a date worked out here.
    */
   payDates: PayDate[]
+  /**
+   * The line's pay periods and its straddle, read through the one door
+   * payroll reads them through (`periodTermsFor('BUY', …)` in
+   * lib/money/order-terms, with the person's own start). Where given, a
+   * week's days are grouped into the pay periods the payroll run pays
+   * them in — split by day under SPLIT, the whole sheet with its last day
+   * under END, with its first under START (`hoursInPeriod`) — and each
+   * group falls due on the first pay day after its own period ends. Where
+   * absent, the week is one part, due after its last day, as before.
+   */
+  terms?: Terms
+}
+
+/**
+ * One part of a week paid on a pay day of its own.
+ *
+ * A week crossing two months, on a line paid monthly with its days split,
+ * is paid twice: its June days with June and its July days with July.
+ * The run tells that truth; the week tells it too.
+ */
+export interface OwedPart {
+  /** The first and last day worked in this part. */
+  from: string
+  to: string
+  /** "Jun 29 – Jun 30, 2026". */
+  label: string
+  /** The pay period it is paid in, as payroll names it ("June 2026"). */
+  period: string
+  hours: number
+  owedCents: number
+  paidCents: number
+  stillOwedCents: number
+  stage: OwedStage
+  /** The pay day it falls due on, where anything of it is unpaid. */
+  dueOn: string | null
+  overdue: boolean
+  /** The day it was paid, where the record says. */
+  paidOn: string | null
 }
 
 /** What payroll has already paid for one day of one sheet. */
@@ -1636,6 +1674,13 @@ export interface OwedWeek {
   overdue: boolean
   /** The last day anything for this week was paid, where the record says. */
   paidOn: string | null
+  /**
+   * Where the week's days are paid on more than one pay day, each part
+   * with its own days, hours, amount and date. Null where the week is
+   * paid in one — which is every week on a line that pays a crossing
+   * week whole.
+   */
+  parts: OwedPart[] | null
   /** The week in plain words. Never a rate, never a code. */
   says: string
 }
@@ -1679,6 +1724,49 @@ interface WeekTally {
   cuts: Array<{ filed: number; accepted: number; moreThanFiled: boolean }>
   /** Worked over the line and accepted at or under it: paid at straight time. */
   straightTime: boolean
+  /** The week's days by the pay period that pays them, keyed by the period's first day. */
+  parts: Map<string, PartTally>
+}
+
+interface PartTally {
+  period: Period | null
+  firstDay: string | null
+  lastDay: string | null
+  hours: number
+  straight: number
+  premium: number
+  paidCents: number
+  paidOn: string | null
+}
+
+/**
+ * Which pay period pays each day of a sheet, the way the payroll run
+ * decides it: each candidate period is asked through `hoursInPeriod`
+ * with the line's straddle, and a period that takes the sheet partly
+ * takes exactly its own days, one that takes it whole takes every day.
+ * No second copy of the straddle rule lives here.
+ */
+function payPeriodsOfDays(
+  sheet: { id: string; periodStart: Date; periodEnd: Date; days: Record<string, number>; totalHours: number },
+  dayList: string[],
+  terms: Terms
+): Map<string, Period> {
+  const out = new Map<string, Period>()
+  const candidates = new Map<string, Period>()
+  for (const d of [...dayList, isoDay(sheet.periodStart), isoDay(sheet.periodEnd)]) {
+    const p = periodFor(new Date(`${d}T00:00:00Z`), terms)
+    candidates.set(isoDay(p.start), p)
+  }
+  for (const p of [...candidates.values()].sort((a, b) => +a.start - +b.start)) {
+    const r = hoursInPeriod(sheet, p, terms.straddle)
+    if (!r) continue
+    for (const d of dayList) {
+      if (out.has(d)) continue
+      const inside = d >= isoDay(p.start) && d <= isoDay(p.end)
+      if (!r.partial || inside) out.set(d, p)
+    }
+  }
+  return out
 }
 
 /**
@@ -1710,6 +1798,7 @@ export function owedByWeek(
         hours: 0, straight: 0, over: 0, premium: 0, paidHours: 0, paidCents: 0,
         unpaidHours: 0, unpaidOver: 0, twoRates: false, unclassified: 0,
         filed: 0, lastDay: null, acceptedOn: null, paidOn: null, many: false, cuts: [], straightTime: false,
+        parts: new Map(),
       })
     }
     return tally.get(weekOf)!
@@ -1721,10 +1810,32 @@ export function owedByWeek(
         .filter(([, h]) => h > 0)
     ) as Record<string, number>
 
+  const partOf = (w: WeekTally, period: Period | null, day: string): PartTally => {
+    const key = period ? isoDay(period.start) : 'ONE'
+    if (!w.parts.has(key)) {
+      w.parts.set(key, { period, firstDay: null, lastDay: null, hours: 0, straight: 0, premium: 0, paidCents: 0, paidOn: null })
+    }
+    const part = w.parts.get(key)!
+    part.firstDay = !part.firstDay || day < part.firstDay ? day : part.firstDay
+    part.lastDay = later(part.lastDay, day)
+    return part
+  }
+
   for (const s of sheets) {
     const days = clean(s.days)
     const hasDays = Object.keys(days).length > 0
     const acceptedOn = s.acceptedAt ? isoDay(s.acceptedAt) : null
+    // Which pay period pays each day, where the line's terms are known.
+    // A sheet with no days by the day cannot be split, and `hoursInPeriod`
+    // sends it whole to the period its last day is in.
+    const periodOfDay = (dayList: string[]) =>
+      line.terms
+        ? payPeriodsOfDays(
+            { id: s.id, periodStart: s.periodStart, periodEnd: s.periodEnd, days: hasDays ? days : {}, totalHours: s.totalHours },
+            dayList,
+            line.terms
+          )
+        : new Map<string, Period>()
 
     // What was filed on this line, week by week — so a week the employer
     // accepted none of still shows, and says so.
@@ -1791,20 +1902,27 @@ export function owedByWeek(
     const weeks = pay?.weeks ?? []
     const premiums = pay?.premiums ?? new Map<string, DayPremium>()
 
+    const periods = periodOfDay(priced.days.map((d) => d.day))
     for (const d of priced.days) {
       const w = at(weekStart(d.day))
+      const part = partOf(w, periods.get(d.day) ?? null, d.day)
       w.hours += d.hours
       w.straight += d.hours * d.rateCents
+      part.hours += d.hours
+      part.straight += d.hours * d.rateCents
       const p = premiums.get(d.day)
       if (p) {
         w.over += p.hours
         w.premium += p.premiumCents
+        part.premium += p.premiumCents
       }
       const paid = paidOn(s.id, d.day)
       w.paidHours += Math.min(paid?.hours ?? 0, d.hours)
       w.paidCents += (paid?.straightCents ?? 0) + (paid?.premiumCents ?? 0)
+      part.paidCents += (paid?.straightCents ?? 0) + (paid?.premiumCents ?? 0)
       if (paid && (paid.hours > 0 || paid.straightCents > 0 || paid.premiumCents > 0)) {
         w.paidOn = later(w.paidOn, paid.paidOn ?? null)
+        part.paidOn = later(part.paidOn, paid.paidOn ?? null)
       }
       w.unpaidHours += Math.max(0, d.hours - (paid?.hours ?? 0))
       w.unpaidOver += Math.max(0, (p?.hours ?? 0) - (paid?.premiumHours ?? 0))
@@ -1833,7 +1951,7 @@ export function owedByWeek(
           weekOf, stage: 'OWED', currency: line.currency, priced: false,
           hours: null, ordinaryHours: null, overtimeHours: null, premiumCents: null,
           owedCents: null, stillOwedCents: null, unpaidHours: null, unpaidOvertimeHours: null,
-          paidCents, paidHours, filedHours, dueOn: null, overdue: false, paidOn: w.paidOn,
+          paidCents, paidHours, filedHours, dueOn: null, overdue: false, paidOn: w.paidOn, parts: null,
           says:
             `${Employer} has accepted this week more than once, and nothing says which acceptance stands, ` +
             `so its payroll pays it once all but one are withdrawn. This page shows no figure for it until then.`,
@@ -1887,28 +2005,78 @@ export function owedByWeek(
       if (paidTooMuch) parts.push(`More has been paid for this week than this page works out. ${Employer} has the record.`)
 
       // When: the day it was paid, or the pay day it falls due on.
-      let dueOn: string | null = null
-      let overdue = false
-      if (stage === 'PAID') {
-        parts.push(w.paidOn ? `${Employer} paid it on ${day(w.paidOn)}.` : `${Employer} paid it. The record does not say which day.`)
-      } else if (stillOwedCents > 0) {
-        if (paidCents > 0) {
-          parts.push(w.paidOn ? `${Employer} paid part of it on ${day(w.paidOn)}.` : `${Employer} has paid part of it.`)
-        }
-        // The first pay day on her own line after the week ended and after
-        // her employer accepted it. A pay day before the acceptance was
-        // never this week's. A pay day payroll ran without paying this week
-        // still counts — it was the day the week fell due, and a run that
-        // left it out does not move that day later — so every pay day on
-        // the line is read, run or not.
-        const from = later(w.lastDay, w.acceptedOn) ?? weekOf
+      //
+      // Each part of the week on its own pay day, where the line's terms
+      // put its days in more than one pay period — the way the payroll run
+      // pays them. A part falls due on the first pay day on the line after
+      // both its own pay period ends and the employer accepted it; a pay
+      // day before the acceptance was never this week's, and a pay day
+      // payroll ran without paying it still counts — the run that left it
+      // out does not move the day it fell due — so every pay day on the
+      // line is read, run or not. Without terms, the week is one part and
+      // falls due after its last day, as it always did.
+      const dueFor = (from: string): string | null => {
         const next = nextOpen(
           line.payDates.map((p) => ({ ...p, completedAt: null })),
           'SALARY_PAY',
           new Date(`${from}T00:00:00Z`)
         )
-        if (next) {
-          dueOn = isoDay(next.dueOn)
+        return next ? isoDay(next.dueOn) : null
+      }
+      const fromOf = (pt: PartTally | null) =>
+        later(pt?.period ? isoDay(pt.period.end) : w.lastDay, w.acceptedOn) ?? weekOf
+
+      const partsList = [...w.parts.values()].filter((pt) => pt.hours > 0).sort((a, b) => a.firstDay!.localeCompare(b.firstDay!))
+      let split: OwedPart[] | null = null
+      let dueOn: string | null = null
+      let overdue = false
+
+      if (partsList.length > 1) {
+        split = partsList.map((pt): OwedPart => {
+          const owed = Math.round(pt.straight) + Math.round(pt.premium)
+          const paid = Math.round(pt.paidCents)
+          const still = Math.max(0, owed - paid)
+          const partStage: OwedStage = still === 0 && paid > 0 ? 'PAID' : 'OWED'
+          const due = still > 0 ? dueFor(fromOf(pt)) : null
+          return {
+            from: pt.firstDay!, to: pt.lastDay!,
+            label: pt.firstDay === pt.lastDay ? day(pt.firstDay!) : `${day(pt.firstDay!)} – ${day(pt.lastDay!)}`,
+            period: pt.period?.label ?? '',
+            hours: r2(pt.hours),
+            owedCents: owed, paidCents: paid, stillOwedCents: still,
+            stage: partStage,
+            dueOn: due,
+            overdue: due !== null && due < todayIso,
+            paidOn: paid > 0 ? pt.paidOn : null,
+          }
+        })
+        parts.push(`${Employer} pays this week on ${split.length} pay days, one for each pay period its days fall in.`)
+        for (const pt of split) {
+          const head = `${pt.label}: ${hoursWord(pt.hours)}, ${amount(pt.owedCents, line.currency)},`
+          if (pt.stage === 'PAID') {
+            parts.push(`${head} ${pt.paidOn ? `paid on ${day(pt.paidOn)}` : 'paid, and the record does not say which day'}.`)
+          } else {
+            const partly = pt.paidCents > 0 ? `partly paid${pt.paidOn ? ` on ${day(pt.paidOn)}` : ''}, and the rest ` : ''
+            parts.push(
+              `${head} ${partly}` +
+                (pt.dueOn
+                  ? pt.overdue
+                    ? `fell due on your pay day of ${day(pt.dueOn)} and has not been paid.`
+                    : `is due on your pay day, ${day(pt.dueOn)}.`
+                  : `has no pay date set.`)
+            )
+          }
+        }
+        dueOn = split.filter((pt) => pt.stillOwedCents > 0 && pt.dueOn).map((pt) => pt.dueOn!).sort()[0] ?? null
+        overdue = split.some((pt) => pt.overdue)
+      } else if (stage === 'PAID') {
+        parts.push(w.paidOn ? `${Employer} paid it on ${day(w.paidOn)}.` : `${Employer} paid it. The record does not say which day.`)
+      } else if (stillOwedCents > 0) {
+        if (paidCents > 0) {
+          parts.push(w.paidOn ? `${Employer} paid part of it on ${day(w.paidOn)}.` : `${Employer} has paid part of it.`)
+        }
+        dueOn = dueFor(fromOf(partsList[0] ?? null))
+        if (dueOn) {
           overdue = dueOn < todayIso
           parts.push(
             overdue
@@ -1936,6 +2104,7 @@ export function owedByWeek(
         dueOn,
         overdue,
         paidOn: paidCents > 0 ? w.paidOn : null,
+        parts: split,
         says: parts.join(' '),
       }
     })

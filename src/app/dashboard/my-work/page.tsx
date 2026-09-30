@@ -66,9 +66,25 @@ interface OwedWeek {
   dueOn?: string | null
   overdue?: boolean
   paidOn?: string | null
+  /** Where its days are paid on more than one pay day, each part on its own. */
+  parts?: OwedPart[] | null
   // Only on a week still waiting.
   sheetId?: string
   waitingOn?: string
+}
+interface OwedPart {
+  from: string
+  to: string
+  /** "Jun 29 – Jun 30". */
+  label: string
+  hours: number
+  owedCents: number
+  paidCents: number
+  stillOwedCents: number
+  stage: 'OWED' | 'PAID'
+  dueOn: string | null
+  overdue: boolean
+  paidOn: string | null
 }
 interface Owed {
   cents: number
@@ -941,6 +957,25 @@ function YourPay({ owed }: { owed: Owed }) {
                   {waiting ? (
                     // Hours only. Nothing is owed on a week nobody has accepted.
                     <Line label="Hours sent">{w.hours ?? 0}</Line>
+                  ) : w.parts && w.parts.length > 1 ? (
+                    // A week paid on more than one pay day, as the payroll
+                    // run paid it: each part with its days, hours, amount
+                    // and its own date.
+                    <>
+                      {w.parts.map((pt) => (
+                        <div key={pt.from} className="pb-1">
+                          <Line label={pt.label}>{amount(pt.owedCents, w.currency)}</Line>
+                          <Line
+                            label={`${pt.hours} hours`}
+                            tone={pt.stage === 'PAID' ? 'text-etyme-verified' : pt.overdue ? 'text-etyme-attention' : undefined}
+                          >
+                            {pt.stage === 'PAID'
+                              ? `paid ${pt.paidOn ? dayLabel(pt.paidOn) : ''}`.trim()
+                              : pt.dueOn ? `due ${dayLabel(pt.dueOn)}` : 'no pay date set'}
+                          </Line>
+                        </div>
+                      ))}
+                    </>
                   ) : w.stage === 'PAID' ? (
                     <>
                       <Line label="Paid">{amount(w.paidCents ?? 0, w.currency)}</Line>

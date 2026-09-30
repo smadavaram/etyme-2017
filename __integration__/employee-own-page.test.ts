@@ -51,4 +51,19 @@ describe("an employee's own page, on the seeded world", () => {
       expect(t.period).not.toMatch(/\d{4}-\d{2}-\d{2}/)
     }
   })
+
+  it("a week of Karthik's crossing two months shows each month's days paid on that month's own pay day, as the payroll run paid them", () => {
+    const split = data.owed.weeks.filter((w: any) => w.parts && w.parts.length > 1)
+    expect(split.length, 'a week of his crosses a month end').toBeGreaterThan(0)
+    for (const w of split) {
+      const paidOn = w.parts.map((p: any) => p.paidOn)
+      expect(new Set(paidOn).size, `the week of ${w.weekOf} is paid on two days`).toBe(w.parts.length)
+      for (const p of w.parts) {
+        expect(p.stage).toBe('PAID')
+        // Paid after the month its days are in, never before.
+        expect(p.paidOn.slice(0, 7) > p.to.slice(0, 7), `${p.label} paid ${p.paidOn}`).toBe(true)
+      }
+      expect(w.parts.reduce((n: number, p: any) => n + p.hours, 0)).toBe(w.hours)
+    }
+  })
 })

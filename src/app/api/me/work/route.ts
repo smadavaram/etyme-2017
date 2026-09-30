@@ -16,6 +16,7 @@ import { daysFor } from '@/lib/contract-links'
 import { wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn } from '@/lib/money/pay-line'
+import { periodTermsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 
 /**
@@ -179,6 +180,9 @@ export async function GET(request: NextRequest) {
       buyContract: {
         include: {
           company: { select: { name: true } },
+          // The order the line is on, whose straddle and rhythm are read
+          // before the line's own copy (`periodTermsFor`), as payroll reads them.
+          workOrder: { select: ORDER_HEADER_SELECT },
           // Where the paying entity is, which decides whether the US
           // forty-hour line reaches a worker no contract drew one for.
           entity: { select: { country: true } },
@@ -409,6 +413,9 @@ export async function GET(request: NextRequest) {
             wage,
             currency: pay.payCurrency,
             payDates: bc.buyCycles,
+            // The pay periods and the straddle, through the one door the
+            // payroll run reads them through, from the person's own start.
+            terms: { ...periodTermsFor('BUY', bc), startedOn: pay.startDate },
           },
           (sheetId, day) => {
             const k = paidKey(bc.id, personId, sheetId, day)
