@@ -10,10 +10,11 @@ import { gates, maySign, acceptWith, type Sheet } from '@/lib/timesheet-signatur
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import {
-  policyOf, splitWeeks, valueOf, weekStart, weeksAwaitingDecision, saysAwaiting,
+  lineFor, splitWeeks, valueOf, weekStart, weeksAwaitingDecision, saysAwaiting,
   mayDecide, mayChange, priceChoice, isTreatment, treatmentSays, decidingLeg,
   type Decision, type Treatment, type ChainRung,
 } from '@/lib/overtime'
+import { weekFlag, flaggedWeekSays } from '@/lib/timesheet-flag'
 import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
 import { ladderAbove, type LegContract } from '../../ladder'
 import { topDown, signersOf, turnOf, tellNext, signedBy, type Signer } from '../../chain-turn'
@@ -58,6 +59,12 @@ export async function POST(
           id: true, billRate: true, billCurrency: true, companyId: true,
           clientCompanyId: true, endClientCompanyId: true,
           overtimeAfterHours: true, overtimeMultiplierBps: true,
+          // The flag's two facts: the role's hours and the last day. A
+          // flagged week asks for a reason before it is signed, from
+          // every door, and a silent contract's overtime line is the
+          // role's hours (`lineFor`).
+          endDate: true,
+          requirement: { select: { hoursPerWeek: true } },
           company: { select: { name: true } },
           clientCompany: { select: { name: true } },
           endClientCompany: { select: { name: true } },
@@ -255,6 +262,37 @@ export async function POST(
     )
   }
 
+  // ── A flagged week is signed with a reason, or not at all ───────────
+  //
+  // The same flag the list marks with a warning and the dashboard offers
+  // only as "Approve anyway" (`weekFlag`). WARN, capture a reason,
+  // proceed — never silently: the Timesheets page signed Lucía
+  // Fernández's 44 hours on a 40-hour job with one tick and no reason,
+  // while the dashboard asked for one on the same week. One rule, here,
+  // so every door asks, and the reason rides on the signature below.
+  const flag = weekFlag({
+    hours,
+    hoursPerWeek: timesheet.sellContract.requirement?.hoursPerWeek ?? null,
+    periodEnd: timesheet.periodEnd,
+    contractEnd: timesheet.sellContract.endDate,
+    anomalyScore: timesheet.anomalyScore,
+    anomalyReason: timesheet.anomalyReason,
+  })
+  const reasonGiven = typeof body?.note === 'string' ? body.note.trim() : ''
+  if (flag && !reasonGiven) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FLAG_NEEDS_REASON',
+          message: flaggedWeekSays(flag),
+          flag,
+          field: 'note',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
   // ── What happens to the hours over the line ─────────────────────────
   //
   // Everything from here to the transaction is refusal, not writing.
@@ -296,7 +334,10 @@ export async function POST(
           null,
       }
 
-  const policy = policyOf(deciding)
+  // The contract's own line where it names one; where it is silent, the
+  // role's hours — the same line the flag reads — because this week is
+  // still to be signed (`lineFor`).
+  const policy = lineFor(deciding, timesheet.sellContract.requirement, { stillToSign: true, decided: false })
   const leaveDays = (timesheet.leaveDays as Record<string, number>) ?? {}
   // Only what has been said on this leg. A prime's agreement with its
   // client is not the sub's agreement with the prime, and reading the

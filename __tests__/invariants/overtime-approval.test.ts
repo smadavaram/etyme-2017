@@ -100,7 +100,7 @@ describe('in a chain, nobody decides their own leg', () => {
   })
 
   it('the threshold and the rate come from the leg being answered, so nobody is quoted a rate they are not a party to', () => {
-    expect(APPROVE).toContain('const policy = policyOf(deciding)')
+    expect(APPROVE).toContain('const policy = lineFor(deciding, ')
     expect(APPROVE).toContain('valueOf(finalSplit, deciding.billRate)')
     expect(APPROVE).toContain('rateCents: deciding.billRate,')
     expect(APPROVE).not.toContain('policyOf(timesheet.sellContract)')

@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung, viaPhrase } from '@/lib/chain-top'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
-import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
+import { weekFlag, periodWord } from '@/lib/timesheet-flag'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 import { weekTurn } from '@/app/api/timesheets/ladder'
 import { desksFor } from '@/lib/supplier-desks'
@@ -198,9 +198,12 @@ export async function GET(request: NextRequest) {
       const period = periodWord(ts.periodStart, ts.periodEnd)
       // Checked against the contract, so the signer does not have to
       // notice: more hours than the role runs, or a week past its end.
-      const flag = timesheetFlag({
+      // The approval route's own flag (`weekFlag`), so the queue offers
+      // "Approve anyway" on exactly the weeks the route asks a reason for.
+      const flag = weekFlag({
         hours: Number(ts.totalHours), hoursPerWeek: sc.requirement?.hoursPerWeek ?? null,
         periodEnd: ts.periodEnd, contractEnd: sc.endDate,
+        anomalyScore: ts.anomalyScore, anomalyReason: ts.anomalyReason,
       })
 
       decisions.push({
@@ -213,7 +216,8 @@ export async function GET(request: NextRequest) {
         entityType: 'TIMESHEET',
         entityId: ts.id,
         dueDate: null,
-        actionUrl: '/dashboard/timesheets',
+        // The week itself, opened — not the list it sits in.
+        actionUrl: `/dashboard/timesheets?id=${ts.id}`,
         amount,
         flag,
         createdAt: waitingSince(ts).toISOString(),
@@ -263,12 +267,14 @@ export async function GET(request: NextRequest) {
         entityType: 'TIMESHEET',
         entityId: ts.id,
         dueDate: null,
-        actionUrl: '/dashboard/timesheets',
+        // The week itself, opened — not the list it sits in.
+        actionUrl: `/dashboard/timesheets?id=${ts.id}`,
         // What this firm pays on the rung it is accepting — its own contract.
         amount: paysOn ? Number(ts.totalHours) * (paysOn.billRate / 100) : null,
-        flag: timesheetFlag({
+        flag: weekFlag({
           hours: Number(ts.totalHours), hoursPerWeek: ts.sellContract.requirement?.hoursPerWeek ?? null,
           periodEnd: ts.periodEnd, contractEnd: ts.sellContract.endDate,
+          anomalyScore: ts.anomalyScore, anomalyReason: ts.anomalyReason,
         }),
         createdAt: ts.periodEnd.toISOString(),
       })

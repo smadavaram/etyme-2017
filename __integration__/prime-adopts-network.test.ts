@@ -55,6 +55,14 @@ describe('a prime puts forward somebody its network offered it', () => {
       data: { consultantId: profile.id, companyId: co['world-cloudepa'], tier: 'RETAINED', state: 'GRANTED', invitedAt: day(-20), respondedAt: day(-19), grantedAt: day(-19) },
     })
     it_.retained = p.id
+
+    // In this story CloudEPA also supplies Northbend directly, beside
+    // supplying it through Computer Systems — which is what makes "first
+    // in wins" across the two paths a question at all. Without a direct
+    // agreement CloudEPA is Computer Systems' sub-vendor and nothing more,
+    // and the release door refuses to send Northbend's job to it: a
+    // sub-vendor's name is the prime's to keep (CLAUDE.md, 2026-09-17).
+    await prisma.masterAgreement.create({ data: { clientId: co['world-nike'], vendorId: co['world-cloudepa'], paymentTerms: 30 } })
   }, 240_000)
 
   it('Northbend raises a role and releases it to Computer Systems and to CloudEPA', async () => {

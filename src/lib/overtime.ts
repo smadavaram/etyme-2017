@@ -312,6 +312,41 @@ export function policyOf(row: {
   }
 }
 
+/**
+ * The line a week is judged against, when the question is asked.
+ *
+ * A contract that names its own line is judged against it, always. A
+ * contract that names none is straight time by default (above) — but a
+ * week over the role's hours is flagged against the role
+ * (`lib/timesheet-flag`: the role's hours, forty where the role says
+ * none), and a flagged week signed with no question asked billed its
+ * extra hours at the straight rate without anybody deciding it. Found on
+ * 2026-09-30: Lucía Fernández's 44 hours on a 40-hour job signed with one
+ * tick at $4,312, while Omar Haddad's 45 hours one row above, on a
+ * contract with a line, asked what the five hours were worth.
+ *
+ * So where the contract is silent, the role's hours are the line — the
+ * same number the flag reads — but only while somebody still has to
+ * sign the week, or once somebody has decided a week against that line.
+ * A week signed before this was asked keeps the straight time it was
+ * signed at: reopening a settled week as a question would restate what
+ * was already billed.
+ *
+ * The multiplier offered is the contract's own, and nothing is priced
+ * until a person picks one of the three answers.
+ */
+export function lineFor(
+  contract: { overtimeAfterHours?: number | null; overtimeMultiplierBps?: number | null } | null | undefined,
+  role: { hoursPerWeek?: number | null } | null | undefined,
+  when: { stillToSign: boolean; decided: boolean }
+): OvertimePolicy {
+  const own = policyOf(contract)
+  if (own.afterHours != null) return own
+  if (!when.stillToSign && !when.decided) return own
+  const hours = role?.hoursPerWeek
+  return { afterHours: hours != null && hours > 0 ? hours : 40, multiplierBps: own.multiplierBps }
+}
+
 // ── Who may decide, and what they may decide ───────────────────────────
 
 export interface Verdict {

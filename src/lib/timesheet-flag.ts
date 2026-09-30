@@ -50,6 +50,15 @@ export function weekFlag(input: {
 }
 
 /**
+ * What a signer is told when they press sign on a flagged week with no
+ * reason: the flag, then what to do. The same sentence on every door,
+ * because the approval route is the one that says it.
+ */
+export function flaggedWeekSays(flag: string): string {
+  return `${flag} Say why this week is right before you sign it. The reason goes on your signature.`
+}
+
+/**
  * The order a list of weeks is read in: every flagged week before every
  * plain one, newest first within each.
  *

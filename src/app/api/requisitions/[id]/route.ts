@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { waitingOnSays } from '../words'
 import { assessFit } from '@/lib/candidate-fit'
 import { awardDoor } from '@/lib/award'
 import { hasPermission } from '@/lib/permissions'
@@ -104,9 +105,56 @@ export async function GET(
   const mayHire = hasPermission(caller.permissions, 'requirements.write')
 
   const now = new Date()
+  /** How many a firm has put forward on this job. */
+  const putForward = (companyId: string) => submissions.filter(sub => sub.fromCompanyId === companyId).length
+
+  // ── What the approval checked the job against ───────────────────────
+  //
+  // "Cleared automatically · Within plan" told an approver nothing they
+  // could stand behind. The checks carry the facts — "4 of 6 approved
+  // heads", "$96,000 left in APPS 4100", "$115/hr is in line with the
+  // $112/hr you already pay" — and they were written to the automation
+  // log when the job was raised, then never read. Read them back, as
+  // recorded at the decision. Where the money moved since, or the row
+  // was written without the checks (an import, the seed), they are run
+  // again on today's plan and the page says that is what they are.
+  const decidedOn = await prisma.automationLog.findFirst({
+    where: {
+      companyId: req.companyId,
+      action: { in: ['REQUISITION_AUTO_CLEARED', 'REQUISITION_ROUTED', 'REQUISITION_CHANGED'] },
+      payload: { path: ['requirementId'], equals: id },
+    },
+    orderBy: { at: 'desc' },
+    select: { action: true, at: true, payload: true },
+  })
+  const recorded = decidedOn && decidedOn.action !== 'REQUISITION_CHANGED'
+    ? ((decidedOn.payload as any)?.checks as any[] | undefined) ?? null
+    : null
+  const checked = recorded
+    ? { basis: 'RECORDED' as const, at: decidedOn!.at.toISOString(), checks: recorded }
+    : {
+        basis: 'NOW' as const,
+        at: now.toISOString(),
+        checks: (await checksFor(req.companyId, {
+          skills: req.skills,
+          headcount: req.headcount,
+          billMax: req.billMax,
+          months: req.months,
+          budgetCents: req.budgetCents,
+          hoursPerWeek: req.hoursPerWeek,
+          costCenterId: req.costCenterId,
+          orgUnitId: req.orgUnitId,
+          raisedById: req.raisedById,
+          ownerId: req.ownerId,
+        })).decision.checks,
+      }
 
   return NextResponse.json({
     data: {
+      // What each desk checked the job against, with the facts in the
+      // sentence, and whether that is the record of the decision or a
+      // re-run on today's plan.
+      checked,
       requisition: {
         id: req.id,
         title: req.title,
@@ -117,6 +165,11 @@ export async function GET(
         billMax: req.billMax,
         months: req.months,
         neededBy: req.neededBy?.toISOString() ?? null,
+        // The job itself, before anybody approves it: when it starts, how
+        // many hours a week, and the budget stated for it.
+        startDate: req.startDate?.toISOString() ?? null,
+        hoursPerWeek: req.hoursPerWeek,
+        budgetCents: req.budgetCents,
         description: req.description,
         justification: req.justification,
         status: req.status,
@@ -129,6 +182,9 @@ export async function GET(
         costCenter: req.costCenter,
         createdAt: req.createdAt.toISOString(),
       },
+      // Who it waits on, said once here so the list and this page cannot
+      // name two different people (`./words` — waitingOnSays).
+      waitingOn: waitingOnSays(req.approvals),
       approvals: req.approvals.map(a => ({
         stage: a.stage,
         id: a.id,
@@ -201,11 +257,15 @@ export async function GET(
       })),
       summary: {
         invited: req.invitations.length,
-        accepted: req.invitations.filter(i => i.status === 'ACCEPTED').length,
+        // Working it: said yes, or put somebody forward — a submission is
+        // an answer, whatever the invitation's own column says. Three
+        // suppliers that had each put a person forward read "Gone quiet 3".
+        accepted: req.invitations.filter(i => i.status === 'ACCEPTED' || (i.status === 'SENT' && putForward(i.toCompanyId) > 0)).length,
         declined: req.invitations.filter(i => i.status === 'DECLINED').length,
-        // Asked, said nothing, deadline still running. The quiet ones are
-        // the reason a requisition dies without anybody noticing.
-        silent: req.invitations.filter(i => i.status === 'SENT' && i.expiresAt >= now).length,
+        // Asked, said nothing and sent nobody, deadline still running. The
+        // quiet ones are the reason a requisition dies without anybody
+        // noticing.
+        silent: req.invitations.filter(i => i.status === 'SENT' && i.expiresAt >= now && putForward(i.toCompanyId) === 0).length,
         candidates: submissions.length,
         // Positions still to fill after anyone already placed.
         remaining: Math.max(0, req.headcount - submissions.filter(s => s.status === 'PLACED').length),

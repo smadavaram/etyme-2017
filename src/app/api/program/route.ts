@@ -14,6 +14,7 @@ import { logBulkAccess } from '@/lib/access-log'
 import { seatTrail } from '@/lib/program-seat'
 import { programMonthlySpend, basisSays } from '@/lib/program-spend'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
+import { oneLinePerAsk } from '@/app/api/requirements/[id]/matches/asked'
 
 /**
  * GET /api/program
@@ -435,7 +436,10 @@ export async function GET(request: NextRequest) {
     ...claimsToday.map((e) => ({ id: `e-${e.id}`, what: 'Expense approved', who: `${e.person.name}, $${Number(e.total).toFixed(2)}`, at: e.approvedAt!.toISOString() })),
     ...onSite.filter((c) => c.startDate >= dayStart).map((c) => ({ id: `s-${c.id}`, what: 'Started', who: `${c.person.name} through ${viaPhrase(shown(c.company.id, c.company.name))}`, at: c.startDate.toISOString() })),
     ...awardedToday.map((a) => ({ id: `a-${a.id}`, what: 'Awarded', who: `${a.person.name} — ${a.requirement.title}`, at: a.decidedAt!.toISOString() })),
-    ...asksToday.map((m) => { const md = (m.metadata ?? {}) as Record<string, string>; return { id: `k-${m.id}`, what: 'Asked for', who: `${md.personName ?? 'somebody'} through ${md.supplierName ?? 'a supplier'} — ${md.roleTitle ?? ''}`, at: m.createdAt.toISOString() } }),
+    // One line per ask: the same person asked of the same supplier for
+    // the same job is one ask, however many times the button was pressed
+    // (`oneLinePerAsk`), and it reads from the first time it was asked.
+    ...oneLinePerAsk(asksToday).map((m) => { const md = (m.metadata ?? {}) as Record<string, string>; return { id: `k-${m.id}`, what: 'Asked for', who: `${md.personName ?? 'somebody'} through ${md.supplierName ?? 'a supplier'} — ${md.roleTitle ?? ''}`, at: m.createdAt.toISOString() } }),
   ].sort((a, b) => b.at.localeCompare(a.at))
 
   // Weeks waiting for the client's signature, and the claims beside
@@ -495,6 +499,11 @@ export async function GET(request: NextRequest) {
   const spend = programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))
   const totalMonthlySpend = spend.totalMinor
 
+  // People, not rows: one person is one contractor however many lines
+  // they hold. Somebody on site with a later line signed is on site.
+  const onSitePeople = new Set(onSite.map((c) => c.personId))
+  const listedPeople = new Set(contracts.map((c) => c.personId))
+
   // Build approval queue items
   const approvalQueue = [
     ...pendingTimesheets.map(ts => ({
@@ -534,7 +543,14 @@ export async function GET(request: NextRequest) {
         name: clientCompany.name,
       },
       summary: {
-        activeContractors: new Set(onSite.map((c) => c.personId)).size,
+        activeContractors: onSitePeople.size,
+        // The Contractors tab lists everybody with a live line here —
+        // on site, and signed but not started. The headline said "4 on
+        // site" beside a tab reading 5 and neither said what it counted,
+        // so both are counted in people and the difference is named:
+        // on site plus not started is the tab.
+        contractors: listedPeople.size,
+        notStarted: listedPeople.size - onSitePeople.size,
         vendors: vendors.length,
         monthlySpend: totalMonthlySpend,
         // What the figure rests on, in a sentence, because 160 hours a

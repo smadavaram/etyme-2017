@@ -6,6 +6,9 @@ import { poolFor, actionFor } from '@/lib/match-pool'
 import { tellThread } from '@/lib/thread-notices'
 import type { Participant } from '@/lib/threads'
 import { matchViewer, NOT_HERE } from '../viewer'
+import { askState, askedAlreadySays } from '../asked'
+import { lastAsk } from '../asked-read'
+
 
 /**
  * POST /api/requirements/:id/matches/ask   { matchId, note? }
@@ -96,6 +99,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const now = new Date()
+
+  // Asked once, said once. The same person asked of this job inside the
+  // last three days is refused in a sentence rather than sent again
+  // (`../asked`); the match row says when it was asked instead of
+  // offering the button.
+  const last = await lastAsk(viewer.companyId, requirement.id, entry.personId)
+  const standing = askState(last, now)
+  if (last && standing && !standing.mayAskAgain) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'ASKED_ALREADY',
+          message: askedAlreadySays({ firm: action.toName, person: entry.name, at: last }),
+          askedAt: last.toISOString(),
+        },
+      },
+      { status: 409 }
+    )
+  }
+
   const me = { id: viewer.companyId, name: viewer.companyName }
   const firm = { id: action.toCompanyId, name: action.toName }
   const opener: Participant = { personId: caller.person.id, name: caller.person.name, companyId: me.id, joinedAt: now.toISOString() }
@@ -139,6 +162,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         asked: firm.name,
         threadId: thread.id,
         says: `${firm.name} has been asked to put ${entry.name} forward for ${requirement.title}. You will see the submission when it lands.`,
+        // What the row says from now on, in place of the button.
+        askedFor: askState(now, now),
       },
     },
     { status: 201 }

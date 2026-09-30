@@ -28,6 +28,10 @@ interface ProgramData {
   client: { id: string; name: string }
   summary: {
     activeContractors: number
+    /** Everybody the Contractors tab lists, in people: on site plus not started. */
+    contractors?: number
+    /** Signed and not started yet. */
+    notStarted?: number
     vendors: number
     monthlySpend: number // cents, at 160 hours a month
     /** What that figure rests on, in a sentence. From `lib/program-spend`. */
@@ -400,7 +404,9 @@ export default function ProgramPage() {
   const TABS: { key: Tab; label: string; count?: number }[] = [
     { key: 'overview', label: 'Today' },
     { key: 'approvals', label: 'Approvals', count: s.pendingApprovals || undefined },
-    { key: 'contractors', label: 'Contractors', count: data.contractors.length || undefined },
+    // People, the same count the headline adds up to: on site plus not
+    // started yet.
+    { key: 'contractors', label: 'Contractors', count: (s.contractors ?? data.contractors.length) || undefined },
     { key: 'vendors', label: 'Suppliers', count: s.vendors || undefined },
     // The program desk is always a client's book — the client's own, or a
     // program office in its seat — so the tab carries the client's word
@@ -418,7 +424,8 @@ export default function ProgramPage() {
             {decisions === null ? 'Reading your desk…' : said.says}
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">
-            {plural(s.activeContractors, 'contractor')} on site through {plural(s.vendors, 'supplier')}.
+            {plural(s.activeContractors, 'contractor')} on site through {plural(s.vendors, 'supplier')}
+            {(s.notStarted ?? 0) > 0 ? `, and ${s.notStarted} more signed who ${s.notStarted === 1 ? 'has' : 'have'} not started yet` : ''}.
             {' '}{compact(s.monthlySpend)} this month.
             {s.endingSoon > 0 && ` ${plural(s.endingSoon, 'contract')} ending within 60 days.`}
             {watch != null && watch > 0 && ` ${plural(watch, 'person', 'people')} at or near the time limit.`}
@@ -579,12 +586,12 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
       <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-6 max-w-2xl">
         <h2 className="font-serif text-xl text-etyme-ink">Nothing here yet.</h2>
         <p className="mt-2 text-sm text-etyme-muted leading-relaxed">
-          Post a requirement and, within plan, it publishes itself to the suppliers Procurement cleared.
+          Raise a job request and, within plan, it publishes itself to the suppliers Procurement cleared.
           Their submissions, the interviews, the award, the paperwork, the hours and the invoices all come
           back to this page — every contractor on site, across every supplier, with tenure added up.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Link href={{ pathname: '/dashboard/requisitions' }} className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">Post a requirement</Link>
+          <Link href={{ pathname: '/dashboard/requisitions' }} className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">Raise a job request</Link>
           <Link href={{ pathname: '/dashboard/suppliers' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">Invite your suppliers</Link>
           <Link href={{ pathname: '/dashboard/import' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">Import who is already on site</Link>
         </div>
@@ -650,7 +657,9 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
                         Approve anyway
                       </button>
                     )}
-                    <Link href={{ pathname: d.actionUrl || '/dashboard/decisions' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">
+                    {/* The row's own address, query and all — "Look" on a
+                        week opens that week (`?id=`), not the list. */}
+                    <Link href={(d.actionUrl || '/dashboard/decisions') as any} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">
                       {inline ? 'Look' : 'Open'}
                     </Link>
                   </div>
@@ -707,7 +716,9 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
         <Stat label="This month" value={compact(s.monthlySpend)} sub="from current rates" />
         <Stat label="Ending soon" value={s.endingSoon} sub="within 60 days" tone={s.endingSoon > 0 ? 'attention' : undefined} href="/dashboard/rolloff" />
         <Stat label="Tenure" value={watch ?? '—'} sub={watch == null ? 'reading' : watch === 0 ? 'everybody inside the cap' : 'at or near the cap'} tone={watch ? 'attention' : undefined} href="/dashboard/tenure" />
-        <Stat label="Requirements" value={s.openRoles} sub={firstGood?.hours == null ? 'published or drafted' : firstGood.hours < 1 ? 'first good candidate within the hour' : `first good candidate in ${firstGood.hours}h`} tone={s.openRoles > 0 ? 'action' : undefined} href="/dashboard/requisitions" />
+        {/* What is open, and nothing promised about how fast it fills —
+            a public or product sentence promises no speed (CLAUDE.md). */}
+        <Stat label={jobListWord('CLIENT').plural} value={s.openRoles} sub="published or drafted" tone={s.openRoles > 0 ? 'action' : undefined} href="/dashboard/requisitions" />
       </div>
 
       {/* The one figure here that is an estimate says so, under the row

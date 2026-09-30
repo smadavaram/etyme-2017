@@ -54,7 +54,8 @@ describe('what the client desk is told', () => {
   it('the dashboard counts the contracts the client pays — the top of every chain — and only people working now', () => {
     expect(program).toContain('const contracts = chainTop(everyRung)')
     expect(program).toContain("const onSite = contracts.filter((c) => c.state === 'IN_PROGRESS')")
-    expect(program).toContain('activeContractors: new Set(onSite.map((c) => c.personId)).size')
+    expect(program).toContain('const onSitePeople = new Set(onSite.map((c) => c.personId))')
+    expect(program).toContain('activeContractors: onSitePeople.size')
   })
 
   it('monthly spend is in cents like every other figure, so the page formats it once', () => {
@@ -89,9 +90,10 @@ describe('what the client desk is told', () => {
   })
 
   it('a week that does not fit its contract is flagged in a sentence before anybody signs it', () => {
-    expect(decisions).toContain("import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'")
+    expect(decisions).toContain("import { weekFlag, periodWord } from '@/lib/timesheet-flag'")
     expect(decisions).toContain('hoursPerWeek: sc.requirement?.hoursPerWeek ?? null')
-    expect(decisions).toMatch(/actionUrl: '\/dashboard\/timesheets',\s*amount,\s*flag,/)
+    // "Look" opens the week it names, not the list the week sits in.
+    expect(decisions).toMatch(/actionUrl: `\/dashboard\/timesheets\?id=\$\{ts\.id\}`,\s*amount,\s*flag,/)
   })
 
   it('the headline counts exceptions; a flagged week is approved anyway only with a reason, and the reason goes on the signature', () => {
@@ -239,7 +241,7 @@ describe('what the client desk is told', () => {
 
   it('a client with nothing on it yet is told what to do first, not shown six zeros', () => {
     expect(page).toContain('Nothing here yet.')
-    expect(page).toContain('Post a requirement')
+    expect(page).toContain('Raise a job request')
   })
 
   it("a demo client's book is mostly history — a few dozen open, not a hundred and forty", () => {

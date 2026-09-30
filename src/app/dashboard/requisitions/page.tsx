@@ -8,6 +8,7 @@ import { useSession } from '@/components/session-provider'
 import { jobListWord } from '../requirements/words'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { STAGES, stageOf, mayEdit, closedBecause, type Stage } from '@/lib/requisition-stage'
+import { missingForApproval, missingSays } from './facts'
 import {
   Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, alsoWaitingSays, clearedForSentence, deskOf,
   headlineRow, myRow, whoFor, whoWillBeAsked,
@@ -62,6 +63,8 @@ interface Requisition {
   interviewers?: string[]
   orgUnit: { id: string; name: string } | null
   costCenter: { id: string; code: string; name: string } | null
+  /** Who it waits on, in the route's one sentence. Null when nothing is pending. */
+  waitingOn?: string | null
   archivedAt: string | null
   cancelReason?: string | null
   approvals: Approval[]
@@ -100,7 +103,7 @@ function stageChip(r: Requisition) {
     // Put away, with why: "all 2 seats filled" is the reason, not a tab.
     case 'ARCHIVED':  return <Chip tone={r.status === 'FILLED' ? 'verified' : undefined}>{closedBecause(r)}</Chip>
     case 'CANCELLED': return <Chip tone="attention">Cancelled</Chip>
-    case 'AWAITING':  return <Chip tone="attention">Waiting on approval</Chip>
+    case 'AWAITING':  return <Chip tone="attention">Awaiting approval</Chip>
     case 'CHANGES':   return <Chip tone="attention">Needs changes</Chip>
     case 'OPEN':      return <Chip tone="action">Published</Chip>
     default:          return <Chip>Draft</Chip>
@@ -263,8 +266,15 @@ function RaiseModal({ onClose, onRaised, team, me }: {
   }, [])
 
   async function submit() {
-    if (form.title.trim().length < 3) {
-      setError('Give the job a title')
+    // What the desks check the job against, and what an approver reads —
+    // asked for here rather than discovered as a blank on the approver's
+    // screen (`../facts`).
+    const missing = missingSays(missingForApproval(
+      { ...form, hoursPerWeek: form.hoursPerWeek ?? '' },
+      { costCentersOffered: costCenters.length > 0 }
+    ))
+    if (missing) {
+      setError(missing)
       return
     }
     setBusy(true)
@@ -482,19 +492,19 @@ function RaiseModal({ onClose, onRaised, team, me }: {
           )}
 
           <label className="block">
-            <Lbl>Skills (comma separated)</Lbl>
+            <Lbl>Skills it needs (comma separated)</Lbl>
             <input value={form.skills} onChange={e => setForm({ ...form, skills: e.target.value })}
               placeholder="SAP MM, S/4HANA" className={`${field} mt-1`} />
           </label>
 
           <label className="block">
-            <Lbl>Where</Lbl>
+            <Lbl>Where — the city, and on site, hybrid or remote</Lbl>
             <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
-              placeholder="Lakewood, CO" className={`${field} mt-1`} />
+              placeholder="Lakewood, CO — on site three days a week" className={`${field} mt-1`} />
           </label>
 
           <label className="block">
-            <Lbl>The job, in your own words (optional)</Lbl>
+            <Lbl>What the work is, day to day</Lbl>
             <textarea value={form.description} rows={5}
               onChange={e => setForm({ ...form, description: e.target.value })}
               placeholder="What the team does, what this person will actually work on, and what somebody who has done it before would recognize."
@@ -502,7 +512,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
           </label>
 
           <label className="block">
-            <Lbl>Why you need it (optional)</Lbl>
+            <Lbl>Why it is needed — a new project, a backfill, or extra hands</Lbl>
             <textarea value={form.justification} rows={2}
               onChange={e => setForm({ ...form, justification: e.target.value })}
               placeholder="Backfill for the Q4 validation program" className={`${field} mt-1 resize-none`} />
@@ -758,7 +768,10 @@ export default function RequisitionsPage() {
             sub="no human needed" />
           <Stat label="Waiting on a person" value={summary.awaitingApproval}
             tone={summary.awaitingApproval > 0 ? 'attention' : 'default'} />
-          <Stat label="All job requests" value={summary.total} />
+          {/* The working list — what the All tab counts — with the settled
+              ones named beside it rather than folded into one number. */}
+          <Stat label="All job requests" value={working.length}
+            sub={archived.length > 0 ? `and ${archived.length} archived` : undefined} />
         </div>
       )}
 
@@ -869,7 +882,7 @@ export default function RequisitionsPage() {
 
                 <div className="mt-4 pt-4 border-t border-etyme-rule flex items-center justify-between gap-4">
                   <div className="text-xs text-etyme-muted">
-                    {r.counts.invitations} vendor{r.counts.invitations === 1 ? '' : 's'} invited
+                    {r.counts.invitations} supplier{r.counts.invitations === 1 ? '' : 's'} asked
                     {' · '}{r.counts.submissions} candidate{r.counts.submissions === 1 ? '' : 's'} submitted
                   </div>
                   {/* Change it, call it off, or put it away.
@@ -941,12 +954,11 @@ export default function RequisitionsPage() {
                   )}
                   {/* Waiting on somebody else. Said, rather than shown as
                       an empty space where three buttons are for others. */}
-                  {pending && !mine && (
-                    <div className="text-xs text-etyme-muted shrink-0">
-                      {pending.approver
-                        ? `Waiting on ${pending.approver.name}`
-                        : 'Waiting on a desk nobody is named for'}
-                    </div>
+                  {/* The route's own sentence (`waitingOn`), the same one the
+                      job request's page prints — never this list's own pick
+                      of a pending row. */}
+                  {r.waitingOn && !mine && (
+                    <div className="text-xs text-etyme-muted shrink-0">{r.waitingOn}</div>
                   )}
                 </div>
               </div>

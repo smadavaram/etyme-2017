@@ -7,6 +7,7 @@ import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { mayDistribute } from '@/lib/requisition-approval'
 import { hasPermission } from '@/lib/permissions'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
+import { reachedOnlyThrough } from '@/app/api/suppliers/direct'
 
 /**
  * POST /api/requisitions/:id/distribute
@@ -167,6 +168,29 @@ export async function POST(
   }
 
   const vendorIds = [...new Set(vendors.map(v => v.companyId))]
+
+  // Never a firm the raising company reaches only through a prime. That
+  // firm is the prime's sub-vendor, whose name is the prime's to keep; a
+  // job sent to it is the client going round the prime. The refusal names
+  // nobody, so it confirms nothing about a firm the caller should not
+  // know is there. A firm with no history here at all is new, not hidden,
+  // and stays the program office's call.
+  const belowAPrime = await reachedOnlyThrough(requisition.companyId)
+  const strangers = vendorIds.filter(v => belowAPrime.has(v))
+  if (strangers.length > 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOUR_SUPPLIER',
+          message:
+            `${strangers.length === 1 ? 'One of the firms you picked is' : `${strangers.length} of the firms you picked are`} ` +
+            `not a supplier of ${requisition.company.name}, so this job request cannot be sent to ${strangers.length === 1 ? 'it' : 'them'}. ` +
+            'Send it to the suppliers you buy from, or add the firm as a supplier of your own first.',
+        },
+      },
+      { status: 403 }
+    )
+  }
   const vendorCompanies = await prisma.company.findMany({
     where: { id: { in: vendorIds } },
     select: { id: true, name: true },

@@ -15,7 +15,7 @@ import { weekTurn } from './ladder'
 import { rungsToFile, openWeeks } from '@/lib/consultant-portfolio'
 import { maySign, type Sheet } from '@/lib/timesheet-signatures'
 import {
-  policyOf, splitWeeks, valueOf, weeksAwaitingDecision, saysAwaiting, treatmentSays,
+  lineFor, splitWeeks, valueOf, weeksAwaitingDecision, saysAwaiting, treatmentSays,
   type Decision, type Treatment,
 } from '@/lib/overtime'
 
@@ -87,6 +87,10 @@ export async function GET(request: NextRequest) {
   const where: any = { sellContract: scope }
   if (status) where.status = status.toUpperCase()
   if (sellContractId) where.sellContractId = sellContractId
+  // One week, by id — the dashboard's "Look" names the week it means,
+  // and a list cut at fifty rows may not hold it (`?id=`).
+  const onlyId = url.searchParams.get('id')
+  if (onlyId) where.id = onlyId
 
   // ── Flagged first, across the whole list ──────────────────────────
   //
@@ -138,6 +142,9 @@ export async function GET(request: NextRequest) {
             billCurrency: true,
             overtimeAfterHours: true,
             overtimeMultiplierBps: true,
+            // The role's hours: the line a silent contract's week is
+            // judged against while it waits to be signed (`lineFor`).
+            requirement: { select: { hoursPerWeek: true } },
             // The employer, by name. A week is SUBMITTED until both
             // sides have signed, and a row that says "waiting on the
             // other party" is not a sentence anybody can act on.
@@ -246,8 +253,16 @@ export async function GET(request: NextRequest) {
         const signable = turn
           ? { ok: turn.ok, reason: turn.ok ? 'Your turn.' : turn.says }
           : maySign(asParty, sheet, isClientSide, isEmployerSide)
+        // Who the row says it is waiting on. For a client, the firm it pays
+        // — the next rung down — and never the employer below it: in a
+        // chain the employer is the prime's sub-vendor, and a sub-vendor's
+        // name is the prime's to keep (CLAUDE.md, 2026-09-17). The row read
+        // "waiting on CloudEPA" to Northbend, whose agreement with Computer
+        // Systems discloses nobody.
         const otherParty = isClientSide
-          ? t.sellContract.company?.name ?? 'the supplier'
+          ? asClient
+            ? seen.payee?.name ?? 'your supplier'
+            : t.sellContract.company?.name ?? 'the supplier'
           : seen.clientCompany.name
         const mine = isClientSide ? sheet.clientApproved : isEmployerSide ? sheet.employerAccepted : null
         // A tick this side has already given is not offered again, and
@@ -301,7 +316,15 @@ export async function GET(request: NextRequest) {
           mayApproveWhyNot: approve.ok ? null : approve.reason,
           maySubmit: enter.ok,
           signature,
-          overtime: overtimeOf(t, seen),
+          // The days inside the week, so it can be opened and read before
+          // anybody signs a total. Hours are a fact the signer is owed.
+          days: (t.days as Record<string, number>) ?? {},
+          leaveDays: (t.leaveDays as Record<string, number>) ?? {},
+          hoursPerWeek: t.sellContract.requirement?.hoursPerWeek ?? null,
+          overtime: overtimeOf(t, seen, {
+            role: t.sellContract.requirement,
+            stillToSign: signature.waitingOnYou,
+          }),
         }
       }),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
@@ -379,6 +402,12 @@ interface Seen {
   multiplierBps: number | null
   clientCompany: { id: string; name: string }
   engagement: { id: string; title: string } | null
+  /**
+   * For a client: the firm it pays for this week — the top rung — and
+   * the only firm a client's row may name. Null for everybody else, and
+   * where two contracts cover the week and there is no one firm to name.
+   */
+  payee?: { id: string; name: string } | null
 }
 
 type Row = {
@@ -497,6 +526,8 @@ async function priceFor(
       overtimeAfterHours: true, overtimeMultiplierBps: true,
       clientCompany: { select: { id: true, name: true } },
       engagement: { select: { id: true, title: true } },
+      // The firm the client pays — the one name a client's row may carry.
+      company: { select: { id: true, name: true } },
     },
   })
 
@@ -520,6 +551,7 @@ async function priceFor(
         multiplierBps: null,
         clientCompany: r.sellContract.clientCompany,
         engagement: r.sellContract.engagement,
+        payee: null,
       })
       continue
     }
@@ -535,6 +567,7 @@ async function priceFor(
       multiplierBps: top.overtimeMultiplierBps,
       clientCompany: top.clientCompany,
       engagement: top.engagement,
+      payee: rungs.find((x) => x.id === top.id)?.company ?? null,
     })
   }
   return out
@@ -560,12 +593,18 @@ function overtimeOf(
     leaveDays: unknown
     overtimeDecisions: { weekOf: Date; treatment: string; appliedBps: number; overtimeHours: unknown }[]
   },
-  seen: Seen
+  seen: Seen,
+  ask: { role: { hoursPerWeek: number | null } | null; stillToSign: boolean }
 ) {
-  const policy = policyOf({
-    overtimeAfterHours: seen.afterHours,
-    overtimeMultiplierBps: seen.multiplierBps,
-  })
+  // The approval route's own line (`lineFor`): the contract's where it
+  // names one, the role's hours where it is silent and the week is still
+  // to be signed or was decided against that line. So the row says it
+  // holds a question before anybody presses approve and is asked it.
+  const policy = lineFor(
+    { overtimeAfterHours: seen.afterHours, overtimeMultiplierBps: seen.multiplierBps },
+    ask.role,
+    { stillToSign: ask.stillToSign, decided: t.overtimeDecisions.length > 0 }
+  )
   const decisions: Decision[] = t.overtimeDecisions.map((d) => ({
     weekOf: d.weekOf.toISOString().slice(0, 10),
     treatment: d.treatment as Treatment,

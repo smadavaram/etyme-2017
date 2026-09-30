@@ -4,11 +4,12 @@ import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
 import { range } from '@/lib/money-display'
-import { statusWord, stageWordFor, stageReason } from '../words'
+import { statusWord, stageWordFor, stageReason, sourceWord, jobListWord } from '../words'
+import { useSession } from '@/components/session-provider'
 import { mayEdit } from '@/lib/requisition-stage'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { MatchList, type MatchRow, type MatchViewerInfo } from './matches'
+import { JobMatches } from './matches'
 
 /**
  * Requirement detail — the core revenue workflow.
@@ -53,6 +54,8 @@ interface Requirement {
   marginClass: string | null
   rateVisible: boolean
   company: { id: string; name: string }
+  /** Where the work is, where this reader may know it. */
+  endClientCompany?: { id: string; name: string } | null
 }
 
 // ── Helpers ──────────────────────────────────────────
@@ -110,16 +113,18 @@ function formatRate(min: number | null, max: number | null): string {
 
 export default function RequirementDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const { company } = useSession()
+  // The word this reader's menu uses for the list — "Job requests" on a
+  // client's, the supplier's own word on a supplier's (`lib/page-framing`).
+  const listWord = jobListWord(company?.kind).plural
   const [requirement, setRequirement] = useState<Requirement | null>(null)
-  const [matches, setMatches] = useState<MatchRow[]>([])
-  const [matchViewer, setMatchViewer] = useState<MatchViewerInfo | null>(null)
-  const [matchBasis, setMatchBasis] = useState<string | null>(null)
+  // Whether this reader raised the job — the matches route answers it.
+  const [raiser, setRaiser] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showDistribute, setShowDistribute] = useState(false)
   const [distributeResult, setDistributeResult] = useState<string | null>(null)
-  const [matching, setMatching] = useState(false)
-  const [matchResult, setMatchResult] = useState<string | null>(null)
+  const [passing, setPassing] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -143,9 +148,7 @@ export default function RequirementDetailPage() {
 
       if (matchRes.ok) {
         const matchBody = await matchRes.json()
-        setMatches(matchBody.data?.matches ?? [])
-        setMatchViewer(matchBody.data?.viewer ?? null)
-        setMatchBasis(matchBody.data?.basis ?? null)
+        setRaiser(!!matchBody.data?.viewer?.raiser)
       }
     } catch (err: any) {
       setError(err.message)
@@ -158,27 +161,40 @@ export default function RequirementDetailPage() {
     fetchData()
   }, [fetchData])
 
-  const handleRunMatching = async (forceRefresh = false) => {
+  /**
+   * A job sent to this firm, sent on to its own suppliers.
+   *
+   * The prime was shown the release form on the client's job, filled it
+   * in, and was refused at the door — only the raising company releases
+   * a job. The chain's own way is the prime recording the job as its own,
+   * where the work is known, and releasing that to its suppliers; their
+   * people come back to the prime, who puts them forward on the client's
+   * job. The client's bill range is not copied: what the prime pays below
+   * it is the prime's own number, set per supplier when it sends the job.
+   */
+  const passOn = async () => {
     if (!requirement) return
-    setMatching(true)
-    setMatchResult(null)
-
+    setPassing(true)
+    setDistributeResult(null)
     try {
-      const res = await fetch(`/api/requirements/${requirement.id}/matches`, {
+      const res = await fetch('/api/requirements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: 20, forceRefresh }),
+        body: JSON.stringify({
+          title: requirement.title,
+          skills: requirement.skills,
+          location: requirement.location,
+          months: requirement.months,
+          startDate: requirement.startDate,
+          endClientCompanyId: requirement.endClientCompany?.id ?? requirement.company.id,
+        }),
       })
-
       const body = await readJson(res)
-
-      setMatchResult(body.data?.message ?? `${body.data?.matchCount ?? 0} matches found`)
-      // Refresh match data
-      fetchData()
+      const id = body.data?.requirement?.id
+      if (id) window.location.href = `/dashboard/requirements/${id}`
     } catch (err: any) {
-      setMatchResult(`Error: ${err.message}`)
-    } finally {
-      setMatching(false)
+      setDistributeResult(`Error: ${err.message}`)
+      setPassing(false)
     }
   }
 
@@ -199,7 +215,7 @@ export default function RequirementDetailPage() {
       <div className="animate-fade-in">
         <div className="mb-4">
           <Link href="/dashboard/requirements" className="text-[12px] text-etyme-action hover:underline">
-            ← Back to requirements
+            ← {listWord}
           </Link>
         </div>
         <div className="panel text-center py-16">
@@ -220,8 +236,10 @@ export default function RequirementDetailPage() {
     <div className="animate-fade-in">
       {/* Breadcrumb */}
       <div className="mb-6">
-        <Link href="/dashboard/requirements" className="text-[12px] text-etyme-action hover:underline">
-          ← Requirements
+        {/* Back to the list this reader's menu opens, in its word. A
+            client's menu opens its job requests at /dashboard/requisitions. */}
+        <Link href={(company?.kind === 'CLIENT' ? '/dashboard/requisitions' : '/dashboard/requirements') as any} className="text-[12px] text-etyme-action hover:underline">
+          ← {listWord}
         </Link>
       </div>
 
@@ -251,7 +269,7 @@ export default function RequirementDetailPage() {
               href={`/dashboard/requirements/${requirement.id}/pile` as any}
               className="btn-secondary text-[12px] px-4 py-1.5"
             >
-              The pile
+              Read what was submitted
             </Link>
             {/* A button the role will refuse is a button that lies. The
                 status column still says OPEN on a job the client put
@@ -261,31 +279,27 @@ export default function RequirementDetailPage() {
                 working on. */}
             {/* The raiser while the role is live; a supplier it was sent to
                 while it is open, matching its own pool against it. */}
-            {(((requirement.status === 'OPEN' || requirement.status === 'DRAFT') && mayEdit(requirement)) ||
-              (requirement.status === 'OPEN' && matchViewer != null && !matchViewer.raiser)) && (
-              <button
-                onClick={() => handleRunMatching(matches.length > 0)}
-                disabled={matching}
-                className="btn-secondary text-[12px] px-4 py-1.5 flex items-center gap-1.5"
-              >
-                {matching ? (
-                  <>
-                    <span className="inline-block w-3 h-3 border-2 border-etyme-action/30 border-t-etyme-action rounded-full animate-spin" />
-                    Matching…
-                  </>
-                ) : matches.length > 0 ? (
-                  '↻ Re-match'
-                ) : (
-                  'Run matching'
-                )}
-              </button>
-            )}
-            {requirement.status === 'OPEN' && mayEdit(requirement) && (
+            {/* Only the company that raised the job sends it out. A prime
+                reading a client's job was shown this form, filled it in and
+                was refused at the door; it works its own suppliers through
+                the bench they offer it instead. */}
+            {requirement.status === 'OPEN' && mayEdit(requirement) && raiser && (
               <button
                 onClick={() => setShowDistribute(true)}
                 className="btn-primary text-[12px] px-4 py-1.5"
               >
-                Distribute →
+                Send to suppliers
+              </button>
+            )}
+            {/* A firm the job was sent to passes it on through its own
+                record of it, never through the client's release form. */}
+            {requirement.status === 'OPEN' && !raiser && company?.kind !== 'CLIENT' && (
+              <button
+                onClick={passOn}
+                disabled={passing}
+                className="btn-primary text-[12px] px-4 py-1.5 disabled:opacity-50"
+              >
+                {passing ? 'Opening…' : 'Send to your own suppliers'}
               </button>
             )}
           </div>
@@ -316,68 +330,26 @@ export default function RequirementDetailPage() {
           {requirement.startDate && (
             <DetailField label="Start" value={new Date(requirement.startDate).toLocaleDateString()} />
           )}
-          <DetailField label="Source" value={requirement.source} />
+          <DetailField label="How it came in" value={sourceWord(requirement.source)} />
           {requirement.marginClass && (
             <DetailField label="Margin" value={requirement.marginClass === 'EXPERTISE' ? 'Expertise' : 'Arbitrage'} />
           )}
         </div>
       </div>
 
-      {/* Match results — the decision surface. Since 2026-09-30 the pool
-          is your own people first, then your suppliers', then the other
-          firms you work with, and on a client's own job request the
-          suggestions from firms that are not a supplier yet
-          (`lib/match-pool`). Placed above Distribute on purpose: the
-          question it answers is who is already available, before a job
-          goes anywhere new. */}
-      <div className="mb-4">
-        <h2 className="headline-serif text-[18px] text-etyme-ink mb-1">
-          Matches for this job
-        </h2>
-        <p className="text-[12px] text-etyme-muted max-w-[75ch]">
-          {matchViewer?.buyer
-            ? 'Available bench from your suppliers first, then from other firms you work with, then suggestions. Open a row to see why it fits.'
-            : 'Your own people first, then the bench your suppliers and partners offered you. Open a row to see why it fits.'}
-          {matchBasis ? ` ${matchBasis}` : ''}
-        </p>
-      </div>
-
-      {/* Match result banner */}
-      {matchResult && (
-        <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${
-          matchResult.startsWith('Error')
-            ? 'bg-etyme-danger/10 border border-etyme-danger/30 text-etyme-danger'
-            : 'bg-etyme-verified/10 border border-etyme-verified/30 text-etyme-verified'
-        }`}>
-          {matchResult}
-        </div>
-      )}
-
-      {matches.length === 0 || !matchViewer ? (
-        <div className="panel text-center py-12">
-          <p className="text-sm text-etyme-ink font-medium mb-1">No matches yet</p>
-          <p className="text-xs text-etyme-muted mb-4">
-            Check who is available before this goes to anyone new.
-          </p>
-          {(requirement.status === 'OPEN' || requirement.status === 'DRAFT') && (
-            <button
-              onClick={() => handleRunMatching(false)}
-              disabled={matching}
-              className="btn-primary text-[13px] px-6 py-2"
-            >
-              {matching ? 'Matching…' : 'Run matching'}
-            </button>
-          )}
-        </div>
-      ) : (
-        <MatchList
-          requirementId={requirement.id}
-          requirementSkills={requirement.skills}
-          matches={matches}
-          viewer={matchViewer}
-          onChanged={fetchData}
-        />
-      )}
+      {/* Match results — the decision surface. Your own people first,
+          then your suppliers', then the other firms you work with, and on a
+          client's own job request the suggestions from firms that are not
+          a supplier yet (`lib/match-pool`). The one section both job
+          request pages draw (`JobMatches`). */}
+      <JobMatches
+        requirementId={requirement.id}
+        requirementSkills={requirement.skills}
+        mayRun={
+          (((requirement.status === 'OPEN' || requirement.status === 'DRAFT') && mayEdit(requirement)) ||
+            (requirement.status === 'OPEN' && !raiser))
+        }
+      />
 
       {/* Distribute modal */}
       {showDistribute && requirement && (
@@ -448,15 +420,18 @@ function DistributeModal({
 
   // Fetch vendor companies
   useEffect(() => {
-    fetch('/api/companies')
-      .then((r) => (r.ok ? r.json() : { data: { companies: [] } }))
+    // This company's own suppliers, and nobody else — never the whole
+    // directory, which offered a client the sub-vendors its primes keep
+    // to themselves. The release door refuses anybody else too.
+    fetch('/api/suppliers')
+      .then((r) => (r.ok ? r.json() : { data: { suppliers: [] } }))
       .then((body) => {
-        const companies = body.data?.companies ?? []
-        // Show vendors and MSPs as distribution targets
-        const opts = companies.filter(
-          (c: any) => c.kind === 'VENDOR' || c.kind === 'MSP' || c.kind === 'GSI'
+        const suppliers = (body.data?.suppliers ?? []) as any[]
+        setVendors(
+          suppliers
+            .filter((s) => !s.blocked)
+            .map((s) => ({ id: s.companyId, name: s.name, kind: 'VENDOR' }))
         )
-        setVendors(opts)
       })
       .catch(() => {})
       .finally(() => setLoadingVendors(false))
@@ -477,7 +452,7 @@ function DistributeModal({
 
   const handleDistribute = async () => {
     if (selectedVendors.size === 0) {
-      setError('Select at least one vendor')
+      setError('Choose at least one supplier.')
       return
     }
     if (!expiresAt) {
@@ -516,15 +491,6 @@ function DistributeModal({
     }
   }
 
-  const kindChip = (kind: string) => {
-    switch (kind) {
-      case 'VENDOR': return 'chip--action'
-      case 'MSP': return 'chip--attention'
-      case 'GSI': return 'chip--verified'
-      default: return 'chip--passive'
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div
@@ -534,7 +500,7 @@ function DistributeModal({
         <div className="sticky top-0 bg-white border-b border-etyme-rule px-6 py-4 flex items-center justify-between z-10">
           <div>
             <p className="eyebrow">Sell</p>
-            <h2 className="text-[16px] font-semibold text-etyme-ink">Distribute requirement</h2>
+            <h2 className="text-[16px] font-semibold text-etyme-ink">Send this job to suppliers</h2>
           </div>
           <button onClick={onClose} className="text-etyme-faint hover:text-etyme-ink text-xl leading-none">×</button>
         </div>
@@ -542,7 +508,7 @@ function DistributeModal({
         <div className="px-6 py-4 space-y-5">
           {/* Requirement being distributed */}
           <div className="panel bg-etyme-canvas">
-            <p className="text-[11px] text-etyme-faint mb-0.5">Distributing</p>
+            <p className="text-[11px] text-etyme-faint mb-0.5">Sending</p>
             <p className="text-[13px] font-medium text-etyme-ink">{requirementTitle}</p>
           </div>
 
@@ -550,7 +516,7 @@ function DistributeModal({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-[12px] font-medium text-etyme-ink">
-                Select vendors <span className="text-etyme-attention">*</span>
+                Choose suppliers <span className="text-etyme-attention">*</span>
               </label>
               <button
                 onClick={selectAll}
@@ -560,9 +526,9 @@ function DistributeModal({
               </button>
             </div>
             {loadingVendors ? (
-              <p className="text-[12px] text-etyme-muted py-4 text-center">Loading vendors…</p>
+              <p className="text-[12px] text-etyme-muted py-4 text-center">Reading your suppliers…</p>
             ) : vendors.length === 0 ? (
-              <p className="text-[12px] text-etyme-muted py-4 text-center">No vendor companies found</p>
+              <p className="text-[12px] text-etyme-muted py-4 text-center">No suppliers on file yet. Add one from Suppliers first.</p>
             ) : (
               <div className="border border-etyme-rule rounded-lg max-h-48 overflow-y-auto">
                 {vendors.map((v) => (
@@ -579,7 +545,6 @@ function DistributeModal({
                       className="rounded border-etyme-rule"
                     />
                     <span className="text-[12px] text-etyme-ink flex-1">{v.name}</span>
-                    <span className={`chip text-[9px] ${kindChip(v.kind)}`}>{v.kind}</span>
                   </label>
                 ))}
               </div>
@@ -670,8 +635,8 @@ function DistributeModal({
             className="btn-primary text-[12px] disabled:opacity-50"
           >
             {distributing
-              ? 'Distributing…'
-              : `Distribute to ${selectedVendors.size} vendor${selectedVendors.size !== 1 ? 's' : ''}`}
+              ? 'Sending…'
+              : `Send to ${selectedVendors.size} supplier${selectedVendors.size !== 1 ? 's' : ''}`}
           </button>
         </div>
       </div>

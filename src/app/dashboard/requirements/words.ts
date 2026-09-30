@@ -157,3 +157,20 @@ export function jobListWord(
   const singular = plural.replace(/s$/, '').toLowerCase()
   return { plural, singular }
 }
+
+/**
+ * How a job request came in, in words — never the column's code.
+ *
+ * The page printed "SOURCE: MANUAL". "Source" is the name of the first
+ * stage of the process on every menu (decided 2026-09-30), so as a field
+ * label it read as a step, and MANUAL is the machine's word.
+ */
+export function sourceWord(source: string | null | undefined): string {
+  switch ((source ?? '').toUpperCase()) {
+    case 'MANUAL': return 'Typed in here'
+    case 'EMAIL': return 'From an email'
+    case 'VMS': return 'From the client’s own system'
+    case 'NETWORK': return 'Sent by a firm you work with'
+    default: return 'Came in another way'
+  }
+}

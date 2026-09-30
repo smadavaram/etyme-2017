@@ -66,6 +66,12 @@ export interface MatchRow {
   }
   action: MatchAction
   asked: { stage: string; at: string } | null
+  /**
+   * Where this client asked the supplier for this person already: when,
+   * and whether "Ask again" is offered yet (three days on). Null where it
+   * has not asked. From the route (`api/requirements/[id]/matches/asked`).
+   */
+  askedFor?: { at: string; mayAskAgain: boolean; againFrom: string | null; says: string } | null
   computedAt: string
 }
 
@@ -137,6 +143,9 @@ export function MatchList({
   const [busy, setBusy] = useState<string | null>(null)
   const [rates, setRates] = useState<Record<string, string>>({})
   const [adding, setAdding] = useState<MatchRow | null>(null)
+  // Asked in this sitting, before the list is read again — the button
+  // goes the moment the ask does.
+  const [askedNow, setAskedNow] = useState<Record<string, NonNullable<MatchRow['askedFor']>>>({})
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -195,6 +204,8 @@ export function MatchList({
       })
       const body = await readJson(res)
       setFlash({ id: m.id, text: body.data?.says ?? 'Asked.', bad: false })
+      if (body.data?.askedFor) setAskedNow((a) => ({ ...a, [m.id]: body.data.askedFor }))
+      onChanged()
     } catch (e: any) {
       setFlash({ id: m.id, text: e.message, bad: true })
     } finally {
@@ -289,16 +300,29 @@ export function MatchList({
                           </button>
                         </>
                       )}
-                      {m.action.kind === 'ASK' && (
-                        <button
-                          type="button"
-                          className="btn-primary text-[12px] px-3 py-1.5"
-                          disabled={busy === m.id}
-                          onClick={() => ask(m)}
-                        >
-                          {busy === m.id ? 'Asking…' : `Ask ${m.action.toName} to submit`}
-                        </button>
-                      )}
+                      {m.action.kind === 'ASK' && (() => {
+                        const asked = askedNow[m.id] ?? m.askedFor ?? null
+                        const label = m.action.kind === 'ASK' ? `Ask ${m.action.toName} to submit` : ''
+                        return (
+                          <>
+                            {asked && (
+                              <span className="chip chip--passive text-[10px]" title={asked.againFrom ? `You can ask again from ${new Date(asked.againFrom).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}` : undefined}>
+                                {asked.says}
+                              </span>
+                            )}
+                            {(!asked || asked.mayAskAgain) && (
+                              <button
+                                type="button"
+                                className={asked ? 'btn-secondary text-[12px] px-3 py-1.5' : 'btn-primary text-[12px] px-3 py-1.5'}
+                                disabled={busy === m.id}
+                                onClick={() => ask(m)}
+                              >
+                                {busy === m.id ? 'Asking…' : asked ? 'Ask again' : label}
+                              </button>
+                            )}
+                          </>
+                        )
+                      })()}
                       {m.action.kind === 'ASK_TO_ADD' && (
                         m.asked ? (
                           <span className="chip chip--passive text-[10px]">
@@ -561,5 +585,117 @@ export function AddFirmDialog({
         </div>
       </div>
     </div>
+  )
+}
+
+// ── The matches on a job request, as one section ──────────────────────
+
+/**
+ * Matches for this job, read and run from wherever the job request is.
+ *
+ * A client's Job requests menu opens `/dashboard/requisitions/[id]`, and
+ * until 2026-09-30 the matches lived only on `/dashboard/requirements/[id]`,
+ * which nothing on a client's menu linked to — a tester reached them by
+ * typing the address. One section, used by both pages, so a client
+ * reaches the matches from its own job request in one click and both
+ * pages cannot drift into two versions of the same list.
+ */
+export function JobMatches({
+  requirementId,
+  requirementSkills,
+  mayRun,
+}: {
+  requirementId: string
+  requirementSkills: string[]
+  /** Whether this reader may run matching here — the route says the same. */
+  mayRun: boolean
+}) {
+  const [matches, setMatches] = useState<MatchRow[]>([])
+  const [viewer, setViewer] = useState<MatchViewerInfo | null>(null)
+  const [basis, setBasis] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<{ text: string; bad: boolean } | null>(null)
+
+  const load = async () => {
+    try {
+      const res = await fetch(`/api/requirements/${requirementId}/matches`)
+      if (res.ok) {
+        const body = await res.json()
+        setMatches(body.data?.matches ?? [])
+        setViewer(body.data?.viewer ?? null)
+        setBasis(body.data?.basis ?? null)
+      }
+    } catch {
+      // The section says there are no matches; the job request still reads.
+    } finally {
+      setLoaded(true)
+    }
+  }
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requirementId])
+
+  const run = async () => {
+    setRunning(true)
+    setResult(null)
+    try {
+      const res = await fetch(`/api/requirements/${requirementId}/matches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 20, forceRefresh: matches.length > 0 }),
+      })
+      const body = await readJson(res)
+      setResult({ text: body.data?.message ?? `${body.data?.matchCount ?? 0} matches found`, bad: false })
+      await load()
+    } catch (e: any) {
+      setResult({ text: e.message, bad: true })
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <section className="mb-8" aria-labelledby="job-matches">
+      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-1">
+        <h2 id="job-matches" className="font-serif text-lg text-etyme-ink">Matches for this job</h2>
+        {mayRun && (
+          <button type="button" onClick={run} disabled={running} className="btn-secondary text-[12px] px-3 py-1.5">
+            {running ? 'Matching…' : matches.length > 0 ? 'Match again' : 'Find matches'}
+          </button>
+        )}
+      </div>
+      <p className="text-[12px] text-etyme-muted max-w-[75ch] mb-3">
+        {viewer?.buyer
+          ? 'Available people from your suppliers first, then from other firms you work with, then suggestions. Open a row to see why it fits.'
+          : 'Your own people first, then the people your suppliers and partners offered you. Open a row to see why it fits.'}
+        {basis ? ` ${basis}` : ''}
+      </p>
+      {result && (
+        <p className={`mb-3 text-[12px] ${result.bad ? 'text-etyme-danger' : 'text-etyme-verified'}`} role="status">
+          {result.text}
+        </p>
+      )}
+      {!loaded ? (
+        <p className="text-[12px] text-etyme-muted">Reading the matches…</p>
+      ) : matches.length === 0 || !viewer ? (
+        <div className="panel text-center py-8">
+          <p className="text-sm text-etyme-ink font-medium mb-1">No matches yet</p>
+          <p className="text-xs text-etyme-muted">
+            {mayRun ? 'Check who is available before this goes to anyone new.' : 'Nobody has run matching on this job yet.'}
+          </p>
+        </div>
+      ) : (
+        <MatchList
+          requirementId={requirementId}
+          requirementSkills={requirementSkills}
+          matches={matches}
+          viewer={viewer}
+          onChanged={load}
+        />
+      )}
+    </section>
   )
 }

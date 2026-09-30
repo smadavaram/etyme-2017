@@ -7,7 +7,7 @@ import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { ledgerFor, type AcceptedExpense, type AcceptedWork, type ContractFact } from '@/lib/budget-ledger'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
-import { policyOf, splitWeeks } from '@/lib/overtime'
+import { lineFor, splitWeeks } from '@/lib/overtime'
 
 /**
  * GET   /api/program/budget   — every cost center, what it has committed and spent
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
             id: true, sellContractId: true, totalHours: true, acceptedHours: true,
             days: true, leaveDays: true,
             invoiceLines: { select: { invoice: { select: { status: true } } } },
-            sellContract: { select: { overtimeAfterHours: true, overtimeMultiplierBps: true } },
+            sellContract: { select: { overtimeAfterHours: true, overtimeMultiplierBps: true, requirement: { select: { hoursPerWeek: true } } } },
             // What somebody decided about each overtime week on this
             // leg. Without it the multiplier on the contract would be
             // charged to a cost center that never agreed to it, which
@@ -140,7 +140,10 @@ export async function GET(request: NextRequest) {
   })
 
   const work: AcceptedWork[] = sheets.flatMap((t) => {
-    const policy = policyOf(t.sellContract)
+    // Every sheet here is signed. A silent contract's week is read
+    // against the role's hours only where somebody decided it against
+    // them at signing (`lineFor`); otherwise it stays straight time.
+    const policy = lineFor(t.sellContract, t.sellContract.requirement, { stillToSign: false, decided: t.overtimeDecisions.length > 0 })
     // The overtime split is a weekly judgment on the daily hours, and
     // it is made in one place for the invoice and for this. Leave drawn
     // from the bank is paid but not worked, so it never counts toward

@@ -51,3 +51,33 @@ export function approvalsToGo(remaining: number): string {
   if (n === 1) return 'One more approval to go.'
   return `${upperFirst(countInWords(n))} more approvals to go.`
 }
+
+/**
+ * Who a job request is waiting on — one sentence, from one place.
+ *
+ * The list card and the job request's own page each took "the first
+ * pending row" of a list they had ordered differently, so one job
+ * request said "Waiting on Dana Whitfield" on its card and "Waiting on
+ * Camille Whitford" on its page (2026-09-30). Both were waiting: the
+ * two sign alongside at one rank. The rule is the approval engine's —
+ * the lowest undecided rank is the one in play — and every desk at it
+ * is named, in rank order and then by name, so the card and the page
+ * print the same words because the route computed them once.
+ *
+ * Null where nothing is pending.
+ */
+export function waitingOnSays(
+  approvals: { rank: number; outcome: string; approver: { name: string } | null }[]
+): string | null {
+  const pending = approvals.filter((a) => String(a.outcome).toUpperCase() === 'PENDING')
+  if (pending.length === 0) return null
+  const lowest = Math.min(...pending.map((a) => a.rank))
+  const atLowest = pending.filter((a) => a.rank === lowest)
+  const named = [...new Set(atLowest.map((a) => a.approver?.name).filter((n): n is string => !!n))].sort((a, b) =>
+    a.localeCompare(b)
+  )
+  const unnamed = atLowest.some((a) => !a.approver)
+  const who = [...named, ...(unnamed ? ['a desk nobody is named for'] : [])]
+  const list = who.length <= 1 ? who[0] : `${who.slice(0, -1).join(', ')} and ${who[who.length - 1]}`
+  return `Waiting on ${list}`
+}

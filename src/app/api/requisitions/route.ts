@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { waitingOnSays } from './words'
+import { stageOf } from '@/lib/requisition-stage'
 import { isConsultantSeat } from '@/lib/seat'
 import { emit } from '@/lib/events'
 import { ownPriceMedian } from '@/lib/chain-top'
@@ -231,6 +233,9 @@ export async function GET(request: NextRequest) {
         interviewers: r.interviewers,
         orgUnit: r.orgUnit,
         costCenter: r.costCenter,
+        // Who it waits on, said once here so the card and the job
+        // request's own page cannot name two different people.
+        waitingOn: waitingOnSays(r.approvals),
         approvals: r.approvals.map(a => ({
           stage: a.stage,
           id: a.id,
@@ -247,7 +252,12 @@ export async function GET(request: NextRequest) {
         createdAt: r.createdAt.toISOString(),
       })),
       summary: {
-        total: requisitions.length,
+        // The rows on the working list — the same set the All tab counts
+        // (`stageOf`). "All job requests 9" sat beside "All 2" because
+        // this counted filled, closed and turned-down rows the tab puts
+        // under Archived. The settled ones are counted apart and named.
+        total: requisitions.filter(r => stageOf(r) !== 'ARCHIVED').length,
+        settled: requisitions.filter(r => stageOf(r) === 'ARCHIVED').length,
         awaitingApproval: requisitions.filter(r => r.approvalState === 'PENDING_APPROVAL').length,
         autoCleared: requisitions.filter(r => r.approvalState === 'AUTO_APPROVED').length,
         open: requisitions.filter(r => r.status === 'OPEN').length,

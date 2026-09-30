@@ -7,6 +7,8 @@ import { poolFor, ranked, shownTo, actionFor, REACH_WORD, type Factor } from '@/
 import { mayRecommend } from '@/lib/supplier-onboarding'
 import { hasPermission } from '@/lib/permissions'
 import { matchViewer, NOT_HERE } from './viewer'
+import { askState } from './asked'
+import { lastAsks } from './asked-read'
 
 /**
  * GET /api/requirements/:id/matches
@@ -74,6 +76,10 @@ export async function GET(
       orderBy: { startDate: 'desc' },
     }),
   ])
+  // When this client last asked for each person, so a row it already
+  // asked for says so instead of offering the button again (`./asked`).
+  const asks = viewer.buyer ? await lastAsks(viewer.companyId, requirementId) : new Map<string, Date>()
+  const now = new Date()
   const underIds = [...new Set(under.map((u) => u.underCompanyId!))]
   const underNames = new Map(
     (underIds.length === 0 ? [] : await prisma.company.findMany({ where: { id: { in: underIds } }, select: { id: true, name: true } }))
@@ -131,6 +137,12 @@ export async function GET(
         )
         const suggestion = entry.reach === 'SUGGESTION'
         const pending = suggestion ? askedOf.get(entry.firmId) : undefined
+        const action = actionFor({
+          entry,
+          viewer: { companyId: viewer.companyId, buyer: viewer.buyer },
+          lastBillRate: lastBill.get(entry.personId) ?? null,
+          under: underOf.get(entry.firmId) ?? null,
+        })
         return {
           id: m.id,
           score: m.score,
@@ -156,12 +168,9 @@ export async function GET(
             workAuth: shown.workAuth,
             availability: shown.availability,
           },
-          action: actionFor({
-            entry,
-            viewer: { companyId: viewer.companyId, buyer: viewer.buyer },
-            lastBillRate: lastBill.get(entry.personId) ?? null,
-            under: underOf.get(entry.firmId) ?? null,
-          }),
+          action,
+          // Asked already: when, and whether "Ask again" is offered yet.
+          askedFor: action.kind === 'ASK' ? askState(asks.get(entry.personId) ?? null, now) : null,
           asked: pending
             ? { stage: pending.stage, at: pending.createdAt.toISOString() }
             : null,

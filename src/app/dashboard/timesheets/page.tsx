@@ -7,6 +7,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { DecideOvertime, type PendingWeek } from './decide-overtime'
+import { listTotals } from './totals'
 
 /**
  * Timesheets working surface — the Operate section.
@@ -82,6 +83,12 @@ interface Timesheet {
     says: string | null
   }
   overtime?: OvertimeState | null
+  /** The days inside the week — ISO date → hours — so it can be read before it is signed. */
+  days?: Record<string, number>
+  /** Of those, paid time off drawn from the bank. */
+  leaveDays?: Record<string, number>
+  /** The hours a week the role runs, where the job request says. */
+  hoursPerWeek?: number | null
 }
 
 /**
@@ -489,7 +496,16 @@ export default function TimesheetsPage() {
   const [rejectTarget, setRejectTarget] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   // The week that went over the line, and the sentence that asks about it.
-  const [deciding, setDeciding] = useState<{ row: Timesheet; weeks: PendingWeek[]; lead: string } | null>(null)
+  const [deciding, setDeciding] = useState<{ row: Timesheet; weeks: PendingWeek[]; lead: string; note?: string | null } | null>(null)
+  // A flagged week is signed with a reason or not at all — the rule the
+  // approval route holds for every door. The tick on a flagged row opens
+  // this rather than signing (`FLAG_NEEDS_REASON`).
+  const [reasonFor, setReasonFor] = useState<{ row: Timesheet; says: string } | null>(null)
+  const [reason, setReason] = useState('')
+  // The week opened to read its days.
+  const [opened, setOpened] = useState<Timesheet | null>(null)
+  // How many weeks matched in all, so a tile can say when the list is cut.
+  const [onServer, setOnServer] = useState(0)
 
   /**
    * One week, because somebody was sent here about one week.
@@ -528,6 +544,9 @@ export default function TimesheetsPage() {
     try {
       const params = new URLSearchParams({ limit: '50' })
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      // A link that names one week asks the server for that week, so it
+      // is there however far down the list it would have fallen.
+      if (onlyId) params.set('id', onlyId)
 
       const res = await fetch(`/api/timesheets?${params}`)
       if (!res.ok) {
@@ -537,6 +556,7 @@ export default function TimesheetsPage() {
 
       const body = await res.json()
       setTimesheets(body.data?.timesheets ?? [])
+      setOnServer(body.data?.pagination?.total ?? (body.data?.timesheets ?? []).length)
       setFiling(body.data?.filing ?? null)
       setAtDesk(body.data?.desk?.seated ? body.data.desk : null)
     } catch (err: any) {
@@ -545,20 +565,39 @@ export default function TimesheetsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter])
+  }, [statusFilter, onlyId])
 
   useEffect(() => {
     fetchTimesheets()
   }, [fetchTimesheets])
 
+  // Sent here about one week — the dashboard's "Look" — so that week is
+  // opened, days and all, rather than left for the reader to find.
+  useEffect(() => {
+    if (!onlyId) return
+    const row = timesheets.find((t) => t.id === onlyId)
+    if (row) setOpened(row)
+  }, [onlyId, timesheets])
+
   // ── Stats ──────────────────────────────────────────
-  const totalHours = timesheets.reduce((sum, t) => sum + t.totalHours, 0)
+  // Every tile says what it adds up: how many weeks, since when, and
+  // whether the list is cut (`./totals`).
+  const totals = listTotals(
+    timesheets.map((t) => ({
+      periodStart: t.periodStart,
+      totalHours: t.totalHours,
+      status: t.status,
+      flag: t.flag,
+      waitingOnYou: t.signature ? t.signature.waitingOnYou : t.status === 'SUBMITTED' && t.mayApprove,
+      valueCents: centsOf(t),
+    })),
+    { onServer, payBasis: (timesheets.find((t) => t.rate)?.rate.label ?? '') === 'Your rate' }
+  )
   // Waiting on this reader — not "submitted", which counts the weeks
   // they have already signed and are waiting on the other firm for.
   const pendingApproval = timesheets.filter((t) =>
     t.signature ? t.signature.waitingOnYou : t.status === 'SUBMITTED'
   ).length
-  const anomalies = timesheets.filter((t) => t.anomalyScore != null && t.anomalyScore > 0).length
   // What has been approved, valued at the rate this reader is billed —
   // which in a chain is the client's own contract and not its
   // supplier's. Rows nobody can price are left out of the number and
@@ -572,10 +611,6 @@ export default function TimesheetsPage() {
   // opens this page; it does not get an Approve button on it.
   const canSignAny = timesheets.some((t) => t.mayApprove)
 
-  const approvedRows = timesheets.filter((t) => t.status === 'APPROVED')
-  const valued = approvedRows.filter((t) => centsOf(t) != null)
-  const approvedValue = valued.reduce((sum, t) => sum + centsOf(t)! / 100, 0)
-  const unpriced = approvedRows.length - valued.length
   // Hours over the weekly limit that nobody has answered for yet. Not a
   // failure and not an anomaly — a question waiting on a person.
   const toDecide = timesheets.filter((t) => (t.overtime?.weeks?.length ?? 0) > 0).length
@@ -586,12 +621,20 @@ export default function TimesheetsPage() {
       const ts = timesheets.find(t => t.id === id)
       // Only what this seat may actually sign. Sending the rest would
       // collect a row of refusals the screen already knew about.
-      return ts?.status === 'SUBMITTED' && ts.mayApprove
+      return ts?.status === 'SUBMITTED' && ts.mayApprove && !ts.flag
     })
+    // A flagged week needs its own reason, so a bulk press never signs
+    // one; it says how many it left and why.
+    const flaggedLeft = Array.from(selectedIds).filter((id) => {
+      const ts = timesheets.find((t) => t.id === id)
+      return ts?.status === 'SUBMITTED' && ts.mayApprove && !!ts.flag
+    }).length
 
     if (submittedIds.length === 0) {
       setToast({
-        message: canSignAny
+        message: flaggedLeft > 0
+          ? `${flaggedLeft === 1 ? 'That week is' : 'Those weeks are'} flagged. Sign ${flaggedLeft === 1 ? 'it' : 'each one'} on its own row, with the reason it is right.`
+          : canSignAny
           ? 'No submitted timesheets selected — only submitted timesheets can be approved.'
           : 'These are not yours to approve. Whoever is billed for the work signs it.',
         type: 'error',
@@ -631,6 +674,9 @@ export default function TimesheetsPage() {
           'somebody to say what happens to the overtime — open the row to decide'
       )
     }
+    if (flaggedLeft > 0) {
+      parts.push(`${flaggedLeft} flagged ${flaggedLeft === 1 ? 'week was' : 'weeks were'} left for you to sign one at a time, with a reason`)
+    }
     if (failed > 0) parts.push(`${failed} could not be approved`)
     setToast({ message: `${parts.join('. ')}.`, type: failed > 0 ? 'error' : 'success' })
     setTimeout(() => setToast(null), 4000)
@@ -659,12 +705,33 @@ export default function TimesheetsPage() {
     }
   }
 
-  async function handleApproveTimesheet(id: string) {
+  async function handleApproveTimesheet(id: string, note?: string) {
+    const flagged = timesheets.find((t) => t.id === id)
+    // A flagged week asks for the reason first — before anything is sent.
+    if (flagged?.flag && !note) {
+      setReasonFor({ row: flagged, says: flagged.flag })
+      setReason('')
+      return
+    }
     setActing(id)
     try {
-      const res = await fetch(`/api/timesheets/${id}/approve`, { method: 'POST' })
+      const res = await fetch(`/api/timesheets/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(note ? { note } : {}),
+      })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
+        // The server holds the rule; where it knew of a flag this screen
+        // did not, it asks for the reason the same way.
+        if (body.error?.code === 'FLAG_NEEDS_REASON') {
+          const row = timesheets.find((t) => t.id === id)
+          if (row) {
+            setReasonFor({ row, says: body.error.flag ?? body.error.message })
+            setReason('')
+            return
+          }
+        }
         // A week over the threshold is not an error — it is a question
         // nobody has been asked yet. So the refusal opens the question
         // rather than showing a red message and stopping.
@@ -675,6 +742,9 @@ export default function TimesheetsPage() {
               row,
               weeks: (body.error.weeks ?? []) as PendingWeek[],
               lead: body.error.message as string,
+              // The reason already given rides with the signature once
+              // the overtime is answered.
+              note: note ?? null,
             })
             return
           }
@@ -937,9 +1007,9 @@ export default function TimesheetsPage() {
       {/* Stats row — prototype Stat component pattern */}
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Total hours</p>
-          <p className="stat-value text-etyme-ink">{totalHours.toFixed(0)}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">this period</p>
+          <p className="stat-label">Hours listed</p>
+          <p className="stat-value text-etyme-ink">{totals.hours.toFixed(0)}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">{totals.hoursSays}</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Pending approval</p>
@@ -949,11 +1019,11 @@ export default function TimesheetsPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">{pendingApproval > 0 ? 'need review' : 'all clear'}</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Anomalies</p>
-          <p className={`stat-value ${anomalies > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {anomalies}
+          <p className="stat-label">Flagged</p>
+          <p className={`stat-value ${totals.flagged > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+            {totals.flagged}
           </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{anomalies > 0 ? 'flagged by system' : 'none detected'}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">{totals.flaggedSays}</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Overtime to decide</p>
@@ -967,13 +1037,9 @@ export default function TimesheetsPage() {
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Approved value</p>
           <p className="stat-value text-etyme-verified">
-            ${approvedValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+            ${(totals.approvedValueCents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}
           </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">
-            {unpriced > 0
-              ? `${unpriced} more with no rate on file`
-              : rateLabel === 'Your rate' ? 'your pay' : 'billable'}
-          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">{totals.approvedSays}</p>
         </div>
       </div>
 
@@ -1070,6 +1136,8 @@ export default function TimesheetsPage() {
             </button>
           </>
         )}
+        // A week opens to its days, so nobody signs a total they cannot read.
+        onRowClick={(row) => setOpened(row)}
         rowClassName={(row) =>
           row.flag
             ? 'bg-amber-50/30'
@@ -1106,6 +1174,7 @@ export default function TimesheetsPage() {
           personName={deciding.row.person.name}
           weeks={deciding.weeks}
           lead={deciding.lead}
+          note={deciding.note ?? null}
           terms={{
             afterHours: deciding.row.overtime?.afterHours,
             multiplierBps: deciding.row.overtime?.multiplierBps,
@@ -1119,6 +1188,69 @@ export default function TimesheetsPage() {
             fetchTimesheets()
           }}
         />
+      )}
+
+      {/* One week, opened: its days, then the same actions as its row */}
+      {opened && (
+        <WeekPanel
+          row={opened}
+          onClose={() => setOpened(null)}
+          onSign={() => { const r = opened; setOpened(null); handleApproveTimesheet(r.id) }}
+        />
+      )}
+
+      {/* A flagged week: the reason first, then the signature */}
+      {reasonFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => setReasonFor(null)}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="flag-reason-title"
+            className="card w-full max-w-md mx-4 animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => {
+              e.preventDefault()
+              const r = reasonFor.row
+              if (!reason.trim()) return
+              setReasonFor(null)
+              handleApproveTimesheet(r.id, reason.trim())
+            }}
+          >
+            <h3 id="flag-reason-title" className="text-base font-semibold mb-1">
+              Sign {reasonFor.row.person.name}&rsquo;s week anyway?
+            </h3>
+            <p className="text-sm text-etyme-attention mb-3">{reasonFor.says}</p>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1" htmlFor="flag-reason">
+              Why this week is right — it goes on your signature
+            </label>
+            <textarea
+              id="flag-reason"
+              autoFocus
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg mb-4
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                         resize-none"
+            />
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setReasonFor(null)} className="btn-secondary">
+                Not now
+              </button>
+              <button
+                type="submit"
+                disabled={!reason.trim() || acting === reasonFor.row.id}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-attention text-white
+                           hover:opacity-90 transition-colors disabled:opacity-50"
+              >
+                Sign with this reason
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* Reject reason modal */}
@@ -1169,5 +1301,93 @@ export default function TimesheetsPage() {
         </div>
       )}
     </>
+  )
+}
+
+// ── One week, opened ─────────────────────────────────
+
+/**
+ * The days inside a week, read before it is signed.
+ *
+ * A manager was asked to approve 44 hours with only the total in front of
+ * him; the row did not open and "Look" on the dashboard led back to the
+ * list. The days are the fact under the total, so they are what opens.
+ */
+function WeekPanel({ row, onClose, onSign }: { row: Timesheet; onClose: () => void; onSign: () => void }) {
+  const days = Object.entries(row.days ?? {})
+    .filter(([, h]) => Number(h) > 0)
+    .sort(([a], [b]) => a.localeCompare(b))
+  const leave = row.leaveDays ?? {}
+  const mayStillSign = row.status === 'SUBMITTED' && row.mayApprove
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="week-title"
+        className="card w-full max-w-md mx-4 animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <p className="eyebrow">{row.sellContract.engagement?.title ?? 'Week'}</p>
+            <h3 id="week-title" className="text-base font-semibold">
+              {row.person.name} — {formatPeriod(row.periodStart, row.periodEnd)}
+            </h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="text-etyme-faint hover:text-etyme-ink text-xl leading-none">×</button>
+        </div>
+
+        {row.flag && <p className="text-sm text-etyme-attention mb-3">{row.flag}</p>}
+
+        {days.length === 0 ? (
+          <p className="text-sm text-etyme-muted">No days are recorded on this week, only its total of {row.totalHours} hours.</p>
+        ) : (
+          <table className="w-full text-sm tabular-nums">
+            <tbody>
+              {days.map(([date, hours]) => {
+                const head = dayHead(date)
+                const off = Number(leave[date] ?? 0)
+                return (
+                  <tr key={date} className="border-b border-etyme-rule last:border-b-0">
+                    <td className="py-1.5 text-etyme-muted w-12">{head.dow}</td>
+                    <td className="py-1.5 text-etyme-ink">{head.date}</td>
+                    <td className="py-1.5 text-right text-etyme-ink">{Number(hours).toFixed(1)}h</td>
+                    <td className="py-1.5 pl-3 text-right text-[11px] text-etyme-faint w-28">
+                      {off > 0 ? `${off}h time off` : ''}
+                    </td>
+                  </tr>
+                )
+              })}
+              <tr>
+                <td className="pt-2 font-medium text-etyme-ink" colSpan={2}>Total</td>
+                <td className="pt-2 text-right font-medium text-etyme-ink">{row.totalHours.toFixed(1)}h</td>
+                <td className="pt-2 pl-3 text-right text-[11px] text-etyme-faint">
+                  {row.hoursPerWeek ? `job runs ${row.hoursPerWeek}h a week` : ''}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+
+        {(row.overtime?.pendingHours ?? 0) > 0 && (
+          <p className="mt-3 text-[12px] text-etyme-attention">{row.overtime?.says}</p>
+        )}
+        {row.signature?.says && <p className="mt-3 text-[12px] text-etyme-muted">{row.signature.says}</p>}
+
+        <div className="flex justify-end gap-3 mt-5">
+          <button type="button" onClick={onClose} className="btn-secondary">Close</button>
+          {mayStillSign && (
+            <button
+              type="button"
+              onClick={onSign}
+              className={`px-4 py-2 text-sm font-medium rounded-lg text-white hover:opacity-90 ${row.flag ? 'bg-etyme-attention' : 'bg-etyme-verified'}`}
+            >
+              {row.flag ? 'Sign anyway…' : 'Sign this week'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
