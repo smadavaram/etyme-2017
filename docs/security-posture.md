@@ -406,20 +406,20 @@ Named on the common autonomy ladder, because that is the vocabulary every
 enterprise buyer is currently asking in, and recorded per action in
 `src/lib/autonomy.ts`.
 
-Recomputed from the module on 2026-09-21:
+Recomputed from the module on 2026-09-30:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **161** |
+| Actions named in the automation log | **162** |
 | Unprompted — the system did it and nobody asked | **24** |
 | Enforcement — the system decided what a person was allowed to do | **8** |
-| Attributed — a person did it and the row is the record | **129** |
+| Attributed — a person did it and the row is the record | **130** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung
 would inflate every claim.
 
-Of the twenty-three unprompted actions, **twenty-two are plain rules** — a date
+Of the twenty-four unprompted actions, **twenty-three are plain rules** — a date
 comparison, a threshold, a count. `cron/end-contracts` is fully
 autonomous and is also `endDate < today`; both are true and the product
 says both. The odd one out is proactive matching, whose basis is read from

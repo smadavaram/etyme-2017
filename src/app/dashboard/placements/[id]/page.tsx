@@ -156,6 +156,11 @@ interface Placement {
     invoices: Array<{ id: string; number: string; status: string; hours: number; weeks: number; amount: number | null; total: number; paid: number; dueAt: string }>
     billed: number | null; collected: number | null
     revenue: number | null; cost: number | null; margin: number | null
+    // Why the margin reads as it does: blank and why, or over which weeks.
+    marginSays: string | null
+    // Where the pay rate changed inside the hours priced, in a sentence.
+    payRateChangeSays: string | null
+    hoursBilled: number; hoursPaid: number
     // Why there is nothing here, where there is nothing here.
     says: string | null
   }
@@ -881,7 +886,7 @@ export default function PlacementPage() {
           !p.viewer.isSupplier
             ? 'What this placement has been invoiced at, and what has been settled.'
             : p.money.margin == null
-              ? 'Margin stays blank until somebody sets a cost. A number here that nobody agreed would look like good news.'
+              ? (p.money.marginSays ?? 'Margin stays blank until somebody sets a cost. A number here that nobody agreed would look like good news.')
               : 'What this placement brought in, what it cost, and what is left.'
         }
       >
@@ -899,6 +904,12 @@ export default function PlacementPage() {
           {p.viewer.isSupplier && <Fact label="Margin" value={cash(p.money.margin)} />}
           <Fact label={p.viewer.isSupplier ? 'Collected' : 'Paid'} value={cash(p.money.collected)} />
         </div>
+        {p.viewer.isSupplier && p.money.margin != null && p.money.marginSays && (
+          <p className="mb-3 text-[13px] text-etyme-muted">{p.money.marginSays}</p>
+        )}
+        {p.viewer.isSupplier && p.money.payRateChangeSays && (
+          <p className="mb-3 text-[13px] text-etyme-muted">{p.money.payRateChangeSays}</p>
+        )}
 
         {p.money.says ? (
           <p className="text-[13px] text-etyme-muted">{p.money.says}</p>

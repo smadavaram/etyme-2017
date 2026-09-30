@@ -930,7 +930,7 @@ describe('a menu offers only what this seat can actually open', () => {
     const labels = itemsOf(getNavForKind('GSI', false, {
       worker: true, permissions: ['assignments.read', 'timesheets.read'],
     })).map((i) => i.label)
-    for (const refused of ['AR', 'AP', 'DNR list', 'Automation', 'Integrations', 'Import', 'Setup', 'Settings', 'Users & permissions']) {
+    for (const refused of ['AR', 'AP', 'DNR list', 'Automation', 'Integrations', 'Import', 'Setup', 'Settings', 'Users & permissions', 'Suppliers', 'Check queue', 'Compliance']) {
       expect(labels, `${refused} would answer him with a refusal`).not.toContain(refused)
     }
     expect(labels).toContain('Timesheets')

@@ -135,11 +135,9 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/my-page': ABOUT_THEM,
   '/dashboard/my-benches': ABOUT_THEM,
   '/dashboard/my-data': ABOUT_THEM,
-  // Every pay rate on every buy line goes to any seat at the firm.
-  '/dashboard/contracts?side=buy': OWES_A_GATE('etyme-money'),
-  '/dashboard/suppliers': OWES_A_GATE('etyme-demand'),
-  '/dashboard/checks': OWES_A_GATE('etyme-demand'),
-  '/dashboard/compliance': OWES_A_GATE('etyme-regulatory'),
+  // Every seat reads the lines; what each person is paid is withheld
+  // from a seat without consultants.cost (lib/money/pay-visibility).
+  '/dashboard/contracts?side=buy': SCOPED,
 }
 
 /** Why this link needs no permission, or null where it should name one. */
@@ -214,7 +212,7 @@ const TODAY: NavItem[] = [
  * with sub-vendors under it has been unable to reach from the menu.
  */
 const NETWORK: NavItem[] = [
-  { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'Network' },
+  { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'Network', needs: ['vendors.read', 'requirements.read', 'payments.record'] },
   { label: 'Companies', href: '/dashboard/companies', icon: '▣', group: 'Network' },
   { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'Network' },
 ]
@@ -255,7 +253,7 @@ const MONEY: NavItem[] = [
   { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money', needs: ['payroll.read'] },
   // What a recruiter earned on a placement. The run has been there since
   // commissions were built; nothing in the nav reached it.
-  { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', group: 'Money', needs: ['payroll.run', 'invoices.read'] },
+  { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', group: 'Money', needs: ['payroll.read'] },
 ]
 
 /**
@@ -273,13 +271,13 @@ const MISSING_PAPERWORK: NavItem = {
  * into the things set up once.
  */
 const COMPLIANCE: NavItem[] = [
-  { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Compliance' },
+  { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Compliance', needs: ['governance.read'] },
   { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', group: 'Compliance' },
   { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Compliance' },
   // The two directions belong adjacent. A supplier spends as much time
   // being screened as screening.
   { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲', group: 'Compliance' },
-  { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Compliance' },
+  { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Compliance', needs: ['submissions.read'], api: 'checks/queue' },
   // /api/blacklist opens for any desk that deals with people or suppliers
   // (MAY_READ in its own desks file), the compliance officer included.
   { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Compliance', needs: ['consultants.read', 'vendors.read', 'governance.read'] },
@@ -511,7 +509,7 @@ const MSP_NAV: NavSection[] = [
   {
     label: 'Supply',
     items: [
-      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡' },
+      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', needs: ['vendors.read', 'requirements.read', 'payments.record'] },
       // Only computable where somebody buys from several firms for one
       // program, which is the whole of what an MSP is for.
       { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈' },
@@ -593,7 +591,7 @@ const SOLO_NAV: NavSection[] = [
     items: [
       // Her own standing as a supplier: insurance, license, the
       // certificate somebody will ask for before she starts.
-      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', needs: ['governance.read'] },
       // "Company paperwork" on this menu alone, because on this menu
       // alone the firm and the person are the same human. Every other
       // party reads "Paperwork" under a heading that already says whose
@@ -750,7 +748,7 @@ const CLIENT_NAV: NavSection[] = [
       // The growth loop. A client arrives with twelve suppliers already
       // and an MSA with each; until those are reachable in here, none of
       // the rest of this nav has anything to work on.
-      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'Network' },
+      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'Network', needs: ['vendors.read', 'requirements.read', 'payments.record'] },
       // The rolodex — the one thing this whole nav was missing. Vendor
       // has had it for a while as "Who we work with"; a client asks the
       // same question about the people at their own suppliers just as
@@ -809,7 +807,7 @@ const CLIENT_NAV: NavSection[] = [
       // grant that only the person who made it can see is not a control.
       { label: 'Program office', href: '/dashboard/program/seats', icon: '⌂', group: 'Who runs it', needs: ['governance.read'] },
       { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Who runs it' },
-      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight', needs: ['governance.read'] },
       { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },
       { label: 'Tenure', href: '/dashboard/tenure', icon: '▩', group: 'Oversight' },
       // Only computable here. No supplier can work these out about

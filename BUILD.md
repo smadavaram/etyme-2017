@@ -41,10 +41,10 @@ team.manage settings.manage
 
 | Field | Requires |
 |---|---|
-| `Assignment.payRate` | `consultants.cost` or you are the person |
-| `Assignment.billRate` | `margin.read`, or you are the client on the MSA |
+| `Assignment.payRate` | `consultants.cost`, or you are the person it pays |
+| `Assignment.billRate` | at the firm that sells the line, its price and billing desks: `margin.read`, `rates.read` or `invoices.issue`; every desk at the client that pays it; and, on a sub-vendor's line, the prime's cost desks (`consultants.cost`, `margin.read` or `rates.read`) — `mayReadBillRate` in `lib/money/pay-visibility` |
 | Bench burn, any aggregate cost | `consultants.cost` |
-| Margin percentages | `margin.read` |
+| Margin, as a figure or a percentage | `margin.read` — reading pay or the bill rate never shows it |
 | Consultant name in a talent view | the owning vendor released it |
 | Client name on a network requirement | the prime released it |
 

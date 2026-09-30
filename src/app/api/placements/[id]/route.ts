@@ -16,6 +16,8 @@ import { poBalance } from '@/lib/purchase-order'
 import { CHOOSES_OVERTIME_METHOD, overtimeMethodSays } from '@/lib/overtime-method-choice'
 import { CHOOSES_CUT_OVERTIME, cutOvertimeSays } from '@/lib/cut-overtime-choice'
 import { rateToday } from '@/lib/placement-rate'
+import { ratePeriods } from '@/lib/contract-rate'
+import { placementEarned } from '@/lib/money/placement-earned'
 
 /**
  * GET /api/placements/:id
@@ -443,10 +445,11 @@ export async function GET(
   // A rate change is an approved RateHistory row, never an edit to the
   // line, so the line's own column is the rate it started on. Rosa
   // Delgado's card read $66 two months after her $70 was approved and
-  // paid. Only the rows for a line this reader may read are fetched.
+  // paid. Only the rows for a line this reader may read are fetched —
+  // and the margin reads both, because it is priced day by day from them.
   const linesToPrice = [
-    ...(seeBill ? [{ contractType: 'SELL', contractId: placement.id }] : []),
-    ...(seePay && ourBuy ? [{ contractType: 'BUY', contractId: ourBuy.id }] : []),
+    ...(seeBill || seeMargin ? [{ contractType: 'SELL', contractId: placement.id }] : []),
+    ...((seePay || seeMargin) && ourBuy ? [{ contractType: 'BUY', contractId: ourBuy.id }] : []),
   ]
   const rateRows = linesToPrice.length
     ? await prisma.rateHistory.findMany({
@@ -713,8 +716,34 @@ export async function GET(
     return n + Number(employer?.hours ?? client?.hours ?? 0)
   }, 0)
 
-  const costCents = seat ? Math.round(hoursAccepted * seat.payRate) : null
-  const revenueCents = Math.round(hoursAccepted * placement.billRate)
+  // Revenue on the hours the client approved, cost on the hours the
+  // employer accepted, each day at the rate in force that day. Every
+  // sheet, not the twelve on the card: a total of the last twelve weeks
+  // read as the placement's is a plausible wrong number.
+  const moneySheets = readsOurMoney
+    ? await prisma.timesheet.findMany({
+        where: { sellContractId: placement.id },
+        select: {
+          periodStart: true, periodEnd: true, days: true,
+          assertions: { where: { state: 'LIVE' }, select: { role: true, hours: true, rateCents: true } },
+        },
+      })
+    : []
+  const earned = placementEarned({
+    sheets: moneySheets,
+    bill: {
+      openingRateCents: placement.billRate,
+      periods: ratePeriods(rateRows.filter((r) => r.contractType === 'SELL')),
+      currency: placement.billCurrency,
+    },
+    pay: seat && ourBuy
+      ? {
+          openingRateCents: seat.payRate,
+          periods: ratePeriods(rateRows.filter((r) => r.contractType === 'BUY')),
+          currency: seat.payCurrency ?? ourBuy.payCurrency,
+        }
+      : null,
+  })
 
   // ── What is due, in three words ─────────────────────────────────────
   //
@@ -1131,14 +1160,19 @@ export async function GET(
         // Blank rather than a guess. A margin shown as the whole invoice
         // because nobody set a cost is the kind of wrong that looks like
         // good news.
-        revenue: seeBill ? money(revenueCents) : null,
+        revenue: seeBill ? money(earned.revenueCents) : null,
         // Both are null off the sell side without asking a permission:
         // the seat that carries the pay rate hangs off the buy leg, and
         // the buy leg is not read for anybody but the supplier. A client
         // owner holds `*`, so the permission alone let the supplier's
         // cost and margin through.
-        cost: seePay ? money(costCents) : null,
-        margin: seeMargin && costCents != null ? money(revenueCents - costCents) : null,
+        cost: seePay ? money(earned.costCents) : null,
+        margin: seeMargin && earned.marginCents != null ? money(earned.marginCents) : null,
+        // Why the margin reads as it does — blank, or over which weeks.
+        marginSays: seeMargin ? (earned.marginRefusedBecause ?? earned.says) : null,
+        payRateChangeSays: seePay ? earned.payRateChangeSays : null,
+        hoursBilled: earned.hoursBilled,
+        hoursPaid: earned.hoursPaid,
         // Why it is blank, rather than a screen of dashes somebody
         // raises a ticket about.
         says: readsOurMoney
