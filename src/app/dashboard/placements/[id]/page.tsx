@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { inSentence } from '@/lib/document-stages'
 import { readJson } from '@/lib/read-response'
+import { saveForm } from '@/lib/form-save'
 import { CoverChip, SubVendorCover } from '@/components/cover-standing'
 
 /**
@@ -105,13 +106,15 @@ interface Placement {
     // header as this reader names it — purchase order to the client,
     // sales order to the supplier — and `lines` is everybody on it.
     sell: {
-      id: string; billRate: number | null; state: string
+      // The rate in force today, and — where an approved change put it
+      // there — "$70/hr since July 29, 2026 — was $66" (lib/placement-rate).
+      id: string; billRate: number | null; billRateSays: string | null; state: string
       workOrder: { number: string; amount: number | null; currency: string } | null
       document: LineDoc
     }
     buy: {
       id: string; contractType: string; state: string
-      vendor: { id: string; name: string } | null; payRate: number | null
+      vendor: { id: string; name: string } | null; payRate: number | null; payRateSays: string | null
       document: LineDoc | null
       // Null where this reader may not read the pay rate.
       overtime: OvertimeOnLine | null
@@ -334,19 +337,19 @@ function OvertimeMethod({ placementId, overtime, person }: { placementId: string
   const needsReason = method !== 'US_REGULAR_RATE'
 
   async function save() {
-    setBusy(true)
-    setError(null)
-    const res = await fetch(`/api/placements/${placementId}/overtime-method`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method, reason }),
+    // A refusal is shown under the form in the route's words and Save
+    // comes back; `readJson` throws on it, so nothing after the call may
+    // be what resets the form (lib/form-save).
+    const body = await saveForm({
+      send: () => fetch(`/api/placements/${placementId}/overtime-method`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method, reason }),
+      }),
+      setBusy, setError,
+      fallback: 'The overtime method could not be saved.',
     })
-    const body = await readJson(res)
-    setBusy(false)
-    if (!res.ok) {
-      setError(body?.error?.message ?? 'The overtime method could not be saved.')
-      return
-    }
+    if (!body) return
     setNow({ ...body.data, mayChange: now.mayChange })
     setReason('')
     setOpen(false)
@@ -357,18 +360,20 @@ function OvertimeMethod({ placementId, overtime, person }: { placementId: string
       <p>
         {now.says}
         {now.reason && <span className="text-etyme-ink"> Why: {now.reason}</span>}
-        {now.mayChange && !open && (
-          <button type="button" className="ml-2 text-etyme-action hover:underline" onClick={() => setOpen(true)}>
-            Change
-          </button>
-        )}
       </p>
+      {/* On its own line under the sentence: at the end of a wrapped
+          sentence it read as the sentence's last word. */}
+      {now.mayChange && !open && (
+        <button type="button" className="mt-1 block text-etyme-action hover:underline" onClick={() => setOpen(true)}>
+          Change
+        </button>
+      )}
       {open && (
         <div className="mt-2 space-y-2">
           <label className="lbl block" htmlFor="ot-method">How {person}&rsquo;s overtime is paid in a week paid at two rates</label>
           <select
             id="ot-method"
-            className="max-w-[360px] px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink"
+            className="block w-full min-w-0 max-w-full truncate px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink"
             value={method}
             onChange={(e) => setMethod(e.target.value)}
           >
@@ -435,19 +440,16 @@ function CutOvertime({ placementId, cut, person }: { placementId: string; cut: C
   const needsReason = rule !== 'ABOVE_THE_LINE'
 
   async function save() {
-    setBusy(true)
-    setError(null)
-    const res = await fetch(`/api/placements/${placementId}/cut-overtime`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rule, reason }),
+    const body = await saveForm({
+      send: () => fetch(`/api/placements/${placementId}/cut-overtime`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rule, reason }),
+      }),
+      setBusy, setError,
+      fallback: 'The choice could not be saved.',
     })
-    const body = await readJson(res)
-    setBusy(false)
-    if (!res.ok) {
-      setError(body?.error?.message ?? 'The choice could not be saved.')
-      return
-    }
+    if (!body) return
     setNow({ ...body.data, mayChange: now.mayChange })
     setReason('')
     setOpen(false)
@@ -458,18 +460,20 @@ function CutOvertime({ placementId, cut, person }: { placementId: string; cut: C
       <p>
         {now.says}
         {now.reason && <span className="text-etyme-ink"> Why: {now.reason}</span>}
-        {now.mayChange && !open && (
-          <button type="button" className="ml-2 text-etyme-action hover:underline" onClick={() => setOpen(true)}>
-            Change
-          </button>
-        )}
       </p>
+      {/* On its own line under the sentence: at the end of a wrapped
+          sentence it read as the sentence's last word. */}
+      {now.mayChange && !open && (
+        <button type="button" className="mt-1 block text-etyme-action hover:underline" onClick={() => setOpen(true)}>
+          Change
+        </button>
+      )}
       {open && (
         <div className="mt-2 space-y-2">
           <label className="lbl block" htmlFor="cut-overtime">Overtime when fewer hours are accepted</label>
           <select
             id="cut-overtime"
-            className="max-w-[420px] px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink"
+            className="block w-full min-w-0 max-w-full truncate px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink"
             value={rule}
             onChange={(e) => setRule(e.target.value)}
           >
@@ -708,8 +712,11 @@ export default function PlacementPage() {
             is how a line comes to read as a document of its own. */}
         <Document doc={p.contracts.sell.document} lines={p.contracts.lines} />
 
+        {/* min-w-0 on each card: a grid item is as wide as its widest
+            child by default, so a long option in a select pushed the pay
+            line past its column. */}
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="card">
+          <div className="card min-w-0">
             <div className="lbl mb-2">
               {p.viewer.isSupplier
                 ? `You sell to ${p.client.name}`
@@ -718,6 +725,9 @@ export default function PlacementPage() {
                   : `${p.supplier.name} sells to you`}
             </div>
             <div className="stat-value">{rate(p.contracts.sell.billRate)}</div>
+            {p.contracts.sell.billRateSays && (
+              <p className="mt-1 text-[13px] tabular-nums text-etyme-muted">{p.contracts.sell.billRateSays}</p>
+            )}
             <p className="mt-2 text-[13px] text-etyme-muted">
               {p.paymentTerms ? `Net ${p.paymentTerms}` : 'Terms not set'}
               {' · '}
@@ -728,11 +738,14 @@ export default function PlacementPage() {
               them. A client reading "You employ them" about somebody
               another firm employs is worse than a gap. */}
           {p.viewer.isSupplier && (
-          <div className="card">
+          <div className="card min-w-0">
             <div className="lbl mb-2">
               {p.contracts.buy?.vendor ? `You buy from ${p.contracts.buy.vendor.name}` : 'You employ them'}
             </div>
             <div className="stat-value">{rate(p.contracts.buy?.payRate ?? null)}</div>
+            {p.contracts.buy?.payRateSays && (
+              <p className="mt-1 text-[13px] tabular-nums text-etyme-muted">{p.contracts.buy.payRateSays}</p>
+            )}
             <p className="mt-2 text-[13px] text-etyme-muted">
               {p.contracts.buy
                 ? p.contracts.buy.document

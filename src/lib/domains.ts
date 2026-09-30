@@ -339,6 +339,12 @@ export const DOMAINS: Domain[] = [
       // and money in one answer, so it belongs to none of them and is
       // owned here by the same rule the schema is.
       'app/api/placements', 'app/dashboard/placements',
+      // The rate a placement's card shows today, and the line saying when it
+      // last changed. A sentence over money's own reader (lib/contract-rate).
+      'lib/placement-rate',
+      // Saving a small form so a refusal is shown in the route's words and
+      // the form can be saved again. Shared by every screen with one.
+      'lib/form-save',
       // Somebody else in the seat: a new contract on the same terms, the old one ended.
       'lib/replacement',
       // The door a paying firm's choice of overtime method goes through,

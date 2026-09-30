@@ -44,6 +44,13 @@ const APPROVE_WORK: Permission[] = ['timesheets.read', 'timesheets.approve']
 const RUN_MONEY_IN: Permission[] = ['invoices.read', 'invoices.issue', 'payments.record']
 const SEE_MONEY: Permission[] = ['invoices.read']
 const RUN_PAYROLL: Permission[] = ['payroll.read', 'payroll.run', 'payroll.approve']
+/**
+ * What a person is paid. Read by the desk that pays them, and by nobody
+ * whose job is selling them or filing their paperwork — so never the
+ * recruiter, the account manager or HR, and a bench total cannot be
+ * worked backwards into somebody's salary.
+ */
+const READ_PAY: Permission[] = ['consultants.cost']
 const OWN_PRICE: Permission[] = ['rates.read', 'rates.write']
 const OWN_RULES: Permission[] = ['governance.read', 'governance.write']
 const SEE_RULES: Permission[] = ['governance.read']
@@ -180,16 +187,24 @@ const SUPPLIER_ROLES: RoleSeed[] = [
     // Money out: accepts the hours for pay, runs payroll for W2 people,
     // pays the sub-vendor's bill. Reads invoices to match a bill; never
     // issues one.
+    //
+    // `consultants.cost` because this is the desk that pays people: it
+    // cannot run a payroll it may not read the pay line of, nor choose
+    // how overtime is paid on it. Without it the placement page told the
+    // payroll desk "this desk does not read money" (browser walk,
+    // 2026-09-30). Not `margin.read`: what the client is billed and
+    // what the firm keeps are not payroll's to read.
     name: 'AP & Payroll',
     blurb: 'Pays the consultant or the sub-vendor: accepts hours, runs payroll, settles bills.',
-    permissions: uniq(APPROVE_WORK, RUN_PAYROLL, ['invoices.read', 'payments.record']),
+    permissions: uniq(APPROVE_WORK, RUN_PAYROLL, READ_PAY, ['invoices.read', 'payments.record']),
   },
   {
     // The one-person finance desk at a small firm: both of the above,
     // and the month-end.
     name: 'Finance',
     blurb: 'Bills, pays, and closes the month — the whole desk at a small firm.',
-    permissions: uniq(APPROVE_WORK, RUN_MONEY_IN, RUN_PAYROLL, ['pnl.read']),
+    // Runs payroll, so reads the pay line, for the same reason as above.
+    permissions: uniq(APPROVE_WORK, RUN_MONEY_IN, RUN_PAYROLL, READ_PAY, ['pnl.read']),
   },
   {
     name: 'Compliance Officer',
@@ -362,6 +377,18 @@ export const GRANTED_SINCE: {
     kinds: ['VENDOR', 'GSI'],
     permissions: ['requirements.write'],
     why: 'The desk that decides who goes where awards the seat it is filling.',
+  },
+  {
+    role: 'AP & Payroll',
+    kinds: ['VENDOR', 'GSI'],
+    permissions: ['consultants.cost'],
+    why: 'The desk that runs payroll reads what each person is paid and chooses how overtime is paid on their pay line.',
+  },
+  {
+    role: 'Finance',
+    kinds: ['VENDOR', 'GSI'],
+    permissions: ['consultants.cost'],
+    why: 'At a small firm Finance runs payroll, so it reads what each person is paid and how their overtime is paid.',
   },
 ]
 

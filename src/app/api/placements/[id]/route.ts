@@ -15,6 +15,7 @@ import { describeLine, masterContractLine, pairLine } from '@/lib/order-naming'
 import { poBalance } from '@/lib/purchase-order'
 import { CHOOSES_OVERTIME_METHOD, overtimeMethodSays } from '@/lib/overtime-method-choice'
 import { CHOOSES_CUT_OVERTIME, cutOvertimeSays } from '@/lib/cut-overtime-choice'
+import { rateToday } from '@/lib/placement-rate'
 
 /**
  * GET /api/placements/:id
@@ -436,6 +437,30 @@ export async function GET(
   // One clock for the whole answer. Two `new Date()`s in one request is
   // how a ceiling reads expired on the same screen that reads open.
   const now = new Date()
+
+  // ── The rate in force today, on each line this reader may price ─────
+  //
+  // A rate change is an approved RateHistory row, never an edit to the
+  // line, so the line's own column is the rate it started on. Rosa
+  // Delgado's card read $66 two months after her $70 was approved and
+  // paid. Only the rows for a line this reader may read are fetched.
+  const linesToPrice = [
+    ...(seeBill ? [{ contractType: 'SELL', contractId: placement.id }] : []),
+    ...(seePay && ourBuy ? [{ contractType: 'BUY', contractId: ourBuy.id }] : []),
+  ]
+  const rateRows = linesToPrice.length
+    ? await prisma.rateHistory.findMany({
+        where: { OR: linesToPrice },
+        select: { id: true, contractType: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+      })
+    : []
+  const billToday = seeBill
+    ? rateToday(placement.billRate, rateRows.filter((r) => r.contractType === 'SELL'), now, placement.billCurrency)
+    : null
+  const payToday =
+    seePay && seat && ourBuy
+      ? rateToday(seat.payRate, rateRows.filter((r) => r.contractType === 'BUY'), now, seat.payCurrency ?? ourBuy.payCurrency)
+      : null
 
   // ── The document this line is on ────────────────────────────────────
   //
@@ -871,7 +896,10 @@ export async function GET(
       contracts: {
         sell: {
           id: placement.id,
-          billRate: seeBill ? money(placement.billRate) : null,
+          // Today's, not the one the line started on.
+          billRate: billToday ? money(billToday.cents) : null,
+          // "$120/hr since July 29, 2026 — was $112", where a change is recorded.
+          billRateSays: billToday?.says ?? null,
           state: placement.state,
           workOrder: header
             ? {
@@ -895,7 +923,8 @@ export async function GET(
               state: ourBuy.state,
               // Null means we employ them. That is the fact, not a gap.
               vendor: ourBuy.vendorCompany,
-              payRate: seePay && seat ? money(seat.payRate) : null,
+              payRate: payToday ? money(payToday.cents) : null,
+              payRateSays: payToday?.says ?? null,
               // How overtime is priced on this pay line, read the way
               // payroll reads it. A pay term, so it follows the pay rate's
               // gate; changing it needs the same permission and to be the

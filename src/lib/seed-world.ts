@@ -47,7 +47,7 @@ import { seedPayrollRuns } from '@/lib/seed-payroll-runs'
 import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
 import { seedPipeline } from '@/lib/seed-pipeline'
 import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
-import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
+import { rolesFor, RENAMED_ROLES, GRANTED_SINCE } from '@/lib/company-defaults'
 // A seeded bill is shaped by the two doors a real one is: `periodFor`
 // under the terms of the document the line is on, and `dueOn` under what
 // those terms count from.
@@ -1564,6 +1564,19 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
               permissions: seed.permissions, isDefault: !!seed.isOwner,
             },
           })
+        }
+      }
+      // A permission the defaults grew after this world was first seeded
+      // reaches its roles on a re-seed, additively, the way
+      // `ensureDefaultRoles` gives it to a real company — otherwise the
+      // payroll desk on a world seeded last week still could not read the
+      // pay line it runs.
+      for (const grant of GRANTED_SINCE) {
+        if (!grant.kinds.includes('VENDOR')) continue
+        const role = await db.role.findFirst({ where: { companyId: brightmoor.id, name: grant.role }, select: { id: true, permissions: true } })
+        const missing = role ? grant.permissions.filter((x) => !role.permissions.includes(x)) : []
+        if (role && missing.length) {
+          await db.role.update({ where: { id: role.id }, data: { permissions: [...role.permissions, ...missing] } })
         }
       }
       for (const d of SUPPLIER_TEAM) {
