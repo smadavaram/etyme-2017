@@ -159,7 +159,36 @@ export function recompute(line: PricedLine, period: Period, accepted: AcceptedCu
  * and a control that each caller re-implements is a control that eventually
  * disagrees with itself.
  */
-export async function matchInvoice(invoiceId: string): Promise<MatchResult | null> {
+/**
+ * One line as the payer decides on it: who, which days, the hours billed
+ * against the hours the payer signed, and the rate against the
+ * contract's. Returned beside the match so a screen can say "Bills 40 h;
+ * 38 h were signed" without re-deriving what the match already knows.
+ */
+export interface LineFact {
+  lineId: string
+  kind: 'HOURS' | 'EXPENSE' | 'MILESTONE'
+  personId: string | null
+  personName: string
+  /** The job the line bills, where one is on the contract. */
+  jobTitle: string | null
+  /** The job request behind the contract — where a question about it is asked. */
+  requirementId: string | null
+  /** YYYY-MM-DD, the week's own dates on an hours line. */
+  periodStart: string | null
+  periodEnd: string | null
+  hoursBilled: number
+  /** What the payer signed. Null where nobody has, or on a line with no hours. */
+  hoursSigned: number | null
+  rateCents: number
+  /** The contract's rate on the day the work was done. Null on a line with no hours. */
+  contractRateCents: number | null
+  amountCents: number
+}
+
+export type MatchWithLines = MatchResult & { lines: LineFact[] }
+
+export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | null> {
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
     include: {
@@ -176,6 +205,10 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
           sellContract: {
             select: {
               billRate: true, startDate: true,
+              // The job the line bills, and the request behind it — what
+              // a payer reads a line by and where it asks about one.
+              requirementId: true,
+              requirement: { select: { title: true } },
               // Who pays this line — whose signature on the week is its
               // receipt.
               clientCompanyId: true,
@@ -424,5 +457,24 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
     })),
   }
 
-  return threeWayMatch(input)
+  const result = threeWayMatch(input)
+  const lines: LineFact[] = invoice.invoiceLines.map((l) => {
+    const ts = input.timesheets[l.timesheetId ?? '']
+    return {
+      lineId: l.id,
+      kind: l.timesheet ? 'HOURS' : l.milestone ? 'MILESTONE' : 'EXPENSE',
+      personId: l.personId ?? null,
+      personName: l.person?.name ?? (l.milestone ? 'Milestone' : 'Expense'),
+      jobTitle: l.sellContract?.requirement?.title ?? null,
+      requirementId: l.sellContract?.requirementId ?? null,
+      periodStart: l.timesheet ? l.timesheet.periodStart.toISOString().slice(0, 10) : null,
+      periodEnd: l.timesheet ? l.timesheet.periodEnd.toISOString().slice(0, 10) : null,
+      hoursBilled: Number(l.hours),
+      hoursSigned: ts && ts.status === 'APPROVED' ? ts.approvedHours : null,
+      rateCents: l.rateCents,
+      contractRateCents: ts ? ts.contractRateCents : null,
+      amountCents: l.amountCents,
+    }
+  })
+  return { ...result, lines }
 }

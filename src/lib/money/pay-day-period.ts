@@ -106,3 +106,39 @@ export function payDaysToMark(
     .filter((c) => asked.has(key(periodPaidBy(c, cycles, periodOf, startedOn))))
     .sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())
 }
+
+/**
+ * The day a payroll run's money reached the worker.
+ *
+ * A run is pressed before the pay day and pays on it. Reading the day
+ * the run was pressed as the day somebody was paid put August's pay on
+ * Saturday 5 September and a worker's last day of August on Labor Day —
+ * two days nobody is paid on — while the pay day itself, 9 September,
+ * had already been moved off the weekend by the cycle engine.
+ *
+ * A run marks the pay days it settles with its own time (`completedAt`
+ * is the run's `runAt`, in the route and in the seed), so which pay day
+ * a run paid on is read off those rows exactly, not guessed from the
+ * period. Three answers:
+ *
+ * - the run settled a pay day and was pressed on or before it: paid on
+ *   the pay day;
+ * - the run was pressed after the pay day, late: the money moved the day
+ *   it ran, and saying the pay day would claim it was on time;
+ * - the run settled no pay day — an off-cycle payment, back pay, a run
+ *   written before this — paid the day it ran, as before.
+ *
+ * Returns YYYY-MM-DD. Pure: no database.
+ */
+export function paidOnDay(
+  runAt: Date,
+  payDays: readonly { dueOn: Date; completedAt: Date | null }[]
+): string {
+  const ran = dayOf(runAt)
+  const settled = payDays
+    .filter((c) => c.completedAt != null && Math.abs(c.completedAt.getTime() - runAt.getTime()) < 1000)
+    .map((c) => dayOf(c.dueOn))
+    .sort((a, b) => b.getTime() - a.getTime())[0]
+  const paid = settled && settled.getTime() >= ran.getTime() ? settled : ran
+  return paid.toISOString().slice(0, 10)
+}

@@ -151,3 +151,56 @@ function sentence(books: PayableBook[], recorded: number, openCount: number): st
     'under “We owe”, where it can be matched and paid.'
   )
 }
+
+// ── What a firm owes in all ──────────────────────────────────────────
+
+/** One currency's payables, from both ways a supplier's invoice reaches the record. */
+export interface OwedInAllBook extends PayableBook {
+  /** Of `openCount`, bills the supplier generated here. */
+  fromBills: number
+  /** Of `openCount`, invoice receipts keyed in on Accounts payable. */
+  fromReceipts: number
+}
+
+/**
+ * What a firm owes its suppliers, in one figure per currency, from one
+ * door.
+ *
+ * A supplier's invoice reaches the record two ways: the supplier
+ * generates it here (an `Invoice` we are the payer of), or we key in the
+ * one it sent (a `VendorBill`). Computer Systems read "We owe $16,992" on
+ * its invoice list — the generated bills only — and "$36,800" on
+ * Accounts payable — the keyed-in ones only. Neither was what it owed.
+ * Both screens now read this, and both halves are counted, because the
+ * two doors refuse to hold the same hours twice
+ * (lib/money/billed-elsewhere), so adding them is adding different debts.
+ *
+ * One book per currency, never added across.
+ */
+export function owedInAll(
+  generated: ReadonlyArray<SupplierInvoiceRow>,
+  keyed: ReadonlyArray<SupplierInvoiceRow>,
+  now: Date
+): { books: OwedInAllBook[]; says: string } {
+  const byCurrency = new Map<string, OwedInAllBook>()
+  const add = (row: SupplierInvoiceRow, from: 'fromBills' | 'fromReceipts') => {
+    if (!open(row)) return
+    const book = byCurrency.get(row.currency) ?? {
+      currency: row.currency, owedMinor: 0, overdueMinor: 0, openCount: 0, fromBills: 0, fromReceipts: 0,
+    }
+    book.owedMinor += outstanding(row)
+    if (row.dueAt.getTime() < now.getTime()) book.overdueMinor += outstanding(row)
+    book.openCount += 1
+    book[from] += 1
+    byCurrency.set(row.currency, book)
+  }
+  for (const r of generated) add(r, 'fromBills')
+  for (const r of keyed) add(r, 'fromReceipts')
+  const books = [...byCurrency.values()].sort((a, b) => b.owedMinor - a.owedMinor)
+  if (books.length === 0) return { books, says: 'Nothing is owed to any supplier.' }
+  const money = books
+    .map((b) => `${amount(b.owedMinor, b.currency)}${books.length > 1 ? ` in ${b.currency}` : ''}`)
+    .join(' and ')
+  const count = books.reduce((n, b) => n + b.openCount, 0)
+  return { books, says: `You owe ${money} on ${count} invoice receipt${count === 1 ? '' : 's'}.` }
+}

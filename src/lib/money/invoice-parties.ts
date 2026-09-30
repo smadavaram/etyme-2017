@@ -421,3 +421,31 @@ export function counterpartyHeading(
   if (sides.size === 0) return counterpartyOf(opened, NOTHING).heading
   return 'Client or supplier'
 }
+
+/**
+ * Which sides of the book a reader is offered a switch between.
+ *
+ * Both only where both hold something. A client never sells, so it was
+ * shown "Owed to us" beside "We owe" over a book in which nobody owes it
+ * anything — a toggle offering a question the reader cannot have. A
+ * reader with one side reads that side and is offered no switch.
+ */
+export function sidesOffered(has: { receivable: number; payable: number }): LedgerSide[] {
+  return has.receivable > 0 && has.payable > 0 ? ['RECEIVABLE', 'PAYABLE'] : []
+}
+
+/**
+ * The line under a list of bills or invoice receipts: what is still
+ * open, then what is settled. "4 invoice receipts to pay" under three
+ * that were paid was the row count wearing a sentence about money.
+ */
+export function openCountSays(
+  rows: ReadonlyArray<{ outstandingMinor: number; status: string }>,
+  side: LedgerSide
+): string {
+  const open = rows.filter((r) => r.outstandingMinor > 0 && r.status !== 'CANCELLED').length
+  const settled = rows.filter((r) => r.status === 'PAID').length
+  const noun = side === 'PAYABLE' ? 'invoice receipt' : 'bill'
+  const head = `${open} ${noun}${open === 1 ? '' : 's'} ${side === 'PAYABLE' ? 'to pay' : 'to collect'}`
+  return settled > 0 ? `${head} · ${settled} paid` : head
+}

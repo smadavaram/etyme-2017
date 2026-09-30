@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { alreadyOnABill } from '@/lib/money/billed-elsewhere'
 import { priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
@@ -484,6 +485,59 @@ export async function POST(request: NextRequest) {
       },
       { status: 422 }
     )
+  }
+
+  // ── Hours already on a bill the supplier generated here ────────────
+  //
+  // The same document reaches the record two ways: the supplier
+  // generates its bill to us here, or we key in the invoice it sent.
+  // Whichever came first, the second never owes the same hours again
+  // (lib/money/billed-elsewhere). Nobody can wave it through: paying
+  // twice is not a judgment call.
+  if (periodStart && periodEnd) {
+    const people = buyContractId
+      ? (await prisma.buyContractCandidate.findMany({ where: { buyContractId }, select: { personId: true } })).map((c) => c.personId)
+      : null
+    const generated = await prisma.invoice.findMany({
+      where: {
+        status: { notIn: ['DRAFT', 'CANCELLED', 'VOID'] },
+        invoiceLines: {
+          some: {
+            sellContract: { companyId: vendorCompanyId, clientCompanyId: companyId },
+            timesheet: { periodStart: { lte: periodEnd }, periodEnd: { gte: periodStart } },
+          },
+        },
+      },
+      select: {
+        number: true,
+        invoiceLines: {
+          where: { sellContract: { companyId: vendorCompanyId, clientCompanyId: companyId }, timesheetId: { not: null } },
+          select: { personId: true, person: { select: { name: true } }, timesheet: { select: { days: true } } },
+        },
+      },
+    })
+    const twice = alreadyOnABill(
+      {
+        periodStart: periodStart.toISOString().slice(0, 10),
+        periodEnd: periodEnd.toISOString().slice(0, 10),
+        personIds: people,
+      },
+      generated.map((g) => ({
+        number: g.number,
+        vendorName: vendor.name,
+        lines: g.invoiceLines.flatMap((l) =>
+          l.personId && l.timesheet
+            ? [{ personId: l.personId, personName: l.person?.name ?? 'Somebody', days: (l.timesheet.days as Record<string, number>) ?? {} }]
+            : []
+        ),
+      }))
+    )
+    if (twice) {
+      return NextResponse.json(
+        { error: { code: 'ALREADY_BILLED', message: twice.says, bills: twice.bills } },
+        { status: 409 }
+      )
+    }
   }
 
   // A waivable failure does not refuse the bill; it records it as

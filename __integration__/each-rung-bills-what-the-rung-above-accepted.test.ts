@@ -97,6 +97,19 @@ describe('each rung bills what the rung above it accepted, upward on the client�
       to: week.periodEnd.toISOString().slice(0, 10),
     })
 
+    // The seed records CloudEPA's invoice receipts at Computer Systems over
+    // Helena's recent weeks, this unsigned one among them — itself the
+    // fault a tester found on 2026-09-30 (a receipt over a week nobody
+    // accepted), sent to the architect. This story starts before any
+    // invoice for the week was keyed in, so those are withdrawn here.
+    await prisma.vendorBill.updateMany({
+      where: {
+        companyId: cs.id, vendorCompanyId: cloudepa.id,
+        periodStart: { lte: week.periodEnd }, periodEnd: { gte: week.periodStart },
+      },
+      data: { status: 'CANCELLED' },
+    })
+
     // The walk rests on the seeded shape; say so rather than pass by luck.
     expect(s.hours).toBe(40)
     expect(rung.companyId).toBe(cloudepa.id)
@@ -225,6 +238,43 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(Number(mine.hours)).toBe(38)
   })
 
+  it('once Computer Systems has accepted the week, the invoice recorded before the rule is no longer blocked by it', async () => {
+    as(CS)
+    const q = await json(await exceptions(req('GET', '/api/ap/bills')))
+    const row = q.body.data.exceptions.find((e: any) => e.id === s.oldBill)
+    expect(row?.hardFailures ?? []).not.toContain('RECEIPT')
+  })
+
+  it('Computer Systems records CloudEPA’s invoice for the thirty-eight hours it accepted, and it matches', async () => {
+    as(CS)
+    const r = await receipt('CE-HM-38', 38)
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.bill.status).toBe('RECEIVED')
+    expect(r.body.data.match.checks.filter((c: any) => c.outcome === 'FAIL')).toEqual([])
+  })
+
+  it('an invoice receipt for forty against the thirty-eight accepted is still held as disputed with a reason, because the other waivable mismatches stay as they were', async () => {
+    as(CS)
+    const r = await receipt('CE-HM-40', 40)
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.bill.status).toBe('DISPUTED')
+    expect(r.body.data.match.checks.find((c: any) => c.code === 'QUANTITY')).toMatchObject({ outcome: 'FAIL', overridable: true })
+  })
+
+  it('a bill never covers hours already on a bill to the same firm: CloudEPA cannot generate a bill for the week Computer Systems already holds its invoice for, and is told which', async () => {
+    as(CLOUDEPA)
+    const r = await bill(s.rung.engagementId)
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.message).toMatch(new RegExp(`^Helena Marsh’s week of .+ is already on invoices .*CE-HM-38.*, which ${s.csName} recorded from you, so it is not billed again\\.$`))
+    expect(await prisma.invoiceLine.count({ where: { timesheetId: s.week, sellContractId: s.rung.id } })).toBe(0)
+
+    // Computer Systems withdraws the three it keyed in, so CloudEPA's own bill can be the one.
+    await prisma.vendorBill.updateMany({
+      where: { companyId: s.cs, number: { in: ['CE-BEFORE-RULE', 'CE-HM-38', 'CE-HM-40'] } },
+      data: { status: 'CANCELLED' },
+    })
+  })
+
   it('CloudEPA’s bill to Computer Systems is for the thirty-eight hours Computer Systems accepted, not the forty Helena worked, before CloudEPA has accepted anything itself', async () => {
     expect(await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: s.cloudepa } })).toBe(0)
 
@@ -247,6 +297,15 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(check(m, 'HEADER_TOTAL').outcome).toBe('PASS')
   })
 
+  it('Computer Systems cannot key in CloudEPA’s invoice for hours CloudEPA’s generated bill already holds, and is told which bill', async () => {
+    as(CS)
+    const r = await receipt('CE-HM-AGAIN', 38)
+    expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(r.body.error.code).toBe('ALREADY_BILLED')
+    expect(r.body.error.message).toMatch(/^Helena Marsh’s hours for .+ are already on CloudEPA’s bill .+, so recording this invoice would owe them twice\. Pay that bill, or ask CloudEPA to cancel it first\.$/)
+    expect(await prisma.vendorBill.count({ where: { companyId: s.cs, number: 'CE-HM-AGAIN' } })).toBe(0)
+  })
+
   it('a CloudEPA bill for all forty hours, as one raised before this rule would read, fails the hours check against the thirty-eight Computer Systems accepted', async () => {
     const forty = 40 * s.rung.billRate
     await prisma.invoiceLine.update({ where: { id: s.rungLine }, data: { hours: 40, amountCents: forty } })
@@ -257,28 +316,6 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(check(m, 'RECEIPT').outcome).toBe('PASS')
   })
 
-  it('Computer Systems records CloudEPA’s invoice for the thirty-eight hours it accepted, and it matches', async () => {
-    as(CS)
-    const r = await receipt('CE-HM-38', 38)
-    expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.bill.status).toBe('RECEIVED')
-    expect(r.body.data.match.checks.filter((c: any) => c.outcome === 'FAIL')).toEqual([])
-  })
-
-  it('an invoice receipt for forty against the thirty-eight accepted is still held as disputed with a reason, because the other waivable mismatches stay as they were', async () => {
-    as(CS)
-    const r = await receipt('CE-HM-40', 40)
-    expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.bill.status).toBe('DISPUTED')
-    expect(r.body.data.match.checks.find((c: any) => c.code === 'QUANTITY')).toMatchObject({ outcome: 'FAIL', overridable: true })
-  })
-
-  it('once Computer Systems has accepted the week, the invoice recorded before the rule is no longer blocked by it', async () => {
-    as(CS)
-    const q = await json(await exceptions(req('GET', '/api/ap/bills')))
-    const row = q.body.data.exceptions.find((e: any) => e.id === s.oldBill)
-    expect(row?.hardFailures ?? []).not.toContain('RECEIPT')
-  })
   // ── Rule 4, the founder, 2026-09-29: the cut comes off overtime first ──
   //
   // A week of Helena's before the seeded ones, forty-five hours at nine a

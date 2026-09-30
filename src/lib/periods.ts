@@ -477,6 +477,44 @@ export function collect(sheets: Sheet[], period: Period, straddle: Straddle): {
   }
 }
 
+// ── Hours in a calendar month ─────────────────────────────────────────
+
+/**
+ * A person's hours in the calendar month holding `on`, counted by day.
+ *
+ * "Hours this month" on a worker's page counted every week that *started*
+ * in the month, so a week running Monday 31 August to Friday 4 September
+ * was August's whole, and September lost its first four days — Helena
+ * Marsh read 120 where her own list held 152. A month is its days: the
+ * days of each sheet that fall inside it, read off the daily breakdown,
+ * whichever month the week began in.
+ *
+ * A sheet crossing the month with no daily breakdown cannot be split, so
+ * it counts where it ends — the same fallback `hoursInPeriod` uses — and
+ * `unsplit` says how many did, so a screen can say the figure leans on it
+ * rather than presenting a guess as a count.
+ */
+export function hoursInMonth(
+  sheets: readonly Sheet[],
+  on: Date
+): { hours: number; unsplit: number; month: Period } {
+  const start = utc(on.getUTCFullYear(), on.getUTCMonth(), 1)
+  const month: Period = {
+    start,
+    end: endOfMonth(start),
+    label: `${MONTHS[start.getUTCMonth()]} ${start.getUTCFullYear()}`,
+  }
+  let hours = 0
+  let unsplit = 0
+  for (const s of sheets) {
+    const got = hoursInPeriod(s, month, 'SPLIT')
+    if (!got) continue
+    hours += got.hours
+    if (!got.partial && got.note) unsplit++
+  }
+  return { hours: r2(hours), unsplit, month }
+}
+
 // ── What a period may bill, once somebody has decided the overtime ────
 //
 // `hoursInPeriod` answers "how many hours", which was enough while every

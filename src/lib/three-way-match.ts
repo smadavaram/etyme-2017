@@ -653,8 +653,8 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     checks,
     summary: failures.length === 0
       ? waived.length === 0
-        ? `Matched — ${lines.length} line(s), ${money(invoice.totalCents)}, every hour approved`
-        : `Matched with ${waived.length} exception(s) — ${waived.map(w => CHECK_PHRASE[w.code]).join(', ')}`
+        ? `Matched — ${lines.length} line${lines.length === 1 ? '' : 's'}, ${money(invoice.totalCents)}, every hour approved`
+        : `Matched with ${waived.length} exception${waived.length === 1 ? '' : 's'} — ${waived.map(w => CHECK_PHRASE[w.code]).join(', ')}`
       : failures.length === 1
         ? failures[0].reason
         : `${failures.length} checks failed — ${failures[0].reason}`,

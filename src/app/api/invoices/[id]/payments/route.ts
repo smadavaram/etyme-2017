@@ -8,6 +8,7 @@ import { invoiceScope } from '@/lib/resolve-client-company'
 import { booksFor, noteMoneyRead, seatMayPay, moneyTrailFor } from '@/lib/money/seated-books'
 import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 import { fromUnits } from '@/lib/money-display'
+import { fromPrismaDecimal } from '@/lib/money'
 
 /**
  * POST /api/invoices/:id/payments
@@ -221,6 +222,12 @@ export async function POST(
           payerCompanyId: billedTo.id,
           receivedByCompanyId: billedBy.id,
           appliedAt: new Date(),
+          // Who pressed it, so the row can say so beside who paid whom.
+          appliedById: caller.person.id,
+        },
+        include: {
+          payerCompany: { select: { name: true } },
+          receivedByCompany: { select: { name: true } },
         },
       })
 
@@ -301,12 +308,22 @@ export async function POST(
 
     return NextResponse.json({
       data: {
+        // In the shape every reader of a payment row reads: minor units
+        // and the currency beside them, how it was paid, and who paid
+        // whom. The screen read `amountMinor` off this and got nothing
+        // back, so the payment just made showed "—" for its amount.
+        // `amount` stays for older readers, in whole currency.
         payment: {
           id: result.id,
           amount: Number(result.amount),
+          amountMinor: fromPrismaDecimal(result.amount, result.currency ?? invoice.currency).minor,
+          currency: result.currency ?? invoice.currency,
           method: result.method,
           reference: result.reference,
           receivedAt: result.receivedAt.toISOString(),
+          paidBy: result.payerCompany?.name ?? null,
+          paidTo: result.receivedByCompany?.name ?? null,
+          recordedBy: caller.person.name,
         },
         invoice: {
           id,

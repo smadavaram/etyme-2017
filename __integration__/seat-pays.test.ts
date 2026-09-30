@@ -303,6 +303,13 @@ describe('what a seated desk may do with the client’s money', () => {
     )
     expect(status).toBe(201)
     expect(body.data.invoice.status).toBe('PAID')
+    // The row the screen adds at once, in minor units: it read
+    // `amountMinor` and was sent nothing, so it drew "—".
+    expect(body.data.payment.amountMinor).toBe(Math.round(outstanding * 100))
+    expect(body.data.payment.currency).toBe(invoice.currency)
+    expect(body.data.payment.method).toBe('ACH')
+    expect(body.data.payment.reference).toBe('AP-RUN-0007')
+    expect(body.data.payment.paidBy).toBe('Cavanaugh Glassworks')
 
     // The payment says who paid whom, and the payer is the client — not
     // the office that pressed the button.
@@ -321,6 +328,27 @@ describe('what a seated desk may do with the client’s money', () => {
     expect(log.reason).toContain('AP Clerk')
     expect(log.reason).toContain('Cavanaugh Glassworks')
     expect(log.reason).toContain(id.seat)
+  })
+
+  it('the payment just made reads back its amount, how it was paid, the reference and who paid whom, on the one invoice page', async () => {
+    const one = await json(
+      await readInvoice(req('GET', `/api/invoices/${id.clientInvoice}`), {
+        params: Promise.resolve({ id: id.clientInvoice }),
+      })
+    )
+    expect(one.status).toBe(200)
+    const inv = one.body.data.invoice
+    // The client's own book: ours to pay, and nothing left on it.
+    expect(inv.direction).toBe('PAYABLE')
+    expect(inv.outstandingMinor).toBe(0)
+    const paid = inv.payments.find((p: any) => p.reference === 'AP-RUN-0007')
+    expect(paid).toBeDefined()
+    expect(paid.amountMinor).toBeGreaterThan(0)
+    expect(inv.payments.reduce((n: number, p: any) => n + p.amountMinor, 0)).toBe(inv.paidMinor)
+    expect(paid.method).toBe('ACH')
+    expect(paid.paidBy).toBe('Cavanaugh Glassworks')
+    expect(typeof paid.paidTo).toBe('string')
+    expect(paid.recordedBy).toBeTruthy()
   })
 
   it('a revoked seat reads no invoice the next second', async () => {

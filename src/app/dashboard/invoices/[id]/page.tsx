@@ -6,6 +6,18 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { amount } from '@/lib/money-display'
 import { CHECK_NAME, type MatchCode } from '@/lib/three-way-match'
+import { plainDate, daySpan } from '@/lib/plain-date'
+import { InvoiceMoney } from '../invoice-money'
+
+/** The status in words a clerk says, never the enum. */
+const STATUS_WORDS: Record<string, string> = {
+  DRAFT: 'Draft',
+  ISSUED: 'Raised, not yet submitted',
+  SUBMITTED: 'Submitted for payment',
+  PARTIALLY_PAID: 'Partly paid',
+  PAID: 'Paid',
+  CANCELLED: 'Cancelled',
+}
 
 /** This endpoint returns whole currency units, not minor ones. */
 const amountFromUnits = (n: number) => amount(Math.round(n * 100))
@@ -179,6 +191,11 @@ export default function InvoiceDetail() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 4000)
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -258,17 +275,26 @@ export default function InvoiceDetail() {
 
   return (
     <div className="max-w-3xl">
-      <a href="/dashboard/invoices" className="text-sm text-etyme-action hover:underline">← Invoices</a>
+      <a href="/dashboard/invoices" className="text-sm text-etyme-action hover:underline">
+        ← {inv.direction === 'PAYABLE' ? 'Invoice receipts' : inv.direction === 'RECEIVABLE' ? 'Bills' : 'Back to the list'}
+      </a>
+      {toast && (
+        <div className={`mt-3 rounded-lg px-4 py-2 text-sm ${
+          toast.type === 'error' ? 'bg-etyme-attention/10 text-etyme-attention' : 'bg-etyme-verified/10 text-etyme-verified'
+        }`}>
+          {toast.message}
+        </div>
+      )}
 
       <div className="mt-4 mb-8 flex items-start justify-between gap-6">
         <div>
           <Lbl>{inv.vendor?.name ?? 'Vendor'} → {inv.client?.name ?? 'Client'}</Lbl>
           <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">{inv.number}</h1>
           <div className="text-etyme-muted mt-2">
-            {inv.periodStart} → {inv.periodEnd} ·{' '}
+            {daySpan(inv.periodStart, inv.periodEnd)} ·{' '}
             {inv.terms?.clockStarted === false
               ? 'not payable yet'
-              : <>due {inv.dueAt}</>} · {inv.status.toLowerCase()}
+              : <>due {plainDate(inv.dueAt)}</>} · {STATUS_WORDS[inv.status] ?? inv.status}
           </div>
           {/* What the date counts from, said rather than assumed. "Due
               the 9th" answers nothing when a client thinks the clock
@@ -280,7 +306,7 @@ export default function InvoiceDetail() {
           {inv.earlyPayment?.discount > 0 && (
             <div className="text-xs text-etyme-verified mt-1">
               {inv.earlyPayment.says}
-              {inv.earlyPayment.by ? ` Offer stands to ${inv.earlyPayment.by}.` : ''}
+              {inv.earlyPayment.by ? ` Offer stands to ${plainDate(inv.earlyPayment.by)}.` : ''}
             </div>
           )}
         </div>
@@ -326,6 +352,31 @@ export default function InvoiceDetail() {
         </div>
       )}
 
+      {/* The money: who it is paid to, what has been paid, and the one
+          place to pay it — under the check, so nobody pays without
+          seeing it. There used to be a second door, a side panel on the
+          list with Pay and no check. */}
+      {inv.direction !== 'NEITHER' && typeof inv.totalMinor === 'number' && (
+        <div className="mb-8">
+          <InvoiceMoney
+            invoice={{
+              id: inv.id,
+              number: inv.number,
+              currency: inv.currency,
+              direction: inv.direction,
+              status: inv.status,
+              totalMinor: inv.totalMinor,
+              paidMinor: inv.paidMinor,
+              outstandingMinor: inv.outstandingMinor,
+              dueAt: inv.dueAt,
+              payments: inv.payments ?? [],
+            }}
+            onPaid={load}
+            onToast={showToast}
+          />
+        </div>
+      )}
+
       {/* Lines, each with the receipt that justifies it */}
       <section>
         <div className="flex items-baseline gap-3 mb-3">
@@ -344,7 +395,7 @@ export default function InvoiceDetail() {
                 <div className="text-etyme-ink">{l.person.name}</div>
                 <div className="text-xs text-etyme-muted">
                   {l.receipt
-                    ? <>timesheet {l.receipt.period} · {l.receipt.approvedHours}h approved</>
+                    ? <>hours for {l.receipt.period} · {l.receipt.approvedHours}h approved</>
                     : <span className="text-etyme-attention">no timesheet behind this line</span>}
                 </div>
               </div>
@@ -355,7 +406,7 @@ export default function InvoiceDetail() {
               <div className="w-24 text-right shrink-0">
                 {l.receipt
                   ? <Chip tone={l.receipt.status === 'APPROVED' ? 'verified' : 'attention'}>
-                      {l.receipt.status.toLowerCase()}
+                      {l.receipt.status === 'APPROVED' ? 'approved' : l.receipt.status === 'SUBMITTED' ? 'waiting to be signed' : l.receipt.status.toLowerCase()}
                     </Chip>
                   : <Chip tone="attention">no receipt</Chip>}
               </div>
@@ -367,7 +418,7 @@ export default function InvoiceDetail() {
       {data.workOrder && (
         <p className="text-xs text-etyme-faint mt-8 pt-6 border-t border-etyme-rule">
           Raised against purchase order {data.workOrder.number} — {amountFromUnits(data.workOrder.amount)} authorized,
-          {data.workOrder.endDate ? ` running to ${data.workOrder.endDate}` : ' open ended'}.
+          {data.workOrder.endDate ? ` running to ${plainDate(data.workOrder.endDate)}` : ' open ended'}.
           An approved timesheet is the receipt: no receipt, no payment.
         </p>
       )}

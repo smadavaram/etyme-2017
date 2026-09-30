@@ -20,6 +20,7 @@ import { ORDER_HEADER_SELECT, periodTermsFor, termsFor } from '@/lib/money/order
 import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
 import { readWindow, billingWindow, inWindow } from '@/lib/money/invoice-window'
 import { whatTheRungBills } from '@/lib/money/rung-billing'
+import { billedElsewhere, type ReceiptOnRecord } from '@/lib/money/billed-elsewhere'
 
 /**
  * GET /api/invoices/generate — the engagements this firm may bill.
@@ -450,6 +451,46 @@ export async function POST(request: NextRequest) {
     }
   })
 
+  // ── Hours already on a bill the firm above recorded from us ─────────
+  //
+  // "Not yet billed by us" above asks our own invoice lines, and a bill to
+  // the firm above also reaches the record as an invoice receipt that
+  // firm keyed in from us, with a period and no lines. Both are ours.
+  // Every live one the payers hold from us is read, so a week inside one
+  // is left off with a sentence rather than billed a second time
+  // (lib/money/billed-elsewhere).
+  const payerIds = [...new Set(engagement.sellContracts.map((sc) => sc.clientCompanyId).filter((x): x is string => !!x))]
+  const receivedFromUs = payerIds.length === 0
+    ? []
+    : await prisma.vendorBill.findMany({
+        where: {
+          companyId: { in: payerIds },
+          vendorCompanyId: caller.company!.id,
+          status: { notIn: ['CANCELLED', 'VOID', 'REJECTED'] },
+          periodStart: { not: null },
+          periodEnd: { not: null },
+        },
+        select: {
+          number: true, companyId: true, periodStart: true, periodEnd: true,
+          company: { select: { name: true } },
+          buyContract: { select: { supplierSellContractId: true, candidates: { select: { personId: true } } } },
+        },
+      })
+  /** The receipts one payer holds that could cover hours on our own contract. */
+  const receiptsFor = (payerId: string, ourSellId: string): ReceiptOnRecord[] =>
+    receivedFromUs
+      .filter((b) => b.companyId === payerId)
+      // A receipt on the payer's buy line from a different contract of
+      // ours is not this contract's.
+      .filter((b) => !b.buyContract?.supplierSellContractId || b.buyContract.supplierSellContractId === ourSellId)
+      .map((b) => ({
+        number: b.number,
+        payerName: b.company.name,
+        periodStart: b.periodStart!.toISOString().slice(0, 10),
+        periodEnd: b.periodEnd!.toISOString().slice(0, 10),
+        personIds: b.buyContract ? b.buyContract.candidates.map((c) => c.personId) : null,
+      }))
+
   // ── Expenses that ride on this invoice ──────────────────────────────
   //
   // Approved, client-billable, not yet on an invoice, on our own
@@ -639,6 +680,7 @@ export async function POST(request: NextRequest) {
 
     if (!billable) continue
 
+
     // ── What the firm above accepted ──────────────────────────────────
     //
     // The founder, 2026-09-28: a firm bills only the hours the firm above
@@ -676,6 +718,24 @@ export async function POST(request: NextRequest) {
     if (rung.kind === 'WAITING' || rung.kind === 'HELD') {
       heldBack.push({ timesheetId: ts.id, kind: rung.kind, says: rung.says })
       continue
+    }
+
+    // Already on a bill the payer recorded from us: never billed twice.
+    if (ts.payer) {
+      const cover = billedElsewhere(
+        {
+          personId: ts.person.id,
+          personName: ts.person.name,
+          days: sheet.days,
+          periodStart: ts.periodStart.toISOString().slice(0, 10),
+          periodEnd: ts.periodEnd.toISOString().slice(0, 10),
+        },
+        receiptsFor(ts.payer.id, ts.sellContractId)
+      )
+      if (cover.covered !== 'NONE') {
+        heldBack.push({ timesheetId: ts.id, kind: 'HELD', says: cover.says! })
+        continue
+      }
     }
 
     // Fewer hours accepted than worked, or only some days (the founder,

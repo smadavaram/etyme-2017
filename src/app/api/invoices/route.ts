@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { whatWeOwe } from '@/lib/money/what-we-owe'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -403,6 +404,10 @@ export async function GET(request: NextRequest) {
         /** Ours to pay. Never added to the line above. */
         payable,
         unattributedCount: unattributed,
+        // What this firm owes its suppliers in all, from the one door
+        // Accounts payable reads too: the bills generated to it and the
+        // invoice receipts keyed in there (lib/money/what-we-owe).
+        owedInAll: companyId ? await whatWeOwe(companyId, new Date()) : null,
         gaps,
         says:
           'What we are owed and what we owe are shown apart and never summed. A prime that ' +

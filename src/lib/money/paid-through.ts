@@ -38,3 +38,64 @@ export function notPayrollSays(a: { personName: string; contractType: string | n
   if (t === 'C2C') return `${a.personName} is paid through their own company’s invoice — see Invoice receipts.`
   return `Nothing on ${a.personName}’s line says they are our employee, so payroll does not pay it. Set the contract type, or settle it through Invoice receipts.`
 }
+
+// ── What the worker's own page may say about money ──────────────────
+
+/**
+ * How the person on a line is paid, from their own side.
+ *
+ * - WAGES: the firm on the line employs them and pays by payroll. "Owed
+ *   to you" and a pay day are true.
+ * - OWN_COMPANY_BILLS: the firm buys from a company that is the person's
+ *   own — corp to corp through her LLC. Nothing is owed to her as wages.
+ *   Her company is the seller: it bills the firm, and the firm pays her
+ *   company's invoice on its terms. Colleen Byrne's page said "$9,936 is
+ *   owed to you … paid by Halcyon Talent … no pay date set", which is a
+ *   payroll sentence about somebody on no payroll.
+ * - THROUGH_SUPPLIER: another firm stands between — her employer is
+ *   below this line, and this line's money goes to that firm, not to her.
+ * - UNKNOWN: nothing on the line says (no contract type). Said as
+ *   unknown, never read as wages.
+ *
+ * `ownCompanyIds` are the companies that are the person's own: her
+ * `ConsultantProfile.ownCompanyId`, and any one-person corporation she
+ * holds the owner's seat at.
+ */
+export type WorkerPaidAs = 'WAGES' | 'OWN_COMPANY_BILLS' | 'THROUGH_SUPPLIER' | 'UNKNOWN'
+
+export function workerPaidAs(line: PayLineShape, ownCompanyIds: readonly string[]): WorkerPaidAs {
+  if (line.vendorCompanyId && ownCompanyIds.includes(line.vendorCompanyId)) return 'OWN_COMPANY_BILLS'
+  if (line.vendorCompanyId || line.supplierSellContractId) return 'THROUGH_SUPPLIER'
+  if (paidByPayroll(line)) return 'WAGES'
+  const t = String(line.contractType ?? '').toUpperCase()
+  // An independent contractor on a 1099 bills in their own name: the
+  // same shape as her own company, with herself as the seller.
+  if (t === 'IND_1099') return 'OWN_COMPANY_BILLS'
+  return 'UNKNOWN'
+}
+
+/**
+ * The sentence for weeks a person's own company bills, in place of "owed
+ * to you". Hours and weeks only — never a figure, because what her
+ * company bills is her company's own price and the rate on the buyer's
+ * line is what the buyer pays her company, which her company's bill
+ * states and this page does not restate as wages.
+ */
+export function ownCompanyBillsSays(a: {
+  companyName: string | null
+  buyerName: string
+  weeks: number
+  hours: number
+  paymentTermsDays?: number | null
+}): string {
+  const seller = a.companyName ?? 'Your own company'
+  const w = `${a.weeks} week${a.weeks === 1 ? '' : 's'}`
+  const h = `${Math.round(a.hours * 100) / 100} hour${a.hours === 1 ? '' : 's'}`
+  const terms = a.paymentTermsDays ? `, net ${a.paymentTermsDays} days` : ''
+  if (a.weeks === 0) {
+    return `${seller} bills ${a.buyerName} for your hours once ${a.buyerName} accepts them. ` +
+      `${a.buyerName} pays ${seller}’s invoice${terms}; it does not pay you wages.`
+  }
+  return `${w}, ${h}, accepted by ${a.buyerName} and ready for ${seller} to bill. ` +
+    `${a.buyerName} pays ${seller}’s invoice${terms}; it does not pay you wages.`
+}

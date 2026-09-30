@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { whatWeOwe } from '@/lib/money/what-we-owe'
 import { getCallerContext } from '@/lib/api-context'
 import {
   mayOpen, refusal, maySeeBothSides, PAYABLE, BOTH_SIDES_WITHHELD,
@@ -380,6 +381,22 @@ export async function GET(request: NextRequest) {
     }
   })
 
+  // ── What we owe, from the one door ──────────────────────────────────
+  //
+  // The headline is what we owe in all: the invoice receipts keyed in
+  // here and the bills suppliers generated to us, which the invoice list
+  // reads through the same call (lib/money/what-we-owe). Computer Systems
+  // read $36,800 here and $16,992 there for the same question. Days to
+  // pay above stay measured on the keyed-in receipts, whose arrival dates
+  // they count back through.
+  const inAll = await whatWeOwe(companyId, now)
+  for (const b of books) {
+    const all = inAll.books.find((x) => x.currency.toUpperCase() === b.currency)
+    b.payableMinor = all?.owedMinor ?? 0
+    b.overdueMinor = all?.overdueMinor ?? 0
+    b.billCount = all?.openCount ?? 0
+  }
+
   // ── Pay when paid ───────────────────────────────────────────────────
   const flags = payWhenPaidFlags(allHops, now)
 
@@ -563,6 +580,8 @@ export async function GET(request: NextRequest) {
       // sentence and would be a lie.
       bothSides,
       currencies: books,
+      // The same figure the invoice list shows, and how it is made up.
+      owedInAll: inAll,
       // Incoming hops are what clients paid us. On their own they are the
       // receivable book, which is AR's page; here, beside the outgoing
       // hops, they are half of a margin — so the reader who may not see

@@ -7,7 +7,9 @@ import { matchInvoice, recompute } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
 import { discountDeadline, discountOn, dueOn, ladderFor, resolveBillingTerms } from '@/lib/billing-cascade'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
-import { partiesOf } from '@/lib/money/invoice-parties'
+import { directionFrom, partiesOf } from '@/lib/money/invoice-parties'
+import { fromPrismaDecimal } from '@/lib/money'
+import { daySpan } from '@/lib/plain-date'
 
 /**
  * GET /api/invoices/:id
@@ -153,8 +155,19 @@ export async function GET(
   if (reading) noteMoneyRead(reading, `Invoice ${invoice.number} read`)
 
   const match = await matchInvoice(id)
+  // Every payment, with how it was paid and who paid whom, so the one
+  // page for an invoice can show what was recorded — the clerk who just
+  // paid it has to be able to read back the amount, the method and the
+  // reference she typed.
   const payments = await prisma.payment.findMany({
-    where: { invoiceId: id }, select: { amount: true },
+    where: { invoiceId: id },
+    select: {
+      id: true, amount: true, currency: true, method: true, reference: true, receivedAt: true,
+      payerCompany: { select: { name: true } },
+      receivedByCompany: { select: { name: true } },
+      appliedBy: { select: { name: true } },
+    },
+    orderBy: { receivedAt: 'asc' },
   })
   const paidCents = payments.reduce((sum, p) => sum + decimalToCents(p.amount), 0)
 
@@ -225,12 +238,35 @@ export async function GET(
   })
   const deadline = discountDeadline(ladder, clock.anchoredOn)
 
+  // Which side of the book this invoice is on for the reader: ours to
+  // pay, ours to collect, or neither. The pay form is only ever offered
+  // to the side that pays.
+  const direction = directionFrom(parties, reading?.companyId ?? caller.company?.id ?? null)
+  const totalMinor = fromPrismaDecimal(invoice.total, invoice.currency).minor
+  const paidMinor = payments.reduce((n, p) => n + fromPrismaDecimal(p.amount, p.currency ?? invoice.currency).minor, 0)
+
   return NextResponse.json({
     data: {
       invoice: {
         id: invoice.id,
         number: invoice.number,
         status: invoice.status,
+        direction,
+        // Minor units, beside the whole-currency figures older readers use.
+        totalMinor,
+        paidMinor,
+        outstandingMinor: totalMinor - paidMinor,
+        payments: payments.map((p) => ({
+          id: p.id,
+          amountMinor: fromPrismaDecimal(p.amount, p.currency ?? invoice.currency).minor,
+          currency: p.currency ?? invoice.currency,
+          method: p.method,
+          reference: p.reference,
+          receivedAt: p.receivedAt.toISOString(),
+          paidBy: p.payerCompany?.name ?? null,
+          paidTo: p.receivedByCompany?.name ?? null,
+          recordedBy: p.appliedBy?.name ?? null,
+        })),
         periodStart: invoice.periodStart.toISOString().slice(0, 10),
         periodEnd: invoice.periodEnd.toISOString().slice(0, 10),
         dueAt: invoice.dueAt.toISOString().slice(0, 10),
@@ -313,7 +349,7 @@ export async function GET(
               id: l.timesheet.id,
               status: l.timesheet.status,
               approvedHours: Number(l.timesheet.totalHours),
-              period: `${l.timesheet.periodStart.toISOString().slice(0, 10)} → ${l.timesheet.periodEnd.toISOString().slice(0, 10)}`,
+              period: daySpan(l.timesheet.periodStart.toISOString(), l.timesheet.periodEnd.toISOString()),
             }
           : null,
       })),

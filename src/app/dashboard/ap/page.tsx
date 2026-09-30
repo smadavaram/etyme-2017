@@ -100,10 +100,7 @@ export default function ApPage() {
         <p className="eyebrow">Operate</p>
         <h1 className="headline-serif text-[30px] leading-tight">Accounts payable</h1>
         <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
-          Being late is actual against agreed. Float is your cash out against your cash
-          in — and a firm can be perfectly on time on every hop and still fund four
-          months of somebody else&rsquo;s work. Only the second one explains a
-          working-capital problem, and only laying the hops end to end produces it.
+          What you owe, to whom, and when each one is due.
         </p>
       </header>
 
