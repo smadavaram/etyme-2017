@@ -758,7 +758,7 @@ export function contractClearance(input: {
     license,
     unsupported,
     editions,
-    says: sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions, waived),
+    says: oneStop(sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions, waived)),
     fix: fixFor(blocking, chasing, cover, license, unsupported, editions),
   }
 }
@@ -832,6 +832,48 @@ function names(items: { label: string; said?: string }[]): string {
   return `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}`
 }
 
+/**
+ * Several findings as prose, ending on exactly one full stop.
+ *
+ * The findings arrive in two shapes: a clause ("still waiting on the
+ * background check for Rosa Delgado") and a finished sentence from
+ * another gate ("Brightmoor Staffing: the certificate of insurance ran
+ * out on 3 March. Nobody can be submitted through Brightmoor Staffing
+ * until it is back in date."). Joining the second with "; " and a
+ * closing "." read "until it is back in date.. The contract can start"
+ * on Rosa Delgado's placement. So: where every finding is a single
+ * clause they share one sentence; where any of them is already more
+ * than one sentence, each stands as its own.
+ */
+export function joinClauses(parts: readonly string[]): string {
+  const bare = parts
+    .map((p) => p.trim().replace(/[\s.;,]+$/, ''))
+    .filter((p) => p.length > 0)
+  if (bare.length === 0) return ''
+  const cap = (p: string) => p.charAt(0).toUpperCase() + p.slice(1)
+  const several = bare.some((p) => /[.!?]\s/.test(p))
+  return several ? bare.map((p) => `${cap(p)}.`).join(' ') : `${cap(bare.join('; '))}.`
+}
+
+/**
+ * The last word on any verdict: no sentence ends twice.
+ *
+ * A finding carries its own full stop and the sentence around it adds
+ * another, or a clause ends in a full stop and is followed by a
+ * semicolon. Either reads as a typo on the one line a compliance desk
+ * reads before it starts somebody. An ellipsis is never written here, so
+ * two stops in a row are always one too many.
+ */
+export function oneStop(said: string): string {
+  return said
+    .replace(/\.(\s*\.)+/g, '.')
+    .replace(/\.\s*;/g, '.')
+    .replace(/;\s*\./g, '.')
+    .replace(/\s+([.;,])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 function sayIt(
   person: string,
   outcome: Outcome,
@@ -895,7 +937,7 @@ function sayIt(
   for (const e of editions) {
     if (e.standing === 'SUPERSEDED') parts.push(e.says)
   }
-  const warned = `${parts.join('; ')}. The contract can start with a reason recorded.`
+  const warned = `${joinClauses(parts)} The contract can start with a reason recorded.`
   return reported.length === 0 ? warned : `${warned} ${reported.join(' ')}`
 }
 
