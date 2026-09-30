@@ -706,18 +706,20 @@ describe('Below the hero, the page says what the business is', () => {
     expect(all).not.toContain('within an hour')
   })
 
-  it('declares the category as enterprise contingent workforce management, straight under the founder’s headline', () => {
+  it('declares the category as enterprise contingent workforce management, straight above the founder’s headline', () => {
+    // Moved above the headline on 2026-09-30: "Enterprise contingent
+    // workforce mgmt above the hero line." Category first, then the line.
     // The founder's line first, then the category he declared on
     // 2026-09-28: "Enterprise contingent workforce management", with no
     // size after it — "keep the business open for all". It names the
     // whole span. "Vendor management system" was said once further down
     // until the evening of the same day, when the founder banned it on
     // public pages; see `vendorManagementSystem`.
-    expect(words[0]).toBe('Every contractor. Every supplier. One record.')
-    expect(words[1]).toBe('Enterprise contingent workforce management.')
+    expect(words[0]).toBe('Enterprise contingent workforce management.')
+    expect(words[1]).toBe('Every contractor. Every supplier. One record.')
   })
 
-  it('says what the software does straight after the category, as a description a reader can try rather than a promise', () => {
+  it('says what the software does straight after the headline, as a description a reader can try rather than a promise', () => {
     // A buyer-side review, 2026-09-27, asked for the outcome under the
     // category: the reader is an operations leader or a CFO with a dozen
     // suppliers and nobody to watch them. On 2026-09-28 the founder said
@@ -733,7 +735,7 @@ describe('Below the hero, the page says what the business is', () => {
     expect(outcome).toBe(
       'Your own people approve the jobs, sign the timesheets and pay only matched bills, across every supplier.'
     )
-    expect(words[1]).toBe('Enterprise contingent workforce management.')
+    expect(words[0]).toBe('Enterprise contingent workforce management.')
     expect(outcome).toMatch(/\byour own people\b/i)
     for (const verb of ['approve', 'sign', 'pay']) expect(outcome, verb).toMatch(new RegExp(`\\b${verb}\\b`))
     expect(unverifiableClaims(outcome)).toEqual([])
@@ -1342,7 +1344,10 @@ describe('The page shows the product before it describes it', () => {
     // first screenshot. It was six while the hook line and a second
     // category sentence sat here.
     const headline = 'Every contractor. Every supplier. One record.'
-    const top = PAGE.slice(PAGE.indexOf(headline), PAGE.indexOf('<img'))
+    // The category sits above the headline since 2026-09-30, so the top
+    // is read from the category.
+    const at = PAGE.indexOf('Enterprise contingent workforce management.')
+    const top = PAGE.slice(PAGE.lastIndexOf('<p', at), PAGE.indexOf('<img'))
     const prose = copyFrom(top).filter((t) => t !== headline)
     const sentences = prose
       .join(' ')
@@ -1401,7 +1406,7 @@ describe('The page shows the product before it describes it', () => {
     // the reader is told what kind of thing it is, and nothing about who
     // may buy it.
     const category = 'Enterprise contingent workforce management.'
-    expect(words[1]).toBe(category)
+    expect(words[0]).toBe(category)
     expect(sizesTheBuyer(all), sizesTheBuyer(all).join('; ')).toEqual([])
     expect(words.filter((w) => /20 to 200|sized for|rather than five thousand/.test(w))).toEqual([])
     // Nobody is named anywhere, with nothing set aside — no customer,
@@ -1807,7 +1812,7 @@ describe('The footer is where a company keeps its papers', () => {
 describe('The public page still says the four things it may not stop saying', () => {
 
   it('the home page names what Etyme is before it names anything it does', () => {
-    expect(words[1]).toBe('Enterprise contingent workforce management.')
+    expect(words[0]).toBe('Enterprise contingent workforce management.')
     expect(check(live).map((f) => f.rule)).not.toContain('category-first')
     expect(check(live).map((f) => f.rule)).not.toContain('module-not-category')
   })

@@ -261,6 +261,11 @@ export default function LandingPage() {
           that sat here went to /about#unanswered. */}
       <section className={`${SCREEN} ${EDGE}`}>
         <div className={BAND}>
+          {/* The category above the founder's headline, 2026-09-30:
+              "Enterprise contingent workforce mgmt above the hero line." */}
+          <p className="mb-4 text-[17px] font-medium leading-snug text-etyme-ink md:text-[20px]">
+            Enterprise contingent workforce management.
+          </p>
           <h1 className="mb-5 max-w-[18ch] text-balance font-serif text-[40px] font-normal
                          leading-[1.04] tracking-[-0.02em] text-etyme-ink md:text-[64px]">
             Every contractor. Every supplier. One record.
@@ -270,9 +275,6 @@ export default function LandingPage() {
               phone they stack, words first. */}
           <div className="grid gap-y-6 lg:grid-cols-12 lg:items-center lg:gap-x-6">
           <div className="lg:col-span-5">
-          <p className="mb-3 text-[19px] font-medium leading-snug text-etyme-ink md:text-[22px]">
-            Enterprise contingent workforce management.
-          </p>
           {/* What the software does, as a description rather than a
               promise, 2026-09-28: the reader is an engineer who discounts
               "control" and checks verbs. Each verb is a screen in the
