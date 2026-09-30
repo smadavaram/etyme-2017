@@ -183,3 +183,18 @@ describe('what each person earns in commission is the payroll desk’s to read',
     }
   })
 })
+
+describe('a commission run pays people, so it is the payroll desk’s', () => {
+  it('the AR desk cannot run a commission payout; the payroll desk can', () => {
+    const src = readFileSync('src/app/api/payroll/commissions/route.ts', 'utf8')
+    const post = src.slice(src.indexOf('export async function POST'))
+    expect(post).toMatch(/if \(!hasPermission\(caller\.permissions, 'payroll\.run'\)\) \{/)
+    expect(post).not.toMatch(/invoices\.issue/)
+    expect(post).toContain('the desk that runs payroll')
+    for (const kind of ['VENDOR', 'GSI'] as const) {
+      expect(perms(kind, 'Accounts Receivable')).not.toContain('payroll.run')
+      expect(perms(kind, 'AP & Payroll')).toContain('payroll.run')
+      expect(perms(kind, 'Finance')).toContain('payroll.run')
+    }
+  })
+})

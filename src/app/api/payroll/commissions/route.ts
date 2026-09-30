@@ -132,8 +132,22 @@ export async function POST(request: NextRequest) {
   if (error) return error
   const notStaff = staffOnly(caller, 'The commission run')
   if (notStaff) return notStaff
-  if (!hasPermission(caller.permissions, 'payroll.run') && !hasPermission(caller.permissions, 'invoices.issue')) {
-    return NextResponse.json({ error: { code: 'FORBIDDEN', message: `The commission run is for whoever runs pay at ${caller.company!.name}.` } }, { status: 403 })
+  // A commission run pays people, so it is the payroll desk's alone.
+  // The permission to issue a bill let the Accounts Receivable desk run it, and AR
+  // bills the client and never runs payroll (CLAUDE.md, the supplier's
+  // own roles): one desk that both bills and pays is no segregation.
+  if (!hasPermission(caller.permissions, 'payroll.run')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            `A commission run pays people, so it is run by the desk that runs payroll at ${caller.company!.name} — AP & Payroll, Finance or the owner. ` +
+            'Ask them to run the period.',
+        },
+      },
+      { status: 403 }
+    )
   }
   const companyId = caller.company!.id
   const body = await request.json().catch(() => ({}))

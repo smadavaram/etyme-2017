@@ -374,6 +374,18 @@ describe('what each person earns in commission is the payroll desk’s to read',
     expect(run.body?.error, JSON.stringify(run.body)).toBeUndefined()
   })
 
+  it('the AR desk cannot run a commission payout; the payroll desk can', async () => {
+    const ar = await seatAt(brightmoorId, 'Imelda Santoro')
+    const period = { periodStart: new Date(Date.now() - 30 * 86_400_000).toISOString(), periodEnd: new Date().toISOString() }
+    as(ar.email)
+    const refused = await json(await runCommissions(req('POST', '/api/payroll/commissions', period, { 'x-context-id': ar.id })))
+    expect(refused.status).toBe(403)
+    expect(refused.body.error.message).toContain('the desk that runs payroll')
+    as(desmond.email)
+    const ran = await json(await runCommissions(req('POST', '/api/payroll/commissions', period, { 'x-context-id': desmond.id })))
+    expect(ran.status).toBe(200)
+  })
+
   it('the account manager is refused what recruiters earn, in a sentence, and the refusal is on the trail', async () => {
     const r = await call(marisa, readCommissions, '/api/payroll/commissions')
     expect(r.status).toBe(403)
