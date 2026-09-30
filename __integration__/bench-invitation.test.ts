@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { POST as createListing } from '@/app/api/bench/listings/route'
 import { GET as readInviteRoute, POST as answerInvite } from '@/app/api/bench-invite/[token]/route'
@@ -88,9 +88,21 @@ describe('adding somebody to a bench is a question, not a fact', () => {
   }, 60_000)
 
   it('records the invitation as a message, so somebody can see it was sent', async () => {
-    const msg = await prisma.textMessage.findFirst({
-      where: { personId, aboutType: 'LISTING', aboutId: listingId },
-    })
+    // The route does not await the send (see below), so the row lands a
+    // moment after the response. Under four files at once that moment
+    // was long enough to miss; wait for it rather than race it.
+    const msg = await vi
+      .waitFor(
+        async () => {
+          const row = await prisma.textMessage.findFirst({
+            where: { personId, aboutType: 'LISTING', aboutId: listingId },
+          })
+          if (!row) throw new Error('not yet')
+          return row
+        },
+        { timeout: 10_000, interval: 100 }
+      )
+      .catch(() => null)
     expect(msg, 'no invitation message was recorded').toBeTruthy()
     expect(msg!.body).toMatch(/ask you before every single submission/i)
     // The row is written before the attempt and settled after, and the

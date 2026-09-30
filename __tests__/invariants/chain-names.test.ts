@@ -125,6 +125,17 @@ describe('whose name a client may read in a chain', () => {
     expect(hidden.name).toContain('Pinnacle Resourcing')
   })
 
+  it('a firm with one rung that reaches the prime and one with a hole above it is said to come through the prime, whichever rung is read first', () => {
+    // A draft line for a new person under CloudEPA, not yet under Computer
+    // Systems: its own walk up finds nothing. Helena's walks cleanly.
+    const hole = rung('draft', 'nora', 'cloudepa', 'CloudEPA', 'computer-systems')
+    for (const rows of [[hole, ...CHAIN], [...CHAIN, hole]]) {
+      const seen = namesForClient(rows, 'nike', never).get('cloudepa')
+      expect(seen?.through).toBe('Computer Systems Inc')
+      expect(seen?.name).not.toContain('CloudEPA')
+    }
+  })
+
   it('a direct supplier with nobody underneath is named exactly as it always was', () => {
     const direct = [rung('a', 'omar', 'brightmoor', 'Brightmoor Staffing', 'nike')]
     expect(namesForClient(direct, 'nike', never).get('brightmoor')?.name).toBe('Brightmoor Staffing')

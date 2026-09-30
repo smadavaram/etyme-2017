@@ -410,6 +410,17 @@ export function namesForClient<T extends ChainRung>(
       out.set(rung.companyId, seen)
       continue
     }
+    // A masked answer that knows the prime beats one that does not. One
+    // rung with a hole above it ("the rung above this one is not on
+    // file") must not stand for the firm when another of its rungs walks
+    // cleanly to the prime — and which of the two came first was the
+    // order Postgres happened to return the rows in, so the same client
+    // read "supplied through Computer Systems" on one day and "cannot be
+    // named" on the next.
+    if (existing.masked && seen.masked && !existing.through && seen.through) {
+      out.set(rung.companyId, seen)
+      continue
+    }
     // Two masked answers through two different primes: say both, so the
     // client is not sent to one desk about a person the other supplied.
     if (existing.masked && seen.masked && seen.through && existing.through) {
