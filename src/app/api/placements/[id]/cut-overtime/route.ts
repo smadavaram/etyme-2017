@@ -38,9 +38,10 @@ import {
  * worker, allowed or refused; and an AutomationLog row with the before
  * and after, so the history survives the line holding only the latest.
  *
- * It changes no pay figure by itself. Payroll reads the line through
- * `cutOvertimeFor`, and until it does the sentence returned says which
- * rule payroll pays today (lib/cut-overtime-choice).
+ * It changes no pay figure by itself: the next payroll run, the payroll
+ * file, back pay and the worker's page read the line through
+ * `cutOvertimeFor` (lib/cut-overtime-choice), and a week already paid
+ * stays paid.
  */
 export async function PATCH(
   request: NextRequest,

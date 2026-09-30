@@ -26,15 +26,14 @@
  * arithmetic. `lib/money/pay-hours` and `sheetPay` price a cut week, and
  * they call `cutOvertimeFor` to learn which rule to price it under.
  *
- * ── Until payroll reads it ────────────────────────────────────────────
+ * ── Payroll reads it ──────────────────────────────────────────────────
  *
- * On the day this landed payroll still cut ordinary hours first on every
- * line — the KEEP_WEEK_OVERTIME rule — whatever the line said. A screen
- * that showed the default as the rule in force would be describing a
- * payment nobody makes. So `PAYROLL_READS_CUT_OVERTIME` is false, and the
- * sentence on the pay line says, in words, which rule payroll actually
- * uses today. The flag turns true in the same change that makes
- * `lib/money/pay-hours` call `cutOvertimeFor`, and not before.
+ * For its first day payroll still cut ordinary hours first on every line
+ * whatever the line said, and the pay line said so in words rather than
+ * describe a payment nobody made. Since 2026-09-30 (etyme-money,
+ * 3928b2191) the run, the payroll screen, the payroll file, back pay and
+ * the worker's own page all read `cutOvertimeFor`, so the sentence on the
+ * line is the rule payroll pays.
  *
  * ── Three refusals, each in a sentence ────────────────────────────────
  *
@@ -56,16 +55,11 @@ export const CUT_OVERTIME_RULES: CutOvertime[] = ['ABOVE_THE_LINE', 'KEEP_WEEK_O
 export const CHOOSES_CUT_OVERTIME = CHOOSES_OVERTIME_METHOD
 
 /**
- * Whether payroll prices a cut week by this setting yet.
- *
- * False until `lib/money/pay-hours` calls `cutOvertimeFor`. While false,
- * every cut week is paid with the ordinary hours cut first, whatever the
- * line says, and the sentence on the line says so.
+ * Whether payroll prices a cut week by this setting. True since money
+ * wired `cutOvertimeFor` into the run, the screen, the file, back pay and
+ * the worker's page; kept as a named fact so a test can hold it.
  */
-export const PAYROLL_READS_CUT_OVERTIME = false
-
-/** The rule payroll uses on every line while it does not read the setting. */
-export const PAYROLL_USES_TODAY: CutOvertime = 'KEEP_WEEK_OVERTIME'
+export const PAYROLL_READS_CUT_OVERTIME = true
 
 /** The two choices, in the words on the screen. */
 export const CUT_OVERTIME_LABEL: Record<CutOvertime, string> = {
@@ -196,21 +190,17 @@ const longDate = (d: Date) =>
   d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 
 /**
- * What the pay line says. Read through `cutOvertimeFor`, so the screen
- * names the rule the line holds and never one it ignores; and, while
- * payroll does not read the setting, says which rule payroll pays today.
+ * What the pay line says. Read through `cutOvertimeFor`, the same call
+ * payroll prices a cut week with, so the screen names the rule payroll
+ * pays and never one it ignores.
  */
-export function cutOvertimeSays(
-  line: CutLineChoice,
-  payrollReads: boolean = PAYROLL_READS_CUT_OVERTIME
-): {
+export function cutOvertimeSays(line: CutLineChoice): {
   rule: CutOvertime
   chosen: boolean
   says: string
   chosenBy: string | null
   chosenAt: string | null
   reason: string | null
-  payrollReadsIt: boolean
 } {
   const r = cutOvertimeFor(line)
   const by = line.cutOvertimeBy?.name ?? null
@@ -218,9 +208,6 @@ export function cutOvertimeSays(
   let says = r.says
   if (r.chosen && by && at) says += ` Chosen by ${by} on ${longDate(at)}.`
   says += ' At or under 40 accepted hours, every hour is paid at straight time.'
-  if (!payrollReads && r.rule !== PAYROLL_USES_TODAY) {
-    says += ` Payroll does not read this setting yet: today ${RULE_WORDS[PAYROLL_USES_TODAY]}.`
-  }
   return {
     rule: r.rule,
     chosen: r.chosen,
@@ -228,6 +215,5 @@ export function cutOvertimeSays(
     chosenBy: r.chosen ? by : null,
     chosenAt: r.chosen && at ? at.toISOString() : null,
     reason: r.chosen ? line.cutOvertimeReason ?? null : null,
-    payrollReadsIt: payrollReads,
   }
 }

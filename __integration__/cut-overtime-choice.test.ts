@@ -12,8 +12,8 @@ import { GET as openPlacement } from '@/app/api/placements/[id]/route'
  * week's overtime instead, recorded with who chose it and why.
  *
  * Priya is a W2 on a forty-hour line at a firm in the seeded world. The
- * route is the door; no pay figure moves here, because payroll does not
- * read the setting yet and the pay line says so.
+ * route is the door; the pay arithmetic that reads it is money's and is
+ * tested there.
  */
 
 type Seat = { id: string; personId: string; email: string }
@@ -106,9 +106,9 @@ describe("a paying firm's choice of how overtime is paid on a cut week", () => {
     expect(cut.chosen).toBe(false)
     expect(cut.mayChange).toBe(true)
     expect(cut.says).toContain('When fewer hours are accepted, overtime is paid only on the accepted hours over the line.')
-    // Payroll still cuts ordinary hours first, and the line says so rather
-    // than showing a rule nobody pays.
-    expect(cut.says).toContain('Payroll does not read this setting yet')
+    // Payroll reads the line (cutOvertimeFor), so the sentence is the rule
+    // it pays, with no "not yet" beside it.
+    expect(cut.says).not.toContain('does not read this setting')
   })
 
   it("a desk that cannot see what the worker is paid cannot change how a cut week's overtime is paid, and the refusal is logged", async () => {

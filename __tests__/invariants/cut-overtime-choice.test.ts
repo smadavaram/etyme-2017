@@ -100,7 +100,7 @@ describe('what payroll reads off the line', () => {
 
 describe('the sentence on the pay line', () => {
   it('says the default in plain words and that at or under the line is straight time', () => {
-    const s = cutOvertimeSays({ cutOvertime: 'ABOVE_THE_LINE' }, true)
+    const s = cutOvertimeSays({ cutOvertime: 'ABOVE_THE_LINE' })
     expect(s.says).toBe(
       'When fewer hours are accepted, overtime is paid only on the accepted hours over the line. ' +
       'At or under 40 accepted hours, every hour is paid at straight time.'
@@ -112,20 +112,20 @@ describe('the sentence on the pay line', () => {
     const s = cutOvertimeSays({
       cutOvertime: 'KEEP_WEEK_OVERTIME', cutOvertimeById: 'p1', cutOvertimeAt: new Date('2026-09-30T15:00:00Z'),
       cutOvertimeReason: 'Agreed with Priya when she joined', cutOvertimeBy: { name: 'Ana Ruiz' },
-    }, true)
+    })
     expect(s.says).toContain('the week keeps its overtime and the cut comes off ordinary hours first. Chosen by Ana Ruiz on September 30, 2026.')
     expect(s.reason).toBe('Agreed with Priya when she joined')
   })
 
-  it('says plainly which rule payroll pays today while payroll does not read the setting', () => {
-    expect(PAYROLL_READS_CUT_OVERTIME).toBe(false)
-    const s = cutOvertimeSays({ cutOvertime: 'ABOVE_THE_LINE' })
-    expect(s.payrollReadsIt).toBe(false)
-    expect(s.says).toContain(
-      'Payroll does not read this setting yet: today the week keeps its overtime and the cut comes off ordinary hours first.'
-    )
-    // A line already on the rule payroll uses is not told it differs.
-    const kept = cutOvertimeSays({ cutOvertime: 'KEEP_WEEK_OVERTIME', cutOvertimeById: 'p1', cutOvertimeReason: 'Agreed at review' })
-    expect(kept.says).not.toContain('Payroll does not read this setting yet')
+  it('payroll reads the setting, so the pay line says the rule payroll pays and nothing about a rule it does not', () => {
+    expect(PAYROLL_READS_CUT_OVERTIME).toBe(true)
+    for (const line of [
+      { cutOvertime: 'ABOVE_THE_LINE' },
+      { cutOvertime: 'KEEP_WEEK_OVERTIME', cutOvertimeById: 'p1', cutOvertimeReason: 'Agreed at review' },
+    ]) {
+      const s = cutOvertimeSays(line)
+      expect(s.rule).toBe(cutOvertimeFor(line).rule)
+      expect(s.says).not.toMatch(/not read this setting|yet/)
+    }
   })
 })
