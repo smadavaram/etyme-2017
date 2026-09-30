@@ -1038,6 +1038,54 @@ export function depositSchedule(lookbackLiabilityCents: number): {
       }
 }
 
+/** Contract types whose pay is wages, and so sets an employment-tax deposit. */
+export const WAGE_CONTRACT_TYPES = ['W2', 'C2H_W2'] as const
+
+export interface PayDayRow {
+  /** The scheduled pay day, already moved off a weekend by the generator (pay moves backward). */
+  dueOn: Date
+  /** When a run settled it: the day the wages were actually paid. */
+  completedAt: Date | null
+  contractType: string
+}
+
+export interface DepositPayDay {
+  payDay: Date
+  /** True where a run settled it; false where it is only scheduled. */
+  paid: boolean
+}
+
+/**
+ * The pay days a deposit deadline hangs off, for a year.
+ *
+ * A deposit follows the day wages are paid, and that is a pay day on the
+ * line — a `SALARY_PAY` cycle — never the date an acceptance was posted.
+ * Reading postings listed a deposit for every week of hours, Mondays for
+ * a firm filing Monday weeks and Saturdays for one filing from Saturday,
+ * for workers paid once a month.
+ *
+ * A settled pay day is dated the day the run paid it, which is the day
+ * the worker's own page says. One not yet settled is dated when it is
+ * due and says so, and is listed only once it is under a month away.
+ * Corp-to-corp and 1099 payments are not wages and set no deposit.
+ */
+export function depositPayDays(rows: readonly PayDayRow[], year: number, today: Date, horizonDays = 31): DepositPayDay[] {
+  const from = Date.UTC(year, 0, 1)
+  const to = Date.UTC(year + 1, 0, 1)
+  const horizon = today.getTime() + horizonDays * 86_400_000
+  const seen = new Map<string, DepositPayDay>()
+  for (const r of rows) {
+    if (!(WAGE_CONTRACT_TYPES as readonly string[]).includes(r.contractType)) continue
+    const at = r.completedAt ?? r.dueOn
+    const day = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()))
+    if (day.getTime() < from || day.getTime() >= to) continue
+    if (!r.completedAt && day.getTime() > horizon) continue
+    const k = `${isoDay(day)}|${r.completedAt ? 'paid' : 'due'}`
+    if (!seen.has(k)) seen.set(k, { payDay: day, paid: r.completedAt != null })
+  }
+  return [...seen.values()].sort((a, b) => a.payDay.getTime() - b.payDay.getTime() || Number(b.paid) - Number(a.paid))
+}
+
 export interface DepositDeadline {
   payDay: Date
   schedule: DepositSchedule

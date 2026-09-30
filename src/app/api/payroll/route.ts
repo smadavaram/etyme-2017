@@ -14,6 +14,7 @@ import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { weekStart } from '@/lib/overtime'
 import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
+import { ACTIVE_PAY_STATES, STOPPED_PAY_STATES, onPayrollFor, stoppedSince, periodPayStatus, payrollClientFor } from '@/lib/money/payroll-rows'
 
 /**
  * GET /api/payroll
@@ -53,11 +54,23 @@ export async function GET(request: NextRequest) {
   const status = url.searchParams.get('status')
   const period = url.searchParams.get('period') // YYYY-MM
 
-  // Find all active buy contracts for this company
+  // Every buy contract that is working, and every one that stopped and
+  // may still have a period on this run. This read working contracts
+  // only, so a placement that ended dropped off the runs for the months
+  // it worked — Karthik Menon read as nobody on Teleworld's payroll for
+  // the three months he was paid for. Which stopped ones are actually
+  // shown is `onPayrollFor`'s answer, below (lib/money/payroll-rows).
+  const since = stoppedSince(period)
   const buyContracts = await prisma.buyContract.findMany({
     where: {
       companyId,
-      state: { in: ['IN_PROGRESS', 'BENCH_PAID', 'INTERNAL', 'TRAINING'] },
+      OR: [
+        { state: { in: [...ACTIVE_PAY_STATES] } },
+        {
+          state: { in: [...STOPPED_PAY_STATES] },
+          ...(since ? { OR: [{ endDate: null }, { endDate: { gte: since } }] } : {}),
+        },
+      ],
     },
     include: {
       candidates: {
@@ -96,6 +109,9 @@ export async function GET(request: NextRequest) {
             },
           },
           clientCompany: { select: { id: true, name: true } },
+          // The client the work is for. The supplier's `clientCompany` is
+          // this firm itself, so it is never the client on a pay row.
+          endClientCompany: { select: { id: true, name: true } },
           engagement: { select: { id: true, title: true } },
           billRate: true,
           overtimeAfterHours: true,
@@ -139,6 +155,7 @@ export async function GET(request: NextRequest) {
                 },
               },
               clientCompany: { select: { id: true, name: true } },
+              endClientCompany: { select: { id: true, name: true } },
               engagement: { select: { id: true, title: true } },
               workLocation: { select: { country: true } },
             },
@@ -190,6 +207,24 @@ export async function GET(request: NextRequest) {
     const comingCalc = nextOpen(bc.buyCycles, 'SALARY_CALCULATE', today)
     const overduePay = overdueOpen(bc.buyCycles, 'SALARY_PAY', today)
 
+    // The client the work is for: this firm's own sell line's end client,
+    // else the firm it bills. On a corp-to-corp line the hours sit on the
+    // supplier's contract, whose client is this firm — which is how the
+    // column came to name the employer (lib/money/payroll-rows).
+    const client = payrollClientFor({
+      employerId: bc.companyId,
+      own: bc.sellLinks.map((l) => ({
+        clientCompany: l.sellContract.clientCompany,
+        endClientCompany: l.sellContract.endClientCompany,
+      })),
+      supplier: bc.supplierSellContract
+        ? {
+            clientCompany: bc.supplierSellContract.clientCompany,
+            endClientCompany: bc.supplierSellContract.endClientCompany,
+          }
+        : null,
+    })
+
     return bc.candidates.map((cand) => {
       // The link windows, so a timesheet is only counted for the period
       // this contract was actually paying for. effectiveFrom and
@@ -211,6 +246,8 @@ export async function GET(request: NextRequest) {
       type Source = {
         sellContractId: string
         sellContract: (typeof bc.sellLinks)[number]['sellContract']
+        /** True where this is the supplier's contract, whose client is us. */
+        supplier?: boolean
       }
       const sources: Source[] = [
         ...bc.sellLinks.map((l) => ({
@@ -219,6 +256,7 @@ export async function GET(request: NextRequest) {
         })),
         ...(bc.supplierSellContract
           ? [{
+              supplier: true,
               sellContractId: bc.supplierSellContract.id,
               // The supplier's contract is read with the same fields this
               // loop uses and nothing more — never their margin.
@@ -276,7 +314,10 @@ export async function GET(request: NextRequest) {
             periodEnd: ts.periodEnd.toISOString(),
             approvedAt: ts.approvedAt?.toISOString() ?? null,
             sellContractId: link.sellContractId,
-            clientCompany: link.sellContract.clientCompany,
+            // The client the work is for, never this firm itself.
+            clientCompany: link.supplier
+              ? client
+              : (link.sellContract.endClientCompany ?? link.sellContract.clientCompany ?? client),
             engagement: link.sellContract.engagement,
             billRate: link.sellContract.billRate,
             }
@@ -450,9 +491,17 @@ export async function GET(request: NextRequest) {
         ? rateInForce(cand.payRate, periods, payPeriod.end).rateCents
         : rateInForce(cand.payRate, periods, new Date()).rateCents
 
+      // The period's own pay day decides, where the line has one: a month
+      // the run has settled is processed, whatever older date was never
+      // marked (lib/money/payroll-rows).
+      const own = payPeriod
+        ? periodPayStatus(bc.buyCycles, payPeriod, (d) => periodFor(d, terms), cand.startDate)
+        : null
       let payStatus: string
       if (filteredTimesheets.length === 0) {
         payStatus = 'NO_HOURS'
+      } else if (own) {
+        payStatus = own
       } else if (nextCalcCycle && !nextCalcCycle.completedAt) {
         payStatus = 'PENDING'
       } else if (nextSalaryCycle && !nextSalaryCycle.completedAt) {
@@ -464,6 +513,13 @@ export async function GET(request: NextRequest) {
       return {
         buyContractId: bc.id,
         buyContractCandidateId: cand.id,
+        // Whether this row is on the run at all; read and dropped below.
+        onRun: onPayrollFor(
+          { state: bc.state, startDate: cand.startDate, endDate: cand.endDate ?? bc.endDate },
+          { period: payPeriod, asked: Boolean(period), hours: totalApprovedHours, settled: own === 'PROCESSED' }
+        ),
+        // The client the work is for, with or without hours this period.
+        client,
         // The contract the carry hangs off. The off-cycle screen needs
         // it, and the timesheets below already knew it.
         sellContractId: filteredTimesheets[0]?.sellContractId ?? null,
@@ -516,10 +572,13 @@ export async function GET(request: NextRequest) {
     })
   })
 
+  // A stopped placement off this run, and the working flag, dropped.
+  const onRun = payItems.filter((p) => p.onRun).map(({ onRun: _onRun, ...p }) => p)
+
   // Filter by status if specified
   const filtered = status
-    ? payItems.filter((p) => p.payStatus === status.toUpperCase())
-    : payItems
+    ? onRun.filter((p) => p.payStatus === status.toUpperCase())
+    : onRun
 
   // Summary stats
   const summary = {

@@ -4,8 +4,8 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import {
-  yearEndPack, yearEndCsv, depositSchedule, depositDeadline,
-  BUREAU_NOTICE, type PayPosting,
+  yearEndPack, yearEndCsv, depositSchedule, depositDeadline, depositPayDays,
+  WAGE_CONTRACT_TYPES, BUREAU_NOTICE, type PayPosting,
 } from '@/lib/payroll-export'
 
 /**
@@ -144,7 +144,12 @@ export async function GET(request: NextRequest) {
   // The deposit calendar for the paydays in the year. Also the bureau's
   // job — held here so a firm can tell whether the bureau is doing what
   // it is paid for, which it cannot do without knowing the dates.
-  const lookback = postings.reduce((n, p) => n + Math.abs(p.amountCents), 0)
+  // Wages only. A payment to a corporation or a 1099 contractor carries
+  // no employment tax, so it neither sets a deposit nor counts toward
+  // the lookback that picks the schedule.
+  const lookback = postings
+    .filter((p) => (WAGE_CONTRACT_TYPES as readonly string[]).includes(p.contractType))
+    .reduce((n, p) => n + Math.abs(p.amountCents), 0)
   // A rough employment-tax proxy at the published default burden. Named
   // as a proxy rather than presented as a liability figure, because the
   // real one is the bureau's and we do not hold it.
@@ -156,10 +161,31 @@ export async function GET(request: NextRequest) {
     select: { date: true },
   })
 
-  const paydays = [...new Set(postings.map((p) => p.postedAt.toISOString().slice(0, 10)))]
-    .sort()
+  // The pay days on the lines, not the dates hours were posted. Reading
+  // postings listed a deposit for every week of hours — Mondays at one
+  // firm, Saturdays at another — for workers paid once a month. A pay
+  // day is a SALARY_PAY cycle: settled, it is dated the day the run paid
+  // it; open, it is dated when it is due (already moved to the working
+  // day before a weekend by the generator) and says it is not yet paid.
+  const payCycles = await prisma.cycle.findMany({
+    where: {
+      kind: 'SALARY_PAY',
+      buyContract: { companyId, contractType: { in: [...WAGE_CONTRACT_TYPES] } },
+      OR: [
+        { completedAt: { gte: from, lt: to } },
+        { completedAt: null, dueOn: { gte: from, lt: to } },
+      ],
+    },
+    select: { dueOn: true, completedAt: true, buyContract: { select: { contractType: true } } },
+    take: 20_000,
+  })
+  const paydays = depositPayDays(
+    payCycles.map((c) => ({ dueOn: c.dueOn, completedAt: c.completedAt, contractType: c.buyContract?.contractType ?? 'UNKNOWN' })),
+    year,
+    new Date()
+  )
     .slice(-12)
-    .map((d) => depositDeadline(new Date(d), schedule.schedule, holidays.map((h) => h.date)))
+    .map((d) => ({ ...depositDeadline(d.payDay, schedule.schedule, holidays.map((h) => h.date)), paid: d.paid }))
 
   return NextResponse.json({
     data: {
@@ -190,6 +216,10 @@ export async function GET(request: NextRequest) {
           'measured employment-tax liability — that number is the bureau’s and we do not ' +
           'hold it. It decides which schedule to show; it is not a liability.',
         deadlines: paydays,
+        payDaysSay:
+          'One date for each pay day on a W-2 line: the day a run paid it, or the day it is due ' +
+          'where it is not paid yet. Payments to a corporation or a 1099 contractor are not wages ' +
+          'and set no deposit.',
       },
       csvUrl: `/api/payroll/statutory?year=${year}&format=csv`,
     },

@@ -51,6 +51,8 @@ interface PayItem {
   rates?: Array<{ rateCents: number; hours: number }> | null
   payCurrency: string
   vendorCompany: { id: string; name: string } | null
+  /** The client the work is for — never the employer, never the supplier. */
+  client: { id: string; name: string } | null
   entity: { id: string; name: string } | null
   startDate: string
   endDate: string | null
@@ -365,15 +367,13 @@ export default function PayrollPage() {
         )]
         return (
           <span className="text-etyme-ink">
-            {clients.length > 0 ? clients.join(', ') : (
-              row.vendorCompany ? row.vendorCompany.name : '—'
-            )}
+            {clients.length > 0 ? clients.join(', ') : (row.client ? row.client.name : '—')}
           </span>
         )
       },
       sortValue: (row) => {
         const names = row.timesheets.map((ts) => ts.clientCompany?.name).filter(Boolean)
-        return names[0] ?? ''
+        return names[0] ?? row.client?.name ?? ''
       },
       hideOnMobile: true,
     },
@@ -540,7 +540,7 @@ export default function PayrollPage() {
         <div className="page-head">
           <p className="eyebrow">Operate</p>
           <h1>Payroll</h1>
-          <p>Buy-side payment processing. Calculate, approve, and process pay for all active contracts.</p>
+          <p>Buy-side payment processing. Calculate, approve, and process pay for everybody who worked in the period, including placements that have since ended.</p>
         </div>
 
         {/* Period selector + run action */}
@@ -911,10 +911,11 @@ function Statutory() {
       {data.deposits.deadlines?.length > 0 && (
         <div className="panel mt-4">
           <p className="stat-label">Deposit deadlines</p>
+          <p className="mt-1 max-w-[70ch] text-[11px] text-etyme-faint">{data.deposits.payDaysSay}</p>
           <ul className="mt-2 space-y-1">
             {data.deposits.deadlines.map((d: any) => (
-              <li key={String(d.payDay)} className="text-[11px] text-etyme-muted tabular-nums">
-                paid {String(d.payDay).slice(0, 10)} → deposit by {String(d.dueOn).slice(0, 10)}
+              <li key={`${String(d.payDay)}-${d.paid}`} className="text-[11px] text-etyme-muted tabular-nums">
+                {d.paid === false ? 'due to be paid' : 'paid'} {String(d.payDay).slice(0, 10)} → deposit by {String(d.dueOn).slice(0, 10)}
                 {d.shifted && ' (moved off a non-business day)'}
               </li>
             ))}
