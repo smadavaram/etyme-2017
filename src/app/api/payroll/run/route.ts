@@ -15,6 +15,7 @@ import { payLineOn, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
 import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib/money/pay-hours'
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { payDaysToMark } from '@/lib/money/pay-day-period'
+import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { weekStart } from '@/lib/overtime'
 
 /**
@@ -101,6 +102,8 @@ export async function POST(request: NextRequest) {
       // an hour over the line is owed a premium at all.
       exemptAssertions: { select: EXEMPT_SELECT },
       company: { select: { name: true } },
+      // Named in the refusal where the line is paid through a supplier.
+      vendorCompany: { select: { name: true } },
       // Where the work is and who pays it, which decides whether the US
       // forty-hour line reaches a worker no contract drew one for.
       entity: { select: { country: true } },
@@ -159,6 +162,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: `Buy contracts not found: ${missing.join(', ')}` } },
       { status: 404 }
+    )
+  }
+
+  // Payroll pays our own employees and nobody else. A worker paid through
+  // a supplier, their own company or their own 1099 invoice is paid on the
+  // invoice receipt, so a run asked to pay one refuses in a sentence rather
+  // than paying the same week a second time (lib/money/paid-through).
+  const notOurs = contracts.filter((bc) => !paidByPayroll(bc))
+  if (notOurs.length > 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_PAYROLL',
+          message: notOurs
+            .flatMap((bc) =>
+              bc.candidates.map((c) =>
+                notPayrollSays({ personName: c.person.name, contractType: bc.contractType, vendorName: bc.vendorCompany?.name ?? null })
+              )
+            )
+            .join(' '),
+        },
+      },
+      { status: 422 }
     )
   }
 

@@ -45,6 +45,7 @@
  * payment.
  */
 
+import { paidByPayroll } from '@/lib/money/paid-through'
 import { prisma } from '@/lib/db'
 import { amount, rate } from '@/lib/money-display'
 import { daysFor } from '@/lib/contract-links'
@@ -283,7 +284,8 @@ export async function proposeBackPay(rateHistoryId: string): Promise<BackPayProp
   })
   if (!bc) return null
 
-  if (bc.vendorCompanyId || bc.supplierSellContractId || bc.contractType === 'C2C' || bc.contractType === 'IND_1099') {
+  // One door for "does payroll pay this line" (lib/money/paid-through).
+  if (!paidByPayroll(bc)) {
     return {
       applies: false,
       rateHistoryId,

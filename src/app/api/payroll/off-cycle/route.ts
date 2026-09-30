@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { theLinkFor } from '@/lib/contract-links'
@@ -233,7 +234,12 @@ export async function POST(request: NextRequest) {
       buyLinks: {
         select: {
           sellContractId: true, buyContractId: true, effectiveFrom: true, effectiveTo: true,
-          buyContract: { select: { id: true, payCurrency: true } },
+          buyContract: {
+            select: {
+              id: true, payCurrency: true, contractType: true, vendorCompanyId: true, supplierSellContractId: true,
+              vendorCompany: { select: { name: true } },
+            },
+          },
         },
       },
     },
@@ -345,6 +351,25 @@ export async function POST(request: NextRequest) {
   }
 
   const buy = pickBuy(sell.buyLinks, payOn)
+  // An off-cycle payment is payroll. A line paid through a supplier, the
+  // worker's own company or a 1099 invoice is settled on the invoice
+  // receipt instead, never here as well (lib/money/paid-through).
+  if (buy && !paidByPayroll(buy)) {
+    const person = await prisma.person.findUnique({ where: { id: personId }, select: { name: true } })
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_PAYROLL',
+          message: notPayrollSays({
+            personName: person?.name ?? 'This worker',
+            contractType: buy.contractType,
+            vendorName: buy.vendorCompany?.name ?? null,
+          }),
+        },
+      },
+      { status: 422 }
+    )
+  }
   const amountCents = Math.round(Number(body.amountCents))
 
   // Deterministic, so a retried request does not pay somebody twice. The

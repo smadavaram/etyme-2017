@@ -1594,18 +1594,20 @@ describe('Step 20 — what each firm made', () => {
     expect(40 * 13_500 - 40 * 11_000).toBe(100_000)
   }, 60_000)
 
-  it('tells Computer Systems what it owes CloudEPA, which it could not see before', async () => {
-    // Payroll reads its own sell side for a W2 placement and the
-    // supplier's for a corp-to-corp one. Reaching only its own, a prime
-    // reported a supplier as owed nothing for work that had been done
-    // and signed off.
+  it('tells Computer Systems that what it owes CloudEPA is paid on CloudEPA’s invoice receipt, never by its payroll', async () => {
+    // Payroll pays a firm's own employees. A supplier below is paid on
+    // its invoice, received as an invoice receipt (CLAUDE.md, "Bill,
+    // invoice receipt, payroll"), so the prime's payroll names the line
+    // in one sentence and never offers to pay it: the same week is never
+    // paid twice, once by payroll and once by invoice receipt. Before
+    // 2026-09-30 this row was a payroll row with the week priced on it.
     as(PRIME)
     const r = await json(await payroll(req('GET', '/api/payroll')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    const row = (r.body.data.payItems ?? []).find((x: any) => x.buyContractId === it_.primeBuy)
-    expect(row, 'Computer Systems cannot see what it owes CloudEPA').toBeTruthy()
-    expect(Number(row.totalApprovedHours)).toBe(40)
-    expect(Number(row.grossPay)).toBe(40 * 11_000)
+    expect((r.body.data.payItems ?? []).find((x: any) => x.buyContractId === it_.primeBuy)).toBeUndefined()
+    const line = (r.body.data.paidElsewhere ?? []).find((x: any) => x.buyContractId === it_.primeBuy)
+    expect(line, 'Computer Systems is not told where its supplier is paid').toBeTruthy()
+    expect(line.says).toMatch(/is paid through CloudEPA’s invoice — see Invoice receipts\.$/)
   }, 60_000)
 
   it('leaves Auralis unable to see CloudEPA anywhere in its own program', async () => {

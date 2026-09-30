@@ -206,6 +206,8 @@ function CarryCell({ sellContractId }: { sellContractId: string | null }) {
 
 export default function PayrollPage() {
   const [payItems, setPayItems] = useState<PayItem[]>([])
+  // Workers paid on an invoice receipt, not by payroll: one plain line each.
+  const [paidElsewhere, setPaidElsewhere] = useState<Array<{ buyContractId: string; person: { id: string; name: string }; says: string }>>([])
   const [summary, setSummary] = useState<PayrollSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -242,6 +244,7 @@ export default function PayrollPage() {
 
       const body = await res.json()
       setPayItems(body.data?.payItems ?? [])
+      setPaidElsewhere(body.data?.paidElsewhere ?? [])
       setSummary(body.data?.summary ?? null)
     } catch (err: any) {
       setError(err.message)
@@ -317,8 +320,6 @@ export default function PayrollPage() {
     totalHours: summary?.totalHours ?? 0,
     w2Count: summary?.byContractType?.W2?.count ?? 0,
     w2Gross: summary?.byContractType?.W2?.grossPay ?? 0,
-    c2cCount: summary?.byContractType?.C2C?.count ?? 0,
-    c2cGross: summary?.byContractType?.C2C?.grossPay ?? 0,
     pending: summary?.byStatus?.PENDING ?? 0,
     calculated: summary?.byStatus?.CALCULATED ?? 0,
     processed: summary?.byStatus?.PROCESSED ?? 0,
@@ -599,12 +600,12 @@ export default function PayrollPage() {
           </p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">C2C vendors</p>
-          <p className={`stat-value ${stats.c2cCount > 0 ? 'text-etyme-attention' : 'text-etyme-faint'}`}>
-            {stats.c2cCount}
+          <p className="stat-label">Paid by invoice receipt</p>
+          <p className={`stat-value ${paidElsewhere.length > 0 ? 'text-etyme-ink' : 'text-etyme-faint'}`}>
+            {paidElsewhere.length}
           </p>
           <p className="text-[11px] text-etyme-faint mt-0.5">
-            {stats.c2cGross > 0 ? formatCents(stats.c2cGross) : '$0.00'}
+            not on payroll
           </p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
@@ -709,6 +710,18 @@ export default function PayrollPage() {
         exportName={`payroll${selectedPeriod ? `-${selectedPeriod}` : ''}`}
         defaultPageSize={20}
       />
+
+      {/* Paid on an invoice receipt, never by payroll as well */}
+      {!loading && paidElsewhere.length > 0 && (
+        <ul className="mt-3 space-y-1">
+          {paidElsewhere.map((p) => (
+            <li key={`${p.buyContractId}-${p.person.id}`} className="text-[13px] text-etyme-muted">
+              {p.says.replace(' — see Invoice receipts.', ' — see ')}
+              <a className="text-etyme-action underline" href="/dashboard/ap">Invoice receipts</a>.
+            </li>
+          ))}
+        </ul>
+      )}
 
       {/* Footer count */}
       {!loading && filtered.length > 0 && (

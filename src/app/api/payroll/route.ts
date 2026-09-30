@@ -14,6 +14,7 @@ import { acceptanceForPay, paySheet, payCutSays, straightTimeWeeks } from '@/lib
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { weekStart } from '@/lib/overtime'
 import { nextOpen, overdueOpen, todayUtc } from '@/lib/money/next-cycle'
+import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { ACTIVE_PAY_STATES, STOPPED_PAY_STATES, onPayrollFor, stoppedSince, periodPayStatus, payrollClientFor } from '@/lib/money/payroll-rows'
 
 /**
@@ -195,7 +196,28 @@ export async function GET(request: NextRequest) {
     rateRows.set(r.contractId, [...(rateRows.get(r.contractId) ?? []), r])
   }
 
-  const payItems = buyContracts.flatMap((bc) => {
+  // Payroll pays our own employees and nobody else. A worker bought from
+  // a supplier, through their own company or as a 1099 individual is paid
+  // on an invoice receipt, so a line like that is one plain sentence here
+  // and never a row a run could pay (lib/money/paid-through) — the same
+  // week is never paid twice, once by payroll and once by invoice.
+  const paidElsewhere = buyContracts
+    .filter((bc) => !paidByPayroll(bc) && (ACTIVE_PAY_STATES as readonly string[]).includes(bc.state))
+    .flatMap((bc) =>
+      bc.candidates.map((cand) => ({
+        buyContractId: bc.id,
+        person: { id: cand.person.id, name: cand.person.name },
+        contractType: bc.contractType,
+        vendorCompany: bc.vendorCompany,
+        says: notPayrollSays({
+          personName: cand.person.name,
+          contractType: bc.contractType,
+          vendorName: bc.vendorCompany?.name ?? null,
+        }),
+      }))
+    )
+
+  const payItems = buyContracts.filter((bc) => paidByPayroll(bc)).flatMap((bc) => {
     // Whether anything is still open decides the status, as it always
     // did. What the screen calls "next" is the earliest open date from
     // today on — never the last one generated — and open dates before
@@ -606,6 +628,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       payItems: filtered,
+      paidElsewhere,
       summary,
       period: period ?? 'all',
     },

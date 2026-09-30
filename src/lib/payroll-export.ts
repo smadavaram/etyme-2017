@@ -44,6 +44,7 @@
  * states price overtime differently. The caveats travel with the file.
  */
 
+import { paidByPayroll } from '@/lib/money/paid-through'
 import {
   weekWage,
   type ClientChoice,
@@ -277,6 +278,25 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
   const skipped: Skipped[] = []
 
   for (const s of sheets) {
+    // Payroll pays our own employees and nobody else (lib/money/paid-through).
+    // A corp-to-corp company and a 1099 individual are paid on their own
+    // invoice, received as an invoice receipt — never on a wage file too.
+    if (!paidByPayroll({ contractType: s.contractType })) {
+      const t = String(s.contractType).toUpperCase()
+      skipped.push({
+        personName: s.personName,
+        periodEnd: s.periodEnd,
+        why:
+          t === 'C2C' || t === 'CORP_TO_CORP'
+            ? `${s.personName} works through their own company, so this is an invoice receipt to settle and not a wage to run.`
+            : t === 'IND_1099'
+              ? `${s.personName} is an independent contractor paid on their own invoice, so this is an invoice receipt to settle and not a wage to run.`
+              : `Nothing on ${s.personName}'s line says they are our employee, so this is not a wage to run on a guess.`,
+        action: 'Settle it through accounts payable, not payroll.',
+      })
+      continue
+    }
+
     if (!s.employerAcceptedAt) {
       skipped.push({
         personName: s.personName,

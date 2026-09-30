@@ -5,6 +5,7 @@ import { seedWorld } from '@/lib/seed-world'
 import { GET as payroll } from '@/app/api/payroll/route'
 import { GET as statutory } from '@/app/api/payroll/statutory/route'
 import { PATCH as payReceipt } from '@/app/api/ap/bills/route'
+import { POST as runPayroll } from '@/app/api/payroll/run/route'
 
 /**
  * The payroll screens, walked on the seeded world as Teleworld and
@@ -69,17 +70,36 @@ describe('a placement that has ended is still on the payroll for the months it w
   })
 })
 
-describe('the client on a pay row is the client the work is for', () => {
-  it('a corp-to-corp worker’s client is the client the employer bills, never the employer itself', async () => {
+describe('payroll pays our own employees, and the invoice receipt pays everybody else', () => {
+  it('payroll never pays a worker paid through their own company; the invoice receipt does', async () => {
     const bm = await rows(BRIGHTMOOR)
-    const ravi = bm.payItems.find((p) => p.person.name === 'Ravi Subramanian')
-    expect(ravi.client?.name).toBe('Nordway Retail')
-    for (const ts of ravi.timesheets) expect(ts.clientCompany?.name).not.toBe('Brightmoor Staffing')
+    expect(bm.payItems.find((p) => p.person.name === 'Ravi Subramanian')).toBeUndefined()
+    const ravi = (bm as any).paidElsewhere.find((p: any) => p.person.name === 'Ravi Subramanian')
+    expect(ravi.says).toBe('Ravi Subramanian is paid through Consultis’s invoice — see Invoice receipts.')
 
     const tw = await rows(TELEWORLD)
-    const marcus = tw.payItems.find((p) => p.person.name === 'Marcus Whitfield')
-    expect(marcus.client?.name).toBe('Corveldt Aerospace')
-    for (const ts of marcus.timesheets) expect(ts.clientCompany?.name).not.toBe('Teleworld Solutions')
+    expect(tw.payItems.find((p) => p.person.name === 'Marcus Whitfield')).toBeUndefined()
+    expect(tw.summary.byContractType.C2C.count).toBe(0)
+  })
+
+  it('the same week is never paid twice, once by payroll and once by invoice receipt', async () => {
+    const company = await prisma.company.findFirstOrThrow({ where: { name: 'Brightmoor Staffing' } })
+    const line = await prisma.buyContract.findFirstOrThrow({
+      where: { companyId: company.id, candidates: { some: { person: { name: 'Ravi Subramanian' } } } },
+      select: { id: true },
+    })
+    const before = await prisma.automationLog.count({ where: { companyId: company.id, action: 'PAYROLL_RUN' } })
+    as(BRIGHTMOOR)
+    const r = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: [line.id], action: 'process' })))
+    expect(r.status).toBe(422)
+    expect(r.body.error.message).toBe('Ravi Subramanian is paid through Consultis’s invoice — see Invoice receipts.')
+    expect(await prisma.automationLog.count({ where: { companyId: company.id, action: 'PAYROLL_RUN' } })).toBe(before)
+  })
+
+  it('an employee’s row still names the client the work is for', async () => {
+    const bm = await rows(BRIGHTMOOR)
+    const rosa = bm.payItems.find((p) => p.person.name === 'Rosa Delgado')
+    expect(rosa.client?.name).toBe('Northbend Athletic')
   })
 })
 

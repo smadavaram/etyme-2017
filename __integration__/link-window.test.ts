@@ -64,16 +64,22 @@ beforeAll(async () => {
     },
   })
 
-  // Two sub-vendors. The first is paid up to Tuesday; the second from
+  // Two pay lines. The first is paid up to Tuesday; the second from
   // Wednesday. Both link to the same sell contract, which is what makes
   // the old behavior pay each of them for the whole week.
+  //
+  // W2, since 2026-09-30: payroll pays only the firm's own employees, and
+  // a sub-vendor's line is paid on its invoice receipt instead
+  // (lib/money/paid-through). The link window is the same arithmetic
+  // either way — an employee moved from one pay line to another on a
+  // Wednesday — so the fixture moved and the sentences did not.
   for (const [name, from, to] of [
     ['old', '2026-01-01', '2026-09-08'],
     ['new', '2026-09-09', null],
   ] as const) {
     const buy = await prisma.buyContract.create({
       data: {
-        companyId: company.id, payCurrency: 'USD', contractType: 'C2C', state: 'IN_PROGRESS',
+        companyId: company.id, payCurrency: 'USD', contractType: 'W2', state: 'IN_PROGRESS',
         startDate: new Date(from),
         candidates: { create: { personId: person.id, payRate: 9000, startDate: new Date(from) } },
       },
