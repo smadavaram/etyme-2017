@@ -1478,7 +1478,10 @@ Three rules follow:
   recorded as their signature with name, address and time); or
   **evidence attached** — the client's approval email, a PDF or an
   export from its own system — with the approver's name and address
-  entered. Whoever attaches it **selects which contracts in the chain
+  entered — **always a named person behind it**; evidence without the
+  approver's name and address is refused. **Either the worker or the
+  supplier's timesheet desk may attach it** (confirmed by the founder
+  the same day). Whoever attaches it **selects which contracts in the chain
   it applies to**, all of them by default. Once the top layer's
   approval stands, each lower layer accepts the same week in turn, as
   before. A week approved by evidence says so ("Approved by email:
