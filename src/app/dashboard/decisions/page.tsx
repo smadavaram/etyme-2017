@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { DecideOvertime, type PendingWeek } from '../timesheets/decide-overtime'
 import Link from 'next/link'
+import { amount } from '@/lib/money-display'
 
 /**
  * Decisions — what needs a person right now.
@@ -280,7 +281,8 @@ export default function DecisionsPage() {
           <div className="panel flex-1 min-w-[140px]">
             <p className="stat-label">Value</p>
             <p className="stat-value text-etyme-ink">
-              ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0 })}
+              {/* Through the one formatter: a hand-rolled one printed "$3,622.4". */}
+              {amount(Math.round(totalAmount * 100))}
             </p>
             <p className="text-[11px] text-etyme-faint mt-0.5">at stake</p>
           </div>
@@ -391,7 +393,7 @@ export default function DecisionsPage() {
                 <div className="text-right shrink-0">
                   {d.amount != null && (
                     <p className="text-[13px] font-medium text-etyme-ink tabular-nums">
-                      ${d.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {amount(Math.round(d.amount * 100))}
                     </p>
                   )}
                   <p className="text-[10px] text-etyme-faint tabular-nums mt-0.5">
@@ -415,6 +417,7 @@ export default function DecisionsPage() {
       {/* What happens to a week that went over the line */}
       {deciding && (
         <DecideOvertime
+          side="PAYS"
           timesheetId={deciding.timesheetId}
           personName={deciding.personName}
           weeks={deciding.weeks}

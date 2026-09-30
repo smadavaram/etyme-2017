@@ -15,6 +15,9 @@ import {
   type Decision, type Treatment, type ChainRung,
 } from '@/lib/overtime'
 import { weekFlag, flaggedWeekSays } from '@/lib/timesheet-flag'
+import { timeOffOffered, TIME_OFF_NOT_OFFERED_SAYS } from '@/lib/overtime'
+import { compTimeLawful } from '@/lib/worker-classification'
+import { amount } from '@/lib/money-display'
 import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
 import { ladderAbove, type LegContract } from '../../ladder'
 import { topDown, signersOf, turnOf, tellNext, signedBy, type Signer } from '../../chain-turn'
@@ -361,6 +364,18 @@ export async function POST(
       multiplierBps: a.multiplierBps == null ? null : Number(a.multiplierBps),
       reason: typeof a.reason === 'string' ? a.reason : null,
     })
+  }
+
+  // Time off in place of overtime pay is refused unless the law allows
+  // comp time for this employer and the company chose it. The company's
+  // choice is a column not built yet (`Company.timeOffInLieu`), so today
+  // it is refused for everybody, in a sentence (`lib/overtime`).
+  const timeOffAllowed = timeOffOffered({ compTimeLawful: compTimeLawful('US_FLSA'), companyAllows: false })
+  if (!timeOffAllowed && [...answers.values()].some((a) => a.treatment === 'TIME_OFF')) {
+    return NextResponse.json(
+      { error: { code: 'TIME_OFF_NOT_OFFERED', message: TIME_OFF_NOT_OFFERED_SAYS } },
+      { status: 422 }
+    )
   }
 
   // The split as it stands: prior decisions applied, this call's answers
@@ -961,6 +976,10 @@ export async function POST(
     })
   }
 
+  // A client's signature is a bill; an acceptance on a leg that pays is
+  // not "billable" — it is what this firm pays for the week.
+  const worthWord = asParty === 'CLIENT' ? 'billable' : 'to pay for the week'
+
   return NextResponse.json({
     data: {
       id,
@@ -976,9 +995,9 @@ export async function POST(
       bankedHours: bankedNow,
       message:
         writing.length > 0
-          ? `Approved ${hours}h — $${billAmount.toFixed(2)} billable. ` +
+          ? `Approved ${hours}h — ${amount(Math.round(billAmount * 100))} ${worthWord}. ` +
             writing.map((w) => `${w.overtimeHours}h over: ${treatmentSays(w.treatment, w.appliedBps).toLowerCase()}`).join('; ') + '.'
-          : `Approved ${hours}h — $${billAmount.toFixed(2)} billable`,
+          : `Approved ${hours}h — ${amount(Math.round(billAmount * 100))} ${worthWord}`,
     },
   })
 }

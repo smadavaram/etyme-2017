@@ -1,5 +1,6 @@
 'use client'
 
+import { missingForApproval, missingSays } from './facts'
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { said } from '@/lib/requisition-change'
@@ -621,6 +622,10 @@ export interface EditableRequisition {
   status: string
   archivedAt: string | Date | null
   interviewers?: string[]
+  /** The hours a week the job runs, where stated. */
+  hoursPerWeek?: number | null
+  /** The budget that pays for it, where named. */
+  costCenterId?: string | null
 }
 
 /**
@@ -652,6 +657,7 @@ export function EditRequisition({
   const [billMin, setBillMin] = useState(req.billMin != null ? String(req.billMin / 100) : '')
   const [billMax, setBillMax] = useState(req.billMax != null ? String(req.billMax / 100) : '')
   const [months, setMonths] = useState(req.months != null ? String(req.months) : '')
+  const [hoursPerWeek, setHoursPerWeek] = useState(req.hoursPerWeek != null ? String(req.hoursPerWeek) : '')
   const [neededBy, setNeededBy] = useState(req.neededBy ? req.neededBy.slice(0, 10) : '')
   const [justification, setJustification] = useState(req.justification ?? '')
   const [description, setDescription] = useState(req.description ?? '')
@@ -671,6 +677,17 @@ export function EditRequisition({
   async function save() {
     if (title.trim().length < 3) {
       setErr('Give it a title somebody else would recognize.')
+      return
+    }
+    // The same facts the raise form asks for (`./facts`): what the desks
+    // check the job against, and what an approver reads. The budget is
+    // not changed here, so it is not asked for again.
+    const missing = missingSays(missingForApproval(
+      { title, skills, billMax, months, hoursPerWeek, costCenterId: req.costCenterId ?? '', description, justification, location },
+      { costCentersOffered: false }
+    ))
+    if (missing) {
+      setErr(missing)
       return
     }
     const min = cents(billMin)
@@ -694,6 +711,7 @@ export function EditRequisition({
           billMin: min,
           billMax: max,
           months: whole(months),
+          hoursPerWeek: whole(hoursPerWeek),
           neededBy: neededBy || null,
           description: description.trim() || null,
           justification: justification.trim() || null,
@@ -764,7 +782,7 @@ export function EditRequisition({
             <input className={field} value={title} onChange={e => setTitle(e.target.value)} />
           </div>
           <div>
-            <label className={label}>Skills, comma separated</label>
+            <label className={label}>Skills it needs, comma separated</label>
             <input className={field} value={skills} onChange={e => setSkills(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -797,19 +815,24 @@ export function EditRequisition({
                 onChange={e => setMonths(e.target.value)} placeholder="none" />
             </div>
             <div>
+              <label className={label}>Hours a week</label>
+              <input className={field} type="number" value={hoursPerWeek}
+                onChange={e => setHoursPerWeek(e.target.value)} placeholder="40" />
+            </div>
+            <div>
               <label className={label}>Needed by</label>
               <input className={field} type="date" value={neededBy}
                 onChange={e => setNeededBy(e.target.value)} />
             </div>
           </div>
           <div>
-            <label className={label}>The job, in your own words</label>
+            <label className={label}>What the work is, day to day</label>
             <textarea className={field} rows={6} value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="What the team does, what the person will actually work on, and what somebody who has done it before would recognize." />
           </div>
           <div>
-            <label className={label}>Why this is needed</label>
+            <label className={label}>Why it is needed — a new project, a backfill, or extra hands</label>
             <textarea className={field} rows={3} value={justification}
               onChange={e => setJustification(e.target.value)} />
           </div>

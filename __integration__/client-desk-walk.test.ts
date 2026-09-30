@@ -455,3 +455,44 @@ describe('a job travels down the chain through the prime’s own record of it', 
     expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
   })
 })
+
+describe('time off is never taken in place of overtime pay, and the approval says its money plainly', () => {
+  it('answering a week’s overtime with time off is refused in a sentence, and nothing is signed', async () => {
+    const week = await prisma.timesheet.findFirstOrThrow({
+      where: { status: 'SUBMITTED', clientApprovedAt: null, totalHours: 45, person: { name: 'Omar Haddad' } },
+      select: { id: true },
+    })
+    s.omar = week.id
+    as(HIRING)
+    const asked = await json(await signWeek(req('POST', `/api/timesheets/${week.id}/approve`, { note: 'Cutover week' }), withId(week.id)))
+    expect(asked.body.error.code).toBe('OVERTIME_UNDECIDED')
+    s.omarWeekOf = asked.body.error.weeks[0].weekOf
+
+    as(HIRING)
+    const r = await json(await signWeek(
+      req('POST', `/api/timesheets/${week.id}/approve`, {
+        note: 'Cutover week',
+        overtime: [{ weekOf: s.omarWeekOf, treatment: 'TIME_OFF', reason: 'Agreed with the supplier' }],
+      }),
+      withId(week.id)
+    ))
+    expect(r.status).toBe(422)
+    expect(r.body.error.code).toBe('TIME_OFF_NOT_OFFERED')
+    expect(r.body.error.message).toContain('29 U.S.C. §207(o) allows it only to public agencies')
+    expect(await prisma.workAssertion.count({ where: { timesheetId: week.id } })).toBe(0)
+    expect(await prisma.overtimeDecision.count({ where: { timesheetId: week.id } })).toBe(0)
+  })
+
+  it('the client’s signature says what it is billed through the one money formatter', async () => {
+    as(HIRING)
+    const r = await json(await signWeek(
+      req('POST', `/api/timesheets/${s.omar}/approve`, {
+        note: 'Cutover week',
+        overtime: [{ weekOf: s.omarWeekOf, treatment: 'PREMIUM' }],
+      }),
+      withId(s.omar)
+    ))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.message).toMatch(/^Approved 45h — \$[\d,]+\.\d{2} billable\. /)
+  })
+})

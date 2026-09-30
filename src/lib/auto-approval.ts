@@ -45,6 +45,13 @@ export interface Sheet {
   /** Confidence the hours are ordinary. Null means never assessed. */
   anomalyScore: number | null
   anomalyReason: string | null
+  /**
+   * What is wrong with the week against its contract — over the job's
+   * hours, past the last day — as `weekFlag` says it, or null. A flagged
+   * week is signed with a reason by a person on every door, so silence
+   * never signs one.
+   */
+  flag?: string | null
   /** Days the client has, from the agreement. Null falls back to the default. */
   windowDays: number | null
   /** Whether the agreement turns this on at all. */
@@ -94,6 +101,19 @@ export function decide(s: Sheet, now: Date): Decision {
       ...base,
       verdict: 'NOT_ALLOWED',
       says: `${s.clientName} has not agreed to automatic approval. This waits for a person.`,
+    }
+  }
+
+  // A flagged week waits for a person, whatever the window says. The
+  // approval route refuses to sign one without a reason, and a nightly
+  // job has none to give.
+  if (s.flag) {
+    return {
+      ...base,
+      verdict: 'HELD',
+      says:
+        `Held for a person: ${s.flag} A week that does not fit its contract is signed with a reason, ` +
+        `so it is never approved automatically.`,
     }
   }
 

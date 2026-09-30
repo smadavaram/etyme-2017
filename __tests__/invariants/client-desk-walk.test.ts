@@ -255,3 +255,11 @@ describe('a job request says what the job is before anybody approves it', () => 
     expect(page).not.toContain('Gone quiet')
   })
 })
+
+describe('a client reads suppliers, never vendors', () => {
+  it('a client told its job request is fully approved reads that it is open to its suppliers', () => {
+    const route = read('src/app/api/requisitions/[id]/approve/route.ts')
+    expect(route).toContain('It is now open to your suppliers.')
+    expect(route).not.toContain('open to your vendors')
+  })
+})

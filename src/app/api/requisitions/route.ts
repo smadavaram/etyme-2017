@@ -215,6 +215,8 @@ export async function GET(request: NextRequest) {
         billMin: r.billMin,
         billMax: r.billMax,
         months: r.months,
+        // The edit form asks for it, so the list carries it.
+        hoursPerWeek: r.hoursPerWeek,
         neededBy: r.neededBy?.toISOString() ?? null,
         description: r.description,
         justification: r.justification,

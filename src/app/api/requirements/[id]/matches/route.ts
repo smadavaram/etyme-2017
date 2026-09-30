@@ -9,6 +9,7 @@ import { hasPermission } from '@/lib/permissions'
 import { matchViewer, NOT_HERE } from './viewer'
 import { askState } from './asked'
 import { lastAsks } from './asked-read'
+import { matchesFoundSays, matchesTitle } from './words'
 
 /**
  * GET /api/requirements/:id/matches
@@ -29,7 +30,7 @@ export async function GET(
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
     select: {
-      id: true, title: true, companyId: true, payerCompanyId: true, endClientCompanyId: true,
+      id: true, title: true, companyId: true, payerCompanyId: true, endClientCompanyId: true, startDate: true,
       company: { select: { kind: true, name: true } },
     },
   })
@@ -322,7 +323,7 @@ export async function POST(
           personId: caller.person.id,
           companyId: viewer.companyId,
           type: 'SYSTEM',
-          title: `${result.matches.length} matches found for "${requirement.title}"`,
+          title: matchesTitle(result.matches.length, requirement.title),
           body: `Top match scored ${topMatch.score}/100 (${topMatch.confidence} confidence). Review and submit candidates.`,
           entityId: requirementId,
           data: {
@@ -354,9 +355,7 @@ export async function POST(
           basis: m.basis,
           unknowns: m.unknowns,
         })),
-        message: result.matches.length > 0
-          ? `Found ${result.matches.length} matching candidates. Top score: ${result.matches[0].score}/100.`
-          : 'No matching candidates found. Try broadening skills or increasing the rate range.',
+        message: matchesFoundSays(result.matches.length, result.matches[0]?.score ?? null),
       },
     })
   } catch (err: any) {

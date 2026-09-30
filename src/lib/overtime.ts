@@ -741,3 +741,28 @@ function legSays(
     'You buy this week on the contract the hours are filed against, so your answer is written there.'
   )
 }
+
+// ── Time off in place of overtime pay ─────────────────────────────────
+
+/**
+ * Why banking overtime as time off is refused, in a sentence.
+ *
+ * Decided 2026-09-30 (CLAUDE.md, "A week runs Sunday to Saturday"):
+ * comp time in place of overtime pay is not offered to a private
+ * employer's non-exempt worker by default, because US law allows it only
+ * to public agencies. The screen asked it anyway, as the third answer.
+ */
+export const TIME_OFF_NOT_OFFERED_SAYS =
+  'Banking overtime as time off instead of paying it is not offered: a private US employer may not give time off ' +
+  'in place of overtime pay (29 U.S.C. §207(o) allows it only to public agencies). Choose the usual rate or a premium.'
+
+/**
+ * Whether time off in place of overtime pay may be chosen at all: only
+ * where the wage rule allows comp time for a private employer, and the
+ * company has said it wants it. The company setting is a column the
+ * architect has not added yet (`Company.timeOffInLieu`), so every caller
+ * passes false until it exists — and nothing is offered.
+ */
+export function timeOffOffered(input: { compTimeLawful: boolean; companyAllows: boolean }): boolean {
+  return input.compTimeLawful && input.companyAllows
+}

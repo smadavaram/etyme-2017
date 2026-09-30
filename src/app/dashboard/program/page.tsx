@@ -491,6 +491,7 @@ export default function ProgramPage() {
       {/* What happens to a week that went over the line */}
       {deciding && (
         <DecideOvertime
+          side="BILLED"
           timesheetId={deciding.timesheetId}
           personName={deciding.personName}
           weeks={deciding.weeks}

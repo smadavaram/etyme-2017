@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { overtimeOptions, type OvertimeSide } from './overtime-words'
 import { amount, compact } from '@/lib/money-display'
 import { says as overtimeTerms } from '@/lib/overtime'
 
@@ -95,6 +96,8 @@ export function DecideOvertime({
   lead,
   terms,
   note,
+  side = 'PAYS',
+  timeOffAllowed = false,
   onClose,
   onDecided,
 }: {
@@ -112,6 +115,10 @@ export function DecideOvertime({
    * question opened on top of it, and the signature carried nothing.
    */
   note?: string | null
+  /** Whether this desk is billed for the week or pays for it — the words follow (`./overtime-words`). */
+  side?: OvertimeSide
+  /** Time off in place of overtime pay, offered only where allowed. Never by default. */
+  timeOffAllowed?: boolean
   onClose: () => void
   onDecided: (message: string) => void
 }) {
@@ -207,28 +214,14 @@ export function DecideOvertime({
         <div className="space-y-4">
           {weeks.map((w) => {
             const a = answers[w.weekOf]
-            const flat = Math.round(w.overtimeHours * rateCents)
-            const premium = Math.round(w.overtimeHours * rateCents * (a.multiplierBps / 10_000))
-            const options: { key: Answer['treatment']; title: string; detail: string }[] = [
-              {
-                key: 'SAME_RATE',
-                title: 'Pay them at the usual rate',
-                // "on the invoice" was right for a client and wrong for
-                // the supplier accepting the same week on its own leg,
-                // where the money is payroll rather than a bill.
-                detail: `${w.overtimeHours}h × ${compact(rateCents)} = ${amount(flat)} added to the week.`,
-              },
-              {
-                key: 'PREMIUM',
-                title: 'Pay them at a premium',
-                detail: `${w.overtimeHours}h at the higher rate = ${amount(premium)} added to the week.`,
-              },
-              {
-                key: 'TIME_OFF',
-                title: 'Give the time back instead',
-                detail: `Nothing extra for those hours. ${w.overtimeHours}h goes into ${personName.split(' ')[0]}’s time-off bank, to be taken as paid leave later.`,
-              },
-            ]
+            const options = overtimeOptions({
+              side,
+              timeOffAllowed,
+              hours: w.overtimeHours,
+              rateCents,
+              multiplierBps: a.multiplierBps,
+              firstName: personName.split(' ')[0],
+            })
 
             return (
               <div key={w.weekOf} className="panel">

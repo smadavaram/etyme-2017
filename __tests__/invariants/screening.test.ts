@@ -293,7 +293,7 @@ describe('somebody who has worked here before', () => {
       screenRules(arriving({ workedHereBefore: { months: 24, lastEnded: new Date('2025-06-30') } }), NOW),
       'WORKED_HERE_BEFORE'
     )
-    expect(f.evidence).toBe('Counted across every vendor and every assignment, not just this one.')
+    expect(f.evidence).toBe('Counted across every supplier and every assignment, not just this one.')
   })
 
   it('says nothing at all about somebody who has not', () => {

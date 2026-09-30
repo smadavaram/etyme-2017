@@ -400,7 +400,7 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       reason:
         `${a.personName} has worked here before — ${months} month${months === 1 ? '' : 's'}, ` +
         `finishing ${lastEnded.toISOString().slice(0, 10)}.`,
-      evidence: 'Counted across every vendor and every assignment, not just this one.',
+      evidence: 'Counted across every supplier and every assignment, not just this one.',
     })
   }
 

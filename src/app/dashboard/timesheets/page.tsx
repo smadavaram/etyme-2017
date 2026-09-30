@@ -1170,6 +1170,7 @@ export default function TimesheetsPage() {
       {/* What happens to a week that went over the line */}
       {deciding && (
         <DecideOvertime
+          side="BILLED"
           timesheetId={deciding.row.id}
           personName={deciding.row.person.name}
           weeks={deciding.weeks}

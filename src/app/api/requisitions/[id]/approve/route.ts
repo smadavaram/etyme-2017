@@ -229,7 +229,7 @@ export async function POST(
         action === 'changes'
           ? `${caller.person.name} wants a change before approving: ${decisionReason}. Edit it and send it back — it returns to them, not to the start.`
           : result.fullyApproved
-            ? `${caller.person.name} approved it. It is now open to your vendors.`
+            ? `${caller.person.name} approved it. It is now open to your suppliers.`
             : action === 'approve'
               ? `${caller.person.name} approved it. ${approvalsToGo(result.remaining)}`
               : `${caller.person.name} rejected it: ${decisionReason}`,
