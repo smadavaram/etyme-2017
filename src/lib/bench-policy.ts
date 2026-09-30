@@ -24,6 +24,8 @@
  * consultant's profit line.
  */
 
+import { amount } from '@/lib/money-display'
+
 export type BenchPolicy = 'NO_PAY' | 'FULL_PAY' | 'REDUCED_RATE' | 'RESERVE_FUNDED'
 export type ReserveOnExit = 'PAY_OUT' | 'COMPANY_KEEPS' | 'DEPENDS_ON_REASON'
 
@@ -512,7 +514,7 @@ export function workingDaysBetween(from: Date, to: Date): number {
  * The days are named as working days, with the calendar count beside
  * them, so a reader can check the figure with one multiplication.
  */
-export function burnOf(s: BenchSitter, now: Date): Burn {
+export function burnOf(s: BenchSitter, now: Date, currency = 'USD'): Burn {
   const calendarDays = Math.max(0, Math.round((utcDay(now) - utcDay(s.benchSince)) / DAY_MS))
   const workingDays = workingDaysBetween(s.benchSince, now)
   if (s.billing) {
@@ -523,13 +525,12 @@ export function burnOf(s: BenchSitter, now: Date): Burn {
   }
   const dailyCents = Math.round(s.payRateCents * (s.hoursPerDay ?? 8))
   const toDateCents = dailyCents * workingDays
-  const money = (c: number) => `$${(c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   return {
     onBench: true,
     dailyCents,
     workingDays,
     calendarDays,
     toDateCents,
-    says: `${workingDays} working day${workingDays === 1 ? '' : 's'} (${calendarDays} calendar day${calendarDays === 1 ? '' : 's'}) at ${money(dailyCents)} a day.`,
+    says: `${workingDays} working day${workingDays === 1 ? '' : 's'} (${calendarDays} calendar day${calendarDays === 1 ? '' : 's'}) at ${amount(dailyCents, currency)} a day.`,
   }
 }
