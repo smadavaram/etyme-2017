@@ -1467,6 +1467,24 @@ Three rules follow:
   same week — never a re-keyed copy. Each rung is told when the week
   reaches it.
 
+- **A client may approve by email, and the proof travels down the
+  chain. Decided by the founder, 2026-09-30** (on sharing a worker's
+  hours with every layer and attaching evidence "in case client
+  approval is required or evidence to bill… once email is approved",
+  then: "select contracts to apply — once approved by top layer, lower
+  layer can approve too"). Two ways a week is approved at the top
+  without the client signing in: a one-time **"Approve by email"**
+  link to the client's approver (Approve or Send back, no account,
+  recorded as their signature with name, address and time); or
+  **evidence attached** — the client's approval email, a PDF or an
+  export from its own system — with the approver's name and address
+  entered. Whoever attaches it **selects which contracts in the chain
+  it applies to**, all of them by default. Once the top layer's
+  approval stands, each lower layer accepts the same week in turn, as
+  before. A week approved by evidence says so ("Approved by email:
+  Dana Whitfield, Oct 2 — evidence attached"), never that the client
+  signed in Etyme; every rung it applies to sees the evidence, and no
+  rung sees another rung's rate.
 - **What each rung may bill, and when. Decided by the founder,
   2026-09-28** ("1 yes, 2 A, 3 block"):
   1. **A firm bills only the hours the firm above it accepted.** If
