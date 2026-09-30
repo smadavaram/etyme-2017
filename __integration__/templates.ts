@@ -99,7 +99,9 @@ export function planTemplates(now = new Date()): TemplatePlan {
   const worldHash = createHash('sha256').update(emptyHash).update(hashFiles(files)).digest('hex').slice(0, 12)
 
   return {
-    empty: `${TEMPLATE_PREFIX}empty_${emptyHash}`,
+    // The day is in the name so two trees with different schemas, run the
+    // same day, never drop each other's empty template mid-run.
+    empty: `${TEMPLATE_PREFIX}empty_${utcDay(now)}_${emptyHash}`,
     world: `${TEMPLATE_PREFIX}world_${utcDay(now)}_${worldHash}`,
     worldFiles: files.length,
   }
@@ -195,7 +197,10 @@ export function sweepTemplates(keep: TemplatePlan): string[] {
       // going in another tree; only yesterday's are certainly dead.
       stale = !db.startsWith(`${TEMPLATE_PREFIX}world_${today}_`)
     } else if (db.startsWith(`${TEMPLATE_PREFIX}empty_`)) {
-      stale = true
+      // Same rule as the worlds: another tree may be running today on a
+      // different schema, so only another day's empty templates (and the
+      // old undated ones) are certainly dead.
+      stale = !db.startsWith(`${TEMPLATE_PREFIX}empty_${today}_`)
     }
     if (!stale) continue
     try {
