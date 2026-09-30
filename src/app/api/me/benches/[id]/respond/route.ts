@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { answer, type State } from '@/lib/bench-consent'
+import { readStay, stayFields, staySays } from '@/lib/bench-stay'
 
 /**
  * POST /api/me/benches/:id/respond
@@ -66,8 +67,19 @@ export async function POST(
     return NextResponse.json({ error: { code: 'INVALID_STATE', message: outcome.reason } }, { status: 409 })
   }
 
+  // How long they stay, chosen beside the yes (`lib/bench-stay`). Nothing
+  // chosen is until they cancel, so a bare yes is a complete answer.
+  const stay = readStay(body.stayDays)
+  if (said === 'ACCEPT' && !stay.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: stay.says, field: 'stayDays' } }, { status: 422 })
+  }
+  const chosen = said === 'ACCEPT' && stay.ok ? stayFields(stay.days, now) : null
+
   await prisma.$transaction([
-    prisma.benchListing.update({ where: { id }, data: outcome.data! }),
+    prisma.benchListing.update({
+      where: { id },
+      data: chosen ? { ...outcome.data!, ...chosen, showInMatches: body.showInMatches === true } : outcome.data!,
+    }),
     prisma.notification.create({
       data: {
         personId: caller.person.id,
@@ -105,6 +117,10 @@ export async function POST(
   ])
 
   return NextResponse.json({
-    data: { id, state: said === 'ACCEPT' ? 'GRANTED' : 'DECLINED', says: outcome.reason },
+    data: {
+      id,
+      state: said === 'ACCEPT' ? 'GRANTED' : 'DECLINED',
+      says: chosen ? `${outcome.reason} ${staySays(chosen, listing.company.name, now)}` : outcome.reason,
+    },
   })
 }

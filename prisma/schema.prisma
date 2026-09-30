@@ -1505,6 +1505,35 @@ model BenchListing {
   /// protect, or one bad experience behind them, will want.
   askFirst Boolean @default(false)
 
+  /// Whether this firm may show them in matches to companies it does not
+  /// trade with yet. Decided 2026-09-30.
+  ///
+  /// A granted, marketed listing already reaches the firms this firm
+  /// trades with — their job requests are matched against it. This is a
+  /// second, narrower yes: that a client the firm has no deal with may be
+  /// told "a consultant at this firm fits your job" — the firm's name,
+  /// the skills, when they are free and the reasons, never the person's
+  /// name, contact or rate — and may ask to add the firm as a supplier.
+  /// Off by default, because it reaches strangers; only the person turns
+  /// it on, from their own page or the invitation (`lib/match-pool`).
+  showInMatches Boolean @default(false)
+
+  /// How long the person chose to stay on this bench, in days: 5 · 7 ·
+  /// 15 · 25 · 50 · 60 · 500. Null is "until I cancel", the default.
+  /// Decided 2026-09-30 and chosen in the same step as the yes, never as
+  /// a second question (`lib/bench-stay`).
+  stayDays       Int?
+  /// When the chosen stay runs out, counted from the day it was chosen.
+  /// Null is until cancelled. Once it passes the listing is out of every
+  /// match and cannot be submitted through; the daily job then ends it.
+  staysUntil     DateTime?
+  /// When the person was reminded that the stay is ending. Once per stay;
+  /// a renew clears it.
+  stayRemindedAt DateTime?
+  /// Set with `revokedAt` when the clock ended the listing rather than
+  /// the person. Only a lapsed listing may be renewed from a reminder.
+  lapsedAt       DateTime?
+
   @@unique([consultantId, companyId])
   @@index([companyId, revokedAt])
   @@index([consultantId, state])
@@ -4809,10 +4838,31 @@ model SupplierRequest {
   decidedAt         DateTime?
   decisionNote      String?
   supplierCompanyId String?
+
+  /// Where the request came from, when it came from a match. Decided
+  /// 2026-09-30: a match from a firm that is not a supplier yet is a
+  /// suggestion, and its one action is asking to add the firm. These say
+  /// which job request and which match started it, so the desks read the
+  /// reason the recommender had, and the match turns into a normal one
+  /// once the firm is approved (`lib/match-pool`).
+  requirementId     String?
+  matchId           String?
+  /// The firm on Etyme the request is about, when it is already here —
+  /// a suggestion names a real company, so approval joins that company
+  /// rather than creating a second one from the name.
+  firmCompanyId     String?
+  /// How the firm would come in: PRIME_VENDOR · SUB_UNDER_MSP ·
+  /// SUB_UNDER_PRIME. Null on a plain recommendation, which is a prime
+  /// vendor. Etyme is never a prime vendor; the MSP may be Etyme's own
+  /// program office, which is `underCompanyId` null on SUB_UNDER_MSP.
+  comesInAs         String?
+  /// The MSP or the prime it would work under.
+  underCompanyId    String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   @@index([companyId, state])
+  @@index([requirementId])
 }
 
 /// Somebody the client's own team wants on its network, who no supplier

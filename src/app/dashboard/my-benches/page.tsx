@@ -34,6 +34,13 @@ interface Bench {
   showBeforeFree: boolean
   submissions: number
   holds: Hold[]
+  /** How long they chose to stay here (2026-09-30). Null is until they cancel. */
+  stayDays?: number | null
+  stay?: string
+  ended?: boolean
+  mayRenew?: boolean
+  /** Whether this firm may show them, without their name, beyond the firms it works with. */
+  showInMatches?: boolean
 }
 interface Data {
   benches: Bench[]
@@ -48,6 +55,9 @@ interface Data {
    * bench yet: nothing reaches anybody until they say yes.
    */
   invited?: { listingId: string; company: string; askedAt: string | null }[]
+  /** Stays that ran out: not a bench any more, and one tap from being one again. */
+  ended?: { listingId: string; company: string; stayDays: number | null; stay: string; mayRenew: boolean }[]
+  stayChoices?: number[]
   /** Firms that employ them. They need no listing to staff somebody. */
   employers: string[]
   note: string
@@ -84,6 +94,38 @@ function Chip({ children, tone = 'passive' }: {
   return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
 }
 
+/**
+ * How long they stay on a bench — one choice, beside the yes, with
+ * "until I cancel" already chosen, so saying yes is never a second
+ * question (founder, 2026-09-30).
+ */
+function StayPicker({ value, onChange, choices, disabled, label }: {
+  value: number | null
+  onChange: (days: number | null) => void
+  choices: number[]
+  disabled?: boolean
+  label: string
+}) {
+  return (
+    <label className="flex items-center gap-2 text-[13px] text-etyme-muted">
+      <span>{label}</span>
+      <select
+        value={value == null ? '' : String(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+        className="rounded border border-etyme-rule bg-etyme-raised px-2 py-1 text-[13px] text-etyme-ink"
+      >
+        <option value="">Until I cancel</option>
+        {choices.map((d) => (
+          <option key={d} value={d}>{d} days</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+const STAY_CHOICES_FALLBACK = [5, 7, 15, 25, 50, 60, 500]
+
 const btn = 'px-3 py-1.5 rounded text-[13px] font-medium transition-colors disabled:opacity-40'
 const primary = `${btn} bg-etyme-action text-white hover:opacity-90`
 const quiet = `${btn} border border-etyme-rule text-etyme-ink hover:bg-etyme-canvas`
@@ -94,6 +136,9 @@ export default function MyBenchesPage() {
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // The stay and the matches choice beside each yes, per invitation.
+  const [stayFor, setStayFor] = useState<Record<string, number | null>>({})
+  const [showFor, setShowFor] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -143,7 +188,11 @@ export default function MyBenchesPage() {
       const res = await fetch(`/api/me/benches/${listingId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ said }),
+        body: JSON.stringify(
+          said === 'ACCEPT'
+            ? { said, stayDays: stayFor[listingId] ?? null, showInMatches: showFor[listingId] === true }
+            : { said }
+        ),
       })
       const body = await readJson(res)
       setFlash(body.data?.says ?? 'Saved.')
@@ -225,21 +274,44 @@ export default function MyBenchesPage() {
           >
             <div className="space-y-3">
               {data.invited!.map((a) => (
-                <div key={a.listingId} className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-[15px] text-etyme-ink">{a.company}</p>
-                    {a.askedAt && (
-                      <p className="text-[13px] text-etyme-muted mt-0.5 tabular-nums">asked {a.askedAt}</p>
-                    )}
+                <div key={a.listingId} className="border-t border-etyme-rule pt-3 first:border-0 first:pt-0">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[15px] text-etyme-ink">{a.company}</p>
+                      {a.askedAt && (
+                        <p className="text-[13px] text-etyme-muted mt-0.5 tabular-nums">asked {a.askedAt}</p>
+                      )}
+                    </div>
+                    {/* The yes and how long it lasts are one answer. */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StayPicker
+                        label="Stay on their bench"
+                        value={stayFor[a.listingId] ?? null}
+                        onChange={(d) => setStayFor((m) => ({ ...m, [a.listingId]: d }))}
+                        choices={data.stayChoices ?? STAY_CHOICES_FALLBACK}
+                        disabled={busy}
+                      />
+                      <button className={primary} disabled={busy} onClick={() => answerAsk(a.listingId, 'ACCEPT')}>
+                        Yes, market me
+                      </button>
+                      <button className={quiet} disabled={busy} onClick={() => answerAsk(a.listingId, 'DECLINE')}>
+                        No
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button className={primary} disabled={busy} onClick={() => answerAsk(a.listingId, 'ACCEPT')}>
-                      Yes, market me
-                    </button>
-                    <button className={quiet} disabled={busy} onClick={() => answerAsk(a.listingId, 'DECLINE')}>
-                      No
-                    </button>
-                  </div>
+                  <label className="flex items-start gap-2 mt-2 text-[13px] text-etyme-muted cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={showFor[a.listingId] === true}
+                      disabled={busy}
+                      onChange={() => setShowFor((m) => ({ ...m, [a.listingId]: !m[a.listingId] }))}
+                    />
+                    <span>
+                      Also let {a.company} show me in matches to companies it does not work with yet —
+                      my skills and when I am free, never my name, contact or rate.
+                    </span>
+                  </label>
                 </div>
               ))}
             </div>
@@ -328,11 +400,70 @@ export default function MyBenchesPage() {
                     />
                     Ask me before sending me to a client I have not been sent to before
                   </label>
+
+                  {/* Beyond the firms this one works with — the person's own
+                      yes, off until they give it (2026-09-30). */}
+                  <label className="flex items-start gap-2 mt-2 text-[13px] text-etyme-muted cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={b.showInMatches === true}
+                      disabled={busy}
+                      onChange={() => send({ listingId: b.listingId, showInMatches: !b.showInMatches })}
+                    />
+                    <span>
+                      Show me in matches to companies {b.company} does not work with yet — my skills and when
+                      I am free, never my name, contact or rate. They can only ask to add {b.company} as a supplier.
+                    </span>
+                  </label>
+
+                  {/* How long they stay. Changeable any time; renewing is one tap. */}
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <StayPicker
+                      label="Stay on this bench"
+                      value={b.stayDays ?? null}
+                      onChange={(d) => send({ listingId: b.listingId, stayDays: d })}
+                      choices={data.stayChoices ?? STAY_CHOICES_FALLBACK}
+                      disabled={busy}
+                    />
+                    {b.mayRenew && (
+                      <button className={primary} disabled={busy} onClick={() => send({ renew: b.listingId })}>
+                        Renew
+                      </button>
+                    )}
+                  </div>
+                  {b.stay && (
+                    <p className={`mt-1 text-[13px] ${b.ended ? 'text-etyme-attention' : 'text-etyme-muted'}`}>{b.stay}</p>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </Panel>
+
+        {/* ── Stays that ran out ─────────────────────────────────── */}
+        {(data.ended?.length ?? 0) > 0 && (
+          <Panel
+            title="Stays that ended"
+            subtitle="You chose how long to stay on these benches, and that time ran out. Nobody can put you forward through them now. Anything already sent stays as it is."
+          >
+            <div className="space-y-3">
+              {data.ended!.map((e) => (
+                <div key={e.listingId} className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[15px] text-etyme-ink">{e.company}</p>
+                    <p className="text-[13px] text-etyme-muted mt-0.5">{e.stay}</p>
+                  </div>
+                  {e.mayRenew && (
+                    <button className={primary} disabled={busy} onClick={() => send({ renew: e.listingId })}>
+                      Renew for {e.stayDays} days
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Panel>
+        )}
 
         {/* ── Clients they will not go to ──────────────────────────── */}
         <Panel

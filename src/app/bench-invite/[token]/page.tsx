@@ -21,6 +21,13 @@ interface Ask {
   awaiting: boolean
   state: string
   says: string
+  /** How long they may choose to stay, in days (2026-09-30). */
+  stayChoices?: number[]
+  stayDays?: number | null
+  /** One sentence about the stay they chose, once they said yes. */
+  stay?: string | null
+  /** A stay with an end: one tap renews it, from the reminder letter. */
+  mayRenew?: boolean
 }
 
 export default function BenchInvitePage({ params }: { params: { token: string } }) {
@@ -30,6 +37,9 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  // Chosen with the yes, "until I cancel" already chosen.
+  const [stayDays, setStayDays] = useState<number | null>(null)
+  const [showInMatches, setShowInMatches] = useState(false)
 
   useEffect(() => {
     fetch(`/api/bench-invite/${token}`)
@@ -38,14 +48,18 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
       .catch((e: any) => setError(e.message))
   }, [token])
 
-  async function say(said: 'ACCEPT' | 'DECLINE') {
+  async function say(said: 'ACCEPT' | 'DECLINE' | 'RENEW') {
     setBusy(true)
     try {
       const b = await readJson(
         await fetch(`/api/bench-invite/${token}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ said, note: said === 'DECLINE' ? note : undefined }),
+          body: JSON.stringify(
+            said === 'ACCEPT'
+              ? { said, stayDays, showInMatches }
+              : { said, note: said === 'DECLINE' ? note : undefined }
+          ),
         })
       )
       setDone(b.data.says)
@@ -78,8 +92,19 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
             </>
           ) : !ask.awaiting ? (
             <>
-              <h1 className="headline-serif text-[27px]">Already answered</h1>
+              <h1 className="headline-serif text-[27px]">{ask.mayRenew ? 'Your stay on this bench' : 'Already answered'}</h1>
               <p className="mt-2 text-[14px] text-etyme-ink">{ask.says}</p>
+              {ask.stay && <p className="mt-2 text-[14px] text-etyme-muted">{ask.stay}</p>}
+              {ask.mayRenew && (
+                <button
+                  type="button"
+                  onClick={() => say('RENEW')}
+                  disabled={busy}
+                  className="mt-4 rounded-md bg-etyme-action px-4 py-2 text-[13px] text-white disabled:opacity-50"
+                >
+                  {busy ? 'Saving…' : `Renew for ${ask.stayDays} days`}
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -94,7 +119,22 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
                 submission, and you can take this back whenever you like.
               </p>
 
-              <div className="mt-5 flex flex-wrap gap-3">
+              {/* How long, in the same step as the yes — never a second
+                  question. "Until I cancel" is already chosen. */}
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-[13px] text-etyme-muted">
+                  Stay on their bench
+                  <select
+                    value={stayDays == null ? '' : String(stayDays)}
+                    onChange={(e) => setStayDays(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-md border border-etyme-rule bg-etyme-raised px-2 py-1.5 text-[13px] text-etyme-ink"
+                  >
+                    <option value="">Until I cancel</option>
+                    {(ask.stayChoices ?? [5, 7, 15, 25, 50, 60, 500]).map((d) => (
+                      <option key={d} value={d}>{d} days</option>
+                    ))}
+                  </select>
+                </label>
                 <button
                   type="button"
                   onClick={() => say('ACCEPT')}
@@ -114,6 +154,19 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
                   No thank you
                 </button>
               </div>
+
+              <label className="mt-3 flex items-start gap-2 text-[13px] text-etyme-muted cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={showInMatches}
+                  onChange={() => setShowInMatches((v) => !v)}
+                />
+                <span>
+                  Also let {ask.vendor} show me in matches to companies it does not work with yet — my
+                  skills and when I am free, never my name, contact or rate.
+                </span>
+              </label>
 
               <label className="mt-4 block text-[12px] text-etyme-faint">
                 If you are saying no, you can say why. Only {ask.vendor} sees it.

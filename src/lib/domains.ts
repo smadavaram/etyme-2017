@@ -256,7 +256,7 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/requirements', 'app/dashboard/submissions', 'lib/interview-proposal', 'lib/requisition-change', 'app/dashboard/suppliers',
       'app/dashboard/timesheets', 'app/dashboard/people', 'app/dashboard/identity',
       'app/api/requirements', 'app/api/submissions', 'app/api/suppliers',
-      'app/api/timesheets', 'app/api/people', 'lib/contractor-invite', 'lib/contractor-link', 'app/api/contractor-invites', 'app/api/contractor-welcome', 'app/welcome', 'app/api/identity', 'app/api/first-good', 'app/api/favorites', 'lib/network-filters', 'lib/chart-colors', 'lib/supplier-onboarding', 'app/api/supplier-requests', 'lib/supplier-desks', 'lib/supplier-link', 'app/api/supplier-apply', 'app/apply',
+      'app/api/timesheets', 'app/api/people', 'lib/contractor-invite', 'lib/contractor-link', 'app/api/contractor-invites', 'app/api/contractor-welcome', 'app/welcome', 'app/api/identity', 'app/api/first-good', 'app/api/favorites', 'lib/network-filters', 'lib/chart-colors', 'lib/supplier-onboarding', 'lib/supplier-recommend', 'app/api/supplier-requests', 'lib/supplier-desks', 'lib/supplier-link', 'app/api/supplier-apply', 'app/apply',
     ],
   },
   {
@@ -275,6 +275,9 @@ export const DOMAINS: Domain[] = [
       'lib/training',
       'app/api/alumni', 'app/api/releasing-soon', 'app/api/benchmark',
       'lib/match-engine', 'lib/candidate-fit', 'lib/bench-filter', 'lib/why',
+      // Who a job request is matched against and what each viewer sees
+      // (2026-09-30), and how long a person chose to stay on a bench.
+      'lib/match-pool', 'lib/bench-stay', 'lib/bench-stay-record',
       'lib/releasing-soon', 'lib/shared-consultant', 'lib/scorecard',
       'lib/benchmark', 'lib/resumes', 'lib/cv-reader', 'lib/extract',
       'lib/consultant-portfolio', 'lib/portfolio-data', 'lib/onboarding',
@@ -374,7 +377,7 @@ export const DOMAINS: Domain[] = [
       // shifted against, what a firm can prove, the order that
       // authorized the spend and the books under it, and the pipeline
       // either side of a placement.
-      'lib/seed-calendar', 'lib/seed-standing', 'lib/seed-order-to-cash', 'lib/seed-rate-change', 'lib/seed-sector-suppliers', 'lib/seed-coding', 'lib/seed-pipeline',
+      'lib/seed-calendar', 'lib/seed-standing', 'lib/seed-order-to-cash', 'lib/seed-rate-change', 'lib/seed-sector-suppliers', 'lib/seed-coding', 'lib/seed-pipeline', 'lib/seed-bench-matching',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
       // A desk a client grants a firm that is not the client, so a

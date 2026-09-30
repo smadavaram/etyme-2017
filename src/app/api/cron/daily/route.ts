@@ -44,6 +44,9 @@ const JOBS = [
   { path: 'loose-ends', does: 'chases placements billed with no cost behind them' },
   { path: 'expire-invitations', does: 'closes invitations nobody answered' },
   { path: 'cold-openings', does: 'marks seats nobody has advertised in six weeks as cold' },
+  // Before matching, so a stay that ran out tonight is off the bench
+  // before anybody is matched against it.
+  { path: 'bench-stays', does: 'ends the bench stays people chose that have run out, and reminds them before one does' },
   { path: 'proactive-match', does: 'looks for people worth putting forward' },
   { path: 'freshness-ping', does: 'asks the bench whether they are still looking' },
   { path: 'deliver-webhooks', does: 'retries webhooks that did not land' },

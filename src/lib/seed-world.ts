@@ -45,6 +45,7 @@ import { seedOrderToCash, ORDER_TO_CASH_PARTS, PART_SHARES, type OrderToCashPart
 import { seedRateChange } from '@/lib/seed-rate-change'
 import { seedPayrollRuns } from '@/lib/seed-payroll-runs'
 import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
+import { seedBenchMatching } from '@/lib/seed-bench-matching'
 import { seedPipeline } from '@/lib/seed-pipeline'
 import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
 import { rolesFor, RENAMED_ROLES, GRANTED_SINCE } from '@/lib/company-defaults'
@@ -228,6 +229,7 @@ export function worldStepNames(): string[] {
     'rate-change', 'sector-suppliers',
     ...STANDING_PARTS.map((part) => `standing:${part}`),
     ...orderToCashSteps().map((s) => s.name),
+    'bench-matching',
     'pipeline',
     'document-requirements', 'sector-papers',
     ...payrollRunSteps().map((st) => st.name),
@@ -1745,6 +1747,13 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
       counts.journalEntries += cash.journalEntries
     })
   }
+  // Bench reaching a client's job request through matching (2026-09-30):
+  // a supplier's, a trading firm's, and one suggestion. Before the
+  // pipeline, which writes a CV for every world consultant — so the four
+  // it adds get theirs on the first seeding, not the second.
+  await step('bench-matching', async () => {
+    await seedBenchMatching(ctx)
+  })
   await step('pipeline', async () => {
     const pipeline = await seedPipeline(ctx)
     counts.resumes = pipeline.resumes

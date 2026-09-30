@@ -3,6 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { getCallerContext } from '@/lib/api-context'
 import { answer, type State } from '@/lib/bench-consent'
+import { readStay, stayFields } from '@/lib/bench-stay'
 
 /**
  * PATCH /api/bench/listings/:id/grant
@@ -88,10 +89,18 @@ export async function PATCH(
   // leave the state at INVITED, so a consultant who granted here was
   // still refused at the submission gate — which reads the state — and a
   // declined listing could be granted by the back door.
+  // How long they stay, chosen with the yes; nothing said is until they
+  // cancel (`lib/bench-stay`).
+  const body = await request.json().catch(() => ({}))
+  const stay = readStay(body?.stayDays)
+  if (!stay.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: stay.says, field: 'stayDays' } }, { status: 422 })
+  }
+  const grantedOn = new Date()
   const outcome = answer(
     { state: listing.state as State, revokedAt: listing.revokedAt },
     'ACCEPT',
-    new Date()
+    grantedOn
   )
   if (!outcome.ok) {
     return NextResponse.json(
@@ -105,7 +114,7 @@ export async function PATCH(
       // The moment the listing becomes live, and the state that says so.
       const result = await tx.benchListing.update({
         where: { id },
-        data: outcome.data!,
+        data: { ...outcome.data!, ...stayFields(stay.days, grantedOn) },
       })
 
       // AutomationLog on the company that owns the listing

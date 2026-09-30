@@ -24,7 +24,7 @@ import { req, freshWorld } from './harness'
 const JOBS = [
   'auto-approve', 'due-cycles', 'end-contracts', 'retention', 'rolloff-scan',
   'visa-watch', 'agreement-terms', 'loose-ends', 'expire-invitations',
-  'cold-openings', 'proactive-match', 'freshness-ping', 'deliver-webhooks',
+  'cold-openings', 'bench-stays', 'proactive-match', 'freshness-ping', 'deliver-webhooks',
   'watch', 'reap-demos',
 ] as const
 

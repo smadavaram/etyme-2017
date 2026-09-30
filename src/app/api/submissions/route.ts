@@ -20,6 +20,7 @@ import { submissionKind, tellEmployee, blockedSays } from './kind'
 import { networkOffer, adoptedKinds, tellAdoptedPerson, tellSupplier, supplierWallSays, ourBarSays } from './adopt'
 import { awardDoor } from '@/lib/award'
 import { maySeeOutside } from '@/lib/walls'
+import { stayOver, refusedSays as stayRefusedSays } from '@/lib/bench-stay'
 
 /**
  * POST /api/submissions
@@ -557,6 +558,36 @@ export async function POST(request: NextRequest) {
           },
         })
 
+        // ── A stay the person chose, run out ───────────────────────
+        //
+        // Decided 2026-09-30: a person chooses how long they stay on a
+        // bench, and when it runs out nobody can put them forward through
+        // it. Asked here as well as by the nightly job that writes the
+        // ending down, so the hour between the two is not a gap. A
+        // submission made before the end stands; this door only refuses
+        // new ones. `lib/bench-stay` holds the words.
+        const lapsed = benchListing
+          ? (stayOver(benchListing, new Date()) ? benchListing : null)
+          : await prisma.benchListing.findFirst({
+              where: { consultantId: consultant.id, companyId: fromCompanyId, lapsedAt: { not: null } },
+            })
+        if (lapsed) {
+          item.status = 'error'
+          item.code = 'STAY_ENDED'
+          item.error = stayRefusedSays(person.name, vendorName, lapsed.staysUntil ?? lapsed.lapsedAt ?? new Date())
+          await prisma.accessLog.create({
+            data: {
+              subjectId: personId,
+              actorCompanyId: fromCompanyId,
+              action: 'SUBMIT',
+              allowed: false,
+              reason: item.error,
+            },
+          })
+          results.push(item)
+          continue
+        }
+
         if (!benchListing) {
           // ── Offered by our network ─────────────────────────────────
           //
@@ -571,7 +602,7 @@ export async function POST(request: NextRequest) {
           const offers = await prisma.benchListing.findMany({
             where: { consultantId: consultant.id, companyId: { not: fromCompanyId } },
             select: {
-              companyId: true, tier: true, state: true, revokedAt: true,
+              companyId: true, tier: true, state: true, revokedAt: true, staysUntil: true,
               company: { select: { name: true } },
             },
           })
@@ -584,7 +615,9 @@ export async function POST(request: NextRequest) {
               companyName: o.company.name,
               tier: o.tier,
               state: o.state,
-              revokedAt: o.revokedAt,
+              // A stay that ran out is consent that ended, whether or not
+              // the nightly job has written it down yet.
+              revokedAt: o.revokedAt ?? (stayOver(o, new Date()) ? o.staysUntil : null),
               onOurNetwork: partners.has(o.companyId),
             })),
             requested: typeof body.offeredBy === 'string' ? body.offeredBy : null,

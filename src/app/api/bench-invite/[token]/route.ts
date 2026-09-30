@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { readInvite } from '@/lib/bench-invite'
 import { answer, awaitingAnswer, type State } from '@/lib/bench-consent'
+import { STAY_CHOICES, readStay, renewFields, stayFields, staySays } from '@/lib/bench-stay'
+import { renewStay } from '@/lib/bench-stay-record'
 
 /**
  * GET  /api/bench-invite/:token — what is being asked
@@ -41,6 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
     )
   }
 
+  const now = new Date()
   return NextResponse.json({
     data: {
       name: listing.consultant.person.name.trim().split(/\s+/)[0],
@@ -54,6 +57,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
           : listing.state === 'DECLINED'
             ? `You already said no to ${listing.company.name}. They have not been able to put you forward.`
             : `${listing.company.name} would like to put you forward for contract jobs.`,
+      // How long they stay, chosen with the yes (`lib/bench-stay`).
+      stayChoices: STAY_CHOICES,
+      stayDays: listing.stayDays,
+      stay: listing.state === 'GRANTED' ? staySays(listing, listing.company.name, now) : null,
+      // A stay with an end, not taken back by the person: one tap renews it.
+      mayRenew: listing.state === 'GRANTED' && renewFields(listing, now).ok,
+      showInMatches: listing.showInMatches,
     },
   })
 }
@@ -63,9 +73,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const body = await request.json().catch(() => ({}))
   const said = String(body.said ?? '').toUpperCase()
 
-  if (said !== 'ACCEPT' && said !== 'DECLINE') {
+  if (said !== 'ACCEPT' && said !== 'DECLINE' && said !== 'RENEW') {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'said must be ACCEPT or DECLINE', field: 'said' } },
+      { error: { code: 'VALIDATION', message: 'said must be ACCEPT, DECLINE or RENEW', field: 'said' } },
       { status: 422 }
     )
   }
@@ -76,6 +86,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const now = new Date()
+
+  // Renew, from the reminder letter: one tap, the same stay again.
+  if (said === 'RENEW') {
+    const renewed = await renewStay(listing.id, 'LINK', now)
+    if (!renewed.ok) {
+      return NextResponse.json({ error: { code: renewed.code, message: renewed.says } }, { status: 409 })
+    }
+    return NextResponse.json({ data: { state: 'GRANTED', says: renewed.says } })
+  }
+
+  // How long they stay, chosen in the same step as the yes. Nothing
+  // chosen is until they cancel — never a second question.
+  const stay = readStay(body.stayDays)
+  if (said === 'ACCEPT' && !stay.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: stay.says, field: 'stayDays' } }, { status: 422 })
+  }
+
   const outcome = answer(
     { state: listing.state as State, revokedAt: listing.revokedAt },
     said,
@@ -87,8 +114,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: { code: 'INVALID_STATE', message: outcome.reason } }, { status: 409 })
   }
 
+  const chosen = said === 'ACCEPT' && stay.ok ? stayFields(stay.days, now) : null
+  const data = chosen
+    ? { ...outcome.data!, ...chosen, showInMatches: body.showInMatches === true }
+    : outcome.data!
+
   await prisma.$transaction([
-    prisma.benchListing.update({ where: { id: listing.id }, data: outcome.data! }),
+    prisma.benchListing.update({ where: { id: listing.id }, data }),
     prisma.notification.create({
       data: {
         personId: listing.consultant.personId,
@@ -115,7 +147,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         action: said === 'ACCEPT' ? 'BENCH_CONSENT_GIVEN' : 'BENCH_CONSENT_DECLINED',
         summary: `${listing.consultant.person.name} ${said === 'ACCEPT' ? 'agreed to' : 'declined'} being marketed by ${listing.company.name}`,
         reason: 'The consultant answered the invitation themselves, from the link they were sent.',
-        payload: { listingId: listing.id, said, via: 'LINK' },
+        payload: { listingId: listing.id, said, via: 'LINK', stayDays: chosen?.stayDays ?? null },
         // Their own answer about their own representation.
         reversible: false,
       },
@@ -123,6 +155,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   ])
 
   return NextResponse.json({
-    data: { state: said === 'ACCEPT' ? 'GRANTED' : 'DECLINED', says: outcome.reason },
+    data: {
+      state: said === 'ACCEPT' ? 'GRANTED' : 'DECLINED',
+      says: chosen ? `${outcome.reason} ${staySays(chosen, listing.company.name, now)}` : outcome.reason,
+    },
   })
 }

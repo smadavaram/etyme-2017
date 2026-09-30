@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { logBulkAccess } from '@/lib/access-log'
 import { runMatchEngine } from '@/lib/match-engine'
-import { raisedIt } from '@/lib/resolve-client-company'
+import { poolFor, ranked, shownTo, actionFor, REACH_WORD, type Factor } from '@/lib/match-pool'
+import { mayRecommend } from '@/lib/supplier-onboarding'
+import { hasPermission } from '@/lib/permissions'
+import { matchViewer, NOT_HERE } from './viewer'
 
 /**
  * GET /api/requirements/:id/matches
@@ -24,44 +26,88 @@ export async function GET(
 
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
-    select: { id: true, title: true, companyId: true },
+    select: {
+      id: true, title: true, companyId: true, payerCompanyId: true, endClientCompanyId: true,
+      company: { select: { kind: true, name: true } },
+    },
   })
 
-  // The raiser, and nobody else. Seeing a role is one thing — a supplier
-  // invited to it should. The shortlist behind it is another: names,
-  // headlines, skills and scores, which is somebody's bench with the prices
-  // taken off. This route checked neither, so a competitor holding the id
-  // read the lot.
+  // The raiser, a program office in its seat, or a supplier it was sent
+  // to — and nobody else. The shortlist behind a role is somebody's bench
+  // with the prices taken off; this route once checked nothing, so a
+  // competitor holding the id read the lot.
   //
   // 404 rather than 403 on purpose. "You may not see this requirement's
   // matches" confirms the requirement exists.
-  if (!requirement || !raisedIt(caller, requirement)) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Requirement not found' } },
-      { status: 404 }
-    )
+  const viewer = requirement ? await matchViewer(caller, requirement) : null
+  if (!requirement || !viewer) {
+    return NextResponse.json(NOT_HERE, { status: 404 })
   }
 
-  const matches = await prisma.match.findMany({
-    where: { requirementId },
-    include: {
-      consultant: {
-        include: {
-          person: {
-            select: { id: true, name: true, primaryEmail: true },
-          },
-        },
-      },
-    },
+  const pool = await poolFor(requirement, viewer.companyId, { suggest: viewer.suggest })
+  const byConsultant = new Map(pool.entries.map((e) => [e.consultantId, e]))
+
+  const matches = byConsultant.size === 0 ? [] : await prisma.match.findMany({
+    where: { requirementId, consultantId: { in: [...byConsultant.keys()] } },
     orderBy: { score: 'desc' },
   })
 
-  // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
-  const matchPersonIds = matches.map((m) => m.consultant.personId)
-  if (matchPersonIds.length > 0) {
-    logBulkAccess(matchPersonIds, {
-      action: 'MATCH_VIEW',
-      reason: `Match scores for "${requirement.title}"`,
+  // What each row lets this viewer do. Read once for the page.
+  const suggestedFirms = [...new Set(pool.entries.filter((e) => e.reach === 'SUGGESTION').map((e) => e.firmId))]
+  const panelFirms = [...new Set(pool.entries.filter((e) => e.reach === 'PANEL').map((e) => e.firmId))]
+  const employees = pool.entries.filter((e) => e.employee).map((e) => e.personId)
+  const [asked, under, billed] = await Promise.all([
+    suggestedFirms.length === 0 ? [] : prisma.supplierRequest.findMany({
+      where: { companyId: viewer.companyId, firmCompanyId: { in: suggestedFirms }, state: { in: ['RECOMMENDED', 'IN_REVIEW'] } },
+      select: { firmCompanyId: true, stage: true, createdAt: true },
+    }),
+    // A firm approved to work under a prime is asked through the prime.
+    !viewer.buyer || panelFirms.length === 0 ? [] : prisma.supplierRequest.findMany({
+      where: { companyId: viewer.companyId, firmCompanyId: { in: panelFirms }, state: 'APPROVED', comesInAs: 'SUB_UNDER_PRIME', underCompanyId: { not: null } },
+      select: { firmCompanyId: true, underCompanyId: true },
+    }),
+    // What this firm last billed its own employee at: a real number to
+    // start from, never a placeholder.
+    employees.length === 0 ? [] : prisma.sellContract.findMany({
+      where: { companyId: viewer.companyId, personId: { in: employees } },
+      select: { personId: true, billRate: true },
+      orderBy: { startDate: 'desc' },
+    }),
+  ])
+  const underIds = [...new Set(under.map((u) => u.underCompanyId!))]
+  const underNames = new Map(
+    (underIds.length === 0 ? [] : await prisma.company.findMany({ where: { id: { in: underIds } }, select: { id: true, name: true } }))
+      .map((c) => [c.id, c.name])
+  )
+  const underOf = new Map(under.map((u) => [u.firmCompanyId!, { companyId: u.underCompanyId!, name: underNames.get(u.underCompanyId!) ?? 'the prime' }]))
+  const askedOf = new Map(asked.map((a) => [a.firmCompanyId!, a]))
+  const lastBill = new Map<string, number>()
+  for (const b of billed) if (!lastBill.has(b.personId)) lastBill.set(b.personId, b.billRate)
+
+  const rows = ranked(
+    matches.flatMap((m) => {
+      const entry = byConsultant.get(m.consultantId)
+      if (!entry) return []
+      return [{ m, entry, reach: entry.reach, score: m.score }]
+    })
+  )
+
+  // CLAUDE.md: "Every read of another person's data writes an AccessLog
+  // row" — one per person shown, suggestions included, written before the
+  // answer leaves so the trail cannot miss a read that happened.
+  if (rows.length > 0) {
+    await prisma.accessLog.createMany({
+      data: rows.map((r) => ({
+        subjectId: r.entry.personId,
+        actorPersonId: caller.person.id,
+        actorCompanyId: viewer.companyId,
+        action: 'MATCH_VIEW',
+        allowed: true,
+        reason:
+          r.reach === 'SUGGESTION'
+            ? `Suggested without their name for "${requirement.title}" (they agreed to be shown in matches)`
+            : `Match scores for "${requirement.title}" — ${REACH_WORD[r.reach].toLowerCase()}`,
+      })),
     })
   }
 
@@ -69,26 +115,60 @@ export async function GET(
     data: {
       requirementId,
       title: requirement.title,
-      matches: matches.map((m) => ({
-        id: m.id,
-        score: m.score,
-        confidence: m.confidence,
-        factors: m.factors, // [{ label, value, weight }] — shown in the UI
-        basis: m.basis, // "34 BRIM placements over 18 months"
-        unknowns: m.unknowns, // what it could not account for
-        consultant: {
-          id: m.consultant.id,
-          personId: m.consultant.personId,
-          name: m.consultant.person.name,
-          headline: m.consultant.headline,
-          skills: m.consultant.skills,
-          location: m.consultant.location,
-          workAuth: m.consultant.workAuth,
-          availability: m.consultant.availableFrom?.toISOString() ?? null,
-        },
-        computedAt: m.computedAt.toISOString(),
-      })),
-      total: matches.length,
+      viewer: {
+        companyId: viewer.companyId,
+        buyer: viewer.buyer,
+        raiser: viewer.raiser,
+        suggests: viewer.suggest,
+        mayAskToAdd: viewer.suggest && mayRecommend(viewer.permissions),
+      },
+      basis: pool.says,
+      matches: rows.map(({ m, entry }) => {
+        const shown = shownTo(
+          entry,
+          { factors: (m.factors as unknown as Factor[]) ?? [], basis: m.basis, unknowns: m.unknowns },
+          { buyer: viewer.buyer }
+        )
+        const suggestion = entry.reach === 'SUGGESTION'
+        const pending = suggestion ? askedOf.get(entry.firmId) : undefined
+        return {
+          id: m.id,
+          score: m.score,
+          confidence: m.confidence,
+          factors: shown.factors, // [{ label, value, weight }] — shown in the UI
+          basis: shown.basis,
+          unknowns: shown.unknowns, // what it could not account for
+          reach: entry.reach,
+          reachWord: REACH_WORD[entry.reach],
+          employee: entry.employee,
+          standing: entry.standing,
+          firm: shown.firm,
+          rate: shown.rate,
+          // A suggestion carries no person id: nothing on this page may
+          // reach the person, and an id is a handle to reach them by.
+          consultant: {
+            id: suggestion ? null : m.consultantId,
+            personId: suggestion ? null : entry.personId,
+            name: shown.name,
+            headline: shown.headline,
+            skills: shown.skills,
+            location: shown.location,
+            workAuth: shown.workAuth,
+            availability: shown.availability,
+          },
+          action: actionFor({
+            entry,
+            viewer: { companyId: viewer.companyId, buyer: viewer.buyer },
+            lastBillRate: lastBill.get(entry.personId) ?? null,
+            under: underOf.get(entry.firmId) ?? null,
+          }),
+          asked: pending
+            ? { stage: pending.stage, at: pending.createdAt.toISOString() }
+            : null,
+          computedAt: m.computedAt.toISOString(),
+        }
+      }),
+      total: rows.length,
     },
   })
 }
@@ -117,13 +197,31 @@ export async function POST(
   // Verify requirement exists and caller has access
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
-    select: { id: true, title: true, status: true, companyId: true, skills: true },
+    select: {
+      id: true, title: true, status: true, companyId: true, skills: true,
+      payerCompanyId: true, endClientCompanyId: true,
+      company: { select: { kind: true, name: true } },
+    },
   })
 
-  if (!requirement || !raisedIt(caller, requirement)) {
+  const viewer = requirement ? await matchViewer(caller, requirement) : null
+  if (!requirement || !viewer) {
+    return NextResponse.json(NOT_HERE, { status: 404 })
+  }
+
+  // A supplier the role was sent to matches its own pool against it —
+  // the recruiting desk's job, the same desk that submits.
+  if (!viewer.raiser && !hasPermission(viewer.permissions, 'submissions.create')) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Requirement not found' } },
-      { status: 404 }
+      {
+        error: {
+          code: 'NO_PERMISSION',
+          message:
+            `Matching your bench against a job is the recruiting desk's job at ${viewer.companyName} — ` +
+            'a recruiter, a resource manager or the account manager.',
+        },
+      },
+      { status: 403 }
     )
   }
 
@@ -155,6 +253,7 @@ export async function POST(
     const result = await runMatchEngine(requirementId, {
       limit: limit ?? 20,
       forceRefresh: forceRefresh ?? false,
+      viewerCompanyId: viewer.companyId,
     })
 
     // ── Was this a model or was it arithmetic ─────────────────────────
@@ -189,7 +288,7 @@ export async function POST(
     // Write AutomationLog
     await prisma.automationLog.create({
       data: {
-        companyId: requirement.companyId,
+        companyId: viewer.companyId,
         action: 'MATCH_RUN',
         summary: `AI matching for "${requirement.title}": ${result.matches.length} candidate(s) scored`,
         reason: `Match engine triggered by ${caller.person.name}`,
@@ -212,7 +311,7 @@ export async function POST(
       await prisma.notification.create({
         data: {
           personId: caller.person.id,
-          companyId: requirement.companyId,
+          companyId: viewer.companyId,
           type: 'SYSTEM',
           title: `${result.matches.length} matches found for "${requirement.title}"`,
           body: `Top match scored ${topMatch.score}/100 (${topMatch.confidence} confidence). Review and submit candidates.`,
@@ -235,8 +334,11 @@ export async function POST(
         // scored this should not have to open the automation page.
         decidedBy,
         matches: result.matches.map((m) => ({
-          consultantId: m.consultantId,
-          personId: m.personId,
+          // A buyer reads who matched from GET, where a suggestion comes
+          // without a handle to reach the person by. Nothing here names
+          // or points at anybody for a buyer.
+          consultantId: viewer.buyer ? null : m.consultantId,
+          personId: viewer.buyer ? null : m.personId,
           score: m.score,
           confidence: m.confidence,
           factors: m.factors,

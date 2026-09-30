@@ -196,6 +196,16 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'It worked out which desks have to sign this job request and put it in front of each of them. Every decision is still a person’s.',
   },
+  BENCH_STAY_ENDED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'A person chose how long to stay on a bench, and that time ran out, so the listing ended by itself: they are out of every match and nobody can put them forward through it. Submissions already made stand. Renewing in one tap brings it back.',
+  },
+  BENCH_STAY_REMINDED: {
+    rung: 'L1',
+    basis: 'RULE',
+    says: 'A person was told their chosen stay on a bench ends soon, with a link that renews it in one tap. It tells them and changes nothing.',
+  },
   INVITATIONS_EXPIRED: {
     rung: 'L3',
     basis: 'RULE',
@@ -351,6 +361,7 @@ const RULE_ATTRIBUTED = [
   'API_KEY_ISSUED', 'API_KEY_REVOKED', 'APPROVAL_RULE_CREATED',
   'APPROVAL_RULE_DEACTIVATED', 'BENCH_CONSENT_DECLINED', 'BENCH_CONSENT_GIVEN',
   'BENCH_LISTING_GRANTED', 'BENCH_LISTING_REQUESTED', 'BENCH_LISTING_REVOKED',
+  'BENCH_STAY_CHANGED', 'BENCH_STAY_RENEWED', 'SUPPLIER_ASKED_FROM_MATCH',
   'BLACKLIST_ADD', 'BLACKLIST_LIFT', 'BREACH_CLOSED',
   'BREACH_NOTICE_SENT', 'BREACH_OPENED', 'CANDIDATE_AWARDED',
   'CLIENT_LISTED', 'COLLECTIONS_FACTORED', 'COLLECTIONS_OWNER_ASSIGNED',
@@ -621,6 +632,13 @@ export const JOBS: Record<string, Job> = {
     basis: 'RULE',
     says: 'Marks a seat cold when nobody has advertised it in six weeks.',
     writes: ['OPENINGS_COLD'],
+  },
+  'bench-stays': {
+    job: 'bench-stays',
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'Ends the bench stays whose chosen time has run out, and reminds each person before theirs does. A date comparison against a choice the person made; renewing brings it back.',
+    writes: ['BENCH_STAY_ENDED', 'BENCH_STAY_REMINDED'],
   },
   'expire-invitations': {
     job: 'expire-invitations',

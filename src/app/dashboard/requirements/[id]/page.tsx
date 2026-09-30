@@ -8,6 +8,7 @@ import { statusWord, stageWordFor, stageReason } from '../words'
 import { mayEdit } from '@/lib/requisition-stage'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { MatchList, type MatchRow, type MatchViewerInfo } from './matches'
 
 /**
  * Requirement detail — the core revenue workflow.
@@ -54,56 +55,7 @@ interface Requirement {
   company: { id: string; name: string }
 }
 
-interface MatchFactor {
-  label: string
-  value: number
-  weight: number
-}
-
-interface MatchResult {
-  id: string
-  score: number
-  confidence: 'HIGH' | 'MODERATE' | 'LOW'
-  factors: MatchFactor[]
-  basis: string
-  unknowns: string | null
-  consultant: {
-    id: string
-    personId: string
-    name: string
-    headline: string | null
-    skills: string[]
-    location: string | null
-    workAuth: string | null
-    availability: string | null
-  }
-  computedAt: string
-}
-
-interface ExistingSubmission {
-  personId: string
-  status: string
-}
-
 // ── Helpers ──────────────────────────────────────────
-
-function confidenceColor(c: string): string {
-  switch (c) {
-    case 'HIGH': return 'text-etyme-verified'
-    case 'MODERATE': return 'text-etyme-attention'
-    case 'LOW': return 'text-etyme-danger'
-    default: return 'text-etyme-muted'
-  }
-}
-
-function confidenceChip(c: string): { cls: string; text: string } {
-  switch (c) {
-    case 'HIGH': return { cls: 'chip--verified', text: 'High' }
-    case 'MODERATE': return { cls: 'chip--attention', text: 'Moderate' }
-    case 'LOW': return { cls: 'chip--danger', text: 'Low' }
-    default: return { cls: 'chip--passive', text: c }
-  }
-}
 
 /**
  * The chip on the role itself.
@@ -154,29 +106,16 @@ function formatRate(min: number | null, max: number | null): string {
   return range(min, max)
 }
 
-function formatAvail(date: string | null): string {
-  if (!date) return 'Unknown'
-  const d = new Date(date)
-  const now = new Date()
-  const days = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  if (days <= 0) return 'Now'
-  if (days <= 14) return `${days}d`
-  return d.toLocaleDateString()
-}
-
 // ── Page ─────────────────────────────────────────────
 
 export default function RequirementDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [requirement, setRequirement] = useState<Requirement | null>(null)
-  const [matches, setMatches] = useState<MatchResult[]>([])
-  const [submissions, setSubmissions] = useState<ExistingSubmission[]>([])
+  const [matches, setMatches] = useState<MatchRow[]>([])
+  const [matchViewer, setMatchViewer] = useState<MatchViewerInfo | null>(null)
+  const [matchBasis, setMatchBasis] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [submitting, setSubmitting] = useState(false)
-  const [submitResult, setSubmitResult] = useState<string | null>(null)
   const [showDistribute, setShowDistribute] = useState(false)
   const [distributeResult, setDistributeResult] = useState<string | null>(null)
   const [matching, setMatching] = useState(false)
@@ -205,6 +144,8 @@ export default function RequirementDetailPage() {
       if (matchRes.ok) {
         const matchBody = await matchRes.json()
         setMatches(matchBody.data?.matches ?? [])
+        setMatchViewer(matchBody.data?.viewer ?? null)
+        setMatchBasis(matchBody.data?.basis ?? null)
       }
     } catch (err: any) {
       setError(err.message)
@@ -216,66 +157,6 @@ export default function RequirementDetailPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
-
-  const toggleExpand = (matchId: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(matchId)) next.delete(matchId)
-      else next.add(matchId)
-      return next
-    })
-  }
-
-  const toggleSelect = (personId: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(personId)) next.delete(personId)
-      else next.add(personId)
-      return next
-    })
-  }
-
-  const isAlreadySubmitted = (personId: string) =>
-    submissions.some((s) => s.personId === personId)
-
-  const handleSubmit = async () => {
-    if (selected.size === 0 || !requirement) return
-    setSubmitting(true)
-    setSubmitResult(null)
-
-    try {
-      const res = await fetch('/api/submissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requirementId: requirement.id,
-          personIds: Array.from(selected),
-          // Cents, matching Submission.rate. Passing dollars here stored
-          // a $1.10/hr submission for a $110/hr requirement.
-          rate: requirement.billMin ?? 10_000,
-          fromCompanyId: requirement.company.id, // placeholder
-        }),
-      })
-
-      const body = await readJson(res)
-
-      const results = body.data?.results ?? []
-      const succeeded = results.filter((r: any) => r.status === 'created').length
-      const duplicates = results.filter((r: any) => r.status === 'duplicate').length
-      const failed = results.filter((r: any) => r.status === 'error').length
-
-      setSubmitResult(
-        `${succeeded} submitted${duplicates ? `, ${duplicates} already submitted` : ''}${failed ? `, ${failed} failed` : ''}`
-      )
-      setSelected(new Set())
-      // Refresh to show updated state
-      fetchData()
-    } catch (err: any) {
-      setSubmitResult(`Error: ${err.message}`)
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   const handleRunMatching = async (forceRefresh = false) => {
     if (!requirement) return
@@ -346,8 +227,8 @@ export default function RequirementDetailPage() {
 
       {/* Requirement header — decision surface */}
       <div className="panel mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div className="min-w-0">
             <div className="eyebrow mb-2">{requirement.company.name}</div>
             <h1 className="headline-serif text-heading text-etyme-ink mb-2">
               {requirement.title}
@@ -361,7 +242,7 @@ export default function RequirementDetailPage() {
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={`chip ${statusCls}`}>{statusText}</span>
             {/* What arrived, and what is worth reading. The buyer's half of
                 the same job — matching finds people, screening decides
@@ -378,7 +259,10 @@ export default function RequirementDetailPage() {
                 matching against it and sending it to more suppliers.
                 `mayEdit` is the one place that decides what is past
                 working on. */}
-            {(requirement.status === 'OPEN' || requirement.status === 'DRAFT') && mayEdit(requirement) && (
+            {/* The raiser while the role is live; a supplier it was sent to
+                while it is open, matching its own pool against it. */}
+            {(((requirement.status === 'OPEN' || requirement.status === 'DRAFT') && mayEdit(requirement)) ||
+              (requirement.status === 'OPEN' && matchViewer != null && !matchViewer.raiser)) && (
               <button
                 onClick={() => handleRunMatching(matches.length > 0)}
                 disabled={matching}
@@ -392,7 +276,7 @@ export default function RequirementDetailPage() {
                 ) : matches.length > 0 ? (
                   '↻ Re-match'
                 ) : (
-                  '🧠 Run AI matching'
+                  'Run matching'
                 )}
               </button>
             )}
@@ -439,54 +323,22 @@ export default function RequirementDetailPage() {
         </div>
       </div>
 
-      {/* Submit bar — appears when candidates are selected */}
-      {selected.size > 0 && (
-        <div className="sticky top-0 z-10 mb-4 px-4 py-3 rounded-lg bg-etyme-action text-white
-                        flex items-center justify-between shadow-lg">
-          <span className="text-sm font-medium">
-            {selected.size} candidate{selected.size !== 1 ? 's' : ''} selected
-          </span>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSelected(new Set())}
-              className="text-[12px] text-white/70 hover:text-white"
-            >
-              Clear
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="px-4 py-1.5 text-[12px] font-semibold bg-white text-etyme-action
-                         rounded-md hover:bg-white/90 disabled:opacity-50 transition-colors"
-            >
-              {submitting ? 'Submitting…' : `Submit ${selected.size}`}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Submit result banner */}
-      {submitResult && (
-        <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${
-          submitResult.startsWith('Error')
-            ? 'bg-red-50 border border-red-200 text-red-700'
-            : 'bg-emerald-50 border border-emerald-200 text-etyme-verified'
-        }`}>
-          {submitResult}
-        </div>
-      )}
-
-      {/* Match results — the decision surface. Deliberately your own
-          bench only (see match-engine.ts) and deliberately placed above
-          Distribute: the question this answers is whether you already
-          have somebody, before a job goes to anyone outside. */}
+      {/* Match results — the decision surface. Since 2026-09-30 the pool
+          is your own people first, then your suppliers', then the other
+          firms you work with, and on a client's own job request the
+          suggestions from firms that are not a supplier yet
+          (`lib/match-pool`). Placed above Distribute on purpose: the
+          question it answers is who is already available, before a job
+          goes anywhere new. */}
       <div className="mb-4">
         <h2 className="headline-serif text-[18px] text-etyme-ink mb-1">
-          Your own bench, checked first
+          Matches for this job
         </h2>
-        <p className="text-[12px] text-etyme-muted">
-          {matches.length} consultant{matches.length !== 1 ? 's' : ''} on your own bench, scored
-          against this requirement — before it goes to anyone outside. Click a row to see reasoning.
+        <p className="text-[12px] text-etyme-muted max-w-[75ch]">
+          {matchViewer?.buyer
+            ? 'Available bench from your suppliers first, then from other firms you work with, then suggestions. Open a row to see why it fits.'
+            : 'Your own people first, then the bench your suppliers and partners offered you. Open a row to see why it fits.'}
+          {matchBasis ? ` ${matchBasis}` : ''}
         </p>
       </div>
 
@@ -494,19 +346,18 @@ export default function RequirementDetailPage() {
       {matchResult && (
         <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${
           matchResult.startsWith('Error')
-            ? 'bg-red-50 border border-red-200 text-red-700'
-            : 'bg-emerald-50 border border-emerald-200 text-etyme-verified'
+            ? 'bg-etyme-danger/10 border border-etyme-danger/30 text-etyme-danger'
+            : 'bg-etyme-verified/10 border border-etyme-verified/30 text-etyme-verified'
         }`}>
           {matchResult}
         </div>
       )}
 
-      {matches.length === 0 ? (
+      {matches.length === 0 || !matchViewer ? (
         <div className="panel text-center py-12">
-          <div className="text-3xl mb-3">🧠</div>
           <p className="text-sm text-etyme-ink font-medium mb-1">No matches yet</p>
           <p className="text-xs text-etyme-muted mb-4">
-            Check your own bench for a fit before this goes to anyone outside.
+            Check who is available before this goes to anyone new.
           </p>
           {(requirement.status === 'OPEN' || requirement.status === 'DRAFT') && (
             <button
@@ -514,172 +365,18 @@ export default function RequirementDetailPage() {
               disabled={matching}
               className="btn-primary text-[13px] px-6 py-2"
             >
-              {matching ? 'Running match engine…' : 'Run AI matching'}
+              {matching ? 'Matching…' : 'Run matching'}
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-2">
-          {matches.map((match) => {
-            const isExpanded = expanded.has(match.id)
-            const isSelected = selected.has(match.consultant.personId)
-            const alreadySubmitted = isAlreadySubmitted(match.consultant.personId)
-            const { cls: confCls, text: confText } = confidenceChip(match.confidence)
-
-            return (
-              <div
-                key={match.id}
-                className={`panel transition-all ${
-                  isSelected ? 'ring-2 ring-etyme-action ring-offset-1' : ''
-                }`}
-              >
-                {/* Summary row — "one line by default" */}
-                <div
-                  className="flex items-center gap-4 cursor-pointer"
-                  onClick={() => toggleExpand(match.id)}
-                >
-                  {/* Select checkbox */}
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      disabled={alreadySubmitted}
-                      onChange={() => toggleSelect(match.consultant.personId)}
-                      className="rounded border-etyme-rule"
-                    />
-                  </div>
-
-                  {/* Score circle */}
-                  <div className={`
-                    w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
-                    font-serif text-[16px] font-medium tabular-nums
-                    ${match.score >= 80 ? 'bg-etyme-verified/10 text-etyme-verified' :
-                      match.score >= 60 ? 'bg-etyme-action/10 text-etyme-action' :
-                      match.score >= 40 ? 'bg-etyme-attention/10 text-etyme-attention' :
-                      'bg-etyme-canvas text-etyme-muted'}
-                  `}>
-                    {match.score}
-                  </div>
-
-                  {/* Consultant info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-medium text-etyme-ink">
-                        {match.consultant.name}
-                      </span>
-                      <span className={`chip text-[9px] ${confCls}`}>{confText}</span>
-                      {alreadySubmitted && (
-                        <span className="chip chip--passive text-[9px]">Submitted</span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-etyme-muted truncate">
-                      {match.consultant.headline ?? match.consultant.skills.slice(0, 3).join(' · ')}
-                    </p>
-                  </div>
-
-                  {/* Quick stats */}
-                  <div className="hidden md:flex items-center gap-4 flex-shrink-0">
-                    <div className="text-right">
-                      <div className="text-[10px] text-etyme-faint">Location</div>
-                      <div className="text-[12px] text-etyme-muted">{match.consultant.location ?? '—'}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[10px] text-etyme-faint">Work Auth</div>
-                      <div className="text-[12px] text-etyme-muted">{match.consultant.workAuth ?? '—'}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[10px] text-etyme-faint">Available</div>
-                      <div className="text-[12px] text-etyme-muted">{formatAvail(match.consultant.availability)}</div>
-                    </div>
-                  </div>
-
-                  {/* Expand chevron */}
-                  <svg
-                    width="16" height="16" viewBox="0 0 16 16"
-                    className={`text-etyme-faint transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
-                  >
-                    <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                  </svg>
-                </div>
-
-                {/* Expanded reasoning — "reasoning on click" (UX Stress Test #5) */}
-                {isExpanded && (
-                  <div className="mt-4 pt-4 border-t border-etyme-rule animate-fade-in">
-                    {/* Factor bars */}
-                    <div className="mb-4">
-                      <div className="eyebrow mb-2">Match factors</div>
-                      <div className="space-y-2">
-                        {(match.factors as MatchFactor[]).map((f, i) => (
-                          <div key={i} className="flex items-center gap-3">
-                            <div className="w-[120px] text-[11px] text-etyme-muted truncate">{f.label}</div>
-                            <div className="flex-1 h-[6px] bg-etyme-rule/50 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${
-                                  f.value >= 80 ? 'bg-etyme-verified/60' :
-                                  f.value >= 50 ? 'bg-etyme-action/60' :
-                                  'bg-etyme-attention/60'
-                                }`}
-                                style={{ width: `${f.value}%` }}
-                              />
-                            </div>
-                            <div className="w-8 text-right text-[11px] font-medium text-etyme-ink tabular-nums">
-                              {f.value}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Basis + unknowns */}
-                    <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <div className="eyebrow mb-1">Basis</div>
-                        <p className="text-[12px] text-etyme-muted leading-relaxed">
-                          {match.basis}
-                        </p>
-                      </div>
-                      {match.unknowns && (
-                        <div>
-                          <div className="eyebrow mb-1">Unknowns</div>
-                          <p className="text-[12px] text-etyme-muted leading-relaxed">
-                            {match.unknowns}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Skills comparison */}
-                    <div className="mt-4">
-                      <div className="eyebrow mb-2">Skills</div>
-                      <div className="flex flex-wrap gap-1">
-                        {match.consultant.skills.map((skill) => {
-                          const isMatch = requirement.skills.some(
-                            (rs) => rs.toLowerCase() === skill.toLowerCase()
-                          )
-                          return (
-                            <span
-                              key={skill}
-                              className={`chip text-[9px] ${
-                                isMatch ? 'chip--verified' : 'chip--passive'
-                              }`}
-                            >
-                              {skill}
-                              {isMatch && ' ✓'}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    <p className="text-[10px] text-etyme-faint mt-3">
-                      Computed {new Date(match.computedAt).toLocaleString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+        <MatchList
+          requirementId={requirement.id}
+          requirementSkills={requirement.skills}
+          matches={matches}
+          viewer={matchViewer}
+          onChanged={fetchData}
+        />
       )}
 
       {/* Distribute modal */}

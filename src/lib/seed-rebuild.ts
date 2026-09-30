@@ -151,6 +151,11 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Favorite.targetId': { as: 'LINK', to: ['Person', 'Company'] },
   'Blacklist.targetId': { as: 'LINK', to: ['Person', 'Company'] },
   'SupplierRequest.supplierCompanyId': { as: 'LINK', to: ['Company'] },
+  // A request opened from a match (2026-09-30): the firm it is about, the
+  // prime or MSP it would work under, and the job request it came from.
+  'SupplierRequest.firmCompanyId': { as: 'LINK', to: ['Company'] },
+  'SupplierRequest.underCompanyId': { as: 'LINK', to: ['Company'] },
+  'SupplierRequest.requirementId': { as: 'LINK', to: ['Requirement'] },
   'ContractorInvitation.supplierCompanyId': { as: 'LINK', to: ['Company'] },
   'ContractorInvitation.personId': { as: 'LINK', to: ['Person'] },
   'Requirement.clearedSupplierIds': { as: 'LINK', to: ['Company'] },
@@ -160,6 +165,9 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   // ── Record: history, kept as written ──
   // Records of their own (KEPT), whatever they mention.
   'Incident.personId': { as: 'RECORD' },
+  // The match a supplier request started from. Matches are recomputed;
+  // the request keeps which one it was as history.
+  'SupplierRequest.matchId': { as: 'RECORD' },
   'Incident.companyId': { as: 'RECORD' },
   'MarketingLead.convertedCompanyId': { as: 'RECORD' },
   'Notification.companyId': { as: 'RECORD' },

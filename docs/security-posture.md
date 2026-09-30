@@ -410,16 +410,16 @@ Recomputed from the module on 2026-09-30:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **162** |
-| Unprompted — the system did it and nobody asked | **24** |
+| Actions named in the automation log | **167** |
+| Unprompted — the system did it and nobody asked | **26** |
 | Enforcement — the system decided what a person was allowed to do | **8** |
-| Attributed — a person did it and the row is the record | **130** |
+| Attributed — a person did it and the row is the record | **133** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung
 would inflate every claim.
 
-Of the twenty-four unprompted actions, **twenty-three are plain rules** — a date
+Of the twenty-six unprompted actions, **twenty-five are plain rules** — a date
 comparison, a threshold, a count. `cron/end-contracts` is fully
 autonomous and is also `endDate < today`; both are true and the product
 says both. The odd one out is proactive matching, whose basis is read from

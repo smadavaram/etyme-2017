@@ -1240,14 +1240,15 @@ So the positions on a deal are:
 The buy side already knew this: `BuyContract.workOrderId` is nullable
 because you do not raise a PO to your own employee, and `cyclesFor` writes
 salary cycles where there is no vendor below and vendor-bill cycles where
-there is. **The sell side did not.** `SubmissionKind.INTERNAL` has been in
-the schema since it was written and nothing computes it: `POST
-/api/submissions` demands a `ConsultantProfile` and a consented
-`BenchListing` from every person, so a GSI cannot put its own employee in
-front of a client without that employee first agreeing to be marketed by
-the firm that already employs them. A schema that knows and a route that
-forbids — the same shape the order layer was in until 2026-09-17, at
-the party level.
+there is. **The sell side did not, until 2026-09-17.** `SubmissionKind.INTERNAL`
+sat in the schema with nothing computing it, and `POST /api/submissions`
+demanded a `ConsultantProfile` and a consented `BenchListing` from every
+person — a schema that knew and a route that forbade. It is computed now:
+where the submitting firm holds an EMPLOYEE context for the person, the
+door skips the listing, tells the employee, logs the read and writes
+INTERNAL (`app/api/submissions/kind.ts`). Since 2026-09-30 matching also
+brings a firm's own employees between projects to a job request, and they
+go forward as INTERNAL from the match (`lib/match-pool`).
 
 **What a prime needs that a staffing vendor does not**, in the founder's
 words — building teams dynamically:

@@ -7,6 +7,8 @@ import { workingLifeOf } from '@/lib/portfolio-data'
 import { clientLabel } from '@/lib/openings'
 import { notify } from '@/lib/notify'
 import { emit } from '@/lib/events'
+import { STAY_CHOICES, readStay, renewFields, stayFields, stayOver, staySays } from '@/lib/bench-stay'
+import { renewStay } from '@/lib/bench-stay-record'
 
 /**
  * GET   /api/me/benches — who has me, what have they done with me
@@ -57,7 +59,11 @@ export async function GET(_request: NextRequest) {
     (
       await prisma.benchListing.findMany({
         where: { consultant: { personId: person.id }, revokedAt: null },
-        select: { id: true, state: true, invitedAt: true },
+        select: {
+          id: true, state: true, invitedAt: true,
+          stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, showInMatches: true,
+          company: { select: { name: true } },
+        },
       })
     ).map((l) => [l.id, l])
   )
@@ -77,12 +83,43 @@ export async function GET(_request: NextRequest) {
   // and four signed weeks behind him.
   const life = await workingLifeOf(person.id)
 
+  // How long each yes lasts, and whether it may be shown beyond the
+  // firm's partners — both the person's own to set (2026-09-30). And the
+  // stays that ran out, which are no longer a bench but are one tap from
+  // being one again.
+  const now = new Date()
+  const stayOf = (id: string) => {
+    const l = states.get(id)
+    if (!l) return null
+    return {
+      stayDays: l.stayDays,
+      stay: staySays(l, l.company.name, now),
+      ended: stayOver(l, now),
+      mayRenew: stayOver(l, now) && renewFields(l, now).ok,
+      showInMatches: l.showInMatches,
+    }
+  }
+  const ranOut = (
+    await prisma.benchListing.findMany({
+      where: { consultant: { personId: person.id }, lapsedAt: { not: null }, state: 'GRANTED' },
+      select: { id: true, stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, company: { select: { name: true } } },
+    })
+  ).map((l) => ({
+    listingId: l.id,
+    company: l.company.name,
+    stayDays: l.stayDays,
+    stay: staySays(l, l.company.name, now),
+    mayRenew: renewFields(l, now).ok,
+  }))
+
   return NextResponse.json({
     data: {
       ...data,
       // "since Sep 3, 2026", not "since 2026-09-03": the day a firm
       // started marketing them is printed as it stands on My benches.
-      benches: data.benches.map((b) => ({ ...b, since: plainDate(b.since) })),
+      benches: data.benches.map((b) => ({ ...b, since: plainDate(b.since) })).map((b) => ({ ...b, ...stayOf(b.listingId) })),
+      ended: ranOut,
+      stayChoices: STAY_CHOICES,
       // The days `whoHasMe` gives as ISO are printed as they stand on the
       // person's own page, so they leave here as a person reads them.
       asking: data.asking.map((a) => ({ ...a, askedAt: plainDate(a.askedAt) })),
@@ -130,6 +167,85 @@ export async function PATCH(request: NextRequest) {
   }
 
   // ── Do not send me there ───────────────────────────────────────────
+  // ── Shown in matches beyond the firm's partners (2026-09-30) ─────
+  if (typeof body.listingId === 'string' && typeof body.showInMatches === 'boolean') {
+    const listing = await prisma.benchListing.findFirst({
+      where: { id: body.listingId, consultant: { personId: person.id }, revokedAt: null },
+      select: { id: true, companyId: true, company: { select: { name: true } } },
+    })
+    if (!listing) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'That is not one of your listings.' } },
+        { status: 404 }
+      )
+    }
+    await prisma.benchListing.update({ where: { id: listing.id }, data: { showInMatches: body.showInMatches } })
+    return NextResponse.json({
+      data: {
+        listingId: listing.id,
+        showInMatches: body.showInMatches,
+        message: body.showInMatches
+          ? `Companies ${listing.company.name} does not work with yet may be told a consultant at ${listing.company.name} fits their job — your skills and when you are free, never your name, contact or rate. They can only ask to add ${listing.company.name} as a supplier.`
+          : `Only the firms ${listing.company.name} already works with see you in their matches.`,
+      },
+    })
+  }
+
+  // ── How long they stay, changed later (2026-09-30) ────────────────
+  if (typeof body.listingId === 'string' && 'stayDays' in body) {
+    const stay = readStay(body.stayDays)
+    if (!stay.ok) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: stay.says, field: 'stayDays' } }, { status: 422 })
+    }
+    const listing = await prisma.benchListing.findFirst({
+      where: { id: body.listingId, consultant: { personId: person.id }, revokedAt: null, state: 'GRANTED' },
+      select: { id: true, companyId: true, company: { select: { name: true } } },
+    })
+    if (!listing) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'That is not one of your listings.' } },
+        { status: 404 }
+      )
+    }
+    const now = new Date()
+    const fields = stayFields(stay.days, now)
+    await prisma.$transaction([
+      prisma.benchListing.update({ where: { id: listing.id }, data: fields }),
+      prisma.automationLog.create({
+        data: {
+          companyId: listing.companyId,
+          action: 'BENCH_STAY_CHANGED',
+          summary: `${person.name} changed how long they stay on ${listing.company.name}'s bench: ${stay.days == null ? 'until they cancel' : `${stay.days} days`}`,
+          reason: 'The person changed it themselves, from their own page.',
+          payload: { listingId: listing.id, stayDays: stay.days },
+          reversible: true,
+        },
+      }),
+    ])
+    return NextResponse.json({
+      data: { listingId: listing.id, stayDays: stay.days, message: staySays(fields, listing.company.name, now) },
+    })
+  }
+
+  // ── Renew a stay that ended, or is about to (2026-09-30) ──────────
+  if (typeof body.renew === 'string') {
+    const mine = await prisma.benchListing.findFirst({
+      where: { id: body.renew, consultant: { personId: person.id } },
+      select: { id: true },
+    })
+    if (!mine) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'That is not one of your listings.' } },
+        { status: 404 }
+      )
+    }
+    const renewed = await renewStay(mine.id, 'PAGE')
+    if (!renewed.ok) {
+      return NextResponse.json({ error: { code: renewed.code, message: renewed.says } }, { status: 409 })
+    }
+    return NextResponse.json({ data: { listingId: mine.id, message: renewed.says } })
+  }
+
   if (typeof body.doNotSubmitTo === 'string') {
     const company = await prisma.company.findUnique({
       where: { id: body.doNotSubmitTo },

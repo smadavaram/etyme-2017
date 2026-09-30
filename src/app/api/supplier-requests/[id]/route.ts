@@ -294,9 +294,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     // Finance's yes: the last desk, and the one that writes the supplier.
-    const claimed = row.domain
-      ? await prisma.company.findFirst({ where: { domain: row.domain, claimedAt: { not: null }, isDemo: caller.company!.isDemo }, select: { id: true, name: true } })
-      : null
+    // A request opened from a match names the firm already on Etyme; that
+    // company is joined, never a second one made from its name.
+    const claimed = row.firmCompanyId
+      ? await prisma.company.findUnique({ where: { id: row.firmCompanyId }, select: { id: true, name: true } })
+      : row.domain
+        ? await prisma.company.findFirst({ where: { domain: row.domain, claimedAt: { not: null }, isDemo: caller.company!.isDemo }, select: { id: true, name: true } })
+        : null
     const supplier = claimed ?? (await prisma.company.create({
       data: {
         name: row.name, slug: await freeSlug(row.name), domain: null, domainVerified: false, kind: 'VENDOR', currency: 'USD',
@@ -305,7 +309,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       select: { id: true, name: true },
     }))
     const agreementHeld = checklist.find((i) => i.key === 'AGREEMENT')?.state === 'HELD'
-    if (!(await prisma.masterAgreement.findFirst({ where: { vendorId: supplier.id, clientId: companyId }, select: { id: true } }))) {
+    // A sub-vendor under a prime holds its paper with the prime, not with
+    // the client: no agreement is written between them here. The client's
+    // register still carries the firm, approved, so its people match as a
+    // supplier's — and the ask for one goes to the prime it works under.
+    const underPrime = row.comesInAs === 'SUB_UNDER_PRIME'
+    if (!underPrime && !(await prisma.masterAgreement.findFirst({ where: { vendorId: supplier.id, clientId: companyId }, select: { id: true } }))) {
       await prisma.masterAgreement.create({ data: { vendorId: supplier.id, clientId: companyId, paymentTerms: 30, ...(agreementHeld ? { signedAt: now } : {}) } })
     }
     await prisma.counterparty.upsert({

@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/db'
 import { sift, DEFAULT_SHORTLIST, type Candidate as Siftable } from '@/lib/bench-filter'
 import { record } from '@/lib/agent-run'
+import { poolFor } from '@/lib/match-pool'
 
 /**
  * Match Engine — the core differentiator.
@@ -9,8 +10,9 @@ import { record } from '@/lib/agent-run'
  * CLAUDE.md: "Match scores always carry factors, basis, confidence and unknowns.
  *             A bare number is a bug."
  *
- * Takes a Requirement and finds the best-fit consultants from the
- * requirement owner's own bench — never anybody else's.
+ * Takes a Requirement and finds the best-fit consultants from the pool
+ * `lib/match-pool` draws for the viewer — their own bench, their suppliers',
+ * the firms they trade with, and consented suggestions. Never the platform.
  * Uses Claude for semantic skill matching (e.g., "React" ↔ "Next.js"),
  * then scores on five dimensions:
  *   1. Skill overlap (semantic, not string equality)
@@ -91,7 +93,7 @@ interface CandidateData {
  */
 export async function runMatchEngine(
   requirementId: string,
-  options: { limit?: number; forceRefresh?: boolean } = {}
+  options: { limit?: number; forceRefresh?: boolean; viewerCompanyId?: string } = {}
 ): Promise<{ matches: MatchResult[]; basis: string }> {
   const limit = options.limit ?? 20
 
@@ -108,6 +110,9 @@ export async function runMatchEngine(
       months: true,
       startDate: true,
       companyId: true,
+      payerCompanyId: true,
+      endClientCompanyId: true,
+      company: { select: { kind: true } },
     },
   })
 
@@ -115,84 +120,61 @@ export async function runMatchEngine(
     throw new Error(`Requirement ${requirementId} not found`)
   }
 
-  // 2. If forceRefresh, delete existing matches
-  if (options.forceRefresh) {
-    await prisma.match.deleteMany({ where: { requirementId } })
-  }
+  // Whose matching this is. The firm that raised the role by default —
+  // the proactive job and the seed run it that way — or a supplier the
+  // role was sent to, drawing on its own pool (`lib/match-pool`).
+  const viewerCompanyId = options.viewerCompanyId ?? requirement.companyId
 
-  // 3. Load candidate pool — consultants with active bench listings AT
-  //    THIS COMPANY, whoever raised the requirement.
+  // 3. Load the candidate pool — never the whole platform.
   //
-  //    This was unscoped: a bare `revokedAt: null` with no companyId,
-  //    which searched every bench listing on the platform regardless of
-  //    who it belonged to. "The bench operator... only learns the
-  //    client's name once there is a signed right to represent" — this
-  //    call sits before any invitation or hold exists, so an unscoped
-  //    pool was showing one company a stranger's private bench: names,
-  //    headlines, skills, location, none of it consented to. Fixed to
-  //    the requirement owner's own bench, which is also the actual
-  //    feature this was meant to be — "do we have anybody, before we go
-  //    looking outside" — not a platform-wide search dressed up as one.
+  //    This was once a bare `revokedAt: null` with no companyId, which
+  //    searched every bench listing on the platform and showed one company
+  //    a stranger's private bench. Then it was the requirement owner's own
+  //    bench and nothing else, which left a client — who has no bench —
+  //    with nobody to match at all.
   //
-  //    Exclude people already submitted to this requirement.
-  const existingSubmissions = await prisma.submission.findMany({
-    where: { requirementId },
-    select: { personId: true },
-  })
-  const excludedPersonIds = new Set(existingSubmissions.map((s) => s.personId))
+  //    Since 2026-09-30 it is four circles, each by a consent the person
+  //    gave: the viewer's own, the viewer's suppliers', the firms it
+  //    trades with, and — for a client on its own job request — people
+  //    who agreed to be shown in matches beyond their firm's partners.
+  //    `lib/match-pool` is the one door and says why.
+  const suggest =
+    viewerCompanyId === requirement.companyId &&
+    requirement.payerCompanyId === null &&
+    requirement.company.kind === 'CLIENT'
+  const pool = await poolFor(requirement, viewerCompanyId, { suggest })
 
-  const listings = await prisma.benchListing.findMany({
-    where: {
-      companyId: requirement.companyId,
-      revokedAt: null,
-      consultant: {
-        person: {
-          id: { notIn: Array.from(excludedPersonIds) },
-        },
-      },
-    },
-    include: {
-      consultant: {
-        include: {
-          person: { select: { id: true, name: true } },
-        },
-      },
-    },
-    // Take a reasonable pool to evaluate
-    take: 200,
-  })
+  // 2. A refresh recomputes this viewer's pool and nobody else's: a
+  //    supplier re-matching the role it was sent must not wipe the
+  //    client's own matches on it. Rows are rewritten in place rather than
+  //    deleted first, so a match keeps its id — a request a client opened
+  //    from a suggestion still names the match it came from. Whoever no
+  //    longer scores is removed after scoring (step 7).
 
-  if (listings.length === 0) {
-    return { matches: [], basis: 'Nobody on your own bench has an active listing right now' }
-  }
-
-  // 4. Deduplicate by person (a consultant may have multiple listings)
-  //    Prefer RETAINED over MARKETING tier
-  const candidateMap = new Map<string, CandidateData>()
-  for (const listing of listings) {
-    const personId = listing.consultant.person.id
-    const existing = candidateMap.get(personId)
-
-    // Keep the better listing (RETAINED > MARKETING)
-    if (existing && existing.listingTier === 'RETAINED' && listing.tier !== 'RETAINED') {
-      continue
+  if (pool.entries.length === 0) {
+    return {
+      matches: [],
+      basis: `Nobody available matches from your own bench, your suppliers or the firms you work with right now. ${pool.says}`,
     }
+  }
 
-    candidateMap.set(personId, {
-      consultantId: listing.consultantId,
-      personId,
-      personName: listing.consultant.person.name,
-      headline: listing.consultant.headline,
-      skills: listing.consultant.skills,
-      location: listing.consultant.location,
-      workAuth: listing.consultant.workAuth,
-      rateFloor: listing.consultant.rateFloor,
-      availableFrom: listing.consultant.availableFrom,
-      listingCompanyId: listing.companyId,
-      listingTier: listing.tier,
-      listingRateMin: listing.rateMin,
-      listingRateMax: listing.rateMax,
-      confirmedAt: listing.consultant.confirmedAt,
+  const candidateMap = new Map<string, CandidateData>()
+  for (const e of pool.entries) {
+    candidateMap.set(e.personId, {
+      consultantId: e.consultantId,
+      personId: e.personId,
+      personName: e.name,
+      headline: e.consultant.headline,
+      skills: e.consultant.skills,
+      location: e.consultant.location,
+      workAuth: e.consultant.workAuth,
+      rateFloor: e.consultant.rateFloor,
+      availableFrom: e.consultant.availableFrom,
+      listingCompanyId: e.firmId,
+      listingTier: e.reach,
+      listingRateMin: e.rateMin,
+      listingRateMax: e.rateMax,
+      confirmedAt: e.consultant.confirmedAt,
     })
   }
 
@@ -254,6 +236,9 @@ export async function runMatchEngine(
   })
 
   if (candidates.length === 0) {
+    if (options.forceRefresh) {
+      await prisma.match.deleteMany({ where: { requirementId, consultantId: { in: pool.entries.map((e) => e.consultantId) } } })
+    }
     return { matches: [], basis: sifted.summary }
   }
 
@@ -291,11 +276,20 @@ export async function runMatchEngine(
     })
   }
 
+  // 7. On a refresh, whoever in this pool no longer scored goes.
+  if (options.forceRefresh) {
+    const scored = new Set(matchResults.map((r) => r.consultantId))
+    const gone = pool.entries.map((e) => e.consultantId).filter((id) => !scored.has(id))
+    if (gone.length > 0) {
+      await prisma.match.deleteMany({ where: { requirementId, consultantId: { in: gone } } })
+    }
+  }
+
   return {
     matches: matchResults,
     // Says what the rules did as well as what the model did, so "only
     // three matched" is answerable without reading code.
-    basis: `${sifted.summary} Scored against "${requirement.title}" (${requirement.skills.join(', ')}).`,
+    basis: `${pool.says} ${sifted.summary} Scored against "${requirement.title}" (${requirement.skills.join(', ')}).`,
   }
 }
 
