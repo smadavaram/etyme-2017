@@ -37,9 +37,23 @@ describe('the weeks the demo world files', () => {
     const w = weeksSince(day(-45))[0]
     const whole = week(w)
     const from = new Date(whole.start.getTime() + 2 * 86_400_000) // the Wednesday
-    const cut = week(w, 40, from)
+    const cut = week(w, 40, from)!
     expect(cut.start.getTime()).toBe(from.getTime())
     expect(Object.keys(cut.days).map(weekday)).toEqual([3, 4, 5])
+  })
+
+  it('a placement that starts after a week has ended files nothing for that week, never a backwards week with no hours', () => {
+    // Marta Kowalczyk on a world born Sunday 2026-11-01: she starts on
+    // Saturday 17 October, and the week before it ends on Friday the 16th.
+    // It was written as a sheet from the 17th to the 16th, with no hours.
+    for (const w of [1, 2, 3, 6]) {
+      const whole = week(w)
+      const saturday = new Date(whole.end.getTime() + 86_400_000)
+      expect(week(w, 40, saturday)).toBeNull()
+      const friday = week(w, 40, whole.end)!
+      expect(friday.start.getTime()).toBeLessThanOrEqual(friday.end.getTime())
+      expect(Object.keys(friday.days).map(weekday)).toEqual([5])
+    }
   })
 
   it('every week since a placement started is counted, and no week before it', () => {

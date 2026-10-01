@@ -55,6 +55,18 @@ const runsOnHerLine = async () =>
 /** YYYY-MM of a date or an ISO day. */
 const monthOf = (d: Date | string) => (typeof d === 'string' ? d : iso(d)).slice(0, 7)
 
+/**
+ * Whether a month's payroll run has come by the day the world was born.
+ * A run is pressed five days after its month ends and never earlier, so
+ * a month whose fifth day after has not passed before the birthday has
+ * not been run yet and is owed (lib/seed-payroll-runs, runAtFor).
+ */
+const runDayCame = (month: string) => {
+  const [y, m] = month.split('-').map(Number)
+  const now = new Date()
+  return Date.UTC(y, m, 0) + 6 * 86_400_000 <= Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+}
+
 async function census() {
   return {
     timesheets: await prisma.timesheet.count({ where: { sellContractId: sellId } }),
@@ -340,11 +352,14 @@ describe('a pay rise on the seeded world', () => {
     expect(center.actualCents).toBe(Math.round(hours * 11_200))
   })
 
-  it('on a fresh demo every month of hers before this one is paid by a run of its own, the month holding her forty-five-hour week included, its overtime priced as payroll prices it', async () => {
+  it('on a fresh demo every month of hers whose pay run day has come is paid by a run of its own, the month holding her forty-five-hour week included, its overtime priced as payroll prices it', async () => {
     const all = await days()
     const now = monthOf(new Date())
-    const worked = [...new Set(Object.keys(all).map(monthOf))].filter((m) => m < now).sort()
-    expect(worked.length, 'five months of weeks and more before this one').toBeGreaterThanOrEqual(6)
+    const before = [...new Set(Object.keys(all).map(monthOf))].filter((m) => m < now).sort()
+    expect(before.length, 'five months of weeks and more before this one').toBeGreaterThanOrEqual(6)
+    // A month whose run falls after the world was born is not run yet.
+    const worked = before.filter(runDayCame)
+    expect(worked.length).toBeGreaterThanOrEqual(5)
 
     const runs = await runsOnHerLine()
     const ran = runs.map((c) => monthOf(c.payPeriod.start)).sort()
@@ -360,8 +375,8 @@ describe('a pay rise on the seeded world', () => {
     expect(paidOn.length).toBeGreaterThanOrEqual(runs.length)
   })
 
-  it('on her page every week in a paid month reads as paid, and only this month reads as owed', async () => {
-    const open = new Set([monthOf(new Date())])
+  it('on her page every week in a paid month reads as paid, and only this month, or a month whose run has not come yet, reads as owed', async () => {
+    const open = new Set([...Object.keys(await days()).map(monthOf), monthOf(new Date())].filter((m) => !runDayCame(m)))
     as(RATE_CHANGE_PERSON.email)
     const r = await json(await myWork(req('GET', '/api/me/work')))
     expect(r.status).toBe(200)
@@ -373,8 +388,8 @@ describe('a pay rise on the seeded world', () => {
       return all.filter((d) => d >= weekOf && d <= end).map(monthOf)
     }
     const owedWeeks = r.body.data.owed.weeks.filter((w: any) => w.stillOwedCents > 0)
-    // Something is owed exactly when she worked a day this month: on the
-    // 1st every day she worked is in a month a run already paid.
+    // Something is owed exactly when she worked a day in a month no run
+    // has paid yet: this month, and last month until its run day comes.
     if (all.some((d) => open.has(monthOf(d)))) expect(owedWeeks.length).toBeGreaterThan(0)
     else expect(owedWeeks.map((w: any) => w.weekOf)).toEqual([])
     for (const w of owedWeeks) {

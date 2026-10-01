@@ -98,15 +98,23 @@ export const PAID_WORKERS = [
  * later than five days past the month; a run pressed before that
  * signature would leave those days to no run at all, because the next
  * period's run pays only its own days. So the run waits an hour past the
- * last acceptance on the period's weeks. Never after the world was born.
+ * last acceptance on the period's weeks.
+ *
+ * And never after the world was born — but never by pulling the run
+ * earlier either. It used to be clamped to the evening before the
+ * birthday, so a world born on Oct 1 recorded September's run as pressed
+ * on Sep 30, before the month had ended, and the worker's page said
+ * "paid on Oct 9" in the past tense on Oct 1. Where the day the run falls
+ * on is after the world was born, the run has not happened yet: this
+ * returns null, no run is written, and the month reads as owed.
  */
-export function runAtFor(period: Period, acceptedAt: readonly Date[] = []): Date {
+export function runAtFor(period: Period, acceptedAt: readonly Date[] = []): Date | null {
   const usual = atHour(plus(period.end, 5), 17)
   const last = acceptedAt.reduce<number>((m, d) => Math.max(m, +d), 0)
   const afterLast = new Date(last + 3_600_000)
   const at = afterLast > usual ? afterLast : usual
   const latest = atHour(day(-1), 17)
-  return at < latest ? at : latest
+  return at <= latest ? at : null
 }
 
 type Line = NonNullable<Awaited<ReturnType<typeof loadLine>>>
@@ -277,7 +285,10 @@ export async function payPastPeriods(
     for (let p = periodFor(cand.startDate, terms); p.end < day(0); p = periodFor(plus(p.end, 1), terms)) {
       const inIt = mine.filter((t) => t.periodStart <= p.end && t.periodEnd >= p.start)
       const accepted = inIt.flatMap((t) => t.assertions.filter((a) => a.companyId === bc.companyId).map((a) => a.at))
-      due.push({ period: p, runAt: runAtFor(p, accepted), asked: { start: iso(p.start), end: iso(p.end) } })
+      const runAt = runAtFor(p, accepted)
+      // Not pressed yet on the day the world was born: the period is owed.
+      if (!runAt) continue
+      due.push({ period: p, runAt, asked: { start: iso(p.start), end: iso(p.end) } })
     }
   }
 

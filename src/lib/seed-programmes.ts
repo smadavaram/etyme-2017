@@ -457,9 +457,15 @@ export function spread(hours: number, n: number): number[] {
  * whose days and whose total disagree is a figure nobody can stand
  * behind, and everything that prices a week reads the days.
  */
-export function week(w: number, hours = 40, from?: Date) {
+export function week(w: number, hours?: number): ReturnType<typeof mondayWeek>
+export function week(w: number, hours: number, from: Date): ReturnType<typeof mondayWeek> | null
+export function week(w: number, hours = 40, from?: Date): ReturnType<typeof mondayWeek> | null {
   const whole = mondayWeek(w, hours)
   if (!from || from.getTime() <= whole.start.getTime()) return whole
+  // A placement that starts after this week's Friday worked none of it.
+  // Cutting the week at the start would give a sheet from Saturday to
+  // the Friday before — backwards, with no hours — so there is no week.
+  if (from.getTime() > whole.end.getTime()) return null
   const cut = Object.fromEntries(
     Object.entries(whole.days).filter(([d]) => new Date(`${d}T00:00:00Z`).getTime() >= from.getTime()),
   )
@@ -1006,7 +1012,11 @@ export async function seedProgrammes(
         // long one. A week already signed was signed at the ordinary
         // hours, and re-pricing history is not what this seed is for.
         const longHours = awaiting && w === 1 ? pl.exceptionHours ?? null : null
-        const { start: ws, end: we, days } = week(w, longHours ?? 40, start)
+        // A week that ended before the placement began was never worked:
+        // nothing is filed for it, on the first seeding or the second.
+        const worked = week(w, longHours ?? 40, start)
+        if (!worked) continue
+        const { start: ws, end: we, days } = worked
         const sheetHours = Object.values(days).reduce((a, b) => a + b, 0)
         // Any sheet already on those days, not only one starting the same
         // day: a world seeded before weeks ran Monday to Friday keeps the

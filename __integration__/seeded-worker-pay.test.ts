@@ -22,6 +22,18 @@ const iso = (d: Date) => d.toISOString().slice(0, 10)
 const monthOf = (d: string) => d.slice(0, 7)
 
 /**
+ * Whether a month's payroll run has come by the day the world was born.
+ * A run is pressed five days after its month ends and never earlier, so
+ * a month whose fifth day after has not passed before the birthday has
+ * not been run yet and is owed (lib/seed-payroll-runs, runAtFor).
+ */
+const runDayCame = (month: string) => {
+  const [y, m] = month.split('-').map(Number)
+  const now = new Date()
+  return Date.UTC(y, m, 0) + 6 * 86_400_000 <= Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+}
+
+/**
  * The days a page week holds. The page groups by calendar week, Monday
  * on, and a seeded week need not start on a Monday.
  */
@@ -137,7 +149,7 @@ describe('a seeded worker reads her own pay the way her employer would have left
       for (const w of r.body.data.owed.weeks.filter((x: any) => x.stillOwedCents > 0)) {
         const months = daysInWeek(weeks, w.weekOf).map(monthOf)
         expect(
-          months.some((m) => m === now),
+          months.some((m) => m === now || !runDayCame(m)),
           `${handle}'s week of ${w.weekOf} reads as owed in a month the seed paid`
         ).toBe(true)
       }
