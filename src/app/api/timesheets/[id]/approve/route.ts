@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
 import { completeCycle } from '@/lib/cycle-complete'
 import { postAssertion } from '@/lib/order-postings'
+import { reportError } from '@/lib/alerts'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { gates, maySign, acceptWith, type Sheet } from '@/lib/timesheet-signatures'
 import { emit } from '@/lib/events'
@@ -869,8 +870,22 @@ export async function POST(
   // by the ledger, wrote none — and a posting is keyed on its assertion,
   // so the same signature is never on the books twice whichever door it
   // came through.
+  //
+  // The signatures are already written by now, so a posting that fails —
+  // a settled project order, a missing exchange rate — must not turn an
+  // approval that happened into an error on the screen. It is reported to
+  // staff, the response says so in one sentence, and the approval stands.
+  let notPosted: string | null = null
   for (const written of [assertion, directAcceptance]) {
-    if (written) await postAssertion(written.id, person.id)
+    if (!written) continue
+    try {
+      await postAssertion(written.id, person.id)
+    } catch (err) {
+      void reportError('Posting an approved timesheet to the books', err, {
+        path: `/api/timesheets/${id}/approve`, personId: person.id, companyId: onBehalfOf,
+      })
+      notPosted = POSTING_FAILED_SAYS
+    }
   }
 
   // Both signatures in: the "hours to approve" cycle for this week is done.
@@ -1016,9 +1031,15 @@ export async function POST(
           ? `Approved ${hours}h — ${amount(Math.round(billAmount * 100))} ${worthWord}. ` +
             writing.map((w) => `${w.overtimeHours}h over: ${treatmentSays(w.treatment, w.appliedBps).toLowerCase()}`).join('; ') + '.'
           : `Approved ${hours}h — ${amount(Math.round(billAmount * 100))} ${worthWord}`,
+      // Null where the books took it; one sentence where they did not.
+      postingSays: notPosted,
     },
   })
 }
+
+/** What the approver is told when the approval stands and the books did not take it. */
+const POSTING_FAILED_SAYS =
+  'Your approval is saved. It could not be added to the books yet, and our staff have been told.'
 
 /**
  * What the employer pays the worker for this week, per hour.

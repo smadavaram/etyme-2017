@@ -762,7 +762,12 @@ export default function TimesheetsPage() {
         setToast({ message: body.error?.message ?? 'Failed to approve', type: 'error' })
       } else {
         const body = await res.json()
-        setToast({ message: body.data?.message ?? 'Timesheet approved', type: 'success' })
+        // The approval stands even where the books did not take it; the
+        // server says so in one sentence, and that sentence is shown.
+        setToast({
+          message: [body.data?.message ?? 'Timesheet approved', body.data?.postingSays].filter(Boolean).join('. '),
+          type: 'success',
+        })
         fetchTimesheets()
       }
     } catch {
