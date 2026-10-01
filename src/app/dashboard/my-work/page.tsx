@@ -102,6 +102,10 @@ interface Timesheet {
   hours: number
   status: string
   billed: boolean
+  /** "Approved by email: Marcus Oyelaran, Sep 2 — evidence attached", where the client approved that way. */
+  approvedBy?: string | null
+  /** The week's own page, where she asks for approval by email or attaches it. Null on a week not sent. */
+  door?: { href: string; says: string } | null
 }
 
 function Lbl({ children }: { children: React.ReactNode }) {
@@ -967,6 +971,13 @@ function YourPay({ owed }: { owed: Owed }) {
                   </div>
                   <div className="text-xs text-etyme-muted">paid by {w.payer}</div>
                   <p className="text-[13px] text-etyme-ink mt-1 leading-relaxed">{w.says}</p>
+                  {waiting && w.sheetId && (
+                    // The week's own page: ask the client's approver by
+                    // email, or attach the approval the client already sent.
+                    <a href={`/dashboard/weeks/${w.sheetId}`} className="text-[13px] text-etyme-action hover:underline mt-1 inline-block">
+                      {w.stage === 'WAITING_FOR_CLIENT' ? 'Ask the client to approve by email' : 'Open this week'}
+                    </a>
+                  )}
                 </div>
                 <div className="shrink-0 sm:w-48 space-y-0.5 text-[13px] tabular-nums">
                   {waiting ? (
@@ -1241,7 +1252,15 @@ export default function MyWorkPage() {
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {data.timesheets.slice(0, 8).map((t: Timesheet) => (
             <div key={t.id} className="p-3 px-4 flex items-center gap-4">
-              <div className="flex-1 text-sm text-etyme-ink">{t.period}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-etyme-ink">{t.period}</div>
+                {/* Who approved it, where the client approved by email —
+                    never that the client signed in Etyme. */}
+                {t.approvedBy && <div className="text-xs text-etyme-muted">{t.approvedBy}</div>}
+                {t.door && (
+                  <a href={t.door.href} className="text-xs text-etyme-action hover:underline">{t.door.says}</a>
+                )}
+              </div>
               <div className="text-sm text-etyme-muted tabular-nums w-16 text-right">{t.hours}h</div>
               <div className="w-32 text-right">
                 <Chip tone={

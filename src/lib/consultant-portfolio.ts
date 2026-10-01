@@ -2160,6 +2160,14 @@ export interface WaitingSheet {
   submittedAt: Date | null
   /** Every signature the week needs, in order, with when each was given. */
   signers: Array<WeekSigner & { signedAt: Date | null }>
+  /**
+   * Where the client approved the week by email rather than in Etyme, the
+   * sentence that says so ("Approved by email: Marcus Oyelaran, Sep 2 —
+   * evidence attached", from `approvalWordsFor` in lib/week-approval).
+   * It replaces "<client> signed it", because nobody at the client signed
+   * in Etyme and the page must never say they did (CLAUDE.md, 2026-09-30).
+   */
+  clientApproval?: string | null
 }
 
 export type WaitingStage = 'WAITING_FOR_CLIENT' | 'WAITING_FOR_EMPLOYER'
@@ -2206,7 +2214,9 @@ export function waitingWeek(s: WaitingSheet, today: Date = new Date()): WaitingW
     stage = 'WAITING_FOR_EMPLOYER'
     const done = s.signers.filter((x) => x.signedAt && x.role !== 'EMPLOYER_ACCEPTANCE')
     const signed = done.map((x) =>
-      `${x.name} ${x.role === 'CLIENT_APPROVAL' ? 'signed' : 'accepted'} it on ${day(x.signedAt!)}.`
+      x.role === 'CLIENT_APPROVAL' && s.clientApproval
+        ? `${s.clientApproval.replace(/\.$/, '')}.`
+        : `${x.name} ${x.role === 'CLIENT_APPROVAL' ? 'signed' : 'accepted'} it on ${day(x.signedAt!)}.`
     )
     const then = next.companyId === employer.companyId ? '' : `, then ${employer.name}`
     says =
@@ -2226,6 +2236,33 @@ export function waitingWeek(s: WaitingSheet, today: Date = new Date()): WaitingW
     employer: employer.name,
     says,
   }
+}
+
+// ── The door from her list to one week ───────────────────────────────────
+//
+// The week's own page (/dashboard/weeks/[id]) is where the worker sends
+// "Approve by email" to the client's approver, attaches the client's
+// approval email, and reads who approved it. Her list links every week she
+// has sent there, worded for what she can do on it. A week she has not
+// sent has no door: the form to file it is the door.
+
+export interface WeekDoor {
+  href: string
+  says: string
+}
+
+export function weekDoor(t: {
+  id: string
+  status: string
+  clientApproved: boolean
+  /** The "Approved by email: …" sentence, where the client approved that way. */
+  approvedBy: string | null
+}): WeekDoor | null {
+  if (t.status === 'OPEN') return null
+  const href = `/dashboard/weeks/${t.id}`
+  if (t.status === 'SUBMITTED' && !t.clientApproved) return { href, says: 'Ask the client to approve by email' }
+  if (t.approvedBy) return { href, says: 'See the approval and its evidence' }
+  return { href, says: 'Open this week' }
 }
 
 // ── When a day was paid ──────────────────────────────────────────────────

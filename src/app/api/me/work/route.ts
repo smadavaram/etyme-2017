@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { ownPageFor } from '@/lib/portfolio-data'
 import {
   rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek, owedByWeek, waitingWeek,
-  weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard, daySpan, plainDate,
+  weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard, daySpan, plainDate, weekDoor,
   type OwedWeek, type WaitingWeek, type WeekSigner,
 } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
@@ -21,6 +21,7 @@ import { hoursInMonth } from '@/lib/periods'
 import { paidByPayroll, workerPaidAs, ownCompanyBillsSays } from '@/lib/money/paid-through'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 import { personNotice, cityOf, dayOf, holdStands } from '@/lib/internal-moves'
+import { approvalWordsFor } from '@/lib/week-approval'
 
 /**
  * A person's moves between their employer's projects, in the words they
@@ -329,6 +330,18 @@ export async function GET(request: NextRequest) {
       },
     },
   })
+  // Who approved each of her weeks, where the client approved by email
+  // rather than in Etyme: "Approved by email: Marcus Oyelaran, Sep 2 —
+  // evidence attached" (lib/week-approval). She is the worker on every one
+  // of these weeks, so she reads every approval on it — she knows the
+  // whole chain — and the sentence carries a name and a day, never a rate.
+  const approvalWords = await approvalWordsFor(
+    { personId, companyId: caller.company?.id ?? null },
+    [...new Set([...timesheets.map((t) => t.id), ...sentWeeks.map((t) => t.id)])]
+      .map((id) => ({ id, personId, ladder: [] })),
+    now
+  )
+
   // And the days a payroll run has already paid, so "owed" is owed.
   const paidBy = new Map<string, Awaited<ReturnType<typeof paidBook>>>()
   for (const l of payByCompany.values()) {
@@ -440,6 +453,7 @@ export async function GET(request: NextRequest) {
         hours: Number(t.totalHours),
         submittedAt: t.submittedAt,
         signers: signers.map((s) => ({ ...s, signedAt: signedAtOf(s, t, t.assertions) })),
+        clientApproval: approvalWords.get(t.id) ?? null,
       }, now)
       if (w) waiting.push({ ...w, payer: w.employer })
       if (w && employedBy.has(sellOf.get(t.sellContractId)?.companyId ?? '')) employedWaiting.push(w)
@@ -720,6 +734,17 @@ export async function GET(request: NextRequest) {
         // Any hop having billed for it. The consultant does not care
         // which one, and in a chain there is more than one.
         billed: t.invoiceLines.length > 0,
+        // Where the client approved it by email, the sentence that says
+        // who and when — never that the client signed in Etyme.
+        approvedBy: approvalWords.get(t.id) ?? null,
+        // The week's own page, where she asks the client to approve by
+        // email or attaches the client's approval. Null on a week not sent.
+        door: weekDoor({
+          id: t.id,
+          status: t.status,
+          clientApproved: t.clientApprovedAt !== null,
+          approvedBy: approvalWords.get(t.id) ?? null,
+        }),
       })),
       sharedAboutMe: sharedAbout.map(s => ({
         by: s.company.name,
