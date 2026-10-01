@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { amount, compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
@@ -65,6 +67,14 @@ interface Timesheet {
   flag: string | null
   anomalyReason: string | null
   approvedAt: string | null
+  /**
+   * "Approved by email: Marcus Oyelaran, Sep 2 — evidence attached", where
+   * the client approved from a link or a firm attached its approval email.
+   * Null where the client signed in Etyme. Never carries a rate.
+   */
+  approvedBy?: string | null
+  /** The week's own page, where "Approve by email" is sent from. */
+  href?: string
   /** Whether the server would let this seat sign this week. */
   mayApprove: boolean
   mayApproveWhyNot: string | null
@@ -828,9 +838,21 @@ export default function TimesheetsPage() {
     {
       key: 'period',
       label: 'Period',
-      render: (row) => (
-        <span className="text-[12px] tabular-nums">{formatPeriod(row.periodStart, row.periodEnd)}</span>
-      ),
+      render: (row) =>
+        row.href ? (
+          // The week's own page: who approved it and how, its evidence,
+          // and "Approve by email" for a week still waiting on the client.
+          <Link
+            href={row.href as Route}
+            onClick={(e) => e.stopPropagation()}
+            className="text-[12px] tabular-nums text-etyme-action hover:underline"
+            title="Open this week"
+          >
+            {formatPeriod(row.periodStart, row.periodEnd)}
+          </Link>
+        ) : (
+          <span className="text-[12px] tabular-nums">{formatPeriod(row.periodStart, row.periodEnd)}</span>
+        ),
       sortValue: (row) => new Date(row.periodStart).getTime(),
     },
     {
@@ -910,6 +932,11 @@ export default function TimesheetsPage() {
             <span className="text-[11px] text-etyme-muted" title={row.signature.says ?? ''}>
               waiting on {row.signature.waitingOn}
             </span>
+          )}
+          {/* Who approved, where the client approved by email — said the
+              same way on every screen, never "you signed". */}
+          {row.approvedBy && (
+            <span className="text-[11px] text-etyme-muted">{row.approvedBy}</span>
           )}
           {(row.overtime?.weeks?.length ?? 0) > 0 && (
             <button
@@ -1375,8 +1402,18 @@ function WeekPanel({ row, onClose, onSign }: { row: Timesheet; onClose: () => vo
           <p className="mt-3 text-[12px] text-etyme-attention">{row.overtime?.says}</p>
         )}
         {row.signature?.says && <p className="mt-3 text-[12px] text-etyme-muted">{row.signature.says}</p>}
+        {row.approvedBy && !row.signature?.says?.startsWith(row.approvedBy) && (
+          <p className="mt-3 text-[12px] text-etyme-muted">{row.approvedBy}</p>
+        )}
 
-        <div className="flex justify-end gap-3 mt-5">
+        <div className="flex justify-end items-center gap-3 mt-5">
+          {row.href && (
+            // The week's own page decides who may send "Approve by email"
+            // from it: the worker, or a supplier's timesheet desk.
+            <Link href={row.href as Route} className="mr-auto text-[12px] text-etyme-action hover:underline">
+              Open the week
+            </Link>
+          )}
           <button type="button" onClick={onClose} className="btn-secondary">Close</button>
           {mayStillSign && (
             <button

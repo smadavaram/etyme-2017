@@ -11,7 +11,10 @@ import { isConsultantSeat } from '@/lib/seat'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { mayFile, rungVerdict } from './filing'
 import { weekFlag, flaggedFirst } from '@/lib/timesheet-flag'
-import { weekTurn } from './ladder'
+import { weekTurn, ladderAbove } from './ladder'
+import { topDown } from './chain-turn'
+import { approvalWordsReadLog } from './approval-by-email'
+import { approvalWordsFor } from '@/lib/week-approval'
 import { rungsToFile, openWeeks } from '@/lib/consultant-portfolio'
 import { maySign, type Sheet } from '@/lib/timesheet-signatures'
 import {
@@ -198,10 +201,24 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // ── Who approved, where the client approved by email ──────────────
+  //
+  // A week the client's approver signed from a link, or that a firm
+  // attached the client's approval email to, says so in the same words on
+  // every screen — "Approved by email: Marcus Oyelaran, Sep 2 — evidence
+  // attached" — and never that the client signed in Etyme. Only a reader
+  // on a contract the approval applies to is told, and every such read is
+  // logged, refusals included (`approvalWordsReadLog`).
+  const approvedBy = await approvalSentences(
+    { personId: caller.person.id, companyId: onBench ? caller.company?.id ?? null : actor.companyId ?? null },
+    timesheets
+  )
+
   return NextResponse.json({
     data: {
       timesheets: timesheets.map((t) => {
         const seen = priced.get(t.id)!
+        const byEmail = approvedBy.get(t.id) ?? null
         const parties = {
           personId: t.sellContract.personId,
           vendorCompanyId: t.sellContract.companyId,
@@ -283,11 +300,17 @@ export async function GET(request: NextRequest) {
           says:
             mine == null
               ? null
-              : t.status === 'SUBMITTED'
-                ? waitingSentence(isClientSide, otherParty)
-                : isClientSide
-                  ? 'Approved, and the supplier has accepted it.'
-                  : 'Accepted, and the client has approved it.',
+              : isClientSide && byEmail
+                // The client did not sign in Etyme, so the row does not say
+                // "You approved". It says who did, and how.
+                ? t.status === 'SUBMITTED'
+                  ? `${byEmail}. Waiting on ${otherParty} to accept what it pays.`
+                  : `${byEmail}. The supplier has accepted it.`
+                : t.status === 'SUBMITTED'
+                  ? waitingSentence(isClientSide, otherParty)
+                  : isClientSide
+                    ? 'Approved, and the supplier has accepted it.'
+                    : 'Accepted, and the client has approved it.',
         }
 
         return {
@@ -312,6 +335,13 @@ export async function GET(request: NextRequest) {
           // reason it is listed first.
           flag: flagOf.get(t.id) ?? null,
           approvedAt: t.approvedAt?.toISOString() ?? null,
+          // "Approved by email: <name>, <day>", with "— evidence attached"
+          // where it was. Null where the client signed in Etyme, or where
+          // this reader is on no contract the approval applies to.
+          approvedBy: byEmail,
+          // The week's own page: its approvals, its evidence, and where
+          // "Approve by email" is sent from.
+          href: `/dashboard/weeks/${t.id}`,
           mayApprove: approve.ok,
           mayApproveWhyNot: approve.ok ? null : approve.reason,
           maySubmit: enter.ok,
@@ -368,6 +398,56 @@ export async function GET(request: NextRequest) {
       },
     },
   })
+}
+
+/**
+ * The approval-by-email sentence for each week on the page that has one,
+ * for this reader, and an access log row for each read.
+ *
+ * One query finds the weeks approved this way — usually none on a page, so
+ * the ladder is walked only for those that are. Each read is written by the
+ * same rule as opening the evidence: allowed where the approval applies to
+ * a contract the reader is on, refused and still written where not.
+ */
+async function approvalSentences(
+  reader: { personId: string; companyId: string | null },
+  rows: {
+    id: string
+    personId: string
+    sellContractId: string
+    sellContract: { companyId: string; clientCompanyId: string; endClientCompanyId: string | null }
+  }[]
+): Promise<Map<string, string>> {
+  if (rows.length === 0) return new Map()
+  const approved = new Set(
+    (
+      await prisma.weekApproval.findMany({
+        where: { timesheetId: { in: rows.map((r) => r.id) }, assertionId: { not: null } },
+        select: { timesheetId: true },
+      })
+    ).map((a) => a.timesheetId)
+  )
+  if (approved.size === 0) return new Map()
+
+  const weeks = await Promise.all(
+    rows
+      .filter((t) => approved.has(t.id))
+      .map(async (t) => {
+        const rungs = await ladderAbove(t.sellContractId, {
+          sellContractId: t.sellContractId,
+          companyId: t.sellContract.companyId,
+          clientCompanyId: t.sellContract.clientCompanyId,
+          endClientCompanyId: t.sellContract.endClientCompanyId,
+          supplierSellContractId: null,
+        })
+        return { id: t.id, personId: t.personId, ladder: topDown(rungs.map((r) => r.rung)) }
+      })
+  )
+  const words = await approvalWordsFor(reader, weeks)
+  await prisma.accessLog
+    .createMany({ data: weeks.map((w) => approvalWordsReadLog(reader, w, words.has(w.id))) })
+    .catch(() => {})
+  return words
 }
 
 /**

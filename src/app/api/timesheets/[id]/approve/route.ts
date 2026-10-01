@@ -5,6 +5,7 @@ import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
 import { completeCycle } from '@/lib/cycle-complete'
+import { postAssertion } from '@/lib/order-postings'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { gates, maySign, acceptWith, type Sheet } from '@/lib/timesheet-signatures'
 import { emit } from '@/lib/events'
@@ -619,8 +620,9 @@ export async function POST(
   // On a direct placement one press is both parties, so the ledger needs
   // both rows — otherwise billing sees an approval and payroll sees
   // nothing, on a placement where they are the same company.
+  let directAcceptance: { id: string } | null = null
   if (direct) {
-    await prisma.workAssertion.create({
+    directAcceptance = await prisma.workAssertion.create({
       data: {
         timesheetId: id,
         companyId: onBehalfOf,
@@ -632,7 +634,8 @@ export async function POST(
         auto: false,
         note: null,
       },
-    }).catch(() => {})
+      select: { id: true },
+    }).catch(() => null)
   }
 
   // ── The signature, the decision and the bank, together or not at all ──
@@ -853,6 +856,21 @@ export async function POST(
       )
     }
     throw err
+  }
+
+  // ── To the books, the same way /assert posts ──────────────────────
+  //
+  // Revenue when the client approves, pay and burden when the employer
+  // accepts, posted to the month the work was done (`postAssertion`,
+  // lib/order-postings). Before this, a week signed from the button wrote
+  // its assertions and posted nothing, so an accepted week had no pay
+  // posting and was missing from "W-2 wages accepted and not yet paid".
+  // Only the rows this press wrote are posted — a second press, refused
+  // by the ledger, wrote none — and a posting is keyed on its assertion,
+  // so the same signature is never on the books twice whichever door it
+  // came through.
+  for (const written of [assertion, directAcceptance]) {
+    if (written) await postAssertion(written.id, person.id)
   }
 
   // Both signatures in: the "hours to approve" cycle for this week is done.

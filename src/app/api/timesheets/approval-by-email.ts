@@ -481,6 +481,42 @@ export function approvedByWords(i: { approverName: string; on: Date; how: 'LINK'
 }
 
 /**
+ * Who asked for the letter, as the client's approver may be told it.
+ *
+ * NAMED: the worker, or a person at the firm the client pays — named, with
+ * their firm. BELOW: a desk at a firm under that one. The client sees the
+ * rung it pays and nothing below it (CLAUDE.md, "A sub-vendor's name is the
+ * prime's to keep"), so the letter names neither the person nor the firm,
+ * nor says that there is a firm below at all. It names the one firm the
+ * client already deals with, as the place to ask.
+ */
+export type SentFrom =
+  | { kind: 'NAMED'; name: string; firm: string }
+  | { kind: 'BELOW'; askFirm: string }
+
+/**
+ * The sender as `senderAsTheClientSees` (lib/week-approval) hands it over
+ * today: a name and a firm, where a desk below the client's supplier comes
+ * as "The timesheet desk" at "<supplier>’s side of this placement". Read
+ * back into the two cases so the letter can say each plainly. Once that
+ * function passes `sentFrom` itself, this reading is no longer needed.
+ */
+const BELOW_SUFFIX = '’s side of this placement'
+export function sentFromOf(senderName: string, senderFirm: string): SentFrom {
+  if (senderName === 'The timesheet desk' && senderFirm.endsWith(BELOW_SUFFIX)) {
+    return { kind: 'BELOW', askFirm: senderFirm.slice(0, -BELOW_SUFFIX.length) }
+  }
+  return { kind: 'NAMED', name: senderName, firm: senderFirm }
+}
+
+/** The one sentence in the letter that says who asked for it. */
+export function whoAskedSentence(from: SentFrom, personName: string): string {
+  return from.kind === 'NAMED'
+    ? `${from.name} at ${from.firm} asked us to send you the week to approve.`
+    : `${personName}’s supplier asked us to send you the week to approve. If anything in it looks wrong, ask ${from.askFirm}.`
+}
+
+/**
  * The letter to the client's approver.
  *
  * Hours and days only, and never a rate: the approver is saying the work
@@ -492,6 +528,8 @@ export function letterToApprover(i: {
   clientName: string
   senderName: string
   senderFirm: string
+  /** Who asked, where the caller knows; otherwise read from the two names. */
+  sentFrom?: SentFrom
   period: string
   hours: number
   url: string
@@ -499,15 +537,39 @@ export function letterToApprover(i: {
   now: Date
 }): { subject: string; body: string } {
   const hello = i.approverName.trim() ? `${i.approverName.trim().split(' ')[0]},` : 'Hello,'
+  const from = i.sentFrom ?? sentFromOf(i.senderName, i.senderFirm)
   return {
     subject: `${i.personName}’s hours for ${i.period}: approve or send back`,
     body:
       `${hello}\n\n` +
       `${i.personName} worked ${i.hours} hours for ${i.clientName} in the week ${i.period}. ` +
-      `${i.senderName} at ${i.senderFirm} asked us to send you the week to approve.\n\n` +
+      `${whoAskedSentence(from, i.personName)}\n\n` +
       `Open it here, then press Approve or Send back. You do not need an account:\n\n${i.url}\n\n` +
       `The link works once and runs out on ${dayOf(i.expiresAt, i.now)}. ` +
       `Your answer is recorded with your name, this address and the time.`,
+  }
+}
+
+/**
+ * The access log row for a list that shows an approval's sentence.
+ *
+ * The sentence names who approved a person's week, so reading it is a read
+ * of that week, as opening the evidence is, and it is logged by the same
+ * rule: allowed where the approval applies to a contract the reader is on,
+ * refused — and still written — where it does not.
+ */
+export function approvalWordsReadLog(
+  reader: { personId: string; companyId: string | null },
+  week: { personId: string },
+  shown: boolean
+): { subjectId: string; actorPersonId: string; actorCompanyId: string | null; action: string; allowed: boolean; reason: string | null } {
+  return {
+    subjectId: week.personId,
+    actorPersonId: reader.personId,
+    actorCompanyId: reader.companyId,
+    action: 'WEEK_APPROVAL_WORDS_VIEW',
+    allowed: shown,
+    reason: shown ? null : 'This approval was not attached to a contract your company is on.',
   }
 }
 
