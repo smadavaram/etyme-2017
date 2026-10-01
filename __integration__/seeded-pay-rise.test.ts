@@ -373,7 +373,10 @@ describe('a pay rise on the seeded world', () => {
       return all.filter((d) => d >= weekOf && d <= end).map(monthOf)
     }
     const owedWeeks = r.body.data.owed.weeks.filter((w: any) => w.stillOwedCents > 0)
-    expect(owedWeeks.length).toBeGreaterThan(0)
+    // Something is owed exactly when she worked a day this month: on the
+    // 1st every day she worked is in a month a run already paid.
+    if (all.some((d) => open.has(monthOf(d)))) expect(owedWeeks.length).toBeGreaterThan(0)
+    else expect(owedWeeks.map((w: any) => w.weekOf)).toEqual([])
     for (const w of owedWeeks) {
       expect(monthsIn(w.weekOf).some((m) => open.has(m)), `the week of ${w.weekOf} reads as owed in a month a run paid`).toBe(true)
     }

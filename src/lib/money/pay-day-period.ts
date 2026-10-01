@@ -92,7 +92,16 @@ export function periodPaidBy(
 
 /**
  * The open pay days a run over these periods settles: each one whose
- * period (`periodPaidBy`) is one of the run's.
+ * period (`periodPaidBy`) is one of the run's — the whole period, first
+ * day and last.
+ *
+ * A run asked for part of a pay period — one week of a month — settles
+ * no pay day. It was matched on the first day alone, so a run for 1
+ * October settled October's pay day, and the month's other hours, run
+ * later, found it closed and read as paid late; while a run for 8 to 14
+ * October settled nothing. Both are now the second: a partial run is
+ * paid the day it ran (`paidOnDay`), and the pay day stays open for the
+ * period's own run.
  */
 export function payDaysToMark(
   cycles: readonly PayDayCycle[],
@@ -100,10 +109,11 @@ export function payDaysToMark(
   periodOf: (d: Date) => Period,
   startedOn?: Date | null
 ): PayDayCycle[] {
-  const asked = new Set(windows.map(key))
+  const whole = (p: Period) => `${key(p)}|${p.end.toISOString().slice(0, 10)}`
+  const asked = new Set(windows.map(whole))
   return cycles
     .filter((c) => c.completedAt == null)
-    .filter((c) => asked.has(key(periodPaidBy(c, cycles, periodOf, startedOn))))
+    .filter((c) => asked.has(whole(periodPaidBy(c, cycles, periodOf, startedOn))))
     .sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())
 }
 

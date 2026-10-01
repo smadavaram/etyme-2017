@@ -5,6 +5,9 @@ import { GET as payroll } from '@/app/api/payroll/route'
 import { GET as statutory } from '@/app/api/payroll/statutory/route'
 import { PATCH as payReceipt } from '@/app/api/ap/bills/route'
 import { POST as runPayroll } from '@/app/api/payroll/run/route'
+import { GET as myWork, POST as fileWeek } from '@/app/api/me/work/route'
+import { POST as assertHours } from '@/app/api/timesheets/[id]/assert/route'
+import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 
 /**
  * The payroll screens, walked on the seeded world as Teleworld and
@@ -156,13 +159,17 @@ describe('a worker placed mid-month with no week filed in it', () => {
 describe('wages count in the year they were paid', () => {
   it('Karthik Menon’s W-2 wages are what Teleworld’s runs paid him, in the year they ran, and the screen says the rule', async () => {
     as(TELEWORLD)
-    const year = new Date().getUTCFullYear()
+    // Every weekday of three whole months at $89, all paid by runs in one
+    // year: the year his last run was pressed, read off the world — on a
+    // world born on 1 January that is last year, not this one.
+    const runs = await prisma.automationLog.findMany({ where: { action: 'PAYROLL_RUN' }, select: { at: true, payload: true } })
+    const his = runs.filter((x) => ((x.payload as any)?.contracts ?? []).some((c: any) => c.person === 'Karthik Menon'))
+    expect(his.length).toBeGreaterThan(0)
+    const year = Math.max(...his.map((x) => x.at.getUTCFullYear()))
     const r = await json(await statutory(req('GET', `/api/payroll/statutory?year=${year}`)))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.pack.yearPaidSays).toBe('Wages count in the year they were paid.')
     const k = r.body.data.pack.summaries.find((s: any) => s.personName === 'Karthik Menon')
-    // Every weekday of three whole months at $89, all paid by runs this year.
-    const runs = await prisma.automationLog.findMany({ where: { action: 'PAYROLL_RUN' }, select: { at: true, payload: true } })
     const paidThisYear = runs
       .filter((x) => x.at.getUTCFullYear() === year)
       .flatMap((x) => ((x.payload as any)?.contracts ?? []).filter((c: any) => c.person === 'Karthik Menon'))
@@ -172,10 +179,34 @@ describe('wages count in the year they were paid', () => {
   })
 
   it('a firm with weeks accepted and not yet paid is told they count in the year a run pays them', async () => {
+    // Whether the seeded world holds such a week depends on the day it was
+    // born: on the 1st of a month last month's run has paid every week
+    // there is. So Rosa Delgado files this week, Northbend Athletic signs
+    // it and Brightmoor accepts it, and the firm has one whatever the day.
+    // Through the door that posts a signature to the books (`postAssertion`):
+    // the wages aside is read from those postings.
+    as(RATE_CHANGE_PERSON.email)
+    const mine = await json(await myWork(req('GET', '/api/me/work')))
+    const filing = mine.body.data.filing.find((f: any) => f.payer === 'Brightmoor Staffing')
+    const week = filing.weeks[0]
+    const weekday = week.days.find((d: string) => ![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()))
+    expect(weekday, JSON.stringify(week.days)).toBeTruthy()
+    const filed = await json(await fileWeek(req('POST', '/api/me/work', {
+      contractId: filing.contractId, periodStart: week.periodStart, hours: { [weekday]: 8 },
+    })))
+    expect(filed.body?.error, JSON.stringify(filed.body)).toBeUndefined()
+    const id = filed.body.data.timesheetId
+    for (const desk of ['world-nike-hiring@demo.etyme.local', 'world-brightmoor-payroll@demo.etyme.local']) {
+      as(desk)
+      const ok = await json(await assertHours(req('POST', `/api/timesheets/${id}/assert`, {}), { params: Promise.resolve({ id }) }))
+      expect(ok.status, JSON.stringify(ok.body)).toBe(200)
+    }
+
     as(BRIGHTMOOR)
     const year = new Date().getUTCFullYear()
     const r = await json(await statutory(req('GET', `/api/payroll/statutory?year=${year}`)))
     expect(r.body.data.pack.unpaidSays).toMatch(/not yet paid/)
+    expect(r.body.data.pack.unpaidSays).toContain(RATE_CHANGE_PERSON.name)
   })
 })
 

@@ -81,6 +81,15 @@ describe('a monthly pay day, nine days after the month', () => {
     expect(marked(demo(), ['2026-04'], null)).toEqual(['2026-05-08'])
   })
 
+  it('a run for part of a month settles no pay day, even when it starts on the 1st, so the month’s own run still settles it', () => {
+    const part = (start: string, end: string) =>
+      payDaysToMark(demo(), [{ ...month(start.slice(0, 7)), start: d(start), end: d(end) }], periodOf, d('2026-04-01')).map((c) => iso(c.dueOn))
+    expect(part('2026-07-01', '2026-07-01')).toEqual([])
+    expect(part('2026-07-01', '2026-07-07')).toEqual([])
+    expect(part('2026-07-13', '2026-07-17')).toEqual([])
+    expect(part('2026-07-01', '2026-07-31')).toEqual(['2026-08-07'])
+  })
+
   it('every month of Karthik’s three-month placement is marked by its own run, once', () => {
     const three = payDays('2026-06-01', '2026-08-31', [...DEMO_MONTHLY_PAY])
     const byRun = ['2026-06', '2026-07', '2026-08'].map((m) => marked(three, [m]))

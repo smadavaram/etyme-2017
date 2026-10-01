@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 import { nextOpen } from '@/lib/money/next-cycle'
+import { periodTermsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
+import { periodFor, type Terms } from '@/lib/periods'
 
 import { GET as myWork, POST as fileWeek } from '@/app/api/me/work/route'
 import { POST as approveWeek } from '@/app/api/timesheets/[id]/approve/route'
@@ -51,6 +53,10 @@ function numbersIn(value: unknown, out: number[] = []): number[] {
 
 const the: {
   buyId: string
+  terms: Terms | null
+  payPeriodEnd: string
+  weekStart: string
+  weekEnd: string
   sheetId: string
   weekOf: string
   periodStart: string
@@ -58,7 +64,7 @@ const the: {
   filed: number
   accepted: number
   owedBefore: number
-} = { buyId: '', sheetId: '', weekOf: '', periodStart: '', periodEnd: '', filed: 0, accepted: 0, owedBefore: 0 }
+} = { buyId: '', terms: null, payPeriodEnd: '', weekStart: '', weekEnd: '', sheetId: '', weekOf: '', periodStart: '', periodEnd: '', filed: 0, accepted: 0, owedBefore: 0 }
 
 const mine = (d: any) => d.owed.weeks.filter((w: any) => w.sheetId === the.sheetId || (w.weekOf === the.weekOf && !w.sheetId))
 
@@ -68,27 +74,56 @@ describe('on the seeded Rosa Delgado, a week is owed to her once her employer ac
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: ROSA } })
     const sell = await prisma.sellContract.findFirstOrThrow({ where: { personId: person.id }, include: { buyLinks: true } })
     the.buyId = sell.buyLinks[0].buyContractId
+    // Her pay periods, read through the one door payroll and her page read
+    // them through, so the week below is chosen from the world's own terms.
+    const bc = await prisma.buyContract.findUniqueOrThrow({
+      where: { id: the.buyId },
+      include: { workOrder: { select: ORDER_HEADER_SELECT }, candidates: { select: { startDate: true } } },
+    })
+    the.terms = { ...periodTermsFor('BUY', bc), startedOn: bc.candidates[0].startDate }
   }, 900_000)
 
   it('a week she sends reads as waiting for Northbend Athletic to sign it, and nothing on it is owed', async () => {
     const before = await page(ROSA)
     the.owedBefore = before.owed.cents
-    expect(the.owedBefore, 'the seeded world owes her something already, or nothing below proves anything').toBeGreaterThan(0)
+    // What the world already owes her depends on the day it was born. Born
+    // on a 1st, every week she worked sits in a month a payroll run already
+    // paid, and nothing is owed; born mid-month, the weeks since are. Both
+    // are true of their world, so the test reads the figure rather than
+    // assuming one, and every step below adds to it or leaves it alone.
+    expect(Number.isInteger(the.owedBefore) && the.owedBefore >= 0, `owed before: ${the.owedBefore}`).toBe(true)
 
     const filing = before.filing[0]
     expect(filing.payer).toBe('Brightmoor Staffing')
     const week = filing.weeks[0]
     expect(week, JSON.stringify(filing.weeks)).toBeTruthy()
-    const hours = Object.fromEntries(week.days.map((d: string) => [d, 8]))
-    the.filed = 8 * week.days.length
+    // Eight hours on each weekday of this week that has happened, and
+    // nothing on a Saturday or Sunday: at most forty, so no day of the
+    // week the world is born on puts her over the overtime line and the
+    // figures below stay straight time at $70. And only the days in the
+    // pay period holding the latest of them: a week that crosses into a
+    // new month is paid on two pay days, one per period (her page says
+    // so), and this walk is about one week reaching one pay day.
+    const day = (d: string) => new Date(`${d}T00:00:00Z`)
+    const weekdays = week.days.filter((d: string) => ![0, 6].includes(day(d).getUTCDay()))
+    expect(weekdays.length, JSON.stringify(week.days)).toBeGreaterThan(0)
+    const period = periodFor(day(weekdays[weekdays.length - 1]), the.terms!)
+    const worked: string[] = weekdays.filter((d: string) => day(d) >= period.start && day(d) <= period.end)
+    const hours = Object.fromEntries(worked.map((d) => [d, 8]))
+    the.filed = 8 * worked.length
 
     as(ROSA)
     const r = await json(await fileWeek(req('POST', '/api/me/work', { contractId: filing.contractId, periodStart: week.periodStart, hours })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.status).toBe('SUBMITTED')
     the.sheetId = r.body.data.timesheetId
-    the.periodStart = week.periodStart
-    the.periodEnd = week.periodEnd
+    // The week as filed, which the payroll file selects by, and the days
+    // she worked, which the run below pays.
+    the.weekStart = week.periodStart
+    the.weekEnd = week.periodEnd
+    the.periodStart = worked[0]
+    the.periodEnd = worked[worked.length - 1]
+    the.payPeriodEnd = iso(period.end)
 
     const after = await page(ROSA)
     const row = after.owed.weeks.find((w: any) => w.sheetId === the.sheetId)
@@ -156,12 +191,13 @@ describe('on the seeded Rosa Delgado, a week is owed to her once her employer ac
     expect(row.stillOwedCents).toBeGreaterThan(0)
 
     // Her pay day: the first one on her own pay line on or after the later
-    // of the week's last day and the day Brightmoor accepted it.
+    // of the day her pay period ends and the day Brightmoor accepted it —
+    // pay follows the hours it pays, so a week worked in October is paid
+    // on October's pay day, never on the September one that falls after it.
     const cycles = (await prisma.cycle.findMany({ where: { buyContractId: the.buyId, kind: 'SALARY_PAY' } }))
       .map((c) => ({ ...c, completedAt: null }))
-    const lastDay = Object.keys((await prisma.timesheet.findUniqueOrThrow({ where: { id: the.sheetId } })).days as object).sort().pop()!
     const acceptedOn = iso(new Date())
-    const from = lastDay > acceptedOn ? lastDay : acceptedOn
+    const from = the.payPeriodEnd > acceptedOn ? the.payPeriodEnd : acceptedOn
     const due = nextOpen(cycles, 'SALARY_PAY', new Date(`${from}T00:00:00Z`))
     expect(due, 'her pay line has a pay day after this week').not.toBeNull()
     expect(row.dueOn).toBe(iso(due!.dueOn))
@@ -185,7 +221,7 @@ describe('on the seeded Rosa Delgado, a week is owed to her once her employer ac
     // The same figure the payroll file pays for the same days.
     as(BRIGHTMOOR_PAYROLL)
     const f = await json(await payrollExport(
-      req('GET', `/api/payroll/export?from=${the.periodStart}&to=${the.periodEnd}&provider=GENERIC`)
+      req('GET', `/api/payroll/export?from=${the.weekStart}&to=${the.weekEnd}&provider=GENERIC`)
     ))
     expect(f.status, JSON.stringify(f.body)).toBe(200)
     const lines = f.body.data.lines.filter((l: any) => l.personName === RATE_CHANGE_PERSON.name)
@@ -210,6 +246,9 @@ describe('on the seeded Rosa Delgado, a week is owed to her once her employer ac
     expect(row.paidCents).toBe(paidRow.grossPay)
     expect(row.paidCents).toBe(the.accepted * 7_000)
     expect(row.stillOwedCents).toBe(0)
+    // A run for a week inside her monthly pay period settles no pay day —
+    // the month's own run does — so it was paid the day it ran
+    // (lib/money/pay-day-period).
     expect(row.paidOn).toBe(iso(new Date()))
     expect(row.dueOn).toBeNull()
     expect(row.says).toMatch(/Brightmoor Staffing paid it on [A-Z][a-z]{2} \d{1,2}\.$/)
