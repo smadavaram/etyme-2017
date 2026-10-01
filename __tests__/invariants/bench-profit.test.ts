@@ -6,6 +6,8 @@ import {
   type Earned, type Placed, type Seat,
 } from '@/lib/bench-profit'
 import { benchCost, type Policy } from '@/lib/bench-policy'
+import { anchorSeed, forgetSeedAnchor, seedToday, day } from '@/lib/seed-days'
+import { NICHE_PEOPLE, nicheStart, nicheListed, nicheCourse } from '@/lib/seed-bench-profit'
 
 /**
  * Bench profit (CLAUDE.md, "Bench profit, next after the integrator
@@ -325,5 +327,54 @@ describe('an internal move', () => {
     const m = moveSaving({ oldEndsOn: null, newStartsOn: d('2026-05-11'), policy: HALF, payRateCents: 6200, contractType: 'W2', currency: 'USD' })
     expect(m.gapDays).toBeNull()
     expect(m.gapCostCents).toBeNull()
+  })
+})
+
+describe('the seeded bench vendor, whatever day the world is born', () => {
+  // Every day of 2026, plus the days a month's length moves: the 1st, the
+  // 31st, the 28th of February, and the 29th of a leap year.
+  const birthdays = [
+    ...Array.from({ length: 365 }, (_, i) => new Date(Date.UTC(2026, 0, 1 + i))),
+    d('2027-02-28'), d('2027-03-01'), d('2028-02-28'), d('2028-02-29'), d('2028-03-01'), d('2028-12-31'),
+  ]
+  const DAY = 86_400_000
+  const span = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / DAY)
+  const who = (name: string) => NICHE_PEOPLE.find((n) => n.name === name)!
+
+  it('Tobias Wren sits 49 days and Noor Abernathy 35 on the bench before a Monday start, on any birthday of the world', () => {
+    try {
+      for (const born of birthdays) {
+        anchorSeed(born)
+        for (const [name, days, weeks] of [['Tobias Wren', 49, 17], ['Noor Abernathy', 35, 4]] as const) {
+          const n = who(name)
+          const start = nicheStart(n.placement!)
+          const at = born.toISOString().slice(0, 10)
+          expect(start.getUTCDay(), `${name}, born ${at}`).toBe(1)
+          expect(span(nicheListed(n)!, start), `${name}, born ${at}`).toBe(days)
+          // The course finished the day they joined the bench, thirty days after they enrolled.
+          expect(span(nicheCourse(n)!.done!, start), `${name}, born ${at}`).toBe(days)
+          expect(span(nicheCourse(n)!.enrolled, nicheCourse(n)!.done!), `${name}, born ${at}`).toBe(30)
+          // Every week from the start to last week is signed, and that is always the same count.
+          let signed = 0
+          for (let m = start; m.getTime() + 4 * DAY <= day(-3).getTime(); m = new Date(m.getTime() + 7 * DAY)) signed++
+          expect(signed, `${name}, born ${at}`).toBe(weeks)
+        }
+      }
+    } finally {
+      forgetSeedAnchor()
+    }
+  })
+
+  it('Hector Valdivia has been on the bench 60 days and Lucia Brandvold 40, on any birthday of the world', () => {
+    try {
+      for (const born of birthdays) {
+        anchorSeed(born)
+        const today = seedToday()
+        expect(span(day(who('Hector Valdivia').placement!.end), today)).toBe(60)
+        expect(span(nicheListed(who('Lucia Brandvold'))!, today)).toBe(40)
+      }
+    } finally {
+      forgetSeedAnchor()
+    }
   })
 })

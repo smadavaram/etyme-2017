@@ -107,8 +107,15 @@ const LOC = 'Wichita, KS'
 
 interface Placement {
   role: string
-  /** Days from the world's birthday; rounded back to a Monday. */
-  start: number
+  /**
+   * Whole weeks before the Monday of the world's own week that it began.
+   * Whole weeks, never days rounded back to a Monday: rounding moved the
+   * start by up to six days with the weekday the world was born on, and
+   * every figure counted from it moved with it — the days on the bench,
+   * how many weeks were signed, the day the margin paid the bench back.
+   */
+  weeksAgo: number
+  /** Its last day, in days from the world's birthday. */
   end: number
   /** Cents an hour: the prime bills the client, the prime pays this firm, this firm pays the person. */
   top: number
@@ -120,22 +127,37 @@ interface Placement {
 interface NichePerson {
   name: string
   email: string
-  course?: { enrolled: number; status: 'COMPLETED' | 'IN_PROGRESS' | 'DROPPED'; done?: number }
+  /**
+   * Days from the world's birthday they enrolled, and finished or dropped.
+   * Where they joined the bench from the course and were then placed, both
+   * are counted back from the placement instead (`benchDays`).
+   */
+  course?: { status: 'COMPLETED' | 'IN_PROGRESS' | 'DROPPED'; enrolled?: number; done?: number }
   /** Days from the world's birthday they said yes to this firm's bench. */
   listed?: number
+  /**
+   * Days they sat on the bench before the placement began: they finished
+   * the course and said yes that day, and the course took thirty days.
+   * Counted back from the placement, so the spell is the same length
+   * whatever day the world was born on.
+   */
+  benchDays?: number
   placement?: Placement
 }
+
+/** How long the course takes, from enrolling to finishing. */
+const COURSE_DAYS = 30
 
 export const NICHE_PEOPLE: NichePerson[] = [
   {
     name: 'Tobias Wren', email: 'tobias.wren@seed.etyme.invalid',
-    course: { enrolled: -200, status: 'COMPLETED', done: -170 }, listed: -170,
-    placement: { role: 'Process validation engineer', start: -120, end: 245, top: 11_200, bill: 8_800, pay: 6_200 },
+    course: { status: 'COMPLETED' }, benchDays: 49,
+    placement: { role: 'Process validation engineer', weeksAgo: 17, end: 245, top: 11_200, bill: 8_800, pay: 6_200 },
   },
   {
     name: 'Noor Abernathy', email: 'noor.abernathy@seed.etyme.invalid',
-    course: { enrolled: -95, status: 'COMPLETED', done: -65 }, listed: -65,
-    placement: { role: 'Equipment qualification engineer', start: -30, end: 335, top: 10_600, bill: 8_200, pay: 5_800 },
+    course: { status: 'COMPLETED' }, benchDays: 35,
+    placement: { role: 'Equipment qualification engineer', weeksAgo: 4, end: 335, top: 10_600, bill: 8_200, pay: 5_800 },
   },
   {
     name: 'Lucia Brandvold', email: 'lucia.brandvold@seed.etyme.invalid',
@@ -152,12 +174,28 @@ export const NICHE_PEOPLE: NichePerson[] = [
   {
     name: 'Hector Valdivia', email: 'hector.valdivia@seed.etyme.invalid',
     listed: -420,
-    placement: { role: 'Cleaning validation engineer', start: -400, end: -60, top: 11_500, bill: 9_000, pay: 6_400, ended: true },
+    placement: { role: 'Cleaning validation engineer', weeksAgo: 57, end: -60, top: 11_500, bill: 9_000, pay: 6_400, ended: true },
   },
 ]
 
-/** The day a placement starts: its Monday. */
-export const nicheStart = (p: Placement) => mondayOf(day(p.start))
+/** The day a placement starts: a Monday, whole weeks before the world's own week. */
+export const nicheStart = (p: Placement) => plus(mondayOf(day(0)), -7 * p.weeksAgo)
+
+/** The day somebody said yes to the bench: counted back from their placement where they sat before it. */
+export function nicheListed(n: NichePerson): Date | null {
+  if (n.benchDays != null && n.placement) return plus(nicheStart(n.placement), -n.benchDays)
+  return n.listed == null ? null : day(n.listed)
+}
+
+/** The days somebody enrolled on the course and finished or left it. */
+export function nicheCourse(n: NichePerson): { enrolled: Date; done: Date | null } | null {
+  if (!n.course) return null
+  if (n.benchDays != null && n.placement) {
+    const done = plus(nicheStart(n.placement), -n.benchDays)
+    return { enrolled: plus(done, -COURSE_DAYS), done }
+  }
+  return { enrolled: day(n.course.enrolled!), done: n.course.done == null ? null : day(n.course.done) }
+}
 
 export interface NicheSeed {
   people: number
@@ -247,15 +285,16 @@ export async function seedBenchProfit(ctx: SeedContext): Promise<NicheSeed> {
       if (!(await db.enrollment.findUnique({ where: { courseId_personId: { courseId: course.id, personId: person.id } } }))) {
         await db.enrollment.create({
           data: {
-            courseId: course.id, personId: person.id, status: n.course.status, enrolledAt: day(n.course.enrolled),
-            completedAt: n.course.status === 'COMPLETED' ? day(n.course.done!) : null,
+            courseId: course.id, personId: person.id, status: n.course.status, enrolledAt: nicheCourse(n)!.enrolled,
+            completedAt: n.course.status === 'COMPLETED' ? nicheCourse(n)!.done : null,
             score: n.course.status === 'COMPLETED' ? 88 : null,
           },
         })
       }
     }
 
-    if (n.listed == null) continue
+    const listed = nicheListed(n)
+    if (!listed) continue
     const profile =
       (await db.consultantProfile.findFirst({ where: { personId: person.id } })) ??
       (await db.consultantProfile.create({ data: { personId: person.id, skills: SKILLS, location: LOC, visibility: 'VERIFIED', workAuth: 'USC' } }))
@@ -264,7 +303,7 @@ export async function seedBenchProfit(ctx: SeedContext): Promise<NicheSeed> {
       await db.benchListing.create({
         data: {
           consultantId: profile.id, companyId: firm.id, tier: 'MARKETING', state: 'GRANTED',
-          invitedAt: day(n.listed - 2), respondedAt: day(n.listed), grantedAt: day(n.listed),
+          invitedAt: plus(listed, -2), respondedAt: listed, grantedAt: listed,
         },
       })
     }

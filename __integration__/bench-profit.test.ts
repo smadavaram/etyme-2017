@@ -2,6 +2,10 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { GET as benchProfit } from '@/app/api/bench/profit/route'
 import { GET as placementGET } from '@/app/api/placements/[id]/route'
+import { seedToday } from '@/lib/seed-days'
+import { holidayKeys } from '@/lib/seed-calendar'
+import { karthikWindow } from '@/lib/seed-doors'
+import { plainDate } from '@/lib/plain-date'
 
 /**
  * Bench profit on the seeded world (CLAUDE.md, "Bench profit, next after
@@ -13,6 +17,16 @@ import { GET as placementGET } from '@/app/api/placements/[id]/route'
  * (lib/seed-bench-profit). Teleworld Solutions is the integrator whose
  * people move between its own projects. Every figure below is read off
  * the route and re-derived in the comment beside it.
+ *
+ * ── Every date is counted from the day the world was born ────────────
+ *
+ * The seeded world counts its dates from its own birthday
+ * (lib/seed-days), so a calendar date written here would be true on one
+ * day only. What the seed fixes in days is asserted as a number — 49 days
+ * on the bench, 35, 60, 40, a median of 42, and the costs that follow
+ * from them. What depends on the calendar is worked out below from the
+ * same birthday: the Monday the placements began, the days that were a
+ * holiday, and so the margin and the day it paid the bench back.
  */
 
 const D = '@demo.etyme.local'
@@ -28,6 +42,40 @@ const row = (body: any, name: string) => body.data.people.find((p: any) => p.nam
 
 let owner: any
 
+const DAY = 86_400_000
+const plus = (d: Date, n: number) => new Date(d.getTime() + n * DAY)
+const iso = (d: Date) => d.toISOString().slice(0, 10)
+const between = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / DAY)
+const dollars = (cents: number) => (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+
+/**
+ * A placement the seed began `weeksAgo` whole weeks before the Monday of
+ * the world's own week, and its signed weeks: every whole week up to
+ * last week, eight hours on each weekday that is not a holiday.
+ */
+function placed(weeksAgo: number, marginPerHourCents: number) {
+  const today = seedToday()
+  const monday = plus(today, -((today.getUTCDay() + 6) % 7))
+  const start = plus(monday, -7 * weeksAgo)
+  const weeks = Array.from({ length: weeksAgo }, (_, k) => {
+    const m = plus(start, 7 * k)
+    const days = [0, 1, 2, 3, 4].filter((i) => !holidayKeys().has(iso(plus(m, i)))).length
+    return { friday: plus(m, 4), marginCents: days * 8 * marginPerHourCents }
+  })
+  return { start, weeks, marginCents: weeks.reduce((a, w) => a + w.marginCents, 0) }
+}
+
+/** The Friday of the week whose margin, added up from the start, first covers the cost. */
+function paidBackOn(weeks: { friday: Date; marginCents: number }[], costCents: number): Date | null {
+  let sum = 0
+  for (const w of weeks) if ((sum += w.marginCents) >= costCents) return w.friday
+  return null
+}
+
+// Seventeen weeks at ($88 − $62) an hour; four at ($82 − $58).
+const tobiasWeeks = () => placed(17, 8_800 - 6_200)
+const noorWeeks = () => placed(4, 8_200 - 5_800)
+
 beforeAll(async () => {
   await freshWorld()
   owner = await read(OWNER)
@@ -38,14 +86,20 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
     expect(owner.status, JSON.stringify(owner.body)).toBe(200)
     expect(owner.body.data.policySays).toBe('50% of their pay while on the bench, for up to 90 days.')
     const tobias = row(owner.body, 'Tobias Wren')
-    // Finished the course and joined the bench on Apr 13; placed on Jun 1.
-    expect(tobias).toMatchObject({ spell: 'BEFORE', benchFrom: '2026-04-13', benchTo: '2026-06-01', days: 49 })
+    const { start, weeks, marginCents } = tobiasWeeks()
+    // Finished the course and joined the bench 49 days before he was placed,
+    // on a Monday seventeen weeks before the world's own week.
+    expect(tobias).toMatchObject({ spell: 'BEFORE', benchFrom: iso(plus(start, -49)), benchTo: iso(start), days: 49 })
     // 49 calendar days are 35 working days, at half of $62 × 8 = $248 a day.
     expect(tobias.costCents).toBe(868_000)
-    // Seventeen signed weeks at ($88 − $62) × 40, two of them a holiday short.
-    expect(tobias.marginCents).toBe(1_726_400)
-    expect(tobias.paidBackOn).toBe('2026-07-31')
-    expect(tobias.paybackSays).toBe('Paid back on Jul 31, 2026, 60 days after they started on Jun 1, 2026.')
+    // Seventeen signed weeks at ($88 − $62) × 8 on every day that was not a holiday.
+    expect(tobias.marginCents).toBe(marginCents)
+    // $8,680 is covered within nine or ten weeks of $1,040 a day, whatever the holidays.
+    const on = paidBackOn(weeks, 868_000)!
+    expect(tobias.paidBackOn).toBe(iso(on))
+    expect(tobias.paybackSays).toBe(
+      `Paid back on ${plainDate(iso(on))}, ${between(start, on)} days after they started on ${plainDate(iso(start))}.`
+    )
     expect(tobias.placedAt).toBe('Corveldt Aerospace, through Sundara Systems')
     expect(tobias.costSays).toBe(
       '49 days on the bench at 50% of $496.00 a day, under your bench pay policy: $8,680.00. ' +
@@ -55,9 +109,12 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
 
   it('Noor Abernathy has not paid her bench back yet, and the page says how much is left', () => {
     const noor = row(owner.body, 'Noor Abernathy')
-    // 35 days are 25 working days at half of $58 × 8.
-    expect(noor).toMatchObject({ days: 35, costCents: 580_000, marginCents: 364_800, paidBackOn: null, leftCents: 215_200 })
-    expect(noor.paybackSays).toBe('Not yet. $2,152.00 left to earn back.')
+    const { start, marginCents } = noorWeeks()
+    // 35 days are 25 working days at half of $58 × 8; four signed weeks
+    // at ($82 − $58) × 8 a day can never reach $5,800.
+    expect(noor).toMatchObject({ benchFrom: iso(plus(start, -35)), benchTo: iso(start), days: 35, costCents: 580_000 })
+    expect(noor).toMatchObject({ marginCents, paidBackOn: null, leftCents: 580_000 - marginCents })
+    expect(noor.paybackSays).toBe(`Not yet. ${dollars(580_000 - marginCents)} left to earn back.`)
   })
 
   it('somebody on the bench with no pay on record has a cost that is not known yet, and says why', () => {
@@ -73,8 +130,9 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
 
   it('Hector Valdivia, on the bench since his placement ended, costs $11,008 so far and has nothing billed since', () => {
     const hector = row(owner.body, 'Hector Valdivia')
-    // 60 days since Aug 1 are 43 working days at half of $64 × 8.
-    expect(hector).toMatchObject({ spell: 'NOW', benchFrom: '2026-08-01', days: 60, costCents: 1_100_800, marginCents: null })
+    // His placement ended 60 days before the world was born. 60 days are
+    // 43 working days at half of $64 × 8.
+    expect(hector).toMatchObject({ spell: 'NOW', benchFrom: iso(plus(seedToday(), -60)), days: 60, costCents: 1_100_800, marginCents: null })
     expect(hector.paybackSays).toBe('Not placed yet. $11,008.00 to earn back.')
     // Nothing pays him today, and the sentence says the figure is the policy's.
     expect(hector.costSays).toContain('Nothing on the record pays them today; priced at the pay of their last placement')
@@ -99,9 +157,10 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
 })
 
 describe('per course', () => {
-  it('the validation course cost $9,000 for five seats, placed two people a median of 42 days after they finished, and they earned $20,912', () => {
+  it('the validation course cost $9,000 for five seats, placed two people a median of 42 days after they finished, and is credited with all they have earned since', () => {
     const [course] = owner.body.data.courses
     expect(owner.body.data.courses).toHaveLength(1)
+    const earned = tobiasWeeks().marginCents + noorWeeks().marginCents
     expect(course).toMatchObject({
       title: 'Equipment and process validation: IQ, OQ and PQ',
       seats: 5, finished: 3, dropped: 1,
@@ -109,9 +168,9 @@ describe('per course', () => {
       placed: 2,
       // 49 days for Tobias and 35 for Noor.
       medianDaysToPlace: 42,
-      marginCents: 1_726_400 + 364_800,
+      marginCents: earned,
     })
-    expect(course.marginSays).toBe('$20,912.00 earned by the 2 people it placed, more than the course cost.')
+    expect(course.marginSays).toBe(`${dollars(earned)} earned by the 2 people it placed, more than the course cost.`)
   })
 })
 
@@ -175,7 +234,12 @@ describe('utilization, for an integrator', () => {
   it('under Teleworld’s no bill, no pay policy Karthik Menon’s month between projects cost nothing', async () => {
     const r = await read(`world-teleworld${D}`)
     const karthik = row(r.body, 'Karthik Menon')
-    expect(karthik).toMatchObject({ spell: 'NOW', days: 30, costCents: 0, paybackSays: 'Nothing to pay back.' })
+    // His last project ended on the last month-end at least ten days before
+    // the world was born (lib/seed-doors), so the spell is ten to forty days.
+    const ended = karthikWindow(seedToday()).end
+    expect(karthik).toMatchObject({
+      spell: 'NOW', benchFrom: iso(ended), days: between(ended, seedToday()), costCents: 0, paybackSays: 'Nothing to pay back.',
+    })
   })
 
   it('a bench vendor is not shown utilization, which is an integrator’s question', () => {
