@@ -419,6 +419,15 @@ for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 // happened — which edition was accepted, how many files arrived, how
 // many gaps were named — rather than derived from a rule this file
 // holds.
+// A client approving a week outside Etyme (lib/week-approval). Somebody
+// asked for each: the worker or a supplier's desk sent the link, the
+// client's approver pressed Approve or Send back on it, or evidence of an
+// approval given by email was attached naming who gave it. `RECORDED`,
+// because the row says what the approver did, read back off the link or
+// the evidence, rather than anything this system decided.
+ATTRIBUTED.WEEK_APPROVAL_LINK_SENT = { basis: 'RECORDED' }
+ATTRIBUTED.TIMESHEET_APPROVED_BY_EMAIL = { basis: 'RECORDED' }
+ATTRIBUTED.TIMESHEET_SENT_BACK_BY_EMAIL = { basis: 'RECORDED' }
 ATTRIBUTED.CENSUS_REQUESTED = { basis: 'RECORDED' }
 ATTRIBUTED.CENSUS_AGREED = { basis: 'RECORDED' }
 ATTRIBUTED.CENSUS_FILES_RECEIVED = { basis: 'RECORDED' }

@@ -144,7 +144,10 @@ describe('a seeded week on a chain is signed down the chain', () => {
 
   it('every seeded signature is made by somebody seated at the firm that signs', async () => {
     const all = await prisma.workAssertion.findMany({
-      select: { id: true, companyId: true, byId: true, auto: true, role: true, company: { select: { slug: true } } },
+      select: {
+        id: true, companyId: true, byId: true, auto: true, role: true, company: { select: { slug: true } },
+        weekApproval: { select: { approverName: true, approverEmail: true } },
+      },
     })
     expect(all.length).toBeGreaterThan(0)
     const seats = await prisma.context.findMany({
@@ -154,8 +157,12 @@ describe('a seeded week on a chain is signed down the chain', () => {
     const seated = new Set(seats.map((c) => `${c.personId}:${c.companyId}`))
     const invented = all.filter((a) =>
       // A signature with nobody behind it is the system approving on its
-      // own, and says so; one with a person names somebody at that firm.
-      a.byId == null ? !a.auto : !seated.has(`${a.byId}:${a.companyId}`)
+      // own, and says so; or a client's approval given outside Etyme (by
+      // email, CLAUDE.md 2026-09-30), whose WeekApproval names the person
+      // and their address. One with a person names somebody at that firm.
+      a.byId == null
+        ? !a.auto && !(a.role === 'CLIENT_APPROVAL' && a.weekApproval?.approverName && a.weekApproval.approverEmail)
+        : !seated.has(`${a.byId}:${a.companyId}`)
     )
     expect(
       invented.map((a) => `${a.company.slug} ${a.role}`),

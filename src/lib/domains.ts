@@ -368,6 +368,13 @@ export const DOMAINS: Domain[] = [
       // were worked. The reader payroll calls is here; the arithmetic
       // stays money's (lib/money/pay-hours).
       'lib/cut-overtime-choice',
+      // A client approving a week without signing in: the link to its
+      // approver, the evidence of an approval given by email, the
+      // no-sign-in page, and the one week read by every rung it applies
+      // to. The rules are demand's (app/api/timesheets/approval-by-email);
+      // the rows are the schema's, and these are the door to them.
+      'lib/week-approval', 'lib/seed-week-approval',
+      'app/api/week-approvals', 'app/api/approve-week', 'app/answer/week', 'app/dashboard/weeks',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // Deleting the demo world so it can be seeded again from today.
       'lib/seed-rebuild',

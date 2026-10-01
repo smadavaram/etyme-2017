@@ -47,6 +47,7 @@ import { seedPayrollRuns } from '@/lib/seed-payroll-runs'
 import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
 import { seedBenchMatching } from '@/lib/seed-bench-matching'
 import { seedInternalMoves } from '@/lib/seed-internal-moves'
+import { seedWeekApproval } from '@/lib/seed-week-approval'
 import { seedBenchProfit, seedBenchProfitWeeks, postBenchProfitWeeks, NICHE_VENDOR, NICHE_POSTING_SHARES } from '@/lib/seed-bench-profit'
 import { seedPipeline } from '@/lib/seed-pipeline'
 import { costCenterCode, legacyCostCenterCode, findCostCenter } from '@/lib/seed-coding'
@@ -243,7 +244,7 @@ export function worldStepNames(): string[] {
     'bench', 'in-flight', 'payroll', 'payroll-invitations',
     ...programSteps().map((s) => s.name),
     'program-office-seat', 'supplier-desks', 'compliance-desk', 'doors',
-    'rate-change', 'sector-suppliers', 'internal-moves', 'bench-profit',
+    'rate-change', 'sector-suppliers', 'internal-moves', 'bench-profit', 'week-approval',
     ...STANDING_PARTS.map((part) => `standing:${part}`),
     ...cashSteps().map((s) => s.name),
     'bench-matching',
@@ -1815,6 +1816,10 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // (lib/seed-bench-profit), before the order-to-cash layer for the same
   // reason: that layer raises the order each running line sits on.
   await step('bench-profit', () => seedBenchProfit(ctx))
+  // One of Helena Marsh's signed weeks, approved by Northbend by email
+  // with the evidence attached (lib/seed-week-approval), so the demo
+  // shows "Approved by email" and each rung opening the same evidence.
+  await step('week-approval', () => seedWeekApproval(ctx))
   // In three parts, for the same reason as the programs.
   for (const part of STANDING_PARTS) {
     await step(`standing:${part}`, async () => {

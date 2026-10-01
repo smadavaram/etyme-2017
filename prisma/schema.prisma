@@ -197,6 +197,9 @@ model Person {
   projectReleases ProjectRelease[]
   projectHolds    ProjectHold[]
 
+  /// Links sent to a client's approver, and evidence attached, by this person.
+  weekApprovalsSent WeekApproval[] @relation("weekApprovalSender")
+
   @@index([name])
   @@index([createdAt])
   @@index([erasedAt])
@@ -703,13 +706,15 @@ model Company {
   ordersBillTo WorkOrder[] @relation("orderBillTo")
   ordersPayer  WorkOrder[] @relation("orderPayer")
 
-  invoicesSoldTo    Invoice[]          @relation("invoiceSoldTo")
-  invoicesBillTo    Invoice[]          @relation("invoiceBillTo")
-  invoicesPayer     Invoice[]          @relation("invoicePayer")
-  IdentityMatch     IdentityMatch[]
-  WorkAssertion     WorkAssertion[]
-  overtimeDecisions OvertimeDecision[] @relation("overtimeDecidingCompany")
-  timeOffEntries    TimeOffEntry[]     @relation("timeOffCompany")
+  invoicesSoldTo        Invoice[]          @relation("invoiceSoldTo")
+  invoicesBillTo        Invoice[]          @relation("invoiceBillTo")
+  invoicesPayer         Invoice[]          @relation("invoicePayer")
+  IdentityMatch         IdentityMatch[]
+  WorkAssertion         WorkAssertion[]
+  overtimeDecisions     OvertimeDecision[] @relation("overtimeDecidingCompany")
+  weekApprovalsAsClient WeekApproval[]     @relation("weekApprovalClient")
+  weekApprovalsSent     WeekApproval[]     @relation("weekApprovalSenderCompany")
+  timeOffEntries        TimeOffEntry[]     @relation("timeOffCompany")
 
   orderPostings       OrderPosting[]
   clientOrderPostings OrderPosting[] @relation("postingClient")
@@ -1125,8 +1130,131 @@ model WorkAssertion {
   /// The overtime decision made alongside this signature, where one was.
   overtimeDecision OvertimeDecision?
 
+  /// The email approval or the evidence this signature was written from,
+  /// where the client signed outside Etyme.
+  weekApproval WeekApproval?
+
   @@index([timesheetId, state])
   @@index([companyId, role, state])
+}
+
+/// A client's approval of a week given outside Etyme.
+///
+/// The founder, 2026-09-30 (CLAUDE.md, "A client may approve by email, and
+/// the proof travels down the chain"). Two ways, one row each:
+///
+///   LINK      a one-time link sent to the client's approver, who presses
+///             Approve or Send back with no account
+///   EVIDENCE  the client's approval email, a PDF or an export from its own
+///             system, attached by the worker or a supplier's timesheet desk
+///
+/// Always a named person behind it: the approver's name and address are
+/// required on both. What it writes is the client's signature and nothing
+/// else — a CLIENT_APPROVAL assertion with no `byId`, because the approver
+/// has no seat here, and this row is what says who it was. Every rung below
+/// still accepts the week in its own turn.
+///
+/// Why not a column on `WorkAssertion`: `byId` null already means "nobody
+/// looked" there, and an emailed signature is somebody looking. The link's
+/// state and the evidence need a home of their own.
+///
+/// Rules in `app/api/timesheets/approval-by-email.ts`; the door is
+/// `lib/week-approval`.
+model WeekApproval {
+  id String @id @default(cuid())
+
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  /// LINK · EVIDENCE
+  how String
+
+  /// The client whose approval this is: the buyer on the top rung.
+  clientCompanyId String
+  clientCompany   Company @relation("weekApprovalClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+
+  /// The person at the client who approved, or is asked to. Required:
+  /// an approval nobody can be traced to is not an approval.
+  approverName  String
+  /// Kept in lower case.
+  approverEmail String
+
+  /// Who sent the link or attached the evidence, and from which firm.
+  sentById        String
+  sentBy          Person   @relation("weekApprovalSender", fields: [sentById], references: [id])
+  sentByCompanyId String?
+  sentByCompany   Company? @relation("weekApprovalSenderCompany", fields: [sentByCompanyId], references: [id])
+  /// WORKER · SUPPLIER_DESK
+  sentAs          String
+  sentAt          DateTime @default(now())
+
+  // ── The link ────────────────────────────────────────────────────────
+  /// SHA-256 of the token in the link. The token itself is never stored:
+  /// whoever holds it may sign for a client.
+  tokenHash    String?   @unique
+  expiresAt    DateTime?
+  usedAt       DateTime?
+  /// APPROVED · SENT_BACK. Null while the link is unused.
+  outcome      String?
+  /// Why it was sent back, from the closed list (`SEND_BACK_REASONS`).
+  sendBackCode String?
+  sendBackNote String?
+
+  // ── The evidence ────────────────────────────────────────────────────
+  /// EMAIL · PDF · EXPORT
+  evidenceKind String?
+  /// The day the approver said yes, as the evidence shows it.
+  approvedOn   DateTime?
+
+  /// The client's signature this wrote. Null until the week is approved.
+  assertionId String?        @unique
+  assertion   WorkAssertion? @relation(fields: [assertionId], references: [id], onDelete: SetNull)
+
+  /// The contracts on the chain it applies to. All of them by default,
+  /// always the client's own.
+  contracts WeekApprovalContract[]
+  /// The evidence file, where there is one. A row of its own so the
+  /// bytes are read only when somebody opens them (the `DocFile` reason).
+  file      WeekApprovalFile?
+
+  createdAt DateTime @default(now())
+
+  @@index([timesheetId])
+  @@index([clientCompanyId])
+  @@index([sentById])
+  @@index([sentByCompanyId])
+}
+
+/// One contract an email approval applies to. Each rung reads only its
+/// own contracts here, so a client never learns a sub-vendor's.
+model WeekApprovalContract {
+  id String @id @default(cuid())
+
+  weekApprovalId String
+  weekApproval   WeekApproval @relation(fields: [weekApprovalId], references: [id], onDelete: Cascade)
+  sellContractId String
+  sellContract   SellContract @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
+  /// Where on the chain, the client's own contract first (0).
+  position       Int
+
+  @@unique([weekApprovalId, sellContractId])
+  @@index([sellContractId])
+}
+
+/// The evidence of an approval: the saved email, the PDF or the export,
+/// or pasted email text kept as a text file.
+model WeekApprovalFile {
+  id String @id @default(cuid())
+
+  weekApprovalId String       @unique
+  weekApproval   WeekApproval @relation(fields: [weekApprovalId], references: [id], onDelete: Cascade)
+
+  fileName    String
+  contentType String
+  sizeBytes   Int
+  bytes       Bytes
+
+  uploadedAt DateTime @default(now())
 }
 
 /// An invitation to a firm that has never heard of us.
@@ -2913,16 +3041,18 @@ model SellContract {
   buyLinks             ContractLink[] // linked buy contracts (for profitability)
   /// Buy contracts, at whichever firm is above us, that this contract is
   /// the supply side of. One hop up the ladder.
-  suppliesBuys         BuyContract[]         @relation("suppliedBy")
+  suppliesBuys         BuyContract[]          @relation("suppliedBy")
   timesheets           Timesheet[]
   invoiceLines         InvoiceLine[]
-  sellCycles           Cycle[]               @relation("sellCycles")
+  sellCycles           Cycle[]                @relation("sellCycles")
   rolloff              RolloffEvent?
   /// The employer's own flag that this person comes off this line.
   projectRelease       ProjectRelease?
   overtimeDecisions    OvertimeDecision[]
   timeOffEntries       TimeOffEntry[]
-  docs                 DocInstance[]         @relation("sellDocs")
+  docs                 DocInstance[]          @relation("sellDocs")
+  /// Client approvals given by email that name this contract in their scope.
+  weekApprovals        WeekApprovalContract[]
   /// What this line needs on paper: the customer's own, inherited from
   /// the order or set here. See `lib/document-requirements`.
   documentRequirements DocumentRequirement[]
@@ -3501,6 +3631,10 @@ model Timesheet {
   /// derive from here rather than from the columns above, which remain
   /// only so the two-party history still reads.
   assertions WorkAssertion[]
+
+  /// The client's approval given outside Etyme: a one-time link to its
+  /// approver, or evidence of an approval it gave by email.
+  weekApprovals WeekApproval[]
 
   /// Hours in this sheet that are paid leave drawn from the bank, not
   /// worked. Same shape as `days`: ISO date → hours.
