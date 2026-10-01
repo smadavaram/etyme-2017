@@ -28,6 +28,10 @@ import { createHash, randomBytes } from 'node:crypto'
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
+import { postAssertion } from '@/lib/order-postings'
+import { reportError } from '@/lib/alerts'
+import { seatFor, actingInSeat, seatTrail } from '@/lib/program-seat'
+import type { CallerContext } from '@/lib/api-context'
 import { configuredSenders } from '@/lib/senders'
 import { baseUrl } from '@/lib/signed-link'
 import { weekFlag } from '@/lib/timesheet-flag'
@@ -37,7 +41,8 @@ import { topDown, signersOf, tellNext, type LadderRung, type Signer } from '@/ap
 import {
   linkExpiresAt, linkVerdict, checkSendBack, checkEvidence, mayActForTheClient, scopeFor,
   mayReadEvidence, evidenceReadLog, approvedByWords, letterToApprover, signaturesWritten, dayOf,
-  SEND_BACK_REASONS, EVIDENCE_KINDS, type EvidenceKind, type LinkOutcome, type ReadVerdict,
+  whoAskedSentence,
+  SEND_BACK_REASONS, EVIDENCE_KINDS, type EvidenceKind, type LinkOutcome, type ReadVerdict, type SentFrom,
 } from '@/app/api/timesheets/approval-by-email'
 
 // ── Results ───────────────────────────────────────────────────────────
@@ -61,6 +66,14 @@ export interface Reader {
   companyName?: string | null
   companyKind?: string | null
   permissions: readonly string[]
+  /**
+   * Set where a program office reads at a client's desk through a seat
+   * the client granted. The reader then *is* the client for every rule
+   * here, and the trail names the office, never the client, as the firm
+   * that read: a log saying the client read its own records would hide
+   * the one thing the client would ask about.
+   */
+  seat?: { officeCompanyId: string | null; trail: string }
 }
 
 // ── The token ─────────────────────────────────────────────────────────
@@ -298,13 +311,13 @@ function notWaiting(c: WeekChain): string | null {
 export function senderAsTheClientSees(
   c: WeekChain,
   sender: { personId: string; name: string; companyId: string | null }
-): { senderName: string; senderFirm: string; askFirm: string } {
+): { sentFrom: SentFrom; askFirm: string } {
   const top = c.rungs.get(c.ladder[0].sellContractId)!
   const askFirm = top.sellerName
   if (sender.personId === c.week.personId || sender.companyId === top.companyId) {
-    return { senderName: sender.name, senderFirm: askFirm, askFirm }
+    return { sentFrom: { kind: 'NAMED', name: sender.name, firm: askFirm }, askFirm }
   }
-  return { senderName: 'The timesheet desk', senderFirm: `${askFirm}’s side of this placement`, askFirm }
+  return { sentFrom: { kind: 'BELOW', askFirm }, askFirm }
 }
 
 /** Whether this reader may be told a firm's name on this week: its own, or a party to a rung it is on. */
@@ -344,7 +357,7 @@ function actorVerdict(r: Reader, c: WeekChain) {
 /** A refused attempt to act for the client, logged like any read of the worker's week. */
 async function logRefusal(r: Reader, c: WeekChain, action: string, says: string) {
   await prisma.accessLog.create({
-    data: { subjectId: c.week.personId, actorPersonId: r.personId, actorCompanyId: r.companyId, action, allowed: false, reason: says },
+    data: { subjectId: c.week.personId, actorPersonId: r.personId, actorCompanyId: actorCompanyOf(r), action, allowed: false, reason: withSeat(r, says) },
   }).catch(() => {})
 }
 
@@ -407,8 +420,12 @@ export async function sendApprovalLink(
     approverName: approver.name,
     personName: c.week.personName,
     clientName: c.clientName,
-    senderName: told.senderName,
-    senderFirm: told.senderFirm,
+    // The two cases themselves, so the letter never reads them back out
+    // of a display string. senderName and senderFirm stay only because
+    // the letter's signature still asks for them; sentFrom decides.
+    sentFrom: told.sentFrom,
+    senderName: told.sentFrom.kind === 'NAMED' ? told.sentFrom.name : '',
+    senderFirm: told.sentFrom.kind === 'NAMED' ? told.sentFrom.firm : told.askFirm,
     period: periodWords(c.week.periodStart, c.week.periodEnd, now),
     hours: c.week.totalHours,
     url,
@@ -550,6 +567,7 @@ async function signForClient(
   const client = signaturesWritten(c.signers)[0]
   if (!client) return refuse(409, 'NO_CLIENT', 'This week has no client signature to give.')
   const top = c.rungs.get(client.rungId)!
+  let signed: string | null = null
   try {
     await prisma.$transaction(async (tx) => {
       const moved = await tx.timesheet.updateMany({
@@ -578,6 +596,7 @@ async function signForClient(
         data: { assertionId: assertion.id, ...(how.outcome ? { usedAt: at, outcome: how.outcome } : {}) },
       })
       if (linked.count === 0) throw new Refusal(409, 'USED', 'This approval has already been used.')
+      signed = assertion.id
 
       await tx.automationLog.create({
         data: {
@@ -594,6 +613,20 @@ async function signForClient(
   } catch (err) {
     if (err instanceof Refusal) return refuse(err.status, err.code, err.says)
     throw err
+  }
+  // To the books, the way the approve button posts (`postAssertion`,
+  // lib/order-postings): the client's signature is revenue, in the month
+  // the work was done. A posting is keyed on its signature, so a week is
+  // on the books once whichever door it was approved through. Without
+  // this a week approved by email was signed and never earned anything.
+  // Nobody at the client signed in, so the posting names nobody. A
+  // posting that cannot be made (no exchange rate, a settled order) is
+  // reported rather than thrown: the signature already stands, and the
+  // approver, who has no account, should not read an error about books.
+  if (signed) {
+    await postAssertion(signed, null).catch((err) =>
+      reportError('week-approval: posting a week approved by email', err),
+    )
   }
   return { ok: true }
 }
@@ -671,8 +704,8 @@ export interface LinkView {
   approverName: string
   personName: string
   clientName: string
-  senderName: string
-  senderFirm: string
+  /** Who asked for the link, in the letter's own sentence (`whoAskedSentence`). */
+  askedBy: string
   period: string
   totalHours: number
   days: { day: string; hours: number }[]
@@ -714,8 +747,7 @@ export async function openLink(token: string, now = new Date()): Promise<{ ok: t
       approverName: row.approverName,
       personName: c.week.personName,
       clientName: c.clientName,
-      senderName: told.senderName,
-      senderFirm: told.senderFirm,
+      askedBy: whoAskedSentence(told.sentFrom, c.week.personName),
       period: periodWords(c.week.periodStart, c.week.periodEnd, now),
       totalHours: c.week.totalHours,
       days: Object.entries(c.week.days)
@@ -927,7 +959,19 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
 }
 
 async function writeReadLog(r: Reader, c: WeekChain, v: ReadVerdict) {
-  await prisma.accessLog.create({ data: evidenceReadLog({ personId: r.personId, companyId: r.companyId }, { personId: c.week.personId }, v) }).catch(() => {})
+  const row = evidenceReadLog({ personId: r.personId, companyId: actorCompanyOf(r) }, { personId: c.week.personId }, v)
+  await prisma.accessLog.create({ data: { ...row, reason: r.seat ? withSeat(r, row.reason) : row.reason } }).catch(() => {})
+}
+
+/** The firm that actually read: the office where it reads through a seat. */
+function actorCompanyOf(r: Reader): string | null {
+  return r.seat ? r.seat.officeCompanyId : r.companyId
+}
+
+/** A log reason, with the seat it was read under where there was one. */
+function withSeat(r: Reader, reason: string | null): string | null {
+  if (!r.seat) return reason
+  return reason ? `${reason} ${r.seat.trail}.` : `${r.seat.trail}.`
 }
 
 /** The evidence file itself, for a reader on a rung it applies to. Logged either way. */
@@ -974,6 +1018,43 @@ export async function approvalWordsFor(
     if (v.ok && on) out.set(a.timesheetId, approvedByWords({ approverName: a.approverName, on, how: a.how as 'LINK' | 'EVIDENCE', now }))
   }
   return out
+}
+
+/**
+ * The reader a signed-in caller is on one week: through a seat, where the
+ * caller's firm runs the program of the client this week is worked at.
+ *
+ * The same rule the approve button follows: a program office acts at the
+ * client's desk, holding the client's permissions, as the client's side
+ * of the paper. Read as its own company it was a stranger to every week of
+ * the program it runs. The person stays the real person at the office.
+ */
+export async function readerAtWeek(
+  caller: CallerContext,
+  week: { timesheetId: string } | { weekApprovalId: string }
+): Promise<Reader> {
+  const own = readerOf(caller)
+  if (!caller.company) return own
+  const timesheetId = 'timesheetId' in week
+    ? week.timesheetId
+    : (await prisma.weekApproval.findUnique({ where: { id: week.weekApprovalId }, select: { timesheetId: true } }))?.timesheetId
+  if (!timesheetId) return own
+  const t = await prisma.timesheet.findUnique({
+    where: { id: timesheetId },
+    select: { sellContract: { select: { clientCompanyId: true, endClientCompanyId: true } } },
+  })
+  const clientId = t ? (t.sellContract.endClientCompanyId ?? t.sellContract.clientCompanyId) : null
+  if (!clientId || clientId === caller.company.id) return own
+  const seat = await seatFor(caller, clientId)
+  if (!seat) return own
+  return {
+    ...own,
+    companyId: seat.clientCompany.id,
+    companyName: seat.clientCompany.name,
+    companyKind: 'CLIENT',
+    permissions: actingInSeat(caller, seat).permissions,
+    seat: { officeCompanyId: caller.company.id, trail: seatTrail(seat, 'Read') },
+  }
 }
 
 /** The reader a signed-in caller is, for the functions above. */

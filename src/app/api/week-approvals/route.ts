@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { readerOf, readWeekApprovals, sendApprovalLink, attachEvidence, type Refused } from '@/lib/week-approval'
+import { readerOf, readerAtWeek, readWeekApprovals, sendApprovalLink, attachEvidence, type Refused } from '@/lib/week-approval'
 
 /**
  * GET  /api/week-approvals?timesheetId=…   the client's approvals on a week,
@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
   if (!timesheetId) {
     return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say which week.', field: 'timesheetId' } }, { status: 422 })
   }
-  const out = await readWeekApprovals(readerOf(caller), timesheetId)
+  // Through a seat where the caller's firm runs this client's program.
+  const out = await readWeekApprovals(await readerAtWeek(caller, { timesheetId }), timesheetId)
   if (!out.ok) return no(out)
   return NextResponse.json({ data: out.seen })
 }

@@ -21,8 +21,8 @@ interface View {
   approverName: string
   personName: string
   clientName: string
-  senderName: string
-  senderFirm: string
+  /** Who asked for the link, in the same sentence the letter used. */
+  askedBy: string
   period: string
   totalHours: number
   days: { day: string; hours: number }[]
@@ -93,7 +93,7 @@ export default function ApproveWeekPage() {
                 {view.personName}, {view.period}
               </h1>
               <p className="mt-3 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
-                {view.senderName} at {view.senderFirm} asked you to approve this week. You do not need an account.
+                {view.askedBy} You do not need an account.
                 Your answer is recorded with your name, this address and the time.
               </p>
             </header>

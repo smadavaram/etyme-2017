@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { senderAsTheClientSees, checkApprover, needsSigningInEtyme, hashLinkToken, type WeekChain } from '@/lib/week-approval'
 import { topDown, signersOf, type LadderRung } from '@/app/api/timesheets/chain-turn'
+import { whoAskedSentence } from '@/app/api/timesheets/approval-by-email'
 
 /**
  * The door to a client's approval given outside Etyme (lib/week-approval).
@@ -43,17 +44,29 @@ function chain(over: Partial<WeekChain['week']> = {}, contract: { overtimeAfterH
 describe('what the client’s approver is told about who sent the link', () => {
   it('the worker who sent it is named, with the firm the client pays, never the firm that employs her', () => {
     expect(senderAsTheClientSees(chain(), { personId: 'helena', name: 'Helena Marsh', companyId: 'cloudepa' }))
-      .toEqual({ senderName: 'Helena Marsh', senderFirm: 'Computer Systems Inc', askFirm: 'Computer Systems Inc' })
+      .toEqual({ sentFrom: { kind: 'NAMED', name: 'Helena Marsh', firm: 'Computer Systems Inc' }, askFirm: 'Computer Systems Inc' })
   })
 
   it('a desk at the firm the client pays is named', () => {
-    expect(senderAsTheClientSees(chain(), { personId: 'victor', name: 'Victor Hale', companyId: 'cs' }).senderName).toBe('Victor Hale')
+    expect(senderAsTheClientSees(chain(), { personId: 'victor', name: 'Victor Hale', companyId: 'cs' }).sentFrom).toEqual({ kind: 'NAMED', name: 'Victor Hale', firm: 'Computer Systems Inc' })
   })
 
   it('a desk at a sub-vendor is not named, and neither is its firm, so the client never learns who is below its supplier', () => {
     const told = senderAsTheClientSees(chain(), { personId: 'bhavesh', name: 'Bhavesh Nair', companyId: 'cloudepa' })
-    expect(told).toEqual({ senderName: 'The timesheet desk', senderFirm: 'Computer Systems Inc’s side of this placement', askFirm: 'Computer Systems Inc' })
+    expect(told).toEqual({ sentFrom: { kind: 'BELOW', askFirm: 'Computer Systems Inc' }, askFirm: 'Computer Systems Inc' })
     expect(JSON.stringify(told)).not.toMatch(/CloudEPA|Bhavesh/)
+  })
+
+  it('the approval page says who asked in the same sentence the letter does, and from a desk below the supplier it names only the supplier', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/answer/week/[token]/page.tsx'), 'utf8')
+    expect(page).not.toMatch(/side of this placement/)
+    expect(page).toContain('{view.askedBy}')
+    const lib = readFileSync(join(process.cwd(), 'src/lib/week-approval.ts'), 'utf8')
+    expect(lib).toContain('askedBy: whoAskedSentence(told.sentFrom, c.week.personName)')
+    const told = senderAsTheClientSees(chain(), { personId: 'bhavesh', name: 'Bhavesh Nair', companyId: 'cloudepa' })
+    const said = whoAskedSentence(told.sentFrom, 'Helena Marsh')
+    expect(said).toBe('Helena Marsh’s supplier asked us to send you the week to approve. If anything in it looks wrong, ask Computer Systems Inc.')
+    expect(said).not.toMatch(/timesheet desk|CloudEPA|Bhavesh/)
   })
 })
 

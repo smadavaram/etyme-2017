@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { decide, signature, summarize, DEFAULT_WINDOW_DAYS } from '@/lib/auto-approval'
 import { payerRung } from '@/lib/chain-top'
 import { weekFlag } from '@/lib/timesheet-flag'
+import { postAssertion } from '@/lib/order-postings'
+import { reportError } from '@/lib/alerts'
 
 /**
  * GET /api/cron/auto-approve
@@ -157,7 +159,7 @@ export async function GET(request: NextRequest) {
     // Named nobody, in the ledger as well as the column. An automatic
     // approval carrying a manager's id is a forged signature wherever it
     // is written down.
-    await prisma.workAssertion.create({
+    const written = await prisma.workAssertion.create({
       data: {
         timesheetId: d.sheetId,
         // The end client, not the vendor. A client approval asserted by
@@ -176,7 +178,22 @@ export async function GET(request: NextRequest) {
         auto: true,
         note: d.says,
       },
-    }).catch(() => {})
+      select: { id: true },
+    }).catch(() => null)
+
+    // To the books, the same way the approve button and /assert post:
+    // revenue on the client's approval, to the month the work was done
+    // (`postAssertion`, lib/order-postings). Only the row this run wrote —
+    // a run that lost the race wrote none — and a posting is keyed on its
+    // assertion, so the same signature is never on the books twice. A
+    // posting that cannot be made (no exchange rate, a settled order) is
+    // reported and does not stop the other weeks being signed tonight.
+    // Named nobody, like the signature.
+    if (written) {
+      await postAssertion(written.id, null).catch((err) =>
+        reportError('cron/auto-approve: posting a week approved by silence', err),
+      )
+    }
 
     // Idempotency guard: re-verify the timesheet status before updating.
     // Another concurrent run may have already approved it.

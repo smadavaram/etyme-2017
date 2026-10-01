@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { readerOf, readEvidenceFile } from '@/lib/week-approval'
+import { readerAtWeek, readEvidenceFile } from '@/lib/week-approval'
 
 /**
  * GET /api/week-approvals/:id/file — the evidence of a client's approval.
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { caller, error } = await getCallerContext(request)
   if (error) return error
   const { id } = await params
-  const out = await readEvidenceFile(readerOf(caller), id)
+  const out = await readEvidenceFile(await readerAtWeek(caller, { weekApprovalId: id }), id)
   if (!out.ok) return NextResponse.json({ error: { code: out.code, message: out.says } }, { status: out.status })
   return new NextResponse(new Uint8Array(out.bytes), {
     headers: {
