@@ -1356,6 +1356,18 @@ clients."*
   Bench burn and the reserve already compute and adds no money rule.
   A client never sees a supplier's margin; what reaches the client is
   the supplier's expertise evidence (Addendum D), built later.
+- **Holidays on the bench are a company setting, off by default.
+  Decided by the founder, 2026-10-03:** *"A company setting, defaulting
+  to no-pay, and each candidate needs to be activated. GSI companies do
+  autopay."* So a firm's bench pay policy does not pay a public holiday
+  unless the firm turns holiday pay on, and then only for the people it
+  switches on, one by one — a bench supplier's trainee is not paid for a
+  holiday because the firm said yes for somebody else. An integrator
+  (GSI) is the exception: its bench is its own salaried employees between
+  projects, so holiday pay is on by default for all of them, and it may
+  switch a person off. Who turned it on or off, and when, is recorded.
+  Bench cost, bench burn and bench profit all count a holiday the same
+  way from this setting, never from a rule of their own.
 - **Everybody else** — primes, sub-vendors, clients — receives bench the
   same way: they say what they want, see who is offered, and put a
   person forward to their own job request.
