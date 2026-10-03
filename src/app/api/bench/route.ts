@@ -17,7 +17,8 @@ import {
   type RosterPerson,
 } from '@/lib/consultant-portfolio'
 import { NETWORK_VISIBLE, whoSees } from '@/lib/shared-consultant'
-import { stayEndedRow } from '@/lib/bench-stay'
+import { stayEndedRow, stayRow } from '@/lib/bench-stay'
+import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, type FreeLine } from '@/lib/bench-filter'
 
 /**
  * GET /api/bench
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'consultants.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'You need consultants.read permission' } },
+      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name ?? 'your firm') } },
       { status: 403 }
     )
   }
@@ -77,6 +78,15 @@ export async function GET(request: NextRequest) {
       { error: { code: 'VALIDATION', message: `scope must be one of: ${validScopes.join(', ')}`, field: 'scope' } },
       { status: 422 }
     )
+  }
+
+  // A client never browses a bench: bench reaches it through matching on
+  // its own job request (CLAUDE.md, "How bench reaches a job"). Refused
+  // here, where a link typed into the address bar arrives, and not only
+  // left off the client's menu.
+  const browse = mayBrowseBench({ companyKind: caller.company?.kind ?? null, scope })
+  if (!browse.ok) {
+    return NextResponse.json({ error: { code: browse.code, message: browse.says } }, { status: 403 })
   }
 
   const companyId = caller.company?.id
@@ -215,6 +225,34 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
+  // When each of them is free, read off the work at any firm — one door
+  // (`whenFree`), the same one the matches and the training page read,
+  // so no page calls somebody free whom another calls placed.
+  const listedIds = [...new Set(listings.map((l) => l.consultant.personId))]
+  const [liveLines, endedLines] = listedIds.length
+    ? await Promise.all([
+        prisma.sellContract.findMany({
+          where: { personId: { in: listedIds }, state: { in: [...LIVE_STATES] as never } },
+          select: { personId: true, startDate: true, endDate: true, state: true },
+        }),
+        prisma.sellContract.groupBy({
+          by: ['personId'],
+          where: { personId: { in: listedIds }, state: 'ENDED' },
+          _max: { endDate: true },
+        }),
+      ])
+    : [[], []]
+  const freeOf = (personId: string, availableFrom: Date | null, onBenchSince: Date | null) =>
+    whenFree({
+      lines: liveLines
+        .filter((l) => l.personId === personId)
+        .map((l): FreeLine => ({ startsOn: l.startDate, endsOn: l.endDate, state: l.state })),
+      lastEnded: endedLines.find((e) => e.personId === personId)?._max.endDate ?? null,
+      availableFrom,
+      onBenchSince,
+      now,
+    })
+
   // How many CVs each of them has, counted once.
   //
   // Readiness needs it and a per-row query would be a scan per person.
@@ -258,6 +296,10 @@ export async function GET(request: NextRequest) {
       reach: whoSees({ tier: l.tier, state: l.state, revokedAt: l.revokedAt }).reach,
       reachSays: whoSees({ tier: l.tier, state: l.state, revokedAt: l.revokedAt }).says,
       invitedAt: l.invitedAt?.toISOString() ?? null,
+      // When they are free, from the work (`whenFree`), and how long they
+      // chose to stay on this bench (`stayRow`).
+      free: freeOf(l.consultant.personId, l.consultant.availableFrom, l.state === 'GRANTED' ? l.grantedAt : null),
+      stay: stayRow({ state: l.state, stayDays: l.stayDays, staysUntil: l.staysUntil }, now),
       rateMin: showRate ? l.rateMin : undefined,
       rateMax: showRate ? l.rateMax : undefined,
       grantedAt: l.grantedAt.toISOString(),
@@ -272,7 +314,9 @@ export async function GET(request: NextRequest) {
         person: {
           id: l.consultant.person.id,
           name: l.consultant.person.name,
-          email: l.consultant.person.primaryEmail,
+          // Another firm's person's address is never sent: on a partner's
+          // bench it is a way round the firm that marketed them.
+          email: scope === 'network' ? null : l.consultant.person.primaryEmail,
         },
         headline: l.consultant.headline,
         skills: l.consultant.skills,

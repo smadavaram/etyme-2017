@@ -58,6 +58,7 @@ import { standingOf, type RosterLine } from '@/lib/consultant-portfolio'
 import { stayOver } from '@/lib/bench-stay'
 import { countsInMatching, freeFrom } from '@/lib/internal-moves'
 import { plainDate } from '@/lib/plain-date'
+import { whenFree } from '@/lib/bench-filter'
 
 // ─────────────────────────────────────────────────────────────────────
 // Pure: the rules
@@ -639,7 +640,7 @@ export async function poolFor(
           state: { in: ['PENDING_VERIFICATION', 'VERIFIED', 'IN_PROGRESS', 'PAUSED'] },
           OR: [{ endDate: null }, { endDate: { gte: now } }],
         },
-        select: { personId: true, endDate: true },
+        select: { personId: true, startDate: true, endDate: true, state: true },
       })
     : []
   let placed = 0
@@ -653,6 +654,21 @@ export async function poolFor(
     }
     if (verdict.freeOn) {
       entries[i] = { ...e, consultant: { ...e.consultant, availableFrom: laterOf(e.consultant.availableFrom ?? null, verdict.freeOn) } }
+      continue
+    }
+    // Nobody placed: free as the bench reads it (`whenFree`, the one door
+    // the bench page, the training page and these matches share). Somebody
+    // who agreed to a bench and is on nothing is free now — every match
+    // read "Free date not on record" over people their firms were
+    // marketing that day (bench tester, 2026-10-01).
+    const free = whenFree({
+      lines: liveLines.filter((l) => l.personId === e.personId).map((l) => ({ startsOn: l.startDate, endsOn: l.endDate, state: l.state })),
+      availableFrom: e.consultant.availableFrom ?? null,
+      onBenchSince: e.since,
+      now,
+    })
+    if (free.on && (free.state === 'NOW' || free.state === 'FROM')) {
+      entries[i] = { ...e, consultant: { ...e.consultant, availableFrom: new Date(`${free.on}T00:00:00Z`) } }
     }
   }
 
@@ -677,6 +693,13 @@ export async function poolFor(
   ]
   if (opts.suggest) parts.push(`${count('SUGGESTION')} suggested from firms you do not work with yet`)
   const tail: string[] = []
+  // Why a suggestion can sit under a supplier's person it outscores.
+  if (opts.suggest && count('SUGGESTION') > 0) {
+    tail.push(
+      'Your suppliers’ people are listed first and suggestions last, whatever the score, because a firm that is ' +
+        'not your supplier cannot put anybody forward until it is added'
+    )
+  }
   if (noSkills > 0) tail.push(`${noSkills} of your employees have no skills on record, so matching cannot weigh them`)
   if (busy > 0) tail.push(`${busy} of your employees are on a project past the next month`)
   if (placed > 0) tail.push(`${placed} on a bench ${placed === 1 ? 'is' : 'are'} placed past the day this job starts`)

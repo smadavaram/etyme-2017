@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'consultants.write')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'You need consultants.write permission' } },
+      { error: { code: 'FORBIDDEN', message: 'Changing a consultant’s record or putting them on the bench is for the recruiting desk, the resource manager, HR or the owner. Ask one of them.' } },
       { status: 403 }
     )
   }

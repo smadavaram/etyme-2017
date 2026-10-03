@@ -10,7 +10,7 @@ import { mayChangeTier, whoSees } from '@/lib/shared-consultant'
  *
  * The firm that holds a listing moves it between retained and marketing.
  *
- * Body: { tier: 'RETAINED' | 'MARKETING' }
+ * Body: { tier: 'RETAINED' | 'MARKETING' }, or { rateMin, rateMax } in cents an hour
  *
  * ── Why this door exists ─────────────────────────────────────────────
  *
@@ -65,6 +65,15 @@ export async function PATCH(
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
+
+  // A rate on a listing the firm already holds. Added 2026-10-01: somebody
+  // added on Consultants is already asked to join the bench, and the Add
+  // to bench form refused them as a duplicate and lost the rate typed. The
+  // rate is the firm's to set, like the tier, and needs no fresh consent.
+  if (body.tier === undefined && ('rateMin' in body || 'rateMax' in body)) {
+    return setRates(caller, companyId, id, body)
+  }
+
   const to = typeof body.tier === 'string' ? body.tier.toUpperCase() : ''
 
   const listing = await prisma.benchListing.findUnique({
@@ -154,4 +163,57 @@ export async function PATCH(
       { status: 500 }
     )
   }
+}
+
+/** Cents an hour, or null for no rate; anything else is refused. */
+function centsOrNull(v: unknown): number | null | 'BAD' {
+  if (v === null || v === undefined || v === '') return null
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isInteger(n) && n > 0 ? n : 'BAD'
+}
+
+async function setRates(
+  caller: { person: { id: string; name: string }; company?: { name: string } | null },
+  companyId: string,
+  id: string,
+  body: { rateMin?: unknown; rateMax?: unknown }
+) {
+  const listing = await prisma.benchListing.findUnique({
+    where: { id },
+    select: {
+      id: true, companyId: true, rateMin: true, rateMax: true,
+      consultant: { select: { personId: true, rateFloor: true, person: { select: { name: true } } } },
+    },
+  })
+  if (!listing || listing.companyId !== companyId) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'There is no listing by that id on your bench.' } },
+      { status: 404 }
+    )
+  }
+  const min = 'rateMin' in body ? centsOrNull(body.rateMin) : listing.rateMin
+  const max = 'rateMax' in body ? centsOrNull(body.rateMax) : listing.rateMax
+  if (min === 'BAD' || max === 'BAD') {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say each rate as a whole number of cents an hour, or leave it empty.', field: 'rateMin' } }, { status: 422 })
+  }
+  if (min != null && max != null && min > max) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: 'The lowest rate is above the highest. Swap them.', field: 'rateMin' } }, { status: 422 })
+  }
+  const floor = listing.consultant.rateFloor
+  const name = listing.consultant.person.name
+  if (floor != null && max != null && max < floor) {
+    return NextResponse.json(
+      { error: { code: 'BELOW_FLOOR', message: `The highest rate is under the least ${name} said they take an hour.`, field: 'rateMax' } },
+      { status: 422 }
+    )
+  }
+  await prisma.benchListing.update({ where: { id }, data: { rateMin: min, rateMax: max } })
+  const said = min == null && max == null ? 'no rate' : `${dollars(min)}–${dollars(max)} an hour`
+  return NextResponse.json({
+    data: { listing: { id, rateMin: min, rateMax: max }, message: `${name} is already on your bench. Their rate is now ${said}.` },
+  })
+}
+
+function dollars(c: number | null): string {
+  return c == null ? 'open' : `$${(c / 100).toFixed(2).replace(/\.00$/, '')}`
 }

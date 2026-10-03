@@ -389,6 +389,10 @@ export interface BenchRow {
   rateMax: number | null
   /** ISO, as the route sent it. Parsed by whoever needs a date. */
   availableFrom: string | null
+  /** When they are free, as the route read it off the work (`whenFree`). Null where the route did not say. */
+  free: Free | null
+  /** The stay they chose on this bench, in a line (`stayRow`). Null for somebody who has not said yes. */
+  stay: string | null
   visibility: string
   grantedAt: string
   /** Whose bench this listing lives on — your own firm, or a partner's. */
@@ -469,6 +473,11 @@ export function readBench(payload: unknown): BenchReading {
         rateMin: typeof l.rateMin === 'number' ? l.rateMin : null,
         rateMax: typeof l.rateMax === 'number' ? l.rateMax : null,
         availableFrom: l.consultant.availableFrom ?? null,
+        free:
+          l.free && typeof l.free === 'object' && typeof l.free.state === 'string' && typeof l.free.says === 'string'
+            ? { state: l.free.state, on: typeof l.free.on === 'string' ? l.free.on : null, says: l.free.says }
+            : null,
+        stay: typeof l.stay === 'string' ? l.stay : null,
         visibility: typeof l.consultant.visibility === 'string' ? l.consultant.visibility : 'INTERNAL',
         grantedAt: typeof l.grantedAt === 'string' ? l.grantedAt : '',
         companyId: String(l.company?.id ?? ''),
@@ -609,7 +618,7 @@ export function profileEditBody(
  */
 const WORDS: Record<string, string> = {
   // Bench tiers — the firm's choice of how far a listing reaches.
-  RETAINED: 'Kept to us', MARKETING: 'Shown to our partners',
+  RETAINED: 'Kept to us', MARKETING: 'Shown to our partners', // the same pair as TIER_WORD below
   // Submission kinds — who holds the person.
   BENCH: 'Our bench', NETWORK: "A partner's bench", INTERNAL: 'Our employee', CONSENT: 'Asked them first',
   // Profile visibility.
@@ -624,4 +633,206 @@ export function wordFor(value: string | null | undefined): string {
   if (w) return w
   const plain = value.toLowerCase().replace(/_/g, ' ')
   return plain.charAt(0).toUpperCase() + plain.slice(1)
+}
+
+// ── Who is free — one door for every bench page ───────────────────────
+
+/** A line of work on the record for this person, at any firm. */
+export interface FreeLine {
+  startsOn: Date | null
+  endsOn: Date | null
+  /** Papered or running: PENDING_VERIFICATION · VERIFIED · IN_PROGRESS · PAUSED. ENDED and CANCELLED are not passed. */
+  state: string
+}
+
+export type FreeState = 'NOW' | 'FROM' | 'PLACED' | 'UNKNOWN'
+
+export interface Free {
+  state: FreeState
+  /** The first day they can start elsewhere, as YYYY-MM-DD. Null where nothing says. */
+  on: string | null
+  /** The word for the row: "Free now", "Free from Nov 15, 2026", "On a placement until Oct 26, 2026". */
+  says: string
+}
+
+/** The states of a line that is papered or running — the ones that make somebody not free. */
+export const LIVE_STATES: readonly string[] = ['PENDING_VERIFICATION', 'VERIFIED', 'IN_PROGRESS', 'PAUSED']
+
+const DAY_MS_FREE = 86_400_000
+const midnight = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+const isoOf = (d: Date) => midnight(d).toISOString().slice(0, 10)
+const dayAfter = (d: Date) => new Date(midnight(d).getTime() + DAY_MS_FREE)
+const shortDay = (d: Date) =>
+  d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+
+/**
+ * When somebody on a bench is free, read off the work.
+ *
+ * The bench rows, the matches and the training funnel each read a free
+ * date of their own — the profile's `availableFrom`, which nobody keeps —
+ * while Bench profit read the contracts. So one page said "Available
+ * Unknown, Available now 0" over three people another page said were on
+ * the bench today, and two people placed at a client read as marketed
+ * and free (bench tester, 2026-10-01). This is the one answer:
+ *
+ *   on a placement now       not free; free from the day after it ends,
+ *                            or "no end date on record"
+ *   a placement papered      not free; it starts on its day
+ *   nothing running          free from the later of their own free date
+ *                            and the day after their last placement; free
+ *                            now where that day has come, or where they
+ *                            are on a bench they agreed to and nothing on
+ *                            the record says otherwise
+ *   nothing at all           unknown, and never called free
+ *
+ * Pure. The caller passes every papered or running line for the person
+ * — at any firm, because a person placed through somebody else is not
+ * free either — and never their ended ones beyond the latest end.
+ */
+export function whenFree(input: {
+  lines: FreeLine[]
+  /** The last day of the latest placement that has ended, if any. */
+  lastEnded?: Date | null
+  /** The day they say they are free from, on their own profile. */
+  availableFrom: Date | null
+  /** The day they agreed to be on this bench. Null where they have not. */
+  onBenchSince: Date | null
+  now: Date
+}): Free {
+  const today = midnight(input.now)
+  const papered = (l: FreeLine) => LIVE_STATES.includes(l.state)
+  const running = input.lines.filter(
+    (l) =>
+      papered(l) &&
+      (l.startsOn == null || midnight(l.startsOn) <= today) &&
+      (l.endsOn == null || midnight(l.endsOn) >= today)
+  )
+  if (running.length > 0) {
+    if (running.some((l) => l.endsOn == null)) {
+      return { state: 'PLACED', on: null, says: 'On a placement with no end date on record' }
+    }
+    const last = running.reduce((a, l) => (l.endsOn! > a ? l.endsOn! : a), running[0].endsOn!)
+    return { state: 'PLACED', on: isoOf(dayAfter(last)), says: `On a placement until ${shortDay(last)}` }
+  }
+  const next = input.lines
+    .filter((l) => papered(l) && l.startsOn != null && midnight(l.startsOn) > today)
+    .sort((a, b) => a.startsOn!.getTime() - b.startsOn!.getTime())[0]
+  if (next) {
+    return { state: 'PLACED', on: null, says: `Starts a placement on ${shortDay(next.startsOn!)}` }
+  }
+
+  const candidates: Date[] = []
+  if (input.availableFrom) candidates.push(midnight(input.availableFrom))
+  if (input.lastEnded) candidates.push(dayAfter(input.lastEnded))
+  if (candidates.length === 0) {
+    return input.onBenchSince
+      ? { state: 'NOW', on: isoOf(today), says: 'Free now' }
+      : { state: 'UNKNOWN', on: null, says: 'Free date not on record' }
+  }
+  const from = new Date(Math.max(...candidates.map((d) => d.getTime())))
+  if (from <= today) return { state: 'NOW', on: isoOf(today), says: 'Free now' }
+  return { state: 'FROM', on: isoOf(from), says: `Free from ${shortDay(from)}` }
+}
+
+// ── What a row says under a person's name ─────────────────────────────
+
+/**
+ * The line under a person's name on a bench.
+ *
+ * Their headline where they have one. Where they do not, their own
+ * firm's bench may show the email it holds for them — they are its
+ * people — but a partner's bench never does: an address on a partner's
+ * row is a way to go round the firm that marketed them (bench tester,
+ * 2026-10-01). Their skills stand in, or a plain "No headline yet".
+ */
+export function benchSubtitle(row: { headline: string | null; email: string | null; skills: string[] }, ownBench: boolean): string {
+  if (row.headline && row.headline.trim()) return row.headline
+  if (ownBench && row.email) return row.email
+  if (row.skills.length > 0) return row.skills.slice(0, 3).join(' · ')
+  return 'No headline yet'
+}
+
+// ── Who may open a bench ──────────────────────────────────────────────
+
+/**
+ * Whether this seat may browse a bench at all.
+ *
+ * A client never does. CLAUDE.md, "How bench reaches a job": bench comes
+ * to a client through matching on its own job request, and never as a
+ * page of named people with rates. Only the client's own payroll — its
+ * own staff, which the document desks read — stays open to it.
+ */
+export function mayBrowseBench(
+  r: { companyKind: string | null; scope: string }
+): { ok: true } | { ok: false; code: 'CLIENT'; says: string } {
+  if (r.companyKind === 'CLIENT' && r.scope !== 'payroll' && r.scope !== 'mine') {
+    return {
+      ok: false,
+      code: 'CLIENT',
+      says:
+        'A bench is a supplier’s own people, and a client does not browse one. People reach your job ' +
+        'requests through matching, from your suppliers first — open a job request and press Find matches.',
+    }
+  }
+  return { ok: true }
+}
+
+/** What a bench answers a seat that does not read people, in a sentence. */
+export function benchClosedSays(firm: string): string {
+  return (
+    `The bench at ${firm} is read by the desks that work with consultants — the recruiters, the resource ` +
+    'manager, HR and the owner. Your seat is not one of them. Ask whoever manages roles there.'
+  )
+}
+
+// ── The tier, in one set of words ─────────────────────────────────────
+
+/**
+ * The firm's two choices for a listing, named once. The Consultants page
+ * said "Kept to us" and "Shown to our partners" while Bench said
+ * "Retained" and "Marketing" for the same two things (bench tester,
+ * 2026-10-01). These are the words, everywhere; `wordFor` reads them.
+ */
+export const TIER_WORD = { RETAINED: 'Kept to us', MARKETING: 'Shown to our partners' } as const
+
+// ── What adding a consultant says ─────────────────────────────────────
+
+/**
+ * The sentence after a firm adds somebody. Adding them also asks them to
+ * join the firm's bench — a consultant a firm adds is marketed by
+ * default, and nothing reaches past the firm until they say yes — so the
+ * sentence says the invitation went, where it went, and what follows.
+ */
+export function addedSays(f: { name: string; firm: string; tier: 'RETAINED' | 'MARKETING'; emailed: boolean }): string {
+  const asked = f.emailed
+    ? `${f.firm} has emailed them to ask if they will join its bench.`
+    : `${f.firm} will ask them to join its bench; no email address is on record to send the ask, so copy the link from Bench.`
+  const reach =
+    f.tier === 'MARKETING'
+      ? 'Once they say yes they are shown to your partners.'
+      : 'Once they say yes they are kept to you, shown to no partner.'
+  return `${f.name} is added. ${asked} ${reach} Nobody is put forward until they say yes.`
+}
+
+/**
+ * A rate range for a listing, dollars an hour in, cents out, checked
+ * against the person's own floor. Blank is no rate.
+ */
+export function listingRates(
+  typed: { min: string; max: string },
+  floorCents: number | null
+): { ok: true; rateMin: number | null; rateMax: number | null } | { ok: false; says: string } {
+  const read = (t: string) => {
+    if (!t.trim()) return null
+    const n = Number(t)
+    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : NaN
+  }
+  const rateMin = read(typed.min)
+  const rateMax = read(typed.max)
+  if (Number.isNaN(rateMin) || Number.isNaN(rateMax)) return { ok: false, says: 'Say each rate as a number of dollars an hour.' }
+  if (rateMin != null && rateMax != null && rateMin > rateMax) return { ok: false, says: 'The lowest rate is above the highest. Swap them.' }
+  if (floorCents != null && rateMax != null && rateMax < floorCents) {
+    return { ok: false, says: `The highest rate is under the $${(floorCents / 100).toFixed(2)} an hour they said they take at the least.` }
+  }
+  return { ok: true, rateMin, rateMax }
 }

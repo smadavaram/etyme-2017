@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { send } from '@/lib/messages'
+import { addedSays, benchClosedSays } from '@/lib/bench-filter'
 import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'consultants.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'You need consultants.read permission' } },
+      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name ?? 'your firm') } },
       { status: 403 }
     )
   }
@@ -223,7 +224,7 @@ export async function POST(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'consultants.write')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'You need consultants.write permission' } },
+      { error: { code: 'FORBIDDEN', message: 'Adding a consultant is for the recruiting desk, the resource manager, HR or the owner. Ask one of them.' } },
       { status: 403 }
     )
   }
@@ -436,7 +437,14 @@ export async function POST(request: NextRequest) {
             rateMax: result.listing.rateMax,
             status: result.listing.state,
           },
-          message: `Consultant "${result.person.name}" created. Bench listing is pending consultant grant.`,
+          // What adding them did, in a sentence: the ask went, and nothing
+          // reaches past the firm until they say yes.
+          message: addedSays({
+            name: result.person.name,
+            firm: caller.company!.name,
+            tier: result.listing.tier,
+            emailed: Boolean(url && result.person.primaryEmail),
+          }),
         },
       },
       { status: 201 }

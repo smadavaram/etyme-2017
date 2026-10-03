@@ -172,3 +172,18 @@ export function renewAskText(o: { personName: string; firm: string; endedOn: Dat
       'If you do nothing, nothing changes.',
   }
 }
+
+/**
+ * The stay a firm's bench row shows for somebody who said yes: how long
+ * they chose and the day it ends, so the firm sees from the list who is
+ * about to drop off (bench tester, 2026-10-01). Null for somebody who has
+ * not said yes, because a stay is chosen with the yes.
+ */
+export function stayRow(l: { state: string; stayDays: number | null; staysUntil: Date | null }, now: Date): string | null {
+  if (l.state !== 'GRANTED') return null
+  if (l.staysUntil == null) return 'Stays until they cancel'
+  const left = Math.ceil((l.staysUntil.getTime() - now.getTime()) / DAY)
+  const short = l.staysUntil.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  if (left <= 0) return `Stay ended on ${short}`
+  return `Stays until ${short} (${l.stayDays} days chosen, ${left} ${left === 1 ? 'day' : 'days'} left)`
+}

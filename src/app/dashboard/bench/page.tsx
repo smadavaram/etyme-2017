@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { Route } from 'next'
 import { range, compact } from '@/lib/money-display'
-import { readBench, submitLink, BURN_READ_BY } from '@/lib/bench-filter'
+import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, listingRates, TIER_WORD, type Free } from '@/lib/bench-filter'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
@@ -54,6 +54,10 @@ interface BenchEntry {
   rateMin: number | null
   rateMax: number | null
   availableFrom: string | null
+  /** When they are free, read off the work by the route (`whenFree`). */
+  free: Free | null
+  /** The stay they chose on this bench, in a line. */
+  stay: string | null
   /** NOBODY · FIRM_ONLY · NETWORK — from the consent and the tier. */
   reach: string | null
   reachSays: string | null
@@ -175,15 +179,27 @@ function reachChip(reach: string | null): { text: string; cls: string } {
   }
 }
 
-function availabilityStatus(availableFrom: string | null): { text: string; cls: string; group: AvailFilter } {
-  if (!availableFrom) return { text: 'Unknown', cls: 'text-etyme-faint', group: 'later' }
-  const date = new Date(availableFrom)
-  const now = new Date()
-  const daysUntil = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (daysUntil <= 0) return { text: 'Available now', cls: 'text-etyme-verified font-medium', group: 'now' }
-  if (daysUntil <= 14) return { text: `${daysUntil}d`, cls: 'text-etyme-attention font-medium', group: 'soon' }
-  return { text: date.toLocaleDateString(), cls: 'text-etyme-muted', group: 'later' }
+/**
+ * When they are free, as the route read it off the work (`whenFree` in
+ * lib/bench-filter) — the one answer Bench profit, the matches and the
+ * training page read too. This page used to read the profile's own free
+ * date, which nobody keeps, and so said "Unknown" over people another
+ * tab said were on the bench today.
+ */
+function availabilityStatus(free: Free | null): { text: string; cls: string; group: AvailFilter } {
+  if (!free) return { text: 'Free date not on record', cls: 'text-etyme-faint', group: 'later' }
+  switch (free.state) {
+    case 'NOW':
+      return { text: free.says, cls: 'text-etyme-verified font-medium', group: 'now' }
+    case 'FROM': {
+      const days = free.on ? Math.ceil((Date.parse(`${free.on}T00:00:00Z`) - Date.now()) / 86_400_000) : Infinity
+      return { text: free.says, cls: days <= 14 ? 'text-etyme-attention font-medium' : 'text-etyme-muted', group: days <= 14 ? 'soon' : 'later' }
+    }
+    case 'PLACED':
+      return { text: free.says, cls: 'text-etyme-muted', group: 'later' }
+    default:
+      return { text: free.says, cls: 'text-etyme-faint', group: 'later' }
+  }
 }
 
 /**
@@ -198,7 +214,21 @@ function formatRate(min: number | null, max: number | null): string {
 
 // ── Add Bench Listing Modal ─────────────────────────
 
-function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onCreated: (msg: string) => void }) {
+/**
+ * Add somebody to your bench, at a rate.
+ *
+ * Somebody added on Consultants is already asked to join your bench, so
+ * the search here marks them as on it rather than offering them as new —
+ * the tester picked such a person, typed a rate and was refused as a
+ * duplicate with the rate lost (2026-10-01). Choosing them now saves the
+ * rate onto the listing they already have.
+ */
+function AddBenchListingModal({ onClose, onCreated, listed }: {
+  onClose: () => void
+  onCreated: (msg: string) => void
+  /** Your own listings, by consultant: the listing and what the person said. */
+  listed: Map<string, { listingId: string; consent: string | null }>
+}) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<ConsultantOption[]>([])
   const [searching, setSearching] = useState(false)
@@ -271,41 +301,48 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedConsultant) {
-      setError('Please select a consultant from the search results.')
+      setError('Choose the person from the search results.')
       return
     }
 
-    const minVal = rateMin.trim() ? Math.round(parseFloat(rateMin) * 100) : null
-    const maxVal = rateMax.trim() ? Math.round(parseFloat(rateMax) * 100) : null
-
-    if (minVal != null && maxVal != null && minVal > maxVal) {
-      setError('Rate min cannot exceed rate max.')
+    const rates = listingRates({ min: rateMin, max: rateMax }, null)
+    if (!rates.ok) {
+      setError(rates.says)
       return
     }
+    const minVal = rates.rateMin
+    const maxVal = rates.rateMax
+    const already = listed.get(selectedConsultant.id)
 
     setSubmitting(true)
     setError(null)
 
     try {
-      const res = await fetch('/api/bench/listings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          consultantId: selectedConsultant.id,
-          tier,
-          rateMin: minVal,
-          rateMax: maxVal,
-        }),
-      })
+      const res = already
+        ? await fetch(`/api/bench/listings/${already.listingId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rateMin: minVal, rateMax: maxVal }),
+          })
+        : await fetch('/api/bench/listings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              consultantId: selectedConsultant.id,
+              tier,
+              rateMin: minVal,
+              rateMax: maxVal,
+            }),
+          })
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        setError(body.error?.message ?? 'Failed to create bench listing')
+        setError(body.error?.message ?? 'Nothing was saved. Try again.')
         return
       }
 
       const body = await res.json()
-      onCreated(body.data?.message ?? `Bench listing created for "${selectedConsultant.name}".`)
+      onCreated(body.data?.message ?? `${selectedConsultant.name} is on your bench.`)
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -359,7 +396,11 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-etyme-ink truncate">{selectedConsultant.name}</p>
-                  <p className="text-[11px] text-etyme-faint truncate">{selectedConsultant.headline ?? selectedConsultant.email}</p>
+                  <p className="text-[11px] text-etyme-faint truncate">
+                    {listed.has(selectedConsultant.id)
+                      ? `Already on your bench${listed.get(selectedConsultant.id)?.consent === 'INVITED' ? ', not answered yet' : ''}. The rate below is saved on that listing.`
+                      : selectedConsultant.headline ?? selectedConsultant.email}
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -390,7 +431,9 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-etyme-ink truncate">{c.name}</p>
-                      <p className="text-[11px] text-etyme-faint truncate">{c.headline ?? c.email}</p>
+                      <p className="text-[11px] text-etyme-faint truncate">
+                        {listed.has(c.id) ? 'Already on your bench — choose to set their rate' : c.headline ?? c.email}
+                      </p>
                     </div>
                   </button>
                 ))}
@@ -398,19 +441,21 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
             )}
           </div>
 
-          {/* Tier */}
+          {/* Tier — only for somebody new; a listing's tier moves from its row. */}
+          {!(selectedConsultant && listed.has(selectedConsultant.id)) && (
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Tier *</label>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Who sees them *</label>
             <select
               value={tier}
               onChange={(e) => setTier(e.target.value as 'RETAINED' | 'MARKETING')}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
             >
-              <option value="MARKETING">Marketing — the firms you work with see them once they agree</option>
-              <option value="RETAINED">Retained — only you; you carry them between assignments</option>
+              <option value="MARKETING">{TIER_WORD.MARKETING} — the firms you work with see them once they agree</option>
+              <option value="RETAINED">{TIER_WORD.RETAINED} — only you; you carry them between assignments</option>
             </select>
           </div>
+          )}
 
           {/* Rate range */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -447,7 +492,7 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
               Cancel
             </button>
             <button type="submit" disabled={submitting || !selectedConsultant} className="btn-primary disabled:opacity-50">
-              {submitting ? 'Creating…' : 'Add to bench'}
+              {submitting ? 'Saving…' : selectedConsultant && listed.has(selectedConsultant.id) ? 'Save rate' : 'Add to bench'}
             </button>
           </div>
         </form>
@@ -489,11 +534,22 @@ export default function BenchPage() {
     roleName: session.roleName,
     consultantSeat: session.contextType === 'CONSULTANT',
   }).ok
+  // A seat that reads people opens on the bench; the finance desk, which
+  // reads bench profit and no people, opens on bench profit; a client
+  // reads neither (`mayBrowseBench`).
+  const readsBench = hasPermission(session.permissions, 'consultants.read')
+  const clientRefused = mayBrowseBench({ companyKind: session.company?.kind ?? companyKind ?? null, scope: 'company' })
   const [profitOpen, setProfitOpen] = useState(asked === 'profit')
-  const showProfit = profitOpen && readsProfit
+  // A link to ?scope=profit opens it for anybody, so a seat that may not
+  // read it is shown the route's own sentence rather than a different tab
+  // in silence (bench tester, 2026-10-01). The tab is drawn only for the
+  // desks that read it.
+  const showProfit = clientRefused.ok && (profitOpen || (!readsBench && readsProfit && session.company != null))
   const [roster, setRoster] = useState<RosterEntry[]>([])
   const [rosterSays, setRosterSays] = useState<RosterSummaryData | null>(null)
   const [entries, setEntries] = useState<BenchEntry[]>([])
+  /** Your own listings, kept from the last read of your own bench, for the Add to bench search. */
+  const [ownListed, setOwnListed] = useState<Map<string, { listingId: string; consent: string | null }>>(new Map())
   // Whose chosen stay ran out: shown, not vanished (bench tester, 2026-09-30).
   const [ended, setEnded] = useState<{ listingId: string; name: string; says: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -576,6 +632,8 @@ export default function BenchPage() {
         rateMin: r.rateMin,
         rateMax: r.rateMax,
         availableFrom: r.availableFrom,
+        free: r.free,
+        stay: r.stay,
         reach: r.reach,
         reachSays: r.reachSays,
         grantedAt: r.grantedAt,
@@ -591,6 +649,9 @@ export default function BenchPage() {
       setRoster([])
       setRosterSays(null)
       setEntries(flat)
+      if (forScope === 'company') {
+        setOwnListed(new Map(flat.map((e) => [e.consultantId, { listingId: e.id, consent: e.consent ?? null }])))
+      }
       setEnded(Array.isArray(body.data?.ended) ? body.data.ended : [])
     } catch (err: any) {
       if (thisRequest !== requestId.current) return
@@ -602,9 +663,13 @@ export default function BenchPage() {
     }
   }, [])
 
+  // Nothing is asked of the route that it would refuse: a client and a
+  // seat that reads no people are told in a sentence instead.
+  const asksBench = readsBench && clientRefused.ok
   useEffect(() => {
+    if (!asksBench) { setLoading(false); return }
     fetchBench(scope)
-  }, [fetchBench, scope])
+  }, [fetchBench, scope, asksBench])
 
   // What the bench costs is read by the desks that read pay. Asked for
   // only where the seat holds it, so a desk without it never fires a
@@ -640,7 +705,7 @@ export default function BenchPage() {
       result = result.filter((e) => e.tier === tierFilter)
     }
     if (availFilter !== 'all') {
-      result = result.filter((e) => availabilityStatus(e.availableFrom).group === availFilter)
+      result = result.filter((e) => availabilityStatus(e.free).group === availFilter)
     }
     return result
   }, [entries, tierFilter, availFilter])
@@ -654,8 +719,8 @@ export default function BenchPage() {
     const retained = entries.filter((e) => agreed(e) && e.tier === 'RETAINED').length
     const marketing = entries.filter((e) => agreed(e) && e.tier === 'MARKETING').length
     const waiting = entries.filter((e) => e.consent === 'INVITED').length
-    const availNow = entries.filter((e) => availabilityStatus(e.availableFrom).group === 'now').length
-    const availSoon = entries.filter((e) => availabilityStatus(e.availableFrom).group === 'soon').length
+    const availNow = entries.filter((e) => availabilityStatus(e.free).group === 'now').length
+    const availSoon = entries.filter((e) => availabilityStatus(e.free).group === 'soon').length
     return { total: entries.length, retained, marketing, waiting, availNow, availSoon }
   }, [entries])
 
@@ -674,7 +739,8 @@ export default function BenchPage() {
             </div>
             <div className="min-w-0">
               <p className="font-medium text-etyme-ink truncate">{row.name}</p>
-              <p className="text-[11px] text-etyme-faint truncate">{row.headline ?? row.email}</p>
+              {/* Never another firm's person's contact (`benchSubtitle`). */}
+              <p className="text-[11px] text-etyme-faint truncate">{benchSubtitle(row, scope === 'company')}</p>
             </div>
           </div>
         </div>
@@ -748,15 +814,18 @@ export default function BenchPage() {
       key: 'availability',
       label: 'Available',
       render: (row) => {
-        const status = availabilityStatus(row.availableFrom)
+        const status = availabilityStatus(row.free)
         return <span className={`text-[12px] ${status.cls}`}>{status.text}</span>
       },
-      sortValue: (row) => row.availableFrom ? new Date(row.availableFrom).getTime() : Infinity,
+      sortValue: (row) => (row.free?.state === 'NOW' ? 0 : row.free?.on ? Date.parse(row.free.on) : Infinity),
     },
-    {
+    // On a partner's bench everybody is shown to partners — that is how
+    // they got here — so the column would say one thing on every row, in
+    // the other firm's words. Placed people say so under Available.
+    ...(scope === 'network' ? [] : [{
       key: 'tier',
-      label: 'Tier',
-      render: (row) => (
+      label: 'Listed as',
+      render: (row: BenchEntry) => (
         row.consent && row.consent !== 'GRANTED' ? (
           // Said here rather than at the submission.
           //
@@ -769,13 +838,17 @@ export default function BenchPage() {
             {row.consent === 'INVITED' ? 'Not answered yet' : 'Declined'}
           </span>
         ) : (
-        <span className={`chip text-[9px] ${row.tier === 'RETAINED' ? 'chip--verified' : 'chip--action'}`}>
-          {row.tier === 'RETAINED' ? 'Retained' : 'Marketing'}
-        </span>
+        <div>
+          <span className={`chip text-[9px] ${row.tier === 'RETAINED' ? 'chip--verified' : 'chip--action'}`}>
+            {TIER_WORD[row.tier]}
+          </span>
+          {/* How long they chose to stay, so the firm sees who is about to drop off. */}
+          {row.stay && <p className="text-[10px] text-etyme-muted mt-1">{row.stay}</p>}
+        </div>
         )
       ),
-      sortValue: (row) => row.tier,
-    },
+      sortValue: (row: BenchEntry) => row.tier,
+    } as Column<BenchEntry>]),
     {
       key: 'reach',
       label: 'Who sees them',
@@ -928,14 +1001,18 @@ export default function BenchPage() {
             Bench
           </h1>
           <p className="text-body-sm text-etyme-muted">
-            {scope === 'company'
+            {!clientRefused.ok
+              ? 'Bench reaches you through matching on your job requests.'
+              : showProfit
+              ? 'What your bench cost, and whether the work paid it back.'
+              : scope === 'company'
               ? 'People who granted you a listing — retained and marketing. Their consent is what lets you market them.'
               : scope === 'payroll'
                 ? 'People you employ, and what each of them is on. You need no listing to staff your own — and nothing here markets them.'
                 : 'People the firms you work with are marketing, who agreed to it. To put one forward yourself, ask to represent them — they answer, not their firm.'}
           </p>
         </div>
-        {scope !== 'payroll' && (
+        {asksBench && scope !== 'payroll' && !showProfit && (
           <button onClick={() => setShowAddModal(true)} className="btn-primary mt-3 shrink-0">
             Add to bench
           </button>
@@ -948,8 +1025,13 @@ export default function BenchPage() {
           — CLAUDE.md, "Not a `BenchListing` ... this is an employer's
           roster." Your network: a supplier chose to show you theirs.
           A GSI holds all three hats at once (src/lib/persona.ts). */}
+      {!clientRefused.ok && (
+        <p role="status" className="panel text-body-sm text-etyme-ink mb-6">{clientRefused.says}</p>
+      )}
+
+      {clientRefused.ok && (readsBench || readsProfit) && (
       <div className="flex items-center gap-1 bg-etyme-canvas rounded-md p-0.5 mb-6 w-fit">
-        {([
+        {((readsBench ? [
           // The founder's words, 2026-09-30: a firm's own people are "Our
           // bench" and the people partner firms offer it are "Partner
           // bench". A firm's own people come by two consents — a listing
@@ -958,7 +1040,7 @@ export default function BenchPage() {
           { key: 'company', label: 'Our bench \u00b7 listed' },
           { key: 'payroll', label: 'Our bench \u00b7 employed' },
           { key: 'network', label: 'Partner bench' },
-        ] as { key: BenchScope; label: string }[]).map(({ key, label }) => (
+        ] : []) as { key: BenchScope; label: string }[]).map(({ key, label }) => (
           <button
             key={key}
             onClick={() => { setScopeChosen(true); setScope(key); setProfitOpen(false) }}
@@ -982,20 +1064,27 @@ export default function BenchPage() {
           </button>
         )}
       </div>
+      )}
 
       {showProfit && <BenchProfit />}
 
-      <div className={showProfit ? 'hidden' : undefined}>
+      {clientRefused.ok && !readsBench && !showProfit && (
+        <p role="status" className="panel text-body-sm text-etyme-ink mb-6">
+          {benchClosedSays(session.company?.name ?? 'your firm')}
+        </p>
+      )}
+
+      <div className={showProfit || !asksBench ? 'hidden' : undefined}>
 
       {/* Stats row */}
       {scope !== 'payroll' && !loading && entries.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
           <StatChip label="Total" value={stats.total} />
-          <StatChip label="Retained" value={stats.retained} tone="verified" />
-          <StatChip label="Marketing" value={stats.marketing} tone="action" />
+          <StatChip label={TIER_WORD.RETAINED} value={stats.retained} tone="verified" />
+          <StatChip label={scope === 'network' ? 'Shown to you' : TIER_WORD.MARKETING} value={stats.marketing} tone="action" />
           <StatChip label="Invited, waiting" value={stats.waiting} tone="attention" />
-          <StatChip label="Available Now" value={stats.availNow} tone="verified" />
-          <StatChip label="Available ≤14d" value={stats.availSoon} tone="attention" />
+          <StatChip label="Free now" value={stats.availNow} tone="verified" />
+          <StatChip label="Free within 14 days" value={stats.availSoon} tone="attention" />
         </div>
       )}
 
@@ -1058,7 +1147,7 @@ export default function BenchPage() {
         selectable
         searchFilter={(row, q) =>
           row.name.toLowerCase().includes(q) ||
-          row.email.toLowerCase().includes(q) ||
+          (scope === 'company' && row.email.toLowerCase().includes(q)) ||
           row.skills.some((s) => s.toLowerCase().includes(q)) ||
           (row.headline?.toLowerCase().includes(q) ?? false) ||
           (row.location?.toLowerCase().includes(q) ?? false) ||
@@ -1113,8 +1202,8 @@ export default function BenchPage() {
             <div className="flex items-center gap-1 bg-etyme-canvas rounded-md p-0.5">
               {[
                 { key: 'all', label: 'All' },
-                { key: 'RETAINED', label: 'Retained' },
-                { key: 'MARKETING', label: 'Marketing' },
+                { key: 'RETAINED', label: TIER_WORD.RETAINED },
+                { key: 'MARKETING', label: TIER_WORD.MARKETING },
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -1168,6 +1257,7 @@ export default function BenchPage() {
       {/* Add bench listing modal */}
       {showAddModal && (
         <AddBenchListingModal
+          listed={ownListed}
           onClose={() => setShowAddModal(false)}
           onCreated={handleListingCreated}
         />
@@ -1442,13 +1532,13 @@ function BenchBurnPanel({ data }: { data: BurnData }) {
         {/* Tier breakdown */}
         <div className="flex items-center gap-6 text-[12px]">
           <div className="flex items-center gap-1.5">
-            <span className="chip chip--verified text-[9px]">Retained</span>
+            <span className="chip chip--verified text-[9px]">{TIER_WORD.RETAINED}</span>
             <span className="text-etyme-muted">
               {data.retained.count} · {fmtDollarsFull(data.retained.dailyBurn)}/day
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="chip chip--action text-[9px]">Marketing</span>
+            <span className="chip chip--action text-[9px]">{TIER_WORD.MARKETING}</span>
             <span className="text-etyme-muted">
               {data.marketing.count} · {fmtDollarsFull(data.marketing.dailyBurn)}/day
             </span>

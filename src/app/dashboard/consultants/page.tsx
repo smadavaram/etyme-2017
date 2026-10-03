@@ -8,7 +8,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
-import { wordFor } from '@/lib/bench-filter'
+import { wordFor, listingRates, TIER_WORD } from '@/lib/bench-filter'
 import { sectionOfHref } from '@/lib/page-framing'
 
 /**
@@ -46,7 +46,7 @@ interface Consultant {
 
 // ── Add Consultant Modal ───────────────────────────────────
 
-function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCreated: (says: string) => void }) {
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -54,6 +54,12 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
     skills: '',
     location: '',
     workAuth: '',
+    // Adding somebody also asks them to join your bench — said on the
+    // form, with the choice of who sees them and at what rate, rather
+    // than done in silence (bench tester, 2026-10-01).
+    tier: 'MARKETING' as 'MARKETING' | 'RETAINED',
+    rateMin: '',
+    rateMax: '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -97,6 +103,12 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
       return
     }
 
+    const rates = listingRates({ min: form.rateMin, max: form.rateMax }, null)
+    if (!rates.ok) {
+      setError(rates.says)
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
@@ -111,6 +123,9 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
           skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
           location: form.location || null,
           workAuth: form.workAuth || null,
+          tier: form.tier,
+          rateMin: rates.rateMin,
+          rateMax: rates.rateMax,
         }),
       })
 
@@ -128,7 +143,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
         return
       }
 
-      onCreated()
+      const body = await res.json().catch(() => ({}) as any)
+      onCreated(body.data?.message ?? `${form.name.trim()} is added.`)
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -258,12 +274,45 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
             </div>
           </div>
 
+          {/* Their bench listing: who sees them once they say yes, and at what rate. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="add-tier" className="block text-xs font-semibold text-etyme-muted mb-1">Who sees them</label>
+              <select
+                id="add-tier"
+                value={form.tier}
+                onChange={(e) => setForm({ ...form, tier: e.target.value as 'MARKETING' | 'RETAINED' })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              >
+                <option value="MARKETING">{TIER_WORD.MARKETING}</option>
+                <option value="RETAINED">{TIER_WORD.RETAINED}</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="add-rate-min" className="block text-xs font-semibold text-etyme-muted mb-1">Lowest rate ($/hr)</label>
+              <input id="add-rate-min" type="number" min="0" step="0.01" value={form.rateMin}
+                onChange={(e) => setForm({ ...form, rateMin: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
+            </div>
+            <div>
+              <label htmlFor="add-rate-max" className="block text-xs font-semibold text-etyme-muted mb-1">Highest rate ($/hr)</label>
+              <input id="add-rate-max" type="number" min="0" step="0.01" value={form.rateMax}
+                onChange={(e) => setForm({ ...form, rateMax: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
+            </div>
+          </div>
+          <p className="text-[12px] text-etyme-muted">
+            Adding them also emails them to ask if they will join your bench. Nothing reaches past your firm,
+            and nobody is put forward, until they say yes.
+          </p>
+
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
-              {submitting ? 'Creating…' : 'Add consultant'}
+              {submitting ? 'Adding…' : 'Add and ask them'}
             </button>
           </div>
         </form>
@@ -765,6 +814,8 @@ export default function ConsultantsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  /** What adding somebody did, said once it is done. */
+  const [added, setAdded] = useState<string | null>(null)
   const [selected, setSelected] = useState<Consultant | null>(null)
   const [hasCostPermission, setHasCostPermission] = useState(false)
   /**
@@ -968,12 +1019,19 @@ export default function ConsultantsPage() {
           {/* The section this page sits under on the reader's own menu. */}
           <p className="eyebrow">{sectionOfHref(session.company?.kind ?? 'VENDOR', '/dashboard/consultants') ?? ''}</p>
           <h1>Consultants</h1>
-          <p>Consultant records — imported, retained and marketing bench, with skills, availability and work authorization at a glance. People who granted you a listing.</p>
+          <p>Consultant records — the people on your bench, kept to you or shown to your partners, with skills, availability and work authorization at a glance.</p>
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
           Add consultant
         </button>
       </div>
+
+      {added && (
+        <p role="status" className="panel text-body-sm text-etyme-ink mb-6">
+          {added}{' '}
+          <button className="text-etyme-action hover:underline" onClick={() => setAdded(null)}>Close</button>
+        </p>
+      )}
 
       {/* The people this page cannot see, said rather than left as a zero. */}
       {!loading && onPayroll != null && onPayroll > 0 && (
@@ -1035,7 +1093,7 @@ export default function ConsultantsPage() {
       )}
 
       {/* Modals */}
-      {showAdd && <AddConsultantModal onClose={() => setShowAdd(false)} onCreated={fetchConsultants} />}
+      {showAdd && <AddConsultantModal onClose={() => setShowAdd(false)} onCreated={(says) => { setAdded(says); fetchConsultants() }} />}
       {selected && (
         <ConsultantDrawer
           consultant={selected}

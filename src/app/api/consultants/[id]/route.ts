@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { benchClosedSays } from '@/lib/bench-filter'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
@@ -49,7 +50,7 @@ export async function GET(
       })
     }
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'You need consultants.read permission' } },
+      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name ?? 'your firm') } },
       { status: 403 }
     )
   }
@@ -247,7 +248,7 @@ export async function PATCH(
 
   if (!hasPermission(caller.permissions, 'consultants.write')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'You need consultants.write permission' } },
+      { error: { code: 'FORBIDDEN', message: 'Changing a consultant’s record or putting them on the bench is for the recruiting desk, the resource manager, HR or the owner. Ask one of them.' } },
       { status: 403 }
     )
   }
