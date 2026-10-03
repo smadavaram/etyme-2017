@@ -270,7 +270,6 @@ const TO_REVIEW = [
   'imports/[id]/rows/[rowId]/route.ts',
   'market/leads/route.ts',
   'requirements/parse/route.ts',
-  'rolloff/[id]/claim/route.ts',
 ]
 
 function routesUnder(dir: string): string[] {

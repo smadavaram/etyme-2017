@@ -5,7 +5,7 @@
  *
  * Teleworld Solutions runs two client projects in two cities:
  *
- *   Portland   Northbend Athletic's retail finance systems, managed by
+ *   Tualatin   Northbend Athletic's retail finance systems, managed by
  *              Ingrid Solberg. Felix Brenner (ERP finance) comes off it in
  *              eighteen days, and Ingrid has flagged him. Amara Nwosu
  *              (data) comes off in twenty-five, and Ingrid is keeping her
@@ -37,7 +37,12 @@ const emailOf = (name: string) =>
   `${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
 
 /** The two projects, by the unit that delivers each inside Teleworld. */
-export const PORTLAND_PROJECT = 'Northbend Athletic — retail finance systems, Portland'
+// The founder's example said Portland; the project sits at Northbend
+// Athletic's one site, in Tualatin, where every other Northbend job is
+// seeded. A client read "Portland, OR" on its Ending soon beside
+// "Tualatin, OR" everywhere else (client tester, 2026-10-03). The
+// constant keeps its name: an identifier is not a word anybody reads.
+export const PORTLAND_PROJECT = 'Northbend Athletic — retail finance systems, Tualatin'
 export const SAN_JOSE_PROJECT = 'Harlow Health — ERP finance migration, San Jose'
 
 /** Staff seated at Teleworld for this story, and the address each signs in on. */
@@ -63,12 +68,12 @@ interface Line {
 
 const LINES: Line[] = [
   {
-    person: 'Felix Brenner', client: 'nike', site: { name: 'Portland office', city: 'Portland', state: 'OR' },
+    person: 'Felix Brenner', client: 'nike', site: { name: 'Tualatin site', city: 'Tualatin', state: 'OR' },
     role: 'Retail finance systems consultant', skills: ['ERP finance', 'General ledger', 'Retail'],
     unit: PORTLAND_PROJECT, bill: 13_200, pay: 8_600, start: -120, end: 18, release: { keepUntil: null },
   },
   {
-    person: 'Amara Nwosu', client: 'nike', site: { name: 'Portland office', city: 'Portland', state: 'OR' },
+    person: 'Amara Nwosu', client: 'nike', site: { name: 'Tualatin site', city: 'Tualatin', state: 'OR' },
     role: 'Retail data engineer', skills: ['Data pipelines', 'SQL', 'Retail analytics'],
     unit: PORTLAND_PROJECT, bill: 12_400, pay: 8_100, start: -90, end: 25, release: { keepUntil: 45 },
   },

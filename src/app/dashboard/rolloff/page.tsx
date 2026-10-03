@@ -5,6 +5,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { compact } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { clientEndingChoices } from '@/lib/releasing-soon'
 
 // ── Types — match API response shape ─────────────────────
 
@@ -18,6 +19,9 @@ interface TrackedRolloff {
   endClientCompany: { id: string; name: string } | null
   workLocation: { id: string; name: string; city: string | null; state: string | null; isRemote: boolean } | null
   engagement: { id: string; title: string } | null
+  /** The firm whose contract it is — for a client, the supplier it pays. */
+  supplier?: { id: string; name: string } | null
+  /** Null where this seat may not read the price on the line. */
   billRate: number | null
   checklist: Record<string, boolean> | null
   claimedById: string | null
@@ -34,6 +38,7 @@ interface UntrackedContract {
   endClientCompany: { id: string; name: string } | null
   workLocation: { id: string; name: string; city: string | null; state: string | null; isRemote: boolean } | null
   engagement: { id: string; title: string } | null
+  supplier?: { id: string; name: string } | null
   billRate: number | null
 }
 
@@ -68,21 +73,35 @@ function locationLabel(
   return parts ? ` · ${parts}` : ''
 }
 
+/** "Oct 21, 2026" — the way the dashboard says a day, never "10/21/2026". */
+function endDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
+/** " · $132/hr", or nothing where this seat may not read the rate. */
+function rateLabel(billRate: number | null): string {
+  return billRate != null ? ` · ${compact(billRate)}/hr` : ''
+}
+
 // ── Checklist item ─────────────────────────────────────────
 
 function ChecklistItem({
   label,
   checked,
   onToggle,
+  readOnly = false,
 }: {
   label: string
   checked: boolean
   onToggle: () => void
+  /** A client reads the supplier's checklist; only the supplier ticks it. */
+  readOnly?: boolean
 }) {
   return (
     <button
-      onClick={onToggle}
-      className="flex items-center gap-2 text-xs text-left w-full"
+      onClick={readOnly ? undefined : onToggle}
+      disabled={readOnly}
+      className="flex items-center gap-2 text-xs text-left w-full disabled:cursor-default"
     >
       <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
         checked
@@ -99,6 +118,74 @@ function ChecklistItem({
         {label}
       </span>
     </button>
+  )
+}
+
+// ── What a client decides ──────────────────────────────────
+//
+// A client's own three choices about somebody ending: extend, backfill,
+// or let it end (`clientEndingChoices`). Never the supplier's claim,
+// bench or lost, which the supplier's routes refuse to a client.
+
+function ClientChoices({
+  sellContractId,
+  endDate,
+  onDone,
+}: {
+  sellContractId: string
+  endDate: string
+  onDone: (message: string, type: 'success' | 'error') => void
+}) {
+  const [asking, setAsking] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const choices = clientEndingChoices({ sellContractId, endsOn: endDay(endDate) })
+  const extend = choices.find((c) => c.key === 'EXTEND')!
+  const backfill = choices.find((c) => c.key === 'BACKFILL')!
+  const letEnd = choices.find((c) => c.key === 'LET_END')!
+
+  async function doExtend() {
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/contracts/${sellContractId}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ months: 3 }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error?.message ?? 'The contract was not extended.')
+      onDone('Extended by 3 months. The supplier is told.', 'success')
+      setAsking(false)
+    } catch (e: any) {
+      onDone(e.message, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      {asking ? (
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-etyme-muted">Extend by 3 months?</span>
+          <button onClick={doExtend} disabled={busy} className="text-[11px] px-2.5 py-1 rounded bg-etyme-action text-white disabled:opacity-50">
+            {busy ? 'Extending…' : 'Yes, extend'}
+          </button>
+          <button onClick={() => setAsking(false)} className="text-[11px] px-2.5 py-1 rounded border border-etyme-rule text-etyme-muted">
+            No
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => setAsking(true)} className="text-[11px] px-2.5 py-1 rounded bg-etyme-action text-white">
+            {extend.label}
+          </button>
+          <a href={backfill.href!} className="text-[11px] px-2.5 py-1 rounded border border-etyme-rule text-etyme-action hover:bg-etyme-canvas">
+            {backfill.label}
+          </a>
+        </div>
+      )}
+      <p className="text-[10px] text-etyme-faint">{letEnd.label}</p>
+    </div>
   )
 }
 
@@ -261,6 +348,13 @@ export default function RolloffPage() {
     }
   }
 
+  // A toast, and the list read again so an extension shows at once.
+  function say(message: string, type: 'success' | 'error') {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 4000)
+    if (type === 'success') fetchRolloffs()
+  }
+
   const total = tracked.length + untracked.length
 
   // Combine all for urgency counts
@@ -342,14 +436,14 @@ export default function RolloffPage() {
       {/* Error */}
       {error && (
         <div className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          Could not load rolloff events: {error}
+          {isClient ? 'Could not load who is ending' : 'Could not load rolloff events'}: {error}
         </div>
       )}
 
       {/* Loading */}
       {loading && (
         <div className="card text-center py-12">
-          <p className="text-sm text-etyme-muted">Loading rolloff events...</p>
+          <p className="text-sm text-etyme-muted">{isClient ? 'Loading who is ending…' : 'Loading rolloff events...'}</p>
         </div>
       )}
 
@@ -357,10 +451,12 @@ export default function RolloffPage() {
       {!loading && total === 0 && !error && (
         <div className="card text-center py-12">
           <p className="text-sm text-etyme-muted">No contract endings in the next {window} days.</p>
-          <p className="text-xs text-etyme-muted/60 mt-1">
-            Rolloff events are created automatically when a sell contract has an end date within 8 weeks,
-            either from import or when a contract end date is set.
-          </p>
+          {!isClient && (
+            <p className="text-xs text-etyme-muted/60 mt-1">
+              Rolloff events are created automatically when a sell contract has an end date within 8 weeks,
+              either from import or when a contract end date is set.
+            </p>
+          )}
         </div>
       )}
 
@@ -370,10 +466,10 @@ export default function RolloffPage() {
           <div className="flex items-center gap-2 mb-3">
             <span className="evidence-dot evidence-dot--pending" />
             <h2 className="text-sm font-semibold text-etyme-ink">
-              Contracts ending soon — no rolloff event yet
+              {isClient ? 'Ending — the supplier has not started offboarding' : 'Contracts ending soon — no rolloff event yet'}
             </h2>
             <span className="pill text-[10px] bg-amber-50 text-etyme-attention border border-amber-200">
-              {untracked.length} untracked
+              {isClient ? untracked.length : `${untracked.length} untracked`}
             </span>
           </div>
           <ListSurface<UntrackedContract>
@@ -398,14 +494,19 @@ export default function RolloffPage() {
                       {clientLabel(c.clientCompany, c.endClientCompany)}
                       {locationLabel(c.workLocation)}
                       {c.engagement && ` · ${c.engagement.title}`}
-                      {c.billRate != null && ` · {compact(c.billRate)}/hr`}
+                      {rateLabel(c.billRate)}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium tabular-nums">
-                      {new Date(c.endDate).toLocaleDateString()}
-                    </p>
-                    <p className="text-[10px] text-etyme-muted">End date</p>
+                  <div className="flex items-start gap-3">
+                    {isClient && (
+                      <ClientChoices sellContractId={c.sellContractId} endDate={c.endDate} onDone={say} />
+                    )}
+                    <div className="text-right">
+                      <p className="text-sm font-medium tabular-nums">
+                        {endDay(c.endDate)}
+                      </p>
+                      <p className="text-[10px] text-etyme-muted">Last day</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -421,10 +522,10 @@ export default function RolloffPage() {
           <div className="flex items-center gap-2 mb-3">
             <span className="evidence-dot evidence-dot--ok" />
             <h2 className="text-sm font-semibold text-etyme-ink">
-              Tracked rolloff events
+              {isClient ? 'Ending — the supplier is offboarding' : 'Tracked rolloff events'}
             </h2>
             <span className="pill text-[10px] bg-etyme-verified-wash text-etyme-verified">
-              {tracked.length} tracked
+              {isClient ? tracked.length : `${tracked.length} tracked`}
             </span>
           </div>
           <ListSurface<TrackedRolloff>
@@ -461,11 +562,14 @@ export default function RolloffPage() {
                         {clientLabel(event.clientCompany, event.endClientCompany)}
                         {locationLabel(event.workLocation)}
                         {event.engagement && ` · ${event.engagement.title}`}
-                        {event.billRate != null && ` · {compact(event.billRate)}/hr`}
+                        {rateLabel(event.billRate)}
                       </p>
                     </div>
                     <div className="flex items-start gap-3">
-                      {!event.claimedById && !event.outcome && (
+                      {isClient && (
+                        <ClientChoices sellContractId={event.sellContractId} endDate={event.endDate} onDone={say} />
+                      )}
+                      {!isClient && !event.claimedById && !event.outcome && (
                         <button
                           onClick={() => handleClaim(event.id)}
                           disabled={claiming === event.id}
@@ -478,7 +582,7 @@ export default function RolloffPage() {
                       {/* What actually happened. Resolving claims it too,
                           if nobody has yet — one action instead of a
                           forced two clicks to record the same decision. */}
-                      {!event.outcome && (
+                      {!isClient && !event.outcome && (
                         <div className="flex flex-col items-end gap-1">
                           <p className="text-[10px] text-etyme-faint">What happened?</p>
                           <div className="flex items-center gap-1.5">
@@ -514,9 +618,9 @@ export default function RolloffPage() {
                       )}
                       <div className="text-right">
                         <p className="text-sm font-medium tabular-nums">
-                          {new Date(event.endDate).toLocaleDateString()}
+                          {endDay(event.endDate)}
                         </p>
-                        <p className="text-[10px] text-etyme-muted">End date</p>
+                        <p className="text-[10px] text-etyme-muted">Last day</p>
                       </div>
                     </div>
                   </div>
@@ -526,7 +630,7 @@ export default function RolloffPage() {
                     <div className="border-t border-etyme-rule pt-3">
                       <div className="flex items-center justify-between mb-3">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
-                          Offboarding checklist
+                          {isClient && event.supplier ? `${event.supplier.name}’s offboarding checklist` : 'Offboarding checklist'}
                         </p>
                         <span className={`pill text-[10px] ${
                           progress === 4
@@ -552,21 +656,25 @@ export default function RolloffPage() {
                           label="Knowledge transfer"
                           checked={event.checklist.knowledgeTransfer ?? false}
                           onToggle={() => handleChecklistToggle(event.id, 'knowledgeTransfer')}
+                          readOnly={isClient}
                         />
                         <ChecklistItem
                           label="Final timesheet"
                           checked={event.checklist.finalTimesheet ?? false}
                           onToggle={() => handleChecklistToggle(event.id, 'finalTimesheet')}
+                          readOnly={isClient}
                         />
                         <ChecklistItem
                           label="Access revocation"
                           checked={event.checklist.accessRevocation ?? false}
                           onToggle={() => handleChecklistToggle(event.id, 'accessRevocation')}
+                          readOnly={isClient}
                         />
                         <ChecklistItem
                           label="Assets returned"
                           checked={event.checklist.assets ?? false}
                           onToggle={() => handleChecklistToggle(event.id, 'assets')}
+                          readOnly={isClient}
                         />
                       </div>
                     </div>
@@ -582,7 +690,7 @@ export default function RolloffPage() {
       {!loading && total > 0 && (
         <p className="text-xs text-etyme-muted mt-4">
           {total} contract ending{total !== 1 ? 's' : ''} in the next {window} days
-          {summary && ` · ${summary.tracked} tracked · ${summary.untracked} untracked`}
+          {!isClient && summary && ` · ${summary.tracked} tracked · ${summary.untracked} untracked`}
         </p>
       )}
 

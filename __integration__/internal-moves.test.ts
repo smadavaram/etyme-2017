@@ -13,7 +13,7 @@ import { poolFor } from '@/lib/match-pool'
 
 /**
  * The founder's example, walked on the seeded world (2026-09-30): Ingrid
- * Solberg manages Teleworld's Portland project at Northbend Athletic and
+ * Solberg manages Teleworld's Tualatin project at Northbend Athletic and
  * has flagged Felix Brenner rolling off; Rahul Deshpande manages its San
  * Jose project at Harlow Health, sees Felix on Our bench, asks, reserves
  * and — once Ingrid confirms the day — places him on his own project's
@@ -65,7 +65,7 @@ describe('Our bench, as the seeded world has it', () => {
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const felix = r.body.data.rows.find((x: any) => x.name === 'Felix Brenner')
     expect(felix.status).toBe('ROLLING_OFF')
-    expect(felix.project).toBe('Northbend Athletic, Portland')
+    expect(felix.project).toBe('Northbend Athletic, Tualatin')
     expect(felix.releaser.name).toBe('Ingrid Solberg')
     expect(felix.may).toMatchObject({ ask: true, reserve: true, confirm: false, place: false })
     // Somebody on a project nobody flagged is not on Our bench.
@@ -136,7 +136,7 @@ describe('flagging', () => {
     expect(r.body.error.message).toBe('Felix Brenner is on a project you do not manage. The manager of the Northbend Athletic project flags who comes off it.')
   })
 
-  it('the San Jose manager flags his own engineer, and the Portland manager then sees her on Our bench', async () => {
+  it('the San Jose manager flags his own engineer, and the Tualatin manager then sees her on Our bench', async () => {
     const line = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids.deepa, companyId: ids.teleworld, state: 'IN_PROGRESS' } })
     as(RAHUL)
     const f = await json(await flag(req('POST', '/api/bench/ours/flag', { sellContractId: line.id, rollsOffOn: iso(line.endDate!) })))
@@ -196,7 +196,7 @@ describe('asking, holding, confirming and placing', () => {
   it('the releasing manager cannot hold their own person; she keeps them with a date instead', async () => {
     const mine = await read(INGRID)
     const portland = mine.body.data.positions[0]
-    expect(portland.title).toContain('Northbend Athletic, Portland')
+    expect(portland.title).toContain('Northbend Athletic, Tualatin')
     as(INGRID)
     const r = await json(await hold(req('POST', '/api/bench/ours/holds', { personId: ids.amara, sellContractId: portland.sellContractId })))
     expect(r.status).toBe(409)
@@ -231,7 +231,7 @@ describe('asking, holding, confirming and placing', () => {
     const r = await json(await place(req('POST', `/api/bench/ours/holds/${ids.hold}/place`, {}), params({ id: ids.hold })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect(r.body.data.startsOn).toBe(iso(new Date(oldEnd.getTime() + DAY)))
-    expect(r.body.data.cityChange).toBe('This moves you from Portland to San Jose.')
+    expect(r.body.data.cityChange).toBe('This moves you from Tualatin to San Jose.')
 
     const line = await prisma.sellContract.findUniqueOrThrow({
       where: { id: r.body.data.sellContractId },
@@ -274,7 +274,7 @@ describe('asking, holding, confirming and placing', () => {
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const next = r.body.data.moves.find((m: any) => m.kind === 'NEXT_PROJECT')
     expect(next.title).toMatch(/^Your next project: Harlow Health in San Jose, from /)
-    expect(next.body).toContain('This moves you from Portland to San Jose.')
+    expect(next.body).toContain('This moves you from Tualatin to San Jose.')
     expect(next.cityChange).toBe(true)
     const email = await prisma.notification.findFirst({ where: { personId: ids.felix, type: 'ROLLOFF', channel: 'EMAIL', title: { startsWith: 'Your next project' } } })
     expect(email).not.toBeNull()

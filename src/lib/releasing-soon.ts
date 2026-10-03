@@ -1,4 +1,5 @@
 import type { Permission } from '@/lib/permissions'
+import { canReadBillRate } from '@/lib/permissions'
 /**
  * People about to come free.
  *
@@ -237,4 +238,64 @@ export const CHECK_IN_READERS = ['consultants.read'] as const satisfies readonly
 /** Said to a seat that holds none of them. */
 export function notYoursToRead(surface: string, company: string | null | undefined): string {
   return `${surface} at ${company ?? 'your firm'} is read by the desks that staff, run or pay its work. Your own work is on your own page.`
+}
+
+// ── The rate on an Ending soon card ──────────────────────────────────────
+//
+// The client tester, 2026-10-03, found every card printing
+// "{compact(event.billRate)}/hr" — the page had lost its template — and
+// the route sent the rate to every seat that could open the page. The
+// price on a line is read under the field rule (lib/permissions,
+// `canReadBillRate`): the firm it bills reads what it pays, and the
+// supplier's own seats read it only with the price desk's permission.
+
+export function rateOnEndingSoon(
+  reader: { companyId: string | null; permissions: readonly string[] },
+  line: { billRate: number; companyId: string; clientCompanyId: string }
+): number | null {
+  return canReadBillRate({
+    permissions: reader.permissions,
+    isClientOnMsa: reader.companyId !== null && reader.companyId === line.clientCompanyId,
+  })
+    ? line.billRate
+    : null
+}
+
+// ── What a client does about somebody ending ─────────────────────────────
+//
+// The same tester: a client's Ending soon offered "Claim", "Back on bench"
+// and "Lost" — the supplier's offboarding words, on buttons the supplier's
+// routes refuse to a client. A client decides three things about a person
+// whose contract is ending, and the page offers those.
+
+export interface ClientEndingChoice {
+  key: 'EXTEND' | 'BACKFILL' | 'LET_END'
+  label: string
+  /** Where it goes, or null where nothing needs doing. */
+  href: string | null
+}
+
+export function clientEndingChoices(line: { sellContractId: string; endsOn: string }): ClientEndingChoice[] {
+  return [
+    { key: 'EXTEND', label: 'Extend 3 months', href: null },
+    { key: 'BACKFILL', label: 'Backfill — raise a job request', href: '/dashboard/requirements?new=1' },
+    { key: 'LET_END', label: `Or let it end on ${line.endsOn}. Nothing to do.`, href: null },
+  ]
+}
+
+/**
+ * Only the firm whose contract it is works its offboarding: claims it,
+ * ticks its checklist, records what happened. The claim route asked who
+ * was signed in and not where they sat, so anybody could claim any
+ * firm's rolloff. The sentence is said to everybody else.
+ */
+export function mayWorkRolloff(
+  reader: { companyId: string | null; isConsultantSeat: boolean },
+  line: { companyId: string; companyName: string }
+): { ok: true } | { ok: false; says: string } {
+  if (!reader.isConsultantSeat && reader.companyId === line.companyId) return { ok: true }
+  return {
+    ok: false,
+    says: `Only ${line.companyName} works this offboarding, because the contract is theirs.`,
+  }
 }
