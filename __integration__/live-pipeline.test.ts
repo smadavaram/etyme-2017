@@ -65,9 +65,11 @@ describe('the seeded world', () => {
     const sanJose = headline(round, now, names, 'America/Los_Angeles')
 
     expect(mumbai).not.toBe(sanJose)
-    // Whatever the platform's zone data is called, both must name one.
-    expect(mumbai).toMatch(/\d{2}:\d{2}\s\S+/)
-    expect(sanJose).toMatch(/\d{2}:\d{2}\s\S+/)
+    // A clock time with AM or PM, then the zone named. Whatever the
+    // platform's zone data calls it ("PDT", "GMT+5:30"), both must name one.
+    const timeThenZone = /\d{1,2}:\d{2}\s?[AP]M\s\S+/
+    expect(mumbai).toMatch(timeThenZone)
+    expect(sanJose).toMatch(timeThenZone)
   })
 
   it('says UTC out loud rather than silently assuming it when nobody set a zone', async () => {
