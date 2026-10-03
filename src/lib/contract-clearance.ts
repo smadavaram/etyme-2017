@@ -70,6 +70,7 @@ import {
   type LicenseGate,
 } from '@/lib/document-stages'
 import { prisma } from '@/lib/db'
+import { plainDate } from '@/lib/plain-date'
 import { requirementsFor } from '@/lib/document-requirements'
 import { heldFromDocInstances } from '@/lib/document-request'
 import {
@@ -1054,6 +1055,48 @@ export interface StartPreview {
   headline: string
   /** What is still missing, listed. Null where nothing is. */
   outstanding: string | null
+}
+
+/**
+ * The start on a placement's header, in a sentence that is true.
+ *
+ * Found by a tester on 2026-10-03: Ingrid Sørensen's placement header read
+ * "started Oct 10, 2026" a week before Oct 10, on a draft contract that
+ * cannot start at all — no proof of right to work, no I-9. The header
+ * printed the start date as a past event because a date was set; a date
+ * set is a plan, not a fact.
+ *
+ * So "started" is said only of a contract that is running, paused or
+ * ended, on or after its first day. Anything else is "due to start", and
+ * where the checklist blocks the start the header names what holds it up,
+ * in the checklist's own words, so the header and the "Cleared to work"
+ * station cannot disagree. A first day that has passed on a contract that
+ * never started says so rather than pretending it is still ahead.
+ *
+ * `blocking` is the labels of the items that stop the start. Where the
+ * verdict is BLOCK and none are named — lapsed supplier cover, a license
+ * — the header points at the station rather than guessing a reason.
+ */
+export function startWords(o: {
+  startDate: string | null
+  state: string
+  outcome: Outcome | null
+  blocking: { label: string; said?: string }[]
+  today: Date
+}): string | null {
+  if (!o.startDate) return null
+  const first = new Date(o.startDate)
+  const on = plainDate(o.startDate)
+  const begun = ['IN_PROGRESS', 'PAUSED', 'ENDED'].includes(o.state)
+  if (begun && first.getTime() <= o.today.getTime()) return `started ${on}`
+  const due = !begun && first.getTime() < o.today.getTime()
+    ? `was due to start ${on} and has not started`
+    : `due to start ${on}`
+  if (o.outcome !== 'BLOCK') return due
+  const reason = o.blocking.length > 0
+    ? `waiting on ${names(o.blocking)}`
+    : 'see Cleared to work below'
+  return `${due}; held up: ${reason}`
 }
 
 /** "in 9 days" · "tomorrow" · "today" · "9 days ago". */
