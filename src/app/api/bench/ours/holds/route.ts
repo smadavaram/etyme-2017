@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
-import { checkHold, managesLine, cityOf, isoDay } from '@/lib/internal-moves'
+import { checkHold, managesLine, cityOf, isoDay, freeFrom } from '@/lib/internal-moves'
 import { seatFacts, refuse, trail, tellStep, standingHold, standingRelease, employs, nameOf } from '../facts'
 
 function day(v: unknown): Date | null {
@@ -95,6 +95,8 @@ export async function POST(request: NextRequest) {
     isManager: verdict.as === 'MANAGER',
     untilAsked: body.until ? day(body.until) : null,
     hasPosition: position != null,
+    // The hold reaches the day they are free (`checkHold`).
+    freeOn: release ? freeFrom(release) : null,
     today: now,
   })
   if (!check.ok) {

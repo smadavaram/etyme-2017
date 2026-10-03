@@ -262,11 +262,34 @@ export function checkFlag(f: FlagFacts): FlagVerdict {
   }
   const freeOn = freeFrom({ rollsOffOn: day, keepUntil: f.keepUntil })
   const early = f.lineEnd != null && day.getTime() < dayOf(f.lineEnd).getTime()
-  const keep = f.keepUntil ? ` You keep them until then; they read as free from ${onDay(freeOn)}.` : ` Free from ${onDay(freeOn)}.`
+  const gap = keptPastContract(f.keepUntil, f.lineEnd ?? null)
+  const keep = f.keepUntil
+    ? ` You keep them until then; they read as free from ${onDay(freeOn)}.${gap ? ` ${gap}` : ''}`
+    : ` Free from ${onDay(freeOn)}.`
   const earlyNote = early
     ? ` The contract still runs to ${onDay(f.lineEnd!)}; it is not shortened by this, and ${who} cannot start elsewhere until it ends.`
     : ''
   return { ok: true, freeOn, early, says: `${who} comes off the ${f.clientName} project on ${onDay(day)}.${keep}${earlyNote}` }
+}
+
+/**
+ * Said where a manager keeps somebody past the day their contract ends.
+ *
+ * Amara was "kept until Nov 15" on a contract ending Oct 26, which is
+ * three weeks with no contract under her and nothing on the screen said
+ * so (bench tester, 2026-10-01). Keeping is allowed — it is the
+ * manager's call — but the days between are named, and who pays them is
+ * the firm's bench pay policy, not the client.
+ */
+export function keptPastContract(keepUntil: Date | null, contractEnds: Date | null): string | null {
+  if (!keepUntil || !contractEnds) return null
+  const gap = Math.round((dayOf(keepUntil).getTime() - dayOf(contractEnds).getTime()) / DAY) - 1
+  if (gap <= 0) return null
+  return (
+    `The contract ends on ${onDay(contractEnds)}, so the ${gap === 1 ? 'one day' : `${gap} days`} between then and ` +
+    `${onDay(keepUntil)} have no contract under them: no client is billed for them, and your bench pay policy decides ` +
+    'what they are paid.'
+  )
 }
 
 // ── The hold ─────────────────────────────────────────────────────────
@@ -296,6 +319,8 @@ export interface HoldFacts {
   untilAsked: Date | null
   /** A position was named. */
   hasPosition: boolean
+  /** The first day the person may start elsewhere (`freeFrom`). Null or past for somebody free now. */
+  freeOn?: Date | null
   today: Date
 }
 
@@ -338,17 +363,31 @@ export function checkHold(f: HoldFacts): HoldVerdict {
     return { ok: false, code: 'NO_POSITION', message: `Say which position you are holding ${who} for — a job request, or your own project’s order.` }
   }
   const today = dayOf(f.today)
-  const until = f.untilAsked ? dayOf(f.untilAsked) : addDays(today, HOLD_DAYS)
+  // A hold reaches at least the day the person is free: one that runs out
+  // before then protects nothing (bench tester, 2026-10-01 — Amara held
+  // to Oct 15 and free on Nov 15). So the default is two weeks or the
+  // free day, whichever is later, and the longest is thirty days or the
+  // free day, whichever is later.
+  const free = f.freeOn && dayOf(f.freeOn).getTime() > today.getTime() ? dayOf(f.freeOn) : null
+  const later = (a: Date, b: Date | null) => (b && b.getTime() > a.getTime() ? b : a)
+  const until = f.untilAsked ? dayOf(f.untilAsked) : later(addDays(today, HOLD_DAYS), free)
   if (until.getTime() < today.getTime()) {
     return { ok: false, code: 'BAD_UNTIL', message: `A hold ends today or later, not on ${onDay(until)}.` }
   }
-  if (until.getTime() > addDays(today, HOLD_DAYS_MAX).getTime()) {
+  const longest = later(addDays(today, HOLD_DAYS_MAX), free)
+  if (until.getTime() > longest.getTime()) {
     return {
       ok: false, code: 'BAD_UNTIL',
-      message: `A hold lasts ${HOLD_DAYS_MAX} days at most, so no later than ${onDay(addDays(today, HOLD_DAYS_MAX))}. Longer keeps ${who} from every other manager.`,
+      message: free && free.getTime() >= addDays(today, HOLD_DAYS_MAX).getTime()
+        ? `A hold lasts until ${who} is free at most, so no later than ${onDay(longest)}. Longer keeps ${who} from every other manager.`
+        : `A hold lasts ${HOLD_DAYS_MAX} days at most, so no later than ${onDay(longest)}. Longer keeps ${who} from every other manager.`,
     }
   }
-  return { ok: true, until, says: `You hold ${who} until ${onDay(until)}. Nobody else can reserve them before then.` }
+  const lapses =
+    free && until.getTime() < free.getTime()
+      ? ` It ends before ${who} is free on ${onDay(free)}: place them before it ends, or it lapses and any manager may reserve them.`
+      : ''
+  return { ok: true, until, says: `You hold ${who} until ${onDay(until)}. Nobody else can reserve them before then.${lapses}` }
 }
 
 /** Who may end a hold: whoever holds it, or the manager releasing the person. */
@@ -499,6 +538,28 @@ export interface StepFacts {
   movedAs?: 'SUBMISSION' | 'LINE' | null
 }
 
+/**
+ * A position's title without the client it already names.
+ *
+ * A hold's title is "the job at the client" — "ERP finance migration at
+ * Harlow Health" — so a sentence that adds "at Harlow Health" after it
+ * read the client twice (bench tester, 2026-10-01).
+ */
+export function jobOnly(forTitle: string | null | undefined, client: string | null | undefined): string {
+  const t = (forTitle ?? '').trim()
+  if (!t) return 'the position'
+  if (client) {
+    const tail = ` at ${client}`
+    if (t.endsWith(tail) && t.length > tail.length) return t.slice(0, -tail.length)
+  }
+  return t
+}
+
+/** "Teleworld Solutions’", "Harlow Health’s": a name ending in s takes the apostrophe alone. */
+export function possessive(name: string): string {
+  return /s$/i.test(name.trim()) ? `${name.trim()}’` : `${name.trim()}’s`
+}
+
 function at(client?: string | null, city?: string | null): string {
   if (client && city) return `${client} in ${city}`
   return client ?? city ?? 'the project'
@@ -536,8 +597,8 @@ export function hrNotice(step: Step, f: StepFacts): { title: string; body: strin
       }
     case 'MOVE': {
       const how = f.movedAs === 'SUBMISSION'
-        ? `put forward to ${f.toClient}’s job request as the firm’s own employee`
-        : `placed on ${f.forTitle} at ${at(f.toClient, f.toCity)}, starting ${onDay(f.startsOn!)}`
+        ? `put forward to ${possessive(f.toClient ?? 'the client')} job request as the firm’s own employee`
+        : `placed on ${jobOnly(f.forTitle, f.toClient)} at ${at(f.toClient, f.toCity)}, starting ${onDay(f.startsOn!)}`
       const city = cityChange(f.fromCity ?? null, f.toCity ?? null)
       return {
         title: `${who} moves to ${at(f.toClient, f.toCity)}`,
@@ -581,7 +642,7 @@ export function personNotice(step: Step, f: StepFacts): { title: string; body: s
     case 'MOVE': {
       const city = cityChange(f.fromCity ?? null, f.toCity ?? null)
       const body = f.movedAs === 'SUBMISSION'
-        ? `${f.firmName} has put you forward to ${f.toClient} for ${f.forTitle}, as its own employee. You start there only if ${f.toClient} chooses you; your employer stays ${f.firmName}.`
+        ? `${f.firmName} has put you forward to ${f.toClient} for ${jobOnly(f.forTitle, f.toClient)}, as its own employee. You start there only if ${f.toClient} chooses you; your employer stays ${f.firmName}.`
         : `You start on ${onDay(f.startsOn!)}, on ${f.forTitle}. Your employer stays ${f.firmName}; ${f.actorName} is your manager there.`
       return {
         title: f.movedAs === 'SUBMISSION'
@@ -613,8 +674,8 @@ export interface OurBenchFacts {
     releaserId: string
     releaserName: string
   } | null
-  /** The project they are on now: client and city, where the reader may be told it. */
-  current: { client: string | null; city: string | null } | null
+  /** The project they are on now: client and city, where the reader may be told it, and the day its contract ends. */
+  current: { client: string | null; city: string | null; endsOn?: Date | null } | null
   /** Whether the reader's own account wall lets them see which client that is. */
   mayNameProject: boolean
   /** The day they were last on a project, for somebody already between projects. */
@@ -684,7 +745,8 @@ export function ourBenchRow(f: OurBenchFacts, viewer: ViewerFacts): OurBenchRow 
     const off = `Comes off${project ? ` ${project}` : ''} on ${onDay(f.release.rollsOffOn)}`
     const keep = f.release.keepUntil ? `; staying with ${f.release.releaserName} until ${onDay(f.release.keepUntil)}` : ''
     const conf = f.release.confirmedAt ? ', confirmed' : ''
-    says = `${off}${keep}${conf}. Released by ${f.release.releaserName}.`
+    const gap = keptPastContract(f.release.keepUntil, f.current?.endsOn ?? null)
+    says = `${off}${keep}${conf}. Released by ${f.release.releaserName}.${gap ? ` ${gap}` : ''}`
   } else {
     says = f.lastEnded ? `Between projects since ${onDay(addDays(f.lastEnded, 1))}.` : 'Between projects.'
   }
@@ -723,6 +785,18 @@ export function ourBenchRow(f: OurBenchFacts, viewer: ViewerFacts): OurBenchRow 
 /** Soonest free first; a tie by name, so two readers see one order. */
 export function byFreeDate(a: OurBenchRow, b: OurBenchRow): number {
   return a.freeOn === b.freeOn ? a.name.localeCompare(b.name) : a.freeOn < b.freeOn ? -1 : 1
+}
+
+/**
+ * Each job request once. A firm that resells a client's job request holds
+ * a copy of its own (`mirroredFromId`) beside the one it was sent; the
+ * copy is dropped where the original is in the list too, because its own
+ * employee goes forward on the original, and the submission door refuses
+ * a firm on its own copy.
+ */
+export function onePerJob<T extends { id: string; mirroredFromId: string | null }>(reqs: T[]): T[] {
+  const ids = new Set(reqs.map((r) => r.id))
+  return reqs.filter((r) => !(r.mirroredFromId && ids.has(r.mirroredFromId)))
 }
 
 /** The thread about one person on Our bench — one per person per firm, inside the firm. */

@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { plainDate } from '@/lib/plain-date'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Thread } from '@/components/thread'
+import { possessive } from '@/lib/internal-moves'
 
 /**
  * Our bench — an integrator's own people coming off a project or between
@@ -206,7 +207,7 @@ export function OurBench({ firmName }: { firmName: string }) {
     <div className="space-y-6">
       <div>
         <p className="text-body-sm text-etyme-muted max-w-2xl">
-          Your own people coming off a project or between projects. Seen by {firmName}&rsquo;s managers and HR; no client sees it.
+          Your own people coming off a project or between projects. Seen by {possessive(firmName)} managers and HR; no client sees it.
           The manager releasing somebody confirms their last day; the manager taking them places them. HR is told of every step.
         </p>
       </div>
@@ -415,10 +416,10 @@ function ActPanel({ act, data, onClose, onDone }: {
                 ))}
               </select>
             </label>
-            <label className="text-[12px] text-etyme-muted">Hold until (two weeks if empty)
+            <label className="text-[12px] text-etyme-muted">Hold until (if empty: two weeks, or the day they are free if that is later)
               <input type="date" value={until} onChange={(e) => setUntil(e.target.value)} className="mt-1 w-full border border-etyme-rule rounded px-2 py-1.5 text-sm text-etyme-ink" />
             </label>
-            <p className="sm:col-span-2 text-[12px] text-etyme-muted">{act.row.name} is {act.row.freeOnSays.toLowerCase()}. One hold at a time: nobody else can reserve them while you hold them. {act.row.name} and HR are told.</p>
+            <p className="sm:col-span-2 text-[12px] text-etyme-muted">{act.row.name} is {act.row.freeOnSays.replace(/^Free/, 'free')}. One hold at a time: nobody else can reserve them while you hold them. {act.row.name} and HR are told.</p>
             <button disabled={busy} className="btn-primary disabled:opacity-50">{busy ? 'Reserving…' : 'Reserve'}</button>
           </form>
         )

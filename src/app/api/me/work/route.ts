@@ -59,6 +59,13 @@ async function movesFor(personId: string, now: Date) {
     where: { id: { in: holds.map((h) => h.placedSellContractId).filter((x): x is string => !!x) } },
     select: { id: true, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } }, workLocation: { select: { city: true } } },
   })
+  // The client of a job request somebody was put forward to: the person's
+  // own sentence named the job where the client belonged, three times
+  // (bench tester, 2026-10-01).
+  const forReqs = await prisma.requirement.findMany({
+    where: { id: { in: holds.map((h) => h.forRequirementId).filter((x): x is string => !!x) } },
+    select: { id: true, title: true, location: true, company: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+  })
   const out: { kind: 'COMING_OFF' | 'HELD' | 'NEXT_PROJECT'; title: string; body: string; cityChange: boolean }[] = []
   for (const r of releases) {
     const placed = holds.some((h) => h.releaseId === r.id && h.endedHow === 'PLACED')
@@ -75,10 +82,16 @@ async function movesFor(personId: string, now: Date) {
     const fromCity = h.release ? cityOf(h.release.sellContract.workLocation) ?? cityOf(h.release.sellContract.requirement?.location ?? null) : null
     if (h.endedHow === 'PLACED') {
       const line = placedLines.find((l) => l.id === h.placedSellContractId)
-      const toCity = line ? cityOf(line.workLocation) : null
+      const req = forReqs.find((r) => r.id === h.forRequirementId) ?? null
+      const toCity = line ? cityOf(line.workLocation) : req ? cityOf(req.location) : null
+      const toClient = line
+        ? line.endClientCompany?.name ?? line.clientCompany.name
+        : req
+          ? req.endClientCompany?.name ?? req.company.name
+          : null
       const n = personNotice('MOVE', {
         personName: '', firmName: h.company.name, actorName: names.get(h.heldById) ?? 'Your manager',
-        forTitle: h.forTitle, toClient: line ? line.endClientCompany?.name ?? line.clientCompany.name : h.forTitle,
+        forTitle: req?.title ?? h.forTitle, toClient: toClient ?? 'the client',
         toCity, fromCity, startsOn: h.placedStartsOn, movedAs: h.placedSubmissionId ? 'SUBMISSION' : 'LINE',
       })
       out.push({ kind: 'NEXT_PROJECT', title: n.title, body: n.body, cityChange: n.body.includes('This moves you from') })

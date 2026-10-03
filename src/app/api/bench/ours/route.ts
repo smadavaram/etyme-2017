@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { standingOf, type RosterLine } from '@/lib/consultant-portfolio'
 import {
-  ourBenchRow, byFreeDate, managesLine, cityOf, dayOf, isoDay, holdStands,
+  ourBenchRow, byFreeDate, managesLine, cityOf, dayOf, isoDay, holdStands, onePerJob,
   type OurBenchRow,
 } from '@/lib/internal-moves'
 import { seatFacts, refuse } from './facts'
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
                 releaserName: managers.get(release.releasedById) ?? 'A manager',
               }
             : null,
-          current: current ? site(current) : null,
+          current: current ? { ...site(current), endsOn: current.endDate ?? null } : null,
           mayNameProject: current ? mayName(current.deliveryUnitId) : true,
           lastEnded,
           hold: live
@@ -241,10 +241,14 @@ export async function GET(request: NextRequest) {
             { invitations: { some: { toCompanyId: companyId, status: { in: ['SENT', 'ACCEPTED'] } } } },
           ],
         },
-        select: { id: true, title: true, location: true, company: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+        select: { id: true, title: true, location: true, mirroredFromId: true, company: { select: { name: true } }, endClientCompany: { select: { name: true } } },
         take: 50,
       })
-      for (const r of reqs) {
+      // One job, once (`onePerJob`): where the firm was sent a client's job
+      // request and also holds its own copy to resell, the list read the
+      // same job twice in the same words (bench tester, 2026-10-01). The
+      // one sent to the firm is the one its own employee goes forward on.
+      for (const r of onePerJob(reqs)) {
         const client = r.endClientCompany?.name ?? r.company.name
         positions.push({
           kind: 'REQUIREMENT', key: `req:${r.id}`, requirementId: r.id,
