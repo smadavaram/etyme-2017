@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 
 /**
  * POST   /api/settings/cost-centers      — add one
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     !hasPermission(caller.permissions, 'settings.manage')
   ) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Seeing the budgets needs requirements.write' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Seeing the budgets', needs: 'requirements.write', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }
@@ -104,7 +104,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'Changing cost centers needs settings.manage' } },
+        { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Changing cost centers', needs: 'settings.manage', kind: caller.company?.kind, companyName: caller.company?.name }) } },
         { status: 403 }
       ),
     }

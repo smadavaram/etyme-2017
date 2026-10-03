@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 
 /**
  * GET    /api/settings/remit-to      — where customers send money
@@ -42,8 +42,8 @@ async function guard(request: NextRequest, write: boolean) {
           error: {
             code: 'FORBIDDEN',
             message: write
-              ? 'Changing where money arrives needs settings.manage'
-              : 'Seeing payment details needs invoices.read',
+              ? askTheDesk({ doing: 'Changing where money arrives', needs: needed, kind: caller.company?.kind, companyName: caller.company?.name })
+              : askTheDesk({ doing: 'Seeing payment details', needs: needed, kind: caller.company?.kind, companyName: caller.company?.name }),
           },
         },
         { status: 403 }

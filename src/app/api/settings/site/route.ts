@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import {
   writeVoice, writeFromRules, checkEdit, modelAvailable,
   DEFAULT_HEADINGS, type SiteFacts,
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!caller.company || !hasPermission(caller.permissions, 'settings.manage')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Writing your public page needs settings.manage' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Writing your public page', needs: 'settings.manage', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }
@@ -210,7 +210,7 @@ export async function PATCH(request: NextRequest) {
   if (error) return error
   if (!caller.company || !hasPermission(caller.permissions, 'settings.manage')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Editing your public page needs settings.manage' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Editing your public page', needs: 'settings.manage', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }

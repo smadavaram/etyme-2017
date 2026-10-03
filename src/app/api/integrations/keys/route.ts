@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission, PERMISSIONS } from '@/lib/permissions'
+import { hasPermission, PERMISSIONS, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { mintKey, suggestedDurationDays, reviewKey } from '@/lib/service-accounts'
 
@@ -38,7 +38,7 @@ async function guard(request: NextRequest) {
         {
           error: {
             code: 'FORBIDDEN',
-            message: 'Issuing an API key needs team.manage. A key can do whatever it is given, so this is the same decision as giving somebody a role.',
+            message: askTheDesk({ doing: 'Issuing an API key — the same decision as giving somebody a role, because a key can do whatever it is given —', needs: 'team.manage', kind: caller.company?.kind, companyName: caller.company?.name }),
           },
         },
         { status: 403 }

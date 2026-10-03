@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { EVENT_TYPES, isKnownEventType } from '@/lib/events'
 
 /**
@@ -35,7 +35,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'Sending your events somewhere needs team.manage' } },
+        { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Sending your events somewhere', needs: 'team.manage', kind: caller.company?.kind, companyName: caller.company?.name }) } },
         { status: 403 }
       ),
     }

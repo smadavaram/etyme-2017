@@ -32,6 +32,8 @@ model Person {
   accessedBy             AccessLog[]              @relation("subject")
   programSeatsGranted    ProgramSeat[]            @relation("seatGrantedBy")
   programSeatsRevoked    ProgramSeat[]            @relation("seatRevokedBy")
+  benchWantsWritten      BenchWant[]              @relation("benchWantAuthor")
+  benchWantsReceived     BenchWant[]              @relation("benchWantReceiver")
   censusReads            CensusRead[]             @relation("censusReader")
   actions                AccessLog[]              @relation("actor")
   visas                  VisaPetition[]
@@ -563,6 +565,7 @@ model Company {
   invitationsOut        RequirementInvitation[] @relation("from")
   invitationsIn         RequirementInvitation[] @relation("to")
   benchListings         BenchListing[]
+  benchWants            BenchWant[]
   submissionsOut        Submission[]            @relation("from")
   submissionsIn         Submission[]            @relation("to")
   automationLog         AutomationLog[]
@@ -1373,15 +1376,16 @@ model OrgUnit {
 }
 
 model Role {
-  id           String        @id @default(cuid())
-  companyId    String
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name         String
-  permissions  String[] // see PERMISSIONS in BUILD.md
-  isDefault    Boolean       @default(false)
-  contexts     Context[]
+  id                 String        @id @default(cuid())
+  companyId          String
+  company            Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name               String
+  permissions        String[] // see PERMISSIONS in BUILD.md
+  isDefault          Boolean       @default(false)
+  contexts           Context[]
   // A desk this client granted a program office that is not the client.
-  programSeats ProgramSeat[]
+  programSeats       ProgramSeat[]
+  benchWantsReceived BenchWant[]
 
   @@index([companyId])
 }
@@ -1681,6 +1685,57 @@ model BenchListing {
   @@unique([consultantId, companyId])
   @@index([companyId, revokedAt])
   @@index([consultantId, state])
+}
+
+/// What a firm asks its partners to offer: "What we need", shown at the top
+/// of Partner bench (CLAUDE.md, "The bench is the difference", 2026-09-30).
+///
+/// Read only by firms that already trade with this one, one rung at a time,
+/// and never by a client browsing — a client does not browse a bench. The
+/// rate range is this firm's own ask, not any supplier's rate, so it is not
+/// the leak the rule about `RequirementInvitation` guards against.
+///
+/// Added 2026-10-03 at etyme-supply's request. Nothing writes it yet: the
+/// screen and its door are supply's next piece, and until they land this
+/// table is a promise, not a feature.
+model BenchWant {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// In the firm's own words, as typed. Matching reads them; nothing here
+  /// normalizes them.
+  skills String[]
+  /// Cities, states or "Remote".
+  places String[]
+
+  /// The hourly rate range the firm would pay, in minor units of
+  /// `currency`. Either may be null, and both null means no range was said.
+  /// Min not above max is the door's check, not the database's.
+  rateMinCents Int?
+  rateMaxCents Int?
+  currency     String @default("USD")
+
+  /// The desk an offer reaches: a role, a named person, or neither — in
+  /// which case it reaches whoever reads Partner bench at the firm. The
+  /// door sets at most one.
+  receivingRoleId   String?
+  receivingRole     Role?   @relation(fields: [receivingRoleId], references: [id], onDelete: SetNull)
+  receivingPersonId String?
+  receivingPerson   Person? @relation("benchWantReceiver", fields: [receivingPersonId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   Person    @relation("benchWantAuthor", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  /// When the firm stopped asking. Kept, never deleted, so a partner's
+  /// offer against it still says what it answered.
+  closedAt    DateTime?
+
+  @@index([companyId])
+  @@index([receivingRoleId])
+  @@index([receivingPersonId])
+  @@index([createdById])
 }
 
 enum BenchTier {

@@ -127,19 +127,6 @@ describe('a refusal names the desk, not the key', () => {
  * is one import away from any of them.
  */
 const STILL_SAYING_A_KEY: Record<string, string> = {
-  // etyme-architect
-  'src/app/api/clients/route.ts': 'etyme-architect',
-  'src/app/api/companies/[id]/template-pack/route.ts': 'etyme-architect',
-  'src/app/api/integrations/keys/route.ts': 'etyme-architect',
-  'src/app/api/integrations/webhooks/route.ts': 'etyme-architect',
-  'src/app/api/settings/address/route.ts': 'etyme-architect',
-  'src/app/api/settings/approval-rules/route.ts': 'etyme-architect',
-  'src/app/api/settings/cost-centers/route.ts': 'etyme-architect',
-  'src/app/api/settings/holidays/route.ts': 'etyme-architect',
-  'src/app/api/settings/locations/route.ts': 'etyme-architect',
-  'src/app/api/settings/remit-to/route.ts': 'etyme-architect',
-  'src/app/api/settings/roles/route.ts': 'etyme-architect',
-  'src/app/api/settings/site/route.ts': 'etyme-architect',
   // etyme-money
   'src/app/api/ap/bills/route.ts': 'etyme-money',
   'src/app/api/ap/payment-runs/route.ts': 'etyme-money',
@@ -165,11 +152,7 @@ const STILL_SAYING_A_KEY: Record<string, string> = {
   'src/app/api/purchase-orders/[id]/discounts/route.ts': 'etyme-money',
   'src/app/api/purchase-orders/route.ts': 'etyme-money',
   // etyme-supply
-  'src/app/api/bench/listings/route.ts': 'etyme-supply',
-  'src/app/api/bench/route.ts': 'etyme-supply',
   'src/app/api/bench/share/route.ts': 'etyme-supply',
-  'src/app/api/consultants/[id]/route.ts': 'etyme-supply',
-  'src/app/api/consultants/route.ts': 'etyme-supply',
   'src/app/api/releasing-soon/route.ts': 'etyme-supply',
 }
 

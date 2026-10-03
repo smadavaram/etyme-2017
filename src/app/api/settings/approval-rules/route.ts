@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { assessRule, assessDeletion } from '@/lib/governance-authorship'
 
@@ -42,8 +42,8 @@ async function guard(request: NextRequest, write: boolean) {
           error: {
             code: 'FORBIDDEN',
             message: write
-              ? 'Changing the approval chain needs governance.write. It decides what everybody else needs permission for, so it is held by fewer people than settings.'
-              : 'Reading the approval chain needs governance.read',
+              ? askTheDesk({ doing: 'Changing the approval chain', needs: needed, kind: caller.company?.kind, companyName: caller.company?.name })
+              : askTheDesk({ doing: 'Reading the approval chain', needs: needed, kind: caller.company?.kind, companyName: caller.company?.name }),
           },
         },
         { status: 403 }

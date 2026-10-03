@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission, PERMISSIONS, type Permission } from '@/lib/permissions'
+import { hasPermission, PERMISSIONS, type Permission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 
 /**
@@ -31,7 +31,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'Changing roles needs team.manage' } },
+        { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Changing roles', needs: 'team.manage', kind: caller.company?.kind, companyName: caller.company?.name }) } },
         { status: 403 }
       ),
     }

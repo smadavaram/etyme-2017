@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import { promises as dns } from 'dns'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import {
   checkSubdomain,
@@ -45,7 +45,7 @@ async function guard(request: NextRequest, write: boolean) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'Changing your address needs settings.manage' } },
+        { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Changing your company’s address', needs: 'settings.manage', kind: caller.company?.kind, companyName: caller.company?.name }) } },
         { status: 403 }
       ),
     }

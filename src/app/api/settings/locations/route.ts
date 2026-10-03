@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 
 /**
  * POST   /api/settings/locations      — add a work site
@@ -29,7 +29,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'Changing locations needs settings.manage' } },
+        { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Changing locations', needs: 'settings.manage', kind: caller.company?.kind, companyName: caller.company?.name }) } },
         { status: 403 }
       ),
     }

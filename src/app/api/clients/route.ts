@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { defaultPostureFor } from '@/lib/walls'
 import { mayList, shellNotice, type CompanyStanding } from '@/lib/off-system'
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            'Putting a client on your register needs the assignments.write permission — it is the same desk that records a contract. Ask whoever runs your company\'s access.',
+            askTheDesk({ doing: 'Putting a client on your register — the same desk that records a contract —', needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

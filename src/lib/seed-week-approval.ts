@@ -5,9 +5,16 @@
  * the proof travels down the chain"). So the demo shows it: Helena Marsh's
  * oldest signed week at Northbend Athletic, through Computer Systems and
  * CloudEPA, reads "Approved by email: Marcus Oyelaran, <day> — evidence
- * attached". CloudEPA's desk attached Marcus's reply; it applies to both
+ * attached". Marcus replied to Computer Systems — the supplier Northbend
+ * pays, and the only one it deals with — and Computer Systems forwarded the
+ * reply down to CloudEPA, whose desk attached it. It applies to both
  * contracts on the chain, so Northbend reads its own contract only, and
  * Computer Systems and CloudEPA each open the same email.
+ *
+ * The email is addressed to Computer Systems, never to CloudEPA. Northbend
+ * opens this file too, and a sub-vendor's name is the prime's to keep
+ * (CLAUDE.md, 2026-09-17): a client writing to a firm it has never heard of
+ * would be the leak, and it would not be how the week was really approved.
  *
  * The week was already signed when the world was seeded, as "Marcus signed
  * in Etyme". That is replaced on the ledger the way the ledger allows — the
@@ -22,11 +29,26 @@ import { prisma as db } from '@/lib/db'
 import { approvedByWords, dayOf } from '@/app/api/timesheets/approval-by-email'
 import type { World } from '@/lib/seed-programmes'
 
+/**
+ * The client's reply, as the file every rung opens. Addressed to `to`, which
+ * the caller must make the client's own supplier on the top rung.
+ */
+export function approvalEmail(a: { approverName: string; approverEmail: string; to: string; period: string; hours: number }): string {
+  return (
+    `From: ${a.approverName} <${a.approverEmail}>\n` +
+    `To: ${a.to}\n` +
+    `Subject: Re: Helena Marsh, hours for ${a.period}\n\n` +
+    `Approved — ${a.hours} hours for ${a.period}.\n\n${a.approverName}\nNorthbend Athletic`
+  )
+}
+
 export async function seedWeekApproval(world: World): Promise<{ written: boolean }> {
   const client = world.firmBySlug.get('nike')
   const cloudepa = world.firmBySlug.get('cloudepa')
   const sender = world.seatBySlug.get('cloudepa')
-  if (!client || !cloudepa || !sender) return { written: false }
+  // Who the client actually wrote to: the account desk of the firm it pays.
+  const prime = world.seatBySlug.get('computer-systems')
+  if (!client || !cloudepa || !sender || !prime) return { written: false }
 
   const approver = await db.person.findUnique({
     where: { primaryEmail: `${world.prefix}nike-hiring@${world.domain}` },
@@ -45,7 +67,28 @@ export async function seedWeekApproval(world: World): Promise<{ written: boolean
     select: { id: true, sellContractId: true, periodStart: true, periodEnd: true, totalHours: true, clientApprovedAt: true },
   })
   if (!week) return { written: false }
-  if (await db.weekApproval.findFirst({ where: { timesheetId: week.id }, select: { id: true } })) return { written: false }
+
+  const now = new Date()
+  const period = `${dayOf(week.periodStart, now)} – ${dayOf(week.periodEnd, now)}`
+  const email = approvalEmail({ approverName: approver.name, approverEmail: approver.primaryEmail, to: prime.email, period, hours: Number(week.totalHours) })
+
+  const already = await db.weekApproval.findFirst({
+    where: { timesheetId: week.id },
+    select: { id: true, file: { select: { id: true, bytes: true } } },
+  })
+  if (already) {
+    // A world seeded before 2026-10-03 addressed the reply to CloudEPA, which
+    // Northbend could read. Readdress that one file, and touch nothing else.
+    const f = already.file
+    if (f && Buffer.from(f.bytes).toString('utf8').includes(`To: ${sender.email}`)) {
+      await db.weekApprovalFile.update({
+        where: { id: f.id },
+        data: { bytes: Buffer.from(email, 'utf8'), sizeBytes: Buffer.byteLength(email) },
+      })
+      return { written: true }
+    }
+    return { written: false }
+  }
 
   // The chain above it: the contract Computer Systems sells to Northbend.
   const above = await db.contractLink.findFirst({
@@ -60,14 +103,8 @@ export async function seedWeekApproval(world: World): Promise<{ written: boolean
   if (!old) return { written: false }
 
   const on = week.clientApprovedAt!
-  const now = new Date()
   const words = approvedByWords({ approverName: approver.name, on, how: 'EVIDENCE', now })
-  const period = `${dayOf(week.periodStart, now)} – ${dayOf(week.periodEnd, now)}`
-  const email =
-    `From: ${approver.name} <${approver.primaryEmail}>\n` +
-    `To: ${sender.email}\n` +
-    `Subject: Re: Helena Marsh, hours for ${period}\n\n` +
-    `Approved — ${Number(week.totalHours)} hours for ${period}.\n\n${approver.name}\nNorthbend Athletic`
+
 
   await db.$transaction(async (tx) => {
     await tx.workAssertion.update({ where: { id: old.id }, data: { state: 'SUPERSEDED' } })

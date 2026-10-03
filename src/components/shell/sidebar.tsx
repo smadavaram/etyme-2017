@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeLogo } from '@/components/logo'
 import { DemoChip } from '@/components/shell/demo-chip'
@@ -71,11 +71,38 @@ type NavItem = {
    * link's permission back out of its own GET handler has nothing to
    * check the claim against, and an unchecked claim is how a menu entry
    * and the route it opens drift apart.
+   *
+   * Several routes where the page draws several readers' answers — the
+   * bench page opens on the people for a seat that reads people, and on
+   * bench profit for the finance desk that reads only money. The test
+   * reads each route's gate, in this order, against `needs`.
    */
-  api?: string
+  api?: string | readonly string[]
 }
 
 type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+
+/**
+ * The firm's own bench page, as a vendor's Procure and an integrator's
+ * Supply name it.
+ *
+ * Two readers, two routes. Somebody who reads people opens it on the
+ * bench (`/api/bench`, consultants.read). The finance desk reads no
+ * people and reads bench profit (`/api/bench/profit`), which CLAUDE.md
+ * gives the owner, the admin and finance — and was not offered the link
+ * at all, because the link asked only for consultants.read (bench tester,
+ * 2026-10-03). `pnl.read` is the permission that names that desk: among
+ * the shipped roles it is held by Owner and Finance and nobody else, and
+ * the sidebar test checks that claim against `BENCH_PROFIT_DESKS` rather
+ * than trusting it.
+ *
+ * The program office's Bench keeps consultants.read alone: an MSP has no
+ * finance desk in its shipped set.
+ */
+const BENCH_READS = {
+  needs: ['consultants.read', 'pnl.read'] as const,
+  api: ['bench', 'bench/profit'] as const,
+} satisfies Pick<NavItem, 'needs' | 'api'>
 
 /**
  * ── Why a link names no permission ──────────────────────────────────
@@ -391,7 +418,7 @@ const VENDOR_NAV: NavSection[] = [
     // what a firm is doing when it signs somebody to a bench.
     label: 'Procure',
     items: [
-      { label: 'Bench', href: '/dashboard/bench', icon: '◎', needs: ['consultants.read'] },
+      { label: 'Bench', href: '/dashboard/bench', icon: '◎', ...BENCH_READS },
       { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
       { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
@@ -451,7 +478,7 @@ const GSI_NAV: NavSection[] = [
     // that check is scoped to this company's own bench and nobody else's.
     label: 'Supply',
     items: [
-      { label: 'Bench', href: '/dashboard/bench', icon: '◎', needs: ['consultants.read'] },
+      { label: 'Bench', href: '/dashboard/bench', icon: '◎', ...BENCH_READS },
       { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
       { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
@@ -995,6 +1022,38 @@ function kindNav(kind: CompanyKind): NavSection[] {
   }
 }
 
+/**
+ * Which link on this menu is the page being read, if any. One answer.
+ *
+ * Longest match wins, so on /dashboard/my-work/paperwork it is "Your
+ * paperwork" and not "Your work" as well — both lit at once was the
+ * same page answering twice. A link carrying a query is the page only
+ * where the query agrees; the console's own front door only on itself.
+ */
+export function activeHref(
+  sections: readonly NavSection[],
+  pathname: string,
+  query: { get(name: string): string | null },
+  dashboardHref: string
+): string | null {
+  let best: { href: string; weight: number } | null = null
+  for (const section of sections) {
+    for (const item of section.items) {
+      const [itemPath, itemQuery] = item.href.split('?')
+      const hit = item.href === dashboardHref
+        ? pathname === dashboardHref
+        : itemQuery
+          ? pathname.startsWith(itemPath) && query.get(itemQuery.split('=')[0]) === itemQuery.split('=')[1]
+          : pathname.startsWith(itemPath)
+      if (!hit) continue
+      // A query that agrees is more specific than the same path without one.
+      const weight = itemPath.length * 2 + (itemQuery ? 1 : 0)
+      if (!best || weight > best.weight) best = { href: item.href, weight }
+    }
+  }
+  return best?.href ?? null
+}
+
 export function Sidebar({
   companyKind,
   companyName,
@@ -1057,6 +1116,20 @@ export function Sidebar({
     seated: Boolean(seatedAtClient),
   }).href
 
+  const current = activeHref(sections, pathname, searchParams, dashboardHref)
+
+  // The link for the page being read is brought into view when the menu
+  // opens. A worker who is also staff reads their firm's sections first
+  // and "You" at the end (CLAUDE.md: appended, never substituted), and
+  // Karthik Menon scrolled past twenty of Teleworld's links to find his
+  // own work on the phone (worker tester, 2026-10-03). The order stays;
+  // the menu opens where he is.
+  const navRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const here = navRef.current?.querySelector<HTMLElement>('[data-current="true"]')
+    here?.scrollIntoView?.({ block: 'nearest' })
+  }, [current, sections.length])
+
   return (
     <aside
       className={
@@ -1094,7 +1167,7 @@ export function Sidebar({
       </div>
 
       {/* Nav sections */}
-      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+      <nav ref={navRef} className="flex-1 overflow-y-auto px-3 pb-4">
         {sections.map((section) => (
           <div key={section.label} className="mb-1">
             <div className="eyebrow px-2 pt-5 pb-1.5">
@@ -1108,13 +1181,7 @@ export function Sidebar({
               const priorGroup = i > 0 ? section.items[i - 1].group : undefined
               const showGroup = item.group !== undefined && item.group !== priorGroup
 
-              // Handle hrefs with query params (e.g. /dashboard/contracts?side=sell)
-              const [itemPath, itemQuery] = item.href.split('?')
-              const active = item.href === dashboardHref
-                ? pathname === dashboardHref
-                : itemQuery
-                  ? pathname.startsWith(itemPath) && searchParams.get(itemQuery.split('=')[0]) === itemQuery.split('=')[1]
-                  : pathname.startsWith(item.href)
+              const active = item.href === current
               return (
                 <div key={item.label}>
                   {showGroup && (
@@ -1126,6 +1193,8 @@ export function Sidebar({
                   <Link
                     href={item.href as any}
                     onClick={onDismiss}
+                    data-current={active ? 'true' : undefined}
+                    aria-current={active ? 'page' : undefined}
                     className={`
                       flex items-center gap-2.5 px-2.5 rounded-md
                       ${sheet ? 'py-2.5 text-[14px]' : 'py-[7px] text-[13px]'}

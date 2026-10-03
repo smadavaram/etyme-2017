@@ -3,7 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { getTemplatePack, TEMPLATE_PACK_IDS } from '@/lib/template-packs'
-import { hasPermission } from '@/lib/permissions'
+import { templatePackRefusal } from './refusal'
 
 /**
  * POST /api/companies/:id/template-pack
@@ -62,7 +62,7 @@ export async function POST(
   // Verify company exists
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { id: true, name: true, templatePack: true },
+    select: { id: true, name: true, kind: true, templatePack: true },
   })
 
   if (!company) {
@@ -91,24 +91,23 @@ export async function POST(
     select: { id: true },
   })
 
-  if (person) {
-    const callerContext = await prisma.context.findFirst({
-      where: {
-        personId: person.id,
-        companyId,
-        revokedAt: null,
-      },
-      include: { role: { select: { permissions: true } } },
-    })
+  // Somebody signed in with no person on the record has no seat anywhere,
+  // and used to skip this check entirely and set the pack on any company.
+  const callerContext = person
+    ? await prisma.context.findFirst({
+        where: { personId: person.id, companyId, revokedAt: null },
+        include: { role: { select: { permissions: true } } },
+      })
+    : null
 
-    const perms = callerContext?.role?.permissions ?? []
-    const hasAccess = hasPermission(perms, 'settings.manage')
-    if (!callerContext || !hasAccess) {
-      return NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'You need settings.manage permission on this company' } },
-        { status: 403 }
-      )
-    }
+  const refusal = templatePackRefusal({
+    seated: !!callerContext,
+    permissions: callerContext?.role?.permissions ?? [],
+    companyName: company.name,
+    companyKind: company.kind,
+  })
+  if (refusal) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: refusal } }, { status: 403 })
   }
 
   try {

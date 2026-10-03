@@ -12,6 +12,7 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { ownPage } from '@/lib/consultant-portfolio'
 import { PERMISSIONS } from '@/lib/permissions'
 import { rolesFor } from '@/lib/company-defaults'
+import { BENCH_PROFIT_DESKS } from '@/lib/bench-profit'
 
 /**
  * The founder's own words: "apps on client side seems to be duplicating
@@ -822,7 +823,7 @@ describe('a menu offers only what this seat can actually open', () => {
       .flatMap((k) => itemsOf(getNavForKind(k, false)))
       .filter((i) => i.needs)
       .map((i) => JSON.stringify({ href: pathOf(i.href), needs: i.needs, api: i.api ?? null }))
-  )].map((j) => JSON.parse(j) as { href: string; needs: string[]; api: string | null })
+  )].map((j) => JSON.parse(j) as { href: string; needs: string[]; api: string | string[] | null })
 
   /**
    * A route may name its gate rather than spell it, and most of them
@@ -858,8 +859,33 @@ describe('a menu offers only what this seat can actually open', () => {
     'hasAnyPermission:CHECK_IN_READERS': CHECK_IN_READERS,
   }
 
+  /**
+   * A route that decides by the desk's name rather than by a permission,
+   * and the permission the menu offers it by. Not taken on trust: the
+   * test below checks that, among the shipped roles, the permission is
+   * held by those desks and by nobody else that is not Owner or Admin.
+   */
+  const DESK_GATES: Record<string, { stands: string[]; desks: readonly string[] }> = {
+    'bench/profit': { stands: ['pnl.read'], desks: BENCH_PROFIT_DESKS },
+  }
+
+  it('a page gated by the desk\'s name is offered by a permission only that desk holds', () => {
+    const wrong: string[] = []
+    for (const [route, gate] of Object.entries(DESK_GATES)) {
+      for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
+        for (const r of rolesFor(kind)) {
+          const perms = r.permissions as readonly string[]
+          const holds = perms.includes('*') || gate.stands.some((p) => perms.includes(p))
+          if (holds && !gate.desks.includes(r.name)) wrong.push(`${kind} ${r.name} holds ${gate.stands.join(', ')} but is refused ${route}`)
+        }
+      }
+    }
+    expect(wrong).toEqual([])
+  })
+
   /** What the GET handler at this route asks for, or null where there is no route. */
   function gateOf(routeDir: string): string[] | null {
+    if (DESK_GATES[routeDir]) return DESK_GATES[routeDir].stands
     const route = join(API, routeDir, 'route.ts')
     if (!existsSync(route)) return null
     const src = readFileSync(route, 'utf8')
@@ -888,8 +914,10 @@ describe('a menu offers only what this seat can actually open', () => {
       // A page usually sits at the route it is named after. Where it
       // does not — the compliance desk at /dashboard/privacy reads
       // /api/data-requests — the link says so itself.
-      const dir = api ?? href.replace('/dashboard/', '')
-      const asked = gateOf(dir)
+      const dirs = api == null ? [href.replace('/dashboard/', '')] : Array.isArray(api) ? api : [api]
+      const gates = dirs.map(gateOf)
+      const dir = dirs.join(' and ')
+      const asked = gates.some((g) => g == null) ? null : gates.flatMap((g) => g!)
       if (asked == null) {
         wrong.push(`${href} — no route at src/app/api/${dir} to check the claim against`)
         continue
