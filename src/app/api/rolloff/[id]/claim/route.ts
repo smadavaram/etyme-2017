@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
+import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
+import { mayWorkRolloff } from '@/lib/releasing-soon'
 
 /**
  * POST /api/rolloff/:id/claim
@@ -8,39 +10,26 @@ import { prisma } from '@/lib/db'
  * BUILD.md: "POST /api/rolloff/:id/claim"
  *
  * A PM or recruiter claims responsibility for handling this rolloff.
+ *
+ * Only the firm whose contract it is may (`mayWorkRolloff`). This route
+ * asked who was signed in and never where they sat, so any account —
+ * a client, a worker, another supplier — could claim any firm's rolloff.
+ * Found 2026-10-03, when a client's Ending soon offered the button.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const { id } = await params
-
-  const person = await prisma.person.findUnique({
-    where: { primaryEmail: email },
-    select: { id: true, name: true },
-  })
-
-  if (!person) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Person not found' } },
-      { status: 404 }
-    )
-  }
 
   const rolloff = await prisma.rolloffEvent.findUnique({
     where: { id },
     include: {
       sellContract: {
-        select: { id: true, companyId: true },
+        select: { id: true, companyId: true, company: { select: { name: true } } },
       },
     },
   })
@@ -52,12 +41,25 @@ export async function POST(
     )
   }
 
+  const may = mayWorkRolloff(
+    { companyId: caller.company?.id ?? null, isConsultantSeat: isConsultantSeat(caller) },
+    { companyId: rolloff.sellContract.companyId, companyName: rolloff.sellContract.company.name }
+  )
+  if (!may.ok) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: may.says } },
+      { status: 403 }
+    )
+  }
+
   if (rolloff.claimedById) {
     return NextResponse.json(
       { error: { code: 'ALREADY_CLAIMED', message: 'This rolloff has already been claimed' } },
       { status: 409 }
     )
   }
+
+  const person = caller.person
 
   await prisma.$transaction([
     prisma.rolloffEvent.update({

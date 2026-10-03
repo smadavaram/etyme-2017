@@ -104,7 +104,7 @@ describe('the worker’s page reads approvals through the one door and shows no 
   const page = readFileSync(join(__dirname, '../../src/app/dashboard/my-work/page.tsx'), 'utf8')
 
   it('the worker’s page asks lib/week-approval who approved her weeks, rather than working it out a second way', () => {
-    expect(route).toMatch(/import \{ approvalWordsFor \} from '@\/lib\/week-approval'/)
+    expect(route).toMatch(/import \{ approvalWordsFor[^}]*\} from '@\/lib\/week-approval'/)
     expect(route).toContain('approvalWords.get(t.id)')
     expect(route).not.toMatch(/prisma\.weekApproval/)
   })

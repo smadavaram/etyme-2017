@@ -5,6 +5,7 @@ import { ownPageFor } from '@/lib/portfolio-data'
 import {
   rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek, owedByWeek, waitingWeek,
   weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard, daySpan, plainDate, weekDoor,
+  weekState, payStageOf, waitingCard, signingOrder,
   type OwedWeek, type WaitingWeek, type WeekSigner,
 } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
@@ -21,7 +22,7 @@ import { hoursInMonth } from '@/lib/periods'
 import { paidByPayroll, workerPaidAs, ownCompanyBillsSays } from '@/lib/money/paid-through'
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 import { personNotice, cityOf, dayOf, holdStands } from '@/lib/internal-moves'
-import { approvalWordsFor } from '@/lib/week-approval'
+import { approvalWordsFor, readWeekApprovals, readerOf } from '@/lib/week-approval'
 
 /**
  * A person's moves between their employer's projects, in the words they
@@ -335,7 +336,7 @@ export async function GET(request: NextRequest) {
   const sentWeeks = await prisma.timesheet.findMany({
     where: { personId, status: { in: ['SUBMITTED', 'APPROVED'] }, sellContractId: { in: contracts.map((c) => c.id) } },
     select: {
-      id: true, sellContractId: true, days: true, leaveDays: true, totalHours: true, acceptedHours: true,
+      id: true, sellContractId: true, status: true, days: true, leaveDays: true, totalHours: true, acceptedHours: true,
       periodStart: true, periodEnd: true, submittedAt: true, clientApprovedAt: true, employerAcceptedAt: true,
       assertions: {
         where: { state: 'LIVE' },
@@ -428,7 +429,14 @@ export async function GET(request: NextRequest) {
     [...payByCompany.entries()].filter(([, l]) => tieOf(l.buyContract.contractType) === 'EMPLOYED').map(([id]) => id)
   )
   const employedWeeks: OwedWeek[] = []
-  const employedWaiting: WaitingWeek[] = []
+  // One week, one state (`weekState`): the firm each sent week is with,
+  // and every week payroll prices, read by the tiles, the pay section and
+  // Your hours alike, so no two of them can say different things.
+  const waitingOnBySheet = new Map<string, string>()
+  // Every signature each of her placements needs, in order, keyed by her
+  // own rung: read by the waiting weeks and by the filing card's sentence.
+  const signersOf = new Map<string, WeekSigner[]>()
+  const pricedWeeks: OwedWeek[] = []
 
   // The companies that are the person's own: a line that buys from one
   // of them pays her company's invoice, never her wages (lib/money/paid-through).
@@ -441,7 +449,6 @@ export async function GET(request: NextRequest) {
 
     // Every signature each of her placements needs, in order: the
     // client, each firm between, her employer last.
-    const signersOf = new Map<string, WeekSigner[]>()
     for (const l of lines) {
       const top = byId.get(l.rungs[l.rungs.length - 1].id)!
       const client = top.endClientCompany ?? top.clientCompany ?? top.company
@@ -468,8 +475,10 @@ export async function GET(request: NextRequest) {
         signers: signers.map((s) => ({ ...s, signedAt: signedAtOf(s, t, t.assertions) })),
         clientApproval: approvalWords.get(t.id) ?? null,
       }, now)
-      if (w) waiting.push({ ...w, payer: w.employer })
-      if (w && employedBy.has(sellOf.get(t.sellContractId)?.companyId ?? '')) employedWaiting.push(w)
+      if (w) {
+        waiting.push({ ...w, payer: w.employer })
+        waitingOnBySheet.set(t.id, w.waitingOn)
+      }
     }
 
     const accepted = sentWeeks.filter(acceptedBy)
@@ -552,6 +561,7 @@ export async function GET(request: NextRequest) {
         )
         for (const w of priced) {
           weeks.push({ ...w, payer: bc.company?.name ?? sell.company.name, label: `Week of ${shortDay(w.weekOf, now)}` })
+          pricedWeeks.push(w)
           if (employedBy.has(bc.companyId)) employedWeeks.push(w)
         }
       }
@@ -659,21 +669,33 @@ export async function GET(request: NextRequest) {
     }
   })()
 
-  // What became of the weeks the client signed, in the words that fit how
+  // Every week she sent, in its one state (`weekState`).
+  const stateOf = (t: { id: string; status: string; days: unknown; periodStart: Date }, billed: boolean) =>
+    weekState({
+      status: t.status,
+      billed,
+      waitingOn: waitingOnBySheet.get(t.id) ?? null,
+      pay: payStageOf((t.days ?? {}) as Record<string, number>, t.periodStart.toISOString().slice(0, 10), pricedWeeks),
+    })
+  const sentStates = sentWeeks.map((t) => stateOf(t, false))
+  const waitingSummary = waitingCard(sentStates)
+
+  // What became of the weeks every firm accepted, in the words that fit how
   // they are paid (`signedWeeksCard`): an employee is paid by payroll, so
-  // his card says paid, owed to him, or waiting on his employer; somebody
-  // paid through a supplier reads the weeks their vendor has still to bill.
+  // his card says paid or owed to him; somebody paid through a supplier
+  // reads the weeks their vendor has still to bill. A week still waiting
+  // on any firm is on the waiting card instead, never on both.
   const signedCard = signedWeeksCard({
     ownCompany: [...payByCompany.values()].some((l) => workerPaidAs(l.buyContract, ownCompanyIds) === 'OWN_COMPANY_BILLS'),
     notBilled: timesheets.filter(
-      (t) => t.status === 'APPROVED' && t.invoiceLines.length === 0 && !employedBy.has(byId.get(t.sellContractId)?.companyId ?? '')
+      (t) => t.status === 'APPROVED' && t.invoiceLines.length === 0 && !waitingOnBySheet.has(t.id) &&
+        !employedBy.has(byId.get(t.sellContractId)?.companyId ?? '')
     ).length,
     employed: employedBy.size === 0
       ? null
       : {
           paid: employedWeeks.filter((w) => w.priced && w.stage === 'PAID').length,
           owed: employedWeeks.filter((w) => w.priced && w.stage === 'OWED').length,
-          waitingOnEmployer: employedWaiting.filter((w) => w.stage === 'WAITING_FOR_EMPLOYER').length,
           unknown: employedWeeks.filter((w) => !w.priced).length,
           employer: (() => {
             const names = [...new Set([...employedBy].map((id) => payByCompany.get(id)!.buyContract.company?.name).filter(Boolean))]
@@ -685,6 +707,25 @@ export async function GET(request: NextRequest) {
   // Where their employer is moving them (lib/internal-moves). Told, never
   // asked: the employment is the consent. Read off their own rows only.
   const moves = await movesFor(personId, now)
+
+  // Who signs her hours after she sends them, in order, for the filing card.
+  const filingWithSigners = filing.map((f) => ({ ...f, signs: signingOrder(signersOf.get(f.contractId) ?? []) }))
+
+  // What the week's own page would answer about approval by email, asked
+  // of lib/week-approval for each week still waiting for the client, so
+  // the row never offers a link the page will refuse, and says so where a
+  // link has already gone and is waiting (worker tester, 2026-10-03).
+  const emailAnswer = new Map<string, NonNullable<Parameters<typeof weekDoor>[0]['email']>>()
+  for (const t of timesheets.filter((x) => x.status === 'SUBMITTED' && x.clientApprovedAt === null)) {
+    const r = await readWeekApprovals(readerOf(caller), t.id, now).catch(() => null)
+    if (!r || !r.ok) continue
+    const link = r.seen.approvals.find((a) => a.how === 'LINK' && a.state === 'WAITING') ?? null
+    emailAnswer.set(t.id, {
+      clientName: r.seen.week.clientName,
+      refused: r.seen.act.ok ? r.seen.act.refused : r.seen.act.says,
+      linkWaiting: link ? { to: link.approverName, on: link.sentAt } : null,
+    })
+  }
 
   return NextResponse.json({
     data: {
@@ -732,7 +773,7 @@ export async function GET(request: NextRequest) {
       // One entry per contract they file on, with the weeks still open.
       // Empty where they have nothing to file, which the page says in a
       // sentence rather than showing an empty form.
-      filing,
+      filing: filingWithSigners,
       today,
       timesheets: timesheets.map(t => ({
         id: t.id,
@@ -757,7 +798,12 @@ export async function GET(request: NextRequest) {
           status: t.status,
           clientApproved: t.clientApprovedAt !== null,
           approvedBy: approvalWords.get(t.id) ?? null,
+          email: emailAnswer.get(t.id),
         }),
+        // Its one state, read the same way as the tiles above it
+        // (`weekState`): "waiting on Computer Systems Inc", "owed to
+        // you", "paid" — never "approved" on a week that was paid.
+        state: stateOf(t, t.invoiceLines.length > 0),
       })),
       sharedAboutMe: sharedAbout.map(s => ({
         by: s.company.name,
@@ -777,7 +823,12 @@ export async function GET(request: NextRequest) {
         // The hours worked inside this month, by day — a week crossing the
         // month's edge counts only its days in it (`hoursInMonth`).
         hoursThisMonth: hoursInMonth(timesheets.map(t => ({ id: t.id, periodStart: t.periodStart, periodEnd: t.periodEnd, days: (t.days ?? {}) as Record<string, number>, totalHours: Number(t.totalHours) })), now).hours,
-        awaitingApproval: timesheets.filter(t => t.status === 'SUBMITTED').length,
+        // Every week some firm on the chain has still to sign or accept,
+        // read off the same state as Your hours (`waitingCard`), and which
+        // firm each is with. A week the client signed is still waiting
+        // until the last firm accepts it.
+        awaitingApproval: waitingSummary.value,
+        waiting: waitingSummary,
         // The one that matters: approved work nobody has invoiced.
         approvedNotBilled: timesheets.filter(t => t.status === 'APPROVED' && t.invoiceLines.length === 0).length,
         // The card the page draws for the signed weeks, in words that fit
