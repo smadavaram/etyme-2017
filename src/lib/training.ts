@@ -34,6 +34,17 @@ export const MOVE_WORDS: Record<EnrollmentMove, string> = {
   drop: 'Dropped',
 }
 
+/**
+ * What a button says for each move: the thing it does, never the state it
+ * leaves behind. "Started" beside a status chip read as a status (bench
+ * tester, 2026-10-01).
+ */
+export const MOVE_ACTIONS: Record<EnrollmentMove, string> = {
+  start: 'Start',
+  complete: 'Finish',
+  drop: 'Drop',
+}
+
 export type MoveVerdict =
   | { ok: true; status: EnrollmentStatus; says: string }
   | { ok: false; code: 'NOT_NEXT' | 'REASON_REQUIRED'; message: string }
@@ -289,4 +300,59 @@ function gapSentence(f: {
     `${f.roles} open ${f.roles === 1 ? 'job' : 'jobs'} against ${f.people} ${f.people === 1 ? 'person' : 'people'} you could field. ` +
     `${f.inDeficit} ${f.inDeficit === 1 ? 'skill is' : 'skills are'} wanted by more jobs than you have people for.${caveat}`
   )
+}
+
+// ── Who a firm could field, and put on a course ──────────────────────
+
+export interface FieldablePerson {
+  personId: string
+  name: string
+  skills: string[]
+  /** BENCH — on the firm's bench by their own yes; EMPLOYEE — employed, with work on the record. */
+  kind: 'BENCH' | 'EMPLOYEE'
+  /** NOW · SOON (within 14 days) · LATER · PLACED · UNKNOWN */
+  free: 'NOW' | 'SOON' | 'LATER' | 'PLACED' | 'UNKNOWN'
+}
+
+/**
+ * The people a firm could put on a job or a course: everybody on its
+ * bench, and every employee whose work is on the record. Somebody with
+ * nothing on the record — the owner, the recruiter, the finance clerk —
+ * is staff, not supply, and counting them is how the owner ended up in
+ * "people you could field" and on the course picker (bench tester,
+ * 2026-10-01). The same rule bench profit's utilization reads.
+ *
+ * When each is free is read from the one door: a listing carries the
+ * route's `whenFree`, an employee's roster standing says it.
+ */
+export function fieldable(
+  listings: { personId: string; name: string; skills: string[]; consent?: string | null; free: { state: string; on: string | null } | null }[],
+  roster: { personId: string; name: string; skills: string[]; standing: string; freeForDays?: number | null }[],
+  now: Date
+): FieldablePerson[] {
+  const soon = now.getTime() + 14 * 86_400_000
+  const out = new Map<string, FieldablePerson>()
+  for (const l of listings) {
+    if (l.consent && l.consent !== 'GRANTED') continue
+    const f = l.free
+    const free: FieldablePerson['free'] =
+      !f ? 'UNKNOWN'
+        : f.state === 'NOW' ? 'NOW'
+          : f.state === 'PLACED' ? 'PLACED'
+            : f.state === 'FROM' && f.on ? (Date.parse(`${f.on}T00:00:00Z`) <= soon ? 'SOON' : 'LATER')
+              : 'UNKNOWN'
+    out.set(l.personId, { personId: l.personId, name: l.name, skills: l.skills, kind: 'BENCH', free })
+  }
+  for (const r of roster) {
+    if (r.standing === 'NOT_ON_THE_RECORD') continue
+    const had = out.get(r.personId)
+    if (had) {
+      if (had.skills.length === 0) had.skills = r.skills
+      continue
+    }
+    const free: FieldablePerson['free'] =
+      r.standing === 'BETWEEN_PROJECTS' ? 'NOW' : r.standing === 'ON_PROJECT' || r.standing === 'STARTING_SOON' ? 'PLACED' : 'UNKNOWN'
+    out.set(r.personId, { personId: r.personId, name: r.name, skills: r.skills, kind: 'EMPLOYEE', free })
+  }
+  return [...out.values()].sort((a, b) => a.name.localeCompare(b.name))
 }

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { readBench } from '@/lib/bench-filter'
-import { skillGap, type SkillGapReading } from '@/lib/training'
+import { skillGap, fieldable, type SkillGapReading } from '@/lib/training'
+import { amount } from '@/lib/money-display'
 import { sectionOfHref } from '@/lib/page-framing'
 import { useCompanyKind } from '@/components/session-provider'
 
@@ -92,47 +93,18 @@ export default function TrainingPage() {
 
       setBenchWhy(listings.ok ? null : listings.why)
 
-      // One row per person. Somebody on a listing who is also on the
-      // payroll is one person the firm can field, not two.
-      const people = new Map<string, { skills: string[]; availableFrom: string | null }>()
-      for (const r of listings.rows) {
-        people.set(r.personId, { skills: r.skills, availableFrom: r.availableFrom })
-      }
-      for (const r of roster ?? []) {
-        const existing = people.get(r.personId)
-        if (existing) {
-          // Skills come off one profile, so they are the same list. Keep
-          // whichever side actually has them.
-          if (existing.skills.length === 0) existing.skills = Array.isArray(r.skills) ? r.skills : []
-          continue
-        }
-        people.set(r.personId, {
-          skills: Array.isArray(r.skills) ? r.skills : [],
-          // A roster carries a standing rather than a date. Somebody
-          // between projects is free now; anybody else is not claimed to be.
-          availableFrom: r.standing === 'BETWEEN_PROJECTS' ? new Date().toISOString() : null,
-        })
-      }
-
-      const supply = [...people.values()]
+      // One row per person, staff left out, and when each is free read
+      // from the one door the bench page and the matches read
+      // (`fieldable` in lib/training, `whenFree` in lib/bench-filter).
+      const supply = fieldable(listings.rows, (roster ?? []).filter((r: any) => r?.personId && r?.name), new Date())
       setGap(skillGap(reqs, { people: supply.map((p) => ({ skills: p.skills })) }))
 
-      const now = new Date()
-      const twoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
-      const availableNow = supply.filter(p => p.availableFrom != null && new Date(p.availableFrom) <= now).length
-      const availableSoon = supply.filter(p => {
-        if (!p.availableFrom) return false
-        const d = new Date(p.availableFrom)
-        return d > now && d <= twoWeeks
-      }).length
-      // Not "in pipeline" — the rest are people whose next free day this
-      // firm has not recorded, and calling that a pipeline was a claim.
-      const unknown = supply.length - availableNow - availableSoon
-
+      const count = (f: string) => supply.filter((p) => p.free === f).length
       setFunnel([
-        { label: 'Free now', count: availableNow, color: 'bg-etyme-verified' },
-        { label: 'Free within 14 days', count: availableSoon, color: 'bg-etyme-attention' },
-        { label: 'No free date on record', count: unknown, color: 'bg-etyme-action' },
+        { label: 'Free now', count: count('NOW'), color: 'bg-etyme-verified' },
+        { label: 'Free within 14 days', count: count('SOON'), color: 'bg-etyme-attention' },
+        { label: 'On a placement or free later', count: count('PLACED') + count('LATER'), color: 'bg-etyme-action' },
+        { label: 'No free date on record', count: count('UNKNOWN'), color: 'bg-etyme-faint' },
       ])
     } catch (err: any) {
       setError(err.message ?? 'Failed to load training data')
@@ -352,6 +324,9 @@ interface CourseRow {
   title: string
   category: string | null
   duration: number | null
+  /** Cents a seat; null where the course carries no price. */
+  price: number | null
+  currency: string
   counts: { enrolled: number; inProgress: number; completed: number; dropped: number }
   enrollments: Enrollment[]
 }
@@ -364,7 +339,7 @@ interface CourseRow {
  */
 function Courses() {
   const [courses, setCourses] = useState<CourseRow[]>([])
-  const [people, setPeople] = useState<{ id: string; name: string }[]>([])
+  const [people, setPeople] = useState<{ id: string; name: string; kind: 'BENCH' | 'EMPLOYEE' }[]>([])
   const [newCourse, setNewCourse] = useState({ title: '', category: 'TECH', duration: '', price: '' })
   const [enroll, setEnroll] = useState({ courseId: '', personId: '' })
   const [ask, setAsk] = useState<{ id: string; move: string; word: string; score: string; certificateUrl: string; reason: string } | null>(null)
@@ -389,12 +364,16 @@ function Courses() {
       // reads it now, and the firm's own payroll is here too: an
       // integrator develops the people it employs, and none of them is a
       // bench listing.
+      //
+      // The firm's own staff — the owner, the recruiter, the finance
+      // desk — are not offered: they have no work on the record and are
+      // not the people a course is for (`fieldable`).
       const listed = readBench(b)
       const roster: any[] = Array.isArray(payroll?.data?.roster) ? payroll.data.roster : []
-      const byId = new Map<string, { id: string; name: string }>()
-      for (const r of listed.rows) byId.set(r.personId, { id: r.personId, name: r.name })
-      for (const r of roster) if (r?.personId && r?.name) byId.set(r.personId, { id: r.personId, name: r.name })
-      setPeople([...byId.values()].sort((x, y) => x.name.localeCompare(y.name)))
+      setPeople(
+        fieldable(listed.rows, roster.filter((r) => r?.personId && r?.name), new Date())
+          .map((p) => ({ id: p.personId, name: p.name, kind: p.kind }))
+      )
     } catch (e: any) { setErr(e.message) }
   }, [])
   useEffect(() => { load() }, [load])
@@ -445,7 +424,10 @@ function Courses() {
           <div key={c.id} className="py-3">
             <div className="flex flex-wrap items-baseline gap-2">
               <span className="text-sm text-etyme-ink">{c.title}</span>
-              <span className="text-xs text-etyme-muted">{c.category ? c.category.replace('_', ' ').toLowerCase() : ''}{c.duration ? ` · ${c.duration}h` : ''}</span>
+              <span className="text-xs text-etyme-muted">
+                {c.category ? c.category.replace('_', ' ').toLowerCase() : ''}{c.duration ? ` · ${c.duration} hours` : ''}
+                {' · '}{c.price != null ? `${amount(c.price, c.currency)} a seat` : 'no price set'}
+              </span>
               <span className="text-xs text-etyme-faint tabular-nums ml-auto">
                 {c.counts.completed} finished · {c.counts.inProgress} in progress · {c.counts.enrolled} enrolled
               </span>
@@ -471,31 +453,55 @@ function Courses() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <form onSubmit={addCourse} className="border border-etyme-rule rounded-lg p-3 flex flex-wrap gap-2 items-end">
+          <p className="w-full text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">Add a course</p>
+          {/* Every box has its label above it, not a sample in place of one. */}
           <label className="flex-1 min-w-[140px]">
-            <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Add a course</span>
-            <input value={newCourse.title} onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })} required placeholder="Equipment qualification (IQ, OQ, PQ)" className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+            <span className="block text-[11px] text-etyme-muted mb-1">Course name</span>
+            <input value={newCourse.title} onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })} required placeholder="e.g. Equipment qualification (IQ, OQ, PQ)" className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
           </label>
-          <select value={newCourse.category} onChange={(e) => setNewCourse({ ...newCourse, category: e.target.value })} className="border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised">
-            {['TECH', 'COMPLIANCE', 'SOFT_SKILLS', 'CERTIFICATION', 'AI_UPSKILLING'].map((c) => <option key={c} value={c}>{c.replace('_', ' ').toLowerCase()}</option>)}
-          </select>
-          <input value={newCourse.duration} onChange={(e) => setNewCourse({ ...newCourse, duration: e.target.value })} placeholder="hours" className="w-20 border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised" />
+          <label>
+            <span className="block text-[11px] text-etyme-muted mb-1">Kind</span>
+            <select value={newCourse.category} onChange={(e) => setNewCourse({ ...newCourse, category: e.target.value })} className="border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised">
+              {[['TECH', 'Skills'], ['COMPLIANCE', 'Compliance'], ['SOFT_SKILLS', 'Working with people'], ['CERTIFICATION', 'Certification'], ['AI_UPSKILLING', 'AI tools']].map(([c, w]) => <option key={c} value={c}>{w}</option>)}
+            </select>
+          </label>
+          <label>
+            <span className="block text-[11px] text-etyme-muted mb-1">Hours</span>
+            <input value={newCourse.duration} onChange={(e) => setNewCourse({ ...newCourse, duration: e.target.value })} inputMode="numeric" className="w-20 border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised" />
+          </label>
           {/* What a seat costs, in dollars. Bench profit reads it as what the
               course cost; a course with none reads "not known yet" there. */}
-          <input value={newCourse.price} onChange={(e) => setNewCourse({ ...newCourse, price: e.target.value })} placeholder="$ a seat" inputMode="decimal" aria-label="Price a seat, in dollars" className="w-24 border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised" />
+          <label>
+            <span className="block text-[11px] text-etyme-muted mb-1">Price a seat ($)</span>
+            <input value={newCourse.price} onChange={(e) => setNewCourse({ ...newCourse, price: e.target.value })} inputMode="decimal" className="w-24 border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised" />
+          </label>
           <button type="submit" className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Add</button>
         </form>
         <form onSubmit={enrollSomebody} className="border border-etyme-rule rounded-lg p-3 flex flex-wrap gap-2 items-end">
           <label className="flex-1 min-w-[140px]">
             <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Put somebody on a course</span>
+            <span className="block text-[11px] text-etyme-muted mb-1">Who</span>
             <select value={enroll.personId} onChange={(e) => setEnroll({ ...enroll, personId: e.target.value })} required className="w-full border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised">
-              <option value="">Who</option>
-              {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              <option value="">Choose a person</option>
+              {people.some((p) => p.kind === 'BENCH') && (
+                <optgroup label="On your bench">
+                  {people.filter((p) => p.kind === 'BENCH').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </optgroup>
+              )}
+              {people.some((p) => p.kind === 'EMPLOYEE') && (
+                <optgroup label="Your employees on projects">
+                  {people.filter((p) => p.kind === 'EMPLOYEE').map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </optgroup>
+              )}
             </select>
           </label>
-          <select value={enroll.courseId} onChange={(e) => setEnroll({ ...enroll, courseId: e.target.value })} required className="border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised">
-            <option value="">Which course</option>
-            {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-          </select>
+          <label>
+            <span className="block text-[11px] text-etyme-muted mb-1">Which course</span>
+            <select value={enroll.courseId} onChange={(e) => setEnroll({ ...enroll, courseId: e.target.value })} required className="border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised">
+              <option value="">Choose a course</option>
+              {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+          </label>
           <button type="submit" disabled={!enroll.courseId || !enroll.personId} className="px-3 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">Enroll</button>
         </form>
       </div>

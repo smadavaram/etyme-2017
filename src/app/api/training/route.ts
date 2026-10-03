@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
-import { MOVES, MOVE_WORDS, statusWord } from '@/lib/training'
+import { MOVES, MOVE_ACTIONS, statusWord } from '@/lib/training'
 
 /**
  * GET  /api/training     the company's courses, and who is on each
@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         category: c.category,
         duration: c.duration,
         price: c.price,
+        currency: c.currency,
         isPublic: c.isPublic,
         counts: {
           enrolled: c.enrollments.filter((e) => e.status === 'ENROLLED').length,
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
           completedAt: e.completedAt?.toISOString() ?? null,
           score: e.score,
           certificateUrl: e.certificateUrl,
-          moves: (MOVES[e.status] ?? []).map((m) => ({ move: m, word: MOVE_WORDS[m] })),
+          moves: (MOVES[e.status] ?? []).map((m) => ({ move: m, word: MOVE_ACTIONS[m] })),
         })),
       })),
     },
