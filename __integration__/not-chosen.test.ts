@@ -55,13 +55,19 @@ describe('a supplier whose candidate never reached an interview is told when the
     expect(job.status).toBe('FILLED')
   })
 
-  it('Mei-Lin Chao’s supplier is told in one sentence that the job was filled and she was not chosen', async () => {
-    const written = await tellNotChosen(ids['Daniel Okafor'])
-    expect(written).toBeGreaterThan(0)
+  it('Mei-Lin Chao’s supplier is told once, in one sentence, that the job was filled and she was not chosen', async () => {
+    // The award tells the suppliers after its response; give the bell a
+    // moment, then ask again by hand. Whoever wrote it, the state is the
+    // same: every desk at the supplier holds the notice exactly once.
+    await new Promise((r) => setTimeout(r, 500))
+    await tellNotChosen(ids['Daniel Okafor'])
     const notices = await prisma.notification.findMany({
       where: { companyId: ids['Mei-Lin Chao:firm'], data: { path: ['event'], equals: 'NOT_CHOSEN' } },
     })
     expect(notices.length).toBeGreaterThan(0)
+    const perDesk = new Map<string, number>()
+    for (const n of notices) perDesk.set(n.personId, (perDesk.get(n.personId) ?? 0) + 1)
+    expect([...perDesk.values()].every((c) => c === 1), JSON.stringify([...perDesk])).toBe(true)
     for (const n of notices) {
       expect(n.title).toBe('Mei-Lin Chao was not chosen for HCM integration lead')
       expect(n.body).toBe(
