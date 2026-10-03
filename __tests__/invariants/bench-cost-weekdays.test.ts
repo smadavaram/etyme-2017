@@ -9,9 +9,9 @@
  * two pages. Where the first day is known, the real weekdays are counted;
  * where it is not, the answer says it is an estimate.
  *
- * Public holidays stay counted, on purpose: whether a firm pays somebody
- * on the bench for a holiday is a term of their employment, and the
- * founder's to make a setting. See `workingDays` in lib/bench-policy.
+ * Public holidays are counted here because no holiday answer is passed.
+ * Since the founder's decision of 2026-10-03 whether one is paid is a
+ * company setting and a per-person switch — bench-holiday-pay.test.ts.
  */
 
 import { describe, it, expect } from 'vitest'

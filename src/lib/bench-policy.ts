@@ -55,6 +55,12 @@ export interface BenchFacts {
   reserveCents?: number
   /** Housing, and anything else carried for them per idle day. */
   housingPerDayCents?: number
+  /**
+   * Whether this person is paid for a public holiday on the bench, and the
+   * firm's calendar (`holidayPayFor` and lib/holidays). Absent, holidays are
+   * counted as paid days and `holidays` says NOT_ASKED.
+   */
+  holidayPay?: HolidayPay | null
 }
 
 export interface BenchCost {
@@ -78,6 +84,15 @@ export interface BenchCost {
    * stood in for them.
    */
   counted: 'WEEKDAYS' | 'ESTIMATED'
+  /**
+   * How public holidays were treated. PAID: counted as paid days. NOT_PAID:
+   * taken out of the paid days. NOT_ASKED: nobody passed a holiday answer,
+   * so they were counted. NOT_KNOWN: holidays are not paid but there was no
+   * first bench day to place them on, so they could not be taken out.
+   */
+  holidays: 'PAID' | 'NOT_PAID' | 'NOT_ASKED' | 'NOT_KNOWN'
+  /** Weekday holidays on the calendar inside the paid span. */
+  holidaysOnBench: number
   says: string
 }
 
@@ -92,28 +107,18 @@ export interface BenchCost {
  * it starts, never "about 43". Where the first day is known the real count
  * is used; where it is not, `counted: 'ESTIMATED'` says so.
  *
- * Holidays are not taken out, on purpose, and that is a decision for the
- * founder rather than for arithmetic: whether a firm pays a person on the
- * bench for a public holiday is a term of their employment. A salaried
- * W-2 — and an H-1B worker, whose required wage runs whether or not they
- * bill — is paid for it, so leaving holidays in is the cost such a firm
- * actually bears. A firm that does not pay holidays on the bench would
- * want its holiday calendar subtracted, which is a setting, not a default.
+ * Holidays cannot be taken out here, because five in seven has no dates
+ * to put them on. Where the first day is known, `benchDays` takes them
+ * out or leaves them in by the firm's holiday setting (`holidayPayFor`).
  */
 function workingDays(calendarDays: number): number {
   return Math.round(Math.max(0, calendarDays) * (5 / 7))
 }
 
-/** Weekdays in the first `calendarDays` days after `since`. */
-function weekdaysFrom(since: Date, calendarDays: number): number {
-  const to = new Date(since.getTime() + Math.max(0, calendarDays) * 86_400_000)
-  return workingDaysBetween(since, to)
-}
-
 export function benchCost(p: Policy, f: BenchFacts): BenchCost {
   const idle = Math.max(0, f.idleDays)
   const since = f.since ?? null
-  const days = since ? weekdaysFrom(since, idle) : workingDays(idle)
+  const hp = f.holidayPay ?? null
   const housing = Math.round(idle * (f.housingPerDayCents ?? 0))
   const reserve = Math.max(0, f.reserveCents ?? 0)
 
@@ -123,12 +128,16 @@ export function benchCost(p: Policy, f: BenchFacts): BenchCost {
   // Where a firm carries somebody for a fixed window, it stops paying at
   // the end of it. Charging for the whole idle period would show a cost
   // the firm never actually incurred.
-  const paidDays =
-    p.carryDays == null
-      ? days
-      : since
-        ? weekdaysFrom(since, Math.min(idle, p.carryDays))
-        : Math.min(days, workingDays(p.carryDays))
+  const paidSpan = p.carryDays == null ? idle : Math.min(idle, p.carryDays)
+
+  // One count for the bench, the same `benchDays` the burn uses, so a
+  // holiday is either paid on both pages or on neither.
+  const counted = since ? benchDays(since, dayAfter(since, paidSpan), hp) : null
+  const paidDays = counted
+    ? counted.paidDays
+    : p.carryDays == null
+      ? workingDays(idle)
+      : Math.min(workingDays(idle), workingDays(p.carryDays))
 
   let payCents = 0
   switch (p.policy) {
@@ -154,6 +163,19 @@ export function benchCost(p: Policy, f: BenchFacts): BenchCost {
   const fromReserve = p.policy === 'RESERVE_FUNDED' ? Math.min(reserve, payCents) : 0
   const fromFirm = payCents - fromReserve + housing
 
+  const holidays: BenchCost['holidays'] =
+    hp == null ? 'NOT_ASKED' : hp.paid ? 'PAID' : counted ? 'NOT_PAID' : 'NOT_KNOWN'
+  const holidaysOnBench = counted?.holidays ?? 0
+  const base = saysFor(p, idle, payCents, housing, fromReserve, dueForRelease, daysLeft)
+  const holidayClause =
+    p.policy === 'NO_PAY' || idle === 0
+      ? ''
+      : holidays === 'NOT_PAID' && holidaysOnBench > 0
+        ? ` ${holidaysOnBench} public holiday${holidaysOnBench === 1 ? '' : 's'} not paid.`
+        : holidays === 'NOT_KNOWN'
+          ? ' Holidays are not paid, but without the first bench day they could not be taken out, so they are counted.'
+          : ''
+
   return {
     costCents: payCents + housing,
     fromReserveCents: fromReserve,
@@ -163,9 +185,14 @@ export function benchCost(p: Policy, f: BenchFacts): BenchCost {
     daysLeft,
     paidWorkingDays: p.policy === 'NO_PAY' ? 0 : paidDays,
     counted: since ? 'WEEKDAYS' : 'ESTIMATED',
-    says: saysFor(p, idle, payCents, housing, fromReserve, dueForRelease, daysLeft),
+    holidays,
+    holidaysOnBench,
+    says: base + holidayClause,
   }
 }
+
+const dayAfter = (since: Date, calendarDays: number) =>
+  new Date(since.getTime() + Math.max(0, calendarDays) * 86_400_000)
 
 function saysFor(
   p: Policy,
@@ -527,14 +554,22 @@ export interface BenchSitter {
   billing: boolean
   /** The later of when they joined the bench and when their last placement ended. */
   benchSince: Date
+  /** Whether holidays are paid for them, and the firm's calendar. Absent, holidays are paid days. */
+  holidayPay?: HolidayPay | null
 }
 
 export interface Burn {
   onBench: boolean
   /** Null where they are billing: a placed person costs the bench nothing. */
   dailyCents: number | null
-  /** Monday to Friday from the day after `benchSince` through `now`, the days the daily cost is paid on. */
+  /**
+   * Monday to Friday from the day after `benchSince` through `now`, the days
+   * the daily cost is paid on — less the public holidays, where the firm
+   * does not pay this person for them.
+   */
   workingDays: number
+  /** Weekday holidays on the firm's calendar that were not paid. */
+  holidaysNotPaid: number
   calendarDays: number
   toDateCents: number | null
   /** "92 working days (129 calendar days) at $720.00 a day." */
@@ -562,21 +597,182 @@ export function workingDaysBetween(from: Date, to: Date): number {
  */
 export function burnOf(s: BenchSitter, now: Date, currency = 'USD'): Burn {
   const calendarDays = Math.max(0, Math.round((utcDay(now) - utcDay(s.benchSince)) / DAY_MS))
-  const workingDays = workingDaysBetween(s.benchSince, now)
   if (s.billing) {
     return {
-      onBench: false, dailyCents: null, workingDays: 0, calendarDays: 0, toDateCents: null,
+      onBench: false, dailyCents: null, workingDays: 0, holidaysNotPaid: 0, calendarDays: 0, toDateCents: null,
       says: 'Placed and billing, so not a bench cost.',
     }
   }
+  const days = benchDays(s.benchSince, now, s.holidayPay)
+  const workingDays = days.paidDays
+  const holidaysNotPaid = days.weekdays - days.paidDays
   const dailyCents = Math.round(s.payRateCents * (s.hoursPerDay ?? 8))
   const toDateCents = dailyCents * workingDays
+  const calendar = `${calendarDays} calendar day${calendarDays === 1 ? '' : 's'}`
+  const off = holidaysNotPaid > 0
+    ? `, ${holidaysNotPaid} public holiday${holidaysNotPaid === 1 ? '' : 's'} not paid`
+    : ''
   return {
     onBench: true,
     dailyCents,
     workingDays,
+    holidaysNotPaid,
     calendarDays,
     toDateCents,
-    says: `${workingDays} working day${workingDays === 1 ? '' : 's'} (${calendarDays} calendar day${calendarDays === 1 ? '' : 's'}) at ${amount(dailyCents, currency)} a day.`,
+    says: `${workingDays} working day${workingDays === 1 ? '' : 's'} (${calendar}${off}) at ${amount(dailyCents, currency)} a day.`,
   }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// HOLIDAYS ON THE BENCH — a company setting, off by default
+// ═════════════════════════════════════════════════════════════════════
+//
+// The founder, 2026-10-03: "A company setting, defaulting to no-pay, and
+// each candidate needs to be activated. GSI companies do autopay."
+//
+//   · A firm does not pay a public holiday on the bench unless it turned
+//     holiday pay on, and then only for the people it switched on, one by
+//     one. A bench supplier's trainee is not paid for a holiday because
+//     the firm said yes for somebody else.
+//   · An integrator (GSI) is the exception: its bench is its own salaried
+//     employees between projects, so holiday pay is on for the firm and
+//     for every one of them unless somebody switches a person off.
+//   · Who turned a switch on or off, and when, is the record — the latest
+//     switch is the answer, and the earlier ones are its history.
+//
+// Bench cost, bench burn and bench profit all count through `benchDays`
+// with `holidayPayFor`'s answer, never through a rule of their own.
+
+/** What `benchDays` needs: whether holidays are paid for this person, and the calendar. */
+export interface HolidayPay {
+  /** `holidayPayFor(...).paid`. */
+  paid: boolean
+  /**
+   * The firm's holidays as ISO days ("2026-11-26"), already filtered by
+   * `appliesTo` for where the person is — `loadCompanyHolidays` in
+   * lib/holidays gives exactly this.
+   */
+  calendar: ReadonlySet<string>
+}
+
+export interface BenchDays {
+  /** Monday to Friday strictly after `from`, through `to`. */
+  weekdays: number
+  /** Of those, the days on the firm's holiday calendar. */
+  holidays: number
+  /** The days the bench is paid on: every weekday, less the holidays where they are not paid. */
+  paidDays: number
+}
+
+/**
+ * The days a person on the bench is paid for, the one count every bench
+ * figure uses. A holiday on a weekend is not a weekday and is not
+ * counted twice; the calendar carries the observed day where there is one.
+ * With no holiday answer, holidays are paid days — what the count was
+ * before the setting existed — and the caller says so.
+ */
+export function benchDays(from: Date, to: Date, h?: HolidayPay | null): BenchDays {
+  let weekdays = 0
+  let holidays = 0
+  for (let t = utcDay(from) + DAY_MS; t <= utcDay(to); t += DAY_MS) {
+    const d = new Date(t)
+    const wd = d.getUTCDay()
+    if (wd === 0 || wd === 6) continue
+    weekdays++
+    if (h && h.calendar.has(d.toISOString().slice(0, 10))) holidays++
+  }
+  return { weekdays, holidays, paidDays: h && !h.paid ? weekdays - holidays : weekdays }
+}
+
+/** One turn of a switch: the firm's setting (no person) or one person's. */
+export interface HolidaySwitch {
+  paid: boolean
+  /** Who turned it, as a reader knows them. Null where the record has no name. */
+  byName: string | null
+  at: Date
+}
+
+/**
+ * The switch in force, from every turn of it. The latest wins and the
+ * rest are its history; nothing stores a current value beside the turns,
+ * because a stored state and its history disagree eventually.
+ */
+export function latestSwitch(turns: readonly HolidaySwitch[]): HolidaySwitch | null {
+  let best: HolidaySwitch | null = null
+  for (const t of turns) if (!best || t.at.getTime() >= best.at.getTime()) best = t
+  return best
+}
+
+export type HolidayPaySource =
+  /** The firm does not pay holidays on the bench — by default, or turned off. */
+  | 'FIRM_OFF'
+  /** The firm pays holidays, and this person was switched on. */
+  | 'PERSON_ON'
+  /** The firm pays holidays, and nobody has switched this person on. */
+  | 'NOT_SWITCHED_ON'
+  /** An integrator: on for everybody without anybody switching them on. */
+  | 'INTEGRATOR_DEFAULT'
+  /** Switched off for this person, by name. */
+  | 'PERSON_OFF'
+
+export interface HolidayPayAnswer {
+  /** Whether this person is paid for a public holiday on the bench. */
+  paid: boolean
+  /** Whether the firm pays bench holidays at all. */
+  firmPays: boolean
+  source: HolidayPaySource
+  /** "Paid for holidays: switched on by Rahul, Oct 3". */
+  says: string
+  /** The firm's setting, said alone: "Holidays not paid (off for this firm)". */
+  firmSays: string
+}
+
+const shortDay = (d: Date) =>
+  d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+const by = (s: HolidaySwitch) => (s.byName ? `by ${s.byName}, ${shortDay(s.at)}` : shortDay(s.at))
+
+/**
+ * Whether one person on a firm's bench is paid for a public holiday.
+ *
+ * `firm` is the latest turn of the firm's own setting and `person` the
+ * latest turn of this person's switch, each null where nobody has ever
+ * turned it. An integrator defaults on, for the firm and for each person;
+ * every other kind of firm defaults off for both. A person's switch never
+ * pays a holiday the firm itself does not pay.
+ */
+export function holidayPayFor(input: {
+  companyKind: string
+  firm: HolidaySwitch | null
+  person: HolidaySwitch | null
+}): HolidayPayAnswer {
+  const integrator = input.companyKind === 'GSI'
+  const firmPays = input.firm ? input.firm.paid : integrator
+  const firmSays = !firmPays
+    ? input.firm
+      ? `Holidays not paid (turned off for this firm ${by(input.firm)})`
+      : 'Holidays not paid (off for this firm)'
+    : input.firm
+      ? `Holidays paid on the bench (turned on for this firm ${by(input.firm)})`
+      : 'Holidays paid on the bench (on for an integrator’s own people)'
+
+  if (!firmPays) {
+    return { paid: false, firmPays, source: 'FIRM_OFF', says: firmSays, firmSays }
+  }
+
+  const p = input.person
+  if (p && !p.paid) {
+    return { paid: false, firmPays, source: 'PERSON_OFF', says: `Holidays not paid: switched off ${by(p)}`, firmSays }
+  }
+  if (p && p.paid) {
+    return { paid: true, firmPays, source: 'PERSON_ON', says: `Paid for holidays: switched on ${by(p)}`, firmSays }
+  }
+  return integrator
+    ? { paid: true, firmPays, source: 'INTEGRATOR_DEFAULT', says: 'Paid for holidays: on for everybody here', firmSays }
+    : {
+        paid: false,
+        firmPays,
+        source: 'NOT_SWITCHED_ON',
+        says: 'Holidays not paid: holiday pay is on for this firm, and nobody has switched it on for them',
+        firmSays,
+      }
 }
