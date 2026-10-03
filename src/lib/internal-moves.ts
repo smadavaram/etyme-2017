@@ -598,7 +598,9 @@ export function hrNotice(step: Step, f: StepFacts): { title: string; body: strin
     case 'MOVE': {
       const how = f.movedAs === 'SUBMISSION'
         ? `put forward to ${possessive(f.toClient ?? 'the client')} job request as the firm’s own employee`
-        : `placed on ${jobOnly(f.forTitle, f.toClient)} at ${at(f.toClient, f.toCity)}, starting ${onDay(f.startsOn!)}`
+        // Who was placed, said: "Rahul placed on ERP finance migration"
+        // left out the person (conversation, 2026-10-03).
+        : `placed ${who} on ${jobOnly(f.forTitle, f.toClient)} at ${at(f.toClient, f.toCity)}, starting ${onDay(f.startsOn!)}`
       const city = cityChange(f.fromCity ?? null, f.toCity ?? null)
       return {
         title: `${who} moves to ${at(f.toClient, f.toCity)}`,

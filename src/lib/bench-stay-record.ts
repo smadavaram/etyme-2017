@@ -15,7 +15,7 @@ export async function tellFirm(companyId: string, title: string, body: string, e
     take: 5,
   })
   for (const d of desks) {
-    void notify({ personId: d.personId, companyId, type: 'SUBMISSION', title, body, entityId })
+    void notify({ personId: d.personId, companyId, type: 'BENCH', title, body, entityId })
   }
   return desks.length
 }

@@ -173,7 +173,7 @@ describe('9 · a person put forward reads the client’s name where the client b
       forTitle: 'ERP finance migration at Harlow Health', toClient: 'Harlow Health', toCity: 'San Jose',
       startsOn: d('2026-11-15'), movedAs: 'LINE',
     })
-    expect(n.body).toContain('placed on ERP finance migration at Harlow Health in San Jose')
+    expect(n.body).toContain('placed Amara Nwosu on ERP finance migration at Harlow Health in San Jose')
     expect(n.body).not.toContain('Harlow Health at Harlow Health')
   })
 

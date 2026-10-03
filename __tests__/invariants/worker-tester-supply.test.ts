@@ -6,6 +6,7 @@ import {
   type WeekSigner,
 } from '@/lib/consultant-portfolio'
 import { rateOnEndingSoon, clientEndingChoices, mayWorkRolloff } from '@/lib/releasing-soon'
+import { hrNotice } from '@/lib/internal-moves'
 
 /**
  * The worker side walked on a phone, 2026-10-03 (commit e80773ab9), and
@@ -232,5 +233,23 @@ describe('a week paid at more than one rate says so', () => {
       [6_600, { hours: 24, first: '2026-08-05' }],
     ])
     expect(ratesSaid('2026-08-03', cut, [], 'USD', today)).toBe('16 at $70 and 24 at $66, because your rate changed on Aug 5.')
+  })
+})
+
+describe('what a firm and its HR desk are told about the bench', () => {
+  it('HR told of a move onto a manager’s own project reads who was placed, by name', () => {
+    const n = hrNotice('MOVE', {
+      personName: 'Amara Nwosu', firmName: 'Teleworld Solutions', actorName: 'Rahul Deshpande',
+      forTitle: 'ERP finance migration', toClient: 'Harlow Health', toCity: 'San Jose',
+      startsOn: new Date('2026-11-16T00:00:00Z'), movedAs: 'LINE',
+    })
+    expect(n.body).toMatch(/^Rahul Deshpande placed Amara Nwosu on ERP finance migration at Harlow Health in San Jose, starting /)
+  })
+
+  it('a firm told about a person’s bench stay is told as bench news, which opens the bench, never as a submission', () => {
+    const lib = src('lib/bench-stay-record.ts')
+    const tell = lib.slice(lib.indexOf('export async function tellFirm'), lib.indexOf('return desks.length'))
+    expect(tell).toContain("type: 'BENCH'")
+    expect(tell).not.toContain("type: 'SUBMISSION'")
   })
 })
