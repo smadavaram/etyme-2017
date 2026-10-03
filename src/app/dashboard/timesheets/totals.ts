@@ -27,6 +27,38 @@ export interface TotalsRow {
   waitingOnYou: boolean
   /** What the row is worth at this reader's rate; null where it cannot be priced. */
   valueCents: number | null
+  /**
+   * This reader has signed it. In a chain a week the client signed stays
+   * SUBMITTED until the supplier below accepts it, so status alone left
+   * every week Northbend signed out of Northbend's own total.
+   */
+  youSigned?: boolean
+}
+
+/**
+ * One row of the timesheet list, as the tiles read it. The page and the
+ * tests both build rows through this, so a test of the total is a test
+ * of the page's own mapping.
+ */
+export function totalsRowOf(t: {
+  periodStart: string
+  totalHours: number
+  status: string
+  flag: string | null
+  mayApprove?: boolean
+  rate: { cents: number | null }
+  overtime?: { billableCents: number | null } | null
+  signature?: { waitingOnYou: boolean; youSigned: boolean } | null
+}): TotalsRow {
+  return {
+    periodStart: t.periodStart,
+    totalHours: t.totalHours,
+    status: t.status,
+    flag: t.flag,
+    waitingOnYou: t.signature ? t.signature.waitingOnYou : t.status === 'SUBMITTED' && !!t.mayApprove,
+    valueCents: t.overtime ? t.overtime.billableCents : t.rate.cents == null ? null : t.totalHours * t.rate.cents,
+    youSigned: t.signature?.youSigned ?? false,
+  }
 }
 
 export interface Totals {
@@ -70,7 +102,14 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
   const flaggedRows = rows.filter((r) => r.flag != null)
   const flaggedWaiting = flaggedRows.filter((r) => r.waitingOnYou).length
 
-  const approved = rows.filter((r) => r.status === 'APPROVED')
+  // Approved by every firm, or signed by this reader and waiting on the
+  // firm below: either way it is work this reader has said yes to.
+  const approved = rows.filter((r) => r.status === 'APPROVED' || r.youSigned === true)
+  const signedOnly = approved.filter((r) => r.status !== 'APPROVED').length
+  const counted =
+    signedOnly === 0 ? 'approved'
+    : signedOnly === approved.length ? 'signed by you'
+    : 'approved or signed by you'
   const priced = approved.filter((r) => r.valueCents != null)
   const approvedValueCents = priced.reduce((s, r) => s + (r.valueCents ?? 0), 0)
   const unpriced = approved.length - priced.length
@@ -92,8 +131,8 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
     approvedValueCents,
     approvedSays:
       approved.length === 0
-        ? 'no approved weeks on this list'
-        : `${opts.payBasis ? 'your pay for' : 'billable, from'} ${weeks(approved.length)} approved` +
+        ? 'no approved or signed weeks on this list'
+        : `${opts.payBasis ? 'your pay for' : 'billable, from'} ${weeks(approved.length)} ${counted}` +
           (approvedFirst ? ` since ${day(approvedFirst)}` : '') +
           (unpriced > 0 ? `; ${unpriced} more with no rate on file` : ''),
   }

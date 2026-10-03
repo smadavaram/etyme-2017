@@ -331,3 +331,26 @@ describe('The client’s dashboard agrees with itself and every tile opens what 
     expect(src('src/app/dashboard/program/page.tsx')).toContain("{plural(p.cumulativeMonths, 'month')} here")
   })
 })
+
+// ── The client's signed total (money's report on the walk) ──────────
+
+import { listTotals as totalsOf, type TotalsRow as Row } from '@/app/dashboard/timesheets/totals'
+
+describe('A week the reader signed counts in the value they approved, though the firm below has not accepted it', () => {
+  const row = (over: Partial<Row>): Row => ({
+    periodStart: '2026-09-20T00:00:00.000Z', totalHours: 40, status: 'SUBMITTED', flag: null,
+    waitingOnYou: false, valueCents: 392_000, youSigned: false, ...over,
+  })
+
+  it('a week still SUBMITTED but signed by the client is counted, and one nobody signed is not', () => {
+    const t = totalsOf([row({ youSigned: true }), row({})], { onServer: 2, payBasis: false })
+    expect(t.approvedValueCents).toBe(392_000)
+  })
+
+  it('the tile says when what it counts was signed by you rather than approved by every firm', () => {
+    expect(totalsOf([row({ youSigned: true })], { onServer: 1, payBasis: false }).approvedSays)
+      .toBe('billable, from 1 week signed by you since Sep 20, 2026')
+    expect(totalsOf([row({ youSigned: true }), row({ status: 'APPROVED' })], { onServer: 2, payBasis: false }).approvedSays)
+      .toBe('billable, from 2 weeks approved or signed by you since Sep 20, 2026')
+  })
+})

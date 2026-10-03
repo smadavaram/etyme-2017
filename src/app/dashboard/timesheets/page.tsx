@@ -9,7 +9,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { DecideOvertime, type PendingWeek } from './decide-overtime'
-import { listTotals } from './totals'
+import { listTotals, totalsRowOf } from './totals'
 
 /**
  * Timesheets working surface — the Operate section.
@@ -593,14 +593,9 @@ export default function TimesheetsPage() {
   // Every tile says what it adds up: how many weeks, since when, and
   // whether the list is cut (`./totals`).
   const totals = listTotals(
-    timesheets.map((t) => ({
-      periodStart: t.periodStart,
-      totalHours: t.totalHours,
-      status: t.status,
-      flag: t.flag,
-      waitingOnYou: t.signature ? t.signature.waitingOnYou : t.status === 'SUBMITTED' && t.mayApprove,
-      valueCents: centsOf(t),
-    })),
+    // A week this reader signed counts, though in a chain it stays
+    // SUBMITTED until the firm below accepts it (`totalsRowOf`).
+    timesheets.map((t) => totalsRowOf(t)),
     { onServer, payBasis: (timesheets.find((t) => t.rate)?.rate.label ?? '') === 'Your rate' }
   )
   // Waiting on this reader — not "submitted", which counts the weeks
