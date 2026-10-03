@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { stateAfterConfirming, rowToInterview } from '@/lib/interviews'
 import { tell } from '@/lib/interview-notices'
-import { momentFor } from '@/lib/when'
+import { timeFor } from '@/lib/interviews'
 
 /**
  * POST /api/me/interviews/:id/respond
@@ -158,7 +158,7 @@ export async function POST(
   })
 
   const booked = saved.state === 'CONFIRMED'
-  const said = when ? momentFor(when, caller.person.timezone) : null
+  const said = when ? timeFor(when, caller.person.timezone) : null
 
   return NextResponse.json({
     data: {

@@ -34,6 +34,13 @@ export type NotificationType =
   | 'VISA_EXPIRY'
   | 'INTERVIEW'
   | 'MATCH_READY'
+  /**
+   * A person's stay on a firm's bench: renewed, about to end, ended, a
+   * hold taken back. These were filed under SUBMISSION, so the bench
+   * desk found them among submissions it had made and the filter could
+   * not separate them (bench tester, 2026-10-03).
+   */
+  | 'BENCH'
 
 export type NotificationChannel = 'IN_APP' | 'EMAIL' | 'TEAMS'
 
@@ -279,6 +286,7 @@ export function notificationHref(type: string, entityId?: string | null): string
     VISA_EXPIRY: '/dashboard/compliance',
     INTERVIEW: '/dashboard/submissions',
     MATCH_READY: '/dashboard/requirements',
+    BENCH: '/dashboard/bench',
   }
 
   const base = routes[type] ?? '/dashboard/notifications'

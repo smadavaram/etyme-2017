@@ -56,7 +56,7 @@ describe('when the supplier confirms', () => {
     const notices = noticesFor('CONFIRMED', ctx)
     expect(to('CONFIRMED')).toEqual(['p-dana'])
     expect(notices[0].title).toBe('CloudEPA confirmed Priya Raman')
-    expect(notices[0].body).toMatch(/Tue,? 15 Sept?,? 10:00/)
+    expect(notices[0].body).toMatch(/Tue, Sep 15, 10:00\s?AM UTC/)
   })
 })
 

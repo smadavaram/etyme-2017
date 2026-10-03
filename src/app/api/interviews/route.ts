@@ -5,7 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { awardDoor } from '@/lib/award'
 import {
-  headline, waitingOn, placeFromRound, shapeRow as shape, rowToInterview as asInterview,
+  headline, waitingOn, placeFromRound, shapeRow as shape, rowToInterview as asInterview, readerZone,
 } from '@/lib/interviews'
 
 /**
@@ -21,6 +21,9 @@ import {
  */
 export async function GET(request: NextRequest) {
   const onlySubmission = request.nextUrl.searchParams.get('submission')
+  // The zone the reader's browser is in, sent by the page. Their own
+  // profile still wins where they set one (`readerZone`).
+  const browserZone = request.nextUrl.searchParams.get('tz')
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
@@ -76,6 +79,7 @@ export async function GET(request: NextRequest) {
     : []
   const lineFor = new Map(lines.map((l) => [`${l.requirementId}:${l.personId}`, l.id]))
   const mayHire = hasPermission(caller.permissions, 'requirements.write')
+  const zone = readerZone(caller.person.timezone, browserZone)
 
   const items = rows.map((row) => {
     const names = {
@@ -98,7 +102,7 @@ export async function GET(request: NextRequest) {
       panel: row.companyId === companyId ? row.submission.requirement.interviewers : [],
       submissionId: row.submission.id,
       rateCents: row.submission.rate,
-      says: headline(i, now, names, caller.person.timezone),
+      says: headline(i, now, names, zone),
       // Whether this row is waiting on the person reading it. The only
       // thing that turns a list into a to-do.
       yours:

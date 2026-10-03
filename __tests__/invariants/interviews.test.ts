@@ -219,7 +219,7 @@ describe('the line at the top', () => {
     })
     // Readable, and still UTC when nobody has said where the reader is —
     // which the line names rather than leaving to be assumed.
-    expect(headline(i, NOW, NAMES)).toBe('Round 1, Wed 26 Aug, 14:00 UTC. In all three diaries.')
+    expect(headline(i, NOW, NAMES)).toMatch(/^Round 1, Wed, Aug 26, 2:00\s?PM UTC\. In all three diaries\.$/)
   })
 
   it('tells a reader in their own zone once we know where they are', () => {
@@ -233,8 +233,8 @@ describe('the line at the top', () => {
       scheduledAt: new Date('2026-08-26T14:00:00Z'),
     })
     const there = headline(i, NOW, NAMES, 'America/Los_Angeles')
-    expect(there).toContain('07:00')
-    expect(there).not.toContain('14:00')
+    expect(there).toMatch(/7:00\s?AM PDT/)
+    expect(there).not.toMatch(/2:00\s?PM/)
     expect(there).not.toBe(headline(i, NOW, NAMES))
   })
 

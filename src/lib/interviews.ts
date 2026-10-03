@@ -35,7 +35,6 @@
  * turn up — which is a thing only the layer between them can hold.
  */
 
-import { momentFor } from '@/lib/when'
 
 /** Where an interview has got to. */
 export type State =
@@ -336,7 +335,7 @@ export function headline(
    */
   timezone?: string | null
 ): string {
-  const when = i.scheduledAt ? momentFor(i.scheduledAt, timezone ?? null) : null
+  const when = i.scheduledAt ? timeFor(i.scheduledAt, timezone ?? null) : null
 
   switch (i.state) {
     case 'CANCELLED':
@@ -356,6 +355,65 @@ export function headline(
       return when ? `Round ${i.round}, ${when}. ${w.says}` : `Round ${i.round}. ${w.says}`
     }
   }
+}
+
+/**
+ * Whether a name is a time zone this runtime can actually format in.
+ *
+ * A zone arrives from a browser or from a profile somebody typed, and
+ * either can be wrong. An unknown name throws inside Intl, and a throw
+ * inside a list of interviews is a blank page, so it is checked once
+ * here instead.
+ */
+export function isZone(zone: string | null | undefined): zone is string {
+  if (!zone || typeof zone !== 'string' || zone.length > 64) return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * A time somebody can act on: their own day and clock, with the zone
+ * named, in American English — "Tue, Oct 6, 9:00 AM PDT".
+ *
+ * The zone is always written out. "9:00 AM" is wrong for half the
+ * people who read it and looks right to all of them.
+ */
+export function timeFor(at: Date, zone: string | null | undefined): string {
+  const tz = isZone(zone) ? zone : 'UTC'
+  try {
+    return at.toLocaleString('en-US', {
+      timeZone: tz,
+      weekday: 'short', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+    })
+  } catch {
+    return `${at.toISOString().slice(0, 16).replace('T', ' ')} UTC`
+  }
+}
+
+/**
+ * Which time zone to say an interview time in, for one reader.
+ *
+ * The client tester read "Tue 6 Oct, 16:00 UTC" for a round booked at
+ * 9am Pacific. The headline already took the reader's zone, but nobody
+ * on the seeded world has set one, so every reader got UTC.
+ *
+ * Their own profile wins, because they said it. Where they never did,
+ * the zone their browser is in is the next best answer and is right for
+ * almost everybody. Null only when neither is known, and then the line
+ * says UTC out loud rather than pretending to be local.
+ */
+export function readerZone(
+  saved: string | null | undefined,
+  browser: string | null | undefined
+): string | null {
+  if (isZone(saved)) return saved
+  if (isZone(browser)) return browser
+  return null
 }
 
 // ── Reading a stored row ──────────────────────────────────────────────

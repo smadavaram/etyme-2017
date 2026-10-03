@@ -5,7 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { tell } from '@/lib/interview-notices'
 import {
-  stateAfterConfirming, stillValid, settle, noShow, reasonFor, headline,
+  stateAfterConfirming, stillValid, settle, noShow, reasonFor, headline, readerZone,
   earliest, type Party, type Outcome,
   shapeRow as shape, rowToInterview as asInterview,
 } from '@/lib/interviews'
@@ -146,7 +146,7 @@ export async function POST(
     void tell('CONFIRMED', row.id, { when: chosen.start })
 
     return NextResponse.json({
-      data: { ...shape(saved), says: headline(asInterview(saved), now, names, caller.person.timezone) },
+      data: { ...shape(saved), says: headline(asInterview(saved), now, names, readerZone(caller.person.timezone, request.nextUrl.searchParams.get('tz'))) },
     })
   }
 

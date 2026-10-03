@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { useSession } from '@/components/session-provider'
+import { pageFraming } from '@/lib/page-framing'
 import { hasPermission } from '@/lib/permissions'
 import type { PlaceMove } from '@/lib/interviews'
 import { PlaceDialog } from './place-dialog'
@@ -57,11 +58,27 @@ interface Row {
   }
 }
 
+/**
+ * A time offered, in the reader's own zone, with the zone named.
+ *
+ * The browser formats it, so it is already the reader's local time; the
+ * zone is written out because "Tue, Oct 6, 9:00 AM" is wrong for the
+ * supplier two time zones away and looks right to them.
+ */
 function when(iso: string): string {
-  return new Date(iso).toLocaleString('en-GB', {
-    weekday: 'short', day: 'numeric', month: 'short',
-    hour: '2-digit', minute: '2-digit',
+  return new Date(iso).toLocaleString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
   })
+}
+
+/** The zone this browser is in, sent so the server's sentences use it too. */
+function browserZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? ''
+  } catch {
+    return ''
+  }
 }
 
 export default function InterviewsPage() {
@@ -70,7 +87,11 @@ export default function InterviewsPage() {
   // Nike's AP clerk is a party to the program and could see every
   // button; the route refuses them, and a button that only ever refuses
   // is a form whose answer is thrown away.
-  const { permissions } = useSession()
+  const { permissions, company } = useSession()
+  // The heading follows the reader's own menu: a client reads the
+  // section its Submissions sit under, a supplier the one its
+  // Interviews entry sits under. Never a word typed here.
+  const framing = pageFraming(company?.kind ?? 'VENDOR', 'interviews')
   const mayDecide = hasPermission(permissions, 'requirements.write')
   const [rows, setRows] = useState<Row[]>([])
   const [summary, setSummary] = useState('')
@@ -96,7 +117,7 @@ export default function InterviewsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/interviews')
+      const res = await fetch(`/api/interviews?tz=${encodeURIComponent(browserZone())}`)
       const body = await readJson(res)
       setRows(body.data.interviews)
       setSummary(body.data.summary)
@@ -114,7 +135,7 @@ export default function InterviewsPage() {
     setBusy(id)
     setError(null)
     try {
-      const res = await fetch(`/api/interviews/${id}`, {
+      const res = await fetch(`/api/interviews/${id}?tz=${encodeURIComponent(browserZone())}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
@@ -140,13 +161,9 @@ export default function InterviewsPage() {
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Operate</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Interviews</h1>
-        <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
-          Nothing is booked until the client, the supplier and the consultant
-          have all said so. Three diaries, and the one that breaks is almost
-          never the client&rsquo;s.
-        </p>
+        {framing.eyebrow && <p className="eyebrow">{framing.eyebrow}</p>}
+        <h1 className="headline-serif text-[30px] leading-tight">{framing.title}</h1>
+        <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">{framing.subtitle}</p>
       </header>
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>

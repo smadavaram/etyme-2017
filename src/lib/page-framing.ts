@@ -102,6 +102,7 @@ export type PageKey =
   | 'contracts.buy'
   | 'requirements'
   | 'submissions'
+  | 'interviews'
   | 'rolloff'
   | 'timesheets'
   | 'invoices'
@@ -181,6 +182,13 @@ const SUPPLIER: Record<PageKey, Words> = {
     subtitle: 'Consultants you have put forward. Track them from submitted through to placement.',
     create: 'Submit',
   },
+  interviews: {
+    title: 'Interviews',
+    subtitle: 'Rounds your clients asked for. Nothing is booked until the client, you and the consultant have all said yes.',
+    // A supplier confirms a time; it never books a round. The client
+    // proposes from the candidate's row.
+    create: null,
+  },
   rolloff: {
     title: 'Rolloff',
     subtitle: 'Contracts approaching their end date. Claim one to own the offboarding and redeployment.',
@@ -239,10 +247,20 @@ const CLIENT: Record<PageKey, Words> = {
     create: 'New job request',
   },
   submissions: {
-    title: 'Candidates',
+    // "Submissions", the word on the client's own menu. The page said
+    // "Candidates" under a menu entry that said Submissions, so the
+    // tester clicked one word and landed on another (2026-10-03).
+    title: 'Submissions',
     subtitle: 'People your suppliers have put forward. Shortlist, interview, and place.',
     // A client's vendors put people forward; a client does not submit to
     // itself, and the route refuses it.
+    create: null,
+  },
+  interviews: {
+    title: 'Interviews',
+    subtitle: 'Rounds with people your suppliers put forward. Nothing is booked until you, the supplier and the candidate have all said yes.',
+    // Rounds are proposed from the candidate's row on Submissions, so
+    // there is nothing to raise from here.
     create: null,
   },
   rolloff: {
@@ -292,7 +310,8 @@ const BOOK: Record<PageKey, string> = {
   'contracts.sell': 'contracts',
   'contracts.buy': 'contracts',
   requirements: 'job requests',
-  submissions: 'candidates',
+  submissions: 'submissions',
+  interviews: 'interviews',
   rolloff: 'contractors ending soon',
   timesheets: 'hours',
   invoices: 'invoice receipts',
@@ -313,6 +332,7 @@ const ROUTE: Record<PageKey, string> = {
   'contracts.buy': '/dashboard/contracts',
   requirements: '/dashboard/requirements',
   submissions: '/dashboard/submissions',
+  interviews: '/dashboard/interviews',
   rolloff: '/dashboard/rolloff',
   timesheets: '/dashboard/timesheets',
   invoices: '/dashboard/invoices',
@@ -341,6 +361,11 @@ const MENU_ENTRY: Partial<Record<CompanyKind, Partial<Record<PageKey, string>>>>
   CLIENT: {
     requirements: '/dashboard/requisitions',
     consultants: '/dashboard/people',
+    // Interviews left the client's menu: a client opens a round from the
+    // candidate's row on Submissions, so the page is headed by the
+    // section that holds Submissions. It read "Operate", a word typed
+    // into the page, until 2026-10-03.
+    interviews: '/dashboard/submissions',
   },
 }
 

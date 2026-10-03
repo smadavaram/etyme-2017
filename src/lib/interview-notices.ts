@@ -1,5 +1,8 @@
 import { prisma } from '@/lib/db'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
+import { isZone, timeFor } from '@/lib/interviews'
+
+export { timeFor }
 
 /**
  * Who is told what, when a round moves.
@@ -60,20 +63,29 @@ export interface NoticeContext {
   reason: string | null
   /** Who did not turn up (NO_SHOW). */
   noShowBy: 'CLIENT' | 'VENDOR' | 'CONSULTANT' | null
-  /** The reader's timezone is unknown here; the route can pass the requester's. */
-  timezone?: string
+  /**
+   * The zone to fall back on for a reader who never set one: the client
+   * requester's, because the round was booked in their day. Null or
+   * absent means UTC, and the time says so.
+   */
+  timezone?: string | null
+  /**
+   * Each reader's own zone, by person id, where they set one. A
+   * candidate in Chicago reads the round in Chicago time even though the
+   * client booked it from Portland.
+   */
+  zones?: Record<string, string | null | undefined>
+  /** The times offered, for the candidate's own letter (PROPOSED). */
+  slots?: Date[]
+  /** Where the round has got to once the event landed — CONFIRMED means in all three diaries. */
+  state?: string
 }
 
-function whenSaid(when: Date | null, tz?: string): string {
-  if (!when) return ''
-  try {
-    return when.toLocaleString('en-GB', {
-      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-      ...(tz ? { timeZone: tz } : {}),
-    })
-  } catch {
-    return when.toISOString()
-  }
+/** The zone one reader is told a time in: their own, else the fallback, else UTC. */
+function zoneOf(c: NoticeContext, personId: string): string | null {
+  const own = c.zones?.[personId]
+  if (isZone(own)) return own
+  return isZone(c.timezone) ? c.timezone : null
 }
 
 /** The notices for one event — pure, so the rules can be read as tests. */
@@ -85,15 +97,22 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
     seen.add(n.personId)
     out.push({ entityId: c.interviewId, ...n, data: { interviewId: c.interviewId, submissionId: c.submissionId, round: c.round, event, ...(n.data ?? {}) } })
   }
-  const toVendorStaff = (title: string, body: string) =>
-    c.vendorStaffIds.forEach((personId) => add({ personId, companyId: c.vendor.id, type: 'INTERVIEW', title, body }))
-  const toRequester = (title: string, body: string) =>
-    add({ personId: c.requesterId, companyId: c.client.id, type: 'INTERVIEW', title, body })
-  const toConsultant = (title: string, body: string) =>
-    add({ personId: c.consultant.id, companyId: c.vendor.id, type: 'INTERVIEW', title, body, channel: 'EMAIL' })
+  // A body is a function of the reader's own time where it names one,
+  // so each person reads the round in their own day.
+  type Body = string | ((at: string) => string)
+  const said = (body: Body, personId: string) =>
+    typeof body === 'string' ? body : body(c.when ? timeFor(c.when, zoneOf(c, personId)) : '')
+  const toVendorStaff = (title: string, body: Body) =>
+    c.vendorStaffIds.forEach((personId) => add({ personId, companyId: c.vendor.id, type: 'INTERVIEW', title, body: said(body, personId) }))
+  const toRequester = (title: string, body: Body) =>
+    add({ personId: c.requesterId, companyId: c.client.id, type: 'INTERVIEW', title, body: said(body, c.requesterId) })
+  const toConsultant = (title: string, body: Body) =>
+    add({ personId: c.consultant.id, companyId: c.vendor.id, type: 'INTERVIEW', title, body: said(body, c.consultant.id), channel: 'EMAIL' })
 
   const round = `round ${c.round}`
-  const at = whenSaid(c.when, c.timezone)
+  // The candidate's own clock for the times offered, so the letter can
+  // be answered without converting anything.
+  const offered = (c.slots ?? []).map((t) => timeFor(t, zoneOf(c, c.consultant.id)))
 
   switch (event) {
     case 'PROPOSED':
@@ -103,18 +122,27 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
       )
       toConsultant(
         `${c.client.name} would like to interview you`,
-        `${c.stage}, ${round}, for ${c.role}. ${c.slotCount === 1 ? 'One time' : `${c.slotCount} times`} offered — pick one on your page, or tell ${c.vendor.name}.`
+        `${c.stage}, ${round}, for ${c.role}. ${c.slotCount === 1 ? 'One time' : `${c.slotCount} times`} offered${offered.length > 0 ? `: ${offered.join('; ')}` : ''} — pick one on your page, or tell ${c.vendor.name}.`
       )
       break
     case 'CONFIRMED':
       toRequester(
         `${c.vendor.name} confirmed ${c.consultant.name}`,
-        `${c.stage}, ${round}, for ${c.role}${at ? ` — ${at}` : ''}.`
+        (at) => `${c.stage}, ${round}, for ${c.role}${at ? ` — ${at}` : ''}.`
       )
+      // The supplier confirmed, often on the candidate's behalf. The
+      // candidate is the one who has to turn up, so they get the time
+      // that stuck, in their own day.
+      if (c.when && c.state === 'CONFIRMED') {
+        toConsultant(
+          `Your ${round} with ${c.client.name} is booked`,
+          (at) => `${c.stage}, for ${c.role} — ${at}. ${c.vendor.name} confirmed it. If you cannot make it, say so on your page.`
+        )
+      }
       break
     case 'ANSWERED_YES':
-      toRequester(`${c.consultant.name} accepted ${round}`, `For ${c.role}${at ? ` — ${at}` : ''}.`)
-      toVendorStaff(`${c.consultant.name} accepted ${round} at ${c.client.name}`, `For ${c.role}${at ? ` — ${at}` : ''}. They answered it themselves.`)
+      toRequester(`${c.consultant.name} accepted ${round}`, (at) => `For ${c.role}${at ? ` — ${at}` : ''}.`)
+      toVendorStaff(`${c.consultant.name} accepted ${round} at ${c.client.name}`, (at) => `For ${c.role}${at ? ` — ${at}` : ''}. They answered it themselves.`)
       break
     case 'ANSWERED_NO':
       toRequester(`${c.consultant.name} cannot make ${round}`, `For ${c.role}.${c.reason ? ` They said: ${c.reason}` : ''} Offer other times, or ask ${c.vendor.name}.`)
@@ -166,7 +194,7 @@ export async function noticeContextFor(interviewId: string): Promise<NoticeConte
   const row = await prisma.interview.findUnique({
     where: { id: interviewId },
     select: {
-      id: true, round: true, stage: true, scheduledAt: true, proposedSlots: true,
+      id: true, round: true, stage: true, state: true, scheduledAt: true, proposedSlots: true,
       requestedById: true, cancelledReason: true, noShowBy: true,
       company: { select: { id: true, name: true } },
       vendor: {
@@ -188,7 +216,14 @@ export async function noticeContextFor(interviewId: string): Promise<NoticeConte
     },
   })
   if (!row) return null
-  const requester = await prisma.person.findUnique({ where: { id: row.requestedById }, select: { timezone: true } })
+  // Every reader's own zone, in one read, so each is told the time in
+  // their own day.
+  const readers = Array.from(new Set([row.requestedById, row.submission.person.id, ...row.vendor.contexts.map((x) => x.personId)]))
+  const people = await prisma.person.findMany({ where: { id: { in: readers } }, select: { id: true, timezone: true } })
+  const zones = Object.fromEntries(people.map((p) => [p.id, p.timezone]))
+  const slots = (Array.isArray(row.proposedSlots) ? (row.proposedSlots as any[]) : [])
+    .map((x) => new Date(x?.start))
+    .filter((d) => !Number.isNaN(d.getTime()))
   return {
     interviewId: row.id,
     submissionId: row.submission.id,
@@ -204,7 +239,10 @@ export async function noticeContextFor(interviewId: string): Promise<NoticeConte
     when: row.scheduledAt,
     reason: row.cancelledReason ?? null,
     noShowBy: (row.noShowBy as NoticeContext['noShowBy']) ?? null,
-    timezone: requester?.timezone ?? undefined,
+    timezone: zones[row.requestedById] ?? null,
+    zones,
+    slots,
+    state: row.state,
   }
 }
 

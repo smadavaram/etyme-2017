@@ -47,13 +47,15 @@ interface DeliveryHealth {
 }
 
 type StatusFilter = 'all' | 'UNREAD' | 'READ'
-type TypeFilter = 'all' | 'SUBMISSION' | 'TIMESHEET' | 'INVOICE' | 'EXPENSE' | 'CONTRACT' | 'ROLLOFF' | 'CONVERSATION' | 'SYSTEM'
+type TypeFilter = 'all' | 'SUBMISSION' | 'INTERVIEW' | 'BENCH' | 'TIMESHEET' | 'INVOICE' | 'EXPENSE' | 'CONTRACT' | 'ROLLOFF' | 'CONVERSATION' | 'SYSTEM'
 
 // ── Helpers ──────────────────────────────────────────
 
 function typeIcon(type: string): string {
   const map: Record<string, string> = {
     SUBMISSION:   '◇',
+    INTERVIEW:    '◷',
+    BENCH:        '◎',
     TIMESHEET:    '▦',
     INVOICE:      '▧',
     EXPENSE:      '◫',
@@ -65,9 +67,31 @@ function typeIcon(type: string): string {
   return map[type] ?? '•'
 }
 
+/** The word on the chip. A machine name like CYCLE_DUE is never shown. */
+function typeLabel(type: string): string {
+  const map: Record<string, string> = {
+    SUBMISSION:   'Submission',
+    INTERVIEW:    'Interview',
+    BENCH:        'Bench',
+    TIMESHEET:    'Timesheet',
+    INVOICE:      'Bill or invoice',
+    EXPENSE:      'Expense',
+    CONTRACT:     'Contract',
+    ROLLOFF:      'Rolloff',
+    CONVERSATION: 'Message',
+    SYSTEM:       'System',
+    CYCLE_DUE:    'Due date',
+    VISA_EXPIRY:  'Visa',
+    MATCH_READY:  'Match',
+  }
+  return map[type] ?? 'Update'
+}
+
 function typeChipClass(type: string): string {
   const map: Record<string, string> = {
     SUBMISSION:   'chip--action',
+    INTERVIEW:    'chip--action',
+    BENCH:        'chip--verified',
     TIMESHEET:    'chip--attention',
     INVOICE:      'chip--action',
     EXPENSE:      'chip--attention',
@@ -173,6 +197,8 @@ export default function NotificationsPage() {
   const typeOptions: { key: TypeFilter; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'SUBMISSION', label: 'Submissions' },
+    { key: 'INTERVIEW', label: 'Interviews' },
+    { key: 'BENCH', label: 'Bench' },
     { key: 'TIMESHEET', label: 'Timesheets' },
     { key: 'INVOICE', label: 'Bills and invoices' },
     { key: 'EXPENSE', label: 'Expenses' },
@@ -326,7 +352,7 @@ export default function NotificationsPage() {
                   }`}>
                     {n.title}
                   </p>
-                  <span className={`chip text-[10px] ${typeChipClass(n.type)}`}>{n.type}</span>
+                  <span className={`chip text-[10px] ${typeChipClass(n.type)}`}>{typeLabel(n.type)}</span>
                 </div>
                 <p className="text-[12px] text-etyme-faint truncate">{n.body}</p>
                 {n.deliveryState !== 'SENT' && (
