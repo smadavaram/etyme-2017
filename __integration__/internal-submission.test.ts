@@ -99,6 +99,15 @@ beforeAll(async () => {
   await insure(co.ardent, who.dm)
   await insure(co.vertex, who.vertexLead)
 
+  // The seat an engineer on the payroll holds: their own work and their
+  // own hours. Arun and Maya sat on the owner's role ('*') here until
+  // 2026-10-03, which made them indistinguishable from the people who
+  // run the firm — and the submit picker stopped offering the owner, HR
+  // and the delivery managers as candidates (`own-people/who.ts`).
+  const engineer = await prisma.role.create({
+    data: { companyId: co.ardent, name: 'Validation Engineer', permissions: ['assignments.read', 'timesheets.read'] },
+  })
+
   // Arun is on Ardent's payroll. He has no consultant profile, no bench
   // listing and no reason to have either — he is an employee between
   // projects, which is what a delivery bench actually is.
@@ -109,7 +118,7 @@ beforeAll(async () => {
   await prisma.context.create({
     data: {
       personId: arun.id, companyId: co.ardent, type: 'EMPLOYEE',
-      roleId: ardent.roleId, grantReason: 'Delivery — validation practice',
+      roleId: engineer.id, grantReason: 'Delivery — validation practice',
     },
   })
 
@@ -121,7 +130,7 @@ beforeAll(async () => {
   await prisma.context.create({
     data: {
       personId: maya.id, companyId: co.ardent, type: 'EMPLOYEE',
-      roleId: ardent.roleId, grantReason: 'Delivery — validation practice',
+      roleId: engineer.id, grantReason: 'Delivery — validation practice',
     },
   })
   await prisma.doNotSubmit.create({
@@ -324,6 +333,13 @@ describe('The rule has a door, so somebody can actually pick an employee', () =>
     const names = r.body.data.people.map((p: any) => p.name)
     expect(names).toContain('Arun Nadar')
     expect(names).toContain('Maya Rao')
+  })
+
+  it('does not offer the person choosing, who runs the firm and has no work of their own, as a candidate', async () => {
+    as(ARDENT_DM)
+    const r = await json(await ownPeople(req('GET', '/api/submissions/own-people')))
+    const ids = r.body.data.people.map((p: any) => p.personId)
+    expect(ids).not.toContain(who.dm)
   })
 
   it('tells whoever is choosing that these need no bench listing, in a sentence', async () => {
