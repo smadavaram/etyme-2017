@@ -617,6 +617,10 @@ export async function GET(request: NextRequest) {
         id: r.id,
         title: r.title,
         status: r.status,
+        // So the dashboard reads the stage in the Job requests page's own
+        // word — "Awaiting approval", never "Draft" for the same row.
+        approvalState: r.approvalState,
+        archivedAt: r.archivedAt?.toISOString() ?? null,
         openDays: Math.floor((now.getTime() - r.createdAt.getTime()) / 86_400_000),
         submissions: r.submissions.length,
         shortlisted: r.submissions.filter(s => s.status === 'SHORTLISTED').length,

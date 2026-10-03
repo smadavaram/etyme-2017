@@ -99,9 +99,12 @@ export async function GET(
   // refuses on, so "Place" is never offered where the click would fail.
   const lines = await prisma.sellContract.findMany({
     where: { requirementId: id },
-    select: { id: true, personId: true },
+    select: { id: true, personId: true, billRate: true },
   })
   const lineFor = new Map(lines.map((l) => [l.personId, l.id]))
+  // What the award agreed, which is not what the supplier asked: the
+  // tester placed Daniel Okafor at $132 and the page went on saying $131.
+  const placedAt = new Map(lines.map((l) => [l.personId, l.billRate]))
   const mayHire = hasPermission(caller.permissions, 'requirements.write')
 
   const now = new Date()
@@ -173,6 +176,7 @@ export async function GET(
         description: req.description,
         justification: req.justification,
         status: req.status,
+        archivedAt: req.archivedAt?.toISOString() ?? null,
         approvalState: req.approvalState,
         raisedBy: req.raisedBy,
         owner: req.owner,
@@ -234,6 +238,8 @@ export async function GET(
         },
         vendor: s.fromCompany,
         rate: s.rate,
+        // The rate on the line the award wrote, once placed; null before.
+        placedRate: placedAt.get(s.personId) ?? null,
         kind: s.kind,
         status: s.status,
         submittedAt: s.submittedAt.toISOString(),

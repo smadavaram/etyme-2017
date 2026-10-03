@@ -78,7 +78,10 @@ describe('what the client desk is told', () => {
   })
 
   it('when nothing is on this desk but work is waiting at another, the page says whose', () => {
-    expect(page).toContain('waiting on the hiring managers who own them')
+    // The sentence moved into `needs-you.ts` (`emptyQueueSays`) on
+    // 2026-10-03, so it can never contradict the headline above it.
+    expect(needsYou).toContain('waiting on the hiring managers who own them')
+    expect(page).toContain('emptyQueueSays({')
   })
 
   it('the headline is a sentence about the reader, not a label', () => {
@@ -108,7 +111,7 @@ describe('what the client desk is told', () => {
   it('a clear desk is not an empty page: what was done today is listed under the queue', () => {
     expect(program).toContain("what: 'Hours signed'")
     expect(program).toContain("what: 'Awarded'")
-    expect(page).toContain("'Queue clear. Everything below was done today.'")
+    expect(needsYou).toContain("'Queue clear. Everything below was done today.'")
   })
 
   it('somebody starting soon shows the paperwork verdict a week early, in the words activation would use', () => {

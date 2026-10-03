@@ -125,7 +125,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
 
   it('an employee with no work on the record is named, and nothing claims they are free', async () => {
     // Sundara's, because every Teleworld engineer now has work on the
-    // record: three on its Tualatin and San Jose projects, one just off
+    // record: three on its Portland and San Jose projects, one just off
     // Corveldt.
     as(SUNDARA)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))

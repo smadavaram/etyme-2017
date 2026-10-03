@@ -38,7 +38,11 @@ export function jobFacts(r: any): { label: string; value: string }[] {
     { label: 'Pay range', value: range },
     { label: 'How many', value: `${r.headcount} ${r.headcount === 1 ? 'person' : 'people'}` },
     { label: 'Hiring manager', value: who },
-    { label: 'Raised by', value: r.raisedBy && r.owner && r.raisedBy.id !== r.owner.id ? r.raisedBy.name : null },
+    // Whoever typed it, always by name where the row knows it. This was
+    // shown only when it differed from the hiring manager, so a manager
+    // who raised their own request read "Raised by: Not stated" a minute
+    // after raising it — a blank that reads as nobody.
+    { label: 'Raised by', value: r.raisedBy?.name ?? null },
     { label: 'Team', value: r.orgUnit?.name ?? null },
     { label: 'Cost center', value: r.costCenter ? `${r.costCenter.name} (${r.costCenter.code})` : null },
     { label: 'Budget stated', value: r.budgetCents ? money(r.budgetCents) : null },
@@ -82,4 +86,98 @@ export function missingSays(missing: string[]): string | null {
   if (missing.length === 0) return null
   const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`
   return `Say ${list}. The desks check the job against these, and whoever approves it reads them.`
+}
+
+
+// ── What the approval was checked against, said once and consistently ──
+
+export interface CheckedBasis {
+  basis: 'RECORDED' | 'NOW'
+  at: string
+  checks: { outcome: string; reason: string; stage?: string; code?: string }[]
+}
+
+/**
+ * The line above the checks, and the words beside a check that would
+ * send the job to a person.
+ *
+ * The tester read "Cleared automatically · Within plan and under every
+ * threshold" in the approval box and, under it, "What it is worth: … is
+ * over the limit — needs a person". Both were true and neither said
+ * when: the job cleared on the day it was raised, the checks from that
+ * day were never recorded, and the ones shown were run again on today's
+ * plan, where the estimate now crosses the line. So where the re-run
+ * disagrees with a decision already made, the page says the decision
+ * stands and the check describes today — never "needs a person" about a
+ * job no person will be asked about.
+ */
+export function checkedSays(checked: CheckedBasis, approvalState: string): { intro: string; routeSuffix: string } {
+  const decided = approvalState === 'AUTO_APPROVED' || approvalState === 'APPROVED'
+  if (checked.basis === 'RECORDED') {
+    return { intro: `As checked on ${day(checked.at)}, when the job request was raised.`, routeSuffix: ' — needs a person' }
+  }
+  const wouldRoute = checked.checks.some((c) => c.outcome === 'ROUTE')
+  if (decided && wouldRoute) {
+    return {
+      intro:
+        'Checked again today, against today’s plan — the checks from when it was raised were not recorded. ' +
+        (approvalState === 'AUTO_APPROVED' ? 'It cleared by rule when it was raised, and that stands. ' : 'It was approved, and that stands. ') +
+        'Raised today, the line marked ! would go to a person.',
+      routeSuffix: ' — would need a person if raised today',
+    }
+  }
+  return {
+    intro: 'Checked now, against today’s plan. The checks from when it was raised were not recorded.',
+    routeSuffix: decided ? ' — would need a person if raised today' : ' — needs a person',
+  }
+}
+
+/**
+ * A desk's sentence with what the page already said taken out of it.
+ *
+ * The rule engine writes each desk's reason as "who — why", and the why
+ * is the check's own sentence, so a job over the money line printed one
+ * long sentence four times in one panel: as the headline, as the check,
+ * and inside both money desks' rows. The headline and the check say it;
+ * a desk row keeps only its own part — "The final word on Apps' spend",
+ * "Technology — over $80k".
+ */
+export function withoutRepeat(text: string, alreadySaid: string[]): string {
+  let out = text ?? ''
+  for (const said of alreadySaid.map((x) => (x ?? '').trim()).filter((x) => x.length >= 20)) {
+    const at = out.indexOf(said)
+    if (at < 0) continue
+    out = out.slice(0, at) + out.slice(at + said.length)
+  }
+  return out
+    .replace(/\s*(—|:|-)\s*$/, '')
+    .replace(/^\s*(—|:)\s*/, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+/**
+ * Whether the job is over, and the one sentence that says so at the top.
+ *
+ * After the award the page went on offering "Send to suppliers" and the
+ * matches, said nothing about the job being filled, and showed the rate
+ * the supplier asked rather than the one agreed. A filled job says who
+ * filled it and at what rate, and offers nothing that would send it out
+ * again.
+ */
+export function filledSays(
+  r: { status: string; headcount: number },
+  candidates: { status: string; person: { name: string }; rate: number; placedRate?: number | null }[]
+): string | null {
+  if (r.status !== 'FILLED') return null
+  const placed = candidates.filter((c) => c.status === 'PLACED')
+  if (placed.length === 0) return 'This job is filled. It goes to no more suppliers.'
+  const who = placed.map((c) => `${c.person.name} at ${money(c.placedRate ?? c.rate)}/hr`)
+  const list = who.length === 1 ? who[0] : `${who.slice(0, -1).join(', ')} and ${who[who.length - 1]}`
+  return `This job is filled: ${list}. It goes to no more suppliers, and everybody else who was put forward has been told.`
+}
+
+/** A job that may still be sent out or matched: published and not over. */
+export function stillOpen(r: { status: string; archivedAt?: string | null }): boolean {
+  return (r.status === 'OPEN' || r.status === 'DRAFT') && !r.archivedAt
 }

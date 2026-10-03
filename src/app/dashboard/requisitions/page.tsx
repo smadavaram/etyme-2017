@@ -194,7 +194,10 @@ function DecisionPanel({ decision, onDismiss }: {
         </button>
       </div>
       <div className="mt-4 space-y-1.5">
-        {decision.checks.map(c => (
+        {/* A check the headline already says is not printed again under
+            it, and the desks below keep only their own part of it: one
+            long sentence was printed four times in this panel. */}
+        {decision.checks.filter(c => c.outcome === 'PASS' || !decision.summary.includes(c.reason)).map(c => (
           <div key={c.code} className="flex items-baseline gap-3 text-sm">
             <span className={`w-4 shrink-0 ${
               c.outcome === 'PASS' ? 'text-etyme-verified' : 'text-etyme-attention'
@@ -220,6 +223,7 @@ function DecisionPanel({ decision, onDismiss }: {
             reason: s.reason,
             decidedAt: null,
           }))}
+          alreadySaid={decision.checks.filter(c => c.outcome !== 'PASS').map(c => c.reason)}
         />
       )}
     </div>

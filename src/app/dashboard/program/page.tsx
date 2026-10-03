@@ -8,8 +8,8 @@ import { compact } from '@/lib/money-display'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
-import { deskCounts, deskHeadline, whoseQueue } from './needs-you'
-import { jobListWord } from '../requirements/words'
+import { deskCounts, deskHeadline, whoseQueue, emptyQueueSays } from './needs-you'
+import { jobListWord, stageWordFor } from '../requirements/words'
 
 /**
  * Client Program Overview
@@ -94,6 +94,8 @@ interface ProgramData {
     id: string
     title: string
     status: string
+    approvalState?: string | null
+    archivedAt?: string | null
     openDays: number
     submissions: number
     shortlisted: number
@@ -619,15 +621,18 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
           {!queueLoaded && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}
           {queueLoaded && queue.length === 0 && (
             <p className="p-4 text-sm text-etyme-muted">
-              {data.approvalQueue.length > 0 ? (
+              {/* Never "nothing" under a headline that counted something
+                  (`emptyQueueSays`): it says where those things are. */}
+              {emptyQueueSays({
+                counts: deskCounts({ decisions: queue, startingSoon: data.startingSoon, vendors: data.vendors }),
+                approvalsWithOthers: data.approvalQueue.length,
+                doneToday: data.today.length,
+              })}
+              {data.approvalQueue.length > 0 && (
                 <>
-                  Nothing is waiting on you. {plural(data.approvalQueue.length, 'approval')} {data.approvalQueue.length === 1 ? 'is' : 'are'} waiting on the hiring managers who own them —{' '}
+                  {' — '}
                   <button type="button" onClick={onApprovals} className="text-etyme-action hover:underline">see Approvals</button>.
                 </>
-              ) : data.today.length > 0 ? (
-                'Queue clear. Everything below was done today.'
-              ) : (
-                'Every week is signed, every claim reviewed, every invoice inside its terms. Nothing is waiting on you.'
               )}
             </p>
           )}
@@ -712,9 +717,12 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
 
       {/* ── The picture ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Stat label="On site" value={s.activeContractors} sub="contractors" href="/dashboard/people" />
+        {/* Opens the same six, not everybody ever put forward. */}
+        <Stat label="On site" value={s.activeContractors} sub="contractors" href="/dashboard/people?filter=ON_SITE" />
         <Stat label="Suppliers" value={s.vendors} sub="with people here" href="/dashboard/suppliers" />
-        <Stat label="This month" value={compact(s.monthlySpend)} sub="from current rates" />
+        {/* The spend behind the number is the budget page: every cost
+            center, what is committed and what is left. */}
+        <Stat label="This month" value={compact(s.monthlySpend)} sub="from current rates" href="/dashboard/program/budget" />
         <Stat label="Ending soon" value={s.endingSoon} sub="within 60 days" tone={s.endingSoon > 0 ? 'attention' : undefined} href="/dashboard/rolloff" />
         <Stat label="Tenure" value={watch ?? '—'} sub={watch == null ? 'reading' : watch === 0 ? 'everybody inside the cap' : 'at or near the cap'} tone={watch ? 'attention' : undefined} href="/dashboard/tenure" />
         {/* What is open, and nothing promised about how fast it fills —
@@ -780,7 +788,7 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
                           firms this client may not name into the one it pays,
                           as "Computer Systems Inc (and one firm below them)".
                           Appending the count here printed that clause twice. */}
-                      {p.cumulativeMonths} months here through {p.firms.says}
+                      {plural(p.cumulativeMonths, 'month')} here through {p.firms.says}
                       {p.status === 'IN_BREAK' && p.eligibleDate && ` · can come back ${shortDate(p.eligibleDate)}`}
                     </p>
                   </div>
@@ -859,7 +867,7 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
 
           {/* ── Requirements ── */}
           <section>
-            <h2 className="font-serif text-lg text-etyme-ink mb-3">Requirements <span className="text-xs text-etyme-faint tabular-nums font-sans">{s.openRoles}</span></h2>
+            <h2 className="font-serif text-lg text-etyme-ink mb-3">{jobListWord('CLIENT').plural} <span className="text-xs text-etyme-faint tabular-nums font-sans">{s.openRoles}</span></h2>
             <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
               {data.openRoles.length === 0 && <p className="p-4 text-sm text-etyme-muted">Nothing open. Raise a requirement and it publishes itself within plan.</p>}
               {data.openRoles.slice(0, 6).map((r) => {
@@ -868,11 +876,13 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
                   <Link key={r.id} href={{ pathname: `/dashboard/requisitions/${r.id}` }} className="block p-3 hover:bg-etyme-canvas/50">
                     <div className="flex items-baseline justify-between gap-2">
                       <p className="text-sm text-etyme-ink truncate">{r.title}</p>
-                      <span className="text-[11px] text-etyme-muted shrink-0">{r.status === 'OPEN' ? 'Published' : 'Draft'}{r.status === 'OPEN' && r.openDays > 0 ? ` ${plural(r.openDays, 'day')}` : ''}</span>
+                      {/* The Job requests page's own word for the stage (`stageWordFor`),
+                          so a request awaiting approval never reads "Draft" here. */}
+                      <span className="text-[11px] text-etyme-muted shrink-0">{stageWordFor({ status: r.status, approvalState: r.approvalState ?? '', archivedAt: r.archivedAt ?? null })}{r.status === 'OPEN' && r.openDays > 0 ? ` ${plural(r.openDays, 'day')}` : ''}</span>
                     </div>
                     <p className={`text-xs mt-0.5 ${quiet ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
                       {r.submissions === 0
-                        ? (quiet ? `Nobody has submitted in ${plural(r.openDays, 'day')}. Widen the release or ask the suppliers.` : r.status === 'OPEN' ? 'Nobody submitted yet' : 'Not published yet')
+                        ? (quiet ? `Nobody has submitted in ${plural(r.openDays, 'day')}. Widen the release or ask the suppliers.` : r.status === 'OPEN' ? 'Nobody submitted yet' : r.approvalState === 'PENDING_APPROVAL' ? 'With the approvers, not published yet' : 'Not published yet')
                         : `${plural(r.submissions, 'candidate')}${r.shortlisted > 0 ? ` · ${r.shortlisted} shortlisted` : ''}`}
                     </p>
                   </Link>
@@ -1286,7 +1296,7 @@ function RolesTab({ roles }: { roles: ProgramData['openRoles'] }) {
         {roles.length} open job{roles.length !== 1 ? 's' : ''}
       </h2>
       <p className="text-sm text-etyme-muted mb-6">
-        Requirements distributed to your vendor panel.
+        Job requests sent to your suppliers.
       </p>
 
       <div className="space-y-3">

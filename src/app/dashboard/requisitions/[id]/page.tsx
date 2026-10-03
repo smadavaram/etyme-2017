@@ -16,7 +16,8 @@ import { useSession } from '@/components/session-provider'
 import { jobListWord } from '../../requirements/words'
 import { hasPermission } from '@/lib/permissions'
 import { JobMatches } from '../../requirements/[id]/matches'
-import { jobFacts, day } from '../facts'
+import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen } from '../facts'
+import { submissionStatusWord } from '../../submissions/words'
 
 /**
  * One requisition, worked end to end.
@@ -58,6 +59,8 @@ interface Candidate {
   person: { id: string; name: string; headline: string | null; skills: string[] }
   vendor: { id: string; name: string }
   rate: number
+  /** The rate the award agreed, once placed — not what the supplier asked. */
+  placedRate?: number | null
   kind: string
   status: string
   submittedAt: string
@@ -398,16 +401,18 @@ const DESK_WORD: Record<string, string> = {
  * facts in each sentence — and whether this is the record of the
  * decision or the checks run again on today's plan.
  */
-function CheckedAgainst({ checked }: { checked: { basis: 'RECORDED' | 'NOW'; at: string; checks: any[] } | null }) {
+function CheckedAgainst({ checked, approvalState }: {
+  checked: { basis: 'RECORDED' | 'NOW'; at: string; checks: any[] } | null
+  approvalState: string
+}) {
   if (!checked || checked.checks.length === 0) return null
+  const says = checkedSays(checked, approvalState)
   const stages = ['ROLE', 'SOURCING', 'FINAL'].filter((st) => checked.checks.some((c) => c.stage === st))
   return (
     <div className="mt-4 pt-3 border-t border-etyme-rule">
       <Lbl>What it was checked against</Lbl>
       <p className="text-xs text-etyme-muted mt-1 mb-3">
-        {checked.basis === 'RECORDED'
-          ? `As checked on ${day(checked.at)}, when the job request was raised.`
-          : 'Checked now, against today’s plan. The checks from when it was raised were not recorded.'}
+        {says.intro}
       </p>
       <div className="space-y-3">
         {stages.map((st) => (
@@ -421,7 +426,7 @@ function CheckedAgainst({ checked }: { checked: { basis: 'RECORDED' | 'NOW'; at:
                   </span>
                   <span className="text-etyme-muted">
                     <span className="text-etyme-ink">{CHECK_WORD[c.code] ?? 'Check'}:</span> {c.reason}
-                    {c.outcome === 'ROUTE' && <span className="text-etyme-attention"> — needs a person</span>}
+                    {c.outcome === 'ROUTE' && <span className="text-etyme-attention">{says.routeSuffix}</span>}
                     {c.outcome === 'BLOCK' && <span className="text-etyme-attention"> — stops it</span>}
                   </span>
                 </li>
@@ -505,9 +510,9 @@ export default function RequisitionDetail() {
       alert(`${j.error?.message ?? 'Could not place them'}${checks ? '\n\n' + checks : ''}`)
       return
     }
-    const d = j.data
-    const notes = d.notes?.length ? '\n\n' + d.notes.map((n: string) => `· ${n}`).join('\n') : ''
-    alert(`${d.message}${notes}${d.requisitionFilled ? `\n\n${d.vendorsStoodDown} vendor(s) stood down.` : ''}`)
+    // One paragraph, each thing once: who was placed, what the award
+    // stood down and called off, and any note (`awardSaid`).
+    alert(j.data.message)
     await load()
   }
 
@@ -546,6 +551,8 @@ export default function RequisitionDetail() {
     suppliers.map(v => [v.companyId, v.name])
   )
   const clearedFor = clearedForSentence(r.clearedSupplierIds, supplierNames)
+  const filled = filledSays(r, data.candidates)
+  const jobOpen = stillOpen(r)
 
   return (
     <div className="max-w-3xl">
@@ -570,6 +577,14 @@ export default function RequisitionDetail() {
         {/* Whose need it is, then who typed it — said twice only when
             they are two different people. */}
         {whoFor(r) && <div className="text-etyme-muted mt-2">{whoFor(r)}</div>}
+
+        {/* Over, said first. A filled job that still offered "Send to
+            suppliers" read as a job still to fill. */}
+        {filled && (
+          <div className="mt-4 px-4 py-3 rounded-lg border border-etyme-verified/30 bg-etyme-verified/5 text-sm text-etyme-ink">
+            {filled}
+          </div>
+        )}
 
         {/* The job itself, before anything about its approval. */}
         <section aria-label="The job" className="mt-6 bg-etyme-surface border border-etyme-rule rounded-lg p-4">
@@ -674,10 +689,14 @@ export default function RequisitionDetail() {
                 : 'Not sent for approval yet. Nobody has been asked to look at this.'}
             </p>
           ) : (
-            <Chain approvals={data.approvals} desks={deskIds} />
+            <Chain
+              approvals={data.approvals}
+              desks={deskIds}
+              alreadySaid={(data.checked?.checks ?? []).filter((c: any) => c.outcome !== 'PASS').map((c: any) => c.reason)}
+            />
           )}
 
-          <CheckedAgainst checked={data.checked ?? null} />
+          <CheckedAgainst checked={data.checked ?? null} approvalState={r.approvalState} />
 
           {clearedFor && (
             <p className="mt-4 pt-3 border-t border-etyme-rule text-sm text-etyme-muted">
@@ -689,7 +708,15 @@ export default function RequisitionDetail() {
 
       {/* 2 — Distribution */}
       <Panel title="Send to suppliers">
-        {approved
+        {!jobOpen
+          ? <div className="p-4 text-sm text-etyme-muted">
+              {r.status === 'FILLED'
+                ? 'Filled, so it goes to no more suppliers.'
+                : r.status === 'CANCELLED'
+                  ? 'Called off, so it goes to no more suppliers.'
+                  : 'Put away, so it goes to no more suppliers.'}
+            </div>
+          : approved
           ? <DistributePanel reqId={id} billMax={r.billMax} invited={invitedIds}
               clearedIds={r.clearedSupplierIds ?? []} suppliers={suppliers} onSent={load} />
           : <div className="p-4 text-sm text-etyme-muted">
@@ -757,13 +784,16 @@ export default function RequisitionDetail() {
                   </div>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="font-serif text-lg text-etyme-ink tabular-nums">
-                      {money(c.rate)}<span className="text-xs text-etyme-muted font-sans">/hr</span>
+                      {money(c.placedRate ?? c.rate)}<span className="text-xs text-etyme-muted font-sans">/hr</span>
                     </span>
+                    {c.placedRate != null && c.placedRate !== c.rate && (
+                      <span className="text-xs text-etyme-muted">placed at this rate · asked {money(c.rate)}</span>
+                    )}
                     <Chip tone={
                       c.status === 'PLACED' ? 'verified'
                       : c.status === 'NOT_SELECTED' ? 'passive' : 'action'
                     }>
-                      {c.status.toLowerCase().replace(/_/g, ' ')}
+                      {submissionStatusWord(c.status)}
                     </Chip>
                     {c.contractId ? (
                       <Link href={`/dashboard/placements/${c.contractId}` as any}
@@ -799,7 +829,7 @@ export default function RequisitionDetail() {
           section the matches page draws (`JobMatches`), here because this
           is the page a client's Job requests menu opens: the matches had
           no door from it. */}
-      <div id="matches">
+      {jobOpen && <div id="matches">
         <JobMatches
           requirementId={id}
           requirementSkills={r.skills ?? []}
@@ -809,7 +839,7 @@ export default function RequisitionDetail() {
             mayEdit(r)
           }
         />
-      </div>
+      </div>}
 
       {/* 5 — The argument about the role, kept with the role */}
       <Discussion requisitionId={id} title={r.title} />

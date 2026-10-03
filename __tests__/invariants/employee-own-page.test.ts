@@ -18,7 +18,7 @@ const TODAY = '2026-09-30'
 describe('what an employee reads about the weeks the client signed', () => {
   const karthik = {
     notBilled: 0,
-    employed: { paid: 13, owed: 0, unknown: 0, employer: 'Teleworld Solutions' },
+    employed: { paid: 13, owed: 0, waitingOnEmployer: 1, unknown: 0, employer: 'Teleworld Solutions' },
   }
 
   it("an employee's own page never says a vendor bills his hours", () => {
@@ -27,21 +27,29 @@ describe('what an employee reads about the weeks the client signed', () => {
     expect(card.note.toLowerCase()).not.toContain('bill')
   })
 
-  it('an employee reads his approved weeks as paid or owed to him, and a week still waiting on a firm is not among them', () => {
+  it('an employee reads his signed weeks as paid, owed to him, or waiting on his employer', () => {
     expect(signedWeeksCard({
       notBilled: 0,
-      employed: { paid: 10, owed: 2, unknown: 0, employer: 'Teleworld Solutions' },
+      employed: { paid: 10, owed: 2, waitingOnEmployer: 1, unknown: 0, employer: 'Teleworld Solutions' },
     })).toEqual({
       label: 'Approved weeks',
-      value: 12,
-      note: '10 paid · 2 owed to you',
+      value: 13,
+      note: '10 paid · 2 owed to you · 1 waiting on Teleworld Solutions',
     })
+  })
+
+  it('where more than one firm employs him, the card says "your employer" rather than picking one', () => {
+    const card = signedWeeksCard({
+      notBilled: 0,
+      employed: { paid: 0, owed: 0, waitingOnEmployer: 2, unknown: 0, employer: null },
+    })
+    expect(card.note).toBe('2 waiting on your employer')
   })
 
   it('an accepted week this page cannot price is said as not recorded here, never counted as paid or owed', () => {
     const card = signedWeeksCard({
       notBilled: 0,
-      employed: { paid: 0, owed: 0, unknown: 3, employer: 'Teleworld Solutions' },
+      employed: { paid: 0, owed: 0, waitingOnEmployer: 0, unknown: 3, employer: 'Teleworld Solutions' },
     })
     expect(card.note).toBe('3 accepted, pay not recorded here')
     expect(card.note).not.toMatch(/paid ·|owed/)
@@ -50,7 +58,7 @@ describe('what an employee reads about the weeks the client signed', () => {
   it('an employee with no signed weeks yet is told so, not shown a blank', () => {
     expect(signedWeeksCard({
       notBilled: 0,
-      employed: { paid: 0, owed: 0, unknown: 0, employer: 'Teleworld Solutions' },
+      employed: { paid: 0, owed: 0, waitingOnEmployer: 0, unknown: 0, employer: 'Teleworld Solutions' },
     })).toEqual({ label: 'Approved weeks', value: 0, note: 'none signed yet' })
   })
 
@@ -63,7 +71,7 @@ describe('what an employee reads about the weeks the client signed', () => {
   it('somebody both employed and paid through a supplier reads each week in the words that fit it', () => {
     const card = signedWeeksCard({
       notBilled: 2,
-      employed: { paid: 5, owed: 0, unknown: 0, employer: 'Teleworld Solutions' },
+      employed: { paid: 5, owed: 0, waitingOnEmployer: 0, unknown: 0, employer: 'Teleworld Solutions' },
     })
     expect(card.value).toBe(7)
     expect(card.note).toBe('5 paid · 2 weeks your vendor bills')

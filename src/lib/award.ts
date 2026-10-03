@@ -189,13 +189,139 @@ export function assessAward(f: AwardFacts): AwardDecision {
     fillsRequisition: fills,
     summary: blocks.length > 0
       ? blocks.length === 1 ? blocks[0].reason : `${blocks.length} reasons this cannot proceed — ${blocks[0].reason}`
-      : warnings.length > 0
-        ? `${f.personName} placed with ${warnings.length} note(s) — ${warnings[0].reason}`
-        : fills
-          ? `${f.personName} placed — this fills the job`
-          : `${f.personName} placed — ${remaining - 1} position(s) still open`,
+      : awardSaid({
+          personName: f.personName,
+          fills,
+          seatsAfter: remaining - 1,
+          notes: warnings.map((w) => w.reason),
+        }),
   }
 }
+
+/**
+ * The same note, said once.
+ *
+ * The classification check reaches the award twice — once from the
+ * client's governance rules and once from the route's own reading of the
+ * way the vendor engages the person — and the confirmation printed "The
+ * vendor has not said how this person is engaged" twice in one line. A
+ * note is one fact however many doors it came through.
+ */
+function uniqueNotes(notes: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const raw of notes.flatMap((n) => n.split('; '))) {
+    const n = raw.trim().replace(/[.]+$/, '')
+    if (!n || seen.has(n.toLowerCase())) continue
+    seen.add(n.toLowerCase())
+    out.push(n)
+  }
+  return out
+}
+
+function count(n: number, one: string, many: string): string {
+  const words = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+  return `${n < words.length ? words[n] : String(n)} ${n === 1 ? one : many}`
+}
+
+/**
+ * What the person who pressed Place reads, in one paragraph, each thing
+ * once.
+ *
+ * The tester read "Daniel Okafor placed with 1 note(s) — The vendor has
+ * not said how this person is engaged The vendor has not said how this
+ * person is engaged": a plural nobody chose, and one note twice because
+ * the screen printed the summary and then the notes it already carried.
+ * So the sentence carries the notes itself and the screen prints the
+ * sentence and nothing else.
+ */
+export function awardSaid(f: {
+  personName: string
+  fills: boolean
+  seatsAfter: number
+  notes: string[]
+  /** Other candidates on the job told they were not chosen. */
+  passedOver?: number
+  /** Interview rounds on the job called off by the award. */
+  roundsCalledOff?: number
+}): string {
+  const parts: string[] = [`${f.personName} is placed.`]
+  if (f.fills) {
+    const after: string[] = []
+    if (f.passedOver && f.passedOver > 0) {
+      after.push(`${count(f.passedOver, 'other candidate was', 'other candidates were')} told they were not chosen`)
+    }
+    if (f.roundsCalledOff && f.roundsCalledOff > 0) {
+      after.push(`${count(f.roundsCalledOff, 'interview was', 'interviews were').toLowerCase()} called off, and everybody in them told`)
+    }
+    parts.push(after.length > 0 ? `This fills the job: ${after.join(', and ')}.` : 'This fills the job.')
+  } else {
+    parts.push(`${count(f.seatsAfter, 'position is', 'positions are')} still open.`)
+    if (f.roundsCalledOff && f.roundsCalledOff > 0) {
+      parts.push(`${count(f.roundsCalledOff, 'interview', 'interviews')} for ${f.personName.split(' ')[0]} ${f.roundsCalledOff === 1 ? 'was' : 'were'} called off.`)
+    }
+  }
+  const notes = uniqueNotes(f.notes)
+  if (notes.length === 1) parts.push(`One thing to note: ${notes[0]}.`)
+  else if (notes.length > 1) parts.push(`${count(notes.length, 'thing', 'things')} to note: ${notes.join('; ')}.`)
+  return parts.join(' ')
+}
+
+// ── The interviews the award makes pointless ───────────────────────
+//
+// The client tester placed Daniel Okafor and opened Interviews: Rajesh
+// Iyer's round still read "In all three diaries" and Mei-Lin Chao's was
+// still waiting on her supplier. Both had just been turned down. Two
+// people would have taken a morning off for a meeting about a job that
+// no longer existed, and nobody would have told them.
+
+/** A round that has not happened yet and could still be called off. */
+export const OPEN_ROUND_STATES = ['PROPOSED', 'CONFIRMED'] as const
+
+export interface RoundOnTheJob {
+  id: string
+  submissionId: string
+  state: string
+}
+
+export interface RoundToCallOff {
+  id: string
+  /** Said to the supplier, the candidate and the requester — the same words to all three. */
+  reason: string
+}
+
+/**
+ * Which rounds on this job the award calls off, and why, in words.
+ *
+ * The placed person's own open rounds always go: they are placed, and a
+ * round after that decides nothing. Everybody else's go only when this
+ * award fills the job — while a seat is still open, the others are still
+ * in the running and their rounds stand. A round already held, missed or
+ * called off is history and is never touched.
+ */
+export function roundsToCallOff(
+  rounds: RoundOnTheJob[],
+  f: { placedSubmissionId: string; placedName: string; roleTitle: string; fills: boolean }
+): RoundToCallOff[] {
+  const open = rounds.filter((r) => (OPEN_ROUND_STATES as readonly string[]).includes(r.state))
+  return open.flatMap((r) => {
+    if (r.submissionId === f.placedSubmissionId) {
+      return [{ id: r.id, reason: `${f.placedName} was placed on ${f.roleTitle}, so this round is no longer needed.` }]
+    }
+    if (f.fills) {
+      return [{ id: r.id, reason: `${f.roleTitle} has been filled by another candidate, so this round will not go ahead.` }]
+    }
+    return []
+  })
+}
+
+/**
+ * Why a candidate stood down by the award stopped — a reason code, never
+ * free text. Somebody else got the seat, which is TIMING in
+ * `lib/outcomes`: a good candidate beaten to it, which does not count
+ * against the supplier's bar.
+ */
+export const STOOD_DOWN_REASON = 'TIMING' as const
 
 // ── The other half of the deal ────────────────────────────────────
 //

@@ -152,3 +152,42 @@ export function whoseQueue(reading: {
 function possessive(name: string): string {
   return name.endsWith('s') ? `${name}'` : `${name}'s`
 }
+
+/**
+ * What "Yours today" says when nothing is in the reader's queue — and it
+ * must not contradict the headline above it.
+ *
+ * The tester read "2 things need you. 1 start is held up by paperwork. 1
+ * supplier has people on site with no agreement on file." and, directly
+ * under it, "Nothing is waiting on you." Both were computed honestly: the
+ * box counted decisions and the headline counted everything. So when the
+ * queue is empty and the headline is not, the box says where the things
+ * the headline counted are, instead of saying there are none.
+ */
+export function emptyQueueSays(c: {
+  counts: DeskCounts
+  /** Approvals waiting on somebody else — the hiring managers who own them. */
+  approvalsWithOthers: number
+  /** Things already done today, shown under the box. */
+  doneToday: number
+}): string {
+  const elsewhere: string[] = []
+  if (c.counts.blockedStarts > 0) {
+    elsewhere.push(`${plural(c.counts.blockedStarts, 'start', 'starts')} held up by paperwork, under Starting soon`)
+  }
+  if (c.counts.suppliersWithNoAgreement > 0) {
+    elsewhere.push(
+      `${plural(c.counts.suppliersWithNoAgreement, 'supplier', 'suppliers')} with no agreement on file, under Suppliers`
+    )
+  }
+  const first = elsewhere.length > 0
+    ? `No approvals or weeks to sign. What needs you is below: ${elsewhere.join('; ')}.`
+    : c.doneToday > 0
+      ? 'Queue clear. Everything below was done today.'
+      : 'Every week is signed, every claim reviewed, every invoice inside its terms. Nothing is waiting on you.'
+  if (c.approvalsWithOthers > 0) {
+    const n = c.approvalsWithOthers
+    return `${first} ${plural(n, 'approval', 'approvals')} ${n === 1 ? 'is' : 'are'} waiting on the hiring managers who own them`
+  }
+  return first
+}

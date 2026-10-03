@@ -6,7 +6,11 @@ import { clientOf, releaseAllAt } from '@/lib/holds'
 import { emit } from '@/lib/events'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { evaluateGovernance } from '@/lib/governance'
-import { assessAward, awardDoor, buySide, orderCeiling, lineAgreesWithHeader, tellPlaced, awardTellsThePerson, type AwardFacts } from '@/lib/award'
+import {
+  assessAward, awardDoor, buySide, orderCeiling, lineAgreesWithHeader, tellPlaced, awardTellsThePerson,
+  awardSaid, roundsToCallOff, OPEN_ROUND_STATES, STOOD_DOWN_REASON, type AwardFacts, type RoundToCallOff,
+} from '@/lib/award'
+import { tell } from '@/lib/interview-notices'
 import { annualValue } from '@/lib/requisition-approval'
 import { headerFor, lineTermsFrom } from '../../order-header'
 import { orderFor } from '@/lib/order-postings'
@@ -728,10 +732,18 @@ export async function POST(
       await tx.requirement.update({ where: { id: req.id }, data: { status: 'FILLED', archivedAt: new Date() } })
 
       const others = await tx.submission.updateMany({
-        where: { requirementId: req.id, status: { notIn: ['PLACED', 'REJECTED', 'WITHDRAWN'] } },
+        where: { requirementId: req.id, status: { notIn: ['PLACED', 'REJECTED', 'WITHDRAWN', 'NOT_SELECTED'] } },
         // Being stood down is a decision too, and the slowest ones are
-        // exactly the cases a supplier wants counted.
-        data: { status: 'NOT_SELECTED', decidedAt: new Date() },
+        // exactly the cases a supplier wants counted. It carries its
+        // reason as a code, like every other ending: somebody else got
+        // the seat, which does not count against the supplier's bar.
+        data: {
+          status: 'NOT_SELECTED',
+          decidedAt: new Date(),
+          rejectReason: STOOD_DOWN_REASON,
+          rejectNote: `${submission.person.name} was placed on ${req.title}.`,
+          rejectedAt: new Date(),
+        },
       })
       passedOver = others.count
 
@@ -766,8 +778,36 @@ export async function POST(
       endDate: contract.endDate,
     })
 
-    return { contract, buyContract, standDown, passedOver, cycles, sellHeader, buyHeader, lineCheck }
+    // The interviews this award makes pointless. The placed person's own
+    // open rounds always; everybody else's once the job is filled. Called
+    // off in the same transaction as the award, so no reader ever sees a
+    // filled job with rounds still "in all three diaries".
+    const rounds = await tx.interview.findMany({
+      where: { submission: { requirementId: req.id }, state: { in: [...OPEN_ROUND_STATES] } },
+      select: { id: true, submissionId: true, state: true },
+    })
+    const calledOff: RoundToCallOff[] = roundsToCallOff(rounds, {
+      placedSubmissionId: id,
+      placedName: submission.person.name,
+      roleTitle: req.title,
+      fills: decision.fillsRequisition,
+    })
+    for (const r of calledOff) {
+      await tx.interview.update({
+        where: { id: r.id },
+        data: { state: 'CANCELLED', cancelledAt: new Date(), cancelledReason: r.reason },
+      })
+    }
+
+    return { contract, buyContract, standDown, passedOver, cycles, sellHeader, buyHeader, lineCheck, calledOff }
   })
+
+  // Everybody who was going to be in each room, on their own channel —
+  // the supplier's desks in the app, the candidate by email — in the
+  // same words the round now carries. Recorded on the award's own log
+  // row below: calling the rounds off is part of the person's award, not
+  // something the system decided by itself.
+  for (const r of result.calledOff) void tell('CANCELLED', r.id, { reason: r.reason })
 
   // ── The cost object ─────────────────────────────────────────────────
   //
@@ -835,6 +875,11 @@ export async function POST(
           : null,
         lineDisagreesWithOrder: result.lineCheck.differences,
         lineOutsideOrderWindow: result.lineCheck.outsideOrderWindow,
+        // The rounds the award called off, each with the sentence every
+        // party in it was told. A called-off round is not put back; a
+        // new one can be proposed.
+        interviewsCalledOff: result.calledOff as any,
+        candidatesStoodDown: { count: result.passedOver, reason: STOOD_DOWN_REASON },
       },
       // Reversible only until the person actually starts.
       reversible: true,
@@ -961,7 +1006,7 @@ export async function POST(
       title: `${submission.person.name} placed on ${req.title}`,
       body: decision.fillsRequisition
         ? 'This fills the job. The other vendors have been stood down.'
-        : `${decision.seatsAfter} position(s) still open.`,
+        : `${decision.seatsAfter} position${decision.seatsAfter === 1 ? '' : 's'} still open.`,
       entityId: req.id,
       data: { requirementId: req.id, contractId: result.contract.id },
     })
@@ -1125,6 +1170,7 @@ export async function POST(
         currency: terms.currency.value,
         checks: decision.checks,
         notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
+        interviewsCalledOff: result.calledOff.length,
         // Where it went next, in the supplier's own words. The award is
         // the handoff, and saying so is how a person learns the rule
         // without being trained on it.
@@ -1133,7 +1179,16 @@ export async function POST(
           told: (handoff.toPaper?.personIds.length ?? 0) + (handoff.toSell?.personIds.length ?? 0),
           says: handoff.says,
         },
-        message: decision.summary,
+        // The whole outcome in one paragraph, each thing once — the
+        // notes are inside it, so a screen prints this and nothing more.
+        message: awardSaid({
+          personName: submission.person.name,
+          fills: decision.fillsRequisition,
+          seatsAfter: decision.seatsAfter,
+          notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
+          passedOver: result.passedOver,
+          roundsCalledOff: result.calledOff.length,
+        }),
       },
     },
     { status: 201 }

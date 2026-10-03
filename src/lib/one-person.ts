@@ -326,15 +326,17 @@ function sentence(
 
   // Ordered so the thing that stops a hire comes before the thing that
   // starts a negotiation.
+  // "1 month", never "1 months".
+  const here = `${monthsHere} month${monthsHere === 1 ? '' : 's'} here`
   if (pastCap) {
-    bits.push(`${monthsHere} months here already — past your cap`)
+    bits.push(`${here} already — past your cap`)
   } else if (monthsHere > 0) {
     bits.push(
       headroom == null
-        ? `${monthsHere} months here already`
+        ? `${here} already`
         : headroom === 0
-          ? `${monthsHere} months here, less than a month left before your cap`
-          : `${monthsHere} months here, ${headroom} left before your cap`
+          ? `${here}, less than a month left before your cap`
+          : `${here}, ${headroom} left before your cap`
     )
   }
 

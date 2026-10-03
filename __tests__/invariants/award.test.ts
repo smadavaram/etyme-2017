@@ -196,7 +196,7 @@ describe('An award explains itself either way', () => {
 
   it('a clean award says how many positions are left', () => {
     const d = assessAward(facts({ headcount: 3, alreadyAwarded: 0 }))
-    expect(d.summary).toContain('2 position(s) still open')
+    expect(d.summary).toContain('Two positions are still open')
   })
 
   it('all six checks are always reported, so nothing is silently skipped', () => {

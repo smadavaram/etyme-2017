@@ -1,6 +1,6 @@
 'use client'
 
-import { missingForApproval, missingSays } from './facts'
+import { missingForApproval, missingSays, day, withoutRepeat } from './facts'
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { said } from '@/lib/requisition-change'
@@ -437,9 +437,11 @@ export function PanelField({ names, onChange }: {
  * what makes that legible. Used by this page's Why and by the
  * requisition's own page, so the two never diverge.
  */
-export function Chain({ approvals, desks }: {
+export function Chain({ approvals, desks, alreadySaid = [] }: {
   approvals: Approval[]
   desks?: { hrPersonId?: string | null; procurementPersonId?: string | null }
+  /** Sentences the panel already printed — a desk row keeps only its own part. */
+  alreadySaid?: string[]
 }) {
   return (
     <div className="mt-3 space-y-4">
@@ -457,11 +459,13 @@ export function Chain({ approvals, desks }: {
                   <Chip tone={outcomeTone(a.outcome)}>{outcomeWords(a.outcome)}</Chip>
                   {a.decidedAt && (
                     <span className="text-xs text-etyme-faint tabular-nums">
-                      {new Date(a.decidedAt).toLocaleDateString()}
+                      {day(a.decidedAt)}
                     </span>
                   )}
                 </div>
-                <p className="text-etyme-muted mt-0.5">{a.reason}</p>
+                {withoutRepeat(a.reason, alreadySaid) && (
+                  <p className="text-etyme-muted mt-0.5">{withoutRepeat(a.reason, alreadySaid)}</p>
+                )}
               </div>
             ))}
           </div>

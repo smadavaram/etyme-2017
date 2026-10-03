@@ -3,7 +3,6 @@ import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { hasAnyPermission } from '@/lib/permissions'
-import { rateOnEndingSoon } from '@/lib/releasing-soon'
 import { ENDING_SOON_READERS, notYoursToRead } from '@/lib/releasing-soon'
 import { sellContractScope } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
@@ -78,7 +77,6 @@ export async function GET(request: NextRequest) {
       sellContract: {
         include: {
           person: { select: { id: true, name: true } },
-          company: { select: { id: true, name: true } },
           clientCompany: { select: { id: true, name: true } },
           endClientCompany: { select: { id: true, name: true } },
           workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
@@ -104,7 +102,6 @@ export async function GET(request: NextRequest) {
     where: contractWhere,
     include: {
       person: { select: { id: true, name: true } },
-      company: { select: { id: true, name: true } },
       clientCompany: { select: { id: true, name: true } },
       endClientCompany: { select: { id: true, name: true } },
       workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
@@ -112,16 +109,6 @@ export async function GET(request: NextRequest) {
     },
     orderBy: { endDate: 'asc' },
   })
-
-  // The rate on a card is the price on the line: the client reads what it
-  // pays, a supplier's price desk reads what it charges, and any other seat
-  // reads none (`rateOnEndingSoon`). It was printed for every seat that
-  // could open the page.
-  const rate = (c: { billRate: number; companyId: string; clientCompanyId: string }) =>
-    rateOnEndingSoon(
-      { companyId: caller.company?.id ?? null, permissions: caller.permissions },
-      c
-    )
 
   return NextResponse.json({
     data: {
@@ -136,8 +123,7 @@ export async function GET(request: NextRequest) {
         endClientCompany: r.sellContract.endClientCompany,
         workLocation: r.sellContract.workLocation,
         engagement: r.sellContract.engagement,
-        supplier: r.sellContract.company,
-        billRate: rate(r.sellContract),
+        billRate: r.sellContract.billRate,
         checklist: r.checklist,
         claimedById: r.claimedById,
         outcome: r.outcome,
@@ -152,8 +138,7 @@ export async function GET(request: NextRequest) {
         endClientCompany: c.endClientCompany,
         workLocation: c.workLocation,
         engagement: c.engagement,
-        supplier: c.company,
-        billRate: rate(c),
+        billRate: c.billRate,
       })),
       summary: {
         total: rolloffs.length + untracked.length,

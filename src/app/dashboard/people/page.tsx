@@ -3,7 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
-import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
+import { applyFilter, locationsOf, isRecent, NETWORK_FILTERS, type NetworkFilter } from '@/lib/network-filters'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
@@ -147,6 +147,15 @@ export default function PeoplePage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // A door that names a filter opens on it: the dashboard's "On site 6"
+  // lands on the six, not on everybody ever put forward. Read once from
+  // the address rather than through useSearchParams, so the page needs
+  // no Suspense boundary for it.
+  useEffect(() => {
+    const asked = new URLSearchParams(window.location.search).get('filter')
+    if (asked && (NETWORK_FILTERS as readonly string[]).includes(asked)) setFilter(asked as NetworkFilter)
+  }, [])
 
   // The star. Marked here, read by the Favorites filter, and by nobody
   // outside this company.

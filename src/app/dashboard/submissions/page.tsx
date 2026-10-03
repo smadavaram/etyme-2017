@@ -13,6 +13,7 @@ import { pageFraming } from '@/lib/page-framing'
 import { recall, remember } from '@/lib/remember'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { Thread, toSupplierAboutCandidate, answeringDemand } from '@/components/thread'
+import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING } from './words'
 
 /**
  * Submissions working surface — the vendor's outbound pipeline.
@@ -156,21 +157,6 @@ function kindChipClass(kind: string): string {
   return map[kind] ?? 'chip--passive'
 }
 
-// ── Relative time helper ─────────────────────────────
-
-function timeAgo(dateStr: string): string {
-  const now = new Date()
-  const d = new Date(dateStr)
-  const diffMs = now.getTime() - d.getTime()
-  const mins = Math.floor(diffMs / 60000)
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return d.toLocaleDateString()
-}
-
 // ── Submit to Requirement Modal ──────────────────────
 
 interface RequirementOption {
@@ -294,14 +280,17 @@ function SubmitToRequirementModal({
 
         if (reqRes.ok) {
           const body = await reqRes.json()
-          setRequirements(
+          // Somebody else's jobs only: a firm's resold copy of a client's
+          // job is the one its sub-vendors answer, never one it submits to.
+          setRequirements(jobsToSubmitTo(
             (body.data?.requirements ?? []).map((r: any) => ({
               id: r.id,
               title: r.title,
               skills: r.skills ?? [],
               company: r.company ?? { id: '', name: 'Unknown' },
-            }))
-          )
+            })),
+            companyId,
+          ))
         }
 
         if (benchRes.ok) {
@@ -1211,8 +1200,8 @@ export default function SubmissionsPage() {
     },
     {
       key: 'kind',
-      label: 'Kind',
-      render: (row) => <span className={`chip ${kindChipClass(row.kind)}`}>{row.kind}</span>,
+      label: KIND_HEADING,
+      render: (row) => <span className={`chip ${kindChipClass(row.kind)}`}>{submissionKindWord(row.kind, direction)}</span>,
       sortValue: (row) => row.kind,
       hideOnMobile: true,
     },
@@ -1233,7 +1222,7 @@ export default function SubmissionsPage() {
       label: 'Status',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <span className={`chip ${statusChipClass(row.status)}`}>{row.status}</span>
+          <span className={`chip ${statusChipClass(row.status)}`}>{submissionStatusWord(row.status)}</span>
           {/* Placing is the award, and the route said whether this reader
               may do it for this row — the same answer it would give on
               the click. Once placed, the row leads to the placement. */}
@@ -1339,8 +1328,8 @@ export default function SubmissionsPage() {
               className="chip chip--verified"
               title={
                 row.forwardedToEmail
-                  ? `Emailed to ${row.forwardedToEmail} on ${new Date(row.forwardedAt).toLocaleDateString()}`
-                  : `Sent on ${new Date(row.forwardedAt).toLocaleDateString()}`
+                  ? `Emailed to ${row.forwardedToEmail} on ${submittedOn(row.forwardedAt)}`
+                  : `Sent on ${submittedOn(row.forwardedAt)}`
               }
             >
               Sent on
@@ -1355,7 +1344,7 @@ export default function SubmissionsPage() {
       label: 'Submitted',
       render: (row) => (
         <span className="text-etyme-muted text-[12px] tabular-nums" title={new Date(row.submittedAt).toLocaleString()}>
-          {timeAgo(row.submittedAt)}
+          {submittedOn(row.submittedAt)}
         </span>
       ),
       sortValue: (row) => new Date(row.submittedAt).getTime(),
@@ -1371,8 +1360,8 @@ export default function SubmissionsPage() {
     row.requirement.skills.some((s) => s.toLowerCase().includes(q)) ||
     row.fromCompany.name.toLowerCase().includes(q) ||
     row.toCompany.name.toLowerCase().includes(q) ||
-    row.kind.toLowerCase().includes(q) ||
-    row.status.toLowerCase().includes(q)
+    submissionKindWord(row.kind, direction).toLowerCase().includes(q) ||
+    submissionStatusWord(row.status).toLowerCase().includes(q)
 
   // ── Status filter options ──────────────────────────
   const statusOptions: { key: StatusFilter; label: string }[] = [
@@ -1664,8 +1653,9 @@ export default function SubmissionsPage() {
                 if (body.error?.message) throw new Error(`${body.error.message}${checks ? ` — ${checks}` : ''}`)
                 await readJson(copy)
               }
-              const notes: string[] = body.data?.notes ?? []
-              setSaid([body.data?.message, ...notes].filter(Boolean).join(' '))
+              // One paragraph, each thing once: the notes are already
+              // inside the award's own sentence (`awardSaid`).
+              setSaid(body.data?.message ?? null)
               setPlaceSubmission(null)
               fetchSubmissions()
             } catch (err: any) {

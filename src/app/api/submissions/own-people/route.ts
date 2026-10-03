@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { offeredForWork } from './who'
 
 /**
  * GET /api/submissions/own-people — our own W2s, who need no bench listing
@@ -21,12 +22,12 @@ import { staffOnly } from '@/lib/seat'
  *
  * ── What this deliberately does not do ───────────────────────────────
  *
- * It does not guess who is billable. A delivery engineer and an accounts
- * payable clerk both hold an EMPLOYEE context and nothing in the schema
- * separates them, so inventing a filter here would hide real people from
- * a delivery manager on a rule nobody set. The list is exactly the set
- * the submit route will accept, which is the only honest thing for a
- * picker to show.
+ * It does not offer the people who run the firm. A delivery engineer and
+ * an accounts payable clerk both hold an EMPLOYEE context, and this used
+ * to offer both on the reasoning that nothing separates them — but the
+ * record does: the clerk's seat holds desk permissions and the engineer's
+ * work shows on contract lines. `./who` reads those two facts; the
+ * submit route still accepts any employee.
  *
  * It is the firm's own roster, so no `AccessLog` row is written: these
  * are not another party's people, and logging a firm reading its own
@@ -72,14 +73,32 @@ export async function GET(request: NextRequest) {
           consultant: { select: { skills: true } },
         },
       },
-      role: { select: { name: true } },
+      role: { select: { name: true, permissions: true } },
     },
   })
+
+  // The work, read once for everybody on the payroll: a contract line, a
+  // submission or a consultant profile says this is somebody the firm
+  // staffs, whatever their seat holds.
+  const ids = Array.from(new Set(seats.map((s) => s.personId)))
+  const [lines, subs] = await Promise.all([
+    prisma.sellContract.findMany({ where: { personId: { in: ids } }, select: { personId: true }, distinct: ['personId'] }),
+    prisma.submission.findMany({ where: { personId: { in: ids } }, select: { personId: true }, distinct: ['personId'] }),
+  ])
+  const works = new Set<string>([...lines, ...subs].map((r) => r.personId))
+  const permsOf = new Map<string, string[]>()
+  for (const seat of seats) {
+    permsOf.set(seat.personId, [...(permsOf.get(seat.personId) ?? []), ...(seat.role?.permissions ?? [])])
+  }
 
   // One row per person. Two seats at one firm — a buy desk and a sell
   // desk — is ordinary and is still one employee.
   const byPerson = new Map<string, { personId: string; name: string; role: string | null; skills: string[] }>()
   for (const seat of seats) {
+    if (!offeredForWork({
+      permissions: permsOf.get(seat.personId) ?? [],
+      worksHere: works.has(seat.personId) || !!seat.person.consultant,
+    })) continue
     const existing = byPerson.get(seat.personId)
     if (existing) {
       if (!existing.role && seat.role?.name) existing.role = seat.role.name

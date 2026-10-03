@@ -1361,6 +1361,8 @@ export interface SignedWeeks {
     paid: number
     /** Accepted by the employer and not yet paid. */
     owed: number
+    /** Signed by the client, not yet accepted by the employer. */
+    waitingOnEmployer: number
     /** Accepted, and this page has no figure or pay record to say which. */
     unknown: number
     /** Who employs them, where there is one name; else "your employer". */
@@ -1378,15 +1380,9 @@ export interface SummaryCard {
  * The third summary card on Your work.
  *
  * For somebody paid through a supplier, unchanged: approved weeks nobody
- * has billed, which their vendor bills. For an employee, the weeks every
- * firm on the chain has accepted, split the way his pay stands — never a
- * sentence about billing, because nothing is billed to him.
- *
- * A week the client signed and a firm below has not accepted yet is not
- * here. It is waiting, and the waiting card counts it (`waitingCard`).
- * Until 2026-10-03 it was counted on both, and Helena Marsh's Sep 21 week
- * read as approved, as waiting on approval, and as "waiting on CloudEPA"
- * while it was with Computer Systems Inc — one week, three states.
+ * has billed, which their vendor bills. For an employee, the weeks the
+ * client signed, split the way his pay stands — never a sentence about
+ * billing, because nothing is billed to him.
  */
 export function signedWeeksCard(s: SignedWeeks): SummaryCard {
   if (!s.employed) {
@@ -1397,116 +1393,16 @@ export function signedWeeksCard(s: SignedWeeks): SummaryCard {
   const parts: string[] = []
   if (e.paid > 0) parts.push(`${e.paid} paid`)
   if (e.owed > 0) parts.push(`${e.owed} owed to you`)
+  if (e.waitingOnEmployer > 0) parts.push(`${e.waitingOnEmployer} waiting on ${e.employer ?? 'your employer'}`)
   if (e.unknown > 0) parts.push(`${e.unknown} accepted, pay not recorded here`)
   // Mixed work: the supplier-paid weeks keep their own words.
   if (s.notBilled > 0) parts.push(`${plural(s.notBilled)} your vendor bills`)
-  const value = e.paid + e.owed + e.unknown + s.notBilled
+  const value = e.paid + e.owed + e.waitingOnEmployer + e.unknown + s.notBilled
   return {
     label: 'Approved weeks',
     value,
     note: parts.length > 0 ? parts.join(' · ') : 'none signed yet',
   }
-}
-
-// ── One week, one state ──────────────────────────────────────────────────
-//
-// The worker tester, 2026-10-03, on Helena Marsh's page: the Sep 21 week
-// was counted as approved, as waiting on approval, and as "waiting on
-// CloudEPA", while the section below said it was with Computer Systems
-// Inc. And Rosa Delgado's paid weeks read "approved" in Your hours under a
-// section that said "Paid". Each reader had worked the state out its own
-// way. This is the one way: the tiles, the pay section and Your hours all
-// read a week through `weekState`.
-
-export type WeekKind = 'NOT_SENT' | 'SENT_BACK' | 'WAITING' | 'APPROVED'
-
-export interface WeekState {
-  kind: WeekKind
-  /** The word on her row: "waiting on Computer Systems Inc", "owed to you", "paid". */
-  word: string
-  tone: 'verified' | 'attention' | 'action' | 'passive'
-  /** The firm the week is with now, where it is waiting. */
-  waitingOn: string | null
-}
-
-/**
- * Where a payroll run pays her, whether a sheet's days are paid in full
- * or still owed, read off the owed weeks (`owedByWeek`). A sheet whose
- * days fall in a week with anything still owed is owed. Null where no
- * owed week covers the sheet — her pay is not run on Etyme, or the week
- * has no figure — and the row then keeps the trade's own word.
- */
-export function payStageOf(
-  days: Record<string, number> | null | undefined,
-  periodStart: string,
-  owed: ReadonlyArray<{ weekOf: string; stage: OwedStage; priced: boolean }>
-): OwedStage | null {
-  const worked = Object.entries(days ?? {}).filter(([, h]) => (Number(h) || 0) > 0).map(([d]) => d.slice(0, 10))
-  const weeks = new Set((worked.length > 0 ? worked : [periodStart.slice(0, 10)]).map((d) => weekStart(d)))
-  const mine = owed.filter((w) => w.priced && weeks.has(w.weekOf))
-  if (mine.length === 0) return null
-  return mine.some((w) => w.stage === 'OWED') ? 'OWED' : 'PAID'
-}
-
-/**
- * The one state of a week she filed.
- *
- * - **waiting** — sent and not yet accepted by every firm on the chain,
- *   and named by the firm it is with now (`waitingWeek`);
- * - **paid** or **owed to you** — where her employer pays her by payroll
- *   and the week is accepted (`payStageOf`);
- * - otherwise the trade's word: billed, approved, sent back, not sent.
- */
-export function weekState(t: {
-  status: string
-  billed: boolean
-  /** The firm it is with, from `waitingWeek`; null where nobody is still to sign. */
-  waitingOn: string | null
-  pay: OwedStage | null
-}): WeekState {
-  if (t.status === 'OPEN') return { kind: 'NOT_SENT', word: 'not sent', tone: 'passive', waitingOn: null }
-  if (t.status === 'REJECTED') return { kind: 'SENT_BACK', word: 'sent back', tone: 'attention', waitingOn: null }
-  if (t.waitingOn) return { kind: 'WAITING', word: `waiting on ${t.waitingOn}`, tone: 'action', waitingOn: t.waitingOn }
-  if (t.pay === 'PAID') return { kind: 'APPROVED', word: 'paid', tone: 'verified', waitingOn: null }
-  if (t.pay === 'OWED') return { kind: 'APPROVED', word: 'owed to you', tone: 'verified', waitingOn: null }
-  if (t.status === 'SUBMITTED') return { kind: 'WAITING', word: 'waiting on approval', tone: 'action', waitingOn: null }
-  if (t.status === 'APPROVED') return { kind: 'APPROVED', word: t.billed ? 'billed' : 'approved', tone: 'verified', waitingOn: null }
-  return { kind: 'NOT_SENT', word: t.status.toLowerCase().replace(/_/g, ' '), tone: 'passive', waitingOn: null }
-}
-
-/**
- * The "Waiting on approval" card: every week she sent that some firm on
- * the chain has still to sign or accept, and which firm each is with.
- */
-export function waitingCard(states: ReadonlyArray<WeekState>): SummaryCard {
-  const waiting = states.filter((s) => s.kind === 'WAITING')
-  const by = new Map<string, number>()
-  for (const s of waiting) {
-    const k = s.waitingOn ?? 'the firms on it'
-    by.set(k, (by.get(k) ?? 0) + 1)
-  }
-  return {
-    label: 'Waiting on approval',
-    value: waiting.length,
-    note: waiting.length === 0 ? 'nothing waiting' : [...by].map(([name, n]) => `${n} with ${name}`).join(' · '),
-  }
-}
-
-/**
- * Who signs her hours after she sends them, in the order they sign:
- * "After you send, Northbend Athletic approves them first. Then Computer
- * Systems Inc and CloudEPA accept them, in that order." The filing card
- * said "CloudEPA and the client each sign them", which left out the firm
- * between and put the client last (worker tester, 2026-10-03).
- */
-export function signingOrder(signers: ReadonlyArray<WeekSigner>): string {
-  if (signers.length === 0) return 'After you send, they go for approval.'
-  const [first, ...below] = signers
-  if (below.length === 0) return `After you send, ${first.name} approves them.`
-  const head = `After you send, ${first.name} approves them first.`
-  if (below.length === 1) return `${head} Then ${below[0].name} accepts them.`
-  const names = below.map((s) => s.name)
-  return `${head} Then ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} accept them, in that order.`
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -2361,29 +2257,10 @@ export function weekDoor(t: {
   clientApproved: boolean
   /** The "Approved by email: …" sentence, where the client approved that way. */
   approvedBy: string | null
-  /**
-   * What the week's own page would answer about approval by email, read
-   * through lib/week-approval (`readWeekApprovals`), where it was asked.
-   * The worker tester, 2026-10-03: the row offered "Ask the client to
-   * approve by email" on a 45-hour week the page then refused, and went on
-   * offering it after a link had gone to Marcus Oyelaran and was waiting.
-   */
-  email?: {
-    /** The client's name, for the sentence when it must sign in Etyme. */
-    clientName: string
-    /** Why the week cannot be approved by email, or null where it can. */
-    refused: string | null
-    /** A link that has gone and is still waiting for an answer. */
-    linkWaiting: { to: string; on: string } | null
-  }
 }): WeekDoor | null {
   if (t.status === 'OPEN') return null
   const href = `/dashboard/weeks/${t.id}`
-  if (t.status === 'SUBMITTED' && !t.clientApproved) {
-    if (t.email?.linkWaiting) return { href, says: `Link sent to ${t.email.linkWaiting.to}, ${t.email.linkWaiting.on}` }
-    if (t.email?.refused) return { href, says: `${t.email.clientName} signs this week in Etyme` }
-    return { href, says: 'Ask the client to approve by email' }
-  }
+  if (t.status === 'SUBMITTED' && !t.clientApproved) return { href, says: 'Ask the client to approve by email' }
   if (t.approvedBy) return { href, says: 'See the approval and its evidence' }
   return { href, says: 'Open this week' }
 }

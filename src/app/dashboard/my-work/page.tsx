@@ -106,8 +106,6 @@ interface Timesheet {
   approvedBy?: string | null
   /** The week's own page, where she asks for approval by email or attaches it. Null on a week not sent. */
   door?: { href: string; says: string } | null
-  /** Its one state, the same one the tiles count (`weekState`). */
-  state?: { word: string; tone: 'verified' | 'attention' | 'action' | 'passive' }
 }
 
 function Lbl({ children }: { children: React.ReactNode }) {
@@ -681,8 +679,6 @@ interface Filing {
   contractId: string
   site: string
   payer: string
-  /** Who signs her hours after she sends them, in order (`signingOrder`). */
-  signs?: string
   weeks: OpenWeek[]
   returned?: ReturnedWeek[]
 }
@@ -829,7 +825,7 @@ function FileYourWeek({ filing, onSent }: { filing: Filing[]; onSent: () => Prom
     <section className="mb-8">
       <h2 className="font-serif text-lg text-etyme-ink mb-1">File your hours</h2>
       <p className="text-xs text-etyme-muted mb-3">
-        Your hours, in your words. {current.signs ?? `After you send, they go for approval before ${current.payer} pays them.`}
+        Your hours, in your words. {current.payer} and the client each sign them after you send.
       </p>
       <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 space-y-4">
         <div className="flex flex-wrap gap-3">
@@ -1116,15 +1112,11 @@ export default function MyWorkPage() {
           <Lbl>Hours this month</Lbl>
           <div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.hoursThisMonth}</div>
         </div>
-        {/* Every week some firm on the chain has still to sign, and
-            which firm each is with — the same state Your hours shows
-            (`waitingCard`), so one week never reads two ways. */}
         <div>
           <Lbl>Waiting on approval</Lbl>
           <div className={`font-serif text-3xl mt-1 tabular-nums ${s.awaitingApproval > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
             {s.awaitingApproval}
           </div>
-          {s.waiting?.value > 0 && <div className="text-xs text-etyme-muted">{s.waiting.note}</div>}
         </div>
         {/* What became of the weeks the client signed, in words that fit
             how they are paid: an employee is paid by payroll and nobody
@@ -1271,10 +1263,12 @@ export default function MyWorkPage() {
               </div>
               <div className="text-sm text-etyme-muted tabular-nums w-16 text-right">{t.hours}h</div>
               <div className="w-32 text-right">
-                {/* Its one state (`weekState`): "waiting on Computer
-                    Systems Inc", "owed to you", "paid". */}
-                <Chip tone={t.state?.tone ?? 'passive'}>
-                  {t.state?.word ?? (t.billed ? 'billed' : t.status.toLowerCase())}
+                <Chip tone={
+                  t.status === 'APPROVED' ? 'verified'
+                  : t.status === 'REJECTED' ? 'attention'
+                  : t.status === 'SUBMITTED' ? 'action' : 'passive'
+                }>
+                  {t.billed ? 'billed' : t.status.toLowerCase()}
                 </Chip>
               </div>
             </div>
