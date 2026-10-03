@@ -44,6 +44,7 @@ function typeIcon(type: string): string {
     VISA_EXPIRY:  '\u{1F6C2}', // passport control
     INTERVIEW:    '\u{1F4C5}', // calendar
     MATCH_READY:  '\u{1F3AF}', // direct hit
+    BENCH:        '◎',    // the bench's own mark, as on the menu
   }
   return map[type] ?? '•' // bullet
 }
@@ -62,6 +63,7 @@ function typeLabel(type: string): string {
     VISA_EXPIRY:  'Visa',
     INTERVIEW:    'Interview',
     MATCH_READY:  'Match',
+    BENCH:        'Bench',
   }
   return map[type] ?? type
 }
@@ -80,6 +82,7 @@ function typeChipClass(type: string): string {
     VISA_EXPIRY:  'chip--danger',
     INTERVIEW:    'chip--action',
     MATCH_READY:  'chip--verified',
+    BENCH:        'chip--passive',
   }
   return map[type] ?? 'chip--passive'
 }
@@ -99,6 +102,7 @@ function notificationRoute(type: string, entityId?: string | null): string {
     VISA_EXPIRY:  '/dashboard/compliance',
     INTERVIEW:    '/dashboard/submissions',
     MATCH_READY:  '/dashboard/requirements',
+    BENCH:        '/dashboard/bench',
   }
 
   const base = routes[type] ?? '/dashboard/notifications'

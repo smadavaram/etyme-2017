@@ -34,6 +34,18 @@ describe('telling somebody when, in their own day', () => {
     expect(la).not.toBe(momentFor(ACROSS_MIDNIGHT, 'Europe/London'))
   })
 
+  it('says a time in American English, month before day, on a twelve-hour clock', () => {
+    expect(momentFor(ACROSS_MIDNIGHT, 'America/Los_Angeles')).toMatch(/^Wed, Sep 9, 7:00 PM /)
+    expect(momentFor(ACROSS_MIDNIGHT, 'UTC')).toBe('Thu, Sep 10, 2:00 AM UTC')
+  })
+
+  it('names the place beside an offset where the runtime knows no zone name for it', () => {
+    const london = momentFor(ACROSS_MIDNIGHT, 'Europe/London')
+    expect(london).toMatch(/^Thu, Sep 10, 3:00 AM /)
+    expect(london).toMatch(/BST$|\(London time\)$/)
+    expect(momentFor(ACROSS_MIDNIGHT, 'Asia/Kolkata')).toMatch(/7:30 AM .*\(Kolkata time\)$|7:30 AM IST$/)
+  })
+
   it('does not throw on a zone the runtime has never heard of', () => {
     // A typo in a settings field must not take down a notification.
     expect(dayFor(ACROSS_MIDNIGHT, 'Mars/Olympus_Mons')).toBe('2026-09-10')

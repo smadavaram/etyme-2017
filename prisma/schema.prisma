@@ -5225,7 +5225,7 @@ model Notification {
   id        String  @id @default(cuid())
   personId  String
   companyId String?
-  type      String // SUBMISSION · TIMESHEET · INVOICE · EXPENSE · CONTRACT · ROLLOFF · CONVERSATION · SYSTEM
+  type      String // SUBMISSION · TIMESHEET · INVOICE · EXPENSE · CONTRACT · ROLLOFF · CONVERSATION · INTERVIEW · MATCH_READY · BENCH · SYSTEM
   title     String
   body      String
   entityId  String? // the thing this is about

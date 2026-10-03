@@ -309,6 +309,7 @@ export const MATRIX: L1[] = [
             'STILL OWED, 2026-09-29: the day a week was paid is read off the payroll run rows by `paidDatesFrom`, a second reader beside `paidBook`, because the paid book records how much of a day was paid and not when. One reader is right: `PaidEntry` in lib/payroll-paid (etyme-money) gains the date, and this reads it.',
             'STILL OWED: `BuyContractState` already carries BENCH_PAID, INTERNAL and TRAINING, the exact three states a roster wants, and nothing in the product has ever written one of them (nought rows in the seeded world). When something does, the roster reads them instead of inferring, and the inference becomes the fallback. Writing them is a contract-lifecycle change and belongs to etyme-money.',
             'FIXED 2026-09-30: an empty paperwork section says it once. The headline carries the one sentence (EMPTY_PAPERWORK); the box that repeated it in other words is gone, and the intro promising a list is drawn only when there is one (paperworkIntro).',
+            'FIXED 2026-10-03 by etyme-supply, worker tester: one week reads one state on every tile and row of the worker\u2019s page \u2014 waiting on the firm it is with, owed to you once accepted, paid once paid, never approved and paid at once; approval by email is offered only where it can work, and a sent link says who it went to; the filing card names every firm that signs, client first',
           ],
           implementedBy: [
             'src/lib/consultant-portfolio.ts', 'src/lib/portfolio-data.ts',
@@ -339,7 +340,19 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/crossing-week-pay.test.ts',
             '__tests__/invariants/my-work-paperwork.test.ts',
             '__tests__/invariants/my-work-papers.test.ts',
+            '__tests__/invariants/worker-tester-supply.test.ts', '__integration__/worker-tester-supply.test.ts',
           ] },
+        { code: 'L3.1.2.8', name: 'Ending soon: who rolls off, and what happens to them next', owner: 'Resource manager', status: B,
+          tasks: [
+            'A contract ending within the window is listed for the desks that read it (ENDING_SOON_READERS), with the day it ends',
+            'A client reads its own Ending soon with the rate it pays, and is offered extend or backfill',
+            'Only the firm that holds the contract may claim the person for its bench as they roll off; anybody else is refused in a sentence',
+            'Benching somebody from rolloff puts them on the firm\u2019s own bench with the day they are free',
+          ],
+          implementedBy: ['src/app/api/rolloff/route.ts', 'src/app/api/rolloff/[id]/claim/route.ts',
+            'src/app/dashboard/rolloff/page.tsx', 'src/lib/releasing-soon.ts'],
+          testedBy: ['__tests__/invariants/worker-tester-supply.test.ts', '__integration__/worker-tester-supply.test.ts',
+            '__integration__/rolloff-to-bench.test.ts'] },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [
         { code: 'L3.1.4.1', name: 'What we say we are', owner: 'Etyme', status: B,
@@ -536,7 +549,8 @@ export const MATRIX: L1[] = [
           testedBy: ['__tests__/invariants/screening.test.ts', '__tests__/invariants/checks.test.ts', '__tests__/invariants/loop.test.ts'] },
         { code: 'L3.1.3.2', name: 'Interview', owner: 'Hiring manager', status: B,
           tasks: ['Three-party acceptance', 'Chase after 24 hours', 'Flag a fourth round',
-            'Propose a round from the candidate', 'Rounds in turn', 'Tell all three', 'The candidate answers'],
+            'Propose a round from the candidate', 'Rounds in turn', 'Tell all three', 'The candidate answers',
+            'BUILT 2026-10-03 by etyme-conversation, client tester: a time is said in the reader\u2019s own zone, named, the American way; when an award fills a job, each supplier whose candidate was not chosen is told once, in one sentence, with no other candidate named and no rate (lib/notify/not-chosen)'],
           implementedBy: [
             'src/lib/interviews.ts', 'src/lib/interview-proposal.ts', 'src/lib/interview-notices.ts',
             'src/components/propose-interview.tsx',
@@ -544,8 +558,10 @@ export const MATRIX: L1[] = [
             'src/app/api/me/interviews/[id]/respond/route.ts', 'src/app/api/me/pipeline/route.ts',
             'src/app/dashboard/submissions/page.tsx', 'src/app/dashboard/interviews/page.tsx',
             'src/app/dashboard/my-work/page.tsx',
+            'src/lib/notify/not-chosen.ts',
           ],
           testedBy: [
+            '__tests__/invariants/client-tester-conversation.test.ts', '__integration__/not-chosen.test.ts',
             '__tests__/invariants/interviews.test.ts', '__tests__/invariants/interview-proposal.test.ts',
             '__tests__/invariants/interview-notices.test.ts', '__tests__/invariants/interview-conversation.test.ts',
             '__tests__/invariants/client-interviews.test.ts', '__tests__/invariants/my-work-interviews.test.ts',

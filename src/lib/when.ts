@@ -37,15 +37,23 @@ export function dayFor(at: Date, timezone: string | null | undefined): string {
 export function momentFor(at: Date, timezone: string | null | undefined): string {
   const zone = timezone || 'UTC'
   try {
-    const when = new Intl.DateTimeFormat('en-GB', {
+    // American English: "Tue, Oct 6, 9:00 AM PDT". It read "Tue 6 Oct
+    // 09:00 GMT-7" in en-GB, which is British and names an offset where a
+    // US reader expects a zone (conversation, 2026-10-03).
+    const when = new Intl.DateTimeFormat('en-US', {
       timeZone: zone,
-      weekday: 'short', day: 'numeric', month: 'short',
-      hour: '2-digit', minute: '2-digit', hour12: false,
+      weekday: 'short', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true,
     }).format(at)
-    const label =
-      new Intl.DateTimeFormat('en-GB', { timeZone: zone, timeZoneName: 'short' })
+    const short =
+      new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'short' })
         .formatToParts(at)
         .find((p) => p.type === 'timeZoneName')?.value ?? zone
+    // A US zone has a name a reader knows (PDT, EST). Outside the US the
+    // runtime gives only an offset, so the place is named beside it.
+    const label = /^GMT|^UTC/.test(short) && zone !== 'UTC'
+      ? `${short} (${zone.split('/').pop()!.replace(/_/g, ' ')} time)`
+      : short
     return `${when} ${label}`
   } catch {
     return `${at.toISOString().slice(0, 16).replace('T', ' ')} UTC`
