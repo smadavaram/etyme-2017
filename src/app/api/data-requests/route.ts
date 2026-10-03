@@ -1,0 +1,352 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { hasPermission } from '@/lib/permissions'
+import {
+  oneSubject, mayAsk, raiseRequest, produceExport, completeErasure,
+  reference, coolingEndsAtFor, deskFraming, privacyDesk, seatHeldAnywhere, seatTrail,
+} from '@/lib/data-request'
+import { logAccess, logBulkAccess } from '@/lib/access-log'
+
+/**
+ * The compliance desk's queue: requests that arrived by email, logged
+ * against a person this company actually holds, and answered from here.
+ *
+ * ── Two gates, because reading a queue is not answering it ───────────
+ *
+ * Reading the queue asks for the governance read the compliance desk
+ * already holds (`lib/company-defaults`), so the page opens for the desk
+ * it is named for. CLAUDE.md: "Where a route's gate refuses the very
+ * desk the page is named for… the gate is the bug, because hiding a desk
+ * from itself is worse than a refusal."
+ *
+ * Acting asks for the privacy permission. Logging a request against
+ * somebody else, producing their export and running their erasure are
+ * acts on another person's record with a legal consequence, and for a
+ * week they were gated on a read because no permission for them existed.
+ * One does now, and the Compliance Officer role is granted it in
+ * `lib/company-defaults`, which is the architect's file.
+ *
+ * A person's own request about their own data goes through
+ * `/api/me/data` and asks for no permission at all, by design.
+ */
+const TO_READ = 'governance.read'
+const TO_ACT = 'privacy.manage'
+
+const readRefusal = () =>
+  NextResponse.json(
+    {
+      error:
+        'Reading the queue of data requests is the compliance desk’s job here, and this ' +
+        'seat does not hold it. An owner or administrator can add it under Users and ' +
+        'permissions.',
+    },
+    { status: 403 }
+  )
+
+const actRefusal = () =>
+  NextResponse.json(
+    {
+      error:
+        'Logging somebody else’s data request, or answering one, needs the privacy ' +
+        'permission, and this seat does not hold it. The compliance officer at your ' +
+        'company holds it, and an owner or administrator can add it to another seat ' +
+        'under Users and permissions. Your own data is on your own page and needs ' +
+        'nobody’s permission.',
+    },
+    { status: 403 }
+  )
+
+/** Does this company have any record of this person at all? */
+async function holdsThePerson(companyId: string, personId: string): Promise<boolean> {
+  const [contracts, buys, listings, submissions, seats] = await Promise.all([
+    prisma.sellContract.count({ where: { personId, OR: [{ companyId }, { clientCompanyId: companyId }] } }),
+    prisma.buyContractCandidate.count({ where: { personId, buyContract: { companyId } } }),
+    prisma.benchListing.count({ where: { companyId, consultant: { personId } } }),
+    prisma.submission.count({ where: { personId, OR: [{ fromCompanyId: companyId }, { toCompanyId: companyId }] } }),
+    prisma.context.count({ where: { personId, companyId } }),
+  ])
+  return contracts + buys + listings + submissions + seats > 0
+}
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json({ error: 'This page belongs to a company’s compliance desk.' }, { status: 403 })
+  }
+
+  // ── Whose queue ─────────────────────────────────────────────────────
+  //
+  // The caller's own, unless they name a client they hold a seat at. A
+  // program office has two books and silently swapping its own staff's
+  // requests for a client's would lose the first one; naming the client
+  // is the deliberate act that opens the second. See `privacyDesk`.
+  const desk = await privacyDesk(
+    caller,
+    request.nextUrl.searchParams.get('clientCompanyId'),
+    'data requests'
+  )
+  if (!desk.ok) return NextResponse.json({ error: desk.says }, { status: desk.status })
+
+  // Gated on the seat's role where there is a seat, and on the caller's
+  // own where there is not. `privacyDesk` has already asked the seat for
+  // `privacy.manage`; this is the unseated desk's own gate, unchanged —
+  // written as its own statement rather than folded into one condition,
+  // because `sidebar-nav`'s scanner reads the gate a page's link
+  // promises straight out of this handler and a menu entry that
+  // promises something the route does not ask for is an entry that lies.
+  if (!desk.seat) {
+    if (!hasPermission(caller.permissions, TO_READ)) return readRefusal()
+  }
+
+  // Only for the sentence on an office's own page: does this firm hold a
+  // desk anywhere, so the framing can say where the client's queue is
+  // rather than that the seat is not built.
+  const heldSeat = desk.seat ? null : await seatHeldAnywhere(caller)
+
+  const rows = await prisma.dataRequest.findMany({
+    where: { requestedByCompanyId: desk.companyId },
+    // Soonest due first: a queue ordered any other way is a queue that
+    // misses the one that mattered.
+    orderBy: [{ status: 'asc' }, { dueAt: 'asc' }],
+    select: {
+      id: true, kind: true, status: true, receivedAt: true, dueAt: true, dueBasis: true,
+      keptBecause: true, refusedBecause: true, producedAt: true, completedAt: true, note: true,
+      subjectPerson: { select: { id: true, name: true } },
+      subjectCompany: { select: { id: true, name: true } },
+    },
+  })
+
+  // The read is on the record either way, and a read made from a seat
+  // says so: which firm, at which of the client's own desks, granted by
+  // whom. The people named in the queue are subjects of it too — a
+  // program office reading a client's data requests is reading the
+  // people who made them.
+  logAccess({
+    subjectId: caller.person.id,
+    actorPersonId: caller.person.id,
+    actorCompanyId: caller.company.id,
+    action: desk.seat ? 'PROGRAM_READ' : 'DATA_EXPORT',
+    reason: desk.seat
+      ? seatTrail(desk.seat, `Queue of ${rows.length} data requests read`)
+      : `Read the compliance desk’s queue of ${rows.length} data requests.`,
+  })
+  if (desk.seat) {
+    const named = [...new Set(rows.map((r) => r.subjectPerson?.id).filter((id): id is string => Boolean(id)))]
+    logBulkAccess(named, {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company.id,
+      action: 'PROGRAM_READ',
+      reason: seatTrail(desk.seat, 'Their data request read in the queue'),
+    })
+  }
+
+  // ── The envelope ────────────────────────────────────────────────────
+  //
+  // `{ data: ... }`, which is what every neighbouring route in this
+  // domain sends — `/api/compliance`, `/api/tenure`, `/api/access`,
+  // `/api/me/papers` — and what the page was written to read. This one
+  // sent the payload at the top level instead, so `d?.data?.requests`
+  // came back undefined on a 200, the page's "none of the three
+  // answered" branch fired, and a compliance officer who holds the
+  // governance read was told on their own page that they do not.
+  // Found on the deployed commit by walking it as the Northbend desk.
+  return NextResponse.json({
+    data: {
+      // Whose desk this is, in this reader's own words. A staffing
+      // supplier answering for the people it employs is not "your
+      // program", and an MSP that places nobody is told what it is
+      // missing rather than shown an empty list that reads as "nobody
+      // has asked".
+      desk: desk.seat
+        ? {
+            says:
+              `Requests from the people on ${desk.companyName}’s sites and from its own staff, the ` +
+              `records that program has asked to keep, and any incident its records were in. ` +
+              `${caller.company.name} is reading them from the ${desk.seat.role.name} desk ` +
+              `${desk.companyName} granted it, and every read here is logged against that seat.`,
+            missing: null,
+          }
+        : deskFraming(
+            caller.company.kind,
+            caller.company.name,
+            heldSeat
+              ? {
+                  clientName: heldSeat.clientCompany.name,
+                  roleName: heldSeat.role.name,
+                  permissions: heldSeat.role.permissions,
+                }
+              : null
+          ),
+      requests: rows.map((r) => ({
+        id: r.id,
+        reference: reference(r.id),
+        kind: r.kind,
+        status: r.status,
+        subject: r.subjectPerson?.name ?? r.subjectCompany?.name ?? 'nobody named',
+        subjectPersonId: r.subjectPerson?.id ?? null,
+        receivedAt: r.receivedAt,
+        dueAt: r.dueAt,
+        dueBasis: r.dueBasis,
+        runsOn: r.kind === 'ERASURE' ? coolingEndsAtFor(r.receivedAt) : null,
+        keptBecause: r.keptBecause,
+        refusedBecause: r.refusedBecause,
+        completedAt: r.completedAt,
+      })),
+    },
+  })
+}
+
+/**
+ * Log a request that arrived by email, or answer one already logged.
+ *
+ * `{ kind, subjectPersonId | subjectCompanyId, receivedAt }` logs one.
+ * `{ answer: 'EXPORT' | 'ERASE' | 'REFUSE', requestId }` answers one.
+ */
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json({ error: 'This page belongs to a company’s compliance desk.' }, { status: 403 })
+  }
+  if (!hasPermission(caller.permissions, TO_ACT)) return actRefusal()
+
+  const body = await request.json().catch(() => ({}))
+  const companyId = caller.company.id
+
+  // ── Answering one ──────────────────────────────────────────────────
+
+  if (body.answer) {
+    const row = await prisma.dataRequest.findUnique({
+      where: { id: String(body.requestId ?? '') },
+      select: { id: true, requestedByCompanyId: true, kind: true, subjectPersonId: true },
+    })
+    if (!row || row.requestedByCompanyId !== companyId) {
+      return NextResponse.json(
+        { error: 'There is no request here with that reference. A request logged by another company is answered by that company.' },
+        { status: 404 }
+      )
+    }
+
+    if (body.answer === 'REFUSE') {
+      const because = String(body.because ?? '').trim()
+      if (because.length < 10) {
+        return NextResponse.json(
+          { error: 'Say why, in a sentence the person can act on — "we could not establish that you are who this record is about", never a code. A refusal is recorded as carefully as a grant.' },
+          { status: 400 }
+        )
+      }
+      await prisma.dataRequest.update({
+        where: { id: row.id },
+        data: { status: 'REFUSED', refusedBecause: because, completedAt: new Date() },
+      })
+      await prisma.automationLog.create({
+        data: {
+          companyId,
+          action: 'DATA_REQUEST_REFUSED',
+          summary: `A data request was refused: ${because}`,
+          reason: 'Somebody asked for a person’s data or for them to be forgotten and was refused.',
+          payload: { requestId: row.id },
+          reversible: true,
+        },
+      })
+      return NextResponse.json({ ok: true, says: 'Refused, with the reason on the record and shown to the person.' })
+    }
+
+    const outcome = body.answer === 'ERASE'
+      ? await completeErasure(row.id)
+      : await produceExport(row.id)
+
+    const ok = 'ran' in outcome ? outcome.ran : outcome.ok
+    if (ok) {
+      await prisma.automationLog.create({
+        data: {
+          companyId,
+          action: 'DATA_REQUEST_ANSWERED',
+          summary: outcome.says,
+          reason: 'Somebody answered a request for a person’s data, and the row says what was kept and why.',
+          payload: { requestId: row.id, answer: body.answer },
+          reversible: false,
+        },
+      })
+    }
+    return NextResponse.json({ ok, says: outcome.says }, { status: ok ? 200 : 409 })
+  }
+
+  // ── Logging one ────────────────────────────────────────────────────
+
+  const kind = body.kind === 'ERASURE' ? 'ERASURE' : body.kind === 'EXPORT' ? 'EXPORT' : null
+  if (!kind) {
+    return NextResponse.json(
+      { error: 'Say which arrived: a request for a copy of everything held, or a request to be forgotten.' },
+      { status: 400 }
+    )
+  }
+
+  const subject = oneSubject({ personId: body.subjectPersonId, companyId: body.subjectCompanyId })
+  if (!subject.ok) return NextResponse.json({ error: subject.says }, { status: 400 })
+
+  const subjectPersonId: string | null = body.subjectPersonId ?? null
+  const subjectCompanyId: string | null = body.subjectCompanyId ?? null
+
+  const holds = subjectPersonId
+    ? await holdsThePerson(companyId, subjectPersonId)
+    : subjectCompanyId === companyId ||
+      (await prisma.masterAgreement.count({
+        where: { OR: [{ vendorId: companyId, clientId: subjectCompanyId! }, { vendorId: subjectCompanyId!, clientId: companyId }] },
+      })) > 0
+
+  const may = mayAsk({
+    callerPersonId: caller.person.id,
+    subjectPersonId,
+    subjectCompanyId,
+    callerCompanyId: companyId,
+    holdsTheSubject: holds,
+  })
+  if (!may.ok) {
+    if (subjectPersonId) {
+      logAccess({
+        subjectId: subjectPersonId, actorPersonId: caller.person.id, actorCompanyId: companyId,
+        action: 'DATA_EXPORT', allowed: false, reason: may.says,
+      })
+    }
+    await prisma.automationLog.create({
+      data: {
+        companyId,
+        action: 'DATA_REQUEST_REFUSED',
+        summary: may.says,
+        reason: 'A company tried to log a data request about somebody it holds no record of.',
+        payload: { subjectPersonId, subjectCompanyId },
+        reversible: true,
+      },
+    })
+    return NextResponse.json({ error: may.says }, { status: 403 })
+  }
+
+  const receivedAt = body.receivedAt ? new Date(body.receivedAt) : new Date()
+  if (Number.isNaN(receivedAt.getTime())) {
+    return NextResponse.json({ error: 'That is not a date we can read. The clock counts from the day it arrived.' }, { status: 400 })
+  }
+
+  const raised = await raiseRequest({
+    kind,
+    subjectPersonId,
+    subjectCompanyId,
+    requestedById: caller.person.id,
+    requestedByCompanyId: companyId,
+    receivedAt,
+    regime: body.regime === 'GDPR' || body.regime === 'CCPA' ? body.regime : 'UNKNOWN',
+    note: body.note ?? null,
+  })
+
+  return NextResponse.json({
+    ok: true,
+    id: raised.id,
+    reference: reference(raised.id),
+    dueAt: raised.dueAt,
+    dueBasis: raised.dueBasis,
+    runsOn: raised.runsOn,
+    keptBecause: raised.keptBecause,
+  })
+}

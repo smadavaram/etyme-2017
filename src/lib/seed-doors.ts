@@ -1,0 +1,1228 @@
+/**
+ * What each door on /demo actually opens onto.
+ *
+ * ── Why this file exists ─────────────────────────────────────────────
+ *
+ * `/demo` had seven doors and every one of them was a company. A
+ * consultant — the third side of this marketplace, and the only one who
+ * is a person rather than a firm — could be reached only by minting a
+ * private, random, throwaway Java developer nobody else could see. So
+ * the one population the product exists to serve was the one population
+ * the demo could not show against the shared world.
+ *
+ * Two doors on the page were worse than missing: Aptiva Workforce and
+ * Kestrel MSP were seeded with no contracts at all, because the model
+ * said an MSP routes work and holds none. CLAUDE.md's correction of
+ * 2026-09-17 says an MSP sells and buys like anybody else and can put
+ * its own W2 employee on a client's site. Aptiva is built to the
+ * correction here; Kestrel stays a pure agent MSP, because both exist.
+ *
+ * So this seeds the last mile of the world: four people with somewhere
+ * to sit and something waiting, and the two firms whose doors led to an
+ * empty book. Everything it writes hangs off companies `seed-world`
+ * already made, and it runs after `seed-programmes` because two of the
+ * four people are placed by it.
+ *
+ * ── The four people, and why these four ──────────────────────────────
+ *
+ *   Karthik Menon    aerospace, DO-178C. A systems integrator's own W2 —
+ *                    the person with no bench listing anywhere, whom
+ *                    nobody's consent is asked about because the
+ *                    employment contract already said it.
+ *   Helena Marsh     apparel, ERP finance. On a bench listing
+ *                    through a prime, on site at a client who cannot see
+ *                    the firm below the one it pays.
+ *   Chidi Okafor     medical device, CSV and 21 CFR Part 11. H1B,
+ *                    integrator over bench vendor, two hops from the
+ *                    client.
+ *   Colleen Byrne    an ICU travel nurse, corp to corp through her own
+ *                    limited company, on a thirteen-week assignment with
+ *                    a state license that runs out inside the month.
+ *
+ * The fourth is the one that proves the claim CLAUDE.md makes and the
+ * seed never did: nothing in the core may assume IT staffing. She works
+ * three twelve-hour shifts rather than five eights, she is paid through
+ * her own company rather than by a staffing firm, and the document her
+ * whole assignment rests on is a license from a state board of nursing.
+ * Every one of those was a shape this world had never held.
+ *
+ * Idempotent by the same rule as everything else here: found before it
+ * is made, keyed on things that do not move — a slug, an address, a
+ * contract's three parties, a week's first day.
+ */
+
+import { prisma as db } from '@/lib/db'
+import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
+import { completeCycle } from '@/lib/cycle-complete'
+import { holidayKeys } from '@/lib/seed-calendar'
+import { chaseCredentials } from '@/lib/credential-chase'
+import { day, seedToday } from '@/lib/seed-days'
+import type { Prisma } from '@prisma/client'
+import type { World } from '@/lib/seed-programmes'
+import { mondayWeek } from '@/lib/seed-programmes'
+import { acceptedWeeksToBill } from '@/lib/seed-order-to-cash'
+import { invitation } from '@/lib/bench-consent'
+import { periodFor, iso } from '@/lib/periods'
+import { periodTermsFor, termsFor } from '@/lib/money/order-terms'
+import { dueOn } from '@/lib/billing-cascade'
+
+/** "Colleen Byrne" → colleen.byrne@… — accents folded, never dropped into a dot. */
+const emailOf = (name: string) =>
+  `${name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
+
+/**
+ * Five eight-hour days, Monday to Friday, `w` calendar weeks back — the
+ * same week the rest of the world files (`mondayWeek` in
+ * lib/seed-programmes), so nothing straddles a week somebody else wrote.
+ * It used to be five days counted back from the seed day, which on a
+ * Wednesday is Saturday to Wednesday.
+ */
+export function officeWeek(w: number, hours = 40) {
+  const { start, end, days } = mondayWeek(w, hours)
+  return { start, end, days, hours }
+}
+
+/**
+ * Karthik Menon's three whole calendar months, counted from the world's
+ * own today: they end on the last month-end at least ten days before it,
+ * and begin on the 1st two months earlier. Ten days, because the latest
+ * a demo pay day falls is month-end + 9 (lib/contract-cycles), so the
+ * last of the three months has been paid before the world was born.
+ */
+export function karthikWindow(today: Date): { start: Date; end: Date } {
+  const ref = new Date(today.getTime() - 10 * 86_400_000)
+  const next = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate() + 1))
+  // The last day of a month on or before `ref`.
+  const end =
+    next.getUTCDate() === 1 ? ref : new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), 0))
+  const start = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - 2, 1))
+  return { start, end }
+}
+
+/**
+ * Every calendar week from `start` to `end`, Monday on, cut to the window:
+ * eight hours on each weekday inside it. A week the window cuts is filed
+ * for the days it holds, never for days outside the contract.
+ */
+export function calendarWeeks(start: Date, end: Date, hoursPerDay = 8) {
+  const DAY = 86_400_000
+  const weeks: { start: Date; end: Date; days: Record<string, number>; hours: number }[] = []
+  const monday = new Date(start.getTime() - ((start.getUTCDay() + 6) % 7) * DAY)
+  for (let w = monday; w <= end; w = new Date(w.getTime() + 7 * DAY)) {
+    const days: Record<string, number> = {}
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(w.getTime() + i * DAY)
+      if (d >= start && d <= end) days[d.toISOString().slice(0, 10)] = hoursPerDay
+    }
+    const keys = Object.keys(days)
+    if (keys.length === 0) continue
+    weeks.push({
+      start: new Date(`${keys[0]}T00:00:00Z`),
+      end: new Date(`${keys[keys.length - 1]}T00:00:00Z`),
+      days,
+      hours: keys.length * hoursPerDay,
+    })
+  }
+  return weeks
+}
+
+/**
+ * Three twelve-hour shifts, `w` weeks ago.
+ *
+ * A nurse's week is not five eights, and a demo that files one as five
+ * eights is telling a nurse manager that this product has never met a
+ * nurse. Thirty-six hours, Monday, Wednesday and Friday.
+ */
+export function nurseWeek(w: number) {
+  const { start, end } = mondayWeek(w, 36)
+  const days: Record<string, number> = {}
+  for (const d of [0, 2, 4]) days[new Date(start.getTime() + d * 86_400_000).toISOString().slice(0, 10)] = 12
+  return { start, end, days, hours: 36 }
+}
+
+/**
+ * The one company this file writes, by the slug the world's prefix goes
+ * in front of. Exported because the rebuild (lib/seed-rebuild) deletes
+ * the world by its roster rather than by a slug pattern, and a roster
+ * that forgot a company would leave it behind to be found by nobody.
+ */
+export const NURSE_CORP_SLUG = 'byrne-critical-care'
+
+export async function seedDoors(w: World): Promise<{ people: number; placements: number }> {
+  const { firmBySlug, seatBySlug } = w
+  const co = (slug: string) => firmBySlug.get(slug)!
+  const seat = (slug: string) => seatBySlug.get(slug)!.personId
+
+  async function person(name: string) {
+    const primaryEmail = emailOf(name)
+    return db.person.upsert({
+      where: { primaryEmail },
+      update: { name },
+      create: { name, primaryEmail },
+    })
+  }
+
+  async function trade(a: string, b: string, relationship: string) {
+    const A = co(a).id,
+      B = co(b).id
+    if (await db.counterparty.findFirst({ where: { companyId: A, otherCompanyId: B, relationship } })) return
+    await db.counterparty.create({ data: { companyId: A, otherCompanyId: B, relationship } })
+  }
+
+  /** The paper two firms trade under, and the project this one is part of. */
+  async function agreement(sellerSlug: string, buyerSlug: string, title: string) {
+    const vendorId = co(sellerSlug).id,
+      clientId = co(buyerSlug).id
+    const msa =
+      (await db.masterAgreement.findFirst({ where: { vendorId, clientId } })) ??
+      (await db.masterAgreement.create({
+        data: { vendorId, clientId, paymentTerms: 45, currency: 'USD', signedAt: day(-400) },
+      }))
+    const eng =
+      (await db.engagement.findFirst({ where: { msaId: msa.id, title } })) ??
+      (await db.engagement.create({ data: { msaId: msa.id, title, invoiceCycle: 'MONTHLY' } }))
+    return { msa, eng }
+  }
+
+  /**
+   * One person, one client, one supplier — the sell leg and the buy leg
+   * under it, and the requirement and submission that put them there.
+   *
+   * `buyFrom` is null where the seller employs them (a W2 leg, and no
+   * purchase order: you do not raise a PO to your own employee) and the
+   * consultant's own company where the trade is corp to corp.
+   */
+  async function place(spec: {
+    personId: string
+    sellerSlug: string
+    clientSlug: string
+    /** The company the seller buys from, or null where it employs them. */
+    buyFromId: string | null
+    contractType: 'W2' | 'C2C'
+    role: string
+    skills: string[]
+    loc: string
+    billRate: number
+    payRate: number
+    start: Date
+    end: Date
+    state: 'IN_PROGRESS' | 'ENDED'
+    /** BENCH · INTERNAL — computed from ownership, never typed in. */
+    kind: 'INTERNAL' | 'BENCH' | 'NETWORK'
+    /** Write the worker's pay days even though the placement has ended. */
+    cyclesWhenEnded?: boolean
+  }) {
+    const seller = co(spec.sellerSlug),
+      client = co(spec.clientSlug)
+    await trade(spec.sellerSlug, spec.clientSlug, 'CLIENT')
+    await trade(spec.clientSlug, spec.sellerSlug, 'SUPPLIER')
+
+    const requirement =
+      (await db.requirement.findFirst({ where: { companyId: client.id, title: spec.role } })) ??
+      (await db.requirement.create({
+        data: {
+          companyId: client.id,
+          title: spec.role,
+          skills: spec.skills,
+          location: spec.loc,
+          billMin: spec.billRate - 1200,
+          billMax: spec.billRate + 600,
+          months: 12,
+          headcount: 1,
+          status: spec.state === 'ENDED' ? 'CLOSED' : 'FILLED',
+          approvalState: 'AUTO_APPROVED',
+          source: 'MANUAL',
+          neededBy: spec.start,
+          hoursPerWeek: 40,
+        },
+      }))
+
+    let sell = await db.sellContract.findFirst({
+      where: { companyId: seller.id, personId: spec.personId, clientCompanyId: client.id, requirementId: requirement.id },
+    })
+    if (!sell) {
+      const { msa, eng } = await agreement(spec.sellerSlug, spec.clientSlug, spec.role)
+      sell = await db.sellContract.create({
+        data: {
+          companyId: seller.id,
+          clientCompanyId: client.id,
+          endClientCompanyId: client.id,
+          personId: spec.personId,
+          requirementId: requirement.id,
+          engagementId: eng.id,
+          msaId: msa.id,
+          billRate: spec.billRate,
+          billCurrency: 'USD',
+          paymentTerms: 45,
+          state: spec.state,
+          startDate: spec.start,
+          endDate: spec.end,
+        },
+      })
+      const buy = await db.buyContract.create({
+        data: {
+          companyId: seller.id,
+          vendorCompanyId: spec.buyFromId,
+          payCurrency: 'USD',
+          contractType: spec.contractType,
+          state: spec.state,
+          startDate: spec.start,
+          endDate: spec.end,
+          // No purchase order on either of these legs. A PO raised to
+          // your own employee is a contradiction, and the consultant's
+          // own company is paid against the contract's rate.
+          workOrderId: null,
+        },
+      })
+      await db.buyContractCandidate.create({
+        data: {
+          buyContractId: buy.id,
+          personId: spec.personId,
+          payRate: spec.payRate,
+          payCurrency: 'USD',
+          startDate: spec.start,
+          endDate: spec.end,
+        },
+      })
+      await db.contractLink.create({
+        data: { sellContractId: sell.id, buyContractId: buy.id, effectiveFrom: spec.start, effectiveTo: spec.end },
+      })
+      // Due dates on the side each belongs to, pay on the demo's monthly
+      // rhythm. A placement that has ended has nothing due on it — no
+      // hours, no bill — but where the door asks, its worker keeps the pay
+      // days of the line that paid him, because his page reads a pay day
+      // for every month he was paid (Karthik Menon's). The writer is
+      // handed the buy side's rows only.
+      if (spec.state !== 'ENDED') {
+        await writeCyclesFor(db, { sell, buy, packId: 'US_IT', holidays: holidayKeys(), pay: DEMO_MONTHLY_PAY })
+      } else if (spec.cyclesWhenEnded) {
+        const payDaysOnly = {
+          sellContract: db.sellContract,
+          cycle: {
+            createMany: (args: { data: Prisma.CycleCreateManyInput[] }) =>
+              db.cycle.createMany({ data: args.data.filter((r) => r.buyContractId) }),
+          },
+        } as unknown as Parameters<typeof writeCyclesFor>[0]
+        await writeCyclesFor(payDaysOnly, { sell, buy, packId: 'US_IT', holidays: holidayKeys(), pay: DEMO_MONTHLY_PAY })
+      }
+    }
+
+    if (!(await db.submission.findFirst({ where: { requirementId: requirement.id, personId: spec.personId } }))) {
+      await db.submission.create({
+        data: {
+          requirementId: requirement.id,
+          personId: spec.personId,
+          fromCompanyId: seller.id,
+          toCompanyId: client.id,
+          kind: spec.kind,
+          rate: spec.billRate,
+          status: 'PLACED',
+          checkState: 'SENT',
+          submittedAt: new Date(spec.start.getTime() - 21 * 86_400_000),
+          decidedAt: new Date(spec.start.getTime() - 6 * 86_400_000),
+        },
+      })
+    }
+
+    return { sell, requirement }
+  }
+
+  /**
+   * A week of hours, and who has signed it — on the ledger as well as on
+   * the week.
+   *
+   * The signatures used to be written to the week's own columns only
+   * (`clientApprovedAt`, `employerAcceptedAt`), and the ledger is what
+   * everything reads now: payroll pays a week its employer accepted on
+   * the ledger, and a worker's page says a week is owed once it is. So
+   * Karthik Menon's, Colleen Byrne's and Ruben Ortega's weeks read as
+   * waiting on an acceptance their columns said had happened, and no run
+   * could pay them. Each signature is now a `WorkAssertion`, as the
+   * approve route writes it: the client at its bill rate, then the
+   * employer at the pay rate, and the week's hours-to-approve date done
+   * once both are in. A week written before this gets its rows on the
+   * next seeding; one that has them is left alone.
+   */
+  const contractRates = new Map<string, {
+    companyId: string; clientCompanyId: string; billRate: number
+    buyLinks: { buyContract: { candidates: { payRate: number }[] } }[]
+  }>()
+  async function hours(input: {
+    sellContractId: string
+    personId: string
+    week: { start: Date; end: Date; days: Record<string, number>; hours: number }
+    /** SIGNED · CLIENT_ONLY (the employer has not accepted) · FILED (nobody has). */
+    standing: 'SIGNED' | 'CLIENT_ONLY' | 'FILED'
+    clientById: string
+    employerById: string
+  }) {
+    const { week } = input
+    const clientAt = new Date(week.end.getTime() + 2 * 86_400_000)
+    const employerAt = new Date(week.end.getTime() + 3 * 86_400_000)
+    // Any sheet already on those days, so a world seeded before its weeks
+    // ran Monday to Friday keeps its own rather than gaining a second
+    // sheet over the same Tuesday.
+    const found = await db.timesheet.findFirst({
+      where: { sellContractId: input.sellContractId, periodStart: { lte: week.end }, periodEnd: { gte: week.start } },
+      select: { id: true },
+    })
+    const sheet =
+      found ??
+      (await db.timesheet.create({
+        data: {
+          sellContractId: input.sellContractId,
+          personId: input.personId,
+          periodStart: week.start,
+          periodEnd: week.end,
+          days: week.days,
+          totalHours: week.hours,
+          // A week is APPROVED only when both sides have signed it. One
+          // signature is a week still waiting on somebody, and the status
+          // has to say so or a desk reads "done" about its own queue.
+          status: input.standing === 'SIGNED' ? 'APPROVED' : 'SUBMITTED',
+          submittedAt: week.end,
+          ...(input.standing === 'FILED'
+            ? {}
+            : {
+                clientApprovedAt: clientAt,
+                clientApprovedById: input.clientById,
+              }),
+          ...(input.standing === 'SIGNED'
+            ? {
+                approvedAt: clientAt,
+                approvedById: input.clientById,
+                employerAcceptedAt: employerAt,
+                employerAcceptedById: input.employerById,
+              }
+            : {}),
+        },
+        select: { id: true },
+      }))
+    if (input.standing === 'FILED') return
+
+    // Read once per contract rather than once a week: Karthik Menon's
+    // three months are fourteen weeks, and the doors step has a budget.
+    const key = `${input.sellContractId}:${input.personId}`
+    let sell = contractRates.get(key)
+    if (!sell) {
+      sell = await db.sellContract.findUniqueOrThrow({
+        where: { id: input.sellContractId },
+        select: {
+          companyId: true, clientCompanyId: true, billRate: true,
+          buyLinks: { select: { buyContract: { select: { candidates: { where: { personId: input.personId }, select: { payRate: true } } } } } },
+        },
+      })
+      contractRates.set(key, sell)
+    }
+    // A sheet this call just wrote has no signature on it yet.
+    const standing = found
+      ? await db.workAssertion.findMany({
+          where: { timesheetId: sheet.id, state: 'LIVE' },
+          select: { companyId: true, role: true },
+        })
+      : []
+    const signed = (role: string, companyId: string) => standing.some((a) => a.role === role && a.companyId === companyId)
+    const signatures: Prisma.WorkAssertionCreateManyInput[] = []
+    // The client signs at what it is billed.
+    if (!signed('CLIENT_APPROVAL', sell.clientCompanyId)) {
+      signatures.push({
+        timesheetId: sheet.id, companyId: sell.clientCompanyId, role: 'CLIENT_APPROVAL', hours: week.hours,
+        rateCents: sell.billRate, state: 'LIVE', byId: input.clientById, auto: false, at: clientAt,
+      })
+    }
+    // The employer accepts at what it pays, after the client — a promise
+    // to pay, so never at the bill rate. No rise has been written on any
+    // of these lines, so the rate in force is the line's own.
+    const payRate = sell.buyLinks.flatMap((l) => l.buyContract.candidates)[0]?.payRate
+    const accepts = input.standing === 'SIGNED' && payRate != null
+    if (accepts && !signed('EMPLOYER_ACCEPTANCE', sell.companyId)) {
+      signatures.push({
+        timesheetId: sheet.id, companyId: sell.companyId, role: 'EMPLOYER_ACCEPTANCE', hours: week.hours,
+        rateCents: payRate!, state: 'LIVE', byId: input.employerById, auto: false, at: employerAt,
+      })
+    }
+    // Both in one statement; the order they were signed in is on `at`.
+    if (signatures.length) await db.workAssertion.createMany({ data: signatures })
+    if (!accepts) return
+    // Both signatures in: the week's hours-to-approve date is done.
+    await completeCycle(db, { sellContractId: input.sellContractId, kind: 'TIMESHEET_APPROVE', periodEnd: week.end, at: employerAt })
+  }
+
+  /** A document this company has asked that person for, and not had back. */
+  async function asked(input: {
+    companySlug: string
+    name: string
+    needsSignature: boolean
+    audience: string
+    personId: string
+    sentDaysAgo: number
+  }) {
+    const company = co(input.companySlug)
+    const template =
+      (await db.docTemplate.findFirst({ where: { companyId: company.id, name: input.name } })) ??
+      (await db.docTemplate.create({
+        data: {
+          companyId: company.id,
+          name: input.name,
+          audience: input.audience,
+          needsSignature: input.needsSignature,
+        },
+      }))
+    if (
+      await db.docInstance.findFirst({
+        where: { templateId: template.id, subjectType: 'PERSON', subjectId: input.personId },
+      })
+    )
+      return
+    await db.docInstance.create({
+      data: {
+        templateId: template.id,
+        subjectType: 'PERSON',
+        subjectId: input.personId,
+        // SENT, not PENDING: the person has been asked and can answer it
+        // from their own page. PENDING is the company's business and
+        // never reaches them.
+        status: 'SENT',
+        sentAt: day(-input.sentDaysAgo),
+      },
+    })
+  }
+
+  /**
+   * A bill from the firm below, received and not yet settled.
+   *
+   * Every prime and integrator in this world bought somebody from a
+   * bench vendor and every one of those legs was paid the moment it was
+   * written, so a supplier's own buy side — the half of its book where
+   * it is the customer — opened on nothing at all. One bill, on the leg
+   * that already exists, against the contract it belongs to.
+   */
+  async function billFromBelow(payerSlug: string, vendorSlug: string, number: string) {
+    const payer = co(payerSlug),
+      vendor = co(vendorSlug)
+    if (await db.vendorBill.findFirst({ where: { companyId: payer.id, number } })) return
+    const buy = await db.buyContract.findFirst({
+      where: { companyId: payer.id, vendorCompanyId: vendor.id, state: 'IN_PROGRESS' },
+      include: { candidates: { select: { payRate: true, personId: true } } },
+    })
+    if (!buy) return
+    const rate = buy.candidates[0]?.payRate ?? 0
+    if (!rate) return
+    // Only weeks the payer accepted and nobody has billed it for, at the
+    // leg's own rate (lib/seed-order-to-cash). Nothing where none is left.
+    const due = await acceptedWeeksToBill({
+      payerId: payer.id, vendorId: vendor.id,
+      personIds: buy.candidates.map((c) => c.personId), rateCents: rate, since: day(-42),
+    })
+    if (!due) return
+    await db.vendorBill.create({
+      data: {
+        companyId: payer.id,
+        vendorCompanyId: vendor.id,
+        number,
+        buyContractId: buy.id,
+        periodStart: due.periodStart,
+        periodEnd: due.periodEnd,
+        currency: 'USD',
+        totalCents: due.totalCents,
+        receivedAt: new Date(Math.min(day(-1).getTime(), due.periodEnd.getTime() + 2 * 86_400_000)),
+        dueAt: day(25),
+        status: 'RECEIVED',
+      },
+    })
+  }
+
+  let people = 0
+  let placements = 0
+
+  // ── The travel nurse, paid through her own company ───────────────────
+  //
+  // Thirteen weeks in an ICU, corp to corp. Harlow Health pays Halcyon
+  // Talent; Halcyon buys from Byrne Critical Care LLC, which is hers.
+  // `ConsultantProfile.ownCompanyId` has been on the schema since it was
+  // written and nothing has ever set it, so the rule it exists for — the
+  // consultant's own company carries the liability cover, not the
+  // staffing firm — had never been true of any row in this world.
+  const nurseCorp = await db.company.upsert({
+    where: { slug: w.prefix + NURSE_CORP_SLUG },
+    update: { name: 'Byrne Critical Care LLC', kind: 'CONSULTANT_CORP' },
+    create: {
+      slug: w.prefix + NURSE_CORP_SLUG,
+      name: 'Byrne Critical Care LLC',
+      kind: 'CONSULTANT_CORP',
+      currency: 'USD',
+      defaultPaymentTerms: 30,
+      createdAt: day(0),
+      isDemo: false,
+    },
+  })
+  const nurse = await person('Colleen Byrne')
+  people++
+  const nurseProfile =
+    (await db.consultantProfile.findFirst({ where: { personId: nurse.id } })) ??
+    (await db.consultantProfile.create({
+      data: {
+        personId: nurse.id,
+        headline: 'ICU travel nurse — thirteen-week assignments',
+        skills: ['ICU nursing', 'ACLS', 'Epic', 'Ventilator management'],
+        location: 'Madison, WI',
+        workAuth: 'USC',
+        visibility: 'VERIFIED',
+        availableFrom: day(-60),
+      },
+    }))
+  if (nurseProfile.ownCompanyId !== nurseCorp.id) {
+    await db.consultantProfile.update({ where: { id: nurseProfile.id }, data: { ownCompanyId: nurseCorp.id } })
+  }
+  // The listing that makes her submittable at all, and the seat that
+  // lets her sign in as herself.
+  if (!(await db.benchListing.findFirst({ where: { consultantId: nurseProfile.id, companyId: co('halcyon').id } }))) {
+    await db.benchListing.create({
+      data: {
+        consultantId: nurseProfile.id,
+        companyId: co('halcyon').id,
+        tier: 'RETAINED',
+        state: 'GRANTED',
+        rateMin: 9000,
+        rateMax: 11000,
+        invitedAt: day(-64),
+        respondedAt: day(-62),
+        grantedAt: day(-62),
+      },
+    })
+  }
+  if (!(await db.context.findFirst({ where: { personId: nurse.id, companyId: co('halcyon').id } }))) {
+    await db.context.create({
+      data: {
+        personId: nurse.id,
+        companyId: co('halcyon').id,
+        type: 'CONSULTANT',
+        side: 'SELL',
+        grantReason: 'On the bench — corp to corp through her own company',
+      },
+    })
+  }
+
+  // And a seat at her own company, because she is the only person at it.
+  //
+  // Found by the nightly cover chase, which refused to ask Byrne Critical
+  // Care for its certificate of insurance and said exactly why: *"nobody
+  // at Byrne Critical Care LLC has ever signed in, so there is no address
+  // to send to."* That was true and it was the seed's fault, not the
+  // chase's. `ownCompanyId` already said this corporation is hers and
+  // carries the cover her assignment depends on; a company that bills for
+  // work and holds the liability policy has somebody answerable for it,
+  // and for a one-person corp that somebody is the one person.
+  if (!(await db.context.findFirst({ where: { personId: nurse.id, companyId: nurseCorp.id } }))) {
+    const ownerRole =
+      (await db.role.findFirst({ where: { companyId: nurseCorp.id, name: 'Owner' } })) ??
+      (await db.role.create({
+        data: { companyId: nurseCorp.id, name: 'Owner', permissions: ['*'], isDefault: true },
+      }))
+    await db.context.create({
+      data: {
+        personId: nurse.id,
+        companyId: nurseCorp.id,
+        roleId: ownerRole.id,
+        type: 'EMPLOYEE',
+        side: 'SELL',
+        grantReason: 'Owns the company — it is hers, and it is the one that carries the cover',
+      },
+    })
+  }
+
+  const nurseJob = await place({
+    personId: nurse.id,
+    sellerSlug: 'halcyon',
+    clientSlug: 'harlow-health',
+    buyFromId: nurseCorp.id,
+    contractType: 'C2C',
+    role: 'ICU travel nurse — 13 weeks',
+    skills: ['ICU nursing', 'ACLS', 'Epic'],
+    loc: 'Madison, WI',
+    billRate: 11_400,
+    payRate: 9_200,
+    start: day(-42),
+    end: day(49),
+    state: 'IN_PROGRESS',
+    kind: 'BENCH',
+  })
+  placements++
+
+  // ── Her own company's line, which is where her hours live ────────────
+  //
+  // A chain files the week once, against the line of the firm that
+  // employs the person, and every rung above signs it in turn (CLAUDE.md,
+  // "One week, filed once by the worker, signed at the top"). Here that
+  // firm is hers: Byrne Critical Care LLC sells her to Halcyon at $92 an
+  // hour, and Halcyon sells her to Harlow Health at $114. Until
+  // 2026-09-30 her weeks were filed on Halcyon's line and her own company
+  // had no line at all, so its Contracts, Bills and AR were empty for the
+  // one firm whose whole business is this placement.
+  const nurseMsa =
+    (await db.masterAgreement.findFirst({ where: { vendorId: nurseCorp.id, clientId: co('halcyon').id } })) ??
+    (await db.masterAgreement.create({
+      data: { vendorId: nurseCorp.id, clientId: co('halcyon').id, paymentTerms: 45, currency: 'USD', signedAt: day(-64) },
+    }))
+  const nurseEng =
+    (await db.engagement.findFirst({ where: { msaId: nurseMsa.id } })) ??
+    (await db.engagement.create({ data: { msaId: nurseMsa.id, title: 'ICU travel nurse — 13 weeks', invoiceCycle: 'MONTHLY' } }))
+  let byrneLine = await db.sellContract.findFirst({
+    where: { companyId: nurseCorp.id, clientCompanyId: co('halcyon').id, personId: nurse.id },
+  })
+  if (!byrneLine) {
+    byrneLine = await db.sellContract.create({
+      data: {
+        companyId: nurseCorp.id,
+        clientCompanyId: co('halcyon').id,
+        endClientCompanyId: co('harlow-health').id,
+        personId: nurse.id,
+        requirementId: nurseJob.requirement.id,
+        engagementId: nurseEng.id,
+        msaId: nurseMsa.id,
+        billRate: 9_200,
+        billCurrency: 'USD',
+        // Net 45, the same as the order Halcyon raises over this line in
+        // the order-to-cash layer, so the bill's due date and the order's
+        // terms say one date.
+        paymentTerms: 45,
+        state: 'IN_PROGRESS',
+        startDate: day(-42),
+        endDate: day(49),
+      },
+    })
+    await writeCyclesFor(db, { sell: byrneLine, buy: null, packId: 'US_IT', holidays: holidayKeys(), pay: DEMO_MONTHLY_PAY })
+  }
+  // Halcyon's buy line says which of Byrne's contracts it buys, so the
+  // chain is walkable from Halcyon down to the hours.
+  await db.buyContract.updateMany({
+    where: { companyId: co('halcyon').id, vendorCompanyId: nurseCorp.id, supplierSellContractId: null },
+    data: { supplierSellContractId: byrneLine.id },
+  })
+
+  // Her weeks, on her company's line, signed down the chain: Harlow
+  // Health approves at what it is billed, Halcyon accepts at what it pays
+  // Byrne, and Byrne — she, as its owner — accepts last. The newest week
+  // is signed by Harlow Health only and waits on Halcyon.
+  const signedWeeks: { id: string; start: Date; end: Date; hours: number }[] = []
+  for (const [week, standing] of [
+    [nurseWeek(4), 'SIGNED'],
+    [nurseWeek(3), 'SIGNED'],
+    [nurseWeek(2), 'SIGNED'],
+    [nurseWeek(1), 'CLIENT_ONLY'],
+  ] as const) {
+    const clientAt = new Date(week.end.getTime() + 2 * 86_400_000)
+    const middleAt = new Date(clientAt.getTime() + 3_600_000)
+    const ownerAt = new Date(week.end.getTime() + 3 * 86_400_000)
+    // A world seeded before this has the week on Halcyon's line; it moves
+    // to Byrne's, the same sheet, never a second one.
+    const onHalcyon = await db.timesheet.findFirst({
+      where: {
+        personId: nurse.id, sellContractId: { in: [byrneLine.id, nurseJob.sell.id] },
+        periodStart: { lte: week.end }, periodEnd: { gte: week.start },
+      },
+      select: { id: true, sellContractId: true },
+    })
+    const sheet =
+      onHalcyon ??
+      (await db.timesheet.create({
+        data: {
+          sellContractId: byrneLine.id, personId: nurse.id,
+          periodStart: week.start, periodEnd: week.end, days: week.days, totalHours: week.hours,
+          status: standing === 'SIGNED' ? 'APPROVED' : 'SUBMITTED', submittedAt: week.end,
+          clientApprovedAt: clientAt, clientApprovedById: seat('harlow-health'),
+          ...(standing === 'SIGNED'
+            ? { approvedAt: clientAt, approvedById: seat('harlow-health'), employerAcceptedAt: ownerAt, employerAcceptedById: nurse.id }
+            : {}),
+        },
+        select: { id: true, sellContractId: true },
+      }))
+    if (onHalcyon && onHalcyon.sellContractId !== byrneLine.id) {
+      await db.timesheet.update({
+        where: { id: sheet.id },
+        data: { sellContractId: byrneLine.id, ...(standing === 'SIGNED' ? { employerAcceptedById: nurse.id } : {}) },
+      })
+      // Halcyon's acceptance was written as the employer's; it is the
+      // middle rung's now, and a row is never edited in place.
+      await db.workAssertion.updateMany({
+        where: { timesheetId: sheet.id, companyId: co('halcyon').id, role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+        data: { state: 'WITHDRAWN' },
+      })
+    }
+    const live = onHalcyon
+      ? await db.workAssertion.findMany({ where: { timesheetId: sheet.id, state: 'LIVE' }, select: { companyId: true, role: true } })
+      : []
+    const has = (companyId: string, role: string) => live.some((x) => x.companyId === companyId && x.role === role)
+    const rows: Prisma.WorkAssertionCreateManyInput[] = []
+    if (!has(co('harlow-health').id, 'CLIENT_APPROVAL')) {
+      rows.push({ timesheetId: sheet.id, companyId: co('harlow-health').id, role: 'CLIENT_APPROVAL', hours: week.hours,
+        rateCents: 11_400, state: 'LIVE', byId: seat('harlow-health'), at: clientAt })
+    }
+    if (standing === 'SIGNED') {
+      if (!has(co('halcyon').id, 'PASS_THROUGH')) {
+        rows.push({ timesheetId: sheet.id, companyId: co('halcyon').id, role: 'PASS_THROUGH', hours: week.hours,
+          rateCents: 9_200, state: 'LIVE', byId: seat('halcyon'), at: middleAt })
+      }
+      if (!has(nurseCorp.id, 'EMPLOYER_ACCEPTANCE')) {
+        rows.push({ timesheetId: sheet.id, companyId: nurseCorp.id, role: 'EMPLOYER_ACCEPTANCE', hours: week.hours,
+          rateCents: 9_200, state: 'LIVE', byId: nurse.id, at: ownerAt })
+      }
+    }
+    if (rows.length) await db.workAssertion.createMany({ data: rows })
+    if (standing === 'SIGNED') {
+      if (!onHalcyon) {
+        await completeCycle(db, { sellContractId: byrneLine.id, kind: 'TIMESHEET_APPROVE', periodEnd: week.end, at: ownerAt })
+      }
+      signedWeeks.push({ id: sheet.id, start: week.start, end: week.end, hours: week.hours })
+    }
+  }
+
+  // Her company's bill to Halcyon for the oldest billing period Halcyon
+  // accepted weeks in, submitted and not yet paid, so Byrne's AR holds
+  // one; accepted weeks in a later period are left for her to bill. Only weeks Halcyon accepted — a firm bills the hours the
+  // firm above it accepted, never more.
+  // One whole billing period, as the line's own terms say one is — the
+  // same door POST /api/invoices/generate asks — holding the oldest
+  // accepted weeks that fall in it; the weeks after it are left to bill.
+  const billTerms = periodTermsFor('SELL', byrneLine)
+  const firstPeriod = signedWeeks.length ? periodFor(signedWeeks[0].start, billTerms) : null
+  const toBill = firstPeriod
+    ? signedWeeks.filter((t) => t.start >= firstPeriod.start && t.start <= firstPeriod.end)
+    : []
+  // Only a period that has ended is billed; one still running waits.
+  if (firstPeriod && toBill.length > 0 && firstPeriod.end < day(0) && !(await db.invoiceLine.findFirst({ where: { sellContractId: byrneLine.id } }))) {
+    const { start: periodStart, end: periodEnd } = firstPeriod
+    const cents = toBill.reduce((n, t) => n + t.hours * 9_200, 0)
+    const issuedAt = new Date(Math.min(periodEnd.getTime() + 2 * 86_400_000, day(-1).getTime()))
+    const billed = termsFor('SELL', byrneLine)
+    const due = dueOn({
+      anchor: billed.paymentTermsFrom ?? 'PERIOD_END', days: billed.paymentTermsDays ?? 30,
+      periodEnd, issuedAt, receivedAt: null, approvedAt: null,
+    })
+    const inv = await db.invoice.create({
+      data: {
+        engagementId: nurseEng.id,
+        number: `IN-${byrneLine.id.slice(-6).toUpperCase()}-${iso(periodStart).replace(/-/g, '')}`,
+        periodStart, periodEnd, currency: 'USD', total: cents / 100, paid: 0,
+        issuedAt, submittedAt: issuedAt, dueAt: due.dueAt,
+        status: 'SUBMITTED',
+        soldToId: co('halcyon').id, billToId: co('halcyon').id, payerId: co('halcyon').id,
+      },
+    })
+    await db.invoiceLine.createMany({
+      data: toBill.map((t) => ({
+        invoiceId: inv.id, timesheetId: t.id, sellContractId: byrneLine!.id, personId: nurse.id,
+        hours: t.hours, rateCents: 9_200, amountCents: t.hours * 9_200,
+        description: `Colleen Byrne — ${t.start.toISOString().slice(0, 10)} to ${t.end.toISOString().slice(0, 10)}`,
+      })),
+    })
+  }
+
+  // Her license, and the renewal. The license is the whole assignment:
+  // it runs out in twenty-four days, which is inside the thirteen weeks,
+  // and the compliance page reads the date the same way it reads a
+  // certificate of insurance.
+  if (!(await db.verification.findFirst({ where: { personId: nurse.id, type: 'PROFESSIONAL_LICENSE' } }))) {
+    await db.verification.create({
+      data: {
+        personId: nurse.id,
+        type: 'PROFESSIONAL_LICENSE',
+        status: 'CLEAR',
+        provider: 'Wisconsin Board of Nursing',
+        issuedAt: day(-706),
+        validFrom: day(-706),
+        expiresAt: day(24),
+        uploadedById: seat('halcyon'),
+        verifiedById: seat('halcyon'),
+        verifiedAt: day(-60),
+        result: { outcome: 'CLEAR', license: 'RN 154-882', state: 'WI' },
+      },
+    })
+  }
+  if (!(await db.verification.findFirst({ where: { personId: nurse.id, type: 'I9_EVERIFY' } }))) {
+    await db.verification.create({
+      data: {
+        personId: nurse.id,
+        type: 'I9_EVERIFY',
+        status: 'CLEAR',
+        provider: 'E-Verify',
+        issuedAt: day(-60),
+        uploadedById: seat('halcyon'),
+        verifiedById: seat('halcyon'),
+        verifiedAt: day(-59),
+        result: { outcome: 'CLEAR' },
+      },
+    })
+  }
+  // The cover on her own company, which is the point of `ownCompanyId`:
+  // on corp to corp the consultant's company carries it, not the agency.
+  for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+    if (await db.verification.findFirst({ where: { companyId: nurseCorp.id, type } })) continue
+    await db.verification.create({
+      data: {
+        companyId: nurseCorp.id,
+        type,
+        status: 'CLEAR',
+        provider: 'Cincinnati Insurance',
+        issuedAt: day(-200),
+        validFrom: day(-200),
+        expiresAt: day(165),
+        uploadedById: seat('halcyon'),
+        verifiedById: seat('halcyon'),
+        verifiedAt: day(-199),
+        result: { outcome: 'CLEAR' },
+      },
+    })
+  }
+  // The renewal ask is not written here. It used to be — a DocInstance
+  // typed into the seed so her seat had something to show — and that is
+  // the seed describing what the product ought to do rather than what it
+  // does. The nightly chase raises it now (`lib/credential-chase`, run at
+  // the end of this file), so what a visitor reads on her door is a
+  // packet the product itself raised, with its automation log beside it.
+
+  // ── Karthik Menon, between projects ──────────────────────────────────
+  //
+  // A GSI's own W2. His page was empty, because the only thing the world
+  // said about him was that Teleworld employs him — and a person seat
+  // that opens on nothing is the emptiest kind of demo. So the project
+  // he has just come off is on the record: three whole calendar months
+  // at Corveldt on avionics software assurance, every week of it signed
+  // by both sides, and every month of it paid.
+  //
+  // Three whole months, from the 1st to a month-end: the cycle generator
+  // writes no short final period, so a placement ending mid-month would
+  // have days nobody is ever paid for. The last month ends at least ten
+  // days before the world was born, so its pay day (month-end + 9 at the
+  // latest, lib/contract-cycles) has passed and the payroll runs
+  // (lib/seed-payroll-runs) have paid all three.
+  //
+  // Deliberately not the open DO-178C seat. That one is Teleworld's to
+  // submit him for from its own desk, and submitting him here would take
+  // the one thing the integrator door exists to demonstrate and do it
+  // before the visitor arrives.
+  const karthik = await db.person.findUnique({ where: { primaryEmail: emailOf('Karthik Menon') } })
+  if (karthik) {
+    people++
+    const { start, end } = karthikWindow(seedToday())
+    // His I-9, completed by Teleworld before his first day. The start gate
+    // refuses a W2 start without one, and this seed wrote his line as
+    // ENDED without walking the gate — so a man who worked three months
+    // on a client site read "nothing on your file" on his own paperwork
+    // page (tester, 2026-09-30). An employer keeps the form for three
+    // years after hire or one year after the work ends, whichever is
+    // later, so an ended placement still has it on file.
+    if (!(await db.verification.findFirst({ where: { personId: karthik.id, type: 'I9_EVERIFY' } }))) {
+      await db.verification.create({
+        data: {
+          personId: karthik.id,
+          type: 'I9_EVERIFY',
+          status: 'CLEAR',
+          provider: 'E-Verify',
+          issuedAt: new Date(start.getTime() - 3 * 86_400_000),
+          uploadedById: seat('teleworld'),
+          verifiedById: seat('teleworld'),
+          verifiedAt: new Date(start.getTime() - 2 * 86_400_000),
+          result: { outcome: 'CLEAR' },
+        },
+      })
+    }
+    const past = await place({
+      personId: karthik.id,
+      sellerSlug: 'teleworld',
+      clientSlug: 'corveldt',
+      buyFromId: null,
+      contractType: 'W2',
+      role: 'Avionics software assurance engineer',
+      skills: ['DO-178C', 'LDRA', 'Embedded C'],
+      loc: 'Wichita, KS',
+      billRate: 13_600,
+      payRate: 8_900,
+      start,
+      end,
+      state: 'ENDED',
+      // Its own employee, so there is no bench listing and nobody's
+      // consent to ask. The kind is computed from ownership everywhere
+      // else; this is what that looks like on the record.
+      kind: 'INTERNAL',
+      cyclesWhenEnded: true,
+    })
+    placements++
+    for (const week of calendarWeeks(start, end)) {
+      await hours({
+        sellContractId: past.sell.id,
+        personId: karthik.id,
+        week,
+        standing: 'SIGNED',
+        clientById: seat('corveldt'),
+        employerById: seat('teleworld'),
+      })
+    }
+  }
+
+  // ── Chidi Okafor's paperwork ─────────────────────────────────────────
+  //
+  // Placed at Talvern Medical by seed-programmes, everything on file, and
+  // so his own page had nothing on it to do. A device maker asks a
+  // validation engineer for a site attestation every year; this is that,
+  // asked four days ago and not yet signed.
+  const chidi = await db.person.findUnique({ where: { primaryEmail: emailOf('Chidi Okafor') } })
+  if (chidi) {
+    people++
+    await asked({
+      companySlug: 'terumo-bct',
+      name: 'Site access and data integrity attestation',
+      needsSignature: true,
+      audience: 'CANDIDATE',
+      personId: chidi.id,
+      sentDaysAgo: 4,
+    })
+  }
+
+  // Helena Marsh needs nothing added: seed-programmes already leaves her
+  // a week filed and unsigned, two hundred days on site at Northbend
+  // Athletic against an eighteen-month cap, and a bench listing through
+  // the firm below the prime that bills the client. Counted here because
+  // the door names her.
+  if (await db.person.findUnique({ where: { primaryEmail: emailOf('Helena Marsh') } })) people++
+
+  // ── The independent candidate, on her first day ──────────────────────
+  //
+  // Party 8B in the lane drawings, and until now the one party with no
+  // door: a person and nothing else. No firm employs her, no firm holds
+  // a listing for her, she has incorporated nothing, nobody has
+  // submitted her anywhere and no contract anywhere names her. That is
+  // not an edge case — it is the exact state `POST /api/onboarding`
+  // leaves every consumer-email sign-in in on day one, so it is the
+  // first screen a real consultant ever sees, and the demo could not
+  // show it.
+  //
+  // Written to match that route rather than to look like the other four:
+  // a `Person`, one `Context { type: 'CONSULTANT' }` with no company and
+  // no role, and a `ConsultantProfile`. Onboarding creates the profile
+  // empty; hers is filled in, because somebody who has typed nothing has
+  // nothing to be walked through, and every field here is one she could
+  // have typed herself on her own page.
+  //
+  // Nothing else about her exists anywhere in this world but one firm's
+  // unanswered question, and that is the point of the door. Adding a
+  // granted listing, a submission or a contract to make her page busier
+  // would turn her into party 8A and delete the state being shown.
+  //
+  // Her address sits on `seed.etyme.invalid` like the other four people
+  // rather than on a consumer domain. In production this person arrives
+  // on a Gmail or a Yahoo address — that is how `lib/company-domains`
+  // decides she is a candidate rather than a company admin — but a demo
+  // cookie may only ever name `@demo.etyme.local` or
+  // `@seed.etyme.invalid` (`lib/demo-session`), and widening that for a
+  // seeded person would widen it for every signature this deployment
+  // ever mints.
+  const independent = await person('Marisol Quintero')
+  people++
+  if (!(await db.context.findFirst({ where: { personId: independent.id, revokedAt: null } }))) {
+    await db.context.create({
+      // Exactly what onboarding writes for a consumer-email sign-in:
+      // type and person, no company, no role. A seat at a company here
+      // would be the thing this door exists to not have.
+      data: { personId: independent.id, type: 'CONSULTANT' },
+    })
+  }
+  const independentProfile =
+    (await db.consultantProfile.findFirst({ where: { personId: independent.id }, select: { id: true } })) ??
+    (await db.consultantProfile.create({
+      select: { id: true },
+      data: {
+        personId: independent.id,
+        headline: 'Controls engineer — PLC and SCADA commissioning',
+        skills: ['PLC programming', 'SCADA', 'Allen-Bradley', 'Ignition', 'Commissioning'],
+        location: 'Toledo, OH',
+        workAuth: 'USC',
+        // Free now, and saying so is the most useful line on her page.
+        availableFrom: day(-9),
+        // Her page is on, and `visibility` is not what turns it on.
+        // `pageIsLive` reads the address and the day she switched it on,
+        // deliberately, because visibility is whether an agency may show
+        // somebody inside the platform and is usually set by the agency —
+        // it was never consent to be named on the open internet. She has
+        // no agency, so she set both herself.
+        //
+        // FEED rather than VERIFIED: nobody has checked anything about
+        // her, and every other seeded consultant reads VERIFIED because a
+        // firm vouched for them. Hers is the honest value on day one.
+        visibility: 'FEED',
+        slug: 'marisol-quintero',
+        pageLiveAt: day(-5),
+        bioHeadline: 'Controls engineer — PLC and SCADA commissioning',
+        bioIntro:
+          'Eleven years on plant floors, the last six on Allen-Bradley and Ignition. ' +
+          'First contract search.',
+        // 'PERSON' is what api/me/portfolio writes when somebody types their
+        // own words, which is what she did.
+        bioWrittenBy: 'PERSON',
+      },
+    }))
+
+  // One firm has asked to market her, and she has not answered. Asked,
+  // not granted: an INVITED listing is a question only she can answer
+  // (lib/bench-consent), so she is still nobody's bench and still party
+  // 8B — what changes is that her page has a question on it, which is
+  // the first thing a real consultant meets after a firm finds her. A
+  // tester needs one to open (2026-09-30), and the seed had none.
+  //
+  // Found by the firm and the person, never by the day, so a world she
+  // has since answered keeps her answer on a re-seed.
+  if (!(await db.benchListing.findFirst({ where: { consultantId: independentProfile.id, companyId: co('brightmoor').id } }))) {
+    await db.benchListing.create({
+      data: {
+        consultantId: independentProfile.id, companyId: co('brightmoor').id, tier: 'MARKETING',
+        ...(invitation(day(-1)) as { state: string; invitedAt: Date; respondedAt: null }),
+      },
+    })
+  }
+
+  // ── Aptiva Workforce, an MSP that sells and buys ─────────────────────
+  //
+  // It ran Harlow Health's program and held no contract of any kind,
+  // because the model behind the seed said an MSP routes work and takes
+  // no rate. That is one kind of MSP. The correction of 2026-09-17 says
+  // the ordinary kind sells to its client and buys below — including
+  // from itself, when the person on the seat is its own employee.
+  //
+  // So: a sell contract to Harlow Health, and Ruben Ortega, Aptiva's own
+  // W2 vendor management analyst, under it on a buy leg with no purchase
+  // order. Two weeks signed by both sides and nobody has invoiced them —
+  // that is the sell side's queue. One week Harlow Health has signed and
+  // Aptiva has not accepted — that is the buy side's.
+  const ruben = await person('Ruben Ortega')
+  people++
+  const analystRole =
+    (await db.role.findFirst({ where: { companyId: co('aptiva').id, name: 'Program Analyst' } })) ??
+    (await db.role.create({
+      data: {
+        companyId: co('aptiva').id,
+        name: 'Program Analyst',
+        isDefault: false,
+        // Reads the work he is on and files his own week. Nothing else.
+        permissions: ['assignments.read', 'timesheets.read'],
+      },
+    }))
+  if (!(await db.context.findFirst({ where: { personId: ruben.id, companyId: co('aptiva').id } }))) {
+    await db.context.create({
+      data: {
+        personId: ruben.id,
+        companyId: co('aptiva').id,
+        roleId: analystRole.id,
+        type: 'EMPLOYEE',
+        grantReason: 'Program office — vendor management practice',
+      },
+    })
+  }
+  // Cover, or the submission door refuses the firm one screen before any
+  // of this is reachable.
+  for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+    if (await db.verification.findFirst({ where: { companyId: co('aptiva').id, type } })) continue
+    await db.verification.create({
+      data: {
+        companyId: co('aptiva').id,
+        type,
+        status: 'CLEAR',
+        provider: 'Hartford',
+        issuedAt: day(-300),
+        validFrom: day(-300),
+        expiresAt: day(200),
+        uploadedById: seat('aptiva'),
+        verifiedById: seat('aptiva'),
+        verifiedAt: day(-299),
+        result: { outcome: 'CLEAR' },
+      },
+    })
+  }
+  if (!(await db.verification.findFirst({ where: { personId: ruben.id, type: 'I9_EVERIFY' } }))) {
+    await db.verification.create({
+      data: {
+        personId: ruben.id,
+        type: 'I9_EVERIFY',
+        status: 'CLEAR',
+        provider: 'E-Verify',
+        issuedAt: day(-64),
+        uploadedById: seat('aptiva'),
+        verifiedById: seat('aptiva'),
+        verifiedAt: day(-63),
+        result: { outcome: 'CLEAR' },
+      },
+    })
+  }
+  const aptivaJob = await place({
+    personId: ruben.id,
+    sellerSlug: 'aptiva',
+    clientSlug: 'harlow-health',
+    buyFromId: null,
+    contractType: 'W2',
+    role: 'Vendor management analyst',
+    skills: ['Vendor management', 'VMS', 'Spend reporting'],
+    loc: 'Madison, WI',
+    billRate: 9_800,
+    payRate: 6_900,
+    start: day(-60),
+    end: day(305),
+    state: 'IN_PROGRESS',
+    kind: 'INTERNAL',
+  })
+  placements++
+  for (const [back, standing] of [
+    [3, 'SIGNED'],
+    [2, 'SIGNED'],
+    [1, 'CLIENT_ONLY'],
+  ] as const) {
+    await hours({
+      sellContractId: aptivaJob.sell.id,
+      personId: ruben.id,
+      week: officeWeek(back),
+      standing,
+      clientById: seat('harlow-health'),
+      employerById: seat('aptiva'),
+    })
+  }
+
+  // ── CloudEPA's own consultant, mid-chain ─────────────────────────────
+  //
+  // The sub-vendor's sell side already has something waiting: Ifeoma
+  // Balogun is shortlisted with the prime above it, with a screen in the
+  // diary. Its buy side had nothing, and a bench vendor's buy side is
+  // exactly this — the paperwork it is chasing its own consultant for
+  // before anybody can start her.
+  // ── The buy side of the two firms that sit in the middle ─────────────
+  //
+  // A prime and an integrator each buy a consultant from a bench vendor
+  // below them, and until now that leg's money was written already paid.
+  // One bill apiece, unsettled, so the desk that sells also has
+  // something to answer as a customer.
+  await billFromBelow('computer-systems', 'cloudepa', 'CE-2026-0418')
+  await billFromBelow('teleworld', 'nimbus', 'NT-2026-1190')
+
+  const ifeoma = await db.person.findUnique({ where: { primaryEmail: emailOf('Ifeoma Balogun') } })
+  if (ifeoma) {
+    await asked({
+      companySlug: 'cloudepa',
+      name: 'I-9, with the document it is completed from',
+      needsSignature: true,
+      audience: 'CANDIDATE',
+      personId: ifeoma.id,
+      sentDaysAgo: 6,
+    })
+  }
+
+  // ── The nightly chase, run once over the world it just made ─────────
+  //
+  // Colleen Byrne's license runs out inside her assignment, so the watch
+  // asks her for the renewal — the same call `api/cron/watch` makes every
+  // night, against the same rows. Idempotent by the packet it looks for
+  // before it writes one, so seeding twice asks nobody twice.
+  await chaseCredentials(day(0))
+
+  return { people, placements }
+}
