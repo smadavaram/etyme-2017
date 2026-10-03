@@ -172,6 +172,8 @@ interface Placement {
     hours: Due[]; pay: Due[]; bill: Due[]
     next: Due | null
   }
+  /** The start, said truthfully: "started …" only of a running contract (startWords). */
+  startSays: string | null
   checklist: {
     outcome: 'PASS' | 'WARN' | 'BLOCK'
     says: string
@@ -597,7 +599,7 @@ export default function PlacementPage() {
         <p className="mt-2 text-[14px] leading-relaxed text-etyme-muted">
           {p.origin?.title ?? 'Placement'}
           {p.person.location ? ` · ${p.person.location}` : ''}
-          {p.startDate ? ` · started ${day(p.startDate)}` : ''}
+          {p.startSays ? ` · ${p.startSays}` : ''}
         </p>
 
         <div className="mt-5 flex flex-wrap gap-2">

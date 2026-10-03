@@ -18,7 +18,7 @@ const role = (kind: Parameters<typeof rolesFor>[0], name: string) => rolesFor(ki
 
 describe('the dashboard calls no route the seat cannot read', () => {
   it('an integrator’s engineer holding two read permissions is not asked for the bench or the automation log', () => {
-    expect(dashboardReads(['assignments.read', 'timesheets.read'])).toEqual({ bench: false, automation: false })
+    expect(dashboardReads(['assignments.read', 'timesheets.read'])).toEqual({ bench: false, automation: false, target: false, pipeline: false })
   })
 
   it('a supplier’s AP & Payroll desk, which reads no consultants, does not ask for the bench', () => {
@@ -26,7 +26,7 @@ describe('the dashboard calls no route the seat cannot read', () => {
   })
 
   it('the owner of a firm reads both panels', () => {
-    expect(dashboardReads(['*'])).toEqual({ bench: true, automation: true })
+    expect(dashboardReads(['*'])).toEqual({ bench: true, automation: true, target: true, pipeline: true })
   })
 
   it('a recruiter who reads consultants is asked for the bench, as the menu offers it', () => {
@@ -34,7 +34,7 @@ describe('the dashboard calls no route the seat cannot read', () => {
   })
 
   it('before the seat is known nothing is asked for', () => {
-    expect(dashboardReads(null)).toEqual({ bench: false, automation: false })
+    expect(dashboardReads(null)).toEqual({ bench: false, automation: false, target: false, pipeline: false })
   })
 
   it('the page fetches the bench and the automation log only behind the seat’s answer', () => {

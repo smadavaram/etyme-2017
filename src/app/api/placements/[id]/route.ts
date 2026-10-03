@@ -7,7 +7,7 @@ import { contractSide } from '@/lib/resolve-client-company'
 import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { categoryOf, labelOf } from '@/lib/cycle-kinds'
-import { contractClearance, lineExtras } from '@/lib/contract-clearance'
+import { contractClearance, lineExtras, startWords } from '@/lib/contract-clearance'
 import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
@@ -745,7 +745,7 @@ export async function GET(
   type Due = { kind: string; label: string; dueOn: string; done: boolean; overdue: boolean }
   const toDue = (c: { kind: string; dueOn: Date; completedAt: Date | null }): Due => ({
     kind: c.kind,
-    label: labelOf(c.kind),
+    label: labelOf(c.kind, side),
     dueOn: c.dueOn.toISOString(),
     done: c.completedAt !== null,
     overdue: c.completedAt === null && c.dueOn < now,
@@ -1108,6 +1108,16 @@ export async function GET(
 
       // ── What is due next, and what stops a start ──
       timeline,
+      // "started Sep 1" only of a contract that is running, paused or
+      // ended; otherwise "due to start", and what holds it up in the
+      // checklist's own words. A date set is a plan, not a fact.
+      startSays: startWords({
+        startDate: placement.startDate?.toISOString() ?? null,
+        state: placement.state,
+        outcome: checklist.outcome,
+        blocking: checklist.items.filter((i) => i.blocks),
+        today: new Date(),
+      }),
       checklist: {
         outcome: checklist.outcome,
         says: checklist.says,

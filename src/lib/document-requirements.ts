@@ -95,10 +95,10 @@ export type LineSide = 'SELL' | 'BUY'
 export type LineShape = 'CUSTOMER' | 'W2' | 'CORP_TO_CORP' | 'SUB_VENDOR'
 
 export const SHAPE_SAYS: Record<LineShape, string> = {
-  CUSTOMER: 'the default for a line that bills a customer',
-  W2: 'the default for a W2 start',
-  CORP_TO_CORP: 'the default for a line paid corp-to-corp',
-  SUB_VENDOR: 'the default for a line bought from a supplier',
+  CUSTOMER: 'asked of every person billed to a customer, as standard paperwork',
+  W2: 'asked of every employee as standard paperwork',
+  CORP_TO_CORP: 'asked of everyone paid through their own company, as standard paperwork',
+  SUB_VENDOR: 'asked of every person a supplier provides, as standard paperwork',
 }
 
 /**

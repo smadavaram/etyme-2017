@@ -19,6 +19,9 @@
 export const DESKS = [
   'programme', 'hiring', 'hr', 'procurement', 'vp', 'ap', 'compliance',
   'account', 'recruiter', 'resourcing', 'contracts', 'ar', 'payroll', 'finance',
+  // An integrator's delivery manager: flags who rolls off a project,
+  // reserves people for another, and places them (CLAUDE.md, 2026-09-30).
+  'delivery',
 ] as const
 export type Desk = (typeof DESKS)[number]
 
@@ -47,6 +50,7 @@ export const DESK_ROLES: Record<Desk, string[]> = {
   ar: ['Accounts Receivable'],
   payroll: ['AP & Payroll'],
   finance: ['Finance'],
+  delivery: ['Delivery Manager'],
 }
 
 /** A desk key from a request body, or null for "the firm's first seat". */

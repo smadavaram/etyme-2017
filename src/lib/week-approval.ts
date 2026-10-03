@@ -845,8 +845,87 @@ export interface ApprovalSeen {
   contracts: { id: string; label: string }[]
 }
 
+/** One live signature on the week, as this reader may read it. Never a rate. */
+export interface SignatureSeen {
+  /** CLIENT_APPROVAL · PASS_THROUGH · EMPLOYER_ACCEPTANCE */
+  role: string
+  firm: string
+  /** The person who signed; null where nobody looked or the client signed outside Etyme. */
+  signedBy: string | null
+  on: string
+  auto: boolean
+  /** Why a flagged week was signed anyway — only to the signing firm and the firm directly below it. */
+  reason: string | null
+  /** The line the page prints. */
+  says: string
+}
+
+export interface SignatureRow {
+  role: string
+  companyId: string
+  at: Date
+  byName: string | null
+  auto: boolean
+  note: string | null
+  /** The approver named on an approval given by email, where this signature came from one. */
+  emailApprover: string | null
+}
+
+/**
+ * Which live signatures a reader may see, and whose reason.
+ *
+ * A signature names a firm, so it is shown only where `mayName` lets this
+ * reader know that firm (CLAUDE.md, "A sub-vendor's name is the prime's to
+ * keep"). The reason given for signing a flagged week is the signer's own
+ * judgment about another firm's hours: the signing firm reads it, and so
+ * does the firm directly below it, whose week it was. Nobody else.
+ *
+ * Pure. `logged` is one row per signature, shown or not, for the access log.
+ */
+export function signaturesSeen(
+  r: Reader,
+  c: WeekChain,
+  rows: SignatureRow[],
+  now: Date
+): { shown: SignatureSeen[]; logged: { allowed: boolean; reason: string | null }[] } {
+  const shown: SignatureSeen[] = []
+  const logged: { allowed: boolean; reason: string | null }[] = []
+  for (const row of rows) {
+    if (!mayName(r, c, row.companyId)) {
+      logged.push({ allowed: false, reason: 'A signature by a firm this reader may not be told of was withheld.' })
+      continue
+    }
+    logged.push({ allowed: true, reason: null })
+    const firm = c.names.get(row.companyId) ?? 'A firm on this week'
+    const on = dayOf(row.at, now)
+    const below = firmBelow(c, row.companyId)
+    const readsReason = r.companyId != null && (r.companyId === row.companyId || r.companyId === below)
+    // The email approval's own sentence is the panel below; it is not a reason.
+    const reason = readsReason && row.note && !row.emailApprover ? row.note : null
+    const signedBy = row.emailApprover ?? row.byName
+    const verb = row.role === 'CLIENT_APPROVAL' ? 'Approved' : 'Accepted'
+    const says = row.auto
+      ? `${verb} automatically — nobody looked · ${firm}, ${on}`
+      : `${verb} by ${signedBy ? `${signedBy}, ` : ''}${firm}, ${on}${row.emailApprover ? ' — by email' : ''}${reason ? ` — reason: ${reason}` : ''}`
+    shown.push({ role: row.role, firm, signedBy, on, auto: row.auto, reason, says })
+  }
+  return { shown, logged }
+}
+
+/** The firm that sells to this one on the week's chain, if any — the rung directly below it. */
+function firmBelow(c: WeekChain, companyId: string): string | null {
+  for (let i = 0; i < c.ladder.length; i++) {
+    const x = c.ladder[i]
+    const buyer = i === 0 ? c.clientId : x.clientCompanyId
+    if (buyer === companyId || x.clientCompanyId === companyId) return x.companyId
+  }
+  return null
+}
+
 export interface WeekSeen {
   week: { id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean }
+  /** Who signed the week, top first, as this reader may read it. */
+  signatures: SignatureSeen[]
   approvals: ApprovalSeen[]
   /** Whether this reader may send a link or attach evidence, and on which contracts. */
   act: { ok: true; as: string; contracts: { id: string; label: string; mine: boolean }[]; refused: string | null } | { ok: false; says: string }
@@ -930,6 +1009,36 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
     })
   }
 
+  // ── The signatures, each read logged like the evidence ──
+  const live = await prisma.workAssertion.findMany({
+    where: { timesheetId, state: 'LIVE' },
+    orderBy: { at: 'asc' },
+    select: { role: true, companyId: true, at: true, byId: true, auto: true, note: true, weekApproval: { select: { approverName: true } } },
+  })
+  const byIds = [...new Set(live.map((a) => a.byId).filter((x): x is string => !!x))]
+  const people = new Map((await prisma.person.findMany({ where: { id: { in: byIds } }, select: { id: true, name: true } })).map((x) => [x.id, x.name]))
+  const order = (companyId: string) => {
+    if (companyId === c.clientId) return -1
+    const i = c.ladder.findIndex((x) => x.clientCompanyId === companyId)
+    return i < 0 ? c.ladder.length : i
+  }
+  const sigRows: SignatureRow[] = live
+    .map((a) => ({
+      role: a.role, companyId: a.companyId, at: a.at, auto: a.auto, note: a.note,
+      byName: a.byId ? people.get(a.byId) ?? null : null,
+      emailApprover: a.weekApproval?.approverName ?? null,
+    }))
+    .sort((a, b) => order(a.companyId) - order(b.companyId) || a.at.getTime() - b.at.getTime())
+  const sigs = signaturesSeen(r, c, sigRows, now)
+  for (const l of sigs.logged) {
+    await prisma.accessLog.create({
+      data: {
+        subjectId: c.week.personId, actorPersonId: r.personId, actorCompanyId: actorCompanyOf(r),
+        action: 'WEEK_SIGNATURE_VIEW', allowed: l.allowed, reason: r.seat ? withSeat(r, l.reason) : l.reason,
+      },
+    }).catch(() => {})
+  }
+
   const who = actorVerdict(r, c)
   const act: WeekSeen['act'] = who.ok
     ? {
@@ -952,6 +1061,7 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
         clientName: c.clientName,
         clientApproved: !!c.week.clientApprovedAt,
       },
+      signatures: sigs.shown,
       approvals,
       act,
     },

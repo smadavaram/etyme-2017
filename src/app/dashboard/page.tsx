@@ -395,7 +395,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <TheBar />
+      {d?.reads.target && <TheBar />}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -405,12 +405,14 @@ export default function DashboardPage() {
           subtitle={`${d?.contracts.active ?? 0} sell · ${d?.contracts.draft ?? 0} draft`}
           tone="default"
         />
-        <StatCard
-          label="Pipeline"
-          value={`$${Math.round((d?.pipeline.monthlyRevenue ?? 0) / 1000)}K`}
-          subtitle="monthly revenue"
-          tone="default"
-        />
+        {d?.reads.pipeline && (
+          <StatCard
+            label="Pipeline"
+            value={`$${Math.round((d?.pipeline.monthlyRevenue ?? 0) / 1000)}K`}
+            subtitle="monthly revenue"
+            tone="default"
+          />
+        )}
         <StatCard
           label="Pending Actions"
           value={String(d?.totalDecisions ?? 0)}

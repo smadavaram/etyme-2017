@@ -101,6 +101,9 @@ const SUPPLIER_LANDING: Partial<Record<Desk, string>> = {
   ap: '/dashboard/payroll',
   finance: '/dashboard/invoices',
   compliance: '/dashboard/compliance',
+  // Our bench, the firm's own people: where a delivery manager flags,
+  // reserves and places.
+  delivery: '/dashboard/bench?scope=payroll',
 }
 
 function deskLanding(desk: Desk, kind: string): string {

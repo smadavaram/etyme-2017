@@ -439,7 +439,7 @@ const VENDOR_NAV: NavSection[] = [
       // A scorecard the supplier cannot see is a blacklist with better
       // manners. It decides who gets the next role, so it is not a
       // secret from the firm it is about.
-      { label: 'Your scorecard', href: '/dashboard/my-standing', icon: '◈' },
+      { label: 'Our scorecard', href: '/dashboard/my-standing', icon: '◈' },
     ],
   },
   governanceSection(),
@@ -491,7 +491,7 @@ const GSI_NAV: NavSection[] = [
       { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
       { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', needs: ['rates.read'] },
-      { label: 'Your scorecard', href: '/dashboard/my-standing', icon: '◈' },
+      { label: 'Our scorecard', href: '/dashboard/my-standing', icon: '◈' },
     ],
   },
   governanceSection(),

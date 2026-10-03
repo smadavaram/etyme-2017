@@ -91,12 +91,12 @@ describe('what a line requires, and where the answer came from', () => {
     expect(bgc.waivedSays).toContain('runs its own screening')
   })
 
-  it('a line on no order gets the default set for its shape, and every item says it is a default', () => {
+  it('a line on no order gets the default set for its shape, and every item says who it is asked of, in plain words', () => {
     const items = effectiveRequirements({ shape: 'W2' })
     expect(items.length).toBeGreaterThan(3)
     for (const i of items) {
       expect(i.from, i.key).toBe('DEFAULT')
-      expect(i.says, i.key).toBe('the default for a W2 start')
+      expect(i.says, i.key).toBe('asked of every employee as standard paperwork')
       // Nothing was written, so nothing has a row id.
       expect(i.id, i.key).toBeNull()
     }

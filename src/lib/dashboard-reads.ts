@@ -1,4 +1,5 @@
 import { mayOpen } from '@/components/shell/sidebar'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * Which of the seller's dashboard panels this seat may read, asked
@@ -23,15 +24,29 @@ export interface DashboardReads {
   bench: boolean
   /** `/api/automation`, behind the System activity panel. */
   automation: boolean
+  /**
+   * "Good submissions a day, per job" and its target. A recruiting
+   * desk's number, shown to the desks that submit; a finance desk read it
+   * as a target set for them (worker tester, 2026-10-03).
+   */
+  target: boolean
+  /** The Pipeline tile: monthly revenue across contracts, which is margin-side money. */
+  pipeline: boolean
 }
 
 export function dashboardReads(permissions: readonly string[] | null | undefined): DashboardReads {
   // No seat read yet is not "may read everything": the dashboard waits
   // for the session before it asks, so null here means nothing is known.
-  if (permissions == null) return { bench: false, automation: false }
+  if (permissions == null) return { bench: false, automation: false, target: false, pipeline: false }
   return {
-    bench: mayOpen('/dashboard/bench', permissions),
+    // The panel reads /api/bench, which asks consultants.read. Not the
+    // menu's answer: the Bench link also opens for the finance desk, on
+    // bench profit, and a panel asked that way would call a route that
+    // refuses it.
+    bench: hasPermission(permissions, 'consultants.read'),
     automation: mayOpen('/dashboard/automation', permissions),
+    target: hasPermission(permissions, 'submissions.create'),
+    pipeline: hasPermission(permissions, 'margin.read'),
   }
 }
 

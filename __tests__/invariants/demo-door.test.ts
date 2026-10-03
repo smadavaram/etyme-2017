@@ -99,6 +99,9 @@ describe('the desks on a client door', () => {
     const onThePage = new Set([
       ...CLIENT_DESKS.map((d) => d.desk),
       ...SUPPLIER_DESKS.map((d) => d.desk),
+      // And a firm door's own row, where it seats more than one desk —
+      // Teleworld's delivery manager since 2026-10-03.
+      ...[...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS].flatMap((f) => (f.desks ?? []).map((d) => d.desk)),
     ])
     for (const desk of known) {
       expect(onThePage, `the route seats a "${desk}" desk that no chip on the page opens`).toContain(desk)

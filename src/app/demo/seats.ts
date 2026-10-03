@@ -400,6 +400,14 @@ export const INTEGRATOR_SEATS: Program[] = [
       'Sunil Raghavan runs delivery and sells people from his own payroll. Four are between ' +
       'projects; Karthik left an avionics project three weeks ago. Teleworld buys the engineer ' +
       'still on that project from a bench vendor, whose invoice is unpaid.',
+    // The integrator's own moves are walked from a delivery manager's
+    // desk: the testers could not reach one from this page (2026-10-03).
+    desks: [
+      { desk: 'delivery', label: 'Delivery manager',
+        waiting: 'Ingrid Solberg is releasing people from the Tualatin project. Rahul Deshpande needs one in San Jose.' },
+      { desk: '', label: 'Owner',
+        waiting: 'Everything, including a job to submit Karthik to with no bench listing.' },
+    ],
   },
   {
     slug: 'world-sundara',

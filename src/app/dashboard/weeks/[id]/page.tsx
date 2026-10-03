@@ -38,8 +38,10 @@ interface Approval {
   evidence: { kind: string; fileName: string; sizeBytes: number; href: string } | null
   contracts: Contract[]
 }
+interface Signature { role: string; firm: string; signedBy: string | null; on: string; auto: boolean; reason: string | null; says: string }
 interface Seen {
   week: { id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean }
+  signatures: Signature[]
   approvals: Approval[]
   act: { ok: true; as: string; contracts: Contract[]; refused: string | null } | { ok: false; says: string }
 }
@@ -132,6 +134,20 @@ export default function WeekPage() {
           {w.status === 'APPROVED' ? 'approved by every firm' : w.clientApproved ? `approved by ${w.clientName}; the firms below accept it in turn` : w.status === 'SUBMITTED' ? `waiting on ${w.clientName}` : 'not sent in yet'}
         </p>
       </header>
+
+      {/* Who signed, top first, and why a flagged week was signed anyway —
+          the reason only to the signing firm and the firm below it. */}
+      <section className="panel space-y-3">
+        <p className="stat-label">Signed</p>
+        {seen.signatures.length === 0 && <p className="text-[13px] text-etyme-muted">Nobody has signed this week yet.</p>}
+        <ul className="divide-y divide-etyme-rule">
+          {seen.signatures.map((g, i) => (
+            <li key={`${g.role}-${i}`} className="py-2.5 text-[13px]">
+              <span className={g.auto ? 'text-etyme-muted' : 'text-etyme-ink'}>{g.says}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="panel space-y-3">
         <p className="stat-label">Approved outside Etyme</p>
