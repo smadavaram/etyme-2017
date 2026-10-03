@@ -111,3 +111,27 @@ describe('the limit day on the time-on-site page', () => {
     expect(limitDayWords({ reachedOn: null, today, live: true })).toBe('Not before the current contracts end')
   })
 })
+
+import { daysBooked, daysServed } from '@/lib/tenure-days'
+
+describe('one contract\'s days on the time-on-site page', () => {
+  const pinnacle = { startDate: d('2026-09-03'), endDate: d('2027-09-03') }
+  const today = new Date('2026-10-03T12:00:00Z')
+
+  it('counts Lucía Fernández\'s Pinnacle Resourcing contract as 31 days served a month in, never the 365 it is booked for', () => {
+    expect(daysServed(pinnacle, today)).toBe(31)
+    expect(daysServed(pinnacle, today)).toBe(daysOnSite([pinnacle], today))
+  })
+
+  it('shows the 365 days booked separately from the days served', () => {
+    expect(daysBooked(pinnacle)).toBe(365)
+  })
+
+  it('counts an ended contract to its last day, not to today', () => {
+    expect(daysServed({ startDate: d('2025-06-20'), endDate: d('2026-07-20') }, today)).toBe(395)
+  })
+
+  it('states no booked length for a contract with no end', () => {
+    expect(daysBooked({ startDate: d('2026-09-03'), endDate: null })).toBeNull()
+  })
+})

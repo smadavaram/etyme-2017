@@ -70,7 +70,10 @@ interface TenurePerson {
     startDate: string
     endDate: string | null
     state: string
+    /** Days served on this contract, to today or its end. */
     daysWorked: number
+    /** Days booked, start to booked end; null where it has no end. */
+    daysBooked: number | null
   }[]
 }
 
@@ -348,7 +351,8 @@ export default function TenurePage() {
                     <th>Vendor</th>
                     <th>Start</th>
                     <th>End</th>
-                    <th style={{ textAlign: 'right' }}>Days</th>
+                    <th style={{ textAlign: 'right' }}>Days served</th>
+                    <th style={{ textAlign: 'right' }}>Days booked</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -365,6 +369,7 @@ export default function TenurePage() {
                           : 'present'}
                       </td>
                       <td style={{ textAlign: 'right' }} className="tabular-nums">{c.daysWorked}</td>
+                      <td style={{ textAlign: 'right' }} className="tabular-nums text-etyme-muted">{c.daysBooked ?? 'no end'}</td>
                       <td>
                         <span className={`chip ${c.state === 'IN_PROGRESS' ? 'chip--verified' : 'chip--passive'}`}>
                           {c.state === 'IN_PROGRESS' ? 'Active' : c.state === 'ENDED' ? 'Ended' : c.state === 'PAUSED' ? 'Paused' : c.state.charAt(0) + c.state.slice(1).toLowerCase().replace(/_/g, ' ')}

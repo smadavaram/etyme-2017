@@ -7,7 +7,7 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
-import { daysFor, daysOnSite, monthsOf, againstLimit, limitReachedOn, contractsPastLimit } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf, againstLimit, limitReachedOn, contractsPastLimit, daysServed, daysBooked } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -303,9 +303,10 @@ export async function GET(request: NextRequest) {
         startDate: c.startDate.toISOString(),
         endDate: c.endDate?.toISOString() ?? null,
         state: c.state,
-        daysWorked: Math.max(0, Math.ceil(
-          ((c.endDate ?? now).getTime() - c.startDate.getTime()) / (1000 * 60 * 60 * 24)
-        )),
+        // Served, the way the block counts them — never to the booked
+        // end, which read 365 days on a contract a month old.
+        daysWorked: daysServed(c, now),
+        daysBooked: daysBooked(c),
       })),
     }
   })

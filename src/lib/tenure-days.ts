@@ -285,3 +285,28 @@ export function contractsPastLimit(contracts: BookedContract[], reachedOn: Date 
   }
   return out
 }
+
+// ── One contract's days, served and booked ────────────────────────────
+
+/**
+ * Days served on one contract, counted the way the block counts them:
+ * from its start to its end or today, whichever is first.
+ *
+ * Found by a tester on 2026-10-03: the time-on-site page's contract table
+ * counted each contract to its booked end, so Lucía Fernández's Pinnacle
+ * Resourcing contract read 365 days a month after it began. A day booked
+ * is not a day on site.
+ */
+export function daysServed(contract: Period, now: Date = new Date()): number {
+  return daysOnSite([contract], now)
+}
+
+/**
+ * Days booked on one contract, start to booked end, for reading beside
+ * the days served. Null where the contract has no end, because an open
+ * contract has no booked length to state.
+ */
+export function daysBooked(contract: Period): number | null {
+  if (!contract.endDate) return null
+  return Math.max(0, Math.ceil((contract.endDate.getTime() - contract.startDate.getTime()) / DAY))
+}
