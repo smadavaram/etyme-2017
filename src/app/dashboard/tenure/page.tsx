@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { plainDate } from '@/lib/plain-date'
-import { eligibleWords, limitLine, tenureSubtitle } from './words'
+import { eligibleWords, limitDayWords, limitLine, runsPastWords, tenureSubtitle } from './words'
 
 /**
  * Tenure Tracking — Governance section
@@ -31,6 +31,7 @@ interface TenureData {
     breakRequired: number
     inBreak: number
     eligible: number
+    runsPast: number
   }
 }
 
@@ -55,6 +56,10 @@ interface TenurePerson {
     overByDays: number
     overBy: string | null
   } | null
+  /** The day the days on site reach the limit on the contracts booked; null where they end first. */
+  limitReachedOn: string | null
+  /** Live contracts booked past that day. */
+  runsPast: { contractId: string; firm: string; endDate: string | null; daysPast: number | null }[]
   contractCount: number
   status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE'
   eligibleDate: string | null
@@ -111,7 +116,8 @@ export default function TenurePage() {
 
   if (!data && !loading && !error) return null
 
-  const summary = data?.summary ?? { totalTracked: 0, ok: 0, warning: 0, breakRequired: 0, inBreak: 0, eligible: 0 }
+  const summary = data?.summary ?? { totalTracked: 0, ok: 0, warning: 0, breakRequired: 0, inBreak: 0, eligible: 0, runsPast: 0 }
+  const today = new Date()
   const capMonths = data?.tenureCapMonths ?? null
 
   // ── Column definitions — depend on capMonths, so inside the component ──
@@ -174,6 +180,14 @@ export default function TenurePage() {
                 <div className={`text-[10px] mt-0.5 tabular-nums ${limit.overByDays > 0 ? 'text-etyme-danger' : 'text-etyme-faint'}`}>
                   {limitLine({ days: row.cumulativeDays, capMonths, percent: limit.percent, limitDays: limit.limitDays, overBy: limit.overBy })}
                 </div>
+                {/* A contract already booked past the limit, in a
+                    sentence. Lucía Fernández's ran seven months past it
+                    and the row said only "Approaching". */}
+                {row.limitReachedOn && row.runsPast.map((r) => (
+                  <div key={r.contractId} className="text-[11px] mt-1 text-etyme-attention">
+                    {runsPastWords({ firm: r.firm, endDate: r.endDate, daysPast: r.daysPast, reachedOn: row.limitReachedOn! })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -192,6 +206,16 @@ export default function TenurePage() {
         const config = STATUS_CONFIG[row.status]
         return <span className={`chip ${config.chipClass}`}>{config.label}</span>
       },
+    },
+    {
+      key: 'limitReachedOn',
+      label: 'Reaches the limit',
+      render: (row) => (
+        <span className={`text-xs tabular-nums ${row.runsPast.length > 0 ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+          {capMonths ? limitDayWords({ reachedOn: row.limitReachedOn, today, live: row.hasActive }) : '—'}
+        </span>
+      ),
+      sortValue: (row) => row.limitReachedOn ?? '9999',
     },
     {
       key: 'contractCount',
@@ -254,6 +278,12 @@ export default function TenurePage() {
           <p className="stat-label">Over the limit</p>
           <p className={`stat-value ${summary.breakRequired > 0 ? 'text-etyme-danger' : 'text-etyme-ink'}`}>
             {summary.breakRequired}
+          </p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Booked past the limit</p>
+          <p className={`stat-value ${summary.runsPast > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+            {summary.runsPast}
           </p>
         </div>
         <div className="panel flex-1 min-w-[100px]">

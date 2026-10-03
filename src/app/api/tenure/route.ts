@@ -7,7 +7,7 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
-import { daysFor, daysOnSite, monthsOf, againstLimit } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf, againstLimit, limitReachedOn, contractsPastLimit } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -227,9 +227,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ── The day the limit is reached, and the paper booked past it ──
+    //
+    // Lucía Fernández read "Approaching" with no date while a contract
+    // already signed ran seven months past her limit (tester,
+    // 2026-10-03). The days served stay what the percentage and the
+    // block count; this asks the separate question of where the booked
+    // contracts carry her. An ended contract counts only to the day it
+    // ended or today, whichever is first, because a termination that
+    // left the booked end in the future did not keep anybody on site.
+    const booked = data.contracts.map((c) => ({
+      startDate: c.startDate,
+      endDate: c.state === 'ENDED'
+        ? new Date(Math.min((c.endDate ?? now).getTime(), now.getTime()))
+        : c.endDate,
+    }))
+    const reachedOn = capMonths ? limitReachedOn(booked, capMonths) : null
+    const runsPast = contractsPastLimit(
+      data.contracts.map((c) => ({
+        id: c.id,
+        firm: shown(c.companyId, c.company.name).name,
+        endDate: c.endDate,
+        live: c.state === 'IN_PROGRESS' || c.state === 'PAUSED',
+      })),
+      reachedOn
+    )
+
     return {
       personId,
       name: data.name,
+      limitReachedOn: reachedOn ? reachedOn.toISOString() : null,
+      // A chain's rungs share one end date and, masked, one name: one line.
+      runsPast: runsPast.filter((r, i, all) =>
+        all.findIndex((o) => o.firm === r.firm && o.endDate?.getTime() === r.endDate?.getTime()) === i
+      ).map((r) => ({
+        contractId: r.contractId,
+        firm: r.firm,
+        endDate: r.endDate ? r.endDate.toISOString() : null,
+        daysPast: r.daysPast,
+      })),
       // ── The firms on this person's row ──
       //
       // Folded, not listed. A person bought through a chain has a row
@@ -304,6 +340,8 @@ export async function GET(request: NextRequest) {
     breakRequired: people.filter(p => p.status === 'BREAK_REQUIRED').length,
     inBreak: people.filter(p => p.status === 'IN_BREAK').length,
     eligible: people.filter(p => p.status === 'ELIGIBLE').length,
+    // People with a live contract booked past the day they reach the limit.
+    runsPast: people.filter(p => p.runsPast.length > 0).length,
   }
 
   return NextResponse.json({

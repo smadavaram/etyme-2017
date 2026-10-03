@@ -183,3 +183,105 @@ export function againstLimit(days: number, capMonths: number): AgainstLimit {
   }
   return { percent, barPercent: Math.min(100, percent), limitDays, over, overByDays, overBy }
 }
+
+// ── The day the limit is reached, and the contracts that run past it ──
+
+/**
+ * The day a person's days on site reach a time limit, if the contracts
+ * on the record carry them that far.
+ *
+ * Found by a tester on 2026-10-03: Lucía Fernández, 426 days into an
+ * eighteen-month limit at Northbend Athletic, had a Pinnacle Resourcing
+ * contract booked to Sep 3, 2027 — about seven months past the day she
+ * reaches the limit — and the ledger gave no date and no warning. The
+ * ledger counted time served, which is right for the percentage and the
+ * block, and asked nothing about the paper already signed ahead of her.
+ *
+ * Counted the same way as `daysOnSite` — the union of the periods, so a
+ * chain's two rungs are one stretch and a gap between two suppliers is
+ * not tenure — but over the contracts' booked ends rather than stopped
+ * at today. A contract with no end runs on. The answer is the day on
+ * which `daysOnSite` first reads `daysFor(capMonths)`, the same count the
+ * block uses, so this date and the block cannot disagree.
+ *
+ * Null where the contracts on the record end first. That is not "never";
+ * it is "not on the paper that exists", and the screen says so rather
+ * than inventing a date from a contract nobody has signed.
+ *
+ * The caller passes an ended contract with its end at or before today,
+ * because an early termination that left the booked end in the future
+ * is not somebody still on site.
+ */
+export function limitReachedOn(periods: Period[], capMonths: number): Date | null {
+  const limitDays = daysFor(capMonths)
+  if (!(limitDays > 0)) return null
+  const spans = periods
+    .map((p) => ({ from: p.startDate.getTime(), to: p.endDate ? p.endDate.getTime() : Infinity }))
+    .filter((s) => s.to > s.from)
+    .sort((a, b) => a.from - b.from)
+
+  const merged: { from: number; to: number }[] = []
+  for (const s of spans) {
+    const last = merged[merged.length - 1]
+    if (last && s.from <= last.to) {
+      if (s.to > last.to) last.to = s.to
+    } else {
+      merged.push({ ...s })
+    }
+  }
+
+  // `daysOnSite` rounds a part-day up, so the count reads the limit for
+  // the whole of the day on which the limit-th day is served — the
+  // first moment past (limit − 1) whole days. That day is the answer;
+  // a day later would be a day after the block already fires.
+  const threshold = (limitDays - 1) * DAY
+  let total = 0
+  for (const s of merged) {
+    const length = s.to - s.from
+    if (total + length > threshold) return new Date(s.from + (threshold - total))
+    total += length
+  }
+  return null
+}
+
+/** A contract as the overrun check needs it. */
+export interface BookedContract {
+  id: string
+  /** The firm the reader may name for it — never a withheld sub-vendor's name. */
+  firm: string
+  endDate: Date | null
+  /** True while the contract is running or paused, so it can still put days on. */
+  live: boolean
+}
+
+/** A live contract whose booked end runs past the day the limit is reached. */
+export interface RunsPast {
+  contractId: string
+  firm: string
+  endDate: Date | null
+  /** Days from the limit to the booked end. Null for a contract with no end. */
+  daysPast: number | null
+}
+
+/**
+ * Every live contract booked past the day the limit is reached.
+ *
+ * Only live ones: an ended contract cannot carry anybody past anything.
+ * A live contract with no end date runs past any limit by construction,
+ * and is named as such rather than left out because there is no number.
+ */
+export function contractsPastLimit(contracts: BookedContract[], reachedOn: Date | null): RunsPast[] {
+  if (!reachedOn) return []
+  const at = reachedOn.getTime()
+  const out: RunsPast[] = []
+  for (const c of contracts) {
+    if (!c.live) continue
+    if (c.endDate == null) {
+      out.push({ contractId: c.id, firm: c.firm, endDate: null, daysPast: null })
+      continue
+    }
+    const past = c.endDate.getTime() - at
+    if (past > 0) out.push({ contractId: c.id, firm: c.firm, endDate: c.endDate, daysPast: Math.ceil(past / DAY) })
+  }
+  return out
+}
