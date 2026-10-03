@@ -11,6 +11,7 @@ import {
   awardSaid, roundsToCallOff, OPEN_ROUND_STATES, STOOD_DOWN_REASON, type AwardFacts, type RoundToCallOff,
 } from '@/lib/award'
 import { tell } from '@/lib/interview-notices'
+import { tellNotChosen } from '@/lib/notify/not-chosen'
 import { annualValue } from '@/lib/requisition-approval'
 import { headerFor, lineTermsFrom } from '../../order-header'
 import { orderFor } from '@/lib/order-postings'
@@ -808,6 +809,9 @@ export async function POST(
   // row below: calling the rounds off is part of the person's award, not
   // something the system decided by itself.
   for (const r of result.calledOff) void tell('CANCELLED', r.id, { reason: r.reason })
+  // The supplier of a candidate who never reached an interview is told
+  // too, that the job was filled (`lib/notify/not-chosen`).
+  void tellNotChosen(id)
 
   // ── The cost object ─────────────────────────────────────────────────
   //
