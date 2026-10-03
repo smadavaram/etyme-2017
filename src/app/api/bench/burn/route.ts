@@ -6,6 +6,7 @@ import { requirementScope } from '@/lib/resolve-client-company'
 import { payTrail, READS_PAY } from '@/lib/money/pay-visibility'
 import { writePayTrail } from '@/lib/money/pay-trail'
 import { burnOf } from '@/lib/bench-policy'
+import { benchHolidays } from '../holiday-pay'
 
 /**
  * GET /api/bench/burn
@@ -153,6 +154,10 @@ export async function GET(request: NextRequest) {
     toDateCents: number
     workingDays: number
     calendarDays: number
+    /** Weekday holidays on the firm's calendar this person is not paid for. */
+    holidaysNotPaid: number
+    /** Whether they are paid for a public holiday on the bench, in the rule's own words. */
+    holidaySays: string
     says: string
   }
 
@@ -176,6 +181,19 @@ export async function GET(request: NextRequest) {
       .filter((c) => c.personId === pid && c.endDate && (c.state === 'ENDED' || c.endDate < now))
       .reduce<Date | null>((a, c) => (a && a > c.endDate! ? a : c.endDate!), null)
 
+  // Whether each person is paid for a public holiday on the bench — the
+  // firm's setting and their own switch (`holidayPayFor`) — and the firm's
+  // calendar, back to the earliest listing. The same answer bench profit
+  // counts with, so a holiday is paid on both pages or on neither.
+  const firmFacts = await prisma.company.findUnique({ where: { id: companyId }, select: { kind: true, country: true } })
+  const holidays = await benchHolidays({
+    companyId,
+    companyKind: firmFacts?.kind ?? caller.company!.kind,
+    country: firmFacts?.country ?? null,
+    from: listings.reduce((a, l) => (l.grantedAt < a ? l.grantedAt : a), now),
+    to: now,
+  })
+
   for (const l of listings) {
     const candidacy = l.consultant.person.buyCandidacies[0]
     if (!candidacy) continue // no active buy contract = no cost
@@ -185,7 +203,8 @@ export async function GET(request: NextRequest) {
     const benchSince = ended && ended > l.grantedAt ? ended : l.grantedAt
     // One door for the arithmetic (`burnOf` in lib/bench-policy): working
     // days counted, not five-sevenths of calendar days guessed.
-    const b = burnOf({ payRateCents: payRate, billing: liveOf(l.consultant.personId), benchSince }, now)
+    const holidayPay = holidays.payOf(l.consultant.personId)
+    const b = burnOf({ payRateCents: payRate, billing: liveOf(l.consultant.personId), benchSince, holidayPay }, now)
     if (!b.onBench) continue
 
     const dailyCost = b.dailyCents! / 100 // dollars, for the older readers
@@ -207,6 +226,8 @@ export async function GET(request: NextRequest) {
       toDateCents: b.toDateCents!,
       workingDays: b.workingDays,
       calendarDays: b.calendarDays,
+      holidaysNotPaid: b.holidaysNotPaid,
+      holidaySays: holidays.answerOf(l.consultant.personId).says,
       says: b.says,
     })
   }
@@ -290,6 +311,8 @@ export async function GET(request: NextRequest) {
         toDateCents: e.toDateCents,
         workingDays: e.workingDays,
         calendarDays: e.calendarDays,
+        holidaysNotPaid: e.holidaysNotPaid,
+        holidaySays: e.holidaySays,
         says: e.says,
       })),
     },

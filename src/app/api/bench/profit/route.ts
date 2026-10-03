@@ -13,6 +13,7 @@ import {
   mayReadBenchProfit, benchSpell, benchToBill, courseGroup, utilization, moveSaving, policySays, isMove,
   type Earned, type LineSpan, type Placed, type Standing,
 } from '@/lib/bench-profit'
+import { benchHolidays } from '../holiday-pay'
 
 /**
  * GET /api/bench/profit
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
 
   const firm = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
-    select: { name: true, kind: true, homeCurrency: true, benchPolicy: true, benchRateBps: true, benchCarryDays: true, reserveBps: true, reserveOnExit: true },
+    select: { name: true, kind: true, country: true, homeCurrency: true, benchPolicy: true, benchRateBps: true, benchCarryDays: true, reserveBps: true, reserveOnExit: true },
   })
   const policy: Policy = {
     policy: firm.benchPolicy,
@@ -122,6 +123,13 @@ export async function GET(request: NextRequest) {
       select: { personId: true, payRate: true, payCurrency: true, buyContract: { select: { contractType: true, payCurrency: true } } },
     }),
   ])
+
+  // Whether each person is paid for a public holiday on the bench, and the
+  // firm's calendar back to the earliest day any spell here can start.
+  const earliest = [...joined.values(), ...sells.map((s) => s.startDate)].reduce((a, d) => (d < a ? d : a), now)
+  const holidays = await benchHolidays({
+    companyId, companyKind: firm.kind, country: firm.country ?? null, from: earliest, to: now,
+  })
 
   type Sell = (typeof sells)[number]
   const sellsOf = (pid: string) => sells.filter((s) => s.personId === pid)
@@ -243,6 +251,7 @@ export async function GET(request: NextRequest) {
       contractType: pay?.contractType ?? null,
       currency: pay?.currency ?? firm.homeCurrency,
       earned: placedLine ? await earnedOn(placedLine) : null,
+      holidayPay: holidays.payOf(pid),
       // Said wherever the rate is not a line paying them on those days, so
       // the figure reads as what the policy says, never as money paid out.
       rateFrom: placedLine
@@ -259,6 +268,7 @@ export async function GET(request: NextRequest) {
       course: courseOf.get(pid) ?? null,
       placedAt: placedLine ? siteOf(placedLine) : null,
       currency: pay?.currency ?? firm.homeCurrency,
+      holiday: holidays.answerOf(pid),
       ...row,
     })
   }
@@ -365,6 +375,7 @@ export async function GET(request: NextRequest) {
           payRateCents: pay?.payRateCents ?? null,
           contractType: pay?.contractType ?? null,
           currency: pay?.currency ?? firm.homeCurrency,
+          holidayPay: holidays.payOf(h.personId),
         }),
       }
     })
@@ -390,6 +401,11 @@ export async function GET(request: NextRequest) {
       basis: [
         'Days on the bench run from the day somebody joined your bench, or the day their last placement here ended, to the day their next one started or today.',
         'What those days cost is your bench pay policy applied to what they are paid on the line that pays them when they bill, for an eight-hour day. Housing and other costs carried for them are not on record, so they are not counted.',
+        (firm.kind === 'GSI'
+          ? 'Public holidays on the bench are paid for your own people by default, unless your firm turned holiday pay off or switched a person off.'
+          : 'Public holidays on the bench are not paid unless your firm turned holiday pay on and switched that person on.') +
+          ' A holiday not paid is taken out of their cost. The holidays are the ones on your company calendar' +
+          (firm.country ? ` for ${firm.country}.` : '.'),
         'The margin is what the client’s approved hours billed, less what you paid for the hours you accepted, on the weeks both sides signed — the same figure as the placement page. Employer burden is not taken off.',
         'A figure the record cannot support is left blank, with the reason beside it.',
       ],

@@ -1,10 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { plainDate } from '@/lib/plain-date'
 import { amount } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { useSession } from '@/components/session-provider'
+import { mayChangeBenchPay } from '@/lib/bench-holiday-switch'
+import type { HolidayAnswerRow } from '@/lib/bench-profit'
+import { HolidaySwitchCell } from './holiday-switch'
 
 /**
  * Bench profit — what the bench cost, and whether the work paid it back
@@ -38,6 +42,8 @@ interface Person {
   paidBackOn: string | null
   leftCents: number | null
   paybackSays: string
+  /** Whether they are paid for a public holiday on the bench, in the rule's own words. */
+  holiday: HolidayAnswerRow
 }
 
 interface Course {
@@ -97,19 +103,35 @@ export function BenchProfit() {
   const [data, setData] = useState<Data | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [said, setSaid] = useState<{ ok: boolean; text: string } | null>(null)
+  const session = useSession()
+  // The switch is the owner's, the admin's and the finance desk's at a firm
+  // with a bench — the desks that read this page, less a firm with no bench.
+  const turnsHolidays = mayChangeBenchPay({
+    companyName: session.company?.name ?? 'your firm',
+    companyKind: session.company?.kind ?? null,
+    roleName: session.roleName,
+    consultantSeat: session.contextType === 'CONSULTANT',
+  }).ok
 
-  useEffect(() => {
-    let live = true
-    ;(async () => {
-      const res = await fetch('/api/bench/profit')
-      const body = await readJson<{ data?: Data; error?: { message: string } }>(res)
-      if (!live) return
-      if (!res.ok || !body?.data) setError(body?.error?.message ?? 'Bench profit could not be read.')
-      else setData(body.data)
+  const load = useCallback(async () => {
+    try {
+      const body = await readJson<{ data: Data }>(await fetch('/api/bench/profit'))
+      setData(body.data)
+      setError(null)
+    } catch (e: any) {
+      setError(e.message ?? 'Bench profit could not be read.')
+    } finally {
       setLoading(false)
-    })()
-    return () => { live = false }
+    }
   }, [])
+  useEffect(() => { load() }, [load])
+
+  // A turned switch changes the cost beside it, so the figures are read again.
+  const turned = async (s: { ok: boolean; text: string }) => {
+    setSaid(s)
+    await load()
+  }
 
   const personCols: Column<Person>[] = [
     {
@@ -145,6 +167,12 @@ export function BenchProfit() {
         </div>
       ),
     },
+    ...(turnsHolidays
+      ? [{
+          key: 'holidays', label: 'Holidays', sortable: false,
+          render: (r: Person) => <HolidaySwitchCell personId={r.personId} answer={r.holiday} onTurned={turned} />,
+        } as Column<Person>]
+      : []),
     {
       key: 'marginCents', label: 'Margin since placed', align: 'right',
       sortValue: (r) => r.marginCents,
@@ -212,6 +240,11 @@ export function BenchProfit() {
           What each person’s days on the bench cost, against the margin earned since they were placed.
         </p>
         {data && <p className="text-[12px] text-etyme-muted mb-3">Your bench pay policy: {data.policySays}</p>}
+        {said && (
+          <p role="status" className={`text-[13px] rounded border px-3 py-2 mb-3 ${said.ok ? 'border-etyme-verified/30 bg-etyme-verified/5' : 'border-etyme-attention/40 bg-etyme-attention/5'} text-etyme-ink`}>
+            {said.text}
+          </p>
+        )}
         <ListSurface
           name="bench-profit-people"
           columns={personCols}
@@ -234,6 +267,7 @@ export function BenchProfit() {
               </p>
               {r.spell !== 'NOW' && <p className="text-[12px] text-etyme-muted">Margin since placed: {money(r.marginCents, r.currency)}</p>}
               <p className="text-[12px] text-etyme-muted">{r.paybackSays}</p>
+              {turnsHolidays && <HolidaySwitchCell personId={r.personId} answer={r.holiday} onTurned={turned} />}
             </div>
           )}
           emptyMessage="Nobody on your bench yet."

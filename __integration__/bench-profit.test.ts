@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { GET as benchProfit } from '@/app/api/bench/profit/route'
 import { GET as placementGET } from '@/app/api/placements/[id]/route'
+import { PATCH as benchPayPATCH } from '@/app/api/settings/bench/route'
+import { GET as switchesGET, POST as switchPOST } from '@/app/api/settings/bench/people/route'
 import { seedToday } from '@/lib/seed-days'
 import { burnOf } from '@/lib/bench-policy'
 import { holidayKeys } from '@/lib/seed-calendar'
@@ -28,6 +30,16 @@ import { plainDate } from '@/lib/plain-date'
  * from them. What depends on the calendar is worked out below from the
  * same birthday: the Monday the placements began, the days that were a
  * holiday, and so the margin and the day it paid the bench back.
+ *
+ * ── Holidays on the bench (2026-10-03) ───────────────────────────────
+ *
+ * Pellwright is a bench supplier and has never turned holiday pay on, so
+ * a public holiday inside a spell is not paid and comes off the cost.
+ * Which holidays fall inside a spell depends on the day the world was
+ * born, so the count is worked out below from the world's own calendar
+ * (`holidaysIn`) and never written as a number. Teleworld is an
+ * integrator and pays its people for holidays without anybody switching
+ * them on.
  */
 
 const D = '@demo.etyme.local'
@@ -73,6 +85,22 @@ function paidBackOn(weeks: { friday: Date; marginCents: number }[], costCents: n
   return null
 }
 
+/**
+ * The weekday holidays on the world's calendar strictly after `from`,
+ * through `to` — the days a bench spell is counted over. Counted here by
+ * hand rather than through `benchDays`, so the route is checked against
+ * the calendar and not against itself.
+ */
+function holidaysIn(from: Date, to: Date): number {
+  let n = 0
+  for (let d = plus(from, 1); d <= to; d = plus(d, 1)) {
+    const wd = d.getUTCDay()
+    if (wd !== 0 && wd !== 6 && holidayKeys().has(iso(d))) n++
+  }
+  return n
+}
+const notPaid = (n: number) => (n > 0 ? `, ${n} public holiday${n === 1 ? '' : 's'} not paid` : '')
+
 // Seventeen weeks at ($88 − $62) an hour; four at ($82 − $58).
 const tobiasWeeks = () => placed(17, 8_800 - 6_200)
 const noorWeeks = () => placed(4, 8_200 - 5_800)
@@ -83,29 +111,34 @@ beforeAll(async () => {
 }, 900_000)
 
 describe('bench to bill, per person, at Pellwright Validation Partners', () => {
-  it('the owner reads what Tobias Wren’s days on the bench cost and the day his margin paid it back', () => {
+  it('the owner reads what Tobias Wren’s days on the bench cost, less the public holidays Pellwright does not pay, and the day his margin paid it back', () => {
     expect(owner.status, JSON.stringify(owner.body)).toBe(200)
     expect(owner.body.data.policySays).toBe('50% of their pay while on the bench, for up to 90 days.')
     const tobias = row(owner.body, 'Tobias Wren')
     const { start, weeks, marginCents } = tobiasWeeks()
     // Finished the course and joined the bench 49 days before he was placed,
     // on a Monday seventeen weeks before the world's own week.
-    expect(tobias).toMatchObject({ spell: 'BEFORE', benchFrom: iso(plus(start, -49)), benchTo: iso(start), days: 49 })
-    // 49 calendar days are 35 working days, at half of $62 × 8 = $248 a day.
-    expect(tobias.costCents).toBe(868_000)
+    const from = plus(start, -49)
+    expect(tobias).toMatchObject({ spell: 'BEFORE', benchFrom: iso(from), benchTo: iso(start), days: 49 })
+    // 49 calendar days are 35 weekdays; a holiday among them is not paid,
+    // because Pellwright never turned holiday pay on. Half of $62 × 8 = $248 a day.
+    const h = holidaysIn(from, start)
+    const worked = 35 - h
+    const cost = worked * 24_800
+    expect(tobias.costCents).toBe(cost)
     // Seventeen signed weeks at ($88 − $62) × 8 on every day that was not a holiday.
     expect(tobias.marginCents).toBe(marginCents)
-    // $8,680 is covered within nine or ten weeks of $1,040 a day, whatever the holidays.
-    const on = paidBackOn(weeks, 868_000)!
+    // His cost is covered within nine or ten weeks of $1,040 a day, whatever the holidays.
+    const on = paidBackOn(weeks, cost)!
     expect(tobias.paidBackOn).toBe(iso(on))
     expect(tobias.paybackSays).toBe(
       `Paid back on ${plainDate(iso(on))}, ${between(start, on)} days after they started on ${plainDate(iso(start))}.`
     )
     expect(tobias.placedAt).toBe('Corveldt Aerospace, through Sundara Systems')
+    // The sentence says what was counted, the holidays not paid included.
+    expect(tobias.costCounted).toBe(`${worked} working days of 49 at 50% of $496.00 a day${notPaid(h)}`)
     expect(tobias.costSays).toBe(
-      // 49 calendar days are 35 working days; 35 × $248 = $8,680, and the
-      // sentence says what was counted (bench tester, 2026-10-01).
-      '35 working days of 49 at 50% of $496.00 a day, under your bench pay policy: $8,680.00. ' +
+      `${worked} working days of 49 at 50% of $496.00 a day${notPaid(h)}, under your bench pay policy: ${dollars(cost)}. ` +
         'Priced at what they are paid on the placement that followed, as your policy reads it.'
     )
   })
@@ -113,11 +146,13 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
   it('Noor Abernathy has not paid her bench back yet, and the page says how much is left', () => {
     const noor = row(owner.body, 'Noor Abernathy')
     const { start, marginCents } = noorWeeks()
-    // 35 days are 25 working days at half of $58 × 8; four signed weeks
-    // at ($82 − $58) × 8 a day can never reach $5,800.
-    expect(noor).toMatchObject({ benchFrom: iso(plus(start, -35)), benchTo: iso(start), days: 35, costCents: 580_000 })
-    expect(noor).toMatchObject({ marginCents, paidBackOn: null, leftCents: 580_000 - marginCents })
-    expect(noor.paybackSays).toBe(`Not yet. ${dollars(580_000 - marginCents)} left to earn back.`)
+    // 35 days are 25 weekdays, less any holiday among them, at half of
+    // $58 × 8; four signed weeks at ($82 − $58) × 8 a day never reach it.
+    const from = plus(start, -35)
+    const cost = (25 - holidaysIn(from, start)) * 23_200
+    expect(noor).toMatchObject({ benchFrom: iso(from), benchTo: iso(start), days: 35, costCents: cost })
+    expect(noor).toMatchObject({ marginCents, paidBackOn: null, leftCents: cost - marginCents })
+    expect(noor.paybackSays).toBe(`Not yet. ${dollars(cost - marginCents)} left to earn back.`)
   })
 
   it('somebody on the bench with no pay on record has a cost that is not known yet, and says why', () => {
@@ -132,20 +167,34 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
     expect(row(owner.body, 'Lucia Brandvold').days).toBe(40)
   })
 
-  it('Hector Valdivia, on the bench since his placement ended, costs half his day for every weekday since, the count Bench burn shows', () => {
+  it('Hector Valdivia, on the bench since his placement ended, costs half his day for every weekday since that is not a holiday, the count Bench burn shows with the same answer', () => {
     const hector = row(owner.body, 'Hector Valdivia')
     // His placement ended 60 days before the world was born. The weekdays
-    // after that day through the world's own day, as Bench burn counts
-    // them, at half of $64 × 8.
+    // after that day through the world's own day, less the holidays
+    // Pellwright does not pay, as Bench burn counts them, at half of $64 × 8.
     const from = plus(seedToday(), -60)
+    const h = holidaysIn(from, seedToday())
+    const burn = burnOf(
+      { payRateCents: 6400, billing: false, benchSince: from, holidayPay: { paid: false, calendar: holidayKeys() } },
+      seedToday()
+    )
     const weekdays = burnOf({ payRateCents: 6400, billing: false, benchSince: from }, seedToday()).workingDays
     expect(weekdays).toBeGreaterThanOrEqual(42)
     expect(weekdays).toBeLessThanOrEqual(44)
-    expect(hector).toMatchObject({ spell: 'NOW', benchFrom: iso(from), days: 60, costCents: weekdays * 25_600, marginCents: null })
-    expect(hector.costCounted).toBe(`${weekdays} working days of 60 at 50% of $512.00 a day`)
-    expect(hector.paybackSays).toBe(`Not placed yet. ${dollars(weekdays * 25_600)} to earn back.`)
+    expect(burn.workingDays).toBe(weekdays - h)
+    const worked = weekdays - h
+    expect(hector).toMatchObject({ spell: 'NOW', benchFrom: iso(from), days: 60, costCents: worked * 25_600, marginCents: null })
+    expect(hector.costCounted).toBe(`${worked} working days of 60 at 50% of $512.00 a day${notPaid(h)}`)
+    expect(hector.paybackSays).toBe(`Not placed yet. ${dollars(worked * 25_600)} to earn back.`)
     // Nothing pays him today, and the sentence says the figure is the policy's.
     expect(hector.costSays).toContain('Nothing on the record pays them today; priced at the pay of their last placement')
+  })
+
+  it('every person on Pellwright’s bench profit reads holidays not paid, off for this firm', () => {
+    for (const p of owner.body.data.people) {
+      expect(p.holiday, p.name).toMatchObject({ paid: false, source: 'FIRM_OFF', says: 'Holidays not paid (off for this firm)' })
+    }
+    expect(owner.body.data.basis.join(' ')).toContain('Public holidays on the bench are not paid unless your firm turned holiday pay on')
   })
 
   it('somebody who took a seat and never joined the bench is not on the bench list', () => {
@@ -254,5 +303,46 @@ describe('utilization, for an integrator', () => {
 
   it('a bench vendor is not shown utilization, which is an integrator’s question', () => {
     expect(owner.body.data.utilization).toBeNull()
+  })
+
+  it('Teleworld’s people are paid for holidays without anybody switching them on', async () => {
+    const r = await read(`world-teleworld${D}`)
+    const karthik = row(r.body, 'Karthik Menon')
+    expect(karthik.holiday).toMatchObject({ paid: true, source: 'INTEGRATOR_DEFAULT', says: 'Paid for holidays: on for everybody here' })
+    as(`world-teleworld${D}`)
+    const s = await json(await switchesGET(req('GET', `/api/settings/bench/people?personId=${karthik.personId}`)))
+    expect(s.status, JSON.stringify(s.body)).toBe(200)
+    expect(s.body.data.people).toEqual([
+      expect.objectContaining({ personId: karthik.personId, paid: true, source: 'INTEGRATOR_DEFAULT', turned: null }),
+    ])
+  })
+})
+
+// Last, because it changes the seeded firm: the switch turned on Our
+// bench reaches the cost on bench profit.
+describe('the holiday switch reaches the figure', () => {
+  it('when Pellwright turns holiday pay on and its finance desk switches Hector on, the holidays are back in his cost and the row says who switched it', async () => {
+    const hector = row(owner.body, 'Hector Valdivia')
+    const from = plus(seedToday(), -60)
+    const weekdays = burnOf({ payRateCents: 6400, billing: false, benchSince: from }, seedToday()).workingDays
+
+    as(FINANCE)
+    const firm = await json(await benchPayPATCH(req('PATCH', '/api/settings/bench', { holidayPay: true })))
+    expect(firm.status, JSON.stringify(firm.body)).toBe(200)
+    const turned = await json(await switchPOST(req('POST', '/api/settings/bench/people', { personId: hector.personId, paid: true })))
+    expect(turned.status, JSON.stringify(turned.body)).toBe(200)
+    expect(turned.body.data.message).toBe('Switched on for Hector Valdivia.')
+
+    const after = await read(FINANCE)
+    const h = row(after.body, 'Hector Valdivia')
+    expect(h.costCents).toBe(weekdays * 25_600)
+    expect(h.costCounted).toBe(`${weekdays} working days of 60 at 50% of $512.00 a day`)
+    expect(h.holiday.source).toBe('PERSON_ON')
+    // The turn is stamped with the day it was made, not the world's birthday.
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+    expect(h.holiday.says).toBe(`Paid for holidays: switched on by Desmond Achterberg, ${today}`)
+    // Nobody else was switched on, so Tobias still has no holiday paid.
+    expect(row(after.body, 'Tobias Wren').costCents).toBe(row(owner.body, 'Tobias Wren').costCents)
+    expect(row(after.body, 'Tobias Wren').holiday.source).toBe('NOT_SWITCHED_ON')
   })
 })

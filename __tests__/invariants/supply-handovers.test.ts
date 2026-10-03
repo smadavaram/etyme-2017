@@ -101,9 +101,10 @@ describe('what the bench costs', () => {
     expect(BURN_READ_BY).toBe('What the bench costs is read by the desks that read pay')
   })
 
-  it('counts working days through the one door, skips anybody placed and billing, and answers in cents', () => {
+  it('counts working days through the one door, with each person’s holiday answer, skips anybody placed and billing, and answers in cents', () => {
     const route = src('src/app/api/bench/burn/route.ts')
-    expect(route).toContain('burnOf({ payRateCents: payRate, billing: liveOf(l.consultant.personId), benchSince }, now)')
+    expect(route).toContain('burnOf({ payRateCents: payRate, billing: liveOf(l.consultant.personId), benchSince, holidayPay }, now)')
+    expect(route).toContain('const holidayPay = holidays.payOf(l.consultant.personId)')
     expect(route).toContain('if (!b.onBench) continue')
     for (const f of ['dailyCents', 'toDateCents', 'workingDays', 'calendarDays', 'says']) expect(route).toContain(f)
     expect(route).not.toMatch(/daysOnBench \* 5 \/ 7/)

@@ -8,7 +8,9 @@ import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
 import { BenchProfit } from './bench-profit'
-import { mayReadBenchProfit } from '@/lib/bench-profit'
+import { mayReadBenchProfit, type HolidayAnswerRow } from '@/lib/bench-profit'
+import { mayChangeBenchPay } from '@/lib/bench-holiday-switch'
+import { useHolidaySwitches, HolidaySwitchCell } from './holiday-switch'
 import { sectionOfHref } from '@/lib/page-framing'
 import { hasPermission } from '@/lib/permissions'
 import { READS_PAY } from '@/lib/money/pay-visibility'
@@ -545,6 +547,15 @@ export default function BenchPage() {
   // in silence (bench tester, 2026-10-01). The tab is drawn only for the
   // desks that read it.
   const showProfit = clientRefused.ok && (profitOpen || (!readsBench && readsProfit && session.company != null))
+  // The holiday switch on each row of Our bench (2026-10-03): the owner's,
+  // the admin's and the finance desk's at a firm with a bench, the same
+  // three desks the route lets turn it, and drawn for nobody else.
+  const turnsHolidays = mayChangeBenchPay({
+    companyName: session.company?.name ?? 'your firm',
+    companyKind: session.company?.kind ?? null,
+    roleName: session.roleName,
+    consultantSeat: session.contextType === 'CONSULTANT',
+  }).ok
   const [roster, setRoster] = useState<RosterEntry[]>([])
   const [rosterSays, setRosterSays] = useState<RosterSummaryData | null>(null)
   const [entries, setEntries] = useState<BenchEntry[]>([])
@@ -561,6 +572,13 @@ export default function BenchPage() {
   const [burnData, setBurnData] = useState<BurnData | null>(null)
   const [burnLoading, setBurnLoading] = useState(true)
   const [busyRow, setBusyRow] = useState<string | null>(null)
+  const ourIds = scope === 'company' ? entries.map((e) => e.personId) : scope === 'payroll' ? roster.map((r) => r.personId) : []
+  const holiday = useHolidaySwitches(ourIds, turnsHolidays && (scope === 'company' || scope === 'payroll'))
+  const holidayTurned = async (said: { ok: boolean; text: string }) => {
+    setToast({ message: said.text, type: said.ok ? 'success' : 'error' })
+    setTimeout(() => setToast(null), 6000)
+    await holiday.reload()
+  }
 
   // Guards against a slower "your team" response landing after a faster
   // "your network" one (or the reverse) and silently overwriting it —
@@ -863,6 +881,21 @@ export default function BenchPage() {
       sortValue: (row) => row.reach ?? '',
       hideOnMobile: true,
     },
+    // Whether they are paid for a public holiday on the bench, and the
+    // switch for it — on your own bench, for the three desks only.
+    ...(scope === 'company' && turnsHolidays
+      ? [
+          {
+            key: 'holidays',
+            label: 'Holidays',
+            sortable: false,
+            hideOnMobile: true,
+            render: (row: BenchEntry) => (
+              <HolidaySwitchCell personId={row.personId} answer={holiday.answers.get(row.personId)} onTurned={holidayTurned} />
+            ),
+          } as Column<BenchEntry>,
+        ]
+      : []),
     // What a firm can do about the row, said as the thing it does.
     //
     // On your own bench: move the listing between retained and marketing.
@@ -1135,6 +1168,7 @@ export default function BenchPage() {
             setToast({ message: says, type: 'error' })
             setTimeout(() => setToast(null), 6000)
           }}
+          holidays={turnsHolidays ? { answers: holiday.answers, onTurned: holidayTurned } : null}
         />
       ) : (
       /* DataTable */
@@ -1311,12 +1345,15 @@ function RosterSurface({
   loading,
   error,
   onNeedsListing,
+  holidays,
 }: {
   rows: RosterEntry[]
   summary: RosterSummaryData | null
   loading: boolean
   error: string | null
   onNeedsListing: (says: string) => void
+  /** The holiday switch per row, for the owner, admin and finance desks; null for everybody else. */
+  holidays?: { answers: Map<string, HolidayAnswerRow>; onTurned: (said: { ok: boolean; text: string }) => void } | null
 }) {
   const standingChip = (r: RosterEntry): { text: string; cls: string } => {
     switch (r.standing) {
@@ -1411,6 +1448,22 @@ function RosterSurface({
         ),
       sortValue: (row) => (row.mayMarket ? 0 : 1),
     },
+    // Whether they are paid for a public holiday on the bench. An
+    // integrator pays its own people by default, so the row reads "On by
+    // default" and offers to switch one person off.
+    ...(holidays
+      ? [
+          {
+            key: 'holidays',
+            label: 'Holidays',
+            sortable: false,
+            hideOnMobile: true,
+            render: (row: RosterEntry) => (
+              <HolidaySwitchCell personId={row.personId} answer={holidays.answers.get(row.personId)} onTurned={holidays.onTurned} />
+            ),
+          } as Column<RosterEntry>,
+        ]
+      : []),
   ]
 
   return (

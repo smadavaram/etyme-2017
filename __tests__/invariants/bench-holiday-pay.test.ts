@@ -20,6 +20,7 @@ import {
   type HolidaySwitch, type Policy,
 } from '@/lib/bench-policy'
 import { usFederalHolidays } from '@/lib/holidays'
+import { costOfDays } from '@/lib/bench-profit'
 
 const D = (s: string) => new Date(`${s}T00:00:00.000Z`)
 const US_2026 = new Set(usFederalHolidays(2026).map((h) => h.date))
@@ -111,9 +112,21 @@ describe('Counting a holiday on the bench', () => {
   })
 
   // Bench profit prices its days through `benchCost` (`costOfDays` in
-  // lib/bench-profit), so it agrees the moment it passes the holiday answer
-  // through. That file is etyme-supply's and does not pass it yet.
-  it.todo('bench profit counts a holiday the same way, once lib/bench-profit passes holidayPay to benchCost (etyme-supply)')
+  // lib/bench-profit), passing the holiday answer through (etyme-supply,
+  // 2026-10-03), so the three agree on every holiday.
+  it('bench profit counts a holiday the same way as the bench cost and the burn', () => {
+    for (const paid of [true, false]) {
+      const holidayPay = { paid, calendar: US_2026 }
+      const profit = costOfDays({
+        days: IDLE, since: SINCE, policy: FULL, payRateCents: PAY, contractType: 'W2', currency: 'USD', holidayPay,
+      })
+      const cost = benchCost(FULL, { idleDays: IDLE, since: SINCE, billingDayRateCents: DAY, holidayPay })
+      const burn = burnOf({ payRateCents: PAY, billing: false, benchSince: SINCE, holidayPay }, NOW)
+      expect(profit.costCents).toBe(cost.costCents)
+      expect(profit.costCents).toBe(burn.toDateCents)
+      expect(profit.costCents).toBe((paid ? 6 : 5) * DAY)
+    }
+  })
 
   it('the bench cost says how many public holidays it did not pay', () => {
     const c = benchCost(FULL, { idleDays: IDLE, since: SINCE, billingDayRateCents: DAY, holidayPay: { paid: false, calendar: US_2026 } })

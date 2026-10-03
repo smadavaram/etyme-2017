@@ -35,7 +35,7 @@
  * tests can walk every branch.
  */
 
-import { benchCost, burnOf, type Policy } from '@/lib/bench-policy'
+import { benchCost, burnOf, type HolidayPay, type HolidayPaySource, type Policy } from '@/lib/bench-policy'
 import { amount } from '@/lib/money-display'
 import { plainDate } from '@/lib/plain-date'
 
@@ -219,6 +219,13 @@ export function costOfDays(input: {
   payRateCents: number | null
   contractType: string | null
   currency: string
+  /**
+   * Whether this person is paid for a public holiday on the bench, and the
+   * firm's calendar (`holidayPayFor` in lib/bench-policy, and lib/holidays).
+   * Passed straight to `benchCost`, so bench profit, bench cost and the
+   * burn take a holiday out on the same days or on none.
+   */
+  holidayPay?: HolidayPay | null
 }): DaysCost {
   const { days, policy } = input
   if (days === 0) return { costCents: 0, says: 'No days on the bench.', counted: null, why: null }
@@ -259,7 +266,9 @@ export function costOfDays(input: {
     }
   }
   const daily = burnOf({ payRateCents: input.payRateCents, billing: false, benchSince: new Date(0) }, new Date(0)).dailyCents!
-  const c = benchCost(policy, { idleDays: days, billingDayRateCents: daily, since: input.since ?? null })
+  const c = benchCost(policy, {
+    idleDays: days, billingDayRateCents: daily, since: input.since ?? null, holidayPay: input.holidayPay ?? null,
+  })
   const how =
     policy.policy === 'FULL_PAY'
       ? `full pay of ${amount(daily, input.currency)} a day`
@@ -273,11 +282,21 @@ export function costOfDays(input: {
   // 2026-10-01). Real weekdays where the first bench day is known; only
   // where it is not are five of every seven counted, and said.
   const worked = c.paidWorkingDays
-  const counted = `${plural(worked, 'working day')} of ${days} at ${how}`
+  // A holiday the firm does not pay this person is said after the rate, so
+  // "35 working days of 49 at …" still reads as days times the rate.
+  const off =
+    c.holidays === 'NOT_PAID' && c.holidaysOnBench > 0
+      ? `, ${plural(c.holidaysOnBench, 'public holiday')} not paid`
+      : ''
+  const counted = `${plural(worked, 'working day')} of ${days} at ${how}${off}`
   const estimate = c.counted === 'ESTIMATED' ? ' Five of every seven days on the bench are counted as working days.' : ''
+  const unplaced =
+    c.holidays === 'NOT_KNOWN'
+      ? ' Holidays are not paid, but without the first bench day they could not be taken out, so they are counted.'
+      : ''
   return {
     costCents: c.costCents,
-    says: `${counted}, under your bench pay policy: ${amount(c.costCents, input.currency)}.${estimate}${carry}`,
+    says: `${counted}, under your bench pay policy: ${amount(c.costCents, input.currency)}.${estimate}${unplaced}${carry}`,
     counted,
     why: null,
   }
@@ -333,6 +352,8 @@ export function benchToBill(input: {
   earned: Earned | null
   /** Where the pay rate came from, where it is not the line paying them on those days. Said after the cost. */
   rateFrom?: string | null
+  /** Whether this person is paid for a public holiday on the bench, and the calendar. */
+  holidayPay?: HolidayPay | null
 }): BenchToBill {
   const s = input.spell
   if (s.kind === 'UNKNOWN') {
@@ -348,6 +369,7 @@ export function benchToBill(input: {
   const cost = costOfDays({
     days, since: s.kind === 'STRAIGHT_ON' ? null : s.from,
     policy: input.policy, payRateCents: input.payRateCents, contractType: input.contractType, currency: input.currency,
+    holidayPay: input.holidayPay ?? null,
   })
   const base = {
     spell: s.kind,
@@ -618,6 +640,7 @@ export function moveSaving(input: {
   payRateCents: number | null
   contractType: string | null
   currency: string
+  holidayPay?: HolidayPay | null
 }): MoveSaving {
   const blank = {
     savedAgainstBenchCents: null,
@@ -633,7 +656,10 @@ export function moveSaving(input: {
   // Counted the way a bench spell is: from the day the old line ended to
   // the day the new one started, so the two never disagree about a gap.
   const gap = daysBetween(input.oldEndsOn, input.newStartsOn)
-  const cost = costOfDays({ days: gap, since: input.oldEndsOn, policy: input.policy, payRateCents: input.payRateCents, contractType: input.contractType, currency: input.currency })
+  const cost = costOfDays({
+    days: gap, since: input.oldEndsOn, policy: input.policy, payRateCents: input.payRateCents,
+    contractType: input.contractType, currency: input.currency, holidayPay: input.holidayPay ?? null,
+  })
   return {
     gapDays: gap,
     gapCostCents: cost.costCents,
@@ -656,4 +682,63 @@ export function moveSaving(input: {
 export function isMove(h: { placedSellContractId: string | null; placedSubmissionId: string | null; submissionStatus: string | null }): boolean {
   if (h.placedSellContractId) return true
   return h.placedSubmissionId != null && h.submissionStatus === 'PLACED'
+}
+
+// ── The holiday switch on a row ───────────────────────────────────────
+
+/**
+ * One person's holiday answer as the route says it: `holidayPayFor`'s
+ * source and sentence (GET /api/settings/bench/people), and the person's
+ * own last turn ("Switched on by Rahul Iyer, Oct 3, 2026"), null where
+ * nobody has turned it.
+ */
+export interface HolidayAnswerRow {
+  paid: boolean
+  source: HolidayPaySource
+  says: string
+  turned: string | null
+}
+
+export interface HolidaySwitchView {
+  /** The chip: "On by default", "Paid", "Not paid", "Off for the firm". */
+  label: string
+  tone: 'verified' | 'passive' | 'attention'
+  /** The rule's own sentence, unchanged. */
+  says: string
+  /** What the button does: turn this person's own switch to this value. */
+  turnTo: boolean
+  /** "Switch off", "Switch on". */
+  button: string
+}
+
+/**
+ * What the holiday switch on one row shows, and what its one button does.
+ *
+ * The sentence is always `holidayPayFor`'s, never reworded here, so the
+ * row and the settings page say the same thing. The button turns the
+ * person's own switch: off where they are paid, on where they are not.
+ * At a firm that has holiday pay off, the person's own last turn decides
+ * the button — switching somebody on ahead of the firm is allowed and the
+ * route says nothing is paid until the firm turns it on.
+ */
+export function holidaySwitchView(a: HolidayAnswerRow): HolidaySwitchView {
+  // The person's own switch, read off the route's sentence for their last
+  // turn (`turnedSays` in lib/bench-holiday-switch): "Switched on …".
+  const personOn = a.turned != null && a.turned.startsWith('Switched on')
+  switch (a.source) {
+    case 'INTEGRATOR_DEFAULT':
+      return { label: 'On by default', tone: 'verified', says: a.says, turnTo: false, button: 'Switch off' }
+    case 'PERSON_ON':
+      return { label: 'Paid', tone: 'verified', says: a.says, turnTo: false, button: 'Switch off' }
+    case 'PERSON_OFF':
+    case 'NOT_SWITCHED_ON':
+      return { label: 'Not paid', tone: 'passive', says: a.says, turnTo: true, button: 'Switch on' }
+    case 'FIRM_OFF':
+      return {
+        label: 'Off for the firm', tone: 'passive',
+        says: personOn ? `${a.says}. ${a.turned} for them, ready for when the firm turns it on.` : a.says,
+        turnTo: !personOn,
+        button: personOn ? 'Switch off' : 'Switch on',
+      }
+  }
 }
