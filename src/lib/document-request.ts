@@ -811,6 +811,43 @@ function inDate(h: HeldKeyRecord, on: Date): boolean {
 }
 
 /**
+ * Why a document from the default set is asked, in words a worker reads.
+ *
+ * Found by a tester on 2026-10-03: Helena Marsh's paperwork page said her
+ * non-disclosure agreement was asked because of "The default for a W2
+ * start". That is the system describing its own table — "W2" is a US
+ * tax form number and "default" is a configuration word — and it told
+ * her nothing about why she in particular was being asked.
+ *
+ * The plain answer is who the document is asked of: every employee, every
+ * person paid through their own company, every person a supplier
+ * provides. Said as a phrase so it reads both on her page ("Asked of
+ * every employee as standard paperwork") and inside a desk's sentence
+ * ("Non-disclosure agreement is asked of every employee as standard
+ * paperwork and nobody has signed it").
+ *
+ * Keyed on `SHAPE_SAYS` itself rather than on a copy of its strings, so
+ * a change to those words cannot quietly bring the jargon back. The
+ * lasting fix is those words in `lib/document-requirements`, which is
+ * the architect's file; once they say this, the map is a no-op. Anything
+ * that is not a default — "required by Northbend Athletic's order …" —
+ * already names who asked and passes through untouched.
+ */
+const PLAIN_DEFAULT_WHY: Record<keyof typeof SHAPE_SAYS, string> = {
+  CUSTOMER: 'asked of every person billed to a customer, as standard paperwork',
+  W2: 'asked of every employee as standard paperwork',
+  CORP_TO_CORP: 'asked of everyone paid through their own company, as standard paperwork',
+  SUB_VENDOR: 'asked of every person a supplier provides, as standard paperwork',
+}
+
+export function plainAsked(says: string): string {
+  for (const [shape, words] of Object.entries(SHAPE_SAYS) as [keyof typeof SHAPE_SAYS, string][]) {
+    if (says === words) return PLAIN_DEFAULT_WHY[shape]
+  }
+  return says
+}
+
+/**
  * Everything a set requires that is not on file today.
  *
  * Pure: the caller reads the line's effective set and whatever is held,
@@ -879,7 +916,7 @@ export function outstandingItems(input: {
         stopsWork: false,
         state: 'WAIVED',
         word: 'Waived — on the list, not expected',
-        asked: item.says,
+        asked: plainAsked(item.says),
         ranOutOn: null,
         waivedSays: item.waivedSays,
         hers,
@@ -911,7 +948,7 @@ export function outstandingItems(input: {
         // A check that has been opened is with the provider, not with a
         // desk here waiting to look at a file she sent.
         word: hers ? 'Sent — waiting for somebody to check it' : 'Ordered — waiting for the provider',
-        asked: item.says,
+        asked: plainAsked(item.says),
         ranOutOn: null,
         waivedSays: null,
         hers,
@@ -956,7 +993,7 @@ export function outstandingItems(input: {
       stopsWork: item.blocks,
       state,
       word,
-      asked: item.says,
+      asked: plainAsked(item.says),
       ranOutOn: lapsed?.expiresAt ?? null,
       waivedSays: null,
       hers,
@@ -1347,6 +1384,7 @@ export function heldFromDocInstances(
 import { prisma } from '@/lib/db'
 import {
   requirementsFor,
+  SHAPE_SAYS,
   type EffectiveRequirement,
   type LineRequirements,
   type OwedBy,
