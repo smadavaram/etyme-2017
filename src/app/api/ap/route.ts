@@ -17,6 +17,7 @@ import { customerOf, loadBook } from '../ar/book'
 import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-parties'
 import { supplierInvoicesOwed, type SupplierInvoiceRow } from '@/lib/money/supplier-invoices'
 import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
+import { RECEIPTS_ONLY_NOTE } from '@/lib/money/ap-words'
 
 /**
  * GET /api/ap — how long money takes to travel, and who is paying for the wait.
@@ -192,10 +193,7 @@ export async function GET(request: NextRequest) {
               outstandingMinor: r.totalMinor - r.paidMinor,
             })),
           },
-          note:
-            'Days to pay and chain float are measured from invoice receipts keyed in against a ' +
-            'supplier contract. Nothing here has been, so this page shows what is owed ' +
-            'and where to pay it rather than a figure with nothing behind it.',
+          note: RECEIPTS_ONLY_NOTE,
         },
       })
     }
@@ -530,7 +528,7 @@ export async function GET(request: NextRequest) {
         pairingSays:
           candidates.length > 1
             ? `${candidates.length} bills to the client overlap this invoice receipt's period, so the ` +
-              `largest was taken. The pairing is inferred and the float below rests on it.`
+              `largest was taken. The pairing is inferred, and the days below rest on it.`
             : 'One bill to the client covers this invoice receipt\'s period, so the pairing is unambiguous.',
         float: chainFloat(chain),
         blindSpot: chainBlindSpot(chain),
@@ -546,8 +544,8 @@ export async function GET(request: NextRequest) {
         `to the client that funds ${unlinked === 1 ? 'it' : 'them'}, so ${
           unlinked === 1 ? 'it has' : 'they have'
         } no chain. An invoice receipt with no buy contract, or a buy contract with no linked sell ` +
-        `contract, is a cost with no revenue beside it — which is also why it cannot be ` +
-        `included in any float figure.`
+        `contract, is a cost with no revenue beside it — which is also why it is left out ` +
+        `of every count of days between paying out and being paid.`
     )
   }
 
@@ -564,7 +562,7 @@ export async function GET(request: NextRequest) {
         `(${offPlatform.slice(0, 4).join(', ')}${offPlatform.length > 4 ? ', …' : ''}) ` +
         `${offPlatform.length === 1 ? 'is' : 'are'} not on the platform. What ` +
         `${offPlatform.length === 1 ? 'they pay' : 'each pays'} onwards, and when, is ` +
-        `outside anything we hold — and the party actually carrying the float is usually ` +
+        `outside anything we hold — and the firm whose own money waits longest is usually ` +
         `further down than the last one visible.`
     )
   }

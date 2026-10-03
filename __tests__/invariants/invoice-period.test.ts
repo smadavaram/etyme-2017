@@ -100,7 +100,7 @@ describe('is the work in the period being billed', () => {
       })
     )
     expect(check(r, 'PERIOD')!.reason).toMatch(/Anita Desai/)
-    expect(check(r, 'PERIOD')!.reason).toMatch(/2026-02-02 to 2026-02-08/)
+    expect(check(r, 'PERIOD')!.reason).toMatch(/Feb 2, 2026 to Feb 8, 2026/)
   })
 
   it('passes a week that straddles the month end, because most weeks do', () => {
@@ -191,7 +191,7 @@ describe('does the purchase order cover the work, not just the invoice', () => {
     )
     const c = check(r, 'PO_STATUS')!
     expect(c.outcome).toBe('FAIL')
-    expect(c.reason).toMatch(/2026-07-20/)
+    expect(c.reason).toMatch(/Jul 20, 2026/)
   })
 
   it('fails work done after the PO ended', () => {

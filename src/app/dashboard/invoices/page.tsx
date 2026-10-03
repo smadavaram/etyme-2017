@@ -475,7 +475,13 @@ export default function InvoicesPage() {
    * never sells — above a table of six invoices it owed, and the cards
    * and the rows disagreed until somebody pressed the other chip.
    */
-  const [sideChosen, setSideChosen] = useState<'RECEIVABLE' | 'PAYABLE' | null>(null)
+  // Or chosen by the link that brought them: accounts payable sends a
+  // firm that both bills and pays here with `?side=PAYABLE`, so it opens
+  // on what it owes rather than naming a switch the reader has to find.
+  const [sideChosen, setSideChosen] = useState<'RECEIVABLE' | 'PAYABLE' | null>(() => {
+    const asked = searchParams.get('side')
+    return asked === 'PAYABLE' || asked === 'RECEIVABLE' ? asked : null
+  })
   // With no switch offered, the reader is on the one side that holds
   // something — a firm whose book is all payables is not left looking
   // at an empty "to collect" with no way across.

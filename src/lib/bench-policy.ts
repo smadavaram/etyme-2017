@@ -42,6 +42,13 @@ export interface Policy {
 
 export interface BenchFacts {
   idleDays: number
+  /**
+   * The day they came onto the bench. Given, the days paid are the real
+   * Monday-to-Friday days after it (`workingDaysBetween`, the count
+   * `burnOf` already uses); absent, they are estimated as five in seven,
+   * and `counted` says so.
+   */
+  since?: Date | null
   /** What they earn per working day when they are billing, in cents. */
   billingDayRateCents: number
   /** What is in their own pot, in cents. Only meaningful when reserve funded. */
@@ -63,17 +70,50 @@ export interface BenchCost {
   dueForRelease: boolean
   /** Days left before the limit, where there is one. */
   daysLeft: number | null
+  /** The working days the pay was counted over, carry limit applied. */
+  paidWorkingDays: number
+  /**
+   * WEEKDAYS where the real Monday-to-Friday days were counted from a
+   * start date; ESTIMATED where no start date was given and five in seven
+   * stood in for them.
+   */
+  counted: 'WEEKDAYS' | 'ESTIMATED'
   says: string
 }
 
-/** Working days in a calendar span. Five in seven, near enough for a bench. */
+/**
+ * Working days in a calendar span with no dates to count from: five in
+ * seven, rounded.
+ *
+ * Only the fallback since 2026-10-03. It was the rule, and a bench tester
+ * found it beside `burnOf`, which counts the real weekdays: the same
+ * person's bench read one number of days on the burn and another on bench
+ * profit, and a 60-day spell is 42, 43 or 44 weekdays depending on the day
+ * it starts, never "about 43". Where the first day is known the real count
+ * is used; where it is not, `counted: 'ESTIMATED'` says so.
+ *
+ * Holidays are not taken out, on purpose, and that is a decision for the
+ * founder rather than for arithmetic: whether a firm pays a person on the
+ * bench for a public holiday is a term of their employment. A salaried
+ * W-2 — and an H-1B worker, whose required wage runs whether or not they
+ * bill — is paid for it, so leaving holidays in is the cost such a firm
+ * actually bears. A firm that does not pay holidays on the bench would
+ * want its holiday calendar subtracted, which is a setting, not a default.
+ */
 function workingDays(calendarDays: number): number {
   return Math.round(Math.max(0, calendarDays) * (5 / 7))
 }
 
+/** Weekdays in the first `calendarDays` days after `since`. */
+function weekdaysFrom(since: Date, calendarDays: number): number {
+  const to = new Date(since.getTime() + Math.max(0, calendarDays) * 86_400_000)
+  return workingDaysBetween(since, to)
+}
+
 export function benchCost(p: Policy, f: BenchFacts): BenchCost {
   const idle = Math.max(0, f.idleDays)
-  const days = workingDays(idle)
+  const since = f.since ?? null
+  const days = since ? weekdaysFrom(since, idle) : workingDays(idle)
   const housing = Math.round(idle * (f.housingPerDayCents ?? 0))
   const reserve = Math.max(0, f.reserveCents ?? 0)
 
@@ -84,7 +124,11 @@ export function benchCost(p: Policy, f: BenchFacts): BenchCost {
   // the end of it. Charging for the whole idle period would show a cost
   // the firm never actually incurred.
   const paidDays =
-    p.carryDays == null ? days : Math.min(days, workingDays(p.carryDays))
+    p.carryDays == null
+      ? days
+      : since
+        ? weekdaysFrom(since, Math.min(idle, p.carryDays))
+        : Math.min(days, workingDays(p.carryDays))
 
   let payCents = 0
   switch (p.policy) {
@@ -117,6 +161,8 @@ export function benchCost(p: Policy, f: BenchFacts): BenchCost {
     reserveLeftCents: Math.max(0, reserve - fromReserve),
     dueForRelease,
     daysLeft,
+    paidWorkingDays: p.policy === 'NO_PAY' ? 0 : paidDays,
+    counted: since ? 'WEEKDAYS' : 'ESTIMATED',
     says: saysFor(p, idle, payCents, housing, fromReserve, dueForRelease, daysLeft),
   }
 }

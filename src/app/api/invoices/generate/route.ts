@@ -21,6 +21,7 @@ import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
 import { readWindow, billingWindow, inWindow } from '@/lib/money/invoice-window'
 import { whatTheRungBills } from '@/lib/money/rung-billing'
 import { billedElsewhere, type ReceiptOnRecord } from '@/lib/money/billed-elsewhere'
+import { nothingToBillSays } from '@/lib/money/nothing-to-bill'
 
 /**
  * GET /api/invoices/generate — the engagements this firm may bill.
@@ -534,8 +535,51 @@ export async function POST(request: NextRequest) {
   })
 
   if (timesheets.length === 0 && expenseRows.length === 0 && milestones.length === 0) {
+    // Say whose week is waiting and on whom, not just that nothing is
+    // there (lib/money/nothing-to-bill). Every week of hours inside the
+    // dates asked, whatever its state, read through the same contracts
+    // the bill would have been made from.
+    const { assertions: _signed, invoiceLines: _billed, ...anyWeek } = timesheetWhere
+    const waiting = await prisma.timesheet.findMany({
+      where: anyWeek,
+      select: {
+        periodStart: true, status: true,
+        person: { select: { name: true } },
+        assertions: { where: { role: 'CLIENT_APPROVAL', state: 'LIVE' }, select: { id: true }, take: 1 },
+        invoiceLines: {
+          where: { sellContractId: { in: ownIds } },
+          select: { invoice: { select: { number: true } } },
+          take: 1,
+        },
+        sellContract: {
+          select: {
+            clientCompany: { select: { name: true } },
+            endClientCompany: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { periodStart: 'asc' },
+      take: 50,
+    })
     return NextResponse.json(
-      { error: { code: 'NO_TIMESHEETS', message: 'No approved timesheets left to bill for this engagement and period' } },
+      {
+        error: {
+          code: 'NO_TIMESHEETS',
+          message: nothingToBillSays(
+            waiting.map((w) => ({
+              personName: w.person?.name ?? 'Somebody',
+              periodStart: w.periodStart,
+              status: w.status,
+              clientSigned: w.assertions.length > 0,
+              // The signature a bill upward waits on is the client's at the
+              // top of the chain, which is the end client where there is one.
+              clientName: w.sellContract?.endClientCompany?.name ?? w.sellContract?.clientCompany?.name ?? null,
+              onOurBill: w.invoiceLines[0]?.invoice.number ?? null,
+            })),
+            { start: asked.start ?? null, end: asked.end ?? null }
+          ),
+        },
+      },
       { status: 422 }
     )
   }

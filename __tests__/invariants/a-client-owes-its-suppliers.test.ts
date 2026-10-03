@@ -50,8 +50,8 @@ describe("a client's accounts payable is the invoices its suppliers raised to it
 
   it('says where the rows are, so nobody is left on an empty page', () => {
     const l = supplierInvoicesOwed([invoice()], NOW)
-    expect(l.says).toContain('on Invoices')
-    expect(l.says).toContain('We owe')
+    expect(l.says).toContain('Open one below')
+    expect(l.says).not.toContain('We owe')
   })
 
   it('counts what is owed one currency at a time and never adds two together', () => {

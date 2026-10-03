@@ -283,6 +283,21 @@ function day(d: Date): string {
 }
 
 /**
+ * A date as the AP clerk reads it — "Aug 31, 2026" — never the machine's
+ * "2026-08-31". `day` stays for comparing two dates as strings; this is
+ * only for a sentence. Read in UTC, because a work period is a date and
+ * not a moment.
+ */
+function plain(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
+/** "the one line" · "all 3 lines" — a count of one is not "All 1 lines". */
+function allLines(n: number): string {
+  return n === 1 ? 'The one line is' : `All ${n} lines are`
+}
+
+/**
  * The one formatter, under the name the sentences in this file already
  * use. It was a local divide by a hundred with a hard `$` in front of
  * it — right for dollars and silently wrong for anything else, and
@@ -342,15 +357,15 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     ? {
         code: 'RECEIPT', outcome: 'PASS',
         reason: expenseLines
-          ? `All ${lines.length} lines are backed by an approved timesheet, an approved expense or an accepted milestone`
-          : `All ${lines.length} lines are backed by an approved timesheet`,
+          ? `${allLines(lines.length)} backed by an approved timesheet, an approved expense or an accepted milestone`
+          : `${allLines(lines.length)} backed by an approved timesheet`,
       }
     : {
         code: 'RECEIPT',
         outcome: 'FAIL',
         reason: unreceipted.length === lines.length
           ? 'No line on this invoice is backed by an approved timesheet or expense'
-          : `${unreceipted.length} of ${lines.length} lines have no approved timesheet or expense behind them`,
+          : `${unreceipted.length} of ${lines.length} lines ${unreceipted.length === 1 ? 'has' : 'have'} no approved timesheet or expense behind them`,
         lines: unreceipted.map(l => l.id),
       })
 
@@ -415,7 +430,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
           outcome: 'FAIL',
           reason: outsidePeriod.map(l => {
             const ts = timesheets[l.timesheetId!]
-            return `${l.personName}: worked ${day(ts.periodStart)} to ${day(ts.periodEnd)}, billed on a ${day(invoice.periodStart)}–${day(invoice.periodEnd)} invoice`
+            return `${l.personName}: worked ${plain(ts.periodStart)} to ${plain(ts.periodEnd)}, billed on a ${plain(invoice.periodStart)}–${plain(invoice.periodEnd)} invoice`
           }).join('; '),
           lines: outsidePeriod.map(l => l.id),
         })
@@ -452,10 +467,10 @@ export function threeWayMatch(input: MatchInput): MatchResult {
 
     const spills =
       startsBefore && endsAfter
-        ? `It starts before ${cp.label} begins on ${day(cp.start)} and runs past the end of it on ${day(cp.end)}`
+        ? `It starts before ${cp.label} begins on ${plain(cp.start)} and runs past the end of it on ${plain(cp.end)}`
         : startsBefore
-          ? `It starts before ${cp.label} begins on ${day(cp.start)}`
-          : `It runs past the end of ${cp.label}, which ends ${day(cp.end)}`
+          ? `It starts before ${cp.label} begins on ${plain(cp.start)}`
+          : `It runs past the end of ${cp.label}, which ends ${plain(cp.end)}`
 
     checks.push(!startsBefore && !endsAfter
       ? {
@@ -463,12 +478,12 @@ export function threeWayMatch(input: MatchInput): MatchResult {
           outcome: 'PASS',
           reason: whole
             ? `Bills ${cp.label}, which is what the contract bills`
-            : `Bills ${day(invoice.periodStart)} to ${day(invoice.periodEnd)}, part of ${cp.label} — the period the contract bills. Part of a period is a part-period bill, not a period the contract does not have.`,
+            : `Bills ${plain(invoice.periodStart)} to ${plain(invoice.periodEnd)}, part of ${cp.label} — the period the contract bills. Part of a period is a part-period bill, not a period the contract does not have.`,
         }
       : {
           code: 'CONTRACT_PERIOD',
           outcome: 'FAIL',
-          reason: `Bills ${day(invoice.periodStart)} to ${day(invoice.periodEnd)}. ${spills}, so this bill covers more than one billing period. Bill each period on its own.`,
+          reason: `Bills ${plain(invoice.periodStart)} to ${plain(invoice.periodEnd)}. ${spills}, so this bill covers more than one billing period. Bill each period on its own.`,
         })
   }
 
@@ -587,7 +602,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
       ? {
           code: 'PO_STATUS',
           outcome: 'PASS',
-          reason: `PO ${po.number} is open and covers the work from ${day(firstDay)} to ${day(lastDay)}`,
+          reason: `PO ${po.number} is open and covers the work from ${plain(firstDay)} to ${plain(lastDay)}`,
         }
       : {
           code: 'PO_STATUS',
@@ -595,8 +610,8 @@ export function threeWayMatch(input: MatchInput): MatchResult {
           reason: !open
             ? `PO ${po.number} is ${po.status.toLowerCase()}`
             : !coversStart
-              ? `Work starts ${day(firstDay)}, before PO ${po.number} opens on ${day(po.startDate)}`
-              : `Work runs to ${day(lastDay)}, past PO ${po.number} ending ${day(po.endDate!)}`,
+              ? `Work starts ${plain(firstDay)}, before PO ${po.number} opens on ${plain(po.startDate)}`
+              : `Work runs to ${plain(lastDay)}, past PO ${po.number} ending ${plain(po.endDate!)}`,
         })
 
     // PO_BALANCE — is there room left?
@@ -844,9 +859,9 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
               code: 'PERIOD',
               outcome: 'FAIL',
               reason:
-                `The work we accepted runs ${day(accepted.firstDay)} to ` +
-                `${day(accepted.lastDay)}, and the invoice covers ${day(bill.periodStart)} to ` +
-                `${day(bill.periodEnd)}. Those do not meet.`,
+                `The work we accepted runs ${plain(accepted.firstDay)} to ` +
+                `${plain(accepted.lastDay)}, and the invoice covers ${plain(bill.periodStart)} to ` +
+                `${plain(bill.periodEnd)}. Those do not meet.`,
             }
           : { code: 'PERIOD', outcome: 'PASS', reason: 'The accepted work falls in the invoiced period' }
       )
@@ -883,7 +898,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
         ? {
             code: 'PO_STATUS',
             outcome: 'PASS',
-            reason: `PO ${po.number} is open and covers ${day(first)} to ${day(last)}`,
+            reason: `PO ${po.number} is open and covers ${plain(first)} to ${plain(last)}`,
           }
         : {
             code: 'PO_STATUS',
@@ -891,8 +906,8 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
             reason: !open
               ? `PO ${po.number} is ${po.status.toLowerCase()}`
               : !coversStart
-                ? `Work starts ${day(first)}, before PO ${po.number} opens on ${day(po.startDate)}`
-                : `Work runs to ${day(last)}, past PO ${po.number} ending ${day(po.endDate!)}`,
+                ? `Work starts ${plain(first)}, before PO ${po.number} opens on ${plain(po.startDate)}`
+                : `Work runs to ${plain(last)}, past PO ${po.number} ending ${plain(po.endDate!)}`,
           }
     )
 

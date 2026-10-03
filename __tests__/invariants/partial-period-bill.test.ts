@@ -116,7 +116,7 @@ describe('A bill that crosses from one billing period into the next says so', ()
       periodStart: new Date('2026-07-28T00:00:00Z'),
       periodEnd: new Date('2026-08-24T00:00:00Z'),
     }))).reason
-    expect(reason).toContain('before August 2026 begins on 2026-08-01')
+    expect(reason).toContain('before August 2026 begins on Aug 1, 2026')
     expect(reason).toContain('more than one billing period')
   })
 
@@ -126,7 +126,7 @@ describe('A bill that crosses from one billing period into the next says so', ()
       periodEnd: new Date('2026-09-07T00:00:00Z'),
     }))).reason
     expect(reason).toContain('past the end of August 2026')
-    expect(reason).toContain('2026-08-31')
+    expect(reason).toContain('Aug 31, 2026')
   })
 
   it('never says a code where a sentence belongs', () => {

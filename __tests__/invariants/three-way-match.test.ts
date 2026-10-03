@@ -293,7 +293,7 @@ describe('A purchase order is a ceiling, and it is enforced', () => {
     // 15 Aug" left an AP clerk to work out whether the PO started too
     // late or ended too early, on a screen that had the answer.
     expect(failed(r, 'PO_STATUS')?.reason).toBe(
-      'Work runs to 2026-08-14, past PO TBC-PO-4471 ending 2026-07-31'
+      'Work runs to Aug 14, 2026, past PO TBC-PO-4471 ending Jul 31, 2026'
     )
   })
 

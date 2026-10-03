@@ -305,7 +305,13 @@ export interface DueVerdict {
 const A_DAY = 86_400_000
 
 const plus = (d: Date, days: number): Date => new Date(d.getTime() + days * A_DAY)
-const said = (d: Date): string => d.toISOString().slice(0, 10)
+/**
+ * "Oct 15, 2026", read in UTC. It was "2026-10-15" until 2026-10-03, and an
+ * AP clerk read that machine date at the top of an invoice receipt whose
+ * header said "Oct 15, 2026" two lines above it.
+ */
+const said = (d: Date): string =>
+  d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 
 /** What each anchor is called on a screen. */
 export function anchorWords(anchor: TermsAnchor): string {

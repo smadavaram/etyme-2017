@@ -8,6 +8,9 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { compact, amount } from '@/lib/money-display'
 import { CHECK_NAME, CHECK_PHRASE, type MatchCode } from '@/lib/three-way-match'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
+import { receiptsLink } from '@/lib/money/ap-words'
+import { sectionOfHref } from '@/lib/page-framing'
+import { useSession } from '@/components/session-provider'
 
 /**
  * Accounts payable.
@@ -54,6 +57,7 @@ const STATE_CHIP: Record<string, { chip: string; word: string }> = {
 
 export default function ApPage() {
   const router = useRouter()
+  const { company } = useSession()
   const searchParams = useSearchParams()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -97,7 +101,11 @@ export default function ApPage() {
   return (
     <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Operate</p>
+        {/* The section of the reader's own menu: a client files AP under
+            Money, and read "Operate" here over a page it reached from Money. */}
+        <p className="eyebrow">
+          {sectionOfHref(company?.kind ?? 'VENDOR', '/dashboard/ap', data?.reading) ?? 'Money'}
+        </p>
         <h1 className="headline-serif text-[30px] leading-tight">Accounts payable</h1>
         <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
           What you owe, to whom, and when each one is due.
@@ -130,14 +138,18 @@ export default function ApPage() {
         <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
           <p className="text-[13px] text-etyme-attention">{error}</p>
           <p className="mt-2 text-[13px] text-etyme-muted">
-            Nothing is shown rather than something approximate. A wrong float figure is
-            worse than none, because nobody audits a number that looks reasonable.
+            Nothing is shown rather than something approximate. A wrong figure is worse
+            than none, because nobody audits a number that looks reasonable.
           </p>
         </div>
       )}
 
       {!loading && !error && !denied && data?.source === 'SUPPLIER_INVOICES' && (
-        <SupplierInvoices owed={data.supplierInvoices} note={data.note} />
+        <SupplierInvoices
+          owed={data.supplierInvoices}
+          note={data.note}
+          link={receiptsLink({ companyKind: company?.kind, seatedAtClient: !!data.reading?.inASeat })}
+        />
       )}
 
       {!loading && !error && !denied && data?.source === 'NONE' && (
@@ -233,7 +245,7 @@ export default function ApPage() {
  * are not claimed: they are measured from bills keyed in against a
  * supplier contract, and there are none.
  */
-function SupplierInvoices({ owed, note }: { owed: any; note: string }) {
+function SupplierInvoices({ owed, note, link }: { owed: any; note: string; link: { href: string; says: string } }) {
   const rows = owed?.rows ?? []
 
   const columns: Column<any>[] = [
@@ -294,8 +306,8 @@ function SupplierInvoices({ owed, note }: { owed: any; note: string }) {
       <div className="panel">
         <p className="text-[13px] text-etyme-ink">{owed?.says}</p>
         <p className="mt-2 text-[13px] text-etyme-muted">{note}</p>
-        <a href="/dashboard/invoices" className="mt-3 inline-block text-[13px] text-etyme-action">
-          Open Invoices, under &ldquo;We owe&rdquo; →
+        <a href={link.href} className="mt-3 inline-block text-[13px] text-etyme-action">
+          {link.says} →
         </a>
       </div>
 
@@ -422,8 +434,8 @@ function Chains({ data }: { data: any; book: any }) {
         <p className="text-[13px] text-etyme-muted">
           No invoice receipt here can be tied to the bill to the client that funds it, so
           there is no chain to lay out. An invoice receipt needs a buy contract, and that buy contract needs
-          a linked sell contract — without both, a cost has no revenue beside it and a
-          float figure would be invented rather than measured.
+          a linked sell contract — without both, a cost has no revenue beside it, and a
+          count of days between paying out and being paid would be invented rather than measured.
         </p>
       </div>
     )
@@ -638,7 +650,7 @@ function Clause({ data }: { data: any; book: any }) {
   return (
     <div className="space-y-3">
       <p className="max-w-[72ch] text-[13px] text-etyme-muted">
-        A pay-when-paid clause moves the float one layer down. Between companies it is
+        A pay-when-paid clause moves the wait for money one layer down. Between companies it is
         ordinary and enforceable. Against a worker it is generally unenforceable and it is
         the clause that decides whose rent waits on a client&rsquo;s payment run — which is
         why those are listed apart rather than in the same column.

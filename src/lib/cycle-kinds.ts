@@ -206,7 +206,28 @@ export function categoryOf(kind: string): Category {
   return CATEGORY[kind] ?? 'OTHER'
 }
 
-export function labelOf(kind: string): string {
+/**
+ * The sell line's billing dates as the firm that RECEIVES the bill reads
+ * them. The party who issues a document names it: the supplier raises
+ * its bill, and its client receives it as an invoice receipt. A client
+ * reading a placement on 2026-10-03 was told "Next: bill to raise" for a
+ * bill it would never raise.
+ */
+const RECEIVED: Record<string, string> = {
+  INVOICE_GENERATE: 'Invoice receipt expected',
+  INVOICE_DUE: 'Invoice receipt due',
+}
+
+/**
+ * Who is reading a cycle: the firm on the line that issues its bill, or
+ * the firm that pays it — directly, or as the end client at the top of a
+ * chain. Null or absent reads as the firm that owns the cycle, which is
+ * every caller written before this.
+ */
+export type CycleReader = 'SUPPLIER' | 'PAYER' | 'END_CLIENT' | null
+
+export function labelOf(kind: string, reader: CycleReader = null): string {
+  if ((reader === 'PAYER' || reader === 'END_CLIENT') && RECEIVED[kind]) return RECEIVED[kind]
   return LABEL[kind] ?? kind.replace(/_/g, ' ').toLowerCase()
 }
 

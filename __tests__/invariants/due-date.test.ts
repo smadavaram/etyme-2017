@@ -104,7 +104,7 @@ describe('what the payment days are counted from', () => {
     expect(raised.says).toContain('Not payable yet')
     expect(raised.says).toContain('nobody has confirmed receipt')
     // The floor, not a promise: the soonest it could start is today.
-    expect(raised.says).toContain('The earliest this could fall due is 2026-10-06')
+    expect(raised.says).toContain('The earliest this could fall due is Oct 6, 2026')
     expect(day(raised.dueAt)).toBe('2026-10-06')
   })
 
@@ -129,7 +129,7 @@ describe('what the payment days are counted from', () => {
       anchor: 'RECEIPT_DATE', days: 0, periodEnd: PERIOD_END, issuedAt: ISSUED, receivedAt: RECEIVED,
     })
     expect(day(now.dueAt)).toBe('2026-09-09')
-    expect(now.says).toContain('Due on 2026-09-09')
+    expect(now.says).toContain('Due on Sep 9, 2026')
   })
 
   it('an invoice whose clock has not started is never overdue, whatever the calendar says', () => {

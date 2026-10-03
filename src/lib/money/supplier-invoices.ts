@@ -147,8 +147,11 @@ function sentence(books: PayableBook[], recorded: number, openCount: number): st
 
   return (
     `${openCount} invoice receipt${openCount === 1 ? '' : 's'} open, ${money}.${late} ` +
-    'These are the invoices your suppliers raised to you — each one is on Invoices, ' +
-    'under “We owe”, where it can be matched and paid.'
+    // It said "on Invoices, under “We owe”" until 2026-10-03, and a
+    // client's menu says Invoice receipts and offers it no such switch.
+    // The list is right under this sentence, so the sentence points there.
+    'These are the invoices your suppliers sent you. Open one below to check it against ' +
+    'the signed hours and pay it.'
   )
 }
 
