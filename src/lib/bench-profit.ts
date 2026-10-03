@@ -180,6 +180,15 @@ export interface DaysCost {
   /** Null where the record cannot say. */
   costCents: number | null
   says: string
+  /**
+   * The working days the cost was counted over, out of the calendar days
+   * on the bench, with the day rate — "43 working days of 60 at 50% of
+   * $512.00 a day" — so the figures on the screen add up. Null where no
+   * cost was counted.
+   */
+  counted: string | null
+  /** Where the cost is not known, why, as the end of a sentence: "no pay rate is on record for them". */
+  why: string | null
 }
 
 /** Paid through their own company or as an independent contractor. */
@@ -206,17 +215,21 @@ export function costOfDays(input: {
   currency: string
 }): DaysCost {
   const { days, policy } = input
-  if (days === 0) return { costCents: 0, says: 'No days on the bench.' }
+  if (days === 0) return { costCents: 0, says: 'No days on the bench.', counted: null, why: null }
   if (policy.policy === 'NO_PAY') {
     return {
       costCents: 0,
       says: `${plural(days, 'day')} on the bench. Your policy is no bill, no pay, so nothing was paid for them.`,
+      counted: 'Not paid on the bench, under your policy',
+      why: null,
     }
   }
   if (input.contractType && NOT_ON_PAYROLL.has(input.contractType)) {
     return {
       costCents: 0,
       says: `${plural(days, 'day')} on the bench. They are paid through their own company, so the bench paid them nothing.`,
+      counted: 'Paid through their own company, so not paid on the bench',
+      why: null,
     }
   }
   if (policy.policy === 'RESERVE_FUNDED') {
@@ -225,6 +238,8 @@ export function costOfDays(input: {
       says:
         `${plural(days, 'day')} on the bench, paid from their own reserve. What the reserve held on those days is not ` +
         'read here, so the cost is not known yet.',
+      counted: null,
+      why: 'they are paid from their own reserve, and what it held on those days is not read here',
     }
   }
   if (input.payRateCents == null || input.payRateCents <= 0) {
@@ -233,6 +248,8 @@ export function costOfDays(input: {
       says:
         `${plural(days, 'day')} on the bench. No pay rate is on record for them, so what those days cost is not known yet. ` +
         'A pay line for them would say it.',
+      counted: null,
+      why: 'no pay rate is on record for them',
     }
   }
   const daily = burnOf({ payRateCents: input.payRateCents, billing: false, benchSince: new Date(0) }, new Date(0)).dailyCents!
@@ -245,9 +262,19 @@ export function costOfDays(input: {
     policy.carryDays != null && days > policy.carryDays
       ? ` Paid only up to your ${policy.carryDays}-day carry limit.`
       : ''
+  // The working days `benchCost` paid, read back off its own figure rather
+  // than counted a second way here, so the line on the screen and the cost
+  // beside it cannot disagree: Hector's 60 days at half of $512 read
+  // $11,008, which is 43 working days, and nothing on the screen said so
+  // (bench tester, 2026-10-01).
+  const perDay = policy.policy === 'FULL_PAY' ? daily : (daily * (policy.benchRateBps ?? 0)) / 10_000
+  const worked = perDay > 0 ? Math.round(c.costCents / perDay) : 0
+  const counted = `${plural(worked, 'working day')} of ${days} at ${how}`
   return {
     costCents: c.costCents,
-    says: `${plural(days, 'day')} on the bench at ${how}, under your bench pay policy: ${amount(c.costCents, input.currency)}.${carry}`,
+    says: `${counted}, under your bench pay policy: ${amount(c.costCents, input.currency)}. Five of every seven days on the bench are counted as working days.${carry}`,
+    counted,
+    why: null,
   }
 }
 
@@ -275,12 +302,19 @@ export interface BenchToBill {
   days: number | null
   costCents: number | null
   costSays: string
+  /** What the cost was counted over, in a line beside it. Null where nothing was counted. */
+  costCounted: string | null
   marginCents: number | null
   marginSays: string
   paidBackOn: string | null
   /** What is still to earn back. Null where it cannot be said, or nothing is. */
   leftCents: number | null
   paybackSays: string
+}
+
+/** "Not known yet: no pay rate is on record for them." — the real reason, never "because the cost is not". */
+function notKnown(cost: DaysCost): string {
+  return cost.why ? `Not known yet: ${cost.why}.` : 'Not known yet: what those days cost cannot be read off the record.'
 }
 
 export function benchToBill(input: {
@@ -299,7 +333,7 @@ export function benchToBill(input: {
   if (s.kind === 'UNKNOWN') {
     return {
       spell: s.kind, benchFrom: null, benchTo: null, days: null,
-      costCents: null, costSays: 'Nothing on the record says when they joined the bench.',
+      costCents: null, costSays: 'Nothing on the record says when they joined the bench.', costCounted: null,
       marginCents: null, marginSays: 'Not placed.',
       paidBackOn: null, leftCents: null, paybackSays: 'Not known yet.',
     }
@@ -313,6 +347,7 @@ export function benchToBill(input: {
     benchTo: s.kind === 'STRAIGHT_ON' ? null : iso(s.to),
     days,
     costCents: cost.costCents,
+    costCounted: s.kind === 'STRAIGHT_ON' ? null : cost.counted,
     costSays:
       s.kind === 'STRAIGHT_ON'
         ? 'Went straight onto a project. No days on the bench before it.'
@@ -331,7 +366,7 @@ export function benchToBill(input: {
       leftCents: cost.costCents,
       paybackSays:
         cost.costCents == null
-          ? 'Not known yet, because the bench cost is not.'
+          ? notKnown(cost)
           : cost.costCents === 0
             ? 'Nothing to pay back.'
             : `Not placed yet. ${amount(cost.costCents, input.currency)} to earn back.`,
@@ -349,7 +384,7 @@ export function benchToBill(input: {
 
   const placedOn = iso(s.placement.startsOn)
   if (cost.costCents == null) {
-    return { ...base, marginCents: margin, marginSays, paidBackOn: null, leftCents: null, paybackSays: 'Not known yet, because the bench cost is not.' }
+    return { ...base, marginCents: margin, marginSays, paidBackOn: null, leftCents: null, paybackSays: notKnown(cost) }
   }
   if (cost.costCents === 0) {
     return { ...base, marginCents: margin, marginSays, paidBackOn: null, leftCents: 0, paybackSays: 'Nothing to pay back.' }
@@ -597,4 +632,20 @@ export function moveSaving(input: {
     gapSays: gap === 0 ? 'Started the day the old project ended. No days on the bench.' : cost.says,
     ...blank,
   }
+}
+
+// ── What counts as a move ─────────────────────────────────────────────
+
+/**
+ * Whether a hold that ended "placed" is a move between projects.
+ *
+ * A line written onto the manager's own order is. Putting the firm's own
+ * employee forward to a client's job request is not, until the client
+ * chooses them: Karthik, only put forward, read as a move "not dated on
+ * both ends" (bench tester, 2026-10-01). A submission the client placed
+ * is a move.
+ */
+export function isMove(h: { placedSellContractId: string | null; placedSubmissionId: string | null; submissionStatus: string | null }): boolean {
+  if (h.placedSellContractId) return true
+  return h.placedSubmissionId != null && h.submissionStatus === 'PLACED'
 }

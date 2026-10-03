@@ -31,6 +31,8 @@ interface Person {
   days: number | null
   costCents: number | null
   costSays: string
+  /** "43 working days of 60 at 50% of $512.00 a day" — what the cost was counted over. */
+  costCounted: string | null
   marginCents: number | null
   marginSays: string
   paidBackOn: string | null
@@ -134,7 +136,14 @@ export function BenchProfit() {
     {
       key: 'costCents', label: 'Bench cost', align: 'right',
       sortValue: (r) => r.costCents,
-      render: (r) => <span className="tabular-nums" title={r.costSays}>{money(r.costCents, r.currency)}</span>,
+      // What was counted is said beside the figure, so calendar days times
+      // the day rate is never left to disagree with it on the screen.
+      render: (r) => (
+        <div className="text-right">
+          <span className="tabular-nums" title={r.costSays}>{money(r.costCents, r.currency)}</span>
+          {r.costCounted && <p className="text-[11px] text-etyme-muted">{r.costCounted}</p>}
+        </div>
+      ),
     },
     {
       key: 'marginCents', label: 'Margin since placed', align: 'right',
@@ -211,6 +220,22 @@ export function BenchProfit() {
           loading={loading}
           searchFilter={(r, q) => r.name.toLowerCase().includes(q) || (r.course ?? '').toLowerCase().includes(q)}
           searchPlaceholder="Search by name or course…"
+          card={(r) => (
+            <div className="space-y-1.5">
+              <p className="text-[14px] font-medium text-etyme-ink">{r.name}</p>
+              <p className="text-[12px] text-etyme-muted">
+                {r.placedAt ? `Placed at ${r.placedAt}` : r.spell === 'NOW' ? 'On the bench now' : '—'}
+                {r.course ? ` · ${r.course}` : ''}
+              </p>
+              <p className="text-[13px] text-etyme-ink">
+                {r.days == null ? 'Days on the bench not on record' : `${r.days} ${r.days === 1 ? 'day' : 'days'} on the bench`}
+                {' · '}Bench cost {money(r.costCents, r.currency)}
+                {r.costCounted ? ` (${r.costCounted})` : ''}
+              </p>
+              {r.spell !== 'NOW' && <p className="text-[12px] text-etyme-muted">Margin since placed: {money(r.marginCents, r.currency)}</p>}
+              <p className="text-[12px] text-etyme-muted">{r.paybackSays}</p>
+            </div>
+          )}
           emptyMessage="Nobody on your bench yet."
           emptyDetail="A person appears here once they are on your bench, by their own listing or because you employ them."
           exportName="etyme-bench-profit"

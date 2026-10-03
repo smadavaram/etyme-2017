@@ -108,7 +108,12 @@ describe('what the days on the bench cost', () => {
     // benchCost's working days.
     expect(c.costCents).toBe(benchCost(HALF, { idleDays: 50, billingDayRateCents: 49_600 }).costCents)
     expect(c.costCents).toBe(892_800)
-    expect(c.says).toBe('50 days on the bench at 50% of $496.00 a day, under your bench pay policy: $8,928.00.')
+    // 50 calendar days are 36 working days to benchCost; 36 × $248 = $8,928, said so.
+    expect(c.says).toBe(
+      '36 working days of 50 at 50% of $496.00 a day, under your bench pay policy: $8,928.00. ' +
+        'Five of every seven days on the bench are counted as working days.'
+    )
+    expect(c.counted).toBe('36 working days of 50 at 50% of $496.00 a day')
   })
 
   it('the bench cost stops at the carry limit and says so', () => {
@@ -185,7 +190,8 @@ describe('bench to bill, per person', () => {
   it('a bench cost priced at a rate that was not paying them on those days says where the rate came from', () => {
     const r = run(earned(12), { rateFrom: 'Priced at what they are paid on the placement that followed.' })
     expect(r.costSays).toBe(
-      '50 days on the bench at 50% of $496.00 a day, under your bench pay policy: $8,928.00. ' +
+      '36 working days of 50 at 50% of $496.00 a day, under your bench pay policy: $8,928.00. ' +
+        'Five of every seven days on the bench are counted as working days. ' +
         'Priced at what they are paid on the placement that followed.'
     )
     // Nothing to price, nothing to explain.
@@ -270,7 +276,7 @@ describe('per course', () => {
   it('the add-a-course form asks what a seat costs, so bench profit can say what a course cost', () => {
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/training/page.tsx'), 'utf8')
     expect(page).toContain('newCourse.price')
-    expect(page).toContain('Price a seat, in dollars')
+    expect(page).toContain('Price a seat ($)')
   })
 
   it('the median of an even count is the mean of the two middle numbers, and of none is blank', () => {

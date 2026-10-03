@@ -10,7 +10,7 @@ import { writePayTrail } from '@/lib/money/pay-trail'
 import { standingOf, type RosterLine } from '@/lib/consultant-portfolio'
 import type { Policy } from '@/lib/bench-policy'
 import {
-  mayReadBenchProfit, benchSpell, benchToBill, courseGroup, utilization, moveSaving, policySays,
+  mayReadBenchProfit, benchSpell, benchToBill, courseGroup, utilization, moveSaving, policySays, isMove,
   type Earned, type LineSpan, type Placed, type Standing,
 } from '@/lib/bench-profit'
 
@@ -319,15 +319,31 @@ export async function GET(request: NextRequest) {
     })
     util = utilization(roster)
 
-    const placedHolds = await prisma.projectHold.findMany({
+    const endedPlaced = await prisma.projectHold.findMany({
       where: { companyId, endedHow: 'PLACED' },
       select: {
-        personId: true, forTitle: true, placedStartsOn: true, placedSellContractId: true,
+        personId: true, forTitle: true, placedStartsOn: true, placedSellContractId: true, placedSubmissionId: true,
         person: { select: { name: true } },
         release: { select: { sellContractId: true } },
       },
       orderBy: { placedStartsOn: 'desc' },
     })
+    // Only a placement is a move. Somebody put forward to a client's job
+    // request moves once the client places them (`isMove`).
+    const subIds = endedPlaced.map((h) => h.placedSubmissionId).filter((x): x is string => !!x)
+    const subStatus = new Map(
+      (subIds.length
+        ? await prisma.submission.findMany({ where: { id: { in: subIds } }, select: { id: true, status: true } })
+        : []
+      ).map((x) => [x.id, x.status])
+    )
+    const placedHolds = endedPlaced.filter((h) =>
+      isMove({
+        placedSellContractId: h.placedSellContractId,
+        placedSubmissionId: h.placedSubmissionId,
+        submissionStatus: h.placedSubmissionId ? subStatus.get(h.placedSubmissionId) ?? null : null,
+      })
+    )
     const oldIds = placedHolds.map((h) => h.release?.sellContractId).filter((x): x is string => !!x)
     const oldLines = oldIds.length ? sells.filter((s) => oldIds.includes(s.id)) : []
     moves = placedHolds.map((h) => {

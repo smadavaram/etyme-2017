@@ -102,7 +102,10 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
     )
     expect(tobias.placedAt).toBe('Corveldt Aerospace, through Sundara Systems')
     expect(tobias.costSays).toBe(
-      '49 days on the bench at 50% of $496.00 a day, under your bench pay policy: $8,680.00. ' +
+      // 49 calendar days are 35 working days; 35 × $248 = $8,680, and the
+      // sentence says what was counted (bench tester, 2026-10-01).
+      '35 working days of 49 at 50% of $496.00 a day, under your bench pay policy: $8,680.00. ' +
+        'Five of every seven days on the bench are counted as working days. ' +
         'Priced at what they are paid on the placement that followed, as your policy reads it.'
     )
   })
@@ -123,7 +126,8 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
       expect(r.spell, name).toBe('NOW')
       expect(r.costCents, name).toBeNull()
       expect(r.costSays, name).toContain('No pay rate is on record for them')
-      expect(r.paybackSays, name).toBe('Not known yet, because the bench cost is not.')
+      // The real reason, never "because the bench cost is not" (bench tester, 2026-10-01).
+      expect(r.paybackSays, name).toBe('Not known yet: no pay rate is on record for them.')
     }
     expect(row(owner.body, 'Lucia Brandvold').days).toBe(40)
   })
