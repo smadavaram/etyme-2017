@@ -16,6 +16,7 @@ import { seatedDesk } from '@/lib/resolve-client-company'
 import { rate as rateSays } from '@/lib/money-display'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { disputedBillDecision } from './disputed-bill'
+import { ENDING_SOON_READERS, rateOnEndingSoon } from '@/lib/releasing-soon'
 
 /**
  * GET /api/decisions
@@ -550,7 +551,14 @@ export async function GET(request: NextRequest) {
   }
 
   // ── 3. Rolloff warnings ───────────────────────────
-  if (hasAnyPermission(caller.permissions, ['assignments.read'])) {
+  //
+  // Read by the desks that staff, run or pay the work — never by a seat
+  // that reads only its own. This was gated on assignments.read, which
+  // every engineer holds, so Karthik Menon's dashboard printed "Rolloff
+  // in 18d — Felix Brenner · Northbend Athletic · $132/hr": a colleague's
+  // end date and the firm's bill rate for him. The same door Ending soon
+  // uses (`lib/releasing-soon`), and the rate through its own door too.
+  if (hasAnyPermission(caller.permissions, ENDING_SOON_READERS)) {
     const rolloffWindow = new Date(now)
     rolloffWindow.setDate(rolloffWindow.getDate() + 28)
 
@@ -583,10 +591,16 @@ export async function GET(request: NextRequest) {
       })
 
       const endClientName = sc.endClientCompany?.name ?? sc.clientCompany?.name ?? 'Unknown'
+      // Null where this seat may not read a bill rate; then no rate at all.
+      const shownRate = rateOnEndingSoon(
+        { companyId: caller.company?.id ?? null, permissions: caller.permissions },
+        sc
+      )
       decisions.push({
         type: 'ROLLOFF_ACTION',
         title: `Rolloff in ${daysLeft}d — ${sc.person.name}`,
-        subtitle: `${endClientName} · $${sc.billRate / 100}/hr · ${rolloffEvent ? 'Event created' : 'No action yet'}`,
+        subtitle: [endClientName, shownRate != null ? `$${shownRate / 100}/hr` : null, rolloffEvent ? 'Event created' : 'No action yet']
+          .filter(Boolean).join(' · '),
         urgency: daysLeft <= 7 ? 'HIGH' : daysLeft <= 14 ? 'MEDIUM' : 'LOW',
         entityType: 'SELL_CONTRACT',
         entityId: sc.id,
