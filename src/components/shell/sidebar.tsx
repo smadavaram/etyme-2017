@@ -105,6 +105,20 @@ const BENCH_READS = {
 } satisfies Pick<NavItem, 'needs' | 'api'>
 
 /**
+ * What the firm pays people waiting for a project, and whether a public
+ * holiday on the bench is paid (founder, 2026-10-03). Set by the owner,
+ * the admin and the finance desk (`mayChangeBenchPay`), which among the
+ * shipped roles are exactly the seats holding settings.manage or
+ * pnl.read; the sidebar test checks that rather than trusting it. Beside
+ * Bench rather than under Settings, because the finance desk sets it and
+ * does not open the company's settings.
+ */
+const BENCH_PAY: NavItem = {
+  label: 'Bench pay', href: '/dashboard/settings/bench-pay', icon: '◔',
+  needs: ['settings.manage', 'pnl.read'], api: 'settings/bench',
+}
+
+/**
  * ── Why a link names no permission ──────────────────────────────────
  *
  * Every link either names the permission the page behind it asks for,
@@ -419,6 +433,7 @@ const VENDOR_NAV: NavSection[] = [
     label: 'Procure',
     items: [
       { label: 'Bench', href: '/dashboard/bench', icon: '◎', ...BENCH_READS },
+      BENCH_PAY,
       { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
       { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
@@ -479,6 +494,7 @@ const GSI_NAV: NavSection[] = [
     label: 'Supply',
     items: [
       { label: 'Bench', href: '/dashboard/bench', icon: '◎', ...BENCH_READS },
+      BENCH_PAY,
       { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
       { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },

@@ -87,7 +87,7 @@ export const CONFIRM_PHRASE = 'delete the demo world'
  */
 export const DELETE_ORDER = [
   'Credential', 'Context', 'ProgramSeat', 'AccessLog', 'Interview', 'IdentityMatch', 'SupplierInvite',
-  'Counterparty', 'CompanyContact', 'BenchListing', 'BenchWant', 'VisaDocument', 'VisaEvent', 'MasterAgreementVersion',
+  'Counterparty', 'CompanyContact', 'BenchListing', 'BenchWant', 'BenchHolidaySwitch', 'VisaDocument', 'VisaEvent', 'MasterAgreementVersion',
   'AgreementSignature', 'EarlyPaymentDiscount', 'HeadcountPlan', 'ApprovalRuleVersion', 'RequirementApproval',
   'RequirementInvitation', 'Match', 'Lead', 'Representation', 'DoNotSubmit', 'BuyContractCandidate',
   'ContractLink', 'Cycle', 'TimeOffEntry', 'Payment', 'CustomerCreditLimit', 'DunningSend', 'FxRate',

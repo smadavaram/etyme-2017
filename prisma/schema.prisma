@@ -26,56 +26,58 @@ model Person {
   primaryEmail String   @unique
   createdAt    DateTime @default(now())
 
-  credentials            Credential[]
-  contexts               Context[]
-  consultant             ConsultantProfile?
-  accessedBy             AccessLog[]              @relation("subject")
-  programSeatsGranted    ProgramSeat[]            @relation("seatGrantedBy")
-  programSeatsRevoked    ProgramSeat[]            @relation("seatRevokedBy")
-  benchWantsWritten      BenchWant[]              @relation("benchWantAuthor")
-  benchWantsReceived     BenchWant[]              @relation("benchWantReceiver")
-  censusReads            CensusRead[]             @relation("censusReader")
-  actions                AccessLog[]              @relation("actor")
-  visas                  VisaPetition[]
-  submissions            Submission[]
-  texts                  TextMessage[]
-  sellContracts          SellContract[]
+  credentials             Credential[]
+  contexts                Context[]
+  consultant              ConsultantProfile?
+  accessedBy              AccessLog[]              @relation("subject")
+  programSeatsGranted     ProgramSeat[]            @relation("seatGrantedBy")
+  programSeatsRevoked     ProgramSeat[]            @relation("seatRevokedBy")
+  benchWantsWritten       BenchWant[]              @relation("benchWantAuthor")
+  benchWantsReceived      BenchWant[]              @relation("benchWantReceiver")
+  benchHolidaySwitches    BenchHolidaySwitch[]     @relation("benchHolidaySubject")
+  benchHolidaySwitchesSet BenchHolidaySwitch[]     @relation("benchHolidaySetter")
+  censusReads             CensusRead[]             @relation("censusReader")
+  actions                 AccessLog[]              @relation("actor")
+  visas                   VisaPetition[]
+  submissions             Submission[]
+  texts                   TextMessage[]
+  sellContracts           SellContract[]
   // A person sits on a buy contract through a candidate line, because one
   // agreement can cover several people at their own rates.
-  buyCandidacies         BuyContractCandidate[]
-  timesheets             Timesheet[]
-  overtimeDecisions      OvertimeDecision[]       @relation("overtimeDecider")
-  timeOff                TimeOffEntry[]           @relation("timeOffPerson")
-  timeOffRecorded        TimeOffEntry[]           @relation("timeOffBy")
-  invoiceLines           InvoiceLine[]
-  matchOverrides         InvoiceMatchOverride[]
-  verifications          Verification[]
-  enrollments            Enrollment[]
-  expenses               Expense[]
-  requisitionsRaised     Requirement[]            @relation("requisitionRaiser")
-  requisitionsOwned      Requirement[]            @relation("requisitionOwner")
-  requisitionsReporting  Requirement[]            @relation("requisitionReportsTo")
-  approvalRules          ApprovalRule[]           @relation("approvalRuleApprover")
-  requirementApprovals   RequirementApproval[]    @relation("requirementApprover")
-  documentSharesCreated  DocumentShare[]          @relation("shareCreator")
-  documentSharesAbout    DocumentShare[]          @relation("shareSubject")
-  managedContracts       SellContract[]           @relation("hiringManager") // Addendum E: contracts this person owns at the client
-  eventsCaused           Event[]                  @relation("eventActor")
-  rulesAuthored          ApprovalRule[]           @relation("ruleAuthor")
-  ruleVersions           ApprovalRuleVersion[]    @relation("ruleVersionAuthor")
-  agreementVersions      MasterAgreementVersion[] @relation("agreementVersionAuthor")
-  agreementSignatures    AgreementSignature[]     @relation("agreementAttestor")
-  agreementsEnded        MasterAgreement[]        @relation("agreementEndedBy")
-  packetsCreated         DocumentPacket[]         @relation("packetCreator")
-  packetsAbout           DocumentPacket[]         @relation("packetSubjectPerson")
-  packetItemsReviewed    PacketItem[]             @relation("packetItemReviewer")
+  buyCandidacies          BuyContractCandidate[]
+  timesheets              Timesheet[]
+  overtimeDecisions       OvertimeDecision[]       @relation("overtimeDecider")
+  timeOff                 TimeOffEntry[]           @relation("timeOffPerson")
+  timeOffRecorded         TimeOffEntry[]           @relation("timeOffBy")
+  invoiceLines            InvoiceLine[]
+  matchOverrides          InvoiceMatchOverride[]
+  verifications           Verification[]
+  enrollments             Enrollment[]
+  expenses                Expense[]
+  requisitionsRaised      Requirement[]            @relation("requisitionRaiser")
+  requisitionsOwned       Requirement[]            @relation("requisitionOwner")
+  requisitionsReporting   Requirement[]            @relation("requisitionReportsTo")
+  approvalRules           ApprovalRule[]           @relation("approvalRuleApprover")
+  requirementApprovals    RequirementApproval[]    @relation("requirementApprover")
+  documentSharesCreated   DocumentShare[]          @relation("shareCreator")
+  documentSharesAbout     DocumentShare[]          @relation("shareSubject")
+  managedContracts        SellContract[]           @relation("hiringManager") // Addendum E: contracts this person owns at the client
+  eventsCaused            Event[]                  @relation("eventActor")
+  rulesAuthored           ApprovalRule[]           @relation("ruleAuthor")
+  ruleVersions            ApprovalRuleVersion[]    @relation("ruleVersionAuthor")
+  agreementVersions       MasterAgreementVersion[] @relation("agreementVersionAuthor")
+  agreementSignatures     AgreementSignature[]     @relation("agreementAttestor")
+  agreementsEnded         MasterAgreement[]        @relation("agreementEndedBy")
+  packetsCreated          DocumentPacket[]         @relation("packetCreator")
+  packetsAbout            DocumentPacket[]         @relation("packetSubjectPerson")
+  packetItemsReviewed     PacketItem[]             @relation("packetItemReviewer")
   /// Required documents this person waived on a line, each with a reason.
-  documentWaivers        DocumentRequirement[]    @relation("documentWaiver")
-  serviceAccountsCreated ServiceAccount[]         @relation("serviceAccountCreator")
-  customDomainsAdded     CustomDomain[]           @relation("customDomainAdder")
-  representations        Representation[]
-  doNotSubmit            DoNotSubmit[]
-  resumes                Resume[]
+  documentWaivers         DocumentRequirement[]    @relation("documentWaiver")
+  serviceAccountsCreated  ServiceAccount[]         @relation("serviceAccountCreator")
+  customDomainsAdded      CustomDomain[]           @relation("customDomainAdder")
+  representations         Representation[]
+  doNotSubmit             DoNotSubmit[]
+  resumes                 Resume[]
 
   identityA            IdentityMatch[]       @relation("identityA")
   identityB            IdentityMatch[]       @relation("identityB")
@@ -442,6 +444,9 @@ model Company {
   /// Basis points of each share held back, where the bench is reserve funded.
   reserveBps     Int?
   reserveOnExit  ReserveOnExit @default(PAY_OUT)
+  // Whether a public holiday on the bench is paid is not a column here:
+  // it is the latest BenchHolidaySwitch row with no person (decided
+  // 2026-10-03), so who turned it and when is the record itself.
 
   /// The currency this company reports in, whatever it bills or pays in.
   /// ISO country, for place-of-supply. Falls back to the primary location.
@@ -566,6 +571,7 @@ model Company {
   invitationsIn         RequirementInvitation[] @relation("to")
   benchListings         BenchListing[]
   benchWants            BenchWant[]
+  benchHolidaySwitches  BenchHolidaySwitch[]
   submissionsOut        Submission[]            @relation("from")
   submissionsIn         Submission[]            @relation("to")
   automationLog         AutomationLog[]
@@ -1736,6 +1742,38 @@ model BenchWant {
   @@index([receivingRoleId])
   @@index([receivingPersonId])
   @@index([createdById])
+}
+
+// ── Holidays on the bench ───────────────────────────────────────────
+//
+// Decided by the founder, 2026-10-03: "A company setting, defaulting to
+// no-pay, and each candidate needs to be activated. GSI companies do
+// autopay." Every turn of a switch is a row; rows are only added, never
+// edited, and the latest row wins (`latestSwitch` in lib/bench-policy).
+// A row with no person is the firm's own setting; a row with a person is
+// that person's switch. Whether a person is paid is `holidayPayFor`,
+// which reads the latest of each — nothing stores a current value beside
+// the turns, because a stored state and its history disagree eventually.
+//
+// Written only through lib/bench-holiday-switch (the settings screen and
+// /api/settings/bench/people), by the owner, admin and finance desks, and
+// a person's row only for somebody on the firm's own bench.
+model BenchHolidaySwitch {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Null = the firm's own setting; set = that person's switch.
+  personId  String?
+  person    Person?  @relation("benchHolidaySubject", fields: [personId], references: [id], onDelete: Cascade)
+  paid      Boolean
+  /// Who turned it. The name on the screen is read from here.
+  setById   String
+  setBy     Person   @relation("benchHolidaySetter", fields: [setById], references: [id])
+  setAt     DateTime @default(now())
+
+  @@index([companyId, personId, setAt])
+  @@index([personId])
+  @@index([setById])
 }
 
 enum BenchTier {

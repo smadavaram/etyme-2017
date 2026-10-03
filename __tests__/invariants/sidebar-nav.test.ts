@@ -13,6 +13,7 @@ import { ownPage } from '@/lib/consultant-portfolio'
 import { PERMISSIONS } from '@/lib/permissions'
 import { rolesFor } from '@/lib/company-defaults'
 import { BENCH_PROFIT_DESKS } from '@/lib/bench-profit'
+import { BENCH_PAY_DESKS } from '@/lib/bench-holiday-switch'
 
 /**
  * The founder's own words: "apps on client side seems to be duplicating
@@ -867,6 +868,7 @@ describe('a menu offers only what this seat can actually open', () => {
    */
   const DESK_GATES: Record<string, { stands: string[]; desks: readonly string[] }> = {
     'bench/profit': { stands: ['pnl.read'], desks: BENCH_PROFIT_DESKS },
+    'settings/bench': { stands: ['settings.manage', 'pnl.read'], desks: BENCH_PAY_DESKS },
   }
 
   it('a page gated by the desk\'s name is offered by a permission only that desk holds', () => {

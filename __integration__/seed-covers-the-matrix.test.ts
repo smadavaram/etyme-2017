@@ -65,6 +65,11 @@ const RUNTIME: Record<string, string> = {
   // (lib/internal-moves). The seed flags who rolls off and stops there:
   // reserving, confirming and placing are the acts the demo exists to show.
   projectHold: 'written when a manager reserves somebody on Our bench for his own position',
+  // Holidays on the bench (founder, 2026-10-03). Every firm reads its
+  // default with no row — off, or on for an integrator — and a row is a
+  // named desk turning it, so a seeded one would put a real-looking name
+  // on a pay decision nobody made.
+  benchHolidaySwitch: 'written when the owner, admin or finance desk turns holiday pay on the bench, for the firm or for one person',
   // ── Four that must never be seeded, added 2026-09-19 ───────────────
   //
   // These are the strongest case this list has. A seeded DataRequest

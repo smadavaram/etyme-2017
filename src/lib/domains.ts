@@ -368,6 +368,12 @@ export const DOMAINS: Domain[] = [
       // were worked. The reader payroll calls is here; the arithmetic
       // stays money's (lib/money/pay-hours).
       'lib/cut-overtime-choice',
+      // The door the bench pay policy and the holiday switches go through:
+      // who may turn them, a person only on the firm's own bench, the
+      // sentence each reads. Whether a person is paid is money's
+      // (`holidayPayFor` in lib/bench-policy); the switch on Our bench is
+      // supply's screen over /api/settings/bench/people.
+      'lib/bench-holiday-switch',
       // A client approving a week without signing in: the link to its
       // approver, the evidence of an approval given by email, the
       // no-sign-in page, and the one week read by every rung it applies
