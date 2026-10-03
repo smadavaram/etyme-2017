@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  weekState, waitingCard, payStageOf, signingOrder, weekDoor, signedWeeksCard,
+  weekState, waitingCard, payStageOf, signingOrder, weekDoor, signedWeeksCard, ratesSaid,
   type WeekSigner,
 } from '@/lib/consultant-portfolio'
 import { rateOnEndingSoon, clientEndingChoices, mayWorkRolloff } from '@/lib/releasing-soon'
@@ -207,5 +207,30 @@ describe('Ending soon, as a client and as a supplier reads it', () => {
     const seed = src('lib/seed-internal-moves.ts')
     expect(seed).not.toMatch(/city: 'Portland'/)
     expect(seed).toContain("site: { name: 'Tualatin site', city: 'Tualatin', state: 'OR' }")
+  })
+})
+
+describe('a week paid at more than one rate says so', () => {
+  const today = new Date('2026-10-03T00:00:00Z')
+  const rates = new Map([
+    [6_600, { hours: 16, first: '2026-08-03' }],
+    [7_000, { hours: 24, first: '2026-08-05' }],
+  ])
+
+  it('the raise week names the hours at each rate and the day the raise took effect', () => {
+    expect(ratesSaid('2026-08-03', rates, [{ rateCents: 7_000, fromDate: new Date('2026-08-05T00:00:00Z') }], 'USD', today))
+      .toBe('16 at $66 and 24 at $70, because your raise took effect on Aug 5.')
+  })
+
+  it('where no rate change starts inside the week, the first day worked at the new rate is the day said', () => {
+    expect(ratesSaid('2026-08-03', rates, [], 'USD', today)).toContain('took effect on Aug 5.')
+  })
+
+  it('a cut in pay is called a change of rate, never a raise', () => {
+    const cut = new Map([
+      [7_000, { hours: 16, first: '2026-08-03' }],
+      [6_600, { hours: 24, first: '2026-08-05' }],
+    ])
+    expect(ratesSaid('2026-08-03', cut, [], 'USD', today)).toBe('16 at $70 and 24 at $66, because your rate changed on Aug 5.')
   })
 })

@@ -189,9 +189,10 @@ describe('bench to bill, per person', () => {
 
   it('a bench cost priced at a rate that was not paying them on those days says where the rate came from', () => {
     const r = run(earned(12), { rateFrom: 'Priced at what they are paid on the placement that followed.' })
+    // Jan 11 to Mar 2: the weekdays after the Sunday he joined, through
+    // the Monday he started — seven whole weeks and a Monday, 36.
     expect(r.costSays).toBe(
       '36 working days of 50 at 50% of $496.00 a day, under your bench pay policy: $8,928.00. ' +
-        'Five of every seven days on the bench are counted as working days. ' +
         'Priced at what they are paid on the placement that followed.'
     )
     // Nothing to price, nothing to explain.
@@ -322,7 +323,10 @@ describe('an internal move', () => {
   it('an internal move shows the days between the two projects and what they cost; what it saved is not known yet and says why', () => {
     const m = moveSaving({ oldEndsOn: d('2026-05-01'), newStartsOn: d('2026-05-11'), policy: HALF, payRateCents: 6200, contractType: 'W2', currency: 'USD' })
     expect(m.gapDays).toBe(10)
-    expect(m.gapCostCents).toBe(benchCost(HALF, { idleDays: 10, billingDayRateCents: 49_600 }).costCents)
+    // The weekdays after Friday May 1 through Monday May 11: six, at half of $496.
+    expect(m.gapCostCents).toBe(6 * 24_800)
+    expect(m.gapCostCents).toBe(benchCost(HALF, { idleDays: 10, billingDayRateCents: 49_600, since: d('2026-05-01') }).costCents)
+    expect(m.gapSays).not.toContain('Five of every seven')
     expect(m.savedAgainstBenchCents).toBeNull()
     expect(m.savedAgainstBenchSays).toContain('Not known yet')
     expect(m.savedAgainstSubVendorCents).toBeNull()

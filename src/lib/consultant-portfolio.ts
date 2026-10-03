@@ -28,7 +28,7 @@ import { nextOpen } from '@/lib/money/next-cycle'
 import { periodFor, hoursInPeriod, type AcceptedCut, type Terms, type Period } from '@/lib/periods'
 import { priceByDay, type RatePeriod } from '@/lib/contract-rate'
 import { weekStart } from '@/lib/overtime'
-import { amount } from '@/lib/money-display'
+import { amount, compact } from '@/lib/money-display'
 import { mayReadPayOf, type PayViewer } from '@/lib/money/pay-visibility'
 import { canReadBillRate } from '@/lib/permissions'
 
@@ -1801,6 +1801,8 @@ interface WeekTally {
   unpaidHours: number
   unpaidOver: number
   twoRates: boolean
+  /** Hours at each rate in force that week, with the first day worked at it. */
+  byRate: Map<number, { hours: number; first: string }>
   unclassified: number
   filed: number
   lastDay: string | null
@@ -1883,7 +1885,7 @@ export function owedByWeek(
     if (!tally.has(weekOf)) {
       tally.set(weekOf, {
         hours: 0, straight: 0, over: 0, premium: 0, paidHours: 0, paidCents: 0,
-        unpaidHours: 0, unpaidOver: 0, twoRates: false, unclassified: 0,
+        unpaidHours: 0, unpaidOver: 0, twoRates: false, byRate: new Map(), unclassified: 0,
         filed: 0, lastDay: null, acceptedOn: null, paidOn: null, many: false, cuts: [], straightTime: false,
         parts: new Map(),
       })
@@ -1995,6 +1997,11 @@ export function owedByWeek(
       const part = partOf(w, periods.get(d.day) ?? null, d.day)
       w.hours += d.hours
       w.straight += d.hours * d.rateCents
+      if (d.hours > 0) {
+        const r = w.byRate.get(d.rateCents)
+        if (r) { r.hours += d.hours; if (d.day < r.first) r.first = d.day }
+        else w.byRate.set(d.rateCents, { hours: d.hours, first: d.day })
+      }
       part.hours += d.hours
       part.straight += d.hours * d.rateCents
       const p = premiums.get(d.day)
@@ -2086,6 +2093,11 @@ export function owedByWeek(
           `${hoursWord(hours)}, ${hoursWord(w.unclassified)} of them over ${line.afterHours} in the week. ` +
             `${Employer} has not recorded whether you are owed overtime, so they are shown at your usual pay. Ask ${employer}.`
         )
+      } else if (w.byRate.size > 1) {
+        // Paid at more than one rate, with no overtime: Rosa Delgado's
+        // raise week read "40 hours, none of them overtime" beside $2,736,
+        // which is not 40 at either rate (worker tester, 2026-10-03).
+        parts.push(`${hoursWord(hours)}: ${ratesSaid(weekOf, w.byRate, line.periods, line.currency, today)}`)
       } else {
         parts.push(`${hoursWord(hours)}, none of them overtime.`)
       }
@@ -2195,6 +2207,34 @@ export function owedByWeek(
         says: parts.join(' '),
       }
     })
+}
+
+/**
+ * "16 at $66 and 24 at $70, because your raise took effect on Aug 5." A
+ * week whose days were paid at more than one rate, each rate with its
+ * hours, in the order they applied, and the day the last one began: the
+ * approved rate change's own date where one starts inside the week, else
+ * the first day worked at it.
+ */
+export function ratesSaid(
+  weekOf: string,
+  byRate: ReadonlyMap<number, { hours: number; first: string }>,
+  periods: ReadonlyArray<Pick<RatePeriod, 'rateCents' | 'fromDate'>>,
+  currency: string,
+  today: Date = new Date()
+): string {
+  const segs = [...byRate.entries()].map(([rate, v]) => ({ rate, ...v })).sort((a, b) => a.first.localeCompare(b.first))
+  const each = segs.map((x) => `${r2(x.hours)} at ${compact(x.rate, currency)}`)
+  const list = each.length === 2 ? each.join(' and ') : `${each.slice(0, -1).join(', ')} and ${each[each.length - 1]}`
+  const last = segs[segs.length - 1]
+  const before = segs[segs.length - 2]
+  const change = periods.find((p) => {
+    const from = isoDay(p.fromDate)
+    return p.rateCents === last.rate && from >= weekOf && from <= last.first
+  })
+  const on = shortDay(change ? isoDay(change.fromDate) : last.first, today)
+  const why = last.rate > before.rate ? `your raise took effect on ${on}` : `your rate changed on ${on}`
+  return `${list}, because ${why}.`
 }
 
 // ── A week that is not owed yet ──────────────────────────────────────────

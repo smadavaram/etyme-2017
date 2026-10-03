@@ -208,6 +208,12 @@ const NOT_ON_PAYROLL = new Set(['C2C', 'IND_1099'])
  */
 export function costOfDays(input: {
   days: number
+  /**
+   * The first day on the bench. Where it is given the working days are the
+   * real weekdays after it (`benchCost`'s `since`, the way `burnOf` counts
+   * them); where it is not, five of every seven, and the sentence says so.
+   */
+  since?: Date | null
   policy: Policy
   /** Hourly pay on the line that pays them when they bill. Null where none is on record. */
   payRateCents: number | null
@@ -253,7 +259,7 @@ export function costOfDays(input: {
     }
   }
   const daily = burnOf({ payRateCents: input.payRateCents, billing: false, benchSince: new Date(0) }, new Date(0)).dailyCents!
-  const c = benchCost(policy, { idleDays: days, billingDayRateCents: daily })
+  const c = benchCost(policy, { idleDays: days, billingDayRateCents: daily, since: input.since ?? null })
   const how =
     policy.policy === 'FULL_PAY'
       ? `full pay of ${amount(daily, input.currency)} a day`
@@ -262,17 +268,16 @@ export function costOfDays(input: {
     policy.carryDays != null && days > policy.carryDays
       ? ` Paid only up to your ${policy.carryDays}-day carry limit.`
       : ''
-  // The working days `benchCost` paid, read back off its own figure rather
-  // than counted a second way here, so the line on the screen and the cost
-  // beside it cannot disagree: Hector's 60 days at half of $512 read
-  // $11,008, which is 43 working days, and nothing on the screen said so
-  // (bench tester, 2026-10-01).
-  const perDay = policy.policy === 'FULL_PAY' ? daily : (daily * (policy.benchRateBps ?? 0)) / 10_000
-  const worked = perDay > 0 ? Math.round(c.costCents / perDay) : 0
+  // The working days `benchCost` paid, as it counted them, so the line on
+  // the screen and the cost beside it cannot disagree (bench tester,
+  // 2026-10-01). Real weekdays where the first bench day is known; only
+  // where it is not are five of every seven counted, and said.
+  const worked = c.paidWorkingDays
   const counted = `${plural(worked, 'working day')} of ${days} at ${how}`
+  const estimate = c.counted === 'ESTIMATED' ? ' Five of every seven days on the bench are counted as working days.' : ''
   return {
     costCents: c.costCents,
-    says: `${counted}, under your bench pay policy: ${amount(c.costCents, input.currency)}. Five of every seven days on the bench are counted as working days.${carry}`,
+    says: `${counted}, under your bench pay policy: ${amount(c.costCents, input.currency)}.${estimate}${carry}`,
     counted,
     why: null,
   }
@@ -340,7 +345,10 @@ export function benchToBill(input: {
   }
 
   const days = s.days
-  const cost = costOfDays({ days, policy: input.policy, payRateCents: input.payRateCents, contractType: input.contractType, currency: input.currency })
+  const cost = costOfDays({
+    days, since: s.kind === 'STRAIGHT_ON' ? null : s.from,
+    policy: input.policy, payRateCents: input.payRateCents, contractType: input.contractType, currency: input.currency,
+  })
   const base = {
     spell: s.kind,
     benchFrom: s.kind === 'STRAIGHT_ON' ? null : iso(s.from),
@@ -625,7 +633,7 @@ export function moveSaving(input: {
   // Counted the way a bench spell is: from the day the old line ended to
   // the day the new one started, so the two never disagree about a gap.
   const gap = daysBetween(input.oldEndsOn, input.newStartsOn)
-  const cost = costOfDays({ days: gap, policy: input.policy, payRateCents: input.payRateCents, contractType: input.contractType, currency: input.currency })
+  const cost = costOfDays({ days: gap, since: input.oldEndsOn, policy: input.policy, payRateCents: input.payRateCents, contractType: input.contractType, currency: input.currency })
   return {
     gapDays: gap,
     gapCostCents: cost.costCents,

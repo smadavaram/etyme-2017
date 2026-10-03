@@ -6,7 +6,7 @@ import {
 } from '@/lib/bench-filter'
 import { stayRow } from '@/lib/bench-stay'
 import { costOfDays, benchToBill, isMove, mayReadBenchProfit } from '@/lib/bench-profit'
-import { benchCost, type Policy } from '@/lib/bench-policy'
+import { benchCost, burnOf, type Policy } from '@/lib/bench-policy'
 import {
   checkHold, checkFlag, keptPastContract, ourBenchRow, personNotice, hrNotice, jobOnly, possessive, onePerJob,
 } from '@/lib/internal-moves'
@@ -69,12 +69,22 @@ describe('2 · a client never browses a bench', () => {
 })
 
 describe('4 · the bench cost adds up from what the screen shows', () => {
-  it('Hector’s 60 days at half of $512 read as 43 working days of 60, which is the $11,008 shown', () => {
-    // $64 an hour × 8 = $512 a day; half is $256; 43 × $256 = $11,008.
+  it('Hector’s 60 days count the real weekdays after his last day, the same count Bench burn shows, whatever weekday it was', () => {
+    // $64 an hour × 8 = $512 a day; half is $256 for each weekday counted.
+    for (let k = 0; k < 7; k++) {
+      const since = new Date(Date.UTC(2026, 7, 3 + k))
+      const c = costOfDays({ days: 60, since, policy: HALF, payRateCents: 6400, contractType: 'W2', currency: 'USD' })
+      const burn = burnOf({ payRateCents: 6400, billing: false, benchSince: since }, new Date(since.getTime() + 60 * 86_400_000))
+      expect(c.counted, since.toISOString()).toBe(`${burn.workingDays} working days of 60 at 50% of $512.00 a day`)
+      expect(c.costCents).toBe(burn.workingDays * 25_600)
+      expect(c.says).not.toContain('Five of every seven')
+    }
+  })
+
+  it('only where the first bench day is not known are five of every seven days counted, and the sentence says so', () => {
     const c = costOfDays({ days: 60, policy: HALF, payRateCents: 6400, contractType: 'W2', currency: 'USD' })
-    expect(c.costCents).toBe(1_100_800)
     expect(c.counted).toBe('43 working days of 60 at 50% of $512.00 a day')
-    expect(c.costCents).toBe(43 * 25_600)
+    expect(c.says).toContain('Five of every seven days on the bench are counted as working days.')
   })
 
   it('the working days said are always the ones the bench cost rule paid, never counted a second way', () => {

@@ -3,6 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { rateChangeDates, RATE_CHANGE_PERSON, RATE_CHANGE_DEPARTMENT } from '@/lib/seed-rate-change'
 import { costCenterCode } from '@/lib/seed-coding'
+import { shortDay } from '@/lib/consultant-portfolio'
 
 import { GET as payrollExport } from '@/app/api/payroll/export/route'
 import { GET as profitability } from '@/app/api/profitability/route'
@@ -177,6 +178,27 @@ describe('a pay rise on the seeded world', () => {
       [after, 7_000, after * 7_000],
     ]
     expect(mine.map((l: any) => [l.hours, l.rateCents, l.totalCents])).toEqual(expected)
+  })
+
+  it('Rosa’s own page says the week of the raise was paid at two rates, the hours at each, and the day the raise took effect', async () => {
+    const all = await days()
+    const monday = iso(dates.straddleWeek)
+    const friday = iso(new Date(+dates.straddleWeek + 4 * DAY))
+    const inWeek = Object.entries(all).filter(([d]) => d >= monday && d <= friday)
+    const before = inWeek.filter(([d]) => d < iso(dates.rise)).reduce((n, [, h]) => n + h, 0)
+    const after = inWeek.filter(([d]) => d >= iso(dates.rise)).reduce((n, [, h]) => n + h, 0)
+    expect(before, 'the seed puts days on both sides of the raise').toBeGreaterThan(0)
+
+    as(RATE_CHANGE_PERSON.email)
+    const r = await json(await myWork(req('GET', '/api/me/work')))
+    expect(r.status).toBe(200)
+    const week = r.body.data.owed.weeks.find((w: any) => w.weekOf === monday)
+    expect(week, 'the raise week is not on her page').toBeTruthy()
+    expect(week.owedCents).toBe(before * 6_600 + after * 7_000)
+    expect(week.says).toContain(
+      `${before + after} hours: ${before} at $66 and ${after} at $70, because your raise took effect on ${shortDay(iso(dates.rise))}.`
+    )
+    expect(week.says).not.toContain('none of them overtime')
   })
 
   it('the forty-five-hour week after the raise is paid all at $70, with five hours at time and a half', async () => {

@@ -3,6 +3,7 @@ import { prisma, as, req, json, freshWorld } from './harness'
 import { GET as benchProfit } from '@/app/api/bench/profit/route'
 import { GET as placementGET } from '@/app/api/placements/[id]/route'
 import { seedToday } from '@/lib/seed-days'
+import { burnOf } from '@/lib/bench-policy'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { karthikWindow } from '@/lib/seed-doors'
 import { plainDate } from '@/lib/plain-date'
@@ -105,7 +106,6 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
       // 49 calendar days are 35 working days; 35 × $248 = $8,680, and the
       // sentence says what was counted (bench tester, 2026-10-01).
       '35 working days of 49 at 50% of $496.00 a day, under your bench pay policy: $8,680.00. ' +
-        'Five of every seven days on the bench are counted as working days. ' +
         'Priced at what they are paid on the placement that followed, as your policy reads it.'
     )
   })
@@ -132,12 +132,18 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
     expect(row(owner.body, 'Lucia Brandvold').days).toBe(40)
   })
 
-  it('Hector Valdivia, on the bench since his placement ended, costs $11,008 so far and has nothing billed since', () => {
+  it('Hector Valdivia, on the bench since his placement ended, costs half his day for every weekday since, the count Bench burn shows', () => {
     const hector = row(owner.body, 'Hector Valdivia')
-    // His placement ended 60 days before the world was born. 60 days are
-    // 43 working days at half of $64 × 8.
-    expect(hector).toMatchObject({ spell: 'NOW', benchFrom: iso(plus(seedToday(), -60)), days: 60, costCents: 1_100_800, marginCents: null })
-    expect(hector.paybackSays).toBe('Not placed yet. $11,008.00 to earn back.')
+    // His placement ended 60 days before the world was born. The weekdays
+    // after that day through the world's own day, as Bench burn counts
+    // them, at half of $64 × 8.
+    const from = plus(seedToday(), -60)
+    const weekdays = burnOf({ payRateCents: 6400, billing: false, benchSince: from }, seedToday()).workingDays
+    expect(weekdays).toBeGreaterThanOrEqual(42)
+    expect(weekdays).toBeLessThanOrEqual(44)
+    expect(hector).toMatchObject({ spell: 'NOW', benchFrom: iso(from), days: 60, costCents: weekdays * 25_600, marginCents: null })
+    expect(hector.costCounted).toBe(`${weekdays} working days of 60 at 50% of $512.00 a day`)
+    expect(hector.paybackSays).toBe(`Not placed yet. ${dollars(weekdays * 25_600)} to earn back.`)
     // Nothing pays him today, and the sentence says the figure is the policy's.
     expect(hector.costSays).toContain('Nothing on the record pays them today; priced at the pay of their last placement')
   })
