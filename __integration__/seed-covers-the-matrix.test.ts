@@ -127,6 +127,7 @@ const GAP: Record<string, string> = {
   // L1.1 Source to contract
   marketingLead: 'nobody has enquired from the public site — and this table is not tenanted, so a seeded enquiry would be a fictional name in the founder\u2019s own sales funnel',
   sourcedContact: 'sourcing at volume has no history; it arrives by import, and an import is a real file somebody loaded',
+  benchWant: 'the \u201cWhat we need\u201d screen at the top of Partner bench is not built yet \u2014 the table landed 2026-10-03 and the door and screen are etyme-supply\u2019s. The seed owes a row once the screen exists to show it',
 
   // L1.2 Contract to onboard
   credential: 'nobody has signed in through an identity provider yet. NOT a license on a person — that is a Verification, and the line here said otherwise for as long as it existed',
