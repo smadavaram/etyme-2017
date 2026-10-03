@@ -47,9 +47,19 @@ describe('Delivery status can always be read back, the way settings reads it', (
     else delete process.env.NOTIFY_FROM_EMAIL
   })
 
-  it('Teams is always reported as available, because its credential is per-company', () => {
+  it('Teams is never reported as configured without knowing that a company has a Workflows link', () => {
+    // Until 2026-10-03 this said "configured: true" on every deployment,
+    // including ones whose only saved links Microsoft had switched off.
     const s = senderStatus().find((x) => x.channel === 'TEAMS')!
-    expect(s.configured).toBe(true)
+    expect(s.configured).toBe(false)
+    expect(s.note).toContain('Workflows link')
+  })
+
+  it('Teams is reported as configured once a company has a Workflows link, and says whether one has posted', () => {
+    const set = senderStatus({ workflowsChannels: 1, retiredChannels: 0, postedByWorkflows: 0 })
+      .find((x) => x.channel === 'TEAMS')!
+    expect(set.configured).toBe(true)
+    expect(set.note).toContain('Nothing has been posted through one yet')
   })
 })
 

@@ -20,6 +20,8 @@
  * send is recorded as NOT_CONFIGURED rather than left looking sent.
  */
 
+import { teamsLinkKind, RETIRED_LINK_ROUTE_REASON, TEAMS_WORKFLOWS_SENT_NOTE } from '@/lib/notify/teams-link'
+
 export type Channel = 'IN_APP' | 'EMAIL' | 'TEAMS'
 export type DeliveryState = 'PENDING' | 'SENT' | 'FAILED' | 'NOT_CONFIGURED'
 
@@ -37,6 +39,12 @@ export interface Route {
   reason: string
   /** Set when this route cannot actually carry anything. */
   blocked: string | null
+  /**
+   * The company's saved Teams link is the kind Microsoft switched off in
+   * May 2026, and this route went round it. The reason on the route says
+   * so, and is what the notification row records.
+   */
+  retiredTeamsLink?: boolean
 }
 
 /**
@@ -58,6 +66,23 @@ export function routeFor(recipient: Recipient): Route {
         }
   }
 
+  // A retired Office 365 Connector link is never posted to: Microsoft
+  // switched those off in Teams in May 2026, so a post would be lost or
+  // refused. The message goes by email and the row says why, so nothing
+  // is silently lost behind a link that only looks set up.
+  if (recipient.teamsWebhookUrl && teamsLinkKind(recipient.teamsWebhookUrl) === 'RETIRED') {
+    return recipient.email
+      ? { channel: 'EMAIL', reason: RETIRED_LINK_ROUTE_REASON, blocked: null, retiredTeamsLink: true }
+      : {
+          channel: 'IN_APP',
+          reason: RETIRED_LINK_ROUTE_REASON,
+          blocked:
+            'Nowhere to send this. This company’s Teams link is the kind Microsoft switched off in ' +
+            'May 2026, and there is no email address. Save a Workflows link in Settings.',
+          retiredTeamsLink: true,
+        }
+  }
+
   if (recipient.teamsWebhookUrl) {
     return { channel: 'TEAMS', reason: 'Posted to the company channel', blocked: null }
   }
@@ -76,7 +101,8 @@ export function routeFor(recipient: Recipient): Route {
 /** What a sender can be asked to do. */
 export interface Sender {
   channel: Channel
-  send(to: string, title: string, body: string): Promise<void>
+  /** `link` is the page in Etyme the notice is about, where there is one. */
+  send(to: string, title: string, body: string, link?: string | null): Promise<void>
 }
 
 export interface DeliveryOutcome {
@@ -103,7 +129,8 @@ export async function attemptDelivery(
   title: string,
   body: string,
   senders: Sender[],
-  now: Date
+  now: Date,
+  link?: string | null
 ): Promise<DeliveryOutcome> {
   // In-app is not sent anywhere. It is already written, and the person sees
   // it the moment they look.
@@ -129,8 +156,19 @@ export async function attemptDelivery(
   }
 
   try {
-    await sender.send(destination, title, body)
-    return { state: 'SENT', note: route.reason, deliveredAt: now }
+    await sender.send(destination, title, body, link)
+    return {
+      state: 'SENT',
+      // A post a Workflows link accepted records the note /ready counts
+      // as proof that Teams heard. A retired link never reaches here, and
+      // an unrecognized one saved before the check keeps the plain reason
+      // so it is never counted as proof.
+      note:
+        route.channel === 'TEAMS' && teamsLinkKind(destination) === 'WORKFLOWS'
+          ? TEAMS_WORKFLOWS_SENT_NOTE
+          : route.reason,
+      deliveredAt: now,
+    }
   } catch (err) {
     return {
       state: 'FAILED',

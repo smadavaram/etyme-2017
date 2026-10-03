@@ -23,7 +23,9 @@ function recipient(over: Partial<Recipient> = {}): Recipient {
   return {
     isConsultant: false,
     email: 'd.whitfield@terumobct.com',
-    teamsWebhookUrl: 'https://outlook.office.com/webhook/abc',
+    // A Workflows link. The Office 365 Connector kind this used to be
+    // was switched off by Microsoft in May 2026; see teams-workflows.test.ts.
+    teamsWebhookUrl: 'https://prod-27.westus.logic.azure.com:443/workflows/abc/triggers/manual/paths/invoke?sig=x',
     ...over,
   }
 }

@@ -1,4 +1,7 @@
 import type { Sender } from '@/lib/notification-delivery'
+import {
+  teamsCard, teamsLinkKind, teamsEdge, TEAMS_LINK_RETIRED_SENTENCE, type TeamsFacts,
+} from '@/lib/notify/teams-link'
 
 /**
  * The senders that actually exist right now.
@@ -12,7 +15,7 @@ import type { Sender } from '@/lib/notification-delivery'
  * recorded as NOT_CONFIGURED, which is true and points at the fix.
  *
  * To turn email on, set RESEND_API_KEY (or SENDGRID_API_KEY) and
- * NOTIFY_FROM_EMAIL. Teams needs no key — it needs a webhook URL on the
+ * NOTIFY_FROM_EMAIL. Teams needs no key — it needs a Workflows link on the
  * company, which is per-company rather than per-deployment.
  */
 
@@ -57,26 +60,28 @@ export function emailSender(): Sender | null {
 }
 
 /**
- * Teams needs no deployment-level credential — the webhook URL is the
+ * Teams needs no deployment-level credential — the Workflows link is the
  * credential, and it belongs to the company, so this sender is always
  * available and routing decides whether there is anywhere to post.
+ *
+ * It posts an Adaptive Card, which is what a Workflows link ("When a
+ * Teams webhook request is received") accepts. Until 2026-10-03 it posted
+ * a legacy MessageCard to an Office 365 Connector link; Microsoft switched
+ * those off in Teams in May 2026 and nothing here noticed. A retired link
+ * is refused here as well as in routing, so a caller that skips routing
+ * still cannot post into the void and call it sent.
  */
 function teamsSender(): Sender {
   return {
     channel: 'TEAMS',
-    async send(webhookUrl, title, body) {
+    async send(webhookUrl, title, body, link) {
+      if (teamsLinkKind(webhookUrl) === 'RETIRED') throw new Error(TEAMS_LINK_RETIRED_SENTENCE)
       const res = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          '@type': 'MessageCard',
-          '@context': 'https://schema.org/extensions',
-          summary: title,
-          title,
-          text: body,
-        }),
+        body: JSON.stringify(teamsCard(title, body, link)),
       })
-      if (!res.ok) throw new Error(`Teams webhook returned ${res.status}`)
+      if (!res.ok) throw new Error(`The Teams Workflows link returned ${res.status}`)
     },
   }
 }
@@ -89,9 +94,23 @@ export function configuredSenders(): Sender[] {
   return senders
 }
 
-/** What is switched on, for the settings screen and for support questions. */
-export function senderStatus(): { channel: string; configured: boolean; note: string }[] {
+/**
+ * What is switched on, for the settings screen and for support questions.
+ *
+ * Email is a deployment setting and is answered here. Teams is not: it is
+ * set up only where a company has saved a Workflows link, and proven only
+ * once one has posted, which takes the database to know. So without the
+ * facts Teams is reported as not known to be set up, never as configured
+ * — the old answer here was "configured: true" for every deployment,
+ * including the ones whose only links Microsoft had switched off. Pass
+ * the facts (`countTeamsLinks` and the Workflows sends) to get the real
+ * answer.
+ */
+export function senderStatus(
+  teams?: TeamsFacts
+): { channel: string; configured: boolean; note: string }[] {
   const email = emailSender()
+  const edge = teams ? teamsEdge(teams) : null
   return [
     {
       channel: 'EMAIL',
@@ -102,8 +121,10 @@ export function senderStatus(): { channel: string; configured: boolean; note: st
     },
     {
       channel: 'TEAMS',
-      configured: true,
-      note: 'Teams posts to whichever company has a channel URL saved',
+      configured: edge !== null && edge.state !== 'MISSING',
+      note: edge
+        ? edge.says
+        : 'Teams posts only where a company has saved a Teams Workflows link. /ready counts how many have, and whether one has posted.',
     },
   ]
 }

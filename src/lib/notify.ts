@@ -116,7 +116,7 @@ export function notify(params: NotifyParams): Promise<{ id: string } | null> {
         // Not awaited: the caller wanted a notification written, not a
         // round trip to an email provider. The row already exists, so a
         // slow or dead sender delays only the delivery status.
-        void deliver(created.id, personId, companyId ?? null, title, body)
+        void deliver(created.id, personId, companyId ?? null, title, body, type, entityId ?? null)
       }
       return created
     })
@@ -141,7 +141,9 @@ async function deliver(
   personId: string,
   companyId: string | null,
   title: string,
-  body: string
+  body: string,
+  type: string,
+  entityId: string | null
 ): Promise<void> {
   try {
     const person = await prisma.person.findUnique({
@@ -167,6 +169,9 @@ async function deliver(
           select: { teamsWebhookUrl: true },
         })
       : null
+    // A company whose saved link is the retired kind still wins here:
+    // routing sees the link, sends email instead, and writes why on the
+    // row — rather than quietly posting to another company's channel.
     const teamsWebhookUrl =
       named?.teamsWebhookUrl ??
       person.contexts.find((c) => c.company?.teamsWebhookUrl)?.company
@@ -188,7 +193,8 @@ async function deliver(
       title,
       body,
       configuredSenders(),
-      new Date()
+      new Date(),
+      appLink(notificationHref(type, entityId))
     )
 
     await prisma.notification.update({
@@ -295,6 +301,25 @@ export function notificationHref(type: string, entityId?: string | null): string
   if (entityId && type === 'MATCH_READY') {
     return `/dashboard/requirements/${entityId}`
   }
+  // The thread itself, open, the way the bell opens it.
+  if (entityId && type === 'CONVERSATION') {
+    return `/dashboard/conversations?open=${entityId}`
+  }
 
   return base
 }
+
+/**
+ * The page a notice is about, as an address somebody outside the app can
+ * open — the "Open in Etyme" button on a Teams card. Null where this
+ * deployment does not know its own address, because a button to
+ * localhost in somebody's Teams channel is a button to nowhere.
+ */
+export function appLink(path: string): string | null {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
+  if (!/^https:\/\//i.test(base)) return null
+  return `${base.replace(/\/+$/, '')}${path}`
+}
+
