@@ -6,6 +6,7 @@ import { kindWord, postureWord } from '@/lib/parties'
 import { useEffect, useState, useCallback } from 'react'
 import { plainDate } from '@/lib/plain-date'
 import { BenchPaySection } from './bench-pay/bench-pay'
+import { TEAMS_LINK_HOW_TO } from '@/lib/notify/teams-link'
 
 /**
  * How this company is set up.
@@ -35,6 +36,8 @@ interface Company {
   templatePack: string | null
   teamsWebhookUrl: string | null
   teamsConfigured: boolean
+  /** What the saved link is worth: works, needs a new link, or none (lib/notify/teams-link). */
+  teams: { state: 'NONE' | 'WORKS' | 'NEEDS_NEW_LINK'; says: string }
   networkVerifiedAt: string | null
 }
 interface Role {
@@ -415,19 +418,18 @@ function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: 
         subtitle="With a Teams channel set, notifications for this company post there. Without one they fall back to email — and where there is no email either, the notification says so rather than sitting in the app pretending it was sent."
       >
         <label className="block">
-          <Lbl>Teams channel webhook</Lbl>
+          <Lbl>Teams Workflows link</Lbl>
           <input
             value={teams}
             onChange={(e) => setTeams(e.target.value)}
-            placeholder="https://…"
+            placeholder="https://….logic.azure.com/workflows/…"
             disabled={!data.canEdit}
             className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm disabled:opacity-60"
           />
         </label>
-        <p className="text-[12px] text-etyme-muted mt-2">
-          {c.teamsConfigured
-            ? 'Set up. Business notifications post to Teams.'
-            : 'Not set up. Business notifications fall back to email.'}
+        <p className="text-[12px] text-etyme-muted mt-2">{TEAMS_LINK_HOW_TO}</p>
+        <p className={`text-[12px] mt-2 ${c.teams.state === 'NEEDS_NEW_LINK' ? 'text-etyme-attention' : c.teams.state === 'WORKS' ? 'text-etyme-verified' : 'text-etyme-muted'}`}>
+          {c.teams.says}
         </p>
         {data.canEdit && (
           <button
@@ -435,7 +437,7 @@ function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: 
             // Nothing typed and nothing saved means there is nothing to do.
             // A "Remove channel" button with no channel to remove is a
             // control that lies about what it does.
-            disabled={busy || (!teams.trim() && !c.teamsConfigured)}
+            disabled={busy || (!teams.trim() && !c.teamsWebhookUrl)}
             className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
           >
             {teams.trim() ? 'Save channel' : 'Remove channel'}

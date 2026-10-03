@@ -6,6 +6,7 @@ import { askTheDesk, hasPermission } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { getTemplatePack, TEMPLATE_PACKS } from '@/lib/template-packs'
 import { SHIFT_CATEGORIES, SHIFT_WORDS, isShiftDirection, policyFrom } from '@/lib/cycle-shift'
+import { checkTeamsLink, teamsLinkStanding } from '@/lib/notify/teams-link'
 
 /**
  * GET  /api/settings — everything about how this company is set up
@@ -118,9 +119,12 @@ export async function GET(request: NextRequest) {
         ...company,
         networkVerifiedAt: company.networkVerifiedAt?.toISOString() ?? null,
         siteLiveAt: company.siteLiveAt?.toISOString() ?? null,
-        // Named separately from the raw value so the screen can say
-        // "nobody has a Teams channel yet" rather than showing a blank.
-        teamsConfigured: Boolean(company.teamsWebhookUrl),
+        // Configured only where the saved link is a Workflows link that
+        // works. A link of the kind Microsoft switched off in May 2026 is
+        // saved and is not configured, and `teams.says` tells the screen
+        // what to do about it (lib/notify/teams-link).
+        teamsConfigured: teamsLinkStanding(company.teamsWebhookUrl).state === 'WORKS',
+        teams: teamsLinkStanding(company.teamsWebhookUrl),
       },
       // The wall, said as who is actually behind it rather than as a
       // setting. An owner asking "who here can see the outside market"
@@ -292,23 +296,20 @@ export async function PATCH(request: NextRequest) {
   }
 
   if ('teamsWebhookUrl' in body) {
-    const raw = body.teamsWebhookUrl
-    if (raw === null || raw === '') {
-      data.teamsWebhookUrl = null
-      changed.push('teamsWebhookUrl')
-    } else if (typeof raw === 'string') {
-      // Checked here rather than at send time. A malformed webhook that is
-      // only discovered when a notification fails means the failure is
-      // discovered by somebody not being told something.
-      if (!/^https:\/\//i.test(raw.trim())) {
-        return NextResponse.json(
-          { error: { code: 'VALIDATION', message: 'A Teams channel URL starts with https://', field: 'teamsWebhookUrl' } },
-          { status: 422 }
-        )
-      }
-      data.teamsWebhookUrl = raw.trim()
-      changed.push('teamsWebhookUrl')
+    // Checked here rather than at send time. A link that is only found
+    // wrong when a notification fails is found wrong by somebody not
+    // being told something — and since May 2026 the old connector kind
+    // starts with https:// and still goes nowhere, so the check is the
+    // kind of link, not its scheme. Empty clears it, back to email.
+    const check = checkTeamsLink(body.teamsWebhookUrl)
+    if (!check.ok) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: check.message, field: 'teamsWebhookUrl' } },
+        { status: 422 }
+      )
     }
+    data.teamsWebhookUrl = check.url
+    changed.push('teamsWebhookUrl')
   }
 
   if (changed.length === 0) {
@@ -341,7 +342,11 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({
     data: {
-      company: { ...updated, teamsConfigured: Boolean(updated.teamsWebhookUrl) },
+      company: {
+        ...updated,
+        teamsConfigured: teamsLinkStanding(updated.teamsWebhookUrl).state === 'WORKS',
+        teams: teamsLinkStanding(updated.teamsWebhookUrl),
+      },
       changed,
       message:
         changed.includes('teamsWebhookUrl') && updated.teamsWebhookUrl

@@ -24,6 +24,8 @@
  * Pure: facts in, verdict out. Gathering the facts is lib/readiness-facts.
  */
 
+import { teamsEdge, type TeamsFacts } from '@/lib/notify/teams-link'
+
 export type EdgeState = 'MISSING' | 'SET' | 'PROVEN' | 'OFF'
 
 export interface Edge {
@@ -63,7 +65,8 @@ export interface ReadinessFacts {
   realSignIns: number
   imports: { total: number; committed: number }
   email: { sent: number; unsent: number }
-  teams: { channels: number; sent: number }
+  /** Workflows links saved, retired links still saved, and posts a Workflows link accepted. */
+  teams: TeamsFacts
   cron: {
     tracked: boolean
     lastRunAt: Date | null
@@ -205,24 +208,14 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
   )
 
   // ── Teams hears ──────────────────────────────────────────────────────
-  edges.push(
-    f.teams.channels === 0
-      ? {
-          key: 'teams', name: 'Teams', state: 'MISSING', required: true,
-          says: 'No company has a Teams channel saved. Business users hear nothing outside the app.',
-          fix: 'In a company’s Settings, paste an incoming-webhook URL from one of its Teams channels.',
-        }
-      : f.teams.sent === 0
-        ? {
-            key: 'teams', name: 'Teams', state: 'SET', required: true,
-            says: `${count(f.teams.channels, 'company has', 'companies have')} a channel saved. Nothing has been posted to it yet.`,
-            fix: 'Do something that notifies that company — approve a timesheet, raise a job request — and look at the channel.',
-          }
-        : {
-            key: 'teams', name: 'Teams', state: 'PROVEN', required: true,
-            says: `${count(f.teams.sent, 'message has', 'messages have')} been posted to Teams.`,
-          }
-  )
+  //
+  // Set up only once a company has a Workflows link, proven only once one
+  // has posted; a retired connector link counts for neither and is named.
+  // The sentence is conversation's (`teamsEdge` in lib/notify/teams-link).
+  {
+    const t = teamsEdge(f.teams)
+    edges.push({ key: 'teams', name: 'Teams', state: t.state, required: true, says: t.says, ...(t.fix ? { fix: t.fix } : {}) })
+  }
 
   // ── The daily job runs, and leaves a trace ───────────────────────────
   if (!f.env.cronSecret) {

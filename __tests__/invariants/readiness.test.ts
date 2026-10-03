@@ -30,7 +30,7 @@ const TODAY: ReadinessFacts = {
   realSignIns: 0,
   imports: { total: 0, committed: 0 },
   email: { sent: 0, unsent: 0 },
-  teams: { channels: 0, sent: 0 },
+  teams: { workflowsChannels: 0, retiredChannels: 0, postedByWorkflows: 0 },
   cron: { tracked: true, lastRunAt: null, lastBroke: 0 },
   watch: { staffConfigured: false, alertsSent: 0, incidentsToday: 0 },
   demo: { seeded: true, current: false },
@@ -46,7 +46,7 @@ const READY: ReadinessFacts = {
   realSignIns: 5,
   imports: { total: 2, committed: 2 },
   email: { sent: 40, unsent: 0 },
-  teams: { channels: 1, sent: 12 },
+  teams: { workflowsChannels: 1, retiredChannels: 0, postedByWorkflows: 12 },
   cron: { tracked: true, lastRunAt: new Date('2026-09-13T06:00:00Z'), lastBroke: 0 },
   watch: { staffConfigured: true, alertsSent: 3, incidentsToday: 0 },
   demo: { seeded: true, current: true },
@@ -85,9 +85,24 @@ describe('what production says about itself tonight', () => {
     expect(edge('email')).toMatchObject({ state: 'SET', says: 'A sender is configured. No email has left this deployment yet.' })
   })
 
-  it('Teams is missing until a company saves a channel, whatever the code is capable of', () => {
+  it('Teams is missing until a company saves a Workflows link, whatever the code is capable of', () => {
     expect(edge('teams').state).toBe('MISSING')
-    expect(edge('teams').fix).toContain('incoming-webhook URL')
+    expect(edge('teams').required).toBe(true)
+    expect(edge('teams').fix).toContain('paste a Workflows link')
+  })
+
+  it('a company holding only the kind of Teams link Microsoft switched off leaves the Teams edge missing, and is named', () => {
+    const v = assess({ ...TODAY, teams: { workflowsChannels: 0, retiredChannels: 1, postedByWorkflows: 0 } }, NOW)
+    const t = v.edges.find((e) => e.key === 'teams')!
+    expect(t.state).toBe('MISSING')
+    expect(t.says).toContain('1 company still has the kind of link Microsoft switched off in May 2026')
+  })
+
+  it('a Workflows link saved and never posted through is set up, not proven', () => {
+    const v = assess({ ...TODAY, teams: { workflowsChannels: 2, retiredChannels: 0, postedByWorkflows: 0 } }, NOW)
+    const t = v.edges.find((e) => e.key === 'teams')!
+    expect(t.state).toBe('SET')
+    expect(t.says).toBe('2 companies have a Workflows link saved. Nothing has been posted through one yet.')
   })
 
   it('the daily job has never run here, and the row says when it is due and how to run it now', () => {
@@ -145,7 +160,7 @@ describe('the day it is ready', () => {
     expect(edge('signin').says).toBe('5 people have signed in through Microsoft and Google.')
     expect(edge('company').says).toBe('2 companies here are real, not seed.')
     expect(edge('email').says).toBe('40 emails have been sent.')
-    expect(edge('teams').says).toBe('12 messages have been posted to Teams.')
+    expect(edge('teams').says).toBe('12 messages have been posted to Teams through a Workflows link.')
     expect(edge('cron').says).toBe('The daily job last ran 16 hours ago, every job clean.')
     expect(edge('watch').says).toBe('3 messages have reached staff. No failure recorded in the last day.')
   })

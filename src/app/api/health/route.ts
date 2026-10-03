@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { senderStatus } from '@/lib/senders'
+import { teamsFacts } from '@/lib/readiness-facts'
 
 /**
  * GET /api/health — is this deployment actually working
@@ -87,7 +88,12 @@ export async function GET() {
   // first anyone would learn of it is a consultant saying "I never got
   // the invite". senderStatus() already answers this; this endpoint just
   // was not calling it.
-  const senders = senderStatus()
+  //
+  // Teams is answered from the same facts /ready reads: configured only
+  // where a company has a Workflows link, never on faith. Where the
+  // database cannot be read there are no facts, and the note says Teams
+  // posts only where a link is saved rather than guessing.
+  const senders = senderStatus(database.ok ? await teamsFacts().catch(() => undefined) : undefined)
 
   const ok = database.ok && configured.NEXTAUTH_SECRET
 
