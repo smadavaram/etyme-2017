@@ -409,7 +409,7 @@ export function evaluateRequisition(
       stage: 'FINAL', rank: 2, approverId: null, approverName: null, outcome: 'AUTO_CLEARED',
       reason:
         `Within plan, budget and rate — ${finalWhy}.` +
-        (asked[0] ? ` ${asked[0].name}'s yes not needed.` : ''),
+        (asked[0] ? ` ${possessive(asked[0].name)} yes not needed.` : ''),
     })
   } else if (asked.length === 0) {
     steps.push({
@@ -425,7 +425,7 @@ export function evaluateRequisition(
       steps.push({
         stage: 'FINAL', rank: 2, approverId: seat.personId, approverName: seat.name, outcome: 'PENDING',
         reason:
-          (seat === lead ? `The final word on ${unit}'s spend — ${finalWhy}` : `${rule?.name ?? 'Rule'}: ${finalWhy}`) +
+          (seat === lead ? `The final word on ${possessive(unit)} spend — ${finalWhy}` : `${rule?.name ?? 'Rule'}: ${finalWhy}`) +
           (notes.length ? `. ${notes.join('. ')}` : ''),
         ...(rule ? { ruleId: rule.id } : {}),
       })
@@ -456,9 +456,22 @@ export function evaluateRequisition(
   const names = (rank: number) => waitingOn.filter((s) => s.rank === rank).map((s) => `${s.stage === 'ROLE' ? 'HR' : s.stage === 'SOURCING' ? 'Procurement' : ''}${s.stage === 'FINAL' ? '' : ' '}(${s.approverName})`.trim().replace(/^\((.*)\)$/, '$1'))
   const rank1 = names(1)
   const rank2 = names(2)
-  const summary = `${first} — waiting on ${[rank1.join(' and '), rank2.length ? `${rank1.length ? 'then ' : ''}${rank2.join(' and ')}'s yes` : ''].filter(Boolean).join(', ')}`
+  const summary = `${first} — waiting on ${[rank1.join(' and '), rank2.length ? `${rank1.length ? 'then ' : ''}${possessive(rank2.join(' and '))} yes` : ''].filter(Boolean).join(', ')}`
 
   return { state: 'PENDING_APPROVAL', checks, steps, route, summary }
+}
+
+/**
+ * A name's possessive, as a person writes it: "Northbend's spend", but
+ * "Apps' spend" and "Teleworld Solutions' spend" — a name ending in s
+ * takes the apostrophe alone. The approval reasons read "Apps's spend"
+ * until a tester walked a unit called Apps (2026-10-03). Same rule as
+ * `possessive` in supply's lib/internal-moves, kept here rather than
+ * imported so an approval chain does not depend on the bench.
+ */
+export function possessive(name: string): string {
+  const n = name.trim()
+  return /s$/i.test(n) ? `${n}'` : `${n}'s`
 }
 
 // ─────────────────────────────────────────────
