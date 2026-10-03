@@ -242,7 +242,16 @@ export function notifyBulk(
 ): Promise<{ count: number } | null> {
   if (notifications.length === 0) return Promise.resolve({ count: 0 })
 
-  const rows = notifications.map((n) => ({
+  // Bulk is mostly fan-out to a working team, in the app, and that half
+  // stays one database call. A row asking for Teams or email used to be
+  // written PENDING here and then nothing ever sent it — the exact "the
+  // row says it went and it did not" this file exists to stop. So each of
+  // those goes through `notify`, which writes it and then delivers it and
+  // records what happened, the same as a single notice.
+  const inApp = notifications.filter((n) => (n.channel ?? 'IN_APP') === 'IN_APP')
+  const outward = notifications.filter((n) => (n.channel ?? 'IN_APP') !== 'IN_APP')
+
+  const rows = inApp.map((n) => ({
     personId: n.personId,
     companyId: n.companyId ?? null,
     type: n.type,
@@ -250,25 +259,28 @@ export function notifyBulk(
     body: n.body,
     entityId: n.entityId ?? null,
     data: (n.data as any) ?? undefined,
-    channel: n.channel ?? 'IN_APP',
+    channel: 'IN_APP' as const,
     status: 'UNREAD' as const,
-    // Bulk is used for fan-out to a working team, which is in-app. Any row
-    // asking for an outside channel is left PENDING rather than marked
-    // sent, so it shows up as undelivered instead of disappearing.
-    deliveryState: (n.channel ?? 'IN_APP') === 'IN_APP' ? 'SENT' : 'PENDING',
-    deliveryNote: (n.channel ?? 'IN_APP') === 'IN_APP' ? 'Shown in the app' : null,
-    deliveredAt: (n.channel ?? 'IN_APP') === 'IN_APP' ? new Date() : null,
+    deliveryState: 'SENT',
+    deliveryNote: 'Shown in the app',
+    deliveredAt: new Date(),
   }))
 
-  return prisma.notification
-    .createMany({ data: rows })
-    .catch((err) => {
-      console.error(
-        `[Notify] Failed to bulk-create ${notifications.length} notification(s):`,
-        err
-      )
-      return null
-    })
+  const written =
+    rows.length === 0
+      ? Promise.resolve({ count: 0 })
+      : prisma.notification.createMany({ data: rows }).catch((err) => {
+          console.error(`[Notify] Failed to bulk-create ${rows.length} notification(s):`, err)
+          return null
+        })
+
+  return Promise.all([written, Promise.all(outward.map((n) => notify(n)))]).then(
+    ([bulk, singles]) => {
+      const sent = singles.filter((x) => x !== null).length
+      if (bulk === null && sent === 0) return null
+      return { count: (bulk?.count ?? 0) + sent }
+    }
+  )
 }
 
 /**

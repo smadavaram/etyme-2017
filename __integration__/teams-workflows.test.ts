@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { prisma, resetDatabase } from './harness'
-import { notify } from '@/lib/notify'
+import { notify, notifyBulk } from '@/lib/notify'
 import {
   RETIRED_LINK_ROUTE_REASON, TEAMS_WORKFLOWS_SENT_NOTE,
 } from '@/lib/notify/teams-link'
@@ -127,10 +127,40 @@ describe('a notice to a business user, on each kind of saved Teams link', () => 
     expect(sent[0].body.to).toBe('dana@cavanaugh.example')
   })
 
+  it('a bulk notice that asks for Teams or email is delivered like a single one, never left pending', async () => {
+    const before = posted.length
+    const result = await notifyBulk([
+      { personId: workflowsPerson, companyId: workflowsCo, type: 'SYSTEM', title: 'In the app only', body: 'Shown in the app.' },
+      { personId: workflowsPerson, companyId: workflowsCo, type: 'SYSTEM', title: 'Bulk to Teams', body: 'Posted to the channel.', channel: 'TEAMS' },
+      { personId: retiredPerson, companyId: retiredCo, type: 'SYSTEM', title: 'Bulk to a retired link', body: 'Goes by email.', channel: 'TEAMS' },
+    ])
+    expect(result).toEqual({ count: 3 })
+
+    const rows = await prisma.notification.findMany({
+      where: { title: { in: ['In the app only', 'Bulk to Teams', 'Bulk to a retired link'] } },
+      select: { id: true, title: true },
+    })
+    const by = new Map<string, Awaited<ReturnType<typeof settled>>>()
+    for (const r of rows) by.set(r.title, await settled(r.id))
+
+    expect(by.get('In the app only')!.channel).toBe('IN_APP')
+    expect(by.get('In the app only')!.deliveryState).toBe('SENT')
+    expect(by.get('Bulk to Teams')!.channel).toBe('TEAMS')
+    expect(by.get('Bulk to Teams')!.deliveryState).toBe('SENT')
+    expect(by.get('Bulk to Teams')!.deliveryNote).toBe(TEAMS_WORKFLOWS_SENT_NOTE)
+    expect(by.get('Bulk to a retired link')!.channel).toBe('EMAIL')
+    expect(by.get('Bulk to a retired link')!.deliveryNote).toBe(RETIRED_LINK_ROUTE_REASON)
+
+    const sent = posted.slice(before)
+    expect(sent.filter((p) => p.url === WORKFLOWS)).toHaveLength(1)
+    expect(sent.filter((p) => p.url === 'https://api.resend.com/emails')).toHaveLength(1)
+  })
+
   it('the Teams proof counts only posts a Workflows link accepted', async () => {
     const proof = await prisma.notification.count({
       where: { channel: 'TEAMS', deliveryState: 'SENT', deliveryNote: TEAMS_WORKFLOWS_SENT_NOTE },
     })
-    expect(proof).toBe(1)
+    // One single notice and one bulk notice went through a Workflows link.
+    expect(proof).toBe(2)
   })
 })
