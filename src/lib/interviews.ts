@@ -16,7 +16,7 @@
  *
  * So nothing is confirmed until all three have said so, and the screen
  * always names who it is waiting on. "Pending" tells a coordinator
- * nothing. "Waiting on Cloudepa since Tuesday" tells them who to ring.
+ * nothing. "Waiting on Techpeple since Tuesday" tells them who to ring.
  *
  * ── The consultant who cannot confirm ────────────────────────────────
  *
@@ -113,7 +113,7 @@ export interface Waiting {
  * Who still has to say yes, and whether it has been too long.
  *
  * Names the parties. A coordinator cannot act on "pending" and can act
- * on "waiting on Cloudepa and the consultant since Tuesday".
+ * on "waiting on Techpeple and the consultant since Tuesday".
  */
 export function waitingOn(
   i: Interview,

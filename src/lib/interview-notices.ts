@@ -22,7 +22,7 @@ export { timeFor }
  * The client's notes stay the client's. The supplier is told the
  * outcome of a round — through, an offer, not going forward — and never
  * the feedback behind it; that is between the client and its own file
- * (the integration walk pins "CloudEPA can see she is interviewing
+ * (the integration walk pins "Techpeple can see she is interviewing
  * without seeing Adobe's notes"). A rejection reaches the candidate
  * through their supplier, the way the trade does it, not from us.
  *

@@ -23,7 +23,7 @@
  *
  * **Say what will happen, not that something is wrong.** "Certificate
  * expires in 12 days" is a fact. "In 12 days you will not be able to place
- * anybody through Cloudepa" is the same fact in the form somebody acts on.
+ * anybody through Techpeple" is the same fact in the form somebody acts on.
  */
 
 export type Urgency = 'BLOCKING' | 'SOON' | 'WORTH_KNOWING'
@@ -31,7 +31,7 @@ export type Urgency = 'BLOCKING' | 'SOON' | 'WORTH_KNOWING'
 /**
  * A sentence ending in a company name.
  *
- * "Cloudepa Inc.." is the kind of thing that makes automated text read as
+ * "Techpeple Inc.." is the kind of thing that makes automated text read as
  * automated, and half the names in this industry end in a full stop.
  */
 function endingWith(name: string): string {

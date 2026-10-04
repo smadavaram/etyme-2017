@@ -18,7 +18,7 @@
  *
  * Each hop is its own submission, pointing at the one it came from:
  *
- *   Cloudepa → Vertex Global    $62/hr   the sub-vendor's submission
+ *   Techpeple → Vertex Global    $62/hr   the sub-vendor's submission
  *        └─ Vertex Global → Terumo    $95/hr   the prime's, marked up
  *
  * Two submissions, two rates, two decisions, one chain. That is the layer
@@ -274,7 +274,7 @@ export function journeyFor(hops: Hop[], myCompanyId: string | null): Hop[] {
  * Said to the consultant, who is entitled to the whole shape and none of
  * the money.
  *
- * "Cloudepa put you forward on Tuesday, and Vertex Global sent you to the
+ * "Techpeple put you forward on Tuesday, and Vertex Global sent you to the
  * client on Thursday" is the answer to the question they actually ask.
  */
 export function journeySentence(hops: Hop[], names: Record<string, string>): string {
