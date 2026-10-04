@@ -220,7 +220,7 @@ describe('the loop of documents does not crack at the door', () => {
 // ── What a desk verified becomes cover the product can read ───────────
 
 describe('a verdict at onboarding reaches the compliance record', () => {
-  const iso = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+  const iso = (n: number) => new Date(now.getTime() + n * 86_400_000).toISOString().slice(0, 10)
 
   const held = (key: string, dates?: { validFrom?: string; validUntil?: string }) => {
     const c = markItem(newChecklist(), key, 'HELD', null, now, dates) as any
@@ -405,7 +405,7 @@ describe('a checklist written before the code changed', () => {
 // nothing was written anywhere, and the desk was told nothing at all.
 
 describe('a desk is never told nothing when its click recorded nothing', () => {
-  const iso = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+  const iso = (n: number) => new Date(now.getTime() + n * 86_400_000).toISOString().slice(0, 10)
   const ordered = (key: string, label: string): OrderedItem => ({ key, label, purpose: 'COMPLIANCE', required: true })
 
   /** The checklist a client whose orders ask its suppliers for a screening report hands HR. */

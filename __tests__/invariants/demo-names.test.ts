@@ -593,45 +593,7 @@ const MAY_SPELL: Record<string, string> = {
  * refusal ("a domain like …com"), both of which want the new name and a
  * reserved domain. CLAUDE.md was renamed on the founder's request the same day.
  */
-const OWED = new Map<string, string>([
-  ['src/lib/forwarding.ts', 'etyme-conversation'],
-  ['src/lib/interview-notices.ts', 'etyme-conversation'],
-  ['src/lib/interviews.ts', 'etyme-conversation'],
-  ['src/lib/watch.ts', 'etyme-conversation'],
-  ['src/app/api/people/[id]/ask/route.ts', 'etyme-demand'],
-  ['src/app/api/program/org/route.ts', 'etyme-demand'],
-  ['src/app/api/submissions/[id]/award/route.ts', 'etyme-demand'],
-  ['src/app/api/submissions/adopt.ts', 'etyme-demand'],
-  ['src/app/api/suppliers/direct.ts', 'etyme-demand'],
-  ['src/app/api/suppliers/join/route.ts', 'etyme-demand'],
-  ['src/app/api/suppliers/route.ts', 'etyme-demand'],
-  ['src/app/api/timesheets/chain-turn.ts', 'etyme-demand'],
-  ['src/app/api/timesheets/route.ts', 'etyme-demand'],
-  ['src/app/api/why/[type]/[id]/route.ts', 'etyme-demand'],
-  ['src/app/dashboard/requisitions/[id]/page.tsx', 'etyme-demand'],
-  ['src/app/dashboard/suppliers/page.tsx', 'etyme-demand'],
-  ['src/lib/award.ts', 'etyme-demand'],
-  ['src/lib/chain-top.ts', 'etyme-demand'],
-  ['src/lib/join-companies.ts', 'etyme-demand'],
-  ['src/lib/resolve-client-company.ts', 'etyme-demand'],
-  ['src/lib/supplier-list.ts', 'etyme-demand'],
-  ['src/lib/public-site.ts', 'etyme-market'],
-  ['src/lib/public-site/leads.ts', 'etyme-market'],
-  ['src/lib/bench-policy.ts', 'etyme-money'],
-  ['src/lib/invoice-match.ts', 'etyme-money'],
-  ['src/lib/money/billed-elsewhere.ts', 'etyme-money'],
-  ['src/lib/money/payers-acceptance.ts', 'etyme-money'],
-  ['src/lib/money/rung-billing.ts', 'etyme-money'],
-  ['src/lib/work-chain.ts', 'etyme-money'],
-  ['src/app/api/compliance/route.ts', 'etyme-regulatory'],
-  ['src/lib/seat.ts', 'etyme-regulatory'],
-  ['src/app/api/alumni/route.ts', 'etyme-supply'],
-  ['src/app/api/bench/burn/route.ts', 'etyme-supply'],
-  ['src/app/api/me/work/route.ts', 'etyme-supply'],
-  ['src/app/dashboard/my-work/page.tsx', 'etyme-supply'],
-  ['src/app/dashboard/training/page.tsx', 'etyme-supply'],
-  ['src/lib/consultant-portfolio.ts', 'etyme-supply'],
-])
+const OWED = new Map<string, string>([])
 
 const SKIP_DIRS = new Set(['node_modules', '.git', '.next', '.vercel', 'coverage'])
 const BINARY = /\.(png|jpe?g|gif|webp|ico|svg|pdf|docx?|xlsx?|pptx?|zip|gz|woff2?|ttf|otf|rdb|mp4|mov|lock)$/i
