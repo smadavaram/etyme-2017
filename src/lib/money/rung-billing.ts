@@ -5,7 +5,7 @@
  * when"):
  *
  *   1. **A firm bills only the hours the firm above it accepted.** If
- *      Computer Systems accepts 38 of Helena Marsh's 40, CloudEPA's bill
+ *      Computer Systems accepts 38 of Helena Marsh's 40, Techpeple's bill
  *      to Computer Systems is for 38. Generation prices the payer's
  *      accepted hours, not the hours worked.
  *   2. **A firm bills upward on the client's signature**, without waiting
@@ -14,17 +14,17 @@
  * ── What it was ───────────────────────────────────────────────────────
  *
  * Generation priced the daily hours on the sheet — the hours worked — at
- * every rung, so CloudEPA billed Computer Systems for forty whatever
+ * every rung, so Techpeple billed Computer Systems for forty whatever
  * Computer Systems had accepted. And the three-way check on a bill read
  * `Timesheet.status`, which turns APPROVED only once the employer at the
  * bottom has accepted: Computer Systems' bill to Northbend, raised on
  * Northbend's signature as the route intends, could not clear its own
- * receipt check until CloudEPA — two rungs below the bill — had signed.
+ * receipt check until Techpeple — two rungs below the bill — had signed.
  *
  * ── Who the payer is ─────────────────────────────────────────────────
  *
  * The customer on the contract being billed: Northbend on Computer
- * Systems' contract, Computer Systems on CloudEPA's. Which of the
+ * Systems' contract, Computer Systems on Techpeple's. Which of the
  * payer's signatures counts is `payersRole`, the same answer the
  * invoice-receipt match uses — CLIENT_APPROVAL where the payer is the
  * end client, PASS_THROUGH where it is a firm in the middle.

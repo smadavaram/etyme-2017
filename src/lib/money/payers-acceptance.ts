@@ -13,17 +13,17 @@
  * The invoice-receipt match (`app/api/ap/bills`) read only
  * EMPLOYER_ACCEPTANCE, whoever wrote it, on timesheets filed against a
  * contract linked to the buy contract being billed. In Northbend ←
- * Computer Systems ← CloudEPA (Helena Marsh) that is wrong twice:
+ * Computer Systems ← Techpeple (Helena Marsh) that is wrong twice:
  *
- *   1. The hours are filed once, on CloudEPA's contract at the bottom.
+ *   1. The hours are filed once, on Techpeple's contract at the bottom.
  *      Computer Systems' buy contract is linked to Computer Systems' own
  *      sell contract, which carries no hours at all, so the match found
- *      nothing to stand behind CloudEPA's invoice however many firms had
+ *      nothing to stand behind Techpeple's invoice however many firms had
  *      signed. The edge to the hours is `supplierSellContractId`, and the
  *      match never followed it.
  *   2. Even where it found a week, the acceptance it read was the
- *      employer's — CloudEPA accepting what it pays Helena — standing in
- *      for Computer Systems accepting what it pays CloudEPA. The
+ *      employer's — Techpeple accepting what it pays Helena — standing in
+ *      for Computer Systems accepting what it pays Techpeple. The
  *      supplier's own acceptance was the receipt for the supplier's own
  *      invoice. Computer Systems' PASS_THROUGH, the one signature that is
  *      its own, was never read.

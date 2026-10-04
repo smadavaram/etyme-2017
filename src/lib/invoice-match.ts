@@ -205,7 +205,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
           // above bills them at its own rate — so the timesheet's
           // contract is the wrong place to read what this line should
           // cost. It carried the sub's rate: Helena Marsh's $145 line to
-          // Northbend Athletic was held to CloudEPA's $118 wherever no
+          // Northbend Athletic was held to Techpeple's $118 wherever no
           // opening rate-history row happened to mask it.
           sellContract: {
             select: {
@@ -332,10 +332,10 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
   // against `Timesheet.status`, which turns APPROVED only once the
   // employer at the bottom has accepted. That column held Computer
   // Systems' bill to Northbend, raised on Northbend's signature, until
-  // CloudEPA two rungs below it had signed.
+  // Techpeple two rungs below it had signed.
   //
   // The hours checked are the payer's accepted hours, at every rung:
-  // CloudEPA's bill for forty where Computer Systems accepted thirty-eight
+  // Techpeple's bill for forty where Computer Systems accepted thirty-eight
   // fails the hours check, and so does Computer Systems' bill for forty
   // where Northbend signed thirty-eight.
   const receiptOf = (l: (typeof invoice.invoiceLines)[number]) => {

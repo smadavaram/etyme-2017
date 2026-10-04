@@ -9,9 +9,9 @@
  * records it as an invoice receipt it was sent — a `VendorBill`, which
  * carries a period and a total and no lines. Generation only asked the
  * first: "not yet billed by us" meant no `InvoiceLine` of ours on the
- * week. So on 2026-09-30 CloudEPA pressed Generate and billed Computer
+ * week. So on 2026-09-30 Techpeple pressed Generate and billed Computer
  * Systems $16,992 for 144 hours, and its own check said "Nothing here has
- * been billed before" — while Computer Systems already held CloudEPA's
+ * been billed before" — while Computer Systems already held Techpeple's
  * invoice INV-CPRLJK for Aug 29 – Sep 26, approved, covering 120 of those
  * hours. $14,160 owed twice.
  *

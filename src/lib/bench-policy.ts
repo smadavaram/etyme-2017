@@ -539,7 +539,7 @@ const LEAVE_WORDS: Record<LeaveReason, string> = {
 /**
  * One person the bench page might count, as the arithmetic needs them.
  *
- * Found 2026-09-30 by a tester as CloudEPA: the bench burn counted every
+ * Found 2026-09-30 by a tester as Techpeple: the bench burn counted every
  * listed person with a live pay line, so Helena Marsh — placed at
  * Northbend and billing through March 2027 — read "$720/day · 129d on
  * bench · $66.2k burned", doubling the daily burn. And the 129 was

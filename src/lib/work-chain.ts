@@ -22,8 +22,8 @@
  * `BuyContract.supplierSellContractId` is that edge. With it the ladder
  * reads from any rung:
  *
- *   CS.sell(→Adobe) → CS.buy(CloudEPA) → CloudEPA.sell(→CS)
- *                                        → CloudEPA.buy(Priya, W2)
+ *   CS.sell(→Adobe) → CS.buy(Techpeple) → Techpeple.sell(→CS)
+ *                                        → Techpeple.buy(Priya, W2)
  *                                                    ▲
  *                                          the hours are filed here
  *
