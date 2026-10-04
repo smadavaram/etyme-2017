@@ -14,7 +14,7 @@ import { owedInAll, type SupplierInvoiceRow } from '@/lib/money/supplier-invoice
 
 const now = new Date('2026-09-30T12:00:00Z')
 const row = (over: Partial<SupplierInvoiceRow>): SupplierInvoiceRow => ({
-  id: over.number ?? 'x', number: 'x', supplierName: 'CloudEPA', currency: 'USD',
+  id: over.number ?? 'x', number: 'x', supplierName: 'Techpeple', currency: 'USD',
   totalMinor: 0, paidMinor: 0, dueAt: new Date('2026-10-30T00:00:00Z'), status: 'SUBMITTED', ...over,
 })
 

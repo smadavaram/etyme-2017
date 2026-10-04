@@ -12,7 +12,7 @@ import { periodFor, type Terms } from '@/lib/periods'
  * three-way match and the invoice screen did not: they read the rate
  * and the overtime terms off the timesheet's contract, which is the
  * rung underneath. Helena Marsh's $145 line to Northbend Athletic was
- * held to CloudEPA's $118, wherever no rate-history row stood in front
+ * held to Techpeple's $118, wherever no rate-history row stood in front
  * of the contract to hide it.
  */
 

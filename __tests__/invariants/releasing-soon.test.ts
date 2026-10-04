@@ -17,7 +17,7 @@ function person(over: Partial<RollingOff> = {}): RollingOff {
     personId: 'p1',
     personName: 'Anita Desai',
     vendorCompanyId: 'v1',
-    vendorName: 'Cloudepa Inc.',
+    vendorName: 'Techpeple Inc.',
     endClientName: 'Talvern Medical',
     endDate: inDays(20),
     consented: true,

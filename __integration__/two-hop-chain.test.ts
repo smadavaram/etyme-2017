@@ -10,14 +10,14 @@ import { ladderFor } from '@/lib/work-chain-read'
  *
  * The chain from the diagram:
  *
- *   Auralis Software Systems  ←  Computer Futures  ←  CloudEPA  ←  candidate1
+ *   Auralis Software Systems  ←  Computer Futures  ←  Techpeple  ←  candidate1
  *      (client)          (prime)            (sub)       (the person)
  *
  * Contract 1 belongs to Computer Futures: it sells to Auralis Software and buys
- * from CloudEPA, corp to corp. Candidate1 appears on it only to submit
- * timesheets — the counterparty is CloudEPA, not the person.
+ * from Techpeple, corp to corp. Candidate1 appears on it only to submit
+ * timesheets — the counterparty is Techpeple, not the person.
  *
- * Contract 2 belongs to CloudEPA: it sells to Computer Futures and
+ * Contract 2 belongs to Techpeple: it sells to Computer Futures and
  * employs candidate1 on W2.
  *
  * Each firm is the "upper" of its own contract and the "lower" of the
@@ -31,11 +31,11 @@ import { ladderFor } from '@/lib/work-chain-read'
 
 const ADOBE = 'procurement@adobe.test'
 const CF = 'owner@computerfutures.test'
-const CLOUDEPA = 'owner@cloudepa.test'
+const TECHPEPLE = 'owner@techpeple.test'
 const CANDIDATE = 'candidate1@person.test'
 
 const ids = {
-  adobe: '', cf: '', cloudepa: '', person: '',
+  adobe: '', cf: '', techpeple: '', person: '',
   sell1: '', buy1: '', sell2: '', buy2: '', timesheet: '',
 }
 
@@ -61,7 +61,7 @@ beforeAll(async () => {
 
   ids.adobe = await mk('Auralis Software Systems', 'adobe', 'CLIENT', ADOBE)
   ids.cf = await mk('Computer Futures', 'computer-futures', 'VENDOR', CF)
-  ids.cloudepa = await mk('CloudEPA', 'cloudepa', 'VENDOR', CLOUDEPA)
+  ids.techpeple = await mk('Techpeple', 'techpeple', 'VENDOR', TECHPEPLE)
 
   const person = await prisma.person.create({
     data: { name: 'Candidate One', primaryEmail: CANDIDATE },
@@ -76,31 +76,31 @@ beforeAll(async () => {
     prisma.counterparty.create({ data: { companyId: a, otherCompanyId: b, relationship: rel } })
   await link(ids.cf, ids.adobe, 'CLIENT')
   await link(ids.adobe, ids.cf, 'SUPPLIER')
-  await link(ids.cloudepa, ids.cf, 'CLIENT')
-  await link(ids.cf, ids.cloudepa, 'SUPPLIER')
+  await link(ids.techpeple, ids.cf, 'CLIENT')
+  await link(ids.cf, ids.techpeple, 'SUPPLIER')
 
-  // ── Step 3. The person is on CloudEPA's bench, and agreed to be ───
+  // ── Step 3. The person is on Techpeple's bench, and agreed to be ───
   await prisma.benchListing.create({
     data: {
-      consultantId: profile.id, companyId: ids.cloudepa, tier: 'RETAINED',
+      consultantId: profile.id, companyId: ids.techpeple, tier: 'RETAINED',
       state: 'GRANTED', invitedAt: new Date('2026-07-01'), respondedAt: new Date('2026-07-02'),
       grantedAt: new Date('2026-07-02'),
     },
   })
 
-  // ── Step 4. Contract 2 — CloudEPA's own pair ──────────────────────
+  // ── Step 4. Contract 2 — Techpeple's own pair ──────────────────────
   //
   // They sell to Computer Futures at $110 and employ the person at $85.
   const sell2 = await prisma.sellContract.create({
     data: {
-      companyId: ids.cloudepa, personId: ids.person, clientCompanyId: ids.cf,
+      companyId: ids.techpeple, personId: ids.person, clientCompanyId: ids.cf,
       billRate: 11000, billCurrency: 'USD', startDate: new Date('2026-08-01'), state: 'IN_PROGRESS',
     },
   })
   ids.sell2 = sell2.id
   const buy2 = await prisma.buyContract.create({
     data: {
-      companyId: ids.cloudepa, payCurrency: 'USD', contractType: 'W2',
+      companyId: ids.techpeple, payCurrency: 'USD', contractType: 'W2',
       startDate: new Date('2026-08-01'), state: 'IN_PROGRESS',
       candidates: { create: { personId: ids.person, payRate: 8500, startDate: new Date('2026-08-01') } },
     },
@@ -112,9 +112,9 @@ beforeAll(async () => {
 
   // ── Step 5. Contract 1 — Computer Futures' pair ───────────────────
   //
-  // They sell to Auralis Software at $135 and buy from CloudEPA at $110, corp to
+  // They sell to Auralis Software at $135 and buy from Techpeple at $110, corp to
   // corp. The person is on this contract to file hours and for nothing
-  // else — the counterparty here is CloudEPA.
+  // else — the counterparty here is Techpeple.
   const sell1 = await prisma.sellContract.create({
     data: {
       companyId: ids.cf, personId: ids.person, clientCompanyId: ids.adobe,
@@ -124,7 +124,7 @@ beforeAll(async () => {
   ids.sell1 = sell1.id
   const buy1 = await prisma.buyContract.create({
     data: {
-      companyId: ids.cf, vendorCompanyId: ids.cloudepa, payCurrency: 'USD', contractType: 'C2C',
+      companyId: ids.cf, vendorCompanyId: ids.techpeple, payCurrency: 'USD', contractType: 'C2C',
       startDate: new Date('2026-08-01'), state: 'IN_PROGRESS',
       candidates: { create: { personId: ids.person, payRate: 11000, startDate: new Date('2026-08-01') } },
     },
@@ -134,8 +134,8 @@ beforeAll(async () => {
     data: { sellContractId: sell1.id, buyContractId: buy1.id, effectiveFrom: new Date('2026-08-01') },
   })
 
-  // The rung below. Computer Futures buys from CloudEPA, and this says
-  // which of CloudEPA's contracts — the edge that lets the hours filed
+  // The rung below. Computer Futures buys from Techpeple, and this says
+  // which of Techpeple's contracts — the edge that lets the hours filed
   // at the bottom be found from the top.
   await prisma.buyContract.update({
     where: { id: buy1.id }, data: { supplierSellContractId: sell2.id },
@@ -148,44 +148,44 @@ describe('Step 1–2 — the chain exists, and nobody sees past their neighbors'
     expect(n).toBe(3)
   })
 
-  it('lets Computer Futures see Auralis Software above and CloudEPA below', async () => {
+  it('lets Computer Futures see Auralis Software above and Techpeple below', async () => {
     const seen = await prisma.counterparty.findMany({ where: { companyId: ids.cf } })
-    expect(seen.map((c) => c.otherCompanyId).sort()).toEqual([ids.adobe, ids.cloudepa].sort())
+    expect(seen.map((c) => c.otherCompanyId).sort()).toEqual([ids.adobe, ids.techpeple].sort())
   })
 
-  it('does not let Auralis Software see CloudEPA at all', async () => {
+  it('does not let Auralis Software see Techpeple at all', async () => {
     // The client buys from Computer Futures and has no relationship with
     // the firm that actually found the person. That is the whole reason
     // a chain exists, and the reason tenure cannot be computed by asking.
     const seen = await prisma.counterparty.findMany({ where: { companyId: ids.adobe } })
     expect(seen.map((c) => c.otherCompanyId)).toEqual([ids.cf])
-    expect(seen.map((c) => c.otherCompanyId)).not.toContain(ids.cloudepa)
+    expect(seen.map((c) => c.otherCompanyId)).not.toContain(ids.techpeple)
   })
 })
 
 describe('Step 3 — the person agreed to be marketed, and by whom', () => {
-  it('is on CloudEPA’s bench with consent actually recorded', async () => {
-    const l = await prisma.benchListing.findFirstOrThrow({ where: { companyId: ids.cloudepa } })
+  it('is on Techpeple’s bench with consent actually recorded', async () => {
+    const l = await prisma.benchListing.findFirstOrThrow({ where: { companyId: ids.techpeple } })
     expect(l.state).toBe('GRANTED')
     // Granted after being invited, not at the moment the row was made.
     expect(l.grantedAt.getTime()).toBeGreaterThan(l.invitedAt!.getTime())
   })
 
   it('is on nobody else’s bench, including the firms that will bill for them', async () => {
-    const others = await prisma.benchListing.count({ where: { companyId: { not: ids.cloudepa } } })
+    const others = await prisma.benchListing.count({ where: { companyId: { not: ids.techpeple } } })
     expect(others).toBe(0)
   })
 })
 
 describe('Step 4–5 — two contract pairs, one person, a margin at each hop', () => {
-  it('has CloudEPA selling at $110 and paying $85', async () => {
+  it('has Techpeple selling at $110 and paying $85', async () => {
     const s = await prisma.sellContract.findUniqueOrThrow({ where: { id: ids.sell2 } })
     const c = await prisma.buyContractCandidate.findFirstOrThrow({ where: { buyContractId: ids.buy2 } })
     expect(money(s.billRate)).toBe('$110/hr')
     expect(money(c.payRate)).toBe('$85/hr')
   })
 
-  it('has Computer Futures selling at $135 and paying CloudEPA $110', async () => {
+  it('has Computer Futures selling at $135 and paying Techpeple $110', async () => {
     const s = await prisma.sellContract.findUniqueOrThrow({ where: { id: ids.sell1 } })
     const c = await prisma.buyContractCandidate.findFirstOrThrow({ where: { buyContractId: ids.buy1 } })
     expect(money(s.billRate)).toBe('$135/hr')
@@ -207,15 +207,15 @@ describe('Step 4–5 — two contract pairs, one person, a margin at each hop', 
     expect(below.contractType).toBe('W2')
     expect(below.vendorCompanyId).toBeNull() // you do not raise a PO to your own employee
     expect(above.contractType).toBe('C2C')
-    expect(above.vendorCompanyId).toBe(ids.cloudepa)
+    expect(above.vendorCompanyId).toBe(ids.techpeple)
   })
 })
 
 describe('Step 6 — the person files one week, once', () => {
   it('files it against the contract they actually work under', async () => {
-    // Contract 2's sell side: CloudEPA is who employs them, and the
+    // Contract 2's sell side: Techpeple is who employs them, and the
     // diagram is explicit that on Contract 1 the person exists only to
-    // submit hours — the counterparty there is CloudEPA, not them.
+    // submit hours — the counterparty there is Techpeple, not them.
     const ts = await prisma.timesheet.create({
       data: {
         sellContractId: ids.sell2,
@@ -246,22 +246,22 @@ describe('Step 6 — the person files one week, once', () => {
   it('carries the employer’s acceptance, which is what payroll follows', async () => {
     await prisma.workAssertion.create({
       data: {
-        timesheetId: ids.timesheet, companyId: ids.cloudepa,
+        timesheetId: ids.timesheet, companyId: ids.techpeple,
         role: 'EMPLOYER_ACCEPTANCE', hours: 40, rateCents: 8500, state: 'LIVE',
       },
     })
     const a = await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: ids.timesheet } })
-    expect(a.companyId).toBe(ids.cloudepa)
+    expect(a.companyId).toBe(ids.techpeple)
   })
 })
 
-describe('Step 7 — CloudEPA is paid and pays', () => {
+describe('Step 7 — Techpeple is paid and pays', () => {
   it('owes the person 40 hours at $85 — $3,400', async () => {
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await json(await payroll(req('GET', '/api/payroll')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const row = (r.body.data.payItems ?? []).find((x: any) => x.buyContractId === ids.buy2)
-    expect(row, 'CloudEPA has no pay item for this person').toBeTruthy()
+    expect(row, 'Techpeple has no pay item for this person').toBeTruthy()
     expect(Number(row.totalApprovedHours)).toBe(40)
     expect(Number(row.grossPay)).toBe(40 * 8500)
   }, 60_000)
@@ -300,7 +300,7 @@ describe('Step 8 — one week of hours, billed once at each hop', () => {
     expect(descend(ids.sell2, rungs)).toEqual([ids.sell2])
   })
 
-  it('still pays CloudEPA from its own link window', async () => {
+  it('still pays Techpeple from its own link window', async () => {
     const links = await prisma.contractLink.findMany({ where: { buyContractId: ids.buy1 } })
     expect(links).toHaveLength(1)
     expect(links[0].sellContractId).toBe(ids.sell1)

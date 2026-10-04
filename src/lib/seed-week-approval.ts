@@ -4,14 +4,14 @@
  * The founder, 2026-09-30 (CLAUDE.md, "A client may approve by email, and
  * the proof travels down the chain"). So the demo shows it: Helena Marsh's
  * oldest signed week at Northbend Athletic, through Computer Systems and
- * CloudEPA, reads "Approved by email: Marcus Oyelaran, <day> — evidence
+ * Techpeple, reads "Approved by email: Marcus Oyelaran, <day> — evidence
  * attached". Marcus replied to Computer Systems — the supplier Northbend
  * pays, and the only one it deals with — and Computer Systems forwarded the
- * reply down to CloudEPA, whose desk attached it. It applies to both
+ * reply down to Techpeple, whose desk attached it. It applies to both
  * contracts on the chain, so Northbend reads its own contract only, and
- * Computer Systems and CloudEPA each open the same email.
+ * Computer Systems and Techpeple each open the same email.
  *
- * The email is addressed to Computer Systems, never to CloudEPA. Northbend
+ * The email is addressed to Computer Systems, never to Techpeple. Northbend
  * opens this file too, and a sub-vendor's name is the prime's to keep
  * (CLAUDE.md, 2026-09-17): a client writing to a firm it has never heard of
  * would be the leak, and it would not be how the week was really approved.
@@ -44,11 +44,11 @@ export function approvalEmail(a: { approverName: string; approverEmail: string; 
 
 export async function seedWeekApproval(world: World): Promise<{ written: boolean }> {
   const client = world.firmBySlug.get('nike')
-  const cloudepa = world.firmBySlug.get('cloudepa')
-  const sender = world.seatBySlug.get('cloudepa')
+  const techpeple = world.firmBySlug.get('techpeple')
+  const sender = world.seatBySlug.get('techpeple')
   // Who the client actually wrote to: the account desk of the firm it pays.
   const prime = world.seatBySlug.get('computer-systems')
-  if (!client || !cloudepa || !sender || !prime) return { written: false }
+  if (!client || !techpeple || !sender || !prime) return { written: false }
 
   const approver = await db.person.findUnique({
     where: { primaryEmail: `${world.prefix}nike-hiring@${world.domain}` },
@@ -57,11 +57,11 @@ export async function seedWeekApproval(world: World): Promise<{ written: boolean
   const helena = await db.person.findFirst({ where: { name: 'Helena Marsh' }, select: { id: true } })
   if (!approver || !helena) return { written: false }
 
-  // Her weeks are filed on CloudEPA's contract to Computer Systems.
+  // Her weeks are filed on Techpeple's contract to Computer Systems.
   const week = await db.timesheet.findFirst({
     where: {
       personId: helena.id, status: 'APPROVED', clientApprovedAt: { not: null },
-      sellContract: { companyId: cloudepa.id, OR: [{ endClientCompanyId: client.id }, { clientCompanyId: client.id }] },
+      sellContract: { companyId: techpeple.id, OR: [{ endClientCompanyId: client.id }, { clientCompanyId: client.id }] },
     },
     orderBy: { periodStart: 'asc' },
     select: { id: true, sellContractId: true, periodStart: true, periodEnd: true, totalHours: true, clientApprovedAt: true },
@@ -77,7 +77,7 @@ export async function seedWeekApproval(world: World): Promise<{ written: boolean
     select: { id: true, file: { select: { id: true, bytes: true } } },
   })
   if (already) {
-    // A world seeded before 2026-10-03 addressed the reply to CloudEPA, which
+    // A world seeded before 2026-10-03 addressed the reply to Techpeple, which
     // Northbend could read. Readdress that one file, and touch nothing else.
     const f = already.file
     if (f && Buffer.from(f.bytes).toString('utf8').includes(`To: ${sender.email}`)) {
@@ -121,7 +121,7 @@ export async function seedWeekApproval(world: World): Promise<{ written: boolean
       data: {
         timesheetId: week.id, how: 'EVIDENCE', clientCompanyId: client.id,
         approverName: approver.name, approverEmail: approver.primaryEmail.toLowerCase(),
-        sentById: sender.personId, sentByCompanyId: cloudepa.id, sentAs: 'SUPPLIER_DESK', sentAt: on,
+        sentById: sender.personId, sentByCompanyId: techpeple.id, sentAs: 'SUPPLIER_DESK', sentAt: on,
         evidenceKind: 'EMAIL', approvedOn: on, assertionId: signature.id,
         contracts: { create: scope.map((sellContractId, position) => ({ sellContractId, position })) },
         file: {

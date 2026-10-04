@@ -65,7 +65,7 @@ function assertion(over: Partial<Assertion> = {}): Assertion {
 const THREE: { companyId: string; companyName: string; role: Role }[] = [
   { companyId: 'client', companyName: 'Calder Manufacturing', role: 'CLIENT_APPROVAL' },
   { companyId: 'prime', companyName: 'Veritan Talent', role: 'PASS_THROUGH' },
-  { companyId: 'sub', companyName: 'Cloudepa Systems', role: 'EMPLOYER_ACCEPTANCE' },
+  { companyId: 'sub', companyName: 'Techpeple', role: 'EMPLOYER_ACCEPTANCE' },
 ]
 
 describe('a chain deeper than two', () => {
@@ -73,15 +73,15 @@ describe('a chain deeper than two', () => {
     // The exact case the two-column model got silently wrong.
     const legs = chain(record(), THREE, [assertion()])
     const p = position(record(), legs)
-    expect(p.waitingOn.map((l) => l.companyName)).toEqual(['Veritan Talent', 'Cloudepa Systems'])
-    expect(p.says).toBe('40 hours submitted. Waiting on Veritan Talent and Cloudepa Systems.')
+    expect(p.waitingOn.map((l) => l.companyName)).toEqual(['Veritan Talent', 'Techpeple'])
+    expect(p.says).toBe('40 hours submitted. Waiting on Veritan Talent and Techpeple.')
   })
 
   it('is complete only when everybody has spoken', () => {
     const legs = chain(record(), THREE, [
       assertion(),
       assertion({ id: 'a2', companyId: 'prime', companyName: 'Veritan Talent', role: 'PASS_THROUGH', rateCents: 8500 }),
-      assertion({ id: 'a3', companyId: 'sub', companyName: 'Cloudepa Systems', role: 'EMPLOYER_ACCEPTANCE', rateCents: 7800 }),
+      assertion({ id: 'a3', companyId: 'sub', companyName: 'Techpeple', role: 'EMPLOYER_ACCEPTANCE', rateCents: 7800 }),
     ])
     expect(position(record(), legs).complete).toBe(true)
   })
@@ -100,7 +100,7 @@ describe('each leg carries its own money', () => {
   it('bills at the client’s rate and pays at the employer’s', () => {
     const legs = chain(record(), THREE, [
       assertion({ rateCents: 9000 }),
-      assertion({ id: 'a3', companyId: 'sub', companyName: 'Cloudepa Systems', role: 'EMPLOYER_ACCEPTANCE', rateCents: 7800 }),
+      assertion({ id: 'a3', companyId: 'sub', companyName: 'Techpeple', role: 'EMPLOYER_ACCEPTANCE', rateCents: 7800 }),
       assertion({ id: 'a2', companyId: 'prime', companyName: 'Veritan Talent', role: 'PASS_THROUGH', rateCents: 8500 }),
     ])
     const p = position(record(), legs)

@@ -15,9 +15,9 @@ import { firmsOnARow, mayNameSubVendors, nameForClient, namesForClient, type See
 const rung = (id: string, personId: string, companyId: string, companyName: string, clientCompanyId: string) =>
   ({ id, personId, companyId, companyName, clientCompanyId })
 
-// Northbend Athletic buys Helena from Computer Systems, who buys her from CloudEPA.
+// Northbend Athletic buys Helena from Computer Systems, who buys her from Techpeple.
 const CHAIN = [
-  rung('sub', 'helena', 'cloudepa', 'CloudEPA', 'computer-systems'),
+  rung('sub', 'helena', 'techpeple', 'Techpeple', 'computer-systems'),
   rung('top', 'helena', 'computer-systems', 'Computer Systems Inc', 'nike'),
 ]
 
@@ -36,7 +36,7 @@ describe('whose name a client may read in a chain', () => {
 
   it('a client does not see the name of the firm below the one it pays', () => {
     const seen = nameForClient(CHAIN[0], CHAIN, 'nike', never)
-    expect(seen.name).not.toContain('CloudEPA')
+    expect(seen.name).not.toContain('Techpeple')
     expect(seen.masked).toBe(true)
   })
 
@@ -52,9 +52,9 @@ describe('whose name a client may read in a chain', () => {
     const terms = [term('nike', 'computer-systems', true)]
     const mayName = (prime: string) => mayNameSubVendors(terms, 'nike', prime)
     const seen = nameForClient(CHAIN[0], CHAIN, 'nike', mayName)
-    expect(seen.name).toBe('CloudEPA')
+    expect(seen.name).toBe('Techpeple')
     expect(seen.masked).toBe(false)
-    expect(seen.says).toBe('CloudEPA — supplied through Computer Systems Inc.')
+    expect(seen.says).toBe('Techpeple — supplied through Computer Systems Inc.')
   })
 
   it('disclosure written into one supplier’s agreement does not uncover another supplier’s sub-vendor', () => {
@@ -84,7 +84,7 @@ describe('whose name a client may read in a chain', () => {
 
   it('a firm three rungs down is said to come through the firm the client pays, not the firm above it', () => {
     const deep = [
-      rung('bottom', 'helena', 'bench-co', 'Bench Co', 'cloudepa'),
+      rung('bottom', 'helena', 'bench-co', 'Bench Co', 'techpeple'),
       ...CHAIN,
     ]
     const seen = nameForClient(deep[0], deep, 'nike', never)
@@ -92,10 +92,10 @@ describe('whose name a client may read in a chain', () => {
   })
 
   it('a rung whose chain above it is not on file says so rather than guessing at a supplier', () => {
-    const orphan = [rung('lost', 'helena', 'cloudepa', 'CloudEPA', 'some-firm-nobody-listed')]
+    const orphan = [rung('lost', 'helena', 'techpeple', 'Techpeple', 'some-firm-nobody-listed')]
     const seen = nameForClient(orphan[0], orphan, 'nike', never)
     expect(seen.masked).toBe(true)
-    expect(seen.name).not.toContain('CloudEPA')
+    expect(seen.name).not.toContain('Techpeple')
     expect(seen.name).toContain('not on file')
     expect(seen.through).toBeNull()
   })
@@ -109,30 +109,30 @@ describe('whose name a client may read in a chain', () => {
     ]
     const names = namesForClient(both, 'nike', never)
     expect(names.get('computer-systems')?.name).toBe('Computer Systems Inc')
-    expect(names.get('cloudepa')?.masked).toBe(true)
+    expect(names.get('techpeple')?.masked).toBe(true)
   })
 
   it('a hidden firm reached through two different suppliers names both, so the client knows who to call', () => {
     const two = [
       ...CHAIN,
-      rung('sub2', 'omar', 'cloudepa', 'CloudEPA', 'pinnacle'),
+      rung('sub2', 'omar', 'techpeple', 'Techpeple', 'pinnacle'),
       rung('top2', 'omar', 'pinnacle', 'Pinnacle Resourcing', 'nike'),
     ]
     const names = namesForClient(two, 'nike', never)
-    const hidden = names.get('cloudepa')!
+    const hidden = names.get('techpeple')!
     expect(hidden.masked).toBe(true)
     expect(hidden.name).toContain('Computer Systems Inc')
     expect(hidden.name).toContain('Pinnacle Resourcing')
   })
 
   it('a firm with one rung that reaches the prime and one with a hole above it is said to come through the prime, whichever rung is read first', () => {
-    // A draft line for a new person under CloudEPA, not yet under Computer
+    // A draft line for a new person under Techpeple, not yet under Computer
     // Systems: its own walk up finds nothing. Helena's walks cleanly.
-    const hole = rung('draft', 'nora', 'cloudepa', 'CloudEPA', 'computer-systems')
+    const hole = rung('draft', 'nora', 'techpeple', 'Techpeple', 'computer-systems')
     for (const rows of [[hole, ...CHAIN], [...CHAIN, hole]]) {
-      const seen = namesForClient(rows, 'nike', never).get('cloudepa')
+      const seen = namesForClient(rows, 'nike', never).get('techpeple')
       expect(seen?.through).toBe('Computer Systems Inc')
-      expect(seen?.name).not.toContain('CloudEPA')
+      expect(seen?.name).not.toContain('Techpeple')
     }
   })
 
@@ -151,8 +151,8 @@ describe('whose name a client may read in a chain', () => {
   it('withholding a name never withholds the firm it belongs to, so its standing still has a row to sit on', () => {
     const seen = nameForClient(CHAIN[0], CHAIN, 'nike', always)
     const hidden = nameForClient(CHAIN[0], CHAIN, 'nike', never)
-    expect(seen.companyId).toBe('cloudepa')
-    expect(hidden.companyId).toBe('cloudepa')
+    expect(seen.companyId).toBe('techpeple')
+    expect(hidden.companyId).toBe('techpeple')
   })
 })
 
@@ -166,26 +166,26 @@ describe('reading the chain upward, from a firm that sells into it', () => {
    */
 
   // Northbend buys Helena from Computer Systems, who buys her from
-  // CloudEPA, who buys her from a bench firm below that.
+  // Techpeple, who buys her from a bench firm below that.
   const DEEP = [
-    rung('bottom', 'helena', 'bench-co', 'Bench Co', 'cloudepa'),
-    rung('sub', 'helena', 'cloudepa', 'CloudEPA', 'computer-systems'),
+    rung('bottom', 'helena', 'bench-co', 'Bench Co', 'techpeple'),
+    rung('sub', 'helena', 'techpeple', 'Techpeple', 'computer-systems'),
     rung('top', 'helena', 'computer-systems', 'Computer Systems Inc', 'nike'),
   ]
 
   it('a firm is told the counterparty above it by name, and never a rung beyond it, in the same words either direction', () => {
-    // CloudEPA reading Computer Systems, the firm it sells to: its own
+    // Techpeple reading Computer Systems, the firm it sells to: its own
     // counterparty, on its own invoices, never anybody's to withhold.
-    const customer = nameForClient(DEEP[2], DEEP, 'cloudepa', never)
+    const customer = nameForClient(DEEP[2], DEEP, 'techpeple', never)
     expect(customer.name).toBe('Computer Systems Inc')
     expect(customer.masked).toBe(false)
 
     // And Northbend, one rung beyond it: withheld, and the sentence says
-    // which of CloudEPA's own counterparties it sits above.
+    // which of Techpeple's own counterparties it sits above.
     const beyond = nameForClient(
       rung('client', 'helena', 'nike', 'Northbend Athletic', 'nobody'),
       [...DEEP, rung('client', 'helena', 'nike', 'Northbend Athletic', 'nobody')],
-      'cloudepa',
+      'techpeple',
       never
     )
     expect(beyond.name).not.toContain('Northbend')
@@ -195,24 +195,24 @@ describe('reading the chain upward, from a firm that sells into it', () => {
     // The same shape as the downward answer, which is the point: one
     // rule, read from either end.
     const downward = nameForClient(DEEP[0], DEEP, 'computer-systems', never)
-    expect(downward.phrase).toBe('the firm supplied through CloudEPA')
+    expect(downward.phrase).toBe('the firm supplied through Techpeple')
   })
 
   it('nothing above a reader is ever described as below it', () => {
     for (const r of DEEP) {
-      const seen = nameForClient(r, DEEP, 'cloudepa', never)
+      const seen = nameForClient(r, DEEP, 'techpeple', never)
       if (!seen.masked) continue
-      expect(seen.phrase, `${r.companyName} is not below CloudEPA`).not.toContain('below one of your suppliers')
+      expect(seen.phrase, `${r.companyName} is not below Techpeple`).not.toContain('below one of your suppliers')
     }
   })
 
   it('a firm reads its own name, rather than being described as a stranger beneath itself', () => {
-    // The same fall-through as the letters: CloudEPA asking about
-    // CloudEPA walked off the end of the upward read and came back
+    // The same fall-through as the letters: Techpeple asking about
+    // Techpeple walked off the end of the upward read and came back
     // masked, which is how a firm was told to ask itself for its own
     // consultant's paper.
-    const self = nameForClient(DEEP[1], DEEP, 'cloudepa', never)
-    expect(self.name).toBe('CloudEPA')
+    const self = nameForClient(DEEP[1], DEEP, 'techpeple', never)
+    expect(self.name).toBe('Techpeple')
     expect(self.masked).toBe(false)
   })
 
@@ -226,10 +226,10 @@ describe('reading the chain upward, from a firm that sells into it', () => {
 
   it('a chain with a hole above the reader says so rather than naming a direction it cannot prove', () => {
     const orphan = [
-      rung('mine', 'helena', 'cloudepa', 'CloudEPA', 'somebody-not-on-file'),
+      rung('mine', 'helena', 'techpeple', 'Techpeple', 'somebody-not-on-file'),
       rung('far', 'helena', 'nike', 'Northbend Athletic', 'nobody'),
     ]
-    const seen = nameForClient(orphan[1], orphan, 'cloudepa', never)
+    const seen = nameForClient(orphan[1], orphan, 'techpeple', never)
     expect(seen.masked).toBe(true)
     expect(seen.name).not.toContain('Northbend')
   })
@@ -258,7 +258,7 @@ describe('the firms behind one person, on one line', () => {
   it('a firm the client pays directly is named once, never as supplied through itself', () => {
     const row = firmsOnARow([
       named('cs', 'Computer Systems Inc'),
-      withheldThrough('cloudepa', 'Computer Systems Inc'),
+      withheldThrough('techpeple', 'Computer Systems Inc'),
     ])
     expect(row.says).toBe('Computer Systems Inc (and one firm below them)')
     expect(row.says.match(/Computer Systems Inc/g)).toHaveLength(1)
@@ -269,7 +269,7 @@ describe('the firms behind one person, on one line', () => {
     const row = firmsOnARow([
       named('cs', 'Computer Systems Inc'),
       named('vx', 'Vertex Global'),
-      withheldThrough('cloudepa', 'Computer Systems Inc'),
+      withheldThrough('techpeple', 'Computer Systems Inc'),
       withheldThrough('nimbus', 'Computer Systems Inc'),
       withheldThrough('orchid', 'Vertex Global'),
     ])
@@ -283,7 +283,7 @@ describe('the firms behind one person, on one line', () => {
   it('a withheld firm whose prime is not on this row still says who it comes through', () => {
     // The prime may be a firm this client pays for somebody else, so a
     // row about this person names nobody it could be folded into.
-    const row = firmsOnARow([withheldThrough('cloudepa', 'Computer Systems Inc')])
+    const row = firmsOnARow([withheldThrough('techpeple', 'Computer Systems Inc')])
     expect(row.says).toBe('one firm supplied through Computer Systems Inc')
     expect(row.withheld).toBe(1)
   })
@@ -309,9 +309,9 @@ describe('the firms behind one person, on one line', () => {
     // sub's name never appears, only a count.
     const row = firmsOnARow([
       named('cs', 'Computer Systems Inc'),
-      { ...withheldThrough('cloudepa', 'Computer Systems Inc') },
+      { ...withheldThrough('techpeple', 'Computer Systems Inc') },
     ])
-    expect(row.says).not.toContain('CloudEPA')
+    expect(row.says).not.toContain('Techpeple')
     expect(row.says).toContain('one firm below them')
   })
 })

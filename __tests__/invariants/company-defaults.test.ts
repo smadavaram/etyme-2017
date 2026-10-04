@@ -155,7 +155,7 @@ describe('guessing the country from the email domain', () => {
   })
 
   it('treats a bare .co domain as US, because it is a vanity suffix and not Colombia', () => {
-    expect(countryFromDomain('cloudepa.co')).toBe('US')
+    expect(countryFromDomain('acme.co')).toBe('US')
   })
 
   it('defaults to US when there is no domain at all', () => {
@@ -165,12 +165,12 @@ describe('guessing the country from the email domain', () => {
 
 describe('the whole starting kit', () => {
   it('gives a US vendor a pack, a holiday calendar, roles and a location', () => {
-    const d = defaultsFor('VENDOR', 'Cloudepa Inc.', 'cloudepa.com')
+    const d = defaultsFor('VENDOR', 'Techpeple Inc.', 'techpeple.example')
     expect(d.templatePack).toBe('US_IT')
     expect(d.country).toBe('US')
     expect(d.seedHolidays).toBe(true)
     expect(d.roles.length).toBeGreaterThan(1)
-    expect(d.primaryLocationName).toContain('Cloudepa Inc.')
+    expect(d.primaryLocationName).toContain('Techpeple Inc.')
   })
 
   it('seeds the right country’s calendar, not America’s', () => {

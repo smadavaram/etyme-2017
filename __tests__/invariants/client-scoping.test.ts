@@ -41,8 +41,8 @@ function caller(overrides: {
   hasCompany?: boolean
 }): CallerContext {
   const {
-    companyId = 'vendor-cloudepa',
-    companyName = 'Cloudepa Inc.',
+    companyId = 'vendor-techpeple',
+    companyName = 'Techpeple Inc.',
     companyKind = 'VENDOR',
     permissions = ALL_PERMS,
     hasCompany = true,
@@ -240,8 +240,8 @@ describe('A supplier that names no client at all', () => {
 describe('Contract list scoping — every caller sees only their own side', () => {
 
   it('a vendor sees the contracts they sell', () => {
-    const scope = sellContractScope(caller({ companyId: 'vendor-cloudepa' }))
-    expect(scope).toEqual({ companyId: 'vendor-cloudepa' })
+    const scope = sellContractScope(caller({ companyId: 'vendor-techpeple' }))
+    expect(scope).toEqual({ companyId: 'vendor-techpeple' })
   })
 
   it('a client sees the contracts it is billed on, and not the ones underneath them', () => {
@@ -257,7 +257,7 @@ describe('Contract list scoping — every caller sees only their own side', () =
   })
 
   it('a client is shown nothing rather than its supplier\u2019s cost where a chain has no top rung', () => {
-    // Three-party: Cloudepa bills GlobalStaff MSP, consultant works at
+    // Three-party: Techpeple bills GlobalStaff MSP, consultant works at
     // Talvern Medical, and no contract names Talvern Medical as the buyer. Talvern Medical is not
     // a party to the money of that row, so it is not on this list —
     // who is on site is endClientFilter's question, asked on the
@@ -298,8 +298,8 @@ describe('Contract list scoping — every caller sees only their own side', () =
 describe('Buy contract scoping', () => {
 
   it('a vendor sees the buy contracts they own', () => {
-    expect(buyContractScope(caller({ companyId: 'vendor-cloudepa' })))
-      .toEqual({ companyId: 'vendor-cloudepa' })
+    expect(buyContractScope(caller({ companyId: 'vendor-techpeple' })))
+      .toEqual({ companyId: 'vendor-techpeple' })
   })
 
   it('a client has no buy contracts and sees an empty list, not everyone else\'s', () => {
@@ -316,8 +316,8 @@ describe('Buy contract scoping', () => {
 describe('Expense scoping — a client never sees a vendor\'s internal costs', () => {
 
   it('a vendor sees every expense their company owns', () => {
-    expect(expenseScope(caller({ companyId: 'vendor-cloudepa' })))
-      .toEqual({ companyId: 'vendor-cloudepa' })
+    expect(expenseScope(caller({ companyId: 'vendor-techpeple' })))
+      .toEqual({ companyId: 'vendor-techpeple' })
   })
 
   it('a client sees only billable expenses raised at their own sites', () => {

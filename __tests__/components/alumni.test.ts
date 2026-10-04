@@ -279,7 +279,7 @@ describe('Alumni detail formatting', () => {
   })
 
   it('the detail field names the last vendor for ended alumni', () => {
-    expect(formatDetail('ended', 'Cloudepa')).toBe('Released · Cloudepa')
+    expect(formatDetail('ended', 'Techpeple')).toBe('Released · Techpeple')
   })
 })
 

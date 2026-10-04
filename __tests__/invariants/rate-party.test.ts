@@ -127,7 +127,7 @@ const calls = (source: string, fn: string) =>
 
 const NIKE = 'nike'
 const PRIME = 'computer-systems'
-const SUB = 'cloudepa'
+const SUB = 'techpeple'
 
 const seat = (kind: string, companyId: string): CallerContext =>
   ({
@@ -352,7 +352,7 @@ describe('which scope a route may use is written down, not remembered', () => {
 
   it('catches the timesheet list as it was written this morning, which is how this register earns its keep', () => {
     // Verbatim from src/app/api/timesheets/route.ts at 258b4bfd. It
-    // showed Northbend Athletic $118 — what CloudEPA charges Computer Systems —
+    // showed Northbend Athletic $118 — what Techpeple charges Computer Systems —
     // against the $145 Northbend Athletic pays.
     const thisMorning = `
       import { sellContractScope } from '@/lib/resolve-client-company'
@@ -372,7 +372,7 @@ describe('which scope a route may use is written down, not remembered', () => {
 
 /**
  * Helena's chain. Northbend Athletic buys her from Computer Systems at $145; Computer
- * Systems buys her from CloudEPA at $118. Both legs name Northbend Athletic as the end
+ * Systems buys her from Techpeple at $118. Both legs name Northbend Athletic as the end
  * client, because that is the building she walks into.
  */
 const BOTTOM: DatedRung & { billRate: number } = {

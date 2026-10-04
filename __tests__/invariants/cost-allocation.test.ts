@@ -243,14 +243,14 @@ describe('Coding is labeled with the company that owns it', () => {
   })
 
   it('on an MSP leg the codes belong to the end client, not the payer', () => {
-    // Cloudepa invoices GlobalStaff; David Chen sits at Talvern Medical
+    // Techpeple invoices GlobalStaff; David Chen sits at Talvern Medical
     expect(codingIsPayers('terumo', 'globalstaff-msp')).toBe(false)
   })
 
   it('a vendor never sees its own profit-centre coding on a client invoice', () => {
     // Only the client's dimensions are carried — the vendor's COGS and
     // profit center are a separate set and are not exported here
-    expect(codingIsPayers('cloudepa', 'terumo')).toBe(false)
+    expect(codingIsPayers('techpeple', 'terumo')).toBe(false)
   })
 })
 

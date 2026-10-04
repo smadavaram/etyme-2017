@@ -67,12 +67,12 @@ describe('how long a person stays on a bench', () => {
   })
 
   it('the stay is said in one plain sentence', () => {
-    expect(staySays(stayFields(null, granted), 'CloudEPA', granted)).toBe("You stay on CloudEPA's bench until you cancel.")
-    expect(staySays(stayFields(15, granted), 'CloudEPA', granted)).toBe("You stay on CloudEPA's bench until October 16, 2026 (15 days). After that it ends by itself.")
+    expect(staySays(stayFields(null, granted), 'Techpeple', granted)).toBe("You stay on Techpeple's bench until you cancel.")
+    expect(staySays(stayFields(15, granted), 'Techpeple', granted)).toBe("You stay on Techpeple's bench until October 16, 2026 (15 days). After that it ends by itself.")
   })
 
   it('the reminder carries the one-tap renew link and says what was sent stays as it is', () => {
-    const t = reminderText({ personName: 'Grace Lindqvist', firm: 'CloudEPA', until: new Date('2026-10-16T00:00:00Z'), days: 15, url: 'https://x/bench-invite/abc' })
+    const t = reminderText({ personName: 'Grace Lindqvist', firm: 'Techpeple', until: new Date('2026-10-16T00:00:00Z'), days: 15, url: 'https://x/bench-invite/abc' })
     expect(t.body).toContain('https://x/bench-invite/abc')
     expect(t.body).toContain('Anything already sent stays as it is.')
   })

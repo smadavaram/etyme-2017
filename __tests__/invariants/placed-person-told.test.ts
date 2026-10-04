@@ -12,13 +12,13 @@ import { tellPlaced, awardTellsThePerson } from '@/lib/award'
  */
 
 describe('the person placed is told', () => {
-  const told = tellPlaced({ siteName: 'Northbend Athletic', supplierName: 'CloudEPA', roleTitle: 'Demand planning analyst' })
+  const told = tellPlaced({ siteName: 'Northbend Athletic', supplierName: 'Techpeple', roleTitle: 'Demand planning analyst' })
 
   it('a placed consultant is told where they are placed and through which firm', () => {
     expect(told.title).toBe('You are placed at Northbend Athletic')
     expect(told.body).toBe(
-      'You are placed at Northbend Athletic through CloudEPA, for Demand planning analyst. ' +
-      'CloudEPA will be in touch about your start date.'
+      'You are placed at Northbend Athletic through Techpeple, for Demand planning analyst. ' +
+      'Techpeple will be in touch about your start date.'
     )
   })
 

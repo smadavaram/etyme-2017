@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation'
  * ── Where the door leads ─────────────────────────────────────────────
  *
  * A company seat lands in the twenty-firm world lib/seed-world builds —
- * a client sits at Northbend Athletic, a bench vendor at CloudEPA — not in a private
+ * a client sits at Northbend Athletic, a bench vendor at Techpeple — not in a private
  * copy with a made-up name. This used to mint "Oxford Corp" for anybody
  * who picked the client seat, and the founder, who had just watched
  * Northbend Athletic, Cavanaugh Glassworks and Talvern Medical get built, opened the product and asked
@@ -41,7 +41,7 @@ const WORLD_SEAT: Record<string, { as: string; desk?: string; firm: string }> = 
   MSP:    { as: 'world-aptiva', firm: 'Aptiva Workforce' },
   GSI:    { as: 'world-teleworld', firm: 'Teleworld Solutions' },
   PRIME:  { as: 'world-computer-systems', firm: 'Computer Systems Inc' },
-  BENCH:  { as: 'world-cloudepa', firm: 'CloudEPA' },
+  BENCH:  { as: 'world-techpeple', firm: 'Techpeple' },
   // The old buyer's door means the client's chair.
   HIRING: { as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' },
 }
@@ -119,7 +119,7 @@ export function TryDemo({
       heading: 'You supply it',
       seats: [
         { seat: 'PRIME', label: 'A prime vendor', note: 'You hold the paper on people you did not source. Sit at Computer Systems Inc.' },
-        { seat: 'BENCH', label: 'A staffing firm with a bench', note: 'You sourced them. You are furthest from the money. Sit at CloudEPA.' },
+        { seat: 'BENCH', label: 'A staffing firm with a bench', note: 'You sourced them. You are furthest from the money. Sit at Techpeple.' },
       ],
     },
   ]

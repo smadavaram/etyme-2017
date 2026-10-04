@@ -11,7 +11,7 @@ import { GET as budget } from '@/app/api/program/budget/route'
  * A client should see its own numbers, and only its own.
  *
  * Northbend Athletic buys Helena Marsh from Computer Systems at $145/hr. Computer
- * Systems buys her from CloudEPA at $118/hr. Both sell contracts name
+ * Systems buys her from Techpeple at $118/hr. Both sell contracts name
  * Northbend Athletic as the end client — that is how the same person, bought through
  * a chain, aggregates into one tenure ledger, and it is also how
  * Northbend Athletic's own timesheet list came to print $118 beside a role it pays
@@ -30,7 +30,7 @@ import { GET as budget } from '@/app/api/program/budget/route'
 const D = '@demo.etyme.local'
 const NIKE_HIRING = `world-nike-hiring${D}`
 
-const HELENA_SUB_RATE = 11800 // CloudEPA → Computer Systems
+const HELENA_SUB_RATE = 11800 // Techpeple → Computer Systems
 const HELENA_TOP_RATE = 14500 // Computer Systems → Northbend Athletic
 
 let helenaId = ''
@@ -247,7 +247,7 @@ describe('what a client has spent is counted at the desk that signed for it', ()
       (n: number, t: any) => n + (t.overtime.billableCents ?? 0), 0
     )
 
-    // Helena's weeks hang off CloudEPA's leg, which no cost center is
+    // Helena's weeks hang off Techpeple's leg, which no cost center is
     // allocated, so the budget missed every one of them: $18k against
     // the $35,800 the client had signed for.
     expect(signed).toBeGreaterThan(0)

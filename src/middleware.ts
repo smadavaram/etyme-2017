@@ -5,8 +5,8 @@ import { NextResponse, type NextRequest } from 'next/server'
  *
  * Three kinds of host reach us:
  *
- *   cloudepa.etyme.com        a company's address
- *   talent.cloudepa.example   a domain they own, pointed here
+ *   techpeple.etyme.com        a company's address
+ *   talent.techpeple.example   a domain they own, pointed here
  *   etyme.com, localhost      the platform itself
  *
  * The host is read here and passed down as a header, so every page and
@@ -80,7 +80,7 @@ export function middleware(request: NextRequest) {
   // and not kept.
   //
   // Rewritten rather than redirected, so the address in the bar stays
-  // theirs. A company sending somebody to cloudepa.etyme.com should not
+  // theirs. A company sending somebody to techpeple.etyme.com should not
   // watch it turn into an etyme.com URL in front of them.
   const path = request.nextUrl.pathname
   const isTenantRoot = path === '/' && kind !== 'PLATFORM'

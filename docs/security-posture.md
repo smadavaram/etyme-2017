@@ -207,7 +207,7 @@ Tested by `__tests__/invariants/chain-names.test.ts` — sixteen sentences
 on the rule itself, including a firm that is a prime on one row and a sub
 on another, a chain three deep, and a rung whose parent is missing — and
 by Step 14a of `__integration__/full-spine.test.ts`, which walks Adobe →
-Computer Systems → CloudEPA and asserts the JSON of all three routes
+Computer Systems → Techpeple and asserts the JSON of all three routes
 under both settings of the term. Asserted on what the route returns,
 never on what the screen renders: the screen is what hid the last one of
 these.
@@ -410,10 +410,10 @@ Recomputed from the module on 2026-10-03:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **186** |
+| Actions named in the automation log | **187** |
 | Unprompted — the system did it and nobody asked | **28** |
 | Enforcement — the system decided what a person was allowed to do | **8** |
-| Attributed — a person did it and the row is the record | **150** |
+| Attributed — a person did it and the row is the record | **151** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung

@@ -82,7 +82,7 @@ describe('the link itself', () => {
 describe('what the invitation says', () => {
   const msg = inviteText({
     personName: 'Ravi Patel',
-    vendorName: 'Cloudepa',
+    vendorName: 'Techpeple',
     url: 'https://etyme.example/bench-invite/abc',
   })
 
@@ -116,8 +116,8 @@ describe('what the invitation says', () => {
     // and the moment a vendor suspects disintermediation the benches
     // stop being uploaded.
     const prose = msg.body.split('\n').filter((l) => !l.startsWith('http')).join('\n')
-    expect(prose).toMatch(/Cloudepa here/)
-    expect(msg.subject).toContain('Cloudepa')
+    expect(prose).toMatch(/Techpeple here/)
+    expect(msg.subject).toContain('Techpeple')
     expect(prose).not.toMatch(/Etyme/i)
     expect(msg.subject).not.toMatch(/Etyme/i)
   })

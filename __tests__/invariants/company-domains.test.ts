@@ -192,6 +192,6 @@ describe('reading the domain off an address', () => {
 
   it('knows the consumer providers', () => {
     expect(isConsumerDomain('gmail.com')).toBe(true)
-    expect(isConsumerDomain('cloudepa.com')).toBe(false)
+    expect(isConsumerDomain('techpeple.example')).toBe(false)
   })
 })

@@ -6,7 +6,7 @@
  * `/dashboard/companies` — headed "Manage vendor, client, MSP, and GSI
  * companies on the platform" — listed **all twenty-seven companies**,
  * with slug and domain, to Northbend Athletic's program manager, to
- * CloudEPA's owner (a sub-vendor two rungs down somebody else's chain),
+ * Techpeple's owner (a sub-vendor two rungs down somebody else's chain),
  * and to Colleen Byrne's one-person nursing corporation. Northbend's AP
  * clerk correctly saw one. Found on the browser walk, 2026-09-21.
  *

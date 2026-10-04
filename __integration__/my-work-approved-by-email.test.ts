@@ -10,7 +10,7 @@ import { GET as myWork } from '@/app/api/me/work/route'
  * The founder, 2026-09-30 (CLAUDE.md, "A client may approve by email, and
  * the proof travels down the chain"). The seeded world carries one such
  * week: Helena Marsh's oldest signed week at Northbend Athletic, approved
- * by Marcus Oyelaran by email, with his reply attached by CloudEPA's desk
+ * by Marcus Oyelaran by email, with his reply attached by Techpeple's desk
  * (lib/seed-week-approval).
  */
 

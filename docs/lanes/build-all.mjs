@@ -71,12 +71,12 @@ const NAME = {
   client: /\b(auralis|northbend|nike|cavanaugh|corning|talvern|terumo|corveldt|nordway|harlow|meridian|adobe)\b/i,
   msp: /\b(maren|aptiva|kestrel|msp)\b/i,
   prime: /\b(computer (systems|futures)|vertex|brightmoor|pinnacle|halcyon|arcadia)\b/i,
-  sub: /\b(cloudepa|consultis|nimbus|sahasra|orchid|bluecrest|sub-?vendor)\b/i,
+  sub: /\b(techpeple|consultis|nimbus|sahasra|orchid|bluecrest|sub-?vendor)\b/i,
   candidate: /\b(priya|helena|rosalind|tariq|chidi|marisol|karthik|the person|the worker|the candidate|the consultant)\b/i,
 }
 const STREAM = [
   ['l16', /\b(journal|ledger|profit|margin|p&l|pnl|project order|master contract|posting|earned|currency|reconcil|erp|quickbooks|the books|made \$|what each firm made|\$[\d,]+ (in|out)|kept at each hop)\b/i],
-  ['l15', /\b(payroll|pay ?day|salary|supplier'?s? invoice|vendor bill|invoice receipt|\bap\b|payable|payment run|remittance|three-way|reserve|1099|w-2|\bw2\b|owes (her|him|them|the person)|pays (priya|cloudepa|the sub|her|him|its people)|is paid|paid priya)\b/i],
+  ['l15', /\b(payroll|pay ?day|salary|supplier'?s? invoice|vendor bill|invoice receipt|\bap\b|payable|payment run|remittance|three-way|reserve|1099|w-2|\bw2\b|owes (her|him|them|the person)|pays (priya|techpeple|the sub|her|him|its people)|is paid|paid priya)\b/i],
   ['l14', /\b(bills?\b|billed|billing|invoic|receivable|\bar\b|dunning|credit (note|limit)|ag(e|ing)|cash|due\b|net \d+|money arriving|records? (the )?money|paid,?\b|pays? what)\b/i],
   ['l13', /\b(timesheet|time sheet|hours|week\b|approv|signature|signs?\b|signed|expense|milestone|receipt|silence|auto-approv|files? (the|their|her|his|one) (week|hours)|filed)\b/i],
   ['l12', /\b(contract|agreement|msa|order\b|purchase order|sales order|work order|onboard|activat|start(s|ed)?\b|i-9|insurance|cover\b|certificate|licen[sc]|clearance|paperwork|papers|document|packet|visa|credential|good standing|nda|desk|countersign|extend|both legs|two contract)\b/i],
@@ -110,7 +110,7 @@ function classify() {
     }
     const C = /\b(karthik|ruben|own w2|own employee|employs (you|them|him|her)|employer|internal|teleworld|aptiva|sundara|delivery manager|staffs? (you|them) directly|gsi|integrator|w2)\b/i
     const B = /\b(invit|nobody (has|is) (marketing|put)|no (bench|listing|agency)|neither a bench nor|not yet on|somebody nobody|when it turns up|before any placement|what the page is for|claims? an address|turn(s|ed)? it on|a listing is theirs to give)\b/i
-    const A = /\b(bench|listing|consent|represent|marketing (you|them)|agency|helena|priya|tariq|rosalind|marisol|chidi|cloudepa|pinnacle|brightmoor|sold on)\b/i
+    const A = /\b(bench|listing|consent|represent|marketing (you|them)|agency|helena|priya|tariq|rosalind|marisol|chidi|techpeple|pinnacle|brightmoor|sold on)\b/i
     const inviteFile = /^(bench-invitation|contractor-invite)/.test(base)
     const expanded = []
     for (const p of ps) {
@@ -216,7 +216,7 @@ const head = (title, description) => `<!doctype html><html lang="en"><head><meta
 <style>${CSS}</style></head><body><main>`
 const foot = `</main></body></html>`
 
-const DOORS = { 'world-nike': 'Northbend Athletic', 'world-corning': 'Cavanaugh Glassworks', 'world-terumo-bct': 'Talvern Medical', 'world-computer-systems': 'Computer Systems Inc', 'world-vertex-global': 'Vertex Global', 'world-cloudepa': 'CloudEPA', 'world-aptiva': 'Aptiva Workforce', 'world-teleworld': 'Teleworld Solutions', 'world-sundara': 'Sundara Systems', 'karthik-menon': 'Karthik Menon', 'helena-marsh': 'Helena Marsh', 'chidi-okafor': 'Chidi Okafor', 'marisol-quintero': 'Marisol Quintero — no bench, no employer yet', 'colleen-byrne': 'Colleen Byrne — Byrne Critical Care LLC' }
+const DOORS = { 'world-nike': 'Northbend Athletic', 'world-corning': 'Cavanaugh Glassworks', 'world-terumo-bct': 'Talvern Medical', 'world-computer-systems': 'Computer Systems Inc', 'world-vertex-global': 'Vertex Global', 'world-techpeple': 'Techpeple', 'world-aptiva': 'Aptiva Workforce', 'world-teleworld': 'Teleworld Solutions', 'world-sundara': 'Sundara Systems', 'karthik-menon': 'Karthik Menon', 'helena-marsh': 'Helena Marsh', 'chidi-okafor': 'Chidi Okafor', 'marisol-quintero': 'Marisol Quintero — no bench, no employer yet', 'colleen-byrne': 'Colleen Byrne — Byrne Critical Care LLC' }
 
 function scriptsFor(party, streamId) {
   const files = TESTS[party.key]?.[streamId]

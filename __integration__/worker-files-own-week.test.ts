@@ -44,10 +44,10 @@ describe('a worker files their own week', () => {
     await freshWorld()
   }, 600_000)
 
-  it('Helena’s page offers her weeks on CloudEPA’s contract, not the rung Computer Systems sells to Northbend', async () => {
+  it('Helena’s page offers her weeks on Techpeple’s contract, not the rung Computer Systems sells to Northbend', async () => {
     const d = await page(HELENA)
     expect(d.filing).toHaveLength(1)
-    expect(d.filing[0].payer).toBe('CloudEPA')
+    expect(d.filing[0].payer).toBe('Techpeple')
     expect(d.filing[0].site).toBe('Northbend Athletic')
     it_.helena = d.filing[0]
 
@@ -188,7 +188,7 @@ describe('a worker files their own week', () => {
     const d = await page(HELENA)
     const at = d.placements.filter((p: any) => p.site === 'Northbend Athletic')
     expect(at).toHaveLength(1)
-    expect(at[0].chain).toBe('Northbend Athletic · through Computer Systems Inc · employed by CloudEPA')
+    expect(at[0].chain).toBe('Northbend Athletic · through Computer Systems Inc · employed by Techpeple')
   })
 
   it('the pay on her placement is her own, never a price between two firms', async () => {

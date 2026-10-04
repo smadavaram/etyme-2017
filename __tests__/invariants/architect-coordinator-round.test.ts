@@ -16,15 +16,15 @@ import { rolesFor } from '@/lib/company-defaults'
 
 const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
-// Northbend Athletic buys Helena from Computer Systems, which buys her from CloudEPA.
-const N = 'northbend', CS = 'computer-systems', CE = 'cloudepa'
+// Northbend Athletic buys Helena from Computer Systems, which buys her from Techpeple.
+const N = 'northbend', CS = 'computer-systems', CE = 'techpeple'
 const chain = {
   ladder: [
     { sellContractId: 'top', companyId: CS, clientCompanyId: N },
     { sellContractId: 'bottom', companyId: CE, clientCompanyId: CS },
   ],
   clientId: N,
-  names: new Map([[N, 'Northbend Athletic'], [CS, 'Computer Systems Inc'], [CE, 'CloudEPA']]),
+  names: new Map([[N, 'Northbend Athletic'], [CS, 'Computer Systems Inc'], [CE, 'Techpeple']]),
   week: { personId: 'helena' },
 } as unknown as WeekChain
 const reader = (companyId: string | null, personId = `someone-at-${companyId}`): Reader =>
@@ -47,7 +47,7 @@ describe('the week page shows who signed, and why a flagged week was signed', ()
 
   it('the client is never shown the sub-vendor’s signature, and the withholding is logged', () => {
     const { shown, logged } = signaturesSeen(reader(N), chain, rows, now)
-    expect(JSON.stringify(shown)).not.toContain('CloudEPA')
+    expect(JSON.stringify(shown)).not.toContain('Techpeple')
     expect(logged.map((l) => l.allowed)).toEqual([true, true, false])
   })
 

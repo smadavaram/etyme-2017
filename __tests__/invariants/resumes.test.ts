@@ -82,7 +82,7 @@ describe('naming it', () => {
 })
 
 describe('who may put a CV on somebody’s file', () => {
-  const owner = { personId: 'anita', listedTo: ['cloudepa'] }
+  const owner = { personId: 'anita', listedTo: ['techpeple'] }
 
   it('lets the person', () => {
     expect(mayUpload({ personId: 'anita', companyId: null }, owner).ok).toBe(true)
@@ -92,7 +92,7 @@ describe('who may put a CV on somebody’s file', () => {
     // A recruiter holding the CV before the person has an account is the
     // ordinary way this starts. Refusing it means the document lives in an
     // inbox instead.
-    expect(mayUpload({ personId: 'recruiter', companyId: 'cloudepa' }, owner).ok).toBe(true)
+    expect(mayUpload({ personId: 'recruiter', companyId: 'techpeple' }, owner).ok).toBe(true)
   })
 
   it('refuses an agency they never joined', () => {
@@ -103,14 +103,14 @@ describe('who may put a CV on somebody’s file', () => {
 })
 
 describe('who may open one', () => {
-  const owner = { personId: 'anita', listedTo: ['cloudepa'] }
+  const owner = { personId: 'anita', listedTo: ['techpeple'] }
 
   it('lets the person, always', () => {
     expect(mayRead({ personId: 'anita', companyId: null }, owner, []).ok).toBe(true)
   })
 
   it('lets the agency representing them', () => {
-    expect(mayRead({ personId: 'rec', companyId: 'cloudepa' }, owner, []).ok).toBe(true)
+    expect(mayRead({ personId: 'rec', companyId: 'techpeple' }, owner, []).ok).toBe(true)
   })
 
   it('lets a client who was actually sent it', () => {
@@ -126,8 +126,8 @@ describe('who may open one', () => {
 
   it('refuses an agency after the listing is gone, unless it was sent to them', () => {
     const gone = { personId: 'anita', listedTo: [] }
-    expect(mayRead({ personId: 'rec', companyId: 'cloudepa' }, gone, []).ok).toBe(false)
-    expect(mayRead({ personId: 'rec', companyId: 'cloudepa' }, gone, ['cloudepa']).ok).toBe(true)
+    expect(mayRead({ personId: 'rec', companyId: 'techpeple' }, gone, []).ok).toBe(false)
+    expect(mayRead({ personId: 'rec', companyId: 'techpeple' }, gone, ['techpeple']).ok).toBe(true)
   })
 })
 

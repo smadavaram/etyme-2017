@@ -182,7 +182,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-              placeholder="Cloudepa Inc."
+              placeholder="Techpeple Inc."
             />
           </div>
 
@@ -238,7 +238,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 onChange={(e) => setForm({ ...form, domain: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                placeholder="cloudepa.com"
+                placeholder="techpeple.example"
               />
             </div>
             <div>
@@ -251,7 +251,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                   className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                              focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
                              text-etyme-muted"
-                  placeholder="cloudepa-inc"
+                  placeholder="techpeple"
                 />
               </div>
               {form.slug && (

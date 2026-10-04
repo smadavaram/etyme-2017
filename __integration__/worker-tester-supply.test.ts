@@ -9,7 +9,7 @@ import { POST as claimRolloff } from '@/app/api/rolloff/[id]/claim/route'
 
 /**
  * The worker tester's walk of 2026-10-03, on the seeded Helena Marsh:
- * Northbend Athletic ← Computer Systems Inc ← CloudEPA, who employs her.
+ * Northbend Athletic ← Computer Systems Inc ← Techpeple, who employs her.
  *
  * One week must read one way everywhere on her page, the filing card must
  * name every firm that signs in order, and the row must offer approval by
@@ -42,10 +42,10 @@ describe('on the seeded Helena Marsh, one week reads one way on every tile and r
     await freshWorld()
   })
 
-  it('the filing card names Northbend Athletic first, then Computer Systems Inc, then CloudEPA', async () => {
+  it('the filing card names Northbend Athletic first, then Computer Systems Inc, then Techpeple', async () => {
     const d = await page()
     expect(d.filing[0].signs).toBe(
-      'After you send, Northbend Athletic approves them first. Then Computer Systems Inc and CloudEPA accept them, in that order.'
+      'After you send, Northbend Athletic approves them first. Then Computer Systems Inc and Techpeple accept them, in that order.'
     )
   })
 
@@ -61,7 +61,7 @@ describe('on the seeded Helena Marsh, one week reads one way on every tile and r
     const d = await page()
     expect(row(d, id).state.word).toBe('waiting on Computer Systems Inc')
     expect(d.summary.waiting.note).toContain('with Computer Systems Inc')
-    expect(d.summary.waiting.note).not.toContain('CloudEPA')
+    expect(d.summary.waiting.note).not.toContain('Techpeple')
     // Counted once, on the waiting card, and never also as approved.
     expect(d.summary.awaitingApproval).toBe(before.summary.awaitingApproval + 1)
     expect(d.summary.signed.value).toBe(before.summary.signed.value)

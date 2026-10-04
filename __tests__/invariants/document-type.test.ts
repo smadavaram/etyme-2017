@@ -343,7 +343,7 @@ describe('cover that has not started yet stops a start, the same as cover that r
         { type: 'I9_EVERIFY', status: 'CLEAR', validFrom: inDays(20), expiresAt: inDays(500) },
         { type: 'BACKGROUND_CHECK', status: 'CLEAR', expiresAt: inDays(300) },
       ],
-      supplierName: 'CloudEPA',
+      supplierName: 'Techpeple',
       supplierCertificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: inDays(300), verifiedAt: on },
         { type: 'INSURANCE_WC', status: 'CLEAR', expiresAt: inDays(300), verifiedAt: on },
@@ -359,7 +359,7 @@ describe('cover that has not started yet stops a start, the same as cover that r
 describe('what the clearance says about a form with nothing behind it', () => {
   const base = {
     personName: 'Priya Raman',
-    supplierName: 'CloudEPA',
+    supplierName: 'Techpeple',
     supplierCertificates: [
       { type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: inDays(300), verifiedAt: on },
       { type: 'INSURANCE_WC', status: 'CLEAR', expiresAt: inDays(300), verifiedAt: on },

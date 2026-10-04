@@ -75,7 +75,7 @@ beforeAll(async () => {
   s.northbend = job.companyId
   s.orchid = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-orchid' } })).id
   s.cs = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-computer-systems' } })).id
-  s.cloudepa = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' } })).id
+  s.techpeple = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })).id
 }, 240_000)
 
 describe('a client’s job request is matched with bench, suppliers first', () => {
@@ -177,19 +177,19 @@ describe('a client’s job request is matched with bench, suppliers first', () =
   })
 
   it('a sub-vendor below the client’s prime is never suggested to the client, even when the person agreed', async () => {
-    // A CloudEPA consultant — CloudEPA supplies Northbend only through
+    // A Techpeple consultant — Techpeple supplies Northbend only through
     // Computer Systems — who fits the job and said yes to being shown.
     const l = await prisma.benchListing.findFirstOrThrow({
-      where: { companyId: s.cloudepa, tier: 'MARKETING', state: 'GRANTED', revokedAt: null },
+      where: { companyId: s.techpeple, tier: 'MARKETING', state: 'GRANTED', revokedAt: null },
       select: { id: true, consultantId: true, consultant: { select: { person: { select: { name: true } } } } },
     })
     await prisma.consultantProfile.update({ where: { id: l.consultantId }, data: { skills: ['HCM integration', 'Payroll interfaces'], rateFloor: 9_000 } })
     await prisma.benchListing.update({ where: { id: l.id }, data: { showInMatches: true, rateMin: 10_500, rateMax: 11_200 } })
-    s.cloudepaPerson = l.consultant.person.name
+    s.techpeplePerson = l.consultant.person.name
     await rematch(HIRING, s.job)
     const data = await matchesAs(HIRING, s.job)
-    expect(data.matches.some((m: any) => m.firm.name === 'CloudEPA')).toBe(false)
-    expect(JSON.stringify(data)).not.toContain(s.cloudepaPerson)
+    expect(data.matches.some((m: any) => m.firm.name === 'Techpeple')).toBe(false)
+    expect(JSON.stringify(data)).not.toContain(s.techpeplePerson)
   })
 })
 
@@ -199,9 +199,9 @@ describe('a supplier the job was sent to matches its own pool', () => {
     expect(run.matchCount).toBeGreaterThan(0)
     const data = await matchesAs(CS, s.job)
     expect(data.viewer).toMatchObject({ buyer: false, raiser: false, suggests: false })
-    const m = rowFor(data, s.cloudepaPerson)
-    expect(m).toMatchObject({ reach: 'PANEL', firm: { name: 'CloudEPA' } })
-    expect(m.action).toMatchObject({ kind: 'SUBMIT', fromCompanyId: s.cs, offeredBy: s.cloudepa, payRate: 11_200, rate: null })
+    const m = rowFor(data, s.techpeplePerson)
+    expect(m).toMatchObject({ reach: 'PANEL', firm: { name: 'Techpeple' } })
+    expect(m.action).toMatchObject({ kind: 'SUBMIT', fromCompanyId: s.cs, offeredBy: s.techpeple, payRate: 11_200, rate: null })
     // Its own supplier's rate is its own deal.
     expect(m.rate).toEqual({ min: 10_500, max: 11_200 })
     // Nothing from a firm Computer Systems does not trade with.
@@ -212,9 +212,9 @@ describe('a supplier the job was sent to matches its own pool', () => {
   })
 
   it('adding a match to the application sends the supplier’s real rate, never a placeholder', async () => {
-    // Computer Systems puts CloudEPA's person forward in its own name, at
-    // its own rate, buying them from CloudEPA at what CloudEPA asked.
-    const person = await prisma.person.findFirstOrThrow({ where: { name: s.cloudepaPerson } })
+    // Computer Systems puts Techpeple's person forward in its own name, at
+    // its own rate, buying them from Techpeple at what Techpeple asked.
+    const person = await prisma.person.findFirstOrThrow({ where: { name: s.techpeplePerson } })
     as(CS)
     const r = await json(await submit(req('POST', '/api/submissions', {
       requirementId: s.job, personIds: [person.id], rate: 13_000,
@@ -226,7 +226,7 @@ describe('a supplier the job was sent to matches its own pool', () => {
     expect(top.fromCompanyId).toBe(s.cs)
     expect(top.rate).toBe(13_000)
     const below = await prisma.submission.findUniqueOrThrow({ where: { id: top.parentSubmissionId! } })
-    expect(below.fromCompanyId).toBe(s.cloudepa)
+    expect(below.fromCompanyId).toBe(s.techpeple)
     expect(below.rate).toBe(11_200)
 
     // Pinnacle, asked a moment ago, answers from its own matches: its own

@@ -287,7 +287,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
   // honestly be said instead is carried in `inferredClient`.
   const chasers: { slug: string; seats: { title: string; skills: string[]; loc: string; inferred: string; status: string; lastSeen: number; adverts: { source: string; postedBy: string; rate: number | null; strength: string | null; because: string[] }[] }[] }[] = [
     {
-      slug: 'cloudepa',
+      slug: 'techpeple',
       seats: [
         {
           title: 'ERP finance consultant', skills: ['ERP finance', 'General ledger'], loc: 'San Jose, CA',
@@ -370,7 +370,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
   //
   // Every score comes from `runMatchEngine`. A bare number is a bug, and
   // the only way to be sure is never to write one by hand.
-  const benchFirms = ['cloudepa', 'sahasra', 'nimbus']
+  const benchFirms = ['techpeple', 'sahasra', 'nimbus']
   for (const slug of benchFirms) {
     const firm = ctx.firmBySlug.get(slug)
     if (!firm) continue

@@ -108,7 +108,7 @@ describe('why somebody can see a placement', () => {
 
 describe('why somebody can see a person', () => {
   const ON_OUR_BENCH = { personId: 'anita', listedTo: ['ravensbourne'], worksAt: [] }
-  const SOMEBODY_ELSES = { personId: 'anita', listedTo: ['cloudepa'], worksAt: [] }
+  const SOMEBODY_ELSES = { personId: 'anita', listedTo: ['techpeple'], worksAt: [] }
 
   it('credits the consultant’s own choice, not the company’s permission', () => {
     const w = whyConsultant(viewer(), ON_OUR_BENCH)
@@ -142,7 +142,7 @@ describe('why somebody can see a person', () => {
   it('never names a stranger’s bench as the reason', () => {
     // Which agency holds them is the thing the wall exists to keep quiet.
     const w = whyConsultant(viewer(), SOMEBODY_ELSES)
-    expect(JSON.stringify(w)).not.toMatch(/cloudepa/i)
+    expect(JSON.stringify(w)).not.toMatch(/techpeple/i)
   })
 })
 
@@ -151,7 +151,7 @@ describe('why somebody can see a piece of demand', () => {
     companyId: 'terumo',
     openToNetwork: false,
     status: 'OPEN',
-    invited: ['cloudepa'],
+    invited: ['techpeple'],
     endClientVisible: false,
   }
 
@@ -160,7 +160,7 @@ describe('why somebody can see a piece of demand', () => {
   })
 
   it('lets an invited supplier read it, and hides the band', () => {
-    const w = whyRequirement(viewer({ companyId: 'cloudepa', outsideAccess: 'ALLOWED' }), REQ)
+    const w = whyRequirement(viewer({ companyId: 'techpeple', outsideAccess: 'ALLOWED' }), REQ)
     expect(w.visible).toBe(true)
     expect(w.hidden.map((h) => h.field)).toContain('billMin, billMax')
   })
@@ -187,10 +187,10 @@ describe('why somebody can see a piece of demand', () => {
   })
 
   it('hides the end client until the firm holding it says otherwise', () => {
-    const w = whyRequirement(viewer({ companyId: 'cloudepa', outsideAccess: 'ALLOWED' }), REQ)
+    const w = whyRequirement(viewer({ companyId: 'techpeple', outsideAccess: 'ALLOWED' }), REQ)
     expect(w.hidden.map((h) => h.field)).toContain('endClientCompany')
     const shown = whyRequirement(
-      viewer({ companyId: 'cloudepa', outsideAccess: 'ALLOWED' }),
+      viewer({ companyId: 'techpeple', outsideAccess: 'ALLOWED' }),
       { ...REQ, endClientVisible: true }
     )
     expect(shown.hidden.map((h) => h.field)).not.toContain('endClientCompany')

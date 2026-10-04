@@ -26,7 +26,7 @@ const inDays = (n: number) => new Date(NOW.getTime() + n * 86_400_000)
 describe('insurance and work authorization', () => {
   const base = {
     id: 'v1', companyId: 'co1', personId: null,
-    status: 'CLEAR', subjectName: 'Cloudepa Inc.',
+    status: 'CLEAR', subjectName: 'Techpeple Inc.',
   }
 
   it('warns two months before insurance lapses, not on the day', () => {
@@ -45,7 +45,7 @@ describe('insurance and work authorization', () => {
   it('says what will happen rather than that something is wrong', () => {
     const f = watchVerifications([{ ...base, type: 'INSURANCE_GL', expiresAt: inDays(12) }], NOW)
     expect(f[0].detail).toMatch(/will not be able to place anybody/i)
-    expect(f[0].detail).toContain('Cloudepa Inc.')
+    expect(f[0].detail).toContain('Techpeple Inc.')
   })
 
   it('treats lapsed cover as blocking, because it already stops work', () => {
@@ -89,7 +89,7 @@ describe('insurance and work authorization', () => {
 
 describe('purchase orders running out', () => {
   const base = {
-    id: 'po1', companyId: 'co1', number: 'PO-9001', supplierName: 'Cloudepa Inc.',
+    id: 'po1', companyId: 'co1', number: 'PO-9001', supplierName: 'Techpeple Inc.',
     amountCents: 100_000_00, endDate: null, status: 'OPEN', liveContracts: 3,
   }
 

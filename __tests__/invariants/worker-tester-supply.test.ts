@@ -16,11 +16,11 @@ import { hrNotice } from '@/lib/internal-moves'
 
 const src = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8')
 
-// Helena Marsh: Northbend Athletic ← Computer Systems Inc ← CloudEPA.
+// Helena Marsh: Northbend Athletic ← Computer Systems Inc ← Techpeple.
 const HELENA: WeekSigner[] = [
   { companyId: 'nb', name: 'Northbend Athletic', role: 'CLIENT_APPROVAL' },
   { companyId: 'cs', name: 'Computer Systems Inc', role: 'PASS_THROUGH' },
-  { companyId: 'ce', name: 'CloudEPA', role: 'EMPLOYER_ACCEPTANCE' },
+  { companyId: 'ce', name: 'Techpeple', role: 'EMPLOYER_ACCEPTANCE' },
 ]
 
 describe('one week has one state, the same on every tile and row', () => {
@@ -32,9 +32,9 @@ describe('one week has one state, the same on every tile and row', () => {
 
   it('a week still waiting on any firm is never also counted as approved', () => {
     // Helena's Sep 21 week was "approved", "waiting on approval" and
-    // "waiting on CloudEPA" at once. Approved weeks now count only weeks
+    // "waiting on Techpeple" at once. Approved weeks now count only weeks
     // every firm has accepted; the waiting card counts the rest.
-    const card = signedWeeksCard({ notBilled: 0, employed: { paid: 0, owed: 3, unknown: 0, employer: 'CloudEPA' } })
+    const card = signedWeeksCard({ notBilled: 0, employed: { paid: 0, owed: 3, unknown: 0, employer: 'Techpeple' } })
     expect(card).toEqual({ label: 'Approved weeks', value: 3, note: '3 owed to you' })
     const waiting = waitingCard([
       weekState({ status: 'SUBMITTED', billed: false, waitingOn: 'Computer Systems Inc', pay: null }),
@@ -54,7 +54,7 @@ describe('one week has one state, the same on every tile and row', () => {
       value: 3,
       note: '1 with Computer Systems Inc · 2 with Northbend Athletic',
     })
-    expect(card.note).not.toContain('CloudEPA')
+    expect(card.note).not.toContain('Techpeple')
   })
 
   it('a week paid in full reads paid in Your hours, never approved', () => {
@@ -131,13 +131,13 @@ describe('approval by email is offered only where it can work', () => {
 describe('the filing card names everybody who signs, in order', () => {
   it('a chain of three reads the client first, then each firm below in turn', () => {
     expect(signingOrder(HELENA)).toBe(
-      'After you send, Northbend Athletic approves them first. Then Computer Systems Inc and CloudEPA accept them, in that order.'
+      'After you send, Northbend Athletic approves them first. Then Computer Systems Inc and Techpeple accept them, in that order.'
     )
   })
 
   it('a client buying straight from her employer reads two names', () => {
     expect(signingOrder([HELENA[0], HELENA[2]])).toBe(
-      'After you send, Northbend Athletic approves them first. Then CloudEPA accepts them.'
+      'After you send, Northbend Athletic approves them first. Then Techpeple accepts them.'
     )
   })
 

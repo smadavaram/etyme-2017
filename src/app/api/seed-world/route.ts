@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
         says: r.done
           ? r.ran.length
             ? `The demo world is complete: this call finished ${r.ran.length} step${r.ran.length === 1 ? '' : 's'} ` +
-              `and the rest were already done. Enter one with POST /api/demo {"as":"world-cloudepa"}, or sit at a ` +
+              `and the rest were already done. Enter one with POST /api/demo {"as":"world-techpeple"}, or sit at a ` +
               `client desk at /demo — POST /api/demo {"as":"world-nike","desk":"ap"}.`
             : 'The demo world is complete. Nothing was left to do, so nothing was written.'
           : `Seeded ${r.ran.length} step${r.ran.length === 1 ? '' : 's'} of the demo world; ${r.remaining} ` +

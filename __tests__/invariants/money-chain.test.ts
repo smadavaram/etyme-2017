@@ -51,7 +51,7 @@ describe('a vendor writing down a role', () => {
 
 describe('who the candidate goes to', () => {
   it('goes to the prime the role is worked through', () => {
-    expect(recipientOf({ companyId: 'cloudepa', payerCompanyId: 'vertex' })).toBe('vertex')
+    expect(recipientOf({ companyId: 'techpeple', payerCompanyId: 'vertex' })).toBe('vertex')
   })
 
   it('goes to the client on their own requisition', () => {
@@ -61,23 +61,23 @@ describe('who the candidate goes to', () => {
   it('never goes to the vendor who wrote the role down', () => {
     // This was the whole failure: a vendor submitted to themselves, and a
     // contract with no counterparty came out the other end.
-    const to = recipientOf({ companyId: 'cloudepa', payerCompanyId: 'terumo' })
-    expect(to).not.toBe('cloudepa')
+    const to = recipientOf({ companyId: 'techpeple', payerCompanyId: 'terumo' })
+    expect(to).not.toBe('techpeple')
   })
 })
 
 describe('who gets the invoice', () => {
   it('is the company they submitted to', () => {
-    const p = payerOf({ fromCompanyId: 'cloudepa', toCompanyId: 'terumo' })
+    const p = payerOf({ fromCompanyId: 'techpeple', toCompanyId: 'terumo' })
     expect(p.ok).toBe(true)
     expect(p.payerId).toBe('terumo')
   })
 
   it('refuses a placement with no counterparty rather than inventing one', () => {
     // The old award named the company that wrote the role down, which for
-    // a vendor's own record was themselves: Cloudepa sold to Cloudepa,
+    // a vendor's own record was themselves: Techpeple sold to Techpeple,
     // nobody could approve the hours, and nothing could be billed.
-    const p = payerOf({ fromCompanyId: 'cloudepa', toCompanyId: 'cloudepa' })
+    const p = payerOf({ fromCompanyId: 'techpeple', toCompanyId: 'techpeple' })
     expect(p.ok).toBe(false)
     expect(p.why).toMatch(/nobody to bill/)
   })
@@ -114,7 +114,7 @@ describe('the whole chain, in order', () => {
     // Walked in the product against a live server, not in the seed:
     //   role       cmt31s9sq  (worked through Talvern Medical)
     //   submission cmt31sa3j  ($130/hr)
-    //   contract   cmt31satf  (Cloudepa → Talvern Medical, engagement attached)
+    //   contract   cmt31satf  (Techpeple → Talvern Medical, engagement attached)
     //   timesheet  cmt31th8k  (40h, approved by the client)
     //   invoice    IN_W60JQL_001  $5,200
     //   payment    $5,200 ACH

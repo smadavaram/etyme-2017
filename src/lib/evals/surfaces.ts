@@ -19,8 +19,8 @@ import {
 
 // ── The words on a company's public page ──────────────────────────────
 
-const CLOUDEPA: SiteFacts = {
-  name: 'Cloudepa Inc.',
+const TECHPEPLE: SiteFacts = {
+  name: 'Techpeple Inc.',
   kind: 'VENDOR',
   posture: 'PRIME',
   skills: ['SAP FICO', 'S/4HANA', 'ABAP'],
@@ -34,7 +34,7 @@ const CLOUDEPA: SiteFacts = {
 }
 
 const BRAND_NEW: SiteFacts = {
-  ...CLOUDEPA,
+  ...TECHPEPLE,
   name: 'Halvorsen Talent',
   skills: [],
   placements: 0,
@@ -45,7 +45,7 @@ const BRAND_NEW: SiteFacts = {
 }
 
 const BUYER: SiteFacts = {
-  ...CLOUDEPA,
+  ...TECHPEPLE,
   name: 'Talvern Medical',
   kind: 'CLIENT',
   posture: null,
@@ -69,7 +69,7 @@ const siteVoice: Surface<SiteFacts, string> = {
   cases: [
     {
       name: 'a staffing firm with seven placements',
-      input: CLOUDEPA,
+      input: TECHPEPLE,
       checks: [
         { said: 'invents no number it was not given', grade: noInventedNumbers([7, 4, 2, 3, 10]) },
         { said: 'uses no adjective a reader could not check', grade: avoids(FILLER, 'filler') },
@@ -97,7 +97,7 @@ const siteVoice: Surface<SiteFacts, string> = {
     },
     {
       name: 'the model’s answer parses at all',
-      input: CLOUDEPA,
+      input: TECHPEPLE,
       modelOnly: true,
       checks: [
         {
@@ -194,7 +194,7 @@ const GOOD_ANSWER = JSON.stringify({
       rowNumber: 1,
       fields: [
         { field: 'name', value: 'Anita Desai', confidence: 0.97, foundIn: 'Anita Desai', concern: null },
-        { field: 'email', value: 'anita@cloudepa.example', confidence: 0.99, foundIn: 'anita@cloudepa.example', concern: null },
+        { field: 'email', value: 'anita@techpeple.example', confidence: 0.99, foundIn: 'anita@techpeple.example', concern: null },
         { field: 'rate', value: '120', confidence: 0.55, foundIn: '$120–140', concern: 'a range, not one number' },
       ],
       problems: [],

@@ -246,7 +246,7 @@ describe('what a placement is priced at is the price desk\'s to read', () => {
   })
 
   it('shows that consultant their own pay line and nobody else\'s, and never a price between two firms above them', async () => {
-    // Helena Marsh is sold by CloudEPA at $112 and by Computer Systems
+    // Helena Marsh is sold by Techpeple at $112 and by Computer Systems
     // at $138. A line between two firms in her chain is their price,
     // not her rate. Her own is the line that pays her directly.
     as(consultantEmail)

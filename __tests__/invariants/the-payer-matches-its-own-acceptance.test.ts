@@ -10,20 +10,20 @@ import { matchVendorBill } from '@/lib/three-way-match'
  * A supplier's invoice is matched against what the firm paying it
  * accepted — its own signature on the week, and nobody else's.
  *
- * Northbend Athletic ← Computer Systems ← CloudEPA, Helena Marsh. The
- * week is filed on CloudEPA's contract. Computer Systems pays CloudEPA
- * and accepts as PASS_THROUGH; CloudEPA pays Helena and accepts as
+ * Northbend Athletic ← Computer Systems ← Techpeple, Helena Marsh. The
+ * week is filed on Techpeple's contract. Computer Systems pays Techpeple
+ * and accepts as PASS_THROUGH; Techpeple pays Helena and accepts as
  * EMPLOYER_ACCEPTANCE. Before this, the match read only the employer's
- * acceptance, so CloudEPA's own signature stood behind CloudEPA's own
+ * acceptance, so Techpeple's own signature stood behind Techpeple's own
  * invoice.
  */
 
 const D = (s: string) => new Date(`${s}T00:00:00.000Z`)
 const DAYS = { '2026-09-14': 8, '2026-09-15': 8, '2026-09-16': 8, '2026-09-17': 8, '2026-09-18': 8 }
 
-// Computer Systems' buy contract from CloudEPA, and the link on Computer
+// Computer Systems' buy contract from Techpeple, and the link on Computer
 // Systems' own sell contract to Northbend that says when it was in force.
-const CS_BUY = 'cs-buys-from-cloudepa'
+const CS_BUY = 'cs-buys-from-techpeple'
 const CS_LINKS = [{ buyContractId: CS_BUY, sellContractId: 'cs-sells-to-northbend', effectiveFrom: D('2026-03-01'), effectiveTo: null }]
 
 function helenasWeek(
@@ -36,8 +36,8 @@ function helenasWeek(
     periodEnd: D('2026-09-18'),
     days: DAYS,
     sellContract: {
-      companyId: 'cloudepa', clientCompanyId: 'cs', endClientCompanyId: 'northbend',
-      buyLinks: [{ buyContractId: 'cloudepa-w2', sellContractId: 'cloudepa-sells-to-cs', effectiveFrom: D('2026-03-01'), effectiveTo: null }],
+      companyId: 'techpeple', clientCompanyId: 'cs', endClientCompanyId: 'northbend',
+      buyLinks: [{ buyContractId: 'techpeple-w2', sellContractId: 'techpeple-sells-to-cs', effectiveFrom: D('2026-03-01'), effectiveTo: null }],
     },
     assertions: signed,
     ...over,
@@ -46,7 +46,7 @@ function helenasWeek(
 
 const NORTHBEND = { companyId: 'northbend', role: 'CLIENT_APPROVAL', hours: 40, rateCents: 14500 }
 const CS_ACCEPTS = (hours: number) => ({ companyId: 'cs', role: 'PASS_THROUGH', hours, rateCents: 11800 })
-const CLOUDEPA_ACCEPTS = (hours: number) => ({ companyId: 'cloudepa', role: 'EMPLOYER_ACCEPTANCE', hours, rateCents: 9000 })
+const TECHPEPLE_ACCEPTS = (hours: number) => ({ companyId: 'techpeple', role: 'EMPLOYER_ACCEPTANCE', hours, rateCents: 9000 })
 
 describe('a supplier’s invoice is matched against the paying firm’s own acceptance', () => {
   it('the firm in the middle of a chain pays on its pass-through acceptance, because the hours sit on its supplier’s contract', () => {
@@ -54,11 +54,11 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
   })
 
   it('a firm that carries its person’s hours on its own contract pays on its employer acceptance, as it always has', () => {
-    expect(payersRole('cloudepa', helenasWeek([]))).toBe('EMPLOYER_ACCEPTANCE')
+    expect(payersRole('techpeple', helenasWeek([]))).toBe('EMPLOYER_ACCEPTANCE')
   })
 
-  it('CloudEPA’s acceptance of what it pays Helena never stands in for Computer Systems accepting what it pays CloudEPA', () => {
-    const week = helenasWeek([NORTHBEND, CLOUDEPA_ACCEPTS(40)])
+  it('Techpeple’s acceptance of what it pays Helena never stands in for Computer Systems accepting what it pays Techpeple', () => {
+    const week = helenasWeek([NORTHBEND, TECHPEPLE_ACCEPTS(40)])
     expect(payersAcceptanceOn('cs', week)).toBeNull()
     expect(payersAcceptance({ payerCompanyId: 'cs', buyContractId: CS_BUY, weeks: [week], payerLinks: CS_LINKS })).toBeNull()
   })
@@ -68,8 +68,8 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     expect(payersAcceptance({ payerCompanyId: 'cs', buyContractId: CS_BUY, weeks: [week], payerLinks: CS_LINKS })).toBeNull()
   })
 
-  it('a week Computer Systems has accepted is matched at the hours Computer Systems accepted, not the hours CloudEPA accepted', () => {
-    const week = helenasWeek([NORTHBEND, CS_ACCEPTS(38), CLOUDEPA_ACCEPTS(40)])
+  it('a week Computer Systems has accepted is matched at the hours Computer Systems accepted, not the hours Techpeple accepted', () => {
+    const week = helenasWeek([NORTHBEND, CS_ACCEPTS(38), TECHPEPLE_ACCEPTS(40)])
     const ours = payersAcceptance({ payerCompanyId: 'cs', buyContractId: CS_BUY, weeks: [week], payerLinks: CS_LINKS })
     expect(ours).toMatchObject({ hours: 38, count: 1, waiting: 0, firstRateCents: 11800 })
     expect(ours!.firstDay).toEqual(D('2026-09-14'))
@@ -102,20 +102,20 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
   })
 
   it('a firm on its own contract divides the week by that contract’s links, exactly as before', () => {
-    const own = helenasWeek([{ companyId: 'cloudepa', role: 'EMPLOYER_ACCEPTANCE', hours: 40, rateCents: 9000 }], {
+    const own = helenasWeek([{ companyId: 'techpeple', role: 'EMPLOYER_ACCEPTANCE', hours: 40, rateCents: 9000 }], {
       sellContract: {
-        companyId: 'cloudepa', clientCompanyId: 'cs', endClientCompanyId: 'northbend',
+        companyId: 'techpeple', clientCompanyId: 'cs', endClientCompanyId: 'northbend',
         buyLinks: [
-          { buyContractId: 'cloudepa-w2', sellContractId: 'cloudepa-sells-to-cs', effectiveFrom: D('2026-03-01'), effectiveTo: D('2026-09-16') },
-          { buyContractId: 'cloudepa-c2c', sellContractId: 'cloudepa-sells-to-cs', effectiveFrom: D('2026-09-17'), effectiveTo: null },
+          { buyContractId: 'techpeple-w2', sellContractId: 'techpeple-sells-to-cs', effectiveFrom: D('2026-03-01'), effectiveTo: D('2026-09-16') },
+          { buyContractId: 'techpeple-c2c', sellContractId: 'techpeple-sells-to-cs', effectiveFrom: D('2026-09-17'), effectiveTo: null },
         ],
       },
     })
-    const ours = payersAcceptance({ payerCompanyId: 'cloudepa', buyContractId: 'cloudepa-w2', weeks: [own], payerLinks: [] })
+    const ours = payersAcceptance({ payerCompanyId: 'techpeple', buyContractId: 'techpeple-w2', weeks: [own], payerLinks: [] })
     expect(ours!.hours).toBe(24)
   })
 
-  it('an invoice from CloudEPA to Computer Systems fails the receipt check until Computer Systems has accepted the week', () => {
+  it('an invoice from Techpeple to Computer Systems fails the receipt check until Computer Systems has accepted the week', () => {
     const before = payersAcceptance({
       payerCompanyId: 'cs', buyContractId: CS_BUY, weeks: [helenasWeek([NORTHBEND])], payerLinks: CS_LINKS,
     })

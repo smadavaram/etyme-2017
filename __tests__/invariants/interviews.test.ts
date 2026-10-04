@@ -18,7 +18,7 @@ const NOW = new Date('2026-08-24T12:00:00Z')
 const hoursAgo = (n: number) => new Date(NOW.getTime() - n * 3_600_000)
 const hoursAhead = (n: number) => new Date(NOW.getTime() + n * 3_600_000)
 
-const NAMES = { vendor: 'Cloudepa', client: 'Calder Manufacturing', consultant: 'Rohan Menon' }
+const NAMES = { vendor: 'Techpeple', client: 'Calder Manufacturing', consultant: 'Rohan Menon' }
 
 function slot(startIn: number, mins = 60): Slot {
   return { start: hoursAhead(startIn), end: hoursAhead(startIn + mins / 60) }
@@ -46,13 +46,13 @@ function interview(over: Partial<Interview> = {}): Interview {
 describe('who we are waiting on', () => {
   it('names them, because "pending" tells a coordinator nothing', () => {
     const w = waitingOn(interview(), NOW, NAMES)
-    expect(w.says).toBe('Waiting on Cloudepa and Rohan Menon.')
+    expect(w.says).toBe('Waiting on Techpeple and Rohan Menon.')
   })
 
   it('says worth a call once it has been sitting a day', () => {
     const w = waitingOn(interview({ proposedAt: hoursAgo(30) }), NOW, NAMES)
     expect(w.overdue).toBe(true)
-    expect(w.says).toBe('Waiting on Cloudepa and Rohan Menon for 30 hours. Worth a call.')
+    expect(w.says).toBe('Waiting on Techpeple and Rohan Menon for 30 hours. Worth a call.')
   })
 
   it('names one party without a stray "and"', () => {
@@ -189,7 +189,7 @@ describe('somebody not turning up', () => {
     const v = noShow('CONSULTANT', NAMES)
     expect(v.state).toBe('NO_SHOW')
     expect(v.closed).toBe(true)
-    expect(v.says).toBe('Rohan Menon did not turn up. Recorded, and it counts against Cloudepa.')
+    expect(v.says).toBe('Rohan Menon did not turn up. Recorded, and it counts against Techpeple.')
   })
 
   it('does not put a client no-show on the supplier’s scorecard', () => {
@@ -240,7 +240,7 @@ describe('the line at the top', () => {
 
   it('names who it is waiting on when it is not real yet', () => {
     expect(headline(interview(), NOW, NAMES)).toBe(
-      'Round 1. Waiting on Cloudepa and Rohan Menon.'
+      'Round 1. Waiting on Techpeple and Rohan Menon.'
     )
   })
 

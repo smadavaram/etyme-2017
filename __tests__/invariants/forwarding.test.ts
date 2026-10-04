@@ -18,7 +18,7 @@ import {
 
 const SUB: Submission = {
   id: 's1',
-  fromCompanyId: 'cloudepa',
+  fromCompanyId: 'techpeple',
   toCompanyId: 'vertex',
   status: 'SUBMITTED',
   rateCents: 6200,
@@ -41,7 +41,7 @@ describe('who may send somebody onward', () => {
   it('refuses the sub-vendor who submitted it', () => {
     // Reaching past the prime to their client is the thing primes fear
     // most about a network, and it would be the end of the relationship.
-    const v = mayForward(actor({ companyId: 'cloudepa' }), SUB, to())
+    const v = mayForward(actor({ companyId: 'techpeple' }), SUB, to())
     expect(v.ok).toBe(false)
     expect(v.ok === false && v.code).toBe('NOT_YOURS')
   })
@@ -74,7 +74,7 @@ describe('what cannot be sent on', () => {
   })
 
   it('refuses to send it back to somebody already on it', () => {
-    expect(mayForward(actor(), SUB, to({ companyId: 'cloudepa' })).ok).toBe(false)
+    expect(mayForward(actor(), SUB, to({ companyId: 'techpeple' })).ok).toBe(false)
     expect(mayForward(actor(), SUB, to({ companyId: 'vertex' })).ok).toBe(false)
   })
 })
@@ -129,14 +129,14 @@ describe('the rate on the way up', () => {
 
 describe('what each party sees of the journey', () => {
   const hops: Hop[] = [
-    { from: 'cloudepa', to: 'vertex', rateCents: 6200, status: 'SUBMITTED', at: new Date('2026-08-18'), yours: false },
+    { from: 'techpeple', to: 'vertex', rateCents: 6200, status: 'SUBMITTED', at: new Date('2026-08-18'), yours: false },
     { from: 'vertex', to: 'terumo', rateCents: 9500, status: 'SHORTLISTED', at: new Date('2026-08-20'), yours: false },
   ]
 
   it('shows the sub-vendor their own rate and not the prime’s', () => {
     // The difference between the two is the prime's margin, and it never
     // travels back down.
-    const seen = journeyFor(hops, 'cloudepa')
+    const seen = journeyFor(hops, 'techpeple')
     expect(seen[0].rateCents).toBe(6200)
     expect(seen[1].rateCents).toBeNull()
   })
@@ -156,7 +156,7 @@ describe('what each party sees of the journey', () => {
   it('shows everybody the shape, whatever they may see of the money', () => {
     // How many hands it passed through is not a secret — how far it got is
     // the whole question.
-    for (const who of ['cloudepa', 'vertex', 'terumo', null]) {
+    for (const who of ['techpeple', 'vertex', 'terumo', null]) {
       expect(journeyFor(hops, who)).toHaveLength(2)
     }
   })
@@ -168,16 +168,16 @@ describe('what each party sees of the journey', () => {
 })
 
 describe('what the consultant is told', () => {
-  const names = { cloudepa: 'Cloudepa Inc.', vertex: 'Vertex Global', terumo: 'Talvern Medical' }
+  const names = { techpeple: 'Techpeple Inc.', vertex: 'Vertex Global', terumo: 'Talvern Medical' }
   const hops: Hop[] = [
-    { from: 'cloudepa', to: 'vertex', rateCents: null, status: 'SUBMITTED', at: new Date('2026-08-18'), yours: false },
+    { from: 'techpeple', to: 'vertex', rateCents: null, status: 'SUBMITTED', at: new Date('2026-08-18'), yours: false },
     { from: 'vertex', to: 'terumo', rateCents: null, status: 'SUBMITTED', at: new Date('2026-08-20'), yours: false },
   ]
 
   it('reads as the answer to the question they asked', () => {
     const said = journeySentence(hops, names)
     expect(said).toBe(
-      'Cloudepa Inc. put you forward to Vertex Global on 2026-08-18, and Vertex Global sent you on to Talvern Medical on 2026-08-20.'
+      'Techpeple Inc. put you forward to Vertex Global on 2026-08-18, and Vertex Global sent you on to Talvern Medical on 2026-08-20.'
     )
   })
 
@@ -202,8 +202,8 @@ describe('putting a chain back in order', () => {
   it('reads a chain from its root, whatever order the rows arrive in', () => {
     const rows = [
       row('c', 'vertex', 'terumo', 'b', 20),
-      row('a', 'anita', 'cloudepa', null, 16),
-      row('b', 'cloudepa', 'vertex', 'a', 18),
+      row('a', 'anita', 'techpeple', null, 16),
+      row('b', 'techpeple', 'vertex', 'a', 18),
     ]
     expect(orderChain(rows).map((r) => r.id)).toEqual(['a', 'b', 'c'])
   })
@@ -221,8 +221,8 @@ describe('putting a chain back in order', () => {
   })
 
   it('turns rows into hops in order', () => {
-    const rows = [row('b', 'cloudepa', 'vertex', 'a', 18), row('a', 'anita', 'cloudepa', null, 16)]
-    expect(toHops(rows).map((h) => h.from)).toEqual(['anita', 'cloudepa'])
+    const rows = [row('b', 'techpeple', 'vertex', 'a', 18), row('a', 'anita', 'techpeple', null, 16)]
+    expect(toHops(rows).map((h) => h.from)).toEqual(['anita', 'techpeple'])
   })
 })
 

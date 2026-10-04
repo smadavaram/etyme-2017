@@ -10,7 +10,7 @@ import {
  * keep").
  *
  * Helena Marsh works at Northbend Athletic. Northbend pays Computer
- * Systems Inc; Computer Systems buys her from CloudEPA, which employs her.
+ * Systems Inc; Computer Systems buys her from Techpeple, which employs her.
  * Northbend's approver may be told Computer Systems and nobody below it.
  */
 
@@ -32,7 +32,7 @@ describe('who asked for the letter to the client’s approver', () => {
     expect(l.body).toContain(
       'Helena Marsh’s supplier asked us to send you the week to approve. If anything in it looks wrong, ask Computer Systems Inc.'
     )
-    expect(l.body).not.toContain('CloudEPA')
+    expect(l.body).not.toContain('Techpeple')
     expect(l.body).not.toContain('timesheet desk')
     expect(l.body).not.toContain('side of this placement')
   })

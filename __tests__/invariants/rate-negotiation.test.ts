@@ -127,7 +127,7 @@ describe('what can be done, and why not where it cannot', () => {
 describe('the message everybody in the thread reads', () => {
   it('is in the third person, because "you countered" is wrong for every reader but one', () => {
     expect(messageFor(offer('CANDIDATE', 10500, 1), 'Ravi Patel')).toBe('Ravi Patel proposed $105/hr.')
-    expect(messageFor(accept('VENDOR', 2), 'Cloudepa')).toBe('Cloudepa accepted.')
+    expect(messageFor(accept('VENDOR', 2), 'Techpeple')).toBe('Techpeple accepted.')
     expect(messageFor(decline('CANDIDATE', 2), 'Ravi Patel')).toBe('Ravi Patel declined this rate.')
   })
 

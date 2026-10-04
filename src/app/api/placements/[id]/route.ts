@@ -367,7 +367,7 @@ export async function GET(
   //
   // The firm below the supplier, and their asking price, which is the
   // supplier's own cost. A client reading this thread was shown both —
-  // "CloudEPA put them forward to you" over a rate that is the prime's
+  // "Techpeple put them forward to you" over a rate that is the prime's
   // margin minus one subtraction. Not fetched at all unless the reader
   // is the firm that bought.
   const sentOnBy =

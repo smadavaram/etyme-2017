@@ -15,7 +15,9 @@
  * So `seedWorld` is a list of named steps, and each finished step leaves
  * a marker. A call skips every step with a marker, runs the next ones in
  * order until its time is up, and says what is left. Repeating the call
- * converges, and once every step is marked a call costs two queries.
+ * converges, and once every step is marked a call costs three queries:
+ * the two that find the markers, and one asking whether a retired demo
+ * name is still on a firm (lib/seed-renames).
  *
  * ── Where the marker lives, and what it is keyed on ──────────────────
  *

@@ -381,6 +381,8 @@ export const DOMAINS: Domain[] = [
       // the rows are the schema's, and these are the door to them.
       'lib/week-approval', 'lib/seed-week-approval',
       'app/api/week-approvals', 'app/api/approve-week', 'app/answer/week', 'app/dashboard/weeks',
+      // A demo firm whose name was retired, renamed in place on the next seeding.
+      'lib/seed-renames',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // Deleting the demo world so it can be seeded again from today.
       'lib/seed-rebuild',

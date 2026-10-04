@@ -42,9 +42,9 @@ import { check } from '@/lib/positioning'
 const at = (iso: string) => new Date(iso)
 
 const ok = {
-  email: 'ravi@cloudepa.com',
+  email: 'ravi@techpeple.example',
   name: 'Ravi Menon',
-  companyName: 'Cloudepa Systems',
+  companyName: 'Techpeple',
   source: 'HOME_PAGE',
   asked: 'We run 40 contractors through 3 primes and cannot say who is where.',
 }
@@ -54,9 +54,9 @@ const ok = {
 describe('An address is quoted back as it was typed, never called invalid', () => {
 
   it('refuses an address with no @ and shows the person exactly what they typed', () => {
-    const p = problems({ ...ok, email: 'ravi.cloudepa.com' })
+    const p = problems({ ...ok, email: 'ravi.techpeple.example' })
     expect(p.map((x) => x.field)).toContain('email')
-    expect(p[0].says).toContain('"ravi.cloudepa.com"')
+    expect(p[0].says).toContain('"ravi.techpeple.example"')
     expect(p[0].says.toLowerCase()).not.toContain('invalid')
   })
 
@@ -72,12 +72,12 @@ describe('An address is quoted back as it was typed, never called invalid', () =
     expect(p[0].says.toLowerCase()).toContain('write back')
   })
 
-  it('treats Ravi@Cloudepa.COM and ravi@cloudepa.com as the same person', () => {
-    expect(normalEmail('  Ravi@Cloudepa.COM ')).toBe('ravi@cloudepa.com')
+  it('treats Ravi@Techpeple.EXAMPLE and ravi@techpeple.example as the same person', () => {
+    expect(normalEmail('  Ravi@Techpeple.EXAMPLE ')).toBe('ravi@techpeple.example')
   })
 
   it('accepts a message with an address and no words, because the address is the ask', () => {
-    expect(problems({ email: 'ravi@cloudepa.com', source: 'HOME_PAGE' })).toEqual([])
+    expect(problems({ email: 'ravi@techpeple.example', source: 'HOME_PAGE' })).toEqual([])
   })
 
   it('refuses a source nobody recognizes rather than filing it as other', () => {
@@ -131,14 +131,14 @@ describe('A second ask updates what somebody wants, and never makes a second of 
 
   const onFile: OnFile = {
     id: 'lead_1',
-    email: 'ravi@cloudepa.com',
+    email: 'ravi@techpeple.example',
     asked: 'How does the tenure number work?',
     consentAt: at('2026-06-01T09:00:00Z'),
     convertedAt: null,
   }
 
   it('recognizes the same person behind a differently typed address', () => {
-    const v = secondAsk({ ...ok, email: ' RAVI@cloudepa.com ' }, onFile, at('2026-08-01T09:00:00Z'))
+    const v = secondAsk({ ...ok, email: ' RAVI@techpeple.example ' }, onFile, at('2026-08-01T09:00:00Z'))
     expect(v.alreadyOnFile).toBe(true)
     expect(v.says).toContain('already')
   })
@@ -150,7 +150,7 @@ describe('A second ask updates what somebody wants, and never makes a second of 
   })
 
   it('never wipes an earlier ask with an empty one', () => {
-    const v = secondAsk({ email: 'ravi@cloudepa.com', source: 'DEMO' }, onFile, at('2026-08-01T09:00:00Z'))
+    const v = secondAsk({ email: 'ravi@techpeple.example', source: 'DEMO' }, onFile, at('2026-08-01T09:00:00Z'))
     expect(v.asked).toBe('How does the tenure number work?')
   })
 
@@ -278,18 +278,18 @@ describe('A purchased list is refused, in the words you would use to whoever bou
 describe('Nobody keeps courting a customer', () => {
 
   const lead: OnFile = {
-    id: 'lead_1', email: 'ravi@cloudepa.com', asked: 'How does tenure work?',
+    id: 'lead_1', email: 'ravi@techpeple.example', asked: 'How does tenure work?',
     consentAt: at('2026-06-01T09:00:00Z'), convertedAt: null,
   }
 
   it('marks a lead as converted on the day their company was created', () => {
-    const v = conversion(lead, 'co_cloudepa', at('2026-08-10T09:00:00Z'))
-    expect(v.update).toEqual({ convertedCompanyId: 'co_cloudepa', convertedAt: at('2026-08-10T09:00:00Z') })
+    const v = conversion(lead, 'co_techpeple', at('2026-08-10T09:00:00Z'))
+    expect(v.update).toEqual({ convertedCompanyId: 'co_techpeple', convertedAt: at('2026-08-10T09:00:00Z') })
   })
 
   it('keeps the first conversion date when somebody converts a lead twice', () => {
-    const already = { ...lead, convertedAt: at('2026-07-01T09:00:00Z'), convertedCompanyId: 'co_cloudepa' }
-    const v = conversion(already, 'co_cloudepa', at('2026-08-10T09:00:00Z'))
+    const already = { ...lead, convertedAt: at('2026-07-01T09:00:00Z'), convertedCompanyId: 'co_techpeple' }
+    const v = conversion(already, 'co_techpeple', at('2026-08-10T09:00:00Z'))
     expect(v.update).toBeNull()
     expect(v.says).toContain('1 Jul 2026')
   })
@@ -326,7 +326,7 @@ describe('The list of people who wrote to us is ours, not a tenant’s', () => {
   })
 
   it('refuses a signed-in customer, and says the people on the list are their competitors', () => {
-    const v = mayReadTheList('ravi@cloudepa.com', staff)
+    const v = mayReadTheList('ravi@techpeple.example', staff)
     expect(v.ok).toBe(false)
     expect(v.says).toContain('competitors')
   })

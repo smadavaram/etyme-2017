@@ -3,7 +3,7 @@ import { chainTop } from '@/lib/chain-top'
 
 /**
  * Northbend Athletic's dashboard said five contractors through four suppliers for
- * three people, and showed what CloudEPA charges Computer Systems for
+ * three people, and showed what Techpeple charges Computer Systems for
  * Helena. The client sees the contract it pays, and nothing below it.
  */
 
@@ -13,7 +13,7 @@ const rung = (id: string, personId: string, companyId: string, clientCompanyId: 
 describe('what a client sees of a supply chain', () => {
   it('one person bought through two rungs is one contractor, supplied by the firm the client pays', () => {
     const top = chainTop([
-      rung('sub', 'helena', 'cloudepa', 'computer-systems', 11800),
+      rung('sub', 'helena', 'techpeple', 'computer-systems', 11800),
       rung('top', 'helena', 'computer-systems', 'nike', 14500),
     ])
     expect(top.map((c) => c.id)).toEqual(['top'])
@@ -21,7 +21,7 @@ describe('what a client sees of a supply chain', () => {
 
   it("a sub-supplier's rate never reaches the client's page", () => {
     const top = chainTop([
-      rung('sub', 'helena', 'cloudepa', 'computer-systems', 11800),
+      rung('sub', 'helena', 'techpeple', 'computer-systems', 11800),
       rung('top', 'helena', 'computer-systems', 'nike', 14500),
     ])
     expect(top.map((c) => c.billRate)).toEqual([14500])
@@ -36,8 +36,8 @@ describe('what a client sees of a supply chain', () => {
     const top = chainTop([
       rung('l', 'lucia', 'pinnacle', 'nike', 9800),
       rung('i', 'ingrid', 'pinnacle', 'nike', 11500),
-      rung('c3', 'helena', 'bench-co', 'cloudepa', 9000),
-      rung('c2', 'helena', 'cloudepa', 'computer-systems', 11800),
+      rung('c3', 'helena', 'bench-co', 'techpeple', 9000),
+      rung('c2', 'helena', 'techpeple', 'computer-systems', 11800),
       rung('c1', 'helena', 'computer-systems', 'nike', 14500),
     ])
     expect(top.map((c) => c.id).sort()).toEqual(['c1', 'i', 'l'])

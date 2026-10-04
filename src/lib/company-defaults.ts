@@ -475,7 +475,7 @@ export function countryFromDomain(domain: string | null): string {
   const map: Record<string, string> = {
     in: 'IN', uk: 'GB', co: 'US', ca: 'CA', au: 'AU', de: 'DE', ie: 'IE', sg: 'SG',
   }
-  // "terumobct.co.uk" ends in uk; "cloudepa.co" is a .co domain and is US.
+  // "terumobct.co.uk" ends in uk; "acme.co" is a .co domain and is US.
   if (domain.endsWith('.co.uk')) return 'GB'
   if (domain.endsWith('.co.in')) return 'IN'
   return map[tld] ?? 'US'

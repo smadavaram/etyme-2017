@@ -258,10 +258,10 @@ describe('on the seeded Rosa Delgado, a week is owed to her once her employer ac
 })
 
 describe('in a chain, a week the client signed names every firm still to accept it', () => {
-  it('Helena’s week, signed by Northbend Athletic, waits for Computer Systems Inc and then CloudEPA, and is not owed to her', async () => {
+  it('Helena’s week, signed by Northbend Athletic, waits for Computer Systems Inc and then Techpeple, and is not owed to her', async () => {
     const before = await page(HELENA)
     const filing = before.filing[0]
-    expect(filing.payer).toBe('CloudEPA')
+    expect(filing.payer).toBe('Techpeple')
     const week = filing.weeks[0]
     as(HELENA)
     const r = await json(await fileWeek(req('POST', '/api/me/work', {
@@ -278,8 +278,8 @@ describe('in a chain, a week the client signed names every firm still to accept 
     const row = d.owed.weeks.find((w: any) => w.sheetId === id)
     expect(row.stage).toBe('WAITING_FOR_EMPLOYER')
     expect(row.waitingOn).toBe('Computer Systems Inc')
-    expect(row.says).toContain('Waiting for Computer Systems Inc to accept it, then CloudEPA.')
-    expect(row.says).toContain('It is owed to you once CloudEPA accepts it.')
+    expect(row.says).toContain('Waiting for Computer Systems Inc to accept it, then Techpeple.')
+    expect(row.says).toContain('It is owed to you once Techpeple accepts it.')
     expect(Object.keys(row).filter((k) => /cents|rate/i.test(k))).toEqual([])
   })
 })

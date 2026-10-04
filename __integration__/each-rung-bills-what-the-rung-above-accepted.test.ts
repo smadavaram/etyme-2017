@@ -12,8 +12,8 @@ import { GET as proposeRun } from '@/app/api/ap/payment-runs/route'
  * 2026-09-28, walked on the seeded chain.
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
- * employed by CloudEPA. Her latest seeded week is filed once, on
- * CloudEPA's contract, and nobody has signed it.
+ * employed by Techpeple. Her latest seeded week is filed once, on
+ * Techpeple's contract, and nobody has signed it.
  *
  *   1. A firm bills only the hours the firm above it accepted.
  *   2. A firm bills upward on the client's signature, without waiting for
@@ -25,7 +25,7 @@ import { GET as proposeRun } from '@/app/api/ap/payment-runs/route'
 const D = '@demo.etyme.local'
 const NIKE = `world-nike-hiring${D}`
 const CS = `world-computer-systems${D}`
-const CLOUDEPA = `world-cloudepa${D}`
+const TECHPEPLE = `world-techpeple${D}`
 
 const sign = async (id: string, body: unknown = {}) =>
   json(await approve(req('POST', `/api/timesheets/${id}/approve`, body), { params: Promise.resolve({ id }) }))
@@ -39,7 +39,7 @@ const receipt = async (number: string, hours: number) =>
   json(
     await recordBill(
       req('POST', '/api/ap/bills', {
-        vendorCompanyId: s.cloudepa,
+        vendorCompanyId: s.techpeple,
         number,
         buyContractId: s.buy,
         periodStart: s.from,
@@ -65,18 +65,18 @@ describe('each rung bills what the rung above it accepted, upward on the client�
       include: { sellContract: true },
     })
     const cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
-    const cloudepa = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-cloudepa' } })
+    const techpeple = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
     const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
 
     // The two contracts that bill Helena's week: Computer Systems' to
-    // Northbend at the top, CloudEPA's to Computer Systems underneath —
+    // Northbend at the top, Techpeple's to Computer Systems underneath —
     // which is also the one the hours are filed on.
     const top = await prisma.sellContract.findFirstOrThrow({
       where: { companyId: cs.id, personId: helena.id, state: 'IN_PROGRESS' },
     })
     const rung = week.sellContract
     const buy = await prisma.buyContract.findFirstOrThrow({
-      where: { companyId: cs.id, vendorCompanyId: cloudepa.id, candidates: { some: { personId: helena.id } } },
+      where: { companyId: cs.id, vendorCompanyId: techpeple.id, candidates: { some: { personId: helena.id } } },
       include: { candidates: true },
     })
 
@@ -87,7 +87,7 @@ describe('each rung bills what the rung above it accepted, upward on the client�
       cs: cs.id,
       // The firm's name as the seed writes it, which is what a sentence says.
       csName: cs.name,
-      cloudepa: cloudepa.id,
+      techpeple: techpeple.id,
       northbend: northbend.id,
       top,
       rung,
@@ -97,14 +97,14 @@ describe('each rung bills what the rung above it accepted, upward on the client�
       to: week.periodEnd.toISOString().slice(0, 10),
     })
 
-    // The seed records CloudEPA's invoice receipts at Computer Systems over
+    // The seed records Techpeple's invoice receipts at Computer Systems over
     // Helena's recent weeks, this unsigned one among them — itself the
     // fault a tester found on 2026-09-30 (a receipt over a week nobody
     // accepted), sent to the architect. This story starts before any
     // invoice for the week was keyed in, so those are withdrawn here.
     await prisma.vendorBill.updateMany({
       where: {
-        companyId: cs.id, vendorCompanyId: cloudepa.id,
+        companyId: cs.id, vendorCompanyId: techpeple.id,
         periodStart: { lte: week.periodEnd }, periodEnd: { gte: week.periodStart },
       },
       data: { status: 'CANCELLED' },
@@ -112,7 +112,7 @@ describe('each rung bills what the rung above it accepted, upward on the client�
 
     // The walk rests on the seeded shape; say so rather than pass by luck.
     expect(s.hours).toBe(40)
-    expect(rung.companyId).toBe(cloudepa.id)
+    expect(rung.companyId).toBe(techpeple.id)
     expect(rung.clientCompanyId).toBe(cs.id)
     expect(rung.endClientCompanyId).toBe(northbend.id)
     expect(top.clientCompanyId).toBe(northbend.id)
@@ -123,12 +123,12 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     ).toBe(1)
   }, 240_000)
 
-  it('a CloudEPA invoice recorded before this rule, over Helena’s week nobody has accepted, cannot be paid, and the exception queue says who must accept it', async () => {
+  it('a Techpeple invoice recorded before this rule, over Helena’s week nobody has accepted, cannot be paid, and the exception queue says who must accept it', async () => {
     // As it would read had it been recorded before 2026-09-28: approved,
     // due, against Computer Systems' buy contract, over the unsigned week.
     const old = await prisma.vendorBill.create({
       data: {
-        companyId: s.cs, vendorCompanyId: s.cloudepa, number: 'CE-BEFORE-RULE', buyContractId: s.buy,
+        companyId: s.cs, vendorCompanyId: s.techpeple, number: 'CE-BEFORE-RULE', buyContractId: s.buy,
         periodStart: new Date(`${s.from}T00:00:00.000Z`), periodEnd: new Date(`${s.to}T00:00:00.000Z`),
         currency: 'USD', totalCents: 40 * s.payRate, receivedAt: new Date(Date.now() - 86_400_000),
         dueAt: new Date(Date.now() - 3_600_000), status: 'APPROVED',
@@ -167,8 +167,8 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(row.status).toBe('SUBMITTED')
   })
 
-  it('Northbend signs thirty-eight of forty, and Computer Systems bills Northbend for thirty-eight, before Computer Systems or CloudEPA has accepted anything', async () => {
-    expect(await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: { in: [s.cs, s.cloudepa] } } })).toBe(0)
+  it('Northbend signs thirty-eight of forty, and Computer Systems bills Northbend for thirty-eight, before Computer Systems or Techpeple has accepted anything', async () => {
+    expect(await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: { in: [s.cs, s.techpeple] } } })).toBe(0)
 
     as(CS)
     const r = await bill(s.top.engagementId)
@@ -182,7 +182,7 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     s.topLine = line.id
   })
 
-  it('Computer Systems’ bill to Northbend clears the receipt and hours checks on Northbend’s signature alone, not held for CloudEPA two rungs below', async () => {
+  it('Computer Systems’ bill to Northbend clears the receipt and hours checks on Northbend’s signature alone, not held for Techpeple two rungs below', async () => {
     const m = await matchInvoice(s.topInvoice)
     expect(check(m, 'RECEIPT').outcome, JSON.stringify(m!.checks)).toBe('PASS')
     expect(check(m, 'QUANTITY').outcome).toBe('PASS')
@@ -205,8 +205,8 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     await prisma.invoice.update({ where: { id: s.topInvoice }, data: { total: header.total } })
   })
 
-  it('CloudEPA cannot bill Computer Systems for Helena’s week until Computer Systems has accepted it, and is told so in a sentence', async () => {
-    as(CLOUDEPA)
+  it('Techpeple cannot bill Computer Systems for Helena’s week until Computer Systems has accepted it, and is told so in a sentence', async () => {
+    as(TECHPEPLE)
     const r = await bill(s.rung.engagementId)
     expect(r.status, JSON.stringify(r.body)).toBe(422)
     expect(r.body.error.code).toBe('NOT_ACCEPTED_ABOVE')
@@ -217,7 +217,7 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(await prisma.invoiceLine.count({ where: { timesheetId: s.week, sellContractId: s.rung.id } })).toBe(0)
   })
 
-  it('Computer Systems cannot record CloudEPA’s invoice for the week before accepting it, and is told which week and who must accept it', async () => {
+  it('Computer Systems cannot record Techpeple’s invoice for the week before accepting it, and is told which week and who must accept it', async () => {
     as(CS)
     const r = await receipt('CE-HM-EARLY', 40)
     expect(r.status).toBe(422)
@@ -245,7 +245,7 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(row?.hardFailures ?? []).not.toContain('RECEIPT')
   })
 
-  it('Computer Systems records CloudEPA’s invoice for the thirty-eight hours it accepted, and it matches', async () => {
+  it('Computer Systems records Techpeple’s invoice for the thirty-eight hours it accepted, and it matches', async () => {
     as(CS)
     const r = await receipt('CE-HM-38', 38)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
@@ -261,24 +261,24 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(r.body.data.match.checks.find((c: any) => c.code === 'QUANTITY')).toMatchObject({ outcome: 'FAIL', overridable: true })
   })
 
-  it('a bill never covers hours already on a bill to the same firm: CloudEPA cannot generate a bill for the week Computer Systems already holds its invoice for, and is told which', async () => {
-    as(CLOUDEPA)
+  it('a bill never covers hours already on a bill to the same firm: Techpeple cannot generate a bill for the week Computer Systems already holds its invoice for, and is told which', async () => {
+    as(TECHPEPLE)
     const r = await bill(s.rung.engagementId)
     expect(r.status, JSON.stringify(r.body)).toBe(422)
     expect(r.body.error.message).toMatch(new RegExp(`^Helena Marsh’s week of .+ is already on invoices .*CE-HM-38.*, which ${s.csName} recorded from you, so it is not billed again\\.$`))
     expect(await prisma.invoiceLine.count({ where: { timesheetId: s.week, sellContractId: s.rung.id } })).toBe(0)
 
-    // Computer Systems withdraws the three it keyed in, so CloudEPA's own bill can be the one.
+    // Computer Systems withdraws the three it keyed in, so Techpeple's own bill can be the one.
     await prisma.vendorBill.updateMany({
       where: { companyId: s.cs, number: { in: ['CE-BEFORE-RULE', 'CE-HM-38', 'CE-HM-40'] } },
       data: { status: 'CANCELLED' },
     })
   })
 
-  it('CloudEPA’s bill to Computer Systems is for the thirty-eight hours Computer Systems accepted, not the forty Helena worked, before CloudEPA has accepted anything itself', async () => {
-    expect(await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: s.cloudepa } })).toBe(0)
+  it('Techpeple’s bill to Computer Systems is for the thirty-eight hours Computer Systems accepted, not the forty Helena worked, before Techpeple has accepted anything itself', async () => {
+    expect(await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: s.techpeple } })).toBe(0)
 
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await bill(s.rung.engagementId)
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: r.body.data.invoice.id, timesheetId: s.week } })
@@ -289,7 +289,7 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     s.rungLine = line.id
   })
 
-  it('CloudEPA’s bill for the thirty-eight hours clears the receipt, hours and arithmetic checks against Computer Systems’ own acceptance', async () => {
+  it('Techpeple’s bill for the thirty-eight hours clears the receipt, hours and arithmetic checks against Computer Systems’ own acceptance', async () => {
     const m = await matchInvoice(s.rungInvoice)
     expect(check(m, 'RECEIPT').outcome, JSON.stringify(m!.checks)).toBe('PASS')
     expect(check(m, 'QUANTITY').outcome).toBe('PASS')
@@ -297,16 +297,16 @@ describe('each rung bills what the rung above it accepted, upward on the client�
     expect(check(m, 'HEADER_TOTAL').outcome).toBe('PASS')
   })
 
-  it('Computer Systems cannot key in CloudEPA’s invoice for hours CloudEPA’s generated bill already holds, and is told which bill', async () => {
+  it('Computer Systems cannot key in Techpeple’s invoice for hours Techpeple’s generated bill already holds, and is told which bill', async () => {
     as(CS)
     const r = await receipt('CE-HM-AGAIN', 38)
     expect(r.status, JSON.stringify(r.body)).toBe(409)
     expect(r.body.error.code).toBe('ALREADY_BILLED')
-    expect(r.body.error.message).toMatch(/^Helena Marsh’s hours for .+ are already on CloudEPA’s bill .+, so recording this invoice would owe them twice\. Pay that bill, or ask CloudEPA to cancel it first\.$/)
+    expect(r.body.error.message).toMatch(/^Helena Marsh’s hours for .+ are already on Techpeple’s bill .+, so recording this invoice would owe them twice\. Pay that bill, or ask Techpeple to cancel it first\.$/)
     expect(await prisma.vendorBill.count({ where: { companyId: s.cs, number: 'CE-HM-AGAIN' } })).toBe(0)
   })
 
-  it('a CloudEPA bill for all forty hours, as one raised before this rule would read, fails the hours check against the thirty-eight Computer Systems accepted', async () => {
+  it('a Techpeple bill for all forty hours, as one raised before this rule would read, fails the hours check against the thirty-eight Computer Systems accepted', async () => {
     const forty = 40 * s.rung.billRate
     await prisma.invoiceLine.update({ where: { id: s.rungLine }, data: { hours: 40, amountCents: forty } })
     await prisma.invoice.update({ where: { id: s.rungInvoice }, data: { total: forty / 100 } })
@@ -319,7 +319,7 @@ describe('each rung bills what the rung above it accepted, upward on the client�
   // ── Rule 4, the founder, 2026-09-29: the cut comes off overtime first ──
   //
   // A week of Helena's before the seeded ones, forty-five hours at nine a
-  // day, filed on CloudEPA's contract as every week of hers is. Computer
+  // day, filed on Techpeple's contract as every week of hers is. Computer
   // Systems' agreement with Northbend puts the overtime line at forty.
   // Northbend signs forty-two and prices the five over the line at time
   // and a half; the three it did not accept come off the overtime.

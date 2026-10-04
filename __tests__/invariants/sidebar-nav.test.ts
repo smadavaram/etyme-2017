@@ -1193,7 +1193,7 @@ describe('a seat that holds everything is shown everything', () => {
   // Found on the browser walk, not in a test: every seeded owner in the
   // world carries the wildcard `*` rather than a list of permissions —
   // `lib/permissions` has read it that way since it was written — and
-  // the menu was comparing strings instead of asking. So CloudEPA's
+  // the menu was comparing strings instead of asking. So Techpeple's
   // owner opened his own company and was shown no Requirements, no
   // Bench, no Invoices and no Payroll, while every one of those routes
   // would have let him in. A menu shorter than the product is the same

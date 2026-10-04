@@ -69,13 +69,13 @@ describe('cover that has not begun refuses a start, and the preview of it says t
   beforeAll(async () => {
     await freshWorld()
 
-    ctx.supplierEmail = 'world-cloudepa@demo.etyme.local'
+    ctx.supplierEmail = 'world-techpeple@demo.etyme.local'
     const supplierSeat = await prisma.person.findFirstOrThrow({
       where: { primaryEmail: ctx.supplierEmail },
     })
     ctx.uploaderId = supplierSeat.id
 
-    const supplier = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' } })
+    const supplier = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
     ctx.supplierId = supplier.id
     const template = await prisma.sellContract.findFirstOrThrow({
       where: { companyId: supplier.id, state: 'IN_PROGRESS' },
@@ -194,9 +194,9 @@ describe('cover that has not begun refuses a start, and the preview of it says t
     expect(row.vendor.nameWithheld).toBe(true)
     expect(row.vendor.suppliedThrough).toBeTruthy()
     expect(row.paperwork.says).toBe(
-      pressed.body.error.message.split('CloudEPA').join(row.vendor.phrase)
+      pressed.body.error.message.split('Techpeple').join(row.vendor.phrase)
     )
-    expect(row.paperwork.says).not.toContain('CloudEPA')
+    expect(row.paperwork.says).not.toContain('Techpeple')
     expect(row.paperwork.says).toContain('supplied through')
 
     // The remedy is the same remedy. The one word that differs is which
@@ -250,7 +250,7 @@ describe('cover that has not begun refuses a start, and the preview of it says t
  * there. Every reader that selected rows whose key begins INSURANCE_ went
  * on reading past it, and `POST /api/submissions` was one of them. So the
  * client's compliance officer read "Nobody can be submitted through
- * CloudEPA" and CloudEPA's recruiter pressed submit and was let through,
+ * Techpeple" and Techpeple's recruiter pressed submit and was let through,
  * about the same firm on the same day.
  */
 describe('the submit button and the compliance page agree about a firm\u2019s standing', () => {
@@ -327,15 +327,15 @@ describe('the submit button and the compliance page agree about a firm\u2019s st
     expect(pressed.body.error.message).toMatch(/good standing/i)
 
     // The same sentence, not a second one written for the button. The one
-    // difference is the name, and it is the right difference: CloudEPA is
+    // difference is the name, and it is the right difference: Techpeple is
     // a sub-vendor, so the client reads "the firm supplied through
-    // Computer Systems Inc" and CloudEPA reads its own name on its own
+    // Computer Systems Inc" and Techpeple reads its own name on its own
     // refusal. `lib/chain-names` holds at both doors.
     const firmIn = (line: string) => line.slice(0, line.indexOf(':'))
     const masked = firmIn(row.cover.says)
     const own = firmIn(pressed.body.error.message)
-    expect(own).toBe('CloudEPA')
-    expect(masked).not.toContain('CloudEPA')
+    expect(own).toBe('Techpeple')
+    expect(masked).not.toContain('Techpeple')
     expect(pressed.body.error.message.split(own).join(masked)).toBe(row.cover.says)
   }, 60_000)
 

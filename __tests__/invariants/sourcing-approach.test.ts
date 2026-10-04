@@ -24,7 +24,7 @@ const contact = (over: Partial<Contact> = {}): Contact => ({
   ...over,
 })
 
-const VENDOR = 'cloudepa'
+const VENDOR = 'techpeple'
 const PLACES = ['SAP FICO', 'Java']
 
 describe('one approach per person, across every vendor on the platform', () => {
@@ -107,7 +107,7 @@ describe('only people who actually contracted, about work they actually did', ()
 describe('the one message says why them, and where the details came from', () => {
   const msg = approachText({
     personName: 'Ravi Patel',
-    vendorName: 'Cloudepa',
+    vendorName: 'Techpeple',
     becauseOf: 'SAP FICO',
     provenance: 'you were listed as an SAP contractor on a candidate list we bought in 2020',
   })
@@ -130,7 +130,7 @@ describe('the one message says why them, and where the details came from', () =>
   })
 
   it('goes out in the vendor’s name, never ours', () => {
-    expect(msg.body).toMatch(/Cloudepa here/)
+    expect(msg.body).toMatch(/Techpeple here/)
     expect(msg.body).not.toMatch(/Etyme/i)
     expect(msg.subject).not.toMatch(/Etyme/i)
   })

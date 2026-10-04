@@ -144,22 +144,22 @@ describe("a colleague's pay at Teleworld is read by the payroll desk, and a work
   })
 
   it('a desk that reads pay sees the bench burn, and everybody on it is on the access trail as read', async () => {
-    // Teleworld keeps no paid bench on the seeded world; CloudEPA does.
-    const cloud = await prisma.company.findFirstOrThrow({ where: { name: 'CloudEPA' } })
+    // Teleworld keeps no paid bench on the seeded world; Techpeple does.
+    const cloud = await prisma.company.findFirstOrThrow({ where: { name: 'Techpeple' } })
     await ensureDefaultRoles(cloud.id, cloud.kind as any)
     const owner = await prisma.role.findFirstOrThrow({ where: { companyId: cloud.id, name: 'Owner' } })
-    const who = await prisma.person.create({ data: { name: 'CloudEPA Owner Walk', primaryEmail: 'owner@cloudepa-supply-walk.invalid' } })
+    const who = await prisma.person.create({ data: { name: 'Techpeple Owner Walk', primaryEmail: 'owner@techpeple-supply-walk.invalid' } })
     const ctx = await prisma.context.create({
       data: { personId: who.id, companyId: cloud.id, roleId: owner.id, type: 'EMPLOYEE', grantReason: 'supply pay-doors walk' },
     })
     const seat = { id: ctx.id, personId: who.id, email: who.primaryEmail }
 
-    // Everybody CloudEPA pays on the seeded world is placed and billing,
+    // Everybody Techpeple pays on the seeded world is placed and billing,
     // which costs the bench nothing (burn reads `burnOf` since the bench
     // tester, 2026-09-30, found Helena Marsh counted as $66k of burn while
     // on site at Northbend). So one person is put on its paid bench here:
     // listed, paid, and on no placement.
-    const sitter = await prisma.person.create({ data: { name: 'Bench Sitter Walk', primaryEmail: 'sitter@cloudepa-supply-walk.invalid' } })
+    const sitter = await prisma.person.create({ data: { name: 'Bench Sitter Walk', primaryEmail: 'sitter@techpeple-supply-walk.invalid' } })
     const profile = await prisma.consultantProfile.create({ data: { personId: sitter.id, skills: ['ERP finance'] } })
     await prisma.benchListing.create({
       data: { consultantId: profile.id, companyId: cloud.id, tier: 'RETAINED', state: 'GRANTED', grantedAt: new Date(Date.now() - 20 * 86_400_000) },

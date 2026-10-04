@@ -290,8 +290,8 @@ export const SUPPLIER_SEATS: Program[] = [
       'vendor below, and keeps the difference in rate.',
   },
   {
-    slug: 'world-cloudepa',
-    name: 'CloudEPA',
+    slug: 'world-techpeple',
+    name: 'Techpeple',
     where: 'Sub-vendor, below a prime',
     industry: 'IT consulting · finance and lab systems',
     waiting:

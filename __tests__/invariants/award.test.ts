@@ -120,7 +120,7 @@ describe('The legally grounded gates stop an award, and nobody can wave them thr
 
   it('lapsed supplier insurance blocks the placement', () => {
     const d = assessAward(facts({
-      governance: { blocks: ['Cloudepa Inc. general liability cover lapsed on 2026-08-01'], warnings: [] },
+      governance: { blocks: ['Techpeple Inc. general liability cover lapsed on 2026-08-01'], warnings: [] },
     }))
     expect(d.decision).toBe('BLOCKED')
   })

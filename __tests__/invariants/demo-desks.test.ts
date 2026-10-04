@@ -26,7 +26,7 @@ describe('the demo door says which desks a firm actually has', () => {
 
   it('names the desk keys that would open, so a visitor can ask again by name', () => {
     const r = deskRefusal({
-      asWorld: 'world-cloudepa', company: { name: 'CloudEPA', kind: 'VENDOR' }, desk: 'programme',
+      asWorld: 'world-techpeple', company: { name: 'Techpeple', kind: 'VENDOR' }, desk: 'programme',
       heldRoles: ['Owner', 'Recruiter', 'AP & Payroll', 'Recruiter'],
     })
     expect(r.desks).toEqual(['ap', 'recruiter', 'payroll'])

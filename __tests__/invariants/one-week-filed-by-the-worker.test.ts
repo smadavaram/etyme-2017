@@ -33,10 +33,10 @@ const week = (over: Partial<OnFile> = {}): OnFile => ({
   id: 'w1', status: 'APPROVED', periodStart: '2026-09-14', periodEnd: '2026-09-20', actedOn: false, ...over,
 })
 
-// Helena: CloudEPA employs her and sells her to Computer Systems, which
+// Helena: Techpeple employs her and sells her to Computer Systems, which
 // sells her to Northbend Athletic.
 const HELENA: WorkRung[] = [
-  { id: 'cloudepa-rung', personId: 'helena', companyId: 'cloudepa', clientCompanyId: 'cs', state: 'IN_PROGRESS', startDate: '2026-03-12', endDate: '2027-03-07' },
+  { id: 'techpeple-rung', personId: 'helena', companyId: 'techpeple', clientCompanyId: 'cs', state: 'IN_PROGRESS', startDate: '2026-03-12', endDate: '2027-03-07' },
   { id: 'cs-rung', personId: 'helena', companyId: 'cs', clientCompanyId: 'northbend', state: 'IN_PROGRESS', startDate: '2026-03-12', endDate: '2027-03-07' },
 ]
 
@@ -51,27 +51,27 @@ describe('only the worker files, and only on their own rung', () => {
   })
 
   it('a week on the employer’s rung is the worker’s to file', () => {
-    expect(rungVerdict(HELENA, 'cloudepa-rung', TODAY)).toBeNull()
+    expect(rungVerdict(HELENA, 'techpeple-rung', TODAY)).toBeNull()
   })
 
   it('a placement that is not running takes no hours', () => {
     const paused = HELENA.map((r) => ({ ...r, state: 'SUSPENDED' }))
-    const v = rungVerdict(paused, 'cloudepa-rung', TODAY)
+    const v = rungVerdict(paused, 'techpeple-rung', TODAY)
     expect(v && !v.ok && v.code).toBe('NOT_TAKING_HOURS')
   })
 
   it('the rung a worker files on is the rung every rung above bills from, so the week the client signs at the top is the one week below it', () => {
     const own = rungsToFile(HELENA, TODAY).map((r) => r.id)
-    expect(own).toEqual(['cloudepa-rung'])
+    expect(own).toEqual(['techpeple-rung'])
     const ladder: Rung[] = [
-      { sellContractId: 'cs-rung', companyId: 'cs', buyContractId: 'cs-buy', supplierSellContractId: 'cloudepa-rung' },
-      { sellContractId: 'cloudepa-rung', companyId: 'cloudepa', buyContractId: 'cloudepa-buy', supplierSellContractId: null },
+      { sellContractId: 'cs-rung', companyId: 'cs', buyContractId: 'cs-buy', supplierSellContractId: 'techpeple-rung' },
+      { sellContractId: 'techpeple-rung', companyId: 'techpeple', buyContractId: 'techpeple-buy', supplierSellContractId: null },
     ]
-    expect(whereHoursLive('cs-rung', ladder)).toBe('cloudepa-rung')
-    expect(mayBill('cs-rung', 'cloudepa-rung', ladder)).toBe(true)
+    expect(whereHoursLive('cs-rung', ladder)).toBe('techpeple-rung')
+    expect(mayBill('cs-rung', 'techpeple-rung', ladder)).toBe(true)
     // And never the other way: a week on the prime's rung is nothing the
     // employer below could bill.
-    expect(mayBill('cloudepa-rung', 'cs-rung', ladder)).toBe(false)
+    expect(mayBill('techpeple-rung', 'cs-rung', ladder)).toBe(false)
   })
 })
 

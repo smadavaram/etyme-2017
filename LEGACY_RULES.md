@@ -960,7 +960,7 @@ manage_timesheets, manage_leaves, reversal_transaction, manage_all
 
 - Currency: USD
 - Rating categories: Communication, Timeliness, Quality
-- Seed company: CloudEPA (vendor, domain: cloudepa)
+- Seed company: one vendor, seeded under a real firm's name and domain (retired 2026-10-04; the demo firm is Techpeple, see `docs/demo-names.md`)
 - Superuser: `admin@admin.com` (hardcoded)
 
 ### 14.3 Reserved

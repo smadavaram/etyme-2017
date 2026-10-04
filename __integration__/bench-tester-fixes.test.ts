@@ -8,7 +8,7 @@ import { poolFor } from '@/lib/match-pool'
  * The bench tester's findings of 2026-09-30, walked on the seeded world.
  */
 
-const CLOUDEPA = 'world-cloudepa@demo.etyme.local'
+const TECHPEPLE = 'world-techpeple@demo.etyme.local'
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 let cloud: { id: string }
 
@@ -26,20 +26,20 @@ async function listFor(name: string, state: 'INVITED' | 'GRANTED', lapsed: boole
 
 beforeAll(async () => {
   await freshWorld()
-  cloud = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-cloudepa' }, select: { id: true } })
+  cloud = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })
 }, 600_000)
 
 describe('a bench invitation nobody has answered', () => {
   it('is counted apart from the people the firm markets, as waiting', async () => {
     await listFor('Lucia Ferreira', 'INVITED', false)
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     expect(r.body.data.totals.waiting).toBeGreaterThanOrEqual(1)
   })
 
   it('can be sent again, or its link copied, and somebody who said yes is sent nothing', async () => {
     const asked = await prisma.benchListing.findFirstOrThrow({ where: { companyId: cloud.id, state: 'INVITED', consultant: { person: { name: 'Lucia Ferreira' } } } })
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const again = await json(await nudge(req('POST', `/api/bench/listings/${asked.id}/nudge`, {}), params(asked.id)))
     expect(again.status, JSON.stringify(again.body)).toBe(200)
     expect(await prisma.automationLog.count({ where: { action: 'BENCH_INVITATION_RESENT', companyId: cloud.id } })).toBe(1)
@@ -57,7 +57,7 @@ describe('a bench invitation nobody has answered', () => {
 describe('somebody whose chosen stay ended', () => {
   it('is on the firm’s bench with the day it ended, and the firm may ask them to renew', async () => {
     const ended = await listFor('Jonas Ended', 'GRANTED', true)
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     const row = r.body.data.ended.find((e: any) => e.name === 'Jonas Ended')
     expect(row.says).toMatch(/^Stay ended on .+ · ask to renew$/)

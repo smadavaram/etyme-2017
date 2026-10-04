@@ -29,7 +29,7 @@ describe('the client reads an approval email addressed to the firm it pays', () 
     })
     expect(text).toContain('To: world-computer-systems@demo.etyme.local')
     expect(text).toContain('From: Marcus Oyelaran <world-nike-hiring@demo.etyme.local>')
-    expect(text).not.toMatch(/cloudepa/i)
+    expect(text).not.toMatch(/techpeple/i)
   })
 
   it('the seed addresses the client’s reply to the supplier the client pays, never to the firm below it', () => {

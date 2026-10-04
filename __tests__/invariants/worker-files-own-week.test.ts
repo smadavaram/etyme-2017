@@ -24,10 +24,10 @@ import {
 const TODAY = '2026-09-30'
 const read = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8')
 
-// Helena's chain: CloudEPA sells her to Computer Systems, which sells her
+// Helena's chain: Techpeple sells her to Computer Systems, which sells her
 // to Northbend Athletic.
 const bottom: WorkRung = {
-  id: 'cloudepa-to-cs', personId: 'helena', companyId: 'cloudepa', clientCompanyId: 'cs',
+  id: 'techpeple-to-cs', personId: 'helena', companyId: 'techpeple', clientCompanyId: 'cs',
   state: 'IN_PROGRESS', startDate: '2026-03-12', endDate: '2027-03-07',
 }
 const top: WorkRung = {
@@ -37,7 +37,7 @@ const top: WorkRung = {
 
 describe('which contract a worker files against', () => {
   it('a worker in a chain files against the rung their employer holds, never a rung above it', () => {
-    expect(rungsToFile([top, bottom], TODAY).map((r) => r.id)).toEqual(['cloudepa-to-cs'])
+    expect(rungsToFile([top, bottom], TODAY).map((r) => r.id)).toEqual(['techpeple-to-cs'])
   })
 
   it('a worker with no chain files against the one contract they are on', () => {

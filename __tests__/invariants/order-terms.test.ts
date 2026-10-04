@@ -289,7 +289,7 @@ describe('the payment-terms cascade knows about the document', () => {
 
   it('payment days set on the order beat the same days copied onto the line', () => {
     const terms = resolveBillingTerms({
-      company: { name: 'Cloudepa', paymentTermsDays: 30, currency: 'USD' },
+      company: { name: 'Techpeple', paymentTermsDays: 30, currency: 'USD' },
       agreement: { paymentTermsDays: 60, counterpartyName: 'Talvern Medical', paymentTermsFrom: 'PERIOD_END' },
       contract: { paymentTermsDays: 30, paymentTermsFrom: 'PERIOD_END' },
       order: { paymentTermsDays: 45, number: 'PO-2026-4417' },
@@ -302,7 +302,7 @@ describe('the payment-terms cascade knows about the document', () => {
 
   it('a placement with no order is read from its contract, then its agreement, then the platform', () => {
     const onContract = resolveBillingTerms({
-      company: { name: 'Cloudepa', paymentTermsDays: 30, currency: 'USD' },
+      company: { name: 'Techpeple', paymentTermsDays: 30, currency: 'USD' },
       agreement: { paymentTermsDays: 60, counterpartyName: 'Talvern Medical' },
       contract: { paymentTermsDays: 45 },
       order: null,
@@ -311,7 +311,7 @@ describe('the payment-terms cascade knows about the document', () => {
     expect(onContract.paymentTermsDays.source).toBe('CONTRACT')
 
     const onAgreement = resolveBillingTerms({
-      company: { name: 'Cloudepa', paymentTermsDays: 30, currency: 'USD' },
+      company: { name: 'Techpeple', paymentTermsDays: 30, currency: 'USD' },
       agreement: { paymentTermsDays: 60, counterpartyName: 'Talvern Medical' },
       contract: null,
       order: null,
@@ -320,7 +320,7 @@ describe('the payment-terms cascade knows about the document', () => {
     expect(onAgreement.paymentTermsDays.source).toBe('AGREEMENT')
 
     const onNothing = resolveBillingTerms({
-      company: { name: 'Cloudepa', currency: null },
+      company: { name: 'Techpeple', currency: null },
       agreement: null,
       contract: null,
       order: null,
@@ -331,7 +331,7 @@ describe('the payment-terms cascade knows about the document', () => {
 
   it('an order that says nothing about payment days does not silently win with a blank', () => {
     const terms = resolveBillingTerms({
-      company: { name: 'Cloudepa', currency: 'USD' },
+      company: { name: 'Techpeple', currency: 'USD' },
       agreement: { paymentTermsDays: 60, counterpartyName: 'Talvern Medical' },
       contract: { paymentTermsDays: 45 },
       order: { paymentTermsDays: null, number: 'PO-2026-4417' },

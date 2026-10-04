@@ -14,7 +14,7 @@ Actors: Owner (company owner/admin), Recruiter (company staff with recruiting pe
 
 > **CF-01** As a **Owner**, I want to register my staffing company with my company email so that I get a working platform identity and a subdomain site within 90 seconds.
 >
-> **⚙ SYSTEM:** Validates email domain against EXCLUDED_DOMAINS (gmail, yahoo, facebook, rediff). Extracts domain → generates slug with collision numbering (cloudepa, cloudepa2). Creates Company (vendor type), creates Admin user as owner with password-reset email. Creates default PayrollInfo (monthly). Auto-creates 7 default roles with permission bundles. Sets is_activated = false pending Super Admin review. Fires AI site generation (§18).
+> **⚙ SYSTEM:** Validates email domain against EXCLUDED_DOMAINS (gmail, yahoo, facebook, rediff). Extracts domain → generates slug with collision numbering (techpeple, techpeple2). Creates Company (vendor type), creates Admin user as owner with password-reset email. Creates default PayrollInfo (monthly). Auto-creates 7 default roles with permission bundles. Sets is_activated = false pending Super Admin review. Fires AI site generation (§18).
 >
 > **✓** Company exists at {slug}.etyme.com with AI-generated website live
 >

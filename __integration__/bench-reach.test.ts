@@ -27,12 +27,12 @@ import { POST as submitCandidates } from '@/app/api/submissions/route'
  * person who said yes reached nobody, and a person who had said nothing
  * could reach everybody.
  *
- * CloudEPA sells through Computer Systems (they trade on the Harlow
+ * Techpeple sells through Computer Systems (they trade on the Harlow
  * Health chain), and Computer Systems supplies Northbend Athletic.
  */
 
 const D = '@demo.etyme.local'
-const SUB = `world-cloudepa${D}`
+const SUB = `world-techpeple${D}`
 const PRIME = `world-computer-systems${D}`
 const OTHER_BENCH = `world-consultis${D}`
 const STRANGER = `world-halcyon${D}`
@@ -55,12 +55,12 @@ async function networkNames(email: string): Promise<string[]> {
 describe('a new consultant reaches the prime their bench vendor sells through', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-cloudepa', 'world-computer-systems', 'world-nike', 'world-consultis', 'world-vertex-global', 'world-halcyon']) {
+    for (const slug of ['world-techpeple', 'world-computer-systems', 'world-nike', 'world-consultis', 'world-vertex-global', 'world-halcyon']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
   }, 600_000)
 
-  it('a consultant CloudEPA adds is marketed unless it chooses otherwise, and waits on their answer', async () => {
+  it('a consultant Techpeple adds is marketed unless it chooses otherwise, and waits on their answer', async () => {
     as(SUB)
     const r = await json(await addConsultant(req('POST', '/api/consultants', {
       name: 'Lena Ostrova', email: LENA,
@@ -78,12 +78,12 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     expect(await networkNames(PRIME)).not.toContain('Lena Ostrova')
   })
 
-  it('her own page asks her, and does not yet count CloudEPA as marketing her', async () => {
+  it('her own page asks her, and does not yet count Techpeple as marketing her', async () => {
     as(LENA)
     const r = await json(await myBenches(req('GET', '/api/me/benches')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect(r.body.data.invited.map((b: any) => b.company)).toContain('CloudEPA')
-    expect(r.body.data.benches.map((b: any) => b.company)).not.toContain('CloudEPA')
+    expect(r.body.data.invited.map((b: any) => b.company)).toContain('Techpeple')
+    expect(r.body.data.benches.map((b: any) => b.company)).not.toContain('Techpeple')
   })
 
   it('she agrees to be marketed from her own page, and the prime now sees her on its network bench', async () => {
@@ -98,14 +98,14 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     const n = await json(await bench(req('GET', '/api/bench?scope=network')))
     const row = n.body.data.tiers.MARKETING.find((l: any) => l.consultant.person.name === 'Lena Ostrova')
     expect(row.reach).toBe('NETWORK')
-    expect(row.company.name).toBe('CloudEPA')
+    expect(row.company.name).toBe('Techpeple')
   })
 
-  it('a firm that does not trade with CloudEPA still does not see her', async () => {
+  it('a firm that does not trade with Techpeple still does not see her', async () => {
     expect(await networkNames(STRANGER)).not.toContain('Lena Ostrova')
   })
 
-  it('CloudEPA may keep her to itself, and the prime stops seeing her', async () => {
+  it('Techpeple may keep her to itself, and the prime stops seeing her', async () => {
     as(SUB)
     const r = await withId(changeListing, 'PATCH', `/api/bench/listings/${it_.listing}`, it_.listing, { tier: 'RETAINED' })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -114,7 +114,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
 
     // On her trail: who moved her, and what that did.
     const trail = await prisma.accessLog.findFirst({
-      where: { subjectId: it_.personId, actorCompanyId: co['world-cloudepa'], action: 'MARKETING_REQUEST' },
+      where: { subjectId: it_.personId, actorCompanyId: co['world-techpeple'], action: 'MARKETING_REQUEST' },
       orderBy: { at: 'desc' },
     })
     expect(trail?.reason).toContain('from marketing to retained')
@@ -127,7 +127,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     expect(await networkNames(PRIME)).toContain('Lena Ostrova')
   })
 
-  it('the prime cannot change a listing that lives on CloudEPA’s bench, and is not told it exists', async () => {
+  it('the prime cannot change a listing that lives on Techpeple’s bench, and is not told it exists', async () => {
     as(PRIME)
     const r = await withId(changeListing, 'PATCH', `/api/bench/listings/${it_.listing}`, it_.listing, { tier: 'RETAINED' })
     expect(r.status).toBe(404)
@@ -135,7 +135,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     expect(row.tier).toBe('MARKETING')
   })
 
-  it('a person has one retained bench: a second firm cannot retain her while CloudEPA does', async () => {
+  it('a person has one retained bench: a second firm cannot retain her while Techpeple does', async () => {
     as(SUB)
     await withId(changeListing, 'PATCH', `/api/bench/listings/${it_.listing}`, it_.listing, { tier: 'RETAINED' })
 
@@ -147,7 +147,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     const r = await withId(changeListing, 'PATCH', `/api/bench/listings/${it_.otherListing}`, it_.otherListing, { tier: 'RETAINED' })
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('RETAINED_ELSEWHERE')
-    expect(r.body.error.message).not.toContain('CloudEPA')
+    expect(r.body.error.message).not.toContain('Techpeple')
 
     as(SUB)
     await withId(changeListing, 'PATCH', `/api/bench/listings/${it_.listing}`, it_.listing, { tier: 'MARKETING' })
@@ -206,7 +206,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     it_.submission = item.submissionId
   })
 
-  it('she takes CloudEPA’s listing back, and the prime no longer sees her on its network bench', async () => {
+  it('she takes Techpeple’s listing back, and the prime no longer sees her on its network bench', async () => {
     as(LENA)
     const r = await json(await myTerms(req('PATCH', '/api/me/benches', { revokeListing: it_.listing })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -216,7 +216,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
 
     // The firm is told why she left its bench.
     const logged = await prisma.automationLog.findFirst({
-      where: { companyId: co['world-cloudepa'], action: 'BENCH_LISTING_REVOKED' },
+      where: { companyId: co['world-techpeple'], action: 'BENCH_LISTING_REVOKED' },
     })
     expect(logged).not.toBeNull()
   })
@@ -226,10 +226,10 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     expect(s.fromCompanyId).toBe(co['world-computer-systems'])
   })
 
-  it('a listing CloudEPA shares with a partner is an invitation she answers, never born granted', async () => {
-    // Somebody seeded on CloudEPA's bench who agreed to be marketed by it.
+  it('a listing Techpeple shares with a partner is an invitation she answers, never born granted', async () => {
+    // Somebody seeded on Techpeple's bench who agreed to be marketed by it.
     const seeded = await prisma.benchListing.findFirstOrThrow({
-      where: { companyId: co['world-cloudepa'], state: 'GRANTED', revokedAt: null, tier: 'MARKETING' },
+      where: { companyId: co['world-techpeple'], state: 'GRANTED', revokedAt: null, tier: 'MARKETING' },
       select: { id: true, consultantId: true },
     })
     as(SUB)
@@ -242,7 +242,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     expect(at.state).toBe('INVITED')
   })
 
-  it('CloudEPA cannot pass on somebody who took its listing back', async () => {
+  it('Techpeple cannot pass on somebody who took its listing back', async () => {
     as(SUB)
     const r = await json(await share(req('POST', '/api/bench/share', { listingIds: [it_.listing], toCompanyId: co['world-vertex-global'] })))
     expect(r.body.data.shared).toBe(0)

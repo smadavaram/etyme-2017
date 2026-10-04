@@ -54,9 +54,9 @@ import {
 const db = prisma as any
 
 const ravi = {
-  email: 'Ravi@Cloudepa.com',
+  email: 'Ravi@Techpeple.Example',
   name: 'Ravi Menon',
-  companyName: 'Cloudepa Systems',
+  companyName: 'Techpeple',
   source: 'HOME_PAGE',
   asked: 'We run 40 contractors through 3 primes and cannot say who is where.',
   filledInMs: 9000,
@@ -105,8 +105,8 @@ describe('A lead from the ask form reaches a person', () => {
   it('the email says who wrote, their work email, the sentence they left, where they wrote from, and where the list is', async () => {
     await ask(ravi)
     const m = leadMail()[0]
-    expect(m.subject).toBe('Somebody asked: Ravi Menon, Cloudepa Systems')
-    expect(m.body).toContain('Ravi Menon (ravi@cloudepa.com) at Cloudepa Systems')
+    expect(m.subject).toBe('Somebody asked: Ravi Menon, Techpeple')
+    expect(m.body).toContain('Ravi Menon (ravi@techpeple.example) at Techpeple')
     expect(m.body).toContain('"We run 40 contractors through 3 primes and cannot say who is where."')
     expect(m.body).toContain('the ask form on the home page')
     expect(m.body).toContain('https://etyme.example/api/market/leads')
@@ -137,7 +137,7 @@ describe('Saving the lead never depends on the email', () => {
     expect(db.incident.create).toHaveBeenCalled()
     const incident = db.incident.create.mock.calls[0][0].data
     expect(incident.where).toBe('A lead from the ask form reached nobody')
-    expect(incident.message).toContain('ravi@cloudepa.com is stored (lead lead_1) and nobody was told')
+    expect(incident.message).toContain('ravi@techpeple.example is stored (lead lead_1) and nobody was told')
     expect(incident.message).toContain('Resend returned 500')
   })
 
@@ -176,7 +176,7 @@ describe('Nobody is alarmed twice for one person', () => {
     await ask(ravi)
     expect(leadMail()).toHaveLength(2) // one per staff address, one lead
     db.marketingLead.findUnique.mockResolvedValue({
-      id: 'lead_1', email: 'ravi@cloudepa.com', asked: ravi.asked,
+      id: 'lead_1', email: 'ravi@techpeple.example', asked: ravi.asked,
       consentAt: new Date(), convertedAt: null,
     })
     await ask({ ...ravi, asked: 'Also: we pay two suppliers differently for one skill.' })

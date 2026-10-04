@@ -91,7 +91,8 @@ recording that the picker "named four real firms" — keeps the history and
 names none of them.
 
 **Buyable domains in the paste example, same day.** `veritantalent.io`,
-`cloudepa.com` and `brightmoor.co.uk` were invented firms at addresses
+`cloudepa.com` (see 2026-10-04 below — it was never invented) and
+`brightmoor.co.uk` were taken for invented firms at addresses
 anybody can register — the seeded `nike.com` hazard exactly: joining beats
 creating, so a real owner of one would be seated at a firm we made up.
 They are `.example` now, the pattern the seeds use. `onboarding.ts`'s
@@ -136,3 +137,64 @@ dashboard is a different piece of work — a whole-repo grep with a long
 allow-list for skills and systems (`Workday Studio`, `Oracle Retail`) —
 and it has not been done, which is not an argument that it should not
 be. What has changed is that these three cannot regress silently.
+
+## CloudEPA → Techpeple, 2026-10-04
+
+**Why:** a real company of that name asked for its own tenancy,
+2026-10-04. CloudEPA was the seeded bench vendor — the sub-vendor under
+Computer Systems, two rungs below the client, in most of the chain
+stories — and `cloudepa.com` was its example domain in fixtures and on
+two screens. A real firm's name in the demo reads as a customer, and its
+domain as an example is an address a real employee signs in from.
+
+| Old | Role | New | Chosen by |
+|---|---|---|---|
+| CloudEPA · Cloudepa · Cloudepa Systems · Cloudepa Inc. | Bench vendor (sub-vendor) | **Techpeple** (Techpeple Inc. where a legal name is printed) | the founder, 2026-10-04, in place of CloudEPA |
+| `cloudepa.com` · `cloudepa.example` | example domain | `techpeple.example` | reserved, RFC 2606 |
+| `world-cloudepa`, `world-cloudepa-*@demo.etyme.local` | slug and seeded addresses | `world-techpeple`, `world-techpeple-*@demo.etyme.local` | |
+
+**Unlike the 2026-09-17 sheet, the slug moved too**, because the slug is
+the firm's name and a real company's name in a URL is still its name.
+The live demo already holds `world-cloudepa`, and the demo world may not
+be deleted to change it, so the seed **renames it in place**:
+`lib/seed-renames` carries the map, and every seeding first moves a firm
+still under an old slug to its new slug and name, its seated people to
+the new addresses, and the old name out of the words of every row that
+belongs to the demo world — a row pointing at one of the world's
+companies or at a person seated at one, and nothing outside it. A second
+seeding finds nothing old and writes nothing; where both slugs exist it
+refuses rather than merging. One automation row records the rename,
+without the old name. `__integration__/retired-demo-firm-renamed.test.ts`
+rebuilds an old world and proves nothing named CloudEPA is left.
+
+**The wall.** `CloudEPA` and `Cloudepa` are on RETIRED, and
+`__tests__/invariants/demo-names.test.ts` now also reads **every text
+file in the repository** for the name, case-insensitive. Four files may
+spell it, each with its reason: the guard, the rename map, this sheet,
+and the integration test above. Every other file still carrying it is on
+an `OWED` list with the agent who owns it, and an entry that no longer
+carries the name fails too, so the list only shrinks.
+
+**Still owed, 2026-10-04**, because the architect may not write in
+another domain's files:
+
+- **Two lines a person reads.** The suppliers page's paste example
+  `Cloudepa Systems, Ravi Menon, ravi@cloudepa.example`
+  (`src/app/dashboard/suppliers/page.tsx`, etyme-demand) → `Techpeple,
+  Ravi Menon, ravi@techpeple.example`; the leads form's refusal "a domain
+  like cloudepa.com" (`src/lib/public-site/leads.ts`, etyme-market) → a
+  `.example` domain.
+- **Code comments** in thirty-five more files across demand, supply,
+  money, conversation, regulatory and market, listed in `OWED`.
+- **CLAUDE.md**, which uses the name as a worked example in several
+  decisions. It changes with the founder's own approval, not on an
+  agent's instruction.
+
+**Removed:** `et termguicolors`, a stray file at the repository root —
+a 2020 Rails console dump of the legacy company table carrying the real
+firm's phone number and address. It stays in history at its commit.
+
+**Not touched:** the per-visitor demo sandboxes already created from
+`lib/demo-seed-client` hold a supplier named `Cloudepa Systems`. They
+are removed after thirty days unused (`lib/sandbox-expiry`); new ones
+say Techpeple.

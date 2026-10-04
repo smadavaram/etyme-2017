@@ -23,7 +23,7 @@ function line(over: Partial<CodedLine> = {}): CodedLine {
     invoiceNumber: 'INV-2026-0412',
     invoiceDate: '2026-08-01',
     dueDate: '2026-08-31',
-    vendor: 'Cloudepa Inc.',
+    vendor: 'Techpeple Inc.',
     billTo: 'Talvern Medical',
     poNumber: 'PO-9001',
     personName: 'John Martinez',
@@ -161,11 +161,11 @@ describe('the file itself', () => {
   it('quotes a value containing the delimiter rather than splitting the row', () => {
     const r = render(
       profileById('ORACLE_AP')!,
-      [line({ vendor: 'Cloudepa, Inc.', amount: 100 })],
+      [line({ vendor: 'Techpeple, Inc.', amount: 100 })],
       100
     )
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.result.content).toContain('"Cloudepa, Inc."')
+    if (r.ok) expect(r.result.content).toContain('"Techpeple, Inc."')
   })
 
   it('writes an empty cell rather than the word null when a field is absent', () => {

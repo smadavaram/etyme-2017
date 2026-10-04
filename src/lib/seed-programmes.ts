@@ -231,7 +231,7 @@ export const PROGRAMMES: Program[] = [
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
     placements: [
       { role: 'ERP finance lead', skills: ['ERP finance', 'General ledger', 'Central finance'], loc: 'Tualatin, OR',
-        via: ['nike', 'computer-systems', 'cloudepa'], rates: [14500, 11800, 9000], takeAgain: true,
+        via: ['nike', 'computer-systems', 'techpeple'], rates: [14500, 11800, 9000], takeAgain: true,
         person: 'Helena Marsh', workAuth: 'GC', startedDaysAgo: 200, endsInDays: 160, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
       // A week over the line, and nobody has said what it is worth. The

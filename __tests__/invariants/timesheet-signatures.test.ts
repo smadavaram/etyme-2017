@@ -13,7 +13,7 @@ import { gates, maySign, acceptWith, signBoth, type Sheet } from '@/lib/timeshee
  */
 
 const NOW = new Date('2026-08-29T10:00:00Z')
-const NAMES = { client: 'Calder Manufacturing', employer: 'Cloudepa Systems' }
+const NAMES = { client: 'Calder Manufacturing', employer: 'Techpeple' }
 
 function sheet(over: Partial<Sheet> = {}): Sheet {
   return {
@@ -33,7 +33,7 @@ describe('what each signature unlocks', () => {
     expect(g.mayInvoice).toBe(false)
     expect(g.mayPay).toBe(false)
     expect(g.says).toBe(
-      '40 hours submitted. Waiting on Calder Manufacturing to approve and Cloudepa Systems to accept.'
+      '40 hours submitted. Waiting on Calder Manufacturing to approve and Techpeple to accept.'
     )
   })
 
@@ -42,7 +42,7 @@ describe('what each signature unlocks', () => {
     expect(g.mayInvoice).toBe(true)
     expect(g.mayPay).toBe(false)
     expect(g.billableHours).toBe(40)
-    expect(g.says).toMatch(/Cannot pay until Cloudepa Systems accepts/)
+    expect(g.says).toMatch(/Cannot pay until Techpeple accepts/)
   })
 
   it('lets the employer pay before the client has approved', () => {

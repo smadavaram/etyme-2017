@@ -13,10 +13,10 @@ import { sectionOfHref } from '@/lib/page-framing'
 
 const src = (p: string) => readFileSync(path.join(process.cwd(), p), 'utf8')
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`)
-const names = { person: 'Lucia Ferreira', firm: 'CloudEPA' }
+const names = { person: 'Lucia Ferreira', firm: 'Techpeple' }
 
 describe('1 · a prime puts a supplier’s person forward at two prices', () => {
-  const fromSupplier = { rate: null, payRate: 10_500, offeredBy: 'cloudepa' }
+  const fromSupplier = { rate: null, payRate: 10_500, offeredBy: 'techpeple' }
 
   it('sends what the supplier charges, prefilled from its listing, and what the prime bills', () => {
     expect(submitFields(fromSupplier, { bill: '128' }, names)).toEqual({ ok: true, rate: 12_800, payRate: 10_500 })
@@ -24,7 +24,7 @@ describe('1 · a prime puts a supplier’s person forward at two prices', () => 
 
   it('a supplier whose listing names no rate is asked about in a sentence, never sent as nothing', () => {
     const v = submitFields({ ...fromSupplier, payRate: null }, { bill: '128' }, names)
-    expect(v).toEqual({ ok: false, says: 'Say what CloudEPA charges you an hour for Lucia Ferreira. Its listing does not say.' })
+    expect(v).toEqual({ ok: false, says: 'Say what Techpeple charges you an hour for Lucia Ferreira. Its listing does not say.' })
     expect(submitFields({ ...fromSupplier, payRate: null }, { bill: '128', pay: '105' }, names)).toEqual({ ok: true, rate: 12_800, payRate: 10_500 })
   })
 

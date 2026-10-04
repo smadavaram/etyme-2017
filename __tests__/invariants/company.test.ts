@@ -45,7 +45,7 @@ describe('Company Formation (CF-01 through CF-05)', () => {
     })
 
     it('a company email can register a company', () => {
-      expect(isExcludedDomain('sharath@cloudepa.com')).toBe(false)
+      expect(isExcludedDomain('sharath@techpeple.example')).toBe(false)
     })
 
     it('a company email with a subdomain can register', () => {
@@ -63,7 +63,7 @@ describe('Company Formation (CF-01 through CF-05)', () => {
 
   describe('Slug generation', () => {
     it('a company name becomes a lowercase slug', () => {
-      expect(slugify('Cloudepa')).toBe('cloudepa')
+      expect(slugify('Techpeple')).toBe('techpeple')
     })
 
     it('spaces and special characters become hyphens', () => {
@@ -86,7 +86,7 @@ describe('Company Formation (CF-01 through CF-05)', () => {
     })
 
     it('a normal company slug is not reserved', () => {
-      expect(RESERVED_SLUGS.has('cloudepa')).toBe(false)
+      expect(RESERVED_SLUGS.has('techpeple')).toBe(false)
     })
   })
 

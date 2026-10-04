@@ -21,8 +21,8 @@
  * her weeks and runs her pay, and the rise is proposed by one desk and
  * approved by another, as the approval route insists.
  *
- * Not CloudEPA, though it was offered: CloudEPA sells only to the prime
- * above it, and a direct line from CloudEPA to Northbend would be the
+ * Not Techpeple, though it was offered: Techpeple sells only to the prime
+ * above it, and a direct line from Techpeple to Northbend would be the
  * sub going round its prime — the one thing the prime's NDA exists to
  * stop, on the same client whose door shows that story.
  *

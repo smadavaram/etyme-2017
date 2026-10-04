@@ -9,7 +9,7 @@
  *
  * The chain is the one from docs/full-spine.md:
  *
- *   Adobe Systems ← Computer Systems ← CloudEPA ← Priya Raman
+ *   Adobe Systems ← Computer Systems ← Techpeple ← Priya Raman
  *      $135/hr          $110/hr          $85/hr
  *
  * Idempotent by slug and email: run it twice and you get one chain.
@@ -47,7 +47,7 @@ async function company(name, slug, kind, email) {
 
 const adobe = await company('Adobe Systems', 'demo-adobe', 'CLIENT', 'programme@demo-adobe.test')
 const prime = await company('Computer Systems', 'demo-computer-systems', 'VENDOR', 'owner@demo-cs.test')
-const sub = await company('CloudEPA', 'demo-cloudepa', 'VENDOR', 'owner@demo-cloudepa.test')
+const sub = await company('Techpeple', 'demo-techpeple', 'VENDOR', 'owner@demo-techpeple.test')
 
 const link = async (a, b, relationship) => {
   const found = await db.counterparty.findFirst({
@@ -113,7 +113,7 @@ const submission =
     data: {
       requirementId: requirement.id, personId: priya.id,
       fromCompanyId: sub.companyId, toCompanyId: prime.companyId,
-      // Computed from ownership, never chosen: she is on CloudEPA's own
+      // Computed from ownership, never chosen: she is on Techpeple's own
       // bench, so this is a BENCH submission.
       kind: 'BENCH',
       rate: 11_000, status: 'PLACED', checkState: 'SENT',
@@ -184,12 +184,12 @@ async function pair({ seller, buyer, endClient, bill, pay, supplierSellContractI
   return sell
 }
 
-// CloudEPA employs her; nobody below, so no supplier contract and no vendor.
+// Techpeple employs her; nobody below, so no supplier contract and no vendor.
 const subSell = await pair({
   seller: sub.companyId, buyer: prime.companyId, endClient: adobe.companyId,
   bill: 11_000, pay: 8_500, contractType: 'W2', vendorCompanyId: null,
 })
-// Computer Systems buys from CloudEPA — the edge that makes the ladder walkable.
+// Computer Systems buys from Techpeple — the edge that makes the ladder walkable.
 const primeSell = await pair({
   seller: prime.companyId, buyer: adobe.companyId, endClient: adobe.companyId,
   bill: 13_500, pay: 11_000, contractType: 'C2C', vendorCompanyId: sub.companyId,
@@ -259,11 +259,11 @@ async function invoice(sell, number, rateCents, clientId) {
     },
   })
 }
-await invoice(subSell, 'IN-CLOUDEPA-001', 11_000, prime.companyId)
+await invoice(subSell, 'IN-TECHPEPLE-001', 11_000, prime.companyId)
 await invoice(primeSell, 'IN-CS-001', 13_500, adobe.companyId)
 
 console.log('Seeded one placement, followable end to end.\n')
-console.log('  CloudEPA view       /dashboard/placements/' + subSell.id)
+console.log('  Techpeple view       /dashboard/placements/' + subSell.id)
 console.log('  Computer Systems    /dashboard/placements/' + primeSell.id)
-console.log('\n  sign in as owner@demo-cloudepa.test  or  owner@demo-cs.test')
+console.log('\n  sign in as owner@demo-techpeple.test  or  owner@demo-cs.test')
 await db.$disconnect()

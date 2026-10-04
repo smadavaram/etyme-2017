@@ -18,7 +18,7 @@ function listing(over: Record<string, unknown> = {}) {
     rateMin: 9000,
     rateMax: 11000,
     grantedAt: '2026-01-01T00:00:00.000Z',
-    company: { id: 'co_1', name: 'CloudEPA', slug: 'world-cloudepa' },
+    company: { id: 'co_1', name: 'Techpeple', slug: 'world-techpeple' },
     consultant: {
       id: 'cp_1',
       personId: 'p_1',

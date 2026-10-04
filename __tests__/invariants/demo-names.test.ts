@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { namedCompanies } from '@/lib/positioning'
 import { writableEmail } from '@/lib/contacts'
@@ -102,7 +102,7 @@ const SURFACES: Record<string, string> = {
   // etyme-architect, 2026-09-17. Not a screen, and here anyway: the host
   // rules are the first thing every request passes through and their
   // worked example named a domain an invented firm would have to own.
-  // `talent.cloudepa.com` is buyable by anybody, which is the hazard the
+  // `talent.<firm>.com` is buyable by anybody, which is the hazard the
   // seeds and the screens were just cleared of, and this file was outside
   // the wall only because nothing thought to read it.
   'src/middleware.ts': read('src/middleware.ts'),
@@ -129,6 +129,10 @@ const RETIRED: { was: string; now: string }[] = [
   // Invented, but it collided with Vertex Global in the same world, so
   // the sheet moved it too.
   { was: 'Vertex Talent', now: 'Veritan Talent' },
+  // A real company of this name asked for its own tenancy on 2026-10-04,
+  // and the founder chose the new name. Both spellings the code used.
+  { was: 'CloudEPA', now: 'Techpeple' },
+  { was: 'Cloudepa', now: 'Techpeple' },
   // A headquarters town names a company as surely as the company does.
   { was: 'Beaverton', now: 'Tualatin, OR' },
   { was: 'Lakewood', now: 'Westminster, CO' },
@@ -150,9 +154,9 @@ function stillNames(source: string, was: string): string[] {
 describe('The demo names no real company, on any surface a visitor reaches', () => {
   for (const { was, now } of RETIRED) {
     it(`says ${now} and never ${was} — not on the seat list, not on the page, not in any seed`, () => {
-      const left = Object.entries(SURFACES).flatMap(([file, source]) =>
-        stillNames(source, was).map((where) => `${file} ${where}`)
-      )
+      const left = Object.entries(SURFACES)
+        .filter(([file]) => !(RETIRED_FIRM.test(was) && OWED.has(file)))
+        .flatMap(([file, source]) => stillNames(source, was).map((where) => `${file} ${where}`))
       expect(
         left,
         `"${was}" is still written down. The sheet in docs/demo-names.md moves it to "${now}". ` +
@@ -320,6 +324,9 @@ const FIXTURE_DIRS = ['__tests__', '__integration__']
 const MAY_NAME = new Set([
   '__tests__/invariants/demo-names.test.ts',
   '__tests__/invariants/positioning.test.ts',
+  // Rebuilds the world under the retired name in order to rename it, and
+  // says in its own test name that nothing of it is left afterwards.
+  '__integration__/retired-demo-firm-renamed.test.ts',
 ])
 
 function testFiles(dir: string): string[] {
@@ -544,5 +551,155 @@ describe('a seeded sign-in handle is never printed as somebody’s email', () =>
     const route = read('src/app/api/contacts/route.ts')
     expect(route.indexOf('known.has(p.email.toLowerCase())'))
       .toBeLessThan(route.indexOf('writableEmail(c.email)'))
+  })
+})
+
+
+/**
+ * ── The firm that was real, swept across the whole repository ────────
+ *
+ * Decided 2026-10-04. The seeded bench vendor carried the name of a real
+ * company, and that company asked for its own tenancy on Etyme. Its name
+ * in the demo reads as a customer, its domain in an example is an address
+ * somebody really signs in from, and joining beats creating — so a real
+ * employee of the firm could have been offered a seat at the made-up one.
+ *
+ * The sweeps above read the demo's surfaces and the fixtures. This one
+ * reads every text file in the repository, because the earlier names came
+ * back from the files nobody listed, and this name was in two hundred of
+ * them: seeds, screens, placeholders, comments, docs and the matrix.
+ *
+ * Three files may spell it, permanently, and each says why. Every other
+ * file still carrying it is on the OWED list below with the agent who owns
+ * it: the architect who swept the rest may not write in another domain's
+ * files. An entry that no longer needs to be there fails too, so the list
+ * can only shrink.
+ */
+
+const RETIRED_FIRM = /cloudepa/i
+
+/** The files allowed to spell it for good, and why. */
+const MAY_SPELL: Record<string, string> = {
+  '__tests__/invariants/demo-names.test.ts': 'the RETIRED entry and this guard',
+  'src/lib/seed-renames.ts': 'the rename map the seed renames the live demo firm by',
+  'docs/demo-names.md': 'the sheet, which records the decision',
+  '__integration__/retired-demo-firm-renamed.test.ts': 'rebuilds the old world to prove the rename leaves nothing',
+}
+
+/**
+ * Still carrying the name on 2026-10-04, in files the architect may not
+ * write. Every one is a code comment except two that a person reads: the
+ * suppliers page's paste example (`Cloudepa Systems`) and the leads form's
+ * refusal ("a domain like …com"), both of which want the new name and a
+ * reserved domain. CLAUDE.md uses the name as a worked example in several
+ * decisions and changes only with the founder's own approval.
+ */
+const OWED = new Map<string, string>([
+  ['CLAUDE.md', 'the founder'],
+  ['src/lib/forwarding.ts', 'etyme-conversation'],
+  ['src/lib/interview-notices.ts', 'etyme-conversation'],
+  ['src/lib/interviews.ts', 'etyme-conversation'],
+  ['src/lib/watch.ts', 'etyme-conversation'],
+  ['src/app/api/people/[id]/ask/route.ts', 'etyme-demand'],
+  ['src/app/api/program/org/route.ts', 'etyme-demand'],
+  ['src/app/api/submissions/[id]/award/route.ts', 'etyme-demand'],
+  ['src/app/api/submissions/adopt.ts', 'etyme-demand'],
+  ['src/app/api/suppliers/direct.ts', 'etyme-demand'],
+  ['src/app/api/suppliers/join/route.ts', 'etyme-demand'],
+  ['src/app/api/suppliers/route.ts', 'etyme-demand'],
+  ['src/app/api/timesheets/chain-turn.ts', 'etyme-demand'],
+  ['src/app/api/timesheets/route.ts', 'etyme-demand'],
+  ['src/app/api/why/[type]/[id]/route.ts', 'etyme-demand'],
+  ['src/app/dashboard/requisitions/[id]/page.tsx', 'etyme-demand'],
+  ['src/app/dashboard/suppliers/page.tsx', 'etyme-demand'],
+  ['src/lib/award.ts', 'etyme-demand'],
+  ['src/lib/chain-top.ts', 'etyme-demand'],
+  ['src/lib/join-companies.ts', 'etyme-demand'],
+  ['src/lib/resolve-client-company.ts', 'etyme-demand'],
+  ['src/lib/supplier-list.ts', 'etyme-demand'],
+  ['src/lib/public-site.ts', 'etyme-market'],
+  ['src/lib/public-site/leads.ts', 'etyme-market'],
+  ['src/lib/bench-policy.ts', 'etyme-money'],
+  ['src/lib/invoice-match.ts', 'etyme-money'],
+  ['src/lib/money/billed-elsewhere.ts', 'etyme-money'],
+  ['src/lib/money/payers-acceptance.ts', 'etyme-money'],
+  ['src/lib/money/rung-billing.ts', 'etyme-money'],
+  ['src/lib/work-chain.ts', 'etyme-money'],
+  ['src/app/api/compliance/route.ts', 'etyme-regulatory'],
+  ['src/lib/seat.ts', 'etyme-regulatory'],
+  ['src/app/api/alumni/route.ts', 'etyme-supply'],
+  ['src/app/api/bench/burn/route.ts', 'etyme-supply'],
+  ['src/app/api/me/work/route.ts', 'etyme-supply'],
+  ['src/app/dashboard/my-work/page.tsx', 'etyme-supply'],
+  ['src/app/dashboard/training/page.tsx', 'etyme-supply'],
+  ['src/lib/consultant-portfolio.ts', 'etyme-supply'],
+])
+
+const SKIP_DIRS = new Set(['node_modules', '.git', '.next', '.vercel', 'coverage'])
+const BINARY = /\.(png|jpe?g|gif|webp|ico|svg|pdf|docx?|xlsx?|pptx?|zip|gz|woff2?|ttf|otf|rdb|mp4|mov|lock)$/i
+
+function everyTextFile(dir = ''): string[] {
+  const out: string[] = []
+  for (const entry of readdirSync(join(process.cwd(), dir || '.'), { withFileTypes: true })) {
+    const path = dir ? `${dir}/${entry.name}` : entry.name
+    if (entry.isDirectory()) {
+      if (!SKIP_DIRS.has(entry.name)) out.push(...everyTextFile(path))
+    } else if (entry.isFile() && !BINARY.test(entry.name)) {
+      out.push(path)
+    }
+  }
+  return out
+}
+
+describe('The retired firm’s name is nowhere in the repository but the rename map, the sheet and its guard', () => {
+  const files = everyTextFile().filter((f) => {
+    try { return statSync(join(process.cwd(), f)).size < 5_000_000 } catch { return false }
+  })
+  const carrying = files.filter((f) => RETIRED_FIRM.test(read(f)))
+
+  it('reads the whole repository, rather than passing on a directory it never opened', () => {
+    expect(files.length).toBeGreaterThan(500)
+    expect(files).toContain('src/lib/seed-world.ts')
+    expect(files).toContain('docs/demo-names.md')
+  })
+
+  it('no seed, screen, test, doc or comment names the retired firm, outside the rename map and the files still owed', () => {
+    const left = carrying.filter((f) => !(f in MAY_SPELL) && !OWED.has(f))
+    expect(
+      left,
+      'A real company of this name asked for its own tenancy on 2026-10-04. The demo firm is Techpeple now ' +
+        '(docs/demo-names.md), and a real firm’s domain is never an example: use techpeple.example.'
+    ).toEqual([])
+  })
+
+  it('every file still owed carries the name, so the owed list only ever shrinks', () => {
+    const fixed = [...OWED.keys()].filter((f) => !carrying.includes(f))
+    expect(fixed, 'These no longer carry the name. Take them off OWED.').toEqual([])
+  })
+
+  it('the rename map is the one piece of code that spells it, and it names the new firm beside it', () => {
+    const map = read('src/lib/seed-renames.ts')
+    expect(map).toMatch(/fromName: 'CloudEPA'/)
+    expect(map).toMatch(/toName: 'Techpeple'/)
+    expect(map).toMatch(/toSlug: 'techpeple'/)
+  })
+
+  it('the demo door seats a visitor at world-techpeple, never at the old address', () => {
+    expect(SURFACES['src/app/demo/seats.ts']).toContain("'world-techpeple'")
+    expect(SURFACES['src/components/try-demo.tsx']).toContain("'world-techpeple'")
+  })
+
+  it('no seeded company or person holds an address at the retired firm’s domain or any alias of it', () => {
+    // A file still owed is held by the sweep above instead; the paste
+    // example on the suppliers page is one of them.
+    const surfaces = Object.entries(SURFACES).filter(([file]) => !OWED.has(file)).map(([, source]) => source)
+    const domains = surfaces.flatMap((source) =>
+      [...source.matchAll(/domain:\s*'([^']+)'/g)].map((m) => m[1])
+    )
+    expect(domains.filter((d) => RETIRED_FIRM.test(d))).toEqual([])
+    const addresses = surfaces.flatMap((source) =>
+      [...source.matchAll(/[\w.+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g)].map((m) => m[1])
+    )
+    expect(addresses.filter((d) => RETIRED_FIRM.test(d))).toEqual([])
   })
 })

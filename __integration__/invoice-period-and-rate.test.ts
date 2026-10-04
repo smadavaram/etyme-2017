@@ -15,8 +15,8 @@ import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
  *
  * **Helena Marsh at $145 against a $118 contract.** The seed is right:
  * Northbend Athletic pays Computer Systems $145, Computer Systems pays
- * CloudEPA $118, and her hours are filed once, on CloudEPA's line,
- * because CloudEPA employs her. The fault was in the three-way match,
+ * Techpeple $118, and her hours are filed once, on Techpeple's line,
+ * because Techpeple employs her. The fault was in the three-way match,
  * which held every line to the rate of the contract the HOURS were on —
  * the rung underneath — whenever no opening rate-history row stood in
  * front of it. The seed writes one for every contract it makes, which is
@@ -43,10 +43,10 @@ describe('Helena Marsh, billed through a chain, at the rate of the line that bil
       },
     })
     it_.top = lines.find((l) => l.company.slug === 'world-computer-systems')!
-    it_.bottom = lines.find((l) => l.company.slug === 'world-cloudepa')!
+    it_.bottom = lines.find((l) => l.company.slug === 'world-techpeple')!
   }, 240_000)
 
-  it('the seed bills Northbend Athletic at $145 on Computer Systems’ line and files the hours on CloudEPA’s $118 line', () => {
+  it('the seed bills Northbend Athletic at $145 on Computer Systems’ line and files the hours on Techpeple’s $118 line', () => {
     expect(it_.top.billRate).toBe(14_500)
     expect(it_.bottom.billRate).toBe(11_800)
   })

@@ -17,7 +17,7 @@ const ctx: NoticeContext = {
   role: 'Workday integrator',
   consultant: { id: 'p-priya', name: 'Priya Raman' },
   client: { id: 'c-nike', name: 'Northbend Athletic' },
-  vendor: { id: 'c-cloudepa', name: 'CloudEPA' },
+  vendor: { id: 'c-techpeple', name: 'Techpeple' },
   requesterId: 'p-dana',
   vendorStaffIds: ['p-bench', 'p-recruiter'],
   slotCount: 3,
@@ -55,7 +55,7 @@ describe('when the supplier confirms', () => {
   it('the person who asked hears, with the time that stuck', () => {
     const notices = noticesFor('CONFIRMED', ctx)
     expect(to('CONFIRMED')).toEqual(['p-dana'])
-    expect(notices[0].title).toBe('CloudEPA confirmed Priya Raman')
+    expect(notices[0].title).toBe('Techpeple confirmed Priya Raman')
     expect(notices[0].body).toMatch(/Tue, Sep 15, 10:00\s?AM UTC/)
   })
 })

@@ -49,9 +49,9 @@ describe('the seeded world reads plainly to somebody walking it for the first ti
     expect(listing.company.slug).toBe('world-brightmoor')
   })
 
-  it('CloudEPA, a bench firm, seats a recruiter and a resource manager besides its owner, each on the role’s own permissions', async () => {
+  it('Techpeple, a bench firm, seats a recruiter and a resource manager besides its owner, each on the role’s own permissions', async () => {
     const seats = await prisma.context.findMany({
-      where: { company: { slug: 'world-cloudepa' }, revokedAt: null, type: 'EMPLOYEE' },
+      where: { company: { slug: 'world-techpeple' }, revokedAt: null, type: 'EMPLOYEE' },
       select: { role: { select: { name: true, permissions: true } } },
     })
     const roles = seats.map((s) => s.role?.name)

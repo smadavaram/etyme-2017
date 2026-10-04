@@ -15,14 +15,14 @@ import { POST as assertHours } from '@/app/api/timesheets/[id]/assert/route'
  * yet paid" on the year-end tax screen.
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
- * employed by CloudEPA. Northbend approves, Computer Systems accepts in its
- * turn, CloudEPA accepts what it pays her.
+ * employed by Techpeple. Northbend approves, Computer Systems accepts in its
+ * turn, Techpeple accepts what it pays her.
  */
 
 const D = '@demo.etyme.local'
 const NIKE = `world-nike-hiring${D}`
 const CS = `world-computer-systems${D}`
-const CLOUDEPA = `world-cloudepa${D}`
+const TECHPEPLE = `world-techpeple${D}`
 
 const sign = async (id: string) =>
   json(await approve(req('POST', `/api/timesheets/${id}/approve`, {}), { params: Promise.resolve({ id }) }))
@@ -65,7 +65,7 @@ describe('a week signed from the approve button is posted to the books once', ()
   })
 
   it('a week accepted from the approve button is posted to the books once, the same as one accepted any other way', async () => {
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await sign(s.week)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const a = await live('EMPLOYER_ACCEPTANCE')
@@ -73,7 +73,7 @@ describe('a week signed from the approve button is posted to the books once', ()
   })
 
   it('pressing the button again, or answering the same week through /assert, posts nothing twice', async () => {
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     await sign(s.week)
     const again = await say(s.week, {})
     expect(again.status).not.toBe(200)

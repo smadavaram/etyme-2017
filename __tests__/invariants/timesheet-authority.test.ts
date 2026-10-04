@@ -15,7 +15,7 @@ import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authori
 
 const CONTRACT = {
   personId: 'anita',
-  vendorCompanyId: 'cloudepa',
+  vendorCompanyId: 'techpeple',
   clientCompanyId: 'terumo',
   endClientCompanyId: null,
 }
@@ -41,7 +41,7 @@ describe('entering hours', () => {
     // week only". A week typed in by the firm paid on it is the firm
     // vouching for its own invoice.
     const v = mayEnter(
-      actor({ companyId: 'cloudepa', permissions: ['*'] }),
+      actor({ companyId: 'techpeple', permissions: ['*'] }),
       { ...CONTRACT, personName: 'Anita Rao' }
     )
     expect(v.ok).toBe(false)
@@ -87,7 +87,7 @@ describe('approving hours', () => {
   it('lets the agency approve, and says so, where the buyer is not on Etyme', () => {
     // Refusing would stop billing altogether for every vendor whose client
     // has not joined. Allowed, and recorded as what it is.
-    const v = mayApprove(actor({ companyId: 'cloudepa' }), CONTRACT)
+    const v = mayApprove(actor({ companyId: 'techpeple' }), CONTRACT)
     expect(v.ok).toBe(true)
     expect(v.reason).toMatch(/because the buyer is not on Etyme/i)
   })

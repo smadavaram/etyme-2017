@@ -25,7 +25,7 @@ function person(over: Partial<Candidate> = {}): Candidate {
     email: null,
     location: 'Dallas, TX',
     skills: ['Java', 'Spring Boot', 'AWS'],
-    stints: [{ start: d('2024-01-01'), end: d('2025-03-01'), vendorName: 'Cloudepa', months: 14 }],
+    stints: [{ start: d('2024-01-01'), end: d('2025-03-01'), vendorName: 'Techpeple', months: 14 }],
     ...over,
   }
 }
@@ -74,7 +74,7 @@ describe('the signal that argues the other way', () => {
     // time through different suppliers, and treating that as a match is
     // how somebody gets blocked on a cap they never earned.
     const m = compare(
-      person({ stints: [{ start: d('2024-01-01'), end: d('2025-01-01'), vendorName: 'Cloudepa', months: 12 }] }),
+      person({ stints: [{ start: d('2024-01-01'), end: d('2025-01-01'), vendorName: 'Techpeple', months: 12 }] }),
       person({
         personId: 'p2',
         stints: [{ start: d('2024-06-01'), end: d('2025-06-01'), vendorName: 'Vertex', months: 12 }],
@@ -140,7 +140,7 @@ describe('what a person is actually asked', () => {
       person(),
       person({ personId: 'p2', stints: [{ start: d('2025-06-01'), end: d('2026-01-01'), vendorName: 'Vertex', months: 7 }] })
     )
-    expect(m.says).toContain('through Cloudepa and Vertex')
+    expect(m.says).toContain('through Techpeple and Vertex')
   })
 })
 

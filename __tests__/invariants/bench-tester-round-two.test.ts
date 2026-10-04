@@ -303,8 +303,8 @@ describe('15 · keeping somebody past their contract says the gap', () => {
 
 describe('17 · adding a consultant says what it did, and one set of words for the tiers', () => {
   it('adding somebody says the ask went by email and that nobody is put forward until they say yes', () => {
-    expect(addedSays({ name: 'Rhea Castellano', firm: 'CloudEPA', tier: 'MARKETING', emailed: true })).toBe(
-      'Rhea Castellano is added. CloudEPA has emailed them to ask if they will join its bench. ' +
+    expect(addedSays({ name: 'Rhea Castellano', firm: 'Techpeple', tier: 'MARKETING', emailed: true })).toBe(
+      'Rhea Castellano is added. Techpeple has emailed them to ask if they will join its bench. ' +
         'Once they say yes they are shown to your partners. Nobody is put forward until they say yes.'
     )
   })

@@ -10,7 +10,7 @@ import { GET as consultants } from '@/app/api/consultants/route'
  * Found by a screen-by-screen walk of four party types on 2026-09-26, and
  * both halves are one bug wearing two faces.
  *
- * **CloudEPA**, a staffing vendor: its Bench page read TOTAL 5, RETAINED
+ * **Techpeple**, a staffing vendor: its Bench page read TOTAL 5, RETAINED
  * 3, and all five had skills on record. Two clicks away its Training page
  * read "Bench consultants 0 with skills listed" and computed the skill
  * gap from that nought — because it read the bench answer under
@@ -23,7 +23,7 @@ import { GET as consultants } from '@/app/api/consultants/route'
  */
 
 const D = '@demo.etyme.local'
-const CLOUDEPA = `world-cloudepa${D}`
+const TECHPEPLE = `world-techpeple${D}`
 const TELEWORLD = `world-teleworld${D}`
 
 const TELEWORLD_PAYROLL = ['Amara Nwosu', 'Deepa Varma', 'Felix Brenner', 'Karthik Menon']
@@ -31,21 +31,21 @@ const TELEWORLD_PAYROLL = ['Amara Nwosu', 'Deepa Varma', 'Felix Brenner', 'Karth
 // seats (lib/seed-internal-moves, 2026-09-30) are on the payroll too.
 const TELEWORLD_STAFF = ['Ingrid Solberg', 'Rahul Deshpande', 'Farah Haddad']
 const SUNDARA = `world-sundara${D}`
-const CLOUDEPA_BENCH = ['Grace Lindqvist', 'Helena Marsh', 'Ifeoma Balogun', 'Peter Halloran', 'Priya Raman']
+const TECHPEPLE_BENCH = ['Grace Lindqvist', 'Helena Marsh', 'Ifeoma Balogun', 'Peter Halloran', 'Priya Raman']
 
 beforeAll(async () => {
   await freshWorld()
 }, 600_000)
 
 describe('a firm’s bench and its training page agree about how many of its people have skills', () => {
-  it('reads five on CloudEPA’s bench, every one of them with skills on record', async () => {
-    as(CLOUDEPA)
+  it('reads five on Techpeple’s bench, every one of them with skills on record', async () => {
+    as(TECHPEPLE)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
 
     const rows = [...r.body.data.tiers.RETAINED, ...r.body.data.tiers.MARKETING]
     expect(rows).toHaveLength(5)
-    for (const name of CLOUDEPA_BENCH) {
+    for (const name of TECHPEPLE_BENCH) {
       expect(rows.map((l: any) => l.consultant.person.name)).toContain(name)
     }
     // The fact the Training page could not see.
@@ -57,7 +57,7 @@ describe('a firm’s bench and its training page agree about how many of its peo
     const { readBench } = await import('@/lib/bench-filter')
     const { skillGap } = await import('@/lib/training')
 
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     const reading = readBench(r.body)
     expect(reading.ok, reading.why ?? '').toBe(true)
@@ -78,7 +78,7 @@ describe('a firm’s bench and its training page agree about how many of its peo
   it('a skill gap is not computed from a supply of zero when the bench is full', async () => {
     const { skillGap } = await import('@/lib/training')
     const { readBench } = await import('@/lib/bench-filter')
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     const gap = skillGap([{ skills: ['Epic'] }], { people: readBench(r.body).rows })
     expect(gap.skillsTracked).not.toBeNull()
@@ -157,7 +157,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
   })
 
   it('one firm’s roster never shows another firm’s people', async () => {
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     const names = r.body.data.roster.map((x: any) => x.name)
     for (const name of TELEWORLD_PAYROLL) expect(names).not.toContain(name)
@@ -199,7 +199,7 @@ describe('two screens on one menu do not disagree about the same firm’s open r
     const { GET: burn } = await import('@/app/api/bench/burn/route')
     const { GET: requirements } = await import('@/app/api/requirements/route')
 
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const b = await json(await burn(req('GET', '/api/bench/burn')))
     const r = await json(await requirements(req('GET', '/api/requirements?status=OPEN&limit=100')))
 
@@ -211,7 +211,7 @@ describe('two screens on one menu do not disagree about the same firm’s open r
     const { GET: burn } = await import('@/app/api/bench/burn/route')
     const everyOpenRole = await prisma.requirement.count({ where: { status: 'OPEN' } })
 
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const b = await json(await burn(req('GET', '/api/bench/burn')))
     // The old count was this number, for every firm, whoever asked.
     expect(everyOpenRole).toBeGreaterThan(b.body.data.openRequirements)

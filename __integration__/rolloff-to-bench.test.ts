@@ -18,7 +18,7 @@ import { POST as resolve } from '@/app/api/rolloff/[id]/resolve/route'
  */
 
 const D = '@demo.etyme.local'
-const CLOUDEPA = `world-cloudepa${D}`
+const TECHPEPLE = `world-techpeple${D}`
 const TELEWORLD = `world-teleworld${D}`
 
 beforeAll(async () => {
@@ -97,7 +97,7 @@ async function listingOf(personId: string, companyId: string) {
 describe('benching somebody from rolloff', () => {
   it('benching somebody from rolloff asks them to agree, and they are not on the bench until they do', async () => {
     // Any firm's line for somebody it does not employ and who holds no
-    // listing there — the seeded CloudEPA bench is fully consented, so
+    // listing there — the seeded Techpeple bench is fully consented, so
     // the search runs over every supplying firm.
     const firms = await prisma.company.findMany({
       where: { kind: { not: 'CLIENT' }, slug: { startsWith: 'world-' } },
@@ -161,14 +161,14 @@ describe('benching somebody from rolloff', () => {
   }, 60_000)
 
   it('somebody already on the bench stays on it and is told nothing new', async () => {
-    const companyId = await companyOf(CLOUDEPA)
+    const companyId = await companyOf(TECHPEPLE)
     const line = await lineFor(companyId, (l) => l !== null && !l.revokedAt && l.state === 'GRANTED')
-    expect(line, 'the seeded world has a CloudEPA line for somebody who granted a listing').toBeTruthy()
+    expect(line, 'the seeded world has a Techpeple line for somebody who granted a listing').toBeTruthy()
     const before = await listingOf(line!.personId, companyId)
     const rolloff = await rolloffOn(line!.id)
     const startedAt = new Date()
 
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await json(await resolve(req('POST', `/api/rolloff/${rolloff.id}/resolve`, { outcome: 'BENCH' }), {
       params: Promise.resolve({ id: rolloff.id }),
     }))
@@ -220,7 +220,7 @@ describe('benching somebody from rolloff', () => {
   }, 60_000)
 
   it('the rate range on a bench listing is never the price the client was billed', async () => {
-    const companyId = await companyOf(CLOUDEPA)
+    const companyId = await companyOf(TECHPEPLE)
     // A person who once had a listing here and took it back — the path
     // that reopens an old row, which used to write the bill rate in.
     let line = await lineFor(companyId, (l) => l !== null && l.revokedAt !== null)
@@ -235,7 +235,7 @@ describe('benching somebody from rolloff', () => {
     }
     const rolloff = await rolloffOn(line!.id)
 
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await json(await resolve(req('POST', `/api/rolloff/${rolloff.id}/resolve`, { outcome: 'BENCH' }), {
       params: Promise.resolve({ id: rolloff.id }),
     }))
@@ -269,7 +269,7 @@ describe('benching somebody from rolloff', () => {
       select: { id: true },
     })
     const rolloff = await rolloffOn(line.id)
-    as(CLOUDEPA)
+    as(TECHPEPLE)
     const r = await json(await resolve(req('POST', `/api/rolloff/${rolloff.id}/resolve`, { outcome: 'BENCH' }), {
       params: Promise.resolve({ id: rolloff.id }),
     }))

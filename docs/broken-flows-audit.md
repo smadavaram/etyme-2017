@@ -40,7 +40,7 @@ A requirement has no field for the client it is for, so the award copies
 `requirement.companyId` into `clientCompanyId`. Result:
 
 ```
-vendor: Cloudepa Inc.   client: Cloudepa Inc.   endClient: Cloudepa Inc.
+vendor: Techpeple Inc.   client: Techpeple Inc.   endClient: Techpeple Inc.
 engagement: null   msa: null   po: null
 ```
 

@@ -54,7 +54,7 @@ describe('Domain Detection (CLAUDE.md — User Populations)', () => {
     })
 
     it('a corporate email routes to business population', () => {
-      expect(detectPopulation('sharath@cloudepa.com')).toBe('business')
+      expect(detectPopulation('sharath@techpeple.example')).toBe('business')
     })
 
     it('an Infosys email routes to business population', () => {
@@ -85,7 +85,7 @@ describe('Domain Detection (CLAUDE.md — User Populations)', () => {
     })
 
     it('corporate user gets Teams notifications end to end', () => {
-      const pop = detectPopulation('sharath@cloudepa.com')
+      const pop = detectPopulation('sharath@techpeple.example')
       expect(notificationChannel(pop)).toBe('teams')
     })
   })
@@ -98,7 +98,7 @@ describe('Domain Detection (CLAUDE.md — User Populations)', () => {
     })
 
     it('a business user can register a company', () => {
-      const pop = detectPopulation('sharath@cloudepa.com')
+      const pop = detectPopulation('sharath@techpeple.example')
       expect(pop).toBe('business')
     })
   })

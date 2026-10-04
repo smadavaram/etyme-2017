@@ -1286,8 +1286,8 @@ model SupplierInvite {
   ///
   /// Kept here rather than on the shell company, because `Company.domain`
   /// is globally unique and a shell has not proved it owns anything. A
-  /// client pasting "cloudepa.com" must not be able to take the domain
-  /// away from the real Cloudepa, or be handed it.
+  /// client pasting a supplier's domain must not be able to take it away
+  /// from the real firm, or be handed it.
   domain      String?
   /// What was pasted, kept whole so a better reader can be run later.
   line        String?
@@ -2723,7 +2723,7 @@ model Submission {
   ///
   /// Submitting somebody to you and you sending them onward to the client
   /// are two events days apart, and each is its own submission with its own
-  /// rate and its own decision. Cloudepa → Vertex at $62 and Vertex →
+  /// rate and its own decision. Techpeple → Vertex at $62 and Vertex →
   /// Terumo at $95 are two rows, one chain: the layer cake as it is.
   ///
   /// A flag could not carry the prime's rate, the prime's decision date, or

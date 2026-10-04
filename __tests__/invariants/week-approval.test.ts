@@ -10,12 +10,12 @@ import { whoAskedSentence } from '@/app/api/timesheets/approval-by-email'
  * The rules themselves are tested in approve-by-email.test.ts; these are
  * the decisions the door adds on top of them.
  *
- * Northbend Athletic ← Computer Systems ← CloudEPA, Helena Marsh.
+ * Northbend Athletic ← Computer Systems ← Techpeple, Helena Marsh.
  */
 
-const CLOUDEPA_RUNG: LadderRung = { sellContractId: 'cloudepa-rung', companyId: 'cloudepa', clientCompanyId: 'cs', endClientCompanyId: 'northbend', supplierSellContractId: null }
-const CS_RUNG: LadderRung = { sellContractId: 'cs-rung', companyId: 'cs', clientCompanyId: 'northbend', endClientCompanyId: null, supplierSellContractId: 'cloudepa-rung' }
-const LADDER = topDown([CLOUDEPA_RUNG, CS_RUNG])
+const TECHPEPLE_RUNG: LadderRung = { sellContractId: 'techpeple-rung', companyId: 'techpeple', clientCompanyId: 'cs', endClientCompanyId: 'northbend', supplierSellContractId: null }
+const CS_RUNG: LadderRung = { sellContractId: 'cs-rung', companyId: 'cs', clientCompanyId: 'northbend', endClientCompanyId: null, supplierSellContractId: 'techpeple-rung' }
+const LADDER = topDown([TECHPEPLE_RUNG, CS_RUNG])
 
 function chain(over: Partial<WeekChain['week']> = {}, contract: { overtimeAfterHours?: number | null } = {}): WeekChain {
   const days = { '2026-09-21': 8, '2026-09-22': 8, '2026-09-23': 8, '2026-09-24': 8, '2026-09-25': 8 }
@@ -24,26 +24,26 @@ function chain(over: Partial<WeekChain['week']> = {}, contract: { overtimeAfterH
       id: 'w', personId: 'helena', personName: 'Helena Marsh', personEmail: 'h@x.example',
       periodStart: new Date('2026-09-20T00:00:00Z'), periodEnd: new Date('2026-09-26T00:00:00Z'),
       totalHours: 40, days, leaveDays: {}, status: 'SUBMITTED', submittedAt: new Date('2026-09-26T00:00:00Z'),
-      clientApprovedAt: null, employerAcceptedAt: null, sellContractId: 'cloudepa-rung',
+      clientApprovedAt: null, employerAcceptedAt: null, sellContractId: 'techpeple-rung',
       anomalyScore: null, anomalyReason: null, hoursPerWeek: 40, contractEnd: null, decisions: [],
       ...over,
     },
     ladder: LADDER,
     rungs: new Map([
       ['cs-rung', { id: 'cs-rung', companyId: 'cs', clientCompanyId: 'northbend', endClientCompanyId: null, sellerName: 'Computer Systems Inc', buyerName: 'Northbend Athletic', billRate: 14500, overtimeAfterHours: contract.overtimeAfterHours ?? null, overtimeMultiplierBps: null }],
-      ['cloudepa-rung', { id: 'cloudepa-rung', companyId: 'cloudepa', clientCompanyId: 'cs', endClientCompanyId: 'northbend', sellerName: 'CloudEPA', buyerName: 'Computer Systems Inc', billRate: 11800, overtimeAfterHours: null, overtimeMultiplierBps: null }],
+      ['techpeple-rung', { id: 'techpeple-rung', companyId: 'techpeple', clientCompanyId: 'cs', endClientCompanyId: 'northbend', sellerName: 'Techpeple', buyerName: 'Computer Systems Inc', billRate: 11800, overtimeAfterHours: null, overtimeMultiplierBps: null }],
     ]),
     signers: signersOf(LADDER),
     clientId: 'northbend',
     clientName: 'Northbend Athletic',
-    employerId: 'cloudepa',
-    names: new Map([['northbend', 'Northbend Athletic'], ['cs', 'Computer Systems Inc'], ['cloudepa', 'CloudEPA']]),
+    employerId: 'techpeple',
+    names: new Map([['northbend', 'Northbend Athletic'], ['cs', 'Computer Systems Inc'], ['techpeple', 'Techpeple']]),
   }
 }
 
 describe('what the client’s approver is told about who sent the link', () => {
   it('the worker who sent it is named, with the firm the client pays, never the firm that employs her', () => {
-    expect(senderAsTheClientSees(chain(), { personId: 'helena', name: 'Helena Marsh', companyId: 'cloudepa' }))
+    expect(senderAsTheClientSees(chain(), { personId: 'helena', name: 'Helena Marsh', companyId: 'techpeple' }))
       .toEqual({ sentFrom: { kind: 'NAMED', name: 'Helena Marsh', firm: 'Computer Systems Inc' }, askFirm: 'Computer Systems Inc' })
   })
 
@@ -52,9 +52,9 @@ describe('what the client’s approver is told about who sent the link', () => {
   })
 
   it('a desk at a sub-vendor is not named, and neither is its firm, so the client never learns who is below its supplier', () => {
-    const told = senderAsTheClientSees(chain(), { personId: 'bhavesh', name: 'Bhavesh Nair', companyId: 'cloudepa' })
+    const told = senderAsTheClientSees(chain(), { personId: 'bhavesh', name: 'Bhavesh Nair', companyId: 'techpeple' })
     expect(told).toEqual({ sentFrom: { kind: 'BELOW', askFirm: 'Computer Systems Inc' }, askFirm: 'Computer Systems Inc' })
-    expect(JSON.stringify(told)).not.toMatch(/CloudEPA|Bhavesh/)
+    expect(JSON.stringify(told)).not.toMatch(/Techpeple|Bhavesh/)
   })
 
   it('the approval page says who asked in the same sentence the letter does, and from a desk below the supplier it names only the supplier', () => {
@@ -63,10 +63,10 @@ describe('what the client’s approver is told about who sent the link', () => {
     expect(page).toContain('{view.askedBy}')
     const lib = readFileSync(join(process.cwd(), 'src/lib/week-approval.ts'), 'utf8')
     expect(lib).toContain('askedBy: whoAskedSentence(told.sentFrom, c.week.personName)')
-    const told = senderAsTheClientSees(chain(), { personId: 'bhavesh', name: 'Bhavesh Nair', companyId: 'cloudepa' })
+    const told = senderAsTheClientSees(chain(), { personId: 'bhavesh', name: 'Bhavesh Nair', companyId: 'techpeple' })
     const said = whoAskedSentence(told.sentFrom, 'Helena Marsh')
     expect(said).toBe('Helena Marsh’s supplier asked us to send you the week to approve. If anything in it looks wrong, ask Computer Systems Inc.')
-    expect(said).not.toMatch(/timesheet desk|CloudEPA|Bhavesh/)
+    expect(said).not.toMatch(/timesheet desk|Techpeple|Bhavesh/)
   })
 })
 

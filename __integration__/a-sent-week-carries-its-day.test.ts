@@ -19,7 +19,7 @@ import { GET as autoApprove } from '@/app/api/cron/auto-approve/route'
  * job — which starts the clock at the run for a sheet it cannot date —
  * never let an approval window run out on any week a worker sent.
  *
- * Helena is employed by CloudEPA and works at Northbend Athletic through
+ * Helena is employed by Techpeple and works at Northbend Athletic through
  * Computer Systems. The window is walked on a worker placed directly at
  * Cavanaugh Glassworks, the seeded program whose own order says silence
  * approves a week after five days.

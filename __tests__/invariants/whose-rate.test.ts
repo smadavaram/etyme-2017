@@ -10,7 +10,7 @@ import type { CallerContext } from '@/lib/api-context'
  * Whose rate is on the row.
  *
  * Northbend Athletic buys Helena from Computer Systems at $145. Computer Systems buys
- * her from CloudEPA at $118. Both contracts name Northbend Athletic as the end
+ * her from Techpeple at $118. Both contracts name Northbend Athletic as the end
  * client, because that is where she physically works and that is how
  * tenure aggregates — so a list scoped by end client hands Northbend Athletic both
  * rows, and $145 − $118 is Computer Systems' entire margin, computable
@@ -24,7 +24,7 @@ import type { CallerContext } from '@/lib/api-context'
 
 const NIKE = 'nike'
 const CSI = 'computer-systems'
-const CLOUDEPA = 'cloudepa'
+const TECHPEPLE = 'techpeple'
 
 const caller = (kind: string, companyId: string): CallerContext =>
   ({
@@ -44,7 +44,7 @@ const onBench = (personId: string, companyId: string): CallerContext =>
 
 /** Helena's chain, as two rows in a database. */
 const SUB: DatedRung & { billRate: number } = {
-  id: 'sub', personId: 'helena', companyId: CLOUDEPA, clientCompanyId: CSI,
+  id: 'sub', personId: 'helena', companyId: TECHPEPLE, clientCompanyId: CSI,
   startDate: new Date('2026-02-27'), endDate: new Date('2027-02-22'), billRate: 11800,
 }
 const TOP: DatedRung & { billRate: number } = {
@@ -76,7 +76,7 @@ describe('a client sees the rate it pays, never the rate its supplier pays under
   })
 
   it('leaves a vendor seeing its own book and an MSP both sides of its own', () => {
-    expect(payerScope(caller('VENDOR', CLOUDEPA))).toEqual({ companyId: CLOUDEPA })
+    expect(payerScope(caller('VENDOR', TECHPEPLE))).toEqual({ companyId: TECHPEPLE })
     expect(payerScope(caller('MSP', 'kestrel'))).toEqual({
       OR: [{ companyId: 'kestrel' }, { clientCompanyId: 'kestrel' }],
     })
@@ -194,26 +194,26 @@ describe('what a client has approved is valued at the rate that client is billed
 
 describe('a consultant sees what they are paid and never what they are billed at', () => {
   it('gives a consultant seat only the rows that are about them', () => {
-    expect(payerScope(onBench('helena', CLOUDEPA))).toEqual({ personId: 'helena' })
+    expect(payerScope(onBench('helena', TECHPEPLE))).toEqual({ personId: 'helena' })
   })
 
   it('does not read their context as membership of the agency whose bench they sit on', () => {
     // Their context points at the agency. Read as employment it handed
     // a contractor the agency's whole book.
-    expect(payerScope(onBench('helena', CLOUDEPA))).not.toEqual({ companyId: CLOUDEPA })
+    expect(payerScope(onBench('helena', TECHPEPLE))).not.toEqual({ companyId: TECHPEPLE })
   })
 })
 
 describe('nobody is shown a button the server will refuse them', () => {
   const parties = {
     personId: 'helena',
-    vendorCompanyId: CLOUDEPA,
+    vendorCompanyId: TECHPEPLE,
     clientCompanyId: CSI,
     endClientCompanyId: NIKE,
   }
 
   it('refuses the person whose week it is, however much else they hold', () => {
-    const her = { personId: 'helena', companyId: CLOUDEPA, permissions: ['*'] }
+    const her = { personId: 'helena', companyId: TECHPEPLE, permissions: ['*'] }
     expect(approvingOwnHours(her, parties)).toBe(true)
   })
 
@@ -274,7 +274,7 @@ describe('the client’s own picture is one row per person at the price it pays'
   })
 
   it('a rung the client does not itself pay is counted as a head and priced at nothing', () => {
-    // Helena's top leg is a draft, so the live rows stop at CloudEPA →
+    // Helena's top leg is a draft, so the live rows stop at Techpeple →
     // Computer Systems. She is still in the building and still a head;
     // pricing her at $118 would put her supplier's cost in Northbend Athletic's run
     // rate, so the row carries no rate and the page says how many.
@@ -314,7 +314,7 @@ describe('a client’s own benchmark is built from its own prices, never its sup
 
   it('a client’s own benchmark is built from its own prices, never its supplier’s cost', () => {
     // Three SAP people at Northbend Athletic: two bought direct at $140 and $150, one
-    // through Computer Systems at $145 — which CloudEPA sells to the
+    // through Computer Systems at $145 — which Techpeple sells to the
     // prime at $118. Northbend Athletic's own median is $145. Over every rung standing
     // at the site it is $140, dragged down by a cost that is not Northbend Athletic's.
     const rungs = [

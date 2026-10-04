@@ -30,7 +30,7 @@ const D = '@demo.etyme.local'
 const HIRING = `world-nike-hiring${D}`
 const PROGRAMME = `world-nike-programme${D}`
 const PRIME = `world-computer-systems${D}`
-const SUB = `world-cloudepa${D}`
+const SUB = `world-techpeple${D}`
 const withId = (id: string) => ({ params: Promise.resolve({ id }) })
 const s: Record<string, any> = {}
 
@@ -319,11 +319,11 @@ describe('two totals that sat side by side count the same thing', () => {
 })
 
 describe('a sub-vendor’s name is the prime’s to keep', () => {
-  it('the premise: Northbend buys Helena Marsh through Computer Systems, which buys her from CloudEPA, and their agreement discloses nobody', async () => {
+  it('the premise: Northbend buys Helena Marsh through Computer Systems, which buys her from Techpeple, and their agreement discloses nobody', async () => {
     const cs = await prisma.company.findFirstOrThrow({ where: { slug: 'world-computer-systems' }, select: { id: true } })
-    const cloudepa = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' }, select: { id: true } })
+    const techpeple = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })
     s.cs = cs.id
-    s.cloudepa = cloudepa.id
+    s.techpeple = techpeple.id
     const terms = await prisma.masterAgreement.findMany({ where: { clientId: s.northbend, vendorId: cs.id }, select: { disclosesSubVendors: true } })
     expect(terms.length).toBeGreaterThan(0)
     expect(terms.every((t) => !t.disclosesSubVendors)).toBe(true)
@@ -335,26 +335,26 @@ describe('a sub-vendor’s name is the prime’s to keep', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const names = (r.body.data.suppliers as any[]).map((x) => x.name)
     expect(names).toContain('Computer Systems Inc')
-    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+    expect(JSON.stringify(r.body)).not.toContain('Techpeple')
   })
 
   it('a job request cannot be released to a firm the client reaches only through its prime, and the refusal names nobody', async () => {
     as(PROGRAMME)
     const r = await json(
       await release(
-        req('POST', `/api/requisitions/${s.job}/distribute`, { vendors: [{ companyId: s.cloudepa }] }),
+        req('POST', `/api/requisitions/${s.job}/distribute`, { vendors: [{ companyId: s.techpeple }] }),
         withId(s.job)
       )
     )
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('NOT_YOUR_SUPPLIER')
-    expect(r.body.error.message).not.toContain('CloudEPA')
-    expect(await prisma.requirementInvitation.count({ where: { requirementId: s.job, toCompanyId: s.cloudepa } })).toBe(0)
+    expect(r.body.error.message).not.toContain('Techpeple')
+    expect(await prisma.requirementInvitation.count({ where: { requirementId: s.job, toCompanyId: s.techpeple } })).toBe(0)
   })
 
   it('a client never reads the name of a firm below its prime on its timesheets — a signed week waits on the firm it pays', async () => {
     const week = await prisma.timesheet.findFirstOrThrow({
-      where: { status: 'SUBMITTED', clientApprovedAt: null, person: { name: 'Helena Marsh' }, sellContract: { companyId: s.cloudepa } },
+      where: { status: 'SUBMITTED', clientApprovedAt: null, person: { name: 'Helena Marsh' }, sellContract: { companyId: s.techpeple } },
       select: { id: true },
     })
     as(HIRING)
@@ -364,7 +364,7 @@ describe('a sub-vendor’s name is the prime’s to keep', () => {
     as(HIRING)
     const r = await json(await listTimesheets(req('GET', '/api/timesheets?limit=50')))
     expect(r.status).toBe(200)
-    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+    expect(JSON.stringify(r.body)).not.toContain('Techpeple')
     const row = r.body.data.timesheets.find((t: any) => t.id === week.id)
     expect(row.signature.youSigned).toBe(true)
     expect(row.signature.waitingOn).toBe('Computer Systems Inc')
@@ -426,7 +426,7 @@ describe('a job request says what the job is, and what its approval checked', ()
 describe('a job travels down the chain through the prime’s own record of it', () => {
   it('a prime cannot release the client’s own job request, and is told whose it is', async () => {
     as(PRIME)
-    const r = await json(await release(req('POST', `/api/requisitions/${s.job}/distribute`, { vendors: [{ companyId: s.cloudepa }] }), withId(s.job)))
+    const r = await json(await release(req('POST', `/api/requisitions/${s.job}/distribute`, { vendors: [{ companyId: s.techpeple }] }), withId(s.job)))
     expect(r.status).toBe(403)
     expect(r.body.error.message).toContain('Only the raising company')
   })
@@ -440,7 +440,7 @@ describe('a job travels down the chain through the prime’s own record of it', 
     expect(own.status, JSON.stringify(own.body)).toBeLessThan(300)
     const id = own.body.data.requirement.id
     as(PRIME)
-    const sent = await json(await release(req('POST', `/api/requisitions/${id}/distribute`, { vendors: [{ companyId: s.cloudepa, payMin: 9_000, payMax: 10_500 }] }), withId(id)))
+    const sent = await json(await release(req('POST', `/api/requisitions/${id}/distribute`, { vendors: [{ companyId: s.techpeple, payMin: 9_000, payMax: 10_500 }] }), withId(id)))
     expect(sent.body?.error, JSON.stringify(sent.body)).toBeUndefined()
 
     as(SUB)
@@ -452,7 +452,7 @@ describe('a job travels down the chain through the prime’s own record of it', 
   it('the client still reads no name below its prime after the job went down the chain', async () => {
     as(PROGRAMME)
     const r = await json(await supplierRegister(req('GET', '/api/suppliers')))
-    expect(JSON.stringify(r.body)).not.toContain('CloudEPA')
+    expect(JSON.stringify(r.body)).not.toContain('Techpeple')
   })
 })
 

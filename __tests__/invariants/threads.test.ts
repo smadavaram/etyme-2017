@@ -14,7 +14,7 @@ import {
  */
 
 const nike = { id: 'c-nike', name: 'Northbend Athletic' }
-const cloudepa = { id: 'c-cloudepa', name: 'Cloudepa' }
+const techpeple = { id: 'c-techpeple', name: 'Techpeple' }
 const pinnacle = { id: 'c-pinnacle', name: 'Pinnacle' }
 const stranger = { id: 'c-stranger', name: 'Somebody Else Staffing' }
 
@@ -23,7 +23,7 @@ const role: RoleFacts = {
   id: 'r1',
   title: 'Kinaxis planners',
   demandCompanyId: nike.id,
-  supplierIds: [cloudepa.id, pinnacle.id],
+  supplierIds: [techpeple.id, pinnacle.id],
 }
 
 const candidate: CandidateFacts = {
@@ -38,16 +38,16 @@ const candidate: CandidateFacts = {
 
 describe('who may open a conversation about a role', () => {
   it('the client can open one with a supplier it asked to work the role', () => {
-    expect(whoMayOpen(role, nike, cloudepa)).toEqual({ ok: true, title: 'Kinaxis planners' })
+    expect(whoMayOpen(role, nike, techpeple)).toEqual({ ok: true, title: 'Kinaxis planners' })
   })
 
   it('a supplier cannot open one with the client; it is told to submit or answer the invitation instead', () => {
-    const v = whoMayOpen(role, cloudepa, nike)
+    const v = whoMayOpen(role, techpeple, nike)
     expect(v.ok).toBe(false)
     if (v.ok) return
     expect(v.code).toBe('SUPPLY_ANSWERS')
     expect(v.message).toBe(
-      'Northbend Athletic opens the conversation on Kinaxis planners; Cloudepa answers it. ' +
+      'Northbend Athletic opens the conversation on Kinaxis planners; Techpeple answers it. ' +
       'Submit a candidate, or answer the invitation, and they hear from you that way.'
     )
   })
@@ -69,9 +69,9 @@ describe('who may open a conversation about a role', () => {
   })
 
   it('a prime that posted a role is the demand side toward its subs — the rule is a position, not a company kind', () => {
-    const primesRole: RoleFacts = { ...role, demandCompanyId: pinnacle.id, supplierIds: [cloudepa.id] }
-    expect(whoMayOpen(primesRole, pinnacle, cloudepa).ok).toBe(true)
-    expect(whoMayOpen(primesRole, cloudepa, pinnacle)).toMatchObject({ ok: false, code: 'SUPPLY_ANSWERS' })
+    const primesRole: RoleFacts = { ...role, demandCompanyId: pinnacle.id, supplierIds: [techpeple.id] }
+    expect(whoMayOpen(primesRole, pinnacle, techpeple).ok).toBe(true)
+    expect(whoMayOpen(primesRole, techpeple, pinnacle)).toMatchObject({ ok: false, code: 'SUPPLY_ANSWERS' })
   })
 })
 
@@ -87,9 +87,9 @@ describe('who may open a conversation about a candidate', () => {
   })
 
   it('the client cannot open one about this candidate with a different supplier', () => {
-    const v = whoMayOpen(candidate, nike, cloudepa)
+    const v = whoMayOpen(candidate, nike, techpeple)
     expect(v).toMatchObject({ ok: false, code: 'NOT_ON_THE_ROLE' })
-    if (!v.ok) expect(v.message).toBe('Mei-Lin Chao came from Pinnacle, not Cloudepa.')
+    if (!v.ok) expect(v.message).toBe('Mei-Lin Chao came from Pinnacle, not Techpeple.')
   })
 })
 
@@ -100,7 +100,7 @@ describe('who may read a thread', () => {
   it('both companies on the thread can read it, and nobody else', () => {
     expect(canRead(across, nike.id)).toBe(true)
     expect(canRead(across, pinnacle.id)).toBe(true)
-    expect(canRead(across, cloudepa.id)).toBe(false)
+    expect(canRead(across, techpeple.id)).toBe(false)
     expect(canRead(across, null)).toBe(false)
   })
 
@@ -112,7 +112,7 @@ describe('who may read a thread', () => {
   it('each side knows which side it is', () => {
     expect(sideOf(across, nike.id)).toBe('OPENED')
     expect(sideOf(across, pinnacle.id)).toBe('ANSWERS')
-    expect(sideOf(across, cloudepa.id)).toBeNull()
+    expect(sideOf(across, techpeple.id)).toBeNull()
   })
 })
 
@@ -173,10 +173,10 @@ describe('which suppliers a client may write to on a role', () => {
   it('everybody invited, cleared or submitting — once each, by name', () => {
     expect(
       suppliersOnRole({
-        invited: [pinnacle, cloudepa],
+        invited: [pinnacle, techpeple],
         submittedFrom: [pinnacle],
-        cleared: [cloudepa, { id: 'c-tekwave', name: 'TekWave' }],
+        cleared: [techpeple, { id: 'c-tekwave', name: 'TekWave' }],
       }).map((f) => f.name)
-    ).toEqual(['Cloudepa', 'Pinnacle', 'TekWave'])
+    ).toEqual(['Pinnacle', 'Techpeple', 'TekWave'])
   })
 })

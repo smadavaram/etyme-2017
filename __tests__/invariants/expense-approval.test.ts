@@ -13,7 +13,7 @@ import { check, gates, returnIt, STALE_AFTER_DAYS, type Expense, type Policy } f
 
 const NOW = new Date('2026-08-29T10:00:00Z')
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000)
-const NAMES = { client: 'Calder Manufacturing', employer: 'Cloudepa Systems' }
+const NAMES = { client: 'Calder Manufacturing', employer: 'Techpeple' }
 
 function expense(over: Partial<Expense> = {}): Expense {
   return {
@@ -94,13 +94,13 @@ describe('the two agreements', () => {
     expect(g.mayReimburse).toBe(true)
     expect(g.mayBill).toBe(false)
     expect(g.says).toBe(
-      'Cloudepa Systems will reimburse $240.00. Not billable until Calder Manufacturing agrees.'
+      'Techpeple will reimburse $240.00. Not billable until Calder Manufacturing agrees.'
     )
   })
 
   it('says who it is waiting on when only the client has agreed', () => {
     const g = gates(expense({ clientApprovedAt: NOW }), [], NAMES)
-    expect(g.says).toBe('Calder Manufacturing agreed $240.00. Waiting on Cloudepa Systems to reimburse.')
+    expect(g.says).toBe('Calder Manufacturing agreed $240.00. Waiting on Techpeple to reimburse.')
   })
 
   it('shows both numbers where the employer reimburses less', () => {

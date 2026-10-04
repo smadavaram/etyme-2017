@@ -105,7 +105,7 @@ describe('1 · A hiring manager raises a requisition', () => {
 describe('2 · It goes to three vendors, each at its own rate', () => {
 
   const base = {
-    id: 'inv-1', toCompanyId: 'v-cloudepa',
+    id: 'inv-1', toCompanyId: 'v-techpeple',
     message: 'Preferred supplier rate', status: 'SENT',
     expiresAt: new Date('2026-09-30T00:00:00Z'),
     createdAt: new Date('2026-08-16T00:00:00Z'),

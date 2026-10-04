@@ -3,7 +3,7 @@ import { burnOf, workingDaysBetween } from '@/lib/bench-policy'
 
 /**
  * Only people who are not billing are a bench cost, and the days are
- * named. Found 2026-09-30 as CloudEPA: Helena Marsh, placed and billing,
+ * named. Found 2026-09-30 as Techpeple: Helena Marsh, placed and billing,
  * read "$720/day · 129d on bench · $66.2k burned".
  */
 

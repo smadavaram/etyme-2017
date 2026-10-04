@@ -7,11 +7,11 @@ import { askGoesTo } from '@/lib/chain-top'
  * below it.
  *
  * Northbend Athletic buys Helena Marsh from Computer Systems, who buys her from
- * CloudEPA, and the bench listing that makes a submission possible is
- * CloudEPA's. So the button on Northbend Athletic's own page named CloudEPA and
+ * Techpeple, and the bench listing that makes a submission possible is
+ * Techpeple's. So the button on Northbend Athletic's own page named Techpeple and
  * opened a thread with it — the prime's supplier list and a direct
  * channel to it, given away in one press, from both ends of the same
- * NDA. The ask goes to Computer Systems; reaching CloudEPA is Computer
+ * NDA. The ask goes to Computer Systems; reaching Techpeple is Computer
  * Systems' job, because Computer Systems is the firm with the deal.
  */
 
@@ -35,23 +35,23 @@ describe('where an ask for a person goes', () => {
   it('an ask for somebody on a sub-vendor’s bench goes to the prime the client pays, never to the sub', () => {
     const route = askGoesTo({
       rungs: [
-        rung('sub', 'helena', 'cloudepa', 'computer-systems'),
+        rung('sub', 'helena', 'techpeple', 'computer-systems'),
         rung('top', 'helena', 'computer-systems', NIKE),
       ],
-      benchHolderIds: ['cloudepa'],
+      benchHolderIds: ['techpeple'],
       submitterIds: ['computer-systems'],
       clientCompanyId: NIKE,
     })
     expect(route.toCompanyIds).toEqual(['computer-systems'])
-    expect(route.toCompanyIds).not.toContain('cloudepa')
+    expect(route.toCompanyIds).not.toContain('techpeple')
     expect(route.reason).toBe('THROUGH_THE_PRIME')
   })
 
   it('a three-deep chain still routes the ask to the one rung the client pays', () => {
     const route = askGoesTo({
       rungs: [
-        rung('c3', 'helena', 'bench-co', 'cloudepa'),
-        rung('c2', 'helena', 'cloudepa', 'computer-systems'),
+        rung('c3', 'helena', 'bench-co', 'techpeple'),
+        rung('c2', 'helena', 'techpeple', 'computer-systems'),
         rung('c1', 'helena', 'computer-systems', NIKE),
       ],
       benchHolderIds: ['bench-co'],
@@ -121,8 +121,8 @@ describe('where an ask for a person goes', () => {
     const route = askGoesTo({
       // The leg Computer Systems is billed on is not on file, so who
       // Northbend Athletic pays for this person cannot be read without guessing.
-      rungs: [rung('sub', 'helena', 'cloudepa', 'computer-systems')],
-      benchHolderIds: ['cloudepa'],
+      rungs: [rung('sub', 'helena', 'techpeple', 'computer-systems')],
+      benchHolderIds: ['techpeple'],
       submitterIds: [],
       clientCompanyId: NIKE,
     })
@@ -133,11 +133,11 @@ describe('where an ask for a person goes', () => {
   it('two rungs above the same firm are two firms that could be the payer, and neither is guessed at', () => {
     const route = askGoesTo({
       rungs: [
-        rung('sub', 'helena', 'cloudepa', 'computer-systems'),
+        rung('sub', 'helena', 'techpeple', 'computer-systems'),
         rung('top', 'helena', 'computer-systems', NIKE),
         rung('other', 'helena', 'computer-systems', 'somebody-else'),
       ],
-      benchHolderIds: ['cloudepa'],
+      benchHolderIds: ['techpeple'],
       submitterIds: [],
       clientCompanyId: NIKE,
     })
@@ -148,24 +148,24 @@ describe('where an ask for a person goes', () => {
   it('the same person reached through two primes is asked for through both, and the sub is named in neither', () => {
     const route = askGoesTo({
       rungs: [
-        rung('s1', 'helena', 'cloudepa', 'computer-systems'),
+        rung('s1', 'helena', 'techpeple', 'computer-systems'),
         rung('t1', 'helena', 'computer-systems', NIKE),
-        rung('s2', 'helena', 'cloudepa', 'pinnacle'),
+        rung('s2', 'helena', 'techpeple', 'pinnacle'),
         rung('t2', 'helena', 'pinnacle', NIKE),
       ],
-      benchHolderIds: ['cloudepa'],
+      benchHolderIds: ['techpeple'],
       submitterIds: [],
       clientCompanyId: NIKE,
     })
     expect(route.toCompanyIds.sort()).toEqual(['computer-systems', 'pinnacle'])
-    expect(route.toCompanyIds).not.toContain('cloudepa')
+    expect(route.toCompanyIds).not.toContain('techpeple')
   })
 
   it('the route says when it went through a prime, so the message to the prime can say why it came', () => {
     const direct = askGoesTo({ rungs: [rung('a', 'omar', 'brightmoor', NIKE)], benchHolderIds: ['brightmoor'], submitterIds: [], clientCompanyId: NIKE })
     const viaPrime = askGoesTo({
-      rungs: [rung('sub', 'helena', 'cloudepa', 'computer-systems'), rung('top', 'helena', 'computer-systems', NIKE)],
-      benchHolderIds: ['cloudepa'], submitterIds: [], clientCompanyId: NIKE,
+      rungs: [rung('sub', 'helena', 'techpeple', 'computer-systems'), rung('top', 'helena', 'computer-systems', NIKE)],
+      benchHolderIds: ['techpeple'], submitterIds: [], clientCompanyId: NIKE,
     })
     expect(direct.throughAPrime).toBe(false)
     expect(viaPrime.throughAPrime).toBe(true)
@@ -177,8 +177,8 @@ describe('where an ask for a person goes', () => {
     // with the prime and it is not a contract with the sub, so it can
     // open no thread. The function cannot be told about it at all.
     const facts = {
-      rungs: [rung('sub', 'helena', 'cloudepa', 'computer-systems'), rung('top', 'helena', 'computer-systems', NIKE)],
-      benchHolderIds: ['cloudepa'],
+      rungs: [rung('sub', 'helena', 'techpeple', 'computer-systems'), rung('top', 'helena', 'computer-systems', NIKE)],
+      benchHolderIds: ['techpeple'],
       submitterIds: [],
       clientCompanyId: NIKE,
     }

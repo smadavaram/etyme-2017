@@ -103,8 +103,8 @@ describe('what a person is shown about what is held', () => {
 describe('the compliance desk is one page and four kinds of firm open it', () => {
   it('a client reads about its own sites and a supplier about the people it employs', () => {
     expect(deskFraming('CLIENT', 'Northbend Athletic').says).toContain('your sites')
-    const supplier = deskFraming('VENDOR', 'CloudEPA')
-    expect(supplier.says).toContain('CloudEPA')
+    const supplier = deskFraming('VENDOR', 'Techpeple')
+    expect(supplier.says).toContain('Techpeple')
     expect(supplier.says).toContain('employs or lists')
     expect(supplier.says).not.toContain('your sites')
   })

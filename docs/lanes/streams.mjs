@@ -457,7 +457,7 @@ export const parties = [
   {
     key: 'sub', n: 5, name: 'Sub-vendor', file: '5-sub-vendor',
     tagline: 'Sells to the prime. Buys from its own people. Knows the site, never the client’s name.',
-    kind: 'VENDOR', doors: ['world-cloudepa'],
+    kind: 'VENDOR', doors: ['world-techpeple'],
     desks: ['Owner', 'Admin', 'Recruiter', 'Account Manager', 'HR', 'Contract Manager', 'Accounts Receivable', 'AP & Payroll', 'Finance', 'Compliance Officer'],
     position: 'A position on a deal, not a kind of firm: the rung below a prime. Sells to the prime at a rate of its own; the prime sells on at another. Knows the site it works at — it must, for tenure and compliance — and the platform carries no thread from it to a client it has no deal with, which is the other half of the NDA between it and the prime.',
     about: 'The same drawing as the prime, shifted one rung down: the sub’s customer is the prime, the end client is behind the prime’s name, and the sub’s own desks do the same jobs. What the sub never sees is the rate above it. What the client always sees, name or no name, is the sub’s standing — insured or not, authorized or not — because that is the client’s own exposure and no NDA changes it.',
@@ -471,7 +471,7 @@ export const parties = [
   {
     key: 'bench', n: 6, name: 'Bench vendor', file: '6-bench-vendor',
     tagline: 'Owns a bench of people who consented to be sold. Sells them up, keeps them warm between.',
-    kind: 'VENDOR', doors: ['world-cloudepa'],
+    kind: 'VENDOR', doors: ['world-techpeple'],
     desks: ['Owner', 'Admin', 'Recruiter', 'Resource Manager', 'Account Manager', 'HR', 'Contract Manager', 'Accounts Receivable', 'AP & Payroll', 'Finance', 'Compliance Officer'],
     position: 'A business model more than a position: the firm whose asset is its bench. It attracts people nobody else can find in a niche skill, keeps them warm between assignments, and sells them on evidence rather than a forwarded CV — to a prime, or straight to a client. Every person on it granted a listing, and can take it back.',
     about: 'The supplier drawing without a rung below it: a bench vendor buys from its own people. What is heaviest here is the bottom lane — consent to be represented, the check-ins, releasing-soon and rolloff, the person’s own page — and the rule that bench burn is the vendor’s risk to watch. Etyme itself runs no bench and places nobody; the moment it competed with its own suppliers the network would stop growing.',

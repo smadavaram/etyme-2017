@@ -20,7 +20,7 @@ const NOW = new Date('2026-08-21T00:00:00Z')
 function arriving(over: Partial<Arriving> = {}): Arriving {
   return {
     personName: 'R. Menon',
-    vendorName: 'Cloudepa',
+    vendorName: 'Techpeple',
     rateCents: 7800,
     bandMaxCents: 8500,
     budgetMaxCents: 9000,
@@ -48,7 +48,7 @@ function screened(over: Partial<Screened> = {}): Screened {
   return {
     submissionId: 's1',
     personName: 'R. Menon',
-    vendorName: 'Cloudepa',
+    vendorName: 'Techpeple',
     rateCents: 7800,
     submittedAt: new Date('2026-08-20T09:00:00Z'),
     cleared: true,
@@ -91,7 +91,7 @@ describe('the same person, sent by more than one vendor', () => {
       ),
       'ALREADY_SUBMITTED'
     )
-    expect(f.evidence).toBe('Same person, 2 rates: Cloudepa $78 · Vertex $96')
+    expect(f.evidence).toBe('Same person, 2 rates: Techpeple $78 · Vertex $96')
   })
 
   it('lets the vendor who got there first through, and says the others came later', () => {
@@ -134,7 +134,7 @@ describe('the rate', () => {
     const f = find(screenRules(arriving({ rateCents: 8800 }), NOW), 'IN_BUDGET')
     expect(f.verdict).toBe('FAIL')
     expect(f.reason).toMatch(/\$3 over the band you gave them/)
-    expect(f.reason).toMatch(/ask Cloudepa to come to \$85/)
+    expect(f.reason).toMatch(/ask Techpeple to come to \$85/)
   })
 
   it('falls back to the role budget when that vendor has no band', () => {

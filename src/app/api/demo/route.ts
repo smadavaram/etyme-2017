@@ -278,9 +278,9 @@ export async function POST(request: NextRequest) {
 
   // ── The seeded world ────────────────────────────────────────────
   //
-  // `{ as: "world-cloudepa" }` takes a seat in the twenty-firm market
+  // `{ as: "world-techpeple" }` takes a seat in the twenty-firm market
   // scripts/seed-world.mjs builds, rather than minting another private
-  // five-company copy. That is what makes signing in as CloudEPA and
+  // five-company copy. That is what makes signing in as Techpeple and
   // signing in as Harlow Health two views of the same placement instead
   // of two unrelated worlds with the same placeholder names.
   //

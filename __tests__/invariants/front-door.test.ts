@@ -12,7 +12,7 @@ import { join } from 'path'
  * link underneath it. Two demos, and the button led to the wrong one.
  *
  * Now a company seat is a chair in lib/seed-world's twenty firms:
- * Company → client → Northbend Athletic; Company → bench vendor → CloudEPA. The seat
+ * Company → client → Northbend Athletic; Company → bench vendor → Techpeple. The seat
  * says which firm is behind it, because a door that does not say where
  * it goes is a form whose answer is thrown away.
  */
@@ -41,8 +41,8 @@ describe('the company door leads into the seeded world, not a sandbox with a mad
     expect(seats.CLIENT).toEqual({ as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' })
   })
 
-  it('a staffing firm with a bench sits at CloudEPA', () => {
-    expect(seats.BENCH).toMatchObject({ as: 'world-cloudepa', firm: 'CloudEPA' })
+  it('a staffing firm with a bench sits at Techpeple', () => {
+    expect(seats.BENCH).toMatchObject({ as: 'world-techpeple', firm: 'Techpeple' })
   })
 
   it('the old buyer\'s door means the client\'s chair — Northbend Athletic as well', () => {

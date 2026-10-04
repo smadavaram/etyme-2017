@@ -6,7 +6,7 @@
  * **Reading.** `/dashboard/companies` — headed "Manage vendor, client,
  * MSP, and GSI companies on the platform" — listed all twenty-seven
  * companies, with slug and domain, to Northbend Athletic's program
- * manager, to CloudEPA's owner two rungs down somebody else's chain,
+ * manager, to Techpeple's owner two rungs down somebody else's chain,
  * and to Colleen Byrne's one-person nursing corporation.
  *
  * **Writing.** Karthik Menon, an integrator's own W2 with two read

@@ -18,7 +18,7 @@ const d = (s: string) => new Date(`${s}T00:00:00Z`)
 const CHAIN = weekSigners(
   {
     rungs: [
-      { companyId: 'cloudepa', companyName: 'CloudEPA' },
+      { companyId: 'techpeple', companyName: 'Techpeple' },
       { companyId: 'csi', companyName: 'Computer Systems Inc' },
     ],
   },
@@ -45,7 +45,7 @@ describe('the worker reads who approved her week when the client approved it by 
     expect(w.stage).toBe('WAITING_FOR_EMPLOYER')
     expect(w.says).toBe(
       'Approved by email: Marcus Oyelaran, Sep 21 — evidence attached. ' +
-        'Waiting for Computer Systems Inc to accept it, then CloudEPA. It is owed to you once CloudEPA accepts it.'
+        'Waiting for Computer Systems Inc to accept it, then Techpeple. It is owed to you once Techpeple accepts it.'
     )
     expect(w.says).not.toContain('Northbend Athletic signed it')
   })
@@ -57,7 +57,7 @@ describe('the worker reads who approved her week when the client approved it by 
 
   it('the approval by email replaces only the client’s line: a firm in the middle that accepted still reads as accepted', () => {
     const w = waitingWeek(sent({ northbend: '2026-09-21', csi: '2026-09-22' }, BY_EMAIL), d('2026-09-23'))!
-    expect(w.says).toContain(`${BY_EMAIL}. Computer Systems Inc accepted it on Sep 22. Waiting for CloudEPA to accept it.`)
+    expect(w.says).toContain(`${BY_EMAIL}. Computer Systems Inc accepted it on Sep 22. Waiting for Techpeple to accept it.`)
   })
 
   it('a week still waiting for the client carries no approval sentence, even if one is passed', () => {

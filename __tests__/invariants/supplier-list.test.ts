@@ -16,10 +16,10 @@ import {
 
 describe('the shapes a vendor list arrives in', () => {
   it('reads a spreadsheet row: company, contact, address', () => {
-    const r = readOne('Cloudepa Systems, Ravi Menon, ravi@cloudepa.com', 'ravi@cloudepa.com')
-    expect(r.company).toBe('Cloudepa Systems')
+    const r = readOne('Techpeple, Ravi Menon, ravi@techpeple.example', 'ravi@techpeple.example')
+    expect(r.company).toBe('Techpeple')
     expect(r.contactName).toBe('Ravi Menon')
-    expect(r.domain).toBe('cloudepa.com')
+    expect(r.domain).toBe('techpeple.example')
   })
 
   it('reads a signature block, where the person comes first', () => {
@@ -41,8 +41,8 @@ describe('the shapes a vendor list arrives in', () => {
   })
 
   it('treats a lone person’s name as the contact, not the firm, when the domain names the firm', () => {
-    const r = readOne('Ravi Menon ravi@cloudepa.com', 'ravi@cloudepa.com')
-    expect(r.company).toBe('Cloudepa')
+    const r = readOne('Ravi Menon ravi@techpeple.example', 'ravi@techpeple.example')
+    expect(r.company).toBe('Techpeple')
     expect(r.contactName).toBe('Ravi Menon')
   })
 })
@@ -50,7 +50,7 @@ describe('the shapes a vendor list arrives in', () => {
 describe('what it refuses to guess', () => {
   it('will not invent a company from a gmail address', () => {
     // A supplier record called "Ravi Menon" that turns out to be
-    // Cloudepa Systems is a mess somebody unpicks by hand later.
+    // Techpeple is a mess somebody unpicks by hand later.
     const r = readOne('ravi.menon@gmail.com', 'ravi.menon@gmail.com')
     expect(r.company).toBeNull()
     expect(r.domain).toBeNull()
@@ -58,8 +58,8 @@ describe('what it refuses to guess', () => {
   })
 
   it('still takes a personal address when the paste said which firm', () => {
-    const r = readOne('Cloudepa Systems, ravi.menon@gmail.com', 'ravi.menon@gmail.com')
-    expect(r.company).toBe('Cloudepa Systems')
+    const r = readOne('Techpeple, ravi.menon@gmail.com', 'ravi.menon@gmail.com')
+    expect(r.company).toBe('Techpeple')
     expect(r.domain).toBeNull()
     expect(r.needs).toEqual([])
   })
@@ -67,13 +67,13 @@ describe('what it refuses to guess', () => {
   it('knows the consumer providers apart from a company domain', () => {
     expect(companyDomain('a@yahoo.co.uk')).toBeNull()
     expect(companyDomain('a@outlook.com')).toBeNull()
-    expect(companyDomain('a@cloudepa.com')).toBe('cloudepa.com')
+    expect(companyDomain('a@techpeple.example')).toBe('techpeple.example')
   })
 })
 
 describe('a name out of a domain', () => {
   it('capitalizes it', () => {
-    expect(nameFromDomain('cloudepa.com')).toBe('Cloudepa')
+    expect(nameFromDomain('techpeple.example')).toBe('Techpeple')
   })
 
   it('splits a hyphenated one into words', () => {
@@ -94,18 +94,18 @@ describe('splitting the paste', () => {
   })
 
   it('leaves a single semicolon alone, because that is punctuation', () => {
-    expect(splitLines('Cloudepa Systems; ravi@cloudepa.com')).toHaveLength(1)
+    expect(splitLines('Techpeple; ravi@techpeple.example')).toHaveLength(1)
   })
 })
 
 describe('a whole pasted list', () => {
   const paste = `
 Supplier contacts — Q3
-Cloudepa Systems, Ravi Menon, ravi@cloudepa.com
+Techpeple, Ravi Menon, ravi@techpeple.example
 Veritan Talent Ltd, Priya Sharma, priya@vertextalent.io
 Veritan Talent Ltd, Dan Okoro, dan@vertextalent.io
 Brightmoor Staffing <hello@brightmoor.co.uk>
-ravi@cloudepa.com
+ravi@techpeple.example
 some note to self
 `
 
@@ -134,7 +134,7 @@ some note to self
 
   it('keeps the original line on every row, so a better reader can be run later', () => {
     const r = readSupplierList(paste)
-    expect(r.rows[0].line).toBe('Cloudepa Systems, Ravi Menon, ravi@cloudepa.com')
+    expect(r.rows[0].line).toBe('Techpeple, Ravi Menon, ravi@techpeple.example')
   })
 
   it('says plainly when there was nothing in the paste at all', () => {
@@ -144,18 +144,18 @@ some note to self
   })
 
   it('names how many still need a company before anything can be sent', () => {
-    const r = readSupplierList('ravi@gmail.com\nsam@yahoo.com\nhello@cloudepa.com')
+    const r = readSupplierList('ravi@gmail.com\nsam@yahoo.com\nhello@techpeple.example')
     expect(listSentence(r)).toMatch(/2 need a company name before you can send\./)
   })
 })
 
 describe('working out which field is the firm', () => {
   it('uses the legal suffix where there is one', () => {
-    expect(readNames('Ravi Menon\tCloudepa Systems', 'cloudepa.com').company).toBe('Cloudepa Systems')
+    expect(readNames('Ravi Menon\tTechpeple', 'techpeple.example').company).toBe('Techpeple')
   })
 
   it('uses the domain where there is no suffix', () => {
-    expect(readNames('Ravi Menon\tCloudepa', 'cloudepa.com').company).toBe('Cloudepa')
+    expect(readNames('Ravi Menon\tTechpeple', 'techpeple.example').company).toBe('Techpeple')
   })
 
   it('takes the first field when neither settles it, because that is how lists are written', () => {
@@ -167,17 +167,17 @@ describe('working out which field is the firm', () => {
 
 describe('who may take possession of a listed supplier', () => {
   it('lets the address that was invited', () => {
-    expect(mayClaim('ravi@cloudepa.com', 'ravi@cloudepa.com')).toBe(true)
+    expect(mayClaim('ravi@techpeple.example', 'ravi@techpeple.example')).toBe(true)
   })
 
   it('lets a colleague on the same corporate domain, because that is the ordinary case', () => {
-    expect(mayClaim('priya@cloudepa.com', 'ravi@cloudepa.com')).toBe(true)
+    expect(mayClaim('priya@techpeple.example', 'ravi@techpeple.example')).toBe(true)
   })
 
   it('refuses a stranger holding a forwarded link', () => {
     // A token that hands somebody a company — with its client
     // relationships and its rates — is a door with the key taped to it.
-    expect(mayClaim('someone@vertextalent.io', 'ravi@cloudepa.com')).toBe(false)
+    expect(mayClaim('someone@vertextalent.io', 'ravi@techpeple.example')).toBe(false)
   })
 
   it('refuses two consumer addresses, because they are not colleagues', () => {
@@ -185,6 +185,6 @@ describe('who may take possession of a listed supplier', () => {
   })
 
   it('ignores case and stray spaces, because people paste addresses', () => {
-    expect(mayClaim('  Ravi@Cloudepa.com ', 'ravi@cloudepa.com')).toBe(true)
+    expect(mayClaim('  Ravi@Techpeple.Example ', 'ravi@techpeple.example')).toBe(true)
   })
 })

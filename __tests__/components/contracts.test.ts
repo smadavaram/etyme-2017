@@ -23,7 +23,7 @@ describe('Contracts sell vs buy distinction', () => {
       billRate: 15000,
       payRate: 8000,
       clientCompany: { name: 'Northbend Athletic' },
-      vendorCompany: { name: 'Cloudepa' },
+      vendorCompany: { name: 'Techpeple' },
     }
     const rate = contract.side === 'sell' ? contract.billRate : contract.payRate
     const counterparty = contract.side === 'sell'
@@ -40,7 +40,7 @@ describe('Contracts sell vs buy distinction', () => {
       billRate: 15000,
       payRate: 8000,
       clientCompany: { name: 'Northbend Athletic' },
-      vendorCompany: { name: 'Cloudepa' },
+      vendorCompany: { name: 'Techpeple' },
     }
     const rate = contract.side === 'sell' ? contract.billRate : contract.payRate
     const counterparty = contract.side === 'sell'
@@ -48,7 +48,7 @@ describe('Contracts sell vs buy distinction', () => {
       : contract.vendorCompany.name
 
     expect(rate).toBe(8000) // $80/hr in cents
-    expect(counterparty).toBe('Cloudepa')
+    expect(counterparty).toBe('Techpeple')
   })
 })
 

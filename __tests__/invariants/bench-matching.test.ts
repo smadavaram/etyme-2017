@@ -169,8 +169,8 @@ describe('the one action on a row', () => {
   })
 
   it('a supplier’s person goes forward in the firm’s own name, bought from the supplier at the supplier’s own rate', () => {
-    const a = actionFor({ entry: entry({ reach: 'PANEL', firmId: 'cloudepa' }), viewer: { companyId: 'prime', buyer: false } })
-    expect(a).toMatchObject({ kind: 'SUBMIT', fromCompanyId: 'prime', offeredBy: 'cloudepa', payRate: 11_000, rate: null })
+    const a = actionFor({ entry: entry({ reach: 'PANEL', firmId: 'techpeple' }), viewer: { companyId: 'prime', buyer: false } })
+    expect(a).toMatchObject({ kind: 'SUBMIT', fromCompanyId: 'prime', offeredBy: 'techpeple', payRate: 11_000, rate: null })
   })
 
   it('an integrator’s own employee goes forward as its own employee, at the rate it last billed them', () => {

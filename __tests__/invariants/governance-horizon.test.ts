@@ -138,7 +138,7 @@ describe('A break in service ends on a date somebody can plan around', () => {
 describe('An expiring certificate carries the stake with it', () => {
   const cert = {
     id: 'v1', subjectKind: 'VENDOR' as const, subjectId: 'c1',
-    subjectName: 'Cloudepa Inc.', type: 'INSURANCE_GL',
+    subjectName: 'Techpeple Inc.', type: 'INSURANCE_GL',
   }
 
   it('the number of people relying on it is in the headline', () => {

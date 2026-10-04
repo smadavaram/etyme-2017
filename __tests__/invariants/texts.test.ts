@@ -94,10 +94,10 @@ describe('the freshness ping', () => {
   it('asks one question, and asks it in the subject line too', () => {
     // Half the people who answer will answer from the subject line in a
     // notification, without opening anything.
-    const t = freshnessText({ personName: 'Ravi Patel', vendorName: 'Cloudepa', rateCents: 7800 })
-    expect(t.subject).toBe('Cloudepa: still looking for your next contract?')
+    const t = freshnessText({ personName: 'Ravi Patel', vendorName: 'Techpeple', rateCents: 7800 })
+    expect(t.subject).toBe('Techpeple: still looking for your next contract?')
     expect(t.body).toBe(
-      'Hi Ravi — Cloudepa here. Still looking for your next contract? Still around $78/hr?'
+      'Hi Ravi — Techpeple here. Still looking for your next contract? Still around $78/hr?'
     )
   })
 
@@ -106,21 +106,21 @@ describe('the freshness ping', () => {
     // digit. Over email there is no webhook, so the instruction would be
     // a lie that costs us the answer. The buttons are added by the
     // sender — see lib/reply-link.
-    const t = freshnessText({ personName: 'Ravi', vendorName: 'Cloudepa', rateCents: 7800 })
+    const t = freshnessText({ personName: 'Ravi', vendorName: 'Techpeple', rateCents: 7800 })
     expect(t.body).not.toMatch(/reply 1|reply yes|stop texting/i)
   })
 
   it('goes out in the vendor’s name, never ours', () => {
     // The moment a vendor suspects disintermediation, benches stop being
     // uploaded, and with no benches there is nothing to score.
-    const t = freshnessText({ personName: 'Ravi Patel', vendorName: 'Cloudepa', rateCents: null })
-    expect(t.body).toMatch(/Cloudepa here/)
+    const t = freshnessText({ personName: 'Ravi Patel', vendorName: 'Techpeple', rateCents: null })
+    expect(t.body).toMatch(/Techpeple here/)
     expect(t.body).not.toMatch(/Etyme/i)
     expect(t.subject).not.toMatch(/Etyme/i)
   })
 
   it('leaves the rate out when we do not have one, rather than asking about nothing', () => {
-    expect(freshnessText({ personName: 'Ravi', vendorName: 'Cloudepa', rateCents: null }).body)
+    expect(freshnessText({ personName: 'Ravi', vendorName: 'Techpeple', rateCents: null }).body)
       .not.toMatch(/\$/)
   })
 })
@@ -129,7 +129,7 @@ describe('the consent ask, before every submission', () => {
   it('says enough to answer without a phone call', () => {
     const t = consentText({
       personName: 'Ravi Patel',
-      vendorName: 'Cloudepa',
+      vendorName: 'Techpeple',
       clientLabel: 'a large bank',
       title: 'SAP FICO Consultant',
       location: 'Dallas',
@@ -138,30 +138,30 @@ describe('the consent ask, before every submission', () => {
     })
     expect(t.body).toBe(
       'Dallas · SAP FICO Consultant · $80/hr · starts 2026-03-03 · a large bank.\n' +
-        'OK for Cloudepa to submit you?'
+        'OK for Techpeple to submit you?'
     )
   })
 
   it('names the role in the subject, so it can be told apart from the last one', () => {
     const t = consentText({
-      personName: 'Ravi Patel', vendorName: 'Cloudepa', clientLabel: 'a large bank',
+      personName: 'Ravi Patel', vendorName: 'Techpeple', clientLabel: 'a large bank',
       title: 'SAP FICO Consultant', location: 'Dallas', rateCents: 8000,
       startsOn: new Date('2026-03-03'),
     })
-    expect(t.subject).toBe('Cloudepa: OK to put you forward for SAP FICO Consultant?')
+    expect(t.subject).toBe('Techpeple: OK to put you forward for SAP FICO Consultant?')
   })
 
   it('works on a blind role, where the client has no name to give', () => {
     const t = consentText({
       personName: 'Ravi',
-      vendorName: 'Cloudepa',
+      vendorName: 'Techpeple',
       clientLabel: 'this client',
       title: 'Java Developer',
       location: null,
       rateCents: null,
       startsOn: null,
     })
-    expect(t.body).toBe('Java Developer · this client.\nOK for Cloudepa to submit you?')
+    expect(t.body).toBe('Java Developer · this client.\nOK for Techpeple to submit you?')
   })
 })
 
@@ -171,7 +171,7 @@ describe('the outcome notice, always, even when it is bad', () => {
     // expensive" — and never a code.
     const t = outcomeText({
       personName: 'Ravi',
-      vendorName: 'Cloudepa',
+      vendorName: 'Techpeple',
       title: 'Java role',
       location: 'Dallas',
       reason: 'RATE',
@@ -182,15 +182,15 @@ describe('the outcome notice, always, even when it is bad', () => {
 
   it('says the profile stays active, because that is the useful part', () => {
     const t = outcomeText({
-      personName: 'Ravi', vendorName: 'Cloudepa', title: 'Java role',
+      personName: 'Ravi', vendorName: 'Techpeple', title: 'Java role',
       location: null, reason: 'INTERVIEW',
     })
-    expect(t.body).toMatch(/Your profile stays active with Cloudepa/)
+    expect(t.body).toMatch(/Your profile stays active with Techpeple/)
   })
 
   it('is honest when the client simply never came back', () => {
     const t = outcomeText({
-      personName: 'Ravi', vendorName: 'Cloudepa', title: 'Java role',
+      personName: 'Ravi', vendorName: 'Techpeple', title: 'Java role',
       location: null, reason: 'NO_REPLY',
     })
     expect(t.body).toMatch(/we have not heard back and are treating it as closed/)
@@ -200,7 +200,7 @@ describe('the outcome notice, always, even when it is bad', () => {
     // A product that only writes to people with bad news is one people
     // learn to dread.
     const t = placedText({
-      personName: 'Ravi', vendorName: 'Cloudepa', title: 'Java Developer', location: 'Dallas',
+      personName: 'Ravi', vendorName: 'Techpeple', title: 'Java Developer', location: 'Dallas',
     })
     expect(t.subject).toMatch(/^You got the Dallas Java Developer job/)
     expect(t.body).toMatch(/You got the Dallas Java Developer job/)

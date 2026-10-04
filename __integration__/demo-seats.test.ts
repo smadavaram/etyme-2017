@@ -602,7 +602,7 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
     // client's compliance desk.
     expect(PROGRAM_OFFICE_SEATS).toHaveLength(2)
     expect(ALL_SEATS.map((s) => s.slug)).toContain('world-aptiva')
-    expect(ALL_SEATS.map((s) => s.slug)).toContain('world-cloudepa')
+    expect(ALL_SEATS.map((s) => s.slug)).toContain('world-techpeple')
   })
 
   it('names something waiting on both sides of every supplying firm’s book, not only on the side it sells from', () => {
@@ -682,17 +682,17 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
   }, 30_000)
 
   it('gives the sub-vendor a prime above it and its own consultant below, and never the prime’s client', async () => {
-    const cloudepa = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cloudepa' } })
+    const techpeple = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
     const harlow = await prisma.company.findFirstOrThrow({ where: { slug: 'world-harlow-health' } })
     // It sells to the prime, never to the hospital.
-    const sells = await prisma.sellContract.findMany({ where: { companyId: cloudepa.id } })
+    const sells = await prisma.sellContract.findMany({ where: { companyId: techpeple.id } })
     expect(sells.length).toBeGreaterThan(0)
     for (const s of sells) {
       expect(s.clientCompanyId, 'a sub-vendor billing the client directly').not.toBe(harlow.id)
     }
     // And a paper it is chasing its own consultant for.
     const asked = await prisma.docInstance.findMany({
-      where: { template: { companyId: cloudepa.id }, status: 'SENT' },
+      where: { template: { companyId: techpeple.id }, status: 'SENT' },
       include: { template: true },
     })
     expect(asked.length, 'a bench vendor chasing nobody for anything').toBeGreaterThan(0)

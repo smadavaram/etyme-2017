@@ -18,7 +18,7 @@ import {
  * the question is which level to fix.
  */
 
-const COMPANY = { name: 'Cloudepa Inc.', paymentTermsDays: 45, currency: 'USD' }
+const COMPANY = { name: 'Techpeple Inc.', paymentTermsDays: 45, currency: 'USD' }
 const AGREEMENT = { counterpartyName: 'Talvern Medical', paymentTermsDays: 60, currency: 'USD' }
 
 describe('which level decides', () => {

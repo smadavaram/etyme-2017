@@ -2,20 +2,20 @@
  * One market, twenty firms, seen from every side.
  *
  * Every demo built a private five-company copy per visitor, so signing in
- * as CloudEPA and signing in as Harlow Health showed two unrelated worlds
+ * as Techpeple and signing in as Harlow Health showed two unrelated worlds
  * with the same placeholder names. Nothing lined up, because nothing was
  * the same data.
  *
- * This builds one world instead. A consultant CloudEPA sourced sits at
+ * This builds one world instead. A consultant Techpeple sourced sits at
  * Harlow Health through Computer Systems, and each of those three firms
  * sees its own true side of that one placement:
  *
  *   Harlow Health      a contractor on site, supplied by Computer
- *                      Systems, at $138/hr. It never learns CloudEPA
+ *                      Systems, at $138/hr. It never learns Techpeple
  *                      exists.
- *   Computer Systems   sells at $138, buys from CloudEPA at $112,
+ *   Computer Systems   sells at $138, buys from Techpeple at $112,
  *                      keeps $26.
- *   CloudEPA           sells to Computer Systems at $112, pays the
+ *   Techpeple           sells to Computer Systems at $112, pays the
  *                      consultant $86, keeps $26. It cannot see what
  *                      Harlow Health pays.
  *
@@ -34,6 +34,7 @@
  */
 
 import { prisma as db } from '@/lib/db'
+import { renameRetiredFirms } from '@/lib/seed-renames'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes, PROGRAMMES, PROGRAM_SHARES } from '@/lib/seed-programmes'
 import { seedDoors, NURSE_CORP_SLUG } from '@/lib/seed-doors'
@@ -123,7 +124,7 @@ const FIRMS: Firm[] = [
   { slug: 'pinnacle',         name: 'Pinnacle Resourcing',  kind: 'VENDOR',  seat: 'Account manager', who: 'Ruth Calloway' },
   { slug: 'arcadia',          name: 'Arcadia Tech Group',   kind: 'VENDOR',  seat: 'Account manager', who: 'Owen Bradshaw' },
 
-  { slug: 'cloudepa',         name: 'CloudEPA',             kind: 'VENDOR',  seat: 'Bench sales', who: 'Bhavesh Nair' },
+  { slug: 'techpeple',         name: 'Techpeple',             kind: 'VENDOR',  seat: 'Bench sales', who: 'Bhavesh Nair' },
   { slug: 'consultis',        name: 'Consultis',            kind: 'VENDOR',  seat: 'Bench sales', who: 'Teresa Lindqvist' },
   { slug: 'nimbus',           name: 'Nimbus Talent',        kind: 'VENDOR',  seat: 'Bench sales', who: 'Kofi Asante' },
   { slug: 'sahasra',          name: 'Sahasra Infotech',     kind: 'VENDOR',  seat: 'Bench sales', who: 'Anjali Deshmukh' },
@@ -195,7 +196,7 @@ interface Placement {
 }
 const PLACEMENTS: Placement[] = [
   { role: 'ERP finance consultant',     skills: ['ERP finance', 'General ledger'], loc: 'San Jose, CA',
-    routedBy: 'aptiva',  via: ['harlow-health', 'computer-systems', 'cloudepa'], rates: [13800, 11200, 8600] },
+    routedBy: 'aptiva',  via: ['harlow-health', 'computer-systems', 'techpeple'], rates: [13800, 11200, 8600] },
   { role: 'Epic Ambulatory analyst',    skills: ['Epic', 'Ambulatory'],        loc: 'Madison, WI',
     via: ['harlow-health', 'computer-systems'],                                  rates: [11500, 8400] },
   { role: 'Java microservices engineer',skills: ['Java', 'Spring Boot', 'AWS'],loc: 'Charlotte, NC',
@@ -339,7 +340,7 @@ async function worldId(): Promise<string | null> {
  * what is left. Call it again until `done`.
  *
  * Every step already finished for this world and this deployment is
- * skipped without a query of its own; a world that is complete costs two
+ * skipped without a query of its own; a world that is complete costs three
  * queries and writes nothing.
  */
 export async function seedWorldInSteps(opts: { budgetMs: number }): Promise<{
@@ -352,6 +353,9 @@ export async function seedWorldInSteps(opts: { budgetMs: number }): Promise<{
 }> {
   const started = Date.now()
   const version = seedVersion()
+  // Before the short cut below: a world whose every step is finished
+  // still has to give up a retired name (lib/seed-renames).
+  await renameRetiredFirms(db, { prefix: PREFIX, domain: DOMAIN, worldSlugs: WORLD_SLUGS })
   const skip = await finishedSteps(await worldId(), version)
   const all = worldStepNames()
   if (all.every((n) => skip.has(n))) {
@@ -408,6 +412,10 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   //
   // Read before anything is written, because the first write would
   // otherwise be the answer.
+  //
+  // A firm whose name was retired is renamed in place first, so the
+  // upserts below find it under its new slug and write no second firm.
+  await renameRetiredFirms(db, { prefix: PREFIX, domain: DOMAIN, worldSlugs: WORLD_SLUGS })
   // By the roster, never the prefix: a real firm with a `world-` slug
   // signed up before the world was seeded must not become its birthday.
   const born = await worldAnchor()
@@ -1119,7 +1127,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // has nobody to grant it to. Halcyon takes the sixth slot so the
   // rotation is the same length and everybody else lands where they did.
   await step('bench', async () => {
-    const benchVendors = ['cloudepa', 'consultis', 'nimbus', 'sahasra', 'orchid', 'halcyon']
+    const benchVendors = ['techpeple', 'consultis', 'nimbus', 'sahasra', 'orchid', 'halcyon']
     for (const [i, name] of NAMES.slice(PLACEMENTS.length).entries()) {
       const co = firmBySlug.get(benchVendors[i % benchVendors.length])!
       const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
@@ -1200,7 +1208,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   const LIVE: Live[] = [
     {
       role: 'Epic Beaker analyst', skills: ['Epic', 'Beaker', 'LIS'], loc: 'Madison, WI',
-      client: 'harlow-health', prime: 'computer-systems', bench: 'cloudepa',
+      client: 'harlow-health', prime: 'computer-systems', bench: 'techpeple',
       name: 'Ifeoma Balogun', band: [11000, 13000], primeRate: 12400, benchRate: 9900,
       rounds: [
         {
@@ -1605,7 +1613,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     { desk: 'finance',    role: 'Finance',             name: 'Rosalind Tay' },
     { desk: 'compliance', role: 'Compliance Officer',  name: 'Anneke Roosevelt' },
   ]
-  /** CloudEPA's two desks besides its owner (see below). */
+  /** Techpeple's two desks besides its owner (see below). */
   const BENCH_FIRM_TEAM: { desk: string; role: string; name: string }[] = [
     { desk: 'recruiter',  role: 'Recruiter',        name: 'Linnea Qadri' },
     { desk: 'resourcing', role: 'Resource Manager', name: 'Mateo Brandvold' },
@@ -1663,29 +1671,29 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
       }
     }
 
-    // A bench firm's own two desks. CloudEPA had only its owner seated,
+    // A bench firm's own two desks. Techpeple had only its owner seated,
     // so the bench vendor's recruiting and resourcing could not be walked
     // as the people who do them (a tester, 2026-09-30). Two desks, not
     // nine: a bench firm of this size is an owner, a recruiter who finds
     // people and a resource manager who decides who goes where.
-    const cloudepa = firmBySlug.get('cloudepa')
-    if (cloudepa) {
+    const techpeple = firmBySlug.get('techpeple')
+    if (techpeple) {
       for (const d of BENCH_FIRM_TEAM) {
         const seed = rolesFor('VENDOR').find((r) => r.name === d.role)!
         const role =
-          (await db.role.findFirst({ where: { companyId: cloudepa.id, name: d.role }, select: { id: true } })) ??
+          (await db.role.findFirst({ where: { companyId: techpeple.id, name: d.role }, select: { id: true } })) ??
           (await db.role.create({
-            data: { companyId: cloudepa.id, name: d.role, permissions: seed.permissions, isDefault: false },
+            data: { companyId: techpeple.id, name: d.role, permissions: seed.permissions, isDefault: false },
             select: { id: true },
           }))
-        const email = `${PREFIX}cloudepa-${d.desk}@${DOMAIN}`
+        const email = `${PREFIX}techpeple-${d.desk}@${DOMAIN}`
         const who = await db.person.upsert({
           where: { primaryEmail: email }, update: { name: d.name }, create: { name: d.name, primaryEmail: email },
         })
-        if (!(await db.context.findFirst({ where: { personId: who.id, companyId: cloudepa.id } }))) {
+        if (!(await db.context.findFirst({ where: { personId: who.id, companyId: techpeple.id } }))) {
           await db.context.create({
             data: {
-              personId: who.id, companyId: cloudepa.id, roleId: role.id, type: 'EMPLOYEE',
+              personId: who.id, companyId: techpeple.id, roleId: role.id, type: 'EMPLOYEE',
               grantReason: `Seeded supplier desk — ${d.role}`,
             },
           })

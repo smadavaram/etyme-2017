@@ -4,7 +4,7 @@ import { yearEndPack, blankShortWages, type PayPosting } from '@/lib/payroll-exp
 /**
  * A W-2 figure is never shown short of what the runs paid.
  *
- * Walked 2026-09-30 as CloudEPA: the bureau panel said 2026 W-2 wages
+ * Walked 2026-09-30 as Techpeple: the bureau panel said 2026 W-2 wages
  * were $720 for Helena Marsh, on assignment since March and paid every
  * month by a payroll run. The runs paid; only one day had a wage posting
  * behind it, and the W-2 read the postings.

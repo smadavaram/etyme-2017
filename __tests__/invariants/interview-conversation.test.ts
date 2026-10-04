@@ -32,7 +32,7 @@ const ctx: NoticeContext = {
   role: 'Workday integrator',
   consultant: { id: 'p-priya', name: 'Priya Raman' },
   client: { id: 'c-nike', name: 'Northbend Athletic' },
-  vendor: { id: 'c-cloudepa', name: 'CloudEPA' },
+  vendor: { id: 'c-techpeple', name: 'Techpeple' },
   requesterId: 'p-dana',
   vendorStaffIds: ['p-bench', 'p-recruiter'],
   slotCount: 3,

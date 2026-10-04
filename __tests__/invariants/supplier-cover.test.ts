@@ -22,7 +22,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
 
   it('a supplier whose general liability certificate has lapsed cannot submit anybody', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: d('2025-01-01'), expiresAt: d('2026-08-17') },
         ...inDate.slice(1),
@@ -37,7 +37,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
 
   it('the refusal names the certificate, the day it lapsed, and what the broker has to do', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       clientName: 'Talvern Medical',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: d('2025-01-01'), expiresAt: d('2026-08-17') },
@@ -46,7 +46,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
       on: ON,
     })
 
-    expect(gate.says).toContain('Cloudepa')
+    expect(gate.says).toContain('Techpeple')
     expect(gate.says).toContain('general liability')
     expect(gate.says).toContain('12 days ago')
     expect(gate.fix).toContain('broker')
@@ -54,7 +54,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
   })
 
   it('a supplier with both certificates on file and in date may submit', () => {
-    const gate = supplierCoverGate({ supplierName: 'Cloudepa', certificates: inDate, on: ON })
+    const gate = supplierCoverGate({ supplierName: 'Techpeple', certificates: inDate, on: ON })
     expect(gate.outcome).toBe('PASS')
     expect(gate.blocking).toEqual([])
     expect(gate.chasing).toEqual([])
@@ -64,7 +64,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
 
   it('a certificate expiring next week warns and does not stop a submission today', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: d('2026-09-05'), verifiedAt: d('2026-01-02') },
         ...inDate.slice(1),
@@ -81,7 +81,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
     // The fourth state. In 2017 this passed every check until an auditor
     // asked, because an unknown expiry looked exactly like a valid one.
     const gate = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: null, expiresAt: null, verifiedAt: d('2026-01-02') },
         ...inDate.slice(1),
@@ -98,7 +98,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
     // Refusing every supplier who has not yet been asked would make Etyme
     // the party deciding what cover a client requires, which is a screening
     // judgment and not ours to take.
-    const gate = supplierCoverGate({ supplierName: 'Cloudepa', certificates: [], on: ON })
+    const gate = supplierCoverGate({ supplierName: 'Techpeple', certificates: [], on: ON })
 
     expect(gate.outcome).toBe('WARN')
     expect(gate.blocking).toEqual([])
@@ -107,7 +107,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
 
   it('a client that insists on general liability turns a missing certificate into a block', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [],
       requiredTypes: ['INSURANCE_GL'],
       on: ON,
@@ -119,7 +119,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
 
   it('a certificate the supplier’s own record marks expired blocks even where no date was given', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [
         { type: 'INSURANCE_GL', status: 'EXPIRED', issuedAt: null, expiresAt: null },
         ...inDate.slice(1),
@@ -133,7 +133,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
 
   it('a certificate still being processed is not yet a certificate', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [
         { type: 'INSURANCE_GL', status: 'PENDING', expiresAt: d('2027-01-01') },
         ...inDate.slice(1),
@@ -148,7 +148,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
 
   it('the newest certificate of a kind is the one that counts, so a renewal replaces the lapsed one', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: d('2025-01-01'), expiresAt: d('2026-01-01') },
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: d('2026-01-01'), expiresAt: d('2027-01-01'), verifiedAt: d('2026-01-02') },
@@ -166,14 +166,14 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
     }
 
     const quiet = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [...inDate, lapsedEo],
       on: ON,
     })
     expect(quiet.outcome).toBe('WARN')
 
     const asked = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [...inDate, lapsedEo],
       requiredTypes: ['INSURANCE_EO'],
       on: ON,
@@ -183,7 +183,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
 
   it('a block is never returned without something the vendor can actually do about it', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Cloudepa',
+      supplierName: 'Techpeple',
       certificates: [{ type: 'INSURANCE_WC', status: 'EXPIRED', expiresAt: d('2026-02-01') }],
       on: ON,
     })

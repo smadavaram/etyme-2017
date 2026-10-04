@@ -13,17 +13,17 @@ import { GET as bench } from '@/app/api/bench/route'
  * A prime puts forward somebody its network offered it, on the seeded world.
  *
  * Break #4. Northbend Athletic releases one requisition to Computer
- * Systems and to CloudEPA. Computer Systems reads Grace Lindqvist on
- * Bench → Your network, offered by CloudEPA on a listing she granted
- * CloudEPA. Putting her forward was refused — "No active bench listing
+ * Systems and to Techpeple. Computer Systems reads Grace Lindqvist on
+ * Bench → Your network, offered by Techpeple on a listing she granted
+ * Techpeple. Putting her forward was refused — "No active bench listing
  * from this company. The consultant must grant a listing first." — and
- * the only road left was CloudEPA going round its prime to the client.
+ * the only road left was Techpeple going round its prime to the client.
  */
 
 const D = '@demo.etyme.local'
 const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}` }
 const PRIME = `world-computer-systems${D}`
-const SUB = `world-cloudepa${D}`
+const SUB = `world-techpeple${D}`
 
 const call = async (fn: (r: any, ctx: any) => Promise<Response>, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
@@ -39,33 +39,33 @@ const put = async (personId: string, extra: Record<string, unknown> = {}) =>
 describe('a prime puts forward somebody its network offered it', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-computer-systems', 'world-cloudepa']) {
+    for (const slug of ['world-nike', 'world-computer-systems', 'world-techpeple']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
     it_.grace = (await prisma.person.findFirstOrThrow({ where: { name: 'Grace Lindqvist' } })).id
     it_.peter = (await prisma.person.findFirstOrThrow({ where: { name: 'Peter Halloran' } })).id
 
-    // Somebody CloudEPA keeps to itself: a retained listing, never shown
+    // Somebody Techpeple keeps to itself: a retained listing, never shown
     // to its network.
     const p = await prisma.person.create({ data: { name: 'Ilse Brandt', primaryEmail: 'ilse.brandt@seed.etyme.invalid' } })
     const profile = await prisma.consultantProfile.create({
       data: { personId: p.id, skills: ['SAP IBP'], location: 'Portland, OR', visibility: 'VERIFIED', workAuth: 'USC' },
     })
     await prisma.benchListing.create({
-      data: { consultantId: profile.id, companyId: co['world-cloudepa'], tier: 'RETAINED', state: 'GRANTED', invitedAt: day(-20), respondedAt: day(-19), grantedAt: day(-19) },
+      data: { consultantId: profile.id, companyId: co['world-techpeple'], tier: 'RETAINED', state: 'GRANTED', invitedAt: day(-20), respondedAt: day(-19), grantedAt: day(-19) },
     })
     it_.retained = p.id
 
-    // In this story CloudEPA also supplies Northbend directly, beside
+    // In this story Techpeple also supplies Northbend directly, beside
     // supplying it through Computer Systems — which is what makes "first
     // in wins" across the two paths a question at all. Without a direct
-    // agreement CloudEPA is Computer Systems' sub-vendor and nothing more,
+    // agreement Techpeple is Computer Systems' sub-vendor and nothing more,
     // and the release door refuses to send Northbend's job to it: a
     // sub-vendor's name is the prime's to keep (CLAUDE.md, 2026-09-17).
-    await prisma.masterAgreement.create({ data: { clientId: co['world-nike'], vendorId: co['world-cloudepa'], paymentTerms: 30 } })
+    await prisma.masterAgreement.create({ data: { clientId: co['world-nike'], vendorId: co['world-techpeple'], paymentTerms: 30 } })
   }, 240_000)
 
-  it('Northbend raises a role and releases it to Computer Systems and to CloudEPA', async () => {
+  it('Northbend raises a role and releases it to Computer Systems and to Techpeple', async () => {
     const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
     as(NIKE.hiring)
     const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
@@ -80,28 +80,28 @@ describe('a prime puts forward somebody its network offered it', () => {
     const sent = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [
         { companyId: co['world-computer-systems'], payMin: 3400, payMax: 4400 },
-        { companyId: co['world-cloudepa'], payMin: 3200, payMax: 4000 },
+        { companyId: co['world-techpeple'], payMin: 3200, payMax: 4000 },
       ],
     })
     expect(sent.body?.error, JSON.stringify(sent.body)).toBeUndefined()
     it_.rolesAtNorthbend = await prisma.requirement.count({ where: { companyId: co['world-nike'] } })
   })
 
-  it('Computer Systems reads Grace Lindqvist on its network, offered by CloudEPA', async () => {
+  it('Computer Systems reads Grace Lindqvist on its network, offered by Techpeple', async () => {
     as(PRIME)
     const r = await json(await bench(req('GET', '/api/bench?scope=network&limit=100')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const offered = r.body.data.tiers.MARKETING.map((l: any) => `${l.consultant.person.name} from ${l.company.name}`)
-    expect(offered).toContain('Grace Lindqvist from CloudEPA')
+    expect(offered).toContain('Grace Lindqvist from Techpeple')
   })
 
-  it('without the rate it pays CloudEPA, Computer Systems is asked for it and nothing is written', async () => {
+  it('without the rate it pays Techpeple, Computer Systems is asked for it and nothing is written', async () => {
     as(PRIME)
     const r = await put(it_.grace)
     const item = r.body.data.results[0]
     expect(item.status).toBe('error')
     expect(item.code).toBe('NO_PAY_RATE')
-    expect(item.error).toContain('what CloudEPA charges you for Grace Lindqvist')
+    expect(item.error).toContain('what Techpeple charges you for Grace Lindqvist')
     expect(await prisma.submission.count({ where: { personId: it_.grace } })).toBe(0)
   })
 
@@ -110,7 +110,7 @@ describe('a prime puts forward somebody its network offered it', () => {
     const r = await put(it_.grace, { payRate: 3600, kind: 'INTERNAL' })
     const item = r.body.data.results[0]
     expect(item.status, JSON.stringify(item)).toBe('created')
-    expect(item.offeredBy).toBe('CloudEPA')
+    expect(item.offeredBy).toBe('Techpeple')
     const ours = await prisma.submission.findUniqueOrThrow({ where: { id: item.submissionId } })
     expect(ours.requirementId).toBe(it_.requisition)
     expect(ours.fromCompanyId).toBe(co['world-computer-systems'])
@@ -122,12 +122,12 @@ describe('a prime puts forward somebody its network offered it', () => {
     expect(await prisma.requirement.count({ where: { companyId: co['world-nike'] } })).toBe(it_.rolesAtNorthbend)
   })
 
-  it('the rung below is written with it: CloudEPA supplies Grace to Computer Systems at the agreed rate, on Computer Systems’ own record of the role, already sent on', async () => {
+  it('the rung below is written with it: Techpeple supplies Grace to Computer Systems at the agreed rate, on Computer Systems’ own record of the role, already sent on', async () => {
     const below = await prisma.submission.findUniqueOrThrow({
       where: { id: it_.ours.parentSubmissionId },
       include: { requirement: true },
     })
-    expect(below.fromCompanyId).toBe(co['world-cloudepa'])
+    expect(below.fromCompanyId).toBe(co['world-techpeple'])
     expect(below.toCompanyId).toBe(co['world-computer-systems'])
     expect(below.rate).toBe(3600)
     expect(below.kind).toBe('NETWORK')
@@ -141,36 +141,36 @@ describe('a prime puts forward somebody its network offered it', () => {
     expect(below.requirement.billMax).toBeNull()
   })
 
-  it('Grace is told who put her forward and that CloudEPA offered her; the hold is CloudEPA’s, whose consent it is', async () => {
+  it('Grace is told who put her forward and that Techpeple offered her; the hold is Techpeple’s, whose consent it is', async () => {
     const told = await prisma.notification.findFirst({ where: { personId: it_.grace, type: 'SUBMISSION' }, orderBy: { createdAt: 'desc' } })
     expect(told?.body).toContain('Computer Systems Inc put you forward to Northbend Athletic')
-    expect(told?.body).toContain('CloudEPA, who you agreed may market you, offered you to them')
+    expect(told?.body).toContain('Techpeple, who you agreed may market you, offered you to them')
     const hold = await prisma.representation.findFirst({ where: { personId: it_.grace, clientCompanyId: co['world-nike'] } })
-    expect(hold?.companyId).toBe(co['world-cloudepa'])
+    expect(hold?.companyId).toBe(co['world-techpeple'])
   })
 
-  it('Northbend’s requisition shows Grace under Computer Systems’ name and never CloudEPA’s', async () => {
+  it('Northbend’s requisition shows Grace under Computer Systems’ name and never Techpeple’s', async () => {
     as(NIKE.hiring)
     const r = await call(requisitionDetail, 'GET', `/api/requisitions/${it_.requisition}`, it_.requisition)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const row = r.body.data.candidates.find((c: any) => c.person.name === 'Grace Lindqvist')
     expect(row.vendor.name).toBe('Computer Systems Inc')
-    expect(JSON.stringify(row)).not.toContain('CloudEPA')
+    expect(JSON.stringify(row)).not.toContain('Techpeple')
   })
 
-  it('CloudEPA then submitting Grace straight to Northbend is refused — first in wins', async () => {
+  it('Techpeple then submitting Grace straight to Northbend is refused — first in wins', async () => {
     as(SUB)
     const r = await json(await submitCandidates(req('POST', '/api/submissions', {
-      requirementId: it_.requisition, personIds: [it_.grace], rate: 3900, fromCompanyId: co['world-cloudepa'],
+      requirementId: it_.requisition, personIds: [it_.grace], rate: 3900, fromCompanyId: co['world-techpeple'],
     })))
     expect(r.body.data.results[0].status).toBe('duplicate')
     expect(await prisma.submission.count({ where: { requirementId: it_.requisition, personId: it_.grace } })).toBe(1)
   })
 
-  it('CloudEPA can still submit Peter straight to Northbend, and Computer Systems then putting him forward is refused — first in wins', async () => {
+  it('Techpeple can still submit Peter straight to Northbend, and Computer Systems then putting him forward is refused — first in wins', async () => {
     as(SUB)
     const direct = await json(await submitCandidates(req('POST', '/api/submissions', {
-      requirementId: it_.requisition, personIds: [it_.peter], rate: 3900, fromCompanyId: co['world-cloudepa'],
+      requirementId: it_.requisition, personIds: [it_.peter], rate: 3900, fromCompanyId: co['world-techpeple'],
     })))
     expect(direct.body.data.results[0].status, JSON.stringify(direct.body)).toBe('created')
 
@@ -180,19 +180,19 @@ describe('a prime puts forward somebody its network offered it', () => {
     expect(await prisma.submission.count({ where: { personId: it_.peter } })).toBe(1)
   })
 
-  it('somebody CloudEPA keeps on its retained bench cannot be put forward by Computer Systems, and the refusal is logged', async () => {
+  it('somebody Techpeple keeps on its retained bench cannot be put forward by Computer Systems, and the refusal is logged', async () => {
     as(PRIME)
     const r = await put(it_.retained, { payRate: 3600 })
     const item = r.body.data.results[0]
     expect(item.status).toBe('error')
     expect(item.code).toBe('NOT_OFFERED_TO_NETWORK')
-    expect(item.error).toBe('CloudEPA keeps Ilse Brandt on its own bench and has not offered them to its network. Ask CloudEPA to put Ilse Brandt forward to you on your job.')
+    expect(item.error).toBe('Techpeple keeps Ilse Brandt on its own bench and has not offered them to its network. Ask Techpeple to put Ilse Brandt forward to you on your job.')
     expect(await prisma.submission.count({ where: { personId: it_.retained } })).toBe(0)
     const logged = await prisma.accessLog.findFirst({ where: { subjectId: it_.retained, actorCompanyId: co['world-computer-systems'], allowed: false } })
     expect(logged).not.toBeNull()
   })
 
-  it('Northbend awards Grace, and Computer Systems buys her from CloudEPA — not from its own payroll', async () => {
+  it('Northbend awards Grace, and Computer Systems buys her from Techpeple — not from its own payroll', async () => {
     as(NIKE.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.ours.id}/award`, it_.ours.id, {
       rate: 4200, startDate: day(7).toISOString().slice(0, 10), endDate: day(190).toISOString().slice(0, 10),
@@ -202,13 +202,13 @@ describe('a prime puts forward somebody its network offered it', () => {
     expect(sell.companyId).toBe(co['world-computer-systems'])
     expect(sell.requirementId).toBe(it_.requisition)
     const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: sell.buyLinks[0].buyContractId } })
-    expect(buy.vendorCompanyId).toBe(co['world-cloudepa'])
+    expect(buy.vendorCompanyId).toBe(co['world-techpeple'])
     expect((await prisma.requirement.findUniqueOrThrow({ where: { id: it_.requisition } })).status).toBe('FILLED')
   })
 })
 
 describe('the person placed is told, by the firm nearest them', () => {
-  it('Grace is told she is placed at Northbend Athletic through CloudEPA, with no rate named', async () => {
+  it('Grace is told she is placed at Northbend Athletic through Techpeple, with no rate named', async () => {
     let told = null as null | { title: string; body: string | null }
     for (let i = 0; i < 20 && !told; i++) {
       told = await prisma.notification.findFirst({
@@ -218,7 +218,7 @@ describe('the person placed is told, by the firm nearest them', () => {
       if (!told) await new Promise((r) => setTimeout(r, 100))
     }
     expect(told?.body).toBe(
-      'You are placed at Northbend Athletic through CloudEPA, for Demand planning analyst. CloudEPA will be in touch about your start date.'
+      'You are placed at Northbend Athletic through Techpeple, for Demand planning analyst. Techpeple will be in touch about your start date.'
     )
   })
 })

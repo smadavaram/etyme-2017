@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { canJoin, survives, whatMoves, buttonSays, type Side } from '@/lib/join-companies'
 
 /**
- * Two clients each list Cloudepa Systems. Neither knows the other did,
+ * Two clients each list Techpeple. Neither knows the other did,
  * so there are two supplier records with the same domain — and the
  * second person to sign in gets the one their own client created.
  *
@@ -13,8 +13,8 @@ import { canJoin, survives, whatMoves, buttonSays, type Side } from '@/lib/join-
 function side(over: Partial<Side> = {}): Side {
   return {
     id: 'a',
-    name: 'Cloudepa Systems',
-    domain: 'cloudepa.com',
+    name: 'Techpeple',
+    domain: 'techpeple.example',
     claimedAt: null,
     yours: false,
     counts: { submissions: 4, contracts: 1, invites: 2, people: 0 },
@@ -73,7 +73,7 @@ describe('what may be joined', () => {
       side({ id: 'b', counts: { submissions: 0, contracts: 0, invites: 0, people: 0 } })
     )
     expect(v.refusal).toBe('NOTHING_TO_MOVE')
-    expect(v.says).toBe('There is nothing on Cloudepa Systems to move.')
+    expect(v.says).toBe('There is nothing on Techpeple to move.')
   })
 })
 
@@ -124,10 +124,10 @@ describe('saying what will move before it moves', () => {
 describe('the button', () => {
   it('names both firms and the direction, because "merge" alone loses data', () => {
     const v = canJoin(
-      side({ id: 'a', name: 'Cloudepa Systems', claimedAt: new Date() }),
-      side({ id: 'b', name: 'Cloudepa Systems (listed)' })
+      side({ id: 'a', name: 'Techpeple', claimedAt: new Date() }),
+      side({ id: 'b', name: 'Techpeple (listed)' })
     )
-    expect(buttonSays(v)).toBe('Fold Cloudepa Systems (listed) into Cloudepa Systems')
+    expect(buttonSays(v)).toBe('Fold Techpeple (listed) into Techpeple')
   })
 
   it('says plainly when it cannot be done', () => {

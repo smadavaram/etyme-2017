@@ -122,14 +122,14 @@ import { whatYesMeans, answerNotice, whoHearsTheAnswer } from '@/lib/bench-conse
 
 describe('what the invitation says a yes means', () => {
   it('never promises to ask before every submission when the listing will not ask', () => {
-    const said = whatYesMeans({ vendor: 'CloudEPA', askFirst: false })
+    const said = whatYesMeans({ vendor: 'Techpeple', askFirst: false })
     expect(said).not.toMatch(/every single submission|ask you before every/i)
     expect(said).toContain('without asking you each time')
     expect(said).toContain('tick the box below')
   })
 
   it('says they will ask before a new client only when the person chose to be asked', () => {
-    expect(whatYesMeans({ vendor: 'CloudEPA', askFirst: true }))
+    expect(whatYesMeans({ vendor: 'Techpeple', askFirst: true }))
       .toContain('Before they send you to a client they have not sent you to before, they ask you first.')
   })
 

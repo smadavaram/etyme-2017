@@ -56,8 +56,8 @@ function six(each: Partial<Put> = {}): { roles: Sent[]; subs: Put[] } {
 
 describe('a supplier nobody has sent anything to', () => {
   it('says so rather than scoring them zero', () => {
-    const c = scorecard('Cloudepa', [], [], NOW)
-    expect(c.summary).toBe('You have not sent Cloudepa anything yet.')
+    const c = scorecard('Techpeple', [], [], NOW)
+    expect(c.summary).toBe('You have not sent Techpeple anything yet.')
     expect(c.answered.value).toBeNull()
   })
 })
@@ -126,7 +126,7 @@ describe('how many were worth reading', () => {
     const { roles, subs } = six()
     subs[0].cleared = false
     subs[1].cleared = false
-    const c = scorecard('Cloudepa', roles, subs, NOW)
+    const c = scorecard('Techpeple', roles, subs, NOW)
     expect(c.worthReading.of).toBe(6)
     expect(c.worthReading.value).toBe(67)
   })
@@ -135,14 +135,14 @@ describe('how many were worth reading', () => {
     const { roles, subs } = six()
     subs[0].cleared = null
     subs[1].cleared = null
-    const c = scorecard('Cloudepa', roles, subs, NOW)
+    const c = scorecard('Techpeple', roles, subs, NOW)
     expect(c.unknowns).toContain('2 of their submissions have never been screened.')
   })
 
   it('refuses a percentage when only a couple have been screened', () => {
     const { roles, subs } = six()
     for (const s of subs.slice(2)) s.cleared = null
-    const c = scorecard('Cloudepa', roles, subs, NOW)
+    const c = scorecard('Techpeple', roles, subs, NOW)
     expect(c.worthReading.value).toBeNull()
     expect(c.worthReading.says).toBe('2 of 2 got through. Too few to put a number on.')
   })
@@ -156,7 +156,7 @@ describe('how fast the first CV arrives', () => {
     const subs = Array.from({ length: 6 }, (_, i) =>
       put({ requirementId: `r${i}`, submittedAt: hoursAgo(94) })
     )
-    const c = scorecard('Cloudepa', roles, subs, NOW)
+    const c = scorecard('Techpeple', roles, subs, NOW)
     expect(c.firstReplyHours.says).toBe('First CV usually inside a day — about 6 hours.')
   })
 
@@ -213,7 +213,7 @@ describe('what holds their submissions up', () => {
 
   it('says nothing where nothing is being held back', () => {
     const { roles, subs } = six()
-    expect(scorecard('Cloudepa', roles, subs, NOW).holdsThemUp).toBeNull()
+    expect(scorecard('Techpeple', roles, subs, NOW).holdsThemUp).toBeNull()
   })
 })
 
@@ -243,7 +243,7 @@ describe('where they price inside the band', () => {
 describe('the window', () => {
   it('ignores work from two years ago, because that is a different firm', () => {
     const old = put({ submittedAt: daysAgo(500) })
-    const c = scorecard('Cloudepa', [sent({ invitedAt: daysAgo(500) })], [old], NOW)
+    const c = scorecard('Techpeple', [sent({ invitedAt: daysAgo(500) })], [old], NOW)
     expect(c.received).toBe(0)
   })
 })
@@ -318,7 +318,7 @@ describe('what a supplier is told to fix', () => {
 
   it('does not invent advice for a supplier doing fine', () => {
     const { roles, subs } = six()
-    expect(whatToFix(scorecard('Cloudepa', roles, subs, NOW))).toEqual([
+    expect(whatToFix(scorecard('Techpeple', roles, subs, NOW))).toEqual([
       'Nothing obvious to fix. Keep sending.',
     ])
   })

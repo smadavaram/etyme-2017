@@ -27,8 +27,8 @@ import { reportError } from '@/lib/alerts'
  * The client's, on the order the client itself issued. Until 2026-09-29
  * this read the order on the contract the hours are filed on, which on a
  * direct placement is the client's and in a chain is not: Helena Marsh's
- * week is filed on CloudEPA's contract, under Computer Systems' order to
- * CloudEPA. So a client's own "silence counts" was never read for a
+ * week is filed on Techpeple's contract, under Computer Systems' order to
+ * Techpeple. So a client's own "silence counts" was never read for a
  * chain week, and a prime that switched it on for its sub's order wrote
  * the END CLIENT's approval by silence — the client signing a week on a
  * term it never agreed, at the sub's rate. Now the week is walked up to

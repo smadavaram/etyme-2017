@@ -70,7 +70,7 @@ describe('Submissions status filter', () => {
 
 describe('Submissions direction toggle', () => {
   const submission = {
-    fromCompany: { id: 'vendor-1', name: 'Cloudepa Inc.' },
+    fromCompany: { id: 'vendor-1', name: 'Techpeple Inc.' },
     toCompany: { id: 'client-1', name: 'Accenture' },
   }
 
@@ -83,7 +83,7 @@ describe('Submissions direction toggle', () => {
   it('received direction shows the vendor (fromCompany) as counterparty', () => {
     const direction: string = 'received'
     const counterparty = direction === 'sent' ? submission.toCompany.name : submission.fromCompany.name
-    expect(counterparty).toBe('Cloudepa Inc.')
+    expect(counterparty).toBe('Techpeple Inc.')
   })
 })
 
@@ -95,7 +95,7 @@ describe('Submissions search filter', () => {
       id: '1',
       person: { id: 'p1', name: 'Ravi Patel' },
       requirement: { id: 'r1', title: 'SAP BRIM Consultant', skills: ['SAP BRIM', 'Revenue Accounting'] },
-      fromCompany: { id: 'v1', name: 'Cloudepa' },
+      fromCompany: { id: 'v1', name: 'Techpeple' },
       toCompany: { id: 'c1', name: 'Infosys' },
       kind: 'BENCH',
       status: 'SUBMITTED',

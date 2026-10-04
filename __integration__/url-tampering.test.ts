@@ -32,7 +32,7 @@ interface Row {
 }
 
 describe('reading another company by editing the URL', () => {
-  let cloudepa: { id: string; seat: string }
+  let techpeple: { id: string; seat: string }
   let computerSystems: { id: string; seat: string }
   let placedPerson: { id: string; name: string }
 
@@ -43,10 +43,10 @@ describe('reading another company by editing the URL', () => {
       const c = await prisma.company.findFirstOrThrow({ where: { slug } })
       return { id: c.id, seat: `${slug}@demo.etyme.local` }
     }
-    cloudepa = await co('world-cloudepa')
+    techpeple = await co('world-techpeple')
     computerSystems = await co('world-computer-systems')
 
-    // Somebody CloudEPA placed. Their submissions carry a rate, and the
+    // Somebody Techpeple placed. Their submissions carry a rate, and the
     // chain above them carries a different one.
     const s = await prisma.submission.findFirstOrThrow({
       where: { fromCompanyId: computerSystems.id },
@@ -58,7 +58,7 @@ describe('reading another company by editing the URL', () => {
   // ── Payroll ────────────────────────────────────────────────────────
 
   it('a vendor cannot read another vendor\'s payroll by naming them in the URL', async () => {
-    as(cloudepa.seat)
+    as(techpeple.seat)
     const res = await json(
       await payroll(req('GET', `/api/payroll?companyId=${computerSystems.id}`))
     )
@@ -66,15 +66,15 @@ describe('reading another company by editing the URL', () => {
   })
 
   it('a vendor can still read its own payroll', async () => {
-    as(cloudepa.seat)
+    as(techpeple.seat)
     const res = await json(await payroll(req('GET', '/api/payroll')))
     expect(res.status).toBe(200)
   })
 
   it('naming your own company in the URL is the same as not naming one', async () => {
-    as(cloudepa.seat)
+    as(techpeple.seat)
     const named = await json(
-      await payroll(req('GET', `/api/payroll?companyId=${cloudepa.id}`))
+      await payroll(req('GET', `/api/payroll?companyId=${techpeple.id}`))
     )
     expect(named.status).toBe(200)
   })
@@ -82,7 +82,7 @@ describe('reading another company by editing the URL', () => {
   // ── Submissions ────────────────────────────────────────────────────
 
   it('a vendor cannot read another vendor\'s submissions by naming them in the URL', async () => {
-    as(cloudepa.seat)
+    as(techpeple.seat)
     const res = await json(
       await submissions(
         req('GET', `/api/submissions?companyId=${computerSystems.id}&direction=sent`)
@@ -94,43 +94,43 @@ describe('reading another company by editing the URL', () => {
   })
 
   it('a vendor cannot read one person\'s submissions across every company', async () => {
-    as(cloudepa.seat)
+    as(techpeple.seat)
     const res = await json(
       await submissions(req('GET', `/api/submissions?personId=${placedPerson.id}`))
     )
     const rows: Row[] = res.body?.data?.submissions ?? []
     // Every row that comes back must involve the caller. A person's whole
-    // submission history across the market is not CloudEPA's to read.
+    // submission history across the market is not Techpeple's to read.
     const foreign = rows.filter(
-      (r) => r.fromCompany?.id !== cloudepa.id && r.toCompany?.id !== cloudepa.id
+      (r) => r.fromCompany?.id !== techpeple.id && r.toCompany?.id !== techpeple.id
     )
     expect(foreign).toEqual([])
   })
 
   it('a vendor can still read its own submissions', async () => {
-    as(cloudepa.seat)
+    as(techpeple.seat)
     const res = await json(
-      await submissions(req('GET', `/api/submissions?companyId=${cloudepa.id}&direction=sent`))
+      await submissions(req('GET', `/api/submissions?companyId=${techpeple.id}&direction=sent`))
     )
     expect(res.status).toBe(200)
   })
 
   it('a rate on a submission never belongs to a company the reader is not party to', async () => {
-    as(cloudepa.seat)
+    as(techpeple.seat)
     const res = await json(
       await submissions(req('GET', `/api/submissions?companyId=${computerSystems.id}`))
     )
     const rows: Row[] = res.body?.data?.submissions ?? []
     for (const r of rows) {
       if (r.rate === undefined || r.rate === null) continue
-      expect([r.fromCompany?.id, r.toCompany?.id]).toContain(cloudepa.id)
+      expect([r.fromCompany?.id, r.toCompany?.id]).toContain(techpeple.id)
     }
   })
 
   // ── Holidays ───────────────────────────────────────────────────────
 
   it('a vendor cannot read another company\'s holiday calendar by naming them in the URL', async () => {
-    as(cloudepa.seat)
+    as(techpeple.seat)
     const res = await json(
       await holidays(req('GET', `/api/holidays?companyId=${computerSystems.id}`))
     )
@@ -138,7 +138,7 @@ describe('reading another company by editing the URL', () => {
   })
 
   it('a vendor can still read its own holiday calendar', async () => {
-    as(cloudepa.seat)
+    as(techpeple.seat)
     const res = await json(await holidays(req('GET', '/api/holidays')))
     expect(res.status).toBe(200)
   })

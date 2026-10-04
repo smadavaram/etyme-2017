@@ -40,7 +40,7 @@ function hold(over: Partial<Hold> = {}): Hold {
 function situation(over: Partial<Situation> = {}): Situation {
   return {
     now: NOW,
-    companyId: 'cloudepa',
+    companyId: 'techpeple',
     listing: { revokedAt: null, askFirst: false },
     blocked: false,
     barredByUs: false,
@@ -117,7 +117,7 @@ describe('two vendors, one client', () => {
   })
 
   it('lets the vendor who holds them submit again for another role', () => {
-    const v = decideSubmission(situation({ holds: [hold({ companyId: 'cloudepa' })] }))
+    const v = decideSubmission(situation({ holds: [hold({ companyId: 'techpeple' })] }))
     expect(v.ok).toBe(true)
     expect(v.ok === true && v.alreadyHeld).toBe(true)
   })
@@ -160,7 +160,7 @@ describe('the client a person will not go to', () => {
   it('is checked before anything that would act on it', () => {
     // A blocked person must not have a hold taken, a notification sent, or
     // a name put in front of anybody, even if everything else is in order.
-    const v = decideSubmission(situation({ blocked: true, holds: [hold({ companyId: 'cloudepa' })] }))
+    const v = decideSubmission(situation({ blocked: true, holds: [hold({ companyId: 'techpeple' })] }))
     expect(v.ok).toBe(false)
   })
 })
@@ -181,7 +181,7 @@ describe('somebody who wants to be asked first', () => {
     const v = decideSubmission(
       situation({
         listing: { revokedAt: null, askFirst: true },
-        holds: [hold({ companyId: 'cloudepa', state: 'REQUESTED' })],
+        holds: [hold({ companyId: 'techpeple', state: 'REQUESTED' })],
       })
     )
     expect(v.ok === false && v.message).toMatch(/have not answered yet/i)
@@ -192,7 +192,7 @@ describe('somebody who wants to be asked first', () => {
     const v = decideSubmission(
       situation({
         listing: { revokedAt: null, askFirst: true },
-        holds: [hold({ companyId: 'cloudepa', state: 'HELD' })],
+        holds: [hold({ companyId: 'techpeple', state: 'HELD' })],
       })
     )
     expect(v.ok).toBe(true)
@@ -248,13 +248,13 @@ describe('what the person themselves is told', () => {
     // marketed somewhere you did not know about is the complaint all of
     // this exists to answer.
     const said = tellThem({
-      vendorName: 'Cloudepa Inc.',
+      vendorName: 'Techpeple Inc.',
       clientName: 'Talvern Medical',
       roleTitle: 'SAP FICO Consultant',
       hold: hold({ expiresAt: ahead(30) }),
       now: NOW,
     })
-    expect(said).toContain('Cloudepa Inc.')
+    expect(said).toContain('Techpeple Inc.')
     expect(said).toContain('Talvern Medical')
     expect(said).toContain('SAP FICO Consultant')
     expect(said).toMatch(/30 days/)
@@ -262,7 +262,7 @@ describe('what the person themselves is told', () => {
 
   it('reads as a sentence even when the role has no title', () => {
     const said = tellThem({
-      vendorName: 'Cloudepa Inc.',
+      vendorName: 'Techpeple Inc.',
       clientName: 'Talvern Medical',
       roleTitle: null,
       hold: hold(),
@@ -274,7 +274,7 @@ describe('what the person themselves is told', () => {
 
   it('tells them what the hold stops other agencies doing', () => {
     const said = tellThem({
-      vendorName: 'Cloudepa Inc.',
+      vendorName: 'Techpeple Inc.',
       clientName: 'Talvern Medical',
       roleTitle: null,
       hold: hold(),

@@ -4,38 +4,38 @@ import {
 } from '@/lib/work-chain'
 
 /**
- * Auralis Software ← Computer Systems ← CloudEPA ← Priya.
+ * Auralis Software ← Computer Systems ← Techpeple ← Priya.
  *
  * Two sell contracts. Computer Systems' buy contract points at
- * CloudEPA's sell contract, which is the edge that makes the ladder
- * walkable. CloudEPA employs Priya, so its own buy side points at
+ * Techpeple's sell contract, which is the edge that makes the ladder
+ * walkable. Techpeple employs Priya, so its own buy side points at
  * nobody and the ladder ends.
  */
 const CHAIN: Rung[] = [
   {
     sellContractId: 'cs-sell', companyId: 'computer-systems',
-    buyContractId: 'cs-buy', supplierSellContractId: 'cloudepa-sell',
+    buyContractId: 'cs-buy', supplierSellContractId: 'techpeple-sell',
   },
   {
-    sellContractId: 'cloudepa-sell', companyId: 'cloudepa',
-    buyContractId: 'cloudepa-buy', supplierSellContractId: null,
+    sellContractId: 'techpeple-sell', companyId: 'techpeple',
+    buyContractId: 'techpeple-buy', supplierSellContractId: null,
   },
 ]
 
 const DIRECT: Rung[] = [
   {
-    sellContractId: 'only', companyId: 'cloudepa',
+    sellContractId: 'only', companyId: 'techpeple',
     buyContractId: 'only-buy', supplierSellContractId: null,
   },
 ]
 
 describe('Finding the hours from anywhere in the chain', () => {
   it('walks from the prime all the way down to the firm that employs the person', () => {
-    expect(descend('cs-sell', CHAIN)).toEqual(['cs-sell', 'cloudepa-sell'])
+    expect(descend('cs-sell', CHAIN)).toEqual(['cs-sell', 'techpeple-sell'])
   })
 
   it('finds the hours on the employer’s contract, not the prime’s', () => {
-    expect(whereHoursLive('cs-sell', CHAIN)).toBe('cloudepa-sell')
+    expect(whereHoursLive('cs-sell', CHAIN)).toBe('techpeple-sell')
   })
 
   it('treats a direct placement as a chain of one rather than a special case', () => {
@@ -46,17 +46,17 @@ describe('Finding the hours from anywhere in the chain', () => {
 
   it('counts one firm standing between the client and the person', () => {
     expect(hopsBelow('cs-sell', CHAIN)).toBe(1)
-    expect(hopsBelow('cloudepa-sell', CHAIN)).toBe(0)
+    expect(hopsBelow('techpeple-sell', CHAIN)).toBe(0)
   })
 
   it('lets the prime bill hours filed on its sub’s contract', () => {
-    expect(mayBill('cs-sell', 'cloudepa-sell', CHAIN)).toBe(true)
+    expect(mayBill('cs-sell', 'techpeple-sell', CHAIN)).toBe(true)
   })
 
   it('refuses to let the sub bill hours filed above it', () => {
-    // The ladder only descends. CloudEPA cannot reach up to Computer
+    // The ladder only descends. Techpeple cannot reach up to Computer
     // Systems' contract, and should not be able to.
-    expect(mayBill('cloudepa-sell', 'cs-sell', CHAIN)).toBe(false)
+    expect(mayBill('techpeple-sell', 'cs-sell', CHAIN)).toBe(false)
   })
 
   it('refuses to let anybody bill hours from a chain they are not on', () => {
@@ -79,7 +79,7 @@ describe('Finding the hours from anywhere in the chain', () => {
     // A firm reading only its own rows sees the id below it and not the
     // row. That is a partial read, not a broken chain.
     const mineOnly: Rung[] = [CHAIN[0]]
-    expect(descend('cs-sell', mineOnly)).toEqual(['cs-sell', 'cloudepa-sell'])
+    expect(descend('cs-sell', mineOnly)).toEqual(['cs-sell', 'techpeple-sell'])
   })
 })
 
@@ -106,13 +106,13 @@ describe('What each leg of a chain makes', () => {
 
 describe('Which company is saying what about a week of work', () => {
   const parties = {
-    employerCompanyId: 'cloudepa',
+    employerCompanyId: 'techpeple',
     endClientCompanyId: 'adobe',
     clientCompanyId: 'computer-systems',
   }
 
   it('has the employer accepting what it will pay for', () => {
-    expect(roleOf({ companyId: 'cloudepa', ...parties })).toBe('EMPLOYER_ACCEPTANCE')
+    expect(roleOf({ companyId: 'techpeple', ...parties })).toBe('EMPLOYER_ACCEPTANCE')
   })
 
   it('has the end client saying the work happened', () => {
@@ -125,8 +125,8 @@ describe('Which company is saying what about a week of work', () => {
 
   it('treats a direct placement’s employer as the employer, not the client', () => {
     expect(roleOf({
-      companyId: 'cloudepa', employerCompanyId: 'cloudepa',
-      endClientCompanyId: null, clientCompanyId: 'cloudepa',
+      companyId: 'techpeple', employerCompanyId: 'techpeple',
+      endClientCompanyId: null, clientCompanyId: 'techpeple',
     })).toBe('EMPLOYER_ACCEPTANCE')
   })
 })

@@ -17,7 +17,7 @@ import { notAcceptedSays } from '@/lib/money/payers-acceptance'
 const bill = {
   id: 'bill-1',
   number: 'CEPA-0914',
-  vendorName: 'CloudEPA',
+  vendorName: 'Techpeple',
   totalCents: 312_000,
   dueAt: new Date('2026-10-15T00:00:00Z'),
   receivedAt: new Date('2026-09-21T00:00:00Z'),
@@ -41,7 +41,7 @@ describe('an invoice receipt blocked by a week the paying firm has not accepted'
   it('never says it is held until somebody says why it should go in, because nobody can', () => {
     const row = disputedBillDecision(bill, helenasWeek, weekDesk)!
     expect(row.subtitle).not.toContain('says why it should go in')
-    expect(row.title).toBe('Invoice receipt CEPA-0914 from CloudEPA waits on a week you have not accepted')
+    expect(row.title).toBe('Invoice receipt CEPA-0914 from Techpeple waits on a week you have not accepted')
   })
 
   it('goes to the desk that accepts weeks and opens the timesheets, not the AP page', () => {
@@ -57,7 +57,7 @@ describe('an invoice receipt blocked by a week the paying firm has not accepted'
 describe('an invoice receipt that did not match for a reason somebody may waive', () => {
   it('still says it is held out of payment runs until somebody says why it should go in', () => {
     const row = disputedBillDecision(bill, null, apClerk)!
-    expect(row.title).toBe('Invoice receipt CEPA-0914 from CloudEPA does not match')
+    expect(row.title).toBe('Invoice receipt CEPA-0914 from Techpeple does not match')
     expect(row.subtitle).toBe('$3120.00 · held out of payment runs until somebody says why it should go in')
     expect(row.actionUrl).toBe('/dashboard/ap')
   })

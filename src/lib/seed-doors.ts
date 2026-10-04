@@ -1188,7 +1188,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     })
   }
 
-  // ── CloudEPA's own consultant, mid-chain ─────────────────────────────
+  // ── Techpeple's own consultant, mid-chain ─────────────────────────────
   //
   // The sub-vendor's sell side already has something waiting: Ifeoma
   // Balogun is shortlisted with the prime above it, with a screen in the
@@ -1201,13 +1201,13 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // below them, and until now that leg's money was written already paid.
   // One bill apiece, unsettled, so the desk that sells also has
   // something to answer as a customer.
-  await billFromBelow('computer-systems', 'cloudepa', 'CE-2026-0418')
+  await billFromBelow('computer-systems', 'techpeple', 'CE-2026-0418')
   await billFromBelow('teleworld', 'nimbus', 'NT-2026-1190')
 
   const ifeoma = await db.person.findUnique({ where: { primaryEmail: emailOf('Ifeoma Balogun') } })
   if (ifeoma) {
     await asked({
-      companySlug: 'cloudepa',
+      companySlug: 'techpeple',
       name: 'I-9, with the document it is completed from',
       needsSignature: true,
       audience: 'CANDIDATE',

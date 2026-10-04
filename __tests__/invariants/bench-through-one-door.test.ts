@@ -13,7 +13,7 @@ import { join, relative } from 'node:path'
  * read `data.tiers` and was right. The Training page read
  * `data.listings` — a key the route has never sent in its life — got
  * `undefined`, coalesced it to an empty array, and reported "Bench
- * consultants 0 with skills listed" over CloudEPA's five fully skilled
+ * consultants 0 with skills listed" over Techpeple's five fully skilled
  * people. It then computed a skill gap from that nought against a real
  * demand side, so every skill a client had asked for read as an unfilled
  * deficit, on every supplier, for the life of the screen.

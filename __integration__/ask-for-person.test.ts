@@ -103,8 +103,8 @@ describe('asking for a person you were shown', () => {
   // ── The rung the client pays, and nothing below it ────────────────
   //
   // Northbend Athletic buys Helena Marsh from Computer Systems, who buy her from
-  // CloudEPA, and the bench listing that makes a submission possible at
-  // all is CloudEPA's. So "Ask for them" named CloudEPA on Northbend Athletic's own
+  // Techpeple, and the bench listing that makes a submission possible at
+  // all is Techpeple's. So "Ask for them" named Techpeple on Northbend Athletic's own
   // page and opened a thread straight to it — the prime's supplier list
   // and a direct channel, both given away by one button, and the NDA
   // between prime and sub breached in each direction at once.
@@ -113,7 +113,7 @@ describe('asking for a person you were shown', () => {
     beforeAll(async () => {
       const [prime, sub, helena] = await Promise.all([
         prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' }, select: { id: true, name: true } }),
-        prisma.company.findUniqueOrThrow({ where: { slug: 'world-cloudepa' }, select: { id: true, name: true } }),
+        prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true, name: true } }),
         prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' }, select: { id: true } }),
       ])
       it_.prime = prime.id; it_.primeName = prime.name

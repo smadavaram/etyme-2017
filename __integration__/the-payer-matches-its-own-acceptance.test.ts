@@ -9,20 +9,20 @@ import { POST as recordBill, GET as exceptions } from '@/app/api/ap/bills/route'
  * accepted, on the seeded chain.
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
- * employed by CloudEPA. Her week is filed once, on CloudEPA's contract.
- * When CloudEPA invoices Computer Systems, the receipt is Computer
+ * employed by Techpeple. Her week is filed once, on Techpeple's contract.
+ * When Techpeple invoices Computer Systems, the receipt is Computer
  * Systems' own PASS_THROUGH acceptance — the founder's rule that no rung
  * pays on a week it has not accepted. Before this, the match read only
  * EMPLOYER_ACCEPTANCE, and only on a contract linked to Computer Systems'
  * buy contract, which carries no hours: the invoice matched nothing
  * whoever had signed, and the one signature it looked for was
- * CloudEPA's own.
+ * Techpeple's own.
  */
 
 const D = '@demo.etyme.local'
 const NIKE = `world-nike-hiring${D}`
 const CS = `world-computer-systems${D}`
-const CLOUDEPA = `world-cloudepa${D}`
+const TECHPEPLE = `world-techpeple${D}`
 
 const sign = async (id: string, body: unknown = {}) =>
   json(await approve(req('POST', `/api/timesheets/${id}/approve`, body), { params: Promise.resolve({ id }) }))
@@ -33,7 +33,7 @@ const invoice = async (number: string, hours: number) =>
   json(
     await recordBill(
       req('POST', '/api/ap/bills', {
-        vendorCompanyId: s.cloudepa,
+        vendorCompanyId: s.techpeple,
         number,
         buyContractId: s.buy,
         periodStart: s.from,
@@ -56,15 +56,15 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
       orderBy: { periodStart: 'desc' },
     })
     const cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
-    const cloudepa = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-cloudepa' } })
+    const techpeple = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
     const buy = await prisma.buyContract.findFirstOrThrow({
-      where: { companyId: cs.id, vendorCompanyId: cloudepa.id, candidates: { some: { personId: helena.id } } },
+      where: { companyId: cs.id, vendorCompanyId: techpeple.id, candidates: { some: { personId: helena.id } } },
       include: { candidates: true },
     })
     Object.assign(s, {
       week: week.id,
       hours: Number(week.totalHours),
-      cloudepa: cloudepa.id,
+      techpeple: techpeple.id,
       cs: cs.id,
       buy: buy.id,
       rate: buy.candidates[0].payRate,
@@ -80,7 +80,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     expect(s.hours).toBe(40)
   }, 240_000)
 
-  it('an invoice from CloudEPA to Computer Systems cannot be recorded while nobody has signed the week, and the refusal names the week and who must accept it', async () => {
+  it('an invoice from Techpeple to Computer Systems cannot be recorded while nobody has signed the week, and the refusal names the week and who must accept it', async () => {
     as(CS)
     const r = await invoice('CE-HM-0', 40)
     expect(r.status).toBe(422)
@@ -99,7 +99,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     const r = await invoice('CE-HM-1', 40)
     expect(r.status).toBe(422)
     expect(r.body.error.code).toBe('WEEK_NOT_ACCEPTED')
-    expect(await prisma.vendorBill.count({ where: { companyId: s.cs, vendorCompanyId: s.cloudepa, number: { startsWith: 'CE-HM' } } })).toBe(0)
+    expect(await prisma.vendorBill.count({ where: { companyId: s.cs, vendorCompanyId: s.techpeple, number: { startsWith: 'CE-HM' } } })).toBe(0)
   })
 
   it('Computer Systems accepts thirty-eight of Helena’s forty hours, with its reason, as its own pass-through acceptance', async () => {
@@ -111,9 +111,9 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     expect(Number(mine.hours)).toBe(38)
   })
 
-  it('CloudEPA’s invoice for the thirty-eight hours Computer Systems accepted matches, before CloudEPA has accepted anything itself', async () => {
-    const cloudepaSigned = await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: s.cloudepa } })
-    expect(cloudepaSigned).toBe(0)
+  it('Techpeple’s invoice for the thirty-eight hours Computer Systems accepted matches, before Techpeple has accepted anything itself', async () => {
+    const techpepleSigned = await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: s.techpeple } })
+    expect(techpepleSigned).toBe(0)
 
     as(CS)
     const r = await invoice('CE-HM-2', 38)
@@ -131,11 +131,11 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     expect(r.body.data.match.checks.find((c: any) => c.code === 'QUANTITY').reason).toMatch(/^Invoiced 40h, we accepted 38h\./)
   })
 
-  it('once CloudEPA has accepted too, the exception queue re-matches CloudEPA’s invoices on Computer Systems’ own acceptance and finds a receipt behind each', async () => {
-    as(CLOUDEPA)
+  it('once Techpeple has accepted too, the exception queue re-matches Techpeple’s invoices on Computer Systems’ own acceptance and finds a receipt behind each', async () => {
+    as(TECHPEPLE)
     const r = await sign(s.week)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect((await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: s.week, companyId: s.cloudepa, state: 'LIVE' } })).role).toBe('EMPLOYER_ACCEPTANCE')
+    expect((await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: s.week, companyId: s.techpeple, state: 'LIVE' } })).role).toBe('EMPLOYER_ACCEPTANCE')
 
     as(CS)
     const q = await json(await exceptions(req('GET', '/api/ap/bills')))

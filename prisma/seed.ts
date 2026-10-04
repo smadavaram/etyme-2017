@@ -2,7 +2,7 @@
  * Seed script — populates realistic demo data for all working surfaces.
  *
  * Creates:
- *   - 1 vendor company (Cloudepa Inc.) with roles, a founder user
+ *   - 1 vendor company (Techpeple Inc.) with roles, a founder user
  *   - 1 client company (Talvern Medical)
  *   - 8 consultants with varied skills, work auth, availability
  *   - 6 requirements with varied statuses
@@ -123,9 +123,9 @@ async function main() {
   // ── Companies ──────────────────────────────────
   const vendor = await prisma.company.create({
     data: {
-      name: 'Cloudepa Inc.',
-      slug: 'cloudepa',
-      domain: 'cloudepa.example',
+      name: 'Techpeple Inc.',
+      slug: 'techpeple',
+      domain: 'techpeple.example',
       domainVerified: true,
       kind: 'VENDOR',
       outsideAccess: defaultPostureFor('VENDOR'),
@@ -214,7 +214,7 @@ async function main() {
   await prisma.companyLocation.create({
     data: {
       companyId: vendor.id,
-      name: 'Cloudepa Inc. — head office',
+      name: 'Techpeple Inc. — head office',
       city: 'Edison',
       state: 'NJ',
       country: 'US',
@@ -712,12 +712,12 @@ async function main() {
   // ── Purchase orders — one per leg of the chain ──
   // Talvern raises a PO to each supplier it actually pays. In the layer-cake
   // case that is the MSP, not the sub-vendor: GlobalStaff then raises its
-  // own PO to Cloudepa. A single PO on the end client would be the wrong
+  // own PO to Techpeple. A single PO on the end client would be the wrong
   // reference for whoever's AP is paying.
   const poStart = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000)
   const poEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
 
-  const poTalvernToCloudepa = await prisma.workOrder.create({
+  const poTalvernToTechpeple = await prisma.workOrder.create({
     data: {
       number: 'PO-2026-4417',
       issuedById: client.id,
@@ -745,8 +745,8 @@ async function main() {
     },
   })
 
-  // The MSP's own PO down to the sub-vendor — the leg Cloudepa invoices.
-  const poMspToCloudepa = await prisma.workOrder.create({
+  // The MSP's own PO down to the sub-vendor — the leg Techpeple invoices.
+  const poMspToTechpeple = await prisma.workOrder.create({
     data: {
       number: 'GS-PO-88213',
       issuedById: msp.id,
@@ -763,10 +763,10 @@ async function main() {
   // ── Remit-to — where each vendor is paid ──
   // Only the last four digits are stored. Full account and routing numbers
   // must never live in this table; they belong in a payment provider vault.
-  const cloudepaRemit = await prisma.remitTo.create({
+  const techpepleRemit = await prisma.remitTo.create({
     data: {
       companyId: vendor.id,
-      legalName: 'Cloudepa Inc.',
+      legalName: 'Techpeple Inc.',
       addressLines: ['2100 Ross Avenue, Suite 800', 'Dallas, TX 75201'],
       country: 'US',
       taxId: '47-2938471',
@@ -795,14 +795,14 @@ async function main() {
 
   // ── People & Consultant Profiles ───────────────
   const consultantData = [
-    { name: 'Ravi Patel',       email: 'ravi@cloudepa.example',    headline: 'Senior SAP BRIM Consultant',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA', 'ABAP'],    location: 'Dallas, TX',     workAuth: 'H1B',        availDays: -30, tier: 'RETAINED' as const,  rateMin: 11000, rateMax: 13000 },
-    { name: 'Priya Sharma',     email: 'priya@cloudepa.example',   headline: 'Azure Cloud Architect',          skills: ['Azure', '.NET', 'Terraform', 'Kubernetes'],              location: 'Remote',         workAuth: 'US_CITIZEN', availDays: -10, tier: 'RETAINED' as const,  rateMin: 14000, rateMax: 16000 },
-    { name: 'Anita Desai',      email: 'anita@cloudepa.example',   headline: 'SAP SD/MM Functional Lead',      skills: ['SAP SD', 'SAP MM', 'SAP S/4HANA', 'Integration'],       location: 'Chicago, IL',    workAuth: 'GC',         availDays: 7,   tier: 'RETAINED' as const,  rateMin: 10000, rateMax: 12500, page: 'anita-desai' },
-    { name: 'Vikram Reddy',     email: 'vikram@cloudepa.example',  headline: 'Full Stack Developer',           skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],          location: 'Austin, TX',     workAuth: 'OPT',        availDays: -5,  tier: 'MARKETING' as const, rateMin: 8000,  rateMax: 10000 },
-    { name: 'Meera Krishnan',   email: 'meera@cloudepa.example',   headline: 'Data Engineer — Snowflake',      skills: ['Snowflake', 'dbt', 'Python', 'Airflow'],                 location: 'Remote',         workAuth: 'H1B',        availDays: 21,  tier: 'RETAINED' as const,  rateMin: 12000, rateMax: 14000 },
-    { name: 'John Martinez',    email: 'john@cloudepa.example',    headline: 'ServiceNow Developer',           skills: ['ServiceNow', 'ITSM', 'JavaScript', 'REST APIs'],         location: 'Denver, CO',     workAuth: 'US_CITIZEN', availDays: -60, tier: 'MARKETING' as const, rateMin: 9000,  rateMax: 11000 },
-    { name: 'Kavitha Nair',     email: 'kavitha@cloudepa.example', headline: 'SAP SuccessFactors Consultant',  skills: ['SuccessFactors', 'SAP HCM', 'Employee Central'],         location: 'Atlanta, GA',    workAuth: 'GC',         availDays: 14,  tier: 'RETAINED' as const,  rateMin: 11500, rateMax: 13500 },
-    { name: 'David Chen',       email: 'david@cloudepa.example',   headline: 'DevOps / SRE Lead',              skills: ['AWS', 'Docker', 'Kubernetes', 'CI/CD', 'Prometheus'],     location: 'San Francisco',  workAuth: 'US_CITIZEN', availDays: -2,  tier: 'RETAINED' as const,  rateMin: 15000, rateMax: 18000, page: 'david-chen' },
+    { name: 'Ravi Patel',       email: 'ravi@techpeple.example',    headline: 'Senior SAP BRIM Consultant',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA', 'ABAP'],    location: 'Dallas, TX',     workAuth: 'H1B',        availDays: -30, tier: 'RETAINED' as const,  rateMin: 11000, rateMax: 13000 },
+    { name: 'Priya Sharma',     email: 'priya@techpeple.example',   headline: 'Azure Cloud Architect',          skills: ['Azure', '.NET', 'Terraform', 'Kubernetes'],              location: 'Remote',         workAuth: 'US_CITIZEN', availDays: -10, tier: 'RETAINED' as const,  rateMin: 14000, rateMax: 16000 },
+    { name: 'Anita Desai',      email: 'anita@techpeple.example',   headline: 'SAP SD/MM Functional Lead',      skills: ['SAP SD', 'SAP MM', 'SAP S/4HANA', 'Integration'],       location: 'Chicago, IL',    workAuth: 'GC',         availDays: 7,   tier: 'RETAINED' as const,  rateMin: 10000, rateMax: 12500, page: 'anita-desai' },
+    { name: 'Vikram Reddy',     email: 'vikram@techpeple.example',  headline: 'Full Stack Developer',           skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],          location: 'Austin, TX',     workAuth: 'OPT',        availDays: -5,  tier: 'MARKETING' as const, rateMin: 8000,  rateMax: 10000 },
+    { name: 'Meera Krishnan',   email: 'meera@techpeple.example',   headline: 'Data Engineer — Snowflake',      skills: ['Snowflake', 'dbt', 'Python', 'Airflow'],                 location: 'Remote',         workAuth: 'H1B',        availDays: 21,  tier: 'RETAINED' as const,  rateMin: 12000, rateMax: 14000 },
+    { name: 'John Martinez',    email: 'john@techpeple.example',    headline: 'ServiceNow Developer',           skills: ['ServiceNow', 'ITSM', 'JavaScript', 'REST APIs'],         location: 'Denver, CO',     workAuth: 'US_CITIZEN', availDays: -60, tier: 'MARKETING' as const, rateMin: 9000,  rateMax: 11000 },
+    { name: 'Kavitha Nair',     email: 'kavitha@techpeple.example', headline: 'SAP SuccessFactors Consultant',  skills: ['SuccessFactors', 'SAP HCM', 'Employee Central'],         location: 'Atlanta, GA',    workAuth: 'GC',         availDays: 14,  tier: 'RETAINED' as const,  rateMin: 11500, rateMax: 13500 },
+    { name: 'David Chen',       email: 'david@techpeple.example',   headline: 'DevOps / SRE Lead',              skills: ['AWS', 'Docker', 'Kubernetes', 'CI/CD', 'Prometheus'],     location: 'San Francisco',  workAuth: 'US_CITIZEN', availDays: -2,  tier: 'RETAINED' as const,  rateMin: 15000, rateMax: 18000, page: 'david-chen' },
   ]
 
   const now = new Date()
@@ -1502,7 +1502,7 @@ async function main() {
         workLocationId: c.locId,
         hiringManagerId: c.mgr ? managers[c.mgr].id : null,
         orgUnitId: c.unit ? orgUnits[c.unit].id : null,
-        workOrderId: c.clientId === client.id ? poTalvernToCloudepa.id : null,
+        workOrderId: c.clientId === client.id ? poTalvernToTechpeple.id : null,
       },
     })
     sellContracts.push(sc)
@@ -1520,7 +1520,7 @@ async function main() {
     }
   }
 
-  // Three-party contract: Cloudepa bills GlobalStaff MSP, consultant works at Talvern Medical
+  // Three-party contract: Techpeple bills GlobalStaff MSP, consultant works at Talvern Medical
   // personIdx 7 = David Chen (DevOps/SRE Lead)
   const mspContractStart = new Date(now)
   mspContractStart.setDate(mspContractStart.getDate() - 60)
@@ -1541,8 +1541,8 @@ async function main() {
       workLocationId: locAnnArbor.id,     // works at Ann Arbor site
       hiringManagerId: managers.castellano.id,
       orgUnitId: orgUnits.infra.id,
-      // Cloudepa invoices the MSP against the MSP's PO, not Talvern's.
-      workOrderId: poMspToCloudepa.id,
+      // Techpeple invoices the MSP against the MSP's PO, not Talvern's.
+      workOrderId: poMspToTechpeple.id,
     },
   })
   sellContracts.push(mspContract)
@@ -1695,12 +1695,12 @@ async function main() {
     buyContracts.push(buyContract)
   }
 
-  // ── A real subcontract: Cloudepa buys Elena's replacement from TechVista ──
+  // ── A real subcontract: Techpeple buys Elena's replacement from TechVista ──
   // This is the one case where a buy contract and a purchase order describe
-  // the same relationship. The buy contract carries the RATE Cloudepa pays
+  // the same relationship. The buy contract carries the RATE Techpeple pays
   // TechVista; the PO carries the CEILING TechVista may bill against. Linked
   // so the two records cannot drift apart.
-  const poCloudepaToTechVista = await prisma.workOrder.create({
+  const poTechpepleToTechVista = await prisma.workOrder.create({
     data: {
       number: 'CLD-PO-2211',
       issuedById: vendor.id,
@@ -1731,7 +1731,7 @@ async function main() {
       state: 'IN_PROGRESS',
       startDate: subStart,
       endDate: subEnd,
-      workOrderId: poCloudepaToTechVista.id,
+      workOrderId: poTechpepleToTechVista.id,
       candidates: {
         create: [
           {
@@ -1940,8 +1940,8 @@ async function main() {
         paid: inv.paid,
         dueAt,
         status: inv.status,
-        workOrderId: inv.engId === eng2.id ? null : poTalvernToCloudepa.id,
-        remitToId: cloudepaRemit.id,
+        workOrderId: inv.engId === eng2.id ? null : poTalvernToTechpeple.id,
+        remitToId: techpepleRemit.id,
       },
     })
     invoiceRecords.push(invoice)
@@ -2029,7 +2029,7 @@ async function main() {
     })
   }
 
-  // An invoice on the MSP leg: Cloudepa bills GlobalStaff for David Chen,
+  // An invoice on the MSP leg: Techpeple bills GlobalStaff for David Chen,
   // who sits at Talvern. Its coding carries TALVERN's cost centres — because
   // that is whose budget he burns — while the bill-to is GlobalStaff, who
   // will code their own onward invoice differently. The coding export
@@ -2075,8 +2075,8 @@ async function main() {
       paid: 0,
       dueAt: mspInvDue,
       status: 'ISSUED',
-      workOrderId: poMspToCloudepa.id,
-      remitToId: cloudepaRemit.id,
+      workOrderId: poMspToTechpeple.id,
+      remitToId: techpepleRemit.id,
     },
   })
   invoiceRecords.push(mspInvoice)
@@ -2666,9 +2666,9 @@ async function main() {
   const automationData = [
     {
       action: 'COMPANY_CREATED',
-      summary: `Company Cloudepa Inc. created with ${vendorRoles.length} default roles`,
+      summary: `Company Techpeple Inc. created with ${vendorRoles.length} default roles`,
       reason: 'Onboarding: new company created via OAuth sign-in',
-      payload: { companyId: vendor.id, slug: 'cloudepa', roles: vendorRoles.length },
+      payload: { companyId: vendor.id, slug: 'techpeple', roles: vendorRoles.length },
       reversible: false,
       daysAgo: 45,
     },
@@ -2876,7 +2876,7 @@ async function main() {
   })
 
   const endedContractData = [
-    // Marcus Bell: 18 months via Cloudepa, ended 45 days ago
+    // Marcus Bell: 18 months via Techpeple, ended 45 days ago
     // In 90-day break period — demonstrates the re-engagement block
     {
       personId: alumniPeople[0].id,
@@ -2901,7 +2901,7 @@ async function main() {
       startDays: -330, // ~11 months ago
       endDays: -60,    // ended 2 months ago (9 months duration)
     },
-    // Tomás Ferreira: 9 months via TechVista, then 6 months via Cloudepa
+    // Tomás Ferreira: 9 months via TechVista, then 6 months via Techpeple
     // Total: 15 months — nearing 18-month tenure cap
     // Contract 1: TechVista, ended 8 months ago
     {
@@ -2915,7 +2915,7 @@ async function main() {
       startDays: -480, // ~16 months ago
       endDays: -210,   // ended 7 months ago (9 months via TechVista)
     },
-    // Contract 2: Cloudepa, ended 30 days ago
+    // Contract 2: Techpeple, ended 30 days ago
     {
       personId: alumniPeople[2].id,
       companyId: vendor.id,
@@ -2925,7 +2925,7 @@ async function main() {
       billRate: 9600,
       state: 'ENDED' as const,
       startDays: -210, // started right after TechVista contract
-      endDays: -30,    // ended 30 days ago (6 months via Cloudepa)
+      endDays: -30,    // ended 30 days ago (6 months via Techpeple)
     },
   ]
 
@@ -3030,8 +3030,8 @@ async function main() {
     { ruleIdx: 3, triggerPoint: 'CONTRACT_START', subjectType: 'PERSON', subjectId: people[2].id, outcome: 'PASS', reason: `${consultantData[2].name} — Green Card holder, work authorization valid`, daysAgo: 120 },
     // PASS — John Martinez contract start, rate band check
     { ruleIdx: 2, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[1].id, outcome: 'PASS', reason: `${consultantData[5].name} — $105/hr within $75–$160 band`, daysAgo: 90 },
-    // PASS — Cloudepa insurance verified
-    { ruleIdx: 4, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[0].id, outcome: 'PASS', reason: 'Cloudepa Inc. — GL and WC insurance verified, expires 2027-03-15', daysAgo: 120 },
+    // PASS — Techpeple insurance verified
+    { ruleIdx: 4, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[0].id, outcome: 'PASS', reason: 'Techpeple Inc. — GL and WC insurance verified, expires 2027-03-15', daysAgo: 120 },
     // PASS — Ravi Patel work auth (H1B valid through 2027)
     { ruleIdx: 3, triggerPoint: 'CONTRACT_START', subjectType: 'PERSON', subjectId: people[0].id, outcome: 'PASS', reason: `${consultantData[0].name} — H1B valid through 2027-04-30`, daysAgo: 200 },
     // PASS — segregation of duties check

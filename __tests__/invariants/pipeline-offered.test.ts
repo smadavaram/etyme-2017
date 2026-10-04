@@ -12,12 +12,12 @@ import { pipelineSays } from '@/lib/consultant-portfolio'
  * email says (`lib/interview-notices`).
  */
 
-const names = { client: 'Northbend Athletic', supplier: 'CloudEPA' }
+const names = { client: 'Northbend Athletic', supplier: 'Techpeple' }
 
 describe('a candidate reads an offer on their own page', () => {
   it('an offered candidate is told they are placed when the client awards the position, and who will be in touch', () => {
     expect(pipelineSays('OFFERED', 2, names)).toBe(
-      'You are placed when Northbend Athletic awards the position. CloudEPA will be in touch about your start date and terms.'
+      'You are placed when Northbend Athletic awards the position. Techpeple will be in touch about your start date and terms.'
     )
   })
 

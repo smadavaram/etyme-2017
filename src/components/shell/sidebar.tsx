@@ -925,7 +925,7 @@ export type SeatFacts = {
  * `*` and not as a list — that is what every seeded owner in the world
  * carries, and what `lib/permissions` has always meant by it. Comparing
  * strings here meant the menu and the routes disagreed for exactly the
- * people who can do the most: CloudEPA's owner was shown no
+ * people who can do the most: Techpeple's owner was shown no
  * Requirements, no Bench, no Invoices and no Payroll, while every one of
  * those routes let him straight in. Found on the browser walk for the
  * privacy desk, 2026-09-19 — the vendor's own owner could not see a link
@@ -1253,7 +1253,7 @@ export function Sidebar({
               {demo && companyName && <DemoChip />}
               <div className="text-[11px] font-medium text-etyme-ink truncate">
                 {/* A company, or the person themselves. This said
-                    "Cloudepa Inc." for anybody with no firm — a design
+                    "Techpeple Inc." for anybody with no firm — a design
                     placeholder that survived into production and named a
                     bench vendor from the seeded world under the page of a
                     consultant who has never heard of it. */}

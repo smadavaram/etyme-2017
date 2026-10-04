@@ -7,7 +7,7 @@ import type { CallerContext } from '@/lib/api-context'
  *
  * Found by seeding one shared world and reading the same placement from
  * three seats. Harlow Health, a client, was shown three sell contracts
- * for two people — including the row where CloudEPA sells to Computer
+ * for two people — including the row where Techpeple sells to Computer
  * Systems at $112, sitting next to the row where Computer Systems sells
  * to Harlow at $138. The subtraction is the prime's entire margin.
  *
@@ -48,14 +48,14 @@ describe('a client sees who is on its site, and not what they cost', () => {
   })
 
   it('leaves a vendor seeing its own book either way', () => {
-    expect(payerScope(caller('VENDOR', 'cloudepa'))).toEqual({ companyId: 'cloudepa' })
-    expect(sellContractScope(caller('VENDOR', 'cloudepa'))).toEqual({ companyId: 'cloudepa' })
+    expect(payerScope(caller('VENDOR', 'techpeple'))).toEqual({ companyId: 'techpeple' })
+    expect(sellContractScope(caller('VENDOR', 'techpeple'))).toEqual({ companyId: 'techpeple' })
   })
 
   it('gives a consultant their own contracts and nobody else’s', () => {
     const onBench = {
       person: { id: 'priya', name: 'Priya' },
-      company: { id: 'cloudepa', kind: 'VENDOR' },
+      company: { id: 'techpeple', kind: 'VENDOR' },
       context: { type: 'CONSULTANT' },
       permissions: [],
     } as unknown as CallerContext

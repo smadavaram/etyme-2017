@@ -100,7 +100,7 @@ const whole = (cents: number) => cents / 100
  *
  * It was "four weeks at the rate" — 160 hours over day -32 to day -4 —
  * whatever had been accepted or billed, so INV-CPRLJK held a week
- * Computer Systems had not accepted and overlapped bills CloudEPA had
+ * Computer Systems had not accepted and overlapped bills Techpeple had
  * already been paid on (2026-09-30).
  *
  * Only the weeks after the last one already billed are taken, so the

@@ -1,7 +1,7 @@
 # The whole spine — requisition to cash, walked step by step
 
 ```
-Adobe Systems  →  Maren MSP  →  Computer Systems  →  CloudEPA  →  Priya Raman
+Adobe Systems  →  Maren MSP  →  Computer Systems  →  Techpeple  →  Priya Raman
    (client)       (MSP)         (prime)            (sub)      (the person)
 
    demand travels down ▸                        ◂ the person travels up
@@ -27,8 +27,8 @@ the code.
 |---|---|---|
 | **Adobe Systems** | the client | the requisition, the budget, the purchase order |
 | **Maren MSP** | the MSP | Adobe's programme. Routes demand, takes no rate |
-| **Computer Systems** | the prime supplier | sells to Adobe, buys from CloudEPA |
-| **CloudEPA** | the sub-vendor | sells to Computer Systems, employs Priya |
+| **Computer Systems** | the prime supplier | sells to Adobe, buys from Techpeple |
+| **Techpeple** | the sub-vendor | sells to Computer Systems, employs Priya |
 | **Priya Raman** | the consultant | one bench listing, one timesheet |
 
 **The MSP here is an agent, not a principal.** It sees the demand, picks
@@ -63,25 +63,25 @@ was approved at is refused outright.
 **Step 4–5 · It travels down the panel.** Maren MSP accepts, records the role
 against itself carrying Adobe forward as the end client, and sends it to
 Computer Systems at $135. Computer Systems does the same and sends it to
-CloudEPA at $115. Three bands, three recipients, **each reads only its
-own** — CloudEPA never learns Adobe agreed to $150.
+Techpeple at $115. Three bands, three recipients, **each reads only its
+own** — Techpeple never learns Adobe agreed to $150.
 
 ### Part two — the supply
 
-**Step 6 · CloudEPA puts Priya forward at $110.** It could not have
+**Step 6 · Techpeple puts Priya forward at $110.** It could not have
 happened without the bench listing she granted, and the listing was
 granted *after* being invited rather than stamped when the row was made.
 
 **Step 7 · The package is checked before it goes anywhere.**
 
 **Step 8 · Computer Systems forwards her to Adobe at $135.** A second
-submission with its own rate, linked to the first. CloudEPA learns she
+submission with its own rate, linked to the first. Techpeple learns she
 was forwarded and to whom — **not for how much.**
 
 **Step 9 · Adobe interviews her three times.** Screen, technical, onsite,
 numbered in order. The supplier confirms times on her behalf and it is
 recorded as exactly that. The supplier is refused when it tries to record
-its own candidate as having passed — `NOT_YOURS`. CloudEPA can see she is
+its own candidate as having passed — `NOT_YOURS`. Techpeple can see she is
 interviewing and cannot see Adobe's notes.
 
 ### Part three — the paper
@@ -97,10 +97,10 @@ BLOCK where it is legally grounded, and this is not a warning to click
 past.
 
 **Step 11 · Adobe awards it.** Computer Systems gets a sell contract at
-$135 on 45-day terms, and a buy contract from **CloudEPA at $110** — the
+$135 on 45-day terms, and a buy contract from **Techpeple at $110** — the
 cost, not the price.
 
-**Step 12 · Computer Systems awards its own sub.** CloudEPA gets a sell
+**Step 12 · Computer Systems awards its own sub.** Techpeple gets a sell
 contract at $110 and a **W2** contract for Priya at $85, with no vendor
 and no purchase order, because you do not raise one to your own employee.
 
@@ -123,21 +123,21 @@ refused when she tries to sign it herself: *Nobody approves their own
 hours.*
 
 **Step 16 · Two signatures, from two different companies.** Adobe says the
-work happened (`CLIENT_APPROVAL`). CloudEPA accepts what it will pay for
+work happened (`CLIENT_APPROVAL`). Techpeple accepts what it will pay for
 (`EMPLOYER_ACCEPTANCE`). Different statements, and in a chain almost never
 the same company.
 
-**Step 17 · CloudEPA pays her.** 40 hours at $85 — $3,400.
+**Step 17 · Techpeple pays her.** 40 hours at $85 — $3,400.
 
-**Step 18 · CloudEPA invoices Computer Systems $4,400, and is paid.**
+**Step 18 · Techpeple invoices Computer Systems $4,400, and is paid.**
 
 **Step 19 · The same week reaches Adobe, at Adobe's rate.** Computer
-Systems invoices $5,400 — forty hours at **$135**, not at CloudEPA's
+Systems invoices $5,400 — forty hours at **$135**, not at Techpeple's
 $110 — drawn down against the purchase order that authorised it, and
 Adobe pays. The hours were never copied: one timesheet, two invoice
 lines, one per leg.
 
-**Step 20 · What each firm made.** CloudEPA $1,000 on the week, Computer
+**Step 20 · What each firm made.** Techpeple $1,000 on the week, Computer
 Systems the same $1,000, and neither can see the other's.
 
 ---
@@ -207,8 +207,8 @@ payroll reserve, profitability and **recording a payment** all returned
 
 ## The one it found and fixed afterwards — the chain reaching the client
 
-The first version of this walk stopped at Step 18. CloudEPA was paid,
-CloudEPA invoiced Computer Systems, and there the money stopped: Computer
+The first version of this walk stopped at Step 18. Techpeple was paid,
+Techpeple invoiced Computer Systems, and there the money stopped: Computer
 Systems had nothing to invoice Adobe from, and $259,200 of purchase order
 sat undrawn against work that had been done and signed off.
 
@@ -216,7 +216,7 @@ The stated fix at the time was to move the timesheet onto `Engagement`.
 That was wrong, and the reason is worth writing down: **an `Engagement`
 hangs off a `MasterAgreement`, which has one vendor and one client.** It
 is per firm-pair, exactly as a sell contract is. Moving the hours there
-would have left them on CloudEPA's engagement with Computer Systems' still
+would have left them on Techpeple's engagement with Computer Systems' still
 empty — the same problem one table across.
 
 ### What the ladder was missing
@@ -238,7 +238,7 @@ the reason `workOrderId` is: null means the person is our own employee
 and there is no rung below. With it the ladder reads from any rung:
 
 ```
-CS.sell(→Adobe) → CS.buy(CloudEPA) → CloudEPA.sell(→CS) → CloudEPA.buy(Priya, W2)
+CS.sell(→Adobe) → CS.buy(Techpeple) → Techpeple.sell(→CS) → Techpeple.buy(Priya, W2)
                                                           ▲
                                             the hours are filed here, once
 ```
@@ -306,11 +306,11 @@ attempted: requirements created from an invitation should carry
 `mirroredFromId`, and forwarding should rejoin the original when the
 destination is the company the chain started at.
 
-### Adobe can see CloudEPA on its compliance page
+### Adobe can see Techpeple on its compliance page
 
 Worth deciding rather than discovering. Adobe holds no counterparty record
-for CloudEPA and cannot reach them anywhere else in the product — and
-there they are, named on Adobe's own compliance page, because CloudEPA
+for Techpeple and cannot reach them anywhere else in the product — and
+there they are, named on Adobe's own compliance page, because Techpeple
 holds a contract whose end client is Adobe.
 
 That is Addendum E working rather than a leak: tenure accrues to the

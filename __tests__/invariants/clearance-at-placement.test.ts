@@ -32,7 +32,7 @@ const preview = (
   startPreview({
     personName: 'Priya Raman',
     personVerifications,
-    supplierName: 'CloudEPA',
+    supplierName: 'Techpeple',
     supplierCertificates: insured,
     clientName: 'Northbend Athletic',
     on,
@@ -57,7 +57,7 @@ describe('asking for the papers when somebody is placed', () => {
     const refusal = contractClearance({
       personName: 'Priya Raman',
       personVerifications: rows,
-      supplierName: 'CloudEPA',
+      supplierName: 'Techpeple',
       supplierCertificates: insured,
       clientName: 'Northbend Athletic',
       on,

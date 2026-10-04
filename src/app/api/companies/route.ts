@@ -487,7 +487,7 @@ export async function GET(request: NextRequest) {
   //
   // This handed every authenticated caller the whole directory: every
   // company, its slug, its domain. The walk of 2026-09-21 read all
-  // twenty-seven to Northbend Athletic's program manager, to CloudEPA's
+  // twenty-seven to Northbend Athletic's program manager, to Techpeple's
   // owner two rungs down somebody else's chain, and to a one-person
   // nursing corporation. The rule and the reasoning are in
   // `lib/directory-scope`; what is gathered here is the evidence for it.
@@ -650,7 +650,7 @@ async function dealingsOf(
   // and its name is the prime's to keep unless the caller's agreement
   // with that prime requires disclosure (lib/chain-names). Listing it
   // here printed a sub-vendor on the client's Companies page with the
-  // term off: Northbend Athletic read CloudEPA, Computer Systems' sub,
+  // term off: Northbend Athletic read Techpeple, Computer Systems' sub,
   // on 2026-09-30.
   const below = sells.filter((c) => c.companyId !== me && c.clientCompanyId !== me)
   for (const c of sells) {

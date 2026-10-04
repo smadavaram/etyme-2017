@@ -33,7 +33,7 @@ const verdict = (
   contractClearance({
     personName: 'Priya Raman',
     personVerifications,
-    supplierName: 'CloudEPA',
+    supplierName: 'Techpeple',
     supplierCertificates,
     clientName: 'Harlow Health',
     on,

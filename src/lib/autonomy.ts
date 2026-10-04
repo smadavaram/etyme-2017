@@ -478,6 +478,12 @@ ATTRIBUTED.DEMO_WORLD_REBUILT = { basis: 'RULE' }
 // the row is the marker the next call reads to start after it. Not
 // reversible: the rows the step wrote stay.
 ATTRIBUTED.DEMO_SEED_STEP = { basis: 'RULE' }
+// A demo firm whose name was retired, renamed in place by the seeding
+// that somebody holding the deployment secret asked for
+// (lib/seed-renames). `RULE` because what moves is decided by the
+// rename map and the demo world's scope and nothing else. Not
+// reversible: the old name is a real company's and is not put back.
+ATTRIBUTED.DEMO_FIRM_RENAMED = { basis: 'RULE' }
 // Rows earlier seeds wrote outside the demo world, deleted on the
 // request of somebody holding the deployment secret who typed the phrase
 // (lib/seed-cleanup). `RULE` because what went is decided by the markers

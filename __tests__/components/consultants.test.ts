@@ -125,7 +125,7 @@ describe('Consultants tier filtering', () => {
 
 describe('Consultants search filter', () => {
   const consultants = [
-    { name: 'Ravi Patel', email: 'ravi@cloudepa.com', skills: ['SAP BRIM', 'S/4HANA'], location: 'Dallas, TX', headline: 'Senior SAP Consultant', workAuth: 'H1B' },
+    { name: 'Ravi Patel', email: 'ravi@techpeple.example', skills: ['SAP BRIM', 'S/4HANA'], location: 'Dallas, TX', headline: 'Senior SAP Consultant', workAuth: 'H1B' },
     { name: 'Priya Sharma', email: 'priya@tcs.com', skills: ['Azure', '.NET'], location: 'Remote', headline: 'Cloud Engineer', workAuth: 'US_CITIZEN' },
   ]
 
@@ -144,7 +144,7 @@ describe('Consultants search filter', () => {
   })
 
   it('searches by email', () => {
-    const filtered = consultants.filter((c) => searchFilter(c, 'cloudepa'))
+    const filtered = consultants.filter((c) => searchFilter(c, 'techpeple'))
     expect(filtered).toHaveLength(1)
   })
 
