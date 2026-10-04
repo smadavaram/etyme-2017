@@ -61,8 +61,8 @@ export function staffOnly(
 ): NextResponse | null {
   if (!isConsultantSeat(caller)) return null
 
-  // Company names routinely end in a full stop — "Cloudepa Inc." — and a
-  // refusal reading "Cloudepa Inc.. You are" looks like the bug it is.
+  // Company names routinely end in a full stop — "Techpeple Inc." — and a
+  // refusal reading "Techpeple Inc.. You are" looks like the bug it is.
   const where = (caller.company?.name ?? 'this agency').replace(/\.$/, '')
 
   return NextResponse.json(

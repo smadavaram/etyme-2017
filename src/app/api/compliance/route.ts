@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
   // a supplier calling this route with no `?clientCompanyId=` resolved
   // to somebody else's company; now it resolves to its own, and its own
   // page came back nearly empty — `endClientFilter(Computer Systems)`
-  // asks "who works at Computer Systems' site", and CloudEPA's people
+  // asks "who works at Computer Systems' site", and Techpeple's people
   // work at Auralis's. The one thing a prime genuinely needs from a
   // compliance page — is my sub-vendor's cover current, and are the
   // people it has on my client's site cleared — was the one thing it
