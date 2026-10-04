@@ -591,11 +591,9 @@ const MAY_SPELL: Record<string, string> = {
  * write. Every one is a code comment except two that a person reads: the
  * suppliers page's paste example (`Cloudepa Systems`) and the leads form's
  * refusal ("a domain like …com"), both of which want the new name and a
- * reserved domain. CLAUDE.md uses the name as a worked example in several
- * decisions and changes only with the founder's own approval.
+ * reserved domain. CLAUDE.md was renamed on the founder's request the same day.
  */
 const OWED = new Map<string, string>([
-  ['CLAUDE.md', 'the founder'],
   ['src/lib/forwarding.ts', 'etyme-conversation'],
   ['src/lib/interview-notices.ts', 'etyme-conversation'],
   ['src/lib/interviews.ts', 'etyme-conversation'],

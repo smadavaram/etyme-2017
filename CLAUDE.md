@@ -202,7 +202,7 @@ rules follow:
   what a firm **receives from below** is an **invoice receipt** — the
   client's screen of what its suppliers sent is "Invoice receipts", not
   "Supplier invoices". The supplier's own document may still be called
-  its invoice in a sentence ("CloudEPA sends its invoice"); the list, the
+  its invoice in a sentence ("Techpeple sends its invoice"); the list, the
   heading and the step are "invoice receipt".
 - **Plain English for a global reader. Decided by the founder,
   2026-09-29:** *"Simple plain English that people in India, the US, the
@@ -1503,7 +1503,7 @@ Three rules follow:
 - **What each rung may bill, and when. Decided by the founder,
   2026-09-28** ("1 yes, 2 A, 3 block"):
   1. **A firm bills only the hours the firm above it accepted.** If
-     Computer Systems accepts 38 of Helena's 40, CloudEPA's bill to
+     Computer Systems accepts 38 of Helena's 40, Techpeple's bill to
      Computer Systems — generated in Etyme or uploaded — is for 38.
      Generation prices the payer's accepted hours, not the hours worked.
   2. **A firm bills upward on the client's signature**, without waiting
