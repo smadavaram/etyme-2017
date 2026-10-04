@@ -4,7 +4,7 @@ import { releasing, summarize, mayShow, type RollingOff } from '@/lib/releasing-
 import { writeFromRules, DEFAULT_HEADINGS, type SiteVoice } from '@/lib/site-voice'
 
 /**
- * What the world sees at cloudepa.etyme.com.
+ * What the world sees at techpeple.etyme.com.
  *
  * The first version of this was one page of facts for nobody in
  * particular. It was honest and inert: you read it and then you were done.

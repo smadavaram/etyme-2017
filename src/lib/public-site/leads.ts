@@ -118,7 +118,7 @@ export function problems(input: AskInput): Problem[] {
     out.push({
       field: 'email',
       says:
-        `"${typed}" is missing the part after the @ — a domain like cloudepa.com. ` +
+        `"${typed}" is missing the part after the @ — a domain like yourcompany.example. ` +
         'Send it again with the whole address and it will go straight through.',
     })
   }
