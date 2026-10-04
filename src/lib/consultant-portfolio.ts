@@ -1201,7 +1201,7 @@ export function pipelineSays(
 //
 // Founder, 2026-09-28: "Worker knows the complete chain." Their page
 // listed every rung as a placement of its own, so Helena read Northbend
-// Athletic twice — once as CloudEPA's contract, once as Computer
+// Athletic twice — once as Techpeple's contract, once as Computer
 // Systems'. One placement is one line naming every firm between her and
 // the client, in order. The NDA keeping a sub-vendor's name from the
 // client is about the client; the worker is employed through that firm
@@ -1230,7 +1230,7 @@ export interface PlacementLine<T extends ChainRung = ChainRung> {
   through: string[]
   /** The firm at the bottom, which pays the worker. */
   employer: string
-  /** "Northbend Athletic · through Computer Systems · employed by CloudEPA" */
+  /** "Northbend Athletic · through Computer Systems · employed by Techpeple" */
   says: string
 }
 
@@ -1385,7 +1385,7 @@ export interface SummaryCard {
  * A week the client signed and a firm below has not accepted yet is not
  * here. It is waiting, and the waiting card counts it (`waitingCard`).
  * Until 2026-10-03 it was counted on both, and Helena Marsh's Sep 21 week
- * read as approved, as waiting on approval, and as "waiting on CloudEPA"
+ * read as approved, as waiting on approval, and as "waiting on Techpeple"
  * while it was with Computer Systems Inc — one week, three states.
  */
 export function signedWeeksCard(s: SignedWeeks): SummaryCard {
@@ -1412,7 +1412,7 @@ export function signedWeeksCard(s: SignedWeeks): SummaryCard {
 //
 // The worker tester, 2026-10-03, on Helena Marsh's page: the Sep 21 week
 // was counted as approved, as waiting on approval, and as "waiting on
-// CloudEPA", while the section below said it was with Computer Systems
+// Techpeple", while the section below said it was with Computer Systems
 // Inc. And Rosa Delgado's paid weeks read "approved" in Your hours under a
 // section that said "Paid". Each reader had worked the state out its own
 // way. This is the one way: the tiles, the pay section and Your hours all
@@ -1495,8 +1495,8 @@ export function waitingCard(states: ReadonlyArray<WeekState>): SummaryCard {
 /**
  * Who signs her hours after she sends them, in the order they sign:
  * "After you send, Northbend Athletic approves them first. Then Computer
- * Systems Inc and CloudEPA accept them, in that order." The filing card
- * said "CloudEPA and the client each sign them", which left out the firm
+ * Systems Inc and Techpeple accept them, in that order." The filing card
+ * said "Techpeple and the client each sign them", which left out the firm
  * between and put the client last (worker tester, 2026-10-03).
  */
 export function signingOrder(signers: ReadonlyArray<WeekSigner>): string {

@@ -22,7 +22,7 @@ import { AskedToMarket } from './asked-to-market'
 
 interface Placement {
   id: string
-  /** "Northbend Athletic · through Computer Systems · employed by CloudEPA" */
+  /** "Northbend Athletic · through Computer Systems · employed by Techpeple" */
   chain: string
   through: string[]
   payer: string

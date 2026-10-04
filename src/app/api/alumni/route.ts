@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
   // ── Whose name this reader may read ─────────────────────────────────
   //
-  // "Released May 2026 · CloudEPA" named the prime's sub-vendor on the
+  // "Released May 2026 · Techpeple" named the prime's sub-vendor on the
   // client's own page, and the vendor list beside it did the same. Who
   // worked here and when is the client's; which firm below its supplier
   // employed them is the prime's, unless the agreement says otherwise.
