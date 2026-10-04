@@ -1,7 +1,7 @@
 /**
  * Two records, one firm.
  *
- * Two clients each list Cloudepa Systems. Neither knows the other did,
+ * Two clients each list Techpeple. Neither knows the other did,
  * so there are two supplier shells with the same domain — and the second
  * person to sign in gets the one their own client created, not the one
  * their colleague already claimed.

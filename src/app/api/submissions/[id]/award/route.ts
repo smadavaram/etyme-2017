@@ -306,7 +306,7 @@ export async function POST(
   // The company they submitted to — not the company that wrote the role
   // down. On a client requisition those are the same. On a vendor's own
   // record of somebody else's advert they are not, and using the second
-  // produced a contract where Cloudepa sold to Cloudepa: no counterparty,
+  // produced a contract where Techpeple sold to Techpeple: no counterparty,
   // no approver, nothing to bill.
   const payerId = submission.toCompanyId
 

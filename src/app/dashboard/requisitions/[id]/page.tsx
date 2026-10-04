@@ -287,7 +287,7 @@ function DistributePanel({ reqId, billMax, invited, clearedIds, suppliers, onSen
    * firms it buys from directly — and nobody else.
    *
    * It read the whole company directory, filtered by kind, so Northbend
-   * was offered CloudEPA: a firm it reaches only through Computer
+   * was offered Techpeple: a firm it reaches only through Computer
    * Systems, whose name is Computer Systems' to keep. A firm below a
    * prime is never on a client's register, so it is never offered here;
    * the release route refuses it as well.

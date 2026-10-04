@@ -34,7 +34,7 @@ import { configuredSenders } from '@/lib/senders'
  * invisible to the network, and is never counted as a company that chose
  * to be here. And where the firm is already on the platform under its own
  * name, the client is attached to the real one rather than a second copy
- * — the second client to list Cloudepa must reach the same Cloudepa.
+ * — the second client to list Techpeple must reach the same Techpeple.
  */
 
 export async function GET(request: NextRequest) {
@@ -292,8 +292,8 @@ export async function POST(request: NextRequest) {
     // ── Which company this is, in three steps ───────────────────────
     //
     // 1. The real firm, already here under its own name and having
-    //    proved the domain. Attach to it — a second copy of Cloudepa is
-    //    worse than no Cloudepa: two scorecards, two histories, and a
+    //    proved the domain. Attach to it — a second copy of Techpeple is
+    //    worse than no Techpeple: two scorecards, two histories, and a
     //    consultant who is a duplicate of themselves.
     //
     // 2. A shell this same client already listed for that domain. Two
@@ -301,8 +301,8 @@ export async function POST(request: NextRequest) {
     //
     // 3. Otherwise a new shell — and it gets no `domain` at all. That
     //    column is globally unique and a pasted address proves nothing:
-    //    a client typing "cloudepa.com" must not be able to take the
-    //    domain from the real Cloudepa, be handed it, or collide with a
+    //    a client typing "techpeple.example" must not be able to take the
+    //    domain from the real Techpeple, be handed it, or collide with a
     //    stranger's sandbox. The domain is recorded on the invitation
     //    and moves onto the company when somebody signs in and claims it.
     const claimed = row.domain

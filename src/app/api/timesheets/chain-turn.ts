@@ -13,10 +13,10 @@
  * ── What it was ───────────────────────────────────────────────────────
  *
  * Two signatures on the week: the client's and the employer's. In
- * Northbend ← Computer Systems ← CloudEPA (Helena Marsh), Computer
- * Systems — who pays CloudEPA for every hour — had no step at all: the
+ * Northbend ← Computer Systems ← Techpeple (Helena Marsh), Computer
+ * Systems — who pays Techpeple for every hour — had no step at all: the
  * approve route put it on the employer's branch and refused it, "Only the
- * company that pays this person can accept these hours." And CloudEPA
+ * company that pays this person can accept these hours." And Techpeple
  * could accept before Northbend had signed, on purpose (`maySign`), so a
  * sub-vendor could run payroll on a week its client never agreed.
  *

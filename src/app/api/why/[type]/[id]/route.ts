@@ -139,7 +139,7 @@ export async function GET(
 
       // ── The subject is read off the verdict, never before it ────────
       //
-      // "Priya Raman's placement through CloudEPA" was built from the
+      // "Priya Raman's placement through Techpeple" was built from the
       // record the moment it was fetched and sent whatever the verdict
       // said — so the sentence explaining that somebody may not read a
       // placement handed them the placement. The same shape leaked a

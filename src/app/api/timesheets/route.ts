@@ -37,7 +37,7 @@ import {
  *
  * A client is owed what it pays. In a chain the hours hang off the
  * bottom rung — the leg where the employer is — so reading the rate off
- * the timesheet's own contract printed CloudEPA's $118 on Nike's screen
+ * the timesheet's own contract printed Techpeple's $118 on Nike's screen
  * beside the $145 Nike is billed, and the difference is the prime's
  * entire margin. The rows stay, because a client signs the hours of
  * people it never contracted with; the rate is walked up the chain to
@@ -274,7 +274,7 @@ export async function GET(request: NextRequest) {
         // — the next rung down — and never the employer below it: in a
         // chain the employer is the prime's sub-vendor, and a sub-vendor's
         // name is the prime's to keep (CLAUDE.md, 2026-09-17). The row read
-        // "waiting on CloudEPA" to Northbend, whose agreement with Computer
+        // "waiting on Techpeple" to Northbend, whose agreement with Computer
         // Systems discloses nobody.
         const otherParty = isClientSide
           ? asClient

@@ -10,7 +10,7 @@ import { prisma } from '@/lib/db'
  * with the prime — so it is never here.
  *
  * Read by the release door, which sent Northbend Athletic's job to
- * whatever id it was handed: the panel offered CloudEPA, Computer
+ * whatever id it was handed: the panel offered Techpeple, Computer
  * Systems' sub-vendor, out of the whole company directory, and the door
  * took it. A sub-vendor's name is the prime's to keep (CLAUDE.md,
  * 2026-09-17), and a job sent to it would be the client going round the

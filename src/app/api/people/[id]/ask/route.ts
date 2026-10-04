@@ -20,8 +20,8 @@ import type { Participant } from '@/lib/threads'
  *
  * It used to go to whoever held the consultant's bench listing, which on
  * a chain is the firm at the bottom. So a client buying Helena Marsh
- * from Computer Systems, who buy her from CloudEPA, pressed one button
- * and got CloudEPA named on their own page and a direct thread opened
+ * from Computer Systems, who buy her from Techpeple, pressed one button
+ * and got Techpeple named on their own page and a direct thread opened
  * with them. That is the NDA between a prime and its sub breached in
  * both directions at once: the term that stops the sub going round the
  * prime is the same term that stops the client going round the prime,

@@ -2,7 +2,7 @@
  * The client's picture is what it buys, not how its suppliers staff it.
  *
  * In a chain — Nike buys Helena from Computer Systems, who buys her from
- * CloudEPA — every rung is a sell contract at this end client. Counting
+ * Techpeple — every rung is a sell contract at this end client. Counting
  * each rung made one person three contractors, a sub-supplier a
  * supplier, and put a rate the client has no business seeing on the
  * client's own page. Per person, keep the rungs whose buyer is not

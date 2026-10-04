@@ -4,13 +4,13 @@
  * ── The break this answers ────────────────────────────────────────────
  *
  * Break #4 of the founder's lifecycle walk. Computer Systems opens Bench →
- * Your network and reads Grace Lindqvist, whom CloudEPA offered its
- * network: a marketing-tier listing she granted CloudEPA. Northbend
+ * Your network and reads Grace Lindqvist, whom Techpeple offered its
+ * network: a marketing-tier listing she granted Techpeple. Northbend
  * Athletic has released a requisition to Computer Systems. Computer
  * Systems cannot put her on it. The submit door looked for a listing
  * *Computer Systems* holds and, finding none, said "The consultant must
  * grant a listing first" — which she had, to the firm that offered her.
- * The only road left was CloudEPA going round its prime to the client,
+ * The only road left was Techpeple going round its prime to the client,
  * which is the one thing a prime–sub relationship exists to prevent.
  *
  * ── Whose consent it is ───────────────────────────────────────────────

@@ -81,7 +81,7 @@ function forbidden(message: string): Resolution {
  *
  * In a chain the sub-vendor's contract also carries the client as its
  * end client, so an end-client filter handed a client the row where
- * CloudEPA sells to Computer Systems at $118 — next to the row where
+ * Techpeple sells to Computer Systems at $118 — next to the row where
  * Computer Systems sells to the client at $145. Subtracting one from
  * the other is the prime's whole margin, and a prime whose margin its
  * client can read has no business left.
@@ -288,7 +288,7 @@ export async function resolveClientCompany(
   // contingent workforce of their own — the people they engage, the
   // subs below them, those firms' insurance and those people's tenure at
   // *their* site — and these routes are how it is read. Computer Systems
-  // reading CloudEPA's certificate is Computer Systems reading its own
+  // reading Techpeple's certificate is Computer Systems reading its own
   // supply chain, and that is a different question from Computer Systems
   // reading Auralis's.
   //

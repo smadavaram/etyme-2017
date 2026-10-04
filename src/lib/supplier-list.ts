@@ -26,7 +26,7 @@
  * A supplier's identity. Where the only thing on a line is a gmail
  * address, we do not invent a company name from the local part —
  * "ravi.menon@gmail.com" is a person, and a supplier record called
- * "Ravi Menon" that later turns out to be Cloudepa Systems is a mess
+ * "Ravi Menon" that later turns out to be Techpeple is a mess
  * somebody has to unpick by hand. It comes back needing a name.
  */
 
@@ -227,7 +227,7 @@ export function companyDomain(email: string): string | null {
 /**
  * A company name from a domain, where there is nothing better.
  *
- * "cloudepa.com" → "Cloudepa". "vertex-talent.io" → "Vertex Talent". It
+ * "techpeple.example" → "Techpeple". "vertex-talent.io" → "Vertex Talent". It
  * is a guess and it is shown to somebody who can correct it in one
  * keystroke, which is the only reason it is allowed to guess at all.
  */
