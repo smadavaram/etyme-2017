@@ -115,9 +115,9 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
     expect(row.status).toBe('APPROVED')
     expect(row.employerAcceptedAt).not.toBeNull()
     expect(row.assertions.filter((a) => a.state === 'LIVE').map((a) => `${a.company.name}:${a.role}`).sort()).toEqual([
-      'Techpeple:EMPLOYER_ACCEPTANCE',
       'Computer Systems Inc:PASS_THROUGH',
       'Northbend Athletic:CLIENT_APPROVAL',
+      'Techpeple:EMPLOYER_ACCEPTANCE',
     ])
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
     expect(await prisma.timesheet.count({ where: { personId: helena.id, periodStart: row.periodStart } })).toBe(1)

@@ -217,9 +217,9 @@ describe('a client approves a week by email, and the proof travels down the chai
     const row = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week }, include: { assertions: { include: { company: true } } } })
     expect(row.status).toBe('APPROVED')
     expect(row.assertions.filter((a) => a.state === 'LIVE').map((a) => `${a.company.name}:${a.role}`).sort()).toEqual([
-      'Techpeple:EMPLOYER_ACCEPTANCE',
       'Computer Systems Inc:PASS_THROUGH',
       'Northbend Athletic:CLIENT_APPROVAL',
+      'Techpeple:EMPLOYER_ACCEPTANCE',
     ])
   })
 
