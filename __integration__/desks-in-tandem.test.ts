@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { day } from '@/lib/seed-days'
+import { billingWindowFor } from './billing-window'
 
 import { GET as listRoles } from '@/app/api/roles/route'
 import { POST as invite } from '@/app/api/access/invite/route'
@@ -317,11 +318,12 @@ describe('the desks, in tandem: one placement, and at every station the wrong de
 
   it('Accounts Receivable bills the customer, and the desk that pays Rosalind cannot raise a bill', async () => {
     it_.engagement = (await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, select: { engagementId: true } })).engagementId
-    const period = {
-      engagementId: it_.engagement,
-      periodStart: day(-7).toISOString().slice(0, 10),
-      periodEnd: day(-3).toISOString().slice(0, 10),
-    }
+    // Her week is the five days before the world's birthday, so on a
+    // birthday early in a month it crosses the month end and is billed in
+    // the month it ends in; the bill is asked for that part of the week.
+    const week = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.timesheet } })
+    const { periodStart, periodEnd } = await billingWindowFor(it_.contract, week)
+    const period = { engagementId: it_.engagement, periodStart, periodEnd }
 
     as(BRIGHTMOOR.payroll)
     refused(await json(await generateBill(req('POST', '/api/invoices/generate', period))))

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { matchInvoice } from '@/lib/invoice-match'
+import { billingWindowFor, type WeekWindow } from './billing-window'
 
 import { POST as approve } from '@/app/api/timesheets/[id]/approve/route'
 import { POST as generate } from '@/app/api/invoices/generate/route'
@@ -32,8 +33,11 @@ const sign = async (id: string, body: unknown = {}) =>
 
 const s: Record<string, any> = {}
 
-const bill = async (engagementId: string) =>
-  json(await generate(req('POST', '/api/invoices/generate', { engagementId, periodStart: s.from, periodEnd: s.to })))
+// A bill is asked for the part of the week in the period the week bills
+// in, read off each contract's own terms â€” the week's own dates when it
+// sits inside one period, which is most days (see ./billing-window).
+const bill = async (engagementId: string, window: WeekWindow) =>
+  json(await generate(req('POST', '/api/invoices/generate', { engagementId, periodStart: window.periodStart, periodEnd: window.periodEnd })))
 
 const receipt = async (number: string, hours: number) =>
   json(
@@ -95,6 +99,8 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
       payRate: buy.candidates[0].payRate,
       from: week.periodStart.toISOString().slice(0, 10),
       to: week.periodEnd.toISOString().slice(0, 10),
+      topWindow: await billingWindowFor(top.id, week),
+      rungWindow: await billingWindowFor(rung.id, week),
     })
 
     // The seed records Techpeple's invoice receipts at Computer Systems over
@@ -171,7 +177,7 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
     expect(await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: { in: [s.cs, s.techpeple] } } })).toBe(0)
 
     as(CS)
-    const r = await bill(s.top.engagementId)
+    const r = await bill(s.top.engagementId, s.topWindow)
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect(r.body.data.heldBack.weeks).toEqual([])
     const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: r.body.data.invoice.id, timesheetId: s.week } })
@@ -207,7 +213,7 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
 
   it('Techpeple cannot bill Computer Systems for Helenaâ€™s week until Computer Systems has accepted it, and is told so in a sentence', async () => {
     as(TECHPEPLE)
-    const r = await bill(s.rung.engagementId)
+    const r = await bill(s.rung.engagementId, s.rungWindow)
     expect(r.status, JSON.stringify(r.body)).toBe(422)
     expect(r.body.error.code).toBe('NOT_ACCEPTED_ABOVE')
     expect(r.body.error.message).toBe(
@@ -263,7 +269,7 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
 
   it('a bill never covers hours already on a bill to the same firm: Techpeple cannot generate a bill for the week Computer Systems already holds its invoice for, and is told which', async () => {
     as(TECHPEPLE)
-    const r = await bill(s.rung.engagementId)
+    const r = await bill(s.rung.engagementId, s.rungWindow)
     expect(r.status, JSON.stringify(r.body)).toBe(422)
     expect(r.body.error.message).toMatch(new RegExp(`^Helena Marshâ€™s week of .+ is already on invoices .*CE-HM-38.*, which ${s.csName} recorded from you, so it is not billed again\\.$`))
     expect(await prisma.invoiceLine.count({ where: { timesheetId: s.week, sellContractId: s.rung.id } })).toBe(0)
@@ -279,7 +285,7 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
     expect(await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: s.techpeple } })).toBe(0)
 
     as(TECHPEPLE)
-    const r = await bill(s.rung.engagementId)
+    const r = await bill(s.rung.engagementId, s.rungWindow)
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: r.body.data.invoice.id, timesheetId: s.week } })
     expect(Number(line.hours)).toBe(38)
@@ -353,9 +359,7 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
     expect(signed.body?.error, JSON.stringify(signed.body)).toBeUndefined()
 
     as(CS)
-    const made = await json(
-      await generate(req('POST', '/api/invoices/generate', { engagementId: s.top.engagementId, periodStart: day(0), periodEnd: day(4) }))
-    )
+    const made = await bill(s.top.engagementId, await billingWindowFor(s.top.id, ts))
     expect(made.status, JSON.stringify(made.body)).toBe(201)
     expect(made.body.data.heldBack.weeks).toEqual([])
     const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: made.body.data.invoice.id, timesheetId: ts.id } })
