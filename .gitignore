@@ -75,3 +75,7 @@ npm-debug.log*
 /walk-output/
 /phone-report/
 docs/lanes/out/
+
+# Never commit a cloud credential or a database dump
+*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json
+dump.rdb
