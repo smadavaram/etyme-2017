@@ -5,7 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { canJoin, buttonSays, type Side } from '@/lib/join-companies'
 import { CANNOT_JOIN_SUPPLIERS } from '@/lib/supplier-list'
-import { writePermissions } from '@/lib/resolve-client-company'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * GET  /api/suppliers/join — pairs that look like one firm twice
@@ -167,9 +167,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
 
   const notStaff = staffOnly(caller, 'Joining supplier records')
   if (notStaff) return notStaff
@@ -252,7 +254,7 @@ export async function POST(request: NextRequest) {
     // possible by hand, which is not the same thing as a button.
     await tx.automationLog.create({
       data: {
-        companyId: caller.company!.id,
+        companyId: desk!.companyId,
         action: 'SUPPLIER_RECORDS_JOINED',
         summary: `${fold.name} folded into ${keep.name} by ${caller.person.name}`,
         reason: `${caller.person.name} joined two records of one firm on ${keep.domain ?? fold.domain ?? 'the same domain'}`,

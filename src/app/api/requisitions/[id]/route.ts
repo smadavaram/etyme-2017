@@ -18,7 +18,7 @@ import {
 import { ancestry } from '@/lib/org-tree'
 import { ownPriceMedian } from '@/lib/chain-top'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
-import { writePermissions } from '@/lib/resolve-client-company'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * GET /api/requisitions/:id
@@ -327,9 +327,11 @@ export async function PATCH(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
@@ -360,7 +362,7 @@ export async function PATCH(
 
   // The company that raised it. A 404 rather than a 403 — confirming
   // another client's requisition exists is itself a leak.
-  if (caller.company?.id !== requisition.companyId) {
+  if (desk?.companyId !== requisition.companyId) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'No job request by that id.' } },
       { status: 404 }
@@ -384,7 +386,7 @@ export async function PATCH(
         error: {
           code: 'FORBIDDEN',
           message:
-            `Only the manager this is for, whoever raised it, or the program office at ${caller.company!.name} can change it. ` +
+            `Only the manager this is for, whoever raised it, or the program office at ${desk!.companyName} can change it. ` +
             'An approver asks for changes instead.',
         },
       },

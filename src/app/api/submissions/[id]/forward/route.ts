@@ -7,7 +7,7 @@ import { mayForward, onwardRate, mirrorRole, type Via } from '@/lib/forwarding'
 import { clientOf, takeHold } from '@/lib/holds'
 import { whyNotOpen } from '../../words'
 import { landingFor } from './landing'
-import { writePermissions } from '@/lib/resolve-client-company'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * POST /api/submissions/:id/forward
@@ -36,9 +36,11 @@ export async function POST(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
@@ -69,7 +71,7 @@ export async function POST(
   }
 
   const verdict = mayForward(
-    { companyId: caller.company?.id, permissions: deskPermissions },
+    { companyId: desk?.companyId, permissions: deskPermissions },
     {
       id: submission.id,
       fromCompanyId: submission.fromCompanyId,
@@ -133,7 +135,7 @@ export async function POST(
     // and being told it is filled beats a copy nobody will ever read.
     const sent = await prisma.requirementInvitation.findMany({
       where: {
-        toCompanyId: caller.company!.id,
+        toCompanyId: desk!.companyId,
         status: { not: 'DECLINED' },
         requirement: { companyId: destination.id },
       },
@@ -214,7 +216,7 @@ export async function POST(
             error: {
               code: 'ALREADY_SUBMITTED',
               message:
-                already.fromCompanyId === caller.company!.id
+                already.fromCompanyId === desk!.companyId
                   ? `You already put ${submission.person.name} forward for ${target.title}.`
                   : `${submission.person.name} has already been put forward for ${target.title} by another firm. First in wins.`,
             },
@@ -225,7 +227,7 @@ export async function POST(
       role = { id: target.id }
       // Answering a role accepts the invitation, as submitting does.
       await prisma.requirementInvitation.updateMany({
-        where: { requirementId: target.id, toCompanyId: caller.company!.id, status: 'SENT' },
+        where: { requirementId: target.id, toCompanyId: desk!.companyId, status: 'SENT' },
         data: { status: 'ACCEPTED' },
       })
     } else {
@@ -287,7 +289,7 @@ export async function POST(
       data: {
         requirementId: role.id,
         personId: submission.personId,
-        fromCompanyId: caller.company!.id,
+        fromCompanyId: desk!.companyId,
         toCompanyId: destination.id,
         kind: submission.kind,
         rate,
@@ -316,7 +318,7 @@ export async function POST(
         companyId: destination.id,
         type: 'SUBMISSION',
         title: `${submission.person.name} for ${submission.requirement.title}`,
-        body: `${caller.company!.name} put ${submission.person.name} forward for ${submission.requirement.title}.`,
+        body: `${desk!.companyName} put ${submission.person.name} forward for ${submission.requirement.title}.`,
         entityId: child.id,
       })
     }
@@ -346,7 +348,7 @@ export async function POST(
 
   void emit({
     type: 'submission.forwarded',
-    companyId: caller.company!.id,
+    companyId: desk!.companyId,
     subjectType: 'Submission',
     subjectId: submission.id,
     actorPersonId: caller.person.id,
@@ -359,7 +361,7 @@ export async function POST(
     personId: submission.personId,
     type: 'SUBMISSION',
     title: `You were sent on to ${toName ?? 'the client'}`,
-    body: `${caller.company!.name} sent you on to ${toName ?? 'the client'} for ${submission.requirement.title}. ${submission.fromCompany.name} put you forward to them originally.`,
+    body: `${desk!.companyName} sent you on to ${toName ?? 'the client'} for ${submission.requirement.title}. ${submission.fromCompany.name} put you forward to them originally.`,
     entityId: submission.id,
   })
 
@@ -380,7 +382,7 @@ export async function POST(
       companyId: submission.fromCompanyId,
       type: 'SUBMISSION',
       title: `${submission.person.name} went on to ${toName ?? 'the client'}`,
-      body: `${caller.company!.name} sent ${submission.person.name} on for ${submission.requirement.title}. What they are charging is theirs, and is not shown here.`,
+      body: `${desk!.companyName} sent ${submission.person.name} on for ${submission.requirement.title}. What they are charging is theirs, and is not shown here.`,
       entityId: submission.id,
     })
   }

@@ -9,7 +9,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { askGoesTo } from '@/lib/chain-top'
 import { tellThread } from '@/lib/thread-notices'
 import type { Participant } from '@/lib/threads'
-import { writePermissions } from '@/lib/resolve-client-company'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * POST /api/people/[id]/ask   { requirementId, note? }
@@ -45,9 +45,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
   const notStaff = staffOnly(caller, 'Asking for a person')
   if (notStaff) return notStaff
   // The reader's own word for a job, the one on their menu: a client
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!hasPermission(deskPermissions, 'requirements.write')) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: `Asking for a person is for whoever raises ${word.plural.toLowerCase()} here.` } }, { status: 403 })
   }
-  const companyId = caller.company!.id
+  const companyId = desk!.companyId
   const now = new Date()
   const body = await request.json().catch(() => ({}))
   const requirementId = typeof body?.requirementId === 'string' ? body.requirementId : null
@@ -138,7 +140,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // person in front of it.
   const firms = await prisma.company.findMany({ where: { id: { in: route.toCompanyIds } }, select: { id: true, name: true } })
 
-  const me = { id: companyId, name: caller.company!.name }
+  const me = { id: companyId, name: desk!.companyName }
   const opener: Participant = { personId: caller.person.id, name: caller.person.name, companyId: me.id, joinedAt: now.toISOString() }
   // Where the ask came up the chain, the prime is told why it landed
   // with them rather than with whoever holds the listing. It says

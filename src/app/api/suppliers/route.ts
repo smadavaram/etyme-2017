@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { seatedDesk, writePermissions } from '@/lib/resolve-client-company'
+import { seatedDesk } from '@/lib/resolve-client-company'
 import { defaultPostureFor } from '@/lib/walls'
 import { hasPermission } from '@/lib/permissions'
 import {
@@ -14,6 +14,7 @@ import { suppliersOwing } from '@/lib/supplier-desks'
 import { inviteLetter } from '@/lib/reaching-out'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * GET  /api/suppliers        — who this client buys from, and where each stands
@@ -249,9 +250,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
 
   const notStaff = staffOnly(caller, 'Suppliers')
   if (notStaff) return notStaff
@@ -263,7 +266,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: CANNOT_ADD_SUPPLIER } }, { status: 403 })
   }
 
-  const companyId = caller.company!.id
+  const companyId = desk!.companyId
   const body = await request.json().catch(() => ({}))
 
   // Either a raw paste, or the rows after somebody has corrected them on
@@ -444,7 +447,7 @@ export async function POST(request: NextRequest) {
       const letter = inviteLetter({
         supplierName: supplier.name,
         contactName: row.contactName ?? null,
-        clientName: caller.company!.name,
+        clientName: desk!.companyName,
         rolesWaiting: waiting.length,
         firstRole: waiting[0]?.requirement.title ?? null,
         claimUrl,

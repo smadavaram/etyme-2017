@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { requirementScope, seatedDesk, unitsReachedBy, writePermissions } from '@/lib/resolve-client-company'
+import { requirementScope, seatedDesk, unitsReachedBy } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { requirementForReader } from './visible'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * GET /api/requirements
@@ -177,9 +178,11 @@ export async function POST(request: NextRequest) {
   // know which company the caller belongs to — see below.
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
 
   const body = await request.json()
   const { companyId, title, skills, location, billMin, billMax, months, startDate, msaId, marginClass, rateVisible } = body
@@ -201,7 +204,7 @@ export async function POST(request: NextRequest) {
   // client's behalf is a real case and not this one — it needs a
   // recorded relationship saying so, and inventing that silently here
   // is how the hole got made.
-  const mine = caller.company?.id
+  const mine = desk?.companyId
   if (!mine) {
     return NextResponse.json(
       { error: { code: 'NO_COMPANY', message: 'You need to belong to a company to raise a requirement.' } },
@@ -239,7 +242,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'NOT_HIRING',
           message:
-            `Opening a job is for whoever is hiring at ${caller.company?.name ?? 'your company'} — ` +
+            `Opening a job is for whoever is hiring at ${desk?.companyName ?? 'your company'} — ` +
             'a hiring manager, or the desk that owns the account. Ask them to raise it.',
         },
       },

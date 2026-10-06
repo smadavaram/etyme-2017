@@ -22,7 +22,7 @@ import {
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { awardHandoff } from '@/lib/papering'
 import { loadContractHolidays } from '@/lib/holidays'
-import { writePermissions } from '@/lib/resolve-client-company'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * POST /api/submissions/:id/award   { rate?, startDate?, endDate? }
@@ -57,9 +57,11 @@ export async function POST(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
@@ -127,8 +129,8 @@ export async function POST(
     select: { id: true },
   })
   const door = awardDoor({
-    callerCompanyId: caller.company?.id ?? null,
-    callerCompanyName: caller.company?.name ?? null,
+    callerCompanyId: desk?.companyId ?? null,
+    callerCompanyName: desk?.companyName ?? null,
     mayHire: hasPermission(deskPermissions, 'requirements.write'),
     requirementCompanyId: req.companyId,
     fromCompanyId: submission.fromCompanyId,
@@ -514,7 +516,7 @@ export async function POST(
           // Whoever awarded typed it in. Ordinarily the buyer; on a
           // three-party placement the company that raised the
           // requisition, which the column exists to record.
-          recordedById: caller.company?.id ?? payerId,
+          recordedById: desk?.companyId ?? payerId,
           title: `Contingent staffing — ${submission.fromCompany.name}`,
           amountDollars: ceiling.dollars,
           currency: terms.currency.value,

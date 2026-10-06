@@ -3,11 +3,12 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
-import { resolveClientCompany, writePermissions } from '@/lib/resolve-client-company'
+import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { ledgerFor, type AcceptedExpense, type AcceptedWork, type ContractFact } from '@/lib/budget-ledger'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
 import { lineFor, splitWeeks } from '@/lib/overtime'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * GET   /api/program/budget   — every cost center, what it has committed and spent
@@ -281,9 +282,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
   const notStaff = staffOnly(caller, 'Setting a budget')
   if (notStaff) return notStaff
   const { client, error: clientError } = await resolveClientCompany(caller, null)

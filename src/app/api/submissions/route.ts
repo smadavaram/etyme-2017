@@ -12,7 +12,7 @@ import { tellThem } from '@/lib/representation'
 import { consentText, mayMessage } from '@/lib/texts'
 import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
-import { submissionScope, seatedDesk, writePermissions } from '@/lib/resolve-client-company'
+import { submissionScope, seatedDesk } from '@/lib/resolve-client-company'
 import { orderedOfSupplier } from '@/lib/supplier-desks'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
@@ -24,6 +24,7 @@ import { stayOver, refusedSays as stayRefusedSays } from '@/lib/bench-stay'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { timeLimitAtSubmission, reasonGiven, type Mode } from './time-limit'
 import { workAuthAtSubmission } from './work-authorization'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * POST /api/submissions
@@ -53,9 +54,11 @@ export async function POST(request: NextRequest) {
   // eight positions in `__integration__/party-uniform.test.ts`.
   const { caller, error: callerError } = await getCallerContext(request)
   if (callerError) return callerError
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
 
   const email = await getSessionEmail()
 
@@ -98,7 +101,7 @@ export async function POST(request: NextRequest) {
   }
 
   // A firm is put forward by its own people. Never by anybody else's.
-  if (fromCompanyId && caller.company && fromCompanyId !== caller.company.id) {
+  if (fromCompanyId && caller.company && fromCompanyId !== desk!.companyId) {
     const other = await prisma.company.findUnique({
       where: { id: fromCompanyId },
       select: { name: true },
@@ -109,7 +112,7 @@ export async function POST(request: NextRequest) {
           code: 'NOT_YOUR_FIRM',
           message:
             `Only ${other?.name ?? 'that firm'}’s own people can put somebody forward in ` +
-            `its name. You are signed in at ${caller.company.name}.`,
+            `its name. You are signed in at ${desk!.companyName}.`,
         },
       },
       { status: 403 }
@@ -160,7 +163,7 @@ export async function POST(request: NextRequest) {
           code: 'NO_PERMISSION',
           message:
             `Putting somebody in front of a client is a recruiting desk's job at ` +
-            `${caller.company?.name ?? 'your firm'} — a recruiter, a resource manager or the ` +
+            `${desk?.companyName ?? 'your firm'} — a recruiter, a resource manager or the ` +
             `account manager. Ask one of them to submit this candidate.`,
         },
       },
@@ -281,7 +284,7 @@ export async function POST(request: NextRequest) {
             code: 'NOT_INVITED',
             message:
               `${requirement.company.name} chose which suppliers see “${requirement.title}”, ` +
-              `and ${caller.company?.name ?? 'your firm'} is not among them. Ask their program ` +
+              `and ${desk?.companyName ?? 'your firm'} is not among them. Ask their program ` +
               'office to send it to you, and it will be on your Requirements page.',
           },
         },
@@ -536,7 +539,7 @@ export async function POST(request: NextRequest) {
       if (deliveryDeskOnly && !employedByUs) {
         item.status = 'error'
         item.code = 'NOT_YOUR_EMPLOYEE'
-        item.error = deliveryDeskSays(person.name, caller.company?.name ?? 'your firm')
+        item.error = deliveryDeskSays(person.name, desk?.companyName ?? 'your firm')
         await prisma.accessLog.create({
           data: {
             subjectId: personId,
@@ -544,7 +547,7 @@ export async function POST(request: NextRequest) {
             actorCompanyId: fromCompanyId,
             action: 'SUBMIT',
             allowed: false,
-            reason: `Delivery desk refused: ${person.name} is not employed by ${caller.company?.name ?? 'this firm'}`,
+            reason: `Delivery desk refused: ${person.name} is not employed by ${desk?.companyName ?? 'this firm'}`,
           },
         })
         results.push(item)

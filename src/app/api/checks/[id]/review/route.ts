@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { checkReview, CANNOT_SEE_QUEUE } from '@/lib/review'
-import { writePermissions } from '@/lib/resolve-client-company'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * POST /api/checks/:id/review
@@ -21,9 +21,11 @@ export async function POST(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
 
   const notStaff = staffOnly(caller, 'The check queue')
   if (notStaff) return notStaff
@@ -48,7 +50,7 @@ export async function POST(
   }
 
   const check = await prisma.check.findFirst({
-    where: { id, companyId: caller.company!.id },
+    where: { id, companyId: desk!.companyId },
     select: { id: true, agreed: true },
   })
 

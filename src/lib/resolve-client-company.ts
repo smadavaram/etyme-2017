@@ -602,26 +602,9 @@ export async function seatedDesk(
   caller: CallerContext,
   requestedClientId: string | null = null
 ): Promise<SeatedDesk | null> {
-  if (!caller.company) return null
-  // A client is never in a seat at itself, and asking would cost a query
-  // on every request from the population that makes most of them.
-  if (caller.company.kind !== 'CLIENT') {
-    const seat = await seatFor(caller, requestedClientId)
-    if (seat) {
-      return {
-        companyId: seat.clientCompany.id,
-        companyName: seat.clientCompany.name,
-        seat,
-        acting: actingInSeat(caller, seat),
-      }
-    }
-  }
-  return {
-    companyId: caller.company.id,
-    companyName: caller.company.name,
-    seat: null,
-    acting: caller,
-  }
+  // One answer for the reads and the writes: `actingDesk` (lib/program-seat)
+  // gives the book and the permissions together, so the two never part.
+  return actingDesk(caller, requestedClientId)
 }
 
 /**
@@ -644,23 +627,4 @@ export async function unitsReachedBy(
     select: { id: true, parentId: true },
   })
   return [seat.orgUnitId, ...descendants(units, seat.orgUnitId)]
-}
-
-/**
- * The permissions a write is judged by: the seat's, where this firm sits
- * at a client's desk, and the caller's own everywhere else.
- *
- * Found by the architect, 2026-10-05: the read routes resolved the seat
- * and the write routes asked `caller.permissions`, which is the office's
- * own role. A program office seated at a client could therefore send a
- * write its own role allowed and the client's seat did not — and CLAUDE.md
- * says a program office acts only in a seat the client grants, under the
- * client's rules. So every write in etyme-demand's routes asks this.
- *
- * It is `actingDesk` (lib/program-seat, the server half of `deskOf`), read
- * for its permissions alone, so the screen, the reads and the writes
- * cannot judge one caller two ways.
- */
-export async function writePermissions(caller: CallerContext): Promise<readonly string[]> {
-  return (await actingDesk(caller))?.permissions ?? caller.permissions
 }

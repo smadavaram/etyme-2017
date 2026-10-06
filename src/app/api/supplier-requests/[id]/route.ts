@@ -12,7 +12,7 @@ import {
   mayActAt, markItem, readiness, nextStage, withOrderedItems, evidenceNoteFor, whoRendersItem, STAGE_WORD,
   type ChecklistItem, type ItemState, type Decision, type Stage,
 } from '@/lib/supplier-onboarding'
-import { writePermissions } from '@/lib/resolve-client-company'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * PATCH /api/supplier-requests/[id]
@@ -78,12 +78,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
   const notStaff = staffOnly(caller, 'Supplier requests')
   if (notStaff) return notStaff
-  const companyId = caller.company!.id
+  const companyId = desk!.companyId
   const row = await prisma.supplierRequest.findFirst({ where: { id, companyId } })
   if (!row) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That recommendation is not here.' } }, { status: 404 })
   if (row.state === 'APPROVED' || row.state === 'DECLINED') {
@@ -102,7 +104,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const checklist = withOrderedItems(
     row.checklist as unknown as ChecklistItem[],
     await orderedOfSuppliers(companyId),
-    caller.company!.name
+    desk!.companyName
   )
   const decisions = ((row.decisions as unknown as Decision[]) ?? [])
   const desks = await desksFor(companyId, row.recommendedById)
@@ -118,13 +120,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     stage, permissions: deskPermissions, callerId: caller.person.id,
     recommendedById: row.recommendedById, decisions, desks, firmName: row.name,
     deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
-    companyName: caller.company!.name,
+    companyName: desk!.companyName,
   })
   if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
 
   if (action === 'resend') {
     if (!row.contactEmail) return NextResponse.json({ error: { code: 'NO_CONTACT', message: `${row.name} has no contact email on the recommendation.` } }, { status: 422 })
-    const delivery = await sendLink({ to: row.contactEmail, contactName: row.contactName, firmName: row.name, clientName: caller.company!.name, token: row.token })
+    const delivery = await sendLink({ to: row.contactEmail, contactName: row.contactName, firmName: row.name, clientName: desk!.companyName, token: row.token })
     await prisma.supplierRequest.update({ where: { id }, data: { linkSentAt: now } })
     return NextResponse.json({ data: { delivery, says: `${row.name} has been sent its link again.` } })
   }

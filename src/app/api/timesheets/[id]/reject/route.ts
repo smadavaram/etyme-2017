@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { mayApprove } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
+import { seatFor, actingInSeat } from '@/lib/program-seat'
 
 /**
  * POST /api/timesheets/:id/reject
@@ -55,8 +56,25 @@ export async function POST(
 
   // Same authority as approving. Sending somebody's week back is a
   // decision about their pay, and it was open to anybody signed in.
+  //
+  // And from the same desk. The approve route resolves the seat first, so
+  // a program office signs at the client's desk with the client's role;
+  // this route asked the office's own company and role, so the same
+  // office could approve a week and was refused sending it back
+  // (architect, 2026-10-06). The seat is looked up exactly as approve
+  // looks it up, against the buyer on the contract.
+  const buyerSideId = timesheet.sellContract.endClientCompanyId ?? timesheet.sellContract.clientCompanyId
+  const seat = await seatFor(caller, buyerSideId)
+  const acting = seat ? actingInSeat(caller, seat) : caller
   const allowed = mayApprove(
-    { personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions },
+    {
+      personId: caller.person.id,
+      companyId: seat ? seat.clientCompany.id : caller.company?.id,
+      permissions: acting.permissions,
+      // Only for the refusal, so it names a desk rather than a key.
+      companyKind: seat ? 'CLIENT' : caller.company?.kind ?? null,
+      companyName: seat ? seat.clientCompany.name : caller.company?.name ?? null,
+    },
     {
       personId: timesheet.personId,
       vendorCompanyId: timesheet.sellContract.companyId,

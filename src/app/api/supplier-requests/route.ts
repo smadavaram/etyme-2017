@@ -10,7 +10,7 @@ import {
   mayRecommend, mayActAt, newChecklist, readiness, stepsOf, withOrderedItems, evidenceNoteFor, STAGE_WORD,
   type ChecklistItem, type Decision, type Stage, type RequestState,
 } from '@/lib/supplier-onboarding'
-import { writePermissions } from '@/lib/resolve-client-company'
+import { actingDesk } from '@/lib/program-seat'
 
 /**
  * GET  /api/supplier-requests   — firms in the pipeline, where each is, and what this caller may do
@@ -119,9 +119,11 @@ function STATE_WORD_OF(state: RequestState): string {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // Judged by the seat where this firm sits at a client's desk
-  // (`writePermissions`), never by the office's own role.
-  const deskPermissions = await writePermissions(caller)
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
   const notStaff = staffOnly(caller, 'Supplier requests')
   if (notStaff) return notStaff
   if (!mayRecommend(deskPermissions)) {
@@ -136,7 +138,7 @@ export async function POST(request: NextRequest) {
     : typeof body?.skills === 'string' ? body.skills.split(/[,;]/).map((x: string) => x.trim()).filter(Boolean) : []
   const contactEmail = typeof body?.contactEmail === 'string' && body.contactEmail.includes('@') ? body.contactEmail.trim().toLowerCase() : null
   const domain = typeof body?.domain === 'string' && body.domain.trim() ? body.domain.trim().toLowerCase() : contactEmail?.split('@')[1] ?? null
-  const companyId = caller.company!.id
+  const companyId = desk!.companyId
 
   const open = await prisma.supplierRequest.findFirst({
     where: { companyId, name: { equals: name, mode: 'insensitive' }, state: { in: ['RECOMMENDED', 'IN_REVIEW'] } },
@@ -153,7 +155,7 @@ export async function POST(request: NextRequest) {
       // require of a supplier — read through `lib/document-requirements`,
       // never a second list. A client asking for a hot floor induction on
       // every purchase order asks this firm for it on the way in.
-      checklist: withOrderedItems(newChecklist(), await orderedOfSuppliers(companyId), caller.company!.name) as unknown as object,
+      checklist: withOrderedItems(newChecklist(), await orderedOfSuppliers(companyId), desk!.companyName) as unknown as object,
       token: newApplyToken(),
     },
   })
@@ -162,7 +164,7 @@ export async function POST(request: NextRequest) {
   // Procurement's desk comes round.
   let delivery: { state: string; note: string } | null = null
   if (contactEmail) {
-    delivery = await sendLink({ to: contactEmail, contactName: row.contactName, firmName: name, clientName: caller.company!.name, token: row.token })
+    delivery = await sendLink({ to: contactEmail, contactName: row.contactName, firmName: name, clientName: desk!.companyName, token: row.token })
     await prisma.supplierRequest.update({ where: { id: row.id }, data: { linkSentAt: new Date() } })
   }
 
