@@ -41,7 +41,7 @@ import { topDown, signersOf, tellNext, type LadderRung, type Signer } from '@/ap
 import {
   linkExpiresAt, linkVerdict, checkSendBack, checkEvidence, mayActForTheClient, scopeFor,
   mayReadEvidence, evidenceReadLog, approvedByWords, letterToApprover, signaturesWritten, dayOf,
-  whoAskedSentence,
+  whoAskedSentence, approverIsKnownAtClient, type ClientOfRecord,
   SEND_BACK_REASONS, EVIDENCE_KINDS, type EvidenceKind, type LinkOutcome, type ReadVerdict, type SentFrom,
 } from '@/app/api/timesheets/approval-by-email'
 
@@ -361,6 +361,43 @@ async function logRefusal(r: Reader, c: WeekChain, action: string, says: string)
   }).catch(() => {})
 }
 
+// ── Whether the named approver is somebody at the client ─────────────
+
+/**
+ * What the client is on the record, for `approverIsKnownAtClient`.
+ *
+ * Its own domain only where an identity provider or a DNS record proved
+ * it (a domain merely typed in proves nothing about who holds an address
+ * there), the extra domains it proved the same way, and the address of
+ * every person holding a live seat at it. The worker naming her own
+ * address as the client's approver was the gap: the evidence would have
+ * read as the client's yes.
+ */
+async function clientOfRecord(clientId: string, clientName: string): Promise<ClientOfRecord> {
+  const [company, domains, seats] = await Promise.all([
+    prisma.company.findUnique({ where: { id: clientId }, select: { domain: true, domainVerified: true } }),
+    prisma.companyDomain.findMany({ where: { companyId: clientId, verifiedAt: { not: null } }, select: { domain: true } }),
+    prisma.context.findMany({
+      where: { companyId: clientId, revokedAt: null, suspendedAt: null },
+      select: { person: { select: { primaryEmail: true } } },
+    }),
+  ])
+  return {
+    name: clientName,
+    domain: company?.domainVerified ? company.domain : null,
+    aliases: domains.map((d) => d.domain),
+    seatedEmails: seats.map((x) => x.person.primaryEmail),
+  }
+}
+
+/** Null where the approver is at the client; the refusal where not, logged like any other. */
+async function approverRefusal(r: Reader, c: WeekChain, approverEmail: string, action: string): Promise<Refused | null> {
+  const v = approverIsKnownAtClient({ approverEmail, client: await clientOfRecord(c.clientId, c.clientName) })
+  if (v.ok) return null
+  await logRefusal(r, c, action, v.says)
+  return refuse(422, v.code, v.says, 'approverEmail')
+}
+
 // ── Send a link ───────────────────────────────────────────────────────
 
 export interface SendInput {
@@ -391,6 +428,8 @@ export async function sendApprovalLink(
 
   const approver = checkApprover(input.approverName, input.approverEmail, c.clientName)
   if (!approver.ok) return refuse(422, 'VALIDATION', approver.says, approver.field)
+  const notAtClient = await approverRefusal(r, c, approver.email, 'APPROVAL_LINK_SEND')
+  if (notAtClient) return notAtClient
   const scope = scopeFor(input.contracts ?? null, c.ladder, c.clientName)
   if (!scope.ok) return refuse(422, 'VALIDATION', scope.says, 'contracts')
 
@@ -507,6 +546,8 @@ export async function attachEvidence(
     c.clientName
   )
   if (!ev.ok) return refuse(422, 'VALIDATION', ev.says, ev.field)
+  const notAtClient = await approverRefusal(r, c, ev.approverEmail, 'APPROVAL_EVIDENCE_ATTACH')
+  if (notAtClient) return notAtClient
   const scope = scopeFor(input.contracts ?? null, c.ladder, c.clientName)
   if (!scope.ok) return refuse(422, 'VALIDATION', scope.says, 'contracts')
 

@@ -25,6 +25,7 @@
  *
  * Idempotent: a week that already carries an approval by email is left.
  */
+import { day } from '@/lib/seed-days'
 import { prisma as db } from '@/lib/db'
 import { approvedByWords, dayOf } from '@/app/api/timesheets/approval-by-email'
 import type { World } from '@/lib/seed-programmes'
@@ -42,6 +43,9 @@ export function approvalEmail(a: { approverName: string; approverEmail: string; 
   )
 }
 
+/** The domain Northbend Athletic's people write from in the seeded world. */
+export const NORTHBEND_MAIL = 'northbend.example'
+
 export async function seedWeekApproval(world: World): Promise<{ written: boolean }> {
   const client = world.firmBySlug.get('nike')
   const techpeple = world.firmBySlug.get('techpeple')
@@ -49,6 +53,18 @@ export async function seedWeekApproval(world: World): Promise<{ written: boolean
   // Who the client actually wrote to: the account desk of the firm it pays.
   const prime = world.seatBySlug.get('computer-systems')
   if (!client || !techpeple || !sender || !prime) return { written: false }
+
+  // Northbend's approvers write from its own domain. Since 2026-10-05 an
+  // approval by email names somebody at the client — its domain, a domain
+  // it proved, or a person seated there (`approverIsKnownAtClient`) — and
+  // the seeded client had no domain at all, so only its seated desks could
+  // be named. A reserved name nobody can register (CLAUDE.md, the demo
+  // names nobody real), so nobody real can ever sign in through it.
+  if (!(await db.companyDomain.findUnique({ where: { domain: NORTHBEND_MAIL }, select: { id: true } }))) {
+    await db.companyDomain.create({
+      data: { companyId: client.id, domain: NORTHBEND_MAIL, verifiedAt: day(-400), verifiedVia: 'seeded world', joinPolicy: 'REQUEST' },
+    })
+  }
 
   const approver = await db.person.findUnique({
     where: { primaryEmail: `${world.prefix}nike-hiring@${world.domain}` },

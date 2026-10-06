@@ -9,6 +9,17 @@ import { POST as approve } from '@/app/api/timesheets/[id]/approve/route'
 import { readWeekChain, needsSigningInEtyme } from '@/lib/week-approval'
 import { dayOf } from '@/app/api/timesheets/approval-by-email'
 
+/** An address at the week's client: a person seated there (`approverIsKnownAtClient`). */
+async function seatedAt(clientId: string): Promise<string> {
+  const c = await prisma.context.findFirstOrThrow({
+    where: { companyId: clientId, revokedAt: null, suspendedAt: null },
+    orderBy: { grantedAt: 'asc' },
+    select: { person: { select: { primaryEmail: true } } },
+  })
+  return c.person.primaryEmail
+}
+
+
 /**
  * A client may approve by email, and the proof travels down the chain.
  * The founder, 2026-09-30.
@@ -287,7 +298,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     })
     as(desk.person.primaryEmail)
     const r = await attach(
-      { timesheetId: id, how: 'EVIDENCE', approverName: 'Avery Collins', approverEmail: 'avery.collins@client.example', kind: 'EMAIL', contracts: [chain.ladder[0].sellContractId] },
+      { timesheetId: id, how: 'EVIDENCE', approverName: 'Avery Collins', approverEmail: await seatedAt(chain.clientId), kind: 'EMAIL', contracts: [chain.ladder[0].sellContractId] },
       { name: 'approval.eml', text: 'From: Avery Collins\nApproved.' }
     )
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()

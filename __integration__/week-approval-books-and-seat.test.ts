@@ -7,6 +7,17 @@ import { GET as openFile } from '@/app/api/week-approvals/[id]/file/route'
 import { POST as answerLink } from '@/app/api/approve-week/[token]/route'
 import { readWeekChain, needsSigningInEtyme } from '@/lib/week-approval'
 
+/** An address at the week's client: a person seated there (`approverIsKnownAtClient`). */
+async function seatedAt(clientId: string): Promise<string> {
+  const c = await prisma.context.findFirstOrThrow({
+    where: { companyId: clientId, revokedAt: null, suspendedAt: null },
+    orderBy: { grantedAt: 'asc' },
+    select: { person: { select: { primaryEmail: true } } },
+  })
+  return c.person.primaryEmail
+}
+
+
 /**
  * Two things the door to an email approval (lib/week-approval) owed the
  * rest of the product, found once the lists could show it.
@@ -108,7 +119,7 @@ describe('a week approved by email reaches the books, and a program office reads
     })
     as(desk.person.primaryEmail)
     const fd = new FormData()
-    for (const [k, v] of Object.entries({ timesheetId: id, how: 'EVIDENCE', approverName: 'Avery Collins', approverEmail: 'avery.collins@client.example', kind: 'EMAIL' })) fd.append(k, v)
+    for (const [k, v] of Object.entries({ timesheetId: id, how: 'EVIDENCE', approverName: 'Avery Collins', approverEmail: await seatedAt(chain.clientId), kind: 'EMAIL' })) fd.append(k, v)
     fd.set('file', new File(['From: Avery Collins\nApproved.'], 'approval.eml', { type: 'text/plain' }))
     const r = await json(await sendOrAttach(new NextRequest('http://localhost:3000/api/week-approvals', { method: 'POST', body: fd })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
