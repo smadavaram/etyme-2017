@@ -7,7 +7,7 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
-import { daysFor, daysOnSite, monthsOf, againstLimit, limitReachedOn, contractsPastLimit, daysServed, daysBooked } from '@/lib/tenure-days'
+import { daysOnSite, monthsOf, againstLimit, limitReachedOn, contractsPastLimit, daysServed, daysBooked, standingAgainstLimit, ledgerStatus, linesCounted } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -152,7 +152,6 @@ export async function GET(request: NextRequest) {
   })
 
   const capMonths = tenureRule ? (tenureRule.parameters as any).maxMonths : null
-  const capDays = capMonths ? daysFor(capMonths) : null
   const breakDays = breakRule ? (breakRule.parameters as any).breakDays : null
 
   // Group contracts by person
@@ -196,36 +195,20 @@ export async function GET(request: NextRequest) {
   // eighteen-month cap at nine.
   for (const data of personMap.values()) data.totalDays = daysOnSite(data.contracts, now)
 
-  // Classify each person's tenure status
+  // Classify each person's tenure status — from the one standing the
+  // award, the activation and the extension read too
+  // (`standingAgainstLimit`), so this page and those doors cannot
+  // disagree. A served break resets the count against the limit; the
+  // days on site, every one, stay on the row as the record.
   const people = Array.from(personMap.entries()).map(([personId, data]) => {
     const cumulativeMonths = monthsOf(data.totalDays)
-    let status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE' = 'OK'
-    let eligibleDate: string | null = null
-
-    if (capDays !== null) {
-      const pct = data.totalDays / capDays
-      if (pct < 0.75) {
-        status = 'OK'
-      } else if (pct < 1.0) {
-        status = 'WARNING'
-      } else if (data.hasActive) {
-        status = 'BREAK_REQUIRED'
-      } else if (breakDays !== null && data.lastEndDate) {
-        // Check break-in-service
-        const daysSinceEnd = Math.ceil(
-          (now.getTime() - data.lastEndDate.getTime()) / (1000 * 60 * 60 * 24)
-        )
-        if (daysSinceEnd < breakDays) {
-          status = 'IN_BREAK'
-          const eligible = new Date(data.lastEndDate.getTime() + breakDays * 24 * 60 * 60 * 1000)
-          eligibleDate = eligible.toISOString().slice(0, 10)
-        } else {
-          status = 'ELIGIBLE'
-        }
-      } else {
-        status = 'ELIGIBLE'
-      }
-    }
+    const standing = standingAgainstLimit(
+      data.contracts.map((c) => ({ startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED' })),
+      { capMonths, breakDays },
+      now
+    )
+    const status = ledgerStatus(standing)
+    const eligibleDate: string | null = standing.eligibleOn ? standing.eligibleOn.toISOString().slice(0, 10) : null
 
     // ── The day the limit is reached, and the paper booked past it ──
     //
@@ -236,7 +219,9 @@ export async function GET(request: NextRequest) {
     // contracts carry her. An ended contract counts only to the day it
     // ended or today, whichever is first, because a termination that
     // left the booked end in the future did not keep anybody on site.
-    const booked = data.contracts.map((c) => ({
+    // Only the lines the limit still counts: a stint before a served
+    // break has been reset away and does not bring the limit forward.
+    const booked = linesCounted(data.contracts, standing).map((c) => ({
       startDate: c.startDate,
       endDate: c.state === 'ENDED'
         ? new Date(Math.min((c.endDate ?? now).getTime(), now.getTime()))
@@ -244,7 +229,7 @@ export async function GET(request: NextRequest) {
     }))
     const reachedOn = capMonths ? limitReachedOn(booked, capMonths) : null
     const runsPast = contractsPastLimit(
-      data.contracts.map((c) => ({
+      linesCounted(data.contracts, standing).map((c) => ({
         id: c.id,
         firm: shown(c.companyId, c.company.name).name,
         endDate: c.endDate,
@@ -281,13 +266,18 @@ export async function GET(request: NextRequest) {
       firms: firmsOnARow(Array.from(data.vendors.entries()).map(([id, name]) => shown(id, name))),
       cumulativeMonths,
       cumulativeDays: data.totalDays,
+      // The days the limit counts: every day, or those since the last
+      // break served. Equal to cumulativeDays until a break resets it.
+      countedDays: standing.countedDays,
       // Against the limit, uncapped: 740 days against 548 is 135% and
       // "over the limit by 6 months", never a bar that stops at 100%.
-      againstLimit: capMonths ? againstLimit(data.totalDays, capMonths) : null,
+      // Counted in the days the block counts.
+      againstLimit: capMonths ? againstLimit(standing.countedDays, capMonths) : null,
       contractCount: data.contracts.length,
       status,
       eligibleDate,
       hasActive: data.hasActive,
+      onSite: standing.onSiteNow,
       contracts: data.contracts.map(c => ({
         id: c.id,
         vendorName: shown(c.companyId, c.company.name).name,

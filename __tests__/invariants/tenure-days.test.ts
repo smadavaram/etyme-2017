@@ -151,18 +151,24 @@ describe('how many whole months that is', () => {
 })
 
 describe('the limit and the block', () => {
-  it('the block still fires on days, unchanged', () => {
+  it('the block still fires on days, unchanged, and the award and the ledger both read it from one function', () => {
     // `daysFor` is the formula every copy of the block already used,
     // moved to one place, so the day it fires has not moved.
     for (let n = 1; n <= 60; n++) expect(daysFor(n)).toBe(Math.round(n * 30.44))
     expect(DAYS_PER_MONTH).toBe(30.44)
 
+    // Since 2026-10-06 neither door keeps its own copy: the award's
+    // engine and the ledger both ask `standingAgainstLimit`, which
+    // compares the counted days against `daysFor(capMonths)`.
+    const days = readFileSync(join(process.cwd(), 'src/lib/tenure-days.ts'), 'utf8')
+    expect(days).toMatch(/const limitDays = capMonths != null \? daysFor\(capMonths\) : null/)
+    expect(days).toMatch(/const pastLimit = limitDays != null && countedDays >= limitDays/)
     const governance = readFileSync(join(process.cwd(), 'src/lib/governance.ts'), 'utf8')
-    expect(governance).toMatch(/const capDays = daysFor\(maxMonths\)/)
-    expect(governance).toMatch(/if \(totalDays >= capDays\)/)
+    expect(governance).toMatch(/standingAgainstLimit\(/)
+    expect(governance).not.toMatch(/daysFor\(/)
     const ledger = readFileSync(join(process.cwd(), 'src/app/api/tenure/route.ts'), 'utf8')
-    expect(ledger).toMatch(/daysFor\(capMonths\)/)
-    expect(ledger).toMatch(/data\.totalDays \/ capDays/)
+    expect(ledger).toMatch(/standingAgainstLimit\(/)
+    expect(ledger).not.toMatch(/daysFor\(/)
   })
 
   it('never reads a limit as reached more than three days before the block fires', () => {

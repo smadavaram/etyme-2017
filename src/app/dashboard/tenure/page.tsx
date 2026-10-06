@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { plainDate } from '@/lib/plain-date'
-import { eligibleWords, limitDayWords, limitLine, runsPastWords, tenureSubtitle } from './words'
+import { eligibleWords, limitDayWords, limitLine, runsPastWords, statusLabel, tenureSubtitle } from './words'
 
 /**
  * Tenure Tracking — Governance section
@@ -47,6 +47,8 @@ interface TenurePerson {
   firms: { parts: string[]; says: string; withheld: number }
   cumulativeMonths: number
   cumulativeDays: number
+  /** The days the limit counts — since the last break served. */
+  countedDays: number
   /** Where they stand against the limit, never capped at 100%. Null with no limit set. */
   againstLimit: {
     percent: number
@@ -64,6 +66,8 @@ interface TenurePerson {
   status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE'
   eligibleDate: string | null
   hasActive: boolean
+  /** On site today, under any live contract. */
+  onSite?: boolean
   contracts: {
     id: string
     vendorName: string
@@ -181,7 +185,7 @@ export default function TenurePage() {
                   />
                 </div>
                 <div className={`text-[10px] mt-0.5 tabular-nums ${limit.overByDays > 0 ? 'text-etyme-danger' : 'text-etyme-faint'}`}>
-                  {limitLine({ days: row.cumulativeDays, capMonths, percent: limit.percent, limitDays: limit.limitDays, overBy: limit.overBy })}
+                  {limitLine({ days: row.countedDays ?? row.cumulativeDays, capMonths, percent: limit.percent, limitDays: limit.limitDays, overBy: limit.overBy })}
                 </div>
                 {/* A contract already booked past the limit, in a
                     sentence. Lucía Fernández's ran seven months past it
@@ -207,7 +211,7 @@ export default function TenurePage() {
       },
       render: (row) => {
         const config = STATUS_CONFIG[row.status]
-        return <span className={`chip ${config.chipClass}`}>{config.label}</span>
+        return <span className={`chip ${config.chipClass}`}>{statusLabel(row.status, row.onSite ?? row.hasActive)}</span>
       },
     },
     {

@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/db'
 import { meets as tierMeets } from '@/lib/supplier-tier'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { monthsOf, standingAgainstLimit, type SiteLine, type Standing } from '@/lib/tenure-days'
+import { plainDate } from '@/lib/plain-date'
 
 /**
  * Governance enforcement engine — Addendum E §E.6.
@@ -83,6 +84,8 @@ export async function evaluateGovernance(params: {
   billRate?: number
   /** Requirement ID — used for HEADCOUNT_PLAN checks */
   requirementId?: string
+  /** The moment the rules are asked at. Defaults to now. */
+  now?: Date
 }): Promise<GovernanceResult> {
   const {
     personId,
@@ -117,23 +120,63 @@ export async function evaluateGovernance(params: {
 
   const evaluations: EvaluationResult[] = []
 
+  // ── The time limit and the break, read once ──
+  //
+  // Both rules ask the same question of the same lines — where is this
+  // person against this client's limit and break — and they used to ask
+  // it separately and get different answers. The award refused for ever
+  // anybody once past the limit, while the ledger and the submission
+  // door called a served break eligible; and the break was counted from
+  // a rung that ended while another rung ran. One standing now, read by
+  // `standingAgainstLimit`, the same function the ledger reads.
+  const now = params.now ?? new Date()
+  const capRule = rules.find((r) => r.ruleType === 'TENURE_CAP')
+  const breakRule = rules.find((r) => r.ruleType === 'BREAK_IN_SERVICE')
+  let standing: Standing | null = null
+  let personName = personId.slice(0, 8)
+  let clientName = 'this client'
+  const limitRules = {
+    capMonths: capRule ? Number((capRule.parameters as Record<string, any>).maxMonths ?? 18) : null,
+    breakDays: breakRule ? Number((breakRule.parameters as Record<string, any>).breakDays ?? 30) : null,
+  }
+  if (capRule || breakRule) {
+    const [lines, person, client] = await Promise.all([
+      prisma.sellContract.findMany({
+        where: {
+          personId,
+          ...endClientFilter(endClientCompanyId),
+          state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+        },
+        select: { startDate: true, endDate: true, state: true },
+      }),
+      prisma.person.findUnique({ where: { id: personId }, select: { name: true } }),
+      prisma.company.findUnique({ where: { id: endClientCompanyId }, select: { name: true } }),
+    ])
+    const site: SiteLine[] = lines.map((l) => ({ startDate: l.startDate, endDate: l.endDate, live: l.state !== 'ENDED' }))
+    standing = standingAgainstLimit(site, limitRules, now)
+    if (person?.name) personName = person.name
+    if (client?.name) clientName = client.name
+  }
+
   for (const rule of rules) {
     const ruleParams = rule.parameters as Record<string, any>
     let result: EvaluationResult | null = null
 
     switch (rule.ruleType) {
       case 'TENURE_CAP':
-        result = await evaluateTenureCap(
-          personId, endClientCompanyId, rule.id, rule.enforcementMode as 'BLOCK' | 'WARN',
-          ruleParams, rule.description
-        )
+        result = tenureCapVerdict({
+          standing: standing!, personName, clientName,
+          capMonths: limitRules.capMonths!, breakDays: limitRules.breakDays,
+          ruleId: rule.id, enforcementMode: rule.enforcementMode as 'BLOCK' | 'WARN', description: rule.description,
+        })
         break
 
       case 'BREAK_IN_SERVICE':
-        result = await evaluateBreakInService(
-          personId, endClientCompanyId, rule.id, rule.enforcementMode as 'BLOCK' | 'WARN',
-          ruleParams, rule.description
-        )
+        result = breakInServiceVerdict({
+          standing: standing!, personName, clientName,
+          breakDays: limitRules.breakDays!, now,
+          ruleId: rule.id, enforcementMode: rule.enforcementMode as 'BLOCK' | 'WARN', description: rule.description,
+        })
         break
 
       case 'RATE_BAND':
@@ -212,149 +255,132 @@ export async function evaluateGovernance(params: {
 
 // ── Rule evaluators ──────────────────────────────────────
 
-/**
- * TENURE_CAP — "No direct vendor hire beyond N months"
- *
- * Addendum E: "Tenure accrues to the person at the client, aggregated
- * across all vendors and all assignments."
- */
-async function evaluateTenureCap(
-  personId: string,
-  endClientCompanyId: string,
-  ruleId: string,
-  enforcementMode: 'BLOCK' | 'WARN',
-  params: Record<string, any>,
-  description: string,
-): Promise<EvaluationResult> {
-  const maxMonths = params.maxMonths ?? 18
-  // The same formula as before, from the one place it lives now. The
-  // block counts days and does not move.
-  const capDays = daysFor(maxMonths)
+// ── The time limit and the break, as verdicts ─────────────
 
-  const now = new Date()
+function day(d: Date): string {
+  return plainDate(d.toISOString().slice(0, 10))
+}
 
-  const contracts = await prisma.sellContract.findMany({
-    where: {
-      personId,
-      ...endClientFilter(endClientCompanyId),
-      state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
-    },
-    select: { startDate: true, endDate: true },
-  })
+function months(n: number): string {
+  return `${n} month${n === 1 ? '' : 's'}`
+}
 
-  // Overlaps counted once. A prime and its sub each hold a contract for
-  // the same person on the same days; summing the rows doubled them.
-  const totalDays = daysOnSite(contracts, now)
-  const totalMonths = monthsOf(totalDays)
+function withDescription(reason: string, description: string): string {
+  return description?.trim() ? `${reason} ${description.trim()}` : reason
+}
 
-  const person = await prisma.person.findUnique({
-    where: { id: personId },
-    select: { name: true },
-  })
-  const personName = person?.name ?? personId.slice(0, 8)
-
-  if (totalDays >= capDays) {
-    return {
-      ruleId,
-      ruleType: 'TENURE_CAP',
-      enforcementMode,
-      outcome: enforcementMode,
-      reason: `${personName} has ${totalMonths} months tenure (time limit: ${maxMonths}). ${description}`,
-      overridable: enforcementMode === 'WARN',
-    }
-  }
-
-  const pctUsed = totalDays / capDays
-  if (pctUsed >= 0.75) {
-    return {
-      ruleId,
-      ruleType: 'TENURE_CAP',
-      enforcementMode,
-      outcome: 'WARN',
-      reason: `${personName} is at ${totalMonths} of ${maxMonths} months (${Math.round(pctUsed * 100)}% of the time limit)`,
-      overridable: true,
-    }
-  }
-
-  return {
-    ruleId,
-    ruleType: 'TENURE_CAP',
-    enforcementMode,
-    outcome: 'PASS',
-    reason: `${personName}: ${totalMonths} of ${maxMonths} months (${Math.round(pctUsed * 100)}%)`,
-    overridable: false,
-  }
+interface LimitVerdictArgs {
+  standing: Standing
+  personName: string
+  clientName: string
+  ruleId: string
+  enforcementMode: 'BLOCK' | 'WARN'
+  description: string
 }
 
 /**
- * BREAK_IN_SERVICE — required gap between engagements
+ * TENURE_CAP — the client's time limit, from the one standing.
+ *
+ * Addendum E: "Tenure accrues to the person at the client, aggregated
+ * across all vendors and all assignments." Counted in the days the
+ * limit counts — since the last break served — so somebody who served
+ * the break is eligible here exactly as they are on the ledger and at
+ * the submission door. Pure.
+ */
+export function tenureCapVerdict(a: LimitVerdictArgs & { capMonths: number; breakDays: number | null }): EvaluationResult {
+  const { standing: s, personName, clientName, capMonths, breakDays, ruleId, enforcementMode, description } = a
+  const served = months(monthsOf(s.countedDays))
+  const limit = `${clientName}’s ${months(capMonths)} time limit`
+  // The opening clause is quoted verbatim on the public product page
+  // (lib/public-site/modules), so it stays as it reads there.
+  const opening = `${personName} has ${monthsOf(s.countedDays)} months tenure (time limit: ${capMonths}).`
+  const refuse = (reason: string): EvaluationResult => ({
+    ruleId, ruleType: 'TENURE_CAP', enforcementMode, outcome: enforcementMode,
+    reason: withDescription(reason, description), overridable: enforcementMode === 'WARN',
+  })
+  const pass = (reason: string): EvaluationResult => ({
+    ruleId, ruleType: 'TENURE_CAP', enforcementMode, outcome: 'PASS', reason, overridable: false,
+  })
+
+  switch (s.state) {
+    case 'PAST_ON_SITE':
+      return refuse(
+        `${opening} Counted across every supplier at ${clientName}, and they are still on site. ` +
+        (s.eligibleOn
+          ? `With the ${breakDays}-day break after they leave, the earliest day they may come back is ${day(s.eligibleOn)}.`
+          : breakDays != null
+            ? 'Their current contract has no end date, so there is no day yet on which they may come back.'
+            : `${clientName}’s rules set no break, so they give no day on which they may come back.`)
+      )
+    case 'PAST_NO_RETURN':
+      return refuse(
+        `${opening} Counted across every supplier at ${clientName}. ` +
+        `${clientName}’s rules set no break after the limit, so nothing resets the count and there is no day on which they may come back.`
+      )
+    case 'IN_BREAK':
+      if (s.pastLimit) {
+        return refuse(
+          `${opening} Counted across every supplier at ${clientName}, ` +
+          `and they left on ${day(s.lastDay!)}. The ${breakDays}-day break ends on ${day(s.eligibleOn!)}; they may come back from that day.`
+        )
+      }
+      break
+    case 'BREAK_SERVED':
+      return pass(
+        `${personName} served the ${breakDays}-day break after leaving ${clientName} on ${day(s.lastDay!)}, ` +
+        `so ${limit} counts again from nought.`
+      )
+    case 'APPROACHING': {
+      const pct = Math.round((s.countedDays / s.limitDays!) * 100)
+      return {
+        ruleId, ruleType: 'TENURE_CAP', enforcementMode, outcome: 'WARN',
+        // Quoted on the public product page, as it reads there.
+        reason: `${personName} is at ${monthsOf(s.countedDays)} of ${capMonths} months (${pct}% of the time limit)`,
+        overridable: true,
+      }
+    }
+    default:
+      break
+  }
+  const pct = s.limitDays ? Math.round((s.countedDays / s.limitDays) * 100) : 0
+  return pass(`${personName}: ${served} of ${limit} (${pct}%).`)
+}
+
+/**
+ * BREAK_IN_SERVICE — the days away the client requires before somebody
+ * comes back, from the one standing.
  *
  * "Inside a break period, show the eligibility date instead of a button."
+ * A break starts only when no line at the client is live: a chain's rung
+ * that ended while another rung runs is not a break, and blocking
+ * somebody mid-placement on it was the bug. Pure.
  */
-async function evaluateBreakInService(
-  personId: string,
-  endClientCompanyId: string,
-  ruleId: string,
-  enforcementMode: 'BLOCK' | 'WARN',
-  params: Record<string, any>,
-  description: string,
-): Promise<EvaluationResult> {
-  const breakDays = params.breakDays ?? 30
-  const now = new Date()
-
-  // Find the most recent ended contract
-  const lastContract = await prisma.sellContract.findFirst({
-    where: {
-      personId,
-      ...endClientFilter(endClientCompanyId),
-      state: 'ENDED',
-      endDate: { not: null },
-    },
-    orderBy: { endDate: 'desc' },
-    select: { endDate: true },
+export function breakInServiceVerdict(a: LimitVerdictArgs & { breakDays: number; now: Date }): EvaluationResult {
+  const { standing: s, personName, clientName, breakDays, now, ruleId, enforcementMode, description } = a
+  const pass = (reason: string): EvaluationResult => ({
+    ruleId, ruleType: 'BREAK_IN_SERVICE', enforcementMode, outcome: 'PASS', reason, overridable: false,
   })
-
-  if (!lastContract?.endDate) {
-    return {
-      ruleId,
-      ruleType: 'BREAK_IN_SERVICE',
-      enforcementMode,
-      outcome: 'PASS',
-      reason: 'No prior ended contract — break-in-service not applicable',
-      overridable: false,
-    }
+  if (s.onSiteNow) {
+    return pass(
+      `${personName} is on site at ${clientName} now, so no break is running: a break starts only when no contract there is live.`
+    )
   }
-
-  const daysSinceEnd = Math.ceil(
-    (now.getTime() - lastContract.endDate.getTime()) / (1000 * 60 * 60 * 24)
-  )
-
-  const person = await prisma.person.findUnique({
-    where: { id: personId },
-    select: { name: true },
-  })
-  const personName = person?.name ?? personId.slice(0, 8)
-
-  if (daysSinceEnd < breakDays) {
-    const eligibleDate = new Date(lastContract.endDate.getTime() + breakDays * 24 * 60 * 60 * 1000)
+  if (!s.lastDay) {
+    return pass(`${personName} has not been on site at ${clientName} before, so no break applies.`)
+  }
+  if (s.state === 'IN_BREAK') {
     return {
-      ruleId,
-      ruleType: 'BREAK_IN_SERVICE',
-      enforcementMode,
-      outcome: enforcementMode,
-      reason: `${personName}: ${daysSinceEnd} of ${breakDays} break days completed. Eligible ${eligibleDate.toISOString().slice(0, 10)}. ${description}`,
+      ruleId, ruleType: 'BREAK_IN_SERVICE', enforcementMode, outcome: enforcementMode,
+      reason: withDescription(
+        `${personName} left ${clientName} on ${day(s.lastDay)}, and ${clientName} requires a ${breakDays}-day break ` +
+        `before anybody comes back. They may come back from ${day(s.eligibleOn!)}.`,
+        description
+      ),
       overridable: enforcementMode === 'WARN',
     }
   }
-
-  return {
-    ruleId,
-    ruleType: 'BREAK_IN_SERVICE',
-    enforcementMode,
-    outcome: 'PASS',
-    reason: `${personName}: ${daysSinceEnd} days since last contract (break: ${breakDays} required) — clear`,
-    overridable: false,
-  }
+  const away = Math.floor((now.getTime() - s.lastDay.getTime()) / 86_400_000)
+  return pass(`${personName} left ${clientName} on ${day(s.lastDay)}, ${away} days ago, and the ${breakDays}-day break is served.`)
 }
 
 /**

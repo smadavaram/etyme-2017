@@ -310,3 +310,232 @@ export function daysBooked(contract: Period): number | null {
   if (!contract.endDate) return null
   return Math.max(0, Math.ceil((contract.endDate.getTime() - contract.startDate.getTime()) / DAY))
 }
+
+// ── Where somebody stands against the client's rules ──────────────────
+
+/**
+ * One contract that put the person on this client's site, from any
+ * supplier, at any rung.
+ */
+export interface SiteLine {
+  startDate: Date
+  endDate: Date | null
+  /** True while the line is running or paused — anything but ENDED. */
+  live: boolean
+}
+
+/** The client's two rules, as its governance policy states them. */
+export interface LimitRules {
+  /** The time limit in months; null where the client set none. */
+  capMonths: number | null
+  /** Days away the client requires before somebody comes back; null where it set none. */
+  breakDays: number | null
+}
+
+/**
+ * The one reading of a person against a client's time limit and break.
+ *
+ *  UNDER          nothing stands in the way
+ *  APPROACHING    on the days the limit counts, three quarters of the way or more
+ *  PAST_ON_SITE   past the limit and still on site
+ *  IN_BREAK       away, and the break the client requires is still running
+ *  BREAK_SERVED   away for at least the break: eligible, and counting starts again
+ *  PAST_NO_RETURN past the limit, away, and the client set no break — so nothing resets the count
+ */
+export type StandingState =
+  | 'UNDER'
+  | 'APPROACHING'
+  | 'PAST_ON_SITE'
+  | 'IN_BREAK'
+  | 'BREAK_SERVED'
+  | 'PAST_NO_RETURN'
+
+export interface Standing {
+  state: StandingState
+  /** Every day ever served at this client — the record, never reset. */
+  daysOnSite: number
+  /** The days the limit counts: since the last break served, or every day where none was. */
+  countedDays: number
+  /**
+   * The first instant the limit counts from; null where it counts from
+   * the first day. A line that starts before it has been reset away.
+   */
+  countsFrom: Date | null
+  /** The days the limit is enforced at; null with no limit. */
+  limitDays: number | null
+  /** True once the counted days reach the limit. */
+  pastLimit: boolean
+  /** On site today: a live line that has begun and not passed its end. */
+  onSiteNow: boolean
+  /** On site: where the current stretch ends on the paper; null where a line has no end. */
+  stretchEnd: Date | null
+  /** Away: their last day on site; null where they have never been. */
+  lastDay: Date | null
+  /** Away, with a break rule: the day the break ends. */
+  breakEndsOn: Date | null
+  /** The day they may be put forward again; null where there is no such day on the record. */
+  eligibleOn: Date | null
+}
+
+/**
+ * Where a person stands against a client's time limit and break, read
+ * once, for every door that asks: the submission, the award, the
+ * activation, the extension and the ledger. Before this, each door
+ * carried its own copy and two of them disagreed — the award refused for
+ * ever anybody once past the limit while the ledger called them
+ * eligible, and the break was counted from a rung that had ended while
+ * another rung was still running.
+ *
+ * Three rules, and the reasons:
+ *
+ * 1. **A served break resets the count.** Addendum E's break in service
+ *    is what ends the exposure; that is what it is for. So the days the
+ *    limit counts are the days since the last gap at least as long as
+ *    the break — between two stretches, or between the last stretch and
+ *    today. It resets whether or not the person had reached the limit:
+ *    a reset that only came to somebody who had gone past would make
+ *    going past the way to earn a fresh limit. The days on site, every
+ *    one, stay on the record (`daysOnSite`); only the count against the
+ *    limit starts again.
+ *
+ * 2. **A break starts only when no line is live.** In a chain the client
+ *    buys from a prime who buys from a sub; one rung can end and be
+ *    replaced while the person never leaves. A paused line is still a
+ *    line. So the break runs from the last day the person was on site
+ *    under any live line, and somebody on site today is in no break.
+ *
+ * 3. **Past the limit with no break rule is refused, with no day.** The
+ *    client set a limit and nothing that resets it, so the count never
+ *    comes down. Reading that as eligible — what the ledger used to say —
+ *    would let somebody past a BLOCK walk back in by leaving for a day,
+ *    which is permitting silently. The sentence says what would give a
+ *    day: a break rule.
+ *
+ * Pure. The caller reads the lines and passes `now`.
+ */
+export function standingAgainstLimit(lines: SiteLine[], rules: LimitRules, now: Date = new Date()): Standing {
+  const today = now.getTime()
+  const breakDays = rules.breakDays != null && rules.breakDays > 0 ? rules.breakDays : null
+  const capMonths = rules.capMonths != null && rules.capMonths > 0 ? rules.capMonths : null
+  const breakMs = breakDays != null ? breakDays * DAY : null
+
+  // Served: a live line runs to its booked end (daysOnSite stops it at
+  // today); an ended one stops at its end or today, whichever is first,
+  // because an early termination left the booked end in the future.
+  const served: Period[] = lines.map((l) => ({
+    startDate: l.startDate,
+    endDate: l.live ? l.endDate : new Date(Math.min((l.endDate ?? now).getTime(), today)),
+  }))
+
+  const onSiteNow = lines.some(
+    (l) => l.live && l.startDate.getTime() <= today && (l.endDate == null || l.endDate.getTime() > today)
+  )
+  const begun = lines.filter((l) => l.live && l.startDate.getTime() <= today)
+  const stretchEnd: Date | null = onSiteNow && !begun.some((l) => l.endDate == null)
+    ? new Date(Math.max(...begun.map((l) => l.endDate!.getTime())))
+    : null
+
+  // The stretches actually served, to today.
+  const spans = served
+    .map((p) => ({ from: p.startDate.getTime(), to: Math.min((p.endDate ?? now).getTime(), today) }))
+    .filter((s) => s.to > s.from)
+    .sort((a, b) => a.from - b.from)
+  const merged: { from: number; to: number }[] = []
+  for (const s of spans) {
+    const last = merged[merged.length - 1]
+    if (last && s.from <= last.to) {
+      if (s.to > last.to) last.to = s.to
+    } else {
+      merged.push({ ...s })
+    }
+  }
+
+  const lastDay = !onSiteNow && merged.length ? new Date(merged[merged.length - 1].to) : null
+  const breakEndsOn = lastDay && breakMs != null ? new Date(lastDay.getTime() + breakMs) : null
+  const breakServedNow = breakEndsOn != null && breakEndsOn.getTime() <= today
+
+  // Where the count starts: after the last gap at least as long as the break.
+  let countsFrom: Date | null = null
+  if (breakMs != null) {
+    for (let i = 1; i < merged.length; i++) {
+      if (merged[i].from - merged[i - 1].to >= breakMs) countsFrom = new Date(merged[i].from)
+    }
+    if (breakServedNow) countsFrom = now
+  }
+
+  const counted = countsFrom
+    ? served.filter((p) => p.startDate.getTime() >= countsFrom!.getTime())
+    : served
+  const countedDays = daysOnSite(counted, now)
+  const limitDays = capMonths != null ? daysFor(capMonths) : null
+  const pastLimit = limitDays != null && countedDays >= limitDays
+  const approaching = limitDays != null && countedDays >= 0.75 * limitDays
+
+  let state: StandingState
+  let eligibleOn: Date | null = null
+  if (onSiteNow) {
+    if (pastLimit) {
+      state = 'PAST_ON_SITE'
+      eligibleOn = breakMs != null && stretchEnd ? new Date(stretchEnd.getTime() + breakMs) : null
+    } else {
+      state = approaching ? 'APPROACHING' : 'UNDER'
+    }
+  } else if (breakEndsOn && !breakServedNow) {
+    state = 'IN_BREAK'
+    eligibleOn = breakEndsOn
+  } else if (breakServedNow) {
+    state = 'BREAK_SERVED'
+  } else if (pastLimit) {
+    state = 'PAST_NO_RETURN'
+  } else {
+    state = approaching ? 'APPROACHING' : 'UNDER'
+  }
+
+  return {
+    state,
+    daysOnSite: daysOnSite(served, now),
+    countedDays,
+    countsFrom,
+    limitDays,
+    pastLimit,
+    onSiteNow,
+    stretchEnd,
+    lastDay,
+    breakEndsOn,
+    eligibleOn,
+  }
+}
+
+/**
+ * The lines the limit still counts, for a question about the future —
+ * the day the limit falls, or whether a job runs past it. A line that
+ * began before the last served break has been reset away.
+ */
+export function linesCounted<T extends { startDate: Date }>(lines: T[], standing: Pick<Standing, 'countsFrom'>): T[] {
+  const from = standing.countsFrom
+  return from ? lines.filter((l) => l.startDate.getTime() >= from.getTime()) : lines
+}
+
+/** The ledger's status word for a standing. The wire values do not move. */
+export type LedgerStatus = 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE'
+
+/**
+ * A standing as the ledger's status. Past the limit with no break rule
+ * reads BREAK_REQUIRED — past the limit, not clear to return — with no
+ * eligible date, never ELIGIBLE.
+ */
+export function ledgerStatus(s: Standing): LedgerStatus {
+  switch (s.state) {
+    case 'PAST_ON_SITE':
+    case 'PAST_NO_RETURN':
+      return 'BREAK_REQUIRED'
+    case 'IN_BREAK':
+      return 'IN_BREAK'
+    case 'BREAK_SERVED':
+      return 'ELIGIBLE'
+    case 'APPROACHING':
+      return 'WARNING'
+    default:
+      return 'OK'
+  }
+}

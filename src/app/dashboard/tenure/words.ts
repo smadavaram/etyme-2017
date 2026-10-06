@@ -85,3 +85,20 @@ export function runsPastWords(o: {
     : `${o.daysPast} day${o.daysPast === 1 ? '' : 's'}`
   return `${o.firm}’s contract runs to ${plainDate(o.endDate)}, ${by} past the time limit on ${limit}.`
 }
+
+/**
+ * The status chip's words. BREAK_REQUIRED covers two people: somebody
+ * still on site past the limit, who owes a break when they leave, and
+ * somebody already away past the limit at a client with no break rule,
+ * who owes nothing that would ever end — "Break required" would promise
+ * them a way back the client's rules do not give.
+ */
+export function statusLabel(status: string, onSite: boolean): string {
+  switch (status) {
+    case 'WARNING': return 'Approaching'
+    case 'BREAK_REQUIRED': return onSite ? 'Break required' : 'Past the limit'
+    case 'IN_BREAK': return 'In break'
+    case 'ELIGIBLE': return 'Eligible'
+    default: return 'OK'
+  }
+}
