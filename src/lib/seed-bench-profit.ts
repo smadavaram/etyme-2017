@@ -17,8 +17,9 @@
  * at $1,800 a seat, and pays its bench half pay for up to ninety days.
  * It places through a prime, Sundara Systems, at Corveldt Aerospace:
  *
- *   Tobias Wren       finished the course, sat fifty-odd days, placed; his
- *                     margin has paid his bench back
+ *   Tobias Wren       finished the course, sat forty-nine days, placed at
+ *                     $145 an hour against $64 pay; his margin after
+ *                     burden has paid his bench back on any seed day
  *   Noor Abernathy    finished the course, sat about a month, placed four
  *                     weeks ago; not paid back yet
  *   Lucia Brandvold   finished the course, on the bench now, and nothing
@@ -152,11 +153,19 @@ export const NICHE_PEOPLE: NichePerson[] = [
   {
     name: 'Tobias Wren', email: 'tobias.wren@seed.etyme.invalid',
     course: { status: 'COMPLETED' }, benchDays: 49,
-    placement: { role: 'Process validation engineer', weeksAgo: 17, end: 245, top: 11_200, bill: 8_800, pay: 6_200 },
+    // A validation engineer's figures: the client pays the prime $175, the
+    // prime pays Pellwright $145, Pellwright pays him $64 on W2. After the
+    // employer's burden that is about $2,680 a signed week against at most
+    // $8,960 of bench, so he has paid it back by his fourth or fifth week
+    // whatever day the world is born, and seventeen weeks are signed.
+    placement: { role: 'Process validation engineer', weeksAgo: 17, end: 245, top: 17_500, bill: 14_500, pay: 6_400 },
   },
   {
     name: 'Noor Abernathy', email: 'noor.abernathy@seed.etyme.invalid',
     course: { status: 'COMPLETED' }, benchDays: 35,
+    // A thinner spread and four weeks in: about $450 a signed week after
+    // burden against about $5,800 of bench, so not paid back on any day
+    // the world can be born.
     placement: { role: 'Equipment qualification engineer', weeksAgo: 4, end: 335, top: 10_600, bill: 8_200, pay: 5_800 },
   },
   {

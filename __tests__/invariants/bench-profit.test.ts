@@ -7,7 +7,9 @@ import {
 } from '@/lib/bench-profit'
 import { benchCost, type Policy } from '@/lib/bench-policy'
 import { anchorSeed, forgetSeedAnchor, seedToday, day } from '@/lib/seed-days'
-import { NICHE_PEOPLE, nicheStart, nicheListed, nicheCourse } from '@/lib/seed-bench-profit'
+import { NICHE_PEOPLE, NICHE_POLICY, nicheStart, nicheListed, nicheCourse } from '@/lib/seed-bench-profit'
+import { federalHolidays } from '@/lib/seed-calendar'
+import { DEFAULT_BURDEN } from '@/lib/profitability'
 
 /**
  * Bench profit (CLAUDE.md, "Bench profit, next after the integrator
@@ -387,6 +389,46 @@ describe('the seeded bench vendor, whatever day the world is born', () => {
           for (let m = start; m.getTime() + 4 * DAY <= day(-3).getTime(); m = new Date(m.getTime() + 7 * DAY)) signed++
           expect(signed, `${name}, born ${at}`).toBe(weeks)
         }
+      }
+    } finally {
+      forgetSeedAnchor()
+    }
+  })
+
+  it('Tobias Wren’s margin after burden has paid his bench back and Noor Abernathy’s has not, on any birthday of the world', () => {
+    // The demo tells both stories whatever day it is seeded: the bench
+    // cost is every weekday of the spell that is not a public holiday at
+    // the policy's share of a day's pay, and the margin is every signed
+    // week at (bill − pay) on the days worked, less the W2 burden on pay.
+    const iso = (x: Date) => x.toISOString().slice(0, 10)
+    const plusDays = (x: Date, n: number) => new Date(x.getTime() + n * DAY)
+    try {
+      for (const born of birthdays) {
+        anchorSeed(born)
+        const y = born.getUTCFullYear()
+        const off = new Set<string>()
+        for (const yr of [y - 2, y - 1, y, y + 1]) for (const h of federalHolidays(yr)) off.add(iso(h.date))
+        const at = iso(born)
+        const story = (name: string) => {
+          const n = who(name)
+          const p = n.placement!
+          const start = nicheStart(p)
+          let cost = 0
+          for (let x = plusDays(nicheListed(n)!, 1); x <= start; x = plusDays(x, 1)) {
+            const wd = x.getUTCDay()
+            if (wd !== 0 && wd !== 6 && !off.has(iso(x))) cost += Math.round((p.pay * 8 * NICHE_POLICY.benchRateBps) / 10_000)
+          }
+          let margin = 0
+          for (let m = start; plusDays(m, 4) <= day(-3); m = plusDays(m, 7)) {
+            const hours = [0, 1, 2, 3, 4].filter((k) => !off.has(iso(plusDays(m, k)))).length * 8
+            margin += hours * (p.bill - p.pay) - Math.round(hours * p.pay * DEFAULT_BURDEN.W2)
+          }
+          return { cost, margin }
+        }
+        const tobias = story('Tobias Wren')
+        const noor = story('Noor Abernathy')
+        expect(tobias.margin, `Tobias Wren, born ${at}`).toBeGreaterThanOrEqual(tobias.cost)
+        expect(noor.margin, `Noor Abernathy, born ${at}`).toBeLessThan(noor.cost)
       }
     } finally {
       forgetSeedAnchor()

@@ -119,11 +119,11 @@ function holidaysIn(from: Date, to: Date): number {
 }
 const notPaid = (n: number) => (n > 0 ? `, ${n} public holiday${n === 1 ? '' : 's'} not paid` : '')
 
-// Seventeen weeks at ($88 − $62) an hour; four at ($82 − $58); each less
+// Seventeen weeks at ($145 − $64) an hour; four at ($82 − $58); each less
 // the burden on its pay, at the W2 rate for the year each placement began.
 let tobiasBurden = 0
 let noorBurden = 0
-const tobiasWeeks = () => placed(17, 8_800, 6_200, tobiasBurden)
+const tobiasWeeks = () => placed(17, 14_500, 6_400, tobiasBurden)
 const noorWeeks = () => placed(4, 8_200, 5_800, noorBurden)
 
 beforeAll(async () => {
@@ -135,7 +135,7 @@ beforeAll(async () => {
 }, 900_000)
 
 describe('bench to bill, per person, at Pellwright Validation Partners', () => {
-  it('the owner reads what Tobias Wren’s days on the bench cost, less the public holidays Pellwright does not pay, and whether his margin after burden has paid it back', () => {
+  it('the owner reads what Tobias Wren’s days on the bench cost, less the public holidays Pellwright does not pay, and the day his margin after burden paid it back', () => {
     expect(owner.status, JSON.stringify(owner.body)).toBe(200)
     expect(owner.body.data.policySays).toBe('50% of their pay while on the bench, for up to 90 days.')
     const tobias = row(owner.body, 'Tobias Wren')
@@ -145,34 +145,30 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
     const from = plus(start, -49)
     expect(tobias).toMatchObject({ spell: 'BEFORE', benchFrom: iso(from), benchTo: iso(start), days: 49 })
     // 49 calendar days are 35 weekdays; a holiday among them is not paid,
-    // because Pellwright never turned holiday pay on. Half of $62 × 8 = $248 a day.
+    // because Pellwright never turned holiday pay on. Half of $64 × 8 = $256 a day.
     const h = holidaysIn(from, start)
     const worked = 35 - h
-    const cost = worked * 24_800
+    const cost = worked * 25_600
     expect(tobias.costCents).toBe(cost)
-    // Seventeen signed weeks at ($88 − $62) × 8 on every day that was not a
-    // holiday, less the employer's burden on his $62 an hour.
+    // Seventeen signed weeks at ($145 − $64) × 8 on every day that was not a
+    // holiday, less the employer's burden on his $64 an hour.
     expect(tobiasBurden).toBeGreaterThan(0)
     expect(tobias.marginCents).toBe(marginCents)
     // The week his running margin first covers the cost, burden taken off.
-    // At about $494 a week after burden against about $8,700 of bench, that
-    // week has not come on most days the world can be born; it depends on
-    // where the holidays fall, so it is worked out rather than assumed.
+    // At about $2,680 a week after burden against at most $8,960 of bench,
+    // that week comes on any day the world can be born; which Friday it is
+    // depends on where the holidays fall, so it is worked out, not assumed.
     const on = paidBackOn(weeks, cost)
-    if (on) {
-      expect(tobias.paidBackOn).toBe(iso(on))
-      expect(tobias.paybackSays).toBe(
-        `Paid back on ${plainDate(iso(on))}, ${between(start, on)} days after they started on ${plainDate(iso(start))}.`
-      )
-    } else {
-      expect(tobias).toMatchObject({ paidBackOn: null, leftCents: cost - marginCents })
-      expect(tobias.paybackSays).toBe(`Not yet. ${dollars(cost - marginCents)} left to earn back.`)
-    }
+    expect(on, 'his margin covers his bench cost').not.toBeNull()
+    expect(tobias.paidBackOn).toBe(iso(on!))
+    expect(tobias.paybackSays).toBe(
+      `Paid back on ${plainDate(iso(on!))}, ${between(start, on!)} days after they started on ${plainDate(iso(start))}.`
+    )
     expect(tobias.placedAt).toBe('Corveldt Aerospace, through Sundara Systems')
     // The sentence says what was counted, the holidays not paid included.
-    expect(tobias.costCounted).toBe(`${worked} working days of 49 at 50% of $496.00 a day${notPaid(h)}`)
+    expect(tobias.costCounted).toBe(`${worked} working days of 49 at 50% of $512.00 a day${notPaid(h)}`)
     expect(tobias.costSays).toBe(
-      `${worked} working days of 49 at 50% of $496.00 a day${notPaid(h)}, under your bench pay policy: ${dollars(cost)}. ` +
+      `${worked} working days of 49 at 50% of $512.00 a day${notPaid(h)}, under your bench pay policy: ${dollars(cost)}. ` +
         'Priced at what they are paid on the placement that followed, as your policy reads it.'
     )
   })
