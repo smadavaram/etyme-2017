@@ -1512,6 +1512,17 @@ model ConsultantProfile {
   headline     String?
   skills       String[]
   location     String?
+  /// The country the person works from, ISO 3166 alpha-2 ("US", "IN").
+  ///
+  /// Asked for by etyme-supply, 2026-10-05: the Add consultant form had no
+  /// way to say where somebody is, so "Wichita, KS" and "Pune" were free
+  /// text nothing could count. No default, on purpose: a profile written
+  /// before this column did not say "US", and a default would make it
+  /// claim it had — the same reason the order's terms are read from the
+  /// header and not from a line's defaulted copy (CLAUDE.md). Null means
+  /// nobody said. Written by the add form once supply wires it; until
+  /// then nothing writes it.
+  country      String?
   workAuth     String?
   // On corp-to-corp, the company the consultant works through. This is the
   // entity that must carry general liability and workers' compensation —

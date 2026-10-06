@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { NextRequest } from 'next/server'
 import { req, freshWorld, prisma } from './harness'
 import { POST as demo } from '@/app/api/demo/route'
-import { seatsHeldBy } from '@/lib/program-seat'
+import { seatsHeldBy, actingDesk } from '@/lib/program-seat'
+import type { CallerContext } from '@/lib/api-context'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { plusMenuFor } from '@/components/shell/header'
 import { hasAnyPermission } from '@/lib/permissions'
@@ -74,4 +75,43 @@ describe('the demo offers a bench vendor’s door, on the seeded world', () => {
     expect(body.role).toBe('Finance')
     expect(name).toBe('Desmond Achterberg')
   }, 60_000)
+})
+
+describe('a route reads the book and the permissions off one desk, on the seeded world', () => {
+  beforeAll(async () => {
+    await freshWorld()
+  }, 600_000)
+
+  const callerAt = async (slug: string): Promise<CallerContext> => {
+    const co = await prisma.company.findUniqueOrThrow({ where: { slug } })
+    // Only the fields the desk reads; every one of them is the caller's own.
+    return {
+      person: { id: 'p', name: 'Reader', email: 'reader@x.invalid' },
+      company: { id: co.id, name: co.name, slug: co.slug, kind: co.kind },
+      permissions: ['*'],
+    } as unknown as CallerContext
+  }
+
+  it('Kestrel acting under its seat writes in Talvern Medical’s book and is judged by Talvern’s compliance role', async () => {
+    const desk = await actingDesk(await callerAt('world-kestrel'))
+    expect(desk!.companyName).toBe('Talvern Medical')
+    expect(desk!.seat).not.toBeNull()
+    expect(desk!.permissions).toEqual(desk!.seat!.role.permissions)
+    expect(desk!.permissions).not.toContain('*')
+  })
+
+  it('once Talvern revokes the seat, Kestrel is back in its own book under its own role', async () => {
+    const kestrel = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-kestrel' } })
+    await prisma.programSeat.updateMany({ where: { officeCompanyId: kestrel.id }, data: { revokedAt: new Date(Date.now() - 1000) } })
+    const desk = await actingDesk(await callerAt('world-kestrel'))
+    expect(desk!.companyId).toBe(kestrel.id)
+    expect(desk!.seat).toBeNull()
+    expect(desk!.permissions).toEqual(['*'])
+  })
+
+  it('a client is never in a seat at itself, and is judged by its own role', async () => {
+    const desk = await actingDesk(await callerAt('world-terumo-bct'))
+    expect(desk!.companyName).toBe('Talvern Medical')
+    expect(desk!.seat).toBeNull()
+  })
 })

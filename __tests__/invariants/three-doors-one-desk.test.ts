@@ -164,3 +164,24 @@ describe('the demo offers a bench vendor’s door', () => {
     expect([...DEMO_DESKS]).toContain('finance')
   })
 })
+
+describe('a route judges a request by the same desk the shell draws', () => {
+  // `permissionsToJudgeBy` in lib/program-seat is the server half of
+  // `deskOf`: the screen and the route read one answer.
+  it('a request made under a seat is judged by the client’s role the seat holds, never the office’s own', async () => {
+    const { permissionsToJudgeBy } = await import('@/lib/program-seat')
+    const seat = { role: { id: 'r', name: 'Compliance Officer', permissions: role('CLIENT', 'Compliance Officer') } }
+    expect(permissionsToJudgeBy({ permissions: ['*'] }, seat)).toEqual(seat.role.permissions)
+  })
+
+  it('a request made with no seat is judged by the caller’s own role', async () => {
+    const { permissionsToJudgeBy } = await import('@/lib/program-seat')
+    expect(permissionsToJudgeBy({ permissions: role('MSP', 'Owner') }, null)).toEqual(role('MSP', 'Owner'))
+  })
+
+  it('the shell and the route give a seated office the same permissions', async () => {
+    const { permissionsToJudgeBy } = await import('@/lib/program-seat')
+    const seat = { role: { id: 'r', name: 'Compliance Officer', permissions: [...seatedOffice.seat.permissions] } }
+    expect(permissionsToJudgeBy({ permissions: seatedOffice.permissions }, seat)).toEqual(deskOf(seatedOffice).permissions)
+  })
+})

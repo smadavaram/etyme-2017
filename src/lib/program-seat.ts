@@ -174,6 +174,74 @@ export function actingInSeat(caller: CallerContext, seat: LiveSeat): CallerConte
 }
 
 /**
+ * The book a request is kept in, and the permissions it is judged by.
+ *
+ * The server side of `deskOf` in components/shell/sidebar-props: the
+ * shell draws a seated office the client's menu filtered by the seat's
+ * permissions, and a route that serves that screen must judge by the
+ * same answer, or the button and the refusal disagree. An outside review
+ * of the live demo, 2026-10-05, found exactly that disagreement in the
+ * header; this is the half that keeps it from reappearing in a route.
+ *
+ * Two facts move together and never apart:
+ *  - `companyId` is the book: the client's where the caller acts under
+ *    a seat, the caller's own company otherwise;
+ *  - `permissions` are what the caller may do in that book: the seat's
+ *    role where there is a seat (the client's own role, never the
+ *    office's), the caller's own otherwise.
+ *
+ * Moving one without the other is the bug either way round. Judging the
+ * office's own book by the client's role refuses an office its own
+ * settings; writing into the client's book under the office's own role
+ * lets an office do at a client what the client never granted. So a
+ * route asks once, here, and reads both off the answer.
+ *
+ * A client is never in a seat at itself, and is not asked. A caller with
+ * no company gets null, which every route already refuses in its own
+ * words.
+ */
+export interface ActingDesk {
+  companyId: string
+  companyName: string
+  seat: LiveSeat | null
+  permissions: readonly string[]
+  /** The caller as they act here: the seat's permissions and unit, the office's identity. */
+  acting: CallerContext
+}
+
+/** Pure: the permissions a request is judged by, given the seat it acts under. */
+export function permissionsToJudgeBy(
+  caller: Pick<CallerContext, 'permissions'>,
+  seat: Pick<LiveSeat, 'role'> | null
+): readonly string[] {
+  return seat ? seat.role.permissions : caller.permissions
+}
+
+export async function actingDesk(
+  caller: CallerContext,
+  requestedClientId: string | null = null
+): Promise<ActingDesk | null> {
+  if (!caller.company) return null
+  const seat = caller.company.kind === 'CLIENT' ? null : await seatFor(caller, requestedClientId)
+  if (seat) {
+    return {
+      companyId: seat.clientCompany.id,
+      companyName: seat.clientCompany.name,
+      seat,
+      permissions: permissionsToJudgeBy(caller, seat),
+      acting: actingInSeat(caller, seat),
+    }
+  }
+  return {
+    companyId: caller.company.id,
+    companyName: caller.company.name,
+    seat: null,
+    permissions: permissionsToJudgeBy(caller, null),
+    acting: caller,
+  }
+}
+
+/**
  * Record that the office read this client's program under the seat.
  *
  * ── Why the subjects are the people on site ──────────────────────────
