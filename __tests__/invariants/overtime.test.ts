@@ -5,6 +5,7 @@ import {
   valueOfWeek,
   billableHours,
   weekStart,
+  weekEnd,
   policyOf,
   says,
   saysAwaiting,
@@ -39,7 +40,11 @@ import {
 
 const OT = { afterHours: 40, multiplierBps: 15_000 }
 
-/** A run of days from a Monday. */
+/**
+ * A run of days from the given date. The fixtures start their work on a
+ * Monday, so Monday to Friday sit inside one Sunday-to-Saturday week,
+ * and a decision names that week by its Sunday.
+ */
 const week = (from: string, hours: number[]): Record<string, number> => {
   const out: Record<string, number> = {}
   const d = new Date(`${from}T00:00:00.000Z`)
@@ -55,11 +60,24 @@ const decided = (weekOf: string, treatment: Decision['treatment'], appliedBps: n
   ({ weekOf, treatment, appliedBps, overtimeHours })
 
 describe('which week an hour belongs to', () => {
-  it('a week begins on Monday, and Sunday belongs to the week that began six days earlier', () => {
-    expect(weekStart('2026-09-07')).toBe('2026-09-07') // Monday
-    expect(weekStart('2026-09-11')).toBe('2026-09-07') // Friday
-    expect(weekStart('2026-09-13')).toBe('2026-09-07') // Sunday
-    expect(weekStart('2026-09-14')).toBe('2026-09-14') // the next Monday
+  it('a week begins on Sunday and ends on Saturday, so a Saturday belongs to the week that began six days earlier', () => {
+    expect(weekStart('2026-09-13')).toBe('2026-09-13') // Sunday
+    expect(weekStart('2026-09-17')).toBe('2026-09-13') // Thursday
+    expect(weekStart('2026-09-19')).toBe('2026-09-13') // Saturday
+    expect(weekStart('2026-09-20')).toBe('2026-09-20') // the next Sunday
+    expect(weekEnd('2026-09-13')).toBe('2026-09-19')
+    expect(weekEnd('2026-09-19')).toBe('2026-09-19')
+    expect(weekEnd('2026-09-20')).toBe('2026-09-26')
+  })
+
+  it("a week's hours are counted Sunday to Saturday for the overtime line, so Saturday hours and the following Sunday's are in different weeks", () => {
+    // Thirty-two hours Monday to Thursday, ten on Saturday, ten on the next Sunday.
+    const days = { ...week('2026-09-14', [8, 8, 8, 8]), '2026-09-19': 10, '2026-09-20': 10 }
+    const s = splitWeeks(days, OT)
+    expect(s.weeks.map((w) => w.weekOf)).toEqual(['2026-09-13', '2026-09-20'])
+    // 42 in the first week is two over the line; the Sunday's ten start a new week.
+    expect(s.weeks.map((w) => w.overHours)).toEqual([2, 0])
+    expect(s.pendingHours).toBe(2)
   })
 })
 
@@ -121,7 +139,7 @@ describe('what the hours are worth, once somebody has decided', () => {
   })
 
   it('overtime decided as the same rate bills flat, with no premium', () => {
-    const v = valueOfWeek(days, RATE, OT, { decisions: [decided('2026-09-07', 'SAME_RATE', 10_000, 5)] })
+    const v = valueOfWeek(days, RATE, OT, { decisions: [decided('2026-09-06', 'SAME_RATE', 10_000, 5)] })
     expect(v.overtimeCents).toBe(50_000) // 5h × $100
     expect(v.totalCents).toBe(450_000) // $4,500
     expect(v.pendingHours).toBe(0)
@@ -130,19 +148,19 @@ describe('what the hours are worth, once somebody has decided', () => {
 
   it('overtime decided as a premium bills at the multiplier the approver chose, not the contract default', () => {
     // The contract says time and a half. This week was agreed at double time.
-    const v = valueOfWeek(days, RATE, OT, { decisions: [decided('2026-09-07', 'PREMIUM', 20_000, 5)] })
+    const v = valueOfWeek(days, RATE, OT, { decisions: [decided('2026-09-06', 'PREMIUM', 20_000, 5)] })
     expect(v.overtimeCents).toBe(100_000) // 5h × $100 × 2.0, not × 1.5
     expect(v.totalCents).toBe(500_000)
   })
 
   it('overtime decided as a premium at the contract multiplier is the ordinary case, and bills $4,750', () => {
-    const v = valueOfWeek(days, RATE, OT, { decisions: [decided('2026-09-07', 'PREMIUM', 15_000, 5)] })
+    const v = valueOfWeek(days, RATE, OT, { decisions: [decided('2026-09-06', 'PREMIUM', 15_000, 5)] })
     expect(v.totalCents).toBe(475_000)
     expect(v.overtimeCents).toBe(75_000)
   })
 
   it('overtime decided as time off does not bill, and the hours appear in the bank', () => {
-    const v = valueOfWeek(days, RATE, OT, { decisions: [decided('2026-09-07', 'TIME_OFF', 0, 5)] })
+    const v = valueOfWeek(days, RATE, OT, { decisions: [decided('2026-09-06', 'TIME_OFF', 0, 5)] })
     expect(v.totalCents).toBe(400_000) // $4,000, as if the week had been forty hours
     expect(v.overtimeCents).toBe(0)
     expect(v.split.bankedHours).toBe(5)
@@ -150,7 +168,7 @@ describe('what the hours are worth, once somebody has decided', () => {
   })
 
   it('amending the contract multiplier does not restate an invoice already sent', () => {
-    const decision = decided('2026-09-07', 'PREMIUM', 15_000, 5)
+    const decision = decided('2026-09-06', 'PREMIUM', 15_000, 5)
     const sent = valueOfWeek(days, RATE, OT, { decisions: [decision] })
     // Somebody amends the contract to double time in March.
     const amended = { afterHours: 40, multiplierBps: 20_000 }
@@ -168,7 +186,7 @@ describe('what the hours are worth, once somebody has decided', () => {
 
   it('rounds once per band rather than per day, so a line agrees with the invoice it sits on', () => {
     const odd = week('2026-09-07', [8.33, 8.33, 8.33, 8.33, 8.33])
-    const v = valueOfWeek(odd, 3_333, OT, { decisions: [decided('2026-09-07', 'PREMIUM', 15_000, 1.65)] })
+    const v = valueOfWeek(odd, 3_333, OT, { decisions: [decided('2026-09-06', 'PREMIUM', 15_000, 1.65)] })
     expect(v.regularCents + v.leaveCents + v.overtimeCents).toBe(v.totalCents)
     expect(Number.isInteger(v.totalCents)).toBe(true)
   })
@@ -176,18 +194,18 @@ describe('what the hours are worth, once somebody has decided', () => {
   it('a semi-monthly sheet asks once per overtime week, not once per sheet', () => {
     const days2 = { ...week('2026-09-07', [9, 9, 9, 9, 9]), ...week('2026-09-14', [10, 10, 10, 10, 10]) }
     const none = splitWeeks(days2, OT)
-    expect(weeksAwaitingDecision(none).map((w) => w.weekOf)).toEqual(['2026-09-07', '2026-09-14'])
+    expect(weeksAwaitingDecision(none).map((w) => w.weekOf)).toEqual(['2026-09-06', '2026-09-13'])
 
     // One week answered. The other is still a question, and answering
     // the first does not answer it.
-    const half = splitWeeks(days2, OT, { decisions: [decided('2026-09-07', 'SAME_RATE', 10_000, 5)] })
-    expect(weeksAwaitingDecision(half).map((w) => w.weekOf)).toEqual(['2026-09-14'])
+    const half = splitWeeks(days2, OT, { decisions: [decided('2026-09-06', 'SAME_RATE', 10_000, 5)] })
+    expect(weeksAwaitingDecision(half).map((w) => w.weekOf)).toEqual(['2026-09-13'])
     expect(half.overtimeHours).toBe(5)
     expect(half.pendingHours).toBe(10)
 
     // And the two weeks may honestly be answered differently.
     const both = splitWeeks(days2, OT, {
-      decisions: [decided('2026-09-07', 'SAME_RATE', 10_000, 5), decided('2026-09-14', 'TIME_OFF', 0, 10)],
+      decisions: [decided('2026-09-06', 'SAME_RATE', 10_000, 5), decided('2026-09-13', 'TIME_OFF', 0, 10)],
     })
     expect(both.overtimeHours).toBe(5)
     expect(both.bankedHours).toBe(10)
@@ -196,7 +214,7 @@ describe('what the hours are worth, once somebody has decided', () => {
 
   it('every hour on a sheet is regular, leave, decided overtime or waiting — and never two of them', () => {
     const days2 = { ...week('2026-09-07', [9, 9, 9, 9, 9]), ...week('2026-09-14', [10, 10, 10, 10, 10]) }
-    const s = splitWeeks(days2, OT, { decisions: [decided('2026-09-14', 'TIME_OFF', 0, 10)] })
+    const s = splitWeeks(days2, OT, { decisions: [decided('2026-09-13', 'TIME_OFF', 0, 10)] })
     const total = s.regularHours + s.leaveHours + s.overtimeHours + s.bankedHours + s.pendingHours
     expect(total).toBe(95)
   })
@@ -246,7 +264,7 @@ describe('a decision that no longer describes the week it was made about', () =>
   it('amending the hours after a decision makes it stale, and the week is asked again', () => {
     // Decided when the week held 45 hours. The consultant corrected it to 48.
     const corrected = week('2026-09-07', [9, 9, 9, 9, 12])
-    const s = splitWeeks(corrected, OT, { decisions: [decided('2026-09-07', 'PREMIUM', 15_000, 5)] })
+    const s = splitWeeks(corrected, OT, { decisions: [decided('2026-09-06', 'PREMIUM', 15_000, 5)] })
     expect(s.weeks[0].stale).toBe(true)
     expect(s.overtimeHours).toBe(0)
     expect(s.pendingHours).toBe(8)
@@ -255,7 +273,7 @@ describe('a decision that no longer describes the week it was made about', () =>
 
   it('a week that no longer goes over the line at all carries no overtime, decided or otherwise', () => {
     const corrected = week('2026-09-07', [8, 8, 8, 8, 8])
-    const s = splitWeeks(corrected, OT, { decisions: [decided('2026-09-07', 'PREMIUM', 15_000, 5)] })
+    const s = splitWeeks(corrected, OT, { decisions: [decided('2026-09-06', 'PREMIUM', 15_000, 5)] })
     expect(s.overtimeHours).toBe(0)
     expect(s.pendingHours).toBe(0)
     expect(s.regularHours).toBe(40)
@@ -359,7 +377,7 @@ describe('what the screen says', () => {
     const waiting = weeksAwaitingDecision(s)
     expect(waiting).toHaveLength(1)
     expect(saysAwaiting(waiting, 'Priya Nair', OT)).toBe(
-      'Priya Nair worked 45 hours in the week of September 7 — 5 hours over the 40 on this contract. ' +
+      'Priya Nair worked 45 hours in the week of September 6 — 5 hours over the 40 on this contract. ' +
         'Say what happens to those hours before you approve the week.'
     )
   })
@@ -368,7 +386,7 @@ describe('what the screen says', () => {
     const days = { ...week('2026-09-07', [9, 9, 9, 9, 9]), ...week('2026-09-14', [10, 10, 10, 10, 10]) }
     const line = saysAwaiting(weeksAwaitingDecision(splitWeeks(days, OT)), 'Priya Nair', OT)
     expect(line).toMatch(/2 weeks on this timesheet went over 40 hours/)
-    expect(line).toMatch(/September 7 \(5 hours over\) and September 14 \(10 hours over\)/)
+    expect(line).toMatch(/September 6 \(5 hours over\) and September 13 \(10 hours over\)/)
     expect(line).toMatch(/decided a week at a time/)
   })
 

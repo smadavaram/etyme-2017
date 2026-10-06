@@ -41,9 +41,13 @@
  *
  * ── Where the week starts ────────────────────────────────────────────
  *
- * Monday. The Fair Labor Standards Act lets an employer pick any fixed
- * seven-day workweek and most US staffing runs Monday to Sunday, which
- * is also what the cycle engine already assumes for a weekly period.
+ * Sunday, and it ends on Saturday. Decided by the founder on 2026-09-30
+ * (CLAUDE.md, "A week runs Sunday to Saturday"): a timesheet week and
+ * the week the overtime line counts over are the same seven days. The
+ * Fair Labor Standards Act lets an employer fix any seven-day workweek,
+ * so this is a choice, and it is made once, here, in `weekStart` and
+ * `weekEnd`. Saturday and Sunday may be filed like any other day; which
+ * days are off is a company setting and never moves the week.
  *
  * ── Leave never makes overtime ───────────────────────────────────────
  *
@@ -89,7 +93,7 @@ export function isTreatment(x: unknown): x is Treatment {
  * a caller with a row hands over the four fields that matter.
  */
 export interface Decision {
-  /** The Monday the week began — `weekStart()`, the same function the split uses. */
+  /** The Sunday the week began — `weekStart()`, the same function the split uses. */
   weekOf: string
   treatment: Treatment
   /** What was actually applied. 10000 flat, the approver's choice, or 0 for time off. */
@@ -149,13 +153,22 @@ export interface SplitOptions {
 /** Hours are Decimal(7,2) in the database; keep the arithmetic there too. */
 const round2 = (n: number): number => Math.round(n * 100) / 100
 
-/** The Monday on or before this day. */
+/**
+ * The Sunday on or before this day: a week runs Sunday to Saturday,
+ * decided 2026-09-30. Every reader of a week goes through this door.
+ */
 export function weekStart(iso: string): string {
   const d = new Date(`${iso}T00:00:00.000Z`)
-  // getUTCDay: 0 Sunday … 6 Saturday. Monday is the start, so Sunday
-  // belongs to the week that began six days earlier.
-  const back = (d.getUTCDay() + 6) % 7
-  d.setUTCDate(d.getUTCDate() - back)
+  // getUTCDay: 0 Sunday … 6 Saturday. Sunday is the start, so the day
+  // number is exactly how far back the week began.
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay())
+  return d.toISOString().slice(0, 10)
+}
+
+/** The Saturday on or after this day: the last day of the week `weekStart` opens. */
+export function weekEnd(iso: string): string {
+  const d = new Date(`${weekStart(iso)}T00:00:00.000Z`)
+  d.setUTCDate(d.getUTCDate() + 6)
   return d.toISOString().slice(0, 10)
 }
 
