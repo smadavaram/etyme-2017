@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { send } from '@/lib/messages'
-import { addedSays, benchClosedSays, listingTermsFrom } from '@/lib/bench-filter'
+import { addedSays, benchClosedSays, listingTermsFrom, termsShown } from '@/lib/bench-filter'
 import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
@@ -434,6 +434,8 @@ export async function POST(request: NextRequest) {
         personName: result.person.name,
         vendorName: caller.company!.name,
         url,
+        // The terms stated on the listing, so the email names what a yes agrees.
+        terms: termsShown(result.listing, caller.company!.name),
       })
       void send({
         companyId,

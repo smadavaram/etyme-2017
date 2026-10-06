@@ -6,7 +6,7 @@ import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { send } from '@/lib/messages'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { listingTermsFrom } from '@/lib/bench-filter'
+import { listingTermsFrom, termsShown } from '@/lib/bench-filter'
 
 /**
  * POST /api/bench/listings
@@ -226,6 +226,8 @@ export async function POST(request: NextRequest) {
         personName: consultant.person.name,
         vendorName: caller.company!.name,
         url,
+        // The terms stated on the listing, so the email names what a yes agrees.
+        terms: termsShown(result, caller.company!.name),
       })
       void send({
         companyId,

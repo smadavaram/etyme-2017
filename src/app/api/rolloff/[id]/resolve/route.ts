@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
+import { termsShown } from '@/lib/bench-filter'
 import { send } from '@/lib/messages'
 
 /**
@@ -119,7 +120,7 @@ export async function POST(
       let benchNote: string | null = null
       // Set only where a new question was put to the person, and read
       // after the transaction to send it — see below.
-      let invite: { listingId: string } | null = null
+      let invite: { listingId: string; terms: ReturnType<typeof termsShown> } | null = null
 
       if (outcome === 'BENCH' && employedByUs) {
         // The integrator's case. The firm employs this person, so they
@@ -166,7 +167,7 @@ export async function POST(
           // A revoked or declined listing from before. They are asked
           // afresh, never quietly re-granted: silently restoring it
           // would make revoking or declining a suggestion.
-          await tx.benchListing.update({
+          const again = await tx.benchListing.update({
             where: { id: existing.id },
             data: {
               tier: 'MARKETING',
@@ -175,9 +176,14 @@ export async function POST(
               ...invitation(new Date()),
               revokedAt: null,
               declinedNote: null,
+              // Stated afresh or not at all, as on the Bench page: terms
+              // stated or agreed on the listing they took back went with it.
+              termsEngagementType: null, termsPayRateCents: null, termsStatedAt: null,
+              termsStatedById: null, termsAgreedAt: null,
             },
+            select: { termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true },
           })
-          invite = { listingId: existing.id }
+          invite = { listingId: existing.id, terms: termsShown(again, caller.company!.name) }
           benchNote = `Asked ${personName} to agree to be on your bench. Nobody can put them forward until they say yes.`
         } else {
           const created = await tx.benchListing.create({
@@ -192,9 +198,9 @@ export async function POST(
               // new one must be born asking.
               ...invitation(new Date()),
             },
-            select: { id: true },
+            select: { id: true, termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true },
           })
-          invite = { listingId: created.id }
+          invite = { listingId: created.id, terms: termsShown(created, caller.company!.name) }
           benchNote = `Asked ${personName} to agree to be on your bench. Nobody can put them forward until they say yes.`
         }
       }
@@ -225,7 +231,7 @@ export async function POST(
     if (result.invite && rolloff.sellContract.person.primaryEmail) {
       const url = inviteUrl(result.invite.listingId)
       if (url) {
-        const msg = inviteText({ personName, vendorName: caller.company!.name, url })
+        const msg = inviteText({ personName, vendorName: caller.company!.name, url, terms: result.invite.terms })
         void send({
           companyId,
           personId,

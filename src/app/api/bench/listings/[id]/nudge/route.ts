@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { send } from '@/lib/messages'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
+import { termsShown } from '@/lib/bench-filter'
 import { renewAskText } from '@/lib/bench-stay'
 
 /**
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     where: { id },
     select: {
       id: true, companyId: true, state: true, revokedAt: true, lapsedAt: true, staysUntil: true, stayDays: true,
+      termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true,
       company: { select: { name: true } },
       consultant: { select: { person: { select: { id: true, name: true, primaryEmail: true } } } },
     },
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const letter = waiting
-    ? inviteText({ personName: person.name, vendorName: listing.company.name, url })
+    ? inviteText({ personName: person.name, vendorName: listing.company.name, url, terms: termsShown(listing, listing.company.name) })
     : renewAskText({ personName: person.name, firm: listing.company.name, endedOn: listing.lapsedAt ?? listing.staysUntil!, days: listing.stayDays, url })
   const sent = await send({
     companyId: listing.companyId, personId: person.id, kind: 'LINK', to: person.primaryEmail,

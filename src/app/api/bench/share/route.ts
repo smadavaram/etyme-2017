@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
+import { termsShown } from '@/lib/bench-filter'
 import { send } from '@/lib/messages'
 
 /**
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
   const sourceMap = new Map(sourceListings.map((l) => [l.id, l]))
 
   const now = new Date()
-  const toAsk: { listingId: string; personId: string; name: string; email: string | null }[] = []
+  const toAsk: { listingId: string; personId: string; name: string; email: string | null; terms: ReturnType<typeof termsShown> }[] = []
   let shared = 0
   let errors = 0
   const results: Array<{
@@ -175,6 +176,11 @@ export async function POST(request: NextRequest) {
               ...invitation(now),
               declinedNote: null,
               revokedAt: null,
+              // A share states no pay terms: what this firm would pay is its
+              // own to state, never the sharing firm's. Terms stated or
+              // agreed on the listing they took back went with it.
+              termsEngagementType: null, termsPayRateCents: null, termsStatedAt: null,
+              termsStatedById: null, termsAgreedAt: null,
             },
           })
         } else {
@@ -210,6 +216,7 @@ export async function POST(request: NextRequest) {
           personId: source.consultant.personId,
           name: source.consultant.person.name,
           email: source.consultant.person.primaryEmail,
+          terms: termsShown(newListing, targetCompany.name),
         })
 
         shared++
@@ -235,7 +242,7 @@ export async function POST(request: NextRequest) {
   for (const a of toAsk) {
     const url = inviteUrl(a.listingId)
     if (!url || !a.email) continue
-    const msg = inviteText({ personName: a.name, vendorName: targetCompany.name, url })
+    const msg = inviteText({ personName: a.name, vendorName: targetCompany.name, url, terms: a.terms })
     void send({
       companyId: toCompanyId,
       personId: a.personId,
