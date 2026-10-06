@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { loadCompanyHolidays } from '@/lib/holidays'
+import { daysOffFor } from '@/lib/days-off'
 import { latestPerPerson, personAnswer, turnedSays, asSwitch } from '@/lib/bench-holiday-switch'
 import type { HolidayPay } from '@/lib/bench-policy'
 import type { HolidayAnswerRow } from '@/lib/bench-profit'
@@ -22,6 +23,10 @@ import type { HolidayAnswerRow } from '@/lib/bench-profit'
  * for a firm with one country's days is exactly right, and is said in the
  * basis on bench profit.
  *
+ * The days counted are the firm's own working days (`daysOffFor` in
+ * lib/days-off): a firm with Friday off has no bench Friday and a bench
+ * Saturday. A firm that never set its week reads Saturday and Sunday off.
+ *
  * Read by /api/bench/burn and /api/bench/profit. Both already put every
  * person whose pay they show on the access trail, so this read adds none.
  */
@@ -40,12 +45,13 @@ export async function benchHolidays(input: {
   from: Date
   to: Date
 }): Promise<BenchHolidays> {
-  const [rows, calendar] = await Promise.all([
+  const [rows, calendar, daysOff] = await Promise.all([
     prisma.benchHolidaySwitch.findMany({
       where: { companyId: input.companyId },
       select: { personId: true, paid: true, setAt: true, setBy: { select: { name: true } } },
     }),
     loadCompanyHolidays(input.companyId, input.from.getUTCFullYear(), input.to.getUTCFullYear(), input.country),
+    daysOffFor(input.companyId),
   ])
   const firmTurns = rows.filter((r) => r.personId == null)
   const latest = latestPerPerson(rows)
@@ -56,6 +62,6 @@ export async function benchHolidays(input: {
   }
   return {
     answerOf,
-    payOf: (personId) => ({ paid: answerOf(personId).paid, calendar }),
+    payOf: (personId) => ({ paid: answerOf(personId).paid, calendar, daysOff }),
   }
 }

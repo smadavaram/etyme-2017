@@ -415,3 +415,38 @@ describe('the bench-profit weeks are on the books under the hop-ledger rule', ()
     expect(await prisma.orderPosting.count({ where: { source: 'TIMESHEET' } })).toBe(before)
   })
 })
+
+describe('the bench counts the firm’s own week', () => {
+  it('a firm with Friday off counts a bench Friday as a day off and a Saturday as a bench day', async () => {
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pellwright' }, select: { id: true, daysOff: true } })
+    await prisma.company.update({ where: { id: firm.id }, data: { daysOff: [5] } })
+    try {
+      const r = await read(OWNER)
+      expect(r.status, JSON.stringify(r.body)).toBe(200)
+      const hector = row(r.body, 'Hector Valdivia')
+      // The same sixty days as above, counted on Pellwright's new week:
+      // every day strictly after the spell began through the world's own
+      // day that is not a Friday, less the holidays on those days where
+      // Hector is not paid for them (an earlier sentence in this file turns
+      // his holiday pay on, so his row's own answer decides). Counted here
+      // by hand, not through benchDays.
+      const from = plus(seedToday(), -60)
+      let days = 0
+      let holidays = 0
+      for (let d = plus(from, 1); d <= seedToday(); d = plus(d, 1)) {
+        if (d.getUTCDay() === 5) continue
+        days++
+        if (holidayKeys().has(iso(d))) holidays++
+      }
+      const unpaid = hector.holiday.paid ? 0 : holidays
+      const worked = days - unpaid
+      // Sixty calendar days hold eight or nine Fridays, so the firm works 51 or 52 of them.
+      expect(days).toBeGreaterThanOrEqual(51)
+      expect(days).toBeLessThanOrEqual(52)
+      expect(hector.costCents).toBe(worked * 25_600)
+      expect(hector.costCounted).toBe(`${worked} working days of 60 at 50% of $512.00 a day${notPaid(unpaid)}`)
+    } finally {
+      await prisma.company.update({ where: { id: firm.id }, data: { daysOff: firm.daysOff } })
+    }
+  })
+})
