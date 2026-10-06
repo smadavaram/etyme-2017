@@ -55,7 +55,7 @@ import { prisma as db } from '@/lib/db'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
 import { holidayKeys } from '@/lib/seed-calendar'
-import { chaseCredentials } from '@/lib/credential-chase'
+import { chaseCredentials, withdrawMisdirectedAsks } from '@/lib/credential-chase'
 import { day, seedToday } from '@/lib/seed-days'
 import type { Prisma } from '@prisma/client'
 import type { World } from '@/lib/seed-programmes'
@@ -1222,6 +1222,10 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // asks her for the renewal — the same call `api/cron/watch` makes every
   // night, against the same rows. Idempotent by the packet it looks for
   // before it writes one, so seeding twice asks nobody twice.
+  // An ask raised by the wrong firm on an earlier seeding — while the
+  // asker flipped between Halcyon and her own company — is withdrawn
+  // first, so the right firm asks once.
+  await withdrawMisdirectedAsks(day(0))
   await chaseCredentials(day(0))
 
   return { people, placements }

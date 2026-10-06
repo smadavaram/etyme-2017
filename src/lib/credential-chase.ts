@@ -32,7 +32,7 @@ import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
-import { credentialsToChase, type CredentialChase, type HeldCredential } from '@/lib/document-stages'
+import { credentialsToChase, whoAsksTheWorker, type CredentialChase, type HeldCredential, type LineCarryingPerson } from '@/lib/document-stages'
 import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
 import { labelFor } from '@/lib/document-type'
 import { packetByKey } from '@/lib/packets'
@@ -140,24 +140,91 @@ function heldFrom(rows: CredentialRow[]): HeldCredential[] {
  * through, and inventing one would mean a firm emailing a stranger.
  */
 async function whoChases(personId: string): Promise<{ id: string; name: string } | null> {
-  const live = await prisma.sellContract.findFirst({
-    where: { personId, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
-    orderBy: { startDate: 'desc' },
-    select: { company: { select: { id: true, name: true } } },
-  })
-  if (live?.company) return live.company
+  // The rule is regulatory's (`whoAsksTheWorker` in lib/document-stages):
+  // the firm whose buy line pays for her, nearest her; else the bottom
+  // seller; else her bench; never a firm she owns. This reads the facts
+  // it needs and decides nothing. It used to take the newest live sell
+  // line, and Colleen Byrne has two starting the same day, so the asker
+  // flipped between Halcyon and her own company night to night.
+  const live = { in: ['IN_PROGRESS' as const, 'PAUSED' as const] }
+  const [buys, sells, seats] = await Promise.all([
+    prisma.buyContract.findMany({
+      where: { state: live, candidates: { some: { personId, state: 'ACTIVE' } } },
+      select: { id: true, startDate: true, vendorCompanyId: true, company: { select: { id: true, name: true } } },
+    }),
+    prisma.sellContract.findMany({
+      where: { personId, state: live },
+      select: { id: true, startDate: true, clientCompanyId: true, company: { select: { id: true, name: true } } },
+    }),
+    prisma.context.findMany({
+      where: { personId, revokedAt: null, companyId: { not: null } },
+      orderBy: { grantedAt: 'desc' },
+      select: {
+        type: true,
+        role: { select: { name: true } },
+        company: { select: { id: true, name: true, kind: true } },
+      },
+    }),
+  ])
 
-  const seat = await prisma.context.findFirst({
-    where: {
-      personId,
-      revokedAt: null,
-      companyId: { not: null },
-      type: { in: ['CONSULTANT', 'EMPLOYEE'] },
-    },
-    orderBy: { grantedAt: 'desc' },
-    select: { company: { select: { id: true, name: true } } },
+  const lines: LineCarryingPerson[] = [
+    ...buys.map((b) => ({
+      side: 'BUY' as const, id: b.id, companyId: b.company.id, companyName: b.company.name,
+      vendorCompanyId: b.vendorCompanyId, startDate: b.startDate,
+    })),
+    ...sells.filter((x) => x.company).map((x) => ({
+      side: 'SELL' as const, id: x.id, companyId: x.company!.id, companyName: x.company!.name,
+      clientCompanyId: x.clientCompanyId, startDate: x.startDate,
+    })),
+  ]
+  const ownCompanyIds = seats
+    .filter((c) => c.company && (c.role?.name === 'Owner' || c.company.kind === 'CONSULTANT_CORP'))
+    .map((c) => c.company!.id)
+  const benchSeat = seats.find((c) => c.company && (c.type === 'CONSULTANT' || c.type === 'EMPLOYEE'))
+  const who = whoAsksTheWorker({
+    lines,
+    ownCompanyIds,
+    bench: benchSeat?.company ? { companyId: benchSeat.company.id, companyName: benchSeat.company.name } : null,
   })
-  return seat?.company ?? null
+  return who ? { id: who.companyId, name: who.companyName } : null
+}
+
+/**
+ * Withdraw an open renewal ask raised by a firm the rule says should not
+ * ask.
+ *
+ * While `whoChases` read the newest sell line, Colleen Byrne's two lines
+ * starting the same day let her own company ask her one night and Halcyon
+ * the next, and an ask raised on the wrong night stayed open. Run before
+ * the chase, so a world seeded while it flipped is cleaned on the next
+ * seeding and the right firm then asks once. Each withdrawal is on the
+ * automation log with the firm that should ask, and can be undone.
+ */
+export async function withdrawMisdirectedAsks(now: Date): Promise<number> {
+  const open = await prisma.documentPacket.findMany({
+    where: { packetKey: CREDENTIAL_PACKET_KEY, completedAt: null, cancelledAt: null, subjectPersonId: { not: null } },
+    select: { id: true, companyId: true, subjectPersonId: true, recipientName: true, company: { select: { name: true } } },
+  })
+  let withdrawn = 0
+  for (const p of open) {
+    const should = await whoChases(p.subjectPersonId!)
+    if (should && should.id === p.companyId) continue
+    await prisma.documentPacket.update({ where: { id: p.id }, data: { cancelledAt: now } })
+    await prisma.automationLog.create({
+      data: {
+        companyId: p.companyId,
+        action: 'CREDENTIAL_ASK_WITHDRAWN',
+        summary: `Withdrew ${p.company.name}'s request to ${p.recipientName ?? 'a worker'} for a license renewal`,
+        reason: should
+          ? `${should.name} is the firm that asks this person for paperwork, not ${p.company.name}.`
+          : `No firm places or carries this person today, so nobody should be asking.`,
+        payload: { packetId: p.id, shouldAsk: should?.id ?? null },
+        reversible: true,
+      },
+    })
+    withdrawn++
+  }
+  return withdrawn
 }
 
 /** Said to the desk, in the third person. `chase.says` is said to the person. */

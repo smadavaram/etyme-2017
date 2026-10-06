@@ -1105,7 +1105,7 @@ export const MATRIX: L1[] = [
             'src/lib/credential-chase.ts', 'src/app/api/cron/watch/route.ts',
             'src/app/api/contracts/[id]/activate/route.ts', 'src/app/api/placements/[id]/route.ts',
             'src/app/api/program/route.ts', 'src/app/api/compliance/route.ts', 'src/lib/seed-doors.ts'],
-          testedBy: ['__tests__/invariants/professional-license.test.ts', '__tests__/invariants/credential-chase.test.ts',
+          testedBy: ['__tests__/invariants/who-asks-the-worker.test.ts', '__tests__/invariants/professional-license.test.ts', '__tests__/invariants/credential-chase.test.ts',
             '__integration__/licensed-practice.test.ts', '__integration__/credential-renewal.test.ts',
             '__integration__/licensed-start.test.ts'] },
         { code: 'L3.2.3.8', name: 'The document loop between parties', owner: 'Compliance', status: P,
