@@ -191,3 +191,77 @@ export function emptyQueueSays(c: {
   }
   return first
 }
+
+/**
+ * The rows "Yours today" draws besides the decisions: one per start that
+ * paperwork will refuse, one per supplier with people on site and no
+ * agreement on file.
+ *
+ * ── One list, one count ──────────────────────────────────────────────
+ *
+ * The tester read "2 things need you" over a box saying "Nothing is
+ * waiting on you" (2026-10-03), and then, once that sentence was fixed,
+ * a box that pointed somewhere else for what the headline counted. The
+ * headline adds up decisions, held starts and suppliers with no
+ * agreement; the box under it now draws exactly those, so the number at
+ * the top is the number of rows underneath. `deskCounts` counts these
+ * same rows, so the two cannot drift apart.
+ */
+export interface DeskItem {
+  key: string
+  kind: 'START' | 'AGREEMENT'
+  /** The short word in the row's left column. */
+  label: string
+  who: string
+  says: string
+  href: string
+}
+
+export function deskItems(input: {
+  startingSoon: {
+    contractId: string
+    person: { name: string }
+    vendor: { name: string; via?: string }
+    paperwork: { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix?: string | null }
+  }[]
+  vendors: { id: string; name: string; agreement?: boolean; headcount?: number }[]
+}): DeskItem[] {
+  const starts: DeskItem[] = input.startingSoon
+    .filter((c) => c.paperwork.outcome === 'BLOCK')
+    .map((c) => ({
+      key: `start-${c.contractId}`,
+      kind: 'START',
+      label: 'Start held',
+      who: `${c.person.name} — through ${c.vendor.via ?? c.vendor.name}`,
+      says: c.paperwork.fix ? `${c.paperwork.says} ${c.paperwork.fix}` : c.paperwork.says,
+      href: `/dashboard/placements/${c.contractId}`,
+    }))
+  const agreements: DeskItem[] = input.vendors
+    // `=== false`, as in deskCounts: an unread answer is not a finding.
+    .filter((v) => v.agreement === false)
+    .map((v) => ({
+      key: `agreement-${v.id}`,
+      kind: 'AGREEMENT',
+      label: 'No agreement',
+      who: v.name,
+      says:
+        (v.headcount ?? 0) > 0
+          ? `${plural(v.headcount!, 'person is', 'people are')} on site through ${v.name}, ` +
+            'and no agreement with them is on file. Put one on file.'
+          : `No agreement with ${v.name} is on file. Put one on file.`,
+      href: '/dashboard/program/agreements',
+    }))
+  return [...starts, ...agreements]
+}
+
+/**
+ * The line under the On site tile. The tile counts people working today;
+ * the Contractors tab beside it counts them and anybody signed who has
+ * not started, so the tile names the difference rather than leaving two
+ * numbers for one question.
+ */
+export function onSiteSub(notStarted: number): string {
+  return notStarted > 0
+    ? `working today; ${notStarted} more signed, not started`
+    : 'working today'
+}

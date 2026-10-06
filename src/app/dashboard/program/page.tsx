@@ -8,7 +8,7 @@ import { compact } from '@/lib/money-display'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
-import { deskCounts, deskHeadline, whoseQueue, emptyQueueSays } from './needs-you'
+import { deskCounts, deskHeadline, deskItems, onSiteSub, whoseQueue, emptyQueueSays } from './needs-you'
 import { jobListWord, stageWordFor } from '../requirements/words'
 
 /**
@@ -577,6 +577,8 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
 }) {
   const s = data.summary
   const whoseBook = whoseQueue(queueBook ?? {})
+  // Everything else the headline counts, drawn in the same box.
+  const others = deskItems({ startingSoon: data.startingSoon, vendors: data.vendors })
   const [reasonFor, setReasonFor] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const watchList = (tenure?.people ?? [])
@@ -621,7 +623,7 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
         </div>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {!queueLoaded && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}
-          {queueLoaded && queue.length === 0 && (
+          {queueLoaded && queue.length === 0 && others.length === 0 && (
             <p className="p-4 text-sm text-etyme-muted">
               {/* Never "nothing" under a headline that counted something
                   (`emptyQueueSays`): it says where those things are. */}
@@ -698,6 +700,21 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
               and {queue.length - 8} more
             </Link>
           )}
+          {/* The rest of what the headline counted, as rows in the same
+              box: a start paperwork will refuse, a supplier with people on
+              site and no agreement (`deskItems`). One list, one count. */}
+          {queueLoaded && others.map((o) => (
+            <div key={o.key} className="p-4 bg-etyme-attention/[0.04]">
+              <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+                <span className="w-[72px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium pt-1">{o.label}</span>
+                <div className="flex-1 min-w-[220px]">
+                  <p className="text-sm text-etyme-ink">{o.who}</p>
+                  <p className="text-xs text-etyme-attention mt-0.5">{o.says}</p>
+                </div>
+                <Link href={o.href as any} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas shrink-0">Open</Link>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* ── Done today ── */}
@@ -720,7 +737,10 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
       {/* ── The picture ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* Opens the same six, not everybody ever put forward. */}
-        <Stat label="On site" value={s.activeContractors} sub="contractors" href="/dashboard/people?filter=ON_SITE" />
+        {/* The tile counts people working today; the Contractors tab counts
+            them plus anybody signed who has not started. Each says which,
+            so 6 here beside 7 on the tab is two answers, not one wrong one. */}
+        <Stat label="On site" value={s.activeContractors} sub={onSiteSub(s.notStarted ?? 0)} href="/dashboard/people?filter=ON_SITE" />
         <Stat label="Suppliers" value={s.vendors} sub="with people here" href="/dashboard/suppliers" />
         {/* The spend behind the number is the budget page: every cost
             center, what is committed and what is left. */}
