@@ -13,12 +13,13 @@
  *
  * This file tests the routing and type contracts. Integration with the
  * Prisma model is tested via the API tests. The fire-and-forget pattern
- * means callers never block on notification delivery — failures log to
- * console, never throw.
+ * means callers never block on notification delivery — failures never
+ * throw, and never stop at a console line: a notice that cannot be written
+ * is kept as a FAILED row with the reason, and staff are told.
  */
 
-import { describe, it, expect } from 'vitest'
-import { notificationHref, type NotificationType, type NotificationChannel } from '@/lib/notify'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { notify, notifyBulk, notificationHref, type NotificationType, type NotificationChannel } from '@/lib/notify'
 
 // ── Notification routing ──────────────────────────────
 
@@ -192,5 +193,116 @@ describe('Fire-and-forget notification delivery', () => {
     const _typeCheck: BulkReturn = Promise.resolve({ count: 5 })
     const _nullCheck: BulkReturn = Promise.resolve(null)
     expect(true).toBe(true) // Type-level verification
+  })
+})
+
+// ── A bulk write that fails ───────────────────────────
+//
+// One bad row fails a whole createMany. The recipients' notices must not
+// vanish with it: each is written again on its own, a row that still
+// cannot be written is kept as FAILED with the reason, and staff hear.
+
+const db = vi.hoisted(() => ({
+  notification: { create: vi.fn(), createMany: vi.fn(), update: vi.fn() },
+  person: { findUnique: vi.fn() },
+  company: { findUnique: vi.fn() },
+}))
+const alerts = vi.hoisted(() => ({ reportError: vi.fn(async (..._args: unknown[]) => {}) }))
+vi.mock('@/lib/db', () => ({ prisma: db }))
+vi.mock('@/lib/alerts', () => alerts)
+
+const team = (n: number) =>
+  Array.from({ length: n }, (_, i) => ({
+    personId: `person-${i}`,
+    companyId: 'co-1',
+    type: 'ROLLOFF' as const,
+    title: `Rolling off ${i}`,
+    body: 'Ends Friday.',
+  }))
+
+describe('a bulk notice whose single write fails', () => {
+  beforeEach(() => {
+    db.notification.create.mockReset()
+    db.notification.createMany.mockReset()
+    alerts.reportError.mockClear()
+  })
+
+  it('when the bulk in-app write fails, every recipient’s notice is still written one by one', async () => {
+    db.notification.createMany.mockRejectedValue(new Error('foreign key violated'))
+    db.notification.create.mockImplementation(async () => ({ id: 'n' }))
+
+    const result = await notifyBulk(team(3))
+
+    expect(result).toEqual({ count: 3 })
+    expect(db.notification.create).toHaveBeenCalledTimes(3)
+    const written = db.notification.create.mock.calls.map((c: any[]) => c[0].data)
+    expect(written.map((d: any) => d.personId)).toEqual(['person-0', 'person-1', 'person-2'])
+    expect(written.every((d: any) => d.deliveryState === 'SENT' && d.channel === 'IN_APP')).toBe(true)
+    expect(alerts.reportError).toHaveBeenCalledTimes(1)
+    expect(alerts.reportError.mock.calls[0][0]).toBe('notify: bulk in-app write failed')
+  })
+
+  it('a notice that cannot be written at all is recorded as failed with the reason, and staff are told', async () => {
+    db.notification.createMany.mockRejectedValue(new Error('foreign key violated'))
+    db.notification.create.mockImplementation(async ({ data }: any) => {
+      if (data.personId === 'person-1' && data.deliveryState !== 'FAILED') {
+        throw new Error('Company co-1 no longer exists')
+      }
+      return { id: 'n' }
+    })
+
+    const result = await notifyBulk(team(3))
+
+    // The two good rows landed; the bad one is kept, marked, with why.
+    expect(result).toEqual({ count: 2 })
+    const failed = db.notification.create.mock.calls
+      .map((c: any[]) => c[0].data)
+      .filter((d: any) => d.deliveryState === 'FAILED')
+    expect(failed).toHaveLength(1)
+    expect(failed[0].personId).toBe('person-1')
+    expect(failed[0].title).toBe('Rolling off 1')
+    expect(failed[0].deliveryNote).toContain('Company co-1 no longer exists')
+    expect(alerts.reportError).toHaveBeenCalledWith(
+      'notify: bulk in-app write failed',
+      expect.any(Error),
+      expect.anything()
+    )
+  })
+
+  it('a notice whose plain failed row is also refused is reported to staff by itself', async () => {
+    db.notification.createMany.mockRejectedValue(new Error('database unreachable'))
+    db.notification.create.mockRejectedValue(new Error('database unreachable'))
+
+    const result = await notifyBulk(team(2))
+
+    expect(result).toBeNull()
+    const places = alerts.reportError.mock.calls.map((c: any[]) => c[0])
+    expect(places.filter((p: string) => p === 'notify: a notice could not be written at all')).toHaveLength(2)
+    expect(places.filter((p: string) => p === 'notify: bulk in-app write failed')).toHaveLength(1)
+  })
+
+  it('when the bulk write succeeds it is one database call and nobody is alerted', async () => {
+    db.notification.createMany.mockResolvedValue({ count: 3 })
+
+    const result = await notifyBulk(team(3))
+
+    expect(result).toEqual({ count: 3 })
+    expect(db.notification.createMany).toHaveBeenCalledTimes(1)
+    expect(db.notification.create).not.toHaveBeenCalled()
+    expect(alerts.reportError).not.toHaveBeenCalled()
+  })
+
+  it('a single notice whose write fails is kept as failed with the reason, never only a console line', async () => {
+    db.notification.create.mockImplementation(async ({ data }: any) => {
+      if (data.deliveryState !== 'FAILED') throw new Error('value too long for column')
+      return { id: 'n' }
+    })
+
+    const result = await notify(team(1)[0])
+
+    expect(result).toBeNull()
+    const last = db.notification.create.mock.calls.at(-1)![0].data
+    expect(last.deliveryState).toBe('FAILED')
+    expect(last.deliveryNote).toContain('value too long for column')
   })
 })

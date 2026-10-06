@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { routeFor, attemptDelivery, type Recipient } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
+import { reportError } from '@/lib/alerts'
 
 /**
  * Central notification creator. Used by APIs and cron jobs to create
@@ -11,7 +12,9 @@ import { configuredSenders } from '@/lib/senders'
  * callers that are automations must write their own AutomationLog entry.
  *
  * Fire-and-forget pattern — matches logAccess in src/lib/access-log.ts.
- * Never blocks the caller. Failures log to console, never throw.
+ * Never blocks the caller and never throws. A failure is never only a
+ * console line: the notice is kept as a FAILED row with the reason where
+ * one can be written at all, and staff are told through `reportError`.
  *
  * The in-app row is written first and always. If the caller asked for the
  * message to leave the building as well, delivery is attempted afterwards
@@ -91,42 +94,93 @@ export function notify(params: NotifyParams): Promise<{ id: string } | null> {
     data,
   } = params
 
-  return prisma.notification
-    .create({
+  return writeOne(params).then((created) => {
+    if (created && channel !== 'IN_APP') {
+      // Not awaited: the caller wanted a notification written, not a
+      // round trip to an email provider. The row already exists, so a
+      // slow or dead sender delays only the delivery status.
+      void deliver(created.id, personId, companyId ?? null, title, body, type, entityId ?? null)
+    }
+    return created
+  })
+}
+
+/** The row `notify` writes for one notice — the one shape, used by both doors. */
+function rowFor(n: NotifyParams) {
+  const channel = n.channel ?? 'IN_APP'
+  return {
+    personId: n.personId,
+    companyId: n.companyId ?? null,
+    type: n.type,
+    title: n.title,
+    body: n.body,
+    entityId: n.entityId ?? null,
+    data: (n.data as any) ?? undefined,
+    channel,
+    status: 'UNREAD' as const,
+    // In-app is delivered by being written. Anything else is a claim
+    // until something proves it, so it starts as PENDING.
+    deliveryState: channel === 'IN_APP' ? 'SENT' : 'PENDING',
+    deliveryNote: channel === 'IN_APP' ? 'Shown in the app' : null,
+    deliveredAt: channel === 'IN_APP' ? new Date() : null,
+  }
+}
+
+function reasonOf(err: unknown): string {
+  const text = err instanceof Error ? err.message : String(err)
+  return (text || 'Unknown error').slice(0, 200)
+}
+
+/**
+ * Write one notice, and never lose it quietly.
+ *
+ * The full row first. If that cannot be written — a company that no
+ * longer exists, data the database refuses — a plain row is written in
+ * its place: the person, the title and the body, marked FAILED with the
+ * reason, so the person still sees the notice and support can see why it
+ * arrived without its details. If even that cannot be written, staff are
+ * told, because there is no row left to say so.
+ *
+ * Returns the full row's id, or null when the full row was not written.
+ */
+async function writeOne(n: NotifyParams): Promise<{ id: string } | null> {
+  try {
+    return await prisma.notification.create({ data: rowFor(n), select: { id: true } })
+  } catch (err) {
+    console.error(`[Notify] Failed to create ${n.type} notification for person ${n.personId}:`, err)
+    await recordFailed(n, err)
+    return null
+  }
+}
+
+/**
+ * The plain FAILED row for a notice whose full row was refused. Returns
+ * whether it was written. Where it was not, staff hear about it here.
+ */
+async function recordFailed(n: NotifyParams, err: unknown): Promise<boolean> {
+  try {
+    await prisma.notification.create({
       data: {
-        personId,
-        companyId: companyId ?? null,
-        type,
-        title,
-        body,
-        entityId: entityId ?? null,
-        data: (data as any) ?? undefined,
-        channel,
+        personId: n.personId,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        channel: n.channel ?? 'IN_APP',
         status: 'UNREAD',
-        // In-app is delivered by being written. Anything else is a claim
-        // until something proves it, so it starts as PENDING.
-        deliveryState: channel === 'IN_APP' ? 'SENT' : 'PENDING',
-        deliveryNote: channel === 'IN_APP' ? 'Shown in the app' : null,
-        deliveredAt: channel === 'IN_APP' ? new Date() : null,
+        deliveryState: 'FAILED',
+        deliveryNote: `Could not be written in full: ${reasonOf(err)}`.slice(0, 200),
+        deliveredAt: null,
       },
       select: { id: true },
     })
-    .then((created) => {
-      if (channel !== 'IN_APP') {
-        // Not awaited: the caller wanted a notification written, not a
-        // round trip to an email provider. The row already exists, so a
-        // slow or dead sender delays only the delivery status.
-        void deliver(created.id, personId, companyId ?? null, title, body, type, entityId ?? null)
-      }
-      return created
-    })
-    .catch((err) => {
-      console.error(
-        `[Notify] Failed to create ${type} notification for person ${personId}:`,
-        err
-      )
-      return null
-    })
+    return true
+  } catch (second) {
+    void reportError('notify: a notice could not be written at all', second, {
+      personId: n.personId,
+      companyId: n.companyId ?? null,
+    }).catch(() => {})
+    return false
+  }
 }
 
 /**
@@ -156,7 +210,14 @@ async function deliver(
         },
       },
     })
-    if (!person) return
+    if (!person) {
+      // Left PENDING this would read as "still on its way" forever.
+      await prisma.notification.update({
+        where: { id: notificationId },
+        data: { deliveryState: 'FAILED', deliveryNote: 'This person is no longer on the record' },
+      })
+      return
+    }
 
     const isConsultant = person.contexts.every((c) => c.type === 'CONSULTANT')
 
@@ -220,7 +281,13 @@ async function deliver(
             err instanceof Error ? err.message.slice(0, 200) : 'Delivery failed',
         },
       })
-      .catch(() => {})
+      .catch((second) => {
+        // The row says PENDING and cannot be corrected. Somebody has to hear.
+        void reportError('notify: delivery failed and could not be recorded', second, {
+          personId,
+          companyId,
+        }).catch(() => {})
+      })
   }
 }
 
@@ -251,28 +318,12 @@ export function notifyBulk(
   const inApp = notifications.filter((n) => (n.channel ?? 'IN_APP') === 'IN_APP')
   const outward = notifications.filter((n) => (n.channel ?? 'IN_APP') !== 'IN_APP')
 
-  const rows = inApp.map((n) => ({
-    personId: n.personId,
-    companyId: n.companyId ?? null,
-    type: n.type,
-    title: n.title,
-    body: n.body,
-    entityId: n.entityId ?? null,
-    data: (n.data as any) ?? undefined,
-    channel: 'IN_APP' as const,
-    status: 'UNREAD' as const,
-    deliveryState: 'SENT',
-    deliveryNote: 'Shown in the app',
-    deliveredAt: new Date(),
-  }))
+  const rows = inApp.map(rowFor)
 
   const written =
     rows.length === 0
       ? Promise.resolve({ count: 0 })
-      : prisma.notification.createMany({ data: rows }).catch((err) => {
-          console.error(`[Notify] Failed to bulk-create ${rows.length} notification(s):`, err)
-          return null
-        })
+      : prisma.notification.createMany({ data: rows }).catch((err) => writeEach(inApp, err))
 
   return Promise.all([written, Promise.all(outward.map((n) => notify(n)))]).then(
     ([bulk, singles]) => {
@@ -281,6 +332,29 @@ export function notifyBulk(
       return { count: (bulk?.count ?? 0) + sent }
     }
   )
+}
+
+/**
+ * The bulk write was refused. One bad row — a company id that no longer
+ * exists, a value the database will not take — fails the whole insert, so
+ * every recipient is written again one at a time through the same door
+ * `notify` uses. The good rows land; a bad one becomes a FAILED row with
+ * the reason (or, failing that, an incident). Staff are told once, for the
+ * batch, so a broken fan-out is heard rather than found.
+ */
+async function writeEach(
+  notices: NotifyParams[],
+  err: unknown
+): Promise<{ count: number } | null> {
+  console.error(`[Notify] Failed to bulk-create ${notices.length} notification(s):`, err)
+  let count = 0
+  for (const n of notices) {
+    if (await writeOne(n)) count++
+  }
+  void reportError('notify: bulk in-app write failed', err, {
+    companyId: notices.find((n) => n.companyId)?.companyId ?? null,
+  }).catch(() => {})
+  return count === 0 ? null : { count }
 }
 
 /**
