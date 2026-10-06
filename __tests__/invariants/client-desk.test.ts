@@ -115,7 +115,10 @@ describe('what the client desk is told', () => {
   })
 
   it('somebody starting soon shows the paperwork verdict a week early, in the words activation would use', () => {
-    expect(program).toContain("contracts.filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5)")
+    // Every not-started line is cleared; the panel shows the five nearest,
+    // and every held start reaches the headline (2026-10-06).
+    expect(program).toContain(".filter((c) => c.state !== 'IN_PROGRESS')")
+    expect(program).toContain('startingSoon: cleared.slice(0, 5)')
     expect(program).toContain('paperwork: { outcome: papers.outcome, says: papers.says, fix: papers.fix }')
     expect(page).toContain("'Paperwork complete. Nothing stops the start.'")
   })

@@ -367,9 +367,16 @@ export async function GET(request: NextRequest) {
   const verificationShape = { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true, provider: true, result: true } as const
   // The one word for each, from the function every screen reads, so this
   // page and the contractor register cannot disagree about one person.
-  const notStarted = contracts.filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5)
+  //
+  // Every line not started yet is cleared, not the first five: the headline
+  // counts the starts paperwork will refuse, and five by end date read
+  // fewer held starts than the compliance page's twenty-five by start date
+  // (regulatory, 2026-10-06). The panel still shows the five nearest.
+  const notStarted = contracts
+    .filter((c) => c.state !== 'IN_PROGRESS')
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
   const termsFor = await termsOnRecordFor(notStarted.map((c) => c.id))
-  const startingSoon = await Promise.all(
+  const cleared = await Promise.all(
     notStarted.map(async (c) => {
       const [personVerifications, supplierCertificates] = await Promise.all([
         prisma.verification.findMany({ where: { personId: c.personId }, select: verificationShape }),
@@ -624,7 +631,11 @@ export async function GET(request: NextRequest) {
               'its own supplier is not this price and is never in this comparison.',
       },
       approvalQueue,
-      startingSoon,
+      // The five nearest starts, for the panel; and every start paperwork
+      // will refuse, however far down the list, for the headline and the
+      // box under it.
+      startingSoon: cleared.slice(0, 5),
+      heldStarts: cleared.filter((c) => c.paperwork.outcome === 'BLOCK'),
       today,
       openRoles: requirements.map(r => ({
         id: r.id,

@@ -7,7 +7,7 @@ import { seatTrail } from '@/lib/program-seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop, askGoesTo } from '@/lib/chain-top'
 import { firmsOnARow, mayNameSubVendors, namesForClient } from '@/lib/chain-names'
-import { daysFor, daysOnSite, monthsOf, standingAgainstLimit, ledgerStatus } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf, standingAgainstLimit, ledgerStatus, linesCounted, bookedLimitDay, contractsPastLimit, runsPastSentence } from '@/lib/tenure-days'
 import { plainDate } from '@/lib/plain-date'
 import { logAccess } from '@/lib/access-log'
 
@@ -126,6 +126,41 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     companyId,
     (primeCompanyId: string) => mayNameSubVendors(disclosureTerms, companyId, primeCompanyId)
   )
+
+  // ── A live line booked past the day the limit is reached ──────────
+  //
+  // Lucía Fernández's Pinnacle Resourcing line runs to Sep 3, 2027 and
+  // she reaches Northbend's limit on Feb 2, 2027; the time-on-site page
+  // said so and her own page did not (regulatory, 2026-10-06). The same
+  // arithmetic the tenure page runs — the lines the limit still counts,
+  // an ended line only to the day it ended — and the same sentence, so
+  // the two pages name one date. The firm is the name this client may
+  // read, never a withheld sub-vendor's.
+  const counted = linesCounted(served, standing)
+  const reachedOn = capMonths
+    ? bookedLimitDay(
+        counted.map((c) => ({
+          startDate: c.startDate,
+          endDate: c.state === 'ENDED' ? new Date(Math.min((c.endDate ?? now).getTime(), now.getTime())) : c.endDate,
+        })),
+        { capMonths, breakDays },
+        now
+      )
+    : null
+  const runsPast = contractsPastLimit(
+    counted.map((c) => ({
+      id: c.id,
+      firm: seenNames.get(c.companyId)?.name ?? c.company.name,
+      endDate: c.endDate,
+      live: c.state === 'IN_PROGRESS' || c.state === 'PAUSED',
+    })),
+    reachedOn
+  )
+    // A chain's rungs share one end date and, masked, one name: one line.
+    .filter((r, i, all) => all.findIndex((o) => o.firm === r.firm && o.endDate?.getTime() === r.endDate?.getTime()) === i)
+  const runsPastSays = reachedOn
+    ? runsPast.map((r) => runsPastSentence({ firm: r.firm, personName: person.name, endDate: r.endDate, reachedOn, now }))
+    : []
 
   // ── The contracts this client pays, one per engagement ─────────────
   //
@@ -262,7 +297,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       blocked: block ? { reason: block.reason, at: block.blockedAt.toISOString() } : null,
       onSite,
       says,
-      tenure: { months, capMonths, headroomMonths: capDays ? (standing.countedDays >= capDays ? 0 : monthsOf(capDays - standing.countedDays)) : null, status, eligibleDate },
+      tenure: { months, capMonths, headroomMonths: capDays ? (standing.countedDays >= capDays ? 0 : monthsOf(capDays - standing.countedDays)) : null, status, eligibleDate, runsPast: runsPastSays },
       engagements,
       /** Every firm they have been here through, folded to one line. */
       firms,

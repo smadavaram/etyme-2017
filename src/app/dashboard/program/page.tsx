@@ -111,6 +111,8 @@ interface ProgramData {
     /** The one word every screen reads for this placement (`placementStatus`). */
     placement?: { status: string; word: string }
   }[]
+  /** Every start paperwork will refuse, not only the five shown — what the headline counts. */
+  heldStarts?: ProgramData['startingSoon']
   today: { id: string; what: string; who: string; at: string }[]
   endingSoon: {
     contractId: string
@@ -400,7 +402,7 @@ export default function ProgramPage() {
   // queue, a start paperwork will refuse, a supplier with people on site
   // and no agreement — rather than the queue alone, which read "Nothing
   // needs you today." over both of the other two.
-  const counts = deskCounts({ decisions: queue, startingSoon: data.startingSoon, vendors: data.vendors })
+  const counts = deskCounts({ decisions: queue, startingSoon: data.heldStarts ?? data.startingSoon, vendors: data.vendors })
   const said = deskHeadline(counts)
   const exceptions = counts.exceptions
   const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
@@ -578,7 +580,7 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
   const s = data.summary
   const whoseBook = whoseQueue(queueBook ?? {})
   // Everything else the headline counts, drawn in the same box.
-  const others = deskItems({ startingSoon: data.startingSoon, vendors: data.vendors })
+  const others = deskItems({ startingSoon: data.heldStarts ?? data.startingSoon, vendors: data.vendors })
   const [reasonFor, setReasonFor] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const watchList = (tenure?.people ?? [])
@@ -628,7 +630,7 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
               {/* Never "nothing" under a headline that counted something
                   (`emptyQueueSays`): it says where those things are. */}
               {emptyQueueSays({
-                counts: deskCounts({ decisions: queue, startingSoon: data.startingSoon, vendors: data.vendors }),
+                counts: deskCounts({ decisions: queue, startingSoon: data.heldStarts ?? data.startingSoon, vendors: data.vendors }),
                 approvalsWithOthers: data.approvalQueue.length,
                 doneToday: data.today.length,
               })}

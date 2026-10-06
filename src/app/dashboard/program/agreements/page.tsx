@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSession } from '@/components/session-provider'
+import { sectionOfHref } from '@/lib/page-framing'
 import Link from 'next/link'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { readJson, statusMeans } from '@/lib/read-response'
@@ -435,9 +437,13 @@ export default function AgreementsPage() {
 }
 
 function Head() {
+  // The section the reader's own menu files this page under — a client
+  // reads its own word, never a supplier's "Procure" (lib/page-framing).
+  // Not on any menu itself, it is headed by the program page that opens it.
+  const { company } = useSession()
   return (
     <div className="mb-1">
-      <div className="eyebrow mb-1">Procure</div>
+      <div className="eyebrow mb-1">{sectionOfHref(company?.kind ?? 'CLIENT', '/dashboard/program') ?? ''}</div>
       <h1 className="font-serif text-2xl font-semibold tracking-[-0.02em]">Agreements</h1>
       <p className="mt-1 max-w-2xl text-sm text-etyme-muted">
         Whether we are allowed to trade with somebody, until when, and whether both sides

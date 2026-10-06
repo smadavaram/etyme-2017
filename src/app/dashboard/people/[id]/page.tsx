@@ -23,7 +23,7 @@ interface Person {
   blocked: { reason: string; at: string } | null
   onSite: boolean
   says: string
-  tenure: { months: number; capMonths: number | null; headroomMonths: number | null; status: string; eligibleDate: string | null }
+  tenure: { months: number; capMonths: number | null; headroomMonths: number | null; status: string; eligibleDate: string | null; runsPast?: string[] }
   engagements: { contractId: string; supplier: { id: string; name: string }; state: string; startDate: string; endDate: string | null; rateCents: number | null }[]
   /** Every firm they have been here through, on one line. */
   firms?: { parts: string[]; says: string; withheld: number }
@@ -182,6 +182,11 @@ export default function PersonPage() {
             {tenure.headroomMonths != null && tenure.status !== 'BREAK_REQUIRED' && (tenure.headroomMonths === 0 && tenure.status === 'WARNING' ? ' · less than a month of headroom' : ` · ${tenure.headroomMonths} months of headroom`)}
             {tenure.eligibleDate && ` · can come back ${tenure.eligibleDate}`}
           </p>
+          {/* A live contract booked past the day the limit is reached, in
+              the tenure page's own sentence (`runsPastSentence`). */}
+          {(tenure.runsPast ?? []).map((line) => (
+            <p key={line} className="mt-2 text-[13px] text-etyme-attention">{line}</p>
+          ))}
           <Link href={{ pathname: '/dashboard/tenure' }} className="mt-2 inline-block text-[12px] text-etyme-action hover:underline">Everybody’s tenure</Link>
         </section>
 
