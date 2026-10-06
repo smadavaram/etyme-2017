@@ -25,6 +25,7 @@ import {
 } from '@/lib/money/pay-visibility'
 import { writePayTrail, writeBillTrail } from '@/lib/money/pay-trail'
 import { recordedLine } from '@/lib/money/recorded-line'
+import { mayRecordFor, recordingFloor, type PersonTies } from '@/lib/money/recorded-person'
 
 /**
  * POST /api/contracts
@@ -138,6 +139,23 @@ export async function POST(request: NextRequest) {
       { status: 404 }
     )
   }
+
+  // ── Somebody this firm already knows ───────────────────────────────
+  //
+  // A placement recorded for a person who is nobody to the firm — no
+  // seat, no listing on its bench, no line of its own, never put forward
+  // by it or to it — writes tenure, paperwork and pay onto somebody who
+  // never agreed to be its. Refused in a sentence naming the two ways in
+  // (`lib/money/recorded-person`).
+  const ties = await tiesOf(String(companyId), String(personId))
+  const known = mayRecordFor(ties, person.name)
+  if (!known.ok) {
+    return NextResponse.json(
+      { error: { code: known.code, message: known.says, field: known.field } },
+      { status: 422 }
+    )
+  }
+
   const supplierId = boughtFromId ?? vendorCompanyId ?? null
   const supplier = supplierId
     ? await prisma.company.findUnique({ where: { id: String(supplierId) }, select: { id: true, name: true } })
@@ -523,7 +541,13 @@ export async function POST(request: NextRequest) {
           // Which way this firm's dates move off a day nobody works. Its
           // own answer, not the client's: these are the hours it collects,
           // the invoices it raises and the payroll it runs.
-          const options = { policy: policyFrom(company) }
+          //
+          // And no reminder dated before today. A recorded placement is
+          // often work already under way, so its start is in the past; a
+          // reminder for a day already gone is overdue the moment it is
+          // written. Bounded by the due date, as the award is, so a week
+          // that ended yesterday and is due tomorrow keeps its reminder.
+          const options = { policy: policyFrom(company), noneDueBefore: recordingFloor(new Date()) }
 
           const generatedCycles = generateCycles(start, end, split.sell, holidays, new Map(), options)
 
@@ -654,6 +678,38 @@ export async function POST(request: NextRequest) {
  *
  * Lists sell contracts (default) or buy contracts.
  */
+/**
+ * The five ways a firm may already know a person, read for
+ * `mayRecordFor`. Each is a count bounded at one: only whether, never how
+ * many.
+ */
+async function tiesOf(companyId: string, personId: string): Promise<PersonTies> {
+  const [seat, listing, sold, paid, putForward, profile] = await Promise.all([
+    prisma.context.count({
+      where: { personId, companyId, type: { in: ['EMPLOYEE', 'CONSULTANT'] }, revokedAt: null },
+      take: 1,
+    }),
+    prisma.benchListing.count({
+      where: { companyId, consultant: { personId }, revokedAt: null, state: { not: 'DECLINED' } },
+      take: 1,
+    }),
+    prisma.sellContract.count({ where: { companyId, personId }, take: 1 }),
+    prisma.buyContractCandidate.count({ where: { personId, buyContract: { companyId } }, take: 1 }),
+    prisma.submission.count({
+      where: { personId, OR: [{ fromCompanyId: companyId }, { toCompanyId: companyId }] },
+      take: 1,
+    }),
+    prisma.consultantProfile.findUnique({ where: { personId }, select: { ownCompanyId: true } }),
+  ])
+  return {
+    seat: seat > 0,
+    listing: listing > 0,
+    contract: sold + paid > 0,
+    putForward: putForward > 0,
+    ownCompany: profile?.ownCompanyId === companyId,
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error

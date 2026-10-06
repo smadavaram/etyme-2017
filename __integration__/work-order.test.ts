@@ -89,6 +89,13 @@ beforeAll(async () => {
     data: { name: 'Dev Shah', primaryEmail: 'dev@veritan.test' },
   })
   who.dev = dev.id
+  // Veritan's own employees: a firm records placements only for people it
+  // already has a record of (`lib/money/recorded-person`).
+  for (const personId of [rosa.id, dev.id]) {
+    await prisma.context.create({
+      data: { personId, companyId: veritan.companyId, type: 'EMPLOYEE', grantReason: 'Veritan employee' },
+    })
+  }
 })
 
 afterAll(() => {

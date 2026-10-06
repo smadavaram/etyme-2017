@@ -74,21 +74,34 @@ describe('a rate is changed and decided only by the firms it is between', () => 
     await freshWorld()
 
     // A direct W2: the firm that sells the person also employs them.
+    //
+    // A live one, picked the same way every run. Unordered and unfiltered,
+    // this sometimes landed on an ENDED line, where a rate change is
+    // refused for a reason this file is not about.
     const buys = await prisma.buyContract.findMany({
-      where: { contractType: 'W2', supplierSellContractId: null, sellLinks: { some: {} } },
+      where: {
+        contractType: 'W2', supplierSellContractId: null, state: 'IN_PROGRESS',
+        sellLinks: { some: { sellContract: { state: 'IN_PROGRESS' } } },
+      },
       include: {
         candidates: true,
         sellLinks: { include: { sellContract: true } },
       },
+      orderBy: { id: 'asc' },
     })
     const pick = buys.find(
       (b) =>
         b.candidates.length === 1 &&
-        b.sellLinks.some((l) => l.sellContract.companyId === b.companyId && l.sellContract.clientCompanyId !== b.companyId)
+        b.sellLinks.some(
+          (l) =>
+            l.sellContract.state === 'IN_PROGRESS' &&
+            l.sellContract.companyId === b.companyId &&
+            l.sellContract.clientCompanyId !== b.companyId
+        )
     )!
     buyId = pick.id
     payerCompanyId = pick.companyId
-    const sell = pick.sellLinks.find((l) => l.sellContract.companyId === pick.companyId)!.sellContract
+    const sell = pick.sellLinks.find((l) => l.sellContract.state === 'IN_PROGRESS' && l.sellContract.companyId === pick.companyId)!.sellContract
     sellId = sell.id
     // A line with no history of its own, so the changes below are the
     // only ones on it.

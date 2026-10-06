@@ -175,3 +175,49 @@ describe('"Record a placement" writes a pay line only under the same rules', () 
     expect(gate.says).toMatch(/^Brightmoor Staffing has not said how it engages Marisol Quintero or what it pays them\./)
   })
 })
+
+describe('"Record a placement" is only for somebody the firm already knows', () => {
+  it('a firm cannot record a placement for a person it has no record of', async () => {
+    // Northbend's hiring manager: a seat at the client, nothing at all at
+    // Brightmoor — no seat, no listing, no line, never put forward.
+    const stranger = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE.hiring }, select: { id: true, name: true } })
+    const before = await prisma.sellContract.count({ where: { personId: stranger.id } })
+    as(BRIGHTMOOR)
+    const r = await json(await recordPlacement(req('POST', '/api/contracts', {
+      personId: stranger.id, companyId: co['world-brightmoor'], clientCompanyId: co['world-nike'],
+      billRate: 14_000, startDate: day(14).toISOString().slice(0, 10), endDate: day(200).toISOString().slice(0, 10),
+      engagementType: 'W2', payRate: 9_000,
+    })))
+    expect(r.status).toBe(422)
+    expect(r.body.error.code).toBe('NO_RECORD_OF_PERSON')
+    expect(r.body.error.message).toBe(
+      `${stranger.name} is not on your bench, your payroll or any contract of yours; invite them or list them first.`
+    )
+    expect(await prisma.sellContract.count({ where: { personId: stranger.id } })).toBe(before)
+  })
+
+  it('a placement recorded with a start two months ago writes no reminder dated before the day it was recorded', async () => {
+    // The seeded firms carry no template pack, and a firm with none gets
+    // no reminders at all — which would pass this sentence for nothing.
+    await prisma.company.update({ where: { id: co['world-brightmoor'] }, data: { templatePack: 'US_SAP' } })
+    as(BRIGHTMOOR)
+    const r = await json(await recordPlacement(req('POST', '/api/contracts', {
+      personId: it_.marisol, companyId: co['world-brightmoor'], clientCompanyId: co['world-nike'],
+      billRate: 14_000, startDate: day(-60).toISOString().slice(0, 10), endDate: day(120).toISOString().slice(0, 10),
+      engagementType: 'W2', payRate: 9_000,
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`)
+    const cycles = await prisma.cycle.findMany({
+      where: { OR: [{ sellContractId: r.body.data.sellContract.id }, { buyContractId: r.body.data.buyContract.id }] },
+      select: { kind: true, dueOn: true },
+    })
+    // The placement still has its reminders from today on — the floor
+    // drops the past, not the contract.
+    expect(cycles.length).toBeGreaterThan(0)
+    expect(cycles.filter((c) => c.dueOn < today)).toEqual([])
+    // Its dates stay the truth about the work.
+    const line = await prisma.sellContract.findUniqueOrThrow({ where: { id: r.body.data.sellContract.id } })
+    expect(line.startDate.getTime()).toBeLessThan(today.getTime())
+  })
+})
