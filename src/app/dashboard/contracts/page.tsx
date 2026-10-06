@@ -15,6 +15,7 @@ import {
   type OrderParties,
 } from '@/lib/order-naming'
 import { orderReferenceLabel } from '@/lib/money/order-reference'
+import { ENGAGEMENT_TYPES, ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 
 /**
  * The documents, and their lines.
@@ -273,6 +274,11 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
     workLocationId: '',
     billRate: '',
     payRate: '',
+    // How this firm engages the person, and whom it buys them from. The
+    // same two questions the placement's terms page asks, refused by the
+    // route under the same rule (`lib/money/recorded-line`).
+    engagementType: '',
+    boughtFromId: '',
     billCurrency: 'USD',
     payCurrency: 'USD',
     startDate: '',
@@ -283,6 +289,7 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
   const [companyId, setCompanyId] = useState<string | null>(null)
   const [consultants, setConsultants] = useState<ConsultantOption[]>([])
   const [clientCompanies, setClientCompanies] = useState<ClientCompanyOption[]>([])
+  const [suppliers, setSuppliers] = useState<ClientCompanyOption[]>([])
   const [loadingOptions, setLoadingOptions] = useState(true)
 
   // Fetch company context, consultants, and client companies on mount
@@ -290,11 +297,22 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
     async function loadOptions() {
       setLoadingOptions(true)
       try {
-        const [meRes, consultantsRes, contractsRes] = await Promise.all([
+        const [meRes, consultantsRes, contractsRes, registerRes] = await Promise.all([
           fetch('/api/me'),
           fetch('/api/consultants?limit=100'),
           fetch('/api/contracts?side=sell&limit=100'),
+          fetch('/api/counterparties'),
         ])
+
+        // Whom this firm buys from: the suppliers on its own register.
+        if (registerRes.ok) {
+          const body = await registerRes.json()
+          const seen = new Map<string, string>()
+          for (const r of body.data?.rows ?? []) {
+            if (r.relationship === 'SUPPLIER' && r.otherCompanyId) seen.set(r.otherCompanyId, r.otherCompanyName)
+          }
+          setSuppliers(Array.from(seen.entries()).map(([id, name]) => ({ id, name })))
+        }
 
         // Get user's company ID
         if (meRes.ok) {
@@ -375,14 +393,13 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
       payload.endDate = form.endDate
     }
 
+    // The rate goes as typed, and the route says what is wrong with it
+    // in the same sentence the terms page uses — never a $0 line.
+    if (form.engagementType) payload.engagementType = form.engagementType
+    if (form.boughtFromId) payload.boughtFromId = form.boughtFromId
     if (form.payRate) {
       const payRateNum = parseFloat(form.payRate)
-      if (isNaN(payRateNum) || payRateNum <= 0) {
-        setError('Pay rate must be a positive number if provided.')
-        setSubmitting(false)
-        return
-      }
-      payload.payRate = Math.round(payRateNum * 100)
+      payload.payRate = Number.isFinite(payRateNum) ? Math.round(payRateNum * 100) : 0
       payload.payCurrency = form.payCurrency
     }
 
@@ -525,10 +542,57 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
               </div>
             </div>
 
+            {/* Bought from, and how they are engaged */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Bought from</label>
+                <select
+                  value={form.boughtFromId}
+                  onChange={(e) => setForm({ ...form, boughtFromId: e.target.value, engagementType: e.target.value ? '' : form.engagementType })}
+                  className={selectClass}
+                >
+                  <option value="">Nobody — we pay them</option>
+                  {suppliers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-etyme-faint mt-1">
+                  The supplier on your register you buy them from, if any
+                </p>
+              </div>
+              {form.boughtFromId ? (
+                <div>
+                  <label className={labelClass}>How they are engaged</label>
+                  <p className="text-sm text-etyme-muted py-2">
+                    Between them and {suppliers.find((c) => c.id === form.boughtFromId)?.name ?? 'the supplier'}. You pay the supplier.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className={labelClass}>How they are engaged</label>
+                  <select
+                    value={form.engagementType}
+                    onChange={(e) => setForm({ ...form, engagementType: e.target.value })}
+                    className={selectClass}
+                  >
+                    <option value="">Not said yet</option>
+                    {ENGAGEMENT_TYPES.map((t) => (
+                      <option key={t} value={t}>{ENGAGEMENT_WORDS[t]}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-etyme-faint mt-1">
+                    Left unsaid, there is no pay line and the placement cannot start until there is
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Pay rate and currency */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2">
-                <label className={labelClass}>Pay rate ($/hr)</label>
+                <label className={labelClass}>
+                  {form.boughtFromId ? 'What you pay the supplier ($/hr)' : 'Pay rate ($/hr)'}
+                </label>
                 <input
                   type="number"
                   min="0.01"
@@ -539,7 +603,7 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
                   placeholder="95.00"
                 />
                 <p className="text-[10px] text-etyme-faint mt-1">
-                  Writes the buy line beside it — what you pay, to a supplier or through payroll
+                  Writes the buy line beside it. An empty rate is a missing rate, not a free placement
                 </p>
               </div>
               <div>

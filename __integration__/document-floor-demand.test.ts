@@ -143,6 +143,21 @@ describe('cover that has not begun refuses a start, and the preview of it says t
       },
     })
     ctx.contractId = draft.id
+    // The person's own terms on record — a W2 pay line the firm's desk
+    // wrote at a stated rate — so what answers is the cover and not the
+    // terms gate activation asks first (`termsGate`, 2026-10-06). A sell
+    // line with no pay line under it is a placement whose terms nobody
+    // stated.
+    const pay = await prisma.buyContract.create({
+      data: {
+        companyId: template.companyId, contractType: 'W2', payCurrency: template.billCurrency, state: 'DRAFT',
+        startDate: draft.startDate, endDate: draft.endDate,
+        candidates: { create: { personId: person.id, payRate: 6_000, payCurrency: template.billCurrency, startDate: draft.startDate, endDate: draft.endDate } },
+      },
+    })
+    await prisma.contractLink.create({
+      data: { sellContractId: draft.id, buyContractId: pay.id, effectiveFrom: draft.startDate, effectiveTo: draft.endDate },
+    })
 
     // One policy, printed today, covering from three weeks out.
     await coverIs(ctx.supplierId, [{ validFrom: at(21), expiresAt: at(386) }])

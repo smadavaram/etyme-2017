@@ -24,6 +24,7 @@ import {
   payFiguresFor, payTrail, PAY_WITHHELD_SAYS, mayReadBillRate, billTrail, BILL_WITHHELD_SAYS,
 } from '@/lib/money/pay-visibility'
 import { writePayTrail, writeBillTrail } from '@/lib/money/pay-trail'
+import { recordedLine } from '@/lib/money/recorded-line'
 
 /**
  * POST /api/contracts
@@ -57,6 +58,14 @@ export async function POST(request: NextRequest) {
     // Buy side (optional — creates linked BuyContract)
     payRate,
     payCurrency,
+    // How this firm engages the person — W2, IND_1099, OWN_COMPANY or
+    // OTHER_EMPLOYER — and whom it buys them from, if anybody. The same
+    // two questions the placement's terms page asks, under the same
+    // rules (`lib/money/recorded-line`). `contractType` and
+    // `vendorCompanyId` are the older names and are read through the
+    // same rule.
+    engagementType,
+    boughtFromId,
     contractType,
     vendorCompanyId,
     entityId,
@@ -109,6 +118,53 @@ export async function POST(request: NextRequest) {
   if (typeof billRate !== 'number' || billRate <= 0) return errResponse('billRate must be a positive number (cents/hr)', 'billRate')
   if (!startDate) return errResponse('startDate is required', 'startDate')
 
+  // ── The pay line, under the award's rules ──────────────────────────
+  //
+  // This door used to take a pay rate and nothing else: a contract type
+  // that defaulted to W2, no "bought from", and a rate of nothing that
+  // quietly wrote no line. The award was closed on 2026-10-06 against
+  // writing an employment nobody agreed, and a second door that still
+  // wrote one would have reopened it. So the pay line is decided by the
+  // same rule the terms page uses: no $0 line, corp-to-corp only to the
+  // person's own company or to a named supplier, and "employed by
+  // another firm" refused with the road that works.
+  const person = await prisma.person.findUnique({
+    where: { id: String(personId) },
+    select: { name: true, consultant: { select: { ownCompany: { select: { id: true, name: true } } } } },
+  })
+  if (!person) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Nobody on the record has that id. Pick the person from your consultants.', field: 'personId' } },
+      { status: 404 }
+    )
+  }
+  const supplierId = boughtFromId ?? vendorCompanyId ?? null
+  const supplier = supplierId
+    ? await prisma.company.findUnique({ where: { id: String(supplierId) }, select: { id: true, name: true } })
+    : null
+  if (supplierId && !supplier) {
+    return errResponse('No firm of that id to buy from. Pick the supplier from your register, or "nobody" where you pay them yourself.', 'boughtFromId')
+  }
+  if (supplier && supplier.id === companyId) {
+    return errResponse(`${caller.company?.name ?? 'Your company'} cannot buy from itself. Choose "nobody" where you pay them yourself.`, 'boughtFromId')
+  }
+  const line = recordedLine({
+    engagementType,
+    contractType,
+    boughtFrom: supplier,
+    payRateCents: payRate,
+    personName: person.name,
+    firmName: caller.company?.name ?? 'Your company',
+    ownCompany: person.consultant?.ownCompany ?? null,
+  })
+  if (!line.ok) {
+    return NextResponse.json(
+      { error: { code: line.code, message: line.says, field: line.field } },
+      { status: 422 }
+    )
+  }
+  const pay = line.write
+
   // ── A purchase order is not raised to your own employee ────────────
   //
   // CLAUDE.md calls this the clearest proof that an order and a contract
@@ -122,15 +178,15 @@ export async function POST(request: NextRequest) {
   // Checked before anything is written rather than after, because the
   // half-created pair is worse than the refusal.
   if (buyPurchaseOrderId) {
-    if (!payRate) {
+    if (!pay) {
       return errResponse(
         'A purchase order belongs to a buy contract, and no buy contract is being created here',
         'buyPurchaseOrderId'
       )
     }
     const po = canAttachPoToBuyContract({
-      vendorCompanyId: vendorCompanyId ?? null,
-      contractType: contractType ?? 'W2',
+      vendorCompanyId: pay.vendorCompanyId,
+      contractType: pay.contractType,
     })
     if (!po.allowed) {
       return errResponse(po.reason, 'buyPurchaseOrderId')
@@ -398,16 +454,16 @@ export async function POST(request: NextRequest) {
       let buyContract = null
       let contractLink = null
 
-      if (payRate && typeof payRate === 'number' && payRate > 0) {
+      if (pay) {
         // The agreement, with this person as its first candidate line.
         // More candidates can be added to the same agreement later.
         buyContract = await tx.buyContract.create({
           data: {
             companyId,
-            vendorCompanyId: vendorCompanyId ?? null,
+            vendorCompanyId: pay.vendorCompanyId,
             entityId: entityId ?? null,
             payCurrency: payCurrency ?? 'USD',
-            contractType: contractType ?? 'W2',
+            contractType: pay.contractType,
             workOrderId: buyPurchaseOrderId ?? null,
             // Written from the document where there is one, so the copy
             // on the line cannot disagree with the paper it is on.
@@ -420,7 +476,7 @@ export async function POST(request: NextRequest) {
             candidates: {
               create: {
                 personId,
-                payRate,
+                payRate: pay.payRateCents,
                 payCurrency: payCurrency ?? 'USD',
                 startDate: start,
                 endDate: end,
@@ -519,7 +575,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           action: 'CONTRACT_CREATED',
-          summary: `A line for person ${personId} at ${rate(billRate, billCurrency ?? 'USD')}${header ? ` on ${header.number}` : ', not yet on an order'}. ${buyContract ? `The buy line that funds it pays ${rate(payRate, payCurrency ?? billCurrency ?? 'USD')}.` : 'No buy line beside it.'} ${sellCyclesCreated} cycles generated.`,
+          summary: `A line for person ${personId} at ${rate(billRate, billCurrency ?? 'USD')}${header ? ` on ${header.number}` : ', not yet on an order'}. ${buyContract ? `The buy line that funds it pays ${rate(pay!.payRateCents, payCurrency ?? billCurrency ?? 'USD')}.` : 'No buy line beside it.'} ${sellCyclesCreated} cycles generated.`,
           reason: 'Contract created via API',
           payload: {
             workOrderId: header?.id ?? null,
@@ -528,8 +584,12 @@ export async function POST(request: NextRequest) {
             contractLinkId: contractLink?.id ?? null,
             personId,
             billRate,
-            payRate: payRate ?? null,
-            contractType: contractType ?? null,
+            payRate: pay?.payRateCents ?? null,
+            contractType: pay?.contractType ?? null,
+            vendorCompanyId: pay?.vendorCompanyId ?? null,
+            // What the line says about how the person is engaged, in the
+            // rule's own sentence — kept so an audit reads the same words.
+            terms: line.says,
             sellCyclesCreated,
             hasRolloff: !!rolloff,
           },
@@ -562,13 +622,16 @@ export async function POST(request: NextRequest) {
         },
         buyContract: result.buyContract ? {
           id: result.buyContract.id,
-          payRate,
+          payRate: pay?.payRateCents ?? null,
           contractType: result.buyContract.contractType,
           state: result.buyContract.state,
         } : null,
         contractLink: result.contractLink ? { id: result.contractLink.id } : null,
         sellCyclesCreated: result.sellCyclesCreated,
         rolloff: result.rolloff ? { id: result.rolloff.id, endDate: result.rolloff.endDate.toISOString() } : null,
+        // How the person is engaged and paid, or that nobody has said yet
+        // — in which case the placement cannot start until somebody does.
+        terms: { says: line.says, payLine: Boolean(pay) },
         message: result.header
           ? `Recorded on ${result.header.number}, the order already open with ${clientCompany.name}. ` +
             `${result.sellCyclesCreated} cycles${result.rolloff ? ' and a rolloff' : ''}.`

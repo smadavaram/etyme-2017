@@ -14,6 +14,26 @@ import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
  * is theirs, and it follows the same contract: BLOCK where legally
  * grounded, WARN with a reason recorded everywhere else. Never silently.
  */
+/**
+ * The person's own terms on record: a W2 pay line the firm's desk wrote at
+ * a stated rate. Activation asks the terms gate first (`termsGate`,
+ * 2026-10-06), and a sell line with no pay line under it is a placement
+ * whose terms nobody stated — so without this, what answered below would
+ * be the terms and never the paperwork under test.
+ */
+async function payLineFor(sell: { id: string; companyId: string; personId: string; billCurrency: string; startDate: Date; endDate: Date | null }) {
+  const pay = await prisma.buyContract.create({
+    data: {
+      companyId: sell.companyId, contractType: 'W2', payCurrency: sell.billCurrency, state: 'DRAFT',
+      startDate: sell.startDate, endDate: sell.endDate,
+      candidates: { create: { personId: sell.personId, payRate: 6_000, payCurrency: sell.billCurrency, startDate: sell.startDate, endDate: sell.endDate } },
+    },
+  })
+  await prisma.contractLink.create({
+    data: { sellContractId: sell.id, buyContractId: pay.id, effectiveFrom: sell.startDate, effectiveTo: sell.endDate },
+  })
+}
+
 describe('activating a contract on paperwork', () => {
   let seat: string
   let seatPersonId: string
@@ -56,6 +76,7 @@ describe('activating a contract on paperwork', () => {
       },
     })
     contractId = draft.id
+    await payLineFor(draft)
   }, 180_000)
 
   it('with no I-9 on file, activation is refused — nobody may start without authorization', async () => {
@@ -139,6 +160,7 @@ describe('activating a contract on paperwork', () => {
         state: 'DRAFT', startDate: new Date(), endDate: new Date(Date.now() + 180 * 86_400_000),
       },
     })
+    await payLineFor(draft)
     as(seat)
     const r = await json(
       await activate(req('POST', `/api/contracts/${draft.id}/activate`, { action: 'activate', overrideReason: 'trying anyway' }),
@@ -238,6 +260,7 @@ describe('activating a contract on paperwork', () => {
         endDate: new Date(Date.now() + 180 * 86_400_000),
       },
     })
+    await payLineFor(draft)
 
     as('world-wrenfield@demo.etyme.local')
     const r = await json(

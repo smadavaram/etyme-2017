@@ -68,10 +68,23 @@ export function periodPaidBy(
   const prev = i > 0 ? dayOf(sorted[i - 1].dueOn) : null
   const next = i >= 0 && i < sorted.length - 1 ? dayOf(sorted[i + 1].dueOn) : null
 
+  // The span every pay day after the first covers: the days since the one
+  // before it. The first may not cover more than that.
+  //
+  // A line whose work was under way before the award has no pay day for
+  // the weeks before it (`noneDueBefore` in `lib/cycle-generator`), so its
+  // first pay day can sit months after the day the line started. Counted
+  // from the start, that pay day was given to whichever early period held
+  // the most days: a run for the period it actually pays settled nothing,
+  // and a run for a month before the award settled it.
+  const rhythmFrom = next ? new Date(due.getTime() - (next.getTime() - due.getTime()) + DAY) : null
+
   let from: Date
   if (prev) from = new Date(prev.getTime() + DAY)
-  else if (startedOn && dayOf(startedOn) <= due) from = dayOf(startedOn)
-  else if (next) from = new Date(due.getTime() - (next.getTime() - due.getTime()) + DAY)
+  else if (startedOn && dayOf(startedOn) <= due) {
+    from = dayOf(startedOn)
+    if (rhythmFrom && rhythmFrom > from) from = rhythmFrom
+  } else if (rhythmFrom) from = rhythmFrom
   else return periodOf(due)
 
   const days = new Map<string, { period: Period; n: number }>()

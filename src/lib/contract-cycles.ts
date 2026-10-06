@@ -167,6 +167,16 @@ export async function writeCyclesFor(
      */
     onlyPeriodsAfter?: Date | null
     /**
+     * No date written before this day — the award's floor, by due date.
+     *
+     * Where the work was already under way at the award, a period that
+     * ended yesterday is still due tomorrow, and that reminder is owed.
+     * `onlyPeriodsAfter` would drop it, because it bounds by the period;
+     * this bounds by the day the reminder lands. Pass the award's own day
+     * (`calendarDay` of now, at midnight UTC), not the day before it.
+     */
+    noneDueBefore?: Date | null
+    /**
      * Pay dates on a rhythm other than the pack's: both pay kinds, and
      * nothing else. Only the seed passes this, with `DEMO_MONTHLY_PAY`.
      * Replaces the pack's pay calculation and pay day; on a line bought
@@ -208,7 +218,11 @@ export async function writeCyclesFor(
         })
       )?.company
     )
-  const options = { policy, onlyPeriodsAfter: input.onlyPeriodsAfter ?? null }
+  const options = {
+    policy,
+    onlyPeriodsAfter: input.onlyPeriodsAfter ?? null,
+    noneDueBefore: input.noneDueBefore ?? null,
+  }
 
   const sellCycles = generateCycles(dates.startDate, dates.endDate, split.sell, holidays, existing, options)
   const buyCycles = buy

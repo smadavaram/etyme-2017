@@ -74,6 +74,20 @@ describe('starting somebody in a role the law says needs a license', () => {
         endDate: new Date(Date.now() + 90 * 86_400_000),
       },
     })
+    // The person's own terms on record — a W2 pay line the firm's desk
+    // wrote at a stated rate — so the terms gate activation asks first
+    // (`termsGate`, 2026-10-06) is not what answers. A sell line with no
+    // pay line under it is a placement whose terms nobody stated.
+    const pay = await prisma.buyContract.create({
+      data: {
+        companyId: template.companyId, contractType: 'W2', payCurrency: template.billCurrency, state: 'DRAFT',
+        startDate: contract.startDate, endDate: contract.endDate,
+        candidates: { create: { personId: person.id, payRate: 6_000, payCurrency: template.billCurrency, startDate: contract.startDate, endDate: contract.endDate } },
+      },
+    })
+    await prisma.contractLink.create({
+      data: { sellContractId: contract.id, buyContractId: pay.id, effectiveFrom: contract.startDate, effectiveTo: contract.endDate },
+    })
     // Work authorization on file, so the only thing that can refuse the
     // start is the license. Without this the I-9 block answers first and
     // the sentence under test never runs.

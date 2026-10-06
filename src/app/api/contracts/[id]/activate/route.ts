@@ -7,6 +7,7 @@ import { contractClearance, lineExtras } from '@/lib/contract-clearance'
 import { contractSide } from '@/lib/resolve-client-company'
 import { hasPermission, type Permission } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
+import { termsGate } from '@/lib/award/terms-on-record'
 
 /**
  * POST /api/contracts/:id/activate
@@ -146,6 +147,38 @@ export async function POST(
 
   const previousState = contract.state
   const newState = transition.to
+
+  // ── The person's own terms, before anything else about the start ──
+  //
+  // Since 2026-10-06 an award writes no pay line for somebody whose terms
+  // with the first firm are not on record: the placement reads "Awarded,
+  // terms pending" until that firm states how it engages them and what it
+  // pays, and they agree (`lib/award/hire-terms`). This button went on
+  // starting such a placement anyway — a start on no terms, with no pay
+  // line for payroll to run from.
+  //
+  // BLOCK, with no override: it is not a policy somebody may proceed past
+  // with a reason, it is the absence of the agreement the work stands on.
+  // The sentence is demand's (`termsGate`), so it names whose move it is
+  // — the firm's, the person's, or the firm below — in the same words the
+  // terms page and the program page use. Asked before the paperwork,
+  // because papers for an engagement nobody has agreed are papers for
+  // nothing.
+  if (action === 'activate') {
+    const terms = await termsGate(contract.id)
+    if (terms.blocks) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'TERMS_PENDING',
+            message: terms.says,
+            fix: 'The firm that pays the person states the terms on the placement’s terms page, and the person agrees them on their own page.',
+          },
+        },
+        { status: 409 }
+      )
+    }
+  }
 
   // ── Paperwork check on activation ──
   //

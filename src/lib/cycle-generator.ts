@@ -365,6 +365,26 @@ export interface GenerateOptions {
    * keeps its original weeks — only the emitting is bounded.
    */
   onlyPeriodsAfter?: Date | null
+  /**
+   * Emit no cycle due before this day. Null or omitted means no floor.
+   *
+   * The award's floor, and a different question from the extension's.
+   * "Never generate a reminder dated before now" is about the date the
+   * reminder lands on, not the period it closes: a week that ended on
+   * Saturday is still due on Monday, and an award made on Sunday for work
+   * already under way owes that Monday reminder. Bounding by the period
+   * dropped it, so the first week after an under-way award had no hours
+   * date at all.
+   *
+   * Compared by calendar day, keyed the way every other date here is, so
+   * a cycle due on the day itself is kept.
+   *
+   * Not a replacement for `onlyPeriodsAfter`: an extension must still drop
+   * a period the first run settled even where its date falls after the
+   * old end, or a company that changed its weekend direction is paid
+   * twice for one fortnight. A caller may pass both.
+   */
+  noneDueBefore?: Date | null
 }
 
 /**
@@ -394,6 +414,7 @@ export function generateCycles(
   const holidaySet = new Set(holidays)
   const policy = options.policy ?? DEFAULT_CYCLE_SHIFT
   const floor = options.onlyPeriodsAfter ?? null
+  const dueFloor = options.noneDueBefore ? localDayKey(options.noneDueBefore) : null
 
   for (const def of definitions) {
     if (!isMoneyKind(def.kind)) continue
@@ -427,6 +448,7 @@ export function generateCycles(
       // Keyed the same way the holidays are, so an extension knows the
       // dates it already wrote whatever timezone the server is in.
       const day = localDayKey(shifted)
+      if (dueFloor && day < dueFloor) continue
       if (taken.has(day)) continue
       taken.add(day)
       cycles.push({ kind: def.kind, dueOn: shifted })
