@@ -79,4 +79,25 @@ describe('a company sets its own week', () => {
     expect(r.body.error.message).toContain('working week')
     expect(await daysOffFor(theirs)).toEqual([0, 6])
   })
+  it('any seat of a company may read its days off; only the settings desk may change them', async () => {
+    await call(changeWeek, 'PATCH', { daysOff: [5] })
+    const seat = await prisma.context.findFirst({
+      where: {
+        companyId, revokedAt: null, roleId: { not: null },
+        NOT: [{ role: { permissions: { has: '*' } } }, { role: { permissions: { has: 'settings.manage' } } }],
+      },
+      include: { person: true },
+    }) ?? await prisma.context.findFirstOrThrow({
+      // A worker at the company with no role at all reads it too.
+      where: { companyId, revokedAt: null, NOT: { role: { permissions: { has: '*' } } } },
+      include: { person: true },
+    })
+    const plain = { id: seat.id, personId: seat.personId, email: seat.person.primaryEmail }
+    const read = await call(readWeek, 'GET', undefined, plain)
+    expect(read.status).toBe(200)
+    expect(read.body.data.daysOff).toEqual([5])
+    const change = await call(changeWeek, 'PATCH', { daysOff: [0, 6] }, plain)
+    expect(change.status).toBe(403)
+    expect(await daysOffFor(companyId)).toEqual([5])
+  })
 })

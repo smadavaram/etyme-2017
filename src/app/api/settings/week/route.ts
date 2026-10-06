@@ -7,13 +7,14 @@ import { setWeekSettings, weekSettingsFor } from '@/lib/days-off'
  * GET   /api/settings/week — the company's days off, and when its hours are due and approved
  * PATCH /api/settings/week — change them
  *
- * Beside the other company settings and behind the same permission,
- * because which days are off moves the same dates the weekend direction
- * does. The rules are `lib/days-off`; this only finds the caller's
+ * Any seat of the company may read the week; only the settings desk
+ * may change it, because which days are off moves the same dates the
+ * weekend direction does (2026-10-06: a worker's own sheet could not
+ * read its company's days off and fell back to Saturday and Sunday). The rules are `lib/days-off`; this only finds the caller's
  * company and says the answer in a sentence.
  */
 
-async function guard(request: NextRequest, doing: string) {
+async function guard(request: NextRequest, doing: string, change = true) {
   const { caller, error } = await getCallerContext(request)
   if (error) return { caller: null, error }
   if (!caller.company) {
@@ -25,7 +26,10 @@ async function guard(request: NextRequest, doing: string) {
       ),
     }
   }
-  if (!hasPermission(caller.permissions, 'settings.manage')) {
+  // Reading is open to any seat of the company: a worker filing a week
+  // needs its days off, and which days a company takes off is not a
+  // secret from its own people. Changing them is the settings desk's.
+  if (change && !hasPermission(caller.permissions, 'settings.manage')) {
     return {
       caller: null,
       error: NextResponse.json(
@@ -43,7 +47,7 @@ async function guard(request: NextRequest, doing: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const { caller, error } = await guard(request, 'Reading this company’s working week')
+  const { caller, error } = await guard(request, 'Reading this company’s working week', false)
   if (error) return error
   return NextResponse.json({ data: await weekSettingsFor(caller!.company!.id) })
 }
