@@ -326,6 +326,29 @@ export const SUPPLIER_SEATS: Program[] = [
       'Supplies maintenance and quality staff to plants. Sells a forming line maintenance ' +
       'technician to Cavanaugh Glassworks. It employs him, so it buys from nobody.',
   },
+  // A bench vendor of the second kind CLAUDE.md names (2026-09-30): a
+  // niche skill, a course to attract people, and placements through a
+  // prime (lib/seed-bench-profit). Seeded since 2026-10-03 and reachable
+  // only by typing a POST body until an outside review of the live demo
+  // asked for a door, 2026-10-05. "Bench" is glossed the way the public
+  // words gloss it: workers waiting for a project.
+  {
+    slug: 'world-pellwright',
+    name: 'Pellwright Validation Partners',
+    where: 'Bench vendor, below a prime',
+    industry: 'Engineering staffing · validation for regulated plants',
+    waiting:
+      'Tobias Wren’s margin has paid back his days on the bench. Noor Abernathy’s has not yet.',
+    about:
+      'A bench vendor: it keeps validation engineers waiting for a project and trains them on its ' +
+      'own course. It employs them and sells them to Sundara Systems. The client never learns its name.',
+    desks: [
+      { desk: 'finance', label: 'Finance',
+        waiting: 'Bench profit, on Our bench: what each person’s days on the bench cost, and when their margin paid it back.' },
+      { desk: '', label: 'Owner',
+        waiting: 'Everything, including the course, the bench pay policy and bench profit.' },
+    ],
+  },
 ]
 
 /**

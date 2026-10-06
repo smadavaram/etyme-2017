@@ -93,8 +93,59 @@ export function sidebarPropsFrom(
       ? `At ${session.seat.clientName}${session.seat.roleName ? ` · ${session.seat.roleName}` : ''}`
       : isConsultant ? 'Consultant' : kindLabel(kind),
     // A seat is exactly the desk the client granted: the client's own
-    // role's permissions, never the office's.
-    permissions: session.seat ? session.seat.permissions : session.permissions,
+    // role's permissions, never the office's. Read through `deskOf`, so
+    // the + button and ⌘K cannot read it another way.
+    permissions: deskOf(session).permissions,
     pending: false,
+  }
+}
+
+/**
+ * The desk this person is acting at, as the three doors into a page see it.
+ *
+ * The sidebar, the + button and ⌘K are three doors into the same pages,
+ * and CLAUDE.md is plain that they are filtered from one answer: a menu
+ * entry the route will refuse is a menu entry that lies. The sidebar read
+ * the seat; the header read the session's own company, so Kestrel MSP,
+ * seated at Talvern Medical's compliance desk, was offered Kestrel's own
+ * "Add consultant" and "New contract" over Talvern's book, and Talvern's
+ * routes refused both. Found by an outside review of the live demo,
+ * 2026-10-05.
+ *
+ * So the answer is here, once:
+ *  - `menuKind` is the kind whose menu is drawn — a seated office reads
+ *    the client's, because it is reading the client's book;
+ *  - `permissions` are the seat's where there is a seat — the client's own
+ *    role — and the person's own everywhere else.
+ *
+ * A page that gates a button on a permission reads it from here too, for
+ * the same reason (`requisitions/page.tsx`'s "Raise one" is the first).
+ */
+export interface Desk {
+  /** The firm's own kind, whatever desk it sits at. */
+  companyKind: SidebarIdentity['companyKind']
+  /** The kind whose menu this desk reads: the client's, at a client's desk. */
+  menuKind: SidebarIdentity['companyKind']
+  isConsultant: boolean
+  /** Also somebody the work is about. */
+  worker: boolean
+  permissions: readonly string[]
+  seatedAtClient: string | null
+}
+
+export function deskOf(
+  session: Pick<SessionState, 'company' | 'contextType' | 'isWorker' | 'permissions'> &
+    Partial<Pick<SessionState, 'seat'>>
+): Desk {
+  const companyKind = session.company?.kind ?? null
+  const isConsultant = session.contextType === 'CONSULTANT'
+  const seat = session.seat ?? null
+  return {
+    companyKind,
+    menuKind: seat && !isConsultant && companyKind ? 'CLIENT' : companyKind,
+    isConsultant,
+    worker: !isConsultant && session.isWorker,
+    permissions: seat ? seat.permissions : session.permissions,
+    seatedAtClient: seat?.clientName ?? null,
   }
 }

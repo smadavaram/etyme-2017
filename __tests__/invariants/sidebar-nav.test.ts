@@ -1058,7 +1058,10 @@ describe('a menu offers only what this seat can actually open', () => {
   it('reads the + button and the search box off the same answer as the menu', () => {
     const HEADER_SRC = readFileSync(join(process.cwd(), 'src/components/shell/header.tsx'), 'utf8')
     expect(HEADER_SRC).toContain('mayOpen(i.href, permissions)')
-    expect(HEADER_SRC).toContain('{ worker: isWorker, permissions }')
+    // Both read the desk through `deskOf`, the helper the sidebar reads,
+    // so a program office at a client's desk is filtered by the seat.
+    expect(HEADER_SRC).toContain('deskOf(session)')
+    expect(HEADER_SRC).toContain('{ worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient }')
   })
 
   it('does not filter a menu at all until it knows what the seat holds', () => {

@@ -36,6 +36,9 @@ import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
 import { getNavForKind, mayOpen } from '@/components/shell/sidebar'
 import { DemoChip } from '@/components/shell/demo-chip'
+import { deskOf } from '@/components/shell/sidebar-props'
+import { consoleHome } from '@/lib/console-home'
+import { hasAnyPermission, type Permission } from '@/lib/permissions'
 
 type HeaderProps = {
   title?: string
@@ -48,6 +51,23 @@ type PlusMenuItem = {
   description: string
   href: string
   icon: string
+  /**
+   * What the route behind the form asks for when it is sent, any one of.
+   *
+   * The page's own gate (`mayOpen`) is about reading it, and reading is
+   * not creating: a client's compliance officer may open the job request
+   * list and is refused the moment she sends a new one, because POST
+   * /api/requirements asks for requirements.write. An item is offered
+   * only to a desk that holds what the send will ask for. Copied from the
+   * route's own check, and named beside each item so a change to one is
+   * a change seen next to the other.
+   */
+  writes?: readonly string[]
+  /**
+   * Only the worker files their own week (CLAUDE.md, station 6, and
+   * `mayEnter` in lib/timesheet-authority). Offered to nobody else.
+   */
+  workerOnly?: true
 }
 
 type PlusMenuSection = {
@@ -83,12 +103,16 @@ const PLUS_MENU: PlusMenuSection[] = [
         description: 'Record a client’s job for submissions',
         href: '/dashboard/requirements?new=1',
         icon: '◈',
+        writes: ['requirements.write'],
       },
       {
         label: 'Submit consultant',
         description: 'Submit a candidate to a requirement',
         href: '/dashboard/submissions?new=1',
         icon: '◇',
+        // POST /api/submissions: the recruiting desk, or a delivery
+        // manager putting the firm's own employee forward.
+        writes: ['submissions.create', 'assignments.write'],
       },
     ],
   },
@@ -103,12 +127,14 @@ const PLUS_MENU: PlusMenuSection[] = [
         description: 'Create a candidate profile',
         href: '/dashboard/consultants?new=1',
         icon: '◌',
+        writes: ['consultants.write'],
       },
       {
         label: 'Add to bench',
         description: 'List a consultant as available',
         href: '/dashboard/bench?new=1',
         icon: '◎',
+        writes: ['consultants.write'],
       },
     ],
   },
@@ -127,24 +153,29 @@ const PLUS_MENU: PlusMenuSection[] = [
         description: 'One person, one rate — the line you bill from and the line you pay from',
         href: '/dashboard/contracts?new=1',
         icon: '▣',
+        writes: ['assignments.write'],
       },
       {
         label: 'New timesheet',
         description: 'Log hours against a sell contract',
         href: '/dashboard/timesheets?new=1',
         icon: '▦',
+        workerOnly: true,
       },
       {
         label: 'New expense report',
         description: 'Submit travel, equipment, or training',
         href: '/dashboard/expenses?new=1',
         icon: '◫',
+        // POST /api/expenses asks for this, and nothing stronger.
+        writes: ['invoices.read'],
       },
       {
         label: 'Generate bill',
         description: 'Bill the customer for approved timesheets',
         href: '/dashboard/invoices?new=1',
         icon: '▧',
+        writes: ['invoices.issue'],
       },
       {
         label: 'New conversation',
@@ -174,6 +205,7 @@ const CLIENT_PLUS_MENU: PlusMenuSection[] = [
         description: 'Post a job to your suppliers',
         href: '/dashboard/requirements?new=1',
         icon: '◈',
+        writes: ['requirements.write'],
       },
       {
         label: 'New conversation',
@@ -206,11 +238,14 @@ const CLIENT_PLUS_MENU: PlusMenuSection[] = [
  * else's action taken about them, and the + button hides itself rather
  * than opening on a list of refusals.
  */
-function plusMenuFor(
+export function plusMenuFor(
+  /** The kind whose menu this desk reads — `deskOf(session).menuKind`. */
   kind: string | null,
   isConsultant: boolean,
   /** What this seat holds. Undefined while the session loads. */
-  permissions: readonly string[] | null | undefined
+  permissions: readonly string[] | null | undefined,
+  /** Somebody the work is about, who may file their own week. */
+  worker = false
 ): PlusMenuSection[] {
   if (isConsultant || !kind) return []
   const sections = kind === 'CLIENT'
@@ -232,9 +267,24 @@ function plusMenuFor(
   // with nothing to create gets no + button at all — the rule already
   // written for a consultant, now read off the page's own gate rather
   // than off a second hand-kept list.
+  //
+  // And opening the form is not sending it. An item is offered only to a
+  // desk that holds what the route will ask for on the send, and the
+  // week's own form only to the person whose week it is.
   return sections
-    .map((section) => ({ ...section, items: section.items.filter((i) => mayOpen(i.href, permissions)) }))
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((i) =>
+        mayOpen(i.href, permissions) && mayCreate(i, permissions) && (!i.workerOnly || worker)
+      ),
+    }))
     .filter((section) => section.items.length > 0)
+}
+
+/** Whether the route behind an item will take the send from this desk. */
+function mayCreate(item: PlusMenuItem, permissions: readonly string[] | null | undefined): boolean {
+  if (!item.writes || permissions == null) return true
+  return hasAnyPermission(permissions, item.writes as Permission[])
 }
 
 // ── Global search results ──
@@ -259,7 +309,7 @@ type SearchResult = {
  * menu is searchable; one that is not, is not; and neither list can
  * drift from the other again because there is only one.
  */
-function reachablePagesFor(
+export function reachablePagesFor(
   kind: Parameters<typeof getNavForKind>[0],
   isConsultant: boolean,
   seat: Parameters<typeof getNavForKind>[2]
@@ -294,12 +344,17 @@ const ICON_BUTTON =
 
 export function Header({ title }: HeaderProps) {
   const router = useRouter()
-  const { company, person, roleName, contextType, isWorker, permissions, isDemo } = useSession()
+  const session = useSession()
+  const { company, person, roleName, contextType, isDemo } = session
   // "Demo" goes in front of a made-up company's name, and only a
   // company's: a consultant with no firm is a person, never a demo of one.
   const demoChip = isDemo && company ? <DemoChip /> : null
-  const isClient = company?.kind === 'CLIENT'
-  const plusMenu = plusMenuFor(company?.kind ?? null, contextType === 'CONSULTANT', permissions)
+  // The desk this person acts at — the seat's kind and the seat's
+  // permissions where a client granted one — read through the same
+  // helper the sidebar reads, so the three doors cannot disagree.
+  const desk = deskOf(session)
+  const { permissions } = desk
+  const plusMenu = plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker)
   const [plusOpen, setPlusOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
@@ -314,10 +369,12 @@ export function Header({ title }: HeaderProps) {
   const mobileSearchToggleRef = useRef<HTMLButtonElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // Same home the sidebar's Dashboard entry points at.
-  const home = contextType === 'CONSULTANT'
-    ? '/dashboard/my-work'
-    : isClient ? '/dashboard/program' : '/dashboard'
+  // Same home the sidebar's Dashboard entry points at, from the same answer.
+  const home = consoleHome({
+    kind: desk.companyKind,
+    isConsultant: desk.isConsultant,
+    seated: Boolean(desk.seatedAtClient),
+  }).href
 
   // Close the account menu on an outside click, the same way the plus menu
   // does. A menu that stays open while you click elsewhere feels stuck.
@@ -379,9 +436,9 @@ export function Header({ title }: HeaderProps) {
   // not" — so the seat goes in too. Searching for a page whose route
   // refuses you is the ⌘K version of a button that lies.
   const reachablePages = reachablePagesFor(
-    company?.kind ?? null,
-    contextType === 'CONSULTANT',
-    { worker: isWorker, permissions }
+    desk.companyKind,
+    desk.isConsultant,
+    { worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient }
   )
 
   const searchResults: SearchResult[] = searchQuery.length >= 1

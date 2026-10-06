@@ -46,14 +46,15 @@ describe('the demo door opens on the client', () => {
     }
   })
 
-  it('offers three programs, ten supplying firms and six people', () => {
+  it('offers three programs, eleven supplying firms and six people', () => {
     // Eight since 2026-09-21: Brightmoor Staffing, whose nine desks are
     // the only place a supplier's own roles can be walked, and Kestrel
     // MSP, which sits at a client's compliance desk rather than its
     // program manager's. Ten since 2026-09-29: a clinical staffing firm
-    // and an industrial one, so the suppliers are not all IT.
+    // and an industrial one, so the suppliers are not all IT. Eleven
+    // since 2026-10-05: Pellwright Validation Partners, a bench vendor.
     expect(CLIENT_PROGRAMS).toHaveLength(3)
-    expect([...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]).toHaveLength(10)
+    expect([...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]).toHaveLength(11)
     expect(CANDIDATE_SEATS).toHaveLength(6)
   })
 

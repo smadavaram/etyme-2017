@@ -169,13 +169,15 @@ describe('every seat on the demo page opens', () => {
     await seedWorld()
   }, 600_000)
 
-  it('offers thirteen company doors and six people — three programs, six suppliers, two program offices, two integrators', () => {
+  it('offers fourteen company doors and six people — three programs, seven suppliers, two program offices, two integrators', () => {
     // Eleven since 2026-09-21: Brightmoor Staffing, the one firm whose
     // nine supplier desks are seated, and Kestrel MSP, which sits at a
     // client's compliance desk rather than its program manager's.
     // Thirteen since 2026-09-29: Sorrelwood Clinical Staffing and
     // Quarrystone Industrial Staffing, so the suppliers are not all IT.
-    expect(ALL_SEATS).toHaveLength(13)
+    // Fourteen since 2026-10-05: Pellwright Validation Partners, a
+    // bench vendor with its owner and finance desks.
+    expect(ALL_SEATS).toHaveLength(14)
     // Six since 2026-09-29: Rosa Delgado, whose pay rose in month six.
     expect(CANDIDATE_SEATS).toHaveLength(6)
   })
