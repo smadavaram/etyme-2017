@@ -10,6 +10,7 @@ import { holidayKeys } from '@/lib/seed-calendar'
 import { karthikWindow } from '@/lib/seed-doors'
 import { plainDate } from '@/lib/plain-date'
 import { burdenRate } from '@/lib/order-postings'
+import { postBenchProfitWeeks, NICHE_VENDOR } from '@/lib/seed-bench-profit'
 
 /**
  * Bench profit on the seeded world (CLAUDE.md, "Bench profit, next after
@@ -376,5 +377,40 @@ describe('the holiday switch reaches the figure', () => {
     // Nobody else was switched on, so Tobias still has no holiday paid.
     expect(row(after.body, 'Tobias Wren').costCents).toBe(row(owner.body, 'Tobias Wren').costCents)
     expect(row(after.body, 'Tobias Wren').holiday.source).toBe('NOT_SWITCHED_ON')
+  })
+})
+
+describe('the bench-profit weeks are on the books under the hop-ledger rule', () => {
+  it('every live signature on a bench-profit week is posted, the middle firm’s included', async () => {
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: `world-${NICHE_VENDOR.slug}` }, select: { id: true } })
+    const signatures = await prisma.workAssertion.findMany({
+      where: { state: 'LIVE', timesheet: { sellContract: { companyId: firm.id } } },
+      select: { id: true, role: true, companyId: true },
+    })
+    const middle = signatures.filter((s) => s.role === 'PASS_THROUGH')
+    // Sundara accepts every week it buys from Pellwright, so the middle rung is there to post.
+    expect(middle.length).toBeGreaterThan(0)
+    const postings = await prisma.orderPosting.findMany({
+      where: { source: 'TIMESHEET', sourceId: { in: signatures.map((s) => s.id) } },
+      select: { sourceId: true, kind: true, companyId: true },
+    })
+    for (const s of signatures) {
+      const mine = postings.filter((p) => p.sourceId === s.id)
+      expect(mine.length, `${s.role} ${s.id} has no posting`).toBeGreaterThan(0)
+    }
+    // A middle firm's acceptance is revenue to the firm below it and pay in its own books.
+    for (const s of middle) {
+      const mine = postings.filter((p) => p.sourceId === s.id)
+      expect(mine.some((p) => p.kind === 'REVENUE' && p.companyId === firm.id)).toBe(true)
+      expect(mine.some((p) => p.kind === 'PAY' && p.companyId === s.companyId)).toBe(true)
+    }
+  })
+
+  it('posting the bench-profit weeks a second time writes nothing', async () => {
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: `world-${NICHE_VENDOR.slug}` }, select: { id: true } })
+    const before = await prisma.orderPosting.count({ where: { source: 'TIMESHEET' } })
+    const ctx = { firmBySlug: new Map([[NICHE_VENDOR.slug, firm]]) } as any
+    expect(await postBenchProfitWeeks(ctx)).toBe(0)
+    expect(await prisma.orderPosting.count({ where: { source: 'TIMESHEET' } })).toBe(before)
   })
 })

@@ -497,31 +497,46 @@ export const NICHE_POSTING_SHARES = 4
 
 /**
  * Post one share of the niche vendor's signed weeks to its books, the way
- * the route that signs a week does. A signature already posted in full is
- * passed over — the same test the order-to-cash layer applies — so a
- * second seeding writes nothing and asks almost nothing.
+ * the route that signs a week does.
+ *
+ * The hop-ledger rule (lib/money/hop-ledger): every live signature is
+ * posted, the middle firm's included, because each is the payer's
+ * acceptance on the rung it buys on — the client's approval is revenue
+ * to Sundara, Sundara's acceptance is revenue to Pellwright and pay in
+ * Sundara's own books, and Pellwright's acceptance is its pay and burden.
+ *
+ * A signature already posted in full is passed over — the same test the
+ * order-to-cash layer applies — so a second seeding writes nothing and
+ * asks almost nothing. In full means: REVENUE for a client's approval;
+ * REVENUE in another firm's books and PAY in its own for a middle firm's;
+ * PAY and BURDEN for the employer's, because Pellwright employs every
+ * person here on W2.
  */
 export async function postBenchProfitWeeks(ctx: SeedContext, share?: Share): Promise<number> {
   const firm = ctx.firmBySlug.get(NICHE_VENDOR.slug)
   if (!firm) return 0
   const all = await db.workAssertion.findMany({
-    where: { state: 'LIVE', role: { not: 'PASS_THROUGH' }, timesheet: { sellContract: { companyId: firm.id } } },
-    select: { id: true, byId: true, role: true },
+    where: { state: 'LIVE', timesheet: { sellContract: { companyId: firm.id } } },
+    select: { id: true, byId: true, role: true, companyId: true },
     orderBy: { id: 'asc' },
   })
   const mine = shareOf(all, share)
-  const written = new Map<string, Set<string>>()
+  const written = new Map<string, { kind: string; companyId: string }[]>()
   for (const p of await db.orderPosting.findMany({
     where: { source: 'TIMESHEET', sourceId: { in: mine.map((a) => a.id) } },
-    select: { sourceId: true, kind: true },
+    select: { sourceId: true, kind: true, companyId: true },
   })) {
-    if (p.sourceId) written.set(p.sourceId, (written.get(p.sourceId) ?? new Set()).add(p.kind))
+    if (p.sourceId) written.set(p.sourceId, [...(written.get(p.sourceId) ?? []), { kind: p.kind, companyId: p.companyId }])
   }
+  const has = (rows: { kind: string; companyId: string }[], kind: string, mine: boolean, companyId: string) =>
+    rows.some((r) => r.kind === kind && (r.companyId === companyId) === mine)
   let posted = 0
   for (const a of mine) {
-    const kinds = written.get(a.id)
+    const rows = written.get(a.id) ?? []
     const complete =
-      a.role === 'CLIENT_APPROVAL' ? kinds?.has('REVENUE') : kinds?.has('PAY') && kinds?.has('BURDEN')
+      a.role === 'CLIENT_APPROVAL' ? rows.some((r) => r.kind === 'REVENUE')
+      : a.role === 'PASS_THROUGH' ? has(rows, 'REVENUE', false, a.companyId) && has(rows, 'PAY', true, a.companyId)
+      : rows.some((r) => r.kind === 'PAY') && rows.some((r) => r.kind === 'BURDEN')
     if (complete) continue
     posted += ((await postAssertion(a.id, a.byId)) ?? []).filter(Boolean).length
   }
