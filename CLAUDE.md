@@ -1656,18 +1656,23 @@ Three rules follow:
     refused in sentences; what does not yet read it is listed on matrix
     row L3.2.2.12 — cycle dates still shift around Saturday and Sunday
     until money passes the company's days into `shiftToWorkingDay`.
-  **Open for the founder:** under the opt-in `billStraddle: START`, a
-  week whose Sunday is 30 August and whose every hour is 1–4 September
-  bills in August on its empty Sunday alone. SPLIT (the default) and END
-  are right. The recommendation is that START and END judge the week by
-  its first and last day *with hours*, never by an empty calendar edge;
-  nothing has been changed until he says so. Also open: a biweekly pay
-  period still counts from the contract's start day rather than from a
-  Sunday, and the payroll export picks a sheet by its period end inside
-  the window — both move which days a run pays and are asked, not
-  guessed. And a stored overtime decision keyed to a Monday no longer
-  matches any week, so a live world seeded before this day must be
-  dropped and reseeded, which was already the plan.
+  **Three questions asked on the 6th and decided the same day** (founder:
+  "go with your recommendations"), now built:
+  - **A straddle rule judges a week by its hours.** Under START a week
+    bills in the month of its first worked day; under END its last. An
+    empty Sunday or Saturday never moves a week. SPLIT is unchanged.
+  - **Weekly and biweekly pay periods start on a Sunday.** A biweekly
+    period is two Sunday-to-Saturday weeks, the first counted from the
+    Sunday on or before the contract start, so a midweek start has a
+    short first period that still ends on a Saturday.
+  - **The payroll export takes a sheet by overlap** and pays only the
+    days inside the window. The IRS deposit date keeps Saturday and
+    Sunday, because that is the bank's week, not the firm's.
+  Still true: a stored overtime decision keyed to a Monday matches no
+  week, so a live world seeded before the 6th must be dropped and
+  reseeded. Still open: the biweekly pay calculation sits on the
+  Wednesday approvals are due; his "three days, not one" reasoning
+  would put it on Thursday.
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
   18 months, so three screens said "past the limit" two weeks before the
