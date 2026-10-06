@@ -345,7 +345,7 @@ describe('The discussion on a requisition', () => {
     expect(c).toContain('conversationId: threadId, body')
     // Names and times, so a thread reads as people talking.
     expect(c).toContain("m.authorName ?? 'Somebody'")
-    expect(c).toContain('new Date(m.createdAt).toLocaleString()')
+    expect(c).toContain('momentFor(new Date(m.createdAt), readerZone())')
     expect(THREAD).toContain('Your own people only. Suppliers never see this.')
   })
 
