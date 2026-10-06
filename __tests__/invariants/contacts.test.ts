@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
+  NO_WAY_TO_REACH,
   KINDS, problems, alreadyOnFile, claimMatches, normalEmail, normalPhone, kindOfRole,
 } from '@/lib/contacts'
 import { rolesFor } from '@/lib/company-defaults'
@@ -28,7 +29,7 @@ describe('A contact says what you would call them about, not just who they are',
 describe('The form checks itself, because a browser refusal in a modal is invisible', () => {
 
   it('needs a name, and says why', () => {
-    expect(problems({ name: '' })[0].says).toContain('who they are calling')
+    expect(problems({ name: '', phone: '555' })[0].says).toContain('who they are calling')
   })
 
   it('a wrong email is quoted back rather than called invalid', () => {
@@ -36,12 +37,21 @@ describe('The form checks itself, because a browser refusal in a modal is invisi
     expect(p[0].says).toContain('"dana.whitfield" is not an email address')
   })
 
-  it('an email is optional — a hallway conversation gives you a name and nothing else', () => {
-    expect(problems({ name: 'Dana Whitfield' })).toEqual([])
+  // Until 2026-10-05 a name alone was enough ("a hallway conversation
+  // gives you a name and nothing else"). An outside review of the live
+  // demo found rows nobody could call, and the rolodex exists to answer
+  // who to call: one way to reach them is now asked for.
+  it('a name alone is refused, because a row nobody can reach answers nothing', () => {
+    expect(problems({ name: 'Dana Whitfield' })[0]).toEqual({ field: 'email', says: NO_WAY_TO_REACH })
+  })
+
+  it('an email address alone is enough, and so is a phone number alone', () => {
+    expect(problems({ name: 'Dana Whitfield', email: 'dana@client.example' })).toEqual([])
+    expect(problems({ name: 'Dana Whitfield', phone: '(303) 555-0100' })).toEqual([])
   })
 
   it('a kind nobody defined is refused rather than stored as mystery text', () => {
-    expect(problems({ name: 'Dana', kind: 'WIZARD' })[0].field).toBe('kind')
+    expect(problems({ name: 'Dana', phone: '555', kind: 'WIZARD' })[0].field).toBe('kind')
   })
 })
 
@@ -193,6 +203,6 @@ describe('a desk at another firm is filed under the desk it actually is', () => 
     expect(chip('VP of Engineering', 'CLIENT')).toBe('Executive')
     expect(chip('Accounts Payable Supervisor', 'CLIENT')).toBe('Accounts payable')
     expect(chip('Compliance Analyst', 'VENDOR')).toBe('Compliance')
-    expect(chip('', 'VENDOR')).toBe('Contact')
+    expect(chip('', 'VENDOR')).toBe('Other')
   })
 })

@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     phone: c.phone,
     title: c.title,
     kind: c.kind,
-    kindLabel: KINDS[c.kind as ContactKind]?.label ?? 'Contact',
+    kindLabel: KINDS[c.kind as ContactKind]?.label ?? KINDS.OTHER.label,
     callAbout: KINDS[c.kind as ContactKind]?.callAbout ?? null,
     at: c.atCompany,
     // On the platform themselves now — reachable in-app, not only by phone.
@@ -173,6 +173,7 @@ export async function POST(request: NextRequest) {
   const found = problems({
     name: String(body?.name ?? ''),
     email: body?.email ?? null,
+    phone: body?.phone ?? null,
     kind: body?.kind ?? null,
   })
   if (found.length > 0) {

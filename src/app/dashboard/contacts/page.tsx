@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 
 /**
  * Contacts, and who to call there.
@@ -265,6 +266,9 @@ function AddContactModal({
     if (form.name.trim().length < 2) p.name = 'A name, so somebody knows who they are calling.'
     if (!form.atCompanyId) p.atCompanyId = 'Say which company they work at.'
     const email = form.email.trim()
+    // The route says the same sentence (lib/contacts), so a script that
+    // skips this form is refused in the same words.
+    if (!email && !form.phone.trim()) p.email = NO_WAY_TO_REACH
     if (email && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
       p.email = `"${email}" is not an email address. Leave it blank if you only have a phone number.`
     }
@@ -301,10 +305,15 @@ function AddContactModal({
     }
   }
 
-  const field = (name: keyof typeof form, label: string, placeholder: string, type = 'text') => (
+  const field = (name: keyof typeof form, label: string, placeholder: string, type = 'text', required = false) => (
     <div>
       <label className="mb-1 block text-xs font-semibold text-etyme-muted">{label}</label>
+      {/* required says so to a screen reader; noValidate on the form
+          keeps the browser from blocking with a bubble nobody sees in a
+          modal on a phone, so the sentence above is what explains it. */}
       <input
+        required={required}
+        aria-required={required || undefined}
         type={type}
         value={form[name]}
         onChange={(e) => setForm({ ...form, [name]: e.target.value })}
@@ -328,10 +337,12 @@ function AddContactModal({
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           {/* Stacked on a phone, always. */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {field('name', 'Name *', 'Dana Whitfield — first and last')}
+            {field('name', 'Name *', 'Dana Whitfield — first and last', 'text', true)}
             <div>
               <label className="mb-1 block text-xs font-semibold text-etyme-muted">Works at *</label>
               <select
+                required
+                aria-required="true"
                 value={form.atCompanyId}
                 onChange={(e) => setForm({ ...form, atCompanyId: e.target.value })}
                 aria-invalid={!!fieldErrors.atCompanyId}
@@ -351,10 +362,11 @@ function AddContactModal({
             {field('email', 'Email', 'dana@client.com', 'email')}
             {field('phone', 'Phone', '(303) 555-0100', 'tel')}
           </div>
+          <p className="-mt-2 text-[12px] text-etyme-muted">An email address or a phone number. Either one is enough.</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {field('title', 'Title', 'Director, Contingent Workforce')}
             <div>
-              <label className="mb-1 block text-xs font-semibold text-etyme-muted">What you call them about</label>
+              <label className="mb-1 block text-xs font-semibold text-etyme-muted">Their role at that firm</label>
               <select
                 value={form.kind}
                 onChange={(e) => setForm({ ...form, kind: e.target.value })}

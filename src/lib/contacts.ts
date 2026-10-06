@@ -25,6 +25,9 @@
  */
 
 import { reservedAddress } from '@/lib/demo-session'
+import { NO_WAY_TO_REACH, reachable } from '@/lib/contact-reach'
+
+export { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 
 export type ContactKind =
   | 'HIRING_MANAGER'
@@ -57,7 +60,7 @@ export const KINDS: Record<ContactKind, { label: string; callAbout: string }> = 
   DELIVERY: { label: 'Delivery', callAbout: 'the work on the ground, rolloffs, replacements' },
   HR: { label: 'HR', callAbout: 'whether a job is in the plan, and a firm’s own people’s paperwork' },
   COMPLIANCE: { label: 'Compliance', callAbout: 'insurance, work authorization, background checks, tenure' },
-  OTHER: { label: 'Contact', callAbout: 'whatever they were saved for — add a note' },
+  OTHER: { label: 'Other', callAbout: 'whatever they were saved for — add a note' },
 }
 
 export interface ContactInput {
@@ -122,6 +125,11 @@ export function problems(c: ContactInput): Problem[] {
   }
 
   const email = (c.email ?? '').trim()
+  // A rolodex row answers "who do I call", so a row with neither an
+  // address nor a number answers nothing. Either one is enough.
+  if (!reachable(c)) {
+    out.push({ field: 'email', says: NO_WAY_TO_REACH })
+  }
   if (email && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
     out.push({
       field: 'email',

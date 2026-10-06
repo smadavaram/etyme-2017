@@ -770,7 +770,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/the-register-is-not-the-platform.test.ts',
           ] },
         { code: 'L3.2.2.7', name: 'Contact book', owner: 'Account manager', status: B,
-          tasks: [
+          tasks: ['FIXED 2026-10-05, outside review: Add contact asks one way to reach somebody \u2014 an email address or a phone number, either is enough \u2014 on the form and on the route in one sentence (lib/contact-reach); the name and the company carry required beside the sentences; the role is asked as \u201cTheir role at that firm\u201d and starts on Other, which is what it saves', 
             'Who at each counterparty to call, and about what',
             'Duplicates refused on email or phone, never merged on a name',
             'Links to a real account when the contact joins, instead of drifting beside it',
@@ -778,8 +778,8 @@ export const MATRIX: L1[] = [
             'Every seeded role of every kind of company has a chip, so a role added with none fails on the commit that adds it',
             'A sign-in handle at a domain nobody can register is never printed as somebody\u2019s email, because a rolodex address promises that mail arrives',
           ],
-          implementedBy: ['src/lib/contacts.ts', 'src/app/api/contacts/route.ts', 'src/app/dashboard/contacts/page.tsx'],
-          testedBy: [
+          implementedBy: ['src/lib/contacts.ts', 'src/lib/contact-reach.ts', 'src/app/api/contacts/route.ts', 'src/app/dashboard/contacts/page.tsx'],
+          testedBy: ['__tests__/invariants/add-contact-form.test.ts', 
             '__tests__/invariants/contacts.test.ts',
             '__tests__/invariants/contacts-people.test.ts',
             '__tests__/invariants/demo-names.test.ts',
