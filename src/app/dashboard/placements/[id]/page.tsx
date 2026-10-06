@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { inSentence } from '@/lib/document-stages'
 import { readJson } from '@/lib/read-response'
 import { saveForm } from '@/lib/form-save'
+import { refusalSentence } from '@/lib/refusal-words'
+import { useSession } from '@/components/session-provider'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { CoverChip, SubVendorCover } from '@/components/cover-standing'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
@@ -182,6 +184,8 @@ interface Placement {
   }
   /** The start, said truthfully: "started …" only of a running contract (startWords). */
   startSays: string | null
+  /** Where this line runs past the person's time limit; null where it does not. */
+  runsPast: string | null
   checklist: {
     outcome: 'PASS' | 'WARN' | 'BLOCK'
     says: string
@@ -547,20 +551,28 @@ function Fact({ label, value }: { label: string; value: React.ReactNode }) {
 export default function PlacementPage() {
   const params = useParams()
   const id = String(params?.id ?? '')
+  const session = useSession()
   const [p, setP] = useState<Placement | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let live = true
     ;(async () => {
-      const res = await fetch(`/api/placements/${id}`)
-      const body = await readJson(res)
-      if (!live) return
-      if (!res.ok) setError(body?.error?.message ?? 'That placement could not be opened.')
-      else setP(body.data)
+      // readJson throws the route's own sentence on a refusal, so the
+      // refusal is read in the catch; reading it after the await was a
+      // line that never ran.
+      try {
+        const body = await readJson(await fetch(`/api/placements/${id}`))
+        if (live) setP(body.data)
+      } catch (e: any) {
+        if (!live) return
+        setError(refusalSentence(e?.message || 'That placement could not be opened.', {
+          kind: session.company?.kind, company: session.company?.name,
+        }))
+      }
     })()
     return () => { live = false }
-  }, [id])
+  }, [id, session.company?.kind, session.company?.name])
 
   if (error) {
     return (
@@ -609,6 +621,11 @@ export default function PlacementPage() {
           {p.person.location ? ` · ${p.person.location}` : ''}
           {p.startSays ? ` · ${p.startSays}` : ''}
         </p>
+        {/* A line booked past the person's time limit, said once and
+            with what to do (runsPastSentence in lib/tenure-days). */}
+        {p.runsPast && (
+          <p className="mt-2 text-[13px] leading-relaxed text-etyme-attention">{p.runsPast}</p>
+        )}
 
         <div className="mt-5 flex flex-wrap gap-2">
           <span className={`chip ${tone(p.state)}`}>{words(p.state)}</span>

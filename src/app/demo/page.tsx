@@ -9,7 +9,9 @@ import {
   INTEGRATOR_SEATS,
   CANDIDATE_SEATS,
   NEXT_STEP_LEAD,
+  fillDoors,
 } from './seats'
+import { doorFacts } from './door-facts'
 import { GET_THE_AUDIT, ASK_A_PERSON } from '@/lib/public-site/funnel'
 
 /**
@@ -50,7 +52,11 @@ import { GET_THE_AUDIT, ASK_A_PERSON } from '@/lib/public-site/funnel'
  * `site-description.test.ts` reads the line against `promisesAnAccount`.
  */
 
-export default function DemoPage() {
+/** Read on every visit: a door's numbers come from the world as it is today. */
+export const dynamic = 'force-dynamic'
+
+export default async function DemoPage() {
+  const facts = await doorFacts()
   return (
     <div className="min-h-screen bg-etyme-canvas text-etyme-ink">
       <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-6 sm:px-6">
@@ -153,7 +159,7 @@ export default function DemoPage() {
             </p>
           </div>
           <div className="mt-6">
-            <FirmDoors firms={[...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS]} />
+            <FirmDoors firms={[...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...fillDoors(INTEGRATOR_SEATS, facts, new Date())]} />
           </div>
         </section>
 

@@ -249,6 +249,7 @@ export const PROGRAMMES: Program[] = [
         person: 'Omar Haddad', workAuth: 'USC', startedDaysAgo: 45, endsInDays: 320, state: 'IN_PROGRESS',
         papers: 'BGC_EXPIRED', filesFromStart: true, invoice: 'PAID' },
       { role: 'Supply chain planning analyst', skills: ['Supply planning', 'Demand planning'], loc: 'Tualatin, OR',
+        // Kept past the limit on purpose; the ledger says it and the doors would refuse it today.
         via: ['nike', 'pinnacle'], rates: [9800, 7400], exceptionHours: 44,
         person: 'Lucía Fernández', workAuth: 'USC', startedDaysAgo: 30, endsInDays: 335, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 2, awaiting: 1 }, invoice: null },

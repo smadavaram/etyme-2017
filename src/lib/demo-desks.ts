@@ -162,3 +162,33 @@ export function deskRefusal(input: {
     desks: open,
   }
 }
+
+/**
+ * The person a visitor asked to sit as, where a desk is held by more
+ * than one. A name, trimmed, or null where none was asked. Only read
+ * alongside a desk: a name with no desk would be a door onto any seat
+ * at the firm, the Owner's included.
+ */
+export function whoAsked(asked: unknown): string | null {
+  if (typeof asked !== 'string') return null
+  const name = asked.trim()
+  return name.length > 0 && name.length <= 120 ? name : null
+}
+
+/**
+ * What the door says when the desk is held, but not by the person asked
+ * for. Names the people who do hold it, so the visitor can pick one.
+ */
+export function whoRefusal(input: {
+  company: { name: string; kind: string }
+  desk: Desk
+  who: string
+  holders: string[]
+}): string {
+  const desk = deskName(input.desk, input.company.kind)
+  const holders = Array.from(new Set(input.holders.filter(Boolean)))
+  const tail = holders.length > 0
+    ? ` The ${desk} desk there is held by ${orList(holders)}.`
+    : ` Nobody holds the ${desk} desk there.`
+  return `${input.who} does not hold the ${desk} desk at ${input.company.name} in the demo, so no seat was taken.${tail}`
+}

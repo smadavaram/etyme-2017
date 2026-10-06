@@ -10,6 +10,8 @@ import { categoryOf, labelOf } from '@/lib/cycle-kinds'
 import { contractClearance, lineExtras, startWords } from '@/lib/contract-clearance'
 import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { endsPastLimit } from '@/lib/governance'
+import { runsPastSentence } from '@/lib/tenure-days'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
 import { describeLine, masterContractLine, pairLine } from '@/lib/order-naming'
 import { poBalance } from '@/lib/purchase-order'
@@ -842,6 +844,33 @@ export async function GET(
       })
     : null
 
+  // ── A line booked past the person's time limit ──────────────────────
+  //
+  // Lucía Fernández's Pinnacle Resourcing line ran seven months past the
+  // day she reaches Northbend Athletic's limit, and the placement said
+  // nothing (tester, 2026-10-03). The day is the one the doors refuse
+  // past (`endsPastLimit` in lib/governance): every supplier's lines at
+  // this site, this one standing as itself. The firm is named only where
+  // this reader may name it; a withheld sub-vendor reads "The contract".
+  const pastLimit = placement.state === 'ENDED' || !placement.startDate
+    ? null
+    : await endsPastLimit({
+        personId: placement.personId,
+        clientId: placement.endClientCompanyId ?? placement.clientCompanyId,
+        contractId: placement.id,
+        endDate: placement.endDate,
+        now,
+      })
+  const runsPast = pastLimit
+    ? runsPastSentence({
+        firm: shown(placement.companyId, placement.company.name).masked ? null : placement.company.name,
+        personName: placement.person.name,
+        endDate: placement.endDate,
+        reachedOn: pastLimit.reachedOn,
+        now,
+      })
+    : null
+
   return NextResponse.json({
     data: {
       id: placement.id,
@@ -1127,6 +1156,9 @@ export async function GET(
       // "started Sep 1" only of a contract that is running, paused or
       // ended; otherwise "due to start", and what holds it up in the
       // checklist's own words. A date set is a plan, not a fact.
+      // Where this line runs past the person's time limit, in one
+      // sentence that says what to do; null where it does not.
+      runsPast,
       startSays: startWords({
         startDate: placement.startDate?.toISOString() ?? null,
         state: placement.state,

@@ -731,8 +731,10 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
     // Not the consultant menu instead. He holds a real seat at
     // Teleworld, and hiding his employer's menu would be this same bug
     // facing the other way.
+    // No Supply: its one link for him, Training, is drawn from the bench
+    // and the open jobs, and his seat reads neither.
     expect(engineer.map((s) => s.label)).toEqual(
-      ['Today', 'Deliver', 'Supply', 'Operate', 'Grow', 'Governance', 'You']
+      ['Today', 'Deliver', 'Operate', 'Grow', 'Governance', 'You']
     )
   })
 
@@ -971,6 +973,46 @@ describe('a menu offers only what this seat can actually open', () => {
       if (asked && asked.length > 0) stale.push(`${href} — its route now asks ${asked.join(', ')}`)
     }
     expect(stale).toEqual([])
+  })
+
+  it('a worker\u2019s seat is not shown a link its route refuses: Training is drawn from the bench and the open jobs, and his seat reads neither', () => {
+    const karthik = ['assignments.read', 'timesheets.read']
+    const labels = itemsOf(getNavForKind('GSI', false, { worker: true, permissions: karthik })).map((i) => i.label)
+    expect(labels).not.toContain('Training')
+    // A desk that reads the bench still has it.
+    const resourcing = rolesFor('GSI').find((r) => (r.permissions as readonly string[]).includes('consultants.read') && !(r.permissions as readonly string[]).includes('*'))!
+    expect(itemsOf(getNavForKind('GSI', false, { permissions: resourcing.permissions })).map((i) => i.label)).toContain('Training')
+  })
+
+  it('a worker\u2019s seat is not shown Paperwork, whose one action asks somebody on the books and his seat reads nobody there', () => {
+    const karthik = ['assignments.read', 'timesheets.read']
+    const labels = itemsOf(getNavForKind('GSI', false, { worker: true, permissions: karthik })).map((i) => i.label)
+    expect(labels).not.toContain('Paperwork')
+    // His own papers are still one tap away, under You.
+    expect(labels).toContain('Your paperwork')
+    const hr = rolesFor('GSI').find((r) => r.name === 'HR')!
+    expect(itemsOf(getNavForKind('GSI', false, { permissions: hr.permissions })).map((i) => i.label)).toContain('Paperwork')
+  })
+
+  it('a worker whose seat reads only their own work is not shown the firm\u2019s Dashboard beside Your work, because both open the same page', () => {
+    const labels = itemsOf(getNavForKind('GSI', false, { worker: true, permissions: ['assignments.read', 'timesheets.read'] })).map((i) => i.label)
+    expect(labels).not.toContain('Dashboard')
+    expect(labels).toContain('Your work')
+    // Somebody at the firm who is also a worker and runs a desk keeps it.
+    const owner = itemsOf(getNavForKind('GSI', false, { worker: true, permissions: ['*'] })).map((i) => i.label)
+    expect(owner).toContain('Dashboard')
+  })
+
+  it('a worker who is also staff is offered a way to their own pages from the top of the menu', () => {
+    const src = readFileSync(join(process.cwd(), 'src/components/shell/sidebar.tsx'), 'utf8')
+    expect(src).toContain('Your own pages \u2193')
+    expect(src).toContain('data-section={section.label}')
+  })
+
+  it('the firm\u2019s scorecard reads as the firm\u2019s on a worker\u2019s menu, never as his own', () => {
+    const labels = itemsOf(getNavForKind('GSI', false, { worker: true, permissions: ['assignments.read', 'timesheets.read'] })).map((i) => i.label)
+    expect(labels).not.toContain('Your scorecard')
+    expect(labels).toContain('Our scorecard')
   })
 
   it('a delivery engineer who sees no money is shown no money or firm-admin links', () => {

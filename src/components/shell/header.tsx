@@ -374,6 +374,8 @@ export function Header({ title }: HeaderProps) {
     kind: desk.companyKind,
     isConsultant: desk.isConsultant,
     seated: Boolean(desk.seatedAtClient),
+    worker: desk.worker,
+    permissions: desk.permissions,
   }).href
 
   // Close the account menu on an outside click, the same way the plus menu

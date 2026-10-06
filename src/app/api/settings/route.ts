@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         kind: true, supplierPosture: true, currency: true, templatePack: true,
         teamsWebhookUrl: true, networkVerifiedAt: true, siteLiveAt: true,
         outsideAccess: true, accountWalls: true,
-        cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true,
+        cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
       },
     }),
     prisma.role.findMany({

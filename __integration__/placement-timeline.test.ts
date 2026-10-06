@@ -97,3 +97,80 @@ describe('what is due, on the thread', () => {
     expect(c.items.find((i: { key: string }) => i.key === 'MSA')?.from).toBe('ORDER')
   })
 })
+
+describe('a placement waiting on its first day, read by each side in its own words', () => {
+  let id = ''
+  let clientSeat = { id: '', email: '' }
+  let supplierSeat = { id: '', email: '' }
+
+  beforeAll(async () => {
+    await freshWorld()
+    // Ingrid Sørensen at Northbend Athletic: dated to start, held up on her I-9.
+    const sc = await prisma.sellContract.findFirstOrThrow({
+      where: { person: { name: 'Ingrid Sørensen' }, state: 'DRAFT' },
+    })
+    id = sc.id
+    const seatAt = async (companyId: string) => {
+      const c = await prisma.context.findFirstOrThrow({
+        where: { companyId, revokedAt: null, role: { name: 'Owner' } },
+        include: { person: true },
+      })
+      return { id: c.id, email: c.person.primaryEmail }
+    }
+    clientSeat = await seatAt(sc.clientCompanyId)
+    supplierSeat = await seatAt(sc.companyId)
+  }, 900_000)
+
+  async function read(seat: { id: string; email: string }) {
+    as(seat.email)
+    const r = await json(await placement(req('GET', `/api/placements/${id}`, undefined, { 'x-context-id': seat.id }), { params: Promise.resolve({ id }) }))
+    expect(r.status).toBe(200)
+    return r.body.data
+  }
+
+  it('a placement that has not started says starts, not started', async () => {
+    const p = await read(clientSeat)
+    expect(p.startSays).toMatch(/^due to start [A-Z][a-z]{2} \d{1,2}, \d{4}/)
+    expect(p.startSays).not.toMatch(/\bstarted\b/)
+  })
+
+  it('on the client’s screen the next thing due is an invoice receipt it expects, never a bill to raise', async () => {
+    const p = await read(clientSeat)
+    expect(p.timeline.next?.label).toBe('Invoice receipt expected')
+  })
+
+  it('on the supplier’s screen the same date is the bill it raises', async () => {
+    const p = await read(supplierSeat)
+    expect(p.timeline.next?.label).toBe('Bill to raise')
+  })
+})
+
+describe('a line booked past the person’s time limit says so on the placement', () => {
+  beforeAll(async () => { await freshWorld() }, 900_000)
+
+  it('Lucía Fernández’s Pinnacle Resourcing line says how far past her time limit it runs, and what to do', async () => {
+    const sc = await prisma.sellContract.findFirstOrThrow({
+      where: { person: { name: 'Lucía Fernández' }, company: { name: 'Pinnacle Resourcing' }, state: 'IN_PROGRESS' },
+    })
+    const seat = await prisma.context.findFirstOrThrow({
+      where: { companyId: sc.clientCompanyId, revokedAt: null, role: { name: 'Owner' } },
+      include: { person: true },
+    })
+    as(seat.person.primaryEmail)
+    const r = await json(await placement(req('GET', `/api/placements/${sc.id}`, undefined, { 'x-context-id': seat.id }), { params: Promise.resolve({ id: sc.id }) }))
+    expect(r.status).toBe(200)
+    expect(r.body.data.runsPast).toMatch(
+      /^Pinnacle Resourcing’s contract runs to [A-Z][a-z]{2} \d{1,2}, \d{4}, \d+ months? past the day Lucía Fernández reaches the time limit \([A-Z][a-z]{2} \d{1,2}, \d{4}\)\. Shorten it or plan the break\.$/
+    )
+  })
+
+  it('a line that ends inside the limit says nothing about it', async () => {
+    const sc = await prisma.sellContract.findFirstOrThrow({ where: { person: { name: 'Ingrid Sørensen' }, state: 'DRAFT' } })
+    const seat = await prisma.context.findFirstOrThrow({
+      where: { companyId: sc.clientCompanyId, revokedAt: null, role: { name: 'Owner' } }, include: { person: true },
+    })
+    as(seat.person.primaryEmail)
+    const r = await json(await placement(req('GET', `/api/placements/${sc.id}`, undefined, { 'x-context-id': seat.id }), { params: Promise.resolve({ id: sc.id }) }))
+    expect(r.body.data.runsPast).toBeNull()
+  })
+})

@@ -1778,9 +1778,9 @@ model BenchListing {
 /// rate range is this firm's own ask, not any supplier's rate, so it is not
 /// the leak the rule about `RequirementInvitation` guards against.
 ///
-/// Added 2026-10-03 at etyme-supply's request. Nothing writes it yet: the
-/// screen and its door are supply's next piece, and until they land this
-/// table is a promise, not a feature.
+/// Added 2026-10-03 at etyme-supply's request. Written and closed through
+/// /api/bench/wants and read on "What we need" at the top of Partner bench
+/// and on a trading partner's Our bench (etyme-supply, 2026-10-06).
 model BenchWant {
   id        String  @id @default(cuid())
   companyId String

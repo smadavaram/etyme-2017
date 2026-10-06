@@ -522,6 +522,10 @@ export const DOMAINS: Domain[] = [
       // into a heading, a sentence and the doors that are actually open,
       // so no page writes a second answer to "who is this".
       'lib/denied', 'components/denied',
+      // A refusal that arrives carrying a permission key, said as the desk
+      // that does it. Read by the shared shell pieces before they print a
+      // route's message.
+      'lib/refusal-words',
       // Which desk a due date is put in front of. Pure, and here rather
       // than beside the cron because only a route.ts belongs under
       // app/api — see the cron check in __tests__/invariants/alerts.

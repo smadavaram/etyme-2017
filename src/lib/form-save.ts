@@ -1,4 +1,5 @@
 import { readJson } from '@/lib/read-response'
+import { refusalSentence } from '@/lib/refusal-words'
 
 /**
  * Saving a small form without losing the reason it was refused.
@@ -33,6 +34,9 @@ export async function saveForm<T = any>(opts: {
   setError: (error: string | null) => void
   /** Said only where the failure carried no sentence of its own. */
   fallback: string
+  /** The reader's kind of company, so a refusal carrying a permission key names the desk instead. */
+  kind?: string | null
+  company?: string | null
 }): Promise<T | null> {
   opts.setBusy(true)
   opts.setError(null)
@@ -44,7 +48,9 @@ export async function saveForm<T = any>(opts: {
     // message ("Failed to fetch") names the browser's API, not the problem.
     const said =
       e instanceof TypeError ? UNREACHABLE : e instanceof Error && e.message ? e.message : opts.fallback
-    opts.setError(said)
+    // A route that still refuses with a permission key is said as the
+    // desk that does it (lib/refusal-words); a sentence passes untouched.
+    opts.setError(refusalSentence(said, { kind: opts.kind, company: opts.company, what: 'This' }))
     return null
   } finally {
     opts.setBusy(false)

@@ -171,6 +171,14 @@ export interface ClientDesk {
   label: string
   /** What is on that desk when they get there. */
   waiting: string
+  /**
+   * The person at the desk, where more than one holds it. Teleworld seats
+   * two delivery managers, and the move between them is the story: one
+   * releases in Tualatin, the other takes the person in San Jose. A desk
+   * key alone opens whoever was seated first, so the second was out of
+   * reach (tester, 2026-10-03).
+   */
+  who?: string
 }
 
 export const CLIENT_DESKS: ClientDesk[] = [
@@ -422,13 +430,15 @@ export const INTEGRATOR_SEATS: Program[] = [
       'Submit him with no bench listing.',
     about:
       'Sunil Raghavan runs delivery and sells people from his own payroll. Four are between ' +
-      'projects; Karthik left an avionics project three weeks ago. Teleworld buys the engineer ' +
+      'projects; Karthik left an avionics project {karthikLeft}. Teleworld buys the engineer ' +
       'still on that project from a bench vendor, whose invoice is unpaid.',
     // The integrator's own moves are walked from a delivery manager's
     // desk: the testers could not reach one from this page (2026-10-03).
     desks: [
-      { desk: 'delivery', label: 'Delivery manager',
-        waiting: 'Ingrid Solberg is releasing people from the Tualatin project. Rahul Deshpande needs one in San Jose.' },
+      { desk: 'delivery', who: 'Ingrid Solberg', label: 'Delivery manager, Tualatin',
+        waiting: 'Ingrid Solberg is releasing people from the Tualatin project. Flag who comes off, and when.' },
+      { desk: 'delivery', who: 'Rahul Deshpande', label: 'Delivery manager, San Jose',
+        waiting: 'Rahul Deshpande needs one person in San Jose. Ask Ingrid, hold one, and place them.' },
       { desk: '', label: 'Owner',
         waiting: 'Everything, including a job to submit Karthik to with no bench listing.' },
     ],
@@ -592,3 +602,33 @@ export const ALL_SEATS: Program[] = [
  * test can read the whole line against `promisesAnAccount`.
  */
 export const NEXT_STEP_LEAD = 'Want this with your own suppliers?'
+
+/**
+ * The facts a door's sentence reads from the record rather than states.
+ *
+ * Karthik Menon's last day is the last month-end at least ten days before
+ * the world was born (`karthikWindow` in lib/seed-doors), so it is ten to
+ * forty days back on the day of seeding and further every day after. The
+ * door said "three weeks ago" while his record said thirty-one days
+ * (supply's tester, 2026-10-03). So the number comes from his contract.
+ */
+export interface DoorFacts {
+  /** The day Karthik Menon's last contract ended, or null where none is on the record. */
+  karthikLastDay: Date | null
+}
+
+/** "today", "yesterday", "31 days ago" — whole days, UTC, from the record. */
+export function daysAgoWords(day: Date, today: Date): string {
+  const utc = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  const n = Math.round((utc(today) - utc(day)) / 86_400_000)
+  if (n <= 0) return 'today'
+  return n === 1 ? 'yesterday' : `${n} days ago`
+}
+
+/** The seats with every `{fact}` in their words filled from the record. */
+export function fillDoors<T extends Program>(seats: T[], facts: DoorFacts, today: Date): T[] {
+  // Where the record has no last day, say nothing about when rather than guess.
+  const left = facts.karthikLastDay ? daysAgoWords(facts.karthikLastDay, today) : 'and is between projects'
+  const fill = (x: string) => x.replace('{karthikLeft}', left)
+  return seats.map((s) => ({ ...s, waiting: fill(s.waiting), about: fill(s.about) }))
+}

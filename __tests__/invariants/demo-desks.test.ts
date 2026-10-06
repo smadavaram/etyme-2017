@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deskRefusal, deskFrom, deskAsked, deskName, desksOpen } from '@/lib/demo-desks'
+import { deskRefusal, deskFrom, deskAsked, deskName, desksOpen, whoAsked, whoRefusal } from '@/lib/demo-desks'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -97,5 +97,62 @@ describe('the demo door never hands the Owner seat to a desk nobody asked for', 
     expect(route).toContain('deskAsked(')
     expect(route).not.toMatch(/deskFrom\(\(body/)
     expect(route).toMatch(/const email = unknownDesk \? undefined :/)
+  })
+})
+
+describe('the demo door seats a delivery manager, and the right one where two hold the desk', () => {
+  it('the demo door seats a delivery manager: "delivery" is a desk and opens the Delivery Manager role', () => {
+    expect(deskFrom('delivery')).toBe('delivery')
+    expect(desksOpen(['Owner', 'Delivery Manager'])).toEqual(['delivery'])
+  })
+
+  it('every desk chip on the demo page that names a person is a delivery desk at Teleworld, one for each manager in the move', async () => {
+    const { INTEGRATOR_SEATS } = await import('@/app/demo/seats')
+    const named = INTEGRATOR_SEATS.flatMap((s) => (s.desks ?? []).filter((d) => d.who).map((d) => `${s.slug}:${d.desk}:${d.who}`))
+    expect(named).toEqual(['world-teleworld:delivery:Ingrid Solberg', 'world-teleworld:delivery:Rahul Deshpande'])
+  })
+
+  it('a name asked for is trimmed, and anything that is not a name is read as no name', () => {
+    expect(whoAsked('  Rahul Deshpande ')).toBe('Rahul Deshpande')
+    expect(whoAsked('')).toBeNull()
+    expect(whoAsked(42)).toBeNull()
+    expect(whoAsked(undefined)).toBeNull()
+  })
+
+  it('asking for somebody who does not hold the desk is refused in a sentence that names who does', () => {
+    const m = whoRefusal({ company: teleworld, desk: 'delivery', who: 'Sunil Raghavan', holders: ['Ingrid Solberg', 'Rahul Deshpande'] })
+    expect(m).toBe(
+      'Sunil Raghavan does not hold the Delivery Manager desk at Teleworld Solutions in the demo, so no seat was taken. ' +
+      'The Delivery Manager desk there is held by Ingrid Solberg or Rahul Deshpande.'
+    )
+  })
+
+  it('the demo route reads a name only alongside a desk, so a name alone can never open the Owner seat', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/demo/route.ts'), 'utf8')
+    expect(src).toMatch(/const who = desk \? whoAsked\(/)
+  })
+})
+
+describe('a door’s numbers come from the record, never from a phrase', () => {
+  it('the Teleworld door says how many days ago Karthik left, from his last day on the record', async () => {
+    const { INTEGRATOR_SEATS, fillDoors } = await import('@/app/demo/seats')
+    const teleworld = INTEGRATOR_SEATS.find((s) => s.slug === 'world-teleworld')!
+    expect(teleworld.about).not.toMatch(/three weeks/)
+    const [filled] = fillDoors([teleworld], { karthikLastDay: new Date('2026-08-31T00:00:00Z') }, new Date('2026-10-01T15:00:00Z'))
+    expect(filled.about).toContain('Karthik left an avionics project 31 days ago.')
+  })
+
+  it('with no last day on the record the door says nothing about when, rather than a guess', async () => {
+    const { INTEGRATOR_SEATS, fillDoors } = await import('@/app/demo/seats')
+    const [filled] = fillDoors(INTEGRATOR_SEATS.filter((s) => s.slug === 'world-teleworld'), { karthikLastDay: null }, new Date())
+    expect(filled.about).not.toMatch(/\{|\d+ days ago/)
+  })
+
+  it('days ago are whole calendar days, and today and yesterday are said as words', async () => {
+    const { daysAgoWords } = await import('@/app/demo/seats')
+    const today = new Date('2026-10-06T23:30:00Z')
+    expect(daysAgoWords(new Date('2026-10-06T00:00:00Z'), today)).toBe('today')
+    expect(daysAgoWords(new Date('2026-10-05T00:00:00Z'), today)).toBe('yesterday')
+    expect(daysAgoWords(new Date('2026-09-05T00:00:00Z'), today)).toBe('31 days ago')
   })
 })

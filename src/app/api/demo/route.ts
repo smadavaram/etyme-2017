@@ -1,4 +1,4 @@
-import { deskAsked, deskRefusal, DESK_ROLES, type Desk } from '@/lib/demo-desks'
+import { deskAsked, deskRefusal, whoAsked, whoRefusal, DESK_ROLES, type Desk } from '@/lib/demo-desks'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { randomBytes } from 'node:crypto'
@@ -305,6 +305,9 @@ export async function POST(request: NextRequest) {
     // A word that is not a desk is refused below, never read as "no
     // desk": that fell through to the first seat granted, the Owner.
     const { desk, unknown: unknownDesk } = deskAsked((body as any)?.desk)
+    // Which person at that desk, where more than one holds it — the two
+    // delivery managers at Teleworld. Read only with a desk.
+    const who = desk ? whoAsked((body as any)?.who) : null
     // The same two sentences the private path gives below. This lookup
     // used to throw straight out of the handler, so a database that was
     // down answered the front door with an empty 500 — the one error
@@ -322,6 +325,7 @@ export async function POST(request: NextRequest) {
             // off the role rather than off the address, so a firm whose
             // desks were seeded under any other handle still opens.
             ...(desk ? { role: { name: { in: DESK_ROLES[desk] } } } : {}),
+            ...(who ? { person: { name: who } } : {}),
           },
           select: { person: { select: { primaryEmail: true } }, role: { select: { name: true } } },
           orderBy: { grantedAt: 'asc' },
@@ -356,6 +360,28 @@ export async function POST(request: NextRequest) {
         : null
 
     const email = unknownDesk ? undefined : company?.contexts[0]?.person.primaryEmail
+    // The desk is held, but not by the person asked for: say who does.
+    if (company && desk && who && !email) {
+      const holders = await prisma.context.findMany({
+        where: { companyId: company.id, revokedAt: null, role: { name: { in: DESK_ROLES[desk] } } },
+        select: { person: { select: { name: true } } },
+        orderBy: { grantedAt: 'asc' },
+      })
+      if (holders.length > 0) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'NOT_AT_DESK',
+              message: whoRefusal({
+                company: { name: company.name, kind: company.kind }, desk, who,
+                holders: holders.map((h) => h.person.name ?? ''),
+              }),
+            },
+          },
+          { status: 404 }
+        )
+      }
+    }
     if (!company || !email) {
       // Which desks this firm DOES have.
       //

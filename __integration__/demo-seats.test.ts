@@ -254,6 +254,42 @@ describe('every seat on the demo page opens', () => {
     expect(body.companyName).toBe('Teleworld Solutions')
   })
 
+  it('the demo door seats a delivery manager — each of Teleworld’s two, by name, on the firm’s own bench', async () => {
+    const delivery = INTEGRATOR_SEATS.find((s) => s.slug === 'world-teleworld')!.desks!.filter((d) => d.desk === 'delivery')
+    expect(delivery.map((d) => d.who)).toEqual(['Ingrid Solberg', 'Rahul Deshpande'])
+    for (const d of delivery) {
+      const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: d.desk, who: d.who }) as NextRequest)
+      expect(res.status, d.who).toBe(200)
+      const body = (await res.json()).data
+      expect(body.role).toBe('Delivery Manager')
+      expect(body.landing).toBe('/dashboard/bench?scope=payroll')
+      const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(res.headers.get('set-cookie') ?? '')
+      expect(await whoIsSitting(m![1])).toBe(d.who)
+    }
+  })
+
+  it('the Teleworld door says how many days ago Karthik left, read from his last contract on the record', async () => {
+    const { karthikLastDay } = await import('@/app/demo/door-facts')
+    const { fillDoors } = await import('@/app/demo/seats')
+    const last = await karthikLastDay()
+    expect(last, 'Karthik Menon has no ended contract at Teleworld').not.toBeNull()
+    const today = new Date()
+    const [door] = fillDoors(INTEGRATOR_SEATS.filter((s) => s.slug === 'world-teleworld'), { karthikLastDay: last }, today)
+    const days = Math.round((Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) -
+      Date.UTC(last!.getUTCFullYear(), last!.getUTCMonth(), last!.getUTCDate())) / 86_400_000)
+    expect(door.about).toContain(`Karthik left an avionics project ${days} days ago.`)
+  })
+
+  it('asking for somebody who does not hold the desk takes no seat, and names who does', async () => {
+    const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'delivery', who: 'Nobody Here' }) as NextRequest)
+    expect(res.status).toBe(404)
+    expect(res.headers.get('set-cookie') ?? '').not.toContain(DEMO_COOKIE)
+    const err = (await res.json()).error
+    expect(err.message).toMatch(/^Nobody Here does not hold the Delivery Manager desk at Teleworld Solutions in the demo, so no seat was taken\./)
+    expect(err.message).toContain('Ingrid Solberg')
+    expect(err.message).toContain('Rahul Deshpande')
+  })
+
   it('asking for a desk that does not exist takes no seat at all, rather than sitting the visitor as the Owner', async () => {
     const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'owner' }) as NextRequest)
     expect(res.status).toBe(400)

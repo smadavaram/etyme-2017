@@ -112,9 +112,10 @@ describe('the integrator’s moves can be walked from /demo', () => {
     expect(DESK_ROLES.delivery).toEqual(['Delivery Manager'])
   })
 
-  it('Teleworld Solutions offers its delivery manager’s desk beside the owner’s', () => {
+  it('Teleworld Solutions offers both its delivery managers’ desks, by name, beside the owner’s', () => {
     const teleworld = INTEGRATOR_SEATS.find((f) => f.slug === 'world-teleworld')!
-    expect(teleworld.desks?.map((d) => d.desk)).toEqual(['delivery', ''])
+    expect(teleworld.desks?.map((d) => d.desk)).toEqual(['delivery', 'delivery', ''])
+    expect(teleworld.desks?.map((d) => d.who ?? null)).toEqual(['Ingrid Solberg', 'Rahul Deshpande', null])
   })
 
   it('the delivery manager lands on the firm’s own people', () => {

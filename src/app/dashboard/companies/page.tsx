@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
+import { refusalSentence } from '@/lib/refusal-words'
 
 /**
  * Companies working surface — manage vendor, client, MSP, and GSI companies.
@@ -137,7 +138,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
         // from the error handler itself and the message below never
         // ran.
         const body = await res.json().catch(() => ({}) as any)
-        setError(body.error?.message ?? 'Failed to create company')
+        setError(refusalSentence(body.error?.message, { what: 'Adding a company' }) || 'The company could not be added.')
         return
       }
 
@@ -553,7 +554,7 @@ export default function CompaniesPage() {
       // heading and the rows cannot describe different things.
       setScope(body.data?.scope ?? null)
     } catch (err: any) {
-      setError(err.message)
+      setError(refusalSentence(err.message))
       setCompanies([])
     } finally {
       setLoading(false)

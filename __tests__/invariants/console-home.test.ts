@@ -16,8 +16,10 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { consoleHome } from '@/lib/console-home'
+import { consoleHome, readsOnlyOwnWork } from '@/lib/console-home'
 import { getNavForKind } from '@/components/shell/sidebar'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
 describe('a seat opens on its own book and nobody else’s', () => {
   it('an integrator opening its dashboard is shown its own book, never a client’s program', () => {
@@ -132,5 +134,37 @@ describe('a program office at a client’s desk reads the client’s menu', () =
     expect(getNavForKind('MSP', false).map((s) => s.label)).toEqual(
       ['Today', 'Demand', 'Supply', 'Operate', 'Grow', 'Governance']
     )
+  })
+})
+
+describe('a worker’s dashboard opens on their own work', () => {
+  const karthik = ['assignments.read', 'timesheets.read']
+
+  it('a worker whose seat reads only their own work opens on that work, not on the firm’s Today', () => {
+    expect(consoleHome({ kind: 'GSI', worker: true, permissions: karthik }).href).toBe('/dashboard/my-work')
+  })
+
+  it('a worker who also runs a desk at the firm still opens on the firm’s book', () => {
+    expect(consoleHome({ kind: 'GSI', worker: true, permissions: [...karthik, 'submissions.create'] }).href).toBe('/dashboard')
+    expect(consoleHome({ kind: 'GSI', worker: true, permissions: ['*'] }).href).toBe('/dashboard')
+  })
+
+  it('staff who are not workers keep the firm’s Today, however narrow their seat', () => {
+    expect(consoleHome({ kind: 'GSI', worker: false, permissions: karthik }).href).toBe('/dashboard')
+  })
+
+  it('a seat not yet known is not read as reading only its own work', () => {
+    expect(readsOnlyOwnWork(null)).toBe(false)
+    expect(readsOnlyOwnWork(undefined)).toBe(false)
+    expect(consoleHome({ kind: 'GSI', worker: true, permissions: null }).href).toBe('/dashboard')
+  })
+
+  it('the dashboard, the menu and the header all ask with the worker and the seat, so the three doors agree', () => {
+    for (const f of ['src/app/dashboard/page.tsx', 'src/components/shell/sidebar.tsx', 'src/components/shell/header.tsx']) {
+      const src = readFileSync(join(process.cwd(), f), 'utf8')
+      const call = src.slice(src.indexOf('consoleHome({'), src.indexOf('consoleHome({') + 300)
+      expect(call, f).toMatch(/worker/)
+      expect(call, f).toMatch(/permissions/)
+    }
   })
 })

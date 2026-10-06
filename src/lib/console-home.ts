@@ -45,6 +45,33 @@ export interface Reader {
    * a program office ever does; `seatFor` in lib/program-seat answers it.
    */
   seated?: boolean
+  /**
+   * Also somebody the work is about — an integrator's own engineer, who
+   * holds a seat at the firm and is placed by it.
+   */
+  worker?: boolean
+  /** What the seat holds. Null or absent while it is not yet known. */
+  permissions?: readonly string[] | null
+}
+
+/**
+ * The two reads every delivery engineer's seat holds: the work they are
+ * on, and their own hours. Nothing on a firm's Today is about them.
+ */
+const A_WORKERS_OWN = new Set(['assignments.read', 'timesheets.read'])
+
+/**
+ * The seat reads nothing at the firm beyond its holder's own work.
+ *
+ * Karthik Menon, Teleworld's validation engineer, opened Teleworld's
+ * Today and read "2 items need your attention", a recruiter's target
+ * and the firm's pipeline revenue — none of it his work (worker tester,
+ * 2026-10-03). A seat that holds more than these two reads staffs,
+ * sells or pays something, and the firm's Today is its desk.
+ */
+export function readsOnlyOwnWork(permissions: readonly string[] | null | undefined): boolean {
+  if (permissions == null) return false
+  return permissions.every((p) => A_WORKERS_OWN.has(p))
 }
 
 export interface Verdict {
@@ -54,7 +81,7 @@ export interface Verdict {
 }
 
 export function consoleHome(reader: Reader): Verdict {
-  const { kind, isConsultant = false, seated = false } = reader
+  const { kind, isConsultant = false, seated = false, worker = false } = reader
 
   // A person before a firm. Somebody on a bench has a company — that is
   // what a bench is — and is not of it, so the seat type decides and the
@@ -73,6 +100,17 @@ export function consoleHome(reader: Reader): Verdict {
     return {
       href: '/dashboard/my-work',
       says: 'A one-person corporation opens on its own work, because its work is the whole book.',
+    }
+  }
+
+  // Staff of a firm who are also the person the work is about, and whose
+  // seat reads nothing else there. Their firm's menu stays; the front
+  // door is their own work, because the firm's Today has nothing on it
+  // for them to do.
+  if (worker && readsOnlyOwnWork(reader.permissions)) {
+    return {
+      href: '/dashboard/my-work',
+      says: 'A worker whose seat reads only their own work opens on that work, not on the firm’s desk.',
     }
   }
 

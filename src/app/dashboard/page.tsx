@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
 import { consoleHome } from '@/lib/console-home'
+import { deskOf } from '@/components/shell/sidebar-props'
+import { refusalSentence } from '@/lib/refusal-words'
 import { dashboardReads, NOT_YOURS, type DashboardReads } from '@/lib/dashboard-reads'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 
@@ -239,13 +241,15 @@ export default function DashboardPage() {
       kind: session.company?.kind ?? null,
       isConsultant: session.contextType === 'CONSULTANT',
       seated: Boolean(session.seat),
+      worker: deskOf(session).worker,
+      permissions: deskOf(session).permissions,
     })
     if (home.href !== '/dashboard') {
       router.replace(home.href as any)
       return
     }
     setSendingOn(false)
-  }, [router, session.loading, session.company?.kind, session.contextType, session.seat])
+  }, [router, session])
 
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -338,11 +342,11 @@ export default function DashboardPage() {
         reads,
       })
     } catch (err: any) {
-      setError(err.message ?? 'Failed to load dashboard data')
+      setError(refusalSentence(err.message, { kind: session.company?.kind, company: session.company?.name }) || 'The dashboard could not be loaded.')
     } finally {
       setLoading(false)
     }
-  }, [permissions])
+  }, [permissions, session.company?.kind, session.company?.name])
 
   // Nothing is asked until we know this reader stays here: a client, a
   // consultant or a one-person firm is sent to its own console first,

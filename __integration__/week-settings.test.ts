@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as readWeek, PATCH as changeWeek } from '@/app/api/settings/week/route'
+import { GET as readSettings } from '@/app/api/settings/route'
 import { TOO_MANY_EXTRA_WEEKS, daysOffFor, weekDueFor } from '@/lib/days-off'
 
 /**
@@ -99,5 +100,12 @@ describe('a company sets its own week', () => {
     const change = await call(changeWeek, 'PATCH', { daysOff: [0, 6] }, plain)
     expect(change.status).toBe(403)
     expect(await daysOffFor(companyId)).toEqual([5])
+  })
+  it('the settings page shows the company’s own days off beside the weekend direction', async () => {
+    await call(changeWeek, 'PATCH', { daysOff: [5] })
+    as(owner.email)
+    const r = await json(await readSettings(req('GET', '/api/settings', undefined, { 'x-context-id': owner.id })))
+    expect(r.status).toBe(200)
+    expect(r.body.data.cycleShift.policy.daysOff).toEqual([5])
   })
 })

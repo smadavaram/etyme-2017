@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeLogo } from '@/components/logo'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
-import { consoleHome } from '@/lib/console-home'
+import { consoleHome, readsOnlyOwnWork } from '@/lib/console-home'
 import { IMPORT_PERMISSIONS } from '@/lib/importable'
 import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
@@ -113,6 +113,36 @@ const BENCH_READS = {
  * Bench rather than under Settings, because the finance desk sets it and
  * does not open the company's settings.
  */
+/**
+ * Training: the firm's skill gaps, open jobs against the bench.
+ *
+ * The page has a route of its own that asks nothing, and every figure on
+ * it is drawn from two that do — the bench and the open jobs. A seat that
+ * reads neither was offered the link and read a page of zeros that were
+ * not about anything it could see: Karthik Menon, an integrator's own
+ * engineer, on the worker tester's walk (2026-10-03). So the link names
+ * the two routes the page is drawn from, and the sidebar test reads both
+ * gates back out of their GET handlers.
+ */
+const TRAINING: NavItem = {
+  label: 'Training', href: '/dashboard/training', icon: '◪',
+  needs: ['consultants.read', 'requirements.read'], api: ['bench', 'requirements'],
+}
+
+/**
+ * The firm's paperwork: its templates, and asking somebody on its books
+ * for a document. Who may be asked is read off the bench and the payroll
+ * (`askTheBooks` in lib/document-request, which reads /api/bench), so a
+ * seat that reads neither was offered a page whose one action said
+ * "Nobody to ask" — Karthik Menon, an integrator's engineer (supply's
+ * worker tester, 2026-10-03). The link names the route the page's work
+ * is drawn from.
+ */
+const PAPERWORK_READS = {
+  needs: ['consultants.read'] as const,
+  api: 'bench',
+} satisfies Pick<NavItem, 'needs' | 'api'>
+
 const BENCH_PAY: NavItem = {
   label: 'Bench pay', href: '/dashboard/settings/bench-pay', icon: '◔',
   needs: ['settings.manage', 'pnl.read'], api: 'settings/bench',
@@ -149,13 +179,11 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/invitations': SCOPED,
   '/dashboard/submissions': SCOPED,
   '/dashboard/interviews': SCOPED,
-  '/dashboard/training': SCOPED,
   '/dashboard/loose-ends': SCOPED,
   '/dashboard/companies': SCOPED,
   '/dashboard/contacts': SCOPED,
   '/dashboard/contracts': SCOPED,
   '/dashboard/timesheets': SCOPED,
-  '/dashboard/documents': SCOPED,
   '/dashboard/packets': SCOPED,
   '/dashboard/outbound-pack': SCOPED,
   '/dashboard/program': SCOPED,
@@ -311,7 +339,7 @@ const MISSING_PAPERWORK: NavItem = {
  */
 const COMPLIANCE: NavItem[] = [
   { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Compliance', needs: ['governance.read'] },
-  { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', group: 'Compliance' },
+  { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', group: 'Compliance', ...PAPERWORK_READS },
   { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Compliance' },
   // The two directions belong adjacent. A supplier spends as much time
   // being screened as screening.
@@ -435,7 +463,7 @@ const VENDOR_NAV: NavSection[] = [
       BENCH_PAY,
       { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
       { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
-      { label: 'Training', href: '/dashboard/training', icon: '◪' },
+      TRAINING,
     ],
   },
   operateSection(NETWORK, MONEY),
@@ -496,7 +524,7 @@ const GSI_NAV: NavSection[] = [
       BENCH_PAY,
       { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
       { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
-      { label: 'Training', href: '/dashboard/training', icon: '◪' },
+      TRAINING,
     ],
   },
   operateSection(NETWORK, MONEY),
@@ -639,7 +667,7 @@ const SOLO_NAV: NavSection[] = [
       // it is; a one-person corporation reading "Paperwork" beside
       // "Your paperwork" is being asked to guess which of her two hats
       // a link belongs to.
-      { label: 'Company paperwork', href: '/dashboard/documents', icon: '▪' },
+      { label: 'Company paperwork', href: '/dashboard/documents', icon: '▪', ...PAPERWORK_READS },
       // Filtered out of here and shown under "You" for a reader who is
       // also a worker, which she always is. See getNavForKind.
       { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' },
@@ -1016,10 +1044,17 @@ export function getNavForKind(
   // they can click, so the firm's copy gives way to the personal one:
   // somebody who has a "You" section reads it there.
   const ownHrefs = new Set(YOURS.map((i) => i.href))
+  // A worker whose seat reads only their own work opens on "Your work"
+  // (lib/console-home), so the firm's Dashboard link would be a second
+  // door onto the same page. It gives way, the way "Your data" does.
+  const ownFrontDoor = Boolean(seat.worker) && readsOnlyOwnWork(seat.permissions)
   const sections = (!isConsultant && kind && seat.worker)
     ? [
         ...base
-          .map((s) => ({ ...s, items: s.items.filter((i) => !ownHrefs.has(i.href)) }))
+          .map((s) => ({
+            ...s,
+            items: s.items.filter((i) => !ownHrefs.has(i.href) && !(ownFrontDoor && i.href === '/dashboard')),
+          }))
           .filter((s) => s.items.length > 0),
         { label: 'You', items: YOURS },
       ]
@@ -1155,6 +1190,8 @@ export function Sidebar({
     kind: companyKind ?? null,
     isConsultant,
     seated: Boolean(seatedAtClient),
+    worker,
+    permissions,
   }).href
 
   const current = activeHref(sections, pathname, searchParams, dashboardHref)
@@ -1209,8 +1246,25 @@ export function Sidebar({
 
       {/* Nav sections */}
       <nav ref={navRef} className="flex-1 overflow-y-auto px-3 pb-4">
+        {/* A worker who is also staff reads "You" last, after the firm's
+            sections (CLAUDE.md: appended, never substituted). On a phone
+            that was twenty links of the firm's before his own work
+            (worker tester, 2026-10-03), so the top of the menu says
+            where his own pages are and takes him there. It scrolls the
+            menu; it is not a second link to any page. */}
+        {sections.findIndex((s) => s.label === 'You') > 0 && (
+          <button
+            type="button"
+            onClick={() => navRef.current?.querySelector<HTMLElement>('[data-section="You"]')
+              ?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })}
+            className={`mt-3 w-full text-left px-2.5 py-2 rounded-md text-etyme-action
+                        hover:bg-etyme-canvas transition-colors ${sheet ? 'text-[14px]' : 'text-[12.5px]'}`}
+          >
+            Your own pages ↓
+          </button>
+        )}
         {sections.map((section) => (
-          <div key={section.label} className="mb-1">
+          <div key={section.label} className="mb-1" data-section={section.label}>
             <div className="eyebrow px-2 pt-5 pb-1.5">
               {section.label}
             </div>

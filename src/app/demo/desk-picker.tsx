@@ -145,11 +145,11 @@ export function FirmDoors({ firms }: { firms: Program[] }) {
             {f.desks ? (
               <div className="mt-4 flex flex-wrap gap-2">
                 {f.desks.map((d) => {
-                  const key = `${f.slug}:${d.desk}`
+                  const key = `${f.slug}:${d.desk}:${d.who ?? ''}`
                   return (
                     <button
                       key={d.label}
-                      onClick={() => sit(key, { as: f.slug, ...(d.desk ? { desk: d.desk } : {}) })}
+                      onClick={() => sit(key, { as: f.slug, ...(d.desk ? { desk: d.desk } : {}), ...(d.who ? { who: d.who } : {}) })}
                       disabled={busy !== null}
                       title={d.waiting}
                       className="rounded-md border border-etyme-rule bg-etyme-raised px-3 py-1.5 text-[12px]

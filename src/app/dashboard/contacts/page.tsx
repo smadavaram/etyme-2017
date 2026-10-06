@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
+import { sectionOfHref } from '@/lib/page-framing'
+import { useSession } from '@/components/session-provider'
 
 /**
  * Contacts, and who to call there.
@@ -37,6 +39,7 @@ const COMPANY_COLUMNS: Column<any>[] = [
 ]
 
 export default function ContactsPage() {
+  const session = useSession()
   const [tab, setTab] = useState<Tab>('PEOPLE')
   const [contacts, setContacts] = useState<any>(null)
   const [reg, setReg] = useState<any>(null)
@@ -72,11 +75,18 @@ export default function ContactsPage() {
   }, [load])
 
   const people = (contacts?.contacts ?? []).filter((c: any) => !kind || c.kind === kind)
+  const eyebrow = sectionOfHref(
+    session.company?.kind ?? 'VENDOR', '/dashboard/contacts',
+    session.seat ? { seated: true, clientName: session.seat.clientName } : null,
+  ) ?? ''
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Operate</p>
+        {/* The section this page sits under on the reader's own menu:
+            Operate for a firm that sells, Network for a client, and the
+            client's word for an office sitting at a client's desk. */}
+        <p className="eyebrow">{eyebrow}</p>
         <h1 className="headline-serif text-[30px] leading-tight">Contacts</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           The register of firms and the people at them. Private to this
