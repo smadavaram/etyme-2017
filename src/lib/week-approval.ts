@@ -26,6 +26,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto'
 import { prisma } from '@/lib/db'
+import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { notify } from '@/lib/notify'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { postAssertion } from '@/lib/order-postings'
@@ -607,7 +608,19 @@ async function signForClient(
 ): Promise<{ ok: true } | Refused> {
   const client = signaturesWritten(c.signers)[0]
   if (!client) return refuse(409, 'NO_CLIENT', 'This week has no client signature to give.')
+  // The client's own rung. `signersOf` (api/timesheets/chain-turn) gives
+  // the CLIENT_APPROVAL signer the top rung's id, and the top rung is the
+  // one sell line the client pays on — so its bill rate IS the rate on the
+  // rung the signing firm pays on, which is what `WorkAssertion.rateCents`
+  // records (decided 2026-10-06, lib/money/hop-ledger). Read in force on
+  // the week's first day, so a raise the client approved is what it saw.
+  // A record only: no posting reads it.
   const top = c.rungs.get(client.rungId)!
+  const topRates = await prisma.rateHistory.findMany({
+    where: { contractType: 'SELL', contractId: top.id, approvalState: 'APPROVED' },
+    select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+  })
+  const clientRateCents = rateInForce(top.billRate, ratePeriods(topRates), c.week.periodStart).rateCents
   let signed: string | null = null
   try {
     await prisma.$transaction(async (tx) => {
@@ -627,7 +640,7 @@ async function signForClient(
       const assertion = await tx.workAssertion.create({
         data: {
           timesheetId: c.week.id, companyId: client.companyId, role: 'CLIENT_APPROVAL',
-          hours: c.week.totalHours, rateCents: top.billRate, state: 'LIVE', at,
+          hours: c.week.totalHours, rateCents: clientRateCents, state: 'LIVE', at,
           byId: null, auto: false, note: words,
         },
         select: { id: true },

@@ -22,6 +22,7 @@ import {
   desksFor,
   titleFor,
   whoHears,
+  remindable,
   type Legs,
   type SeatReader,
 } from '@/lib/due-cycle-desks'
@@ -266,5 +267,46 @@ describe('The notice says who it is about and where', () => {
       when
     )
     expect(body).toBe('Helena Marsh through Brightmoor Staffing — 4/17/2026')
+  })
+})
+
+describe('Only a started placement is reminded, and only about a date still ahead', () => {
+  const now = new Date('2026-10-06T12:00:00Z')
+  const ahead = new Date('2026-10-09T00:00:00Z')
+  const behind = new Date('2026-10-02T00:00:00Z')
+  const at = (sell: string | undefined, buy: string | undefined) =>
+    legs({ sell: { ...SELL, state: sell }, buy: { ...BUY, state: buy } })
+
+  it('a placement still awarded with its terms pending gets no reminder about its hours, its bill or its pay day', () => {
+    for (const kind of ['TIMESHEET_SUBMIT', 'INVOICE_GENERATE', 'SALARY_CALCULATE']) {
+      const r = remindable(kind, at('DRAFT', 'DRAFT'), ahead, now)
+      expect(r.remind, kind).toBe(false)
+      expect(r.because).toMatch(/not been activated/)
+    }
+  })
+
+  it('a placement waiting on its papers is not reminded either, because nobody has started it', () => {
+    expect(remindable('TIMESHEET_SUBMIT', at('PENDING_VERIFICATION', 'DRAFT'), ahead, now).remind).toBe(false)
+    expect(remindable('TIMESHEET_SUBMIT', at('VERIFIED', 'VERIFIED'), ahead, now).remind).toBe(false)
+  })
+
+  it('an activated placement is reminded about a date still ahead', () => {
+    expect(remindable('TIMESHEET_SUBMIT', at('IN_PROGRESS', 'IN_PROGRESS'), ahead, now).remind).toBe(true)
+  })
+
+  it('an activated placement is never reminded about a date already past', () => {
+    const r = remindable('TIMESHEET_SUBMIT', at('IN_PROGRESS', 'IN_PROGRESS'), behind, now)
+    expect(r.remind).toBe(false)
+    expect(r.because).toMatch(/already passed/)
+  })
+
+  it('a pay day is judged by the buy line it sits on, not by the sell line beside it', () => {
+    expect(remindable('SALARY_CALCULATE', at('IN_PROGRESS', 'DRAFT'), ahead, now).remind).toBe(false)
+    expect(remindable('SALARY_CALCULATE', at('IN_PROGRESS', 'IN_PROGRESS'), ahead, now).remind).toBe(true)
+  })
+
+  it('an ended placement is still reminded about its last bill, and a cancelled one about nothing', () => {
+    expect(remindable('INVOICE_GENERATE', at('ENDED', 'ENDED'), ahead, now).remind).toBe(true)
+    expect(remindable('INVOICE_GENERATE', at('CANCELLED', 'CANCELLED'), ahead, now).remind).toBe(false)
   })
 })

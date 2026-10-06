@@ -919,6 +919,14 @@ export type SeatFacts = {
    * the office is shown exactly the desk it was granted.
    */
   seatedAtClient?: string | null
+  /**
+   * Where this person agrees their own terms while a placement of theirs
+   * reads "Awarded, terms pending" (`lib/your-terms`), or null. Offered as
+   * "Your terms" in the "You" section and only while it is pending — the
+   * page is keyed on a submission, so there is no standing page to link
+   * to once the terms are agreed.
+   */
+  termsHref?: string | null
 }
 
 /**
@@ -1017,8 +1025,18 @@ export function getNavForKind(
       ]
     : base
 
-  if (seat.permissions == null) return sections
-  return sections
+  // "Your terms", right after "Your work", for as long as a placement of
+  // theirs waits on terms. Only where a "You" section is drawn: a seat
+  // that is neither a consultant nor a worker has no terms of its own.
+  const withTerms = seat.termsHref
+    ? sections.map((s) => s.label !== 'You' ? s : {
+        ...s,
+        items: [s.items[0], { label: 'Your terms', href: seat.termsHref!, icon: '◇' }, ...s.items.slice(1)],
+      })
+    : sections
+
+  if (seat.permissions == null) return withTerms
+  return withTerms
     .map((s) => ({ ...s, items: s.items.filter((i) => mayReach(i, seat.permissions)) }))
     .filter((s) => s.items.length > 0)
 }
@@ -1083,6 +1101,7 @@ export function Sidebar({
   worker = false,
   permissions,
   seatedAtClient = null,
+  termsHref = null,
   pending = false,
   sheet = false,
   onDismiss,
@@ -1108,6 +1127,8 @@ export function Sidebar({
   permissions?: readonly string[] | null
   /** The client whose desk this firm is acting at, if any. */
   seatedAtClient?: string | null
+  /** Where this person's own terms wait on them, if anywhere. */
+  termsHref?: string | null
   /** Session still loading — render the frame without nav items so the
    *  wrong company's navigation never flashes on screen. */
   pending?: boolean
@@ -1125,7 +1146,7 @@ export function Sidebar({
   const searchParams = useSearchParams()
   const sections = pending
     ? []
-    : getNavForKind(companyKind, isConsultant, { worker, permissions, seatedAtClient })
+    : getNavForKind(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref })
 
   // Where this seat's own front door is. One answer, in lib/console-home,
   // shared with /dashboard's own redirect and the demo door — three

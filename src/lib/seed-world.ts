@@ -882,6 +882,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
       if (await db.workAssertion.findFirst({ where: { timesheetId, companyId: firm.id, role: 'PASS_THROUGH' } })) continue
       await db.workAssertion.create({
         data: {
+          // The rate on the rung this firm pays on: the one below it.
           timesheetId, companyId: firm.id, role: 'PASS_THROUGH', hours: 40, rateCents: spec.rates[i + 1],
           state: 'LIVE', byId: middleSigner(onChain[i]), at: signedAt(w, i + 1),
         },
@@ -917,11 +918,17 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
         at: signedAt(w, 0) },
     })
     await passThroughFor(ts.id, w)
-    // The firm the hours are filed with accepts last, at its own rung's
-    // rate: the employer, or the firm carrying them above a shell.
+    // The firm the hours are filed with accepts last: the employer, or
+    // the firm carrying them above a shell. `rateCents` is the rate on the
+    // rung the signing firm pays on (lib/money/hop-ledger) — the carrier's
+    // own buy line, `spec.rates[onChain.length]`: the employer's pay rate,
+    // or what the carrier pays the shell. It used to be
+    // `spec.rates[onChain.length - 1]`, the carrier's bill rate, which on a
+    // direct placement put Daniel Osei's $115 bill rate on his employer's
+    // acceptance where his $84 pay belongs. No posting reads it.
     await db.workAssertion.create({
       data: { timesheetId: ts.id, companyId: firmBySlug.get(carrierSlug)!.id, role: 'EMPLOYER_ACCEPTANCE',
-        hours: 40, rateCents: spec.rates[onChain.length - 1], state: 'LIVE', byId: carrierSeat,
+        hours: 40, rateCents: spec.rates[onChain.length], state: 'LIVE', byId: carrierSeat,
         at: signedAt(w, onChain.length) },
     })
     sheets.push(ts)

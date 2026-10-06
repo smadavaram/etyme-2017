@@ -18,7 +18,8 @@ import { CHOOSES_CUT_OVERTIME, cutOvertimeSays } from '@/lib/cut-overtime-choice
 import { rateToday } from '@/lib/placement-rate'
 import { ratePeriods } from '@/lib/contract-rate'
 import { placementEarned, hoursSigned } from '@/lib/money/placement-earned'
-import { placementPayTerms, placementMoneySheets } from '@/lib/money/placement-pay-terms'
+import { placementMoneySheets } from '@/lib/money/placement-pay-terms'
+import { placementBooks, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
 
 /**
  * GET /api/placements/:id
@@ -711,30 +712,45 @@ export async function GET(
     (n, l) => n + Math.round(Number(l.invoice.paid) * 100 >= l.amountCents ? l.amountCents : 0),
     0
   )
-  // Revenue on the hours the client approved, cost on the hours the
-  // employer accepted, each day at the rate in force that day.
+  // What this placement earns, read through money's one margin service
+  // (lib/money/margin) and nowhere else, so the figure here and the
+  // Profitability row for the same line agree to the cent. The service
+  // prices this firm's own rung: revenue on the hours its payer accepted
+  // at its own sell rate, cost on the hours it accepted below at its own
+  // buy rate — or, where it employs the person, what payroll pays plus
+  // the employer's burden. Until 2026-10-06 this route priced the sheets
+  // itself, subtracted no burden and called the result bare "Margin", so a
+  // W2 placement read more on its own page than on its Profitability row.
+  //
+  // Only the firm that sells this rung has a margin on it. A payer reads
+  // what the hours are worth at the rate it pays, with no cost side, and
+  // an end client reads nothing.
   // Every sheet, never the dozen on the card. Hours are already read week
   // by week by every party here; the money on them stays gated below.
   const allSheets = await placementMoneySheets(placement.id)
   const signed = hoursSigned(allSheets)
   const hoursAccepted = isSupplier ? signed.accepted : signed.approved
-  const moneySheets = readsOurMoney ? allSheets : []
-  const earned = placementEarned({
-    sheets: moneySheets,
-    bill: {
-      openingRateCents: placement.billRate,
-      periods: ratePeriods(rateRows.filter((r) => r.contractType === 'SELL')),
-      currency: placement.billCurrency,
-    },
-    pay: seat && ourBuy
-      ? {
-          openingRateCents: seat.payRate,
-          periods: ratePeriods(rateRows.filter((r) => r.contractType === 'BUY')),
-          currency: seat.payCurrency ?? ourBuy.payCurrency,
-          overtime: await placementPayTerms({ buyContractId: ourBuy.id, sellContractId: placement.id, personId: placement.personId }),
-        }
-      : null,
-  })
+  const books = isSupplier
+    ? (await placementBooks(mine, { sellContractIds: [placement.id] }))[0] ?? null
+    : null
+  const earned = isSupplier
+    ? (books?.earned ?? null)
+    : placementEarned({
+        sheets: readsOurMoney ? allSheets : [],
+        bill: {
+          openingRateCents: placement.billRate,
+          periods: ratePeriods(rateRows.filter((r) => r.contractType === 'SELL')),
+          currency: placement.billCurrency,
+        },
+        pay: null,
+      })
+  // Cost as the margin counts it: pay, overtime premium and burden. Null
+  // wherever the pay is, never a burden on nothing.
+  const fullCostCents =
+    books && books.earned.costCents != null ? books.profit.costCents : null
+  const burdenSays = books && (books.earned.burdenCents ?? 0) > 0
+    ? (books.profit.assumptions.at(-1) ?? null)
+    : null
 
   // ── What is due, in three words ─────────────────────────────────────
   //
@@ -1161,21 +1177,46 @@ export async function GET(
         // Blank rather than a guess. A margin shown as the whole invoice
         // because nobody set a cost is the kind of wrong that looks like
         // good news.
-        revenue: seeBill ? money(earned.revenueCents) : null,
+        revenue: seeBill && earned ? money(earned.revenueCents) : null,
         // Both are null off the sell side without asking a permission:
         // the seat that carries the pay rate hangs off the buy leg, and
         // the buy leg is not read for anybody but the supplier. A client
         // owner holds `*`, so the permission alone let the supplier's
         // cost and margin through.
-        cost: seePay ? money(earned.costCents) : null,
-        margin: seeMargin && earned.marginCents != null ? money(earned.marginCents) : null,
+        //
+        // `cost` is what payroll or the firm below is paid, overtime
+        // premium included — the Profitability row's earned cost.
+        // `burden` is the employer's burden on it, at hop 0 only, and
+        // `fullCost` the two together, which is what the earned margin
+        // subtracts. Revenue less fullCost is the earned margin, to the cent.
+        cost: seePay && earned ? money(earned.costCents) : null,
+        burden: seePay && earned ? money(earned.burdenCents) : null,
+        fullCost: seePay ? money(fullCostCents) : null,
+        burdenSays: seePay ? burdenSays : null,
+        // Never the bare word "margin" beside a figure (lib/money/margin).
+        marginLabel: seeMargin ? EARNED_MARGIN : null,
+        margin: seeMargin && earned?.marginCents != null ? money(earned.marginCents) : null,
         // Why the margin reads as it does — blank, or over which weeks.
-        marginSays: seeMargin ? (earned.marginRefusedBecause ?? earned.says) : null,
-        payRateChangeSays: seePay ? earned.payRateChangeSays : null,
-        overtimeSays: seePay ? earned.overtimeSays : null,
-        costSays: seePay ? earned.costRefusedBecause : null,
-        hoursBilled: earned.hoursBilled,
-        hoursPaid: earned.hoursPaid,
+        marginSays: seeMargin
+          ? (earned
+              ? (earned.marginRefusedBecause ?? books?.profit.says ?? earned.says)
+              : 'This placement is not on your own books, so it has no earned margin here.')
+          : null,
+        // The rates two firms agreed, per hour, beside the two rates on
+        // the header. Knows nothing about hours; never called margin.
+        agreed: seeMargin && books?.agreed
+          ? {
+              label: AGREED_SPREAD,
+              perHour: books.agreed.spreadRateCents == null ? null : books.agreed.spreadRateCents / 100,
+              pct: books.agreed.pct,
+              says: books.agreed.refusedBecause ?? books.agreed.says,
+            }
+          : null,
+        payRateChangeSays: seePay && earned ? earned.payRateChangeSays : null,
+        overtimeSays: seePay && earned ? earned.overtimeSays : null,
+        costSays: seePay && earned ? earned.costRefusedBecause : null,
+        hoursBilled: earned?.hoursBilled ?? 0,
+        hoursPaid: earned?.hoursPaid ?? 0,
         // Why it is blank, rather than a screen of dashes somebody
         // raises a ticket about.
         says: readsOurMoney

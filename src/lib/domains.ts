@@ -383,6 +383,10 @@ export const DOMAINS: Domain[] = [
       'app/api/week-approvals', 'app/api/approve-week', 'app/answer/week', 'app/dashboard/weeks',
       // A demo firm whose name was retired, renamed in place on the next seeding.
       'lib/seed-renames',
+      // Where a person agrees their own terms while a placement waits on
+      // them: the shell's "Your terms" link. The rule is demand's
+      // (lib/award/terms-on-record); this only finds the page.
+      'lib/your-terms',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // Deleting the demo world so it can be seeded again from today.
       'lib/seed-rebuild',

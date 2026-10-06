@@ -81,6 +81,12 @@ export interface SessionState {
    * one fetch late is a name that changes under the reader.
    */
   isDemo: boolean
+  /**
+   * The page where this person agrees their own terms, while a placement
+   * of theirs reads "Awarded, terms pending" (`lib/your-terms`). Null
+   * otherwise. Read on the server for the reason `isWorker` is.
+   */
+  termsHref: string | null
   loading: boolean
   error: string | null
 }
@@ -94,6 +100,7 @@ const EMPTY: SessionState = {
   isWorker: false,
   seat: null,
   isDemo: false,
+  termsHref: null,
   loading: true,
   error: null,
 }
@@ -116,6 +123,7 @@ export function SessionProvider({
   worker = false,
   seat = null,
   demo = false,
+  termsHref = null,
 }: {
   children: ReactNode
   /**
@@ -128,8 +136,10 @@ export function SessionProvider({
   seat?: SessionSeat | null
   /** The company is a made-up one. Read on the server, never from /api/me. */
   demo?: boolean
+  /** Where this person's own terms wait on them, if anywhere. Read on the server. */
+  termsHref?: string | null
 }) {
-  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo })
+  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref })
 
   useEffect(() => {
     let cancelled = false
@@ -171,6 +181,7 @@ export function SessionProvider({
           isWorker: worker,
           seat,
           isDemo: demo,
+          termsHref,
           loading: false,
           error: null,
         })
@@ -178,7 +189,7 @@ export function SessionProvider({
         if (cancelled) return
         // A failed session read must not blank the app — fall back to the
         // vendor shell and let the individual pages surface their own errors.
-        setState({ ...EMPTY, isWorker: worker, seat, isDemo: demo, loading: false, error: err.message })
+        setState({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, loading: false, error: err.message })
       }
     }
 
@@ -191,7 +202,7 @@ export function SessionProvider({
     // session forever. A seat granted or revoked mid-session is picked
     // up on the next page load, which is how the client granted it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [worker, demo])
+  }, [worker, demo, termsHref])
 
   return <SessionContext.Provider value={state}>{children}</SessionContext.Provider>
 }

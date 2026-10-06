@@ -8,6 +8,8 @@ import type { Permission } from '@/lib/permissions'
 import {
   bodyFor,
   companiesHearing,
+  activated,
+  remindable,
   titleFor,
   whoHears,
   type Legs,
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
     // cycles on the buy contract, where the payroll screen reads them,
     // so a scan that includes only the sell leg is blind to half the
     // table.
-    const dueCycles = await prisma.cycle.findMany({
+    const scanned = await prisma.cycle.findMany({
       where: { dueOn: { lte: windowEnd }, completedAt: null },
       include: {
         sellContract: {
@@ -58,6 +60,7 @@ export async function GET(request: NextRequest) {
             clientCompanyId: true,
             personId: true,
             approverPersonId: true,
+            state: true,
             person: { select: { name: true } },
             clientCompany: { select: { name: true } },
           },
@@ -67,6 +70,7 @@ export async function GET(request: NextRequest) {
             id: true,
             companyId: true,
             vendorCompanyId: true,
+            state: true,
             company: { select: { name: true } },
             vendorCompany: { select: { name: true } },
             candidates: {
@@ -80,13 +84,7 @@ export async function GET(request: NextRequest) {
       orderBy: { dueOn: 'asc' },
     })
 
-    if (dueCycles.length === 0) {
-      return NextResponse.json({
-        data: { scanned: true, due: 0, message: 'No cycles due within 7 days' },
-      })
-    }
-
-    const legsOf = (c: (typeof dueCycles)[number]): Legs => ({
+    const legsOf = (c: (typeof scanned)[number]): Legs => ({
       sell: c.sellContract
         ? {
             id: c.sellContract.id,
@@ -96,6 +94,7 @@ export async function GET(request: NextRequest) {
             personName: c.sellContract.person.name,
             clientName: c.sellContract.clientCompany.name,
             approverPersonId: c.sellContract.approverPersonId,
+            state: c.sellContract.state,
           }
         : null,
       buy: c.buyContract
@@ -106,9 +105,23 @@ export async function GET(request: NextRequest) {
             vendorCompanyId: c.buyContract.vendorCompanyId,
             vendorName: c.buyContract.vendorCompany?.name ?? null,
             personNames: c.buyContract.candidates.map((x) => x.person.name),
+            state: c.buyContract.state,
           }
         : null,
     })
+
+    // Only activated lines (`activated`, lib/due-cycle-desks). A
+    // placement still "Awarded, terms pending" has its dates written by
+    // the award, and nobody is asked about them — or counts them as past
+    // due — until somebody starts it.
+    const dueCycles = scanned.filter((c) => activated(c.kind, legsOf(c)))
+    const notStarted = scanned.length - dueCycles.length
+
+    if (dueCycles.length === 0) {
+      return NextResponse.json({
+        data: { scanned: true, due: 0, notStarted, message: 'No cycles due within 7 days on an activated line' },
+      })
+    }
 
     // Group by kind for the summary
     const byKind = new Map<string, number>()
@@ -156,7 +169,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Create notifications for upcoming cycles (due in 1-7 days)
-    const upcoming = dueCycles.filter((c) => c.dueOn > now)
+    // Never about a date already past (`remindable`).
+    const upcoming = dueCycles.filter((c) => remindable(c.kind, legsOf(c), c.dueOn, now).remind)
     const seats = seatReader(now)
 
     // The same run can reach one person twice — the owner of a small
@@ -258,6 +272,7 @@ export async function GET(request: NextRequest) {
         scanned: true,
         due: dueCycles.length,
         pastDue: pastDue.length,
+        notStarted,
         notified: notifiedCycles.size,
         people: rows.length,
         viaOwner,

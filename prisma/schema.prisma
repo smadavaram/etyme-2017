@@ -99,6 +99,7 @@ model Person {
   exemptAsserted       ExemptAssertion[]     @relation("exemptDecider")
   /// Pay lines whose overtime method they chose.
   otMethodsChosen      BuyContract[]         @relation("overtimeMethodChooser")
+  benchTermsStated     BenchListing[]        @relation("benchTermsStater")
   /// Pay lines whose cut-week overtime rule they chose.
   cutOvertimeChosen    BuyContract[]         @relation("cutOvertimeChooser")
   reconRunsMade        ReconciliationRun[]   @relation("reconRunner")
@@ -1699,9 +1700,45 @@ model BenchListing {
   /// the person. Only a lapsed listing may be renewed from a reminder.
   lapsedAt       DateTime?
 
+  // ── The person's own terms, where the firm stated them at listing ───
+  //
+  // Added 2026-10-06 for `lib/award/terms-on-record` (etyme-demand). An
+  // award of a bench-listed person writes no pay line and no $0 rate: the
+  // placement reads "Awarded, terms pending" until the firm states how it
+  // engages the person and at what rate, and the person agrees. A firm
+  // that already agreed those terms with the person when it listed them
+  // should not be asked a second time, so the listing may carry them.
+  //
+  // Additive, nullable, no defaults: null is "nobody stated terms at
+  // listing", never "W2 at nothing". Written only by the listing door,
+  // when a firm states them; never by the award, never by a seed for
+  // convenience. The vocabulary and the refusals are `checkStatedTerms`
+  // in lib/award/hire-terms — a rate of nought and "employed by another
+  // firm" are refused there, so neither reaches these columns.
+  //
+  // The person's yes is its own column. Terms the firm wrote after the
+  // person granted the listing are terms the person has not seen, so a
+  // reader takes them as on record only where `termsAgreedAt` is set.
+
+  /// W2 · IND_1099 · OWN_COMPANY — `EngagementType` in lib/award/hire-terms,
+  /// less OTHER_EMPLOYER, which is never written here.
+  termsEngagementType String?
+  /// What the firm pays the person (or their own company), per hour, in
+  /// minor units of the listing firm's pay currency. Above nought or null.
+  termsPayRateCents   Int?
+  /// When the firm stated them, and who at the firm did.
+  termsStatedAt       DateTime?
+  termsStatedById     String?
+  termsStatedBy       Person?   @relation("benchTermsStater", fields: [termsStatedById], references: [id])
+  /// When the person agreed them — the grant itself where the listing
+  /// carried the terms when it was granted, or a later yes. Null is not
+  /// agreed, whatever the two columns above say.
+  termsAgreedAt       DateTime?
+
   @@unique([consultantId, companyId])
   @@index([companyId, revokedAt])
   @@index([consultantId, state])
+  @@index([termsStatedById])
 }
 
 /// What a firm asks its partners to offer: "What we need", shown at the top

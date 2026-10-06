@@ -1655,7 +1655,14 @@ describe('Step 21 — one placement, opened, top to bottom', () => {
     expect(d.contracts.buy.vendor).toBeNull()      // they employ her
     expect(d.timesheets).toHaveLength(1)
     expect(d.timesheets[0].hours).toBe(40)
-    expect(d.money.margin).toBe(1_000)
+    // $110 less $85 on 40 hours is $1,000 before burden. Techpeple employs
+    // her, so the earned margin takes its employer burden off — the
+    // published 22% on $3,400 of pay, $748 — the same figure its
+    // Profitability row shows (lib/money/margin).
+    expect(d.money.margin + d.money.burden).toBe(1_000)
+    expect(d.money.burden).toBe(748)
+    expect(d.money.margin).toBe(252)
+    expect(d.money.marginLabel).toBe('Earned margin')
   })
 
   it('shows both signatures, from the two companies that actually made them', async () => {

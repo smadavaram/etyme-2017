@@ -157,6 +157,13 @@ interface Placement {
     invoices: Array<{ id: string; number: string; status: string; hours: number; weeks: number; amount: number | null; total: number; paid: number; dueAt: string }>
     billed: number | null; collected: number | null
     revenue: number | null; cost: number | null; margin: number | null
+    // The employer's burden on the cost, and the two together — what the
+    // earned margin subtracts. Read from money's margin service.
+    burden: number | null; fullCost: number | null; burdenSays: string | null
+    // "Earned margin", from the service, so the word cannot drift.
+    marginLabel: string | null
+    // The agreed spread: the two rates' difference per hour, never money.
+    agreed: { label: string; perHour: number | null; pct: number | null; says: string } | null
     // Why the margin reads as it does: blank and why, or over which weeks.
     marginSays: string | null
     // Where the pay rate changed inside the hours priced, in a sentence.
@@ -625,13 +632,16 @@ export default function PlacementPage() {
           )}
           {p.viewer.isSupplier && <Fact label="Paying" value={rate(p.contracts.buy?.payRate ?? null)} />}
           <Fact label="Hours accepted" value={p.money.hoursAccepted || '—'} />
-          {p.viewer.isSupplier && (
+          {/* The header shows two rates, so the figure beside them is
+              their difference per hour — the agreed spread. What the
+              hours actually earned is the earned margin, under The money. */}
+          {p.viewer.isSupplier && p.money.agreed && (
             <Fact
-              label="Margin"
+              label={p.money.agreed.label}
               value={
-                p.money.margin == null
+                p.money.agreed.perHour == null
                   ? <span className="text-etyme-faint">not set</span>
-                  : cash(p.money.margin)
+                  : `${rate(p.money.agreed.perHour)}${p.money.agreed.pct == null ? '' : ` · ${p.money.agreed.pct.toFixed(1)}%`}`
               }
             />
           )}
@@ -904,7 +914,7 @@ export default function PlacementPage() {
           !p.viewer.isSupplier
             ? 'What this placement has been invoiced at, and what has been settled.'
             : p.money.margin == null
-              ? (p.money.marginSays ?? 'Margin stays blank until somebody sets a cost. A number here that nobody agreed would look like good news.')
+              ? (p.money.marginSays ?? 'The earned margin stays blank until somebody sets a cost. A number here that nobody agreed would look like good news.')
               : 'What this placement brought in, what it cost, and what is left.'
         }
       >
@@ -918,12 +928,21 @@ export default function PlacementPage() {
             label={p.viewer.isSupplier ? 'Revenue' : 'Invoiced to you'}
             value={cash(p.viewer.isSupplier ? p.money.revenue : p.money.billed)}
           />
-          {p.viewer.isSupplier && <Fact label="Cost" value={cash(p.money.cost)} />}
-          {p.viewer.isSupplier && <Fact label="Margin" value={cash(p.money.margin)} />}
+          {/* Cost as the earned margin counts it — pay, overtime premium
+              and the employer's burden — so revenue less cost is the
+              figure beside it. */}
+          {p.viewer.isSupplier && <Fact label="Cost" value={cash(p.money.fullCost)} />}
+          {p.viewer.isSupplier && <Fact label={p.money.marginLabel ?? 'Earned margin'} value={cash(p.money.margin)} />}
           <Fact label={p.viewer.isSupplier ? 'Collected' : 'Paid'} value={cash(p.money.collected)} />
         </div>
         {p.viewer.isSupplier && p.money.margin != null && p.money.marginSays && (
           <p className="mb-3 text-[13px] text-etyme-muted">{p.money.marginSays}</p>
+        )}
+        {p.viewer.isSupplier && p.money.burden != null && p.money.burden > 0 && (
+          <p className="mb-3 text-[13px] text-etyme-muted">
+            Cost includes {cash(p.money.burden)} employer burden on {cash(p.money.cost)} of pay.
+            {p.money.burdenSays ? ` ${p.money.burdenSays}` : ''}
+          </p>
         )}
         {p.viewer.isSupplier && p.money.payRateChangeSays && (
           <p className="mb-3 text-[13px] text-etyme-muted">{p.money.payRateChangeSays}</p>

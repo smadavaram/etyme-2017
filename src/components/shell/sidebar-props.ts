@@ -36,6 +36,8 @@ export type SidebarIdentity = {
   personName?: string
   /** The company is a made-up one, decided on the server (lib/demo-company). */
   demo?: boolean
+  /** Where this person's own terms wait on them — "Your terms" under "You". */
+  termsHref?: string | null
   pending: boolean
 }
 
@@ -46,7 +48,7 @@ export function sidebarPropsFrom(
     // company to name.
     // Optional too: a fixture describing a seat need not know about a
     // program office's desk, and almost nobody holds one.
-    Partial<Pick<SessionState, 'person' | 'seat' | 'isDemo'>>
+    Partial<Pick<SessionState, 'person' | 'seat' | 'isDemo' | 'termsHref'>>
 ): SidebarIdentity {
   // While the session loads, the frame without nav items — rather than
   // flashing the wrong company's navigation.
@@ -96,6 +98,8 @@ export function sidebarPropsFrom(
     // role's permissions, never the office's. Read through `deskOf`, so
     // the + button and ⌘K cannot read it another way.
     permissions: deskOf(session).permissions,
+    // Their own terms, while a placement of theirs waits on them.
+    termsHref: session.termsHref ?? null,
     pending: false,
   }
 }

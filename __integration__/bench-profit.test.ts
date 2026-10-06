@@ -204,14 +204,20 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
     )
   })
 
-  it('the margin on a placement is the placement page’s own figure, to the cent', async () => {
+  // Since 2026-10-06 the placement page reads money's margin service and
+  // takes the employer's burden off; bench profit says in its own basis
+  // that it does not. So the two agree on everything but the burden, to
+  // the cent, and the burden is the page's own figure. Whether bench
+  // profit should take burden off too is supply's and money's to decide.
+  it('the margin on a placement is the placement page’s own figure before employer burden, to the cent', async () => {
     const tobias = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'tobias.wren@seed.etyme.invalid' }, select: { id: true } })
     const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pellwright' }, select: { id: true } })
     const line = await prisma.sellContract.findFirstOrThrow({ where: { companyId: firm.id, personId: tobias.id }, select: { id: true } })
     as(OWNER)
     const page = await json(await placementGET(req('GET', `/api/placements/${line.id}`), { params: Promise.resolve({ id: line.id }) }))
     expect(page.status, JSON.stringify(page.body)).toBe(200)
-    expect(Math.round(page.body.data.money.margin * 100)).toBe(row(owner.body, 'Tobias Wren').marginCents)
+    const m = page.body.data.money
+    expect(Math.round(m.margin * 100) + Math.round((m.burden ?? 0) * 100)).toBe(row(owner.body, 'Tobias Wren').marginCents)
   })
 })
 

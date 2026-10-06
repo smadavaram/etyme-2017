@@ -767,6 +767,10 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
         rows.push({ timesheetId: sheet.id, companyId: co('halcyon').id, role: 'PASS_THROUGH', hours: week.hours,
           rateCents: 9_200, state: 'LIVE', byId: seat('halcyon'), at: middleAt })
       }
+      // Her own corporation accepts last. `rateCents` is the rate on the
+      // rung the signing firm pays on (lib/money/hop-ledger); a one-person
+      // corporation pays nobody below it, so what it saw is its own rung,
+      // the $92 Halcyon pays it. No posting reads the column.
       if (!has(nurseCorp.id, 'EMPLOYER_ACCEPTANCE')) {
         rows.push({ timesheetId: sheet.id, companyId: nurseCorp.id, role: 'EMPLOYER_ACCEPTANCE', hours: week.hours,
           rateCents: 9_200, state: 'LIVE', byId: nurse.id, at: ownerAt })

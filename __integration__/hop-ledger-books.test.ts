@@ -150,6 +150,14 @@ describe('one margin, on every screen that shows one', () => {
     const money = page.body.data.money
     expect(Math.round(money.revenue * 100)).toBe(daniel.earned.revenueCents)
     expect(Math.round(money.cost * 100)).toBe(daniel.earned.costCents)
+    // The margin is the service's own, burden subtracted, under its name.
+    expect(daniel.earned.burdenCents).toBeGreaterThan(0)
+    expect(Math.round(money.burden * 100)).toBe(daniel.earned.burdenCents)
+    expect(Math.round(money.margin * 100)).toBe(daniel.earned.marginCents)
+    expect(Math.round(money.fullCost * 100)).toBe(daniel.earned.costCents + daniel.earned.burdenCents)
+    expect(money.marginLabel).toBe('Earned margin')
+    expect(money.agreed.label).toBe('Agreed spread')
+    expect(money.agreed.pct).toBe(daniel.agreed.pct)
 
     // And the books hold what the screens show.
     const books = await postedFor(co.cs, 'Daniel Osei')
@@ -233,6 +241,19 @@ describe('signed in as each firm in a three-rung chain, another rung’s rate is
       for (const id of foreign) expect(ids).not.toContain(id)
     }
     void others
+  })
+
+  it('a firm in the middle reads the same earned margin on Helena Marsh’s placement page as on its Profitability row, with no burden on a person it does not employ', async () => {
+    const { body } = await ask(OWNER.cs, 'by=contract')
+    const helena = body.data.rows.find((r: any) => r.contractId === line.helenaCs)
+    as(OWNER.cs)
+    const page = await json(await placement(req('GET', `/api/placements/${line.helenaCs}`), { params: Promise.resolve({ id: line.helenaCs }) } as any))
+    expect(page.status).toBe(200)
+    const money = page.body.data.money
+    expect(Math.round(money.revenue * 100)).toBe(helena.earned.revenueCents)
+    expect(Math.round(money.margin * 100)).toBe(helena.earned.marginCents)
+    expect(money.burden ?? 0).toBe(0)
+    expect(money.agreed.pct).toBe(18.6)
   })
 
   it('the placement page withholds another rung’s money from the client and from the sub-vendor', async () => {

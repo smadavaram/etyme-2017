@@ -107,6 +107,8 @@ export interface SellLeg {
   clientName: string
   /** Somebody named to sign this contract's hours without the company-wide permission. */
   approverPersonId: string | null
+  /** `SellContract.state`. Read by `remindable`; absent reads as never activated. */
+  state?: string
 }
 
 export interface BuyLeg {
@@ -119,6 +121,8 @@ export interface BuyLeg {
   vendorName: string | null
   /** Who the buy leg is for. A buy contract can carry several people. */
   personNames: string[]
+  /** `BuyContract.state`. Read by `remindable`; absent reads as never activated. */
+  state?: string
 }
 
 export interface Legs {
@@ -168,6 +172,56 @@ export function legOf(kind: string, legs: Legs): Side | null {
   if (legs.sell) return 'SELL'
   if (legs.buy) return 'BUY'
   return null
+}
+
+// ── Whether a date is worth a reminder at all ──────────────────────────
+
+/**
+ * The states a line is in once somebody activated it. Activation moves
+ * DRAFT, PENDING_VERIFICATION or VERIFIED to IN_PROGRESS, and both legs
+ * together (`api/contracts/[id]/activate`); PAUSED and ENDED are only
+ * reached from there. ENDED stays in, because the last bill and the last
+ * pay day fall after the last day worked. CANCELLED does not: a line
+ * called off owes no further date.
+ */
+export const ACTIVATED_STATES: readonly string[] = ['IN_PROGRESS', 'PAUSED', 'ENDED']
+
+export interface Remind {
+  remind: boolean
+  because: string
+}
+
+/** Whether the leg this kind of date belongs to has been activated. */
+export function activated(kind: string, legs: Legs): boolean {
+  const side = legOf(kind, legs)
+  const state = side === 'SELL' ? legs.sell?.state : side === 'BUY' ? legs.buy?.state : undefined
+  return !!state && ACTIVATED_STATES.includes(state)
+}
+
+/**
+ * Whether the nightly scan may say anything about this date.
+ *
+ * The award writes a placement's cycles the moment it is made
+ * (`lib/award`), and since 2026-10-06 a placement can sit at "Awarded,
+ * terms pending" for days while the person's terms are agreed. A
+ * reminder about hours or a bill on a line nobody has started tells a
+ * desk to act on work that may never happen. So only an activated line
+ * is reminded, on the leg the date belongs to.
+ *
+ * And never about a date already past. The scan runs after activation,
+ * so a date still ahead of it is on or after the activation by
+ * construction; a date behind it — a period that ended before the award
+ * was written, or one missed — is the overdue screens' business, never a
+ * "due in 3 days".
+ */
+export function remindable(kind: string, legs: Legs, dueOn: Date, now: Date): Remind {
+  if (!activated(kind, legs)) {
+    return { remind: false, because: 'The line this date belongs to has not been activated, so nobody is asked to act on it yet.' }
+  }
+  if (dueOn.getTime() <= now.getTime()) {
+    return { remind: false, because: 'The date has already passed, and a reminder is only ever about a date still ahead.' }
+  }
+  return { remind: true, because: 'An activated line, and a date still ahead.' }
 }
 
 // ── Who, by name ───────────────────────────────────────────────────────

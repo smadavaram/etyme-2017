@@ -10,6 +10,7 @@ import { ownPageFor } from '@/lib/portfolio-data'
 import { seatFor } from '@/lib/program-seat'
 import { prisma } from '@/lib/db'
 import { demoCompanyFor } from '@/lib/demo-company'
+import { yourTermsHref } from '@/lib/your-terms'
 
 /**
  * Authenticated dashboard shell — sidebar + header + content.
@@ -96,6 +97,25 @@ async function deskHeldAtAClient(): Promise<SessionSeat | null> {
 }
 
 /**
+ * Where this person agrees their own terms, while a placement of theirs
+ * reads "Awarded, terms pending" — offered as "Your terms" under "You".
+ * The notification was the only way to the page.
+ *
+ * Never throws. A failed read means no link, which is the menu as it was.
+ */
+async function readersTermsHref(): Promise<string | null> {
+  try {
+    const email = await getSessionEmail()
+    if (!email) return null
+    const person = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true } })
+    if (!person) return null
+    return await yourTermsHref(person.id)
+  } catch {
+    return null
+  }
+}
+
+/**
  * Is the company this person is signed in at a made-up one?
  *
  * Asked here, on the server, so "Demo" is in front of the company's name
@@ -163,10 +183,12 @@ export default async function DashboardLayout({
   const denied = await whyNotSeated()
   if (denied) return <DeniedScreen denied={denied} />
 
-  const [worker, seat, demo] = await Promise.all([readerIsAWorker(), deskHeldAtAClient(), companyIsADemo()])
+  const [worker, seat, demo, termsHref] = await Promise.all([
+    readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(),
+  ])
 
   return (
-    <SessionProvider worker={worker} seat={seat} demo={demo}>
+    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* Sidebar — the rail, from md up. Below that the same navigation
             slides in from the ☰ in the header (components/shell/mobile-nav). */}
