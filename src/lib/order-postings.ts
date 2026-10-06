@@ -793,6 +793,10 @@ async function buyLineFor(
 // equal-and-opposite entry.
 
 export interface Rebuilt {
+  /** True where nothing was written: every figure below is what a run would do. */
+  dryRun: boolean
+  /** Signed weeks read. A week carries one signature per rung that signed it. */
+  weeks: number
   /** Signatures read. */
   checked: number
   /** Signatures whose postings were replaced. */
@@ -803,6 +807,12 @@ export interface Rebuilt {
   removed: number
   /** Signatures left as they were, each with the reason. */
   leftAlone: { assertionId: string; says: string }[]
+  /**
+   * Signatures whose postings in these books were removed and nothing
+   * written in their place, each with the reason the rule posts nothing —
+   * so "3 removed, 0 written" is never a figure without a sentence.
+   */
+  postsNothing: { assertionId: string; says: string }[]
 }
 
 /** The facts two postings must share to be the same posting. */
@@ -844,9 +854,16 @@ export function sameBooks(onBooks: readonly PostingFacts[], planned: readonly Pl
  * removed or written — a firm rebuilding its books never rewrites its
  * supplier's. Omitted, every signature and every firm's books are read
  * (the seed and the scheduler). Run twice, the second run changes nothing.
+ * `dryRun` reads and plans everything and writes nothing — not a posting,
+ * not a journal entry, not a project order: the answer is what a run
+ * would do, short only of a missing exchange rate, which a real run finds
+ * and leaves alone with the reason.
  */
-export async function rebuildPostings(opts: { companyIds?: string[] } = {}): Promise<Rebuilt> {
-  const out: Rebuilt = { checked: 0, rebuilt: 0, unchanged: 0, written: 0, removed: 0, leftAlone: [] }
+export async function rebuildPostings(opts: { companyIds?: string[]; dryRun?: boolean } = {}): Promise<Rebuilt> {
+  const dryRun = opts.dryRun === true
+  const out: Rebuilt = {
+    dryRun, weeks: 0, checked: 0, rebuilt: 0, unchanged: 0, written: 0, removed: 0, leftAlone: [], postsNothing: [],
+  }
 
   let where: Prisma.WorkAssertionWhereInput = { state: 'LIVE' }
   if (opts.companyIds) {
@@ -875,8 +892,9 @@ export async function rebuildPostings(opts: { companyIds?: string[] } = {}): Pro
     const week = await prisma.timesheet.findUnique({ where: { id: timesheetId }, select: WEEK_SELECT })
     if (!week) continue
     const sigs = week.assertions.filter((s) => ids.has(s.id))
-    out.checked += sigs.length
     if (sigs.length === 0) continue
+    out.weeks++
+    out.checked += sigs.length
     const plans = await planWeek(week, sigs)
     const onBooksAll = await prisma.orderPosting.findMany({
       where: {
@@ -950,12 +968,32 @@ export async function rebuildPostings(opts: { companyIds?: string[] } = {}): Pro
       gone.push(...onBooks.map((p) => p.id))
       toWrite.push({ plan, byId: a.byId, isolated: false })
       rebuilt.push(a.id)
+      if (plan.planned.length === 0) {
+        out.postsNothing.push({
+          assertionId: a.id,
+          says:
+            plan.refused[0] ??
+            (books
+              ? 'This signature posts nothing in these books under the rule — it is another firm’s revenue or cost — so what sat here was removed.'
+              : 'This signature posts nothing under the rule, so what sat on the books for it was removed.'),
+        })
+      }
     }
     if (rebuilt.length === 0) continue
 
     // Built and checked before anything is removed, then removed and
     // written in one transaction: a week that cannot be posted again (an
     // order settled since, a missing exchange rate) keeps what it had.
+    if (dryRun) {
+      // What a run would do, and nothing done. Counted from the plans
+      // rather than built into rows, because building a row opens the
+      // line's project order on first use, and a dry run opens nothing.
+      // The one thing only a real run finds is a missing exchange rate.
+      out.removed += gone.length
+      out.written += toWrite.reduce((n, e) => n + e.plan.planned.filter((p) => p.amountCents !== 0).length, 0)
+      out.rebuilt += rebuilt.length
+      continue
+    }
     let rows: Prisma.OrderPostingCreateManyInput[]
     try {
       rows = await rowsOf(toWrite, new Map(), books ?? undefined)

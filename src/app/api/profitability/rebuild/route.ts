@@ -4,6 +4,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { rebuildPostings } from '@/lib/order-postings'
+import { rebuildSays } from '@/lib/money/rebuild-answer'
 
 /**
  * POST /api/profitability/rebuild — re-derive the postings behind every
@@ -28,6 +29,17 @@ import { rebuildPostings } from '@/lib/order-postings'
  * order, one already reversed, or one whose journal entry was exported is
  * named in the answer and left for a person to correct. Running it twice
  * changes nothing the second time.
+ *
+ * `{"dryRun": true}` in the body, on either door, reads and plans the
+ * whole rebuild and writes nothing: the answer is what a run would do,
+ * said as "would". Until 2026-10-06 the body was not read at all, so a
+ * dry run was a real one.
+ *
+ * Where a signature's postings are removed and nothing is written in
+ * their place, the answer says why (`postsNothing`) — a one-person
+ * corporation's own acceptance posts no pay when no pay line names its
+ * owner at a rate, and "3 removed, 0 written" alone reads like lost
+ * revenue.
  */
 export async function POST(request: NextRequest) {
   if (request.headers.get('authorization')) {
@@ -37,8 +49,10 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-    const done = await rebuildPostings()
-    return NextResponse.json({ data: { scope: 'every firm', ...done, says: saysOf(done) } })
+    const asked = await dryRunOf(request)
+    if ('error' in asked) return asked.error
+    const done = await rebuildPostings({ dryRun: asked.dryRun })
+    return NextResponse.json({ data: { scope: 'every firm', ...done, says: rebuildSays(done) } })
   }
 
   const { caller, error } = await getCallerContext(request)
@@ -62,16 +76,32 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     )
   }
-  const done = await rebuildPostings({ companyIds: [caller.company.id] })
-  return NextResponse.json({ data: { scope: caller.company.name, ...done, says: saysOf(done) } })
+  const asked = await dryRunOf(request)
+  if ('error' in asked) return asked.error
+  const done = await rebuildPostings({ companyIds: [caller.company.id], dryRun: asked.dryRun })
+  return NextResponse.json({ data: { scope: caller.company.name, ...done, says: rebuildSays(done) } })
 }
 
-function saysOf(d: Awaited<ReturnType<typeof rebuildPostings>>): string {
-  const head =
-    d.rebuilt === 0
-      ? `${d.checked} signed week${d.checked === 1 ? '' : 's'} read; every posting already matched.`
-      : `${d.rebuilt} of ${d.checked} signed week${d.checked === 1 ? '' : 's'} rebuilt: ${d.removed} posting${d.removed === 1 ? '' : 's'} removed, ${d.written} written.`
-  return d.leftAlone.length
-    ? `${head} ${d.leftAlone.length} left as ${d.leftAlone.length === 1 ? 'it was' : 'they were'}, each with the reason.`
-    : head
+/**
+ * Whether the caller asked for a dry run. An empty body is a run; a body
+ * that is not a JSON object, or a dryRun that is not true or false, is
+ * refused rather than guessed at, because guessing "not a dry run"
+ * rewrites the books.
+ */
+async function dryRunOf(request: NextRequest): Promise<{ dryRun: boolean } | { error: NextResponse }> {
+  const bad = (message: string) => ({ error: NextResponse.json({ error: { code: 'BAD_BODY', message } }, { status: 400 }) })
+  const text = await request.text()
+  if (!text.trim()) return { dryRun: false }
+  let body: unknown
+  try {
+    body = JSON.parse(text)
+  } catch {
+    return bad('Send nothing, or {"dryRun": true} to see what a rebuild would do. Nothing was rebuilt.')
+  }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    return bad('Send nothing, or {"dryRun": true} to see what a rebuild would do. Nothing was rebuilt.')
+  }
+  const d = (body as Record<string, unknown>).dryRun
+  if (d !== undefined && typeof d !== 'boolean') return bad('dryRun is true or false. Nothing was rebuilt.')
+  return { dryRun: d === true }
 }
