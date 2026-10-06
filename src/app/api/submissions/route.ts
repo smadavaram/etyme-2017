@@ -1310,6 +1310,38 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      // Warned and went ahead, each recorded beside the rate band's own
+      // row: the time limit with the reason the submitter gave and the
+      // day it would cross, and work authorization with what is missing.
+      if (item.tenureWarning) {
+        await prisma.automationLog.create({
+          data: {
+            companyId: fromCompanyId,
+            action: 'SUBMISSION_TIME_LIMIT_WARNED',
+            summary: `${person.name} submitted to "${requirement.title}" past ${clientName}'s time limit`,
+            reason: `${item.tenureWarning} Reason given: ${item.tenureReason}`,
+            payload: {
+              submissionId: submission.id, requirementId, personId, clientCompanyId,
+              limitReachedOn: limit.outcome === 'WARN' && limit.reachedOn ? limit.reachedOn.toISOString().slice(0, 10) : null,
+              reasonGiven: item.tenureReason,
+            },
+            reversible: true,
+          },
+        })
+      }
+      if (item.workAuthWarning) {
+        await prisma.automationLog.create({
+          data: {
+            companyId: fromCompanyId,
+            action: 'SUBMISSION_WORK_AUTH_WARNED',
+            summary: `${person.name} submitted to "${requirement.title}" without work authorization covering the start`,
+            reason: item.workAuthWarning,
+            payload: { submissionId: submission.id, requirementId, personId, code: item.workAuthCode },
+            reversible: true,
+          },
+        })
+      }
+
       // 6. Write AccessLog — submission is a read of person's data
       void emit({
         type: 'submission.created',

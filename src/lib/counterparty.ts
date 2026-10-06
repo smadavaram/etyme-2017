@@ -272,3 +272,71 @@ export function mayAddCompany(ask: AddAsk): AddVerdict {
       `You are not seated there: a firm you trade with is not a firm you own.`,
   }
 }
+
+// ═════════════════════════════════════════════════════════════════════
+// WHO A BUYER BUYS FROM
+// ═════════════════════════════════════════════════════════════════════
+
+/**
+ * The facts that make a firm a buyer's supplier, gathered by the caller
+ * (`lib/suppliers-of`). No database in here.
+ *
+ * Four ways, and any one is enough: the buyer pays a sell line the firm
+ * raised (it has somebody on site — the rung the buyer pays, never the
+ * rung below it, so a prime's sub-vendor is not the client's supplier by
+ * this route); an agreement with the buyer as client; the buyer's own
+ * register naming the firm as a supplier or a prime; a buy line the
+ * buyer pays the firm on (a prime buying from its sub).
+ *
+ * An invitation still walking supplier onboarding does not count. A
+ * purchase order commits money, and a firm the client has not finished
+ * qualifying is not yet a firm it buys from.
+ */
+export interface SupplierFacts {
+  buyerId: string
+  /** `SellContract.companyId` where `clientCompanyId` is the buyer. */
+  sellersPaid: string[]
+  /** `MasterAgreement.vendorId` where `clientId` is the buyer. */
+  agreementVendors: string[]
+  /** The buyer's own register. */
+  register: { otherCompanyId: string; relationship: string; status: string }[]
+  /** `BuyContract.vendorCompanyId` where `companyId` is the buyer. */
+  buysFrom: (string | null)[]
+  /** Companies the buyer has blocked, by the blacklist. */
+  blacklisted: string[]
+}
+
+export type SupplierStanding = 'SUPPLIER' | 'BLOCKED' | 'NONE'
+
+export interface Suppliers {
+  /** Firms the buyer may raise an order to. */
+  ids: Set<string>
+  /** Firms that would be suppliers and are blocked. */
+  blocked: Set<string>
+}
+
+export function suppliersFrom(f: SupplierFacts): Suppliers {
+  const any = new Set<string>()
+  for (const id of f.sellersPaid) any.add(id)
+  for (const id of f.agreementVendors) any.add(id)
+  for (const id of f.buysFrom) if (id) any.add(id)
+  for (const r of f.register) {
+    if (r.relationship === 'SUPPLIER' || r.relationship === 'PRIME') any.add(r.otherCompanyId)
+  }
+  any.delete(f.buyerId)
+
+  const blocked = new Set<string>()
+  for (const r of f.register) if (r.status === 'BLOCKED') blocked.add(r.otherCompanyId)
+  for (const id of f.blacklisted) blocked.add(id)
+
+  const ids = new Set<string>()
+  const blockedSuppliers = new Set<string>()
+  for (const id of any) (blocked.has(id) ? blockedSuppliers : ids).add(id)
+  return { ids, blocked: blockedSuppliers }
+}
+
+export function supplierStanding(s: Suppliers, sellerId: string): SupplierStanding {
+  if (s.ids.has(sellerId)) return 'SUPPLIER'
+  if (s.blocked.has(sellerId)) return 'BLOCKED'
+  return 'NONE'
+}

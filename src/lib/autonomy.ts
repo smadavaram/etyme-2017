@@ -316,6 +316,19 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
     basis: 'RULE',
     says: 'Somebody submitted outside the rate band, was warned, gave a reason and went ahead. Warned and recorded, never silently permitted.',
   },
+  // Demand's two warnings at submission, 2026-10-06
+  // (app/api/submissions/time-limit.ts, work-authorization.ts). Past the
+  // limit or inside its break is a BLOCK and needs no row here.
+  SUBMISSION_TIME_LIMIT_WARNED: {
+    outcome: 'WARN',
+    basis: 'RULE',
+    says: 'Somebody put a person forward for a job that would run past the client\u2019s time limit for them. The submission went through with a reason captured, because the job can end early or the limit can be met by a break; the day it would cross is on the row.',
+  },
+  SUBMISSION_WORK_AUTH_WARNED: {
+    outcome: 'WARN',
+    basis: 'RULE',
+    says: 'Somebody put a person forward whose work authorization is not on file or runs out during the job. The submission went through with the warning recorded; nobody starts without it, which is where the block is.',
+  },
   HOLIDAY_ADD_REFUSED: {
     outcome: 'BLOCK',
     basis: 'RULE',
@@ -598,29 +611,6 @@ export const PLANNED: Record<string, PlannedAct> = {
     willBeWrittenBy: 'etyme-demand',
   },
 
-  // ── Warned at submission, 2026-10-05 ───────────────────────────────
-  //
-  // Demand's time-limit and work-authorization checks at submission
-  // (app/api/submissions/time-limit.ts, work-authorization.ts). Past the
-  // limit or inside its break is a BLOCK and needs no row here; these are
-  // the two warnings, named before the route writes them.
-
-  SUBMISSION_TIME_LIMIT_WARNED: {
-    kind: 'ENFORCEMENT',
-    outcome: 'WARN',
-    basis: 'RULE',
-    says:
-      'Somebody put a person forward for a job that would run past the client\u2019s time limit for them. The submission went through with a reason captured, because the job can end early or the limit can be met by a break; the day it would cross is on the row.',
-    willBeWrittenBy: 'etyme-demand',
-  },
-  SUBMISSION_WORK_AUTH_WARNED: {
-    kind: 'ENFORCEMENT',
-    outcome: 'WARN',
-    basis: 'RULE',
-    says:
-      'Somebody put a person forward whose work authorization is not on file or runs out during the job. The submission went through with the warning recorded; nobody starts without it, which is where the block is.',
-    willBeWrittenBy: 'etyme-demand',
-  },
 }
 
 export const ALL_PLANNED: string[] = Object.keys(PLANNED).sort()

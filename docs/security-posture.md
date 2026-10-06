@@ -406,13 +406,13 @@ Named on the common autonomy ladder, because that is the vocabulary every
 enterprise buyer is currently asking in, and recorded per action in
 `src/lib/autonomy.ts`.
 
-Recomputed from the module on 2026-10-03:
+Recomputed from the module on 2026-10-06:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **188** |
+| Actions named in the automation log | **190** |
 | Unprompted — the system did it and nobody asked | **29** |
-| Enforcement — the system decided what a person was allowed to do | **8** |
+| Enforcement — the system decided what a person was allowed to do | **10** |
 | Attributed — a person did it and the row is the record | **151** |
 
 **The finding is the last row.** Most of what sits in an automation log

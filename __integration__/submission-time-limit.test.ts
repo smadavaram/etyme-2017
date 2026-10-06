@@ -153,6 +153,9 @@ describe('the client’s time limit is checked before a person is put forward', 
     const log = await prisma.accessLog.findFirstOrThrow({ where: { subjectId: who.omar, action: 'SUBMIT', allowed: true } })
     expect(log.reason).toContain('Time limit warned')
     expect(log.reason).toContain('asked for him by name')
+    const warned = await prisma.automationLog.findFirstOrThrow({ where: { action: 'SUBMISSION_TIME_LIMIT_WARNED', companyId: co.ardent } })
+    expect(warned.reason).toContain('Reason given: The client asked for him by name')
+    expect((warned.payload as any).limitReachedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 
   it('a person back after a served break goes through with no warning, because the break reset the count', async () => {
@@ -177,5 +180,7 @@ describe('work authorization is warned about at submission', () => {
     expect(result.workAuthWarning).toContain('Noor has no work authorization on record')
     const log = await prisma.accessLog.findFirstOrThrow({ where: { subjectId: who.noor, action: 'SUBMIT', allowed: true } })
     expect(log.reason).toContain('Work authorization warned')
+    const warned = await prisma.automationLog.findFirstOrThrow({ where: { action: 'SUBMISSION_WORK_AUTH_WARNED', companyId: co.ardent } })
+    expect(warned.reason).toContain('Noor has no work authorization on record')
   })
 })

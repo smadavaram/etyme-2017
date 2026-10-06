@@ -36,6 +36,8 @@
  * decides.
  */
 
+import type { SupplierStanding } from '@/lib/counterparty'
+
 export interface CompanyStanding {
   id: string
   name: string
@@ -161,6 +163,15 @@ export function mayWriteOrder(input: {
   callerCompanyId: string
   buyer: CompanyStanding
   seller: CompanyStanding
+  /**
+   * What the seller is to the buyer, from `suppliersOf` in
+   * `lib/suppliers-of` — the same answer the supplier picker lists from.
+   * A purchase order commits the buyer's money, so it goes only to a
+   * firm the buyer already buys from. Left out, the check is not made:
+   * that is the state of a route that has not yet passed it, and is
+   * named in the matrix as owed rather than read as a yes.
+   */
+  sellerStanding?: SupplierStanding
 }): Verdict & { recordedById: string; onBehalf: boolean } {
   const { callerCompanyId: me, buyer, seller } = input
 
@@ -174,6 +185,27 @@ export function mayWriteOrder(input: {
   }
 
   if (me === buyer.id) {
+    if (input.sellerStanding === 'BLOCKED') {
+      return {
+        ok: false,
+        recordedById: me,
+        onBehalf: false,
+        says:
+          `${buyer.name} has blocked ${seller.name}, so no new purchase order can go to them. ` +
+          `Lift the block on the suppliers page first if that is what you mean to do.`,
+      }
+    }
+    if (input.sellerStanding === 'NONE') {
+      return {
+        ok: false,
+        recordedById: me,
+        onBehalf: false,
+        says:
+          `${seller.name} is not one of ${buyer.name}'s suppliers. A purchase order goes to a ` +
+          `firm ${buyer.name} already buys from. Recommend them as a supplier first; the order ` +
+          `can follow once they are approved.`,
+      }
+    }
     return {
       ok: true,
       recordedById: me,
