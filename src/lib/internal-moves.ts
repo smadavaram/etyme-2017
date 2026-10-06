@@ -666,6 +666,14 @@ export interface OurBenchFacts {
   /** The seat's role, "Validation Engineer" — shown where no skills are on record. */
   seat: string | null
   skills: string[]
+  /**
+   * The skills on the job request of their current placement, or their
+   * last — read where their own record names none. An integrator's own
+   * engineers often have no profile of their own, so every Teleworld row
+   * read "no skills on record" over people placed on jobs that name their
+   * skills (bench tester, 2026-10-03). Said as the job's, never as theirs.
+   */
+  jobSkills?: { skills: string[]; current: boolean } | null
   /** Where they are, from their own profile. */
   place: string | null
   release: {
@@ -764,7 +772,7 @@ export function ourBenchRow(f: OurBenchFacts, viewer: ViewerFacts): OurBenchRow 
     freeOn: isoDay(freeOnDate),
     freeOnSays,
     skills: f.skills,
-    skillsSay: f.skills.length ? f.skills.join(', ') : f.seat ? `${f.seat} — no skills on record` : 'No skills on record',
+    skillsSay: skillsSay(f),
     place: f.place,
     project,
     releaser: f.release ? { id: f.release.releaserId, name: f.release.releaserName } : null,
@@ -782,6 +790,19 @@ export function ourBenchRow(f: OurBenchFacts, viewer: ViewerFacts): OurBenchRow 
       place: isHolder && !f.moving && (f.release == null || f.release.confirmedAt != null),
     },
   }
+}
+
+/**
+ * The skills line on Our bench: their own where the record has them; else
+ * the job's, said as the job's; else their seat, or a plain "No skills on
+ * record".
+ */
+export function skillsSay(f: Pick<OurBenchFacts, 'skills' | 'seat' | 'jobSkills'>): string {
+  if (f.skills.length) return f.skills.join(', ')
+  if (f.jobSkills && f.jobSkills.skills.length) {
+    return `${f.jobSkills.skills.join(', ')} (from ${f.jobSkills.current ? 'the job they are on' : 'their last job'})`
+  }
+  return f.seat ? `${f.seat} — no skills on record` : 'No skills on record'
 }
 
 /** Soonest free first; a tie by name, so two readers see one order. */

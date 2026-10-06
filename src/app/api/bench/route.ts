@@ -18,7 +18,7 @@ import {
 } from '@/lib/consultant-portfolio'
 import { NETWORK_VISIBLE, whoSees } from '@/lib/shared-consultant'
 import { stayEndedRow, stayRow } from '@/lib/bench-stay'
-import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, type FreeLine } from '@/lib/bench-filter'
+import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, alreadyOursSays, type FreeLine } from '@/lib/bench-filter'
 
 /**
  * GET /api/bench
@@ -253,6 +253,30 @@ export async function GET(request: NextRequest) {
       now,
     })
 
+  // On a partner's bench, who is already the reader's: somebody it sells
+  // on a running or papered line, or somebody on its own bench. Their row
+  // says so rather than offering "Ask to represent", which would go round
+  // the partner or ask twice (`alreadyOursSays`, bench tester 2026-10-03).
+  const oursOf = new Map<string, string>()
+  if (scope === 'network' && companyId && listedIds.length) {
+    const [ourLines, ourListings] = await Promise.all([
+      prisma.sellContract.findMany({
+        where: { companyId, personId: { in: listedIds }, state: { in: [...LIVE_STATES] as never } },
+        select: { personId: true },
+      }),
+      prisma.benchListing.findMany({
+        where: { companyId, revokedAt: null, consultant: { personId: { in: listedIds } } },
+        select: { consultant: { select: { personId: true } } },
+      }),
+    ])
+    const placed = new Set(ourLines.map((l) => l.personId))
+    const listedHere = new Set(ourListings.map((l) => l.consultant.personId))
+    for (const id of listedIds) {
+      const says = alreadyOursSays({ ownListing: listedHere.has(id), placedByUs: placed.has(id) })
+      if (says) oursOf.set(id, says)
+    }
+  }
+
   // How many CVs each of them has, counted once.
   //
   // Readiness needs it and a per-row query would be a scan per person.
@@ -300,6 +324,7 @@ export async function GET(request: NextRequest) {
       // chose to stay on this bench (`stayRow`).
       free: freeOf(l.consultant.personId, l.consultant.availableFrom, l.state === 'GRANTED' ? l.grantedAt : null),
       stay: stayRow({ state: l.state, stayDays: l.stayDays, staysUntil: l.staysUntil }, now),
+      oursSays: oursOf.get(l.consultant.personId) ?? null,
       rateMin: showRate ? l.rateMin : undefined,
       rateMax: showRate ? l.rateMax : undefined,
       grantedAt: l.grantedAt.toISOString(),

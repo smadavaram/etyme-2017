@@ -7,6 +7,7 @@ import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, ben
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
+import { WhatWeNeed, WhatPartnersNeed } from './what-we-need'
 import { BenchProfit } from './bench-profit'
 import { mayReadBenchProfit, type HolidayAnswerRow } from '@/lib/bench-profit'
 import { mayChangeBenchPay } from '@/lib/bench-holiday-switch'
@@ -68,6 +69,8 @@ interface BenchEntry {
    *  in scope=company; a partner's, in scope=network. */
   companyId: string
   companyName: string
+  /** On Partner bench: why the reader may not ask — already theirs (`alreadyOursSays`). */
+  oursSays: string | null
 }
 
 /**
@@ -658,6 +661,7 @@ export default function BenchPage() {
         consent: r.consent ?? undefined,
         companyId: r.companyId,
         companyName: r.companyName,
+        oursSays: r.oursSays ?? null,
       }))
 
       // A tab clicked twice in quick succession fires two requests; only
@@ -935,7 +939,11 @@ export default function BenchPage() {
             {
               key: 'actions',
               label: '',
-              render: (row: BenchEntry) => (
+              render: (row: BenchEntry) => row.oursSays ? (
+                // Already the reader's: asking would go round the partner
+                // or ask twice (`alreadyOursSays`).
+                <span className="text-[11px] text-etyme-muted whitespace-nowrap">{row.oursSays}</span>
+              ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); askToRepresent(row) }}
                   disabled={busyRow === row.id}
@@ -1140,6 +1148,13 @@ export default function BenchPage() {
           <OurBenchGate firmName={session.company?.name ?? 'your firm'} permissions={session.permissions} roleName={session.roleName} />
         </div>
       )}
+
+      {/* "What we need" at the top of Partner bench, and what the firms
+          we trade with ask for at the top of Our bench (BenchWant). */}
+      {scope === 'network' && (
+        <WhatWeNeed onSaid={(said) => { setToast({ message: said.text, type: said.ok ? 'success' : 'error' }); setTimeout(() => setToast(null), 6000) }} />
+      )}
+      {scope === 'company' && <WhatPartnersNeed />}
 
       {scope === 'company' && ended.length > 0 && (
         <section className="mb-6 bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">

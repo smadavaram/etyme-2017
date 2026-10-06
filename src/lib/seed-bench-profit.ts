@@ -138,6 +138,13 @@ interface NichePerson {
   /** Days from the world's birthday they said yes to this firm's bench. */
   listed?: number
   /**
+   * What the firm sells them at, cents an hour, low and high — the rate on
+   * their listing. Every row on Pellwright's bench read "Not stated"
+   * (bench tester, 2026-10-03). Placed people's range holds what the prime
+   * actually pays the firm for them.
+   */
+  rate?: [number, number]
+  /**
    * Days they sat on the bench before the placement began: they finished
    * the course and said yes that day, and the course took thirty days.
    * Counted back from the placement, so the spell is the same length
@@ -153,7 +160,7 @@ const COURSE_DAYS = 30
 export const NICHE_PEOPLE: NichePerson[] = [
   {
     name: 'Tobias Wren', email: 'tobias.wren@seed.etyme.invalid',
-    course: { status: 'COMPLETED' }, benchDays: 49,
+    course: { status: 'COMPLETED' }, benchDays: 49, rate: [13_000, 14_500],
     // A validation engineer's figures: the client pays the prime $175, the
     // prime pays Pellwright $145, Pellwright pays him $64 on W2. After the
     // employer's burden that is about $2,680 a signed week against at most
@@ -163,7 +170,7 @@ export const NICHE_PEOPLE: NichePerson[] = [
   },
   {
     name: 'Noor Abernathy', email: 'noor.abernathy@seed.etyme.invalid',
-    course: { status: 'COMPLETED' }, benchDays: 35,
+    course: { status: 'COMPLETED' }, benchDays: 35, rate: [8_200, 9_500],
     // A thinner spread and four weeks in: about $450 a signed week after
     // burden against about $5,800 of bench, so not paid back on any day
     // the world can be born.
@@ -171,11 +178,11 @@ export const NICHE_PEOPLE: NichePerson[] = [
   },
   {
     name: 'Lucia Brandvold', email: 'lucia.brandvold@seed.etyme.invalid',
-    course: { enrolled: -70, status: 'COMPLETED', done: -40 }, listed: -40,
+    course: { enrolled: -70, status: 'COMPLETED', done: -40 }, listed: -40, rate: [9_000, 11_500],
   },
   {
     name: 'Samuel Varga', email: 'samuel.varga@seed.etyme.invalid',
-    course: { enrolled: -18, status: 'IN_PROGRESS' }, listed: -18,
+    course: { enrolled: -18, status: 'IN_PROGRESS' }, listed: -18, rate: [8_000, 10_000],
   },
   {
     name: 'Greta Lindahl', email: 'greta.lindahl@seed.etyme.invalid',
@@ -183,7 +190,7 @@ export const NICHE_PEOPLE: NichePerson[] = [
   },
   {
     name: 'Hector Valdivia', email: 'hector.valdivia@seed.etyme.invalid',
-    listed: -420,
+    listed: -420, rate: [9_000, 11_000],
     placement: { role: 'Cleaning validation engineer', weeksAgo: 57, end: -60, top: 11_500, bill: 9_000, pay: 6_400, ended: true },
   },
 ]
@@ -316,13 +323,18 @@ export async function seedBenchProfit(ctx: SeedContext): Promise<NicheSeed> {
       (await db.consultantProfile.findFirst({ where: { personId: person.id } })) ??
       (await db.consultantProfile.create({ data: { personId: person.id, skills: SKILLS, location: LOC, visibility: 'VERIFIED', workAuth: 'USC' } }))
     // Their own yes, and marketed by default.
-    if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: firm.id } }))) {
+    const had = await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: firm.id }, select: { id: true, rateMin: true, rateMax: true } })
+    if (!had) {
       await db.benchListing.create({
         data: {
           consultantId: profile.id, companyId: firm.id, tier: 'MARKETING', state: 'GRANTED',
           invitedAt: plus(listed, -2), respondedAt: listed, grantedAt: listed,
+          rateMin: n.rate?.[0] ?? null, rateMax: n.rate?.[1] ?? null,
         },
       })
+    } else if (n.rate && had.rateMin == null && had.rateMax == null) {
+      // A world seeded before the rates were: filled once, never overwritten.
+      await db.benchListing.update({ where: { id: had.id }, data: { rateMin: n.rate[0], rateMax: n.rate[1] } })
     }
 
     const p = n.placement

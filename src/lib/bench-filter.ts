@@ -33,6 +33,7 @@
  */
 
 import { checkStatedTerms, perHour, ENGAGEMENT_TYPES, type EngagementType } from '@/lib/award/hire-terms'
+import { range } from '@/lib/money-display'
 
 /** How many reach the model, unless somebody says otherwise. */
 export const DEFAULT_SHORTLIST = 15
@@ -400,6 +401,8 @@ export interface BenchRow {
   /** Whose bench this listing lives on — your own firm, or a partner's. */
   companyId: string
   companyName: string
+  /** On a partner's bench, why this person is already the reader's (`alreadyOursSays`). Null otherwise. */
+  oursSays: string | null
 }
 
 export type BenchReading =
@@ -484,6 +487,7 @@ export function readBench(payload: unknown): BenchReading {
         grantedAt: typeof l.grantedAt === 'string' ? l.grantedAt : '',
         companyId: String(l.company?.id ?? ''),
         companyName: String(l.company?.name ?? ''),
+        oursSays: typeof l.oursSays === 'string' ? l.oursSays : null,
       })
     }
   }
@@ -1050,4 +1054,127 @@ export function agreeingTerms(
     agreed: true,
     says: `You agreed: ${firmName} pays you ${stated.rate}, ${stated.words}, when it places you.`,
   }
+}
+
+// ── A partner's person who is already ours (bench tester, 2026-10-03) ──
+
+/**
+ * What a partner's row says instead of "Ask to represent" when the person
+ * is already the reader's.
+ *
+ * Sundara read Tobias Wren and Noor Abernathy on Partner bench — Pellwright
+ * markets them — with "Ask to represent" beside each, while both were on a
+ * placement Sundara itself sells. Asking a person the reader already buys
+ * through a partner to be represented directly is going round that partner,
+ * and asking somebody already on the reader's own bench asks twice. So the
+ * row says which it is, and offers nothing. Null means neither: the ask
+ * stands.
+ */
+export function alreadyOursSays(f: { ownListing: boolean; placedByUs: boolean }): string | null {
+  if (f.placedByUs) return 'On a placement through you'
+  if (f.ownListing) return 'Already on your bench'
+  return null
+}
+
+// ── What we need (BenchWant, 2026-10-06) ──────────────────────────────
+//
+// CLAUDE.md, "The bench is the difference": what a firm asks its partners
+// to offer — skills, places, rate range and the desk that receives — is
+// "What we need", shown at the top of Partner bench. Read by firms that
+// already trade with it, one rung at a time, and never by a client: a
+// client does not browse a bench, and so has no bench to ask for.
+
+/** What one ask carries once the door has read it. */
+export interface WantFields {
+  skills: string[]
+  places: string[]
+  rateMinCents: number | null
+  rateMaxCents: number | null
+  receivingRoleId: string | null
+  receivingPersonId: string | null
+}
+
+/**
+ * Read an ask from what a screen sent, and refuse it in a sentence.
+ *
+ * Skills are required — an ask for "anybody" is not an ask. Places may be
+ * empty, which reads as "anywhere". The rate is cents an hour, as every
+ * rate on the record is; the screen converts dollars with `listingRates`.
+ * At most one receiving desk: a role, or a named person, or neither.
+ */
+export function readWant(body: unknown): { ok: true; want: WantFields } | { ok: false; says: string; field: string } {
+  const b = (body ?? {}) as Record<string, unknown>
+  const list = (v: unknown): string[] => {
+    const raw = Array.isArray(v) ? v : typeof v === 'string' ? v.split(',') : []
+    return addSkillTags([], raw.map((x) => String(x)).join(','))
+  }
+  const skills = list(b.skills)
+  if (skills.length === 0) return { ok: false, field: 'skills', says: 'Name at least one skill you need.' }
+  if (skills.length > 20) return { ok: false, field: 'skills', says: 'Name twenty skills at most. Split a longer list into two asks.' }
+  // A place is "Wichita, KS", so places never split on a comma: a list
+  // arrives as an array, or typed with semicolons between them.
+  const places = (Array.isArray(b.places) ? b.places.map((x) => String(x)) : typeof b.places === 'string' ? b.places.split(';') : [])
+    .map((x) => x.trim().replace(/\s+/g, ' '))
+    .filter((x, i, all) => x && all.findIndex((y) => y.toLowerCase() === x.toLowerCase()) === i)
+  const cents = (v: unknown): number | null | 'BAD' => {
+    if (v == null || v === '') return null
+    const n = Number(v)
+    return Number.isInteger(n) && n > 0 ? n : 'BAD'
+  }
+  const rateMinCents = cents(b.rateMinCents)
+  const rateMaxCents = cents(b.rateMaxCents)
+  if (rateMinCents === 'BAD' || rateMaxCents === 'BAD') {
+    return { ok: false, field: 'rate', says: 'Say each rate as a number of dollars an hour.' }
+  }
+  if (rateMinCents != null && rateMaxCents != null && rateMinCents > rateMaxCents) {
+    return { ok: false, field: 'rate', says: 'The lowest rate is above the highest. Swap them.' }
+  }
+  const id = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+  const receivingRoleId = id(b.receivingRoleId)
+  const receivingPersonId = id(b.receivingPersonId)
+  if (receivingRoleId && receivingPersonId) {
+    return { ok: false, field: 'desk', says: 'Choose one desk to receive offers: a role or a person, not both.' }
+  }
+  return { ok: true, want: { skills, places, rateMinCents, rateMaxCents, receivingRoleId, receivingPersonId } }
+}
+
+/**
+ * One ask in a line, the same for the firm that wrote it and the partner
+ * reading it: "Process validation, Cleaning validation · Wichita, KS or
+ * Remote · $90–$120/hr · offers go to the Recruiter desk".
+ */
+export function wantSays(w: {
+  skills: string[]
+  places: string[]
+  rateMinCents: number | null
+  rateMaxCents: number | null
+  currency?: string
+  roleName: string | null
+  personName: string | null
+}): string {
+  const where = w.places.length === 0 ? 'any place' : w.places.length === 1 ? w.places[0] : `${w.places.slice(0, -1).join(', ')} or ${w.places[w.places.length - 1]}`
+  const pay = w.rateMinCents == null && w.rateMaxCents == null ? 'rate not said' : range(w.rateMinCents, w.rateMaxCents, w.currency ?? 'USD')
+  const desk = w.personName ? `offers go to ${w.personName}` : w.roleName ? `offers go to the ${w.roleName} desk` : 'offers go to whoever reads Partner bench'
+  return `${w.skills.join(', ')} · ${where} · ${pay} · ${desk}`
+}
+
+/**
+ * Who may write an ask. A client never — it has no bench to fill, and
+ * people reach its job requests through matching. At a firm, the desks that
+ * change the bench: the recruiters, the resource manager, HR and the owner.
+ */
+export function mayWriteWant(r: { companyKind: string | null; writesPeople: boolean }): { ok: true } | { ok: false; says: string } {
+  if (r.companyKind === 'CLIENT') {
+    return {
+      ok: false,
+      says: 'A client does not ask partners for bench. People reach your job requests through matching, from your suppliers first.',
+    }
+  }
+  if (!r.writesPeople) {
+    return {
+      ok: false,
+      says: 'What your firm asks its partners for is written by the desks that run the bench — the recruiters, the resource manager, HR and the owner. Ask one of them.',
+    }
+  }
+  return { ok: true }
 }

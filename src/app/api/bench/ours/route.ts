@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
         clientCompany: { select: { name: true } },
         endClientCompany: { select: { name: true } },
         workLocation: { select: { city: true } },
-        requirement: { select: { title: true, location: true } },
+        requirement: { select: { title: true, location: true, skills: true } },
         workOrder: { select: { title: true, number: true } },
       },
     }),
@@ -139,13 +139,19 @@ export async function GET(request: NextRequest) {
     if (!release && !placed && standing.standing !== 'BETWEEN_PROJECTS') continue
 
     const current = liveLine(personId)
+    // The job's skills where their own record names none: the job they are
+    // on, else the last one they had here (`skillsSay`).
+    const last = current ?? sells
+      .filter((c) => c.personId === personId && c.state !== 'DRAFT' && (c.requirement?.skills?.length ?? 0) > 0)
+      .sort((a, b) => (b.endDate?.getTime() ?? Infinity) - (a.endDate?.getTime() ?? Infinity))[0] ?? null
+    const jobSkills = last?.requirement?.skills?.length ? { skills: last.requirement.skills, current: last === current } : null
     const lastEnded = lines
       .filter((l) => !l.live && l.endsOn)
       .reduce<Date | null>((a, l) => (a && a > l.endsOn! ? a : l.endsOn!), null)
     rows.push(
       ourBenchRow(
         {
-          personId, name: p.name, seat: p.seat, skills: p.skills, place: p.place,
+          personId, name: p.name, seat: p.seat, skills: p.skills, jobSkills, place: p.place,
           release: release
             ? {
                 id: release.id, rollsOffOn: release.rollsOffOn, keepUntil: release.keepUntil,
