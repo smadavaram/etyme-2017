@@ -815,6 +815,45 @@ export function addedSays(f: { name: string; firm: string; tier: 'RETAINED' | 'M
 }
 
 /**
+ * The add form's own words for the two choices. "Shown to our partners"
+ * on its own read as though partners saw the person the moment they were
+ * saved, and nothing reaches a partner until the person says yes (outside
+ * review, 2026-10-05). The bench keeps TIER_WORD, because a listing there
+ * already carries its answer beside it.
+ */
+export const ADD_TIER_OPTION = {
+  MARKETING: 'Shown to our partners once they say yes',
+  RETAINED: 'Kept to us',
+} as const
+
+/**
+ * The sentence above the one button. Saving the form also emails the
+ * person, so the button must not be the first place that is said.
+ */
+export function savingSays(name: string): string {
+  const who = name.trim() || 'this person'
+  return `Saving emails ${who} to ask if they will join your bench. Nobody outside your firm sees them, and nobody puts them forward, until they say yes.`
+}
+
+/**
+ * Skills typed into the tag field. A comma or Enter ends a skill, so a
+ * pasted "SAP BRIM, ABAP" becomes two. Blank pieces are dropped, and a
+ * skill already there in any case is not added twice; the first spelling
+ * stays. The field submits the same array the comma text did.
+ */
+export function addSkillTags(current: readonly string[], typed: string): string[] {
+  const out = [...current]
+  const seen = new Set(current.map((s) => s.toLowerCase()))
+  for (const piece of typed.split(',')) {
+    const skill = piece.trim().replace(/\s+/g, ' ')
+    if (!skill || seen.has(skill.toLowerCase())) continue
+    seen.add(skill.toLowerCase())
+    out.push(skill)
+  }
+  return out
+}
+
+/**
  * A rate range for a listing, dollars an hour in, cents out, checked
  * against the person's own floor. Blank is no rate.
  */

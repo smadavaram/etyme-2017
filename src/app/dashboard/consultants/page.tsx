@@ -8,7 +8,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
-import { wordFor, listingRates, TIER_WORD } from '@/lib/bench-filter'
+import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags } from '@/lib/bench-filter'
 import { sectionOfHref } from '@/lib/page-framing'
 
 /**
@@ -51,7 +51,10 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
     name: '',
     email: '',
     headline: '',
-    skills: '',
+    // Tags, not comma text: a skill is ended by Enter or a comma and
+    // removed with its ×. The draft is what is typed and not yet a tag.
+    skills: [] as string[],
+    skillDraft: '',
     location: '',
     workAuth: '',
     // Adding somebody also asks them to join your bench — said on the
@@ -120,7 +123,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
           name: form.name,
           email: form.email,
           headline: form.headline || null,
-          skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
+          // A skill typed and not yet ended with Enter is still a skill.
+          skills: addSkillTags(form.skills, form.skillDraft),
           location: form.location || null,
           workAuth: form.workAuth || null,
           tier: form.tier,
@@ -180,8 +184,13 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
           <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Full name *</label>
+              {/* required says so to a screen reader; noValidate on the
+                  form keeps the browser from refusing silently, so
+                  problems() still runs and says the sentence. */}
               <input
                 type="text"
+                required
+                aria-required="true"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 aria-invalid={!!fieldErrors.name}
@@ -201,6 +210,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
                   refuses silently inside a modal. */}
               <input
                 type="email"
+                required
+                aria-required="true"
                 inputMode="email"
                 autoComplete="off"
                 value={form.email}
@@ -230,15 +241,54 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Skills (comma-separated)</label>
-            <input
-              type="text"
-              value={form.skills}
-              onChange={(e) => setForm({ ...form, skills: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-              placeholder="SAP BRIM, S/4HANA, ABAP, Revenue Accounting"
-            />
+            <label htmlFor="add-skills" className="block text-xs font-semibold text-etyme-muted mb-1">Skills</label>
+            <div className="w-full px-2 py-1.5 border border-etyme-rule rounded-lg bg-white flex flex-wrap gap-1.5
+                            focus-within:ring-2 focus-within:ring-etyme-action/20 focus-within:border-etyme-action">
+              {form.skills.map((skill) => (
+                <span key={skill} className="chip chip--passive inline-flex items-center gap-1">
+                  {skill}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${skill}`}
+                    onClick={() => setForm({ ...form, skills: form.skills.filter((s) => s !== skill) })}
+                    className="text-etyme-muted hover:text-etyme-ink"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                id="add-skills"
+                type="text"
+                value={form.skillDraft}
+                onChange={(e) => {
+                  const typed = e.target.value
+                  // A comma ends a skill, typed or pasted.
+                  if (typed.includes(',')) {
+                    setForm({ ...form, skills: addSkillTags(form.skills, typed), skillDraft: '' })
+                  } else {
+                    setForm({ ...form, skillDraft: typed })
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    // Enter ends a skill here; it does not save the form.
+                    e.preventDefault()
+                    setForm({ ...form, skills: addSkillTags(form.skills, form.skillDraft), skillDraft: '' })
+                  } else if (e.key === 'Backspace' && !form.skillDraft && form.skills.length > 0) {
+                    setForm({ ...form, skills: form.skills.slice(0, -1) })
+                  }
+                }}
+                onBlur={() => {
+                  if (form.skillDraft.trim()) {
+                    setForm({ ...form, skills: addSkillTags(form.skills, form.skillDraft), skillDraft: '' })
+                  }
+                }}
+                className="flex-1 min-w-[8rem] px-1 py-0.5 text-sm focus:outline-none"
+                placeholder={form.skills.length === 0 ? 'Type a skill, then Enter — ICU nursing, GMP validation' : ''}
+              />
+            </div>
+            <p className="mt-1 text-[12px] text-etyme-muted">Press Enter or a comma after each skill.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-4">
@@ -285,8 +335,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
-                <option value="MARKETING">{TIER_WORD.MARKETING}</option>
-                <option value="RETAINED">{TIER_WORD.RETAINED}</option>
+                <option value="MARKETING">{ADD_TIER_OPTION.MARKETING}</option>
+                <option value="RETAINED">{ADD_TIER_OPTION.RETAINED}</option>
               </select>
             </div>
             <div>
@@ -302,12 +352,11 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
             </div>
           </div>
-          <p className="text-[12px] text-etyme-muted">
-            Adding them also emails them to ask if they will join your bench. Nothing reaches past your firm,
-            and nobody is put forward, until they say yes.
-          </p>
+          {/* Said plainly, right above the one button, because saving
+              sends an email (outside review, 2026-10-05). */}
+          <p className="text-sm text-etyme-ink pt-2">{savingSays(form.name)}</p>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3">
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
