@@ -7,7 +7,8 @@ import { seatTrail } from '@/lib/program-seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop, askGoesTo } from '@/lib/chain-top'
 import { firmsOnARow, mayNameSubVendors, namesForClient } from '@/lib/chain-names'
-import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { daysFor, daysOnSite, monthsOf, standingAgainstLimit, ledgerStatus } from '@/lib/tenure-days'
+import { plainDate } from '@/lib/plain-date'
 import { logAccess } from '@/lib/access-log'
 
 /**
@@ -87,24 +88,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const capMonths: number | null = (tenureRule?.parameters as any)?.maxMonths ?? null
   const breakDays: number | null = (breakRule?.parameters as any)?.breakDays ?? null
   const onSite = served.some((c) => c.state === 'IN_PROGRESS')
-  const lastEnd = served.filter((c) => c.endDate && c.endDate <= now).map((c) => c.endDate!).sort((a, b) => b.getTime() - a.getTime())[0] ?? null
-  let status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE' = 'OK'
-  let eligibleDate: string | null = null
-  // Compared in days against the day the block fires, as governance and
-  // the ledger compare. Whole months against the limit said "past the
-  // limit" before the block would; days cannot.
+  // The ledger's own reading, not a copy of it. This page carried its
+  // own status logic and read somebody past the limit with no break rule
+  // as ELIGIBLE, where the award, activation and the ledger refuse them
+  // (`standingAgainstLimit`, 2026-10-06). Compared in days against the day
+  // the block fires; a served break resets the count against the limit,
+  // and the days on site above stay the record.
   const capDays = capMonths ? daysFor(capMonths) : null
-  if (capMonths && capDays) {
-    const pct = days / capDays
-    if (pct < 0.75) status = 'OK'
-    else if (pct < 1) status = 'WARNING'
-    else if (onSite) status = 'BREAK_REQUIRED'
-    else if (breakDays && lastEnd) {
-      const since = Math.ceil((now.getTime() - lastEnd.getTime()) / 86_400_000)
-      if (since < breakDays) { status = 'IN_BREAK'; eligibleDate = new Date(lastEnd.getTime() + breakDays * 86_400_000).toISOString().slice(0, 10) }
-      else status = 'ELIGIBLE'
-    } else status = 'ELIGIBLE'
-  }
+  const standing = standingAgainstLimit(
+    served.map((c) => ({ startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED' })),
+    { capMonths, breakDays },
+    now
+  )
+  const status = capMonths ? ledgerStatus(standing) : 'OK'
+  const eligibleDate: string | null = standing.eligibleOn ? standing.eligibleOn.toISOString().slice(0, 10) : null
 
   // ── Whose name this page may print ─────────────────────────────────
   //
@@ -252,9 +249,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ? capMonths
         ? `${person.name} is on site now, ${monthsWord} into a ${capMonths}-month cap across every supplier.`
         : `${person.name} is on site now, ${monthsWord} here across every supplier. No time limit is set, so there is nothing to measure it against.`
-      : status === 'IN_BREAK'
-        ? `${person.name} is in a break in service and can come back on ${eligibleDate}.`
-        : `${person.name} is not on site. ${months > 0 ? `${monthsWord} here before, across every supplier; ` : ''}${supplierWord}.`
+      : status === 'IN_BREAK' && eligibleDate
+        ? `${person.name} is in a break in service and can come back on ${plainDate(eligibleDate)}.`
+        : status === 'BREAK_REQUIRED' && standing.state === 'PAST_NO_RETURN'
+          ? `${person.name} is past the ${capMonths}-month time limit here, and this site has no break rule that would reset it, so there is no day on which they may come back.`
+          : `${person.name} is not on site. ${months > 0 ? `${monthsWord} here before, across every supplier; ` : ''}${supplierWord}.`
 
   return NextResponse.json({
     data: {
@@ -263,7 +262,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       blocked: block ? { reason: block.reason, at: block.blockedAt.toISOString() } : null,
       onSite,
       says,
-      tenure: { months, capMonths, headroomMonths: capDays ? (days >= capDays ? 0 : monthsOf(capDays - days)) : null, status, eligibleDate },
+      tenure: { months, capMonths, headroomMonths: capDays ? (standing.countedDays >= capDays ? 0 : monthsOf(capDays - standing.countedDays)) : null, status, eligibleDate },
       engagements,
       /** Every firm they have been here through, folded to one line. */
       firms,
