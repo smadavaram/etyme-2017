@@ -597,6 +597,30 @@ export const PLANNED: Record<string, PlannedAct> = {
       'Somebody put a person forward through a firm whose client requires a certificate it has never filed. The submission went through, the reason was captured and whoever is hiring was told — a document nobody ever filed is a chase, not a fact, and refusing every placement recorded before a client wrote its rules down is the workaround this warns instead of causing.',
     willBeWrittenBy: 'etyme-demand',
   },
+
+  // ── Warned at submission, 2026-10-05 ───────────────────────────────
+  //
+  // Demand's time-limit and work-authorization checks at submission
+  // (app/api/submissions/time-limit.ts, work-authorization.ts). Past the
+  // limit or inside its break is a BLOCK and needs no row here; these are
+  // the two warnings, named before the route writes them.
+
+  SUBMISSION_TIME_LIMIT_WARNED: {
+    kind: 'ENFORCEMENT',
+    outcome: 'WARN',
+    basis: 'RULE',
+    says:
+      'Somebody put a person forward for a job that would run past the client\u2019s time limit for them. The submission went through with a reason captured, because the job can end early or the limit can be met by a break; the day it would cross is on the row.',
+    willBeWrittenBy: 'etyme-demand',
+  },
+  SUBMISSION_WORK_AUTH_WARNED: {
+    kind: 'ENFORCEMENT',
+    outcome: 'WARN',
+    basis: 'RULE',
+    says:
+      'Somebody put a person forward whose work authorization is not on file or runs out during the job. The submission went through with the warning recorded; nobody starts without it, which is where the block is.',
+    willBeWrittenBy: 'etyme-demand',
+  },
 }
 
 export const ALL_PLANNED: string[] = Object.keys(PLANNED).sort()
