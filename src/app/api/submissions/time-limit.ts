@@ -18,24 +18,20 @@
  *     WARN — the job may be cut short, or extended by a different firm —
  *     so the submitter gives a reason, and it is recorded.
  *
- * What counts is regulatory's, called and never rewritten: the days on
- * site are `daysOnSite` (the union of the periods, so a chain's two rungs
- * are one stretch), the limit is `daysFor`, months served are `monthsOf`,
- * and the day the limit falls is `limitReachedOn` — the same arithmetic
- * the tenure ledger and the award use, so this door and that page cannot
- * disagree about whether somebody is past the limit.
- *
- * Eligibility follows the tenure ledger (`app/api/tenure`): somebody at
- * the limit is eligible again once the client's break has been served
- * after their last day. A client with a limit and no break rule has said
- * nothing about when that is, and this says so rather than inventing one.
+ * Where the person stands is regulatory's, read and never rewritten:
+ * `standingAgainstLimit` in lib/tenure-days, the one answer the award,
+ * activation, extension and the tenure ledger read too (2026-10-06). A
+ * served break resets the count against the limit; a break starts only
+ * when no line at the client is live; past the limit with no break rule
+ * is refused with no day. The day the limit would fall on this job is
+ * `limitReachedOn` over `linesCounted`, the lines the limit still counts.
+ * So this door and every other door give the same answer about the same
+ * person on the same day.
  *
  * Pure. The route reads the rows and passes `now`.
  */
-import { daysFor, daysOnSite, limitReachedOn, monthsOf, type Period } from '@/lib/tenure-days'
+import { limitReachedOn, linesCounted, monthsOf, standingAgainstLimit, type Period } from '@/lib/tenure-days'
 import { plainDate } from '@/lib/plain-date'
-
-const DAY = 86_400_000
 
 export type Mode = 'BLOCK' | 'WARN'
 
@@ -113,114 +109,81 @@ export function timeLimitAtSubmission(args: {
 }): TimeLimitVerdict {
   const { personName, clientName, rules, contracts, job, now } = args
   const today = now.getTime()
-
-  // An ended contract stops on its end or today, whichever is first: an
-  // early termination that left the booked end in the future is not
-  // somebody still on site (the caller's duty, per `limitReachedOn`).
-  const served: Period[] = contracts.map((c) => ({
-    startDate: c.startDate,
-    endDate: isLive(c) ? c.endDate : new Date(Math.min((c.endDate ?? now).getTime(), today)),
-  }))
-
-  const daysServed = daysOnSite(served, now)
-
-  // On site today: a live contract that has begun and not ended.
-  const onSiteNow = contracts.some(
-    (c) => isLive(c) && c.startDate.getTime() <= today && (c.endDate == null || c.endDate.getTime() > today)
-  )
-  // Where the current stretch ends, for somebody on site; null where it
-  // has no end on the paper.
-  const liveEnds = contracts.filter((c) => isLive(c) && c.startDate.getTime() <= today)
-  const stretchEnd: Date | null = onSiteNow
-    ? liveEnds.some((c) => c.endDate == null)
-      ? null
-      : new Date(Math.max(...liveEnds.map((c) => c.endDate!.getTime())))
-    : null
-  // The last day on site, for somebody who is not there now.
-  const pastEnds = served
-    .map((p) => p.endDate)
-    .filter((d): d is Date => d != null && d.getTime() <= today)
-  const lastEnd: Date | null = !onSiteNow && pastEnds.length
-    ? new Date(Math.max(...pastEnds.map((d) => d.getTime())))
-    : null
-
-  const breakDays = rules.breakDays != null && rules.breakDays > 0 ? rules.breakDays : null
-  const breakEndsOn = (from: Date) => new Date(from.getTime() + breakDays! * DAY)
-
-  // ── 1. Already at the limit ─────────────────────────────────────────
   const cap = rules.capMonths != null && rules.capMonths > 0 ? rules.capMonths : null
-  if (cap != null && daysServed >= daysFor(cap)) {
-    const servedSays =
-      `${personName} has served ${months(monthsOf(daysServed))} at ${clientName}, across every supplier, ` +
-      `against its ${months(cap)} time limit.`
+  const breakDays = rules.breakDays != null && rules.breakDays > 0 ? rules.breakDays : null
+  if (cap == null && breakDays == null) return { outcome: 'PASS', unknown: null }
 
-    if (onSiteNow) {
-      const eligibleOn = breakDays != null && stretchEnd ? breakEndsOn(stretchEnd) : null
+  const s = standingAgainstLimit(
+    contracts.map((c) => ({ startDate: c.startDate, endDate: c.endDate, live: isLive(c) })),
+    { capMonths: cap, breakDays },
+    now
+  )
+
+  // What is counted against the limit, said plainly: since the last break
+  // served where one reset the count, every day otherwise.
+  const counted = monthsOf(s.countedDays)
+  const servedSays = cap == null ? '' : s.countsFrom
+    ? `${personName} has ${months(counted)} counted against ${clientName}'s ${months(cap)} time limit since their last break, across every supplier.`
+    : `${personName} has served ${months(counted)} at ${clientName}, across every supplier, against its ${months(cap)} time limit.`
+
+  // ── Past the limit, or inside the break ─────────────────────────────
+  if (s.state === 'PAST_ON_SITE') {
+    return {
+      outcome: rules.capMode,
+      code: 'TIME_LIMIT_REACHED',
+      eligibleOn: s.eligibleOn,
+      reachedOn: null,
+      says:
+        servedSays +
+        ' They are still on site, so they cannot be put forward for another job there. ' +
+        (s.eligibleOn
+          ? `With the ${breakDays}-day break ${clientName} requires after they leave, the earliest day is ${day(s.eligibleOn)}.`
+          : breakDays != null
+            ? 'Their current contract has no end date, so there is no day yet on which they are eligible again.'
+            : `${clientName}'s rules set no break after the limit, so they give no day on which ${personName} is eligible again.`),
+    }
+  }
+  if (s.state === 'PAST_NO_RETURN') {
+    return {
+      outcome: rules.capMode,
+      code: 'TIME_LIMIT_REACHED',
+      eligibleOn: null,
+      reachedOn: null,
+      says:
+        servedSays +
+        ` ${clientName}'s rules set no break after the limit, so they give no day on which ${personName} is eligible again.`,
+    }
+  }
+  if (s.state === 'IN_BREAK') {
+    const eligibleOn = s.eligibleOn
+    if (s.pastLimit) {
       return {
-        outcome: rules.capMode,
+        outcome: rules.capMode === 'BLOCK' || rules.breakMode === 'BLOCK' ? 'BLOCK' : 'WARN',
         code: 'TIME_LIMIT_REACHED',
         eligibleOn,
         reachedOn: null,
         says:
           servedSays +
-          ' They are still on site, so they cannot be put forward for another job there. ' +
-          (eligibleOn
-            ? `With the ${breakDays}-day break ${clientName} requires after they leave, the earliest day is ${day(eligibleOn)}.`
-            : breakDays != null
-              ? `Their current contract has no end date, so there is no day yet on which they are eligible again.`
-              : `${clientName}'s rules give no day on which they are eligible again.`),
-      }
-    }
-
-    if (breakDays == null) {
-      return {
-        outcome: rules.capMode,
-        code: 'TIME_LIMIT_REACHED',
-        eligibleOn: null,
-        reachedOn: null,
-        says:
-          servedSays +
-          ` ${clientName}'s rules set no break after the limit, so they give no day on which ${personName} is eligible again.`,
-      }
-    }
-
-    const eligibleOn = lastEnd ? breakEndsOn(lastEnd) : null
-    if (eligibleOn && eligibleOn.getTime() > today) {
-      return {
-        outcome: rules.capMode,
-        code: 'TIME_LIMIT_REACHED',
-        eligibleOn,
-        reachedOn: null,
-        says:
-          servedSays +
-          ` ${clientName} requires a ${breakDays}-day break after the limit; it ends on ${day(eligibleOn)}, ` +
+          ` ${clientName} requires a ${breakDays}-day break after the limit; it ends on ${day(eligibleOn!)}, ` +
           'and they can be put forward from that day.',
       }
     }
-    // The break has been served. The tenure ledger reads them eligible
-    // again, and this door agrees with the ledger.
-    return { outcome: 'PASS', unknown: null }
-  }
-
-  // ── 2. Inside a break ──────────────────────────────────────────────
-  if (breakDays != null && lastEnd) {
-    const eligibleOn = breakEndsOn(lastEnd)
-    if (eligibleOn.getTime() > today) {
-      return {
-        outcome: rules.breakMode,
-        code: 'IN_BREAK',
-        eligibleOn,
-        reachedOn: null,
-        says:
-          `${personName} left ${clientName} on ${day(lastEnd)}, and ${clientName} requires a ${breakDays}-day break ` +
-          `before anybody comes back. They can be put forward from ${day(eligibleOn)}.`,
-      }
+    return {
+      outcome: rules.breakMode,
+      code: 'IN_BREAK',
+      eligibleOn,
+      reachedOn: null,
+      says:
+        `${personName} left ${clientName} on ${day(s.lastDay!)}, and ${clientName} requires a ${breakDays}-day break ` +
+        `before anybody comes back. They can be put forward from ${day(eligibleOn!)}.`,
     }
   }
 
+  // UNDER, APPROACHING, or BREAK_SERVED: the count is open, so the one
+  // question left is whether this job carries them past the limit.
   if (cap == null) return { outcome: 'PASS', unknown: null }
 
-  // ── 3. Would this job carry them past the limit? ───────────────────
+  // ── Would this job carry them past the limit? ───────────────────────
   if (job.months == null || !(job.months > 0)) {
     return {
       outcome: 'PASS',
@@ -231,10 +194,11 @@ export function timeLimitAtSubmission(args: {
   }
   const jobStart = new Date(Math.max((job.startDate ?? now).getTime(), today))
   const jobEnd = addMonths(jobStart, job.months)
-  // Booked ends where the paper has them; a live contract with no end is
-  // counted to today, because nothing on the record says how long it runs
-  // and this asks about the job, not about that contract.
-  const booked: Period[] = contracts.map((c) => ({
+  // The lines the limit still counts, with booked ends where the paper
+  // has them. A live line with no end is counted to today, because
+  // nothing on the record says how long it runs and this asks about the
+  // job, not about that line.
+  const booked: Period[] = linesCounted(contracts, s).map((c) => ({
     startDate: c.startDate,
     endDate: isLive(c) ? (c.endDate ?? now) : new Date(Math.min((c.endDate ?? now).getTime(), today)),
   }))
@@ -246,7 +210,7 @@ export function timeLimitAtSubmission(args: {
       eligibleOn: null,
       reachedOn,
       says:
-        `${personName} has served ${months(monthsOf(daysServed))} of ${clientName}'s ${months(cap)} time limit. ` +
+        `${personName} has ${months(counted)} counted against ${clientName}'s ${months(cap)} time limit. ` +
         `This job runs to ${day(jobEnd)}, and they would reach the limit on ${day(reachedOn)}. ` +
         'Give a reason to put them forward anyway.',
     }

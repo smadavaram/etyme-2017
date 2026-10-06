@@ -64,7 +64,7 @@ describe('the client’s time limit, at the door where a person is put forward',
     expect(v.eligibleOn?.getTime()).toBe(daysBefore(30).getTime() + 90 * 86_400_000)
   })
 
-  it('a person past the limit whose break has been served may be put forward again, as the tenure ledger reads them', () => {
+  it('a person past the limit whose break has been served may be put forward again, as every door reads them', () => {
     const v = timeLimitAtSubmission({
       ...base, rules: LIMIT_18, job: job(null),
       contracts: [{ startDate: daysBefore(800), endDate: daysBefore(200), state: 'ENDED' }],
@@ -114,6 +114,27 @@ describe('the client’s time limit, at the door where a person is put forward',
     expect(v.reachedOn).not.toBeNull()
     expect(v.reachedOn!.getTime()).toBeLessThan(addMonths(day('2026-11-01'), 6).getTime())
     expect(v.says).toContain('Give a reason')
+  })
+
+  it('a served break resets the count, so a long job after it is not warned about the days before the break', () => {
+    // Sixteen months, then a 120-day gap over a 90-day break: the count
+    // starts again, and a six-month job is nowhere near eighteen.
+    const v = timeLimitAtSubmission({
+      ...base, rules: LIMIT_18, job: job(6),
+      contracts: [{ startDate: daysBefore(610), endDate: daysBefore(120), state: 'ENDED' }],
+    })
+    expect(v).toEqual({ outcome: 'PASS', unknown: null })
+  })
+
+  it('a chain’s ended rung starts no break while another rung keeps the person on site', () => {
+    const v = timeLimitAtSubmission({
+      ...base, rules: LIMIT_18, job: job(1),
+      contracts: [
+        { startDate: daysBefore(200), endDate: daysBefore(20), state: 'ENDED' },
+        { startDate: daysBefore(200), endDate: null, state: 'IN_PROGRESS' },
+      ],
+    })
+    expect(v.outcome).toBe('PASS')
   })
 
   it('a job that ends before the limit is reached passes without a word', () => {

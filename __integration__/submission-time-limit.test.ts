@@ -13,7 +13,8 @@ import { POST as submitCandidate } from '@/app/api/submissions/route'
  *   Ardent Systems        a GSI putting its own employees forward.
  *   Ravi                  20 months on site through two suppliers, still there.
  *   Sana                  left 30 days ago after 19 months: inside the break.
- *   Omar                  16 months served: a 6-month job runs past the limit.
+ *   Omar                  16 months and still on site: a 6-month job runs past the limit.
+ *   Tomas                 16 months, then a served break: the count starts again.
  *   Lee                   new to the client, cleared I-9: nothing to say.
  *   Noor                  new to the client, nothing on file.
  */
@@ -88,6 +89,7 @@ beforeAll(async () => {
   who.ravi = await employee('Ravi', engineer.id)
   who.sana = await employee('Sana', engineer.id)
   who.omar = await employee('Omar', engineer.id)
+  who.tomas = await employee('Tomas', engineer.id)
   who.lee = await employee('Lee', engineer.id)
   who.noor = await employee('Noor', engineer.id)
 
@@ -96,9 +98,11 @@ beforeAll(async () => {
   await onSite(who.ravi, co.ardent, ago(310), new Date(now + 60 * DAY), 'IN_PROGRESS')
   // Sana: nineteen months, left thirty days ago.
   await onSite(who.sana, co.ardent, ago(610), ago(30), 'ENDED')
-  // Omar: sixteen months, ended four months ago (break served).
-  await onSite(who.omar, co.other, ago(610), ago(120), 'ENDED')
-  for (const p of [who.ravi, who.sana, who.omar, who.lee]) await i9(p)
+  // Omar: sixteen months and still on site, his line ending in ten days.
+  await onSite(who.omar, co.other, ago(480), new Date(now + 10 * DAY), 'IN_PROGRESS')
+  // Tomas: sixteen months, ended four months ago — the 90-day break is served.
+  await onSite(who.tomas, co.other, ago(610), ago(120), 'ENDED')
+  for (const p of [who.ravi, who.sana, who.omar, who.lee, who.tomas]) await i9(p)
 
   const r = await prisma.requirement.create({
     data: {
@@ -149,6 +153,12 @@ describe('the client’s time limit is checked before a person is put forward', 
     const log = await prisma.accessLog.findFirstOrThrow({ where: { subjectId: who.omar, action: 'SUBMIT', allowed: true } })
     expect(log.reason).toContain('Time limit warned')
     expect(log.reason).toContain('asked for him by name')
+  })
+
+  it('a person back after a served break goes through with no warning, because the break reset the count', async () => {
+    const result = await submit(who.tomas)
+    expect(result.status).toBe('created')
+    expect(result.tenureWarning).toBeUndefined()
   })
 
   it('a person new to the client with a cleared I-9 goes through with no warning', async () => {
