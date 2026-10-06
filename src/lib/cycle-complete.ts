@@ -37,14 +37,42 @@ export interface CycleRow {
 
 const DAY = 24 * 60 * 60 * 1000
 
-/** The cycle a period's event completes, or null when none is waiting. */
+/**
+ * The cycle a period's event completes, or null when none is waiting.
+ *
+ * ── A period from before the first reminder ──────────────────────────
+ *
+ * A placement awarded or recorded for work already under way writes no
+ * reminder dated before that day, so the weeks before it have none. A
+ * timesheet for one of those weeks would otherwise claim the earliest
+ * reminder of its kind — which belongs to a later week — and the
+ * timeline would read that later week as done before it was filed.
+ *
+ * So the earliest reminder of a kind is not claimed by a period that
+ * ended a whole cycle or more before it: where the reminder one rhythm
+ * earlier — the one the floor did not write — would itself have been the
+ * period's under the rule above, the period is that one's and claims
+ * nothing. Measured that way, with the same day of grace, a Sunday-to-
+ * Saturday week ending the day after a Friday reminder belongs to that
+ * Friday's, not the next. The rhythm is read off the gap to the next
+ * reminder of the same kind; with only one reminder there is no rhythm
+ * to read and the rule above stands. Pass every row of the
+ * kind, done or not: "earliest" means earliest written, not earliest
+ * still open.
+ */
 export function pickCycle(cycles: CycleRow[], kind: string, periodEnd: Date): CycleRow | null {
   const floor = periodEnd.getTime() - DAY
-  return (
-    cycles
-      .filter((c) => c.kind === kind && c.completedAt === null && c.dueOn.getTime() >= floor)
-      .sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())[0] ?? null
-  )
+  const ofKind = cycles.filter((c) => c.kind === kind).sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())
+  const hit = ofKind.find((c) => c.completedAt === null && c.dueOn.getTime() >= floor) ?? null
+  if (!hit) return null
+  if (hit === ofKind[0] && ofKind.length > 1) {
+    const rhythm = ofKind[1].dueOn.getTime() - hit.dueOn.getTime()
+    // The reminder a whole cycle earlier, had the floor not dropped it.
+    // If the rule above would have given the period that one, the period
+    // is that one's, and the earliest written is not.
+    if (rhythm > 0 && hit.dueOn.getTime() - rhythm >= floor) return null
+  }
+  return hit
 }
 
 type Db = PrismaClient | Prisma.TransactionClient
@@ -73,7 +101,9 @@ export async function completeCycle(
   if (!where) return null
   try {
     const rows = await db.cycle.findMany({
-      where: { ...where, kind: args.kind, completedAt: null },
+      // Every row of the kind, done or not: the guard in `pickCycle`
+      // needs the earliest one ever written, not the earliest still open.
+      where: { ...where, kind: args.kind },
       select: { id: true, kind: true, dueOn: true, completedAt: true },
     })
     const hit = pickCycle(rows, args.kind, args.periodEnd)

@@ -57,6 +57,43 @@ describe('which cycle a week completes', () => {
   })
 })
 
+describe('a week from before the first reminder', () => {
+  // Awarded for work already under way: no reminder before the award, so
+  // the first one written is for the week after it.
+  const fromAward = [
+    c('w3', 'TIMESHEET_SUBMIT', '2026-09-18'),
+    c('w4', 'TIMESHEET_SUBMIT', '2026-09-25'),
+  ]
+
+  it('the earliest reminder of its kind is not claimed by a period that ended a whole cycle or more before it', () => {
+    expect(pickCycle(fromAward, 'TIMESHEET_SUBMIT', d('2026-09-11'))).toBeNull()
+    expect(pickCycle(fromAward, 'TIMESHEET_SUBMIT', d('2026-09-04'))).toBeNull()
+  })
+
+  it('a Sunday-to-Saturday week ending the day after a Friday reminder the floor dropped does not claim the next Friday’s', () => {
+    const fridays = [c('f1', 'TIMESHEET_SUBMIT', '2026-10-09'), c('f2', 'TIMESHEET_SUBMIT', '2026-10-16')]
+    expect(pickCycle(fridays, 'TIMESHEET_SUBMIT', d('2026-10-03'))).toBeNull()
+  })
+
+  it('the week the earliest reminder is for still claims it', () => {
+    expect(pickCycle(fromAward, 'TIMESHEET_SUBMIT', d('2026-09-18'))?.id).toBe('w3')
+  })
+
+  it('a reminder shifted past a weekend still belongs to the week that ended just before it', () => {
+    const shifted = [c('w3', 'TIMESHEET_SUBMIT', '2026-09-14'), c('w4', 'TIMESHEET_SUBMIT', '2026-09-21')]
+    expect(pickCycle(shifted, 'TIMESHEET_SUBMIT', d('2026-09-11'))?.id).toBe('w3')
+  })
+
+  it('once the earliest reminder is done the guard no longer applies, and the next open reminder is claimed as before', () => {
+    const done = [c('w3', 'TIMESHEET_SUBMIT', '2026-09-18', true), c('w4', 'TIMESHEET_SUBMIT', '2026-09-25')]
+    expect(pickCycle(done, 'TIMESHEET_SUBMIT', d('2026-09-11'))?.id).toBe('w4')
+  })
+
+  it('with only one reminder of its kind there is no rhythm to read, and the earliest open one is claimed as before', () => {
+    expect(pickCycle([c('w3', 'TIMESHEET_SUBMIT', '2026-09-18')], 'TIMESHEET_SUBMIT', d('2026-09-04'))?.id).toBe('w3')
+  })
+})
+
 describe('every event that ends a wait marks its cycle', () => {
   const cases: [string, string, string][] = [
     ['src/app/api/timesheets/[id]/submit/route.ts', 'TIMESHEET_SUBMIT', 'hours are sent'],

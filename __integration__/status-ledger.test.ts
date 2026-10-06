@@ -196,7 +196,7 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.buy } })).state).toBe('IN_PROGRESS')
   })
 
-  it('a week filed and sent: timesheet OPEN then SUBMITTED, and the hours-due cycle is done', async () => {
+  it('a week filed and sent: timesheet OPEN then SUBMITTED, and it does not close the next week’s hours-due reminder', async () => {
     as(WORKER)
     const WEEK = { periodStart: day(-7).toISOString().slice(0, 10), periodEnd: day(-3).toISOString().slice(0, 10) }
     const days: Record<string, number> = {}
@@ -209,10 +209,13 @@ describe('the ledger: one placement, every table, every station', () => {
     const s = await call(sendTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/submit`, it_.timesheet, {})
     expect(s.body?.error, JSON.stringify(s.body)).toBeUndefined()
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.timesheet } })).status).toBe('SUBMITTED')
-    expect((await cycles({ sellContractId: it_.contract })).TIMESHEET_SUBMIT.done).toBe(1)
+    // The week ended before the award, so its own hours-due day was never
+    // written. The earliest reminder of its kind belongs to a later week —
+    // a whole cycle after this one ended — and is not claimed by it.
+    expect((await cycles({ sellContractId: it_.contract })).TIMESHEET_SUBMIT.done).toBe(0)
   })
 
-  it('both signatures: timesheet APPROVED, and the hours-to-approve cycle is done', async () => {
+  it('both signatures: timesheet APPROVED, and a week before the award does not close the next week’s approval reminder', async () => {
     as(NIKE.hiring)
     const c = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, {})
     expect(c.body?.error, JSON.stringify(c.body)).toBeUndefined()
@@ -223,7 +226,10 @@ describe('the ledger: one placement, every table, every station', () => {
     const e = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, { as: 'EMPLOYER' })
     expect(e.body?.error, JSON.stringify(e.body)).toBeUndefined()
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.timesheet } })).status).toBe('APPROVED')
-    expect((await cycles({ sellContractId: it_.contract })).TIMESHEET_APPROVE.done).toBe(1)
+    // The approval reminder due after the award is for the week after this
+    // one; a period that ended a whole cycle or more before it does not
+    // mark it done.
+    expect((await cycles({ sellContractId: it_.contract })).TIMESHEET_APPROVE.done).toBe(0)
   })
 
   it('a flight Tariq paid for: expense DRAFT, SUBMITTED, APPROVED', async () => {
@@ -277,13 +283,17 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await cycles({ sellContractId: it_.contract })).INVOICE_DUE).toBeUndefined()
   })
 
-  it('the placement timeline now reads hours, bill done for that week and nothing overdue', async () => {
+  it('the placement timeline reads the bill done for that week, the later weeks’ hours still open, and nothing overdue', async () => {
     as(NIKE.hiring)
     const r = await call(placement, 'GET', `/api/placements/${it_.contract}`, it_.contract)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const t = r.body.data.timeline
     const doneKinds = [...t.hours, ...t.bill].filter((d: any) => d.done).map((d: any) => d.kind)
-    expect(doneKinds).toEqual(expect.arrayContaining(['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE']))
+    // The bill for that week closes its invoice date; the hours reminders
+    // after the award belong to later weeks and stay open, not overdue.
+    expect(doneKinds).toEqual(expect.arrayContaining(['INVOICE_GENERATE']))
+    expect(doneKinds).not.toContain('TIMESHEET_SUBMIT')
+    expect(doneKinds).not.toContain('TIMESHEET_APPROVE')
     // The work began two weeks before the award, marked as under way. A
     // reminder is never written for a day already gone (audit, 2026-10-05),
     // so the weeks before the award carry none — and none is overdue.
