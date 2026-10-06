@@ -40,7 +40,8 @@ import { periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
-import { day, at } from '@/lib/seed-days'
+import { day, at, seedWeek, spreadHours, signingDays } from '@/lib/seed-days'
+import { weekDueFor } from '@/lib/days-off'
 import { shareOf, lastShare, type Share } from '@/lib/seed-steps'
 import { newChecklist } from '@/lib/supplier-onboarding'
 import { newApplyToken } from '@/lib/supplier-link'
@@ -96,7 +97,7 @@ interface Placement {
    * One submitted week, this long, sitting on the desk that signs it
    * with nobody having said what the hours over the line are worth. Its
    * own calendar week rather than one of the rolling spans, because the
-   * threshold is judged Monday to Monday.
+   * overtime line is judged Sunday to Saturday.
    */
   overtimeWeekHours?: number
   /** The client marked this person, and the firm that supplied them, as ones to take again. */
@@ -434,48 +435,53 @@ const emailOf = (name: string) =>
  * right to hold.
  */
 export function spread(hours: number, n: number): number[] {
-  const each = Math.floor(hours / n)
-  const out = Array.from({ length: n }, () => each)
-  for (let i = n - 1, over = hours - each * n; over > 0; i--, over--) out[i] += 1
-  return out
+  return spreadHours(hours, n)
 }
 
 /**
- * The calendar week `w` weeks back, Monday to Friday — the week the
- * product judges hours in (`weekStart` in lib/overtime).
+ * The calendar week `w` weeks back, Sunday to Saturday, with its hours on
+ * Monday to Friday — the week the product judges hours in (`weekStart`
+ * and `weekEnd` in lib/overtime, read through `seedWeek` in
+ * lib/seed-days).
  *
- * It was five days counted back from whenever the seed ran, so a world
- * born on a Wednesday filed every week Saturday to Wednesday: Omar
+ * It was once five days counted back from whenever the seed ran, so a
+ * world born on a Wednesday filed every week Saturday to Wednesday: Omar
  * Haddad's read Sep 12–16 and Sep 19–23 (browser walk, 2026-09-30).
- * Nobody works a Saturday-to-Wednesday week, and a threshold judged
- * Monday to Monday reads one as two part-weeks.
+ * Nobody works a Saturday-to-Wednesday week, and an overtime line judged
+ * Sunday to Saturday reads one as two part-weeks.
  *
  * `from` cuts the week at a placement's first day, so a week the start
- * falls inside is filed for the days worked and none before them.
+ * falls inside is filed for the days worked and none before them — a
+ * contract that starts on a Monday files from that Monday, its first day,
+ * not the week's.
  *
  * The hours go into `days`, not only into the sheet total: a sheet
  * whose days and whose total disagree is a figure nobody can stand
  * behind, and everything that prices a week reads the days.
  */
-export function week(w: number, hours?: number): ReturnType<typeof mondayWeek>
-export function week(w: number, hours: number, from: Date): ReturnType<typeof mondayWeek> | null
-export function week(w: number, hours = 40, from?: Date): ReturnType<typeof mondayWeek> | null {
-  const whole = mondayWeek(w, hours)
+export function week(w: number, hours?: number): ReturnType<typeof seedWeek>
+export function week(w: number, hours: number, from: Date): ReturnType<typeof seedWeek> | null
+export function week(w: number, hours = 40, from?: Date): ReturnType<typeof seedWeek> | null {
+  const whole = seedWeek(w, hours)
   if (!from || from.getTime() <= whole.start.getTime()) return whole
-  // A placement that starts after this week's Friday worked none of it.
-  // Cutting the week at the start would give a sheet from Saturday to
-  // the Friday before — backwards, with no hours — so there is no week.
-  if (from.getTime() > whole.end.getTime()) return null
   const cut = Object.fromEntries(
     Object.entries(whole.days).filter(([d]) => new Date(`${d}T00:00:00Z`).getTime() >= from.getTime()),
   )
+  // A placement that starts after this week's last working day worked
+  // none of it. A sheet from that day to the Saturday with no hours on
+  // it is a week nobody filed, so there is no week.
+  if (Object.keys(cut).length === 0) return null
   return { start: from, end: whole.end, days: cut }
 }
+
+/** The last day of a week with hours on it. */
+const lastWorked = (wk: { days: Record<string, number> }): number =>
+  new Date(`${Object.keys(wk.days).sort().at(-1)}T00:00:00Z`).getTime()
 
 /** The weeks back, oldest first, from the one holding `from` to last week. */
 export function weeksSince(from: Date): number[] {
   const out: number[] = []
-  for (let w = 1; mondayWeek(w, 40).end.getTime() >= from.getTime(); w++) out.unshift(w)
+  for (let w = 1; lastWorked(seedWeek(w, 40)) >= from.getTime(); w++) out.unshift(w)
   return out
 }
 
@@ -489,25 +495,10 @@ function earlier(a: Date, b: Date): Date {
   return a.getTime() <= b.getTime() ? a : b
 }
 
-/**
- * A real calendar week, Monday to Friday, `back` weeks ago.
- *
- * The spans above are five days counted back from whenever the seed
- * ran, so on six days in seven they straddle a weekend. A threshold is
- * judged Monday to Monday, which reads such a span as two part-weeks —
- * a forty-five hour one as twenty-seven and eighteen, neither of them
- * over forty, and nobody is ever asked the question. A week that has to
- * be over the line has to be a week.
- */
-export function mondayWeek(back: number, hours: number) {
-  const today = day(0)
-  const start = day(-(((today.getUTCDay() + 6) % 7) + 7 * back))
-  const days: Record<string, number> = {}
-  const each = spread(hours, 5)
-  for (let d = 0; d < 5; d++) {
-    days[new Date(start.getTime() + d * 86_400_000).toISOString().slice(0, 10)] = each[d]
-  }
-  return { start, end: new Date(start.getTime() + 4 * 86_400_000), days }
+/** The first day a sheet has hours on, else the day it opens. */
+function firstWorkedDay(t: { periodStart: Date; days: unknown }): Date {
+  const first = Object.keys((t.days ?? {}) as Record<string, number>).sort()[0]
+  return first ? new Date(`${first}T00:00:00Z`) : t.periodStart
 }
 
 /** Shares each program's placements are cut into, one step each. */
@@ -610,6 +601,8 @@ export async function seedProgrammes(
 
   for (const p of PROGRAMMES.filter((x) => pick.program == null || x.client === pick.program)) {
     const client = firmBySlug.get(p.client)!
+    // When this client's weeks fall due and are approved: its own answers, else the defaults.
+    const weekDue = await weekDueFor(client.id)
     const slug = prefix + p.client
     const office = seatBySlug.get(p.client)!
 
@@ -958,7 +951,7 @@ export async function seedProgrammes(
       if (!pl.weeks && !pl.filesFromStart) continue
       const bottom = contracts[0]
       // Hours carried, because a week the start cuts is not forty.
-      const signed: { id: string; periodStart: Date; periodEnd: Date; totalHours: unknown }[] = []
+      const signed: { id: string; periodStart: Date; periodEnd: Date; totalHours: unknown; days: unknown }[] = []
 
       // When each signature on week `w` landed: the client on the day it
       // signed, each firm below an hour after the one above, the employer
@@ -967,13 +960,13 @@ export async function seedProgrammes(
       // order the founder's rule forbids, and nobody could see it while
       // there were only two signatures to compare.
       //
-      // Counted from the Friday the week ends on, not from the day the
-      // seed ran: a week is signed after it is worked, whatever weekday
-      // the world was born on.
+      // Counted from the Saturday the week ends on, by the client's own
+      // week settings, not from the day the seed ran: a week is signed on
+      // the Monday its hours are due, after it is worked and before the
+      // Wednesday its approval is due, whatever weekday the world was
+      // born on.
       const signedAt = (w: number, step: number): Date =>
-        step >= chain.length
-          ? plusDays(week(w).end, 3)
-          : new Date(plusDays(week(w).end, 2).getTime() + step * 3_600_000)
+        signingDays(week(w).start, weekDue).signedAt(Math.min(step, chain.length))
 
       // Every firm between the client and the employer accepts what it
       // pays the firm below it — PASS_THROUGH, at the rate of the rung it
@@ -1019,7 +1012,7 @@ export async function seedProgrammes(
         const { start: ws, end: we, days } = worked
         const sheetHours = Object.values(days).reduce((a, b) => a + b, 0)
         // Any sheet already on those days, not only one starting the same
-        // day: a world seeded before weeks ran Monday to Friday keeps the
+        // day: a world seeded while weeks ran Monday to Friday keeps the
         // weeks it was born with rather than gaining a second sheet over
         // the same Tuesday.
         const already = await db.timesheet.findFirst({
@@ -1077,12 +1070,12 @@ export async function seedProgrammes(
       // premium, or time off in the bank, and until somebody says
       // which, they reach no invoice.
       //
-      // Its own calendar week, never one of the spans above. A
-      // threshold is judged Monday to Monday, and those spans are five
-      // consecutive days counted back from whenever the seed ran, so on
-      // six days in seven they straddle a weekend — forty-five hours
-      // across one reads as twenty-seven and eighteen, neither over the
-      // line, and the desk is never asked anything.
+      // Its own calendar week, Sunday to Saturday, the week the overtime
+      // line is judged in. Five consecutive days counted back from
+      // whenever the seed ran would straddle a weekend on six days in
+      // seven — forty-five hours across one reads as twenty-seven and
+      // eighteen, neither over the line, and the desk is never asked
+      // anything.
       if (pl.overtimeWeekHours) {
         const overlapping = (from: Date, to: Date) =>
           db.timesheet.findFirst({
@@ -1098,18 +1091,18 @@ export async function seedProgrammes(
         // starts older than the oldest week filed.
         let back = 1
         if (!pl.filesFromStart) {
-          const oldest = mondayWeek(total, 40).start.getTime()
-          while (mondayWeek(back, 40).end.getTime() >= oldest) back += 1
+          const oldest = seedWeek(total, 40).start.getTime()
+          while (seedWeek(back, 40).end.getTime() >= oldest) back += 1
         }
 
-        let slot = mondayWeek(back, pl.overtimeWeekHours)
+        let slot = seedWeek(back, pl.overtimeWeekHours)
         let sitting = await overlapping(slot.start, slot.end)
         // Anything already signed there stays signed: re-opening a week
         // an invoice was paid on would leave the payment pointing at
         // hours nobody had approved.
         while (sitting && sitting.status !== 'SUBMITTED' && back < 12) {
           back += 1
-          slot = mondayWeek(back, pl.overtimeWeekHours)
+          slot = seedWeek(back, pl.overtimeWeekHours)
           sitting = await overlapping(slot.start, slot.end)
         }
 
@@ -1169,7 +1162,10 @@ export async function seedProgrammes(
       /** The signed weeks of one billing period, oldest period first. */
       const byPeriod = new Map<string, { period: Period; weeks: typeof signed }>()
       for (const t of signed) {
-        const period = periodFor(t.periodStart, billTerms)
+        // By the first day worked, not the Sunday the week opens on: a
+        // week whose Monday is the 1st is that month's work, and its
+        // Sunday sits in the month before.
+        const period = periodFor(firstWorkedDay(t), billTerms)
         const bucket = byPeriod.get(iso(period.start)) ?? { period, weeks: [] }
         bucket.weeks.push(t)
         byPeriod.set(iso(period.start), bucket)
@@ -1435,10 +1431,11 @@ export async function seedProgrammes(
           data: {
             sellContractId: dSell.id, personId: dWho.id, periodStart: dWs, periodEnd: dWe, days: dDays,
             totalHours: 40, status: 'APPROVED', submittedAt: dWe,
-            // Signed after the Friday it ends on, whatever day the world was born.
-            approvedAt: plusDays(dWe, 2), approvedById: desk.hiring.personId,
-            clientApprovedAt: plusDays(dWe, 2), clientApprovedById: desk.hiring.personId,
-            employerAcceptedAt: plusDays(dWe, 3), employerAcceptedById: supplierSeat.personId,
+            // Signed on the Monday its hours are due, after the Saturday it
+            // ends on, whatever day the world was born.
+            approvedAt: signingDays(dWs, weekDue).signedAt(0), approvedById: desk.hiring.personId,
+            clientApprovedAt: signingDays(dWs, weekDue).signedAt(0), clientApprovedById: desk.hiring.personId,
+            employerAcceptedAt: signingDays(dWs, weekDue).signedAt(1), employerAcceptedById: supplierSeat.personId,
           },
         })
         await db.workAssertion.createMany({
@@ -1459,7 +1456,7 @@ export async function seedProgrammes(
       // said neither until the bills above were corrected — the same
       // two bugs, on the one invoice in the world that has a document
       // over it to read them from.
-      const dPeriod = periodFor(dWs, periodTermsFor('SELL', { ...dSell, workOrder: dOrder }))
+      const dPeriod = periodFor(firstWorkedDay({ periodStart: dWs, days: dDays }), periodTermsFor('SELL', { ...dSell, workOrder: dOrder }))
       const dTerms = termsFor('SELL', { ...dSell, workOrder: dOrder })
       const dNumber = `IN-${dSell.id.slice(-6).toUpperCase()}-${iso(dPeriod.start).replace(/-/g, '')}`
       if (!(await db.invoiceLine.findFirst({ where: { timesheetId: dSheet.id, sellContractId: dSell.id } }))) {

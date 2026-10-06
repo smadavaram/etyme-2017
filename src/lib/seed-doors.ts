@@ -56,10 +56,11 @@ import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { chaseCredentials, withdrawMisdirectedAsks } from '@/lib/credential-chase'
-import { day, seedToday } from '@/lib/seed-days'
+import { day, seedToday, seedWeek, signingDays } from '@/lib/seed-days'
+import { weekStart, weekEnd } from '@/lib/overtime'
+import { weekDueFor, type WeekDue } from '@/lib/days-off'
 import type { Prisma } from '@prisma/client'
 import type { World } from '@/lib/seed-programmes'
-import { mondayWeek } from '@/lib/seed-programmes'
 import { acceptedWeeksToBill } from '@/lib/seed-order-to-cash'
 import { invitation } from '@/lib/bench-consent'
 import { periodFor, iso } from '@/lib/periods'
@@ -75,14 +76,14 @@ const emailOf = (name: string) =>
     .replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
 
 /**
- * Five eight-hour days, Monday to Friday, `w` calendar weeks back — the
- * same week the rest of the world files (`mondayWeek` in
- * lib/seed-programmes), so nothing straddles a week somebody else wrote.
- * It used to be five days counted back from the seed day, which on a
- * Wednesday is Saturday to Wednesday.
+ * Five eight-hour days, Monday to Friday, inside the Sunday-to-Saturday
+ * week `w` weeks back — the same week the rest of the world files
+ * (`seedWeek` in lib/seed-days), so nothing straddles a week somebody
+ * else wrote. It used to be five days counted back from the seed day,
+ * which on a Wednesday is Saturday to Wednesday.
  */
 export function officeWeek(w: number, hours = 40) {
-  const { start, end, days } = mondayWeek(w, hours)
+  const { start, end, days } = seedWeek(w, hours)
   return { start, end, days, hours }
 }
 
@@ -104,25 +105,30 @@ export function karthikWindow(today: Date): { start: Date; end: Date } {
 }
 
 /**
- * Every calendar week from `start` to `end`, Monday on, cut to the window:
- * eight hours on each weekday inside it. A week the window cuts is filed
+ * Every Sunday-to-Saturday week from `start` to `end`, cut to the window:
+ * eight hours on each weekday inside it. A week runs Sunday to Saturday
+ * (`weekStart` and `weekEnd` in lib/overtime); a week the window cuts
+ * opens on the window's first day or closes on its last, and is filed
  * for the days it holds, never for days outside the contract.
  */
 export function calendarWeeks(start: Date, end: Date, hoursPerDay = 8) {
   const DAY = 86_400_000
+  const isoOf = (d: Date) => d.toISOString().slice(0, 10)
+  const at = (iso: string) => new Date(`${iso}T00:00:00Z`)
   const weeks: { start: Date; end: Date; days: Record<string, number>; hours: number }[] = []
-  const monday = new Date(start.getTime() - ((start.getUTCDay() + 6) % 7) * DAY)
-  for (let w = monday; w <= end; w = new Date(w.getTime() + 7 * DAY)) {
+  for (let sunday = at(weekStart(isoOf(start))); sunday <= end; sunday = new Date(sunday.getTime() + 7 * DAY)) {
     const days: Record<string, number> = {}
-    for (let i = 0; i < 5; i++) {
-      const d = new Date(w.getTime() + i * DAY)
-      if (d >= start && d <= end) days[d.toISOString().slice(0, 10)] = hoursPerDay
+    // Monday to Friday: Saturday and Sunday are the default days off.
+    for (let i = 1; i <= 5; i++) {
+      const d = new Date(sunday.getTime() + i * DAY)
+      if (d >= start && d <= end) days[isoOf(d)] = hoursPerDay
     }
     const keys = Object.keys(days)
     if (keys.length === 0) continue
+    const saturday = at(weekEnd(isoOf(sunday)))
     weeks.push({
-      start: new Date(`${keys[0]}T00:00:00Z`),
-      end: new Date(`${keys[keys.length - 1]}T00:00:00Z`),
+      start: sunday < start ? start : sunday,
+      end: saturday > end ? end : saturday,
       days,
       hours: keys.length * hoursPerDay,
     })
@@ -135,12 +141,13 @@ export function calendarWeeks(start: Date, end: Date, hoursPerDay = 8) {
  *
  * A nurse's week is not five eights, and a demo that files one as five
  * eights is telling a nurse manager that this product has never met a
- * nurse. Thirty-six hours, Monday, Wednesday and Friday.
+ * nurse. Thirty-six hours, Monday, Wednesday and Friday, inside one
+ * Sunday-to-Saturday week.
  */
 export function nurseWeek(w: number) {
-  const { start, end } = mondayWeek(w, 36)
+  const { start, end } = seedWeek(w, 36)
   const days: Record<string, number> = {}
-  for (const d of [0, 2, 4]) days[new Date(start.getTime() + d * 86_400_000).toISOString().slice(0, 10)] = 12
+  for (const d of [1, 3, 5]) days[new Date(start.getTime() + d * 86_400_000).toISOString().slice(0, 10)] = 12
   return { start, end, days, hours: 36 }
 }
 
@@ -347,6 +354,16 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
    * once both are in. A week written before this gets its rows on the
    * next seeding; one that has them is left alone.
    */
+  // When each client's weeks fall due and are approved, read once per client.
+  const weekDues = new Map<string, WeekDue>()
+  const weekDueOf = async (companyId: string): Promise<WeekDue> => {
+    let due = weekDues.get(companyId)
+    if (!due) {
+      due = await weekDueFor(companyId)
+      weekDues.set(companyId, due)
+    }
+    return due
+  }
   const contractRates = new Map<string, {
     companyId: string; clientCompanyId: string; billRate: number
     buyLinks: { buyContract: { candidates: { payRate: number }[] } }[]
@@ -361,9 +378,27 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     employerById: string
   }) {
     const { week } = input
-    const clientAt = new Date(week.end.getTime() + 2 * 86_400_000)
-    const employerAt = new Date(week.end.getTime() + 3 * 86_400_000)
-    // Any sheet already on those days, so a world seeded before its weeks
+    // Read once per contract rather than once a week: Karthik Menon's
+    // three months are fourteen weeks, and the doors step has a budget.
+    const key = `${input.sellContractId}:${input.personId}`
+    let sell = contractRates.get(key)
+    if (!sell) {
+      sell = await db.sellContract.findUniqueOrThrow({
+        where: { id: input.sellContractId },
+        select: {
+          companyId: true, clientCompanyId: true, billRate: true,
+          buyLinks: { select: { buyContract: { select: { candidates: { where: { personId: input.personId }, select: { payRate: true } } } } } },
+        },
+      })
+      contractRates.set(key, sell)
+    }
+    // Signed on the Monday the hours are due, by the client's own week
+    // settings: the client first, the employer an hour later — after the
+    // Saturday the week ends on, before the Wednesday its approval is due.
+    const sign = signingDays(week.start, await weekDueOf(sell.clientCompanyId))
+    const clientAt = sign.signedAt(0)
+    const employerAt = sign.signedAt(1)
+    // Any sheet already on those days, so a world seeded while its weeks
     // ran Monday to Friday keeps its own rather than gaining a second
     // sheet over the same Tuesday.
     const found = await db.timesheet.findFirst({
@@ -404,20 +439,6 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
       }))
     if (input.standing === 'FILED') return
 
-    // Read once per contract rather than once a week: Karthik Menon's
-    // three months are fourteen weeks, and the doors step has a budget.
-    const key = `${input.sellContractId}:${input.personId}`
-    let sell = contractRates.get(key)
-    if (!sell) {
-      sell = await db.sellContract.findUniqueOrThrow({
-        where: { id: input.sellContractId },
-        select: {
-          companyId: true, clientCompanyId: true, billRate: true,
-          buyLinks: { select: { buyContract: { select: { candidates: { where: { personId: input.personId }, select: { payRate: true } } } } } },
-        },
-      })
-      contractRates.set(key, sell)
-    }
     // A sheet this call just wrote has no signature on it yet.
     const standing = found
       ? await db.workAssertion.findMany({
@@ -715,9 +736,12 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     [nurseWeek(2), 'SIGNED'],
     [nurseWeek(1), 'CLIENT_ONLY'],
   ] as const) {
-    const clientAt = new Date(week.end.getTime() + 2 * 86_400_000)
-    const middleAt = new Date(clientAt.getTime() + 3_600_000)
-    const ownerAt = new Date(week.end.getTime() + 3 * 86_400_000)
+    // On the Monday the hours are due, by Harlow Health's own week
+    // settings: Harlow Health, then Halcyon an hour later, then Byrne.
+    const sign = signingDays(week.start, await weekDueOf(co('harlow-health').id))
+    const clientAt = sign.signedAt(0)
+    const middleAt = sign.signedAt(1)
+    const ownerAt = sign.signedAt(2)
     // A world seeded before this has the week on Halcyon's line; it moves
     // to Byrne's, the same sheet, never a second one.
     const onHalcyon = await db.timesheet.findFirst({

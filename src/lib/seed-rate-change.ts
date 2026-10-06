@@ -65,7 +65,9 @@
  */
 
 import { prisma as db } from '@/lib/db'
-import { day } from '@/lib/seed-days'
+import { day, weekDeadlines } from '@/lib/seed-days'
+import { weekStart } from '@/lib/overtime'
+import { weekDueFor, type WeekDue } from '@/lib/days-off'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
@@ -114,7 +116,9 @@ const ADMIN = { desk: 'admin', name: 'Harriet Mwangi', role: 'Admin' }
  */
 export function rateChangeDates() {
   const back = day(-213)
-  const start = plus(back, -((back.getUTCDay() + 6) % 7)) // the Monday on or before
+  // The Monday on or before: her first day, not the week's. The Sunday
+  // the week holding the day before opens on, plus one, is that Monday.
+  const start = plus(sundayOf(plus(back, -1)), 1)
   const fiveOn = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 5, start.getUTCDate()))
   const rise = plus(fiveOn, (3 - fiveOn.getUTCDay() + 7) % 7) // the Wednesday on or after
   // The calendar month before the rise's month: the one payroll run.
@@ -136,13 +140,21 @@ export function rateChangeDates() {
   }
 }
 
-/** When a week is filed, signed by the client and accepted by the employer. */
-function weekTimes(monday: Date) {
-  const friday = plus(monday, 4)
+/** The Sunday a day's week opens on (`weekStart` in lib/overtime). */
+const sundayOf = (d: Date) => new Date(`${weekStart(iso(d))}T00:00:00Z`)
+
+/**
+ * When a Sunday-to-Saturday week is filed, signed by the client and
+ * accepted by the employer: filed the Friday evening its hours end,
+ * signed on the Monday they are due and accepted the Tuesday, by the
+ * client's own week settings — before the Wednesday the approval is due.
+ */
+function weekTimes(sunday: Date, due: WeekDue) {
+  const { hoursDueOn } = weekDeadlines(sunday, due)
   return {
-    submittedAt: atHour(friday, 22),
-    clientAt: atHour(plus(friday, 3), 16),
-    employerAt: atHour(plus(friday, 4), 17),
+    submittedAt: atHour(plus(sunday, 5), 22),
+    clientAt: atHour(hoursDueOn, 16),
+    employerAt: atHour(plus(hoursDueOn, 1), 17),
   }
 }
 
@@ -338,15 +350,17 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
 
   // ── The weeks, in the order they happened ───────────────────────────
   //
-  // Monday to Friday, eight hours a day, nothing on a public holiday.
+  // Sunday to Saturday, eight hours on each weekday, nothing on a public
+  // holiday; the week she starts in opens on her first day, the Monday.
   // The second clean week after the rise runs nine hours a day, so it
   // goes five hours over forty. The rise is written into the history at
   // the moment it was approved, so every week accepted after that reads
   // it, exactly as the approve route would have.
-  const mondays: Date[] = []
-  for (let m = d.start; plus(m, 4) <= day(-5); m = plus(m, 7)) mondays.push(m)
-  const clean = (m: Date) => [0, 1, 2, 3, 4].every((i) => !holidays.has(iso(plus(m, i))))
-  const longWeek = mondays.filter((m) => m > d.straddleWeek && clean(m))[1] ?? null
+  const due = await weekDueFor(client.id)
+  const sundays: Date[] = []
+  for (let w = sundayOf(d.start); plus(w, 5) <= day(-5); w = plus(w, 7)) sundays.push(w)
+  const clean = (w: Date) => [1, 2, 3, 4, 5].every((i) => !holidays.has(iso(plus(w, i))))
+  const longWeek = sundays.filter((w) => w > sundayOf(d.straddleWeek) && clean(w))[1] ?? null
 
   let riseWritten = false
   let runWritten = false
@@ -362,21 +376,27 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
   }
 
   let weeks = 0
-  for (const monday of mondays) {
-    const t = weekTimes(monday)
+  for (const sunday of sundays) {
+    const t = weekTimes(sunday, due)
+    const periodStart = sunday < d.start ? d.start : sunday
+    const saturday = plus(sunday, 6)
     await writeRiseIfDue(t.employerAt)
     await writeRunIfDue(t.employerAt)
 
-    const perDay = longWeek && +monday === +longWeek ? 9 : 8
+    const perDay = longWeek && +sunday === +longWeek ? 9 : 8
     const days: Record<string, number> = {}
-    for (let i = 0; i < 5; i++) {
-      const on = iso(plus(monday, i))
+    for (let i = 1; i <= 5; i++) {
+      const on = iso(plus(sunday, i))
       if (!holidays.has(on)) days[on] = perDay
     }
     const total = Object.values(days).reduce((a, b) => a + b, 0)
     weeks++
 
-    if (await db.timesheet.findFirst({ where: { sellContractId: sellId, periodStart: monday } })) continue
+    // Any sheet on those days: a world seeded while weeks ran Monday to
+    // Friday keeps its own rather than gaining a second over them.
+    if (await db.timesheet.findFirst({
+      where: { sellContractId: sellId, periodStart: { lte: saturday }, periodEnd: { gte: periodStart } },
+    })) continue
 
     // The rate the employer's acceptance carries: her pay rate in force
     // on the first day worked, from the history as it stood that day.
@@ -384,12 +404,12 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
       where: { contractType: 'BUY', contractId: buyId },
       select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
     })
-    const firstWorked = Object.keys(days).sort()[0] ?? iso(monday)
+    const firstWorked = Object.keys(days).sort()[0] ?? iso(periodStart)
     const payRate = rateInForce(RATE_CHANGE_RATES.pay, ratePeriods(rows), new Date(`${firstWorked}T00:00:00Z`)).rateCents
 
     const ts = await db.timesheet.create({
       data: {
-        sellContractId: sellId, personId: person.id, periodStart: monday, periodEnd: plus(monday, 4),
+        sellContractId: sellId, personId: person.id, periodStart, periodEnd: saturday,
         days, totalHours: total, status: 'APPROVED', submittedAt: t.submittedAt,
         approvedAt: t.clientAt, approvedById: hiring.id,
         clientApprovedAt: t.clientAt, clientApprovedById: hiring.id,
@@ -409,7 +429,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
       },
     })
     // Both signatures in: the week's hours-to-approve date is done.
-    await completeCycle(db, { sellContractId: sellId, kind: 'TIMESHEET_APPROVE', periodEnd: plus(monday, 4), at: t.employerAt })
+    await completeCycle(db, { sellContractId: sellId, kind: 'TIMESHEET_APPROVE', periodEnd: saturday, at: t.employerAt })
   }
   await writeRiseIfDue(day(0))
   await writeRunIfDue(day(0))

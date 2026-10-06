@@ -7,7 +7,8 @@
  * up by the other has to land on the same midnight.
  */
 
-import { DEFAULT_DAYS_OFF, isDayOff } from '@/lib/days-off'
+import { DEFAULT_DAYS_OFF, DEFAULT_WEEK_DUE, deadlinesFor, isDayOff, type WeekDue } from '@/lib/days-off'
+import { weekStart, weekEnd } from '@/lib/overtime'
 
 /**
  * The day this world counts from, as milliseconds at midnight UTC.
@@ -133,3 +134,80 @@ export const weekday = (d: Date, back: boolean, daysOff: readonly number[] = DEF
 /** An hour on a working day, absolute. Same normalization as `day`. */
 export const at = (n: number, hourUtc: number): Date =>
   new Date(weekday(day(n), n < 0).getTime() + hourUtc * 3_600_000)
+
+// ── The seeded week ───────────────────────────────────────────────────
+
+const isoOf = (d: Date): string => d.toISOString().slice(0, 10)
+const atMidnight = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`)
+
+/**
+ * The Sunday-to-Saturday week `back` weeks ago, with its hours on Monday
+ * to Friday.
+ *
+ * The week runs Sunday to Saturday (founder, 2026-09-30), and the edges
+ * come from `weekStart` and `weekEnd` in lib/overtime — the one door the
+ * overtime line, the filing week and this seed all read, so none of the
+ * three can carry a week rule of its own. Saturday and Sunday are the
+ * default days off, so the hours sit on the five weekdays inside it.
+ *
+ * Counted back from the week holding yesterday, not today. A world born
+ * on a Sunday has a week that ended last night whose hours are not due
+ * until tomorrow, and a seed that called that "last week" would sign it
+ * before anybody could have filed it. Counting from yesterday, `back = 1`
+ * is the latest week whose Saturday has passed by at least a day, on
+ * every day the world can be born — the same five weekdays the seed
+ * filed when its weeks ran Monday to Friday, so no figure moves.
+ */
+export function seedWeek(back: number, hours: number): { start: Date; end: Date; days: Record<string, number> } {
+  const sunday = atMidnight(weekStart(isoOf(day(-1))))
+  const start = new Date(sunday.getTime() - 7 * back * 86_400_000)
+  const end = atMidnight(weekEnd(isoOf(start)))
+  const each = spreadHours(hours, 5)
+  const days: Record<string, number> = {}
+  for (let d = 0; d < 5; d++) days[isoOf(new Date(start.getTime() + (d + 1) * 86_400_000))] = each[d]
+  return { start, end, days }
+}
+
+/**
+ * `hours` across `n` days, the odd hours on the later ones. Forty-four
+ * over five days is 8, 9, 9, 9, 9 — never four eights and a twelve.
+ */
+export function spreadHours(hours: number, n: number): number[] {
+  const each = Math.floor(hours / n)
+  const out = Array.from({ length: n }, () => each)
+  for (let i = n - 1, over = hours - each * n; over > 0; i--, over--) out[i] += 1
+  return out
+}
+
+/**
+ * When the week holding `anyDay` has its hours due and must be approved,
+ * by the company's own answers (`weekDueFor` in lib/days-off) or the
+ * defaults: due the Monday after the Saturday it ends on, approved by the
+ * Wednesday. A seed that hand-added days would disagree with the setting
+ * the first time a company changed it.
+ */
+export function weekDeadlines(anyDay: Date, due: WeekDue = DEFAULT_WEEK_DUE): { hoursDueOn: Date; approveByOn: Date } {
+  return deadlinesFor(atMidnight(weekStart(isoOf(anyDay))), due)
+}
+
+/**
+ * When each signature on a week lands, from the company's own week
+ * settings (`deadlinesFor` in lib/days-off): the hours are due on
+ * `hoursDueOn` — the Monday after the Saturday the week ends, by default
+ * — and approved by `approveByOn`, the Wednesday.
+ *
+ * Every signature lands on the day the hours are due: the client first,
+ * each firm below it an hour after the one above, the employer last. On
+ * that day rather than the day after, because a world born on a Monday
+ * has last week's hours due today, and an acceptance dated tomorrow is a
+ * signature nobody has given yet.
+ */
+export function signingDays(anyDay: Date, due: WeekDue = DEFAULT_WEEK_DUE) {
+  const { hoursDueOn, approveByOn } = weekDeadlines(anyDay, due)
+  return {
+    hoursDueOn,
+    approveByOn,
+    /** Step 0 is the client; each firm below it an hour later; the employer last. */
+    signedAt: (step: number) => new Date(hoursDueOn.getTime() + step * 3_600_000),
+  }
+}

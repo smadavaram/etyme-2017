@@ -56,7 +56,9 @@
  */
 
 import { prisma as db } from '@/lib/db'
-import { day } from '@/lib/seed-days'
+import { day, weekDeadlines } from '@/lib/seed-days'
+import { weekStart } from '@/lib/overtime'
+import { weekDueFor } from '@/lib/days-off'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { completeCycle } from '@/lib/cycle-complete'
@@ -68,8 +70,8 @@ const DAY = 86_400_000
 const iso = (d: Date) => d.toISOString().slice(0, 10)
 const plus = (d: Date, n: number) => new Date(d.getTime() + n * DAY)
 const atHour = (d: Date, h: number) => new Date(d.getTime() + h * 3_600_000)
-/** The Monday on or before a day. */
-const mondayOf = (d: Date) => plus(d, -((d.getUTCDay() + 6) % 7))
+/** The Sunday a day's week opens on (`weekStart` in lib/overtime). */
+const sundayOf = (d: Date) => new Date(`${weekStart(iso(d))}T00:00:00Z`)
 
 export interface SectorSupplier {
   /** The firm's slug in the seed, without the `world-` prefix. */
@@ -150,18 +152,22 @@ export const SECTOR_OWNERS: Record<string, string> = {
 
 /** The day a placement starts, from the world's birthday. */
 export function sectorStart(s: SectorSupplier): Date {
-  return mondayOf(day(-s.startedDaysAgo))
+  // The Monday on or before that day: her first day, not the week's. The
+  // Sunday the week holding the day before opens on, plus one, is that
+  // Monday on every weekday — on a Sunday it is the Monday six days back.
+  return plus(sundayOf(plus(day(-s.startedDaysAgo), -1)), 1)
 }
 
 /**
- * The Mondays of every week worked, oldest first.
+ * The Sundays of every Sunday-to-Saturday week worked, oldest first.
  *
- * From the start to the last whole week that ended at least three days
- * before the world's birthday, so the latest week has had its weekend.
+ * From the week she starts in to the last whole week whose Friday ended
+ * at least three days before the world's birthday, so its hours are due
+ * and the latest week has had its weekend.
  */
 export function sectorWeeks(s: SectorSupplier): Date[] {
   const out: Date[] = []
-  for (let m = sectorStart(s); plus(m, 4) <= day(-3); m = plus(m, 7)) out.push(m)
+  for (let w = sundayOf(sectorStart(s)); plus(w, 5) <= day(-3); w = plus(w, 7)) out.push(w)
   return out
 }
 
@@ -354,36 +360,48 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
     out.placements++
 
     // ── The weeks, signed top to bottom ───────────────────────────────
-    const mondays = sectorWeeks(s)
-    for (const [i, monday] of mondays.entries()) {
+    // Sunday to Saturday, the hours on the weekdays; the week she starts
+    // in opens on her first day. Signed on the Monday the hours are due
+    // and accepted the Tuesday, by the client's own week settings —
+    // after the Saturday, before the Wednesday the approval is due.
+    const due = await weekDueFor(client.id)
+    const sundays = sectorWeeks(s)
+    for (const [i, sunday] of sundays.entries()) {
       out.weeks++
-      if (await db.timesheet.findFirst({ where: { sellContractId: sell.id, periodStart: monday } })) continue
-      const friday = plus(monday, 4)
+      const periodStart = sunday < start ? start : sunday
+      const saturday = plus(sunday, 6)
+      // Any sheet on those days: a world seeded while weeks ran Monday to
+      // Friday keeps its own rather than gaining a second over them.
+      if (await db.timesheet.findFirst({
+        where: { sellContractId: sell.id, periodStart: { lte: saturday }, periodEnd: { gte: periodStart } },
+      })) continue
+      const friday = plus(sunday, 5)
       const days: Record<string, number> = {}
-      for (let k = 0; k < 5; k++) {
-        const on = iso(plus(monday, k))
+      for (let k = 1; k <= 5; k++) {
+        const on = iso(plus(sunday, k))
         if (!holidays.has(on)) days[on] = 8
       }
       const total = Object.values(days).reduce((a, b) => a + b, 0)
       const submittedAt = atHour(friday, 22)
-      const awaiting = s.lastWeekAwaiting && i === mondays.length - 1
+      const awaiting = s.lastWeekAwaiting && i === sundays.length - 1
 
       if (awaiting) {
         // Filed by her, and nobody has signed it yet.
         await db.timesheet.create({
           data: {
-            sellContractId: sell.id, personId: person.id, periodStart: monday, periodEnd: friday,
+            sellContractId: sell.id, personId: person.id, periodStart, periodEnd: saturday,
             days, totalHours: total, status: 'SUBMITTED', submittedAt,
           },
         })
         continue
       }
 
-      const clientAt = atHour(plus(friday, 3), 16)
-      const employerAt = atHour(plus(friday, 4), 17)
+      const { hoursDueOn } = weekDeadlines(sunday, due)
+      const clientAt = atHour(hoursDueOn, 16)
+      const employerAt = atHour(plus(hoursDueOn, 1), 17)
       const ts = await db.timesheet.create({
         data: {
-          sellContractId: sell.id, personId: person.id, periodStart: monday, periodEnd: friday,
+          sellContractId: sell.id, personId: person.id, periodStart, periodEnd: saturday,
           days, totalHours: total, status: 'APPROVED', submittedAt,
           approvedAt: clientAt, approvedById: hiring.id,
           clientApprovedAt: clientAt, clientApprovedById: hiring.id,
@@ -404,7 +422,7 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
           rateCents: s.pay, state: 'LIVE', byId: owner.personId, auto: false, at: employerAt,
         },
       })
-      await completeCycle(db, { sellContractId: sell.id, kind: 'TIMESHEET_APPROVE', periodEnd: friday, at: employerAt })
+      await completeCycle(db, { sellContractId: sell.id, kind: 'TIMESHEET_APPROVE', periodEnd: saturday, at: employerAt })
     }
   }
   return out

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { PROGRAMMES, mondayWeek, spread, week } from '@/lib/seed-programmes'
+import { PROGRAMMES, spread, week } from '@/lib/seed-programmes'
+import { seedWeek } from '@/lib/seed-days'
 import { policyOf, splitWeeks, valueOf, weekStart, type Decision } from '@/lib/overtime'
 
 /**
@@ -36,7 +37,7 @@ describe('the seeded week somebody has to decide the overtime on', () => {
 
   it('the seeded week is over the threshold its own contract sets', () => {
     const pl = over[0]
-    const split = splitWeeks(mondayWeek(1, pl.overtimeWeekHours!).days, policyOf({
+    const split = splitWeeks(seedWeek(1, pl.overtimeWeekHours!).days, policyOf({
       overtimeAfterHours: pl.overtimeAfterHours,
       overtimeMultiplierBps: null,
     }))
@@ -59,7 +60,7 @@ describe('the seeded week somebody has to decide the overtime on', () => {
     expect(seed).toContain('let sitting = await overlapping(slot.start, slot.end)')
     expect(seed).toContain('if (Number(sitting.totalHours) !== pl.overtimeWeekHours) {')
     // A second run the same day computes the same week, so it finds it.
-    expect(mondayWeek(1, 45).start.getTime()).toBe(mondayWeek(1, 45).start.getTime())
+    expect(seedWeek(1, 45).start.getTime()).toBe(seedWeek(1, 45).start.getTime())
   })
 
   it('a week the contract has already signed is never rewritten to make room for it', () => {
@@ -75,13 +76,15 @@ describe('the seeded week somebody has to decide the overtime on', () => {
     // can sit across the end of one without sharing its first day — and
     // two sheets claiming the same Tuesday is a day billed twice.
     expect(seed).toContain('periodStart: { lte: to }, periodEnd: { gte: from }')
-    expect(seed).toContain('while (mondayWeek(back, 40).end.getTime() >= oldest) back += 1')
+    expect(seed).toContain('while (seedWeek(back, 40).end.getTime() >= oldest) back += 1')
   })
 
-  it('the week runs Monday to Friday, because a threshold is judged Monday to Monday', () => {
-    const { start, end, days } = mondayWeek(1, 45)
-    expect(start.getUTCDay()).toBe(1)
-    expect(end.getUTCDay()).toBe(5)
+  it('the 45 hours sit in one Sunday-to-Saturday week, because the overtime line is judged Sunday to Saturday', () => {
+    const { start, end, days } = seedWeek(1, 45)
+    expect(start.getUTCDay()).toBe(0)
+    expect(end.getUTCDay()).toBe(6)
+    // The hours on the five weekdays inside it.
+    expect(Object.keys(days).map((d) => new Date(`${d}T00:00:00Z`).getUTCDay())).toEqual([1, 2, 3, 4, 5])
     // Every day of it falls in one week, so the hours add up against
     // one threshold rather than two.
     const weeks = new Set(Object.keys(days).map(weekStart))
@@ -92,7 +95,7 @@ describe('the seeded week somebody has to decide the overtime on', () => {
   })
 
   it('the five days of the seeded week add up to what the sheet says it is worth deciding', () => {
-    const { days } = mondayWeek(1, 45)
+    const { days } = seedWeek(1, 45)
     expect(Object.values(days)).toEqual([9, 9, 9, 9, 9])
     expect(Object.values(days).reduce((a, b) => a + b, 0)).toBe(45)
   })
@@ -132,7 +135,7 @@ describe('the seeded week somebody has to decide the overtime on', () => {
 
   it('until somebody decides, the five hours are billed by nobody', () => {
     const pl = over[0]
-    const split = splitWeeks(mondayWeek(1, 45).days, policyOf({ overtimeAfterHours: pl.overtimeAfterHours, overtimeMultiplierBps: null }))
+    const split = splitWeeks(seedWeek(1, 45).days, policyOf({ overtimeAfterHours: pl.overtimeAfterHours, overtimeMultiplierBps: null }))
     const value = valueOf(split, 13_200)
     expect(value.totalCents).toBe(528_000)
     expect(value.pendingHours).toBe(5)
@@ -162,7 +165,7 @@ describe('the seeded week somebody has to decide the overtime on', () => {
 const RATE = 13_200
 
 function decided(treatment: 'SAME_RATE' | 'PREMIUM' | 'TIME_OFF', appliedBps: number) {
-  const days = mondayWeek(1, 45).days
+  const days = seedWeek(1, 45).days
   const decision: Decision = {
     weekOf: weekStart(Object.keys(days)[0]),
     treatment,
