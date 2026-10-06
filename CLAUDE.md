@@ -1628,6 +1628,40 @@ Three rules follow:
   beside the choice. A biweekly year has 26 pay days, and 27 in some
   years; a salaried line divided by pay days must say which.
 
+- **The Sunday-to-Saturday week is built, 2026-10-06.** Until this day
+  every line above was a decision and the code still said Monday:
+  `weekStart` in `lib/overtime` returned the Monday, the worker's own
+  page offered Monday-to-Sunday weeks, every seed wrote Monday-to-Friday
+  sheets, and the hours packs asked for hours on Friday. Now one function
+  decides the week for pay, billing, approvals, filing and the seeds
+  (`weekStart`/`weekEnd`), and the packs ask for a week's hours on the
+  Monday after its Saturday and the approval on the Wednesday. Two things
+  learned on the way, written down so they are not re-derived:
+  - **The weekly pack line is expressed as "Friday + 3", not "Saturday
+    + 2" or "Monday".** Measured over 2,401 contract shapes: a Saturday
+    period boundary drops the last week of every contract ending Sunday
+    to Friday — the ordinary Monday-to-Friday placement — and a Monday
+    boundary writes a date before a Monday-starting contract begins. The
+    dates are the same Monday and Wednesday either way; only the reading
+    differs, and the comment beside each line says so.
+  - **Days off, hours-due day, approve-by day and the one extra week are
+    company settings now** (`Company.daysOff` and friends, one door in
+    `lib/days-off`, `PATCH /api/settings/week`). The setting is stored and
+    refused in sentences; what does not yet read it is listed on matrix
+    row L3.2.2.12 — cycle dates still shift around Saturday and Sunday
+    until money passes the company's days into `shiftToWorkingDay`.
+  **Open for the founder:** under the opt-in `billStraddle: START`, a
+  week whose Sunday is 30 August and whose every hour is 1–4 September
+  bills in August on its empty Sunday alone. SPLIT (the default) and END
+  are right. The recommendation is that START and END judge the week by
+  its first and last day *with hours*, never by an empty calendar edge;
+  nothing has been changed until he says so. Also open: a biweekly pay
+  period still counts from the contract's start day rather than from a
+  Sunday, and the payroll export picks a sheet by its period end inside
+  the window — both move which days a run pays and are asked, not
+  guessed. And a stored overtime decision keyed to a Monday no longer
+  matches any week, so a live world seeded before this day must be
+  dropped and reseeded, which was already the plan.
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
   18 months, so three screens said "past the limit" two weeks before the
