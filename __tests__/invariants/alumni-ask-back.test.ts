@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { askBack } from '@/app/api/alumni/ask-back-standing'
+import { whoseDeskSays } from '@/app/api/alumni/ask-desk'
 import { standingAgainstLimit, ledgerStatus, type SiteLine } from '@/lib/tenure-days'
 import { breakInServiceVerdict } from '@/lib/governance'
 
@@ -112,7 +113,23 @@ describe('who an ask-back is written for, and who hears it', () => {
   })
 
   it('asking somebody back is for the desk that raises job requests, the same desk that asks for a person by name', () => {
-    expect(src).toMatch(/hasPermission\(permissions, 'requirements\.write'\)/)
+    const desk = readFileSync(join(process.cwd(), 'src/app/api/alumni/ask-desk.ts'), 'utf8')
+    expect(desk).toContain("'requirements.write'")
+    expect(desk).toContain('permissionsToJudgeBy(caller, seat')
+    expect(src).toContain('askDesk(caller, seat, client)')
+  })
+
+  it('the alumni list asks the same question as the request before it draws an Ask back button', () => {
+    const list = readFileSync(join(process.cwd(), 'src/app/api/alumni/route.ts'), 'utf8')
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/alumni/page.tsx'), 'utf8')
+    expect(list).toContain('askBack: await askDesk(caller, seat, clientCompany)')
+    expect(page).toContain('person.canReengage && desk && !desk.mayAsk')
+  })
+
+  it('the sentence names the client’s desks that may ask, or says whoever raises job requests where none is named', () => {
+    expect(whoseDeskSays('Cavanaugh Glassworks', ['Hiring Manager', 'Program Manager', 'Hiring Manager']))
+      .toBe('Asking somebody back to Cavanaugh Glassworks is for the Hiring Manager or Program Manager desk, the desk that raises job requests. You can read who worked here before; ask them to put the request in.')
+    expect(whoseDeskSays('Cavanaugh Glassworks', [])).toContain('for whoever raises job requests there')
   })
 
   it('an ask-back is logged as not reversible, because a notice sent to a supplier cannot be unsent', () => {

@@ -6,6 +6,7 @@ import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { askBack } from './ask-back-standing'
+import { askDesk } from './ask-desk'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-supply's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   // Entitlement-checked: the caller is either this client, or a vendor
   // with a real placement there. An unverified ?clientCompanyId= is a 403.
-  const { client: clientCompany, error: clientError } = await resolveClientCompany(
+  const { client: clientCompany, seat, error: clientError } = await resolveClientCompany(
     caller,
     url.searchParams.get('clientCompanyId')
   )
@@ -331,6 +332,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       client: { id: clientCompany.id, name: clientCompany.name },
+      // Whether this desk may ask somebody back — the same check the
+      // ask-back request makes — so the page draws no button it would refuse.
+      askBack: await askDesk(caller, seat, clientCompany),
       alumni,
       summary,
     },

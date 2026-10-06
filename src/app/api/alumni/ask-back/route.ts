@@ -8,10 +8,7 @@ import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { logAccess } from '@/lib/access-log'
 import { daysOnSite } from '@/lib/tenure-days'
 import { askBack } from '../ask-back-standing'
-import { hasPermission } from '@/lib/permissions'
-import { permissionsToJudgeBy } from '@/lib/program-seat'
-import type { CompanyKind } from '@/components/session-provider'
-import { jobListWord } from '@/app/dashboard/requirements/words'
+import { askDesk } from '../ask-desk'
 
 /**
  * POST /api/alumni/ask-back   { personId, clientCompanyId? }
@@ -82,22 +79,9 @@ export async function POST(request: NextRequest) {
   // seat. Reading who worked here before is wider — a compliance officer
   // reads the list — but asking somebody back is a request for supply,
   // and that is the hiring desk's. The refusal names the desks that may.
-  const permissions = permissionsToJudgeBy(caller, seat ?? null)
-  if (!hasPermission(permissions, 'requirements.write')) {
-    const word = jobListWord('CLIENT' as CompanyKind)
-    const desks = await prisma.role.findMany({
-      where: { companyId: client.id, OR: [{ permissions: { has: 'requirements.write' } }, { permissions: { has: '*' } }] },
-      select: { name: true },
-      orderBy: { name: 'asc' },
-    })
-    const names = [...new Set(desks.map((d) => d.name))]
-    const who = names.length === 0
-      ? `whoever raises ${word.plural.toLowerCase()} there`
-      : names.length === 1 ? `the ${names[0]} desk` : `the ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]} desk`
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: `Asking somebody back to ${client.name} is for ${who}, the desk that raises ${word.plural.toLowerCase()}. You can read who worked here before; ask them to put the request in.` } },
-      { status: 403 }
-    )
+  const desk = await askDesk(caller, seat, client)
+  if (!desk.mayAsk) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: desk.says } }, { status: 403 })
   }
 
   const now = new Date()

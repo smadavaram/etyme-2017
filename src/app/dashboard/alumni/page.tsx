@@ -22,6 +22,8 @@ import { ListSurface, type Column } from '@/components/list-surface'
 
 interface AlumniData {
   client: { id: string; name: string }
+  /** Whether this desk may ask somebody back; where not, whose desk does. */
+  askBack?: { mayAsk: boolean; says: string | null }
   alumni: AlumniPerson[]
   summary: {
     total: number
@@ -152,7 +154,7 @@ const COLUMNS: Column<AlumniPerson>[] = [
   },
 ]
 
-function buildColumns(onAskBack: (person: AlumniPerson) => void, acting: boolean): Column<AlumniPerson>[] {
+function buildColumns(onAskBack: (person: AlumniPerson) => void, acting: boolean, desk: AlumniData['askBack']): Column<AlumniPerson>[] {
   return [
     ...COLUMNS,
     {
@@ -160,7 +162,7 @@ function buildColumns(onAskBack: (person: AlumniPerson) => void, acting: boolean
       label: 'Action',
       align: 'right' as const,
       sortable: false,
-      render: (row: AlumniPerson) => <AlumniAction person={row} onAskBack={onAskBack} acting={acting} />,
+      render: (row: AlumniPerson) => <AlumniAction person={row} onAskBack={onAskBack} acting={acting} desk={desk} />,
     },
   ]
 }
@@ -303,7 +305,7 @@ export default function AlumniPage() {
 
       {/* DataTable with filter tabs */}
       <ListSurface
-        columns={buildColumns(handleAskBack, acting)}
+        columns={buildColumns(handleAskBack, acting, data?.askBack)}
         data={filtered}
         rowKey={(row) => row.personId}
         loading={loading}
@@ -353,8 +355,9 @@ export default function AlumniPage() {
 
 // ── Alumni action — the critical re-engagement gate ───────
 
-function AlumniAction({ person, onAskBack, acting }: {
+function AlumniAction({ person, onAskBack, acting, desk }: {
   person: AlumniPerson
+  desk: AlumniData['askBack']
   onAskBack: (person: AlumniPerson) => void
   acting: boolean
 }) {
@@ -364,6 +367,16 @@ function AlumniAction({ person, onAskBack, acting }: {
         <span className="evidence-dot" style={{ width: 5, height: 5 }} />
         On contract
       </span>
+    )
+  }
+
+  // Eligible, but asking is another desk's: the sentence in place of a
+  // button the request would refuse.
+  if (person.canReengage && desk && !desk.mayAsk) {
+    return (
+      <div className="text-[10px] text-etyme-muted max-w-[220px] ml-auto leading-tight text-right">
+        {desk.says}
+      </div>
     )
   }
 

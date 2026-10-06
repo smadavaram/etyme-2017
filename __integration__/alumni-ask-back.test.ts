@@ -168,3 +168,25 @@ describe('whose desk asks somebody back', () => {
     expect(await askBacksAt(cavanaugh), 'nothing written').toBe(before)
   })
 })
+
+describe('the alumni list draws Ask back only for the desk that may ask', () => {
+  it('a compliance officer reads who worked here before with no Ask back button, and the sentence says whose desk asks', async () => {
+    as(CORNING_OFFICER)
+    const r = await json(await alumni(req('GET', '/api/alumni')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.alumni.find((a: any) => a.name === 'Nadia Petrova')?.canReengage, 'the ledger reads her eligible').toBe(true)
+    expect(r.body.data.askBack.mayAsk).toBe(false)
+    expect(r.body.data.askBack.says).toMatch(/^Asking somebody back to Cavanaugh Glassworks is for the .+ desk/)
+
+    // The same sentence the request refuses with, word for word.
+    const post = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia })))
+    expect(post.status).toBe(403)
+    expect(post.body.error.message).toBe(r.body.data.askBack.says)
+  })
+
+  it('a hiring manager reads the same list with the Ask back button and no sentence', async () => {
+    as(CORNING_HIRING)
+    const r = await json(await alumni(req('GET', '/api/alumni')))
+    expect(r.body.data.askBack).toEqual({ mayAsk: true, says: null })
+  })
+})
