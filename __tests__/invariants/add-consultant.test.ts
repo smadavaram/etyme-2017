@@ -156,6 +156,13 @@ describe('Skills are entered as tags and sent as the same list', () => {
   })
 })
 
+describe('The form does not assume the person works in software', () => {
+  it('the headline example is a nurse or an engineer, not an IT title', () => {
+    expect(MODAL_SRC()).toContain('placeholder="ICU travel nurse, or validation engineer"')
+    expect(MODAL_SRC()).not.toMatch(/placeholder="[^"]*(SAP|ABAP|S\/4HANA|Developer|Java)[^"]*"/)
+  })
+})
+
 describe('Location has no country, because the profile has nowhere to keep one', () => {
   it('the form asks no country it would throw away', () => {
     // ConsultantProfile carries location and no country column. A field

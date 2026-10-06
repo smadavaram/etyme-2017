@@ -236,7 +236,7 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
               onChange={(e) => setForm({ ...form, headline: e.target.value })}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-              placeholder="Senior SAP BRIM Consultant"
+              placeholder="ICU travel nurse, or validation engineer"
             />
           </div>
 
