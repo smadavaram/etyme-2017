@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
+import { momentFor, readerZone } from '@/lib/when'
 
 /**
  * One thread, embedded where the thing it is about lives.
@@ -156,7 +157,7 @@ export function Thread({ topic, topicId, title, withCompany, canOpen, words, onC
                   <span className="text-xs text-etyme-muted">· {m.authorCompany}</span>
                 )}
                 <span className="text-xs text-etyme-faint tabular-nums">
-                  {new Date(m.createdAt).toLocaleString()}
+                  {momentFor(new Date(m.createdAt), readerZone())}
                 </span>
               </div>
               <p className="text-sm text-etyme-muted whitespace-pre-line mt-0.5">{m.body}</p>
