@@ -65,6 +65,8 @@
 
 /** The row as the route loads it, narrowed to what this decides about. */
 export interface RequirementRow {
+  /** Set on a firm's resold copy of a client's job: the job it was copied from. */
+  mirroredFromId?: string | null
   id: string
   title: string
   skills: string[]
@@ -91,6 +93,8 @@ export interface RequirementRow {
 
 export interface RequirementForReader {
   id: string
+  /** The reader's own resold copy names the job it copies; null on anything else. */
+  mirroredFromId: string | null
   title: string
   skills: string[]
   location: string | null
@@ -162,6 +166,9 @@ export function requirementForReader(r: RequirementRow, mineId: string): Require
     source: r.source,
     marginClass: r.marginClass,
     rateVisible: r.rateVisible,
+    // Only on the reader's own copy, so the Submit dialog can show a
+    // client's job once (`onePerJob`); nobody else learns a firm resells it.
+    mirroredFromId: mine ? r.mirroredFromId ?? null : null,
     company: r.company,
     // Naming the end client hands a supplier the relationship and a
     // competitor the account. Off unless the firm that holds it said

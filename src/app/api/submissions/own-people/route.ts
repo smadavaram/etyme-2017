@@ -81,9 +81,14 @@ export async function GET(request: NextRequest) {
   // submission or a consultant profile says this is somebody the firm
   // staffs, whatever their seat holds.
   const ids = Array.from(new Set(seats.map((s) => s.personId)))
+  //
+  // At this firm: a line it sells or a submission it made. A delivery
+  // manager once placed by another firm is that firm's history, not
+  // somebody this firm staffs (supply's check, 2026-10-06).
+  const firmId = caller.company.id
   const [lines, subs] = await Promise.all([
-    prisma.sellContract.findMany({ where: { personId: { in: ids } }, select: { personId: true }, distinct: ['personId'] }),
-    prisma.submission.findMany({ where: { personId: { in: ids } }, select: { personId: true }, distinct: ['personId'] }),
+    prisma.sellContract.findMany({ where: { personId: { in: ids }, companyId: firmId }, select: { personId: true }, distinct: ['personId'] }),
+    prisma.submission.findMany({ where: { personId: { in: ids }, fromCompanyId: firmId }, select: { personId: true }, distinct: ['personId'] }),
   ])
   const works = new Set<string>([...lines, ...subs].map((r) => r.personId))
   const permsOf = new Map<string, string[]>()

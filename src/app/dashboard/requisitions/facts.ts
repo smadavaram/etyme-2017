@@ -143,12 +143,42 @@ export function checkedSays(checked: CheckedBasis, approvalState: string): { int
  * a desk row keeps only its own part — "The final word on Apps' spend",
  * "Technology — over $80k".
  */
+/** How the rule engine opens the sentence for a job sent to a person. */
+const ROUTED = 'Sent for a sign-off because'
+/** The same sentence, as regulatory words it since 2026-10-06. */
+const OVER_THE_LIMIT = / is over the (\$[\d,]+ )?limit\b/
+
 export function withoutRepeat(text: string, alreadySaid: string[]): string {
   let out = text ?? ''
-  for (const said of alreadySaid.map((x) => (x ?? '').trim()).filter((x) => x.length >= 20)) {
-    const at = out.indexOf(said)
+  const said = alreadySaid.map((x) => (x ?? '').trim()).filter((x) => x.length >= 20)
+  for (const one of said) {
+    const at = out.indexOf(one)
     if (at < 0) continue
-    out = out.slice(0, at) + out.slice(at + said.length)
+    out = out.slice(0, at) + out.slice(at + one.length)
+  }
+  // The same sentence with other figures in it. Where the checks were run
+  // again on today's plan, the desk row recorded "about $180,000" and the
+  // check now says "about $268,800": the words match and the numbers do
+  // not, so the exact strip above misses and the sentence prints twice.
+  // The routing sentence always closes a desk's "who — why", so where the
+  // panel already printed one, the desk row's copy is cut from its start.
+  //
+  // Two wordings: rows recorded before 2026-10-06 say "Sent for a sign-off
+  // because …"; regulatory's shorter sentence says "About $180,000 is
+  // over the $80,000 limit, so … signs it." (`overTheLimitSays`).
+  if (said.some((x) => x.startsWith(ROUTED) || OVER_THE_LIMIT.test(x))) {
+    let at = out.indexOf(ROUTED)
+    if (at < 0) {
+      const m = OVER_THE_LIMIT.exec(out)
+      if (m) {
+        // Back to the start of the sentence: after the desk's own "who —"
+        // or "who:", else the start of the row.
+        const head = out.slice(0, m.index)
+        const sep = Math.max(head.lastIndexOf('— '), head.lastIndexOf(': '))
+        at = sep >= 0 ? sep + 2 : 0
+      }
+    }
+    if (at >= 0) out = out.slice(0, at)
   }
   return out
     .replace(/\s*(—|:|-)\s*$/, '')

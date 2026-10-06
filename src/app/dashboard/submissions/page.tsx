@@ -16,6 +16,7 @@ import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { Thread, toSupplierAboutCandidate, answeringDemand } from '@/components/thread'
 import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING } from './words'
 import { jobListWord } from '../requirements/words'
+import { onePerJob } from '@/lib/internal-moves'
 
 /**
  * Submissions working surface — the vendor's outbound pipeline.
@@ -305,13 +306,17 @@ function SubmitToRequirementModal({
           const body = await reqRes.json()
           // Somebody else's jobs only: a firm's resold copy of a client's
           // job is the one its sub-vendors answer, never one it submits to.
-          setRequirements(jobsToSubmitTo(
-            (body.data?.requirements ?? []).map((r: any) => ({
+          // And each job once: the copy is dropped where the original is in
+          // the list, by the copy's own link (`onePerJob`, supply's), which
+          // holds even before the reader's company has loaded.
+          setRequirements(jobsToSubmitTo<RequirementOption>(
+            onePerJob<RequirementOption & { mirroredFromId: string | null }>((body.data?.requirements ?? []).map((r: any) => ({
               id: r.id,
               title: r.title,
               skills: r.skills ?? [],
               company: r.company ?? { id: '', name: 'Unknown' },
-            })),
+              mirroredFromId: r.mirroredFromId ?? null,
+            }))),
             companyId,
           ))
         }

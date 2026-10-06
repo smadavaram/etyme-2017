@@ -64,7 +64,20 @@ describe('The headline and the box under it read one list', () => {
   it('the box says nothing is waiting only when the headline says nothing needs you', () => {
     const page = src('src/app/dashboard/program/page.tsx')
     expect(page).toContain('queue.length === 0 && others.length === 0')
-    expect(page).toContain('deskItems({ startingSoon: data.startingSoon, vendors: data.vendors })')
+    expect(page).toContain('deskItems({ startingSoon: data.heldStarts ?? data.startingSoon, vendors: data.vendors })')
+  })
+
+  it('every start paperwork will refuse is counted, not only the five nearest the panel shows', () => {
+    const route = src('src/app/api/program/route.ts')
+    expect(route).not.toContain(".filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5)")
+    expect(route).toContain('startingSoon: cleared.slice(0, 5)')
+    expect(route).toContain("heldStarts: cleared.filter((c) => c.paperwork.outcome === 'BLOCK')")
+    const page = src('src/app/dashboard/program/page.tsx')
+    expect(page.match(/startingSoon: data\.heldStarts \?\? data\.startingSoon/g)?.length).toBe(3)
+  })
+
+  it('the panel shows the nearest starts first, by the day they start', () => {
+    expect(src('src/app/api/program/route.ts')).toContain('.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())')
   })
 })
 
@@ -131,5 +144,92 @@ describe('Submissions says one word for one state', () => {
     const page = src('src/app/dashboard/submissions/page.tsx')
     expect(page).toContain('label: jobWord,')
     expect(page).not.toContain("? 'Internal' :")
+  })
+})
+
+// ── The approval panel says the money sentence once (2.6) ───────────
+
+import { withoutRepeat } from '@/app/dashboard/requisitions/facts'
+
+describe('The approval panel says why a job went to a person once', () => {
+  it('a desk row drops the routing sentence the checks already printed, even where the figures were re-run since', () => {
+    const recorded = 'Sent for a sign-off because about $180,000, estimated from $125/hr at 40 hours a week for 9 months is over the limit'
+    const today = 'Sent for a sign-off because about $268,800, estimated from $140/hr at 40 hours a week for 12 months is over the limit'
+    expect(withoutRepeat(`The final word on Apps' spend — ${recorded}`, [today])).toBe('The final word on Apps\' spend')
+    expect(withoutRepeat(`Technology — over $80k: ${recorded} — state a budget and the limit is checked against that instead`, [today]))
+      .toBe('Technology — over $80k')
+  })
+
+  it('the shorter wording is said once too: "About $180,000 is over the $80,000 limit, so Dana Whitfield signs it."', () => {
+    const now = 'About $268,800 is over the $80,000 limit, so Dana Whitfield signs it. State a budget and the limit is checked against that.'
+    const recorded = 'About $180,000 is over the $80,000 limit, so Dana Whitfield signs it. State a budget and the limit is checked against that.'
+    expect(withoutRepeat(`The final word on Apps' spend — ${recorded}`, [now])).toBe('The final word on Apps\' spend')
+    expect(withoutRepeat(`Technology — over $80k: ${recorded}`, [now])).toBe('Technology — over $80k')
+    expect(withoutRepeat(recorded, [now])).toBe('')
+  })
+
+  it('a desk row keeps its routing sentence where the panel printed none', () => {
+    const recorded = 'Sent for a sign-off because about $180,000 is over the limit'
+    expect(withoutRepeat(`The final word on Apps' spend — ${recorded}`, ['Within plan: 4 of 6 approved heads in use'])).toBe(`The final word on Apps' spend — ${recorded}`)
+  })
+})
+
+// ── The Submit dialog offers each job once (6.11) ───────────────────
+
+import { requirementForReader, type RequirementRow } from '@/app/api/requirements/visible'
+import { onePerJob } from '@/lib/internal-moves'
+
+describe('The Submit dialog offers a client’s job once, never the firm’s own resold copy beside it', () => {
+  const row = (over: Partial<RequirementRow>): RequirementRow => ({
+    id: 'r', title: 'HCM integration lead', skills: [], location: null, billMin: null, billMax: null,
+    months: null, startDate: null, status: 'OPEN', approvalState: 'AUTO_APPROVED', archivedAt: null,
+    headcount: 1, cancelReason: null, source: null, marginClass: null, rateVisible: false,
+    endClientVisible: false, companyId: 'client', company: { id: 'client', name: 'Northbend Athletic' },
+    endClientCompany: null, _count: { submissions: 0, matches: 0, invitations: 0 },
+    createdAt: new Date('2026-10-01T00:00:00Z'), mirroredFromId: null, ...over,
+  })
+
+  it('the job list tells a firm which of its own jobs is a copy, and tells nobody else', () => {
+    const copy = row({ id: 'copy', companyId: 'teleworld', company: { id: 'teleworld', name: 'Teleworld' }, mirroredFromId: 'orig' })
+    expect(requirementForReader(copy, 'teleworld').mirroredFromId).toBe('orig')
+    expect(requirementForReader(copy, 'someone-else').mirroredFromId).toBeNull()
+  })
+
+  it('the copy is dropped where the original is in the list, and kept where it is not', () => {
+    const orig = { id: 'orig', mirroredFromId: null }
+    const copy = { id: 'copy', mirroredFromId: 'orig' }
+    expect(onePerJob([orig, copy]).map((r) => r.id)).toEqual(['orig'])
+    expect(onePerJob([copy]).map((r) => r.id)).toEqual(['copy'])
+    expect(src('src/app/dashboard/submissions/page.tsx')).toContain('onePerJob<RequirementOption & { mirroredFromId: string | null }>(')
+  })
+
+  it('the people offered are the ones this firm has staffed — a line it sells or a submission it made — never somebody else’s history', () => {
+    const route = src('src/app/api/submissions/own-people/route.ts')
+    expect(route).toContain("where: { personId: { in: ids }, companyId: firmId }")
+    expect(route).toContain("where: { personId: { in: ids }, fromCompanyId: firmId }")
+  })
+})
+
+// ── A match's confidence says what it measures (5.4) ────────────────
+
+import { confidenceWords } from '@/app/dashboard/requirements/[id]/confidence-words'
+
+describe('A match’s confidence chip says what confidence measures', () => {
+  it('it says how many facts are not known where the match lists them, never a bare "Moderate"', () => {
+    expect(confidenceWords('MODERATE', 'Missing: availability date').text).toBe('Moderate confidence · 1 not known')
+    expect(confidenceWords('LOW', 'Missing: location, work authorization, rate expectations').text).toBe('Low confidence · 3 not known')
+  })
+
+  it('a match with nothing missing says so', () => {
+    expect(confidenceWords('HIGH', null).text).toBe('High confidence · nothing missing')
+  })
+
+  it('where the unknowns are sentences it gives no count it cannot stand behind', () => {
+    expect(confidenceWords('MODERATE', 'where this candidate is based; whether related experience transfers: SAP FI; SAP CO').text)
+      .toBe('Moderate confidence · some facts not known')
+  })
+
+  it('the matches list draws the chip from these words', () => {
+    expect(src('src/app/dashboard/requirements/[id]/matches.tsx')).toContain('confidenceWords(m.confidence, m.unknowns)')
   })
 })

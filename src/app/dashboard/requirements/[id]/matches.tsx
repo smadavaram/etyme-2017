@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { confidenceWords } from './confidence-words'
 import { readJson } from '@/lib/read-response'
 import { range } from '@/lib/money-display'
 import { submitFields } from '@/lib/bench-filter'
@@ -93,14 +94,6 @@ const STAGE_WORD: Record<string, string> = {
   FINANCE: 'with Finance',
 }
 
-function confidenceChip(c: string): { cls: string; text: string } {
-  switch (c) {
-    case 'HIGH': return { cls: 'chip--verified', text: 'High' }
-    case 'MODERATE': return { cls: 'chip--attention', text: 'Moderate' }
-    case 'LOW': return { cls: 'chip--danger', text: 'Low' }
-    default: return { cls: 'chip--passive', text: c }
-  }
-}
 
 function formatAvail(date: string | null): string {
   if (!date) return 'Free date not on record'
@@ -228,7 +221,7 @@ export function MatchList({
           <div className="space-y-2">
             {g.rows.map((m) => {
               const open = expanded.has(m.id)
-              const conf = confidenceChip(m.confidence)
+              const conf = confidenceWords(m.confidence, m.unknowns)
               const suggestion = m.reach === 'SUGGESTION'
               const title = m.consultant.name ?? `A consultant at ${m.firm.name}`
               return (
