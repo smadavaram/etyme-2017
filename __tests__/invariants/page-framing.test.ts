@@ -608,3 +608,28 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
     }
   })
 })
+
+describe('Contacts is headed by the reader’s own menu, never by a word typed on the page', () => {
+  it('a client reads Contacts under its own section, not under a supplier’s Operate', () => {
+    expect(sectionOfHref('CLIENT', '/dashboard/contacts')).not.toBe('Operate')
+    expect(sectionOfHref('CLIENT', '/dashboard/contacts')).toBeTruthy()
+    expect(sectionOfHref('VENDOR', '/dashboard/contacts')).toBe('Operate')
+  })
+
+  it('the Contacts page reads its eyebrow from the menu rather than typing one', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/dashboard/contacts/page.tsx'), 'utf8')
+    expect(src).not.toContain('<p className="eyebrow">Operate</p>')
+    expect(src).toContain("sectionOfHref(")
+  })
+})
+
+describe('the payables and orders pages', () => {
+  it('show no eyebrow until the company is known, and never type a section by hand', () => {
+    const { readFileSync } = require('node:fs') as typeof import('node:fs')
+    const ap = readFileSync(`${process.cwd()}/src/app/dashboard/ap/page.tsx`, 'utf8')
+    const po = readFileSync(`${process.cwd()}/src/app/dashboard/purchase-orders/page.tsx`, 'utf8')
+    expect(ap).not.toContain("company?.kind ?? 'VENDOR'")
+    expect(po).not.toContain('<p className="eyebrow">Operate</p>')
+    expect(po).toContain("sectionOfHref(company.kind, '/dashboard/purchase-orders', reading)")
+  })
+})

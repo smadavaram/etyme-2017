@@ -8,6 +8,8 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { lineName, lineDoes, type LineSide, type OrderSide } from '@/lib/order-naming'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
 import { orderReferenceLabel } from '@/lib/money/order-reference'
+import { useSession } from '@/components/session-provider'
+import { sectionOfHref } from '@/lib/page-framing'
 
 /**
  * What has been authorized, and how much of it is left.
@@ -99,6 +101,7 @@ function Consumed({ po }: { po: PO }) {
 export default function PurchaseOrdersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { company } = useSession()
   const [pos, setPos] = useState<PO[] | null>(null)
   const [canRaise, setCanRaise] = useState(false)
   const [needsAttention, setNeedsAttention] = useState(0)
@@ -184,6 +187,7 @@ export default function PurchaseOrdersPage() {
     return <p className="text-etyme-muted text-sm">{error ?? 'Loading…'}</p>
   }
 
+  const eyebrow = company ? sectionOfHref(company.kind, '/dashboard/purchase-orders', reading) : null
   const attention = pos.filter((p) => p.overdrawn || p.expired || p.consumedPercent >= 90)
   const rest = pos.filter((p) => !attention.includes(p))
 
@@ -191,7 +195,8 @@ export default function PurchaseOrdersPage() {
     <>
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="page-head">
-          <p className="eyebrow">Operate</p>
+          {/* The section of the reader's own menu, and none until it is known. */}
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <h1>What you have authorized</h1>
           <p>
             One document, a header and its lines. The header is the ceiling — what a supplier may
