@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 import { complianceSubtitle, complianceView, owedSentence, sayCheckType, sayEnforcement, sayRule, sayRuleParameters, twoPopulations } from './says'
@@ -27,6 +28,7 @@ interface ComplianceData {
   viewerIsClient?: boolean
   /** People about to start whom the paperwork is holding up. */
   startsHeld?: HeldStart[]
+  noAgreement?: { companyId: string; name: string; headcount: number }[]
   policies: PolicyGroup[]
   recentEvaluations: Evaluation[]
   verifications: {
@@ -418,6 +420,7 @@ export default function CompliancePage() {
     blockedStarts: startsHeld.filter(s => s.outcome === 'BLOCK').length,
     flagged: health.flagged,
     client: data?.viewerIsClient ?? false,
+    noAgreement: data?.noAgreement?.length ?? 0,
   })
 
   return (
@@ -481,6 +484,32 @@ export default function CompliancePage() {
                     collect the documents yourself.
                   </p>
                 )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Suppliers with people on site and no agreement on file — the
+          other thing the program dashboard counts in "N things need you".
+          Said here too, so the two pages give one number. */}
+      {(data?.noAgreement?.length ?? 0) > 0 && (
+        <div className="mb-6 border border-etyme-rule rounded-[6px] overflow-hidden">
+          <div className="px-4 py-3 border-b border-etyme-rule bg-etyme-surface">
+            <h3 className="text-sm font-semibold text-etyme-ink">
+              {data!.noAgreement!.length === 1
+                ? 'One supplier has people on site with no agreement on file'
+                : `${data!.noAgreement!.length} suppliers have people on site with no agreement on file`}
+            </h3>
+          </div>
+          <div className="divide-y divide-etyme-rule">
+            {data!.noAgreement!.map(v => (
+              <div key={v.companyId} className="px-4 py-3">
+                <span className="font-medium text-etyme-ink text-[13px]">{v.name}</span>
+                <p className="text-[12px] text-etyme-muted mt-1">
+                  {v.headcount === 1 ? '1 person is' : `${v.headcount} people are`} on site through {v.name}, and no agreement with them is on file.
+                </p>
+                <Link href="/dashboard/program/agreements" className="text-[12px] text-etyme-action mt-1 inline-block">Put one on file</Link>
               </div>
             ))}
           </div>

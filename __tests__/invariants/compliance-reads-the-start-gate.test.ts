@@ -129,3 +129,18 @@ describe('the compliance page reads the verdict the start button runs', () => {
     expect(route).toContain('orderedNotCollected(v.type)')
   })
 })
+
+describe('the compliance page and the program dashboard give one number', () => {
+  it('says suppliers with people on site and no agreement on file, which the dashboard counts in what needs you', () => {
+    const said = twoPopulations(0, 0, 20, 95, { heldStarts: 2, blockedStarts: 2, noAgreement: 1, client: true })
+    expect(said).toContain('2 people cannot start until their paperwork is on file.')
+    expect(said).toContain('1 supplier has people on site with no agreement on file.')
+    expect(said).not.toContain('Nothing is holding up a start here.')
+  })
+
+  it('does not say nothing is holding anybody up while a supplier is on site with no agreement', () => {
+    const said = twoPopulations(0, 0, 0, null, { noAgreement: 2, client: true })
+    expect(said).toContain('2 suppliers have people on site with no agreement on file.')
+    expect(said).not.toContain('Nothing is holding up')
+  })
+})

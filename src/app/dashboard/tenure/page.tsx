@@ -192,7 +192,7 @@ export default function TenurePage() {
                     and the row said only "Approaching". */}
                 {row.limitReachedOn && row.runsPast.map((r) => (
                   <div key={r.contractId} className="text-[11px] mt-1 text-etyme-attention">
-                    {runsPastWords({ firm: r.firm, endDate: r.endDate, daysPast: r.daysPast, reachedOn: row.limitReachedOn! })}
+                    {runsPastWords({ firm: r.firm, personName: row.name, endDate: r.endDate, daysPast: r.daysPast, reachedOn: row.limitReachedOn!, today })}
                   </div>
                 ))}
               </div>

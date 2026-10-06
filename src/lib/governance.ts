@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/db'
 import { meets as tierMeets } from '@/lib/supplier-tier'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { monthsOf, standingAgainstLimit, type SiteLine, type Standing } from '@/lib/tenure-days'
+import { bookedPastLimit, monthsOf, standingAgainstLimit, type PastLimitRefusal, type SiteLine, type Standing } from '@/lib/tenure-days'
 import { plainDate } from '@/lib/plain-date'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * Governance enforcement engine — Addendum E §E.6.
@@ -253,6 +254,90 @@ export async function evaluateGovernance(params: {
   return { outcome, evaluations, canProceed, summary }
 }
 
+// ── A line booked past the limit, at the doors that write one ────────
+
+/**
+ * Whether a line about to be written runs past the day the person
+ * reaches this client's time limit. The one call for every door that
+ * writes or moves an end date: `POST /api/contracts`, the award, and
+ * `[id]/extend`.
+ *
+ *   const past = await endsPastLimit({ personId, clientId, startDate, endDate })
+ *   if (past?.outcome === 'BLOCK') refuse with past.says
+ *
+ * Reads the client's own TENURE_CAP and BREAK_IN_SERVICE rules, and the
+ * lines the ledger reads — running, paused and ended, at this end
+ * client, from every supplier and every rung. `contractId` is the line
+ * being extended: it is left out of the record and stands in as the
+ * proposed line, from its own start (looked up when `startDate` is not
+ * given) to the new end.
+ *
+ * Null where the client has no time limit, or the line ends on or before
+ * the day the limit is reached. A rule the client set to WARN comes back
+ * as WARN with a sentence, never as null: never silently permit.
+ *
+ * Reads only. It writes no evaluation row, because the line it asks
+ * about has not been written yet; the door that refuses says why in
+ * its response, and the activation's own evaluation is the record.
+ */
+export async function endsPastLimit(input: {
+  personId: string
+  /** The end client: the company whose site the person works at. */
+  clientId: string
+  startDate?: Date | null
+  endDate: Date | null
+  /** The line whose end is being moved, for an extension. */
+  contractId?: string | null
+  now?: Date
+}): Promise<PastLimitRefusal | null> {
+  const now = input.now ?? new Date()
+  const rules = await prisma.governanceRule.findMany({
+    where: {
+      policy: { companyId: input.clientId, isActive: true },
+      isActive: true,
+      ruleType: { in: ['TENURE_CAP', 'BREAK_IN_SERVICE'] },
+    },
+    select: { ruleType: true, parameters: true, enforcementMode: true },
+  })
+  const capRule = rules.find((r) => r.ruleType === 'TENURE_CAP')
+  if (!capRule) return null
+  const breakRule = rules.find((r) => r.ruleType === 'BREAK_IN_SERVICE')
+
+  let startDate = input.startDate ?? null
+  if (!startDate && input.contractId) {
+    const own = await prisma.sellContract.findUnique({ where: { id: input.contractId }, select: { startDate: true } })
+    startDate = own?.startDate ?? null
+  }
+  if (!startDate) return null
+
+  const [lines, person, client] = await Promise.all([
+    prisma.sellContract.findMany({
+      where: {
+        personId: input.personId,
+        ...endClientFilter(input.clientId),
+        state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+        ...(input.contractId ? { id: { not: input.contractId } } : {}),
+      },
+      select: { startDate: true, endDate: true, state: true },
+    }),
+    prisma.person.findUnique({ where: { id: input.personId }, select: { name: true } }),
+    prisma.company.findUnique({ where: { id: input.clientId }, select: { name: true } }),
+  ])
+
+  return bookedPastLimit({
+    lines: lines.map((l) => ({ startDate: l.startDate, endDate: l.endDate, live: l.state !== 'ENDED' })),
+    proposed: { startDate, endDate: input.endDate },
+    rules: {
+      capMonths: Number((capRule.parameters as Record<string, any>).maxMonths ?? 18),
+      breakDays: breakRule ? Number((breakRule.parameters as Record<string, any>).breakDays ?? 30) : null,
+    },
+    enforcement: capRule.enforcementMode === 'WARN' ? 'WARN' : 'BLOCK',
+    personName: person?.name ?? null,
+    clientName: client?.name ?? null,
+    now,
+  })
+}
+
 // ── Rule evaluators ──────────────────────────────────────
 
 // ── The time limit and the break, as verdicts ─────────────
@@ -290,7 +375,7 @@ interface LimitVerdictArgs {
 export function tenureCapVerdict(a: LimitVerdictArgs & { capMonths: number; breakDays: number | null }): EvaluationResult {
   const { standing: s, personName, clientName, capMonths, breakDays, ruleId, enforcementMode, description } = a
   const served = months(monthsOf(s.countedDays))
-  const limit = `${clientName}’s ${months(capMonths)} time limit`
+  const limit = `${possessive(clientName, '’')} ${months(capMonths)} time limit`
   // The opening clause is quoted verbatim on the public product page
   // (lib/public-site/modules), so it stays as it reads there.
   const opening = `${personName} has ${monthsOf(s.countedDays)} months tenure (time limit: ${capMonths}).`
@@ -310,12 +395,12 @@ export function tenureCapVerdict(a: LimitVerdictArgs & { capMonths: number; brea
           ? `With the ${breakDays}-day break after they leave, the earliest day they may come back is ${day(s.eligibleOn)}.`
           : breakDays != null
             ? 'Their current contract has no end date, so there is no day yet on which they may come back.'
-            : `${clientName}’s rules set no break, so they give no day on which they may come back.`)
+            : `${possessive(clientName, '’')} rules set no break, so they give no day on which they may come back.`)
       )
     case 'PAST_NO_RETURN':
       return refuse(
         `${opening} Counted across every supplier at ${clientName}. ` +
-        `${clientName}’s rules set no break after the limit, so nothing resets the count and there is no day on which they may come back.`
+        `${possessive(clientName, '’')} rules set no break after the limit, so nothing resets the count and there is no day on which they may come back.`
       )
     case 'IN_BREAK':
       if (s.pastLimit) {

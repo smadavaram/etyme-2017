@@ -7,6 +7,7 @@ import {
   reference, coolingEndsAtFor, deskFraming, privacyDesk, seatHeldAnywhere, seatTrail,
 } from '@/lib/data-request'
 import { logAccess, logBulkAccess } from '@/lib/access-log'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * The compliance desk's queue: requests that arrived by email, logged
@@ -162,7 +163,7 @@ export async function GET(request: NextRequest) {
       desk: desk.seat
         ? {
             says:
-              `Requests from the people on ${desk.companyName}’s sites and from its own staff, the ` +
+              `Requests from the people on ${possessive(desk.companyName, '’')} sites and from its own staff, the ` +
               `records that program has asked to keep, and any incident its records were in. ` +
               `${caller.company.name} is reading them from the ${desk.seat.role.name} desk ` +
               `${desk.companyName} granted it, and every read here is logged against that seat.`,

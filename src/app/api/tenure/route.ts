@@ -7,7 +7,7 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
-import { daysOnSite, monthsOf, againstLimit, limitReachedOn, contractsPastLimit, daysServed, daysBooked, standingAgainstLimit, ledgerStatus, linesCounted } from '@/lib/tenure-days'
+import { daysOnSite, monthsOf, againstLimit, bookedLimitDay, contractsPastLimit, daysServed, daysBooked, standingAgainstLimit, ledgerStatus, linesCounted } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -227,7 +227,10 @@ export async function GET(request: NextRequest) {
         ? new Date(Math.min((c.endDate ?? now).getTime(), now.getTime()))
         : c.endDate,
     }))
-    const reachedOn = capMonths ? limitReachedOn(booked, capMonths) : null
+    // The same day the doors that write a line refuse past
+    // (`endsPastLimit` in lib/governance), so the page and the refusal
+    // name one date.
+    const reachedOn = capMonths ? bookedLimitDay(booked, { capMonths, breakDays }, now) : null
     const runsPast = contractsPastLimit(
       linesCounted(data.contracts, standing).map((c) => ({
         id: c.id,

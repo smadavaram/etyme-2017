@@ -25,6 +25,9 @@
  * separately and answered as a forecast.
  */
 
+import { plainDate } from '@/lib/plain-date'
+import { possessive } from '@/lib/requisition-approval'
+
 export interface Period {
   startDate: Date
   /** Null: still running, counted to `now`. */
@@ -538,4 +541,177 @@ export function ledgerStatus(s: Standing): LedgerStatus {
     default:
       return 'OK'
   }
+}
+
+// ── A line booked past the limit, at the door and on the page ─────────
+
+/**
+ * The day the limit falls on the paper booked, with every break the
+ * client's rules allow counted as a reset — past or ahead.
+ *
+ * `limitReachedOn` over `linesCounted` resets only on a break already
+ * served. A door that books a new line needs one more case: a line
+ * starting after a gap at least as long as the break starts the count
+ * again, even when that gap is still in the future. And somebody who has
+ * been away longer than the break, with nothing booked since, has no
+ * limit day on the paper at all.
+ *
+ * The caller passes an ended line with its end at or before today, the
+ * same as for `limitReachedOn`. Null where the booked paper never
+ * reaches the limit.
+ */
+export function bookedLimitDay(periods: Period[], rules: LimitRules, now: Date = new Date()): Date | null {
+  const capMonths = rules.capMonths != null && rules.capMonths > 0 ? rules.capMonths : null
+  if (capMonths == null) return null
+  const breakMs = rules.breakDays != null && rules.breakDays > 0 ? rules.breakDays * DAY : null
+
+  const spans = periods
+    .map((p) => ({ from: p.startDate.getTime(), to: p.endDate ? p.endDate.getTime() : Infinity }))
+    .filter((s) => s.to > s.from)
+    .sort((a, b) => a.from - b.from)
+  const merged: { from: number; to: number }[] = []
+  for (const s of spans) {
+    const last = merged[merged.length - 1]
+    if (last && s.from <= last.to) {
+      if (s.to > last.to) last.to = s.to
+    } else {
+      merged.push({ ...s })
+    }
+  }
+  if (merged.length === 0) return null
+
+  let from = 0
+  if (breakMs != null) {
+    for (let i = 1; i < merged.length; i++) {
+      if (merged[i].from - merged[i - 1].to >= breakMs) from = i
+    }
+    // Away for the whole break with nothing booked since: the count is
+    // reset and nothing on the paper carries it anywhere.
+    if (merged[merged.length - 1].to + breakMs <= now.getTime()) return null
+  }
+  return limitReachedOn(
+    merged.slice(from).map((s) => ({
+      startDate: new Date(s.from),
+      endDate: Number.isFinite(s.to) ? new Date(s.to) : null,
+    })),
+    capMonths
+  )
+}
+
+/** "7 months" or "12 days": whole months, never rounded up, days under a month. */
+function howFar(days: number): string {
+  const months = monthsOf(days)
+  return months >= 1
+    ? `${months} month${months === 1 ? '' : 's'}`
+    : `${days} day${days === 1 ? '' : 's'}`
+}
+
+function isoDay(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * A live contract that runs past the limit, as the sentence on the
+ * person's time-limit row and on the placement.
+ *
+ * Found by a tester on 2026-10-03: Lucía Fernández, 426 of 548 days at
+ * Northbend Athletic, had a Pinnacle Resourcing contract to Sep 3, 2027,
+ * seven months past the day she reaches the limit, and nothing said so.
+ * The page now says it and says what to do: shorten the contract or plan
+ * the break. Never "her" — the record does not hold a pronoun.
+ */
+export function runsPastSentence(o: {
+  /** The firm the reader may name — never a withheld sub-vendor's name. */
+  firm: string | null
+  personName: string | null
+  endDate: Date | null
+  reachedOn: Date
+  now?: Date
+}): string {
+  const now = o.now ?? new Date()
+  const who = o.personName?.trim() || null
+  const reached = o.reachedOn.getTime() <= now.getTime()
+  const theDay = who
+    ? `the day ${who} ${reached ? 'reached' : 'reaches'} the time limit`
+    : `the day the time limit ${reached ? 'was' : 'is'} reached`
+  const limit = plainDate(isoDay(o.reachedOn))
+  const whose = o.firm?.trim() ? `${possessive(o.firm, '’')} contract` : 'The contract'
+  if (o.endDate == null) {
+    return `${whose} has no end date, so it runs past ${theDay} (${limit}). Give it an end date or plan the break.`
+  }
+  const past = Math.ceil((o.endDate.getTime() - o.reachedOn.getTime()) / DAY)
+  return `${whose} runs to ${plainDate(isoDay(o.endDate))}, ${howFar(past)} past ${theDay} (${limit}). Shorten it or plan the break.`
+}
+
+/** What a door is told about a line booked past the client's time limit. */
+export interface PastLimitRefusal {
+  /** BLOCK where the client's time-limit rule blocks; WARN where it only warns. */
+  outcome: 'BLOCK' | 'WARN'
+  /** The day the limit is reached on the paper with this line on it. */
+  reachedOn: Date
+  /** The sentence for the person at the door. */
+  says: string
+}
+
+/**
+ * Whether a line about to be written — a new one, an award, or an
+ * existing one with a new end — runs past the day the person reaches the
+ * client's time limit, counted across every supplier at that client.
+ *
+ * Addendum E: the time limit is a BLOCK, because it is legally grounded.
+ * A contract signed seven months past the limit is the block arriving
+ * late, on the day somebody has to tell a contractor they cannot come in
+ * tomorrow. Refusing the paper at the door moves that conversation to
+ * the day the paper is written, when the end date is still a field.
+ *
+ * `lines` are the other lines already on the record at this client —
+ * the caller leaves out the line being changed. `proposed` is the line
+ * as it would be written. A line ending on the limit day itself is
+ * inside the limit, the same as the block counts it.
+ *
+ * Null where there is no time limit, where the paper never reaches it,
+ * or where the line ends on or before the day it is reached.
+ */
+export function bookedPastLimit(o: {
+  lines: SiteLine[]
+  proposed: { startDate: Date; endDate: Date | null }
+  rules: LimitRules
+  enforcement: 'BLOCK' | 'WARN'
+  personName: string | null
+  clientName: string | null
+  now?: Date
+}): PastLimitRefusal | null {
+  const now = o.now ?? new Date()
+  const capMonths = o.rules.capMonths != null && o.rules.capMonths > 0 ? o.rules.capMonths : null
+  if (capMonths == null) return null
+
+  const booked: Period[] = o.lines.map((l) => ({
+    startDate: l.startDate,
+    endDate: l.live ? l.endDate : new Date(Math.min((l.endDate ?? now).getTime(), now.getTime())),
+  }))
+  booked.push({ startDate: o.proposed.startDate, endDate: o.proposed.endDate })
+  const reachedOn = bookedLimitDay(booked, o.rules, now)
+  if (!reachedOn) return null
+  if (o.proposed.endDate && o.proposed.endDate.getTime() <= reachedOn.getTime()) return null
+
+  const who = o.personName?.trim() || 'This person'
+  const limitName = o.clientName?.trim()
+    ? `${possessive(o.clientName, '’')} ${capMonths}-month time limit`
+    : `the ${capMonths}-month time limit`
+  const limit = plainDate(isoDay(reachedOn))
+  const reached = reachedOn.getTime() <= now.getTime()
+  const opening = reached
+    ? `${who} reached ${limitName} on ${limit}.`
+    : `${who} reaches ${limitName} on ${limit}.`
+  const middle = o.proposed.endDate == null
+    ? 'This contract has no end date, so it would run past that day.'
+    : `This contract would run to ${plainDate(isoDay(o.proposed.endDate))}, ` +
+      `${howFar(Math.ceil((o.proposed.endDate.getTime() - reachedOn.getTime()) / DAY))} past that day.`
+  const fix = reached
+    ? 'Plan the break before booking more time.'
+    : `End it on or before ${limit}, or plan the break.`
+  const tail = o.enforcement === 'WARN'
+    ? ' The client’s rule warns rather than blocks here, so it can go ahead with a reason recorded.'
+    : ''
+  return { outcome: o.enforcement, reachedOn, says: `${opening} ${middle} ${fix}${tail}` }
 }

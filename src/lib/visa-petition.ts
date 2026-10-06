@@ -1,3 +1,4 @@
+import { possessive } from '@/lib/requisition-approval'
 /**
  * A visa petition, from filing to the day it runs out.
  *
@@ -66,7 +67,7 @@ export function applyMove(
     const next = allowed.length ? `From here it can be ${allowed.map((m) => MOVE_WORDS[m].toLowerCase()).join(', or ')}.` : 'Nothing more can be done on it.'
     return {
       ok: false, code: 'NOT_NEXT',
-      message: `${facts.personName}'s ${facts.type} is ${statusWord(status).toLowerCase()}. ${next}`,
+      message: `${possessive(facts.personName)} ${facts.type} is ${statusWord(status).toLowerCase()}. ${next}`,
     }
   }
   if (move === 'APPROVED' && !facts.expiresAt) {
@@ -75,7 +76,7 @@ export function applyMove(
   const next: PetitionStatus = move === 'RFE_ANSWERED' ? 'RFE' : move
   return {
     ok: true, status: next, event: EVENT_FOR[move],
-    says: `${facts.personName}'s ${facts.type}: ${MOVE_WORDS[move].toLowerCase()}.`,
+    says: `${possessive(facts.personName)} ${facts.type}: ${MOVE_WORDS[move].toLowerCase()}.`,
   }
 }
 

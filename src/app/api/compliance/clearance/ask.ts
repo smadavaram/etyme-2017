@@ -5,6 +5,7 @@ import { notify } from '@/lib/notify'
 import { hasPermission } from '@/lib/permissions'
 import { packetByKey, startPacketFor } from '@/lib/packets'
 import { startPreview, hrNotice, lineExtras, type StartPreview } from '@/lib/contract-clearance'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * Asking for the papers when somebody is placed, not when somebody tries
@@ -105,7 +106,7 @@ async function recordWhatIsOutstanding(
       data: {
         companyId: contract.companyId,
         action: 'GOOD_STANDING_LAPSED',
-        summary: `${contract.company?.name ?? 'The supplier'}'s certificate of good standing does not cover today`,
+        summary: `${possessive(contract.company?.name ?? 'The supplier')} certificate of good standing does not cover today`,
         reason:
           `${standing.says} Nobody starts through ${contract.company?.name ?? 'this supplier'} until the state ` +
           `that registered it says it may trade again.`,
@@ -294,7 +295,7 @@ export async function askForClearance(input: {
       says:
         preview.outcome === 'PASS'
           ? `${contract.person.name} has everything on file. Nobody was asked for anything.`
-          : `Nothing is ${contract.person.name}'s to produce. ${preview.says}`,
+          : `Nothing is ${possessive(contract.person.name)} to produce. ${preview.says}`,
     }
   }
 
@@ -318,7 +319,7 @@ export async function askForClearance(input: {
       told: [],
       says:
         `Nobody at ${contract.company?.name ?? 'the supplier'} has a seat yet, so there is nobody to record as ` +
-        `asking for ${contract.person.name}'s paperwork. Invite the person who does HR here, then ask again.`,
+        `asking for ${possessive(contract.person.name)} paperwork. Invite the person who does HR here, then ask again.`,
     }
   }
 

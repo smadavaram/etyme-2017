@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { readJson } from '@/lib/read-response'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * What an order — or one line on it — asks for on paper.
@@ -302,7 +303,7 @@ function Inner() {
         <p className="lbl">Governance</p>
         <h1 className="text-h2 font-serif text-etyme-ink">
           {answer?.order
-            ? `What ${answer.order.issuedBy}’s order ${answer.order.number} asks for`
+            ? `What ${possessive(answer.order.issuedBy, '’')} order ${answer.order.number} asks for`
             : 'What this line asks for on paper'}
         </h1>
         {answer?.says && <p className="text-body-sm text-etyme-muted mt-1">{answer.says}</p>}

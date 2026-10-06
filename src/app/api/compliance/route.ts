@@ -210,6 +210,8 @@ export async function GET(request: NextRequest) {
       id: true,
       personId: true,
       companyId: true,
+      clientCompanyId: true,
+      state: true,
       person: { select: { id: true, name: true } },
       company: { select: { id: true, name: true } },
       clientCompany: { select: { id: true, name: true } },
@@ -592,6 +594,34 @@ export async function GET(request: NextRequest) {
   )
   const startsHeld = starts.filter(s => s.outcome !== 'PASS')
 
+  // ── Suppliers with people on site and no agreement on file ──────────
+  //
+  // Found by a tester on 2026-10-03, as Northbend Athletic's compliance
+  // officer: the program dashboard said "3 things need you", counting
+  // held starts and suppliers with no agreement, and this page counted
+  // only the starts. Counted the dashboard's way: the rung the client
+  // pays, on site now, against any agreement between this client and
+  // that firm. A client's question only — a supplier reading this page
+  // is not the one who signs with itself.
+  const onSiteTop = chainTop(activeContracts.filter(c => c.state === 'IN_PROGRESS'))
+  const siteVendors = new Map<string, number>()
+  for (const c of onSiteTop) siteVendors.set(c.companyId, (siteVendors.get(c.companyId) ?? 0) + 1)
+  const agreedVendors = viewerIsClient || seat
+    ? new Set((await prisma.masterAgreement.findMany({
+        where: { clientId: clientCompany.id, vendorId: { in: Array.from(siteVendors.keys()) } },
+        select: { vendorId: true },
+      })).map(a => a.vendorId))
+    : null
+  const noAgreement = agreedVendors
+    ? Array.from(siteVendors.entries())
+        .filter(([id]) => !agreedVendors.has(id))
+        .map(([companyId, headcount]) => ({
+          companyId,
+          name: shown(companyId, onSiteTop.find(c => c.companyId === companyId)!.company.name).name,
+          headcount,
+        }))
+    : []
+
   // Everybody about to start is on the person list, whether or not a
   // single check has ever been recorded on them. A person with nothing on
   // file is the one this page most needs to show.
@@ -701,6 +731,9 @@ export async function GET(request: NextRequest) {
       // People about to start whom the paperwork is holding up, in the
       // same words the dashboard and the activation refusal use.
       startsHeld,
+      // Suppliers with people on site and no agreement on file, counted
+      // the way the program dashboard counts them.
+      noAgreement,
       health: {
         ...health,
         // ── A rate over no checks is not a hundred percent ──

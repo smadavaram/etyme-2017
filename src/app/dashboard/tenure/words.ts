@@ -9,7 +9,7 @@
  */
 
 import { plainDate } from '@/lib/plain-date'
-import { monthsOf } from '@/lib/tenure-days'
+import { runsPastSentence } from '@/lib/tenure-days'
 
 /** The line under the heading. Says nothing about a company it cannot yet name. */
 export function tenureSubtitle(o: {
@@ -62,28 +62,28 @@ export function limitDayWords(o: { reachedOn: string | null; today: Date; live: 
 }
 
 /**
- * A live contract booked past the limit, in a sentence.
+ * A live contract booked past the limit, in a sentence, with what to do.
  *
- * "Pinnacle Resourcing's contract runs to Sep 3, 2027, 7 months past the
- * time limit on Feb 3, 2027." Whole months, never rounded up — the same
- * rule as months served — and days where it is under a month. A contract
- * with no end date runs past any limit, and says so.
+ * "Pinnacle Resourcing’s contract runs to Sep 3, 2027, 7 months past the
+ * day Lucía Fernández reaches the time limit (Feb 2, 2027). Shorten it or
+ * plan the break." The wording is `runsPastSentence` in lib/tenure-days,
+ * so the placement can say the same thing in the same words.
  */
 export function runsPastWords(o: {
   firm: string
+  personName?: string | null
   endDate: string | null
   daysPast: number | null
   reachedOn: string
+  today?: Date
 }): string {
-  const limit = plainDate(o.reachedOn)
-  if (o.endDate == null || o.daysPast == null) {
-    return `${o.firm}’s contract has no end date, so it runs past the time limit on ${limit}.`
-  }
-  const months = monthsOf(o.daysPast)
-  const by = months >= 1
-    ? `${months} month${months === 1 ? '' : 's'}`
-    : `${o.daysPast} day${o.daysPast === 1 ? '' : 's'}`
-  return `${o.firm}’s contract runs to ${plainDate(o.endDate)}, ${by} past the time limit on ${limit}.`
+  return runsPastSentence({
+    firm: o.firm,
+    personName: o.personName ?? null,
+    endDate: o.endDate ? new Date(o.endDate) : null,
+    reachedOn: new Date(o.reachedOn),
+    now: o.today,
+  })
 }
 
 /**

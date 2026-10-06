@@ -12,6 +12,7 @@ import {
   type OwedBy,
 } from '@/lib/document-requirements'
 import { labelFor, sayType, type DefinedType } from '@/lib/document-type'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * What this order asks for on paper, and who may change it.
@@ -84,7 +85,7 @@ async function targetOf(body: {
       id: order.id,
       buyerCompanyId: order.issuedById,
       buyerName: order.issuedBy.name,
-      says: `${order.issuedBy.name}’s order ${order.number}`,
+      says: `${possessive(order.issuedBy.name, '’')} order ${order.number}`,
     }
   }
   if (body.sellContractId) {
@@ -180,7 +181,7 @@ async function standingOn(caller: CallerContext, target: Target, write: boolean)
     return {
       ok: false,
       response: refuse(
-        `What ${target.says} asks for is ${target.buyerName}’s own rulebook, and this is not ${target.buyerName}. ` +
+        `What ${target.says} asks for is ${possessive(target.buyerName, '’')} own rulebook, and this is not ${target.buyerName}. ` +
           `A firm supplying against an order cannot change what that order requires of it. ` +
           `If you run this program for ${target.buyerName}, ask them for a seat at the desk that does.`
       ),

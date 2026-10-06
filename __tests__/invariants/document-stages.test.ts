@@ -17,6 +17,7 @@ import {
   stageFor, compile, standingOf, clearance, inSentence, WARN_WITHIN_DAYS,
   type Wish, type Held, type Ask,
 } from '@/lib/document-stages'
+import { sentencePhrases } from '@/lib/contract-clearance'
 
 const wish = (over: Partial<Wish> & { key: string }): Wish => ({
   label: over.key, hint: '', required: true, wantedAt: 'APPLICATION', ...over,
@@ -259,10 +260,12 @@ describe('a form’s name keeps its capitals in a sentence', () => {
   })
 
   it('says the whole refusal the way a compliance officer would write it', () => {
-    // The sentence the walk actually caught, end to end.
-    const items = ['Proof of right to work', 'I-9 and E-Verify'].map(inSentence)
-    expect(`Ingrid Sørensen cannot start without ${items[0]} and ${items[1]}.`).toBe(
-      'Ingrid Sørensen cannot start without proof of right to work and I-9 and E-Verify.'
+    // The sentence the walk actually caught, end to end — and then read
+    // as a person would (tester, 2026-10-03): one right to work, shown
+    // on an I-9 and checked with E-Verify, not three papers.
+    const items = sentencePhrases([{ label: 'Proof of right to work' }, { label: 'I-9 and E-Verify' }])
+    expect(`Ingrid Sørensen cannot start without ${items.join(' and ')}.`).toBe(
+      'Ingrid Sørensen cannot start without proof of right to work (I-9, checked with E-Verify).'
     )
   })
 })

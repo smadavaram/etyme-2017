@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { MOVES, MOVE_WORDS, statusWord } from '@/lib/visa-petition'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * GET  /api/compliance/petitions            the petitions of people on our books
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
   })
 
   return NextResponse.json(
-    { data: { id: petition.id, status: 'FILED', says: `${person.name}'s ${type} is filed. Record what happens to it from here.` } },
+    { data: { id: petition.id, status: 'FILED', says: `${possessive(person.name)} ${type} is filed. Record what happens to it from here.` } },
     { status: 201 }
   )
 }

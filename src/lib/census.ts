@@ -47,6 +47,7 @@
  */
 
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
+import { possessive } from '@/lib/requisition-approval'
 
 // ── The editions and the windows ──────────────────────────────────────
 
@@ -641,7 +642,7 @@ export function mayOpenFile(reader: Reader, census: { assignedStaffEmail: string
     return {
       ok: false,
       says:
-        `This census is ${census.assignedStaffEmail}'s, and the client was told that name. ` +
+        `This census is ${possessive(census.assignedStaffEmail)}, and the client was told that name. ` +
         'If it should be yours, reassign it — then the record says who read what, and when.',
     }
   }
@@ -740,7 +741,7 @@ export function censusSweep(now: Date, rows: SweepCensus[]): CensusPlan {
         daysLeft,
         owner: r.assignedStaffEmail,
         says:
-          `${r.companyName}'s census data is deleted on ${day(r.deleteBy)}, ` +
+          `${possessive(r.companyName)} census data is deleted on ${day(r.deleteBy)}, ` +
           `${daysLeft === 1 ? 'tomorrow' : `in ${daysLeft} days`}, and their page has not been sent. ` +
           'The date is the one they were given in writing and it does not move, so the page has ' +
           'to go before it. ' +

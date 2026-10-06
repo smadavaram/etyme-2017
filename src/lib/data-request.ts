@@ -49,6 +49,7 @@ import {
   censusClockStaffNotice, censusDeletedNotice, type CensusStaffNotice,
 } from '@/lib/notify/census'
 import type { Notice, Audience } from '@/lib/notify/letters'
+import { possessive } from '@/lib/requisition-approval'
 
 // ── Who the request is about ──────────────────────────────────────────
 
@@ -325,15 +326,15 @@ export function deskFraming(
           'and any incident its records were in.',
         missing: seated
           ? mayReadQueue
-            ? `This page is ${companyName}’s own. ${seated.clientName} has also seated ` +
+            ? `This page is ${possessive(companyName, '’')} own. ${seated.clientName} has also seated ` +
               `${companyName} at its ${seated.roleName} desk, and a request from one of ` +
-              `${seated.clientName}’s contractors belongs to ${seated.clientName}’s queue rather ` +
+              `${possessive(seated.clientName, '’')} contractors belongs to ${possessive(seated.clientName, '’')} queue rather ` +
               `than this one — name that program to open it, and every read there is logged ` +
               'against the seat.'
-            : `This page is ${companyName}’s own. ${seated.clientName} has seated ${companyName} ` +
+            : `This page is ${possessive(companyName, '’')} own. ${seated.clientName} has seated ${companyName} ` +
               `at its ${seated.roleName} desk, and that desk does not read data requests — a ` +
-              `request from one of ${seated.clientName}’s contractors is answered from ` +
-              `${seated.clientName}’s own compliance desk. An owner or the program manager there ` +
+              `request from one of ${possessive(seated.clientName, '’')} contractors is answered from ` +
+              `${possessive(seated.clientName, '’')} own compliance desk. An owner or the program manager there ` +
               `can seat ${companyName} at a desk that reads it.`
           : `${companyName} runs somebody else's program and places nobody, so nothing here ` +
             'ties it to a client. A request from one of a client’s contractors is answered ' +
@@ -341,7 +342,7 @@ export function deskFraming(
             `the client’s program office — granted by the client, the way it grants one to ` +
             `its own people. No client has granted ${companyName} one yet: ask an owner or the ` +
             'program manager at that client. So this page shows ' +
-            `${companyName}’s own and says so rather than showing an empty list.`,
+            `${possessive(companyName, '’')} own and says so rather than showing an empty list.`,
       }
     case 'CONSULTANT_CORP':
       return {

@@ -1390,6 +1390,7 @@ import {
   type OwedBy,
 } from '@/lib/document-requirements'
 import { labelFor } from '@/lib/document-type'
+import { possessive } from '@/lib/requisition-approval'
 
 /** How far ahead a lapse is worth telling somebody about. */
 export const CHASE_WINDOW_DAYS = 60
@@ -1455,7 +1456,7 @@ function daysBetween(a: Date, b: Date): number {
 }
 
 function sentence(document: string, who: string | null, daysLeft: number): string {
-  const whose = who ? `${who}’s ` : ''
+  const whose = who ? `${possessive(who, '’')} ` : ''
   if (daysLeft < 0) {
     const n = Math.abs(daysLeft)
     return `${whose}${document} ran out ${n === 1 ? 'yesterday' : `${n} days ago`}.`

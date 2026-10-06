@@ -8,6 +8,7 @@ import {
 } from '@/lib/census'
 import { censusReceivedNotice } from '@/lib/notify/census'
 import { sendCensusLetter } from '@/lib/data-request'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * POST /api/census/upload?token=… — the client sends their files.
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
 
   if (!OPEN.includes(census.status as CensusStatus)) {
     return refuse(409, 'CLOSED',
-      `${census.companyName}'s census is past the point where anything more can be added to it. ` +
+      `${possessive(census.companyName)} census is past the point where anything more can be added to it. ` +
       'Reply to the person running it and they will say what to do.')
   }
 

@@ -9,6 +9,7 @@
 
 import { sayType } from '@/lib/document-type'
 import { compact } from '@/lib/money-display'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * What a check is called, in the words the parties use.
@@ -63,7 +64,7 @@ export function owedSentence(o: {
   const where = o.toName ? `, on the line billing ${o.toName}` : ''
   const asked = o.asked.trim().replace(/[.]$/, '')
   return whose
-    ? `${whose}’s to produce — ${lowerFirst(asked)}${where}.`
+    ? `${possessive(whose, '’')} to produce — ${lowerFirst(asked)}${where}.`
     : `${upperFirst(asked)}${where}.`
 }
 
@@ -94,6 +95,12 @@ export function twoPopulations(
     flagged?: number
     /** True where the reader is the client, who is paid on no line here. */
     client?: boolean
+    /**
+     * Suppliers with somebody on site and no agreement on file. The
+     * program dashboard counts these in "N things need you", so the
+     * compliance officer's own page says them too (tester, 2026-10-03).
+     */
+    noAgreement?: number
   } = {}
 ): string {
   const held = also.heldStarts ?? 0
@@ -112,8 +119,13 @@ export function twoPopulations(
           ? `${held} ${held === 1 ? 'person is' : 'people are'} about to start with paperwork still owed.`
           : `${held} people are about to start with paperwork still owed, and ${blocked} of them cannot start until it is on file.`
 
+  const unpapered = also.noAgreement ?? 0
+  const agreements = unpapered === 0
+    ? ''
+    : `${unpapered} ${unpapered === 1 ? 'supplier has' : 'suppliers have'} people on site with no agreement on file.`
+
   const owes = also.client
-    ? held === 0 && owed === 0
+    ? held === 0 && owed === 0 && unpapered === 0
       ? 'Nothing is holding up a start here.'
       : ''
     : owed === 0
@@ -135,7 +147,7 @@ export function twoPopulations(
       ? ' The two count different things: what the lines require, and what has actually been checked.'
       : ''
 
-  return [starts, owes, ran].filter(Boolean).join(' ') + apart
+  return [starts, agreements, owes, ran].filter(Boolean).join(' ') + apart
 }
 
 // ── The rules, in the words a program manager uses ────────────────────

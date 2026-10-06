@@ -65,9 +65,9 @@ describe('a contract booked past the time limit', () => {
     expect(monthsOf(past[0].daysPast!)).toBe(7)
   })
 
-  it('says so in a sentence with both dates and whole months', () => {
-    expect(runsPastWords({ firm: 'Pinnacle Resourcing', endDate: '2027-09-03T00:00:00.000Z', daysPast: 213, reachedOn: reached!.toISOString() }))
-      .toBe('Pinnacle Resourcing’s contract runs to Sep 3, 2027, 7 months past the time limit on Feb 2, 2027.')
+  it('says so in a sentence with both dates, whole months, and what to do', () => {
+    expect(runsPastWords({ firm: 'Pinnacle Resourcing', personName: 'Lucía Fernández', endDate: '2027-09-03T00:00:00.000Z', daysPast: 213, reachedOn: reached!.toISOString(), today: d('2026-10-03') }))
+      .toBe('Pinnacle Resourcing’s contract runs to Sep 3, 2027, 7 months past the day Lucía Fernández reaches the time limit (Feb 2, 2027). Shorten it or plan the break.')
   })
 
   it('never rounds a part month up: 58 days past is one month, not two', () => {
@@ -83,8 +83,8 @@ describe('a contract booked past the time limit', () => {
   it('flags a running contract with no end date as running past the limit', () => {
     const past = contractsPastLimit([{ id: 'x', firm: 'Acme', endDate: null, live: true }], reached)
     expect(past).toEqual([{ contractId: 'x', firm: 'Acme', endDate: null, daysPast: null }])
-    expect(runsPastWords({ firm: 'Acme', endDate: null, daysPast: null, reachedOn: reached!.toISOString() }))
-      .toBe('Acme’s contract has no end date, so it runs past the time limit on Feb 2, 2027.')
+    expect(runsPastWords({ firm: 'Acme', endDate: null, daysPast: null, reachedOn: reached!.toISOString(), today: d('2026-10-03') }))
+      .toBe('Acme’s contract has no end date, so it runs past the day the time limit is reached (Feb 2, 2027). Give it an end date or plan the break.')
   })
 
   it('does not flag a contract that ends on or before the day the limit is reached', () => {

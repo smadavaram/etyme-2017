@@ -820,15 +820,50 @@ function forActivation(cover: CoverGate): CoverGate {
   }
 }
 
-function names(items: { label: string; said?: string }[]): string {
-  // `said` where an item names itself more precisely inside a sentence —
-  // the license does, because a proper noun cannot be lowercased and a
-  // board that is not named is a board nobody can call.
-  // `inSentence` rather than `toLowerCase`: a label is a heading on a
-  // checklist and a phrase inside a refusal, and the two want different
-  // casing — but a form's name keeps its capitals in both. This said
-  // "i-9 and e-verify" on two client dashboards.
-  const l = items.map((i) => i.said ?? inSentence(i.label))
+// ── The right to work, said once ─────────────────────────────────────
+//
+// Found by a tester on 2026-10-03: "cannot start without proof of right
+// to work and I-9 and E-Verify". Two checklist rows and an "and" inside
+// a label, joined by another "and", read as three separate papers. To a
+// person it is one thing — the right to work, shown on an I-9 and
+// checked with E-Verify — so inside a sentence the two rows are said as
+// one phrase. The checklist keeps both rows; only the sentence folds.
+const RIGHT_TO_WORK_LABEL = 'Proof of right to work'
+const I9_LABEL = 'I-9 and E-Verify'
+type Named = { key?: string; label: string; said?: string }
+const isRightToWork = (i: Named) => i.key === 'RIGHT_TO_WORK' || (!i.key && i.label === RIGHT_TO_WORK_LABEL)
+const isI9 = (i: Named) => i.key === 'I9_EVERIFY' || (!i.key && i.label === I9_LABEL)
+
+/** The phrases a list of items is said with, inside a sentence. Exported for its test. */
+export function sentencePhrases(items: Named[]): string[] {
+  const out: string[] = []
+  const both = items.some(isRightToWork) && items.some(isI9)
+  let folded = false
+  for (const i of items) {
+    if (isRightToWork(i) || isI9(i)) {
+      if (i.said) { out.push(i.said); continue }
+      if (both) {
+        if (!folded) out.push('proof of right to work (I-9, checked with E-Verify)')
+        folded = true
+        continue
+      }
+      out.push(isI9(i) ? 'an I-9 (checked with E-Verify)' : inSentence(i.label))
+      continue
+    }
+    // `said` where an item names itself more precisely inside a sentence —
+    // the license does, because a proper noun cannot be lowercased and a
+    // board that is not named is a board nobody can call.
+    // `inSentence` rather than `toLowerCase`: a label is a heading on a
+    // checklist and a phrase inside a refusal, and the two want different
+    // casing — but a form's name keeps its capitals in both. This said
+    // "i-9 and e-verify" on two client dashboards.
+    out.push(i.said ?? inSentence(i.label))
+  }
+  return out
+}
+
+function names(items: Named[]): string {
+  const l = sentencePhrases(items)
   if (l.length <= 1) return l.join('')
   return `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}`
 }
@@ -1081,7 +1116,7 @@ export function startWords(o: {
   startDate: string | null
   state: string
   outcome: Outcome | null
-  blocking: { label: string; said?: string }[]
+  blocking: { key?: string; label: string; said?: string }[]
   today: Date
 }): string | null {
   if (!o.startDate) return null

@@ -40,6 +40,7 @@
 
 import { HELD } from '@/lib/legal'
 import { plainDate } from '@/lib/plain-date'
+import { possessive } from '@/lib/requisition-approval'
 
 // ── The regimes, and how long each gives ──────────────────────────────
 
@@ -762,9 +763,9 @@ export function sweep(now: Date, deps: SweepDeps): SweepPlan {
         hoursLeft: Math.round(hoursLeft),
         late: hoursLeft < 0,
         says: hoursLeft < 0
-          ? `The answer to ${r.subjectLabel}'s request was due ${Math.abs(Math.round(hoursLeft))} ` +
+          ? `The answer to ${possessive(r.subjectLabel)} request was due ${Math.abs(Math.round(hoursLeft))} ` +
             'hours ago and nobody has answered it. Answer it today, and record the hour it went.'
-          : `${r.subjectLabel}'s request is due in ${Math.max(0, Math.round(hoursLeft))} hours ` +
+          : `${possessive(r.subjectLabel)} request is due in ${Math.max(0, Math.round(hoursLeft))} hours ` +
             'and nobody has answered it.',
       })
     }

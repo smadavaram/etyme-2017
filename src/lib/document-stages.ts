@@ -41,6 +41,7 @@
  */
 
 import { plainDate } from '@/lib/plain-date'
+import { possessive } from '@/lib/requisition-approval'
 
 export type Stage = 'APPLICATION' | 'ENGAGEMENT'
 
@@ -923,7 +924,7 @@ export function supplierCoverGate(input: {
         ...standing,
         standing: 'EXPIRED',
         daysLeft: null,
-        says: `${label} is marked expired on ${input.supplierName}'s own record.`,
+        says: `${label} is marked expired on ${possessive(input.supplierName)} own record.`,
       }
     }
 
@@ -962,10 +963,10 @@ export function supplierCoverGate(input: {
   // of Y" instead.
   const phrase = /^(the|a) /.test(input.supplierName)
   const whose = (noun: string): string =>
-    phrase ? `the ${noun} of ${input.supplierName}` : `${input.supplierName}'s ${noun}`
+    phrase ? `the ${noun} of ${input.supplierName}` : `${possessive(input.supplierName)} ${noun}`
   const aBroker = phrase
     ? `a broker for ${input.supplierName}`
-    : `${input.supplierName}'s broker`
+    : `${possessive(input.supplierName)} broker`
   // A supplier whose only trouble is that its cover starts later cannot
   // act on "ask your broker for a replacement" — it has the certificate.
   // Either the policy is brought forward or the start date moves, and
@@ -1268,7 +1269,7 @@ export function licenseGate(input: {
         ...standing,
         standing: 'EXPIRED',
         daysLeft: null,
-        says: `${named} is marked expired on ${input.personName}'s own record.`,
+        says: `${named} is marked expired on ${possessive(input.personName)} own record.`,
       }
     }
 
@@ -1288,7 +1289,7 @@ export function licenseGate(input: {
       lapsingInside.push({
         ...row,
         says:
-          `${input.personName}'s ${named} runs out on ${plainDate(best.expiresAt.toISOString())}, ` +
+          `${possessive(input.personName)} ${named} runs out on ${plainDate(best.expiresAt.toISOString())}, ` +
           `inside the assignment — ${uncovered} day${uncovered === 1 ? '' : 's'} of it fall after the license does. ` +
           `They can start; they cannot work those days until the renewal is on file.`,
       })
@@ -1317,7 +1318,7 @@ export function licenseGate(input: {
           `Nobody can start until ${early ? 'they begin' : 'they are renewed'}.${issuedIn}`
     const fix = early
       ? `Either the board brings the start date forward, or nobody starts before the license does.`
-      : `Record the renewal — the number and the day it runs out — against ${input.personName}'s ${blocking[0].named}, then activate.`
+      : `Record the renewal — the number and the day it runs out — against ${possessive(input.personName)} ${blocking[0].named}, then activate.`
     return { outcome, blocking, chasing, lapsingInside, says, fix }
   }
 

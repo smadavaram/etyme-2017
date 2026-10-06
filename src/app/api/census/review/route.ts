@@ -10,6 +10,7 @@ import {
 } from '@/lib/census'
 import { censusDeliveredNotice } from '@/lib/notify/census'
 import { sendCensusLetter } from '@/lib/data-request'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * GET/POST /api/census/review — the desk the named person at Etyme works
@@ -220,7 +221,7 @@ export async function GET(request: NextRequest) {
       actorPersonId: realPersonId(caller) ?? null,
       action: 'REFUSED',
       allowed: false,
-      reason: `${reader.email} was refused ${meta.fileName} on ${census.companyName}'s census: ${open.says}`,
+      reason: `${reader.email} was refused ${meta.fileName} on ${possessive(census.companyName)} census: ${open.says}`,
       fileId,
       fileName: meta.fileName,
     })
@@ -229,7 +230,7 @@ export async function GET(request: NextRequest) {
         actorPersonId: realPersonId(caller) ?? undefined,
         action: 'CENSUS_READ',
         allowed: false,
-        reason: `Refused ${meta.fileName} on ${census.companyName}'s census: ${open.says}`,
+        reason: `Refused ${meta.fileName} on ${possessive(census.companyName)} census: ${open.says}`,
       })
     } catch (err) {
       void reportError('census/review', err)
@@ -253,7 +254,7 @@ export async function GET(request: NextRequest) {
     actorPersonId: realPersonId(caller) ?? null,
     action: 'OPENED',
     allowed: true,
-    reason: `${reader.email} opened ${file.fileName} on ${census.companyName}'s census`,
+    reason: `${reader.email} opened ${file.fileName} on ${possessive(census.companyName)} census`,
     fileId,
     fileName: file.fileName,
   })
@@ -262,7 +263,7 @@ export async function GET(request: NextRequest) {
     await recordAccess(subjects, {
       actorPersonId: realPersonId(caller) ?? undefined,
       action: 'CENSUS_READ',
-      reason: `${reader.email} opened ${file.fileName} on ${census.companyName}'s census`,
+      reason: `${reader.email} opened ${file.fileName} on ${possessive(census.companyName)} census`,
     })
   } catch (err) {
     void reportError('census/review', err)
@@ -327,7 +328,7 @@ export async function POST(request: NextRequest) {
 
   if (census.status === 'DELETED') {
     return refuse(409, 'DELETED',
-      `${census.companyName}'s census was deleted on the day the agreement said it would be. ` +
+      `${possessive(census.companyName)} census was deleted on the day the agreement said it would be. ` +
       'Nothing more happens to it; ask them for a new one and nothing of the old is reused.')
   }
 
@@ -375,7 +376,7 @@ export async function POST(request: NextRequest) {
 
     if (!census.sandboxCompanyId) {
       return refuse(409, 'NOT_IMPORTED',
-        `${census.companyName}'s rows have not been loaded, so there are no numbers to send. Import their ` +
+        `${possessive(census.companyName)} rows have not been loaded, so there are no numbers to send. Import their ` +
         'file first.')
     }
 

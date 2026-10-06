@@ -19,6 +19,7 @@
  */
 
 import type { Treatment } from './overtime'
+import { possessive } from '@/lib/requisition-approval'
 
 export type WorkerType = 'W2' | 'C2C' | 'IND_1099' | 'C2H_W2'
 
@@ -732,7 +733,7 @@ export function reviewSweep(rows: RecordedCall[], now: Date): StaleCall[] {
         freshness: 'NO_REVIEW_DATE',
         daysOverdue: null,
         says:
-          `${r.personName}'s classification call has no review date. Nothing will ever bring ` +
+          `${possessive(r.personName)} classification call has no review date. Nothing will ever bring ` +
           `it back — this is the state that made a 2017 expiry column useless.`,
       })
       continue
@@ -748,7 +749,7 @@ export function reviewSweep(rows: RecordedCall[], now: Date): StaleCall[] {
         freshness: 'OVERDUE',
         daysOverdue: days,
         says:
-          `${r.personName}'s classification call was due for review ${days} day${days === 1 ? '' : 's'} ago. ` +
+          `${possessive(r.personName)} classification call was due for review ${days} day${days === 1 ? '' : 's'} ago. ` +
           `Positions rot as arrangements drift.`,
       })
       continue
@@ -761,7 +762,7 @@ export function reviewSweep(rows: RecordedCall[], now: Date): StaleCall[] {
         position: r.position,
         freshness: 'DUE_SOON',
         daysOverdue: days,
-        says: `${r.personName}'s classification call is due for review in ${-days} day${days === -1 ? '' : 's'}.`,
+        says: `${possessive(r.personName)} classification call is due for review in ${-days} day${days === -1 ? '' : 's'}.`,
       })
     }
   }
@@ -1612,7 +1613,7 @@ export function weekWage(week: WeekOfHours, at: WagePosition): WagePay {
         uncoveredPremiumCents: null,
         says:
           `${who} is engaged as a sole trader, so nothing here computes overtime for them — ` +
-          `but ${employer}'s own latest classification call says they are an employee. Paying ` +
+          `but ${possessive(employer)} own latest classification call says they are an employee. Paying ` +
           `${HRS(week.overHours)} flat against your own written determination is the fact that ` +
           `turns a back-pay claim into a willful one, which doubles the damages and adds a year.`,
         action: `Remake the classification call, or engage ${who} on payroll and record an exempt status.`,
@@ -1660,7 +1661,7 @@ export function weekWage(week: WeekOfHours, at: WagePosition): WagePay {
       uncoveredPremiumCents: null,
       says:
         `Under the ${r.label} there is no statutory premium for an overtime hour, so what ` +
-        `${who}'s ${HRS(week.overHours)} are worth is whatever their contract says. Paid flat ` +
+        `${possessive(who)} ${HRS(week.overHours)} are worth is whatever their contract says. Paid flat ` +
         `because nothing on the buy contract says otherwise.`,
       action: null,
       caveats: [
@@ -1677,7 +1678,7 @@ export function weekWage(week: WeekOfHours, at: WagePosition): WagePay {
       code: 'CANNOT_SAY',
       ...nothing,
       says: saysCannotClassify(who, week.weekOf, week.overHours, employer, r),
-      action: `Record on ${who}'s contract whether they are exempt from overtime, then run payroll again.`,
+      action: `Record on ${possessive(who)} contract whether they are exempt from overtime, then run payroll again.`,
       caveats: [],
     }
   }
@@ -1730,20 +1731,20 @@ export function weekWage(week: WeekOfHours, at: WagePosition): WagePay {
   let says: string
   if (at.client.treatment === 'TIME_OFF') {
     says =
-      `${client} banked ${who}'s ${HRS(week.overHours)} from the week of ${DAY_NAME(week.weekOf)} ` +
+      `${client} banked ${possessive(who)} ${HRS(week.overHours)} from the week of ${DAY_NAME(week.weekOf)} ` +
       `as paid time off. That is how ${client} is billed and it does not reach the pay line: time ` +
       `off instead of overtime pay is lawful for public agencies only (29 U.S.C. §207(o)), and ` +
       `${employer} is not one. ${who} is owed ${HRS(week.overHours)} at ${multiple(r.floorBps)} ` +
       `— ${USD(overtimeCents)} — on this period's payroll.`
   } else if (at.client.treatment === 'SAME_RATE') {
     says =
-      `${client} is billed ${who}'s ${HRS(week.overHours)} from the week of ${DAY_NAME(week.weekOf)} ` +
+      `${client} is billed ${possessive(who)} ${HRS(week.overHours)} from the week of ${DAY_NAME(week.weekOf)} ` +
       `at the usual rate. ${who} is nonexempt, so ${employer} owes ${multiple(r.floorBps)} on them ` +
       `regardless — ${USD(overtimeCents)}. What a client agrees to pay its supplier does not set ` +
       `what the supplier owes its employee.`
   } else if (at.client.treatment === 'PREMIUM' && uncovered != null && uncovered > 0) {
     says =
-      `${client} priced ${who}'s ${HRS(week.overHours)} at ${multiple(clientBps!)}, which is under ` +
+      `${client} priced ${possessive(who)} ${HRS(week.overHours)} at ${multiple(clientBps!)}, which is under ` +
       `the ${multiple(r.floorBps)} a nonexempt employee is owed. ${employer} pays ` +
       `${USD(overtimeCents)}.`
   } else {
@@ -1754,7 +1755,7 @@ export function weekWage(week: WeekOfHours, at: WagePosition): WagePay {
 
   if (uncovered != null && uncovered > 0) {
     says +=
-      ` ${USD(uncovered)} of that is premium ${client}'s own choice did not price, and ` +
+      ` ${USD(uncovered)} of that is premium ${possessive(client)} own choice did not price, and ` +
       `${employer} carries it.`
   }
 

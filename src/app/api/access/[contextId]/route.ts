@@ -12,6 +12,7 @@ import {
   canDeleteOutright,
   type AccessRow,
 } from '@/lib/account-lifecycle'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * POST   /api/access/:contextId   { action: 'suspend' | 'reinstate' | 'revoke', reason }
@@ -143,9 +144,9 @@ export async function POST(
   })
 
   const said =
-    action === 'suspend' ? `paused ${person.person.name}'s access`
+    action === 'suspend' ? `paused ${possessive(person.person.name)} access`
       : action === 'reinstate' ? `put ${person.person.name} back`
-        : `ended ${person.person.name}'s access`
+        : `ended ${possessive(person.person.name)} access`
 
   // The action below is spelled out, never assembled. It used to be built by
   // interpolation from the verb, which spells suspend as ACCESS_SUSPENDD, and

@@ -13,7 +13,7 @@ const held = [{ label: 'Proof of right to work' }, { label: 'I-9 and E-Verify' }
 describe('the start on a placement header', () => {
   it('says Ingrid Sørensen is due to start Oct 10, 2026 and what holds her up, never that she started', () => {
     const said = startWords({ startDate: '2026-10-10T00:00:00.000Z', state: 'DRAFT', outcome: 'BLOCK', blocking: held, today })
-    expect(said).toBe('due to start Oct 10, 2026; held up: waiting on proof of right to work and I-9 and E-Verify')
+    expect(said).toBe('due to start Oct 10, 2026; held up: waiting on proof of right to work (I-9, checked with E-Verify)')
     expect(said).not.toMatch(/started/)
   })
 
@@ -29,7 +29,7 @@ describe('the start on a placement header', () => {
 
   it('says a first day that passed on a contract that never started has not started', () => {
     expect(startWords({ startDate: '2026-09-28T00:00:00.000Z', state: 'DRAFT', outcome: 'BLOCK', blocking: held, today }))
-      .toBe('was due to start Sep 28, 2026 and has not started; held up: waiting on proof of right to work and I-9 and E-Verify')
+      .toBe('was due to start Sep 28, 2026 and has not started; held up: waiting on proof of right to work (I-9, checked with E-Verify)')
   })
 
   it('points at the checklist rather than guessing where the start is blocked by something it cannot name', () => {

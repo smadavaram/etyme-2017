@@ -468,10 +468,14 @@ export function evaluateRequisition(
  * until a tester walked a unit called Apps (2026-10-03). Same rule as
  * `possessive` in supply's lib/internal-moves, kept here rather than
  * imported so an approval chain does not depend on the bench.
+ *
+ * `mark` keeps a sentence's own apostrophe, straight or curly. Shared by
+ * the compliance, document and time-limit sentences since a tester read
+ * "Teleworld Solutions's" on 2026-10-03.
  */
-export function possessive(name: string): string {
+export function possessive(name: string, mark: "'" | '’' = "'"): string {
   const n = name.trim()
-  return /s$/i.test(n) ? `${n}'` : `${n}'s`
+  return /s$/i.test(n) ? `${n}${mark}` : `${n}${mark}s`
 }
 
 // ─────────────────────────────────────────────
