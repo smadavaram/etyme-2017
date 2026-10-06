@@ -5,10 +5,22 @@ import { answer, awaitingAnswer, whatYesMeans, ASK_FIRST_CHOICE, type State } fr
 import { tellTheFirm } from '@/lib/bench-invite'
 import { STAY_CHOICES, readStay, renewFields, stayFields, staySays } from '@/lib/bench-stay'
 import { renewStay } from '@/lib/bench-stay-record'
+import { agreeingTerms } from '@/lib/bench-filter'
+import { inviteTerms } from './terms'
 
 /**
- * GET  /api/bench-invite/:token — what is being asked
+ * GET  /api/bench-invite/:token — what is being asked, and the pay
+ *                                  terms the firm stated, if any
  * POST /api/bench-invite/:token — the consultant's answer
+ *        { said, stayDays?, showInMatches?, askFirst?, note?,
+ *          termsSeen?: { engagementType, payRateCents } }
+ *
+ * A yes agrees the firm's stated terms only when it carries the terms
+ * this page printed (`termsSeen`, checked by `agreeingTerms` in
+ * lib/bench-filter) — the same rule as the person's own page. Terms
+ * changed between reading and answering are refused in a sentence and
+ * the listing stays unanswered. A listing with no terms agrees only the
+ * marketing.
  *
  * No sign-in. A consultant on a vendor's bench has no seat, and their
  * answer is now required before anybody can be submitted, so the
@@ -71,6 +83,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
       askFirstChoice: ASK_FIRST_CHOICE,
       yesMeans: whatYesMeans({ vendor: listing.company.name, askFirst: listing.askFirst }),
       yesMeansIfAsked: whatYesMeans({ vendor: listing.company.name, askFirst: true }),
+      // The pay terms the firm stated, in the words their own page uses,
+      // and what the yes sends back to agree them (2026-10-06).
+      terms: inviteTerms(listing, listing.company.name),
     },
   })
 }
@@ -122,9 +137,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: { code: 'INVALID_STATE', message: outcome.reason } }, { status: 409 })
   }
 
+  // What the yes agrees about pay. A no agrees nothing and needs no check.
+  const terms = said === 'ACCEPT' ? agreeingTerms(listing, body.termsSeen, listing.company.name, now) : null
+  if (terms && !terms.ok) {
+    return NextResponse.json({ error: { code: 'TERMS_NOT_SEEN', message: terms.says, field: 'termsSeen' } }, { status: 409 })
+  }
+  const agreed = terms && terms.ok ? terms : null
+  const agreedNow = !!agreed && 'termsAgreedAt' in agreed.data
+
   const chosen = said === 'ACCEPT' && stay.ok ? stayFields(stay.days, now) : null
   const data = chosen
-    ? { ...outcome.data!, ...chosen, showInMatches: body.showInMatches === true }
+    ? { ...outcome.data!, ...chosen, showInMatches: body.showInMatches === true, ...(agreed?.data ?? {}) }
     : outcome.data!
 
   await prisma.$transaction([
@@ -133,9 +156,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: {
         companyId: listing.company.id,
         action: said === 'ACCEPT' ? 'BENCH_CONSENT_GIVEN' : 'BENCH_CONSENT_DECLINED',
-        summary: `${listing.consultant.person.name} ${said === 'ACCEPT' ? 'agreed to' : 'declined'} being marketed by ${listing.company.name}`,
+        summary:
+          `${listing.consultant.person.name} ${said === 'ACCEPT' ? 'agreed to' : 'declined'} being marketed by ${listing.company.name}` +
+          (agreedNow ? ', and agreed the pay terms stated with the listing' : ''),
         reason: 'The consultant answered the invitation themselves, from the link they were sent.',
-        payload: { listingId: listing.id, said, via: 'LINK', stayDays: chosen?.stayDays ?? null },
+        payload: {
+          listingId: listing.id, said, via: 'LINK', stayDays: chosen?.stayDays ?? null,
+          ...(agreedNow
+            ? { termsAgreed: { engagementType: listing.termsEngagementType, payRateCents: listing.termsPayRateCents } }
+            : {}),
+        },
         // Their own answer about their own representation.
         reversible: false,
       },
@@ -158,7 +188,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   return NextResponse.json({
     data: {
       state: said === 'ACCEPT' ? 'GRANTED' : 'DECLINED',
-      says: chosen ? `${outcome.reason} ${staySays(chosen, listing.company.name, now)}` : outcome.reason,
+      termsAgreed: agreed?.agreed ?? false,
+      says: chosen
+        ? `${outcome.reason} ${staySays(chosen, listing.company.name, now)}${agreed ? ` ${agreed.says}` : ''}`
+        : outcome.reason,
     },
   })
 }

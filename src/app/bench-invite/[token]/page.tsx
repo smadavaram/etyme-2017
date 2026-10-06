@@ -34,6 +34,15 @@ interface Ask {
   yesMeansIfAsked?: string
   askFirst?: boolean
   askFirstChoice?: string
+  /**
+   * The pay terms the firm stated when it listed them, or a sentence
+   * saying it stated none. The yes sends `seen` back, and agrees the
+   * terms only if they are still the ones printed here (2026-10-06).
+   */
+  terms?: {
+    says: string
+    seen: { engagementType: string; payRateCents: number } | null
+  }
 }
 
 export default function BenchInvitePage({ params }: { params: { token: string } }) {
@@ -47,6 +56,8 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
   const [stayDays, setStayDays] = useState<number | null>(null)
   const [showInMatches, setShowInMatches] = useState(false)
   const [askFirst, setAskFirst] = useState(false)
+  // The terms changed between reading and answering: their sentence.
+  const [changed, setChanged] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`/api/bench-invite/${token}`)
@@ -57,18 +68,29 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
 
   async function say(said: 'ACCEPT' | 'DECLINE' | 'RENEW') {
     setBusy(true)
+    setChanged(null)
     try {
-      const b = await readJson(
-        await fetch(`/api/bench-invite/${token}`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(
-            said === 'ACCEPT'
-              ? { said, stayDays, showInMatches, askFirst }
-              : { said, note: said === 'DECLINE' ? note : undefined }
-          ),
-        })
-      )
+      const res = await fetch(`/api/bench-invite/${token}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(
+          said === 'ACCEPT'
+            ? { said, stayDays, showInMatches, askFirst, termsSeen: ask?.terms?.seen ?? null }
+            : { said, note: said === 'DECLINE' ? note : undefined }
+        ),
+      })
+      // The firm changed the terms while the page was open. Nothing was
+      // agreed; show the new terms and let them answer again.
+      if (res.status === 409) {
+        const body = await res.clone().json().catch(() => null)
+        if (body?.error?.code === 'TERMS_NOT_SEEN') {
+          const fresh = await readJson(await fetch(`/api/bench-invite/${token}`))
+          setAsk(fresh.data)
+          setChanged(body.error.message)
+          return
+        }
+      }
+      const b = await readJson(res)
       setDone(b.data.says)
     } catch (e: any) {
       setError(e.message)
@@ -102,6 +124,9 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
               <h1 className="headline-serif text-[27px]">{ask.mayRenew ? 'Your stay on this bench' : 'Already answered'}</h1>
               <p className="mt-2 text-[14px] text-etyme-ink">{ask.says}</p>
               {ask.stay && <p className="mt-2 text-[14px] text-etyme-muted">{ask.stay}</p>}
+              {ask.state === 'GRANTED' && ask.terms?.seen && (
+                <p className="mt-2 text-[14px] text-etyme-muted">{ask.terms.says}</p>
+              )}
               {ask.mayRenew && (
                 <button
                   type="button"
@@ -127,6 +152,16 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
                 {ask.name}, being on a bench means they can put your name to jobs.{' '}
                 {(askFirst ? ask.yesMeansIfAsked : ask.yesMeans) ?? ''}
               </p>
+
+              {/* The pay terms, above the yes that agrees them. A yes
+                  sends back exactly these, so nobody agrees a figure
+                  they never read. */}
+              {changed && <p className="mt-3 max-w-[46ch] text-[13px] text-etyme-attention">{changed}</p>}
+              {ask.terms && (
+                <p className="mt-3 max-w-[46ch] rounded-md border border-etyme-rule bg-etyme-raised px-3 py-2 text-[14px] text-etyme-ink">
+                  {ask.terms.says}
+                </p>
+              )}
 
               {/* Every choice comes before the yes, so on a phone nothing
                   the yes decides sits below the button that decides it.
