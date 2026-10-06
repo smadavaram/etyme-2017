@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { rebuildSays, type RebuildAnswer } from '@/lib/money/rebuild-answer'
 
 const base: RebuildAnswer = {
-  dryRun: false, weeks: 4, checked: 10, rebuilt: 0, written: 0, removed: 0, leftAlone: [], postsNothing: [],
+  dryRun: false, weeks: 4, checked: 10, rebuilt: 0, written: 0, removed: 0, leftAlone: [], postsNothing: [], withdrawnRemoved: 0,
 }
 const NO_PAY = 'No pay line names this person at a rate, so the week has no pay cost on record — and so no margin, not a perfect one.'
 
@@ -14,7 +14,7 @@ describe('what a rebuild of the books says back', () => {
   })
 
   it('a rebuild that changes nothing says every posting already matched', () => {
-    expect(rebuildSays(base)).toMatch(/every posting already matched\.$/)
+    expect(rebuildSays(base)).toMatch(/every posting under them already matched\.$/)
   })
 
   it('a removal with nothing written in its place says why, once per reason, counted', () => {
@@ -38,5 +38,10 @@ describe('what a rebuild of the books says back', () => {
   it('signatures left alone are counted in the answer, each with its reason elsewhere', () => {
     const says = rebuildSays({ ...base, leftAlone: [{ says: 'settled' }, { says: 'exported' }] })
     expect(says).toContain('2 left as they were, each with the reason.')
+  })
+  it('postings under withdrawn signatures are counted on their own line, and a dry run says they would be removed', () => {
+    expect(rebuildSays({ ...base, withdrawnRemoved: 3 })).toContain('3 postings under withdrawn signatures removed.')
+    expect(rebuildSays({ ...base, dryRun: true, withdrawnRemoved: 1 })).toContain('1 posting under withdrawn signatures would be removed.')
+    expect(rebuildSays(base)).not.toContain('withdrawn')
   })
 })

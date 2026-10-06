@@ -35,6 +35,11 @@ import { rebuildSays } from '@/lib/money/rebuild-answer'
  * said as "would". Until 2026-10-06 the body was not read at all, so a
  * dry run was a real one.
  *
+ * A posting under a signature that no longer stands — withdrawn or
+ * superseded, and never reversed — is removed too, and counted apart
+ * (`withdrawnRemoved`): postings derive from live signatures only. A
+ * reversed pair is a true record and stays.
+ *
  * Where a signature's postings are removed and nothing is written in
  * their place, the answer says why (`postsNothing`) — a one-person
  * corporation's own acceptance posts no pay when no pay line names its

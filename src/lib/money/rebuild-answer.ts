@@ -18,6 +18,8 @@ export interface RebuildAnswer {
   removed: number
   leftAlone: { says: string }[]
   postsNothing: { says: string }[]
+  /** Postings removed because the signature under them is no longer live. */
+  withdrawnRemoved: number
 }
 
 const n = (k: number, one: string, many = `${one}s`) => `${k} ${k === 1 ? one : many}`
@@ -26,7 +28,7 @@ export function rebuildSays(d: RebuildAnswer): string {
   const read = `${n(d.checked, 'signature')} on ${n(d.weeks, 'signed week')} read`
   const head =
     d.rebuilt === 0
-      ? `${read}; every posting already matched.`
+      ? `${read}; every posting under them already matched.`
       : d.dryRun
         ? `${read}. A rebuild would replace the postings of ${d.rebuilt}: ${n(d.removed, 'posting')} removed, ${d.written} written. Nothing was changed.`
         : `${read}. The postings of ${d.rebuilt} were rebuilt: ${n(d.removed, 'posting')} removed, ${d.written} written.`
@@ -39,6 +41,10 @@ export function rebuildSays(d: RebuildAnswer): string {
     for (const p of d.postsNothing) reasons.set(p.says, (reasons.get(p.says) ?? 0) + 1)
     const lead = d.dryRun ? 'would post nothing in their place' : 'post nothing in their place'
     for (const [says, k] of reasons) parts.push(`${n(k, 'signature')} ${lead}: ${says}`)
+  }
+  if (d.withdrawnRemoved > 0) {
+    const what = `${n(d.withdrawnRemoved, 'posting')} under withdrawn signatures`
+    parts.push(d.dryRun ? `${what} would be removed.` : `${what} removed.`)
   }
   if (d.leftAlone.length) {
     parts.push(`${d.leftAlone.length} left as ${d.leftAlone.length === 1 ? 'it was' : 'they were'}, each with the reason.`)

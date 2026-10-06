@@ -813,6 +813,13 @@ export interface Rebuilt {
    * so "3 removed, 0 written" is never a figure without a sentence.
    */
   postsNothing: { assertionId: string; says: string }[]
+  /**
+   * Postings removed because the signature they were written under is no
+   * longer LIVE — withdrawn, or superseded by a correction — and nothing
+   * ever reversed them. Counted apart from `removed`, which is postings
+   * replaced under live signatures.
+   */
+  withdrawnRemoved: number
 }
 
 /** The facts two postings must share to be the same posting. */
@@ -863,6 +870,7 @@ export async function rebuildPostings(opts: { companyIds?: string[]; dryRun?: bo
   const dryRun = opts.dryRun === true
   const out: Rebuilt = {
     dryRun, weeks: 0, checked: 0, rebuilt: 0, unchanged: 0, written: 0, removed: 0, leftAlone: [], postsNothing: [],
+    withdrawnRemoved: 0,
   }
 
   let where: Prisma.WorkAssertionWhereInput = { state: 'LIVE' }
@@ -1015,7 +1023,73 @@ export async function rebuildPostings(opts: { companyIds?: string[]; dryRun?: bo
     out.written += written.count
     out.rebuilt += rebuilt.length
   }
+
+  // Postings under signatures that no longer stand.
+  const swept = await removeWithdrawnPostings({ companyIds: opts.companyIds, dryRun })
+  out.withdrawnRemoved = swept.removed
+  out.leftAlone.push(...swept.leftAlone)
   return out
+}
+
+/**
+ * Remove the postings written under a signature that is no longer LIVE.
+ *
+ * Postings derive from live signatures and nothing else. A signature
+ * withdrawn or superseded takes its postings with it: the assert route
+ * does that by reversing them (`reversePostingsFor`), which keeps both
+ * rows, and a reversed pair is a true record and is never touched here.
+ * What this finds is a posting nothing reversed — a signature moved out
+ * from under it by a seed or a data repair, like Halcyon's acceptance of
+ * Colleen Byrne's weeks withdrawn when the weeks moved to her own
+ * company's line on 2026-09-30, whose pay stayed in Halcyon's books.
+ *
+ * The same refusals as a rebuild: a posting on a settled or closed order,
+ * or one whose journal entry was exported, is left with the reason.
+ * `companyIds` limits it to those firms' books. A dry run counts and
+ * removes nothing.
+ */
+export async function removeWithdrawnPostings(
+  opts: { companyIds?: string[]; dryRun?: boolean } = {}
+): Promise<{ removed: number; leftAlone: { assertionId: string; says: string }[] }> {
+  const stale = await prisma.workAssertion.findMany({ where: { state: { not: 'LIVE' } }, select: { id: true } })
+  if (stale.length === 0) return { removed: 0, leftAlone: [] }
+  const orphans = await prisma.orderPosting.findMany({
+    where: {
+      source: 'TIMESHEET', sourceId: { in: stale.map((a) => a.id) }, reversalOfId: null, reverses: null,
+      ...(opts.companyIds ? { companyId: { in: opts.companyIds } } : {}),
+    },
+    select: { id: true, sourceId: true, projectOrder: { select: { status: true } } },
+  })
+  if (orphans.length === 0) return { removed: 0, leftAlone: [] }
+  const exported = new Set(
+    (
+      await prisma.journalEntry.findMany({
+        where: { source: 'TIMESHEET', sourceId: { in: orphans.map((p) => p.id) }, exportedAt: { not: null } },
+        select: { sourceId: true },
+      })
+    ).map((j) => j.sourceId)
+  )
+  const leftAlone: { assertionId: string; says: string }[] = []
+  const gone: string[] = []
+  for (const p of orphans) {
+    const settled = p.projectOrder.status === 'SETTLED' || p.projectOrder.status === 'CLOSED'
+    if (settled || exported.has(p.id)) {
+      leftAlone.push({
+        assertionId: p.sourceId!,
+        says: settled
+          ? 'A posting under a withdrawn signature is on a settled order, so the period has been reported. Post the correction to an open order instead.'
+          : 'A posting under a withdrawn signature has its journal entry exported to the firm’s own system, so it is corrected there rather than here.',
+      })
+      continue
+    }
+    gone.push(p.id)
+  }
+  if (gone.length === 0 || opts.dryRun) return { removed: gone.length, leftAlone }
+  const [, removed] = await prisma.$transaction([
+    prisma.journalEntry.deleteMany({ where: { source: 'TIMESHEET', sourceId: { in: gone } } }),
+    prisma.orderPosting.deleteMany({ where: { id: { in: gone } } }),
+  ])
+  return { removed: removed.count, leftAlone }
 }
 
 // ── The bench reserve, written down ──────────────────────────────────

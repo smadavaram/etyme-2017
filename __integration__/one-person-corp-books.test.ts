@@ -161,3 +161,112 @@ describe('the rebuild that removed three postings and wrote none', () => {
     expect(await byrneBooks()).toEqual(before)
   })
 })
+
+describe('postings under a signature that no longer stands', () => {
+  // Before 2026-09-30 Colleen's weeks were filed on Halcyon's line and
+  // Halcyon accepted them as her employer, which posted pay to Halcyon.
+  // When the weeks moved to her own company's line the seed withdrew that
+  // acceptance and left its pay in Halcyon's books, reversed by nothing.
+  let withdrawn: string
+  let corrected: string
+  let halcyonOwner: { email: string; seat: string }
+
+  beforeAll(async () => {
+    const seat = await prisma.context.findFirstOrThrow({
+      where: { companyId: halcyon, role: { name: 'Owner' }, revokedAt: null },
+      select: { id: true, person: { select: { primaryEmail: true } } },
+    })
+    halcyonOwner = { email: seat.person.primaryEmail, seat: seat.id }
+
+    const weeks = await prisma.timesheet.findMany({
+      where: { sellContractId: byrneLine, assertions: { some: { companyId: halcyon, role: 'PASS_THROUGH', state: 'LIVE' } } },
+      select: { id: true, periodStart: true, personId: true, totalHours: true },
+      orderBy: { periodStart: 'asc' },
+      take: 2,
+    })
+    const halcyonLine = (await prisma.sellContract.findFirstOrThrow({
+      where: { companyId: halcyon, personId: weeks[0].personId, clientCompanyId: { not: byrne } },
+      select: { id: true, clientCompanyId: true },
+    }))
+    const projectOrderId = (await prisma.orderPosting.findFirstOrThrow({
+      where: { companyId: halcyon, sellContractId: halcyonLine.id },
+      select: { projectOrderId: true },
+    })).projectOrderId
+
+    const old = async (weekIdx: number, state: 'WITHDRAWN' | 'SUPERSEDED') => {
+      const w = weeks[weekIdx]
+      const sig = await prisma.workAssertion.create({
+        data: { timesheetId: w.id, companyId: halcyon, role: 'EMPLOYER_ACCEPTANCE', hours: 36, rateCents: 9_200, state, at: w.periodStart },
+      })
+      const p = await prisma.orderPosting.create({
+        data: {
+          projectOrderId, companyId: halcyon, kind: 'PAY', amountCents: -331_200, currency: 'USD',
+          txCurrency: 'USD', txAmountCents: -331_200, personId: w.personId, sellContractId: halcyonLine.id,
+          clientCompanyId: halcyonLine.clientCompanyId, postedAt: w.periodStart, source: 'TIMESHEET',
+          sourceId: sig.id, says: '36 hours accepted for pay.',
+        },
+      })
+      return { sig: sig.id, posting: p }
+    }
+    withdrawn = (await old(0, 'WITHDRAWN')).sig
+    // A correction made through the screen reverses what it replaced; the
+    // pair is a true record and stays.
+    const fixed = await old(1, 'SUPERSEDED')
+    corrected = fixed.sig
+    await prisma.orderPosting.create({
+      data: {
+        projectOrderId, companyId: halcyon, kind: 'PAY', amountCents: 331_200, currency: 'USD',
+        txCurrency: 'USD', txAmountCents: 331_200, personId: fixed.posting.personId, sellContractId: halcyonLine.id,
+        clientCompanyId: halcyonLine.clientCompanyId, postedAt: fixed.posting.postedAt, source: 'REVERSAL',
+        sourceId: fixed.posting.id, reversalOfId: fixed.posting.id, says: 'Reversed: corrected.',
+      },
+    })
+  })
+
+  const rebuildAsHalcyon = async (body?: unknown) => {
+    as(halcyonOwner.email)
+    return json(await rebuild(req('POST', '/api/profitability/rebuild', body, { 'x-context-id': halcyonOwner.seat })))
+  }
+
+  it('a dry run counts the postings under withdrawn signatures and removes none', async () => {
+    const r = await rebuildAsHalcyon({ dryRun: true })
+    expect(r.status).toBe(200)
+    expect(r.body.data.withdrawnRemoved).toBe(1)
+    expect(r.body.data.says).toContain('1 posting under withdrawn signatures would be removed.')
+    expect(await prisma.orderPosting.count({ where: { source: 'TIMESHEET', sourceId: withdrawn } })).toBe(1)
+  })
+
+  it('Halcyon’s books hold nothing from the acceptance it withdrew when Colleen’s weeks moved to her own company’s line', async () => {
+    const r = await rebuildAsHalcyon()
+    expect(r.status).toBe(200)
+    expect(r.body.data.withdrawnRemoved).toBe(1)
+    expect(r.body.data.says).toContain('1 posting under withdrawn signatures removed.')
+    expect(await prisma.orderPosting.count({ where: { source: 'TIMESHEET', sourceId: withdrawn } })).toBe(0)
+
+    const again = await rebuildAsHalcyon()
+    expect(again.body.data.withdrawnRemoved).toBe(0)
+  })
+
+  it('a correction already reversed through the screen keeps both rows, because the pair is a true record', async () => {
+    const original = await prisma.orderPosting.findFirstOrThrow({ where: { source: 'TIMESHEET', sourceId: corrected } })
+    expect(await prisma.orderPosting.count({ where: { reversalOfId: original.id } })).toBe(1)
+  })
+
+  it('a firm rebuilding its own books never removes another firm’s postings under a withdrawn signature', async () => {
+    const sig = await prisma.workAssertion.findFirstOrThrow({ where: { id: corrected }, select: { timesheetId: true } })
+    const stray = await prisma.workAssertion.create({
+      data: { timesheetId: sig.timesheetId, companyId: halcyon, role: 'EMPLOYER_ACCEPTANCE', hours: 36, rateCents: 9_200, state: 'WITHDRAWN' },
+    })
+    const order = await prisma.orderPosting.findFirstOrThrow({ where: { companyId: halcyon, source: 'TIMESHEET' }, select: { projectOrderId: true, sellContractId: true } })
+    await prisma.orderPosting.create({
+      data: {
+        projectOrderId: order.projectOrderId, companyId: halcyon, kind: 'PAY', amountCents: -100, currency: 'USD',
+        txCurrency: 'USD', txAmountCents: -100, sellContractId: order.sellContractId, postedAt: new Date(),
+        source: 'TIMESHEET', sourceId: stray.id, says: 'stray',
+      },
+    })
+    const r = await rebuildAsOwner()
+    expect(r.body.data.withdrawnRemoved).toBe(0)
+    expect(await prisma.orderPosting.count({ where: { source: 'TIMESHEET', sourceId: stray.id } })).toBe(1)
+  })
+})
