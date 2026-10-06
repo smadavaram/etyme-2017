@@ -633,14 +633,22 @@ export default function RequisitionDetail() {
         )}
       </div>
 
+      {/* Who is working it is a question about an open job. On a filled
+          one "Suppliers working it 0" read as a job nobody was working,
+          under a sentence saying it was filled; only the count of people
+          put forward stays. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
-        <div><Lbl>Suppliers asked</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.invited}</div></div>
-        <div><Lbl>Suppliers working it</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-verified">{s.accepted}</div></div>
-        <div>
-          <Lbl>Not answered</Lbl>
-          <div className={`font-serif text-3xl mt-1 tabular-nums ${s.silent > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>{s.silent}</div>
-          <div className="text-xs text-etyme-muted">asked, and nobody sent yet</div>
-        </div>
+        {jobOpen && (
+          <>
+            <div><Lbl>Suppliers asked</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.invited}</div></div>
+            <div><Lbl>Suppliers working it</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-verified">{s.accepted}</div></div>
+            <div>
+              <Lbl>Not answered</Lbl>
+              <div className={`font-serif text-3xl mt-1 tabular-nums ${s.silent > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>{s.silent}</div>
+              <div className="text-xs text-etyme-muted">asked, and nobody sent yet</div>
+            </div>
+          </>
+        )}
         <div><Lbl>Candidates</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.candidates}</div></div>
       </div>
 
@@ -706,13 +714,14 @@ export default function RequisitionDetail() {
         </div>
       </Panel>
 
-      {/* 2 — Distribution */}
+      {/* 2 — Distribution. Not drawn at all on a filled job: the sentence
+          at the top already says who filled it, and a "Send to suppliers"
+          box under it read as a job still to fill. */}
+      {r.status !== 'FILLED' && (
       <Panel title="Send to suppliers">
         {!jobOpen
           ? <div className="p-4 text-sm text-etyme-muted">
-              {r.status === 'FILLED'
-                ? 'Filled, so it goes to no more suppliers.'
-                : r.status === 'CANCELLED'
+              {r.status === 'CANCELLED'
                   ? 'Called off, so it goes to no more suppliers.'
                   : 'Put away, so it goes to no more suppliers.'}
             </div>
@@ -732,6 +741,7 @@ export default function RequisitionDetail() {
                     : 'Not sent for approval yet. Suppliers see it once it has been through the desks.'}
             </div>}
       </Panel>
+      )}
 
       {/* 3 — Responses */}
       {data.invitations.length > 0 && (

@@ -217,7 +217,7 @@ describe('A filled job request says it is filled and offers nothing that sends i
 
   it('it names who filled it at the rate the award agreed, not the rate the supplier asked', () => {
     expect(filledSays({ status: 'FILLED', headcount: 1 }, candidates)).toBe(
-      'This job is filled: Daniel Okafor at $132/hr. It goes to no more suppliers, and everybody else who was put forward has been told.'
+      'Filled by Daniel Okafor at $132/hr. It goes to no more suppliers, and everybody else who was put forward has been told.'
     )
   })
 

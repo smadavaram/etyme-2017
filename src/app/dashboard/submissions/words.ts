@@ -1,3 +1,5 @@
+import { formatDay } from '@/lib/format-date'
+
 /**
  * The words the Submissions page uses for a row — never the column's code.
  *
@@ -87,7 +89,7 @@ export function submittedOn(iso: string | null | undefined): string {
   if (!iso) return 'Not recorded'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return 'Not recorded'
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  return formatDay(d)
 }
 
 /**

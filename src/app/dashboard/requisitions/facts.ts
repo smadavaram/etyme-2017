@@ -1,4 +1,5 @@
 import { compact as money } from '@/lib/money-display'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * The facts of a job request, as the page that decides it reads them.
@@ -9,7 +10,7 @@ import { compact as money } from '@/lib/money-display'
 /** "Oct 12, 2026" — a date the way a person says it, never ISO. */
 export function day(iso: string | null | undefined): string | null {
   if (!iso) return null
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  return formatDay(iso)
 }
 
 /**
@@ -167,14 +168,20 @@ export function withoutRepeat(text: string, alreadySaid: string[]): string {
  */
 export function filledSays(
   r: { status: string; headcount: number },
-  candidates: { status: string; person: { name: string }; rate: number; placedRate?: number | null }[]
+  candidates: {
+    status: string; person: { name: string }; rate: number; placedRate?: number | null
+    /** The day the award wrote the line. Null where no line stands behind the row. */
+    placedOn?: string | null
+  }[]
 ): string | null {
   if (r.status !== 'FILLED') return null
   const placed = candidates.filter((c) => c.status === 'PLACED')
   if (placed.length === 0) return 'This job is filled. It goes to no more suppliers.'
-  const who = placed.map((c) => `${c.person.name} at ${money(c.placedRate ?? c.rate)}/hr`)
+  const who = placed.map((c) =>
+    `${c.person.name} at ${money(c.placedRate ?? c.rate)}/hr${c.placedOn ? ` on ${day(c.placedOn)}` : ''}`
+  )
   const list = who.length === 1 ? who[0] : `${who.slice(0, -1).join(', ')} and ${who[who.length - 1]}`
-  return `This job is filled: ${list}. It goes to no more suppliers, and everybody else who was put forward has been told.`
+  return `Filled by ${list}. It goes to no more suppliers, and everybody else who was put forward has been told.`
 }
 
 /** A job that may still be sent out or matched: published and not over. */

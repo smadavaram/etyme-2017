@@ -15,6 +15,7 @@ import { recall, remember } from '@/lib/remember'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { Thread, toSupplierAboutCandidate, answeringDemand } from '@/components/thread'
 import { submissionStatusWord, submissionKindWord, submittedOn, jobsToSubmitTo, KIND_HEADING } from './words'
+import { jobListWord } from '../requirements/words'
 
 /**
  * Submissions working surface — the vendor's outbound pipeline.
@@ -1110,6 +1111,11 @@ export default function SubmissionsPage() {
     'submissions',
     atDesk ? { seated: true, companyName: atDesk.companyName } : null
   )
+  const jobWordLower = jobListWord(
+    company?.kind ?? 'VENDOR',
+    atDesk ? { seated: true, companyName: atDesk.companyName } : null
+  ).singular
+  const jobWord = jobWordLower.charAt(0).toUpperCase() + jobWordLower.slice(1)
 
   // Read filters from URL params
   const urlRequirementId = searchParams.get('requirementId')
@@ -1266,7 +1272,7 @@ export default function SubmissionsPage() {
           >
             {row.person.name}
           </Link>
-          <p className="text-[11px] text-etyme-faint">{row.kind === 'INTERNAL' ? 'Internal' : row.fromCompany.name}</p>
+          <p className="text-[11px] text-etyme-faint">{row.kind === 'INTERNAL' && direction === 'sent' ? 'Our own employee' : row.fromCompany.name}</p>
         </div>
       ),
       sortValue: (row) => row.person.name,
@@ -1274,7 +1280,8 @@ export default function SubmissionsPage() {
     },
     {
       key: 'requirement',
-      label: 'Requirement',
+      // The reader's own word for a job, the one on their menu.
+      label: jobWord,
       render: (row) => (
         <div className="max-w-[260px]">
           <p className="font-medium text-etyme-ink truncate">{row.requirement.title}</p>
@@ -1468,14 +1475,16 @@ export default function SubmissionsPage() {
     submissionStatusWord(row.status).toLowerCase().includes(q)
 
   // ── Status filter options ──────────────────────────
+  // The filter says what the row's chip says — "Turned down" on both,
+  // never "Rejected" over a row reading "Turned down" (one state, one word).
   const statusOptions: { key: StatusFilter; label: string }[] = [
     { key: 'ALL', label: 'All' },
-    { key: 'SUBMITTED', label: 'Submitted' },
-    { key: 'SHORTLISTED', label: 'Shortlisted' },
-    { key: 'INTERVIEW', label: 'Interview' },
-    { key: 'OFFERED', label: 'Offered' },
-    { key: 'PLACED', label: 'Placed' },
-    { key: 'REJECTED', label: 'Rejected' },
+    { key: 'SUBMITTED', label: submissionStatusWord('SUBMITTED') },
+    { key: 'SHORTLISTED', label: submissionStatusWord('SHORTLISTED') },
+    { key: 'INTERVIEW', label: submissionStatusWord('INTERVIEW') },
+    { key: 'OFFERED', label: submissionStatusWord('OFFERED') },
+    { key: 'PLACED', label: submissionStatusWord('PLACED') },
+    { key: 'REJECTED', label: submissionStatusWord('REJECTED') },
   ]
 
   return (

@@ -100,9 +100,12 @@ export async function GET(
   // refuses on, so "Place" is never offered where the click would fail.
   const lines = await prisma.sellContract.findMany({
     where: { requirementId: id },
-    select: { id: true, personId: true, billRate: true },
+    select: { id: true, personId: true, billRate: true, createdAt: true },
   })
   const lineFor = new Map(lines.map((l) => [l.personId, l.id]))
+  // The day the award wrote the line: "Filled by Daniel Okafor at $132/hr
+  // on Oct 26, 2026", rather than a filled job that never says when.
+  const placedOnFor = new Map(lines.map((l) => [l.personId, l.createdAt.toISOString()]))
   // What the award agreed, which is not what the supplier asked: the
   // tester placed Daniel Okafor at $132 and the page went on saying $131.
   const placedAt = new Map(lines.map((l) => [l.personId, l.billRate]))
@@ -241,6 +244,7 @@ export async function GET(
         rate: s.rate,
         // The rate on the line the award wrote, once placed; null before.
         placedRate: placedAt.get(s.personId) ?? null,
+        placedOn: placedOnFor.get(s.personId) ?? null,
         kind: s.kind,
         status: s.status,
         submittedAt: s.submittedAt.toISOString(),
