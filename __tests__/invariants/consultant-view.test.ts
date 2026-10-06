@@ -38,7 +38,9 @@ describe('one person, as this client knows them', () => {
   })
   it('time here is counted across every supplier, once per day on site, against the cap', () => {
     expect(api).toContain('const days = daysOnSite(served, now)')
-    expect(api).toContain("status = 'BREAK_REQUIRED'")
+    // The status is the ledger's own reading (2026-10-06), never a copy of it.
+    expect(api).toContain('standingAgainstLimit(')
+    expect(api).toContain('ledgerStatus(standing)')
   })
   it('the engagements shown are the contracts this client pays, and a rate below the top of the chain is never shown', () => {
     expect(api).toContain('chainTop(everyRung)')
