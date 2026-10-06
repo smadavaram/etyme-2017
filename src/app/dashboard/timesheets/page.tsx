@@ -10,6 +10,7 @@ import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { DecideOvertime, type PendingWeek } from './decide-overtime'
 import { listTotals, totalsRowOf } from './totals'
+import { DEFAULT_DAYS_OFF, daysOffFromAnswer, isOffDay, expectedHours } from './days-off'
 
 /**
  * Timesheets working surface — the Operate section.
@@ -231,6 +232,18 @@ function CreateTimesheetModal({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // The company's days off decide which days are expected and shaded.
+  // Never what may be filed: hours on a day off are saved like any other.
+  const [daysOff, setDaysOff] = useState<number[]>([...DEFAULT_DAYS_OFF])
+  useEffect(() => {
+    let live = true
+    fetch('/api/settings/week')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => { if (live) setDaysOff(daysOffFromAnswer(body)) })
+      .catch(() => {})
+    return () => { live = false }
+  }, [])
+
   const weekDates = week?.days ?? []
   const totalHrs = weekDates.reduce((s, d) => s + (hours[d] ?? 0), 0)
 
@@ -364,13 +377,13 @@ function CreateTimesheetModal({
             <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
               {weekDates.map((date) => {
                 const head = dayHead(date)
-                const isWeekend = head.dow === 'Sat' || head.dow === 'Sun'
+                const isOff = isOffDay(date, daysOff)
                 return (
                   <div key={date} className="text-center">
-                    <div className={`text-[10px] font-semibold mb-1 ${isWeekend ? 'text-etyme-faint' : 'text-etyme-muted'}`}>
+                    <div className={`text-[10px] font-semibold mb-1 ${isOff ? 'text-etyme-faint' : 'text-etyme-muted'}`}>
                       {head.dow}
                     </div>
-                    <div className={`text-[10px] tabular-nums mb-1.5 ${isWeekend ? 'text-etyme-faint' : 'text-etyme-muted'}`}>
+                    <div className={`text-[10px] tabular-nums mb-1.5 ${isOff ? 'text-etyme-faint' : 'text-etyme-muted'}`}>
                       {head.date}
                     </div>
                     <input
@@ -380,10 +393,11 @@ function CreateTimesheetModal({
                       step="0.5"
                       value={hours[date] ?? ''}
                       onChange={(e) => setDayHours(date, e.target.value)}
-                      placeholder={isWeekend ? '0' : '8'}
+                      placeholder={String(expectedHours(date, daysOff))}
+                      title={isOff ? 'A day off here. Hours worked on it are filed like any other day.' : undefined}
                       className={`w-full px-1 py-2 text-sm text-center tabular-nums border rounded-lg
                                   focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
-                                  ${isWeekend ? 'border-etyme-rule/50 bg-etyme-canvas/50' : 'border-etyme-rule'}`}
+                                  ${isOff ? 'border-etyme-rule/50 bg-etyme-canvas/50' : 'border-etyme-rule'}`}
                     />
                   </div>
                 )
