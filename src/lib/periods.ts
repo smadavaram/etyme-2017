@@ -248,10 +248,10 @@ export function periodFor(on: Date, terms: Terms): Period {
       return semiMonth(d)
 
     case 'WEEKLY':
-      return everyNDays(d, terms.startedOn, 7)
+      return sundayPeriods(d, terms.startedOn, 7)
 
     case 'BIWEEKLY':
-      return everyNDays(d, terms.startedOn, 14)
+      return sundayPeriods(d, terms.startedOn, 14)
   }
 }
 
@@ -316,19 +316,30 @@ function semiMonth(d: Date): Period {
 }
 
 /**
- * Fixed-length periods counted from the contract start.
+ * Weekly and biweekly periods, Sunday to Saturday.
  *
- * Counted rather than snapped to a weekday: a fortnightly payroll that
- * started on a Wednesday pays Wednesday to Tuesday forever, and drifting
- * it onto Mondays would silently pay somebody thirteen days one time.
+ * Decided 2026-10-06. A week runs Sunday to Saturday. A fortnight is two
+ * of those weeks, counted from the Sunday on or before the contract
+ * start. So a contract starting midweek has a short first period, from
+ * its first day to a Saturday. Overtime is still judged per week.
+ *
+ * Days before the contract start sit in their own short period, so the
+ * periods never overlap.
  */
-function everyNDays(d: Date, startedOn: Date, n: number): Period {
-  const anchor = dayOf(startedOn)
-  const elapsed = Math.floor((d.getTime() - anchor.getTime()) / 86400000)
+function sundayPeriods(d: Date, startedOn: Date, n: number): Period {
+  const begun = dayOf(startedOn)
+  const anchor = addDays(begun, -begun.getUTCDay())
+  const elapsed = Math.round((d.getTime() - anchor.getTime()) / 86400000)
   const index = Math.floor(elapsed / n)
 
-  const start = addDays(anchor, index * n)
-  const end = addDays(start, n - 1)
+  let start = addDays(anchor, index * n)
+  let end = addDays(start, n - 1)
+
+  // The block holding the start day is cut at the start day.
+  if (begun > start && begun <= end) {
+    if (d >= begun) start = begun
+    else end = addDays(begun, -1)
+  }
 
   return { start, end, label: `${n === 7 ? 'week' : 'fortnight'} of ${iso(start)}` }
 }

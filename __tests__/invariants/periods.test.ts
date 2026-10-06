@@ -115,30 +115,54 @@ describe('semi-monthly', () => {
   })
 })
 
-describe('weekly and fortnightly, counted from the contract', () => {
-  const fortnightly = terms({ frequency: 'BIWEEKLY', startedOn: d('2026-08-05') })
+describe('weekly and fortnightly, Sunday to Saturday', () => {
+  // Decided 2026-10-06. Wednesday 2 September 2026; the Sunday before is 30 August.
+  const fortnightly = terms({ frequency: 'BIWEEKLY', startedOn: d('2026-09-02') })
 
-  it('pays Wednesday to Tuesday forever when the contract began on a Wednesday', () => {
-    // Snapping to Mondays instead would silently pay somebody thirteen
-    // days one time.
-    const p = periodFor(d('2026-08-10'), fortnightly)
-    expect([iso(p.start), iso(p.end)]).toEqual(['2026-08-05', '2026-08-18'])
+  it('a biweekly pay period is two Sunday-to-Saturday weeks ending on a Saturday', () => {
+    const p = periodFor(d('2026-09-20'), fortnightly)
+    expect([iso(p.start), iso(p.end)]).toEqual(['2026-09-13', '2026-09-26'])
+    expect(p.start.getUTCDay()).toBe(0)
+    expect(p.end.getUTCDay()).toBe(6)
+    const next = periodFor(d('2026-09-27'), fortnightly)
+    expect([iso(next.start), iso(next.end)]).toEqual(['2026-09-27', '2026-10-10'])
   })
 
-  it('rolls into the next fortnight on the right day, not a day early', () => {
-    expect(iso(periodFor(d('2026-08-18'), fortnightly).start)).toBe('2026-08-05')
-    expect(iso(periodFor(d('2026-08-19'), fortnightly).start)).toBe('2026-08-19')
+  it('a contract starting midweek has a short first period that still ends on a Saturday', () => {
+    const p = periodFor(d('2026-09-02'), fortnightly)
+    expect([iso(p.start), iso(p.end)]).toEqual(['2026-09-02', '2026-09-12'])
+    expect(p.end.getUTCDay()).toBe(6)
+    // Every day of the short period finds the same period.
+    expect(iso(periodFor(d('2026-09-12'), fortnightly).start)).toBe('2026-09-02')
+    expect(iso(periodFor(d('2026-09-13'), fortnightly).start)).toBe('2026-09-13')
   })
 
-  it('works backwards from the start date too', () => {
-    const p = periodFor(d('2026-08-01'), fortnightly)
-    expect([iso(p.start), iso(p.end)]).toEqual(['2026-07-22', '2026-08-04'])
+  it('a weekly pay period is the Sunday-to-Saturday week', () => {
+    const weekly = terms({ frequency: 'WEEKLY', startedOn: d('2026-09-02') })
+    const p = periodFor(d('2026-09-09'), weekly)
+    expect([iso(p.start), iso(p.end)]).toEqual(['2026-09-06', '2026-09-12'])
+    const first = periodFor(d('2026-09-03'), weekly)
+    expect([iso(first.start), iso(first.end)]).toEqual(['2026-09-02', '2026-09-05'])
   })
 
-  it('does a week the same way', () => {
-    const weekly = terms({ frequency: 'WEEKLY', startedOn: d('2026-08-03') })
-    const p = periodFor(d('2026-08-07'), weekly)
-    expect([iso(p.start), iso(p.end)]).toEqual(['2026-08-03', '2026-08-09'])
+  it('days before the contract start sit in a period of their own, so no two periods overlap', () => {
+    const p = periodFor(d('2026-08-31'), fortnightly)
+    expect([iso(p.start), iso(p.end)]).toEqual(['2026-08-30', '2026-09-01'])
+    const before = periodFor(d('2026-08-20'), fortnightly)
+    expect([iso(before.start), iso(before.end)]).toEqual(['2026-08-16', '2026-08-29'])
+  })
+
+  it('a contract starting on a Sunday has no short period', () => {
+    const p = periodFor(d('2026-09-08'), terms({ frequency: 'BIWEEKLY', startedOn: d('2026-09-06') }))
+    expect([iso(p.start), iso(p.end)]).toEqual(['2026-09-06', '2026-09-19'])
+  })
+
+  it('listing the fortnights from a midweek start leaves no gap and no overlap', () => {
+    const ps = periodsBetween(d('2026-09-02'), d('2026-10-31'), fortnightly)
+    expect(ps.map((p) => `${iso(p.start)}..${iso(p.end)}`)).toEqual([
+      '2026-09-02..2026-09-12', '2026-09-13..2026-09-26', '2026-09-27..2026-10-10',
+      '2026-10-11..2026-10-24', '2026-10-25..2026-11-07',
+    ])
   })
 })
 
