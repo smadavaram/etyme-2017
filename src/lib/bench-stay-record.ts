@@ -14,9 +14,13 @@ export async function tellFirm(companyId: string, title: string, body: string, e
     select: { personId: true },
     take: 5,
   })
-  for (const d of desks) {
-    void notify({ personId: d.personId, companyId, type: 'BENCH', title, body, entityId })
-  }
+  // Awaited, never left to run after the answer: on a serverless host a
+  // promise nobody waits for may never finish, and the firm would not be
+  // told. A failed notice is its own incident (notify reports it) and
+  // never undoes the ending it reports.
+  await Promise.all(
+    desks.map((d) => notify({ personId: d.personId, companyId, type: 'BENCH', title, body, entityId }).catch(() => null))
+  )
   return desks.length
 }
 
