@@ -27,7 +27,7 @@ import type { OvertimeMethod } from '@/lib/money/overtime-method'
 import { nextOpen } from '@/lib/money/next-cycle'
 import { periodFor, hoursInPeriod, type AcceptedCut, type Terms, type Period } from '@/lib/periods'
 import { priceByDay, type RatePeriod } from '@/lib/contract-rate'
-import { weekStart } from '@/lib/overtime'
+import { weekStart, weekEnd } from '@/lib/overtime'
 import { amount, compact } from '@/lib/money-display'
 import { mayReadPayOf, type PayViewer } from '@/lib/money/pay-visibility'
 import { canReadBillRate } from '@/lib/permissions'
@@ -962,15 +962,6 @@ function fromDay(ms: number): string {
 }
 
 /**
- * The Saturday that closes the week a day falls in. Weeks run Sunday to
- * Saturday (CLAUDE.md, 2026-09-30); the Sunday is `weekStart`, the one door.
- */
-// Switch to `weekEnd` from @/lib/overtime once it is exported there.
-function saturdayOf(iso: string): string {
-  return fromDay(toDay(weekStart(iso)) + 6 * DAY_MS)
-}
-
-/**
  * The contracts a worker files hours against.
  *
  * In a chain every rung is a sell contract with their name on it — the
@@ -1049,7 +1040,7 @@ function label(from: string, to: string): string {
 /**
  * The weeks a worker can still file on one contract, newest first.
  *
- * A week is Sunday to Saturday, trimmed to the days that have happened,
+ * A week is Sunday to Saturday (`weekStart` to `weekEnd`), trimmed to the days that have happened,
  * that the placement covers, and that no filed sheet already covers — so
  * two sheets never claim the same day, and a week filed on a Wednesday
  * leaves Thursday to Saturday for the next one rather than swallowing them.
@@ -1070,7 +1061,7 @@ export function openWeeks(
   const firstSunday = Math.max(toDay(weekStart(c.startDate)), lastSunday - (WEEKS_BACK - 1) * 7 * DAY_MS)
 
   for (let sun = lastSunday; sun >= firstSunday; sun -= 7 * DAY_MS) {
-    const sat = toDay(saturdayOf(fromDay(sun)))
+    const sat = toDay(weekEnd(fromDay(sun)))
     let run: string[] = []
     const runs: string[][] = []
     for (let d = sun; d <= sat; d += DAY_MS) {
