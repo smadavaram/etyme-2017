@@ -2,117 +2,113 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { notify } from '@/lib/notify'
+import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { askGoesTo } from '@/lib/chain-top'
+import { notifyBulk, type NotifyParams } from '@/lib/notify'
+import { logAccess } from '@/lib/access-log'
 import { daysOnSite } from '@/lib/tenure-days'
 import { askBack } from '../ask-back-standing'
 
 /**
- * POST /api/alumni/ask-back
+ * POST /api/alumni/ask-back   { personId, clientCompanyId? }
  *
- * Initiates a re-engagement request for an alumni person at a client.
- * Body: { personId: string, clientCompanyId: string }
+ * A client asks for somebody who worked on its site before.
  *
- * Addendum E §E.2.3: checks the tenure ledger before allowing the
- * action. Inside a break period, returns 409.
+ * Three rules, each one a sentence in the tests:
  *
- * Creates an AutomationLog entry and returns the request details.
+ * 1. **Only for a client the caller acts for.** The client is resolved
+ *    the way the alumni list resolves it (`resolveClientCompany`): the
+ *    caller's own company, or a client that granted the caller a seat.
+ *    A `clientCompanyId` naming anybody else is refused in a sentence.
+ *    It used to be taken from the body unchecked, so any signed-in
+ *    caller could write a re-engagement against any client.
+ *
+ * 2. **Only where the ledger reads them eligible** (Addendum E §E.2.3).
+ *    The same standing the list, the ledger and the award read; inside
+ *    a break the refusal carries the day, past the limit with no break
+ *    rule it carries none.
+ *
+ * 3. **The ask goes to a supplier, never to the person** — Etyme places
+ *    nobody. It goes where `/api/people/[id]/ask` sends an ask, by the
+ *    one rule in `lib/chain-top` (`askGoesTo`): the firm holding the
+ *    person's consent on its bench where the client deals with it, else
+ *    the prime above it, else the rung the client paid, else whoever
+ *    last put them forward. It used to tell the caller's own firm's
+ *    staff, which on a client's desk told the client about itself and
+ *    told no supplier at all. No firm below the rung the client pays is
+ *    named or reached from here.
  */
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const body = await request.json()
-  const { personId, clientCompanyId } = body
+  const body = await request.json().catch(() => ({}))
+  const personId = typeof body?.personId === 'string' ? body.personId : null
+  const requestedClientId = typeof body?.clientCompanyId === 'string' ? body.clientCompanyId : null
 
-  if (!personId || !clientCompanyId) {
+  if (!personId) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'personId and clientCompanyId are required' } },
+      { error: { code: 'VALIDATION', message: 'Who? Pick somebody from the list of people who worked here before.', field: 'personId' } },
       { status: 422 }
     )
   }
 
-  const person = await prisma.person.findUnique({
-    where: { id: personId },
-    select: { id: true, name: true },
-  })
-
-  if (!person) {
+  // ── Whose site this is ─────────────────────────────────────────────
+  const { client, error: clientError } = await resolveClientCompany(caller, requestedClientId)
+  if (clientError) {
+    logAccess({
+      subjectId: personId, actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
+      action: 'TENURE_VIEW', allowed: false, reason: 'Asked somebody back to a client it does not act for',
+    })
+    return clientError
+  }
+  if (requestedClientId && requestedClientId !== client.id) {
+    // A seat resolved to a different client than the one named. Refused
+    // rather than quietly written against the other one.
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Person not found' } },
-      { status: 404 }
+      { error: { code: 'FORBIDDEN', message: `You act for ${client.name} here, so you can only ask people back to ${client.name}.` } },
+      { status: 403 }
     )
   }
 
-  const client = await prisma.company.findUnique({
-    where: { id: clientCompanyId },
-    select: { id: true, name: true },
-  })
+  const now = new Date()
+  const [person, contracts] = await Promise.all([
+    prisma.person.findUnique({ where: { id: personId }, select: { id: true, name: true } }),
+    // Tenure aggregates at the end client, whoever was paid.
+    prisma.sellContract.findMany({
+      where: { personId, ...endClientFilter(client.id), state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] } },
+      select: { id: true, personId: true, companyId: true, clientCompanyId: true, startDate: true, endDate: true, state: true },
+    }),
+  ])
 
-  if (!client) {
+  if (!person || contracts.length === 0) {
+    logAccess({
+      subjectId: personId, actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
+      action: 'TENURE_VIEW', allowed: false, reason: `Not a former worker at ${client.name}`,
+    })
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Client company not found' } },
+      { error: { code: 'NOT_FOUND', message: `That person has not worked at ${client.name}, so there is nobody to ask back.` } },
       { status: 404 }
     )
   }
-
-  // Check if person already has an active contract at this end client
-  // Matches contracts where the end client is this company (via endClientFilter)
-  const activeContract = await prisma.sellContract.findFirst({
-    where: {
-      personId,
-      ...endClientFilter(clientCompanyId),
-      state: { in: ['IN_PROGRESS', 'PAUSED'] },
-    },
+  logAccess({
+    subjectId: personId, actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
+    action: 'TENURE_VIEW', reason: `Ask back at ${client.name}`,
   })
 
-  if (activeContract) {
+  if (contracts.some((c) => c.state === 'IN_PROGRESS' || c.state === 'PAUSED')) {
     return NextResponse.json(
-      { error: { code: 'CONFLICT', message: `${person.name} already has an active contract at ${client.name}` } },
+      { error: { code: 'CONFLICT', message: `${person.name} is already on contract at ${client.name}.` } },
       { status: 409 }
     )
   }
 
-  // Check tenure eligibility (Addendum E §E.2.3)
-  // Tenure aggregates at the end client — find all contracts where this person
-  // worked at this company, regardless of paying customer
-  const contracts = await prisma.sellContract.findMany({
-    where: {
-      personId,
-      ...endClientFilter(clientCompanyId),
-      state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
-    },
-    select: { startDate: true, endDate: true, state: true },
-  })
-
-  const now = new Date()
-  // The union of the periods, not their sum. A person bought through a
-  // prime who bought from a bench vendor has two contracts for the same
-  // days at the same site; adding them said somebody three firms deep had
-  // been there three times as long, and a cap of eighteen months blocked
-  // them at six. `daysOnSite` is the ledger's own arithmetic (Addendum E).
-  const totalDays = daysOnSite(contracts, now)
-
-  // Load tenure cap and break rules
-  const tenureRule = await prisma.governanceRule.findFirst({
-    where: {
-      policy: { companyId: clientCompanyId, isActive: true },
-      ruleType: 'TENURE_CAP',
-      isActive: true,
-    },
-  })
-
-  const breakRule = await prisma.governanceRule.findFirst({
-    where: {
-      policy: { companyId: clientCompanyId, isActive: true },
-      ruleType: 'BREAK_IN_SERVICE',
-      isActive: true,
-    },
-  })
-
-  // The same standing the alumni list, the ledger and the award read
-  // (lib/tenure-days), so a request the list did not offer a button for
-  // is refused here with the same day — or with no day, where the client
-  // has no break rule that would reset a passed limit.
+  // ── The ledger ─────────────────────────────────────────────────────
+  const [tenureRule, breakRule] = await Promise.all([
+    prisma.governanceRule.findFirst({ where: { policy: { companyId: client.id, isActive: true }, ruleType: 'TENURE_CAP', isActive: true } }),
+    prisma.governanceRule.findFirst({ where: { policy: { companyId: client.id, isActive: true }, ruleType: 'BREAK_IN_SERVICE', isActive: true } }),
+  ])
+  // Read raw, the way the ledger (/api/tenure) and the alumni list read them.
   const limitRules = {
     capMonths: tenureRule ? (tenureRule.parameters as any).maxMonths ?? null : null,
     breakDays: breakRule ? (breakRule.parameters as any).breakDays ?? null : null,
@@ -136,17 +132,63 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Log the re-engagement request
+  // ── Which supplier hears it ────────────────────────────────────────
+  //
+  // Decided on ids, by the rule the person page's ask uses; only the
+  // firms it lands on are looked up by name, and each is one this client
+  // deals with.
+  const [listings, subs] = await Promise.all([
+    prisma.benchListing.findMany({ where: { consultant: { personId }, state: 'GRANTED' }, select: { companyId: true } }),
+    prisma.submission.findMany({ where: { toCompanyId: client.id, personId }, select: { fromCompanyId: true }, orderBy: { submittedAt: 'desc' } }),
+  ])
+  const route = askGoesTo({
+    rungs: contracts,
+    benchHolderIds: listings.map((l) => l.companyId),
+    submitterIds: subs.map((s) => s.fromCompanyId),
+    clientCompanyId: client.id,
+  })
+  if (route.toCompanyIds.length === 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NO_SUPPLIER_OF_YOUR_OWN',
+          message: `None of the firms ${client.name} buys through can put ${person.name} forward. Ask one of your suppliers to bring them, and the submission comes through them.`,
+        },
+      },
+      { status: 409 }
+    )
+  }
+  const firms = await prisma.company.findMany({ where: { id: { in: route.toCompanyIds } }, select: { id: true, name: true } })
+
+  const recipients = await prisma.context.findMany({
+    where: { companyId: { in: route.toCompanyIds }, role: { permissions: { hasSome: ['submissions.create', '*'] } } },
+    select: { personId: true, companyId: true },
+  })
+  const through = route.throughAPrime ? ` ${client.name} buys through you here, so the ask comes to you rather than to anyone below you.` : ''
+  const notes: NotifyParams[] = recipients
+    .filter((r) => r.personId !== caller.person.id)
+    .map((r) => ({
+      personId: r.personId,
+      companyId: r.companyId ?? undefined,
+      type: 'CONTRACT',
+      title: `${client.name} would like ${person.name} back`,
+      body: `${caller.person.name} at ${client.name} asked to bring back ${person.name}, who worked there before. Put them forward if they are available.${through}`,
+      data: { personId, clientCompanyId: client.id, action: 'ASK_BACK' },
+    }))
+  await notifyBulk(notes)
+
   await prisma.automationLog.create({
     data: {
-      companyId: clientCompanyId,
+      companyId: client.id,
       action: 'ALUMNI_ASK_BACK',
-      summary: `Re-engagement request initiated for ${person.name} at ${client.name}`,
-      reason: 'Client requested alumni re-engagement via Program dashboard',
+      summary: `Asked ${firms.map((f) => f.name).join(' and ')} to bring back ${person.name} at ${client.name}`,
+      reason: `${caller.person.name} asked from the list of people who worked at ${client.name} before; the ledger reads them clear to come back`,
       payload: {
         personId,
-        clientCompanyId,
-        totalDays,
+        clientCompanyId: client.id,
+        toCompanyIds: route.toCompanyIds,
+        routedBy: route.reason,
+        totalDays: daysOnSite(contracts, now),
         tenureCapMonths: limitRules.capMonths,
         ledgerStatus: verdict.ledgerStatus,
       },
@@ -154,34 +196,15 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  // Notify the vendor company admins about the re-engagement request
-  const vendorContexts = await prisma.context.findMany({
-    where: {
-      companyId: caller.company?.id,
-      role: { permissions: { hasSome: ['assignments.write'] } },
-    },
-    select: { personId: true },
-    take: 5,
-  })
-
-  for (const ctx of vendorContexts) {
-    if (ctx.personId === caller.person.id) continue // don't notify the initiator
-    notify({
-      personId: ctx.personId,
-      companyId: caller.company?.id,
-      type: 'CONTRACT',
-      title: `Alumni re-engagement: ${person.name}`,
-      body: `${caller.person.name} requested to bring back ${person.name} at ${client.name}`,
-      data: { personId, clientCompanyId, action: 'ASK_BACK' },
-    })
-  }
-
+  const asked = firms.map((f) => f.name)
   return NextResponse.json({
     data: {
       personId,
       personName: person.name,
       clientName: client.name,
-      message: `Re-engagement request sent for ${person.name}`,
+      asked,
+      throughAPrime: route.throughAPrime,
+      message: `${asked.join(' and ')} ${asked.length === 1 ? 'has' : 'have'} been asked to bring back ${person.name}.`,
     },
   })
 }

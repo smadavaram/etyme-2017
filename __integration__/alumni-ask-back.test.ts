@@ -28,12 +28,16 @@ async function rowOn(email: string, route: typeof alumni | typeof tenure, path: 
 }
 
 let northbend = ''
+let cavanaugh = ''
 let kwame = ''
+let nadia = ''
 
 beforeAll(async () => {
   await freshWorld()
   northbend = (await prisma.company.findFirstOrThrow({ where: { name: 'Northbend Athletic' }, select: { id: true } })).id
   kwame = (await prisma.person.findFirstOrThrow({ where: { name: 'Kwame Mensah' }, select: { id: true } })).id
+  cavanaugh = (await prisma.company.findFirstOrThrow({ where: { name: 'Cavanaugh Glassworks' }, select: { id: true } })).id
+  nadia = (await prisma.person.findFirstOrThrow({ where: { name: 'Nadia Petrova' }, select: { id: true } })).id
 }, 120_000)
 
 describe('ask them back reads the time-limit ledger', () => {
@@ -80,5 +84,68 @@ describe('ask them back reads the time-limit ledger', () => {
       if (a.state !== 'placed' && l.status === 'IN_BREAK') expect(a.eligibleDate, a.name).toBe(l.eligibleDate)
     }
     expect(compared).toBeGreaterThan(1)
+  })
+})
+
+const askBacksAt = (companyId: string) =>
+  prisma.automationLog.count({ where: { companyId, action: 'ALUMNI_ASK_BACK' } })
+
+describe('ask them back is written only for a client the caller acts for, and goes to a supplier', () => {
+  it('a caller cannot write an ask-back against a client it does not act for', async () => {
+    const before = await askBacksAt(cavanaugh)
+    as(NIKE_OFFICER)
+    const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia, clientCompanyId: cavanaugh })))
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toMatch(/your own company/i)
+    expect(await askBacksAt(cavanaugh), 'nothing written against Cavanaugh Glassworks').toBe(before)
+  })
+
+  it('a supplier that placed somebody at a client cannot ask them back on the client’s behalf', async () => {
+    const before = await askBacksAt(northbend)
+    as(`world-computer-systems${D}`)
+    const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: kwame, clientCompanyId: northbend })))
+    expect(r.status).toBe(403)
+    expect(typeof r.body.error.message).toBe('string')
+    expect(r.body.error.message.length).toBeGreaterThan(20)
+    expect(await askBacksAt(northbend)).toBe(before)
+  })
+
+  it('asking somebody back who never worked at the client is refused in a sentence', async () => {
+    as(CORNING_OFFICER)
+    const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: kwame, clientCompanyId: cavanaugh })))
+    expect(r.status).toBe(404)
+    expect(r.body.error.message).toContain('has not worked at Cavanaugh Glassworks')
+  })
+
+  it('asking Nadia Petrova back goes to the supplier Cavanaugh Glassworks paid for her, and none of Cavanaugh’s own people is told it as a supplier', async () => {
+    const vertex = await prisma.company.findFirstOrThrow({ where: { name: 'Vertex Global' }, select: { id: true } })
+    const since = new Date()
+    as(CORNING_OFFICER)
+    const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.clientName).toBe('Cavanaugh Glassworks')
+    expect(r.body.data.asked).toContain('Vertex Global')
+    expect(r.body.data.message).toContain('Vertex Global')
+
+    const told = await prisma.notification.findMany({
+      where: { createdAt: { gte: since }, title: { contains: 'would like Nadia Petrova back' } },
+      select: { companyId: true },
+    })
+    expect(told.length, 'somebody at the supplier is told').toBeGreaterThan(0)
+    expect(told.every((n) => n.companyId === vertex.id)).toBe(true)
+
+    const log = await prisma.automationLog.findFirstOrThrow({
+      where: { companyId: cavanaugh, action: 'ALUMNI_ASK_BACK' }, orderBy: { at: 'desc' },
+    })
+    expect((log.payload as any).toCompanyIds).toEqual([vertex.id])
+    expect(log.reversible).toBe(true)
+  })
+
+  it('the ask-back never names a firm below the rung the client pays', async () => {
+    as(CORNING_OFFICER)
+    const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia, clientCompanyId: cavanaugh })))
+    expect(r.status).toBe(200)
+    const sahasra = await prisma.company.findFirst({ where: { slug: 'world-sahasra' }, select: { name: true } })
+    if (sahasra) expect(JSON.stringify(r.body)).not.toContain(sahasra.name)
   })
 })

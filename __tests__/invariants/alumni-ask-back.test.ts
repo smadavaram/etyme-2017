@@ -102,3 +102,17 @@ describe('ask them back, read off the time-limit ledger', () => {
     }
   })
 })
+
+describe('who an ask-back is written for, and who hears it', () => {
+  const src = readFileSync(join(process.cwd(), 'src/app/api/alumni/ask-back/route.ts'), 'utf8')
+
+  it('the ask-back request resolves the client the way the alumni list does, never from the body unchecked', () => {
+    expect(src).toContain('resolveClientCompany(caller, requestedClientId)')
+    expect(src).not.toMatch(/where: \{ id: clientCompanyId \}/)
+  })
+
+  it('the ask-back goes to a supplier by the same rule as asking for a person, never to the caller’s own firm', () => {
+    expect(src).toContain('askGoesTo(')
+    expect(src).not.toMatch(/companyId: caller\.company\?\.id,\s*role:/)
+  })
+})
